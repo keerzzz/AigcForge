@@ -1,6 +1,6 @@
 {
-  "name": "@opencode-ai/slack",
-  "version": "1.17.9",
+  "name": "@aigcfroge/slack",
+  "version": "0.0.1",
   "type": "module",
   "license": "MIT",
   "scripts": {
@@ -8,7 +8,7 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "@opencode-ai/sdk": "workspace:*",
+    "@aigcfroge/sdk": "workspace:*",
     "@slack/bolt": "^3.17.1"
   },
   "devDependencies": {

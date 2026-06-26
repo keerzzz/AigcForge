@@ -1,5 +1,5 @@
-import { ProjectCopy } from "@opencode-ai/core/project/copy"
-import { ProjectV2 } from "@opencode-ai/core/project"
+import { ProjectCopy } from "@aigcfroge/core/project/copy"
+import { ProjectV2 } from "@aigcfroge/core/project"
 import { Schema, Struct } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/unstable/httpapi"
 import { LocationMiddleware, LocationQuery, locationQueryOpenApi } from "./location"

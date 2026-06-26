@@ -60,7 +60,7 @@ export interface Interface extends State.Transformable<Draft> {
   }
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/v2/Catalog") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/Catalog") {}
 
 export const layer = Layer.effect(
   Service,
@@ -236,7 +236,7 @@ export const layer = Layer.effect(
           if (!record) return
           const provider = record.provider
 
-          if (providerID === ProviderV2.ID.opencode) {
+          if (providerID === ProviderV2.ID.aigcfroge) {
             const gpt5Nano = record.models.get(ModelV2.ID.make("gpt-5-nano"))
             if (gpt5Nano?.enabled && gpt5Nano.status === "active") return projectModel(gpt5Nano, provider)
           }

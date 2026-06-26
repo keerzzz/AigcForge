@@ -1,5 +1,5 @@
-import { createSimpleContext } from "@opencode-ai/ui/context"
-import { base64Encode, checksum } from "@opencode-ai/core/util/encode"
+import { createSimpleContext } from "@aigcfroge/ui/context"
+import { base64Encode, checksum } from "@aigcfroge/core/util/encode"
 import { useParams, useSearchParams } from "@solidjs/router"
 import { batch, createMemo, createRoot, getOwner, onCleanup, type Accessor } from "solid-js"
 import { createStore, type SetStoreFunction } from "solid-js/store"

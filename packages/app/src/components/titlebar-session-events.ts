@@ -1,4 +1,4 @@
-export const SESSION_TABS_REMOVED_EVENT = "opencode:session-tabs-removed"
+export const SESSION_TABS_REMOVED_EVENT = "aigcfroge:session-tabs-removed"
 
 export type SessionTabsRemovedDetail = {
   directory: string

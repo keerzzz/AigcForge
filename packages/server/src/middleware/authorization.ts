@@ -8,7 +8,7 @@ import { HttpApiMiddleware } from "effect/unstable/httpapi"
 const AUTH_TOKEN_QUERY = "auth_token"
 const WWW_AUTHENTICATE = 'Basic realm="Secure Area"'
 
-export class Authorization extends HttpApiMiddleware.Service<Authorization>()("@opencode/HttpApiAuthorization", {
+export class Authorization extends HttpApiMiddleware.Service<Authorization>()("@aigcfroge/HttpApiAuthorization", {
   error: UnauthorizedError,
 }) {}
 

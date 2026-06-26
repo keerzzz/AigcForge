@@ -1,6 +1,6 @@
-# OpenCode Desktop
+# Aigcfroge Desktop
 
-The OpenCode Desktop app, built with Electron.
+The Aigcfroge Desktop app, built with Electron.
 
 ## Development
 

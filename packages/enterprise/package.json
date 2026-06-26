@@ -1,6 +1,6 @@
 {
-  "name": "@opencode-ai/enterprise",
-  "version": "1.17.9",
+  "name": "@aigcfroge/enterprise",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -8,14 +8,14 @@
     "typecheck": "tsgo --noEmit",
     "dev": "vite dev",
     "build": "vite build",
-    "build:cloudflare": "OPENCODE_DEPLOYMENT_TARGET=cloudflare vite build",
+    "build:cloudflare": "AIGCFROGE_DEPLOYMENT_TARGET=cloudflare vite build",
     "start": "vite start",
     "shell-prod": "sst shell --target Teams --stage production"
   },
   "dependencies": {
-    "@opencode-ai/core": "workspace:*",
-    "@opencode-ai/session-ui": "workspace:*",
-    "@opencode-ai/ui": "workspace:*",
+    "@aigcfroge/core": "workspace:*",
+    "@aigcfroge/session-ui": "workspace:*",
+    "@aigcfroge/ui": "workspace:*",
     "aws4fetch": "^1.0.20",
     "@pierre/diffs": "catalog:",
     "@solidjs/router": "catalog:",

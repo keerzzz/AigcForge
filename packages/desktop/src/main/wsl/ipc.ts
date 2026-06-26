@@ -49,10 +49,10 @@ export function registerWslIpcHandlers(controller: WslServersController) {
   ipcMain.handle("wsl-servers-probe-distro", (_event: IpcMainInvokeEvent, name: string) =>
     controller.probeDistro(requireWslIpcString("distro", name)),
   )
-  ipcMain.handle("wsl-servers-probe-opencode", (_event: IpcMainInvokeEvent, name: string) =>
+  ipcMain.handle("wsl-servers-probe-aigcfroge", (_event: IpcMainInvokeEvent, name: string) =>
     controller.probeOpencode(requireWslIpcString("distro", name)),
   )
-  ipcMain.handle("wsl-servers-install-opencode", (_event: IpcMainInvokeEvent, name: string) =>
+  ipcMain.handle("wsl-servers-install-aigcfroge", (_event: IpcMainInvokeEvent, name: string) =>
     controller.installOpencode(requireWslIpcString("distro", name)),
   )
   ipcMain.handle("wsl-servers-open-terminal", (_event: IpcMainInvokeEvent, name: string) =>
@@ -82,7 +82,7 @@ function registerUnavailableWslIpcHandlers() {
     installed: [],
     online: [],
     distroProbes: {},
-    opencodeChecks: {},
+    aigcfrogeChecks: {},
     pendingRestart: false,
     servers: [],
     job: null,
@@ -98,8 +98,8 @@ function registerUnavailableWslIpcHandlers() {
   ipcMain.handle("wsl-servers-install-wsl", unavailable)
   ipcMain.handle("wsl-servers-install-distro", unavailable)
   ipcMain.handle("wsl-servers-probe-distro", unavailable)
-  ipcMain.handle("wsl-servers-probe-opencode", unavailable)
-  ipcMain.handle("wsl-servers-install-opencode", unavailable)
+  ipcMain.handle("wsl-servers-probe-aigcfroge", unavailable)
+  ipcMain.handle("wsl-servers-install-aigcfroge", unavailable)
   ipcMain.handle("wsl-servers-open-terminal", unavailable)
   ipcMain.handle("wsl-servers-add", unavailable)
   ipcMain.handle("wsl-servers-remove", unavailable)

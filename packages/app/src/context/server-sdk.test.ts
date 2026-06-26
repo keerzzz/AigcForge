@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { coalesceServerEvents, resumeStreamAfterPageShow } from "./server-sdk"
-import type { Event } from "@opencode-ai/sdk/v2/client"
+import type { Event } from "@aigcfroge/sdk/v2/client"
 
 describe("resumeStreamAfterPageShow", () => {
   test("restarts a stream only after a back-forward cache restore", () => {

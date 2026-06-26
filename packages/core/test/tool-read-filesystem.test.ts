@@ -2,8 +2,8 @@ import { describe, expect } from "bun:test"
 import { NodeFileSystem } from "@effect/platform-node"
 import path from "path"
 import { Effect, FileSystem, Layer } from "effect"
-import { FSUtil } from "@opencode-ai/core/fs-util"
-import { ReadToolFileSystem } from "@opencode-ai/core/tool/read-filesystem"
+import { FSUtil } from "@aigcfroge/core/fs-util"
+import { ReadToolFileSystem } from "@aigcfroge/core/tool/read-filesystem"
 import { testEffect } from "./lib/effect"
 
 const it = testEffect(Layer.merge(FSUtil.defaultLayer, NodeFileSystem.layer))

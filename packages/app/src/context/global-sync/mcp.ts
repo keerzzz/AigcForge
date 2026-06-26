@@ -1,4 +1,4 @@
-import type { McpStatus } from "@opencode-ai/sdk/v2/client"
+import type { McpStatus } from "@aigcfroge/sdk/v2/client"
 
 export async function toggleMcp(input: {
   status: McpStatus["status"]

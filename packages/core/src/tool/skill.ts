@@ -1,7 +1,7 @@
 export * as SkillTool from "./skill"
 
 import path from "path"
-import { ToolFailure } from "@opencode-ai/llm"
+import { ToolFailure } from "@aigcfroge/llm"
 import { Effect, Layer, Schema } from "effect"
 import { FSUtil } from "../fs-util"
 import { SkillV2 } from "../skill"

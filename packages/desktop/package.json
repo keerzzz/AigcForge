@@ -1,12 +1,12 @@
 {
-  "name": "@opencode-ai/desktop",
+  "name": "@aigcfroge/desktop",
   "private": true,
-  "version": "1.17.9",
+  "version": "0.0.1",
   "type": "module",
   "license": "MIT",
-  "homepage": "https://opencode.ai",
+  "homepage": "https://aigcfroge.ai",
   "author": {
-    "name": "OpenCode",
+    "name": "Aigcfroge",
     "email": "hello@opencode.ai"
   },
   "scripts": {
@@ -36,8 +36,8 @@
   "devDependencies": {
     "@actions/artifact": "4.0.0",
     "@lydell/node-pty": "catalog:",
-    "@opencode-ai/app": "workspace:*",
-    "@opencode-ai/ui": "workspace:*",
+    "@aigcfroge/app": "workspace:*",
+    "@aigcfroge/ui": "workspace:*",
     "@sentry/solid": "catalog:",
     "@sentry/vite-plugin": "catalog:",
     "@solid-primitives/i18n": "2.2.1",

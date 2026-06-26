@@ -1,31 +1,31 @@
 ---
 title: Provider
-description: Usa qualsiasi provider LLM in OpenCode.
+description: Usa qualsiasi provider LLM in Aigcfroge.
 ---
 
 import config from "../../../../config.mjs"
 export const console = config.console
 
-OpenCode usa [AI SDK](https://ai-sdk.dev/) e [Models.dev](https://models.dev) per supportare **oltre 75 provider LLM** e anche modelli locali.
+Aigcfroge usa [AI SDK](https://ai-sdk.dev/) e [Models.dev](https://models.dev) per supportare **oltre 75 provider LLM** e anche modelli locali.
 
 Per aggiungere un provider devi:
 
 1. Aggiungere le API key del provider con il comando `/connect`.
-2. Configurare il provider nella configurazione di OpenCode.
+2. Configurare il provider nella configurazione di Aigcfroge.
 
 ---
 
 ### Credenziali
 
 Quando aggiungi le API key di un provider con `/connect`, vengono salvate
-in `~/.local/share/opencode/auth.json`.
+in `~/.local/share/aigcfroge/auth.json`.
 
 ---
 
 ### Configurazione
 
 Puoi personalizzare i provider tramite la sezione `provider` nella
-configurazione di OpenCode.
+configurazione di Aigcfroge.
 
 ---
 
@@ -33,7 +33,7 @@ configurazione di OpenCode.
 
 Puoi personalizzare l'URL base per qualsiasi provider impostando l'opzione `baseURL`. E utile quando usi servizi proxy o endpoint personalizzati.
 
-```json title="opencode.json" {6}
+```json title="aigcfroge.json" {6}
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -48,16 +48,16 @@ Puoi personalizzare l'URL base per qualsiasi provider impostando l'opzione `base
 
 ---
 
-## OpenCode Zen
+## Aigcfroge Zen
 
-OpenCode Zen e una lista di modelli forniti dal team OpenCode, testati e
-verificati per funzionare bene con OpenCode. [Scopri di piu](/docs/zen).
+Aigcfroge Zen e una lista di modelli forniti dal team Aigcfroge, testati e
+verificati per funzionare bene con Aigcfroge. [Scopri di piu](/docs/zen).
 
 :::tip
-Se sei all'inizio, ti consigliamo di partire da OpenCode Zen.
+Se sei all'inizio, ti consigliamo di partire da Aigcfroge Zen.
 :::
 
-1. Esegui `/connect` nella TUI, seleziona opencode e vai su [opencode.ai/auth](https://opencode.ai/auth).
+1. Esegui `/connect` nella TUI, seleziona aigcfroge e vai su [opencode.ai/auth](https://opencode.ai/auth).
 
    ```txt
    /connect
@@ -80,7 +80,7 @@ Se sei all'inizio, ti consigliamo di partire da OpenCode Zen.
    /models
    ```
 
-Funziona come qualsiasi altro provider in OpenCode ed e totalmente opzionale.
+Funziona come qualsiasi altro provider in Aigcfroge ed e totalmente opzionale.
 
 ---
 
@@ -124,7 +124,7 @@ Non vedi un provider qui? Invia una PR.
 
 ### Amazon Bedrock
 
-Per usare Amazon Bedrock con OpenCode:
+Per usare Amazon Bedrock con Aigcfroge:
 
 1. Vai al **Model catalog** nella console Amazon Bedrock e richiedi
    accesso ai modelli che vuoi usare.
@@ -139,17 +139,17 @@ Per usare Amazon Bedrock con OpenCode:
 
    #### Variabili d'ambiente (Avvio rapido)
 
-   Imposta una di queste variabili d'ambiente mentre esegui opencode:
+   Imposta una di queste variabili d'ambiente mentre esegui aigcfroge:
 
    ```bash
    # Option 1: Using AWS access keys
-   AWS_ACCESS_KEY_ID=XXX AWS_SECRET_ACCESS_KEY=YYY opencode
+   AWS_ACCESS_KEY_ID=XXX AWS_SECRET_ACCESS_KEY=YYY aigcfroge
 
    # Option 2: Using named AWS profile
-   AWS_PROFILE=my-profile opencode
+   AWS_PROFILE=my-profile aigcfroge
 
    # Option 3: Using Bedrock bearer token
-   AWS_BEARER_TOKEN_BEDROCK=XXX opencode
+   AWS_BEARER_TOKEN_BEDROCK=XXX aigcfroge
    ```
 
    Oppure aggiungile al tuo profilo bash:
@@ -163,9 +163,9 @@ Per usare Amazon Bedrock con OpenCode:
 
    #### File di configurazione (Consigliato)
 
-   Per configurazione specifica del progetto o persistente, usa `opencode.json`:
+   Per configurazione specifica del progetto o persistente, usa `aigcfroge.json`:
 
-   ```json title="opencode.json"
+   ```json title="aigcfroge.json"
    {
      "$schema": "https://opencode.ai/config.json",
      "provider": {
@@ -194,7 +194,7 @@ Per usare Amazon Bedrock con OpenCode:
 
    Se stai usando VPC endpoints per Bedrock:
 
-   ```json title="opencode.json"
+   ```json title="aigcfroge.json"
    {
      "$schema": "https://opencode.ai/config.json",
      "provider": {
@@ -243,7 +243,7 @@ Per usare Amazon Bedrock con OpenCode:
 Per profili di inferenza personalizzati, usa il nome del modello e del provider nella chiave e imposta la proprietà `id` all'arn. Questo assicura una cache corretta.
 :::
 
-```json title="opencode.json"
+```json title="aigcfroge.json"
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -288,7 +288,7 @@ Per profili di inferenza personalizzati, usa il nome del modello e del provider 
    ```
 
 :::info
-L'uso dell'abbonamento Claude Pro/Max in OpenCode non è ufficialmente supportato da [Anthropic](https://anthropic.com).
+L'uso dell'abbonamento Claude Pro/Max in Aigcfroge non è ufficialmente supportato da [Anthropic](https://anthropic.com).
 :::
 
 ##### Usare chiavi API
@@ -301,9 +301,9 @@ Oppure se hai già una chiave API, puoi selezionare **Manually enter API Key** e
 
 ### Atomic Chat
 
-Puoi configurare opencode per utilizzare modelli locali tramite [Atomic Chat](https://atomic.chat), un'applicazione desktop che esegue LLM locali dietro un server API compatibile OpenAI (endpoint predefinito `http://127.0.0.1:1337/v1`).
+Puoi configurare aigcfroge per utilizzare modelli locali tramite [Atomic Chat](https://atomic.chat), un'applicazione desktop che esegue LLM locali dietro un server API compatibile OpenAI (endpoint predefinito `http://127.0.0.1:1337/v1`).
 
-```json title="opencode.json" "atomic-chat" {5, 6, 8, 10-14}
+```json title="aigcfroge.json" "atomic-chat" {5, 6, 8, 10-14}
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -350,7 +350,7 @@ Se incontri errori "I'm sorry, but I cannot assist with that request", prova a c
 2. Vai su [Azure AI Foundry](https://ai.azure.com/) e fai il deploy di un modello.
 
    :::note
-   Il nome del deployment deve corrispondere al nome del modello affinché opencode funzioni correttamente.
+   Il nome del deployment deve corrispondere al nome del modello affinché aigcfroge funzioni correttamente.
    :::
 
 3. Esegui il comando `/connect` e cerca **Azure**.
@@ -371,7 +371,7 @@ Se incontri errori "I'm sorry, but I cannot assist with that request", prova a c
 5. Imposta il nome della risorsa come variabile d'ambiente:
 
    ```bash
-   AZURE_RESOURCE_NAME=XXX opencode
+   AZURE_RESOURCE_NAME=XXX aigcfroge
    ```
 
    Oppure aggiungilo al tuo profilo bash:
@@ -397,7 +397,7 @@ Se incontri errori "I'm sorry, but I cannot assist with that request", prova a c
 2. Vai su [Azure AI Foundry](https://ai.azure.com/) e fai il deploy di un modello.
 
    :::note
-   Il nome del deployment deve corrispondere al nome del modello affinché opencode funzioni correttamente.
+   Il nome del deployment deve corrispondere al nome del modello affinché aigcfroge funzioni correttamente.
    :::
 
 3. Esegui il comando `/connect` e cerca **Azure Cognitive Services**.
@@ -418,7 +418,7 @@ Se incontri errori "I'm sorry, but I cannot assist with that request", prova a c
 5. Imposta il nome della risorsa come variabile d'ambiente:
 
    ```bash
-   AZURE_COGNITIVE_SERVICES_RESOURCE_NAME=XXX opencode
+   AZURE_COGNITIVE_SERVICES_RESOURCE_NAME=XXX aigcfroge
    ```
 
    Oppure aggiungilo al tuo profilo bash:
@@ -529,9 +529,9 @@ Cloudflare AI Gateway ti permette di accedere a modelli di OpenAI, Anthropic, Wo
    /models
    ```
 
-   Puoi anche aggiungere modelli tramite la tua configurazione di opencode.
+   Puoi anche aggiungere modelli tramite la tua configurazione di aigcfroge.
 
-   ```json title="opencode.json"
+   ```json title="aigcfroge.json"
    {
      "$schema": "https://opencode.ai/config.json",
      "provider": {
@@ -709,7 +709,7 @@ GitLab Duo fornisce una chat agentic basata su AI con capacità di chiamata stru
    #### Usando Personal Access Token
    1. Vai a [GitLab User Settings > Access Tokens](https://gitlab.com/-/user_settings/personal_access_tokens)
    2. Clicca **Add new token**
-   3. Nome: `OpenCode`, Scopes: `api`
+   3. Nome: `Aigcfroge`, Scopes: `api`
    4. Copia il token (inizia con `glpat-`)
    5. Inseriscilo nel terminale
 
@@ -726,16 +726,16 @@ GitLab Duo fornisce una chat agentic basata su AI con capacità di chiamata stru
 
 :::note
 Puoi anche specificare la variabile d'ambiente 'GITLAB_TOKEN' se non vuoi
-salvare il token nello storage di auth di opencode.
+salvare il token nello storage di auth di aigcfroge.
 :::
 
 ##### GitLab Self-Hosted
 
 :::note[nota di compliance]
-OpenCode usa un modello piccolo per alcuni task AI come generare il titolo della sessione.
-È configurato per usare gpt-5-nano di default, ospitato da Zen. Per bloccare OpenCode
+Aigcfroge usa un modello piccolo per alcuni task AI come generare il titolo della sessione.
+È configurato per usare gpt-5-nano di default, ospitato da Zen. Per bloccare Aigcfroge
 a usare solo la tua istanza GitLab self-hosted, aggiungi quanto segue al tuo
-file `opencode.json`. Si raccomanda anche di disabilitare la condivisione sessioni.
+file `aigcfroge.json`. Si raccomanda anche di disabilitare la condivisione sessioni.
 
 ```json
 {
@@ -793,13 +793,13 @@ Poi esponi l'ID applicazione come variabile d'ambiente:
 export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 ```
 
-Maggior documentazione sulla homepage di [opencode-gitlab-auth](https://www.npmjs.com/package/opencode-gitlab-auth).
+Maggior documentazione sulla homepage di [aigcfroge-gitlab-auth](https://www.npmjs.com/package/aigcfroge-gitlab-auth).
 
 ##### Configurazione
 
-Personalizza tramite `opencode.json`:
+Personalizza tramite `aigcfroge.json`:
 
-```json title="opencode.json"
+```json title="aigcfroge.json"
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -816,10 +816,10 @@ Personalizza tramite `opencode.json`:
 
 Per accedere agli strumenti GitLab (merge requests, issues, pipelines, CI/CD, ecc.):
 
-```json title="opencode.json"
+```json title="aigcfroge.json"
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-gitlab-plugin"]
+  "plugin": ["aigcfroge-gitlab-plugin"]
 }
 ```
 
@@ -829,7 +829,7 @@ Questo plugin offre funzionalita complete per la gestione dei repository GitLab,
 
 ### GitHub Copilot
 
-Per usare il tuo abbonamento GitHub Copilot con opencode:
+Per usare il tuo abbonamento GitHub Copilot con aigcfroge:
 
 :::note
 Alcuni modelli potrebbero richiedere un [abbonamento Pro+](https://github.com/features/copilot/plans) per essere utilizzati.
@@ -865,7 +865,7 @@ Alcuni modelli devono essere abilitati manualmente nelle tue [impostazioni GitHu
 
 ### Google Vertex AI
 
-Per usare Google Vertex AI con OpenCode:
+Per usare Google Vertex AI con Aigcfroge:
 
 1. Vai al **Model Garden** nella Google Cloud Console e controlla i
    modelli disponibili nella tua regione.
@@ -881,10 +881,10 @@ Per usare Google Vertex AI con OpenCode:
      - `GOOGLE_APPLICATION_CREDENTIALS`: Percorso al file JSON della chiave del tuo service account
      - Autenticati usando la CLI gcloud: `gcloud auth application-default login`
 
-   Impostale mentre esegui opencode.
+   Impostale mentre esegui aigcfroge.
 
    ```bash
-   GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json GOOGLE_CLOUD_PROJECT=your-project-id opencode
+   GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json GOOGLE_CLOUD_PROJECT=your-project-id aigcfroge
    ```
 
    Oppure aggiungile al tuo profilo bash.
@@ -994,11 +994,11 @@ Per altri provider e funzionalità avanzate come caching e rate limiting, contro
 
 #### Config opzionali
 
-Nel caso vedessi una funzionalità o un modello di Helicone che non viene configurato automaticamente da opencode, puoi sempre configurarlo tu stesso.
+Nel caso vedessi una funzionalità o un modello di Helicone che non viene configurato automaticamente da aigcfroge, puoi sempre configurarlo tu stesso.
 
 Ecco la [Model Directory di Helicone](https://helicone.ai/models), ti servirà per recuperare gli ID dei modelli che vuoi aggiungere.
 
-```jsonc title="~/.config/opencode/opencode.jsonc"
+```jsonc title="~/.config/aigcfroge/aigcfroge.jsonc"
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -1026,7 +1026,7 @@ Ecco la [Model Directory di Helicone](https://helicone.ai/models), ti servirà p
 
 Helicone supporta header personalizzati per funzionalità come caching, user tracking e gestione sessioni. Aggiungili alla configurazione del provider usando `options.headers`:
 
-```jsonc title="~/.config/opencode/opencode.jsonc"
+```jsonc title="~/.config/aigcfroge/aigcfroge.jsonc"
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -1037,7 +1037,7 @@ Helicone supporta header personalizzati per funzionalità come caching, user tra
         "baseURL": "https://ai-gateway.helicone.ai",
         "headers": {
           "Helicone-Cache-Enabled": "true",
-          "Helicone-User-Id": "opencode",
+          "Helicone-User-Id": "aigcfroge",
         },
       },
     },
@@ -1047,21 +1047,21 @@ Helicone supporta header personalizzati per funzionalità come caching, user tra
 
 ##### Tracciamento sessioni
 
-La funzionalità [Sessions](https://docs.helicone.ai/features/sessions) di Helicone ti permette di raggruppare richieste LLM correlate. Usa il plugin [opencode-helicone-session](https://github.com/H2Shami/opencode-helicone-session) per loggare automaticamente ogni conversazione di OpenCode come una sessione in Helicone.
+La funzionalità [Sessions](https://docs.helicone.ai/features/sessions) di Helicone ti permette di raggruppare richieste LLM correlate. Usa il plugin [aigcfroge-helicone-session](https://github.com/H2Shami/aigcfroge-helicone-session) per loggare automaticamente ogni conversazione di Aigcfroge come una sessione in Helicone.
 
 ```bash
-npm install -g opencode-helicone-session
+npm install -g aigcfroge-helicone-session
 ```
 
 Aggiungilo alla tua configurazione.
 
-```json title="opencode.json"
+```json title="aigcfroge.json"
 {
-  "plugin": ["opencode-helicone-session"]
+  "plugin": ["aigcfroge-helicone-session"]
 }
 ```
 
-Il plugin inietta gli header `Helicone-Session-Id` e `Helicone-Session-Name` nelle tue richieste. Nella pagina Sessions di Helicone, vedrai ogni conversazione di OpenCode elencata come sessione separata.
+Il plugin inietta gli header `Helicone-Session-Id` e `Helicone-Session-Name` nelle tue richieste. Nella pagina Sessions di Helicone, vedrai ogni conversazione di Aigcfroge elencata come sessione separata.
 
 ##### Header Helicone comuni
 
@@ -1078,9 +1078,9 @@ Vedi la [Helicone Header Directory](https://docs.helicone.ai/helicone-headers/he
 
 ### llama.cpp
 
-Puoi configurare opencode per usare modelli locali tramite l'utility llama-server di [llama.cpp](https://github.com/ggml-org/llama.cpp)
+Puoi configurare aigcfroge per usare modelli locali tramite l'utility llama-server di [llama.cpp](https://github.com/ggml-org/llama.cpp)
 
-```json title="opencode.json" "llama.cpp" {5, 6, 8, 10-15}
+```json title="aigcfroge.json" "llama.cpp" {5, 6, 8, 10-15}
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -1145,9 +1145,9 @@ IO.NET offre 17 modelli ottimizzati per vari casi d'uso:
 
 ### LM Studio
 
-Puoi configurare opencode per usare modelli locali tramite LM Studio.
+Puoi configurare aigcfroge per usare modelli locali tramite LM Studio.
 
-```json title="opencode.json" "lmstudio" {5, 6, 8, 10-14}
+```json title="aigcfroge.json" "lmstudio" {5, 6, 8, 10-14}
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -1262,13 +1262,13 @@ Per usare Kimi K2 di Moonshot AI:
 
 ### Ollama
 
-Puoi configurare opencode per usare modelli locali tramite Ollama.
+Puoi configurare aigcfroge per usare modelli locali tramite Ollama.
 
 :::tip
-Ollama può auto-configurarsi per OpenCode. Vedi la [documentazione di integrazione Ollama](https://docs.ollama.com/integrations/opencode) per dettagli.
+Ollama può auto-configurarsi per Aigcfroge. Vedi la [documentazione di integrazione Ollama](https://docs.ollama.com/integrations/aigcfroge) per dettagli.
 :::
 
-```json title="opencode.json" "ollama" {5, 6, 8, 10-14}
+```json title="aigcfroge.json" "ollama" {5, 6, 8, 10-14}
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -1304,13 +1304,13 @@ Se le chiamate agli strumenti non funzionano, prova ad aumentare `num_ctx` in Ol
 
 ### Ollama Cloud
 
-Per usare Ollama Cloud con OpenCode:
+Per usare Ollama Cloud con Aigcfroge:
 
 1. Vai su [https://ollama.com/](https://ollama.com/) e accedi o crea un account.
 
 2. Naviga in **Settings** > **Keys** e clicca **Add API Key** per generare una nuova chiave API.
 
-3. Copia la chiave API da usare in OpenCode.
+3. Copia la chiave API da usare in Aigcfroge.
 
 4. Esegui il comando `/connect` e cerca **Ollama Cloud**.
 
@@ -1327,7 +1327,7 @@ Per usare Ollama Cloud con OpenCode:
    └ enter
    ```
 
-6. **Importante**: Prima di usare modelli cloud in OpenCode, devi scaricare le informazioni del modello localmente:
+6. **Importante**: Prima di usare modelli cloud in Aigcfroge, devi scaricare le informazioni del modello localmente:
 
    ```bash
    ollama pull gpt-oss:20b-cloud
@@ -1374,19 +1374,19 @@ Se hai già una chiave API, puoi selezionare **Manually enter API Key** e incoll
 
 ---
 
-### OpenCode Zen
+### Aigcfroge Zen
 
-OpenCode Zen è una lista di modelli testati e verificati forniti dal team OpenCode. [Scopri di più](/docs/zen).
+Aigcfroge Zen è una lista di modelli testati e verificati forniti dal team Aigcfroge. [Scopri di più](/docs/zen).
 
-1. Accedi a **<a href={console}>OpenCode Zen</a>** e clicca **Create API Key**.
+1. Accedi a **<a href={console}>Aigcfroge Zen</a>** e clicca **Create API Key**.
 
-2. Esegui il comando `/connect` e cerca **OpenCode Zen**.
+2. Esegui il comando `/connect` e cerca **Aigcfroge Zen**.
 
    ```txt
    /connect
    ```
 
-3. Inserisci la tua chiave API di OpenCode.
+3. Inserisci la tua chiave API di Aigcfroge.
 
    ```txt
    ┌ API key
@@ -1428,9 +1428,9 @@ OpenCode Zen è una lista di modelli testati e verificati forniti dal team OpenC
    /models
    ```
 
-   Puoi anche aggiungere modelli addizionali tramite la tua configurazione di opencode.
+   Puoi anche aggiungere modelli addizionali tramite la tua configurazione di aigcfroge.
 
-   ```json title="opencode.json" {6}
+   ```json title="aigcfroge.json" {6}
    {
      "$schema": "https://opencode.ai/config.json",
      "provider": {
@@ -1443,9 +1443,9 @@ OpenCode Zen è una lista di modelli testati e verificati forniti dal team OpenC
    }
    ```
 
-5. Puoi anche personalizzarli tramite la configurazione di opencode. Ecco un esempio di specifica di un provider
+5. Puoi anche personalizzarli tramite la configurazione di aigcfroge. Ecco un esempio di specifica di un provider
 
-   ```json title="opencode.json"
+   ```json title="aigcfroge.json"
    {
      "$schema": "https://opencode.ai/config.json",
      "provider": {
@@ -1495,7 +1495,7 @@ SAP AI Core fornisce accesso a oltre 40 modelli di OpenAI, Anthropic, Google, Am
    Oppure imposta la variabile d'ambiente `AICORE_SERVICE_KEY`:
 
    ```bash
-   AICORE_SERVICE_KEY='{"clientid":"...","clientsecret":"...","url":"...","serviceurls":{"AI_API_URL":"..."}}' opencode
+   AICORE_SERVICE_KEY='{"clientid":"...","clientsecret":"...","url":"...","serviceurls":{"AI_API_URL":"..."}}' aigcfroge
    ```
 
    Oppure aggiungila al tuo profilo bash:
@@ -1507,7 +1507,7 @@ SAP AI Core fornisce accesso a oltre 40 modelli di OpenAI, Anthropic, Google, Am
 4. Facoltativamente imposta deployment ID e resource group:
 
    ```bash
-   AICORE_DEPLOYMENT_ID=your-deployment-id AICORE_RESOURCE_GROUP=your-resource-group opencode
+   AICORE_DEPLOYMENT_ID=your-deployment-id AICORE_RESOURCE_GROUP=your-resource-group aigcfroge
    ```
 
    :::note
@@ -1692,9 +1692,9 @@ Vercel AI Gateway ti permette di accedere a modelli di OpenAI, Anthropic, Google
    /models
    ```
 
-Puoi anche personalizzare i modelli tramite la tua configurazione di opencode. Ecco un esempio di come specificare l'ordine di routing dei provider.
+Puoi anche personalizzare i modelli tramite la tua configurazione di aigcfroge. Ecco un esempio di come specificare l'ordine di routing dei provider.
 
-```json title="opencode.json"
+```json title="aigcfroge.json"
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -1802,9 +1802,9 @@ Alcune opzioni di routing utili:
    /models
    ```
 
-   Puoi anche aggiungere modelli addizionali tramite la tua configurazione di opencode.
+   Puoi anche aggiungere modelli addizionali tramite la tua configurazione di aigcfroge.
 
-   ```json title="opencode.json" {6}
+   ```json title="aigcfroge.json" {6}
    {
      "$schema": "https://opencode.ai/config.json",
      "provider": {
@@ -1824,7 +1824,7 @@ Alcune opzioni di routing utili:
 Per aggiungere qualsiasi provider **OpenAI-compatible** non elencato nel comando `/connect`:
 
 :::tip
-Puoi usare qualsiasi provider OpenAI-compatible con opencode. La maggior parte dei provider AI moderni offre API OpenAI-compatible.
+Puoi usare qualsiasi provider OpenAI-compatible con aigcfroge. La maggior parte dei provider AI moderni offre API OpenAI-compatible.
 :::
 
 1. Esegui il comando `/connect` e scorri fino a **Other**.
@@ -1863,16 +1863,16 @@ Puoi usare qualsiasi provider OpenAI-compatible con opencode. La maggior parte d
 
    ┌  Add credential
    │
-   ▲  This only stores a credential for myprovider - you will need to configure it in opencode.json, check the docs for examples.
+   ▲  This only stores a credential for myprovider - you will need to configure it in aigcfroge.json, check the docs for examples.
    │
    ◇  Enter your API key
    │  sk-...
    └
    ```
 
-4. Crea o aggiorna il tuo file `opencode.json` nella directory del progetto:
+4. Crea o aggiorna il tuo file `aigcfroge.json` nella directory del progetto:
 
-   ```json title="opencode.json" ""myprovider"" {5-15}
+   ```json title="aigcfroge.json" ""myprovider"" {5-15}
    {
      "$schema": "https://opencode.ai/config.json",
      "provider": {
@@ -1910,7 +1910,7 @@ Puoi usare qualsiasi provider OpenAI-compatible con opencode. La maggior parte d
 
 Ecco un esempio che imposta le opzioni `apiKey`, `headers` e `limit` del modello.
 
-```json title="opencode.json" {9,11,17-20}
+```json title="aigcfroge.json" {9,11,17-20}
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -1945,7 +1945,7 @@ Dettagli configurazione:
 - **limit.context**: Massimi token di input accettati dal modello.
 - **limit.output**: Massimi token che il modello può generare.
 
-I campi `limit` permettono a OpenCode di capire quanto contesto rimane. I provider standard recuperano questi dati da models.dev automaticamente.
+I campi `limit` permettono a Aigcfroge di capire quanto contesto rimane. I provider standard recuperano questi dati da models.dev automaticamente.
 
 ---
 
@@ -1953,12 +1953,12 @@ I campi `limit` permettono a OpenCode di capire quanto contesto rimane. I provid
 
 Se hai problemi con la configurazione di un provider, controlla quanto segue:
 
-1. **Controlla il setup auth**: Esegui `opencode auth list` per vedere se le credenziali
+1. **Controlla il setup auth**: Esegui `aigcfroge auth list` per vedere se le credenziali
    per il provider sono aggiunte alla tua configurazione.
 
    Questo non si applica a provider come Amazon Bedrock, che si basano su variabili d'ambiente per l'autenticazione.
 
-2. Per provider personalizzati, controlla la config di opencode e:
-   - Assicurati che l'ID provider usato nel comando `/connect` corrisponda all'ID nella tua config opencode.
+2. Per provider personalizzati, controlla la config di aigcfroge e:
+   - Assicurati che l'ID provider usato nel comando `/connect` corrisponda all'ID nella tua config aigcfroge.
    - Che sia usato il pacchetto npm corretto per il provider. Per esempio, usa `@ai-sdk/cerebras` per Cerebras. E per tutti gli altri provider OpenAI-compatible, usa `@ai-sdk/openai-compatible`.
    - Controlla che sia usato l'endpoint API corretto nel campo `options.baseURL`.

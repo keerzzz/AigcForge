@@ -1,6 +1,6 @@
 export * as ModelRequest from "./model-request"
 
-import { ModelRequest } from "@opencode-ai/schema/model-request"
+import { ModelRequest } from "@aigcfroge/schema/model-request"
 
 export const Generation = ModelRequest.Generation
 export type Generation = ModelRequest.Generation

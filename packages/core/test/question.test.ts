@@ -1,9 +1,9 @@
 import { describe, expect } from "bun:test"
 import { Context, Deferred, Effect, Exit, Fiber, Layer, Scope } from "effect"
-import { Database } from "@opencode-ai/core/database/database"
-import { EventV2 } from "@opencode-ai/core/event"
-import { QuestionV2 } from "@opencode-ai/core/question"
-import { SessionV2 } from "@opencode-ai/core/session"
+import { Database } from "@aigcfroge/core/database/database"
+import { EventV2 } from "@aigcfroge/core/event"
+import { QuestionV2 } from "@aigcfroge/core/question"
+import { SessionV2 } from "@aigcfroge/core/session"
 import { testEffect } from "./lib/effect"
 
 const questions = QuestionV2.layer.pipe(Layer.provide(EventV2.defaultLayer))

@@ -1,6 +1,6 @@
 {
-  "name": "@opencode-ai/function",
-  "version": "1.17.9",
+  "name": "@aigcfroge/function",
+  "version": "0.0.1",
   "$schema": "https://json.schemastore.org/package.json",
   "private": true,
   "type": "module",

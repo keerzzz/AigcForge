@@ -1,5 +1,5 @@
 import { Context, Effect, Layer, Schema } from "effect"
-import { Ref } from "@opencode-ai/schema/location"
+import { Ref } from "@aigcfroge/schema/location"
 import { Project } from "./project"
 import { AbsolutePath, optionalOmitUndefined } from "./schema"
 import { WorkspaceV2 } from "./workspace"
@@ -25,7 +25,7 @@ export function response<S extends Schema.Top>(data: S) {
   return Schema.Struct({ location: Info, data })
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/Location") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Location") {}
 
 export const layer = (ref: Ref) =>
   Layer.effect(

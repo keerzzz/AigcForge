@@ -1,5 +1,5 @@
 {
-  description = "OpenCode development flake";
+  description = "Aigcfroge development flake";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -39,11 +39,11 @@
             };
           in
           rec {
-            opencode = final.callPackage ./nix/opencode.nix {
+            aigcfroge = final.callPackage ./nix/aigcfroge.nix {
               inherit node_modules;
             };
-            opencode-desktop = final.callPackage ./nix/desktop.nix {
-              inherit opencode;
+            aigcfroge-desktop = final.callPackage ./nix/desktop.nix {
+              inherit aigcfroge;
             };
           };
       };
@@ -56,12 +56,12 @@
           };
         in
         rec {
-          default = opencode;
-          opencode = pkgs.callPackage ./nix/opencode.nix {
+          default = aigcfroge;
+          aigcfroge = pkgs.callPackage ./nix/aigcfroge.nix {
             inherit node_modules;
           };
-          opencode-desktop = pkgs.callPackage ./nix/desktop.nix {
-            inherit opencode;
+          aigcfroge-desktop = pkgs.callPackage ./nix/desktop.nix {
+            inherit aigcfroge;
           };
           # Updater derivation with fakeHash - build fails and reveals correct hash
           node_modules_updater = node_modules.override {

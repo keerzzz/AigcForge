@@ -1,30 +1,30 @@
 ---
 title: المزوّدون
-description: استخدام أي موفّر LLM في OpenCode.
+description: استخدام أي موفّر LLM في Aigcfroge.
 ---
 
 import config from "../../../../config.mjs"
 export const console = config.console
 
-يستخدم OpenCode ‏[AI SDK](https://ai-sdk.dev/) و[Models.dev](https://models.dev) لدعم **أكثر من 75 موفّر LLM**، كما يدعم تشغيل النماذج المحلية.
+يستخدم Aigcfroge ‏[AI SDK](https://ai-sdk.dev/) و[Models.dev](https://models.dev) لدعم **أكثر من 75 موفّر LLM**، كما يدعم تشغيل النماذج المحلية.
 
 لإضافة مزوّد تحتاج إلى:
 
 1. أضف مفاتيح API الخاصة بالمزوّد باستخدام الأمر `/connect`.
-2. اضبط المزوّد في ملف إعدادات OpenCode.
+2. اضبط المزوّد في ملف إعدادات Aigcfroge.
 
 ---
 
 ### بيانات الاعتماد
 
 عند إضافة مفاتيح API الخاصة بمزوّد عبر الأمر `/connect`، يتم تخزينها
-في `~/.local/share/opencode/auth.json`.
+في `~/.local/share/aigcfroge/auth.json`.
 
 ---
 
 ### الإعدادات
 
-يمكنك تخصيص المزوّدات عبر قسم `provider` في ملف إعدادات OpenCode.
+يمكنك تخصيص المزوّدات عبر قسم `provider` في ملف إعدادات Aigcfroge.
 
 ---
 
@@ -32,7 +32,7 @@ export const console = config.console
 
 يمكنك تخصيص عنوان URL الأساسي لأي مزوّد عبر خيار `baseURL`. يفيد ذلك عند استخدام خدمات وسيطة (proxy) أو نقاط نهاية مخصّصة.
 
-```json title="opencode.json" {6}
+```json title="aigcfroge.json" {6}
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -47,16 +47,16 @@ export const console = config.console
 
 ---
 
-## OpenCode Zen
+## Aigcfroge Zen
 
-OpenCode Zen هي قائمة نماذج يوفّرها فريق OpenCode وقد تم
-اختبارها والتحقق من أنها تعمل بشكل جيد مع OpenCode. [اعرف المزيد](/docs/zen).
+Aigcfroge Zen هي قائمة نماذج يوفّرها فريق Aigcfroge وقد تم
+اختبارها والتحقق من أنها تعمل بشكل جيد مع Aigcfroge. [اعرف المزيد](/docs/zen).
 
 :::tip
-إذا كنت جديدا، فننصح بالبدء مع OpenCode Zen.
+إذا كنت جديدا، فننصح بالبدء مع Aigcfroge Zen.
 :::
 
-1. شغّل الأمر `/connect` في TUI، واختر opencode، ثم انتقل إلى [opencode.ai/auth](https://opencode.ai/auth).
+1. شغّل الأمر `/connect` في TUI، واختر aigcfroge، ثم انتقل إلى [opencode.ai/auth](https://opencode.ai/auth).
 
    ```txt
    /connect
@@ -79,15 +79,15 @@ OpenCode Zen هي قائمة نماذج يوفّرها فريق OpenCode وقد 
    /models
    ```
 
-يعمل مثل أي مزوّد آخر في OpenCode واستخدامه اختياري بالكامل.
+يعمل مثل أي مزوّد آخر في Aigcfroge واستخدامه اختياري بالكامل.
 
 ---
 
-## OpenCode Go
+## Aigcfroge Go
 
-OpenCode Go هي خطة اشتراك منخفضة التكلفة توفّر وصولا موثوقا إلى نماذج البرمجة المفتوحة الشهيرة المقدّمة من فريق OpenCode، والتي تم اختبارها والتحقق من أنها تعمل بشكل جيد مع OpenCode.
+Aigcfroge Go هي خطة اشتراك منخفضة التكلفة توفّر وصولا موثوقا إلى نماذج البرمجة المفتوحة الشهيرة المقدّمة من فريق Aigcfroge، والتي تم اختبارها والتحقق من أنها تعمل بشكل جيد مع Aigcfroge.
 
-1. شغّل الأمر `/connect` في TUI، واختر `OpenCode Go`، ثم انتقل إلى [opencode.ai/auth](https://opencode.ai/zen).
+1. شغّل الأمر `/connect` في TUI، واختر `Aigcfroge Go`، ثم انتقل إلى [opencode.ai/auth](https://opencode.ai/zen).
 
    ```txt
    /connect
@@ -110,7 +110,7 @@ OpenCode Go هي خطة اشتراك منخفضة التكلفة توفّر وص
    /models
    ```
 
-يعمل مثل أي مزوّد آخر في OpenCode واستخدامه اختياري بالكامل.
+يعمل مثل أي مزوّد آخر في Aigcfroge واستخدامه اختياري بالكامل.
 
 ---
 
@@ -154,7 +154,7 @@ OpenCode Go هي خطة اشتراك منخفضة التكلفة توفّر وص
 
 ### Amazon Bedrock
 
-لاستخدام Amazon Bedrock مع OpenCode:
+لاستخدام Amazon Bedrock مع Aigcfroge:
 
 1. توجّه إلى **Model catalog** في Amazon Bedrock console واطلب
    الوصول إلى النماذج التي تريدها.
@@ -167,17 +167,17 @@ OpenCode Go هي خطة اشتراك منخفضة التكلفة توفّر وص
 
    #### متغيرات البيئة (بدء سريع)
 
-   عيّن أحد متغيرات البيئة التالية أثناء تشغيل opencode:
+   عيّن أحد متغيرات البيئة التالية أثناء تشغيل aigcfroge:
 
    ```bash
    # الخيار 1: استخدام مفاتيح وصول AWS
-   AWS_ACCESS_KEY_ID=XXX AWS_SECRET_ACCESS_KEY=YYY opencode
+   AWS_ACCESS_KEY_ID=XXX AWS_SECRET_ACCESS_KEY=YYY aigcfroge
 
    # الخيار 2: استخدام ملف تعريف AWS مسمّى
-   AWS_PROFILE=my-profile opencode
+   AWS_PROFILE=my-profile aigcfroge
 
    # الخيار 3: استخدام رمز Bedrock المميز (bearer token)
-   AWS_BEARER_TOKEN_BEDROCK=XXX opencode
+   AWS_BEARER_TOKEN_BEDROCK=XXX aigcfroge
    ```
 
    أو أضفها إلى bash profile:
@@ -189,9 +189,9 @@ OpenCode Go هي خطة اشتراك منخفضة التكلفة توفّر وص
 
    #### ملف الإعدادات (موصى به)
 
-   للإعداد الخاص بالمشروع أو الإعداد الدائم، استخدم `opencode.json`:
+   للإعداد الخاص بالمشروع أو الإعداد الدائم، استخدم `aigcfroge.json`:
 
-   ```json title="opencode.json"
+   ```json title="aigcfroge.json"
    {
      "$schema": "https://opencode.ai/config.json",
      "provider": {
@@ -218,7 +218,7 @@ OpenCode Go هي خطة اشتراك منخفضة التكلفة توفّر وص
 
    إذا كنت تستخدم نقاط نهاية VPC لـ Bedrock:
 
-   ```json title="opencode.json"
+   ```json title="aigcfroge.json"
    {
      "$schema": "https://opencode.ai/config.json",
      "provider": {
@@ -261,7 +261,7 @@ OpenCode Go هي خطة اشتراك منخفضة التكلفة توفّر وص
 :::note
 بالنسبة إلى ملفات تعريف الاستدلال المخصّصة، استخدم اسم النموذج واسم المزوّد في المفتاح وعيّن الخاصية `id` إلى arn. يضمن ذلك التخزين المؤقت الصحيح:
 
-```json title="opencode.json"
+```json title="aigcfroge.json"
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -308,7 +308,7 @@ OpenCode Go هي خطة اشتراك منخفضة التكلفة توفّر وص
    ```
 
 :::info
-استخدام اشتراك Claude Pro/Max داخل OpenCode غير مدعوم رسميا من [Anthropic](https://anthropic.com).
+استخدام اشتراك Claude Pro/Max داخل Aigcfroge غير مدعوم رسميا من [Anthropic](https://anthropic.com).
 :::
 
 ##### استخدام مفاتيح API
@@ -321,9 +321,9 @@ OpenCode Go هي خطة اشتراك منخفضة التكلفة توفّر وص
 
 ### Atomic Chat
 
-يمكنك تكوين opencode لاستخدام النماذج المحلية عبر [Atomic Chat](https://atomic.chat)، وهو تطبيق سطح مكتب يقوم بتشغيل LLMs المحلية خلف خادم API متوافق مع OpenAI (نقطة النهاية الافتراضية `http://127.0.0.1:1337/v1`).
+يمكنك تكوين aigcfroge لاستخدام النماذج المحلية عبر [Atomic Chat](https://atomic.chat)، وهو تطبيق سطح مكتب يقوم بتشغيل LLMs المحلية خلف خادم API متوافق مع OpenAI (نقطة النهاية الافتراضية `http://127.0.0.1:1337/v1`).
 
-```json title="opencode.json" "atomic-chat" {5, 6, 8, 10-14}
+```json title="aigcfroge.json" "atomic-chat" {5, 6, 8, 10-14}
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -370,7 +370,7 @@ OpenCode Go هي خطة اشتراك منخفضة التكلفة توفّر وص
 2. اذهب إلى [Azure AI Foundry](https://ai.azure.com/) وانشر نموذجا.
 
    :::note
-   يجب أن يطابق اسم النشر اسم النموذج كي يعمل opencode بشكل صحيح.
+   يجب أن يطابق اسم النشر اسم النموذج كي يعمل aigcfroge بشكل صحيح.
    :::
 
 3. شغّل الأمر `/connect` وابحث عن **Azure**.
@@ -391,7 +391,7 @@ OpenCode Go هي خطة اشتراك منخفضة التكلفة توفّر وص
 5. عيّن اسم المورد كمتغير بيئة:
 
    ```bash
-   AZURE_RESOURCE_NAME=XXX opencode
+   AZURE_RESOURCE_NAME=XXX aigcfroge
    ```
 
    أو أضفه إلى bash profile:
@@ -417,7 +417,7 @@ OpenCode Go هي خطة اشتراك منخفضة التكلفة توفّر وص
 2. اذهب إلى [Azure AI Foundry](https://ai.azure.com/) وانشر نموذجا.
 
    :::note
-   يجب أن يطابق اسم النشر اسم النموذج كي يعمل opencode بشكل صحيح.
+   يجب أن يطابق اسم النشر اسم النموذج كي يعمل aigcfroge بشكل صحيح.
    :::
 
 3. شغّل الأمر `/connect` وابحث عن **Azure Cognitive Services**.
@@ -438,7 +438,7 @@ OpenCode Go هي خطة اشتراك منخفضة التكلفة توفّر وص
 5. عيّن اسم المورد كمتغير بيئة:
 
    ```bash
-   AZURE_COGNITIVE_SERVICES_RESOURCE_NAME=XXX opencode
+   AZURE_COGNITIVE_SERVICES_RESOURCE_NAME=XXX aigcfroge
    ```
 
    أو أضفه إلى bash profile:
@@ -549,9 +549,9 @@ OpenCode Go هي خطة اشتراك منخفضة التكلفة توفّر وص
    /models
    ```
 
-   يمكنك أيضا إضافة نماذج عبر إعدادات opencode.
+   يمكنك أيضا إضافة نماذج عبر إعدادات aigcfroge.
 
-   ```json title="opencode.json"
+   ```json title="aigcfroge.json"
    {
      "$schema": "https://opencode.ai/config.json",
      "provider": {
@@ -728,7 +728,7 @@ OpenCode Go هي خطة اشتراك منخفضة التكلفة توفّر وص
 
    #### استخدام Personal Access Token 1. اذهب إلى [GitLab User Settings > Access Tokens](https://gitlab.com/-/user_settings/personal_access_tokens)
    2. انقر **Add new token**
-   3. Name: `OpenCode`، Scopes: `api`
+   3. Name: `Aigcfroge`، Scopes: `api`
    4. انسخ الرمز (يبدأ بـ `glpat-`)
    5. أدخله في terminal
 
@@ -745,16 +745,16 @@ OpenCode Go هي خطة اشتراك منخفضة التكلفة توفّر وص
 
 :::note
 يمكنك أيضا تعيين متغير البيئة 'GITLAB_TOKEN' إذا لم تكن تريد
-تخزين الرمز في مساحة تخزين مصادقة opencode.
+تخزين الرمز في مساحة تخزين مصادقة aigcfroge.
 :::
 
 ##### GitLab مستضاف ذاتيا
 
 :::note[ملاحظة امتثال]
-يستخدم OpenCode نموذجا صغيرا لبعض مهام الذكاء الاصطناعي مثل إنشاء عنوان الجلسة.
-تم ضبطه لاستخدام gpt-5-nano افتراضيا، مستضافا عبر Zen. لحصر OpenCode
+يستخدم Aigcfroge نموذجا صغيرا لبعض مهام الذكاء الاصطناعي مثل إنشاء عنوان الجلسة.
+تم ضبطه لاستخدام gpt-5-nano افتراضيا، مستضافا عبر Zen. لحصر Aigcfroge
 على استخدام مثيل GitLab المستضاف لديك فقط، أضف ما يلي إلى ملف
-`opencode.json` لديك. يوصى أيضا بتعطيل مشاركة الجلسات.
+`aigcfroge.json` لديك. يوصى أيضا بتعطيل مشاركة الجلسات.
 
 ```json
 {
@@ -812,13 +812,13 @@ callback URL ‏`http://127.0.0.1:8080/callback` ونطاقات الصلاحيا
 export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 ```
 
-مزيد من التوثيق على صفحة [opencode-gitlab-auth](https://www.npmjs.com/package/opencode-gitlab-auth).
+مزيد من التوثيق على صفحة [aigcfroge-gitlab-auth](https://www.npmjs.com/package/aigcfroge-gitlab-auth).
 
 ##### التهيئة
 
-خصّص عبر `opencode.json`:
+خصّص عبر `aigcfroge.json`:
 
-```json title="opencode.json"
+```json title="aigcfroge.json"
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -835,10 +835,10 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 للوصول إلى أدوات GitLab (merge requests وissues وpipelines وCI/CD وغيرها):
 
-```json title="opencode.json"
+```json title="aigcfroge.json"
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-gitlab-plugin"]
+  "plugin": ["aigcfroge-gitlab-plugin"]
 }
 ```
 
@@ -848,7 +848,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 ### GitHub Copilot
 
-لاستخدام اشتراك GitHub Copilot مع opencode:
+لاستخدام اشتراك GitHub Copilot مع aigcfroge:
 
 :::note
 قد تتطلب بعض النماذج اشتراك [Pro+](https://github.com/features/copilot/plans) للاستخدام.
@@ -884,7 +884,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 ### Google Vertex AI
 
-لاستخدام Google Vertex AI مع OpenCode:
+لاستخدام Google Vertex AI مع Aigcfroge:
 
 1. توجّه إلى **Model Garden** في Google Cloud Console وتحقق من
    النماذج المتاحة في منطقتك.
@@ -900,10 +900,10 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
      - `GOOGLE_APPLICATION_CREDENTIALS`: مسار ملف مفتاح حساب الخدمة بصيغة JSON
      - المصادقة عبر gcloud CLI: ‏`gcloud auth application-default login`
 
-   عيّنها أثناء تشغيل opencode.
+   عيّنها أثناء تشغيل aigcfroge.
 
    ```bash
-   GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json GOOGLE_CLOUD_PROJECT=your-project-id opencode
+   GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json GOOGLE_CLOUD_PROJECT=your-project-id aigcfroge
    ```
 
    أو أضفها إلى bash profile.
@@ -1013,11 +1013,11 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 #### إعدادات اختيارية
 
-إذا رأيت ميزة أو نموذجا في Helicone لم يتم ضبطه تلقائيا عبر opencode، فيمكنك دائما ضبطه بنفسك.
+إذا رأيت ميزة أو نموذجا في Helicone لم يتم ضبطه تلقائيا عبر aigcfroge، فيمكنك دائما ضبطه بنفسك.
 
 هذه هي [Helicone's Model Directory](https://helicone.ai/models)، وستحتاجها للحصول على IDs الخاصة بالنماذج التي تريد إضافتها.
 
-```jsonc title="~/.config/opencode/opencode.jsonc"
+```jsonc title="~/.config/aigcfroge/aigcfroge.jsonc"
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -1045,7 +1045,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 تدعم Helicone ترويسات مخصّصة لميزات مثل التخزين المؤقت وتتبع المستخدم وإدارة الجلسات. أضفها إلى إعداد المزوّد عبر `options.headers`:
 
-```jsonc title="~/.config/opencode/opencode.jsonc"
+```jsonc title="~/.config/aigcfroge/aigcfroge.jsonc"
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -1056,7 +1056,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
         "baseURL": "https://ai-gateway.helicone.ai",
         "headers": {
           "Helicone-Cache-Enabled": "true",
-          "Helicone-User-Id": "opencode",
+          "Helicone-User-Id": "aigcfroge",
         },
       },
     },
@@ -1066,21 +1066,21 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 ##### تتبع الجلسات
 
-تتيح ميزة [Sessions](https://docs.helicone.ai/features/sessions) في Helicone تجميع طلبات LLM المرتبطة معا. استخدم ملحق [opencode-helicone-session](https://github.com/H2Shami/opencode-helicone-session) لتسجيل كل محادثة OpenCode تلقائيا كجلسة في Helicone.
+تتيح ميزة [Sessions](https://docs.helicone.ai/features/sessions) في Helicone تجميع طلبات LLM المرتبطة معا. استخدم ملحق [aigcfroge-helicone-session](https://github.com/H2Shami/aigcfroge-helicone-session) لتسجيل كل محادثة Aigcfroge تلقائيا كجلسة في Helicone.
 
 ```bash
-npm install -g opencode-helicone-session
+npm install -g aigcfroge-helicone-session
 ```
 
 أضفه إلى إعداداتك.
 
-```json title="opencode.json"
+```json title="aigcfroge.json"
 {
-  "plugin": ["opencode-helicone-session"]
+  "plugin": ["aigcfroge-helicone-session"]
 }
 ```
 
-يقوم الملحق بحقن ترويسات `Helicone-Session-Id` و`Helicone-Session-Name` ضمن طلباتك. في صفحة Sessions داخل Helicone، سترى كل محادثة OpenCode مدرجة كجلسة مستقلة.
+يقوم الملحق بحقن ترويسات `Helicone-Session-Id` و`Helicone-Session-Name` ضمن طلباتك. في صفحة Sessions داخل Helicone، سترى كل محادثة Aigcfroge مدرجة كجلسة مستقلة.
 
 ##### ترويسات Helicone الشائعة
 
@@ -1097,9 +1097,9 @@ npm install -g opencode-helicone-session
 
 ### llama.cpp
 
-يمكنك ضبط opencode لاستخدام نماذج محلية عبر أداة llama-server ضمن [llama.cpp](https://github.com/ggml-org/llama.cpp)
+يمكنك ضبط aigcfroge لاستخدام نماذج محلية عبر أداة llama-server ضمن [llama.cpp](https://github.com/ggml-org/llama.cpp)
 
-```json title="opencode.json" "llama.cpp" {5, 6, 8, 10-15}
+```json title="aigcfroge.json" "llama.cpp" {5, 6, 8, 10-15}
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -1164,9 +1164,9 @@ npm install -g opencode-helicone-session
 
 ### LM Studio
 
-يمكنك ضبط opencode لاستخدام نماذج محلية عبر LM Studio.
+يمكنك ضبط aigcfroge لاستخدام نماذج محلية عبر LM Studio.
 
-```json title="opencode.json" "lmstudio" {5, 6, 8, 10-14}
+```json title="aigcfroge.json" "lmstudio" {5, 6, 8, 10-14}
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -1281,13 +1281,13 @@ npm install -g opencode-helicone-session
 
 ### Ollama
 
-يمكنك ضبط opencode لاستخدام نماذج محلية عبر Ollama.
+يمكنك ضبط aigcfroge لاستخدام نماذج محلية عبر Ollama.
 
 :::tip
-يمكن لـ Ollama ضبط نفسه تلقائيا للعمل مع OpenCode. راجع [توثيق تكامل Ollama](https://docs.ollama.com/integrations/opencode) للتفاصيل.
+يمكن لـ Ollama ضبط نفسه تلقائيا للعمل مع Aigcfroge. راجع [توثيق تكامل Ollama](https://docs.ollama.com/integrations/aigcfroge) للتفاصيل.
 :::
 
-```json title="opencode.json" "ollama" {5, 6, 8, 10-14}
+```json title="aigcfroge.json" "ollama" {5, 6, 8, 10-14}
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -1323,13 +1323,13 @@ npm install -g opencode-helicone-session
 
 ### Ollama Cloud
 
-لاستخدام Ollama Cloud مع OpenCode:
+لاستخدام Ollama Cloud مع Aigcfroge:
 
 1. توجّه إلى [https://ollama.com/](https://ollama.com/) وسجّل الدخول أو أنشئ حسابا.
 
 2. انتقل إلى **Settings** > **Keys** وانقر **Add API Key** لإنشاء مفتاح API جديد.
 
-3. انسخ مفتاح API لاستخدامه في OpenCode.
+3. انسخ مفتاح API لاستخدامه في Aigcfroge.
 
 4. شغّل الأمر `/connect` وابحث عن **Ollama Cloud**.
 
@@ -1346,7 +1346,7 @@ npm install -g opencode-helicone-session
    └ enter
    ```
 
-6. **مهم**: قبل استخدام نماذج السحابة في OpenCode، يجب سحب معلومات النموذج محليا:
+6. **مهم**: قبل استخدام نماذج السحابة في Aigcfroge، يجب سحب معلومات النموذج محليا:
 
    ```bash
    ollama pull gpt-oss:20b-cloud
@@ -1393,19 +1393,19 @@ npm install -g opencode-helicone-session
 
 ---
 
-### OpenCode Zen
+### Aigcfroge Zen
 
-OpenCode Zen هي قائمة من النماذج التي تم اختبارها والتحقق منها مقدّمة من فريق OpenCode. [اعرف المزيد](/docs/zen).
+Aigcfroge Zen هي قائمة من النماذج التي تم اختبارها والتحقق منها مقدّمة من فريق Aigcfroge. [اعرف المزيد](/docs/zen).
 
-1. سجّل الدخول إلى **<a href={console}>OpenCode Zen</a>** وانقر **Create API Key**.
+1. سجّل الدخول إلى **<a href={console}>Aigcfroge Zen</a>** وانقر **Create API Key**.
 
-2. شغّل الأمر `/connect` وابحث عن **OpenCode Zen**.
+2. شغّل الأمر `/connect` وابحث عن **Aigcfroge Zen**.
 
    ```txt
    /connect
    ```
 
-3. أدخل مفتاح API الخاص بـ OpenCode.
+3. أدخل مفتاح API الخاص بـ Aigcfroge.
 
    ```txt
    ┌ API key
@@ -1447,9 +1447,9 @@ OpenCode Zen هي قائمة من النماذج التي تم اختبارها 
    /models
    ```
 
-   يمكنك أيضا إضافة نماذج إضافية عبر إعدادات opencode.
+   يمكنك أيضا إضافة نماذج إضافية عبر إعدادات aigcfroge.
 
-   ```json title="opencode.json" {6}
+   ```json title="aigcfroge.json" {6}
    {
      "$schema": "https://opencode.ai/config.json",
      "provider": {
@@ -1462,9 +1462,9 @@ OpenCode Zen هي قائمة من النماذج التي تم اختبارها 
    }
    ```
 
-5. يمكنك أيضا تخصيصها عبر إعدادات opencode. إليك مثالا على تحديد مزوّد
+5. يمكنك أيضا تخصيصها عبر إعدادات aigcfroge. إليك مثالا على تحديد مزوّد
 
-   ```json title="opencode.json"
+   ```json title="aigcfroge.json"
    {
      "$schema": "https://opencode.ai/config.json",
      "provider": {
@@ -1514,7 +1514,7 @@ OpenCode Zen هي قائمة من النماذج التي تم اختبارها 
    أو عيّن متغير البيئة `AICORE_SERVICE_KEY`:
 
    ```bash
-   AICORE_SERVICE_KEY='{"clientid":"...","clientsecret":"...","url":"...","serviceurls":{"AI_API_URL":"..."}}' opencode
+   AICORE_SERVICE_KEY='{"clientid":"...","clientsecret":"...","url":"...","serviceurls":{"AI_API_URL":"..."}}' aigcfroge
    ```
 
    أو أضفه إلى bash profile:
@@ -1526,7 +1526,7 @@ OpenCode Zen هي قائمة من النماذج التي تم اختبارها 
 4. اختياريا، عيّن deployment ID وresource group:
 
    ```bash
-   AICORE_DEPLOYMENT_ID=your-deployment-id AICORE_RESOURCE_GROUP=your-resource-group opencode
+   AICORE_DEPLOYMENT_ID=your-deployment-id AICORE_RESOURCE_GROUP=your-resource-group aigcfroge
    ```
 
    :::note
@@ -1711,9 +1711,9 @@ OpenCode Zen هي قائمة من النماذج التي تم اختبارها 
    /models
    ```
 
-يمكنك أيضا تخصيص النماذج عبر إعدادات opencode. إليك مثالا على تحديد ترتيب توجيه المزوّدات.
+يمكنك أيضا تخصيص النماذج عبر إعدادات aigcfroge. إليك مثالا على تحديد ترتيب توجيه المزوّدات.
 
-```json title="opencode.json"
+```json title="aigcfroge.json"
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -1821,9 +1821,9 @@ OpenCode Zen هي قائمة من النماذج التي تم اختبارها 
    /models
    ```
 
-   يمكنك أيضا إضافة نماذج إضافية عبر إعدادات opencode.
+   يمكنك أيضا إضافة نماذج إضافية عبر إعدادات aigcfroge.
 
-   ```json title="opencode.json" {6}
+   ```json title="aigcfroge.json" {6}
    {
      "$schema": "https://opencode.ai/config.json",
      "provider": {
@@ -1843,7 +1843,7 @@ OpenCode Zen هي قائمة من النماذج التي تم اختبارها 
 لإضافة أي مزوّد **OpenAI-compatible** غير موجود ضمن الأمر `/connect`:
 
 :::tip
-يمكنك استخدام أي مزوّد OpenAI-compatible مع opencode. معظم مزوّدي الذكاء الاصطناعي الحديثة يقدّمون APIs متوافقة مع OpenAI.
+يمكنك استخدام أي مزوّد OpenAI-compatible مع aigcfroge. معظم مزوّدي الذكاء الاصطناعي الحديثة يقدّمون APIs متوافقة مع OpenAI.
 :::
 
 1. شغّل الأمر `/connect` ومرّر للأسفل حتى **Other**.
@@ -1882,16 +1882,16 @@ OpenCode Zen هي قائمة من النماذج التي تم اختبارها 
 
    ┌  Add credential
    │
-   ▲  This only stores a credential for myprovider - you will need to configure it in opencode.json, check the docs for examples.
+   ▲  This only stores a credential for myprovider - you will need to configure it in aigcfroge.json, check the docs for examples.
    │
    ◇  Enter your API key
    │  sk-...
    └
    ```
 
-4. أنشئ أو حدّث ملف `opencode.json` في دليل مشروعك:
+4. أنشئ أو حدّث ملف `aigcfroge.json` في دليل مشروعك:
 
-   ```json title="opencode.json" ""myprovider"" {5-15}
+   ```json title="aigcfroge.json" ""myprovider"" {5-15}
    {
      "$schema": "https://opencode.ai/config.json",
      "provider": {
@@ -1929,7 +1929,7 @@ OpenCode Zen هي قائمة من النماذج التي تم اختبارها 
 
 إليك مثالا يضبط خيارات `apiKey` و`headers` وخيارات `limit` الخاصة بالنموذج.
 
-```json title="opencode.json" {9,11,17-20}
+```json title="aigcfroge.json" {9,11,17-20}
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -1964,7 +1964,7 @@ OpenCode Zen هي قائمة من النماذج التي تم اختبارها 
 - **limit.context**: الحد الأقصى لرموز الإدخال التي يقبلها النموذج.
 - **limit.output**: الحد الأقصى للرموز التي يمكن للنموذج توليدها.
 
-تسمح حقول `limit` لـ OpenCode بفهم مقدار السياق المتبقي لديك. تسحب المزوّدات القياسية هذه القيم تلقائيا من models.dev.
+تسمح حقول `limit` لـ Aigcfroge بفهم مقدار السياق المتبقي لديك. تسحب المزوّدات القياسية هذه القيم تلقائيا من models.dev.
 
 ---
 
@@ -1972,12 +1972,12 @@ OpenCode Zen هي قائمة من النماذج التي تم اختبارها 
 
 إذا كنت تواجه مشكلة في تهيئة مزوّد، فتحقق مما يلي:
 
-1. **تحقق من إعداد auth**: شغّل `opencode auth list` لمعرفة ما إذا كانت بيانات الاعتماد
+1. **تحقق من إعداد auth**: شغّل `aigcfroge auth list` لمعرفة ما إذا كانت بيانات الاعتماد
    الخاصة بالمزوّد قد أضيفت إلى إعداداتك.
 
    لا ينطبق هذا على مزوّدات مثل Amazon Bedrock التي تعتمد على متغيرات البيئة لـ auth.
 
-2. للمزوّدات المخصّصة، راجع إعدادات opencode وتأكد من:
-   - أن provider ID المستخدم في الأمر `/connect` يطابق الـ ID في إعدادات opencode.
+2. للمزوّدات المخصّصة، راجع إعدادات aigcfroge وتأكد من:
+   - أن provider ID المستخدم في الأمر `/connect` يطابق الـ ID في إعدادات aigcfroge.
    - استخدام حزمة npm الصحيحة للمزوّد. على سبيل المثال استخدم `@ai-sdk/cerebras` لـ Cerebras. ولكل المزوّدات الأخرى المتوافقة مع OpenAI استخدم `@ai-sdk/openai-compatible`.
    - استخدام نقطة نهاية API الصحيحة في الحقل `options.baseURL`.

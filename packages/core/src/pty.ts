@@ -117,7 +117,7 @@ export interface Interface {
   readonly attach: (id: PtyID, input: AttachInput) => Effect.Effect<Attachment, NotFoundError | ExitedError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/v2/Pty") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/Pty") {}
 
 export const layer = Layer.effect(
   Service,
@@ -201,7 +201,7 @@ export const layer = Layer.effect(
         ...process.env,
         ...input.env,
         TERM: "xterm-256color",
-        OPENCODE_TERMINAL: "1",
+        AIGCFROGE_TERMINAL: "1",
       } as Record<string, string>
       if (process.platform === "win32") {
         env.LC_ALL = "C.UTF-8"

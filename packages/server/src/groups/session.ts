@@ -1,10 +1,10 @@
-import { SessionMessage } from "@opencode-ai/core/session/message"
-import { SessionInput } from "@opencode-ai/core/session/input"
-import { Prompt } from "@opencode-ai/core/session/prompt"
-import { SessionV2 } from "@opencode-ai/core/session"
-import { ProjectV2 } from "@opencode-ai/core/project"
-import { AbsolutePath, PositiveInt, RelativePath, withStatics } from "@opencode-ai/core/schema"
-import { WorkspaceV2 } from "@opencode-ai/core/workspace"
+import { SessionMessage } from "@aigcfroge/core/session/message"
+import { SessionInput } from "@aigcfroge/core/session/input"
+import { Prompt } from "@aigcfroge/core/session/prompt"
+import { SessionV2 } from "@aigcfroge/core/session"
+import { ProjectV2 } from "@aigcfroge/core/project"
+import { AbsolutePath, PositiveInt, RelativePath, withStatics } from "@aigcfroge/core/schema"
+import { WorkspaceV2 } from "@aigcfroge/core/workspace"
 import { Schema, Struct } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/unstable/httpapi"
 import {
@@ -16,9 +16,9 @@ import {
   UnknownError,
 } from "../errors"
 import { SessionLocationMiddleware } from "../middleware/session-location"
-import { AgentV2 } from "@opencode-ai/core/agent"
-import { ModelV2 } from "@opencode-ai/core/model"
-import { Location } from "@opencode-ai/core/location"
+import { AgentV2 } from "@aigcfroge/core/agent"
+import { ModelV2 } from "@aigcfroge/core/model"
+import { Location } from "@aigcfroge/core/location"
 
 const SessionsQueryFields = {
   workspace: WorkspaceV2.ID.pipe(Schema.optional),

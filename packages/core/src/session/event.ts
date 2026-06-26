@@ -1,6 +1,6 @@
 import { Schema } from "effect"
-import { ProviderMetadata, ToolContent } from "@opencode-ai/schema/llm"
-import { Delivery } from "@opencode-ai/schema/session-delivery"
+import { ProviderMetadata, ToolContent } from "@aigcfroge/schema/llm"
+import { Delivery } from "@aigcfroge/schema/session-delivery"
 import { EventV2 } from "../event"
 import { ModelV2 } from "../model"
 import { DateTimeUtcFromMillis, NonNegativeInt, RelativePath } from "../schema"

@@ -34,7 +34,7 @@ export interface Interface {
   readonly load: (agent: AgentV2.Selection) => Effect.Effect<SystemContext.SystemContext>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/v2/SkillGuidance") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SkillGuidance") {}
 
 export const layer = Layer.effect(
   Service,

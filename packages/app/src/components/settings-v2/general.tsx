@@ -1,11 +1,11 @@
 import { Component, Show, createMemo, createResource, onMount } from "solid-js"
 import { createMediaQuery } from "@solid-primitives/media"
-import { ButtonV2 } from "@opencode-ai/ui/v2/button-v2"
-import { SelectV2 } from "@opencode-ai/ui/v2/select-v2"
-import { Switch } from "@opencode-ai/ui/v2/switch-v2"
-import { TextInputV2 } from "@opencode-ai/ui/v2/text-input-v2"
-import { useTheme, type ColorScheme } from "@opencode-ai/ui/theme/context"
-import { useDialog } from "@opencode-ai/ui/context/dialog"
+import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
+import { SelectV2 } from "@aigcfroge/ui/v2/select-v2"
+import { Switch } from "@aigcfroge/ui/v2/switch-v2"
+import { TextInputV2 } from "@aigcfroge/ui/v2/text-input-v2"
+import { useTheme, type ColorScheme } from "@aigcfroge/ui/theme/context"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useParams } from "@solidjs/router"
 import { useLanguage } from "@/context/language"
 import { usePermission } from "@/context/permission"
@@ -453,7 +453,7 @@ export const SettingsGeneralV2: Component = () => {
           description={
             <>
               {language.t("settings.general.row.theme.description")}{" "}
-              <Link class="settings-v2-link" href="https://opencode.ai/docs/themes/">
+              <Link class="settings-v2-link" href="https://aigcfroge.ai/docs/themes/">
                 {language.t("common.learnMore")}
               </Link>
             </>

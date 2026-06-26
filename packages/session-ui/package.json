@@ -1,6 +1,6 @@
 {
-  "name": "@opencode-ai/session-ui",
-  "version": "1.17.9",
+  "name": "@aigcfroge/session-ui",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -35,9 +35,9 @@
   },
   "dependencies": {
     "@kobalte/core": "catalog:",
-    "@opencode-ai/core": "workspace:*",
-    "@opencode-ai/sdk": "workspace:*",
-    "@opencode-ai/ui": "workspace:*",
+    "@aigcfroge/core": "workspace:*",
+    "@aigcfroge/sdk": "workspace:*",
+    "@aigcfroge/ui": "workspace:*",
     "@pierre/diffs": "catalog:",
     "@shikijs/stream": "catalog:",
     "@shikijs/transformers": "3.9.2",

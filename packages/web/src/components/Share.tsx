@@ -5,9 +5,9 @@ import { IconArrowDown } from "./icons"
 import { IconOpencode } from "./icons/custom"
 import { ShareI18nProvider, formatCurrency, formatNumber, normalizeLocale } from "./share/common"
 import styles from "./share.module.css"
-import type { MessageV2 } from "opencode/session/message-v2"
-import type { Message } from "opencode/session/message"
-import type { Session } from "opencode/session/index"
+import type { MessageV2 } from "aigcfroge/session/message-v2"
+import type { Message } from "aigcfroge/session/message"
+import type { Session } from "aigcfroge/session/index"
 import { Part, ProviderIcon } from "./share/part"
 
 type MessageWithParts = MessageV2.Info & { parts: MessageV2.Part[] }
@@ -62,7 +62,7 @@ export default function Share(props: {
     messages: Record<string, MessageWithParts>
   }>({
     info: {
-      id: props.id,
+      id: props.id as MessageV2.SessionID,
       slug: props.info.slug,
       projectID: props.info.projectID,
       directory: props.info.directory,
@@ -303,8 +303,8 @@ export default function Share(props: {
             <h1 data-component="header-title">{store.info?.title}</h1>
             <div data-component="header-details">
               <ul data-component="header-stats">
-                <li title={props.messages.opencode_version} data-slot="item">
-                  <div data-slot="icon" title={props.messages.opencode_name}>
+                <li title={props.messages.aigcfroge_version} data-slot="item">
+                  <div data-slot="icon" title={props.messages.aigcfroge_name}>
                     <IconOpencode width={16} height={16} />
                   </div>
                   <Show when={store.info?.version} fallback="v0.0.1">
@@ -501,10 +501,10 @@ export default function Share(props: {
 export function fromV1(v1: Message.Info): MessageWithParts {
   if (v1.role === "assistant") {
     return {
-      id: v1.id,
-      sessionID: v1.metadata.sessionID,
+      id: v1.id as MessageV2.MessageID,
+      sessionID: v1.metadata.sessionID as MessageV2.SessionID,
       role: "assistant",
-      parentID: "",
+      parentID: "" as MessageV2.MessageID,
       agent: "build",
       time: {
         created: v1.metadata.time.created,
@@ -522,15 +522,15 @@ export function fromV1(v1: Message.Info): MessageWithParts {
         },
         reasoning: 0,
       },
-      modelID: v1.metadata.assistant!.modelID,
-      providerID: v1.metadata.assistant!.providerID,
+      modelID: v1.metadata.assistant!.modelID as MessageV2.Assistant["modelID"],
+      providerID: v1.metadata.assistant!.providerID as MessageV2.Assistant["providerID"],
       mode: "build",
       error: v1.metadata.error,
       parts: v1.parts.flatMap((part, index): MessageV2.Part[] => {
         const base = {
-          id: index.toString(),
-          messageID: v1.id,
-          sessionID: v1.metadata.sessionID,
+          id: index.toString() as MessageV2.PartID,
+          messageID: v1.id as MessageV2.MessageID,
+          sessionID: v1.metadata.sessionID as MessageV2.SessionID,
         }
         if (part.type === "text") {
           return [
@@ -569,7 +569,7 @@ export function fromV1(v1: Message.Info): MessageWithParts {
                 if (part.toolInvocation.state === "call") {
                   return {
                     status: "running",
-                    input: part.toolInvocation.args,
+                    input: part.toolInvocation.args as Record<string, any>,
                     time: {
                       start: time.start,
                     },
@@ -579,7 +579,7 @@ export function fromV1(v1: Message.Info): MessageWithParts {
                 if (part.toolInvocation.state === "result") {
                   return {
                     status: "completed",
-                    input: part.toolInvocation.args,
+                    input: part.toolInvocation.args as Record<string, any>,
                     output: part.toolInvocation.result,
                     title,
                     time,
@@ -587,7 +587,7 @@ export function fromV1(v1: Message.Info): MessageWithParts {
                   }
                 }
                 throw new Error("unknown tool invocation state")
-              })(),
+              })() as MessageV2.ToolPart["state"],
             },
           ]
         }
@@ -598,22 +598,22 @@ export function fromV1(v1: Message.Info): MessageWithParts {
 
   if (v1.role === "user") {
     return {
-      id: v1.id,
-      sessionID: v1.metadata.sessionID,
+      id: v1.id as MessageV2.MessageID,
+      sessionID: v1.metadata.sessionID as MessageV2.SessionID,
       role: "user",
       agent: "user",
       model: {
-        providerID: "",
-        modelID: "",
+        providerID: "" as MessageV2.User["model"]["providerID"],
+        modelID: "" as MessageV2.User["model"]["modelID"],
       },
       time: {
         created: v1.metadata.time.created,
       },
       parts: v1.parts.flatMap((part, index): MessageV2.Part[] => {
         const base = {
-          id: index.toString(),
-          messageID: v1.id,
-          sessionID: v1.metadata.sessionID,
+          id: index.toString() as MessageV2.PartID,
+          messageID: v1.id as MessageV2.MessageID,
+          sessionID: v1.metadata.sessionID as MessageV2.SessionID,
         }
         if (part.type === "text") {
           return [
