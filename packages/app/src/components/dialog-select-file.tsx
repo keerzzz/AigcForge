@@ -393,7 +393,7 @@ export function DialogSelectFile(props: { mode?: DialogSelectFileMode; onOpenFil
     state.cleanup?.()
   })
 
-  if (filesOnly() && platform.platform === "desktop" && settings.general.newLayoutDesigns() && server.current) {
+  if (filesOnly() && platform.platform === "desktop" && true && server.current) {
     return (
       <DialogSelectFileV2
         server={server.current}

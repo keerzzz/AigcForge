@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { ServerConnection } from "@/context/server"
-import { legacySessionHref, requireServerKey, rootSession, sessionHref } from "./session-route"
+import { requireServerKey, rootSession, sessionHref } from "./session-route"
 
 describe("session routes", () => {
   test("builds and decodes a server-keyed session route", () => {
@@ -15,11 +15,6 @@ describe("session routes", () => {
     expect(() => requireServerKey("not-base64")).toThrow("Invalid server route")
   })
 
-  test("builds the legacy directory-keyed route", () => {
-    expect(legacySessionHref("/Users/example/project", "session-1")).toBe(
-      "/L1VzZXJzL2V4YW1wbGUvcHJvamVjdA/session/session-1",
-    )
-  })
 
   test("resolves the root session", async () => {
     const sessions: Record<string, { id: string; parentID?: string }> = {

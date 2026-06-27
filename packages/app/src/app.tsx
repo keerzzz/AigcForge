@@ -41,50 +41,30 @@ import { NotificationProvider } from "@/context/notification"
 import { PermissionProvider } from "@/context/permission"
 import { PromptProvider } from "@/context/prompt"
 import { ServerConnection, ServerProvider, serverName, useServer } from "@/context/server"
-import { SettingsProvider, useSettings } from "@/context/settings"
+import { SettingsProvider } from "@/context/settings"
 import { TerminalProvider } from "@/context/terminal"
 import { TabsProvider, useTabs, type DraftTab } from "@/context/tabs"
 import { SDKProvider, useSDK } from "@/context/sdk"
 import { WslServersProvider } from "@/wsl/context"
-import DirectoryLayout, { DirectoryDataProvider } from "@/pages/directory-layout"
-import LegacyLayout from "@/pages/layout"
-import NewLayout from "@/pages/layout-new"
+import { DirectoryDataProvider } from "@/pages/directory-layout"
+import Layout from "@/pages/layout"
 import { ErrorPage } from "./pages/error"
 import { useCheckServerHealth } from "./utils/server-health"
-import { legacySessionHref, requireServerKey, rootSession, sessionHref } from "./utils/session-route"
+import { requireServerKey, rootSession, sessionHref } from "./utils/session-route"
 
 import Session from "@/pages/session"
-import { NewHome, LegacyHome } from "@/pages/home"
+import { Home } from "@/pages/home"
 
 const NewSession = lazy(() => import("@/pages/new-session"))
 
-const SessionRoute = () => {
-  const settings = useSettings()
-  const params = useParams()
-  const [search] = useSearchParams<{ draftId?: string; prompt?: string }>()
-  const sdk = useSDK()
+// Redirects legacy /:dir/session/:id? URLs to the current new-layout format.
+function LegacySessionRedirect() {
+  const params = useParams<{ dir: string; id?: string }>()
   const server = useServer()
-  const tabs = useTabs()
-
-  if (params.id && settings.general.newLayoutDesigns()) {
-    return <Navigate href={sessionHref(server.key, params.id)} />
-  }
-
-  // When the new layout is enabled, the legacy new-session route (/:dir/session with no id)
-  // is replaced by a draft at /new-session?draftId=…
-  createEffect(() => {
-    if (!settings.general.newLayoutDesigns()) return
-    if (params.id || search.draftId) return
-    if (!tabs.ready() || !sdk().directory) return
-    tabs.newDraft({ server: server.key, directory: sdk().directory }, search.prompt)
-  })
-
-  return (
-    <SessionProviders>
-      <Session />
-    </SessionProviders>
-  )
+  if (params.id) return <Navigate href={sessionHref(server.key, params.id)} />
+  return <Navigate href="/" />
 }
+
 
 const TargetSessionRoute = () => {
   const params = useParams<{ serverKey: string; id: string }>()
@@ -107,7 +87,6 @@ const TargetSessionRoute = () => {
 
 function ResolvedTargetSessionRoute() {
   const params = useParams<{ serverKey: string; id: string }>()
-  const settings = useSettings()
   const tabs = useTabs()
   const global = useGlobal()
   const serverSDK = useServerSDK()
@@ -143,24 +122,19 @@ function ResolvedTargetSessionRoute() {
     })
   })
 
-  return (
-    <TargetServerScopedProviders directory={directory} sessionID={() => params.id}>
-      <Show when={!resolved.error} fallback={<ErrorPage error={resolved.error} />}>
-        <Show when={directory()}>
-          <Show
-            when={settings.general.newLayoutDesigns()}
-            fallback={<Navigate href={legacySessionHref(directory()!, params.id)} />}
-          >
-            <SDKProvider directory={targetDirectory}>
-              <DirectoryDataProvider directory={targetDirectory} server={serverKey}>
-                <TargetSessionPage />
-              </DirectoryDataProvider>
-            </SDKProvider>
-          </Show>
-        </Show>
-      </Show>
-    </TargetServerScopedProviders>
-  )
+	return (
+	  <TargetServerScopedProviders directory={directory} sessionID={() => params.id}>
+	    <Show when={!resolved.error} fallback={<ErrorPage error={resolved.error} />}>
+	      <Show when={directory()}>
+	        <SDKProvider directory={targetDirectory}>
+	          <DirectoryDataProvider directory={targetDirectory} server={serverKey}>
+	            <TargetSessionPage />
+	          </DirectoryDataProvider>
+	        </SDKProvider>
+	      </Show>
+	    </Show>
+	  </TargetServerScopedProviders>
+	)
 }
 
 function TargetSessionPage() {
@@ -188,13 +162,6 @@ function SelectedServerProviders(props: ParentProps) {
   )
 }
 
-function LegacyServerLayout(props: ParentProps) {
-  return (
-    <SelectedServerProviders>
-      <LegacyServerScopedShell>{props.children}</LegacyServerScopedShell>
-    </SelectedServerProviders>
-  )
-}
 
 function DraftRoute() {
   const [search] = useSearchParams<{ draftId?: string }>()
@@ -266,16 +233,12 @@ function QueryProvider(props: ParentProps) {
 }
 
 function BodyDesignClass() {
-  const settings = useSettings()
 
   createEffect(() => {
     if (typeof document === "undefined") return
-
-    const enabled = settings.general.newLayoutDesigns()
-    document.body.classList.toggle("text-12-regular", !enabled)
-    document.body.classList.toggle("font-(family-name:--font-family-text)", enabled)
-    document.body.classList.toggle("text-[13px]", enabled)
-    document.body.classList.toggle("font-[440]", enabled)
+    document.body.classList.add("font-(family-name:--font-family-text)")
+    document.body.classList.add("text-[13px]")
+    document.body.classList.add("font-[440]")
   })
 
   return null
@@ -294,7 +257,7 @@ function SharedProviders(props: ParentProps) {
   )
 }
 
-// Server-scoped providers shared by the legacy shell and the top-level new shell.
+// Server-scoped providers shared across the top-level shell.
 type ServerScopedShellProps = ParentProps<{
   directory?: () => string | undefined
   sessionID?: () => string | undefined
@@ -312,19 +275,12 @@ function ServerScopedProviders(props: ServerScopedShellProps) {
   )
 }
 
-function LegacyServerScopedShell(props: ServerScopedShellProps) {
-  return (
-    <ServerScopedProviders directory={props.directory} sessionID={props.sessionID}>
-      <LegacyLayout>{props.children}</LegacyLayout>
-    </ServerScopedProviders>
-  )
-}
 
-function NewAppLayout(props: ParentProps) {
+function AppLayout(props: ParentProps) {
   return (
     <SelectedServerProviders>
       <ServerScopedProviders>
-        <NewLayout>{props.children}</NewLayout>
+        <Layout>{props.children}</Layout>
       </ServerScopedProviders>
     </SelectedServerProviders>
   )
@@ -539,59 +495,37 @@ export function AppInterface(props: {
       defaultServer={props.defaultServer}
       canonicalLocalServer={props.canonicalLocalServer}
       servers={props.servers}
-    >
-      <GlobalProvider>
-        <SettingsProvider>
-          <ConnectionGate disableHealthCheck={props.disableHealthCheck}>
-            <Show when={useSettings().general.newLayoutDesigns().toString()} keyed>
-              <Dynamic
-                component={props.router ?? Router}
-                root={(routerProps) => (
-                  <TabsProvider>
-                    <ServerShell>
-                      <Show when={useSettings().general.newLayoutDesigns()} fallback={routerProps.children}>
-                        <NewAppLayout>{routerProps.children}</NewAppLayout>
-                      </Show>
-                    </ServerShell>
-                  </TabsProvider>
-                )}
-              >
-                <Routes />
-              </Dynamic>
-            </Show>
-          </ConnectionGate>
-        </SettingsProvider>
-      </GlobalProvider>
-    </ServerProvider>
-  )
-}
+	    >
+	      <GlobalProvider>
+	        <SettingsProvider>
+			<ConnectionGate disableHealthCheck={props.disableHealthCheck}>
+			  <Dynamic
+				component={props.router ?? Router}
+				root={(routerProps) => (
+				  <TabsProvider>
+					<ServerShell>
+					  <AppLayout>{routerProps.children}</AppLayout>
+					</ServerShell>
+				  </TabsProvider>
+				)}
+			  >
+				<Routes />
+			  </Dynamic>
+			</ConnectionGate>
+	        </SettingsProvider>
+	      </GlobalProvider>
+	    </ServerProvider>
+	  )
+	}
+
 
 function Routes() {
-  const settings = useSettings()
-
-  return (
-    <>
-      <Route component={LegacyServerLayout}>
-        <Show when={!settings.general.newLayoutDesigns()}>{<Route path="/" component={LegacyHome} />}</Show>
-        <Route path="/:dir" component={DirectoryLayout}>
-          <Route path="/" component={() => <Navigate href="session" />} />
-          <Route path="/session/:id?" component={SessionRoute} />
-        </Route>
-      </Route>
-      <Show when={settings.general.newLayoutDesigns()}>
-        <Route path="/" component={NewHome} />
-        <Route
-          path="/:dir/session/:id"
-          component={() => {
-            const server = useServer()
-            const { id } = useParams()
-
-            return <Navigate href={`/server/${server.key}/session/${id}`} />
-          }}
-        />
-      </Show>
-      <Route path="/new-session" component={DraftRoute} />
-      <Route path="/server/:serverKey/session/:id" component={TargetSessionRoute} />
-    </>
-  )
+	return (
+		<>
+			<Route path="/" component={Home} />
+			<Route path="/new-session" component={DraftRoute} />
+			<Route path="/server/:serverKey/session/:id" component={TargetSessionRoute} />
+			<Route path="/:dir/session/:id?" component={LegacySessionRedirect} />
+		</>
+	)
 }

@@ -63,7 +63,7 @@ import { useServerSDK } from "@/context/server-sdk"
 import { usePlatform } from "@/context/platform"
 import { useSettings } from "@/context/settings"
 import { useTabs } from "@/context/tabs"
-import { legacySessionHref, requireServerKey, sessionHref } from "@/utils/session-route"
+import { requireServerKey, sessionHref } from "@/utils/session-route"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { notifySessionTabsRemoved } from "@/components/titlebar-session-events"
@@ -764,8 +764,13 @@ export function MessageTimeline(props: {
 
   const navigateAfterSessionRemoval = (sessionID: string, parentID?: string, nextSessionID?: string) => {
     if (params.id !== sessionID) return
+    const key = params.serverKey
+    if (!key) {
+      navigate(`/${params.dir}/session`)
+      return
+    }
     const href = (id: string) =>
-      params.serverKey ? sessionHref(requireServerKey(params.serverKey), id) : legacySessionHref(sdk().directory, id)
+      sessionHref(requireServerKey(key), id)
     if (parentID) {
       navigate(href(parentID))
       return
@@ -774,11 +779,7 @@ export function MessageTimeline(props: {
       navigate(href(nextSessionID))
       return
     }
-    if (params.serverKey) {
-      tabs.newDraft({ server: requireServerKey(params.serverKey), directory: sdk().directory })
-      return
-    }
-    navigate(`/${params.dir}/session`)
+    tabs.newDraft({ server: requireServerKey(key), directory: sdk().directory })
   }
 
   const archiveSession = async (sessionID: string) => {
@@ -877,8 +878,10 @@ export function MessageTimeline(props: {
   const navigateParent = () => {
     const id = parentID()
     if (!id) return
+    const key = params.serverKey
+    if (!key) return
     navigate(
-      params.serverKey ? sessionHref(requireServerKey(params.serverKey), id) : legacySessionHref(sdk().directory, id),
+      sessionHref(requireServerKey(key), id),
     )
   }
 
@@ -1301,8 +1304,8 @@ export function MessageTimeline(props: {
               "w-full": true,
               "pb-4": true,
               "pr-3": true,
-              "pl-4": settings.general.newLayoutDesigns(),
-              "pl-2 md:pl-4": !settings.general.newLayoutDesigns(),
+              "pl-4": true,
+              "pl-2 md:pl-4": false,
               "md:max-w-200 md:mx-auto 2xl:max-w-[1000px]": props.centered,
             }}
           >

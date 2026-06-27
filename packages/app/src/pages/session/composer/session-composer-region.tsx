@@ -29,7 +29,7 @@ import { ServerConnection, useServer } from "@/context/server"
 import { type DraftTab, useTabs } from "@/context/tabs"
 import { useDirectoryPicker } from "@/components/directory-picker"
 import { base64Encode } from "@aigcfroge/core/util/encode"
-import { legacySessionHref, requireServerKey, sessionHref } from "@/utils/session-route"
+import { requireServerKey, sessionHref } from "@/utils/session-route"
 import { useGlobal } from "@/context/global"
 
 export function SessionComposerRegion(props: {
@@ -152,7 +152,6 @@ export function SessionComposerRegion(props: {
       tabs: layout.tabs(route.sessionKey),
       reviewPanel: view.reviewPanel,
     },
-    newLayoutDesigns: settings.general.newLayoutDesigns(),
   }))
 
   const handoffPrompt = createMemo(() => getSessionHandoff(route.sessionKey())?.prompt)
@@ -228,11 +227,9 @@ export function SessionComposerRegion(props: {
   const openParent = () => {
     const id = parentID()
     if (!id) return
-    navigate(
-      route.params.serverKey
-        ? sessionHref(requireServerKey(route.params.serverKey), id)
-        : legacySessionHref(sdk().directory, id),
-    )
+    const key = route.params.serverKey
+    if (!key) return
+    navigate(sessionHref(requireServerKey(key), id))
   }
 
   createEffect(() => {

@@ -14,7 +14,7 @@ import { same } from "@/utils/same"
 import { createScrollPersistence, type SessionScroll } from "./layout-scroll"
 import { createPathHelpers } from "./file/path"
 import type { ProjectAvatarVariant } from "@aigcfroge/ui/v2/project-avatar-v2"
-import { migrateLegacySessionStateKeys, ServerScope, SessionStateKey } from "@/utils/server-scope"
+import { ServerScope, SessionStateKey } from "@/utils/server-scope"
 import { createSessionKeyReader, ensureSessionKey, pruneSessionKeys } from "./layout-helpers"
 import { requireServerKey } from "@/utils/session-route"
 
@@ -210,8 +210,8 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
         }
       })()
 
-      const sessionTabs = migrateLegacySessionStateKeys(value.sessionTabs)
-      const sessionView = migrateLegacySessionStateKeys(value.sessionView)
+      const sessionTabs = value.sessionTabs
+      const sessionView = value.sessionView
       const migratedSessionTabs = (() => {
         if (!isRecord(sessionTabs)) return sessionTabs
 

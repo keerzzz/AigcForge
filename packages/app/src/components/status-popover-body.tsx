@@ -296,17 +296,11 @@ export function StatusPopoverBody(props: { shown: Accessor<boolean> }) {
         aria-label={language.t("status.popover.ariaLabel")}
         class="tabs bg-background-strong rounded-xl overflow-hidden"
         data-component="tabs"
-        data-active={settings.general.newLayoutDesigns() ? "mcp" : "servers"}
-        defaultValue={settings.general.newLayoutDesigns() ? "mcp" : "servers"}
+        data-active="mcp"
+        defaultValue="mcp"
         variant="alt"
       >
         <Tabs.List data-slot="tablist" class="bg-transparent border-b-0 px-4 pt-2 pb-0 gap-4 h-10">
-          {!settings.general.newLayoutDesigns() && (
-            <Tabs.Trigger value="servers" data-slot="tab" class="text-12-regular">
-              {global.servers.list().length > 0 ? `${global.servers.list().length} ` : ""}
-              {language.t("status.popover.tab.servers")}
-            </Tabs.Trigger>
-          )}
           <Tabs.Trigger value="mcp" data-slot="tab" class="text-12-regular">
             {mcpConnected() > 0 ? `${mcpConnected()} ` : ""}
             {language.t("status.popover.tab.mcp")}
@@ -320,73 +314,6 @@ export function StatusPopoverBody(props: { shown: Accessor<boolean> }) {
             {language.t("status.popover.tab.plugins")}
           </Tabs.Trigger>
         </Tabs.List>
-
-        {!settings.general.newLayoutDesigns() && (
-          <Tabs.Content value="servers">
-            <div class="flex flex-col px-2 pb-2">
-              <div class="flex flex-col p-3 bg-background-base rounded-sm min-h-14">
-                <For each={sortedServers()}>
-                  {(s) => {
-                    const key = ServerConnection.key(s)
-                    const blocked = () => global.servers.health[key]?.healthy === false
-                    return (
-                      <button
-                        type="button"
-                        class="flex items-center gap-2 w-full h-8 pl-3 pr-1.5 py-1.5 rounded-md transition-colors text-left"
-                        classList={{
-                          "hover:bg-surface-raised-base-hover": !blocked(),
-                          "cursor-not-allowed": blocked(),
-                        }}
-                        aria-disabled={blocked()}
-                        onClick={() => {
-                          if (blocked()) return
-                          navigate("/")
-                          queueMicrotask(() => server.setActive(key))
-                        }}
-                      >
-                        <ServerHealthIndicator health={global.servers.health[key]} />
-                        <ServerRow
-                          conn={s}
-                          dimmed={blocked()}
-                          status={global.servers.health[key]}
-                          class="flex items-center gap-2 w-full min-w-0"
-                          nameClass="text-14-regular text-text-base truncate"
-                          versionClass="text-12-regular text-text-weak truncate"
-                          badge={
-                            <Show when={key === defaultServer.key()}>
-                              <span class="text-11-regular text-text-base bg-surface-base px-1.5 py-0.5 rounded-md">
-                                {language.t("common.default")}
-                              </span>
-                            </Show>
-                          }
-                        >
-                          <div class="flex-1" />
-                          <Show when={server.current && key === ServerConnection.key(server.current)}>
-                            <Icon name="check" size="small" class="text-icon-weak shrink-0" />
-                          </Show>
-                        </ServerRow>
-                      </button>
-                    )
-                  }}
-                </For>
-
-                <Button
-                  variant="secondary"
-                  class="mt-3 self-start h-8 px-3 py-1.5"
-                  onClick={() => {
-                    const run = ++dialogRun
-                    void import("./dialog-select-server").then((x) => {
-                      if (dialogDead || dialogRun !== run) return
-                      dialog.show(() => <x.DialogSelectServer />, defaultServer.refresh)
-                    })
-                  }}
-                >
-                  {language.t("status.popover.action.manageServers")}
-                </Button>
-              </div>
-            </div>
-          </Tabs.Content>
-        )}
 
         <Tabs.Content value="mcp">
           <div class="flex flex-col px-2 pb-2">

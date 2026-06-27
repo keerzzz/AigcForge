@@ -337,11 +337,7 @@ export function useServerManagementController(options: { onSelect?: () => void; 
   })
 
   const settings = useSettings()
-  const current = createMemo<ServerConnection.Any | undefined>(() =>
-    settings.general.newLayoutDesigns()
-      ? undefined
-      : (items().find((x) => ServerConnection.key(x) === server.key) ?? items()[0]),
-  )
+	const current = createMemo<ServerConnection.Any | undefined>(() => undefined)
 
   const sortedItems = createMemo(() => {
     const list = items()
@@ -569,7 +565,7 @@ export function ServerConnectionList(props: { controller: ReturnType<typeof useS
         items={props.controller.sortedItems}
         key={(x) => x.http.url}
         onSelect={(x) => {
-          if (x && !settings.general.newLayoutDesigns()) void props.controller.select(x)
+          if (x) void props.controller.select(x)
         }}
         divider={true}
       >

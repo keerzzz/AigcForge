@@ -16,7 +16,7 @@ export function SettingsServerScope(props: ParentProps) {
   const settings = useSettings()
 
   return (
-    <Show when={settings.general.newLayoutDesigns()} fallback={props.children}>
+    <Show when={true} fallback={props.children}>
       <Show when={global.settings.server.selected()}>
         {(server) => <SettingsServerDataProviders server={server()}>{props.children}</SettingsServerDataProviders>}
       </Show>
@@ -42,9 +42,7 @@ function SettingsServerDataProviders(props: ParentProps<{ server: ServerConnecti
 export function SettingsServerPicker() {
   const global = useGlobal()
   const settings = useSettings()
-  const selected = createMemo(() =>
-    settings.general.newLayoutDesigns() ? global.settings.server.selected() : undefined,
-  )
+  const selected = createMemo(() => global.settings.server.selected())
 
   return (
     <Show when={selected()}>

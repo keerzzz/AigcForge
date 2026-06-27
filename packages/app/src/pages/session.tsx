@@ -94,7 +94,7 @@ export default function Page() {
   const [searchParams, setSearchParams] = useSearchParams<{ prompt?: string }>()
   const location = useLocation()
   const { params, sessionKey, workspaceKey, tabs, view } = useSessionLayout()
-  const newSessionDesign = createMemo(() => settings.general.newLayoutDesigns())
+  const newSessionDesign = createMemo(() => true)
 
   createEffect(() => {
     if (!prompt.ready()) return
@@ -1627,7 +1627,7 @@ export default function Page() {
     </Tabs>
   )
   const mobileTabsBottom = createMemo(
-    () => !isDesktop() && settings.general.newLayoutDesigns() && settings.general.mobileTitlebarPosition() === "bottom",
+    () => !isDesktop() && true && settings.general.mobileTitlebarPosition() === "bottom",
   )
 
   return (
@@ -1637,10 +1637,10 @@ export default function Page() {
       <div
         class="flex-1 min-h-0 flex flex-col md:flex-row"
         classList={{
-          "gap-2 p-2": settings.general.newLayoutDesigns(),
+          "gap-2 p-2": true,
         }}
       >
-        <Show when={!isDesktop() && !!params.id && !settings.general.newLayoutDesigns()}>{mobileTabs()}</Show>
+        <Show when={!isDesktop() && !!params.id && false}>{mobileTabs()}</Show>
 
         <div
           classList={{
@@ -1655,11 +1655,11 @@ export default function Page() {
           <div
             classList={{
               "flex-1 min-h-0 flex flex-col bg-background-stronger": true,
-              "rounded-[10px] overflow-hidden": settings.general.newLayoutDesigns(),
-              "shadow-[var(--v2-elevation-raised)]": settings.general.newLayoutDesigns() && !!params.id,
+              "rounded-[10px] overflow-hidden": true,
+              "shadow-[var(--v2-elevation-raised)]": true && !!params.id,
             }}
           >
-            <Show when={!isDesktop() && !!params.id && settings.general.newLayoutDesigns() && !mobileTabsBottom()}>
+            <Show when={!isDesktop() && !!params.id && true && !mobileTabsBottom()}>
               {mobileTabs(true)}
             </Show>
             <div class="flex-1 min-h-0 overflow-hidden">
@@ -1734,7 +1734,7 @@ export default function Page() {
             <div onPointerDown={() => size.start()}>
               <ResizeHandle
                 classList={{
-                  "-right-1": settings.general.newLayoutDesigns(),
+                  "-right-1": true,
                 }}
                 direction="horizontal"
                 size={layout.session.width()}
