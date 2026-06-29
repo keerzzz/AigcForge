@@ -10,10 +10,13 @@ import { setV2Toast, ToastRegion } from "@/utils/toast"
 import { ModeProvider, useMode } from "@/context/mode"
 import { ModeSwitcher } from "@/components/mode-switcher"
 import { SecondarySidebar } from "@/components/secondary-sidebar"
+import { StatusBar } from "@/components/status-bar/status-bar"
+import { createCurrentSessionSource } from "@/components/status-bar/current-session-source"
 
 function LayoutContent(props: ParentProps & { update: TitlebarUpdate }) {
   const location = useLocation()
   const mode = useMode()
+  const statusSource = createCurrentSessionSource()
 
   const isHome = () => location.pathname === "/"
   const isNewSession = () => location.pathname === "/new-session"
@@ -37,6 +40,7 @@ function LayoutContent(props: ParentProps & { update: TitlebarUpdate }) {
           <Suspense>{props.children}</Suspense>
         </main>
       </div>
+      <StatusBar source={statusSource} />
       {import.meta.env.DEV && <DebugBar />}
       <HelpButton />
       <ToastRegion v2 />

@@ -34,6 +34,7 @@ import { createInlineEditorController } from "@/pages/layout/inline-editor"
 import { pathKey } from "@/utils/path-key"
 import { Persist, persisted } from "@/utils/persist"
 import { showToast } from "@/utils/toast"
+import { formatServerError } from "@/utils/server-errors"
 import { toaster } from "@aigcfroge/ui/toast"
 import { clearWorkspaceTerminals } from "@/context/terminal"
 import { Worktree as WorktreeState } from "@/utils/worktree"
@@ -430,13 +431,22 @@ function SecondarySidebar() {
     prefetchSession: () => {},
     archiveSession: async (session) => {
       const [, setStore] = sync().child(session.directory, { bootstrap: false })
-      await serverSDK()
+      const archivedAt = Date.now()
+      const result = await serverSDK()
         .client.session.update({
           directory: session.directory,
           sessionID: session.id,
-          time: { archived: Date.now() },
+          time: { archived: archivedAt },
         })
-        .catch(() => undefined)
+        .catch((error) => {
+          showToast({
+            variant: "error",
+            title: language.t("common.requestFailed"),
+            description: formatServerError(error, language.t),
+          })
+          return undefined
+        })
+      if (!result) return
       setStore(
         produce((draft) => {
           const idx = draft.session.findIndex((s: Session) => s.id === session.id)

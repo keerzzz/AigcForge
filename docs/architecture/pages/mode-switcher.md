@@ -39,12 +39,10 @@ type ModePlacement = {
 
 ### 模式切换
 
-```
-用户点击 ModeSwitcher 图标:
-  → mode.setCurrentMode(m)            // 只改状态，不动当前 session
-  → 页面内容不变，同一个 session 继续显示
+ModeSwitcher 图标和首页模式卡片行为统一：
 
-用户点击首页模式卡片:
+```
+用户点击 ModeSwitcher 图标 或 首页模式卡片:
   → mode.setCurrentMode(m)
   → mode.activeSessionId(m)() 存在?    // 上次的 session 还在吗？
      ├── 是 → navigate(sessionHref)    // 恢复到上次 session
