@@ -14,6 +14,7 @@ import { Spinner } from "@aigcfroge/ui/spinner"
 import { Tooltip } from "@aigcfroge/ui/tooltip"
 import { type Session } from "@aigcfroge/sdk/v2/client"
 import { type LocalProject } from "@/context/layout"
+import { ServerConnection } from "@/context/server"
 import { useServerSync, useQueryOptions } from "@/context/server-sync"
 import { useLanguage } from "@/context/language"
 import { pathKey } from "@/utils/path-key"
@@ -64,9 +65,9 @@ export const WorkspaceDragOverlay = (props: {
   const language = useLanguage()
   const label = createMemo(() => {
     const project = props.sidebarProject()
-    if (!project) return
+    if (!project) return undefined
     const directory = props.activeWorkspace()
-    if (!directory) return
+    if (!directory) return undefined
 
     const [workspaceStore] = serverSync().child(directory, { bootstrap: false })
     const kind =
@@ -243,6 +244,8 @@ const WorkspaceSessionList = (props: {
   hasMore: Accessor<boolean>
   loadMore: () => Promise<void>
   language: ReturnType<typeof useLanguage>
+  onNewSession?: () => void
+  serverKey?: ServerConnection.Key
 }): JSX.Element => (
   <nav class="flex flex-col gap-1">
     <Show when={props.showNew()}>
@@ -251,6 +254,14 @@ const WorkspaceSessionList = (props: {
         mobile={props.mobile}
         sidebarExpanded={props.ctx.sidebarExpanded}
         clearHoverProjectSoon={props.ctx.clearHoverProjectSoon}
+        onClick={
+          props.onNewSession
+            ? (event) => {
+                event.preventDefault()
+                props.onNewSession?.()
+              }
+            : undefined
+        }
       />
     </Show>
     <Show when={props.loading()}>
@@ -263,6 +274,7 @@ const WorkspaceSessionList = (props: {
           list={props.sessions()}
           navList={props.ctx.navList}
           slug={props.slug()}
+          serverKey={props.serverKey}
           mobile={props.mobile}
           showChild
           sidebarExpanded={props.ctx.sidebarExpanded}
@@ -280,7 +292,7 @@ const WorkspaceSessionList = (props: {
           size="large"
           onClick={(e: MouseEvent) => {
             void props.loadMore()
-            ;(e.currentTarget as HTMLButtonElement).blur()
+            if (e.currentTarget instanceof HTMLElement) e.currentTarget.blur()
           }}
         >
           {props.language.t("common.loadMore")}
@@ -296,6 +308,8 @@ export const SortableWorkspace = (props: {
   project: LocalProject
   sortNow: Accessor<number>
   mobile?: boolean
+  navigateToNewSession?: () => void
+  serverKey?: ServerConnection.Key
 }): JSX.Element => {
   const navigate = useNavigate()
   const params = useParams()
@@ -416,7 +430,7 @@ export const SortableWorkspace = (props: {
                 showDeleteWorkspaceDialog={props.ctx.showDeleteWorkspaceDialog}
                 root={props.project.worktree}
                 clearHoverProjectSoon={props.ctx.clearHoverProjectSoon}
-                navigateToNewSession={() => navigate(`/${slug()}/session`)}
+                navigateToNewSession={props.navigateToNewSession ?? (() => navigate(`/${slug()}/session`))}
               />
             </div>
           </div>
@@ -433,6 +447,8 @@ export const SortableWorkspace = (props: {
             hasMore={hasMore}
             loadMore={loadMore}
             language={language}
+            onNewSession={props.navigateToNewSession}
+            serverKey={props.serverKey}
           />
         </Collapsible.Content>
       </Collapsible>
@@ -445,6 +461,7 @@ export const LocalWorkspace = (props: {
   project: LocalProject
   sortNow: Accessor<number>
   mobile?: boolean
+  serverKey?: ServerConnection.Key
 }): JSX.Element => {
   const serverSync = useServerSync()
   const queryOptions = useQueryOptions()
@@ -479,6 +496,7 @@ export const LocalWorkspace = (props: {
         hasMore={hasMore}
         loadMore={loadMore}
         language={language}
+        serverKey={props.serverKey}
       />
     </div>
   )

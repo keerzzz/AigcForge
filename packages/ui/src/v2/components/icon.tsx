@@ -65,6 +65,22 @@ const icons = {
     viewBox: "0 0 16 16",
     body: `<path d="M2.5 7.5H3.5V8.5H2.5V7.5Z" stroke="currentColor"/><path d="M7.5 7.5H8.5V8.5H7.5V7.5Z" stroke="currentColor"/><path d="M12.5 7.5H13.5V8.5H12.5V7.5Z" stroke="currentColor"/>`,
   },
+  "mode-chat": {
+    viewBox: "0 0 16 16",
+    body: `<path d="M1.5 14.5L3 11.5C1.917 10.167 1.5 8.833 1.5 7.5C1.5 4.167 4.5 1.5 8 1.5C11.5 1.5 14.5 4.167 14.5 7.5C14.5 10.833 11.5 13.5 8 13.5L1.5 14.5Z" stroke="currentColor"/>`,
+  },
+  "mode-coding": {
+    viewBox: "0 0 16 16",
+    body: `<path d="M10 4L14 8L10 12M6 12L2 8L6 4" stroke="currentColor" stroke-linejoin="round"/>`,
+  },
+  "mode-work": {
+    viewBox: "0 0 16 16",
+    body: `<path d="M2.5 3.5H13.5V13.5H2.5V3.5Z" stroke="currentColor"/><path d="M5.5 1.5V4.5M10.5 1.5V4.5" stroke="currentColor"/><path d="M5.5 7.5L7.5 9.5L10.5 6.5" stroke="currentColor" stroke-linejoin="round"/>`,
+  },
+  "mode-assistant": {
+    viewBox: "0 0 16 16",
+    body: `<path d="M8 1.5V3.5M14.5 8H12.5M3.5 8H1.5M12 4L10.5 5.5M4 12L5.5 10.5M12 12L10.5 10.5M4 4L5.5 5.5M8 12.5V14.5" stroke="currentColor" stroke-linejoin="round"/><circle cx="8" cy="8" r="2.5" stroke="currentColor"/>`,
+  },
 }
 
 const spriteID = "aigcfroge-v2-icon-sprite"

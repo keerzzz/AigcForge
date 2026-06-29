@@ -1,132 +1,135 @@
 # Sidebar 架构
 
-> 状态：草案 v3.0，组件级架构文档
-> 代码基线：packages/app/src/pages/layout/sidebar-shell.tsx
-> Rail 宽度：64px
-> 当前挂载状态：组件存在，但 pages/layout.tsx 未挂载全局 Sidebar
+> 状态：IMPLEMENTED (v2)
+> 上次更新：2026-06-29
+> 代码位置：packages/app/src/components/secondary-sidebar.tsx
 
 ---
 
 ## 1. 定位与职责
 
-SidebarContent 是可展开/折叠的侧边面板组件。左侧 64px Rail 承载项目列表（可拖拽排序），右侧 Panel 承载动态内容。通过 inert 属性管理非活跃状态的可访问性。
+当前布局使用两套侧边栏：
 
-当前 `pages/layout.tsx` 未挂载该组件；现有应用壳层是 Titlebar + main route content + DebugBar/HelpButton/ToastRegion。本文档只能作为组件契约，不能作为当前全局布局拓扑依据。
+### 次级侧边栏 (SecondarySidebar)
+
+位于 ModeSwitcher 与 Main 之间，宽度 256px，展示项目树 + 会话搜索：
+
+```
++---------+------------------+---------------------------+
+| Mode:64 | Secondary:256px   | Main: flex-1              |
+|         |                   |                           |
+| ● Chat  | [新会话] [🔍]    | Home / Session /          |
+| ○ Coding| 项目列表          | NewSession                 |
+| ○ Work  | ├── 📁 Project   |                           |
+| ○ Assist| │  ├─ Session A   |                           |
+|         | │  ├─ Session B   |                           |
+|         | │  └─ Load more   |                           |
+|   ◧     |  [+ 添加项目]     |                           |
++---------+-------------------+---------------------------+
+```
+
+隐藏条件：路由为 `/` 或 `/new-session` 时自动隐藏（可通过 toggle 手动显示）。
+
+### V1 Sidebar (sidebar-shell.tsx)
+
+保留但未挂载。历史代码参考位于 `packages/app/src/pages/layout/sidebar-shell.tsx`。
 
 ---
 
-## 2. 上游入口链路
+## 2. 组件树
 
 ```
-未来宿主 / 调用方
-  -> SidebarContent (sidebar-shell.tsx)
-    -> props.renderPanel() — 调用方注入面板内容
-    -> props.renderProject() — 调用方注入项目渲染
-```
-
----
-
-## 3. 组件树
-
-```
-SidebarContent
-├── Rail (w-16, bg-background-base)
-│   ├── ProjectList (overflow-y-auto, no-scrollbar)
-│   │   ├── DragDropProvider
-│   │   │   ├── DragDropSensors
-│   │   │   ├── ConstrainDragXAxis
-│   │   │   ├── SortableProvider
-│   │   │   │   └── For(projects) -> renderProject()
-│   │   │   └── DragOverlay
-│   │   │       └── renderProjectOverlay()
-│   │   └── AddProjectButton (IconButton: plus + Tooltip)
-│   │
-│   ├── Spacer
-│   └── BottomButtons
-│       ├── SettingsButton (IconButton: settings-gear + TooltipKeybind)
-│       └── HelpButton (IconButton: help + Tooltip)
+SecondarySidebar
+├── Header
+│   ├── ButtonV2 "New Session"
+│   └── IconButtonV2 (magnifying-glass) — 搜索开关
 │
-└── Panel (flex-1)
-    ├── 展开: pointer-events-auto, aria-hidden=false
-    └── 折叠: pointer-events-none, aria-hidden=true, inert
-        └── renderPanel()
+├── SearchPanel (条件显示)
+│   ├── Input (magnifying-glass 前缀)
+│   ├── Clear button (xmark-small)
+│   └── ResultsList (项目筛选结果)
+│
+├── SectionTitle "项目列表" + "添加项目" button
+│
+└── ProjectList (scrollable, flex-1)
+    └── For each Project:
+        ├── ProjectHeader (name + unseen dot + hover actions + menu)
+        └── Show when workspaces enabled:
+            ├── DragDropProvider > SortableProvider
+            │   ├── SortableWorkspace(worktree)
+            │   └── For sandboxes: SortableWorkspace(sandbox-*, navigateToNewSession)
+            └── Show when workspaces disabled:
+                └── LocalWorkspace (flat session list)
 ```
 
----
+## 3. Context 依赖
 
-## 4. Context 依赖图
+| Context | 用途 |
+|---------|------|
+| useServer | 获取当前服务器连接 |
+| useGlobal | 获取 project 列表 (projects.list) |
+| useServerSync | session store 订阅 |
+| useTabs | 新建 draft session (newDraft) |
+| useNotification | unseen 计数 + 清除 |
+| useDialog | workspace 删除/重置对话框 |
+| useLayout | sidebar.workspaces 开关, sidebar.setWorkspaceExpanded |
+| useLanguage | i18n |
+| useMode | 当前模式（为未来支持 mode 侧边栏预留） |
+| WorkspaceSidebarContext | 桥接到 SortableWorkspace/LocalWorkspace |
 
-| 层级 | Context | 用途 |
-|------|---------|------|
-| 全局 | useLayout | projects Accessor, opened Accessor |
-| 全局 | useCommand | 键盘快捷键绑定 |
-| 全局 | useLanguage | i18n (settings/help label) |
-| Props | renderPanel | 面板内容注入 |
-| Props | renderProject | 项目卡片渲染注入 |
+## 4. WorkspaceSidebarContext 桥接
 
----
+`secondary-sidebar.tsx` 构建 WorkspaceSidebarContext 供给 `SortableWorkspace` / `LocalWorkspace` 使用：
 
-## 5. 数据流架构
+| 方法 | 实现 |
+|------|------|
+| currentDir | 从 URL params 读取 |
+| navList | 所有 project 的 sortedRootSessions 平铺 |
+| sidebarExpanded | 始终 true |
+| sidebarHovering | 始终 true |
+| prefetchSession | no-op |
+| archiveSession | no-op |
+| workspaceName | Persist.global 存储的自定义名或 branch/目录名 |
+| renameWorkspace | 更新 persisted workspaceNameStore |
+| isBusy | workspace 删除/重置期间灰显 |
+| workspaceExpanded | 每个 directory 独立 persisted toggle |
+| showResetWorkspaceDialog | DialogResetWorkspace（从旧 V1 移植） |
+| showDeleteWorkspaceDialog | DialogDeleteWorkspace（从旧 V1 移植） |
 
-### 5.1 展开/折叠
+## 5. Workspace 生命周期
 
-```
-props.opened() -> expanded createMemo
-  -> 展开: panel.removeAttribute("inert"), pointer-events-auto
-  -> 折叠: panel.setAttribute("inert"), pointer-events-none
-  -> aria-hidden 同步折叠状态
-```
+| 操作 | 函数 | 实现 |
+|------|------|------|
+| 创建 | createWorkspace | worktree.create → bootstrap → newDraft |
+| 重命名 | renameWorkspace | 更新 workspaceNameStore |
+| 展开/折叠 | workspaceExpanded/setWorkspaceExpanded | Persisted Record<string, boolean> |
+| 删除 | deleteWorkspace | worktree.remove → sync 移除 sandbox → close project |
+| 重置 | resetWorkspace | vcs status → dispose instance → worktree.reset → 归档 sessions |
 
-### 5.2 拖拽排序
+## 6. 搜索面板
 
-```
-用户拖拽项目
-  -> DragDropProvider.onDragStart -> props.handleDragStart
-  -> SortableProvider 重排
-  -> DragDropProvider.onDragEnd -> props.handleDragEnd
-  -> closestCenter 碰撞检测
-  -> ConstrainDragXAxis 限制 X 轴
-```
-
-### 5.3 项目操作
-
-```
-添加: AddProjectButton.onClick -> props.onOpenProject
-设置: SettingsButton.onClick -> props.onOpenSettings
-帮助: HelpButton.onClick -> props.onOpenHelp
-```
-
----
-
-## 6. 可访问性
-
-| 状态 | inert | aria-hidden | pointer-events |
-|------|-------|-------------|----------------|
-| 展开 | 移除 | false | auto |
-| 折叠 | 设置 | true | none |
-
-inert 兼容 React/Solid，确保屏幕阅读器和键盘导航完全跳过面板。
-
----
+- 输入：过滤 projects 列表（按 displayName）
+- 结果：每条显示项目名，点击 → newDraft({ server, directory })
+- 空结果：i18n "未找到结果"
+- 键盘：Escape 关闭
 
 ## 7. 错误边界
 
 | 场景 | 处理 |
 |------|------|
-| projects 为空 | 仅显示 AddProjectButton |
-| 拖拽中断 | DragOverlay 自动清理 |
-| renderProject 未提供 | 无内容渲染 |
-| mobile 模式 | placement 切换为 "bottom" |
-
----
+| server 未连接 | conn() 为空 → 不渲染项目列表 |
+| project 无 vcs | workspaceEnabled 为 false（workspaces 只对 git 项目可用） |
+| workspace 删除失败 | Toast 提示错误 |
+| workspace 重置失败 | Toast 提示错误 |
 
 ## 8. 上下游文件索引
 
-| 层级 | 文件 |
+| 文件 | 用途 |
 |------|------|
-| 当前宿主布局 | pages/layout.tsx (未挂载 SidebarContent) |
-| Rail 实现 | pages/layout/sidebar-shell.tsx |
-| 面板内容 | 调用方通过 renderPanel 注入 |
-| 工作空间树 | 调用方通过 renderProject 注入 |
-| 拖拽约束 | utils/solid-dnd.ts |
-| 项目类型 | context/layout.tsx (LocalProject) |
+| [secondary-sidebar.tsx](../../packages/app/src/components/secondary-sidebar.tsx) | 组件本体 + WorkspaceSidebarContext 桥接 |
+| [sidebar-workspace.tsx](../../packages/app/src/pages/layout/sidebar-workspace.tsx) | SortableWorkspace/LocalWorkspace/WorkspaceSessionList |
+| [sidebar-items.tsx](../../packages/app/src/pages/layout/sidebar-items.tsx) | SessionItem/NewSessionItem/SessionSkeleton |
+| [inline-editor.tsx](../../packages/app/src/pages/layout/inline-editor.tsx) | 内联编辑 controller |
+| [helpers.ts](../../packages/app/src/pages/layout/helpers.ts) | displayName/sortedRootSessions/homeProjectDirectories |
+| [layout.tsx](../../packages/app/src/pages/layout.tsx) | 三栏布局宿主 |
+| [mode.tsx](../../packages/app/src/context/mode.tsx) | ModeProvider（次级侧边栏父级） |

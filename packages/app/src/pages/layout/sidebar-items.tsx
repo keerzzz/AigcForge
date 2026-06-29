@@ -13,6 +13,8 @@ import { getAvatarColors, type LocalProject, useLayout } from "@/context/layout"
 import { useNotification } from "@/context/notification"
 import { usePermission } from "@/context/permission"
 import { messageAgentColor } from "@/utils/agent"
+import { ServerConnection } from "@/context/server"
+import { sessionHref } from "@/utils/session-route"
 import { sessionTitle } from "@/utils/session-title"
 import { sessionPermissionRequest } from "../session/composer/session-request-tree"
 import { childSessionOnPath, getProjectAvatarSource, hasProjectPermissions } from "./helpers"
@@ -75,6 +77,7 @@ export type SessionItemProps = {
   list: Session[]
   navList?: Accessor<Session[]>
   slug: string
+  serverKey?: ServerConnection.Key
   mobile?: boolean
   dense?: boolean
   showTooltip?: boolean
@@ -89,6 +92,7 @@ export type SessionItemProps = {
 const SessionRow = (props: {
   session: Session
   slug: string
+  href?: string
   mobile?: boolean
   dense?: boolean
   tint: Accessor<string | undefined>
@@ -105,7 +109,7 @@ const SessionRow = (props: {
 
   return (
     <A
-      href={`/${props.slug}/session/${props.session.id}`}
+      href={props.href ?? `/${props.slug}/session/${props.session.id}`}
       class={`flex items-center gap-2 min-w-0 w-full text-left focus:outline-none ${props.dense ? "py-0.5" : "py-1"}`}
       onPointerDown={props.warmPress}
       onFocus={props.warmFocus}
@@ -163,8 +167,12 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
   const tint = createMemo(() => messageAgentColor(sessionStore.message[props.session.id], sessionStore.agent))
   const tooltip = createMemo(() => props.showTooltip ?? (props.mobile || !props.sidebarExpanded()))
   const currentChild = createMemo(() => {
-    if (!props.showChild) return
+    if (!props.showChild) return undefined
     return childSessionOnPath(sessionStore.session, props.session.id, params.id)
+  })
+  const href = createMemo(() => {
+    if (!props.serverKey) return `/${props.slug}/session/${props.session.id}`
+    return sessionHref(props.serverKey, props.session.id)
   })
 
   const warm = (span: number, priority: "high" | "low") => {
@@ -191,6 +199,7 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
     <SessionRow
       session={props.session}
       slug={props.slug}
+      href={href()}
       mobile={props.mobile}
       dense={props.dense}
       tint={tint}
@@ -271,6 +280,8 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
 
 export const NewSessionItem = (props: {
   slug: string
+  href?: string
+  onClick?: (event: MouseEvent) => void
   mobile?: boolean
   dense?: boolean
   sidebarExpanded: Accessor<boolean>
@@ -282,10 +293,11 @@ export const NewSessionItem = (props: {
   const tooltip = () => props.mobile || !props.sidebarExpanded()
   const item = (
     <A
-      href={`/${props.slug}/session`}
+      href={props.href ?? `/${props.slug}/session`}
       end
       class={`flex items-center gap-2 min-w-0 w-full text-left focus:outline-none ${props.dense ? "py-0.5" : "py-1"}`}
-      onClick={() => {
+      onClick={(event) => {
+        props.onClick?.(event)
         if (layout.sidebar.opened()) return
         props.clearHoverProjectSoon()
       }}

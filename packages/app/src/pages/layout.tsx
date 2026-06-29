@@ -1,5 +1,5 @@
-import { createEffect, Suspense, type ParentProps } from "solid-js"
-import { useNavigate, useParams } from "@solidjs/router"
+import { createEffect, Suspense, type ParentProps, Show } from "solid-js"
+import { useLocation, useNavigate, useParams } from "@solidjs/router"
 import { DebugBar } from "@/components/debug-bar"
 import { HelpButton } from "@/components/help-button"
 import { Titlebar, type TitlebarUpdate } from "@/components/titlebar"
@@ -7,6 +7,42 @@ import { useNotification } from "@/context/notification"
 import { usePlatform } from "@/context/platform"
 import { setNavigate } from "@/utils/notification-click"
 import { setV2Toast, ToastRegion } from "@/utils/toast"
+import { ModeProvider, useMode } from "@/context/mode"
+import { ModeSwitcher } from "@/components/mode-switcher"
+import { SecondarySidebar } from "@/components/secondary-sidebar"
+
+function LayoutContent(props: ParentProps & { update: TitlebarUpdate }) {
+  const location = useLocation()
+  const mode = useMode()
+
+  const isHome = () => location.pathname === "/"
+  const isNewSession = () => location.pathname === "/new-session"
+  const showSecondarySidebar = () => mode.secondarySidebarOpen && !isHome() && !isNewSession()
+
+  return (
+    <div
+      class="relative bg-v2-background-bg-deep flex-1 min-h-0 min-w-0 flex flex-col select-none [&_input]:select-text [&_textarea]:select-text [&_[contenteditable]]:select-text"
+      style={{
+        "padding-top": "env(safe-area-inset-top, 0px)",
+        "padding-bottom": "env(safe-area-inset-bottom, 0px)",
+      }}
+    >
+      <Titlebar update={props.update} />
+      <div class="flex-1 min-h-0 min-w-0 flex">
+        <ModeSwitcher />
+        <Show when={showSecondarySidebar()}>
+          <SecondarySidebar />
+        </Show>
+        <main class="flex-1 min-h-0 min-w-0 overflow-x-hidden flex flex-col items-start contain-strict">
+          <Suspense>{props.children}</Suspense>
+        </main>
+      </div>
+      {import.meta.env.DEV && <DebugBar />}
+      <HelpButton />
+      <ToastRegion v2 />
+    </div>
+  )
+}
 
 export default function Layout(props: ParentProps) {
   const platform = usePlatform()
@@ -32,20 +68,8 @@ export default function Layout(props: ParentProps) {
   }
 
   return (
-    <div
-      class="relative bg-v2-background-bg-deep flex-1 min-h-0 min-w-0 flex flex-col select-none [&_input]:select-text [&_textarea]:select-text [&_[contenteditable]]:select-text"
-      style={{
-        "padding-top": "env(safe-area-inset-top, 0px)",
-        "padding-bottom": "env(safe-area-inset-bottom, 0px)",
-      }}
-    >
-      <Titlebar update={update} />
-      <main class="flex-1 min-h-0 min-w-0 overflow-x-hidden flex flex-col items-start contain-strict">
-        <Suspense>{props.children}</Suspense>
-      </main>
-      {import.meta.env.DEV && <DebugBar />}
-      <HelpButton />
-      <ToastRegion v2 />
-    </div>
+    <ModeProvider>
+      <LayoutContent update={update}>{props.children}</LayoutContent>
+    </ModeProvider>
   )
 }

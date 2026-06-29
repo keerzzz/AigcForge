@@ -61,6 +61,8 @@ import { type ServerHealth } from "@/utils/server-health"
 import { Persist, persisted } from "@/utils/persist"
 import { useMarked } from "@aigcfroge/ui/context/marked"
 import { preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"
+import { useMode, MODES, type Mode } from "@/context/mode"
+import { sessionHref } from "@/utils/session-route"
 
 const HOME_SESSION_LIMIT = 64
 const HOME_ROW_LAYOUT =
@@ -387,8 +389,27 @@ export function Home() {
     })
   }
 
+  const mode = useMode()
+
+  function enterMode(m: Mode) {
+    mode.setCurrentMode(m)
+    const placement = mode.activeSessionId(m)()
+    if (placement) {
+      navigate(sessionHref(placement.server, placement.sessionId))
+      return
+    }
+    const conn = focusedServer()
+    const project = newSessionProject()
+    if (conn && project) {
+      openProjectNewSession(conn, project.worktree)
+    }
+  }
+
   return (
-    <div class="rounded-[10px] shadow-[var(--v2-elevation-raised)] m-2 min-h-0 lg:overflow-hidden bg-v2-background-bg-base self-stretch flex-1">
+    <div class="rounded-[10px] shadow-[var(--v2-elevation-raised)] m-2 min-h-0 lg:overflow-hidden bg-v2-background-bg-base self-stretch flex-1 flex flex-col">
+      <div class="shrink-0 px-6 pt-6 lg:pt-12">
+        <HomeModeCards mode={mode} language={language} enterMode={enterMode} />
+      </div>
       <div class="mx-auto grid h-full w-full max-w-[1080px] grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-3 pb-3 lg:grid-cols-[280px_minmax(0,720px)] lg:grid-rows-1 lg:gap-8 lg:px-6 lg:pb-16">
         <HomeProjectColumn
           projects={projects()}
@@ -485,6 +506,57 @@ export function Home() {
           openHelp={() => platform.openLink("https://aigcfroge.ai/desktop-feedback")}
           language={language}
         />
+      </div>
+    </div>
+  )
+}
+
+function HomeModeCards(props: {
+  mode: ReturnType<typeof useMode>
+  language: ReturnType<typeof useLanguage>
+  enterMode: (m: Mode) => void
+}) {
+  const MODE_ICONS: Record<Mode, string> = {
+    chat: "mode-chat",
+    coding: "mode-coding",
+    work: "mode-work",
+    assistant: "mode-assistant",
+  }
+  return (
+    <div class="flex flex-col gap-3">
+      <h2 class="text-v2-text-text-base [font-weight:600]">{props.language.t("home.modes.title")}</h2>
+      <div class="grid grid-cols-1 gap-2 lg:grid-cols-2">
+        <For each={MODES}>
+          {(m) => {
+            const active = () => props.mode.currentMode === m
+            return (
+              <button
+                type="button"
+                aria-label={props.language.t(`mode.${m}` as const)}
+                class="flex cursor-default items-center gap-2.5 rounded-[8px] border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+                classList={{
+                  "bg-v2-background-bg-layer-01 border-v2-border-border-muted hover:bg-v2-overlay-simple-overlay-hover": !active(),
+                  "bg-v2-background-bg-layer-01 border-v2-border-border-focus": active(),
+                }}
+                onClick={() => props.enterMode(m)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    props.enterMode(m)
+                  }
+                }}
+              >
+                <IconV2 name={MODE_ICONS[m]} size="large" class="shrink-0 text-v2-icon-icon-base" />
+                <div class="flex min-w-0 flex-col gap-0.5">
+                  <span class="text-v2-text-text-base [font-weight:530]">{props.language.t(`mode.${m}`)}</span>
+                  <span class="text-v2-text-text-muted [font-weight:440]">
+                    {props.language.t(`mode.${m}.description`)}
+                  </span>
+                </div>
+              </button>
+            )
+          }}
+        </For>
       </div>
     </div>
   )

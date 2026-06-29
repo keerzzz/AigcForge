@@ -43,6 +43,7 @@ import "./titlebar.css"
 import { Session } from "@aigcfroge/sdk/v2"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { createTabPromptState } from "@/context/prompt"
+import { useMode } from "@/context/mode"
 
 type TauriDesktopWindow = {
   startDragging?: () => Promise<void>
@@ -836,11 +837,27 @@ type TitlebarV2RightState = {
 }
 
 function TitlebarV2Right(props: { state: TitlebarV2RightState }) {
+  const mode = useMode()
+  const language = useLanguage()
   return (
     <div class="relative z-20 flex shrink-0 items-center justify-end gap-0 overflow-visible">
       <Show when={props.state.update.visible}>
         <TitlebarUpdateIconButton state={props.state.update} />
       </Show>
+      <TooltipV2
+        value={language.t(mode.secondarySidebarOpen ? "sidebar.secondary.hide" : "sidebar.secondary.show")}
+        placement="bottom"
+        gutter={8}
+      >
+        <IconButtonV2
+          variant="ghost-muted"
+          size="normal"
+          class="titlebar-icon mr-1"
+          icon={<IconV2 name="sidebar-right" size="normal" />}
+          aria-label={language.t(mode.secondarySidebarOpen ? "sidebar.secondary.hide" : "sidebar.secondary.show")}
+          onClick={() => mode.toggleSecondarySidebar()}
+        />
+      </TooltipV2>
       <div id="aigcfroge-titlebar-right" class="flex shrink-0 items-center justify-end gap-0" />
     </div>
   )

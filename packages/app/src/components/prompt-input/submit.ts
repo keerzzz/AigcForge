@@ -11,6 +11,8 @@ import { useServerSync, type ServerSync } from "@/context/server-sync"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { useLocal } from "@/context/local"
+import { useGlobal } from "@/context/global"
+import { tryUseMode } from "@/context/mode"
 import { usePermission } from "@/context/permission"
 import { type ContextItem, type ImageAttachmentPart, type Prompt, type usePrompt } from "@/context/prompt"
 import { useSDK, type DirectorySDK } from "@/context/sdk"
@@ -219,6 +221,13 @@ export function createPromptSubmit(input: PromptSubmitInput) {
   const [search] = useSearchParams<{ draftId?: string }>()
   const server = useServer()
   const tabs = useTabs()
+  let global: ReturnType<typeof useGlobal> | undefined
+  try {
+    global = useGlobal()
+  } catch {
+    // GlobalProvider not available (e.g. in tests)
+  }
+  const modeCtx = tryUseMode()
   const pendingKey = (sessionID: string) => ScopedKey.from(sdk().scope, sessionID)
 
   const errorMessage = (err: unknown) => {
@@ -387,6 +396,16 @@ export function createPromptSubmit(input: PromptSubmitInput) {
         if (shouldAutoAccept) permission.enableAutoAccept(session.id, sessionDirectory)
         local.session.promote(sessionDirectory, session.id)
         layout.handoff.setTabs(base64Encode(sessionDirectory), session.id)
+        modeCtx?.setActiveSessionId(modeCtx.currentMode, {
+          server: server.key,
+          sessionId: created.id,
+        })
+        global?.sessionPlacement.set({
+          server: server.key,
+          leafID: created.id,
+          rootID: created.parentID ?? created.id,
+          directory: created.directory,
+        })
         const draftID = search.draftId
         if (draftID) tabs.promoteDraft(draftID, { server: server.key, sessionId: session.id })
         else navigate(`/${base64Encode(sessionDirectory)}/session/${session.id}`)

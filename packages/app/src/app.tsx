@@ -30,6 +30,7 @@ import { Dynamic } from "solid-js/web"
 import { CommandProvider } from "@/context/command"
 import { CommentsProvider } from "@/context/comments"
 import { FileProvider } from "@/context/file"
+import { useMode } from "@/context/mode"
 import { ServerSDKProvider, useServerSDK } from "@/context/server-sdk"
 import { ServerSyncProvider } from "@/context/server-sync"
 import { GlobalProvider, useGlobal } from "@/context/global"
@@ -88,6 +89,7 @@ const TargetSessionRoute = () => {
 function ResolvedTargetSessionRoute() {
   const params = useParams<{ serverKey: string; id: string }>()
   const tabs = useTabs()
+  const mode = useMode()
   const global = useGlobal()
   const serverSDK = useServerSDK()
   const serverKey = createMemo(() => requireServerKey(params.serverKey))
@@ -117,6 +119,10 @@ function ResolvedTargetSessionRoute() {
     const current = placement() ?? resolved()
     if (!current) return
     tabs.addSessionTab({
+      server: serverKey(),
+      sessionId: current.rootID,
+    })
+    mode.setActiveSessionId(mode.currentMode, {
       server: serverKey(),
       sessionId: current.rootID,
     })
