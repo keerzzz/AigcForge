@@ -1,7 +1,7 @@
 import { afterEach, describe, expect } from "bun:test"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { Database } from "@aigcfroge/core/database/database"
-import { Deferred, Effect, Exit, Fiber, Layer } from "effect"
+import { Deferred, Effect, Exit, Fiber, Layer, Schema } from "effect"
 import { Agent } from "../../src/agent/agent"
 import { BackgroundJob } from "@/background/job"
 import { EventV2Bridge } from "@/event-v2-bridge"
@@ -22,6 +22,7 @@ import { disposeAllInstances } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
+import { AdapterRegistry, defaultLayer as adapterRegistryLayer } from "../../src/agent/meta/adapters/registry"
 
 afterEach(async () => {
   await disposeAllInstances()
@@ -31,6 +32,10 @@ const ref = {
   providerID: ProviderV2.ID.make("test"),
   modelID: ModelV2.ID.make("test-model"),
 }
+const CliEchoOutput = Schema.Struct({
+  prompt: Schema.String,
+  cwd: Schema.String,
+})
 
 const layer = (flags: Partial<RuntimeFlags.Info> = {}) =>
   Layer.mergeAll(
@@ -43,6 +48,7 @@ const layer = (flags: Partial<RuntimeFlags.Info> = {}) =>
     SessionRunState.defaultLayer,
     SessionStatus.defaultLayer,
     Truncate.defaultLayer,
+    adapterRegistryLayer,
     ToolRegistry.defaultLayer,
     Database.defaultLayer,
     RuntimeFlags.layer(flags),
@@ -291,6 +297,124 @@ describe("tool.task", () => {
           subagent_type: "general",
         },
       })
+    }),
+  )
+
+  it.instance("external cli asks permission before executing", () =>
+    Effect.gen(function* () {
+      const registry = yield* AdapterRegistry
+      yield* registry.register("argv-test", {
+        name: "argv-test",
+        command: process.execPath,
+        description: "argv test adapter",
+        detect: () => Effect.succeed(true),
+        buildArgs: (input) =>
+          Effect.succeed([
+            "-e",
+            "process.stdout.write(JSON.stringify({ prompt: process.argv[1], cwd: process.cwd() }))",
+            input.prompt,
+          ]),
+        parseOutput: (stdout) =>
+          Effect.sync(() => {
+            const parsed = Schema.decodeUnknownSync(Schema.fromJsonString(CliEchoOutput))(stdout)
+            return { status: "success" as const, summary: `${parsed.prompt}\n${parsed.cwd}` }
+          }),
+      })
+
+      const { chat, assistant } = yield* seed()
+      const tool = yield* TaskTool
+      const def = yield* tool.init()
+      const calls: unknown[] = []
+
+      const result = yield* def.execute(
+        {
+          description: "inspect cli",
+          prompt: "alpha; echo pwned >&2",
+          subagent_type: "general",
+          execution_type: "external-cli",
+          cli_target: "argv-test",
+        },
+        {
+          sessionID: chat.id,
+          messageID: assistant.id,
+          agent: "meta",
+          abort: new AbortController().signal,
+          extra: {},
+          messages: [],
+          metadata: () => Effect.void,
+          ask: (input) =>
+            Effect.sync(() => {
+              calls.push(input)
+            }),
+        },
+      )
+
+      expect(calls).toEqual([
+        {
+          permission: "task",
+          patterns: ["argv-test"],
+          always: ["*"],
+          metadata: {
+            description: "inspect cli",
+            subagent_type: "argv-test",
+            execution_type: "external-cli",
+          },
+        },
+      ])
+      expect(result.output).toContain("alpha; echo pwned >&2")
+      expect(result.output).toContain(chat.directory)
+      expect(result.output).not.toContain("CLI adapter registry not available")
+    }),
+  )
+
+  it.instance("external cli preserves shell metacharacters as argv", () =>
+    Effect.gen(function* () {
+      const registry = yield* AdapterRegistry
+      yield* registry.register("argv-bypass", {
+        name: "argv-bypass",
+        command: process.execPath,
+        description: "argv bypass adapter",
+        detect: () => Effect.succeed(true),
+        buildArgs: (input) =>
+          Effect.succeed([
+            "-e",
+            "process.stdout.write(process.argv[1])",
+            input.prompt,
+          ]),
+        parseOutput: (stdout, stderr) =>
+          Effect.succeed({
+            status: stderr ? "failed" as const : "success" as const,
+            summary: stdout,
+            errors: stderr ? [stderr] : undefined,
+          }),
+      })
+
+      const { chat, assistant } = yield* seed()
+      const tool = yield* TaskTool
+      const def = yield* tool.init()
+      const result = yield* def.execute(
+        {
+          description: "inspect cli",
+          prompt: "literal; echo injected",
+          subagent_type: "general",
+          execution_type: "external-cli",
+          cli_target: "argv-bypass",
+        },
+        {
+          sessionID: chat.id,
+          messageID: assistant.id,
+          agent: "meta",
+          abort: new AbortController().signal,
+          extra: { bypassAgentCheck: true },
+          messages: [],
+          metadata: () => Effect.void,
+          ask: () => Effect.die(new Error("permission ask should be bypassed")),
+        },
+      )
+
+      expect(result.output).toContain("<task_result>")
+      expect(result.output).toContain("literal; echo injected")
+      expect(result.output).not.toContain("\ninjected")
     }),
   )
 

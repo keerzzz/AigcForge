@@ -69,12 +69,15 @@ export const layer = Layer.effect(
       const data = state.get()
       const configured = data.default ? selectable(data.agents.get(data.default)) : undefined
       if (configured) return configured
+      const metaAgent = selectable(data.agents.get(ID.make("meta")))
+      if (metaAgent) return metaAgent
       const build = selectable(data.agents.get(ID.make("build")))
       if (build) return build
       for (const agent of data.agents.values()) {
         const fallback = selectable(agent)
         if (fallback) return fallback
       }
+      return undefined
     }
 
     return Service.of({

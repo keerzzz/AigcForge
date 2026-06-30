@@ -1,0 +1,8 @@
+{
+  "name": "build",
+  "mode": "primary",
+  "description": "The default agent. Executes tools based on configured permissions.",
+  "capabilities": ["code_modification", "file_operations", "test_execution", "configuration"],
+  "constraints": [],
+  "protocol": "build"
+}

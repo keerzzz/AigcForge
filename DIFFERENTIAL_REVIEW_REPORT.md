@@ -6,107 +6,78 @@
 |----------|-------|
 | CRITICAL | 0 |
 | HIGH | 0 |
-| MEDIUM | 4 |
-| LOW | 3 |
+| MEDIUM | 0 |
+| LOW | 1 |
 
-**Overall Risk:** MEDIUM  
-**Recommendation:** CONDITIONAL / DO NOT APPROVE UNTIL MEDIUM FINDINGS ARE FIXED
+**Overall Risk:** LOW
+**Recommendation:** APPROVE for the reviewed fix set.
 
 **Key Metrics:**
-- Files analyzed: 20 changed or untracked files
-- Production code files: 13
-- Security regressions detected: 0
-- Test coverage gaps: no dedicated tests for mode/session ownership or secondary sidebar behavior
-- Verification: app/ui typecheck and tests pass; repo lint fails on existing debt
+- Files analyzed: prompt admission, agent selection, task delegation, external CLI execution, DB migration, and changed/untracked TypeScript surface
+- Security regressions detected after fix: 0
+- Prior blocker fixed: prompt admission only direct-routes safe primary-agent targets and falls back to meta for subagents, external CLIs, workflows, and multi-target routes
+- Verification: typecheck/tests pass; scoped oxlint has 0 warnings and 0 errors
 
 ## What Changed
 
-**Range:** working tree against `HEAD` on branch `brand-migration-v001`
+**Range:** working tree against `HEAD` on `dev`-based repository state.
 
 | Area | Files | Risk |
 |------|-------|------|
-| Mode state and switching | `context/mode.tsx`, `mode-switcher.tsx`, `home.tsx`, `app.tsx`, `submit.ts` | MEDIUM |
-| Secondary sidebar | `secondary-sidebar.tsx`, `layout.tsx`, `sidebar-items.tsx`, `sidebar-workspace.tsx`, `titlebar.tsx` | MEDIUM |
-| Shared UI/i18n | `icon.tsx`, `en.ts`, `zh.ts` | LOW |
-| Docs/plans | `docs/architecture/*`, `docs/plan/*` | LOW |
-| Local generated state | `.codegraph/*` | LOW |
+| Prompt admission safe direct routing | `packages/aigcfroge/src/session/prompt.ts`, `packages/aigcfroge/test/session/prompt-preroute.test.ts` | LOW |
+| Meta/default agent selection | `packages/aigcfroge/src/agent/agent.ts`, `packages/core/src/agent.ts` | LOW |
+| External CLI task delegation | `packages/aigcfroge/src/tool/task.ts`, meta adapter files/tests | LOW |
+| Plugin tool registry cleanup | `packages/aigcfroge/src/tool/registry.ts` | LOW |
+| DB migration generated artifacts | `packages/core/schema.json`, migration/schema generated files | LOW |
 
-Total tracked diff: +431 / -143 lines across 12 tracked files.  
-Untracked implementation/docs/local files: 8 files.
+## Resolved Findings
 
-## Findings
+### RESOLVED: Prompt admission treated unsafe pre-router targets as session agents
 
-### MEDIUM: ModeSwitcher navigates and creates drafts despite documented "state-only" contract
+**File:** `packages/aigcfroge/src/session/prompt.ts`
+**Fix:** constrained prompt-admission pre-routing to high-confidence, single-target, visible primary/all agents.
+**Regression Test:** `packages/aigcfroge/test/session/prompt-preroute.test.ts`
 
-**Files:** `packages/app/src/components/mode-switcher.tsx:28`, `docs/architecture/pages/mode-switcher.md:43`
+Previously, omitted-agent prompts ran `PreRouter.preRoute(...)` and assigned `route.targets[0].engine` to `agentName`. That broke prompts such as:
 
-The architecture doc says clicking a ModeSwitcher icon should only call `mode.setCurrentMode(m)` and leave the current session/page untouched. The implementation calls `navigate(sessionHref(...))` when a placement exists and `tabs.newDraft(...)` otherwise.
+```text
+@codex review this        -> engine: "codex"
+@claude-code inspect      -> engine: "claude-code"
+先做 A 再做 B              -> engine: "builtin"
+```
 
-This makes the always-visible rail a destructive navigation control: a user can lose the current view merely by changing mode. It also duplicates the Home mode-card behavior, even though the docs distinguish the two entry points.
+Those values are not registered agents. The fix keeps the meanings separate: explicit `input.agent` is honored; omitted-agent prompts may direct-route only when the target is a safe primary agent; all other pre-router targets fall back to the default `meta` agent so the orchestration layer can handle external CLI mentions, workflow phrases, and multi-target routes.
 
-**Required action:** Make `ModeSwitcher` only set `currentMode`, or update the architecture/product contract and tests if navigation is intended.
+The revised regression test covers fallback-to-meta cases:
+- `@codex review this`
+- `@claude-code inspect this`
+- `先做 A 再做 B`
+- `@explore 查找代码 @build 实现修复`
+- `explain how authentication works`
 
-### MEDIUM: SecondarySidebar cannot identify the active project/workspace on canonical session routes
+Each prompt is admitted successfully with `message.info.agent === "meta"`.
 
-**Files:** `packages/app/src/components/secondary-sidebar.tsx:71`, `packages/app/src/components/secondary-sidebar.tsx:630`, `packages/app/src/pages/layout/sidebar-workspace.tsx:347`
+It also covers safe direct-routing cases:
+- `fix login bug`
+- `@build 修复这个 bug`
 
-The new canonical route is `/server/:serverKey/session/:id`; it has no `params.dir`. `SecondarySidebar` still derives `currentDir` and active project state from `params.dir`, so active project/workspace detection is false for normal session routes.
+Each is admitted with `message.info.agent === "build"`.
 
-Impact:
-- current project highlight does not work
-- sandbox workspace active state does not open/bootstrap from the current route
-- `SortableWorkspace` behavior depending on `active()` cannot fire
+### RESOLVED: Auto-routing can bypass meta only for safe primary targets
 
-**Required action:** Resolve the directory from `global.sessionPlacement` or route-scoped session placement instead of `params.dir`.
+Prompt admission now allows the intended optimization only when the pre-router returns exactly one high-confidence target and that target resolves to a visible non-subagent. High-confidence text such as `fix login bug` can direct-route to `build`, while `explore`, external CLI, workflow, unknown, and multi-target cases stay on the default `meta` agent for orchestration.
 
-### MEDIUM: New-session wrapper nests a button role around an anchor
+### RESOLVED: Multiple @mentions were collapsed to the first target
 
-**File:** `packages/app/src/pages/layout/sidebar-workspace.tsx:252`
+Because prompt admission only consumes a single safe primary target, multi-mention intent remains in the user text for the meta layer instead of being collapsed into one session agent.
 
-When `onNewSession` is provided, `WorkspaceSessionList` wraps `NewSessionItem` in `<div role="button" tabindex={0}>`, but `NewSessionItem` renders an `<A>` internally. This creates nested interactive controls with conflicting keyboard/default navigation semantics.
+### RESOLVED: Changed-file scoped lint warning
 
-Impact:
-- invalid accessible structure
-- duplicate focus targets
-- Enter/Space behavior can diverge between the wrapper and inner link
+Scoped oxlint over changed and untracked TypeScript files now reports 0 warnings and 0 errors.
 
-**Required action:** Add explicit `onClick`/`href` override support to `NewSessionItem`, or render a real button for this mode instead of wrapping the link.
+## Remaining Low-Risk Note
 
-### MEDIUM: Project collapse rows are mouse-only
-
-**File:** `packages/app/src/components/secondary-sidebar.tsx:691`
-
-`SecondaryProjectRow` uses a clickable `<div>` to expand/collapse projects, with no `role`, `tabindex`, `aria-expanded`, or keyboard handler. This violates the design protocol requirement that interactive controls be keyboard reachable and operable.
-
-**Required action:** Use a `<button type="button">` or add the full keyboard/ARIA contract.
-
-### LOW: No focused tests cover mode/session placement behavior
-
-**Files:** `packages/app/src/context/mode.tsx`, `packages/app/src/app.tsx`, `packages/app/src/components/prompt-input/submit.ts`, `packages/app/src/pages/home.tsx`
-
-The change introduces persistent mode state and two session ownership write paths, but no tests verify:
-- draft submit records active mode session
-- opening an existing session records the current mode
-- Home mode card restores the last placement
-- ModeSwitcher follows the intended state-only contract
-
-**Required action:** Add focused tests around the new state flow or document why UI-only manual verification is sufficient.
-
-### LOW: New code uses provider-absence `try/catch` in prompt submit path
-
-**File:** `packages/app/src/components/prompt-input/submit.ts:224`
-
-`useGlobal()` is wrapped in `try/catch` and silently ignored to support tests. This weakens provider-boundary assumptions and conflicts with the local execution prompt's "No try/catch in UI code" rule.
-
-**Required action:** Prefer an explicit optional context helper, test provider setup, or a narrow documented utility instead of swallowing context errors in production code.
-
-### LOW: Local CodeGraph state is present in the working tree
-
-**Files:** `.codegraph/.gitignore`, `.codegraph/daemon.pid`
-
-`.codegraph/.gitignore` and `.codegraph/daemon.pid` are untracked. The PID file is local machine state and should not be part of the review or commit.
-
-**Required action:** Remove local runtime files from the commit surface, or ignore `.codegraph/` at the repo level if CodeGraph is expected locally.
+`.codegraph/daemon.pid` remains dirty local runtime state. It should stay out of review/commit scope.
 
 ## Test Coverage Analysis
 
@@ -114,53 +85,39 @@ Commands run:
 
 | Command | Result |
 |---------|--------|
-| `bun --cwd packages/app typecheck` | PASS |
-| `bun --cwd packages/ui typecheck` | PASS |
-| `bun --cwd packages/app test --timeout 30000` | PASS |
-| `bun --cwd packages/ui test --timeout 30000` | PASS |
+| `bun --cwd packages/aigcfroge typecheck` | PASS |
+| `bun --cwd packages/core typecheck` | PASS |
+| `bun --cwd packages/plugin typecheck` | PASS |
+| `bun --cwd packages/aigcfroge test test/session/prompt-preroute.test.ts --timeout 30000` | PASS |
+| `bun --cwd packages/aigcfroge test test/session/prompt-preroute.test.ts test/agent/meta/meta-agent.test.ts test/agent/meta/prerouter.test.ts --timeout 30000` | PASS |
+| `bun --cwd packages/aigcfroge test test/session/prompt.test.ts --timeout 30000` | PASS |
+| `bun --cwd packages/aigcfroge test test/agent/meta/prerouter.test.ts test/agent/meta/mention.test.ts test/tool/task.test.ts test/session/prompt-preroute.test.ts --timeout 30000` | PASS |
+| `bun --cwd packages/core test test/database-migration.test.ts test/agent.test.ts test/plugin/host.ts --timeout 30000` | PASS |
 | `git diff --check` | PASS |
-| `bun run lint` | FAIL, repo-wide existing lint debt: 3693 warnings and 1 error |
-| targeted `bunx oxlint` on new mode/sidebar files with `--deny-warnings` | PASS |
+| Scoped `bunx oxlint` over changed/untracked TS | PASS, 0 warnings |
 
-No browser/manual UI verification was run. Package guidance says not to restart app/server processes; the review stayed at static and package command verification.
+## Blast Radius Analysis
 
-## Blast Radius
+| Function | Risk After Fix | Reason |
+|----------|----------------|--------|
+| `SessionPrompt.createUserMessage` | LOW | Maps only high-confidence single visible primary targets; otherwise falls back to default agent |
+| `PreRouter.preRoute` | LOW | Still unit-tested; prompt admission consumes only a constrained subset |
+| `TaskTool.executeCLI` | LOW | Permission ask and argv spawning remain covered by task tests |
+| `Agent.defaultInfo/defaultAgent` | LOW | Meta default behavior is covered by agent tests |
 
-| Function/component | Callers/entrypoints | Risk |
-|--------------------|---------------------|------|
-| `ModeProvider` | entire app shell via `Layout` | MEDIUM |
-| `ModeSwitcher.enterMode` | always-visible rail buttons | MEDIUM |
-| `Home.enterMode` | Home mode cards | MEDIUM |
-| `ResolvedTargetSessionRoute` placement write | every canonical session route | MEDIUM |
-| `WorkspaceSessionList` | V1 workspace list plus secondary sidebar path | MEDIUM |
-| `SessionItem.serverKey` | V1-compatible session navigation | LOW |
+## Analysis Methodology
 
-## Historical Context
+**Strategy:** FOCUSED, security/behavioral review of current working-tree diff.
 
-Recent relevant history is shallow:
-- `7a4a989 fix: remove V1 legacy layout, consolidate to single layout, fix regressions`
-- `83e3651 chore: migrate brand to aigcfroge and update version to 0.0.1`
-- `c51269f chore: initial commit (slimmed version)`
+**Techniques:**
+- Reviewed changed prompt admission code and direct dependencies.
+- Verified pre-router outputs for primary agent, subagent, external CLI, workflow, and multi-target cases.
+- Added prompt-admission regression tests for safe build direct-routing and fallback-to-meta admission.
+- Ran package typechecks, targeted prompt/task/meta tests, core migration/agent/plugin tests, diff whitespace check, and scoped lint.
 
-No removed security checks, auth logic, crypto, command execution, or sensitive logging were found in this diff.
+**Limitations:**
+- Did not inspect every untracked doc file in detail.
+- Did not run full repository tests.
+- Did not perform browser/manual UI verification because the change is backend/session/tooling focused.
 
-## Methodology
-
-Skills/protocols used:
-- `differential-review`
-- `audit-context-building` for context-building discipline
-- `CLAUDE.md`
-- `AGENTS.md`
-- `DESIGN.md`
-- `packages/app/AGENTS.md`
-
-Analysis scope:
-- Read all new implementation files.
-- Reviewed tracked diffs and untracked files.
-- Traced mode state, session placement, route, tab, sidebar, and workspace call paths.
-- Ran package typechecks/tests and lint diagnostics.
-
-Limitations:
-- No Playwright/browser inspection.
-- Did not inspect every locale beyond fallback behavior.
-- Did not fix findings; this report is review-only.
+**Confidence:** HIGH for the fixed prompt-admission routing issue; MEDIUM for broader untracked meta-agent behavior.

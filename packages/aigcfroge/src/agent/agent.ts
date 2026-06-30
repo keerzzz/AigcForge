@@ -14,6 +14,7 @@ import PROMPT_COMPACTION from "./prompt/compaction.txt"
 import PROMPT_EXPLORE from "./prompt/explore.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
+import { MetaAgent } from "./meta-agent"
 import { Permission } from "@/permission"
 import { mergeDeep, pipe, sortBy, values } from "remeda"
 import { Global } from "@aigcfroge/core/global"
@@ -137,21 +138,39 @@ export const layer = Layer.effect(
 
         const user = Permission.fromConfig(cfg.permission ?? {})
 
+        const buildDefaults = Permission.merge(
+          defaults,
+          Permission.fromConfig({
+            question: "allow",
+            plan_enter: "allow",
+          }),
+        )
+
         const agents: Record<string, Info> = {
           build: {
             name: "build",
             description: "The default agent. Executes tools based on configured permissions.",
             options: {},
+            permission: Permission.merge(buildDefaults, user),
+            mode: "primary",
+            native: true,
+          },
+          meta: {
+            name: "meta",
+            description: MetaAgent.description,
             permission: Permission.merge(
-              defaults,
+              buildDefaults,
               Permission.fromConfig({
-                question: "allow",
-                plan_enter: "allow",
+                task: "allow",
+                create_agent: "allow",
+                configure_mcp: "allow",
               }),
               user,
             ),
-            mode: "primary",
+            mode: MetaAgent.mode,
             native: true,
+            options: MetaAgent.options ?? {},
+            prompt: MetaAgent.prompt,
           },
           plan: {
             name: "plan",
@@ -319,13 +338,18 @@ export const layer = Layer.effect(
             agents,
             values(),
             sortBy(
-              [(x) => (cfg.default_agent ? x.name === cfg.default_agent : x.name === "build"), "desc"],
+              [(x) => (cfg.default_agent ? x.name === cfg.default_agent : process.env.AIGCFROGE_DISABLE_META_AGENT === "true" ? x.name === "build" : x.name === "meta"), "desc"],
               [(x) => x.name, "asc"],
             ),
           )
         })
 
         const defaultInfo = Effect.fnUntraced(function* () {
+          if (process.env.AIGCFROGE_DISABLE_META_AGENT === "true") {
+            const fallback = agents["build"]?.hidden ? Object.values(agents).find((a) => a.mode !== "subagent" && a.hidden !== true) : agents["build"]
+            if (!fallback) throw new Error("no primary visible agent found")
+            return fallback
+          }
           const c = yield* config.get()
           if (c.default_agent) {
             const agent = agents[c.default_agent]
@@ -334,8 +358,13 @@ export const layer = Layer.effect(
             if (agent.hidden === true) throw new Error(`default agent "${c.default_agent}" is hidden`)
             return agent
           }
-          const visible = Object.values(agents).find((a) => a.mode !== "subagent" && a.hidden !== true)
-          if (!visible) throw new Error("no primary visible agent found")
+          const metaAgent = agents["meta"]
+          const visible = !metaAgent?.hidden ? metaAgent : (agents["build"]?.hidden ? undefined : agents["build"])
+          if (!visible) {
+            const fallback = Object.values(agents).find((a) => a.mode !== "subagent" && a.hidden !== true)
+            if (!fallback) throw new Error("no primary visible agent found")
+            return fallback
+          }
           return visible
         })
 

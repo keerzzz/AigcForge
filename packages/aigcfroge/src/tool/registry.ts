@@ -16,6 +16,7 @@ import { WebFetchTool } from "./webfetch"
 import { WriteTool } from "./write"
 import { InvalidTool } from "./invalid"
 import { SkillTool } from "./skill"
+import { DelegationProtocolTool } from "./delegation-protocol"
 import * as Tool from "./tool"
 import { Config } from "@/config/config"
 import { type ToolContext as PluginToolContext, type ToolDefinition } from "@aigcfroge/plugin"
@@ -33,8 +34,7 @@ import { Glob } from "@aigcfroge/core/util/glob"
 import path from "path"
 import { pathToFileURL } from "url"
 import { Effect, Layer, Context } from "effect"
-import { FetchHttpClient, HttpClient } from "effect/unstable/http"
-import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
+import { FetchHttpClient } from "effect/unstable/http"
 import { CrossSpawnSpawner } from "@aigcfroge/core/cross-spawn-spawner"
 import { Format } from "../format"
 import { InstanceState } from "@/effect/instance-state"
@@ -52,6 +52,7 @@ import { BackgroundJob } from "@/background/job"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
+import { defaultLayer as adapterRegistryLayer } from "../agent/meta/adapters/registry"
 
 export function webSearchEnabled(providerID: ProviderV2.ID, flags = { exa: false, parallel: false }) {
   return providerID === ProviderV2.ID.aigcfroge || flags.exa || flags.parallel
@@ -105,6 +106,7 @@ export const layer = Layer.effect(
     const greptool = yield* GrepTool
     const patchtool = yield* ApplyPatchTool
     const skilltool = yield* SkillTool
+    const delegationProtocol = yield* DelegationProtocolTool
     const agent = yield* Agent.Service
 
     const state = yield* InstanceState.make<State>(
@@ -122,8 +124,10 @@ export const layer = Layer.effect(
           const zodParams = allZod ? z.object(args) : undefined
           const jsonSchema = zodParams ? zodJsonSchema(zodParams) : legacyJsonSchema(entries)
           const parameters = zodParams
-            ? Schema.declare<unknown>((u): u is unknown => zodParams.safeParse(u).success)
-            : Schema.Unknown
+            ? Schema.declare<Record<string, unknown>>((u): u is Record<string, unknown> =>
+                zodParams.safeParse(u).success,
+              )
+            : Schema.Record(Schema.String, Schema.Unknown)
           return {
             id,
             parameters,
@@ -140,7 +144,10 @@ export const layer = Layer.effect(
                   directory: ctx.directory,
                   worktree: ctx.worktree,
                 }
-                const result = yield* Effect.promise(() => def.execute(args as any, pluginCtx))
+                if (!isJsonSchemaObject(args)) {
+                  return yield* Effect.die(new Error("plugin tool args must be an object"))
+                }
+                const result = yield* Effect.promise(() => def.execute(args, pluginCtx))
                 const output = typeof result === "string" ? result : result.output
                 const metadata = typeof result === "string" ? {} : (result.metadata ?? {})
                 const attachments = typeof result === "string" ? undefined : result.attachments
@@ -212,6 +219,7 @@ export const layer = Layer.effect(
           question: Tool.init(question),
           lsp: Tool.init(lsptool),
           plan: Tool.init(plan),
+          delegationProtocol: Tool.init(delegationProtocol),
         })
 
         return {
@@ -226,6 +234,7 @@ export const layer = Layer.effect(
             tool.edit,
             tool.write,
             tool.task,
+            tool.delegationProtocol,
             tool.fetch,
             tool.todo,
             tool.search,
@@ -298,8 +307,10 @@ export const layer = Layer.effect(
               .join("\n"),
             parameters: output.parameters,
             jsonSchema,
-            execute: tool.execute,
-            formatValidationError: tool.formatValidationError,
+            execute: (args: unknown, ctx: Tool.Context) => tool.execute(args, ctx),
+            ...(tool.formatValidationError
+              ? { formatValidationError: (error: unknown) => tool.formatValidationError?.(error) ?? String(error) }
+              : {}),
           }
         }),
         { concurrency: "unbounded" },
@@ -320,6 +331,7 @@ export const defaultLayer = Layer.suspend(() =>
     .pipe(
       Layer.provide(Config.defaultLayer),
       Layer.provide(Plugin.defaultLayer),
+      Layer.provide(adapterRegistryLayer),
       Layer.provide(Question.defaultLayer),
       Layer.provide(Todo.defaultLayer),
       Layer.provide(Skill.defaultLayer),
@@ -351,6 +363,10 @@ function isJsonSchemaDefinition(value: unknown): value is JSONSchema7Definition 
   return typeof value === "boolean" || (typeof value === "object" && value !== null && !Array.isArray(value))
 }
 
+function isJsonSchemaDefinitions(value: unknown): value is NonNullable<JSONSchema7["definitions"]> {
+  return isJsonSchemaObject(value) && Object.values(value).every(isJsonSchemaDefinition)
+}
+
 function legacyJsonSchema(entries: [string, unknown][]): JSONSchema7 {
   const properties = Object.fromEntries(
     entries.filter((entry): entry is [string, JSONSchema7Definition] => isJsonSchemaDefinition(entry[1])),
@@ -366,9 +382,7 @@ function zodJsonSchema(schema: z.ZodType): JSONSchema7 {
   const result = normalizeZodJsonSchema(z.toJSONSchema(schema, { io: "input", metadata: zodMetadataRegistry(schema) }))
   if (!isJsonSchemaObject(result)) throw new Error("plugin tool Zod schema produced a non-object JSON Schema")
   const { $defs, ...rest } = result
-  return (
-    $defs && isJsonSchemaObject($defs) ? { ...rest, definitions: $defs as JSONSchema7["definitions"] } : rest
-  ) as JSONSchema7
+  return ($defs && isJsonSchemaDefinitions($defs) ? { ...rest, definitions: $defs } : rest) as JSONSchema7
 }
 
 function zodMetadataRegistry(schema: z.ZodType) {
@@ -402,10 +416,9 @@ function normalizeZodJsonSchema(value: unknown): unknown {
   if (typeof value !== "object" || value === null) return value
   return Object.fromEntries(
     Object.entries(value)
-      .filter((entry) =>
-        (entry[0] === "exclusiveMaximum" || entry[0] === "exclusiveMinimum") && typeof entry[1] === "boolean"
-          ? false
-          : true,
+      .filter(
+        (entry) =>
+          !((entry[0] === "exclusiveMaximum" || entry[0] === "exclusiveMinimum") && typeof entry[1] === "boolean"),
       )
       .map(([key, item]) => [key, normalizeZodJsonSchema(item)]),
   )

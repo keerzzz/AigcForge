@@ -8,12 +8,15 @@ import { SessionID, MessageID } from "../session/schema"
 import { MessageV2 } from "../session/message-v2"
 import { Agent } from "../agent/agent"
 import { deriveSubagentSessionPermission } from "../agent/subagent-permissions"
+import { AdapterRegistry } from "../agent/meta/adapters/registry"
+import { CliTimeout } from "../agent/meta/adapters/timeout"
 import type { SessionPrompt } from "../session/prompt"
 import { Config } from "@/config/config"
-import { Effect, Exit, Schema, Scope } from "effect"
+import { Effect, Exit, Option, Schema, Scope } from "effect"
 import { EffectBridge } from "@/effect/bridge"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { Database } from "@aigcfroge/core/database/database"
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 
 export interface TaskPromptOps {
   cancel(sessionID: SessionID): Effect.Effect<void>
@@ -40,6 +43,19 @@ const BACKGROUND_UPDATED = [
   "Work on non-overlapping tasks, or briefly tell the user what you sent and end your response.",
 ].join("\n")
 
+function isTaskPromptOps(value: unknown): value is TaskPromptOps {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "cancel" in value &&
+    typeof value.cancel === "function" &&
+    "resolvePromptParts" in value &&
+    typeof value.resolvePromptParts === "function" &&
+    "prompt" in value &&
+    typeof value.prompt === "function"
+  )
+}
+
 const BaseParameterFields = {
   description: Schema.String.annotate({ description: "A short (3-5 words) description of the task" }),
   prompt: Schema.String.annotate({ description: "The task for the agent to perform" }),
@@ -49,6 +65,13 @@ const BaseParameterFields = {
       "This should only be set if you mean to resume a previous task (you can pass a prior task_id and the task will continue the same subagent session as before instead of creating a fresh one)",
   }),
   command: Schema.optional(Schema.String).annotate({ description: "The command that triggered this task" }),
+  execution_type: Schema.optional(Schema.Literals(["subagent", "external-cli"])).annotate({
+    description:
+      "Execution mode: subagent (default) for internal agents, external-cli for CLI tools like claude-code",
+  }),
+  cli_target: Schema.optional(Schema.String).annotate({
+    description: "CLI name when execution_type is 'external-cli'. Use @name in conversation.",
+  }),
 }
 
 const BaseParameters = Schema.Struct(BaseParameterFields)
@@ -88,11 +111,74 @@ export const TaskTool = Tool.define(
     const scope = yield* Scope.Scope
     const flags = yield* RuntimeFlags.Service
     const database = yield* Database.Service
+    const spawner = yield* ChildProcessSpawner
+    const adapterRegistry = yield* Effect.serviceOption(AdapterRegistry).pipe(
+      Effect.map(Option.getOrUndefined),
+    )
+
+    const executeCLI = Effect.fn("TaskTool.executeCLI")(function* (
+      params: { description: string; cli_target: string; prompt: string; cwd: string },
+      ctx: Tool.Context,
+    ) {
+      if (!adapterRegistry) return yield* Effect.fail(new Error("CLI adapter registry not available"))
+      const adapter = yield* adapterRegistry.get(params.cli_target)
+      if (!adapter) return yield* Effect.fail(new Error(`Unknown CLI target: ${params.cli_target}`))
+
+      if (!ctx.extra?.bypassAgentCheck) {
+        yield* ctx.ask({
+          permission: id,
+          patterns: [params.cli_target],
+          always: ["*"],
+          metadata: {
+            description: params.description,
+            subagent_type: params.cli_target,
+            execution_type: "external-cli",
+          },
+        })
+      }
+
+      const sessionId = SessionID.descending()
+      const result = yield* CliTimeout.executeWithTimeout(spawner, adapter, {
+        prompt: params.prompt,
+        cwd: params.cwd,
+      }, 300_000)
+
+      return {
+        title: `CLI: ${params.cli_target}`,
+        metadata: {
+          sessionId,
+          parentSessionId: ctx.sessionID,
+          cli: params.cli_target,
+          status: result.status,
+        },
+        output: renderOutput({
+          sessionID: sessionId,
+          state: result.status === "failed" ? "error" : "completed",
+          text: result.summary,
+        }),
+      }
+    })
 
     const run = Effect.fn("TaskTool.execute")(function* (
       params: Schema.Schema.Type<typeof Parameters>,
       ctx: Tool.Context,
     ) {
+      const parent = yield* sessions.get(ctx.sessionID)
+
+      // CLI execution mode branch
+      if (params.execution_type === "external-cli") {
+        if (!params.cli_target) {
+          return yield* Effect.fail(new Error("cli_target is required when execution_type is 'external-cli'"))
+        }
+        const cliResult: Tool.ExecuteResult = yield* executeCLI({
+          description: params.description,
+          cli_target: params.cli_target,
+          prompt: params.prompt,
+          cwd: parent.directory,
+        }, ctx)
+        return cliResult
+      }
+
       const cfg = yield* config.get()
       const runInBackground = params.background === true
       if (runInBackground && !flags.experimentalBackgroundSubagents) {
@@ -121,7 +207,6 @@ export const TaskTool = Tool.define(
       const session = params.task_id
         ? yield* sessions.get(SessionID.make(params.task_id)).pipe(Effect.catchCause(() => Effect.succeed(undefined)))
         : undefined
-      const parent = yield* sessions.get(ctx.sessionID)
       const childPermission = deriveSubagentSessionPermission({
         parentSessionPermission: parent.permission ?? [],
         subagent: next,
@@ -180,8 +265,8 @@ export const TaskTool = Tool.define(
         metadata,
       })
 
-      const ops = ctx.extra?.promptOps as TaskPromptOps
-      if (!ops) return yield* Effect.fail(new Error("TaskTool requires promptOps in ctx.extra"))
+      const ops = ctx.extra?.promptOps
+      if (!isTaskPromptOps(ops)) return yield* Effect.fail(new Error("TaskTool requires promptOps in ctx.extra"))
 
       const runTask = Effect.fn("TaskTool.runTask")(function* () {
         const parts = yield* ops.resolvePromptParts(params.prompt)

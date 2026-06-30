@@ -1,0 +1,8 @@
+{
+  "name": "general",
+  "mode": "subagent",
+  "description": "General-purpose agent for researching complex questions and executing multi-step tasks.",
+  "capabilities": ["research", "multi_step_tasks", "parallel_execution"],
+  "constraints": ["no_todowrite"],
+  "protocol": "general"
+}

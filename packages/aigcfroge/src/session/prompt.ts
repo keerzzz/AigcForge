@@ -60,6 +60,7 @@ import { SessionTable } from "@aigcfroge/core/session/sql"
 import { SessionReminders } from "./reminders"
 import { SessionTools } from "./tools"
 import { LLMEvent } from "@aigcfroge/llm"
+import { PreRouter } from "../agent/meta/prerouter"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -653,13 +654,28 @@ export const layer = Layer.effect(
       return yield* provider.defaultModel().pipe(Effect.orDie)
     })
 
+    const resolvePromptAgent = Effect.fn("SessionPrompt.resolvePromptAgent")(function* (input: PromptInput) {
+      if (input.agent) return yield* agents.get(input.agent)
+
+      const text = input.parts
+        .map((part) => (part.type === "text" ? part.text : ""))
+        .filter(Boolean)
+        .join("\n")
+      const route = PreRouter.preRoute(text)
+      const target = route.confidence === "high" && route.targets.length === 1 ? route.targets[0] : undefined
+      if (!route.routed || !target) return yield* agents.defaultInfo()
+
+      const agent = yield* agents.get(target.engine)
+      if (!agent || agent.hidden === true || agent.mode === "subagent") return yield* agents.defaultInfo()
+      return agent
+    })
+
     const createUserMessage = Effect.fn("SessionPrompt.createUserMessage")(function* (input: PromptInput) {
-      const agentName = input.agent
-      const ag = agentName ? yield* agents.get(agentName) : yield* agents.defaultInfo()
+      const ag = yield* resolvePromptAgent(input)
       if (!ag) {
         const available = (yield* agents.list()).filter((a) => !a.hidden).map((a) => a.name)
         const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
-        const error = new NamedError.Unknown({ message: `Agent not found: "${agentName}".${hint}` })
+        const error = new NamedError.Unknown({ message: `Agent not found: "${input.agent}".${hint}` })
         yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
         throw error
       }
@@ -676,7 +692,7 @@ export const layer = Layer.effect(
         !input.variant && ag.variant && same
           ? yield* provider
               .getModel(model.providerID, model.modelID)
-              .pipe(Effect.catchIf(Provider.ModelNotFoundError.isInstance, () => Effect.succeed(undefined)))
+              .pipe(Effect.catchTag("ProviderModelNotFoundError", () => Effect.succeed(undefined)))
           : undefined
       const variant = input.variant ?? (ag.variant && full?.variants?.[ag.variant] ? ag.variant : undefined)
 

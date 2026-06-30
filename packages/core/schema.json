@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "ffc282f0-e59d-44dd-9fce-504da92c0c4d",
+  "id": "1e8b0ae2-f99f-4219-8e32-0600c65223cc",
   "prevIds": [
-    "f14a9b18-8207-487e-a3d3-227e629ba9ad"
+    "ffc282f0-e59d-44dd-9fce-504da92c0c4d"
   ],
   "ddl": [
     {
@@ -577,6 +577,46 @@
       "default": "'worker'",
       "generated": null,
       "name": "role",
+      "entityType": "columns",
+      "table": "meta_agent_session"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "effort",
+      "entityType": "columns",
+      "table": "meta_agent_session"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "tokens_used",
+      "entityType": "columns",
+      "table": "meta_agent_session"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "error",
+      "entityType": "columns",
+      "table": "meta_agent_session"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "result_summary",
       "entityType": "columns",
       "table": "meta_agent_session"
     },

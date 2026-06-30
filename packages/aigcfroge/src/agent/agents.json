@@ -1,0 +1,41 @@
+{
+  "meta": {
+    "name": "meta",
+    "mode": "primary",
+    "description": "The meta agent — unified orchestration entry point",
+    "capabilities": ["intent_classification", "routing", "delegation", "orchestration"],
+    "constraints": ["delegate_code_execution_first", "keep_responses_short"]
+  },
+  "build": {
+    "name": "build",
+    "mode": "primary",
+    "description": "The default agent. Executes tools based on configured permissions.",
+    "capabilities": ["code_modification", "file_operations", "test_execution", "configuration"],
+    "constraints": [],
+    "protocol": "build"
+  },
+  "plan": {
+    "name": "plan",
+    "mode": "primary",
+    "description": "Plan mode. Disallows all edit tools.",
+    "capabilities": ["architecture_design", "requirements_analysis", "planning"],
+    "constraints": ["no_code_modification", "read_only"],
+    "protocol": "plan"
+  },
+  "general": {
+    "name": "general",
+    "mode": "subagent",
+    "description": "General-purpose agent for researching complex questions and executing multi-step tasks.",
+    "capabilities": ["research", "multi_step_tasks", "parallel_execution"],
+    "constraints": ["no_todowrite"],
+    "protocol": "general"
+  },
+  "explore": {
+    "name": "explore",
+    "mode": "subagent",
+    "description": "Fast agent specialized for exploring codebases.",
+    "capabilities": ["code_search", "grep", "file_reading", "glob", "web_search"],
+    "constraints": ["no_file_creation", "no_modification", "read_only"],
+    "protocol": "explore"
+  }
+}

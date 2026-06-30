@@ -30,6 +30,10 @@ export const MetaAgentSessionTable = sqliteTable(
       .notNull()
       .references(() => SessionTable.id, { onDelete: "cascade" }),
     role: text().$type<"orchestrator" | "worker" | "tool">().notNull().default("worker"),
+    effort: text(),
+    tokens_used: integer(),
+    error: text(),
+    result_summary: text(),
     ...Timestamps,
   },
   (table) => [
