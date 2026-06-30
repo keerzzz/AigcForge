@@ -88,7 +88,7 @@ beforeAll(async () => {
     },
   }))
 
-  mock.module("@aigcfroge/ui/toast", () => ({
+  mock.module("@aigcfroge/ui/v2/toast-v2", () => ({
     Toast: { Region: () => null },
     showToast: () => 0,
   }))

@@ -2,9 +2,9 @@ import { Component, Show, createMemo, createResource, onMount, type JSX } from "
 import { Button } from "@aigcfroge/ui/button"
 import { Icon } from "@aigcfroge/ui/icon"
 import { Select } from "@aigcfroge/ui/select"
-import { Switch } from "@aigcfroge/ui/switch"
+import { Switch } from "@aigcfroge/ui/v2/switch-v2"
 import { TextField } from "@aigcfroge/ui/text-field"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
 import { useTheme, type ColorScheme } from "@aigcfroge/ui/theme/context"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useParams } from "@solidjs/router"
@@ -694,11 +694,11 @@ export const SettingsGeneral: Component = () => {
               title={
                 <div class="flex items-center gap-2">
                   <span>{language.t("settings.general.row.wayland.title")}</span>
-                  <Tooltip value={language.t("settings.general.row.wayland.tooltip")} placement="top">
+                  <TooltipV2 value={language.t("settings.general.row.wayland.tooltip")} placement="top">
                     <span class="text-text-weak">
                       <Icon name="help" size="small" />
                     </span>
-                  </Tooltip>
+                  </TooltipV2>
                 </div>
               }
               description={language.t("settings.general.row.wayland.description")}

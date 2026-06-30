@@ -85,7 +85,6 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
           .then((x) => x.data ?? []),
       onError: (message) => {
         showToast({
-          variant: "error",
           title: language.t("toast.file.listFailed.title"),
           description: message,
         })
@@ -158,7 +157,6 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
         }),
       )
       showToast({
-        variant: "error",
         title: language.t("toast.file.loadFailed.title"),
         description: message,
       })

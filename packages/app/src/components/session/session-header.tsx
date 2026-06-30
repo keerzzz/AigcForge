@@ -6,7 +6,8 @@ import { IconButton } from "@aigcfroge/ui/icon-button"
 import { Keybind } from "@aigcfroge/ui/keybind"
 import { Spinner } from "@aigcfroge/ui/spinner"
 import { showToast } from "@/utils/toast"
-import { Tooltip, TooltipKeybind } from "@aigcfroge/ui/tooltip"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
+import { TooltipKeybind } from "@/components/tooltip-keybind"
 import { getFilename } from "@aigcfroge/core/util/path"
 import { createEffect, createMemo, createSignal, For, onMount, Show } from "solid-js"
 import { createStore } from "solid-js/store"
@@ -126,7 +127,6 @@ const detectOS = (platform: ReturnType<typeof usePlatform>): OS => {
 
 const showRequestError = (language: ReturnType<typeof useLanguage>, err: unknown) => {
   showToast({
-    variant: "error",
     title: language.t("common.requestFailed"),
     description: err instanceof Error ? err.message : String(err),
   })
@@ -270,7 +270,6 @@ export function SessionHeader() {
       .writeText(directory)
       .then(() => {
         showToast({
-          variant: "success",
           icon: "circle-check",
           title: language.t("session.share.copy.copied"),
           description: directory,
@@ -343,9 +342,9 @@ function SessionHeaderV2Actions(props: { state: SessionHeaderV2ActionsState }) {
   return (
     <div class="flex items-center gap-2">
       <Show when={props.state.statusVisible}>
-        <Tooltip placement="bottom" value={props.state.statusLabel}>
+        <TooltipV2 placement="bottom" value={props.state.statusLabel}>
           <StatusPopoverV2 />
-        </Tooltip>
+        </TooltipV2>
       </Show>
       <Show when={props.state.reviewVisible}>
         <TooltipKeybind title={props.state.reviewLabel} keybind={props.state.reviewKeybind}>

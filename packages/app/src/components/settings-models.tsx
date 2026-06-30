@@ -1,6 +1,6 @@
 import { useFilteredList } from "@aigcfroge/ui/hooks"
 import { ProviderIcon } from "@aigcfroge/ui/provider-icon"
-import { Switch } from "@aigcfroge/ui/switch"
+import { Switch } from "@aigcfroge/ui/v2/switch-v2"
 import { Icon } from "@aigcfroge/ui/icon"
 import { IconButton } from "@aigcfroge/ui/icon-button"
 import { TextField } from "@aigcfroge/ui/text-field"

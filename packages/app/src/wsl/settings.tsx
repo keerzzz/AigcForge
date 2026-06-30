@@ -84,7 +84,6 @@ export function WslServerSettings(props: {
     mutationFn: (action: () => Promise<unknown>) => action(),
     onError: (error) =>
       showToast({
-        variant: "error",
         title: language.t("common.requestFailed"),
         description: error instanceof Error ? error.message : String(error),
       }),

@@ -7,9 +7,9 @@ import { popularProviders } from "@/hooks/use-providers"
 import { Button } from "@aigcfroge/ui/button"
 import { IconButton } from "@aigcfroge/ui/icon-button"
 import { Tag } from "@aigcfroge/ui/tag"
-import { Dialog } from "@aigcfroge/ui/dialog"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { List } from "@aigcfroge/ui/list"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
 import { ModelTooltip } from "./model-tooltip"
 import { useLanguage } from "@/context/language"
 
@@ -54,14 +54,14 @@ const ModelList: Component<{
         return popularProviders.indexOf(aProvider) - popularProviders.indexOf(bProvider)
       }}
       itemWrapper={(item, node) => (
-        <Tooltip
+        <TooltipV2
           class="w-full"
           placement="right-start"
           gutter={12}
           value={<ModelTooltip model={item} latest={item.latest} free={isFree(item.provider.id, item.cost)} />}
         >
           {node}
-        </Tooltip>
+        </TooltipV2>
       )}
       onSelect={(x) => {
         model.set(x ? { modelID: x.id, providerID: x.provider.id } : undefined, {
@@ -167,7 +167,7 @@ export function ModelSelectorPopover(props: {
             class="p-1"
             action={
               <div class="flex items-center gap-1">
-                <Tooltip placement="top" value={language.t("command.provider.connect")}>
+                <TooltipV2 placement="top" value={language.t("command.provider.connect")}>
                   <IconButton
                     icon="plus-small"
                     variant="ghost"
@@ -176,8 +176,8 @@ export function ModelSelectorPopover(props: {
                     aria-label={language.t("command.provider.connect")}
                     onClick={handleConnectProvider}
                   />
-                </Tooltip>
-                <Tooltip placement="top" value={language.t("dialog.model.manage")}>
+                </TooltipV2>
+                <TooltipV2 placement="top" value={language.t("dialog.model.manage")}>
                   <IconButton
                     icon="sliders"
                     variant="ghost"
@@ -186,7 +186,7 @@ export function ModelSelectorPopover(props: {
                     aria-label={language.t("dialog.model.manage")}
                     onClick={handleManage}
                   />
-                </Tooltip>
+                </TooltipV2>
               </div>
             }
           />

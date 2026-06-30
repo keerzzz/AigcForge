@@ -1,10 +1,10 @@
 import { For, Show, createEffect, createMemo, on, onCleanup, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
 import { makeEventListener } from "@solid-primitives/event-listener"
-import { Tabs } from "@aigcfroge/ui/tabs"
+import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { ResizeHandle } from "@aigcfroge/ui/resize-handle"
 import { IconButton } from "@aigcfroge/ui/icon-button"
-import { TooltipKeybind } from "@aigcfroge/ui/tooltip"
+import { TooltipKeybind } from "@/components/tooltip-keybind"
 import { DragDropProvider, DragDropSensors, DragOverlay, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd"
 import type { DragEvent } from "@thisbeyond/solid-dnd"
 import { ConstrainDragYAxis, getDraggableId } from "@/utils/solid-dnd"
@@ -265,13 +265,13 @@ export function TerminalPanel() {
             <DragDropSensors />
             <ConstrainDragYAxis />
             <div class="flex flex-col h-full">
-              <Tabs
-                variant="alt"
+              <TabsV2
+                variant="normal"
                 value={terminal.active()}
                 onChange={(id) => terminal.open(id)}
                 class="!h-auto !flex-none"
               >
-                <Tabs.List class="h-10 border-b border-border-weaker-base">
+                <TabsV2.List class="h-10 border-b border-border-weaker-base">
                   <SortableProvider ids={ids()}>
                     <For each={all()}>{(pty) => <SortableTerminalTab terminal={pty} onClose={close} />}</For>
                   </SortableProvider>
@@ -290,8 +290,8 @@ export function TerminalPanel() {
                       />
                     </TooltipKeybind>
                   </div>
-                </Tabs.List>
-              </Tabs>
+                </TabsV2.List>
+              </TabsV2>
               <div class="flex-1 min-h-0 relative">
                 <Show when={terminal.active()} keyed>
                   {(id) => {

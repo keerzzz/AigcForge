@@ -156,7 +156,6 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     if (!(await write(url))) {
       showToast({
         title: language.t("toast.session.share.copyFailed.title"),
-        variant: "error",
       })
       return
     }
@@ -164,7 +163,6 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     showToast({
       title: existing ? language.t("session.share.copy.copied") : language.t("toast.session.share.success.title"),
       description: language.t("toast.session.share.success.description"),
-      variant: "success",
     })
   }
 
@@ -186,7 +184,6 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
       showToast({
         title: language.t("toast.session.share.failed.title"),
         description: language.t("toast.session.share.failed.description"),
-        variant: "error",
       })
       return
     }
@@ -204,14 +201,12 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
         showToast({
           title: language.t("toast.session.unshare.success.title"),
           description: language.t("toast.session.unshare.success.description"),
-          variant: "success",
         }),
       )
       .catch(() =>
         showToast({
           title: language.t("toast.session.unshare.failed.title"),
           description: language.t("toast.session.unshare.failed.description"),
-          variant: "error",
         }),
       )
   }

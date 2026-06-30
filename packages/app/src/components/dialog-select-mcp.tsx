@@ -1,8 +1,8 @@
 import { Component, createMemo, Show } from "solid-js"
 import { useSync } from "@/context/sync"
-import { Dialog } from "@aigcfroge/ui/dialog"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { List } from "@aigcfroge/ui/list"
-import { Switch } from "@aigcfroge/ui/switch"
+import { Switch } from "@aigcfroge/ui/v2/switch-v2"
 import { useLanguage } from "@/context/language"
 import { useMcpToggle } from "@/context/mcp"
 

@@ -15,11 +15,11 @@ import { createStore } from "solid-js/store"
 import { Dynamic } from "solid-js/web"
 import { AssistantParts, Message, MessageDivider, PART_MAPPING, type UserActions } from "./message-part"
 import { Card } from "@aigcfroge/ui/card"
-import { Accordion } from "@aigcfroge/ui/accordion"
+import { AccordionV2 } from "@aigcfroge/ui/v2/accordion-v2"
 import { StickyAccordionHeader } from "@aigcfroge/ui/sticky-accordion-header"
-import { DiffChanges } from "@aigcfroge/ui/diff-changes"
+import { DiffChanges } from "@aigcfroge/ui/v2/diff-changes-v2"
 import { Icon } from "@aigcfroge/ui/icon"
-import { TextShimmer } from "@aigcfroge/ui/text-shimmer"
+import { TextShimmerV2 } from "@aigcfroge/ui/v2/text-shimmer-v2"
 import { SessionRetry } from "./session-retry"
 import { TextReveal } from "@aigcfroge/ui/text-reveal"
 import { createAutoScroll } from "@aigcfroge/ui/hooks"
@@ -420,7 +420,7 @@ export function SessionTurn(
               </Show>
               <Show when={showThinking()}>
                 <div data-slot="session-turn-thinking">
-                  <TextShimmer text={i18n.t("ui.sessionTurn.status.thinking")} />
+                  <TextShimmerV2 text={i18n.t("ui.sessionTurn.status.thinking")} />
                   <Show when={!showReasoningSummaries()}>
                     <TextReveal
                       text={reasoningHeading()}
@@ -451,7 +451,7 @@ export function SessionTurn(
                     </Show>
                   </div>
                   <div data-component="session-turn-diffs-content">
-                    <Accordion
+                    <AccordionV2
                       multiple
                       style={{ "--sticky-accordion-offset": "44px" }}
                       value={expanded()}
@@ -482,9 +482,9 @@ export function SessionTurn(
                           )
 
                           return (
-                            <Accordion.Item value={diff.file}>
+                            <AccordionV2.Item value={diff.file}>
                               <StickyAccordionHeader>
-                                <Accordion.Trigger>
+                                <AccordionV2.Trigger>
                                   <div data-slot="session-turn-diff-trigger">
                                     <span data-slot="session-turn-diff-path">
                                       <Show when={diff.file.includes("/")}>
@@ -503,20 +503,20 @@ export function SessionTurn(
                                       </span>
                                     </div>
                                   </div>
-                                </Accordion.Trigger>
+                                </AccordionV2.Trigger>
                               </StickyAccordionHeader>
-                              <Accordion.Content>
+                              <AccordionV2.Content>
                                 <Show when={shown()}>
                                   <div data-slot="session-turn-diff-view" data-scrollable>
                                     <Dynamic component={fileComponent} mode="diff" fileDiff={view.fileDiff} />
                                   </div>
                                 </Show>
-                              </Accordion.Content>
-                            </Accordion.Item>
+                              </AccordionV2.Content>
+                            </AccordionV2.Item>
                           )
                         }}
                       </For>
-                    </Accordion>
+                    </AccordionV2>
                     <Show when={!showAll() && overflow() > 0}>
                       <div data-slot="session-turn-diffs-more" onClick={toggleAll}>
                         {i18n.t("ui.sessionTurn.diffs.more", { count: String(overflow()) })}

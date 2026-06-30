@@ -16,7 +16,7 @@ import { Dynamic } from "solid-js/web"
 import { useNavigate } from "@solidjs/router"
 import { useMutation } from "@tanstack/solid-query"
 import { createVirtualizer, defaultRangeExtractor, elementScroll, type VirtualItem } from "@tanstack/solid-virtual"
-import { Accordion } from "@aigcfroge/ui/accordion"
+import { AccordionV2 } from "@aigcfroge/ui/v2/accordion-v2"
 import { Button } from "@aigcfroge/ui/button"
 import { Card } from "@aigcfroge/ui/card"
 import {
@@ -27,12 +27,12 @@ import {
   partDefaultOpen,
   type UserActions,
 } from "@aigcfroge/session-ui/message-part"
-import { DiffChanges } from "@aigcfroge/ui/diff-changes"
+import { DiffChanges } from "@aigcfroge/ui/v2/diff-changes-v2"
 import { FileIcon } from "@aigcfroge/ui/file-icon"
 import { Icon } from "@aigcfroge/ui/icon"
 import { IconButton } from "@aigcfroge/ui/icon-button"
 import { DropdownMenu } from "@aigcfroge/ui/dropdown-menu"
-import { Dialog } from "@aigcfroge/ui/dialog"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { InlineInput } from "@aigcfroge/ui/inline-input"
 import { Spinner } from "@aigcfroge/ui/spinner"
 import { SessionRetry } from "@aigcfroge/session-ui/session-retry"
@@ -40,7 +40,7 @@ import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { StickyAccordionHeader } from "@aigcfroge/ui/sticky-accordion-header"
 import { TextField } from "@aigcfroge/ui/text-field"
 import { TextReveal } from "@aigcfroge/ui/text-reveal"
-import { TextShimmer } from "@aigcfroge/ui/text-shimmer"
+import { TextShimmerV2 } from "@aigcfroge/ui/v2/text-shimmer-v2"
 import type {
   AssistantMessage,
   Message as MessageType,
@@ -133,7 +133,7 @@ function TimelineThinkingRow(props: { reasoningHeading?: string; showReasoningSu
 
   return (
     <div data-slot="session-turn-thinking">
-      <TextShimmer text={language.t("ui.sessionTurn.status.thinking")} />
+      <TextShimmerV2 text={language.t("ui.sessionTurn.status.thinking")} />
       <Show when={!props.showReasoningSummaries}>
         <TextReveal text={props.reasoningHeading} class="session-turn-thinking-heading" travel={25} duration={700} />
       </Show>
@@ -172,7 +172,7 @@ function TimelineDiffSummaryRow(props: { diffs: SummaryDiff[] }) {
         </Show>
       </div>
       <div data-component="session-turn-diffs-content">
-        <Accordion
+        <AccordionV2
           multiple
           style={{ "--sticky-accordion-offset": "44px" }}
           value={expanded()}
@@ -183,9 +183,9 @@ function TimelineDiffSummaryRow(props: { diffs: SummaryDiff[] }) {
               const opened = createMemo(() => expanded().includes(diff.file))
 
               return (
-                <Accordion.Item value={diff.file}>
+                <AccordionV2.Item value={diff.file}>
                   <StickyAccordionHeader>
-                    <Accordion.Trigger>
+                    <AccordionV2.Trigger>
                       <div data-slot="session-turn-diff-trigger">
                         <span data-slot="session-turn-diff-path">
                           <Show when={diff.file.includes("/")}>
@@ -202,18 +202,18 @@ function TimelineDiffSummaryRow(props: { diffs: SummaryDiff[] }) {
                           </span>
                         </div>
                       </div>
-                    </Accordion.Trigger>
+                    </AccordionV2.Trigger>
                   </StickyAccordionHeader>
-                  <Accordion.Content>
+                  <AccordionV2.Content>
                     <Show when={opened()}>
                       <TimelineDiffView diff={diff} />
                     </Show>
-                  </Accordion.Content>
-                </Accordion.Item>
+                  </AccordionV2.Content>
+                </AccordionV2.Item>
               )
             }}
           </For>
-        </Accordion>
+        </AccordionV2>
         <Show when={!showAll() && overflow() > 0}>
           <div data-slot="session-turn-diffs-more" onClick={() => setState("showAll", true)}>
             {language.t("ui.sessionTurn.diffs.more", { count: String(overflow()) })}

@@ -1,6 +1,6 @@
 import { Button } from "@aigcfroge/ui/button"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
-import { Dialog } from "@aigcfroge/ui/dialog"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { IconButton } from "@aigcfroge/ui/icon-button"
 import { ProviderIcon } from "@aigcfroge/ui/provider-icon"
 import { useMutation } from "@tanstack/solid-query"
@@ -140,7 +140,6 @@ export function DialogCustomProvider(props: Props) {
     onSuccess: (result) => {
       dialog.close()
       showToast({
-        variant: "success",
         icon: "circle-check",
         title: language.t("provider.connect.toast.connected.title", { provider: result.name }),
         description: language.t("provider.connect.toast.connected.description", { provider: result.name }),
@@ -172,7 +171,7 @@ export function DialogCustomProvider(props: Props) {
           aria-label={language.t("common.goBack")}
         />
       }
-      transition
+     
     >
       <div class="flex flex-col gap-6 px-2.5 pb-3 overflow-y-auto max-h-[60vh]">
         <div class="px-2.5 flex gap-4 items-center">

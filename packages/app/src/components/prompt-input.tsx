@@ -38,7 +38,8 @@ import { Button } from "@aigcfroge/ui/button"
 import { DockShellForm, DockTray } from "@aigcfroge/ui/dock-surface"
 import { Icon, type IconProps } from "@aigcfroge/ui/icon"
 import { ProviderIcon } from "@aigcfroge/ui/provider-icon"
-import { Tooltip, TooltipKeybind } from "@aigcfroge/ui/tooltip"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
+import { TooltipKeybind } from "@/components/tooltip-keybind"
 import { IconButton } from "@aigcfroge/ui/icon-button"
 import { Select } from "@aigcfroge/ui/select"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
@@ -534,7 +535,6 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       onFile: addAttachment,
       onError: (error) =>
         showToast({
-          variant: "error",
           title: language.t("common.requestFailed"),
           description: error instanceof Error ? error.message : String(error),
         }),
@@ -1657,7 +1657,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                     </div>
                   </Show>
                 </div>
-                <Tooltip placement="top" inactive={!working() && blank()} value={tip()}>
+                <TooltipV2 placement="top" inactive={!working() && blank()} value={tip()}>
                   <IconButton
                     data-action="prompt-submit"
                     type="submit"
@@ -1672,7 +1672,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                     }}
                     aria-label={stopping() ? language.t("prompt.action.stop") : language.t("prompt.action.send")}
                   />
-                </Tooltip>
+                </TooltipV2>
               </div>
             </DockShellForm>
             <Show when={newSession() && selectedProject()}>

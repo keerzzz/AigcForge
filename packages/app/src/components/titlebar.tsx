@@ -16,12 +16,12 @@ import { useLocation, useNavigate, useParams } from "@solidjs/router"
 import { IconButton } from "@aigcfroge/ui/icon-button"
 import { Icon } from "@aigcfroge/ui/icon"
 import { Button } from "@aigcfroge/ui/button"
-import { Tooltip, TooltipKeybind } from "@aigcfroge/ui/tooltip"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
+import { TooltipKeybind } from "@/components/tooltip-keybind"
 import { useTheme } from "@aigcfroge/ui/theme/context"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { Icon as IconV2 } from "@aigcfroge/ui/v2/icon"
 import { KeybindV2 } from "@aigcfroge/ui/v2/keybind-v2"
-import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
 
 import { LayoutRoute, useLayout } from "@/context/layout"
 import { usePlatform } from "@/context/platform"
@@ -766,7 +766,7 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                   >
                     <Show when={hasProjects() && nav()}>
                       <div class="flex items-center gap-0 transition-transform">
-                        <Tooltip placement="bottom" value={language.t("common.goBack")} openDelay={2000}>
+                        <TooltipV2 placement="bottom" value={language.t("common.goBack")} openDelay={2000}>
                           <Button
                             variant="ghost"
                             icon="chevron-left"
@@ -775,8 +775,8 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                             onClick={back}
                             aria-label={language.t("common.goBack")}
                           />
-                        </Tooltip>
-                        <Tooltip placement="bottom" value={language.t("common.goForward")} openDelay={2000}>
+                        </TooltipV2>
+                        <TooltipV2 placement="bottom" value={language.t("common.goForward")} openDelay={2000}>
                           <Button
                             variant="ghost"
                             icon="chevron-right"
@@ -785,7 +785,7 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                             onClick={forward}
                             aria-label={language.t("common.goForward")}
                           />
-                        </Tooltip>
+                        </TooltipV2>
                       </div>
                     </Show>
                     <div id="aigcfroge-titlebar-left" class="flex items-center gap-3 min-w-0 px-2" />

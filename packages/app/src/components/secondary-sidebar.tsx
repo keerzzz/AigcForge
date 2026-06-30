@@ -6,7 +6,7 @@ import { Icon } from "@aigcfroge/ui/v2/icon"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { MenuV2 } from "@aigcfroge/ui/v2/menu-v2"
-import { Dialog } from "@aigcfroge/ui/dialog"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { Button } from "@aigcfroge/ui/button"
 import {
   DragDropProvider,
@@ -35,7 +35,7 @@ import { pathKey } from "@/utils/path-key"
 import { Persist, persisted } from "@/utils/persist"
 import { showToast } from "@/utils/toast"
 import { formatServerError } from "@/utils/server-errors"
-import { toaster } from "@aigcfroge/ui/toast"
+import { toasterV2 } from "@aigcfroge/ui/v2/toast-v2"
 import { clearWorkspaceTerminals } from "@/context/terminal"
 import { Worktree as WorktreeState } from "@/utils/worktree"
 import type { Session } from "@aigcfroge/sdk/v2/client"
@@ -242,7 +242,7 @@ function SecondarySidebar() {
       title: language.t("workspace.resetting.title"),
       description: language.t("workspace.resetting.description"),
     })
-    const dismiss = () => toaster.dismiss(progress)
+    const dismiss = () => toasterV2.dismiss(progress)
     const sessions: Session[] = await serverSDK()
       .client.session.list({ directory })
       .then((x) => x.data ?? [])
@@ -440,7 +440,6 @@ function SecondarySidebar() {
         })
         .catch((error) => {
           showToast({
-            variant: "error",
             title: language.t("common.requestFailed"),
             description: formatServerError(error, language.t),
           })

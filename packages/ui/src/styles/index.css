@@ -6,18 +6,13 @@
 @import "./base.css" layer(base);
 @import "katex/dist/katex.min.css" layer(base);
 
-@import "../components/accordion.css" layer(components);
 @import "../components/animated-number.css" layer(components);
 @import "../components/app-icon.css" layer(components);
-@import "../components/avatar.css" layer(components);
 @import "../components/button.css" layer(components);
 @import "../components/card.css" layer(components);
-@import "../components/checkbox.css" layer(components);
 @import "../components/collapsible.css" layer(components);
-@import "../components/diff-changes.css" layer(components);
 @import "../components/context-menu.css" layer(components);
 @import "../components/dropdown-menu.css" layer(components);
-@import "../components/dialog.css" layer(components);
 @import "../components/file-icon.css" layer(components);
 @import "../components/hover-card.css" layer(components);
 @import "../components/provider-icon.css" layer(components);
@@ -37,16 +32,11 @@
 @import "../components/resize-handle.css" layer(components);
 @import "../components/select.css" layer(components);
 @import "../components/spinner.css" layer(components);
-@import "../components/switch.css" layer(components);
 @import "../components/scroll-view.css" layer(components);
 @import "../components/sticky-accordion-header.css" layer(components);
-@import "../components/tabs.css" layer(components);
 @import "../components/tag.css" layer(components);
 @import "../components/text-reveal.css" layer(components);
 @import "../components/text-strikethrough.css" layer(components);
-@import "../components/text-shimmer.css" layer(components);
-@import "../components/toast.css" layer(components);
-@import "../components/tooltip.css" layer(components);
 @import "../components/typewriter.css" layer(components);
 
 @import "./utilities.css" layer(utilities);

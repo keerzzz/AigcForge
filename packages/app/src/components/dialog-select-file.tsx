@@ -1,5 +1,5 @@
 import { useDialog } from "@aigcfroge/ui/context/dialog"
-import { Dialog } from "@aigcfroge/ui/dialog"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { FileIcon } from "@aigcfroge/ui/file-icon"
 import { Icon } from "@aigcfroge/ui/icon"
 import { Keybind } from "@aigcfroge/ui/keybind"
@@ -409,7 +409,7 @@ export function DialogSelectFile(props: { mode?: DialogSelectFileMode; onOpenFil
   }
 
   return (
-    <Dialog class="pt-3 pb-0 !max-h-[480px]" transition>
+    <Dialog class="pt-3 pb-0 !max-h-[480px]">
       <List
         class="px-3"
         search={{

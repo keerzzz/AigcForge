@@ -227,7 +227,6 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
           .then((x) => setStore("command", x.data ?? [])),
       ).catch((err) => {
         showToast({
-          variant: "error",
           title: language.t("toast.project.reloadFailed.title", { project: getFilename(directory) }),
           description: formatServerError(err, language.t),
         })
@@ -312,7 +311,6 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
               console.error("Failed to load sessions", err)
               const project = getFilename(directory)
               showToast({
-                variant: "error",
                 title: language.t("toast.session.listFailed.title", { project }),
                 description: formatServerError(err, language.t),
               })

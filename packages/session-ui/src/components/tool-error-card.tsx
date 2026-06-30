@@ -4,7 +4,7 @@ import { Card, CardDescription } from "@aigcfroge/ui/card"
 import { Collapsible } from "@aigcfroge/ui/collapsible"
 import { Icon } from "@aigcfroge/ui/icon"
 import { IconButton } from "@aigcfroge/ui/icon-button"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
 import { useI18n } from "@aigcfroge/ui/context/i18n"
 
 export interface ToolErrorCardProps extends Omit<ComponentProps<typeof Card>, "children" | "variant"> {
@@ -127,7 +127,7 @@ export function ToolErrorCard(props: ToolErrorCardProps) {
           <div data-slot="tool-error-card-content">
             <Show when={open()}>
               <div data-slot="tool-error-card-copy">
-                <Tooltip
+                <TooltipV2
                   value={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.toolErrorCard.copyError")}
                   placement="top"
                   gutter={4}
@@ -143,7 +143,7 @@ export function ToolErrorCard(props: ToolErrorCardProps) {
                     }}
                     aria-label={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.toolErrorCard.copyError")}
                   />
-                </Tooltip>
+                </TooltipV2>
               </div>
             </Show>
             <Show when={body()}>{(value) => <CardDescription>{value()}</CardDescription>}</Show>

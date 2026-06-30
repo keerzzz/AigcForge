@@ -1,5 +1,5 @@
 import { useDialog } from "@aigcfroge/ui/context/dialog"
-import { Dialog } from "@aigcfroge/ui/dialog"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { FileIcon } from "@aigcfroge/ui/file-icon"
 import { List } from "@aigcfroge/ui/list"
 import type { ListRef } from "@aigcfroge/ui/list"

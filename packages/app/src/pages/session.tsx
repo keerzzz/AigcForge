@@ -23,7 +23,7 @@ import { selectionFromLines, useFile, type FileSelection, type SelectedLineRange
 import { createStore } from "solid-js/store"
 import { ResizeHandle } from "@aigcfroge/ui/resize-handle"
 import { Select } from "@aigcfroge/ui/select"
-import { Tabs } from "@aigcfroge/ui/tabs"
+import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { createAutoScroll } from "@aigcfroge/ui/hooks"
 import { previewSelectedLines } from "@aigcfroge/session-ui/pierre/selection-bridge"
 import { Button } from "@aigcfroge/ui/button"
@@ -461,7 +461,6 @@ export default function Page() {
     },
     onError: (err) => {
       showToast({
-        variant: "error",
         title: language.t("common.requestFailed"),
         description: formatServerError(err, language.t),
       })
@@ -1214,7 +1213,6 @@ export default function Page() {
 
   const fail = (err: unknown) => {
     showToast({
-      variant: "error",
       title: language.t("common.requestFailed"),
       description: formatServerError(err, language.t),
     })
@@ -1592,14 +1590,14 @@ export default function Page() {
   )
 
   const mobileTabs = (compact = false, bottom = false) => (
-    <Tabs value={store.mobileTab} class="h-auto">
-      <Tabs.List
+    <TabsV2 value={store.mobileTab} class="h-auto">
+      <TabsV2.List
         classList={{
           "!h-9": compact,
           "[&::after]:!border-b-0 [&::after]:!border-t [&::after]:!border-border-weak-base": bottom,
         }}
       >
-        <Tabs.Trigger
+        <TabsV2.Trigger
           value="session"
           classList={{
             "!w-1/2 !max-w-none": true,
@@ -1609,8 +1607,8 @@ export default function Page() {
           onClick={() => setStore("mobileTab", "session")}
         >
           {language.t("session.tab.session")}
-        </Tabs.Trigger>
-        <Tabs.Trigger
+        </TabsV2.Trigger>
+        <TabsV2.Trigger
           value="changes"
           classList={{
             "!w-1/2 !max-w-none !border-r-0": true,
@@ -1622,9 +1620,9 @@ export default function Page() {
           {hasReview()
             ? language.t("session.review.filesChanged", { count: reviewCount() })
             : language.t("session.review.change.other")}
-        </Tabs.Trigger>
-      </Tabs.List>
-    </Tabs>
+        </TabsV2.Trigger>
+      </TabsV2.List>
+    </TabsV2>
   )
   const mobileTabsBottom = createMemo(
     () => !isDesktop() && true && settings.general.mobileTitlebarPosition() === "bottom",

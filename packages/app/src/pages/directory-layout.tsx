@@ -96,7 +96,6 @@ export default function Layout(props: ParentProps) {
     if (invalid === dir) return
     invalid = dir
     showToast({
-      variant: "error",
       title: language.t("common.requestFailed"),
       description: language.t("directory.error.invalidUrl"),
     })

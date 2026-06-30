@@ -78,7 +78,6 @@ function showErrors(input: {
   const message = formatServerError(input.errors[0], input.translate)
   const more = input.errors.length > 1 ? input.formatMoreCount(input.errors.length - 1) : ""
   showToast({
-    variant: "error",
     title: input.title,
     description: message + more,
   })
@@ -314,7 +313,6 @@ export async function bootstrapDirectory(input: {
         input.queryClient.fetchQuery(loadProvidersQuery(input.scope, input.directory, input.sdk)).catch((err) => {
           const project = getFilename(input.directory)
           showToast({
-            variant: "error",
             title: input.translate("toast.project.reloadFailed.title", { project }),
             description: formatServerError(err, input.translate),
           })
@@ -327,7 +325,6 @@ export async function bootstrapDirectory(input: {
       console.error("Failed to finish bootstrap instance", slowErrs[0])
       const project = getFilename(input.directory)
       showToast({
-        variant: "error",
         title: input.translate("toast.project.reloadFailed.title", { project }),
         description: formatServerError(slowErrs[0], input.translate),
       })

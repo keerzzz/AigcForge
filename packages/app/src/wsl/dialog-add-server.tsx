@@ -1,7 +1,7 @@
 import { Button } from "@aigcfroge/ui/button"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { Spinner } from "@aigcfroge/ui/spinner"
-import { showToast } from "@aigcfroge/ui/toast"
+import { showToast } from "@/utils/toast"
 import { createEffect, createMemo, For, Match, onCleanup, Show, Switch } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLanguage } from "@/context/language"
@@ -616,7 +616,6 @@ export function DialogAddWslServer(props: DialogWslServerProps = {}) {
 function requestError(language: ReturnType<typeof useLanguage>, err: unknown) {
   console.error("WSL servers request failed", err instanceof Error ? (err.stack ?? err.message) : String(err))
   showToast({
-    variant: "error",
     title: language.t("common.requestFailed"),
     description: err instanceof Error ? err.message : String(err),
   })

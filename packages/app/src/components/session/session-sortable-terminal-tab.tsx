@@ -3,7 +3,7 @@ import { Show, createEffect, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createSortable } from "@thisbeyond/solid-dnd"
 import { IconButton } from "@aigcfroge/ui/icon-button"
-import { Tabs } from "@aigcfroge/ui/tabs"
+import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { DropdownMenu } from "@aigcfroge/ui/dropdown-menu"
 import { Icon } from "@aigcfroge/ui/icon"
 import { isDefaultTitle as isDefaultTerminalTitle } from "@/context/terminal-title"
@@ -122,7 +122,7 @@ export function SortableTerminalTab(props: { terminal: LocalPTY; onClose?: () =>
       }}
     >
       <div class="relative h-full">
-        <Tabs.Trigger
+        <TabsV2.Trigger
           value={props.terminal.id}
           onClick={focus}
           onMouseDown={(e) => e.preventDefault()}
@@ -146,7 +146,7 @@ export function SortableTerminalTab(props: { terminal: LocalPTY; onClose?: () =>
           <span onDblClick={edit} classList={{ invisible: store.editing }}>
             {label()}
           </span>
-        </Tabs.Trigger>
+        </TabsV2.Trigger>
         <Show when={store.editing}>
           <div class="absolute inset-0 flex items-center px-3 bg-muted z-10 pointer-events-auto">
             <input

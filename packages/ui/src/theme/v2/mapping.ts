@@ -64,6 +64,18 @@ const light: Record<string, V2ColorValue> = {
   "v2-illustration-illustration-layer-01": ref("v2-grey-300"),
   "v2-illustration-illustration-layer-02": ref("v2-grey-400"),
   "v2-illustration-illustration-layer-03": ref("v2-grey-500"),
+
+  // Input
+  "v2-input-bg": ref("v2-background-bg-base"),
+  "v2-input-bg-hover": ref("v2-background-bg-layer-01"),
+  "v2-input-border": ref("v2-border-border-muted"),
+  "v2-input-border-hover": ref("v2-border-border-strong"),
+  "v2-input-border-focus": ref("v2-border-border-focus"),
+  "v2-input-bg-disabled": ref("v2-background-bg-deep"),
+
+  // Button
+  "v2-button-secondary-bg": ref("v2-background-bg-base"),
+  "v2-button-secondary-hover": ref("v2-overlay-simple-overlay-hover"),
 }
 
 const dark: Record<string, V2ColorValue> = {
@@ -127,6 +139,18 @@ const dark: Record<string, V2ColorValue> = {
   "v2-illustration-illustration-layer-01": ref("v2-grey-900"),
   "v2-illustration-illustration-layer-02": ref("v2-grey-800"),
   "v2-illustration-illustration-layer-03": ref("v2-grey-700"),
+
+  // Input (dark: hover uses bg-button-neutral = alpha-light-6 for subtle brightening)
+  "v2-input-bg": ref("v2-background-bg-base"),
+  "v2-input-bg-hover": ref("v2-background-bg-button-neutral"),
+  "v2-input-border": ref("v2-border-border-muted"),
+  "v2-input-border-hover": ref("v2-border-border-strong"),
+  "v2-input-border-focus": ref("v2-border-border-focus"),
+  "v2-input-bg-disabled": ref("v2-background-bg-deep"),
+
+  // Button
+  "v2-button-secondary-bg": ref("v2-background-bg-base"),
+  "v2-button-secondary-hover": ref("v2-overlay-simple-overlay-hover"),
 }
 
 export function mapV2Semantics(isDark: boolean): Record<string, V2ColorValue> {

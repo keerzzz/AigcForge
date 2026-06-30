@@ -1,6 +1,6 @@
 import type { Todo } from "@aigcfroge/sdk/v2"
 import { AnimatedNumber } from "@aigcfroge/ui/animated-number"
-import { Checkbox } from "@aigcfroge/ui/checkbox"
+import { CheckboxV2 } from "@aigcfroge/ui/v2/checkbox-v2"
 import { DockTray } from "@aigcfroge/ui/dock-surface"
 import { IconButton } from "@aigcfroge/ui/icon-button"
 import { useSpring } from "@aigcfroge/ui/motion-spring"
@@ -212,27 +212,20 @@ function TodoList(props: { todos: Todo[] }) {
       >
         <Index each={props.todos}>
           {(todo) => (
-            <Checkbox
+            <CheckboxV2
               readOnly
               checked={todo().status === "completed"}
               indeterminate={todo().status === "in_progress"}
               data-in-progress={todo().status === "in_progress" ? "" : undefined}
               data-state={todo().status}
-              icon={dot(todo().status)}
-              style={{
-                "--checkbox-align": "flex-start",
-                "--checkbox-offset": "1px",
-                transition: "opacity 220ms var(--tool-motion-ease, cubic-bezier(0.22, 1, 0.36, 1))",
-                opacity: todo().status === "pending" ? "0.94" : "1",
-              }}
-            >
-              <TextStrikethrough
-                active={todo().status === "completed" || todo().status === "cancelled"}
-                text={todo().content}
-                class="text-14-regular min-w-0 break-words"
-                style={{
-                  "line-height": "var(--line-height-normal)",
-                  transition:
+              label={
+                <TextStrikethrough
+                  active={todo().status === "completed" || todo().status === "cancelled"}
+                  text={todo().content}
+                  class="text-14-regular min-w-0 break-words"
+                  style={{
+                    "line-height": "var(--line-height-normal)",
+                    transition:
                     "color 220ms var(--tool-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)), opacity 220ms var(--tool-motion-ease, cubic-bezier(0.22, 1, 0.36, 1))",
                   color:
                     todo().status === "completed" || todo().status === "cancelled"
@@ -241,7 +234,9 @@ function TodoList(props: { todos: Todo[] }) {
                   opacity: todo().status === "pending" ? "0.92" : "1",
                 }}
               />
-            </Checkbox>
+              }
+            >
+            </CheckboxV2>
           )}
         </Index>
       </div>

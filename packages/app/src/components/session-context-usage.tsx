@@ -1,5 +1,5 @@
 import { Match, Show, Switch, createMemo } from "solid-js"
-import { Tooltip, type TooltipProps } from "@aigcfroge/ui/tooltip"
+import { TooltipV2, type TooltipV2Props } from "@aigcfroge/ui/v2/tooltip-v2"
 import { ProgressCircle } from "@aigcfroge/ui/progress-circle"
 import { Button } from "@aigcfroge/ui/button"
 
@@ -14,7 +14,7 @@ import { createSessionTabs } from "@/pages/session/helpers"
 
 interface SessionContextUsageProps {
   variant?: "button" | "indicator"
-  placement?: TooltipProps["placement"]
+  placement?: TooltipV2Props["placement"]
 }
 
 function openSessionContext(args: {
@@ -103,7 +103,7 @@ export function SessionContextUsage(props: SessionContextUsageProps) {
 
   return (
     <Show when={params.id}>
-      <Tooltip value={tooltipValue()} placement={props.placement ?? "top"}>
+      <TooltipV2 value={tooltipValue()} placement={props.placement ?? "top"}>
         <Switch>
           <Match when={variant() === "indicator"}>{circle()}</Match>
           <Match when={true}>
@@ -118,7 +118,7 @@ export function SessionContextUsage(props: SessionContextUsageProps) {
             </Button>
           </Match>
         </Switch>
-      </Tooltip>
+      </TooltipV2>
     </Show>
   )
 }

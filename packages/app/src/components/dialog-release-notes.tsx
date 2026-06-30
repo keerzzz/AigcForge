@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js"
-import { Dialog } from "@aigcfroge/ui/dialog"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { Button } from "@aigcfroge/ui/button"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useLanguage } from "@/context/language"

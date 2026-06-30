@@ -1,6 +1,6 @@
 import { Component, For, Show } from "solid-js"
 import { Icon } from "@aigcfroge/ui/icon"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
 import type { ImageAttachmentPart } from "@/context/prompt"
 
 type PromptImageAttachmentsProps = {
@@ -23,7 +23,7 @@ export const PromptImageAttachments: Component<PromptImageAttachmentsProps> = (p
       <div class="flex flex-wrap gap-2 px-3 pt-3">
         <For each={props.attachments}>
           {(attachment) => (
-            <Tooltip value={attachment.filename} placement="top" contentClass="break-all">
+            <TooltipV2 value={attachment.filename} placement="top" contentClass="break-all">
               <div class="relative group">
                 <Show
                   when={attachment.mime.startsWith("image/")}
@@ -52,7 +52,7 @@ export const PromptImageAttachments: Component<PromptImageAttachmentsProps> = (p
                   <span class="text-10-regular text-white truncate block">{attachment.filename}</span>
                 </div>
               </div>
-            </Tooltip>
+            </TooltipV2>
           )}
         </For>
       </div>

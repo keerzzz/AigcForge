@@ -35,22 +35,22 @@ import { useFileComponent } from "@aigcfroge/ui/context/file"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { type UiI18n, useI18n } from "@aigcfroge/ui/context/i18n"
 import { BasicTool, GenericTool } from "./basic-tool"
-import { Accordion } from "@aigcfroge/ui/accordion"
+import { AccordionV2 } from "@aigcfroge/ui/v2/accordion-v2"
 import { StickyAccordionHeader } from "@aigcfroge/ui/sticky-accordion-header"
 import { Collapsible } from "@aigcfroge/ui/collapsible"
 import { FileIcon } from "@aigcfroge/ui/file-icon"
 import { Icon } from "@aigcfroge/ui/icon"
 import { ToolErrorCard } from "./tool-error-card"
-import { Checkbox } from "@aigcfroge/ui/checkbox"
-import { DiffChanges } from "@aigcfroge/ui/diff-changes"
+import { CheckboxV2 } from "@aigcfroge/ui/v2/checkbox-v2"
+import { DiffChanges } from "@aigcfroge/ui/v2/diff-changes-v2"
 import { Markdown } from "./markdown"
 import { ImagePreview } from "@aigcfroge/ui/image-preview"
 import { getDirectory as _getDirectory, getFilename } from "@aigcfroge/core/util/path"
 import { checksum } from "@aigcfroge/core/util/encode"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
 import { IconButton } from "@aigcfroge/ui/icon-button"
 import { Spinner } from "@aigcfroge/ui/spinner"
-import { TextShimmer } from "@aigcfroge/ui/text-shimmer"
+import { TextShimmerV2 } from "@aigcfroge/ui/v2/text-shimmer-v2"
 import { AnimatedCountList } from "./tool-count-summary"
 import { ToolStatusTitle } from "./tool-status-title"
 import { patchFiles } from "./apply-patch-file"
@@ -1027,7 +1027,7 @@ export function ContextToolGroup(props: { parts: ToolPart[]; busy?: boolean; onS
                         <div data-slot="basic-tool-tool-info-structured">
                           <div data-slot="basic-tool-tool-info-main">
                             <span data-slot="basic-tool-tool-title">
-                              <TextShimmer text={trigger().title} active={running()} />
+                              <TextShimmerV2 text={trigger().title} active={running()} />
                             </span>
                             <Show when={!running() && trigger().subtitle}>
                               <span data-slot="basic-tool-tool-subtitle">{trigger().subtitle}</span>
@@ -1191,7 +1191,7 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
               </span>
             </Show>
             <Show when={props.actions?.revert}>
-              <Tooltip value={i18n.t("ui.message.revertMessage")} placement="top" gutter={4}>
+              <TooltipV2 value={i18n.t("ui.message.revertMessage")} placement="top" gutter={4}>
                 <IconButton
                   icon="reset"
                   size="normal"
@@ -1204,9 +1204,9 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
                   }}
                   aria-label={i18n.t("ui.message.revertMessage")}
                 />
-              </Tooltip>
+              </TooltipV2>
             </Show>
-            <Tooltip
+            <TooltipV2
               value={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copyMessage")}
               placement="top"
               gutter={4}
@@ -1222,7 +1222,7 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
                 }}
                 aria-label={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copyMessage")}
               />
-            </Tooltip>
+            </TooltipV2>
           </div>
         </>
       </Show>
@@ -1337,15 +1337,15 @@ function ToolFileAccordion(props: { path: string; actions?: JSX.Element; childre
   const value = createMemo(() => props.path || "tool-file")
 
   return (
-    <Accordion
+    <AccordionV2
       multiple
       data-scope="apply-patch"
       style={{ "--sticky-accordion-offset": "calc(32px + var(--tool-content-gap))" }}
       defaultValue={[value()]}
     >
-      <Accordion.Item value={value()}>
+      <AccordionV2.Item value={value()}>
         <StickyAccordionHeader>
-          <Accordion.Trigger>
+          <AccordionV2.Trigger>
             <div data-slot="apply-patch-trigger-content">
               <div data-slot="apply-patch-file-info">
                 <FileIcon node={{ path: props.path, type: "file" }} />
@@ -1361,11 +1361,11 @@ function ToolFileAccordion(props: { path: string; actions?: JSX.Element; childre
                 <Icon name="chevron-grabber-vertical" size="small" />
               </div>
             </div>
-          </Accordion.Trigger>
+          </AccordionV2.Trigger>
         </StickyAccordionHeader>
-        <Accordion.Content>{props.children}</Accordion.Content>
-      </Accordion.Item>
-    </Accordion>
+        <AccordionV2.Content>{props.children}</AccordionV2.Content>
+      </AccordionV2.Item>
+    </AccordionV2>
   )
 }
 
@@ -1566,7 +1566,7 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
         </div>
         <Show when={showCopy()}>
           <div data-slot="text-part-copy-wrapper" data-interrupted={interrupted() ? "" : undefined}>
-            <Tooltip
+            <TooltipV2
               value={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copyResponse")}
               placement="top"
               gutter={4}
@@ -1579,7 +1579,7 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
                 onClick={handleCopy}
                 aria-label={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copyResponse")}
               />
-            </Tooltip>
+            </TooltipV2>
             <Show when={meta()}>
               <span data-slot="text-part-meta" class="text-12-regular text-text-weak cursor-default">
                 {meta()}
@@ -1741,7 +1741,7 @@ ToolRegistry.register({
           <div data-slot="basic-tool-tool-info-structured">
             <div data-slot="basic-tool-tool-info-main">
               <span data-slot="basic-tool-tool-title">
-                <TextShimmer text={i18n.t("ui.tool.webfetch")} active={pending()} />
+                <TextShimmerV2 text={i18n.t("ui.tool.webfetch")} active={pending()} />
               </span>
               <Show when={!pending() && url()}>
                 <a
@@ -1909,7 +1909,7 @@ ToolRegistry.register({
           <div data-slot="basic-tool-tool-info-structured">
             <div data-slot="basic-tool-tool-info-main">
               <span data-slot="basic-tool-tool-title">
-                <TextShimmer text={i18n.t("ui.tool.shell")} active={pending()} />
+                <TextShimmerV2 text={i18n.t("ui.tool.shell")} active={pending()} />
               </span>
               <Show when={!pending() && !open() && props.input.command}>
                 <ShellSubmessage text={props.input.command} animate={sawPending} />
@@ -1920,7 +1920,7 @@ ToolRegistry.register({
       >
         <div data-component="bash-output">
           <div data-slot="bash-copy">
-            <Tooltip
+            <TooltipV2
               value={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copy")}
               placement="top"
               gutter={4}
@@ -1933,7 +1933,7 @@ ToolRegistry.register({
                 onClick={handleCopy}
                 aria-label={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copy")}
               />
-            </Tooltip>
+            </TooltipV2>
           </div>
           <div data-slot="bash-scroll" data-scrollable>
             <pre data-slot="bash-pre">
@@ -2005,7 +2005,7 @@ ToolRegistry.register({
               <div data-slot="message-part-title-area">
                 <div data-slot="message-part-title">
                   <span data-slot="message-part-title-text">
-                    <TextShimmer text={i18n.t("ui.messagePart.title.edit")} active={pending()} />
+                    <TextShimmerV2 text={i18n.t("ui.messagePart.title.edit")} active={pending()} />
                   </span>
                   <Show when={!pending()}>
                     <span data-slot="message-part-title-filename">{filename()}</span>
@@ -2072,7 +2072,7 @@ ToolRegistry.register({
               <div data-slot="message-part-title-area">
                 <div data-slot="message-part-title">
                   <span data-slot="message-part-title-text">
-                    <TextShimmer text={i18n.t("ui.messagePart.title.write")} active={pending()} />
+                    <TextShimmerV2 text={i18n.t("ui.messagePart.title.write")} active={pending()} />
                   </span>
                   <Show when={!pending()}>
                     <span data-slot="message-part-title-filename">{filename()}</span>
@@ -2156,7 +2156,7 @@ ToolRegistry.register({
               }}
             >
               <Show when={files().length > 0}>
-                <Accordion
+                <AccordionV2
                   multiple
                   data-scope="apply-patch"
                   style={{ "--sticky-accordion-offset": "calc(32px + var(--tool-content-gap))" }}
@@ -2181,9 +2181,9 @@ ToolRegistry.register({
                       })
 
                       return (
-                        <Accordion.Item value={file.filePath} data-type={file.type}>
+                        <AccordionV2.Item value={file.filePath} data-type={file.type}>
                           <StickyAccordionHeader>
-                            <Accordion.Trigger>
+                            <AccordionV2.Trigger>
                               <div data-slot="apply-patch-trigger-content">
                                 <div data-slot="apply-patch-file-info">
                                   <FileIcon node={{ path: file.relativePath, type: "file" }} />
@@ -2218,9 +2218,9 @@ ToolRegistry.register({
                                   <Icon name="chevron-grabber-vertical" size="small" />
                                 </div>
                               </div>
-                            </Accordion.Trigger>
+                            </AccordionV2.Trigger>
                           </StickyAccordionHeader>
-                          <Accordion.Content>
+                          <AccordionV2.Content>
                             <Show when={props.deferContent === false || visible()}>
                               <div data-component="apply-patch-file-diff">
                                 <Dynamic
@@ -2233,12 +2233,12 @@ ToolRegistry.register({
                                 />
                               </div>
                             </Show>
-                          </Accordion.Content>
-                        </Accordion.Item>
+                          </AccordionV2.Content>
+                        </AccordionV2.Item>
                       )
                     }}
                   </For>
-                </Accordion>
+                </AccordionV2>
               </Show>
             </BasicTool>
           </div>
@@ -2254,7 +2254,7 @@ ToolRegistry.register({
                 <div data-slot="message-part-title-area">
                   <div data-slot="message-part-title">
                     <span data-slot="message-part-title-text">
-                      <TextShimmer text={i18n.t("ui.tool.patch")} active={pending()} />
+                      <TextShimmerV2 text={i18n.t("ui.tool.patch")} active={pending()} />
                     </span>
                     <Show when={!pending()}>
                       <span data-slot="message-part-title-filename">{getFilename(single()!.relativePath)}</span>
@@ -2350,14 +2350,11 @@ ToolRegistry.register({
           <div data-component="todos">
             <For each={todos()}>
               {(todo: Todo) => (
-                <Checkbox readOnly checked={todo.status === "completed"}>
-                  <span
-                    data-slot="message-part-todo-content"
-                    data-completed={todo.status === "completed" ? "completed" : undefined}
-                  >
+                <CheckboxV2 label={<span data-slot="message-part-todo-content"
+                    data-completed={todo.status === "completed" ? "completed" : undefined}>
                     {todo.content}
-                  </span>
-                </Checkbox>
+                  </span>}
+                  readOnly checked={todo.status === "completed"} />
               )}
             </For>
           </div>
@@ -2419,7 +2416,7 @@ ToolRegistry.register({
     const title = createMemo(() => props.input.name || i18n.t("ui.tool.skill"))
     const running = createMemo(() => props.status === "pending" || props.status === "running")
 
-    const titleContent = () => <TextShimmer text={title()} active={running()} />
+    const titleContent = () => <TextShimmerV2 text={title()} active={running()} />
 
     const trigger = () => (
       <div data-slot="basic-tool-tool-info-structured">

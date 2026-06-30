@@ -1,8 +1,8 @@
 import { Button } from "@aigcfroge/ui/button"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { Icon } from "@aigcfroge/ui/icon"
-import { Switch } from "@aigcfroge/ui/switch"
-import { Tabs } from "@aigcfroge/ui/tabs"
+import { Switch } from "@aigcfroge/ui/v2/switch-v2"
+import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { showToast } from "@/utils/toast"
 import { useNavigate } from "@solidjs/router"
 import { type Accessor, createEffect, createMemo, For, type JSXElement, onCleanup, Show } from "solid-js"
@@ -172,24 +172,24 @@ export function StatusPopoverServerBody() {
 function ServerStatusPopoverView(props: { state: ServerStatusState }) {
   return (
     <div class="flex items-center gap-1 w-[360px] rounded-xl shadow-[var(--shadow-lg-border-base)]">
-      <Tabs
+      <TabsV2
         aria-label={props.state.ariaLabel}
         class="tabs bg-background-strong rounded-xl overflow-hidden"
         data-component="tabs"
         data-active="servers"
         defaultValue="servers"
-        variant="alt"
+        variant="normal"
       >
-        <Tabs.List data-slot="tablist" class="bg-transparent border-b-0 px-4 pt-2 pb-0 gap-4 h-10">
-          <Tabs.Trigger value="servers" data-slot="tab" class="text-12-regular">
+        <TabsV2.List data-slot="tablist" class="bg-transparent border-b-0 px-4 pt-2 pb-0 gap-4 h-10">
+          <TabsV2.Trigger value="servers" data-slot="tab" class="text-12-regular">
             {props.state.servers().length > 0 ? `${props.state.servers().length} ` : ""}
             {props.state.serversLabel}
-          </Tabs.Trigger>
-        </Tabs.List>
-        <Tabs.Content value="servers">
+          </TabsV2.Trigger>
+        </TabsV2.List>
+        <TabsV2.Content value="servers">
           <ServerStatusList state={props.state} />
-        </Tabs.Content>
-      </Tabs>
+        </TabsV2.Content>
+      </TabsV2>
     </div>
   )
 }
@@ -260,7 +260,6 @@ export function StatusPopoverBody(props: { shown: Accessor<boolean> }) {
 
   const fail = (err: unknown) => {
     showToast({
-      variant: "error",
       title: language.t("common.requestFailed"),
       description: err instanceof Error ? err.message : String(err),
     })
@@ -292,30 +291,30 @@ export function StatusPopoverBody(props: { shown: Accessor<boolean> }) {
 
   return (
     <div class="flex items-center gap-1 w-[360px] rounded-xl shadow-[var(--shadow-lg-border-base)]">
-      <Tabs
+      <TabsV2
         aria-label={language.t("status.popover.ariaLabel")}
         class="tabs bg-background-strong rounded-xl overflow-hidden"
         data-component="tabs"
         data-active="mcp"
         defaultValue="mcp"
-        variant="alt"
+        variant="normal"
       >
-        <Tabs.List data-slot="tablist" class="bg-transparent border-b-0 px-4 pt-2 pb-0 gap-4 h-10">
-          <Tabs.Trigger value="mcp" data-slot="tab" class="text-12-regular">
+        <TabsV2.List data-slot="tablist" class="bg-transparent border-b-0 px-4 pt-2 pb-0 gap-4 h-10">
+          <TabsV2.Trigger value="mcp" data-slot="tab" class="text-12-regular">
             {mcpConnected() > 0 ? `${mcpConnected()} ` : ""}
             {language.t("status.popover.tab.mcp")}
-          </Tabs.Trigger>
-          <Tabs.Trigger value="lsp" data-slot="tab" class="text-12-regular">
+          </TabsV2.Trigger>
+          <TabsV2.Trigger value="lsp" data-slot="tab" class="text-12-regular">
             {lspCount() > 0 ? `${lspCount()} ` : ""}
             {language.t("status.popover.tab.lsp")}
-          </Tabs.Trigger>
-          <Tabs.Trigger value="plugins" data-slot="tab" class="text-12-regular">
+          </TabsV2.Trigger>
+          <TabsV2.Trigger value="plugins" data-slot="tab" class="text-12-regular">
             {pluginCount() > 0 ? `${pluginCount()} ` : ""}
             {language.t("status.popover.tab.plugins")}
-          </Tabs.Trigger>
-        </Tabs.List>
+          </TabsV2.Trigger>
+        </TabsV2.List>
 
-        <Tabs.Content value="mcp">
+        <TabsV2.Content value="mcp">
           <div class="flex flex-col px-2 pb-2">
             <div class="flex flex-col p-3 bg-background-base rounded-sm min-h-14">
               <Show
@@ -375,9 +374,9 @@ export function StatusPopoverBody(props: { shown: Accessor<boolean> }) {
               </Show>
             </div>
           </div>
-        </Tabs.Content>
+        </TabsV2.Content>
 
-        <Tabs.Content value="lsp">
+        <TabsV2.Content value="lsp">
           <div class="flex flex-col px-2 pb-2">
             <div class="flex flex-col p-3 bg-background-base rounded-sm min-h-14">
               <Show
@@ -403,9 +402,9 @@ export function StatusPopoverBody(props: { shown: Accessor<boolean> }) {
               </Show>
             </div>
           </div>
-        </Tabs.Content>
+        </TabsV2.Content>
 
-        <Tabs.Content value="plugins">
+        <TabsV2.Content value="plugins">
           <div class="flex flex-col px-2 pb-2">
             <div class="flex flex-col p-3 bg-background-base rounded-sm min-h-14">
               <Show
@@ -423,8 +422,8 @@ export function StatusPopoverBody(props: { shown: Accessor<boolean> }) {
               </Show>
             </div>
           </div>
-        </Tabs.Content>
-      </Tabs>
+        </TabsV2.Content>
+      </TabsV2>
     </div>
   )
 }

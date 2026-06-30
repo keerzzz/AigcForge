@@ -1,10 +1,10 @@
 import { Button } from "@aigcfroge/ui/button"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
-import { Dialog } from "@aigcfroge/ui/dialog"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { List, type ListRef } from "@aigcfroge/ui/list"
 import { ProviderIcon } from "@aigcfroge/ui/provider-icon"
 import { Tag } from "@aigcfroge/ui/tag"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
 import { type Component, Show } from "solid-js"
 import { useLocal } from "@/context/local"
 import { popularProviders, useProviders } from "@/hooks/use-providers"
@@ -51,7 +51,7 @@ export const DialogSelectModelUnpaid: Component<{ model?: ModelState }> = (props
           current={model.current()}
           key={(x) => `${x.provider.id}:${x.id}`}
           itemWrapper={(item, node) => (
-            <Tooltip
+            <TooltipV2
               class="w-full"
               placement="right-start"
               gutter={12}
@@ -64,7 +64,7 @@ export const DialogSelectModelUnpaid: Component<{ model?: ModelState }> = (props
               }
             >
               {node}
-            </Tooltip>
+            </TooltipV2>
           )}
           onSelect={(x) => {
             model.set(x ? { modelID: x.id, providerID: x.provider.id } : undefined, {

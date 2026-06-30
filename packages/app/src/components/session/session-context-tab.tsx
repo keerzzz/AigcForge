@@ -5,7 +5,7 @@ import { checksum } from "@aigcfroge/core/util/encode"
 import { findLast } from "@aigcfroge/core/util/array"
 import { same } from "@/utils/same"
 import { Icon } from "@aigcfroge/ui/icon"
-import { Accordion } from "@aigcfroge/ui/accordion"
+import { AccordionV2 } from "@aigcfroge/ui/v2/accordion-v2"
 import { StickyAccordionHeader } from "@aigcfroge/ui/sticky-accordion-header"
 import { File } from "@aigcfroge/session-ui/file"
 import { Markdown } from "@aigcfroge/session-ui/markdown"
@@ -64,9 +64,9 @@ function RawMessage(props: {
   time: (value: number | undefined) => string
 }) {
   return (
-    <Accordion.Item value={props.message.id}>
+    <AccordionV2.Item value={props.message.id}>
       <StickyAccordionHeader>
-        <Accordion.Trigger>
+        <AccordionV2.Trigger>
           <div class="flex items-center justify-between gap-2 w-full">
             <div class="min-w-0 truncate">
               {props.message.role} <span class="text-text-base">• {props.message.id}</span>
@@ -76,14 +76,14 @@ function RawMessage(props: {
               <Icon name="chevron-grabber-vertical" size="small" class="shrink-0 text-text-weak" />
             </div>
           </div>
-        </Accordion.Trigger>
+        </AccordionV2.Trigger>
       </StickyAccordionHeader>
-      <Accordion.Content class="bg-background-base">
+      <AccordionV2.Content class="bg-background-base">
         <div class="p-3">
           <RawMessageContent message={props.message} getParts={props.getParts} onRendered={props.onRendered} />
         </div>
-      </Accordion.Content>
-    </Accordion.Item>
+      </AccordionV2.Content>
+    </AccordionV2.Item>
   )
 }
 
@@ -327,13 +327,13 @@ export function SessionContextTab() {
 
         <div class="flex flex-col gap-2">
           <div class="text-12-regular text-text-weak">{language.t("context.rawMessages.title")}</div>
-          <Accordion multiple>
+          <AccordionV2 multiple>
             <For each={messages()}>
               {(message) => (
                 <RawMessage message={message} getParts={getParts} onRendered={restoreScroll} time={formatter().time} />
               )}
             </For>
-          </Accordion>
+          </AccordionV2>
         </div>
       </div>
     </ScrollView>

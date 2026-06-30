@@ -4,7 +4,7 @@ import { useI18n } from "@aigcfroge/ui/context/i18n"
 import { createStore } from "solid-js/store"
 import { Collapsible } from "@aigcfroge/ui/collapsible"
 import type { IconProps } from "@aigcfroge/ui/icon"
-import { TextShimmer } from "@aigcfroge/ui/text-shimmer"
+import { TextShimmerV2 } from "@aigcfroge/ui/v2/text-shimmer-v2"
 
 export type TriggerTitle = {
   title: string
@@ -199,7 +199,7 @@ export function BasicTool(props: BasicToolProps) {
                         [title().titleClass ?? ""]: !!title().titleClass,
                       }}
                     >
-                      <TextShimmer text={title().title} active={pending()} />
+                      <TextShimmerV2 text={title().title} active={pending()} />
                     </span>
                     <Show when={!pending()}>
                       <Show when={title().subtitle}>

@@ -93,7 +93,6 @@ export const SettingsProvidersV2: Component = () => {
       .updateConfig({ disabled_providers: next })
       .then(() => {
         showToast({
-          variant: "success",
           icon: "circle-check",
           title: language.t("provider.disconnect.toast.disconnected.title", { provider: name }),
           description: language.t("provider.disconnect.toast.disconnected.description", { provider: name }),
@@ -119,7 +118,6 @@ export const SettingsProvidersV2: Component = () => {
       .then(async () => {
         await serverSdk().client.global.dispose()
         showToast({
-          variant: "success",
           icon: "circle-check",
           title: language.t("provider.disconnect.toast.disconnected.title", { provider: name }),
           description: language.t("provider.disconnect.toast.disconnected.description", { provider: name }),

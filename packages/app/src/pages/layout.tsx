@@ -6,7 +6,7 @@ import { Titlebar, type TitlebarUpdate } from "@/components/titlebar"
 import { useNotification } from "@/context/notification"
 import { usePlatform } from "@/context/platform"
 import { setNavigate } from "@/utils/notification-click"
-import { setV2Toast, ToastRegion } from "@/utils/toast"
+import { ToastRegion } from "@/utils/toast"
 import { ModeProvider, useMode } from "@/context/mode"
 import { ModeSwitcher } from "@/components/mode-switcher"
 import { SecondarySidebar } from "@/components/secondary-sidebar"
@@ -43,7 +43,7 @@ function LayoutContent(props: ParentProps & { update: TitlebarUpdate }) {
       <StatusBar source={statusSource} />
       {import.meta.env.DEV && <DebugBar />}
       <HelpButton />
-      <ToastRegion v2 />
+      <ToastRegion />
     </div>
   )
 }
@@ -55,7 +55,6 @@ export default function Layout(props: ParentProps) {
   const params = useParams<{ id?: string }>()
   setNavigate(navigate)
 
-  createEffect(() => setV2Toast(true))
   createEffect(() => {
     if (!notification.ready() || !params.id) return
     notification.session.markViewed(params.id)

@@ -1,13 +1,13 @@
-import { Accordion } from "@aigcfroge/ui/accordion"
+import { AccordionV2 } from "@aigcfroge/ui/v2/accordion-v2"
 import { Button } from "@aigcfroge/ui/button"
 import { DropdownMenu } from "@aigcfroge/ui/dropdown-menu"
 import { RadioGroup } from "@aigcfroge/ui/radio-group"
-import { DiffChanges } from "@aigcfroge/ui/diff-changes"
+import { DiffChanges } from "@aigcfroge/ui/v2/diff-changes-v2"
 import { FileIcon } from "@aigcfroge/ui/file-icon"
 import { Icon } from "@aigcfroge/ui/icon"
 import { IconButton } from "@aigcfroge/ui/icon-button"
 import { StickyAccordionHeader } from "@aigcfroge/ui/sticky-accordion-header"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { useFileComponent } from "@aigcfroge/ui/context/file"
 import { useI18n } from "@aigcfroge/ui/context/i18n"
@@ -387,7 +387,7 @@ export const SessionReview = (props: SessionReviewProps) => {
         <div data-slot="session-review-container" class={props.classes?.container}>
           <Show when={hasDiffs()} fallback={props.empty}>
             <div data-slot="session-review-list" class="pb-6">
-              <Accordion multiple value={open()} onChange={handleChange}>
+              <AccordionV2 multiple value={open()} onChange={handleChange}>
                 <For each={files()}>
                   {(file) => {
                     const diff = () => itemsMap()[file]
@@ -502,7 +502,7 @@ export const SessionReview = (props: SessionReviewProps) => {
                     }
 
                     return (
-                      <Accordion.Item
+                      <AccordionV2.Item
                         value={diffCanRender() ? file : null!}
                         id={diffId(file)}
                         data-file={file}
@@ -510,7 +510,7 @@ export const SessionReview = (props: SessionReviewProps) => {
                         data-selected={props.focusedFile === file ? "" : undefined}
                       >
                         <StickyAccordionHeader>
-                          <Accordion.Trigger disabled={!diffCanRender()} class="cursor-default">
+                          <AccordionV2.Trigger disabled={!diffCanRender()} class="cursor-default">
                             <div data-slot="session-review-trigger-content">
                               <div data-slot="session-review-file-info">
                                 <FileIcon node={{ path: file, type: "file" }} />
@@ -520,7 +520,7 @@ export const SessionReview = (props: SessionReviewProps) => {
                                   </Show>
                                   <span data-slot="session-review-filename">{getFilename(file)}</span>
                                   <Show when={props.onViewFile && diffCanRender()}>
-                                    <Tooltip value={openFileLabel()} placement="top" gutter={4}>
+                                    <TooltipV2 value={openFileLabel()} placement="top" gutter={4}>
                                       <button
                                         data-slot="session-review-view-button"
                                         type="button"
@@ -532,7 +532,7 @@ export const SessionReview = (props: SessionReviewProps) => {
                                       >
                                         <Icon name="open-file" size="small" />
                                       </button>
-                                    </Tooltip>
+                                    </TooltipV2>
                                   </Show>
                                 </div>
                               </div>
@@ -567,9 +567,9 @@ export const SessionReview = (props: SessionReviewProps) => {
                                 </Show>
                               </div>
                             </div>
-                          </Accordion.Trigger>
+                          </AccordionV2.Trigger>
                         </StickyAccordionHeader>
-                        <Accordion.Content data-slot="session-review-accordion-content">
+                        <AccordionV2.Content data-slot="session-review-accordion-content">
                           <div
                             data-slot="session-review-diff-wrapper"
                             ref={(el) => {
@@ -641,12 +641,12 @@ export const SessionReview = (props: SessionReviewProps) => {
                               </Switch>
                             </Show>
                           </div>
-                        </Accordion.Content>
-                      </Accordion.Item>
+                        </AccordionV2.Content>
+                      </AccordionV2.Item>
                     )
                   }}
                 </For>
-              </Accordion>
+              </AccordionV2>
             </div>
           </Show>
         </div>

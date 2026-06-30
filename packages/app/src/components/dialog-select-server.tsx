@@ -1,6 +1,6 @@
 import { Button } from "@aigcfroge/ui/button"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
-import { Dialog } from "@aigcfroge/ui/dialog"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { DropdownMenu } from "@aigcfroge/ui/dropdown-menu"
 import { Icon } from "@aigcfroge/ui/icon"
 import { IconButton } from "@aigcfroge/ui/icon-button"
@@ -41,7 +41,6 @@ interface ServerFormProps {
 
 function showRequestError(language: ReturnType<typeof useLanguage>, err: unknown) {
   showToast({
-    variant: "error",
     title: language.t("common.requestFailed"),
     description: err instanceof Error ? err.message : String(err),
   })

@@ -1,7 +1,7 @@
 import type { ProviderAuthAuthorization, ProviderAuthMethod } from "@aigcfroge/sdk/v2/client"
 import { Button } from "@aigcfroge/ui/button"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
-import { Dialog } from "@aigcfroge/ui/dialog"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { Icon } from "@aigcfroge/ui/icon"
 import { IconButton } from "@aigcfroge/ui/icon-button"
 import { List, type ListRef } from "@aigcfroge/ui/list"
@@ -334,7 +334,6 @@ export function DialogConnectProvider(props: { provider: string }) {
     await serverSDK().client.global.dispose()
     dialog.close()
     showToast({
-      variant: "success",
       icon: "circle-check",
       title: language.t("provider.connect.toast.connected.title", { provider: provider().name }),
       description: language.t("provider.connect.toast.connected.description", { provider: provider().name }),

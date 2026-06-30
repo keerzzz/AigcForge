@@ -1,7 +1,7 @@
-import { Dialog } from "@aigcfroge/ui/dialog"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { List } from "@aigcfroge/ui/list"
-import { Switch } from "@aigcfroge/ui/switch"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { Switch } from "@aigcfroge/ui/v2/switch-v2"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
 import { Button } from "@aigcfroge/ui/button"
 import type { Component } from "solid-js"
 import { useLocal } from "@/context/local"
@@ -52,7 +52,7 @@ export const DialogManageModels: Component = () => {
           return (
             <>
               <span>{provider.name}</span>
-              <Tooltip
+              <TooltipV2
                 placement="top"
                 value={language.t("dialog.model.manage.provider.toggle", { provider: provider.name })}
               >
@@ -64,7 +64,7 @@ export const DialogManageModels: Component = () => {
                 >
                   {provider.name}
                 </Switch>
-              </Tooltip>
+              </TooltipV2>
             </>
           )
         }}

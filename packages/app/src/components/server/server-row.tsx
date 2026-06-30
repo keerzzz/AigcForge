@@ -1,4 +1,4 @@
-import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 import {
   children,
@@ -63,7 +63,7 @@ export function ServerRow(props: ServerRowProps) {
   const badge = children(() => props.badge)
 
   return (
-    <Tooltip
+    <TooltipV2
       class="flex-1 min-w-0"
       value={tooltipValue()}
       contentStyle={{ "max-width": "none", "white-space": "nowrap" }}
@@ -109,7 +109,7 @@ export function ServerRow(props: ServerRowProps) {
         </div>
         {props.children}
       </div>
-    </Tooltip>
+    </TooltipV2>
   )
 }
 

@@ -1,7 +1,7 @@
 import { Component, Show } from "solid-js"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { popularProviders, useProviders } from "@/hooks/use-providers"
-import { Dialog } from "@aigcfroge/ui/dialog"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { List } from "@aigcfroge/ui/list"
 import { Tag } from "@aigcfroge/ui/tag"
 import { ProviderIcon } from "@aigcfroge/ui/provider-icon"
@@ -27,7 +27,7 @@ export const DialogSelectProvider: Component = () => {
   }
 
   return (
-    <Dialog title={language.t("command.provider.connect")} transition>
+    <Dialog title={language.t("command.provider.connect")}>
       <List
         class="px-3"
         search={{ placeholder: language.t("dialog.provider.search.placeholder"), autofocus: true }}

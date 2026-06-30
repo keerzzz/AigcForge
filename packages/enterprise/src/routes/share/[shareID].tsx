@@ -16,7 +16,7 @@ import { NamedError } from "@aigcfroge/core/util/error"
 import { DateTime } from "luxon"
 import { createStore } from "solid-js/store"
 import NotFound from "../[...404]"
-import { Tabs } from "@aigcfroge/ui/tabs"
+import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { MessageNav } from "@aigcfroge/session-ui/message-nav"
 import { FileSSR } from "@aigcfroge/session-ui/file-ssr"
 import { clientOnly } from "@solidjs/start"
@@ -363,23 +363,23 @@ export default function () {
                             </div>
                             <Switch>
                               <Match when={diffs().length > 0}>
-                                <Tabs classList={{ "md:hidden": wide(), "lg:hidden": !wide() }}>
-                                  <Tabs.List>
-                                    <Tabs.Trigger value="session" class="w-1/2" classes={{ button: "w-full" }}>
+                                <TabsV2 classList={{ "md:hidden": wide(), "lg:hidden": !wide() }}>
+                                  <TabsV2.List>
+                                    <TabsV2.Trigger value="session" class="w-1/2">
                                       Session
-                                    </Tabs.Trigger>
-                                    <Tabs.Trigger
+                                    </TabsV2.Trigger>
+                                    <TabsV2.Trigger
                                       value="review"
                                       class="w-1/2 !border-r-0"
-                                      classes={{ button: "w-full" }}
+                                     
                                     >
                                       {diffs().length} Files Changed
-                                    </Tabs.Trigger>
-                                  </Tabs.List>
-                                  <Tabs.Content value="session" class="!overflow-hidden">
+                                    </TabsV2.Trigger>
+                                  </TabsV2.List>
+                                  <TabsV2.Content value="session" class="!overflow-hidden">
                                     {turns()}
-                                  </Tabs.Content>
-                                  <Tabs.Content value="review" class="!overflow-hidden hidden data-[selected]:block">
+                                  </TabsV2.Content>
+                                  <TabsV2.Content value="review" class="!overflow-hidden hidden data-[selected]:block">
                                     <div class="relative h-full pt-8 overflow-y-auto no-scrollbar">
                                       <SessionReview
                                         diffs={diffs()}
@@ -390,8 +390,8 @@ export default function () {
                                         }}
                                       />
                                     </div>
-                                  </Tabs.Content>
-                                </Tabs>
+                                  </TabsV2.Content>
+                                </TabsV2>
                               </Match>
                               <Match when={true}>
                                 <div

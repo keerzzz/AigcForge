@@ -1,9 +1,9 @@
 import type { Session } from "@aigcfroge/sdk/v2/client"
-import { Avatar } from "@aigcfroge/ui/avatar"
+import { ProjectAvatar } from "@aigcfroge/ui/v2/project-avatar-v2"
 import { Icon } from "@aigcfroge/ui/icon"
 import { IconButton } from "@aigcfroge/ui/icon-button"
 import { Spinner } from "@aigcfroge/ui/spinner"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
 import { getFilename } from "@aigcfroge/core/util/path"
 import { A, useParams } from "@solidjs/router"
 import { type Accessor, createMemo, For, type JSX, Match, Show, Switch } from "solid-js"
@@ -45,7 +45,7 @@ export const ProjectIcon = (props: {
   return (
     <div class={`relative size-8 shrink-0 rounded ${props.class ?? ""}`}>
       <div class="size-full rounded overflow-clip">
-        <Avatar
+        <ProjectAvatar
           fallback={name()}
           src={getProjectAvatarSource(props.project.id, props.project.icon)}
           {...getAvatarColors(props.project.icon?.color)}
@@ -226,14 +226,14 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
             <Show
               when={!tooltip()}
               fallback={
-                <Tooltip
+                <TooltipV2
                   placement={props.mobile ? "bottom" : "right"}
                   value={sessionTitle(props.session.title)}
                   gutter={10}
                   class="min-w-0 w-full"
                 >
                   {item}
-                </Tooltip>
+                </TooltipV2>
               }
             >
               {item}
@@ -250,7 +250,7 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
                 "group-focus-within/session:w-6 group-focus-within/session:opacity-100 group-focus-within/session:pointer-events-auto": true,
               }}
             >
-              <Tooltip value={language.t("common.archive")} placement="top">
+              <TooltipV2 value={language.t("common.archive")} placement="top">
                 <IconButton
                   icon="archive"
                   variant="ghost"
@@ -262,7 +262,7 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
                     void props.archiveSession(props.session)
                   }}
                 />
-              </Tooltip>
+              </TooltipV2>
             </div>
           </Show>
         </div>
@@ -314,9 +314,9 @@ export const NewSessionItem = (props: {
       <Show
         when={!tooltip()}
         fallback={
-          <Tooltip placement={props.mobile ? "bottom" : "right"} value={label} gutter={10} class="min-w-0 w-full">
+          <TooltipV2 placement={props.mobile ? "bottom" : "right"} value={label} gutter={10} class="min-w-0 w-full">
             {item}
-          </Tooltip>
+          </TooltipV2>
         }
       >
         {item}

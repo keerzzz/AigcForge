@@ -619,7 +619,6 @@ export const Terminal = (props: TerminalProps) => {
     void run().catch((err) => {
       if (disposed) return
       showToast({
-        variant: "error",
         title: language.t("terminal.connectionLost.title"),
         description: err instanceof Error ? err.message : language.t("terminal.connectionLost.description"),
       })

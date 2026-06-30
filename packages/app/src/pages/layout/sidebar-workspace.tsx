@@ -11,7 +11,7 @@ import { DropdownMenu } from "@aigcfroge/ui/dropdown-menu"
 import { Icon } from "@aigcfroge/ui/icon"
 import { IconButton } from "@aigcfroge/ui/icon-button"
 import { Spinner } from "@aigcfroge/ui/spinner"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
 import { type Session } from "@aigcfroge/sdk/v2/client"
 import { type LocalProject } from "@/context/layout"
 import { ServerConnection } from "@/context/server"
@@ -169,7 +169,7 @@ const WorkspaceActions = (props: {
       open={props.menuOpen()}
       onOpenChange={(open) => props.setMenuOpen(open)}
     >
-      <Tooltip value={props.language.t("common.moreOptions")} placement="top">
+      <TooltipV2 value={props.language.t("common.moreOptions")} placement="top">
         <DropdownMenu.Trigger
           as={IconButton}
           icon="dot-grid"
@@ -179,7 +179,7 @@ const WorkspaceActions = (props: {
           data-workspace={base64Encode(props.directory)}
           aria-label={props.language.t("common.moreOptions")}
         />
-      </Tooltip>
+      </TooltipV2>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           onCloseAutoFocus={(event) => {
@@ -214,7 +214,7 @@ const WorkspaceActions = (props: {
       </DropdownMenu.Portal>
     </DropdownMenu>
     <Show when={!props.touch()}>
-      <Tooltip value={props.language.t("command.session.new")} placement="top">
+      <TooltipV2 value={props.language.t("command.session.new")} placement="top">
         <IconButton
           icon="new-session"
           variant="ghost"
@@ -229,7 +229,7 @@ const WorkspaceActions = (props: {
             props.navigateToNewSession()
           }}
         />
-      </Tooltip>
+      </TooltipV2>
     </Show>
   </div>
 )
