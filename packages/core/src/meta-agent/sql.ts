@@ -42,3 +42,22 @@ export const MetaAgentSessionTable = sqliteTable(
     index("meta_agent_session_session_idx").on(table.session_id),
   ],
 )
+
+export const MetaAgentStepTable = sqliteTable(
+  "meta_agent_step",
+  {
+    id: text().primaryKey(),
+    meta_agent_session_id: text().notNull(),
+    seq: integer().notNull(),
+    type: text().$type<"subagent" | "external-cli" | "tool">().notNull(),
+    engine: text().notNull(),
+    status: text().$type<"pending" | "running" | "completed" | "failed">().notNull(),
+    prompt: text(),
+    result: text(),
+    error: text(),
+    ...Timestamps,
+  },
+  (table) => [
+    index("meta_agent_step_session_idx").on(table.meta_agent_session_id),
+  ],
+)

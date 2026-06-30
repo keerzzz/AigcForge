@@ -22,6 +22,7 @@ import { SystemContextRegistry } from "../../system-context/registry"
 import { SkillGuidance } from "../../skill/guidance"
 import { ReferenceGuidance } from "../../reference/guidance"
 import { ToolRegistry } from "../../tool/registry"
+import { CacheShape } from "../../cache/cache-shape"
 import { ToolOutputStore } from "../../tool-output-store"
 import { SessionContextEpoch } from "../context-epoch"
 import { SessionCompaction } from "../compaction"
@@ -86,6 +87,14 @@ import { MAX_STEPS_PROMPT } from "./max-steps"
  * explicit loop starts the next provider turn after local settlement. Configured agent step limits bound the loop.
  */
 
+/** Per-session cache diagnostics state, owned by `run` and threaded through the call chain. */
+type CacheState = {
+  lastPrefixShape: CacheShape.PrefixShape | undefined
+  sessionCacheRead: number
+  sessionNonCached: number
+  rewriteVersion: number
+}
+
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -102,6 +111,7 @@ export const layer = Layer.effect(
     const config = yield* Config.Service
     const db = (yield* Database.Service).db
     const compaction = SessionCompaction.make({ events, llm, config: yield* config.entries() })
+
     const getSession = Effect.fn("SessionRunner.getSession")(function* (sessionID: SessionSchema.ID) {
       const session = yield* store.get(sessionID)
       if (!session) return yield* Effect.die(`Session not found: ${sessionID}`)
@@ -162,6 +172,7 @@ export const layer = Layer.effect(
       }).pipe(Effect.map(SystemContext.combine))
 
     const runTurnAttempt = Effect.fn("SessionRunner.runTurn")(function* (
+      state: CacheState,
       sessionID: SessionSchema.ID,
       promotion: SessionInput.Delivery | undefined,
       step: number,
@@ -203,8 +214,15 @@ export const layer = Layer.effect(
         tools: toolMaterialization?.definitions ?? [],
         toolChoice: isLastStep ? "none" : undefined,
       })
-      if (yield* compaction.compactIfNeeded({ sessionID: session.id, entries, model, request }))
+      if (yield* compaction.compactIfNeeded({ sessionID: session.id, entries, model, request })) {
+        state.rewriteVersion++
         return yield* Effect.die(continueAfterCompaction(currentStep))
+      }
+      const prefixShape = CacheShape.capture(
+        [agent.info?.system, system.baseline].filter((part): part is string => part !== undefined && part.length > 0).join("\n"),
+        toolMaterialization?.definitions ?? [],
+        state.rewriteVersion,
+      )
       const publisher = createLLMEventPublisher(events, {
         sessionID: session.id,
         agent: agent.id,
@@ -213,6 +231,28 @@ export const layer = Layer.effect(
           providerID: ProviderV2.ID.make(model.provider),
           ...(session.model?.variant === undefined ? {} : { variant: session.model.variant }),
         },
+        onStepFinish: (usage, assistantMessageID) =>
+          Effect.gen(function* () {
+            const cur = prefixShape
+            const read = usage?.cacheReadInputTokens ?? 0
+            const miss = usage?.nonCachedInputTokens ?? 0
+            const diag = CacheShape.compare(state.lastPrefixShape, cur, read, miss)
+            state.lastPrefixShape = cur
+            state.sessionCacheRead += read
+            state.sessionNonCached += miss
+            yield* events.publish(SessionEvent.Cache.Diagnostic, {
+              sessionID: session.id,
+              timestamp: yield* DateTime.now,
+              assistantMessageID,
+              prefixHash: diag.prefixHash,
+              prefixChanged: diag.prefixChanged,
+              prefixChangeReasons: diag.prefixChangeReasons,
+              cacheReadInputTokens: read,
+              nonCachedInputTokens: miss,
+              sessionCacheRead: state.sessionCacheRead,
+              sessionNonCached: state.sessionNonCached,
+            })
+          }),
       })
       const withPublication = Semaphore.makeUnsafe(1).withPermit
       const publish = (event: LLMEvent, outputPaths: ReadonlyArray<string> = []) =>
@@ -273,8 +313,10 @@ export const layer = Layer.effect(
             !publisher.hasAssistantStarted() &&
             isContextOverflowFailure(overflowFailure ?? failure) &&
             (yield* restore(recoverOverflow({ sessionID: session.id, entries, model, request })))
-          )
+          ) {
+            state.rewriteVersion++
             return yield* Effect.die(continueAfterOverflowCompaction(currentStep))
+          }
           if (overflowFailure) yield* publish(overflowFailure)
           const llmFailure = failure instanceof LLMError ? failure : undefined
           if (llmFailure && !publisher.hasProviderError()) {
@@ -304,43 +346,52 @@ export const layer = Layer.effect(
           }
           if (publisher.hasProviderError())
             yield* withPublication(publisher.failUnsettledTools("Tool execution interrupted"))
+          if (publisher.isAborted()) {
+            yield* events.publish(SessionEvent.Retried, {
+              sessionID: session.id,
+              timestamp: yield* DateTime.now,
+              attempt: 1,
+              error: { message: "Stream interrupted after partial output", isRetryable: true },
+            })
+          }
           if (stream._tag === "Success" && !publisher.hasProviderError())
             yield* withPublication(publisher.failUnsettledTools("Provider did not return a tool result", true))
           if (stream._tag === "Failure") return yield* Effect.failCause(stream.cause)
           if (settled._tag === "Failure") return yield* Effect.failCause(settled.cause)
-          return { needsContinuation: !publisher.hasProviderError() && needsContinuation, step: currentStep }
+          return { needsContinuation: (!publisher.hasProviderError() || publisher.isAborted()) && needsContinuation, step: currentStep }
         }),
       )
     }, Effect.scoped)
     type RunTurn = (
+      state: CacheState,
       sessionID: SessionSchema.ID,
       promotion: SessionInput.Delivery | undefined,
       step: number,
     ) => Effect.Effect<{ readonly needsContinuation: boolean; readonly step: number }, RunError>
 
-    const runAfterOverflowCompaction: RunTurn = Effect.fnUntraced(function* (sessionID, promotion, step) {
-      return yield* runTurnAttempt(sessionID, promotion, step).pipe(
+    const runAfterOverflowCompaction: RunTurn = Effect.fnUntraced(function* (state, sessionID, promotion, step) {
+      return yield* runTurnAttempt(state, sessionID, promotion, step).pipe(
         Effect.catchDefect(
           Effect.fnUntraced(function* (defect) {
             if (!(defect instanceof TurnTransitionError)) return yield* Effect.die(defect)
             if (defect.transition._tag === "ContinueAfterOverflowCompaction")
               return yield* Effect.die("Post-compaction provider attempt cannot recover another overflow")
             yield* Effect.yieldNow
-            return yield* runAfterOverflowCompaction(sessionID, undefined, defect.transition.step)
+            return yield* runAfterOverflowCompaction(state, sessionID, undefined, defect.transition.step)
           }),
         ),
       )
     })
 
-    const runTurn: RunTurn = Effect.fnUntraced(function* (sessionID, promotion, step) {
-      return yield* runTurnAttempt(sessionID, promotion, step, compaction.compactAfterOverflow).pipe(
+    const runTurn: RunTurn = Effect.fnUntraced(function* (state, sessionID, promotion, step) {
+      return yield* runTurnAttempt(state, sessionID, promotion, step, compaction.compactAfterOverflow).pipe(
         Effect.catchDefect(
           Effect.fnUntraced(function* (defect) {
             if (!(defect instanceof TurnTransitionError)) return yield* Effect.die(defect)
             yield* Effect.yieldNow
             if (defect.transition._tag === "ContinueAfterOverflowCompaction")
-              return yield* runAfterOverflowCompaction(sessionID, undefined, defect.transition.step)
-            return yield* runTurn(sessionID, undefined, defect.transition.step)
+              return yield* runAfterOverflowCompaction(state, sessionID, undefined, defect.transition.step)
+            return yield* runTurn(state, sessionID, undefined, defect.transition.step)
           }),
         ),
       )
@@ -350,6 +401,13 @@ export const layer = Layer.effect(
       readonly sessionID: SessionSchema.ID
       readonly force: boolean
     }) {
+      const state: CacheState = {
+        lastPrefixShape: undefined,
+        sessionCacheRead: 0,
+        sessionNonCached: 0,
+        rewriteVersion: 0,
+      }
+
       const hasSteer = yield* SessionInput.hasPending(db, input.sessionID, "steer")
       const hasQueue = hasSteer ? false : yield* SessionInput.hasPending(db, input.sessionID, "queue")
       if (!input.force && !hasSteer && !hasQueue) return
@@ -360,7 +418,7 @@ export const layer = Layer.effect(
         let needsContinuation = true
         let step = 1
         while (needsContinuation) {
-          const result = yield* runTurn(input.sessionID, promotion, step)
+          const result = yield* runTurn(state, input.sessionID, promotion, step)
           needsContinuation = result.needsContinuation
           step = result.step + 1
           promotion = "steer"

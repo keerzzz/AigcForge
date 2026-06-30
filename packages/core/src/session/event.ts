@@ -10,6 +10,7 @@ import { Location } from "../location"
 import { SessionMessageID } from "./message-id"
 import { SessionMessage } from "./message"
 
+
 export { FileAttachment }
 
 export const Source = Schema.Struct({
@@ -425,6 +426,43 @@ export namespace Compaction {
     },
   })
   export type Ended = typeof Ended.Type
+
+  export const SoftWarning = EventV2.define({
+    type: "session.next.compaction.soft-warning",
+    schema: {
+      ...Base,
+      watermark: Schema.Finite,
+      compactAt: Schema.Finite,
+    },
+  })
+  export type SoftWarning = typeof SoftWarning.Type
+
+  export const Stuck = EventV2.define({
+    type: "session.next.compaction.stuck",
+    schema: {
+      ...Base,
+      message: Schema.String,
+    },
+  })
+  export type Stuck = typeof Stuck.Type
+}
+
+export namespace Cache {
+  export const Diagnostic = EventV2.define({
+    type: "session.next.cache.diagnostic",
+    schema: {
+      ...Base,
+      assistantMessageID: SessionMessageID.ID,
+      prefixHash: Schema.String,
+      prefixChanged: Schema.Boolean,
+      prefixChangeReasons: Schema.Array(Schema.String),
+      cacheReadInputTokens: Schema.Number,
+      nonCachedInputTokens: Schema.Number,
+      sessionCacheRead: Schema.Number,
+      sessionNonCached: Schema.Number,
+    },
+  })
+  export type Diagnostic = typeof Diagnostic.Type
 }
 
 const DurableDefinitions = [
@@ -454,7 +492,7 @@ const DurableDefinitions = [
   Compaction.Started,
   Compaction.Ended,
 ] as const
-const EphemeralDefinitions = [Text.Delta, Tool.Input.Delta, Reasoning.Delta, Compaction.Delta] as const
+const EphemeralDefinitions = [Text.Delta, Tool.Input.Delta, Reasoning.Delta, Compaction.Delta, Compaction.SoftWarning, Compaction.Stuck, Cache.Diagnostic] as const
 
 export const Durable = Schema.Union(DurableDefinitions, { mode: "oneOf" }).pipe(Schema.toTaggedUnion("type"))
 export type DurableEvent = typeof Durable.Type

@@ -103,6 +103,21 @@ export default {
         );
       `)
       yield* tx.run(`
+        CREATE TABLE \`meta_agent_step\` (
+          \`id\` text PRIMARY KEY,
+          \`meta_agent_session_id\` text NOT NULL,
+          \`seq\` integer NOT NULL,
+          \`type\` text NOT NULL,
+          \`engine\` text NOT NULL,
+          \`status\` text NOT NULL,
+          \`prompt\` text,
+          \`result\` text,
+          \`error\` text,
+          \`time_created\` integer NOT NULL,
+          \`time_updated\` integer NOT NULL
+        );
+      `)
+      yield* tx.run(`
         CREATE TABLE \`meta_agent\` (
           \`id\` text PRIMARY KEY,
           \`title\` text NOT NULL,
@@ -267,6 +282,7 @@ export default {
       yield* tx.run(`CREATE INDEX \`event_aggregate_type_seq_idx\` ON \`event\` (\`aggregate_id\`,\`type\`,\`seq\`);`)
       yield* tx.run(`CREATE INDEX \`meta_agent_session_meta_agent_idx\` ON \`meta_agent_session\` (\`meta_agent_id\`);`)
       yield* tx.run(`CREATE INDEX \`meta_agent_session_session_idx\` ON \`meta_agent_session\` (\`session_id\`);`)
+      yield* tx.run(`CREATE INDEX \`meta_agent_step_session_idx\` ON \`meta_agent_step\` (\`meta_agent_session_id\`);`)
       yield* tx.run(
         `CREATE UNIQUE INDEX \`permission_project_action_resource_idx\` ON \`permission\` (\`project_id\`,\`action\`,\`resource\`);`,
       )

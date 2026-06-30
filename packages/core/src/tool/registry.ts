@@ -12,6 +12,33 @@ import { ApplicationTools } from "./application-tools"
 import { definition, permission, settle, validateName, type AnyTool, type RegistrationError } from "./tool"
 import { Tools } from "./tools"
 
+// Phase 4: intent-based tool filtering rules.
+// Keyed by the IntentCategory string from the meta-agent prerouter.
+const INTENT_TOOL_FILTERS: Record<string, (name: string) => boolean> = {
+  code_understanding: (name) => READONLY_TOOL_NAMES.has(name),
+  content_creation: (name) => WRITE_TOOL_NAMES.has(name) || READONLY_TOOL_NAMES.has(name),
+  configuration: (name) => CONFIG_TOOL_NAMES.has(name),
+  code_modification: () => true,
+  workflow: () => true,
+  mention: () => true,
+}
+
+const READONLY_TOOL_NAMES = new Set([
+  "read", "read_file", "grep", "glob", "search", "list_files",
+  "code_search", "tool_search", "web_fetch", "fetch",
+  "todo_write", "todo_list", "complete_step",
+])
+
+const WRITE_TOOL_NAMES = new Set([
+  "write", "write_file", "edit", "edit_file", "patch", "apply_patch",
+  "create", "delete", "remove", "rename", "move",
+  "multi_edit", "bash",
+])
+
+const CONFIG_TOOL_NAMES = new Set([
+  "config", "agent", "skill", "mcp", "workflow",
+])
+
 export type ExecuteInput = {
   readonly sessionID: SessionSchema.ID
   readonly agent: AgentV2.ID
@@ -20,7 +47,7 @@ export type ExecuteInput = {
 }
 
 export interface Interface {
-  readonly materialize: (permissions?: PermissionV2.Ruleset) => Effect.Effect<Materialization>
+  readonly materialize: (permissions?: PermissionV2.Ruleset, intent?: string) => Effect.Effect<Materialization>
   /** Internal registration capability exposed publicly only through Tools.Service. */
   readonly register: (tools: Readonly<Record<string, AnyTool>>) => Effect.Effect<void, RegistrationError, Scope.Scope>
 }
@@ -102,11 +129,16 @@ const registryLayer = Layer.effect(
           }),
         )
       }),
-      materialize: Effect.fn("ToolRegistry.materialize")(function* (permissions = []) {
+      materialize: Effect.fn("ToolRegistry.materialize")(function* (permissions = [], intent?: string) {
         const registrations = new Map(applications.entries())
         for (const [name, entries] of local) {
           const registration = entries.at(-1)?.registration
           if (registration) registrations.set(name, registration)
+        }
+        // Phase 4: intent-based tool filtering
+        const filter = intent ? INTENT_TOOL_FILTERS[intent] : undefined
+        for (const [name] of registrations) {
+          if (filter && !filter(name)) registrations.delete(name)
         }
         for (const [name, registration] of registrations)
           if (whollyDisabled(permission(registration.tool, name), permissions)) registrations.delete(name)

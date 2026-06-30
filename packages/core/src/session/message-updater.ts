@@ -367,6 +367,8 @@ export function update(adapter: Adapter, event: SessionEvent.Event) {
       "session.next.retried": () => Effect.void,
       "session.next.compaction.started": () => Effect.void,
       "session.next.compaction.delta": () => Effect.void,
+      "session.next.compaction.soft-warning": () => Effect.void,
+      "session.next.compaction.stuck": () => Effect.void,
       "session.next.compaction.ended": (event) => {
         return adapter.appendMessage(
           SessionMessage.Compaction.make({
@@ -380,6 +382,7 @@ export function update(adapter: Adapter, event: SessionEvent.Event) {
           }),
         )
       },
+      "session.next.cache.diagnostic": () => Effect.void,
     })
   })
 }

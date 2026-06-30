@@ -72,7 +72,7 @@ export type Error =
   | Integration.AuthorizationError
 
 export interface Interface {
-  readonly resolve: (session: SessionSchema.Info) => Effect.Effect<Model, Error>
+  readonly resolve: (session: SessionSchema.Info, intent?: string) => Effect.Effect<Model, Error>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionRunnerModel") {}
@@ -172,8 +172,12 @@ export const fromCatalogModel = (
   )
 }
 
-export const resolve = (session: SessionSchema.Info, model: ModelV2.Info, credential?: Credential.Value) =>
-  withVariant(model, session.model?.variant).pipe(Effect.flatMap((model) => fromCatalogModel(model, credential)))
+export const resolve = (
+  session: SessionSchema.Info,
+  model: ModelV2.Info,
+  credential?: Credential.Value,
+  intent?: string,
+) => withVariant(model, session.model?.variant).pipe(Effect.flatMap((model) => fromCatalogModel(model, credential)))
 
 export const supported = (model: ModelV2.Info) =>
   model.api.type === "aisdk" &&
@@ -188,21 +192,40 @@ export const locationLayer = Layer.effect(
     const catalog = yield* Catalog.Service
     const integrations = yield* Integration.Service
     return Service.of({
-      resolve: Effect.fn("SessionRunnerModel.resolve")(function* (session) {
+      resolve: Effect.fn("SessionRunnerModel.resolve")(function* (session, intent?) {
         // Location plugins populate and filter the catalog asynchronously during layer startup.
+        const allModels = yield* catalog.model.available()
         const defaultModel = session.model ? undefined : yield* catalog.model.default()
-        const selected = session.model
-          ? (yield* catalog.model.available()).find(
+        let selected = session.model
+          ? allModels.find(
               (model) => model.providerID === session.model?.providerID && model.id === session.model.id,
             )
           : defaultModel && supported(defaultModel)
             ? defaultModel
-            : (yield* catalog.model.available()).find(supported)
+            : allModels.find(supported)
         if (!selected && session.model)
           return yield* new ModelUnavailableError({
             providerID: session.model.providerID,
             modelID: session.model.id,
           })
+        if (!selected) return yield* new ModelNotSelectedError({ sessionID: session.id })
+
+        // Phase 6: for simple intents, try a cheaper model from the same provider
+        if (intent && (intent === "code_understanding" || intent === "content_creation") && selected) {
+          const current = selected
+          const fallback = allModels.find(
+            (m) =>
+              m.providerID === current.providerID &&
+              m.id !== current.id &&
+              supported(m) &&
+              !m.id.includes("reasoner") &&
+              !m.id.includes("max") &&
+              !m.id.includes("ultra") &&
+              !m.id.includes("opus") &&
+              !m.id.includes("sonnet"),
+          )
+          if (fallback) selected = fallback
+        }
         if (!selected) return yield* new ModelNotSelectedError({ sessionID: session.id })
         const provider = yield* catalog.provider.get(selected.providerID)
         const connection = yield* integrations.connection.active(

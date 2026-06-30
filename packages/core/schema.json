@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "1e8b0ae2-f99f-4219-8e32-0600c65223cc",
+  "id": "3d9aecd4-373a-4d15-a756-74e6ddc4fee1",
   "prevIds": [
-    "ffc282f0-e59d-44dd-9fce-504da92c0c4d"
+    "1e8b0ae2-f99f-4219-8e32-0600c65223cc"
   ],
   "ddl": [
     {
@@ -40,6 +40,10 @@
     },
     {
       "name": "meta_agent_session",
+      "entityType": "tables"
+    },
+    {
+      "name": "meta_agent_step",
       "entityType": "tables"
     },
     {
@@ -639,6 +643,116 @@
       "name": "time_updated",
       "entityType": "columns",
       "table": "meta_agent_session"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "meta_agent_step"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "meta_agent_session_id",
+      "entityType": "columns",
+      "table": "meta_agent_step"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "seq",
+      "entityType": "columns",
+      "table": "meta_agent_step"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "type",
+      "entityType": "columns",
+      "table": "meta_agent_step"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "engine",
+      "entityType": "columns",
+      "table": "meta_agent_step"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "meta_agent_step"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "prompt",
+      "entityType": "columns",
+      "table": "meta_agent_step"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "result",
+      "entityType": "columns",
+      "table": "meta_agent_step"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "error",
+      "entityType": "columns",
+      "table": "meta_agent_step"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "time_created",
+      "entityType": "columns",
+      "table": "meta_agent_step"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "time_updated",
+      "entityType": "columns",
+      "table": "meta_agent_step"
     },
     {
       "type": "text",
@@ -1983,6 +2097,15 @@
         "id"
       ],
       "nameExplicit": false,
+      "name": "meta_agent_step_pk",
+      "table": "meta_agent_step",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
       "name": "meta_agent_pk",
       "table": "meta_agent",
       "entityType": "pks"
@@ -2135,6 +2258,20 @@
       "name": "meta_agent_session_session_idx",
       "entityType": "indexes",
       "table": "meta_agent_session"
+    },
+    {
+      "columns": [
+        {
+          "value": "meta_agent_session_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "meta_agent_step_session_idx",
+      "entityType": "indexes",
+      "table": "meta_agent_step"
     },
     {
       "columns": [

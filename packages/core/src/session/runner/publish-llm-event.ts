@@ -4,12 +4,14 @@ import { EventV2 } from "../../event"
 import { ModelV2 } from "../../model"
 import { SessionEvent } from "../event"
 import { SessionMessage } from "../message"
+import { SessionMessageID } from "../message-id"
 import { SessionSchema } from "../schema"
 
 type Input = {
   readonly sessionID: SessionSchema.ID
   readonly agent: string
   readonly model: ModelV2.Ref
+  readonly onStepFinish?: (usage: Usage | undefined, assistantMessageID: SessionMessageID.ID) => Effect.Effect<void>
 }
 
 const safe = (value: number | undefined) => Math.max(0, Number.isFinite(value) ? (value ?? 0) : 0)
@@ -68,6 +70,8 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
   let assistantActive = false
   let assistantFailed = false
   let providerFailed = false
+  let aborted = false
+  let textStarted = false // Phase 5: track whether any text delta arrived
 
   const startAssistant = Effect.fnUntraced(function* () {
     if (assistantMessageID !== undefined) return assistantMessageID
@@ -241,6 +245,7 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
       case "step-start":
         return
       case "text-start":
+        textStarted = true
         yield* text.start(event.id)
         yield* events.publish(SessionEvent.Text.Started, {
           sessionID: input.sessionID,
@@ -393,18 +398,27 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
       case "step-finish":
         yield* flush()
         assistantActive = false
+        const amID = yield* startAssistant()
         yield* events.publish(SessionEvent.Step.Ended, {
           sessionID: input.sessionID,
           timestamp: yield* timestamp,
-          assistantMessageID: yield* startAssistant(),
+          assistantMessageID: amID,
           finish: event.reason,
           cost: 0,
           tokens: tokens(event.usage),
         })
+        if (input.onStepFinish) yield* input.onStepFinish(event.usage, amID)
         return
       case "finish":
         return
       case "provider-error":
+        if (textStarted && !event.classification) {
+          // Text was being streamed and this is a transient (unclassified)
+          // provider error — mark as aborted so the runner can retry.
+          aborted = true
+          providerFailed = true
+          return
+        }
         providerFailed = true
         yield* failAssistant(event.message)
         return
@@ -419,6 +433,7 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
     hasActiveAssistant: () => assistantActive,
     hasAssistantStarted: () => assistantMessageID !== undefined,
     hasProviderError: () => providerFailed,
+    isAborted: () => aborted,
     assistantMessageID: assistantMessageIDForTool,
   }
 }
