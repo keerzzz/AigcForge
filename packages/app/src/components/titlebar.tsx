@@ -839,25 +839,29 @@ type TitlebarV2RightState = {
 function TitlebarV2Right(props: { state: TitlebarV2RightState }) {
   const mode = useMode()
   const language = useLanguage()
+  const settings = useSettings()
   return (
     <div class="relative z-20 flex shrink-0 items-center justify-end gap-0 overflow-visible">
       <Show when={props.state.update.visible}>
         <TitlebarUpdateIconButton state={props.state.update} />
       </Show>
-      <TooltipV2
-        value={language.t(mode.secondarySidebarOpen ? "sidebar.secondary.hide" : "sidebar.secondary.show")}
-        placement="bottom"
-        gutter={8}
-      >
-        <IconButtonV2
-          variant="ghost-muted"
-          size="normal"
-          class="titlebar-icon mr-1"
-          icon={<IconV2 name="sidebar-right" size="normal" />}
-          aria-label={language.t(mode.secondarySidebarOpen ? "sidebar.secondary.hide" : "sidebar.secondary.show")}
-          onClick={() => mode.toggleSecondarySidebar()}
-        />
-      </TooltipV2>
+      <Show when={settings.visibility.secondarySidebarToggle()}>
+        <TooltipV2
+          value={language.t(mode.secondarySidebarOpen ? "sidebar.secondary.hide" : "sidebar.secondary.show")}
+          placement="bottom"
+          gutter={8}
+        >
+          <IconButtonV2
+            variant="ghost-muted"
+            size="large"
+            class="titlebar-icon mr-1 !w-9 shrink-0"
+            state={mode.secondarySidebarOpen ? "pressed" : undefined}
+            icon={<IconV2 name="sidebar-right" />}
+            aria-label={language.t(mode.secondarySidebarOpen ? "sidebar.secondary.hide" : "sidebar.secondary.show")}
+            onClick={() => mode.toggleSecondarySidebar()}
+          />
+        </TooltipV2>
+      </Show>
       <div id="aigcfroge-titlebar-right" class="flex shrink-0 items-center justify-end gap-0" />
     </div>
   )
@@ -1093,11 +1097,12 @@ function NewSessionTabItem(props: { ref?: HTMLDivElement; href: string; title: s
 }
 
 function ChannelIndicator() {
+  const channel = import.meta.env.VITE_AIGCFROGE_CHANNEL
   return (
     <>
-      {["beta", "dev"].includes(import.meta.env.VITE_AIGCFROGE_CHANNEL) && (
+      {channel && ["beta", "dev"].includes(channel) && (
         <div class="bg-icon-interactive-base text-[#FFF] font-medium px-2 rounded-sm uppercase font-mono">
-          {import.meta.env.VITE_AIGCFROGE_CHANNEL.toUpperCase()}
+          {channel.toUpperCase()}
         </div>
       )}
     </>

@@ -4,6 +4,8 @@ import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
 import { useLanguage } from "@/context/language"
 import { useMode, MODES, type Mode } from "@/context/mode"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { DialogSettings } from "@/components/settings-v2"
 
 const MODE_ICONS: Record<Mode, string> = {
   chat: "mode-chat",
@@ -15,6 +17,7 @@ const MODE_ICONS: Record<Mode, string> = {
 export function ModeSwitcher() {
   const mode = useMode()
   const language = useLanguage()
+  const dialog = useDialog()
 
   return (
     <nav
@@ -41,7 +44,7 @@ export function ModeSwitcher() {
       </For>
       <div class="mt-auto pb-4">
         <TooltipV2
-          value={language.t(mode.secondarySidebarOpen ? "sidebar.secondary.hide" : "sidebar.secondary.show")}
+          value={language.t("sidebar.settings")}
           placement="right"
           gutter={8}
         >
@@ -49,10 +52,9 @@ export function ModeSwitcher() {
             variant="ghost-muted"
             size="large"
             class="size-10 rounded-[8px]"
-            icon={<Icon name="sidebar-right" size="large" />}
-            aria-label={language.t(mode.secondarySidebarOpen ? "sidebar.secondary.hide" : "sidebar.secondary.show")}
-            aria-pressed={mode.secondarySidebarOpen}
-            onClick={() => mode.toggleSecondarySidebar()}
+            icon={<Icon name="settings-gear" size="large" />}
+            aria-label={language.t("sidebar.settings")}
+            onClick={() => dialog.show(() => <DialogSettings />)}
           />
         </TooltipV2>
       </div>

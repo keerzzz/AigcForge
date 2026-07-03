@@ -389,6 +389,30 @@ export const SettingsGeneralV2: Component = () => {
         </SettingsRowV2>
 
         <SettingsRowV2
+          title={language.t("settings.general.row.showSecondarySidebarToggle.title")}
+          description={language.t("settings.general.row.showSecondarySidebarToggle.description")}
+        >
+          <div data-action="settings-show-secondary-sidebar-toggle">
+            <Switch
+              checked={settings.general.showSecondarySidebarToggle()}
+              onChange={(checked) => settings.general.setShowSecondarySidebarToggle(checked)}
+            />
+          </div>
+        </SettingsRowV2>
+
+        <SettingsRowV2
+          title={language.t("settings.general.row.showReviewPanelToggle.title")}
+          description={language.t("settings.general.row.showReviewPanelToggle.description")}
+        >
+          <div data-action="settings-show-review-panel-toggle">
+            <Switch
+              checked={settings.general.showReviewPanelToggle()}
+              onChange={(checked) => settings.general.setShowReviewPanelToggle(checked)}
+            />
+          </div>
+        </SettingsRowV2>
+
+        <SettingsRowV2
           title={language.t("settings.general.row.showCustomAgents.title")}
           description={language.t("settings.general.row.showCustomAgents.description")}
         >

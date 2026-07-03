@@ -302,7 +302,9 @@ export function SessionSidePanel(props: {
                         <SortableProvider ids={openedTabs()}>
                           <For each={openedTabs()}>{(tab) => <SortableTab tab={tab} onTabClose={tabs().close} />}</For>
                         </SortableProvider>
-                        <div class="bg-background-stronger h-full shrink-0 sticky right-0 z-10 flex items-center justify-center pr-3">
+                        <div
+                          class="bg-background-stronger shrink-0 sticky right-0 z-10 flex items-center justify-center px-2 self-start h-full"
+                        >
                           <TooltipKeybind
                             title={language.t("command.file.open")}
                             keybind={command.keybind("file.open")}

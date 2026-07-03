@@ -96,13 +96,32 @@ export function createCurrentSessionSource(): StatusBarSource {
     return findModel(ctx.message.providerID, ctx.message.modelID)?.limit.context
   }
 
-  const [pinnedStore, setPinnedStore] = createStore({ ids: DEFAULT_PINNED })
+  const PINNED_METRICS_KEY = "aigcfroge:pinned_metrics"
+
+  const loadPinned = (): string[] => {
+    try {
+      const stored = localStorage.getItem(PINNED_METRICS_KEY)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed) && parsed.every((v) => typeof v === "string")) return parsed
+      }
+    } catch {}
+    return DEFAULT_PINNED
+  }
+
+  const [pinnedStore, setPinnedStore] = createStore({ ids: loadPinned() })
 
   const togglePin = (metricID: string) => {
     setPinnedStore("ids", (prev) => {
-      if (prev.includes(metricID)) return prev.filter((id) => id !== metricID)
-      if (prev.length >= 20) return prev
-      return [...prev, metricID]
+      const next = prev.includes(metricID)
+        ? prev.filter((id) => id !== metricID)
+        : prev.length >= 20
+          ? prev
+          : [...prev, metricID]
+      try {
+        localStorage.setItem(PINNED_METRICS_KEY, JSON.stringify(next))
+      } catch {}
+      return next
     })
   }
 

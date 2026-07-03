@@ -111,8 +111,7 @@
 }
 
 [data-component="tabs-v2"][data-variant="pill"][data-orientation="horizontal"] [data-slot="tabs-v2-list"] {
-  padding-bottom: 8px;
-  align-items: start;
+  align-items: center;
 }
 
 [data-component="tabs-v2"][data-variant="normal"][data-orientation="horizontal"] [data-slot="tabs-v2-trigger-wrapper"] {

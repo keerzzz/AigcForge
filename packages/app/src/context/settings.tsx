@@ -28,6 +28,8 @@ export interface Settings {
     showSearch: boolean
     showStatus: boolean
     showTerminal: boolean
+    showSecondarySidebarToggle: boolean
+    showReviewPanelToggle: boolean
     showReasoningSummaries: boolean
     shellToolPartsExpanded: boolean
     editToolPartsExpanded: boolean
@@ -112,6 +114,8 @@ const defaultSettings: Settings = {
     showSearch: false,
     showStatus: false,
     showTerminal: false,
+    showSecondarySidebarToggle: true,
+    showReviewPanelToggle: true,
     showReasoningSummaries: false,
     shellToolPartsExpanded: false,
     editToolPartsExpanded: false,
@@ -156,6 +160,14 @@ export const { use: useSettings, provider: SettingsProvider } = createSimpleCont
     const showFileTree = withFallback(() => store.general?.showFileTree, defaultSettings.general.showFileTree)
     const showSearch = withFallback(() => store.general?.showSearch, defaultSettings.general.showSearch)
     const showStatus = withFallback(() => store.general?.showStatus, defaultSettings.general.showStatus)
+    const showSecondarySidebarToggle = withFallback(
+      () => store.general?.showSecondarySidebarToggle,
+      defaultSettings.general.showSecondarySidebarToggle,
+    )
+    const showReviewPanelToggle = withFallback(
+      () => store.general?.showReviewPanelToggle,
+      defaultSettings.general.showReviewPanelToggle,
+    )
     const showCustomAgents = withFallback(
       () => store.general?.showCustomAgents,
       defaultSettings.general.showCustomAgents,
@@ -210,6 +222,14 @@ export const { use: useSettings, provider: SettingsProvider } = createSimpleCont
         setShowStatus(value: boolean) {
           setStore("general", "showStatus", value)
         },
+        showSecondarySidebarToggle,
+        setShowSecondarySidebarToggle(value: boolean) {
+          setStore("general", "showSecondarySidebarToggle", value)
+        },
+        showReviewPanelToggle,
+        setShowReviewPanelToggle(value: boolean) {
+          setStore("general", "showReviewPanelToggle", value)
+        },
         showTerminal: withFallback(() => store.general?.showTerminal, defaultSettings.general.showTerminal),
         setShowTerminal(value: boolean) {
           setStore("general", "showTerminal", value)
@@ -259,6 +279,8 @@ export const { use: useSettings, provider: SettingsProvider } = createSimpleCont
         search: showSearch,
         status: showStatus,
         customAgents: showCustomAgents,
+        secondarySidebarToggle: showSecondarySidebarToggle,
+        reviewPanelToggle: showReviewPanelToggle,
       },
       appearance: {
         fontSize: withFallback(() => store.appearance?.fontSize, defaultSettings.appearance.fontSize),

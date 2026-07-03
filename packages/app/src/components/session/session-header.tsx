@@ -237,7 +237,7 @@ export function SessionHeader() {
     statusLabel: language.t("status.popover.trigger"),
     reviewLabel: language.t("command.review.toggle"),
     reviewKeybind: command.keybind("review.toggle"),
-    reviewVisible: isDesktop(),
+    reviewVisible: isDesktop() && settings.visibility.reviewPanelToggle(),
     reviewOpened: view().reviewPanel.opened(),
     onReviewToggle: () => view().reviewPanel.toggle(),
   }))
@@ -358,7 +358,7 @@ function SessionHeaderV2Actions(props: { state: SessionHeaderV2ActionsState }) {
             aria-label={props.state.reviewLabel}
             aria-expanded={props.state.reviewOpened}
             aria-controls="review-panel"
-            icon={<IconV2 name="sidebar-right" />}
+            icon={<IconV2 name="sidebar-right" style={{ transform: "scaleX(-1)" }} />}
           />
         </TooltipKeybind>
       </Show>

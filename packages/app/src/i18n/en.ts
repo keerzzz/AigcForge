@@ -859,6 +859,10 @@ export const dict = {
   "settings.general.row.showTerminal.description": "Show the terminal button in the desktop title bar",
   "settings.general.row.showStatus.title": "Server status",
   "settings.general.row.showStatus.description": "Show the server status button in the title bar",
+  "settings.general.row.showSecondarySidebarToggle.title": "Secondary sidebar toggle",
+  "settings.general.row.showSecondarySidebarToggle.description": "Show the secondary sidebar toggle button in the title bar",
+  "settings.general.row.showReviewPanelToggle.title": "Review panel toggle",
+  "settings.general.row.showReviewPanelToggle.description": "Show the review panel toggle button in the session header",
   "settings.general.row.mobileTitlebarBottom.title": "Bottom navigation",
   "settings.general.row.mobileTitlebarBottom.description":
     "Place the title bar and session tabs at the bottom of the screen on mobile",
