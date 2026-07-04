@@ -11,6 +11,7 @@ import { SessionSummary } from "@/session/summary"
 import { Todo } from "@/session/todo"
 import { MessageID, PartID, SessionID } from "@/session/schema"
 import { Snapshot } from "@/snapshot"
+import { CacheDiagnostics } from "@aigcfroge/core/session/cache-diagnostics"
 import { Schema, Struct } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/unstable/httpapi"
 import { Authorization } from "../middleware/authorization"
@@ -102,6 +103,7 @@ export const SessionPaths = {
   deleteMessage: `${root}/:sessionID/message/:messageID`,
   deletePart: `${root}/:sessionID/message/:messageID/part/:partID`,
   updatePart: `${root}/:sessionID/message/:messageID/part/:partID`,
+  cacheDiagnostics: `${root}/:sessionID/cache-diagnostics`,
 } as const
 
 export const SessionApi = HttpApi.make("session")
@@ -440,6 +442,18 @@ export const SessionApi = HttpApi.make("session")
           OpenApi.annotations({
             identifier: "part.update",
             description: "Update a part in a message.",
+          }),
+        ),
+        HttpApiEndpoint.get("cacheDiagnostics", SessionPaths.cacheDiagnostics, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          success: described(CacheDiagnostics, "Cache diagnostics"),
+          error: [HttpApiError.BadRequest, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.cacheDiagnostics",
+            summary: "Get cache diagnostics",
+            description: "Retrieve cache hit rate and per-step cache statistics for a session.",
           }),
         ),
       )

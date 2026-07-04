@@ -15,6 +15,8 @@ import { SessionStatus } from "@/session/status"
 import { SessionSummary } from "@/session/summary"
 import { Todo } from "@/session/todo"
 import { MessageID, PartID, SessionID } from "@/session/schema"
+import { getCacheDiagnostics } from "@aigcfroge/core/session/cache-diagnostics"
+import { Database } from "@aigcfroge/core/database/database"
 import { NamedError } from "@aigcfroge/core/util/error"
 import { Cause, Effect, Option, Schema, Scope } from "effect"
 import * as Stream from "effect/Stream"
@@ -58,6 +60,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const todoSvc = yield* Todo.Service
     const summary = yield* SessionSummary.Service
     const events = yield* EventV2Bridge.Service
+    const { db } = yield* Database.Service
     const scope = yield* Scope.Scope
 
     const list = Effect.fn("SessionHttpApi.list")(function* (ctx: { query: typeof ListQuery.Type }) {
@@ -408,6 +411,15 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       return yield* session.updatePart(payload)
     })
 
+    const cacheDiagnostics = Effect.fn("SessionHttpApi.cacheDiagnostics")(function* (ctx: {
+      params: { sessionID: SessionID }
+    }) {
+      yield* requireSession(ctx.params.sessionID)
+      return yield* getCacheDiagnostics(db, ctx.params.sessionID).pipe(
+        Effect.mapError(() => new HttpApiError.BadRequest({})),
+      )
+    })
+
     return handlers
       .handle("list", list)
       .handle("status", status)
@@ -436,5 +448,6 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       .handle("deleteMessage", deleteMessage)
       .handle("deletePart", deletePart)
       .handle("updatePart", updatePart)
+      .handle("cacheDiagnostics", cacheDiagnostics)
   }),
 )

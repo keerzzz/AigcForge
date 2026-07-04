@@ -34,7 +34,7 @@ export class ApiVcsApplyError extends Schema.ErrorClass<ApiVcsApplyError>("VcsAp
     name: Schema.Literal("VcsApplyError"),
     data: Schema.Struct({
       message: Schema.String,
-      reason: Schema.Literals(["non-git", "not-clean"]),
+      reason: Schema.Literals(["non-git", "not-clean", "stage-failed", "unstage-failed", "commit-failed"]),
     }),
   },
   { httpApiStatus: 400 },
@@ -48,6 +48,10 @@ export const InstancePaths = {
   vcsDiff: "/vcs/diff",
   vcsDiffRaw: "/vcs/diff/raw",
   vcsApply: "/vcs/apply",
+  vcsStage: "/vcs/stage",
+  vcsUnstage: "/vcs/unstage",
+  vcsCommit: "/vcs/commit",
+  vcsLog: "/vcs/log",
   command: "/command",
   agent: "/agent",
   skill: "/skill",
@@ -134,6 +138,56 @@ export const InstanceApi = HttpApi.make("instance")
             identifier: "vcs.apply",
             summary: "Apply VCS patch",
             description: "Apply a raw patch to the current working tree.",
+          }),
+        ),
+        HttpApiEndpoint.post("vcsStage", InstancePaths.vcsStage, {
+          query: WorkspaceRoutingQuery,
+          payload: Schema.Struct({ files: Schema.Array(Schema.String) }),
+          success: described(HttpApiSchema.NoContent, "Files staged"),
+          error: ApiVcsApplyError,
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "vcs.stage",
+            summary: "Stage files",
+            description: "Stage specified files for commit.",
+          }),
+        ),
+        HttpApiEndpoint.post("vcsUnstage", InstancePaths.vcsUnstage, {
+          query: WorkspaceRoutingQuery,
+          payload: Schema.Struct({ files: Schema.Array(Schema.String) }),
+          success: described(HttpApiSchema.NoContent, "Files unstaged"),
+          error: ApiVcsApplyError,
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "vcs.unstage",
+            summary: "Unstage files",
+            description: "Unstage specified files.",
+          }),
+        ),
+        HttpApiEndpoint.post("vcsCommit", InstancePaths.vcsCommit, {
+          query: WorkspaceRoutingQuery,
+          payload: Schema.Struct({ message: Schema.String }),
+          success: described(HttpApiSchema.NoContent, "Changes committed"),
+          error: ApiVcsApplyError,
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "vcs.commit",
+            summary: "Commit changes",
+            description: "Commit staged changes with a message.",
+          }),
+        ),
+        HttpApiEndpoint.get("vcsLog", InstancePaths.vcsLog, {
+          query: Schema.Struct({
+            ...WorkspaceRoutingQueryFields,
+            count: Schema.optional(Schema.NumberFromString),
+          }),
+          success: described(Schema.Array(Vcs.CommitEntry), "Commit log"),
+          error: ApiVcsApplyError,
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "vcs.log",
+            summary: "Get commit log",
+            description: "Retrieve recent commit history.",
           }),
         ),
         HttpApiEndpoint.get("command", InstancePaths.command, {

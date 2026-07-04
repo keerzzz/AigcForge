@@ -468,6 +468,85 @@ describe("tool.task", () => {
     }),
   )
 
+  it.instance("execute retry cancels only its own child session", () =>
+    Effect.gen(function* () {
+      const sessions = yield* Session.Service
+      const { chat, assistant } = yield* seed()
+      const tool = yield* TaskTool
+      const def = yield* tool.init()
+
+      let attempt = 0
+      const cancelled: SessionID[] = []
+      const created: SessionID[] = []
+      const promptOps: TaskPromptOps = {
+        cancel: (sessionID) =>
+          Effect.sync(() => {
+            cancelled.push(sessionID)
+          }),
+        resolvePromptParts: (template) => Effect.succeed([{ type: "text" as const, text: template }]),
+        prompt: (input) => {
+          attempt++
+          created.push(input.sessionID)
+          const result = attempt === 1 ? reply(input, "first") : reply(input, "second")
+          return (
+            attempt === 1 ? Effect.fail(new Error("transient failure")) : Effect.succeed(result)
+          ) as Effect.Effect<SessionV1.WithParts>
+        },
+      }
+
+      const first = yield* def.execute(
+        {
+          description: "first task",
+          prompt: "prompt one",
+          subagent_type: "general",
+        },
+        {
+          sessionID: chat.id,
+          messageID: assistant.id,
+          agent: "build",
+          abort: new AbortController().signal,
+          extra: { promptOps, bypassAgentCheck: true },
+          messages: [],
+          metadata: () => Effect.void,
+          ask: () => Effect.void,
+        },
+      )
+
+      expect(attempt).toBe(2)
+      expect(created).toHaveLength(2)
+      expect(cancelled).toEqual([created[0]])
+      expect(first.output).toContain("second")
+
+      const second = yield* def.execute(
+        {
+          description: "second task",
+          prompt: "prompt two",
+          subagent_type: "general",
+        },
+        {
+          sessionID: chat.id,
+          messageID: assistant.id,
+          agent: "build",
+          abort: new AbortController().signal,
+          extra: { promptOps, bypassAgentCheck: true },
+          messages: [],
+          metadata: () => Effect.void,
+          ask: () => Effect.void,
+        },
+      )
+
+      expect(attempt).toBe(3)
+      expect(created).toHaveLength(3)
+      expect(cancelled).toEqual([created[0]])
+      expect(second.output).toContain("second")
+
+      const kids = yield* sessions.children(chat.id)
+      expect(kids).toHaveLength(3)
+      expect(cancelled).toEqual([created[0]])
+      expect(cancelled).not.toContain(created[2])
+    }),
+  )
+
   it.instance("execute creates a child when task_id does not exist", () =>
     Effect.gen(function* () {
       const sessions = yield* Session.Service

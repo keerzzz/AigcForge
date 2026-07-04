@@ -176,4 +176,71 @@ describe("Git", () => {
       expect(text).toBe("")
     }),
   )
+
+  it.live("stage(), commit(), and log() work end-to-end", () =>
+    Effect.gen(function* () {
+      const tmp = yield* scopedTmpdir({ git: true })
+      yield* Effect.promise(() => fs.writeFile(path.join(tmp.path, "a.txt"), "hello\n", "utf-8"))
+
+      const git = yield* Git.Service
+      const stage = yield* git.stage(tmp.path, ["a.txt"])
+      expect(stage.exitCode).toBe(0)
+
+      const commit = yield* git.commit(tmp.path, "first commit")
+      expect(commit.exitCode).toBe(0)
+
+      const log = yield* git.log(tmp.path, 5)
+      expect(log.length).toBeGreaterThanOrEqual(1)
+      const first = log.find((entry) => entry.message === "first commit")
+      expect(first).toBeDefined()
+      expect(first).toEqual(
+        expect.objectContaining({
+          message: "first commit",
+          author: expect.any(String),
+          date: expect.any(String),
+        }),
+      )
+      expect(first?.hash).toMatch(/^[0-9a-f]{40}$/)
+    }),
+  )
+
+  it.live("log() returns multiple entries in chronological order", () =>
+    Effect.gen(function* () {
+      const tmp = yield* scopedTmpdir({ git: true })
+      const git = yield* Git.Service
+
+      for (const message of ["first", "second", "third"]) {
+        const file = `${message}.txt`
+        yield* Effect.promise(() => fs.writeFile(path.join(tmp.path, file), `${message}\n`, "utf-8"))
+        yield* Effect.promise(() => $`git add ${file}`.cwd(tmp.path).quiet())
+        yield* Effect.promise(() => $`git commit --no-gpg-sign -m ${message}`.cwd(tmp.path).quiet())
+      }
+
+      const log = yield* git.log(tmp.path, 5)
+      expect(log.length).toBeGreaterThanOrEqual(3)
+      expect(log.map((entry) => entry.message).slice(0, 3)).toEqual(["third", "second", "first"])
+      for (const entry of log) {
+        expect(entry.hash).toMatch(/^[0-9a-f]{40}$/)
+        expect(entry.author).toEqual(expect.any(String))
+        expect(entry.date).toEqual(expect.any(String))
+      }
+    }),
+  )
+
+  it.live("unstage() moves files from index back to working tree", () =>
+    Effect.gen(function* () {
+      const tmp = yield* scopedTmpdir({ git: true })
+      yield* Effect.promise(() => fs.writeFile(path.join(tmp.path, "x.txt"), "x\n", "utf-8"))
+      yield* Effect.promise(() => $`git add x.txt`.cwd(tmp.path).quiet())
+
+      const git = yield* Git.Service
+      const unstage = yield* git.unstage(tmp.path, ["x.txt"])
+      expect(unstage.exitCode).toBe(0)
+
+      const status = yield* git.status(tmp.path)
+      const x = status.find((item) => item.file === "x.txt")
+      expect(x).toBeDefined()
+      expect(x?.code).toMatch(/^\?/)
+    }),
+  )
 })

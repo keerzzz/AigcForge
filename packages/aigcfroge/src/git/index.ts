@@ -65,6 +65,13 @@ export interface Result {
   readonly truncated: boolean
 }
 
+export type CommitEntry = {
+  readonly hash: string
+  readonly message: string
+  readonly author: string
+  readonly date: string // ISO 8601
+}
+
 export interface Options {
   readonly cwd: string
   readonly env?: Record<string, string>
@@ -88,6 +95,10 @@ export interface Interface {
   readonly patchUntracked: (cwd: string, file: string, options?: PatchOptions) => Effect.Effect<Patch>
   readonly statUntracked: (cwd: string, file: string) => Effect.Effect<Stat | undefined>
   readonly applyPatch: (cwd: string, patch: string) => Effect.Effect<Result>
+  readonly stage: (cwd: string, files: string[]) => Effect.Effect<Result>
+  readonly unstage: (cwd: string, files: string[]) => Effect.Effect<Result>
+  readonly commit: (cwd: string, message: string) => Effect.Effect<Result>
+  readonly log: (cwd: string, count?: number) => Effect.Effect<CommitEntry[]>
 }
 
 const kind = (code: string): Kind => {
@@ -323,6 +334,55 @@ export const layer = Layer.effect(
       return yield* run(["apply", "-"], { cwd, stdin: stdin(patch) })
     })
 
+    const stage = Effect.fn("Git.stage")(function* (cwd: string, files: string[]) {
+      if (files.length === 0) {
+        return {
+          exitCode: 0,
+          text: () => "",
+          stdout: Buffer.alloc(0),
+          stderr: Buffer.alloc(0),
+          truncated: false,
+        } satisfies Result
+      }
+      return yield* run(["add", "--", ...files], { cwd })
+    })
+
+    const unstage = Effect.fn("Git.unstage")(function* (cwd: string, files: string[]) {
+      if (files.length === 0) {
+        return {
+          exitCode: 0,
+          text: () => "",
+          stdout: Buffer.alloc(0),
+          stderr: Buffer.alloc(0),
+          truncated: false,
+        } satisfies Result
+      }
+      return yield* run(["restore", "--staged", "--", ...files], { cwd })
+    })
+
+    const commit = Effect.fn("Git.commit")(function* (cwd: string, message: string) {
+      return yield* run(["commit", "-m", message], { cwd })
+    })
+
+    const log = Effect.fn("Git.log")(function* (cwd: string, count = 15) {
+      const result = yield* run(
+        ["log", "-z", `--max-count=${count}`, "--format=%H%x00%s%x00%an%x00%aI"],
+        { cwd },
+      )
+      if (result.exitCode !== 0) return []
+      const fields = nuls(result.text())
+      const entries: CommitEntry[] = []
+      for (let i = 0; i + 3 < fields.length; i += 4) {
+        entries.push({
+          hash: fields[i],
+          message: fields[i + 1],
+          author: fields[i + 2],
+          date: fields[i + 3],
+        })
+      }
+      return entries
+    })
+
     return Service.of({
       run,
       branch,
@@ -339,6 +399,10 @@ export const layer = Layer.effect(
       patchUntracked,
       statUntracked,
       applyPatch,
+      stage,
+      unstage,
+      commit,
+      log,
     })
   }),
 )

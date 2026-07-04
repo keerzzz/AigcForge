@@ -30,7 +30,7 @@ import { Button } from "@aigcfroge/ui/button"
 import { showToast } from "@/utils/toast"
 import { base64Encode, checksum } from "@aigcfroge/core/util/encode"
 import { useLocation, useSearchParams } from "@solidjs/router"
-import { NewSessionView, SessionHeader } from "@/components/session"
+import { NewSessionView, SessionHeader, createGitState, GitStatusBar, GitCommitBar } from "@/components/session"
 import { useComments } from "@/context/comments"
 import { useServerSync } from "@/context/server-sync"
 import { useLanguage } from "@/context/language"
@@ -357,6 +357,12 @@ export default function Page() {
     }
   })
   const refreshVcs = debounce(() => void queryClient.invalidateQueries({ queryKey: vcsKey() }), 100)
+
+  const git = createGitState({
+    statusEnabled: !nogit() && wantsReview() && (store.changes === "git" || store.changes === "branch"),
+    directory: sdk().directory,
+  })
+
   const reviewDiffs = () => {
     if (store.changes === "git" || store.changes === "branch")
       // avoids suspense
@@ -862,18 +868,43 @@ export default function Page() {
     </Show>
   )
 
-  const reviewPanel = () => (
-    <div class="flex flex-col h-full overflow-hidden bg-background-stronger contain-strict">
-      <div class="relative pt-2 flex-1 min-h-0 overflow-hidden">
-        {reviewContent({
-          diffStyle: layout.review.diffStyle(),
-          onDiffStyleChange: layout.review.setDiffStyle,
-          loadingClass: "px-6 py-4 text-text-weak",
-          emptyClass: "h-full pb-64 -mt-4 flex flex-col items-center justify-center text-center gap-6",
-        })}
+  const reviewPanel = () => {
+    const branch = sync().data.vcs?.branch
+    const isGit = !nogit() && !!branch
+
+    return (
+      <div class="flex flex-col h-full overflow-hidden bg-background-stronger contain-strict">
+        <Show when={isGit}>
+          <GitStatusBar
+            branch={branch}
+            stagedCount={git.stagedCount()}
+            unstagedCount={git.unstagedCount()}
+            hasChanges={git.stagedCount() + git.unstagedCount() > 0}
+            onStageAll={git.stageAll}
+            onUnstageAll={git.unstageAll}
+          />
+        </Show>
+        <div class="relative flex-1 min-h-0 overflow-hidden">
+          {reviewContent({
+            diffStyle: layout.review.diffStyle(),
+            onDiffStyleChange: layout.review.setDiffStyle,
+            loadingClass: "px-6 py-4 text-text-weak",
+            emptyClass: "h-full pb-64 -mt-4 flex flex-col items-center justify-center text-center gap-6",
+          })}
+        </div>
+        <Show when={isGit}>
+          <GitCommitBar
+            message={git.commitMessage()}
+            onMessageChange={git.setCommitMessage}
+            hasStaged={git.hasStaged()}
+            onCommit={git.handleCommit}
+            isCommitting={git.commitMutation.isPending}
+            log={git.logQuery.data}
+          />
+        </Show>
       </div>
-    </div>
-  )
+    )
+  }
 
   createEffect(
     on(

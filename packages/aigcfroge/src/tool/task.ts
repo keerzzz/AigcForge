@@ -12,7 +12,7 @@ import { AdapterRegistry } from "../agent/meta/adapters/registry"
 import { CliTimeout } from "../agent/meta/adapters/timeout"
 import type { SessionPrompt } from "../session/prompt"
 import { Config } from "@/config/config"
-import { Effect, Exit, Option, Schema, Scope } from "effect"
+import { Effect, Exit, Option, Ref, Schema, Schedule, Scope } from "effect"
 import { EffectBridge } from "@/effect/bridge"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { Database } from "@aigcfroge/core/database/database"
@@ -116,6 +116,8 @@ export const TaskTool = Tool.define(
       Effect.map(Option.getOrUndefined),
     )
 
+
+
     const executeCLI = Effect.fn("TaskTool.executeCLI")(function* (
       params: { description: string; cli_target: string; prompt: string; cwd: string },
       ctx: Tool.Context,
@@ -162,6 +164,7 @@ export const TaskTool = Tool.define(
     const run = Effect.fn("TaskTool.execute")(function* (
       params: Schema.Schema.Type<typeof Parameters>,
       ctx: Tool.Context,
+      previousSessionIDRef: Ref.Ref<Option.Option<SessionID>>,
     ) {
       const parent = yield* sessions.get(ctx.sessionID)
 
@@ -204,6 +207,15 @@ export const TaskTool = Tool.define(
         return yield* Effect.fail(new Error(`Unknown agent type: ${params.subagent_type} is not a valid agent type`))
       }
 
+      // Cancel orphaned session from a previous retry attempt before creating a new one
+      const previousSessionID = yield* Ref.get(previousSessionIDRef)
+      if (Option.isSome(previousSessionID)) {
+        const promptOps = ctx.extra?.promptOps
+        if (promptOps && isTaskPromptOps(promptOps)) {
+          yield* promptOps.cancel(previousSessionID.value).pipe(Effect.ignore)
+        }
+      }
+
       const session = params.task_id
         ? yield* sessions.get(SessionID.make(params.task_id)).pipe(Effect.catchCause(() => Effect.succeed(undefined)))
         : undefined
@@ -241,7 +253,10 @@ export const TaskTool = Tool.define(
             ),
           ],
         }))
-
+      // Track newly created sessions so orphan cleanup can cancel them on retry
+      if (!session) {
+        yield* Ref.set(previousSessionIDRef, Option.some(nextSession.id))
+      }
       const msg = yield* MessageV2.get({ sessionID: ctx.sessionID, messageID: ctx.messageID }).pipe(
         Effect.provideService(Database.Service, database),
         Effect.orDie,
@@ -425,7 +440,12 @@ export const TaskTool = Tool.define(
       parameters: Parameters,
       jsonSchema: flags.experimentalBackgroundSubagents ? undefined : ToolJsonSchema.fromSchema(BaseParameters),
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
-        run(params, ctx).pipe(Effect.orDie),
+        Effect.gen(function* () {
+          const previousSessionIDRef = yield* Ref.make(Option.none<SessionID>())
+          return yield* run(params, ctx, previousSessionIDRef).pipe(
+            Effect.retry(Schedule.recurs(1)),
+          )
+        }).pipe(Effect.catch((e: unknown) => Effect.die(e))),
     }
   }),
 )

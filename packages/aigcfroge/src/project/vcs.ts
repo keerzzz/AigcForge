@@ -266,8 +266,17 @@ export const FileStatus = Schema.Struct({
   additions: Schema.Finite,
   deletions: Schema.Finite,
   status: Schema.Literals(["added", "deleted", "modified"]),
+  staged: Schema.Boolean,
 }).annotate({ identifier: "VcsFileStatus" })
 export type FileStatus = Schema.Schema.Type<typeof FileStatus>
+
+export const CommitEntry = Schema.Struct({
+  hash: Schema.String,
+  message: Schema.String,
+  author: Schema.String,
+  date: Schema.String,
+}).annotate({ identifier: "VcsCommitEntry" })
+export type CommitEntry = Schema.Schema.Type<typeof CommitEntry>
 
 export const ApplyInput = Schema.Struct({
   patch: Schema.String,
@@ -281,7 +290,7 @@ export type ApplyResult = Schema.Schema.Type<typeof ApplyResult>
 
 export class PatchApplyError extends Schema.TaggedErrorClass<PatchApplyError>()("VcsPatchApplyError", {
   message: Schema.String,
-  reason: Schema.Literals(["non-git", "not-clean"]),
+  reason: Schema.Literals(["non-git", "not-clean", "stage-failed", "unstage-failed", "commit-failed"]),
 }) {}
 
 export interface Interface {
@@ -292,6 +301,10 @@ export interface Interface {
   readonly diff: (mode: Mode, options?: DiffOptions) => Effect.Effect<FileDiff[]>
   readonly diffRaw: () => Effect.Effect<string>
   readonly apply: (input: ApplyInput) => Effect.Effect<ApplyResult, PatchApplyError>
+  readonly stage: (files: string[]) => Effect.Effect<void, PatchApplyError>
+  readonly unstage: (files: string[]) => Effect.Effect<void, PatchApplyError>
+  readonly commit: (message: string) => Effect.Effect<void, PatchApplyError>
+  readonly log: (count?: number) => Effect.Effect<CommitEntry[], PatchApplyError>
 }
 
 interface State {
@@ -372,6 +385,7 @@ export const layer: Layer.Layer<Service, never, Git.Service | EventV2Bridge.Serv
                 additions: stat?.additions ?? 0,
                 deletions: stat?.deletions ?? 0,
                 status: item.status,
+                staged: item.code[0] !== " " && item.code[0] !== "?",
               } satisfies FileStatus
             }),
         )
@@ -419,6 +433,64 @@ export const layer: Layer.Layer<Service, never, Git.Service | EventV2Bridge.Serv
           })
         }
         return { applied: true }
+      }),
+      stage: Effect.fn("Vcs.stage")(function* (files: string[]) {
+        const ctx = yield* InstanceState.context
+        if (ctx.project.vcs !== "git") {
+          return yield* new PatchApplyError({
+            message: "Can't stage because the project is not git-based",
+            reason: "non-git",
+          })
+        }
+        const result = yield* git.stage(ctx.directory, files)
+        if (result.exitCode !== 0) {
+          return yield* new PatchApplyError({
+            message: "Failed to stage files",
+            reason: "stage-failed",
+          })
+        }
+      }),
+      unstage: Effect.fn("Vcs.unstage")(function* (files: string[]) {
+        const ctx = yield* InstanceState.context
+        if (ctx.project.vcs !== "git") {
+          return yield* new PatchApplyError({
+            message: "Can't unstage because the project is not git-based",
+            reason: "non-git",
+          })
+        }
+        const result = yield* git.unstage(ctx.directory, files)
+        if (result.exitCode !== 0) {
+          return yield* new PatchApplyError({
+            message: "Failed to unstage files",
+            reason: "unstage-failed",
+          })
+        }
+      }),
+      commit: Effect.fn("Vcs.commit")(function* (message: string) {
+        const ctx = yield* InstanceState.context
+        if (ctx.project.vcs !== "git") {
+          return yield* new PatchApplyError({
+            message: "Can't commit because the project is not git-based",
+            reason: "non-git",
+          })
+        }
+        const result = yield* git.commit(ctx.directory, message)
+        if (result.exitCode !== 0) {
+          return yield* new PatchApplyError({
+            message: "Failed to commit",
+            reason: "commit-failed",
+          })
+        }
+      }),
+      log: Effect.fn("Vcs.log")(function* (count = 15) {
+        const ctx = yield* InstanceState.context
+        if (ctx.project.vcs !== "git") {
+          return yield* new PatchApplyError({
+            message: "Can't get log because the project is not git-based",
+            reason: "non-git",
+          })
+        }
+        return yield* git.log(ctx.directory, count)
       }),
     })
   }),

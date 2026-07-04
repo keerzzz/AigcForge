@@ -182,14 +182,17 @@ function SecondarySidebar() {
     setBusyState(result.directory, true)
     WorktreeState.pending(serverSDK().scope, result.directory)
     setExpanded(pathKey(result.directory), true)
+    sync().set(
+      "project",
+      produce((draft) => {
+        const target = draft.find((p) => p.worktree === project.worktree)
+        if (!target) return
+        const sandboxes = new Set(target.sandboxes ?? [])
+        sandboxes.add(result.directory)
+        target.sandboxes = [...sandboxes]
+      }),
+    )
     sync().child(result.directory)
-    const c = conn()
-    if (c) {
-      const cctx = global.ensureServerCtx(c)
-      cctx.projects.open(result.directory)
-      cctx.projects.touch(result.directory)
-      tabs.newDraft({ server: ServerConnection.key(c), directory: result.directory })
-    }
   }
 
   const inlineEditor = createInlineEditorController()

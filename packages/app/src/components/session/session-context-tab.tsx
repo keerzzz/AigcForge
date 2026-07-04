@@ -17,6 +17,8 @@ import { useSessionLayout } from "@/pages/session/session-layout"
 import { getSessionContextMetrics } from "./session-context-metrics"
 import { estimateSessionContextBreakdown, type SessionContextBreakdownKey } from "./session-context-breakdown"
 import { createSessionContextFormatter } from "./session-context-format"
+import { SessionToolActivity } from "./session-tool-activity"
+import { SessionCacheDiagnostics } from "./session-cache-diagnostics"
 
 const BREAKDOWN_COLOR: Record<SessionContextBreakdownKey, string> = {
   system: "var(--syntax-info)",
@@ -223,6 +225,20 @@ export function SessionContextTab() {
   let pending: { x: number; y: number } | undefined
   const getParts = (id: string) => (sync().data.part[id] ?? []) as Part[]
 
+  const allParts = createMemo(
+    () => {
+      const msgs = messages()
+      const parts: Part[] = []
+      for (const msg of msgs) {
+        const msgParts = sync().data.part[msg.id]
+        if (msgParts) parts.push(...(msgParts as Part[]))
+      }
+      return parts
+    },
+    [],
+    { equals: same },
+  )
+
   const restoreScroll = () => {
     const el = scroll
     if (!el) return
@@ -312,6 +328,14 @@ export function SessionContextTab() {
             </div>
             <div class="hidden text-11-regular text-text-weaker">{language.t("context.breakdown.note")}</div>
           </div>
+        </Show>
+
+        <Show when={params.id}>{(id) => (
+          <>
+            <SessionToolActivity parts={allParts} />
+            <SessionCacheDiagnostics sessionID={id()} />
+          </>
+        )}
         </Show>
 
         <Show when={systemPrompt()}>

@@ -73,6 +73,72 @@ export const instanceHandlers = HttpApiBuilder.group(InstanceHttpApi, "instance"
       )
     })
 
+    const stageVcs = Effect.fn("InstanceHttpApi.vcsStage")(function* (ctx: {
+      payload: { files: readonly string[] }
+    }) {
+      return yield* vcs.stage([...ctx.payload.files]).pipe(
+        Effect.mapError(
+          (error) =>
+            new ApiVcsApplyError({
+              name: "VcsApplyError",
+              data: {
+                message: error.message,
+                reason: error.reason,
+              },
+            }),
+        ),
+      )
+    })
+
+    const unstageVcs = Effect.fn("InstanceHttpApi.vcsUnstage")(function* (ctx: {
+      payload: { files: readonly string[] }
+    }) {
+      return yield* vcs.unstage([...ctx.payload.files]).pipe(
+        Effect.mapError(
+          (error) =>
+            new ApiVcsApplyError({
+              name: "VcsApplyError",
+              data: {
+                message: error.message,
+                reason: error.reason,
+              },
+            }),
+        ),
+      )
+    })
+
+    const commitVcs = Effect.fn("InstanceHttpApi.vcsCommit")(function* (ctx: { payload: { message: string } }) {
+      return yield* vcs.commit(ctx.payload.message).pipe(
+        Effect.mapError(
+          (error) =>
+            new ApiVcsApplyError({
+              name: "VcsApplyError",
+              data: {
+                message: error.message,
+                reason: error.reason,
+              },
+            }),
+        ),
+      )
+    })
+
+    const logVcs = Effect.fn("InstanceHttpApi.vcsLog")(function* (ctx: {
+      query: { count?: number; directory?: string; workspace?: string }
+    }) {
+      return yield* vcs.log(ctx.query.count).pipe(
+        Effect.mapError(
+          (error) =>
+            new ApiVcsApplyError({
+              name: "VcsApplyError",
+              data: {
+                message: error.message,
+                reason: error.reason,
+              },
+            }),
+        ),
+      )
+    })
+
     const getCommand = Effect.fn("InstanceHttpApi.command")(function* () {
       return yield* command.list()
     })
@@ -101,6 +167,10 @@ export const instanceHandlers = HttpApiBuilder.group(InstanceHttpApi, "instance"
       .handle("vcsDiff", getVcsDiff)
       .handle("vcsDiffRaw", getVcsDiffRaw)
       .handle("vcsApply", applyVcs)
+      .handle("vcsStage", stageVcs)
+      .handle("vcsUnstage", unstageVcs)
+      .handle("vcsCommit", commitVcs)
+      .handle("vcsLog", logVcs)
       .handle("command", getCommand)
       .handle("agent", getAgent)
       .handle("skill", getSkill)

@@ -45,6 +45,9 @@ export type Event =
   | EventSessionNextCompactionStarted
   | EventSessionNextCompactionDelta
   | EventSessionNextCompactionEnded
+  | EventSessionNextCompactionSoftWarning
+  | EventSessionNextCompactionStuck
+  | EventSessionNextCacheDiagnostic
   | EventMessagePartDelta
   | EventSessionDiff
   | EventSessionError
@@ -1190,6 +1193,41 @@ export type GlobalEvent = {
       }
     | {
         id: string
+        type: "session.next.compaction.soft-warning"
+        properties: {
+          timestamp: number
+          sessionID: string
+          watermark: number
+          compactAt: number
+        }
+      }
+    | {
+        id: string
+        type: "session.next.compaction.stuck"
+        properties: {
+          timestamp: number
+          sessionID: string
+          message: string
+        }
+      }
+    | {
+        id: string
+        type: "session.next.cache.diagnostic"
+        properties: {
+          timestamp: number
+          sessionID: string
+          assistantMessageID: string
+          prefixHash: string
+          prefixChanged: boolean
+          prefixChangeReasons: Array<string>
+          cacheReadInputTokens: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+          nonCachedInputTokens: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+          sessionCacheRead: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+          sessionNonCached: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
         type: "message.part.delta"
         properties: {
           sessionID: string
@@ -2321,6 +2359,7 @@ export type VcsFileStatus = {
   additions: number
   deletions: number
   status: "added" | "deleted" | "modified"
+  staged: boolean
 }
 
 export type VcsFileDiff = {
@@ -2335,8 +2374,15 @@ export type VcsApplyError = {
   name: "VcsApplyError"
   data: {
     message: string
-    reason: "non-git" | "not-clean"
+    reason: "non-git" | "not-clean" | "stage-failed" | "commit-failed"
   }
+}
+
+export type VcsCommitEntry = {
+  hash: string
+  message: string
+  author: string
+  date: string
 }
 
 export type Command = {
@@ -2617,6 +2663,25 @@ export type SessionBusyError = {
   message: string
 }
 
+export type StepCacheStats = {
+  assistantMessageID: string
+  hitRate: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  cacheRead: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  cacheWrite: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+}
+
+export type CacheDiagnostics = {
+  sessionHitRate: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  sessionCacheRead: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  sessionCacheWrite: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  sessionTotalInput: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  confidence: "high" | "estimated" | "unavailable"
+  perStep: Array<StepCacheStats>
+  globalTotalCalls?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  globalHitRate?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  globalTotalTokens?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+}
+
 export type EventTuiPromptAppend = {
   type: "tui.prompt.append"
   properties: {
@@ -2790,6 +2855,9 @@ export type V2Event =
   | V2EventSessionNextCompactionStarted
   | V2EventSessionNextCompactionDelta
   | V2EventSessionNextCompactionEnded
+  | V2EventSessionNextCompactionSoftWarning
+  | V2EventSessionNextCompactionStuck
+  | V2EventSessionNextCacheDiagnostic
   | V2EventMessagePartDelta
   | V2EventSessionDiff
   | V2EventSessionError
@@ -5089,6 +5157,71 @@ export type V2EventSessionNextCompactionEnded = {
   }
 }
 
+export type V2EventSessionNextCompactionSoftWarning = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "session.next.compaction.soft-warning"
+  data: {
+    timestamp: number
+    sessionID: string
+    watermark: number
+    compactAt: number
+  }
+}
+
+export type V2EventSessionNextCompactionStuck = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "session.next.compaction.stuck"
+  data: {
+    timestamp: number
+    sessionID: string
+    message: string
+  }
+}
+
+export type V2EventSessionNextCacheDiagnostic = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "session.next.cache.diagnostic"
+  data: {
+    timestamp: number
+    sessionID: string
+    assistantMessageID: string
+    prefixHash: string
+    prefixChanged: boolean
+    prefixChangeReasons: Array<string>
+    cacheReadInputTokens: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    nonCachedInputTokens: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    sessionCacheRead: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    sessionNonCached: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
 export type V2EventMessagePartDelta = {
   id: string
   metadata?: {
@@ -6502,6 +6635,44 @@ export type EventSessionNextCompactionEnded = {
     reason: "auto" | "manual"
     text: string
     recent: string
+  }
+}
+
+export type EventSessionNextCompactionSoftWarning = {
+  id: string
+  type: "session.next.compaction.soft-warning"
+  properties: {
+    timestamp: number
+    sessionID: string
+    watermark: number
+    compactAt: number
+  }
+}
+
+export type EventSessionNextCompactionStuck = {
+  id: string
+  type: "session.next.compaction.stuck"
+  properties: {
+    timestamp: number
+    sessionID: string
+    message: string
+  }
+}
+
+export type EventSessionNextCacheDiagnostic = {
+  id: string
+  type: "session.next.cache.diagnostic"
+  properties: {
+    timestamp: number
+    sessionID: string
+    assistantMessageID: string
+    prefixHash: string
+    prefixChanged: boolean
+    prefixChangeReasons: Array<string>
+    cacheReadInputTokens: number | "NaN" | "Infinity" | "-Infinity"
+    nonCachedInputTokens: number | "NaN" | "Infinity" | "-Infinity"
+    sessionCacheRead: number | "NaN" | "Infinity" | "-Infinity"
+    sessionNonCached: number | "NaN" | "Infinity" | "-Infinity"
   }
 }
 
@@ -8148,6 +8319,125 @@ export type VcsApplyResponses = {
 }
 
 export type VcsApplyResponse = VcsApplyResponses[keyof VcsApplyResponses]
+
+export type VcsStageData = {
+  body?: {
+    files: Array<string>
+  }
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/vcs/stage"
+}
+
+export type VcsStageErrors = {
+  /**
+   * VcsApplyError | InvalidRequestError
+   */
+  400: VcsApplyError | InvalidRequestError
+}
+
+export type VcsStageError = VcsStageErrors[keyof VcsStageErrors]
+
+export type VcsStageResponses = {
+  /**
+   * Files staged
+   */
+  204: void
+}
+
+export type VcsStageResponse = VcsStageResponses[keyof VcsStageResponses]
+
+export type VcsUnstageData = {
+  body?: {
+    files: Array<string>
+  }
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/vcs/unstage"
+}
+
+export type VcsUnstageErrors = {
+  /**
+   * VcsApplyError | InvalidRequestError
+   */
+  400: VcsApplyError | InvalidRequestError
+}
+
+export type VcsUnstageError = VcsUnstageErrors[keyof VcsUnstageErrors]
+
+export type VcsUnstageResponses = {
+  /**
+   * Files unstaged
+   */
+  204: void
+}
+
+export type VcsUnstageResponse = VcsUnstageResponses[keyof VcsUnstageResponses]
+
+export type VcsCommitData = {
+  body?: {
+    message: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/vcs/commit"
+}
+
+export type VcsCommitErrors = {
+  /**
+   * VcsApplyError | InvalidRequestError
+   */
+  400: VcsApplyError | InvalidRequestError
+}
+
+export type VcsCommitError = VcsCommitErrors[keyof VcsCommitErrors]
+
+export type VcsCommitResponses = {
+  /**
+   * Changes committed
+   */
+  204: void
+}
+
+export type VcsCommitResponse = VcsCommitResponses[keyof VcsCommitResponses]
+
+export type VcsLogData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+    count?: string
+  }
+  url: "/vcs/log"
+}
+
+export type VcsLogErrors = {
+  /**
+   * VcsApplyError | InvalidRequestError
+   */
+  400: VcsApplyError | InvalidRequestError
+}
+
+export type VcsLogError = VcsLogErrors[keyof VcsLogErrors]
+
+export type VcsLogResponses = {
+  /**
+   * Commit log
+   */
+  200: Array<VcsCommitEntry>
+}
+
+export type VcsLogResponse = VcsLogResponses[keyof VcsLogResponses]
 
 export type CommandListData = {
   body?: never
@@ -10353,6 +10643,40 @@ export type PartUpdateResponses = {
 }
 
 export type PartUpdateResponse = PartUpdateResponses[keyof PartUpdateResponses]
+
+export type SessionCacheDiagnosticsData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/cache-diagnostics"
+}
+
+export type SessionCacheDiagnosticsErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionCacheDiagnosticsError = SessionCacheDiagnosticsErrors[keyof SessionCacheDiagnosticsErrors]
+
+export type SessionCacheDiagnosticsResponses = {
+  /**
+   * Cache diagnostics
+   */
+  200: CacheDiagnostics
+}
+
+export type SessionCacheDiagnosticsResponse = SessionCacheDiagnosticsResponses[keyof SessionCacheDiagnosticsResponses]
 
 export type SyncStartData = {
   body?: never
