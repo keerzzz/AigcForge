@@ -253,7 +253,7 @@ function base64UrlEncode(buffer: ArrayBuffer) {
 }
 
 function authorizeURL(redirect: string, pkce: Pkce, state: string) {
-  return `${issuer}/oauth/authorize?${new URLSearchParams({
+  return `${issuer}/oauth/authorize?${String(new URLSearchParams({
     response_type: "code",
     client_id: clientID,
     redirect_uri: redirect,
@@ -264,7 +264,7 @@ function authorizeURL(redirect: string, pkce: Pkce, state: string) {
     codex_cli_simplified_flow: "true",
     state,
     originator: "aigcfroge",
-  })}`
+  }))}`
 }
 
 function extractAccountID(tokens: TokenResponse) {
