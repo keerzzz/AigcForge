@@ -3,7 +3,6 @@ import { Link, Meta, Title } from "@solidjs/meta"
 import {
   getStatsLabData,
   type LabUsageModelEntry,
-  type ModelUsagePoint,
   type StatsLabData,
 } from "@aigcfroge/stats-core/domain/home"
 import { createAsync, query, useParams } from "@solidjs/router"

@@ -14,30 +14,6 @@ import { useLanguage } from "@/context/language"
 const doneToken = "\u0000done\u0000"
 const totalToken = "\u0000total\u0000"
 
-function dot(status: Todo["status"]) {
-  if (status !== "in_progress") return undefined
-  return (
-    <svg
-      viewBox="0 0 12 12"
-      width="12"
-      height="12"
-      fill="currentColor"
-      xmlns="http://www.w3.org/2000/svg"
-      class="block"
-    >
-      <circle
-        cx="6"
-        cy="6"
-        r="3"
-        style={{
-          animation: "var(--animate-pulse-scale)",
-          "transform-origin": "center",
-          "transform-box": "fill-box",
-        }}
-      />
-    </svg>
-  )
-}
 
 export function SessionTodoDock(props: {
   sessionID?: string

@@ -33,7 +33,7 @@ type Usage = {
   }
 }
 
-function usage(part: (typeof SessionV1.Event.PartUpdated.Type)["data"]["part"] | unknown): Usage | undefined {
+function usage(part: unknown): Usage | undefined {
   if (typeof part !== "object" || part === null) return undefined
   const value = part as Record<string, unknown>
   if (value.type !== "step-finish") return undefined

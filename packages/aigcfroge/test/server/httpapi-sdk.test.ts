@@ -15,7 +15,6 @@ import { InstanceStore } from "../../src/project/instance-store"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
 import { MessageV2 } from "../../src/session/message-v2"
 
-import type { Config } from "@/config/config"
 import { Session as SessionNs } from "@/session/session"
 import { errorMessage } from "../../src/util/error"
 import { TestLLMServer } from "../lib/llm-server"
@@ -185,13 +184,6 @@ function sessionTitles(value: unknown) {
     .map((item) => record(item).title)
     .filter((title): title is string => typeof title === "string")
     .sort()
-}
-
-function resetState() {
-  return Effect.promise(async () => {
-    await disposeAllInstances()
-    await resetDatabase()
-  })
 }
 
 function httpapi<A, E>(name: string, effect: Effect.Effect<A, E, TestScope>) {

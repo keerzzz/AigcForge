@@ -6,7 +6,6 @@ import { Switch } from "@aigcfroge/ui/v2/switch-v2"
 import { TextField } from "@aigcfroge/ui/text-field"
 import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
 import { useTheme, type ColorScheme } from "@aigcfroge/ui/theme/context"
-import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useParams } from "@solidjs/router"
 import { useLanguage } from "@/context/language"
 import { usePermission } from "@/context/permission"
@@ -86,7 +85,6 @@ export const SettingsGeneral: Component = () => {
   const language = useLanguage()
   const permission = usePermission()
   const platform = usePlatform()
-  const dialog = useDialog()
   const params = useParams()
   const settings = useSettings()
 
@@ -290,7 +288,7 @@ export const SettingsGeneral: Component = () => {
             onSelect={(option) => {
               if (!option) return
               if (option.value === currentShell()) return
-              serverSync().updateConfig({ shell: option.value })
+              void serverSync().updateConfig({ shell: option.value })
             }}
             variant="secondary"
             size="small"

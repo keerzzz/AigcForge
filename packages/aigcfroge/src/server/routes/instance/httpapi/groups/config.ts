@@ -1,4 +1,3 @@
-import { Config } from "@/config/config"
 import { ConfigV1 } from "@aigcfroge/core/v1/config/config"
 import { Provider } from "@/provider/provider"
 import { HttpApi, HttpApiEndpoint, HttpApiError, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"

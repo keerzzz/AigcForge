@@ -4,8 +4,6 @@ import { useServerSync } from "./server-sync"
 import { useSDK } from "./sdk"
 import type { Message, Part } from "@aigcfroge/sdk/v2/client"
 
-const SKIP_PARTS = new Set(["patch", "step-start", "step-finish"])
-
 function sortParts(parts: Part[]) {
   return parts.filter((part) => !!part?.id).sort((a, b) => cmp(a.id, b.id))
 }

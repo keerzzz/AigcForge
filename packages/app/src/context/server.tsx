@@ -7,7 +7,6 @@ import { ServerScope } from "@/utils/server-scope"
 type StoredProject = { worktree: string; expanded: boolean }
 type StoredServer = string | ServerConnection.HttpBase | ServerConnection.Http
 type ServerProjectState = { projects: Record<string, StoredProject[]>; lastProject: Record<string, string> }
-const HEALTH_POLL_INTERVAL_MS = 10_000
 
 export function normalizeServerUrl(input: string) {
   const trimmed = input.trim()

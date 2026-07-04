@@ -68,21 +68,6 @@ function runAll(list: Array<() => Promise<unknown>>) {
   return Promise.allSettled(list.map((item) => item()))
 }
 
-function showErrors(input: {
-  errors: unknown[]
-  title: string
-  translate: (key: string, vars?: Record<string, string | number>) => string
-  formatMoreCount: (count: number) => string
-}) {
-  if (input.errors.length === 0) return
-  const message = formatServerError(input.errors[0], input.translate)
-  const more = input.errors.length > 1 ? input.formatMoreCount(input.errors.length - 1) : ""
-  showToast({
-    title: input.title,
-    description: message + more,
-  })
-}
-
 export const loadGlobalConfigQuery = (scope: ServerScope, sdk: OpencodeClient) =>
   queryOptions({
     queryKey: [scope, "config"],
@@ -228,7 +213,7 @@ export async function bootstrapDirectory(input: {
   const revKey = ScopedKey.from(input.scope, input.directory)
   const rev = (providerRev.get(revKey) ?? 0) + 1
   providerRev.set(revKey, rev)
-  ;(async () => {
+  void (async () => {
     const slow = [
       () => Promise.resolve(input.loadSessions(input.directory)),
       () =>

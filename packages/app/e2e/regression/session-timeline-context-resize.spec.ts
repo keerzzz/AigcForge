@@ -164,10 +164,10 @@ function turn(index: number, target: boolean): Message[] {
       },
       parts: target
         ? [
-            contextTool(contextIDs[0]!, assistantID, "read", { filePath: "src/recent-a.ts", offset: 0, limit: 120 }),
-            contextTool(contextIDs[1]!, assistantID, "glob", { path: directory, pattern: "**/*.ts" }),
-            contextTool(contextIDs[2]!, assistantID, "grep", { path: directory, pattern: "Explored", include: "*.ts" }),
-            contextTool(contextIDs[3]!, assistantID, "list", { path: "src" }),
+            contextTool(contextIDs[0], assistantID, "read", { filePath: "src/recent-a.ts", offset: 0, limit: 120 }),
+            contextTool(contextIDs[1], assistantID, "glob", { path: directory, pattern: "**/*.ts" }),
+            contextTool(contextIDs[2], assistantID, "grep", { path: directory, pattern: "Explored", include: "*.ts" }),
+            contextTool(contextIDs[3], assistantID, "list", { path: "src" }),
             {
               id: followingTextID,
               sessionID,

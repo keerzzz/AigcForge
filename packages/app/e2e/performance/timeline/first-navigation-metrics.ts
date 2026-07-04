@@ -23,7 +23,7 @@ export function summarizeFirstNavigation(samples: FirstNavigationSample[]) {
   return {
     samples: samples.length,
     firstDestinationObservedMs: samples[categories.indexOf("destination")]?.observedAtMs ?? null,
-    stableDestinationObservedMs: stable === -1 ? null : samples[stable + 2]!.observedAtMs,
+    stableDestinationObservedMs: stable === -1 ? null : samples[stable + 2].observedAtMs,
     sourceSamples: categories.filter((value) => value === "source").length,
     blankSamples: categories.filter((value) => value === "blank").length,
     unknownSamples: categories.filter((value) => value === "unknown").length,

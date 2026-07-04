@@ -2553,7 +2553,7 @@ function input(input: Record<string, unknown>, omit?: string[]): string {
     return typeof value === "string" || typeof value === "number" || typeof value === "boolean"
   })
   if (primitives.length === 0) return ""
-  return `[${primitives.map(([key, value]) => `${key}=${value}`).join(", ")}]`
+  return `[${primitives.map(([key, value]) => `${key}=${String(value)}`).join(", ")}]`
 }
 
 function stringValue(value: unknown) {

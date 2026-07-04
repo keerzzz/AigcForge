@@ -11,11 +11,11 @@ export function summarizeNavigationMilestones(samples: NavigationMilestoneSample
     const first = samples.find(matches)
     const stable = samples.findIndex(
       (sample, index) =>
-        index + 2 < samples.length && matches(sample) && matches(samples[index + 1]!) && matches(samples[index + 2]!),
+        index + 2 < samples.length && matches(sample) && matches(samples[index + 1]) && matches(samples[index + 2]),
     )
     return {
       firstObservedMs: first?.observedAtMs ?? null,
-      stableObservedMs: stable === -1 ? null : samples[stable + 2]!.observedAtMs,
+      stableObservedMs: stable === -1 ? null : samples[stable + 2].observedAtMs,
     }
   }
   return {

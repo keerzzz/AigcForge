@@ -17,19 +17,19 @@ const storage: AsyncStorage = {
 }
 
 beforeAll(async () => {
-  mock.module("@solidjs/router", () => ({
+  await mock.module("@solidjs/router", () => ({
     useParams: () => ({}),
     useSearchParams: () => [{}],
     useLocation: () => ({ pathname: "", query: {} }),
     useNavigate: () => () => undefined,
   }))
-  mock.module("@aigcfroge/ui/context", () => ({
+  await mock.module("@aigcfroge/ui/context", () => ({
     createSimpleContext: () => ({
       use: () => undefined,
       provider: () => undefined,
     }),
   }))
-  mock.module("@/context/platform", () => ({
+  await mock.module("@/context/platform", () => ({
     usePlatform: () => ({ platform: "desktop", storage: () => storage }),
   }))
 

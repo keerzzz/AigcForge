@@ -113,14 +113,14 @@ export function ModelSelectorPopover(props: {
   const handleManage = () => {
     close("manage")
     void import("./dialog-manage-models").then((x) => {
-      dialog.show(() => <x.DialogManageModels />)
+      void dialog.show(() => <x.DialogManageModels />)
     })
   }
 
   const handleConnectProvider = () => {
     close("provider")
     void import("./dialog-select-provider").then((x) => {
-      dialog.show(() => <x.DialogSelectProvider />)
+      void dialog.show(() => <x.DialogSelectProvider />)
     })
   }
   const language = useLanguage()
@@ -202,13 +202,13 @@ export const DialogSelectModel: Component<{ provider?: string; model?: ModelStat
 
   const provider = () => {
     void import("./dialog-select-provider").then((x) => {
-      dialog.show(() => <x.DialogSelectProvider />)
+      void dialog.show(() => <x.DialogSelectProvider />)
     })
   }
 
   const manage = () => {
     void import("./dialog-manage-models").then((x) => {
-      dialog.show(() => <x.DialogManageModels />)
+      void dialog.show(() => <x.DialogManageModels />)
     })
   }
 

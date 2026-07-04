@@ -12,7 +12,7 @@ type Usage = {
   total_tokens?: number
 }
 
-export const openaiHelper: ProviderHelper = ({ workspaceID }) => ({
+export const openaiHelper: ProviderHelper = ({ workspaceID: _workspaceID }) => ({
   format: "openai",
   modifyUrl: (providerApi: string) => providerApi + "/responses",
   modifyHeaders: (headers: Headers, apiKey: string, _stickyId: string) => {

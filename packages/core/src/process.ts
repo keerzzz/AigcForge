@@ -13,7 +13,7 @@ export class AppProcessError extends Schema.TaggedErrorClass<AppProcessError>()(
 }) {
   override get message() {
     const detail =
-      this.stderr?.trim() || (this.cause instanceof Error ? this.cause.message : this.cause && String(this.cause))
+      this.stderr?.trim() || (this.cause instanceof Error ? this.cause.message : String(this.cause))
     const status = this.exitCode === undefined ? "" : ` (exit ${this.exitCode})`
     return `Command failed${status}: ${this.command}${detail ? `: ${detail}` : ""}`
   }
@@ -220,7 +220,7 @@ export const layer = Layer.effect(
               return Stream.empty
             }),
           )
-          return Stream.concat(lines, tail) as Stream.Stream<string, AppProcessError | PlatformError>
+          return Stream.concat(lines, tail)
         }),
       )
       const mapped = built.pipe(

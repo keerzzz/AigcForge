@@ -230,8 +230,8 @@ type WithUsage<Event extends { readonly usage?: Usage }> = Omit<Event, "type" | 
   readonly usage?: UsageInput
 }
 
-const contentBlockID = (value: ContentBlockID | string) => ContentBlockID.make(value)
-const toolCallID = (value: ToolCallID | string) => ToolCallID.make(value)
+const contentBlockID = (value: string) => ContentBlockID.make(value)
+const toolCallID = (value: string) => ToolCallID.make(value)
 
 /**
  * camelCase aliases for `LLMEvent.guards` (provided by `Schema.toTaggedUnion`).

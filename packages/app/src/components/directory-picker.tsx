@@ -1,7 +1,6 @@
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { ServerConnection } from "@/context/server"
 import { usePlatform } from "@/context/platform"
-import { useSettings } from "@/context/settings"
 import { lazy } from "solid-js"
 import { DialogSelectDirectory } from "./dialog-select-directory"
 import { directoryPickerKind } from "./directory-picker-policy"
@@ -19,7 +18,6 @@ type DirectoryPickerInput = {
 
 export function useDirectoryPicker() {
   const platform = usePlatform()
-  const settings = useSettings()
   const dialog = useDialog()
 
   return (input: DirectoryPickerInput) => {
@@ -37,9 +35,9 @@ export function useDirectoryPicker() {
       if (!selected) input.onSelect(null)
     }
     if (platform.platform === "desktop" && true) {
-      dialog.show(() => <DialogSelectDirectoryV2 {...input} onSelect={onSelect} />, cancel)
+      void dialog.show(() => <DialogSelectDirectoryV2 {...input} onSelect={onSelect} />, cancel)
       return
     }
-    dialog.show(() => <DialogSelectDirectory {...input} onSelect={onSelect} />, cancel)
+    void dialog.show(() => <DialogSelectDirectory {...input} onSelect={onSelect} />, cancel)
   }
 }

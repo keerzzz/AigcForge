@@ -41,7 +41,7 @@ export const ApplyPatchTool = Tool.define(
         const parseResult = Patch.parsePatch(params.patchText)
         hunks = parseResult.hunks
       } catch (error) {
-        return yield* Effect.fail(new Error(`apply_patch verification failed: ${error}`))
+        return yield* Effect.fail(new Error(`apply_patch verification failed: ${String(error)}`))
       }
 
       if (hunks.length === 0) {
@@ -127,7 +127,7 @@ export const ApplyPatchTool = Tool.define(
               newContent = fileUpdate.content
               bom = fileUpdate.bom
             } catch (error) {
-              return yield* Effect.fail(new Error(`apply_patch verification failed: ${error}`))
+              return yield* Effect.fail(new Error(`apply_patch verification failed: ${String(error)}`))
             }
 
             const diff = trimDiff(createTwoFilesPatch(filePath, filePath, oldContent, newContent))
@@ -236,7 +236,7 @@ export const ApplyPatchTool = Tool.define(
             if (change.movePath) {
               // Create parent directories (recursive: true is safe on existing/root dirs)
 
-              yield* afs.writeWithDirs(change.movePath!, Bom.join(change.newContent, change.bom))
+              yield* afs.writeWithDirs(change.movePath, Bom.join(change.newContent, change.bom))
               yield* afs.remove(change.filePath)
               updates.push({ file: change.filePath, event: "unlink" })
               updates.push({ file: change.movePath, event: "add" })

@@ -52,7 +52,7 @@ function footer() {
       }
 
       closed = true
-      for (const fn of [...closes]) {
+      for (const fn of closes) {
         fn()
       }
     },
@@ -69,12 +69,12 @@ function footer() {
     commits,
     submit(text: string, mode?: RunPrompt["mode"]) {
       const next = mode ? { text, parts: [] as RunPrompt["parts"], mode } : { text, parts: [] as RunPrompt["parts"] }
-      for (const fn of [...prompts]) {
+      for (const fn of prompts) {
         fn(next)
       }
     },
     removeQueued(messageID: string) {
-      for (const fn of [...queuedRemoves]) fn(messageID)
+      for (const fn of queuedRemoves) fn(messageID)
     },
   }
 }
@@ -350,7 +350,7 @@ describe("run runtime queue", () => {
     ).toBe(false)
     expect(ui.events.findLast((item) => item.type === "queue")).toEqual({ type: "queue", queue: 1 })
     expect(event?.type === "queued.prompts" ? event.prompts.map((item) => item.prompt.text) : []).toEqual(["two"])
-    if (event?.type === "queued.prompts") ui.removeQueued(event.prompts[0]!.messageID)
+    if (event?.type === "queued.prompts") ui.removeQueued(event.prompts[0].messageID)
     await Promise.resolve()
 
     wake?.()
@@ -476,6 +476,6 @@ describe("run runtime queue", () => {
     })
 
     ui.submit("one")
-    await expect(task).rejects.toThrow("boom")
+    expect(task).rejects.toThrow("boom")
   })
 })

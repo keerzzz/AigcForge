@@ -96,7 +96,7 @@ type State = Map<string, Info>
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
-    const sessions = yield* Ref.make<State>(new Map())
+    const sessions = yield* Ref.make(new Map())
 
     const store = Effect.fn("ACP.Session.store")(function* (input: StoreInput) {
       const session = makeSession(input)

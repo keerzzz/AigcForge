@@ -9,11 +9,9 @@ import { ServerConnection } from "@/context/server"
 import { ServerSDKProvider } from "@/context/server-sdk"
 import { ServerSyncProvider } from "@/context/server-sync"
 import { useGlobal } from "@/context/global"
-import { useSettings } from "@/context/settings"
 
 export function SettingsServerScope(props: ParentProps) {
   const global = useGlobal()
-  const settings = useSettings()
 
   return (
     <Show when={true} fallback={props.children}>
@@ -41,7 +39,6 @@ function SettingsServerDataProviders(props: ParentProps<{ server: ServerConnecti
 
 export function SettingsServerPicker() {
   const global = useGlobal()
-  const settings = useSettings()
   const selected = createMemo(() => global.settings.server.selected())
 
   return (

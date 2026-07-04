@@ -6,7 +6,7 @@ export function memo<T>(fn: () => T, cleanup?: (input: T) => Promise<void>) {
     if (loaded) return value as T
     loaded = true
     value = fn()
-    return value as T
+    return value
   }
   result.reset = async () => {
     if (cleanup && value) await cleanup(value)

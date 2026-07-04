@@ -1,4 +1,3 @@
-import { Config } from "@/config/config"
 import { ConfigV1 } from "@aigcfroge/core/v1/config/config"
 import { EventV2 } from "@aigcfroge/core/event"
 import { InstanceDisposed } from "@/server/event"

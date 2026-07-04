@@ -33,7 +33,6 @@ function mountEditorContext(WebSocketImpl?: typeof WebSocket) {
       return null
     }
 
-    const value = process.env.CLAUDE_CODE_SSE_PORT || process.env.AIGCFROGE_EDITOR_SSE_PORT
     return (
       <TestTuiContexts cwd={process.cwd()} paths={{ home: os.homedir() }}>
         <EditorContextProvider integration={editorService} WebSocketImpl={WebSocketImpl}>
@@ -61,8 +60,8 @@ function createWebSocketImpl(...sockets: FakeWebSocket[]) {
       const socket = sockets[index]
       index += 1
       expect(socket).toBeDefined()
-      expect(url).toBe(socket!.url)
-      expect(options).toEqual(socket!.options)
+      expect(url).toBe(socket.url)
+      expect(options).toEqual(socket.options)
       return socket as unknown as object
     }
   } as unknown as typeof WebSocket

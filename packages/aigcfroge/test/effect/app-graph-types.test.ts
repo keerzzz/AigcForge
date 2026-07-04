@@ -59,9 +59,9 @@ const b = LayerNode.make(bImplementation, [a])
 const c = LayerNode.make(cImplementation, [a, b])
 const failingA = LayerNode.make(failingAImplementation, [])
 const bWithFailingA = LayerNode.make(bImplementation, [failingA])
-const notFoundA = LayerNode.make(notFoundAImplementation, [])
-const diskA = LayerNode.make(diskAImplementation, [])
-const networkA = LayerNode.make(networkAImplementation, [])
+const _notFoundA = LayerNode.make(notFoundAImplementation, [])
+const _diskA = LayerNode.make(diskAImplementation, [])
+const _networkA = LayerNode.make(networkAImplementation, [])
 const notFoundOrDiskA = LayerNode.make(notFoundOrDiskAImplementation, [])
 
 // @ts-expect-error B requires A
@@ -70,9 +70,9 @@ LayerNode.make(bImplementation, [])
 // @ts-expect-error C requires both A and B
 LayerNode.make(cImplementation, [a])
 
-type ANodeProvides = Assert<Equal<typeof a, LayerNode.Node<A, never>>>
-type BNodeProvides = Assert<Equal<typeof b, LayerNode.Node<B, never>>>
-type CNodeProvides = Assert<Equal<typeof c, LayerNode.Node<C, never>>>
+type ANodeProvides = Assert<Equal<typeof a, LayerNode.Node<A>>>
+type BNodeProvides = Assert<Equal<typeof b, LayerNode.Node<B>>>
+type CNodeProvides = Assert<Equal<typeof c, LayerNode.Node<C>>>
 type FailingANodeError = Assert<Equal<typeof failingA, LayerNode.Node<A, LayerError>>>
 type DependentNodeError = Assert<Equal<typeof bWithFailingA, LayerNode.Node<B, LayerError>>>
 void (0 as unknown as ANodeProvides)

@@ -22,14 +22,14 @@ export interface DispatchResult extends ToolSettlement {
 /** Execute one canonical tool call without owning provider IO or continuation. */
 export const dispatch = (tools: Tools, call: ToolCallPart): Effect.Effect<DispatchResult> => {
   const tool = tools[call.name]
-  if (!tool) return Effect.succeed(result(call, { type: "error", value: `Unknown tool: ${call.name}` }))
+  if (!tool) return Effect.succeed(result(call, { result: { type: "error", value: `Unknown tool: ${call.name}` } }))
   if (!tool.execute)
-    return Effect.succeed(result(call, { type: "error", value: `Tool has no execute handler: ${call.name}` }))
+    return Effect.succeed(result(call, { result: { type: "error", value: `Tool has no execute handler: ${call.name}` } }))
 
   return decodeAndExecute(tool, call).pipe(
     Effect.map((value) => result(call, value)),
     Effect.catchTag("LLM.ToolFailure", (failure) =>
-      Effect.succeed(result(call, { type: "error", value: failure.message }, failure.error)),
+      Effect.succeed(result(call, { result: { type: "error", value: failure.message } }, failure.error)),
     ),
   )
 }
@@ -60,19 +60,16 @@ const decodeAndExecute = (tool: AnyTool, call: ToolCallPart): Effect.Effect<Tool
     ),
   )
 
-const result = (call: ToolCallPart, value: ToolResultValueType | ToolSettlement, error?: unknown): DispatchResult => {
-  const settlement = ToolResultValue.is(value) ? { result: value } : value
-  return {
-    result: settlement.result,
-    output: settlement.output,
-    events:
-      settlement.result.type === "error"
-        ? [
-            LLMEvent.toolError({ id: call.id, name: call.name, message: String(settlement.result.value), error }),
-            LLMEvent.toolResult({ id: call.id, name: call.name, result: settlement.result }),
-          ]
-        : [LLMEvent.toolResult({ id: call.id, name: call.name, result: settlement.result, output: settlement.output })],
-  }
-}
+const result = (call: ToolCallPart, value: ToolSettlement, error?: unknown): DispatchResult => ({
+  result: value.result,
+  output: value.output,
+  events:
+    value.result.type === "error"
+      ? [
+          LLMEvent.toolError({ id: call.id, name: call.name, message: String(value.result.value), error }),
+          LLMEvent.toolResult({ id: call.id, name: call.name, result: value.result }),
+        ]
+      : [LLMEvent.toolResult({ id: call.id, name: call.name, result: value.result, output: value.output })],
+})
 
 export const ToolRuntime = { dispatch } as const

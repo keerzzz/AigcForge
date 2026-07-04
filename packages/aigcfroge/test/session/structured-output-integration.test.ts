@@ -4,7 +4,6 @@ import { Ripgrep } from "@aigcfroge/core/ripgrep"
 import { Effect, Layer } from "effect"
 import { Session } from "@/session/session"
 import { SessionPrompt } from "../../src/session/prompt"
-import { MessageV2 } from "../../src/session/message-v2"
 import { testEffect } from "../lib/effect"
 
 // Skip tests if no API key is available
@@ -51,7 +50,7 @@ describe("StructuredOutput Integration", () => {
           expect(result.info.structured).toBeDefined()
           expect(typeof result.info.structured).toBe("object")
 
-          const output = result.info.structured as any
+          const output = result.info.structured
           expect(output.answer).toBe(4)
 
           // Verify no error was set
@@ -109,7 +108,7 @@ describe("StructuredOutput Integration", () => {
         expect(result.info.role).toBe("assistant")
         if (result.info.role === "assistant") {
           expect(result.info.structured).toBeDefined()
-          const output = result.info.structured as any
+          const output = result.info.structured
 
           expect(output.company).toBeDefined()
           expect(output.company.name).toBe("Anthropic")

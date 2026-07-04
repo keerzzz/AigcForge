@@ -37,7 +37,7 @@ export function createGitState(input: GitProjectState) {
   const stageMutation = createMutation(() => ({
     mutationFn: (files: string[]) => sdk().client.vcs.stage({ files }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: statusKey(input.directory) })
+      void queryClient.invalidateQueries({ queryKey: statusKey(input.directory) })
     },
     onError: () => {
       showToast({ title: language.t("git.error.stage") })
@@ -47,7 +47,7 @@ export function createGitState(input: GitProjectState) {
   const unstageMutation = createMutation(() => ({
     mutationFn: (files: string[]) => sdk().client.vcs.unstage({ files }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: statusKey(input.directory) })
+      void queryClient.invalidateQueries({ queryKey: statusKey(input.directory) })
     },
     onError: () => {
       showToast({ title: language.t("git.error.unstage") })
@@ -57,8 +57,8 @@ export function createGitState(input: GitProjectState) {
   const commitMutation = createMutation(() => ({
     mutationFn: (message: string) => sdk().client.vcs.commit({ message }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: statusKey(input.directory) })
-      queryClient.invalidateQueries({ queryKey: logKey(input.directory) })
+      void queryClient.invalidateQueries({ queryKey: statusKey(input.directory) })
+      void queryClient.invalidateQueries({ queryKey: logKey(input.directory) })
     },
     onError: () => {
       showToast({ title: language.t("git.error.commit") })

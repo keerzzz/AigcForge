@@ -12,7 +12,7 @@ export interface WebSocketRequest {
 export interface WebSocketConnection {
   readonly sendText: (message: string) => Effect.Effect<void, LLMError>
   readonly messages: Stream.Stream<string | Uint8Array, LLMError>
-  readonly close: Effect.Effect<void, never>
+  readonly close: Effect.Effect<void>
 }
 
 export interface Interface {
@@ -141,7 +141,7 @@ export const fromWebSocket = (
 ): Effect.Effect<WebSocketConnection, LLMError> =>
   Effect.gen(function* () {
     yield* waitOpen(ws, input)
-    const messages = yield* Queue.bounded<string | Uint8Array, LLMError | Cause.Done<void>>(128)
+    const messages = yield* Queue.bounded<string | Uint8Array, LLMError | Cause.Done>(128)
 
     const onMessage = (event: MessageEvent) => {
       if (typeof event.data === "string") return Queue.offerUnsafe(messages, event.data)

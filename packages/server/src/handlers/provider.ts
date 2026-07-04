@@ -1,5 +1,4 @@
 import { Catalog } from "@aigcfroge/core/catalog"
-import { ProviderV2 } from "@aigcfroge/core/provider"
 import { Effect } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { Api } from "../api"

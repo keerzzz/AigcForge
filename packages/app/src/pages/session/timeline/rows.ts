@@ -233,7 +233,7 @@ export namespace Timeline {
         new TimelineRow.Error({
           userMessageID: userMessage.id,
           text: unwrapErrorMessage(
-            typeof data === "string" ? data : data === undefined || data === null ? "" : String(data),
+            typeof data === "string" ? data : data == null ? "" : JSON.stringify(data, null, 2),
           ),
         }),
       )

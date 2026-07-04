@@ -18,7 +18,7 @@ export function emit(event: string, data: unknown) {
 
 export function client<T extends Definition>(target: {
   postMessage: (data: string) => void | null
-  onmessage: ((this: Worker, ev: MessageEvent<any>) => any) | null
+  onmessage: ((this: Worker, ev: MessageEvent) => any) | null
 }) {
   const pending = new Map<number, (result: any) => void>()
   const listeners = new Map<string, Set<(data: any) => void>>()
@@ -49,7 +49,7 @@ export function client<T extends Definition>(target: {
         target.postMessage(JSON.stringify({ type: "rpc.request", method, input, id: requestId }))
       })
     },
-    on<Data>(event: string, handler: (data: Data) => void) {
+    on(event: string, handler: (data: unknown) => void) {
       let handlers = listeners.get(event)
       if (!handlers) {
         handlers = new Set()
@@ -57,7 +57,7 @@ export function client<T extends Definition>(target: {
       }
       handlers.add(handler)
       return () => {
-        handlers!.delete(handler)
+        handlers.delete(handler)
       }
     },
   }

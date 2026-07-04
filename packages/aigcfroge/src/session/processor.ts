@@ -30,7 +30,7 @@ import { ModelV2 } from "@aigcfroge/core/model"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import * as DateTime from "effect/DateTime"
 import { RuntimeFlags } from "@/effect/runtime-flags"
-import { ToolOutput, Usage, type LLMEvent } from "@aigcfroge/llm"
+import { Usage, type LLMEvent } from "@aigcfroge/llm"
 
 const DOOM_LOOP_THRESHOLD = 3
 export type Result = "compact" | "stop" | "continue"
@@ -579,7 +579,7 @@ export const layer = Layer.effect(
                     ),
                     Effect.exit,
                   )
-                : Effect.succeed(Exit.succeed<SessionV1.FilePart>(attachment)),
+                : Effect.succeed(Exit.succeed(attachment)),
             )
             const omitted = normalized.filter(Exit.isFailure).length
             const attachments = normalized.filter(Exit.isSuccess).map((item) => item.value)

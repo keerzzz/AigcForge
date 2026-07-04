@@ -460,12 +460,12 @@ export const {
         ...(args.continue ? [sessionListPromise] : []),
       ])
         .then(async () => {
-          const providersResponse = providersPromise.then((x) => x.data!)
-          const providerListResponse = providerListPromise.then((x) => x.data!)
+          const providersResponse = providersPromise.then((x) => x.data)
+          const providerListResponse = providerListPromise.then((x) => x.data)
           const capabilitiesResponse = capabilitiesPromise
           const consoleStateResponse = consoleStatePromise
           const agentsResponse = agentsPromise.then((x) => x.data ?? [])
-          const configResponse = configPromise.then((x) => x.data!)
+          const configResponse = configPromise.then((x) => x.data)
           const sessionListResponse = args.continue ? sessionListPromise : undefined
 
           return Promise.all([
@@ -590,8 +590,8 @@ export const {
             setStore(
               produce((draft) => {
                 const match = search(draft.session, sessionID, (s) => s.id)
-                if (match.found) draft.session[match.index] = session.data!
-                if (!match.found) draft.session.splice(match.index, 0, session.data!)
+                if (match.found) draft.session[match.index] = session.data
+                if (!match.found) draft.session.splice(match.index, 0, session.data)
                 draft.todo[sessionID] = todo.data ?? []
                 const currentMessages = draft.message[sessionID] ?? []
                 const infos = (messages.data ?? []).flatMap((message) => {

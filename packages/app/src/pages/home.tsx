@@ -5,19 +5,15 @@ import {
   createMemo,
   createRoot,
   For,
-  Match,
   on,
   onCleanup,
   onMount,
   Show,
   startTransition,
-  Switch,
 } from "solid-js"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { createStore } from "solid-js/store"
 import { useQuery } from "@tanstack/solid-query"
-import { Button } from "@aigcfroge/ui/button"
-import { Logo } from "@aigcfroge/ui/logo"
 import { Spinner } from "@aigcfroge/ui/spinner"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { ProjectAvatar } from "@aigcfroge/ui/v2/project-avatar-v2"
@@ -27,13 +23,11 @@ import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { MenuV2 } from "@aigcfroge/ui/v2/menu-v2"
 import { getProjectAvatarVariant, useLayout, type LocalProject } from "@/context/layout"
 import { useNavigate } from "@solidjs/router"
-import { base64Encode } from "@aigcfroge/core/util/encode"
-import { Icon } from "@aigcfroge/ui/icon"
 import { usePlatform } from "@/context/platform"
 import { DateTime } from "luxon"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useDirectoryPicker } from "@/components/directory-picker"
-import { DialogSelectServer, useServerManagementController } from "@/components/dialog-select-server"
+import { useServerManagementController } from "@/components/dialog-select-server"
 import { DialogServerV2 } from "@/components/settings-v2/dialog-server-v2"
 import { ServerConnection, useServer } from "@/context/server"
 import { sessionHasOpenTab, useTabs } from "@/context/tabs"
@@ -334,7 +328,7 @@ export function Home() {
 
   function editProject(conn: ServerConnection.Any, project: LocalProject) {
     void import("@/components/dialog-edit-project").then((x) => {
-      dialog.show(() => <x.DialogEditProject server={conn} project={project} />)
+      void dialog.show(() => <x.DialogEditProject server={conn} project={project} />)
     })
   }
 
@@ -364,7 +358,7 @@ export function Home() {
     })
     ctx.projects.open(directory)
     ctx.projects.touch(directory)
-    startTransition(() => {
+    void startTransition(() => {
       const tab = tabs.addSessionTab({ server: ServerConnection.key(conn), sessionId: session.id })
       tabs.select(tab)
     })
@@ -385,7 +379,7 @@ export function Home() {
 
   function openSettings() {
     void import("@/components/settings-v2").then((x) => {
-      dialog.show(() => <x.DialogSettings />)
+      void dialog.show(() => <x.DialogSettings />)
     })
   }
 
@@ -417,7 +411,7 @@ export function Home() {
           focusServer={focusServer}
           selectProject={selectProject}
           openNewSession={openProjectNewSession}
-          chooseProject={(conn) => void chooseProject(conn)}
+          chooseProject={(conn) => { chooseProject(conn) }}
           editProject={editProject}
           closeProject={(conn, directory) => {
             const next = closeHomeProject(
@@ -598,21 +592,21 @@ function HomeProjectColumn(props: {
             size="large"
             class="titlebar-icon [&_[data-slot=icon-svg]]:text-v2-icon-icon-muted"
             icon={<IconV2 name="folder-add-left" />}
-            onClick={() => props.chooseProject(global.servers.list()[0]!)}
+            onClick={() => props.chooseProject(global.servers.list()[0])}
             aria-label={props.language.t("home.project.add")}
           />
         </Show>
       </div>
       <Show
         when={global.servers.list().length > 1}
-        fallback={<HomeProjectList {...props} server={global.servers.list()[0]!} />}
+        fallback={<HomeProjectList {...props} server={global.servers.list()[0]} />}
       >
         <For each={global.servers.list()}>
           {(item) => {
             const key = ServerConnection.key(item)
             const healthy = () => !!global.servers.health[key]?.healthy
             const serverCtx = global.ensureServerCtx(item)
-            const collapsed = () => !!state.collapsed[key]
+            const collapsed = () => state.collapsed[key]
             return (
               <div class="flex max-h-[min(572px,calc(100vh_-_300px))] min-w-0 flex-col gap-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <HomeServerRow

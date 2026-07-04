@@ -12,7 +12,6 @@ import {
   Info,
   OutputLengthError,
   Part,
-  StructuredOutputError,
   SubtaskPart,
   User,
   WithParts,

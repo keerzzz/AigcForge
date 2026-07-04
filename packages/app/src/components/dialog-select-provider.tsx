@@ -56,10 +56,10 @@ export const DialogSelectProvider: Component = () => {
         onSelect={(x) => {
           if (!x) return
           if (x.id === CUSTOM_ID) {
-            dialog.show(() => <DialogCustomProvider back="providers" />)
+            void dialog.show(() => <DialogCustomProvider back="providers" />)
             return
           }
-          dialog.show(() => <DialogConnectProvider provider={x.id} />)
+          void dialog.show(() => <DialogConnectProvider provider={x.id} />)
         }}
       >
         {(i) => (

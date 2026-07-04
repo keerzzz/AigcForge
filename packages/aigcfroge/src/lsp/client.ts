@@ -4,7 +4,7 @@ import { createMessageConnection, StreamMessageReader, StreamMessageWriter } fro
 import type { Diagnostic as VSCodeDiagnostic } from "vscode-languageserver-types"
 import { Process } from "@/util/process"
 import { LANGUAGE_EXTENSIONS } from "./language"
-import { Effect, Schema } from "effect"
+import { Schema } from "effect"
 import type * as LSPServer from "./server"
 import { withTimeout } from "../util/timeout"
 import { Filesystem } from "@/util/filesystem"
@@ -106,7 +106,7 @@ function dedupeDiagnostics(items: Diagnostic[]) {
 
 function configurationValue(settings: unknown, section?: string) {
   if (!section) return settings ?? null
-  const result = section.split(".").reduce<unknown>((acc, key) => {
+  const result = section.split(".").reduce((acc, key) => {
     if (!acc || typeof acc !== "object" || !(key in acc)) return undefined
     return (acc as Record<string, unknown>)[key]
   }, settings)
@@ -127,8 +127,6 @@ export async function create(input: {
   directory: string
   instance: InstanceContext
 }) {
-  const instance = input.instance
-
   const connection = createMessageConnection(
     new StreamMessageReader(input.server.process.stdout as any),
     new StreamMessageWriter(input.server.process.stdin as any),
@@ -152,7 +150,7 @@ export async function create(input: {
     pullDiagnostics.set(filePath, next)
   }
   const emitRegistrationChange = () => {
-    for (const listener of [...registrationListeners]) listener()
+    for (const listener of registrationListeners) listener()
   }
 
   // --- LSP connection handlers ---
@@ -170,7 +168,7 @@ export async function create(input: {
     }
     updatePushDiagnostics(filePath, params.diagnostics)
   })
-  connection.onRequest("window/workDoneProgress/create", (params) => {
+  connection.onRequest("window/workDoneProgress/create", (_params) => {
     return null
   })
   connection.onRequest("workspace/configuration", async (params) => {
@@ -398,7 +396,7 @@ export async function create(input: {
       }
 
       for (const request of requests) {
-        request.then((result) => {
+        void request.then((result) => {
           results.push(result)
           pending -= 1
           const merged = mergeResults(filePath, results)

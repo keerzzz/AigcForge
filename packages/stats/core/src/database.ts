@@ -25,7 +25,7 @@ export class DatabaseConfig extends Context.Service<DatabaseConfig, DatabaseSett
   "@aigcfroge/stats/DatabaseConfig",
 ) {
   static readonly config = config
-  static readonly layer: Layer.Layer<DatabaseConfig, never, never> = Layer.effect(
+  static readonly layer: Layer.Layer<DatabaseConfig> = Layer.effect(
     DatabaseConfig,
     config.parse(ConfigProvider.fromEnv()).pipe(Effect.orDie),
   )

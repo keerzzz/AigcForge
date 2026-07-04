@@ -195,7 +195,7 @@ export const { use: useHighlights, provider: HighlightsProvider } = createSimple
           timer = setTimeout(() => {
             timer = undefined
             markSeen()
-            dialog.show(() => <DialogReleaseNotes highlights={highlights} />)
+            void dialog.show(() => <DialogReleaseNotes highlights={highlights} />)
           }, 500)
         })
         .catch(() => undefined)

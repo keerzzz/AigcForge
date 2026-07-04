@@ -1,4 +1,3 @@
-import { FileSystem } from "@aigcfroge/core/filesystem"
 import { NonNegativeInt } from "@aigcfroge/core/schema"
 import { LSP } from "@/lsp/lsp"
 import { Schema } from "effect"

@@ -11,8 +11,6 @@ import {
   createMemo,
   createSignal,
   createResource,
-  Switch,
-  Match,
   type ComponentProps,
   type JSX,
 } from "solid-js"
@@ -35,7 +33,7 @@ import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { useComments } from "@/context/comments"
 import { Button } from "@aigcfroge/ui/button"
-import { DockShellForm, DockTray } from "@aigcfroge/ui/dock-surface"
+import { DockShellForm } from "@aigcfroge/ui/dock-surface"
 import { Icon, type IconProps } from "@aigcfroge/ui/icon"
 import { ProviderIcon } from "@aigcfroge/ui/provider-icon"
 import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
@@ -226,7 +224,6 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
 
   const mirror = { input: false }
   const inset = 56
-  const space = `${inset}px`
 
   const scrollCursorIntoView = () => {
     const container = scrollRef
@@ -378,7 +375,6 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     "pointer-events": value > 0.5 ? ("auto" as const) : ("none" as const),
   })
   const buttons = createMemo(() => motion(buttonsSpring()))
-  const shell = createMemo(() => motion(1 - buttonsSpring()))
   const control = createMemo(() => ({ height: "28px", ...buttons() }))
 
   const commentCount = createMemo(() => {
@@ -792,7 +788,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         const prev = node.previousSibling
         const next = node.nextSibling
         const prevIsBr = prev?.nodeType === Node.ELEMENT_NODE && (prev as HTMLElement).tagName === "BR"
-        return !!prevIsBr && !next
+        return prevIsBr && !next
       }
       if (node.nodeType !== Node.ELEMENT_NODE) return false
       const el = node as HTMLElement
@@ -1372,10 +1368,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     }
   }
 
-  const agentsLoading = () => props.controls.agents.loading
-  const agentsShouldFadeIn = createMemo((prev) => prev ?? agentsLoading())
   const providersLoading = () => props.controls.model.loading
-  const providersShouldFadeIn = createMemo((prev) => prev ?? providersLoading())
 
   const [promptReady] = createResource(
     () => prompt.ready.promise,
@@ -1399,7 +1392,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     onClose: restoreFocus,
     onUnpaidClick: () => {
       void import("@/components/dialog-select-model-unpaid").then((x) => {
-        dialog.show(() => <x.DialogSelectModelUnpaid model={props.controls.model.selection} />)
+        void dialog.show(() => <x.DialogSelectModelUnpaid model={props.controls.model.selection} />)
       })
     },
   }))
@@ -1460,7 +1453,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       label: language.t("session.new.project.add"),
       onSelect: () => {
         setPicker("projectOpen", false)
-        void addProject()
+        addProject()
       },
     },
     onOpenChange: (open) => {
@@ -1488,7 +1481,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     label: language.t("session.new.project.new"),
     class: "max-w-[160px]",
     style: control(),
-    onPress: () => void addProject(),
+    onPress: addProject,
   }))
 
   return (

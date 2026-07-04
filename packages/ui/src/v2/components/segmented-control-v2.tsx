@@ -57,7 +57,7 @@ export function SegmentedControlV2(props: SegmentedControlV2Props) {
     "ref",
   ])
 
-  const [internal, setInternal] = createSignal<string | null>(local.defaultValue ?? null)
+  const [internal, setInternal] = createSignal(local.defaultValue ?? null)
 
   const selected = createMemo(() => (isControlled() ? (local.value ?? null) : internal()))
 
@@ -88,7 +88,7 @@ export function SegmentedControlV2(props: SegmentedControlV2Props) {
 
   const ctx: SegmentedControlContextValue = {
     selected,
-    groupDisabled: () => !!local.disabled,
+    groupDisabled: () => local.disabled,
     select,
     clearIfAllowed,
     focusNext,
@@ -146,7 +146,7 @@ export function SegmentedControlItemV2(props: SegmentedControlItemV2Props) {
   const ctx = useSegmentedControlContext()
 
   const pressed = createMemo(() => ctx.selected() === local.value)
-  const disabled = createMemo(() => ctx.groupDisabled() || !!local.disabled)
+  const disabled = createMemo(() => ctx.groupDisabled() || local.disabled)
 
   const onClick: JSX.EventHandlerUnion<HTMLButtonElement, MouseEvent> = (e) => {
     invokeButtonHandler(local.onClick, e)

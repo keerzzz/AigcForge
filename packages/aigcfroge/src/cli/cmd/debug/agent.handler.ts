@@ -6,7 +6,6 @@ import { Cause, Effect } from "effect"
 import { Agent } from "../../../agent/agent"
 import { Provider } from "@/provider/provider"
 import { Session } from "@/session/session"
-import type { MessageV2 } from "../../../session/message-v2"
 import { MessageID, PartID } from "../../../session/schema"
 import { ToolRegistry } from "@/tool/registry"
 import { Permission } from "../../../permission"
@@ -110,7 +109,7 @@ function parseToolParams(input?: string) {
         return new Function(`return (${trimmed})`)()
       } catch (evalError) {
         throw new Error(
-          `Failed to parse --params. Use JSON or a JS object literal. JSON error: ${jsonError}. Eval error: ${evalError}.`,
+          `Failed to parse --params. Use JSON or a JS object literal. JSON error: ${String(jsonError)}. Eval error: ${String(evalError)}.`,
           { cause: evalError },
         )
       }

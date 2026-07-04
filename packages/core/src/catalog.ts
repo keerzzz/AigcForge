@@ -107,7 +107,7 @@ export const layer = Layer.effect(
       draft: (draft) => {
         const result: Draft = {
           provider: {
-            list: () => Array.fromIterable(draft.providers.values()) as ProviderRecord[],
+            list: () => Array.fromIterable(draft.providers.values()),
             get: (providerID) => draft.providers.get(providerID),
             update: (providerID, fn) => {
               let current = draft.providers.get(providerID)
@@ -159,7 +159,7 @@ export const layer = Layer.effect(
       },
       finalize: Effect.fn("CatalogV2.finalize")(function* (catalog) {
         if (policy.hasStatements()) {
-          for (const record of [...catalog.provider.list()]) {
+          for (const record of catalog.provider.list()) {
             if ((yield* policy.evaluate("provider.use", record.provider.id, "allow")) === "deny") {
               catalog.provider.remove(record.provider.id)
             }

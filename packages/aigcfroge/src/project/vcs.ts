@@ -1,5 +1,5 @@
 import { LayerNode } from "@aigcfroge/core/effect/layer-node"
-import { Effect, Layer, Context, Schema, Stream, Scope } from "effect"
+import { Effect, Layer, Context, Schema, Scope } from "effect"
 import { formatPatch, structuredPatch } from "diff"
 import { InstanceState } from "@/effect/instance-state"
 import { Watcher } from "@aigcfroge/core/filesystem/watcher"

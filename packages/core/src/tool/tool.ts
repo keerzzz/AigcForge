@@ -13,7 +13,7 @@ export interface Context {
   readonly toolCallID: string
 }
 
-export type SchemaType<A> = Schema.Codec<A, any, never, never>
+export type SchemaType<A> = Schema.Codec<A, any>
 
 declare const TypeId: unique symbol
 

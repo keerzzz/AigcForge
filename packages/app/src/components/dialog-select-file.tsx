@@ -16,7 +16,6 @@ import { useFile } from "@/context/file"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { useServer } from "@/context/server"
-import { useSettings } from "@/context/settings"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { createSessionTabs } from "@/pages/session/helpers"
 import { decode64 } from "@/utils/base64"
@@ -273,7 +272,6 @@ export function DialogSelectFile(props: { mode?: DialogSelectFileMode; onOpenFil
   const language = useLanguage()
   const platform = usePlatform()
   const server = useServer()
-  const settings = useSettings()
   const layout = useLayout()
   const file = useFile()
   const dialog = useDialog()

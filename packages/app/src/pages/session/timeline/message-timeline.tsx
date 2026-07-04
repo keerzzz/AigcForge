@@ -1384,7 +1384,7 @@ export function MessageTimeline(props: {
                           event.stopPropagation()
                           if (event.key === "Enter") {
                             event.preventDefault()
-                            void saveTitleEditor()
+                            saveTitleEditor()
                             return
                           }
                           if (event.key === "Escape") {

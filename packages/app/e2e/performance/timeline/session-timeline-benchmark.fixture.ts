@@ -447,7 +447,7 @@ export function streamChunk(index: number, count: number) {
     ` activeID()) // stream-${index}\n`,
     `// stream-${index}\n\`\`\`\n\n### Iteration ${section}\n\nStreaming **bold analysis`,
   ]
-  return fragments[(index - 1) % fragments.length]!
+  return fragments[(index - 1) % fragments.length]
 }
 
 function project() {

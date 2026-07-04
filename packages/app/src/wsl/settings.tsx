@@ -29,7 +29,7 @@ export function AddServerMenu(props: { onAddServer: () => void }) {
   const dialog = useDialog()
   const language = useLanguage()
   const openAddWsl = () => {
-    dialog.push(() => (
+    void dialog.push(() => (
       <Dialog title={language.t("wsl.server.add")} size="large" fit class="settings-v2-wsl-dialog">
         <DialogAddWslServer />
       </Dialog>

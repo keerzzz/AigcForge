@@ -176,11 +176,11 @@ describe("instance HttpApi", () => {
             method: "POST",
             body: JSON.stringify({ reply: "once" }),
           }),
-          request(`/question/${questionReplyID}/reply`, {
+          request(`/question/${String(questionReplyID)}/reply`, {
             method: "POST",
             body: JSON.stringify({ answers: [["Yes"]] }),
           }),
-          request(`/question/${questionRejectID}/reject`, { method: "POST" }),
+          request(`/question/${String(questionRejectID)}/reject`, { method: "POST" }),
         ],
         { concurrency: "unbounded" },
       )
@@ -195,13 +195,13 @@ describe("instance HttpApi", () => {
       expect(yield* Effect.promise(() => questionReply.json())).toEqual({
         _tag: "QuestionNotFoundError",
         requestID: questionReplyID,
-        message: `Question request not found: ${questionReplyID}`,
+        message: `Question request not found: ${String(questionReplyID)}`,
       })
       expect(questionReject.status).toBe(404)
       expect(yield* Effect.promise(() => questionReject.json())).toEqual({
         _tag: "QuestionNotFoundError",
         requestID: questionRejectID,
-        message: `Question request not found: ${questionRejectID}`,
+        message: `Question request not found: ${String(questionRejectID)}`,
       })
     }),
   )

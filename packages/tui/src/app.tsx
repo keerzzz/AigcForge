@@ -8,7 +8,7 @@ import { ClipboardProvider, useClipboard } from "./context/clipboard"
 import { ExitProvider, useExit } from "./context/exit"
 import { EpilogueProvider } from "./context/epilogue"
 import * as Selection from "./util/selection"
-import { createCliRenderer, MouseButton, type CliRenderer } from "@opentui/core"
+import { createCliRenderer, MouseButton } from "@opentui/core"
 import { RouteProvider, useRoute } from "./context/route"
 import {
   Switch,
@@ -1044,7 +1044,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       `Successfully updated to Aigcfroge v${result.data.version}. Please restart the application.`,
     )
 
-    void exit()
+    exit()
   })
 
   const plugin = createMemo(() => {

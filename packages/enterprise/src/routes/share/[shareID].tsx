@@ -333,7 +333,7 @@ export default function () {
                                   </Show>
                                   <SessionTurn
                                     sessionID={data().sessionID}
-                                    messageID={store.messageId ?? firstUserMessage()!.id!}
+                                    messageID={store.messageId ?? firstUserMessage()!.id}
                                     classes={{
                                       root: "grow",
                                       content: "flex flex-col justify-between",

@@ -209,7 +209,7 @@ export const SettingsProvidersV2: Component = () => {
                     variant="neutral"
                     icon="plus"
                     onClick={() => {
-                      dialog.show(() => <DialogConnectProvider provider={item.id} />)
+                      void dialog.show(() => <DialogConnectProvider provider={item.id} />)
                     }}
                   >
                     {language.t("common.connect")}
@@ -239,7 +239,7 @@ export const SettingsProvidersV2: Component = () => {
                 variant="neutral"
                 icon="plus"
                 onClick={() => {
-                  dialog.show(() => <DialogCustomProvider back="close" />)
+                  void dialog.show(() => <DialogCustomProvider back="close" />)
                 }}
               >
                 {language.t("common.connect")}
@@ -251,7 +251,7 @@ export const SettingsProvidersV2: Component = () => {
             type="button"
             class="settings-v2-providers-view-all"
             onClick={() => {
-              dialog.show(() => <DialogSelectProvider />)
+              void dialog.show(() => <DialogSelectProvider />)
             }}
           >
             {language.t("dialog.provider.viewAll")}

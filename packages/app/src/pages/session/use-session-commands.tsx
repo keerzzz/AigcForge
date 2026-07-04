@@ -78,7 +78,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     if (!id) return []
     return sync().data.message[id] ?? []
   }
-  const userMessages = () => messages().filter((m) => m.role === "user") as UserMessage[]
+  const userMessages = () => messages().filter((m) => m.role === "user")
   const visibleUserMessages = () => {
     const revert = info()?.revert?.messageID
     if (!revert) return userMessages()
@@ -213,7 +213,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
 
   const openFile = () => {
     void import("@/components/dialog-select-file").then((x) => {
-      dialog.show(() => <x.DialogSelectFile onOpenFile={showAllFiles} />)
+      void dialog.show(() => <x.DialogSelectFile onOpenFile={showAllFiles} />)
     })
   }
 
@@ -249,13 +249,13 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
 
   const chooseModel = () => {
     void import("@/components/dialog-select-model").then((x) => {
-      dialog.show(() => <x.DialogSelectModel model={local.model} />)
+      void dialog.show(() => <x.DialogSelectModel model={local.model} />)
     })
   }
 
   const chooseMcp = () => {
     void import("@/components/dialog-select-mcp").then((x) => {
-      dialog.show(() => <x.DialogSelectMcp />)
+      void dialog.show(() => <x.DialogSelectMcp />)
     })
   }
 
@@ -345,7 +345,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
 
   const fork = () => {
     void import("@/components/dialog-fork").then((x) => {
-      dialog.show(() => <x.DialogFork />)
+      void dialog.show(() => <x.DialogFork />)
     })
   }
 

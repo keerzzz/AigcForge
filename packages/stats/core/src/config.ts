@@ -16,7 +16,7 @@ const config = Config.all({
 
 export class AppConfig extends Context.Service<AppConfig, AppConfigValue>()("@aigcfroge/stats/AppConfig") {
   static readonly config = config
-  static readonly layer: Layer.Layer<AppConfig, never, never> = Layer.effect(
+  static readonly layer: Layer.Layer<AppConfig> = Layer.effect(
     AppConfig,
     config.parse(ConfigProvider.fromEnv()).pipe(Effect.orDie),
   )

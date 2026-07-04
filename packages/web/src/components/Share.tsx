@@ -502,7 +502,7 @@ export function fromV1(v1: Message.Info): MessageWithParts {
   if (v1.role === "assistant") {
     return {
       id: v1.id as MessageV2.MessageID,
-      sessionID: v1.metadata.sessionID as MessageV2.SessionID,
+      sessionID: v1.metadata.sessionID,
       role: "assistant",
       parentID: "" as MessageV2.MessageID,
       agent: "build",
@@ -522,15 +522,15 @@ export function fromV1(v1: Message.Info): MessageWithParts {
         },
         reasoning: 0,
       },
-      modelID: v1.metadata.assistant!.modelID as MessageV2.Assistant["modelID"],
-      providerID: v1.metadata.assistant!.providerID as MessageV2.Assistant["providerID"],
+      modelID: v1.metadata.assistant!.modelID,
+      providerID: v1.metadata.assistant!.providerID,
       mode: "build",
       error: v1.metadata.error,
       parts: v1.parts.flatMap((part, index): MessageV2.Part[] => {
         const base = {
           id: index.toString() as MessageV2.PartID,
           messageID: v1.id as MessageV2.MessageID,
-          sessionID: v1.metadata.sessionID as MessageV2.SessionID,
+          sessionID: v1.metadata.sessionID,
         }
         if (part.type === "text") {
           return [
@@ -599,7 +599,7 @@ export function fromV1(v1: Message.Info): MessageWithParts {
   if (v1.role === "user") {
     return {
       id: v1.id as MessageV2.MessageID,
-      sessionID: v1.metadata.sessionID as MessageV2.SessionID,
+      sessionID: v1.metadata.sessionID,
       role: "user",
       agent: "user",
       model: {
@@ -613,7 +613,7 @@ export function fromV1(v1: Message.Info): MessageWithParts {
         const base = {
           id: index.toString() as MessageV2.PartID,
           messageID: v1.id as MessageV2.MessageID,
-          sessionID: v1.metadata.sessionID as MessageV2.SessionID,
+          sessionID: v1.metadata.sessionID,
         }
         if (part.type === "text") {
           return [

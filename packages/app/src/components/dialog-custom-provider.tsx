@@ -40,7 +40,7 @@ export function DialogCustomProvider(props: Props) {
       dialog.close()
       return
     }
-    dialog.show(() => <DialogSelectProvider />)
+    void dialog.show(() => <DialogSelectProvider />)
   }
 
   const addModel = () => {

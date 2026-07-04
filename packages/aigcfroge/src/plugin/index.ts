@@ -44,11 +44,10 @@ type TriggerName = {
 export interface Interface {
   readonly trigger: <
     Name extends TriggerName,
-    Input = Parameters<Required<Hooks>[Name]>[0],
     Output = Parameters<Required<Hooks>[Name]>[1],
   >(
     name: Name,
-    input: Input,
+    input: Parameters<Required<Hooks>[Name]>[0],
     output: Output,
   ) => Effect.Effect<Output>
   readonly list: () => Effect.Effect<Hooks[]>
@@ -184,9 +183,9 @@ export const layer = Layer.effect(
             items: plugins,
             kind: "server",
             report: {
-              start(candidate) {},
-              missing(candidate, _retry, message) {},
-              error(candidate, _retry, stage, error, resolved) {
+              start(_candidate) {},
+              missing(_candidate, _retry, _message) {},
+              error(candidate, _retry, stage, error, _resolved) {
                 const spec = candidate.plan.spec
                 const cause = error instanceof Error ? (error.cause ?? error) : error
                 const message = stage === "load" ? errorMessage(error) : errorMessage(cause)
@@ -279,9 +278,8 @@ export const layer = Layer.effect(
 
     const trigger = Effect.fn("Plugin.trigger")(function* <
       Name extends TriggerName,
-      Input = Parameters<Required<Hooks>[Name]>[0],
       Output = Parameters<Required<Hooks>[Name]>[1],
-    >(name: Name, input: Input, output: Output) {
+    >(name: Name, input: Parameters<Required<Hooks>[Name]>[0], output: Output) {
       if (!name) return output
       const s = yield* InstanceState.get(state)
       for (const hook of s.hooks) {

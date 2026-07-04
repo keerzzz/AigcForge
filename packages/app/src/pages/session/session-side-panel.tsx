@@ -20,7 +20,6 @@ import { useFile, type SelectedLineRange } from "@/context/file"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { useSettings } from "@/context/settings"
-import { useSync } from "@/context/sync"
 import { createFileTabListSync } from "@/pages/session/file-tab-scroll"
 import { FileTabContent } from "@/pages/session/file-tabs"
 import {
@@ -54,7 +53,6 @@ export function SessionSidePanel(props: {
 }) {
   const layout = useLayout()
   const settings = useSettings()
-  const sync = useSync()
   const file = useFile()
   const language = useLanguage()
   const command = useCommand()
@@ -317,7 +315,7 @@ export function SessionSidePanel(props: {
                               class="!rounded-md"
                               onClick={() => {
                                 void import("@/components/dialog-select-file").then((x) => {
-                                  dialog.show(() => <x.DialogSelectFile mode="files" onOpenFile={showAllFiles} />)
+                                  void dialog.show(() => <x.DialogSelectFile mode="files" onOpenFile={showAllFiles} />)
                                 })
                               }}
                               aria-label={language.t("command.file.open")}

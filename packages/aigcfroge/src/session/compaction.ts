@@ -130,7 +130,7 @@ function splitTurn(input: {
       if (size > input.budget) continue
       return {
         start,
-        id: input.messages[start]!.info.id,
+        id: input.messages[start].info.id,
       } satisfies Tail
     }
     return undefined
@@ -219,7 +219,7 @@ export const layer = Layer.effect(
       let total = 0
       let keep: Tail | undefined
       for (let i = recent.length - 1; i >= 0; i--) {
-        const turn = recent[i]!
+        const turn = recent[i]
         const size = sizes[i]
         if (total + size <= budget) {
           total += size

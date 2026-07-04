@@ -209,7 +209,7 @@ export async function checkHealth(url: string, password?: string | null): Promis
 
 function createSidecarEnv(): Record<string, string> {
   const env = Object.fromEntries(
-    Object.entries(process.env).flatMap(([key, value]) => (value === undefined ? [] : [[key, String(value)]])),
+    Object.entries(process.env).flatMap(([key, value]) => (value === undefined ? [] : [[key, value]])),
   )
   delete env.DEBUG
   if (process.platform === "linux") delete env.LD_PRELOAD

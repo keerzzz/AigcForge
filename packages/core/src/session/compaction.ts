@@ -16,7 +16,6 @@ const DEFAULT_KEEP_TOKENS = 8_000
 const SOFT_RATIO = 0.50
 const SNIP_RATIO = 0.60
 const COMPACT_RATIO = 0.80
-const FORCE_RATIO = 0.90
 const TOOL_OUTPUT_MAX_CHARS = 2_000
 const SUMMARY_OUTPUT_TOKENS = 4_096
 const SUMMARY_TEMPLATE = `Output exactly the Markdown structure shown inside <template> and keep the section order unchanged. Do not include the <template> tags in your response.
@@ -271,7 +270,6 @@ export const make = (dependencies: Dependencies) => {
     }
 
     // Compact zone (≥60% or wouldCompact): run summary compaction.
-    const force = watermark >= FORCE_RATIO
     const ok = yield* compactAfterOverflow(input)
     if (ok) {
       consecutiveCompacts++

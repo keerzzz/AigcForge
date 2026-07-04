@@ -2,7 +2,7 @@ import fs from "fs/promises"
 import path from "path"
 import { describe, expect, test } from "bun:test"
 import { NodeFileSystem } from "@effect/platform-node"
-import { Effect, Layer, Option } from "effect"
+import { Effect, Layer } from "effect"
 import { FSUtil } from "@aigcfroge/core/fs-util"
 import { Global } from "@aigcfroge/core/global"
 import { Npm } from "@aigcfroge/core/npm"
@@ -85,7 +85,7 @@ describe("Npm.install", () => {
 
     await Npm.install(tmp.path)
 
-    await expect(fs.stat(path.join(tmp.path, "node_modules", "prod-pkg"))).resolves.toBeDefined()
-    await expect(fs.stat(path.join(tmp.path, "node_modules", "dev-pkg"))).rejects.toThrow()
+    expect(fs.stat(path.join(tmp.path, "node_modules", "prod-pkg"))).resolves.toBeDefined()
+    expect(fs.stat(path.join(tmp.path, "node_modules", "dev-pkg"))).rejects.toThrow()
   })
 })

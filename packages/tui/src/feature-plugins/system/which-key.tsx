@@ -38,7 +38,7 @@ const COLUMN_GAP = 4
 const TAB_GAP = 3
 const MIN_TAB_GAP = 1
 const TAB_CONTENT_GAP = 1
-const MIN_COLUMN_WIDTH = 28
+const _MIN_COLUMN_WIDTH = 28
 const MAX_COLUMN_WIDTH = 44
 const PANEL_HEIGHT_RATIO = 0.3
 const MIN_PANEL_HEIGHT = 8
@@ -238,7 +238,7 @@ function WhichKeyPanel(props: {
     for (let column = 0; column < columns() && index < items().length; column++) {
       const list: Item[] = []
       while (list.length < rows() && index < items().length) {
-        list.push(items()[index]!)
+        list.push(items()[index])
         index += 1
       }
       columnsItems.push(list)
@@ -279,7 +279,7 @@ function WhichKeyPanel(props: {
       0,
       list.findIndex((item) => item.label === currentGroup()?.label),
     )
-    setActiveGroup(list[(index + delta + list.length) % list.length]!.label)
+    setActiveGroup(list[(index + delta + list.length) % list.length].label)
     setOffset(0)
   }
 

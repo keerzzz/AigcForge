@@ -59,7 +59,7 @@ export const layer = Layer.effect(
       if (process.env.AIGCFROGE_AUTH_CONTENT) {
         try {
           return JSON.parse(process.env.AIGCFROGE_AUTH_CONTENT)
-        } catch (err) {}
+        } catch {}
       }
 
       const data = (yield* fsys.readJson(file).pipe(Effect.orElseSucceed(() => ({})))) as Record<string, unknown>

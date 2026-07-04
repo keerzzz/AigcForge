@@ -113,8 +113,8 @@ export namespace Billing {
         invoice: draft.id!,
         description: ITEM_FEE_NAME,
       })
-      await Billing.stripe().invoices.finalizeInvoice(draft.id!)
-      await Billing.stripe().invoices.pay(draft.id!, {
+      await Billing.stripe().invoices.finalizeInvoice(draft.id)
+      await Billing.stripe().invoices.pay(draft.id, {
         off_session: true,
         payment_method: paymentMethodID!,
       })

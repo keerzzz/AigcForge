@@ -749,7 +749,7 @@ function scrollPatchFinal(p: ToolProps<typeof ApplyPatchTool>): string {
     return rows.join("\n")
   }
 
-  return patchLine(files[0]!)
+  return patchLine(files[0])
 }
 
 function scrollTaskStart(_: ToolProps<typeof TaskTool>): string {

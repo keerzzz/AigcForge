@@ -8,7 +8,7 @@ import { FetchHttpClient } from "effect/unstable/http"
 import { expect } from "bun:test"
 import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer } from "effect"
 import path from "path"
-import { fileURLToPath, pathToFileURL } from "url"
+import { fileURLToPath } from "url"
 import { NamedError } from "@aigcfroge/core/util/error"
 import { Agent as AgentSvc } from "../../src/agent/agent"
 import { BackgroundJob } from "@/background/job"
@@ -294,11 +294,6 @@ function providerCfg(url: string) {
 const writeText = Effect.fn("test.writeText")(function* (file: string, text: string) {
   const fs = yield* FSUtil.Service
   yield* fs.writeWithDirs(file, text)
-})
-
-const ensureDir = Effect.fn("test.ensureDir")(function* (dir: string) {
-  const fs = yield* FSUtil.Service
-  yield* fs.ensureDir(dir)
 })
 
 const writeConfig = Effect.fn("test.writeConfig")(function* (dir: string, config: Partial<ConfigV1.Info>) {
@@ -853,7 +848,7 @@ it.instance("subtask child inherits parent session external_directory allow", ()
 
     const kids = yield* sessions.children(chat.id)
     expect(kids).toHaveLength(1)
-    const child = kids[0]!
+    const child = kids[0]
     const rules = child.permission ?? []
     expect(rules).toEqual(
       expect.arrayContaining([{ permission: "external_directory", pattern: "/tmp/allowed/*", action: "allow" }]),

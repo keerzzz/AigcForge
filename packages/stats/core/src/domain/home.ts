@@ -312,7 +312,7 @@ function buildStatsHomeData(
       ),
     ),
     leaderboard: createUsageProductRecord((product) =>
-      createRangeRecord((range) => buildLeaderboard(normalized, product, getWindow("1W", earliest, latest))),
+      createRangeRecord((_range) => buildLeaderboard(normalized, product, getWindow("1W", earliest, latest))),
     ),
     market: createRangeRecord((range) => buildMarketShare(providers, "Go", range, getWindow(range, earliest, latest))),
     tokenCost: createTokenProductRecord((product) =>

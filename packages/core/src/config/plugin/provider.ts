@@ -5,7 +5,6 @@ import { Effect } from "effect"
 import { Config } from "../../config"
 import { ModelV2 } from "../../model"
 import { ModelRequest } from "../../model-request"
-import { ProviderV2 } from "../../provider"
 
 export const Plugin = define({
   id: "config-provider",

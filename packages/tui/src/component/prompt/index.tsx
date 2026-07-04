@@ -956,12 +956,12 @@ export function Prompt(props: PromptProps) {
     if (!agent) return false
     const trimmed = store.prompt.input.trim()
     if (trimmed === "exit" || trimmed === "quit" || trimmed === ":q") {
-      void exit()
+      exit()
       return true
     }
     const selectedModel = local.model.current()
     if (!selectedModel) {
-      void promptModelWarning()
+      promptModelWarning()
       return false
     }
 
@@ -1337,7 +1337,7 @@ export function Prompt(props: PromptProps) {
     }
   })
   const maxHeight = createMemo(() => tuiConfig.prompt?.max_height ?? Math.max(6, Math.floor(dimensions().height / 3)))
-  const moveLabelWidth = createMemo(() => Math.max(12, Math.min(44, dimensions().width - 48)))
+  const _moveLabelWidth = createMemo(() => Math.max(12, Math.min(44, dimensions().width - 48)))
 
   return (
     <>

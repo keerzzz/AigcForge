@@ -8,7 +8,6 @@ import { CrossSpawnSpawner } from "@aigcfroge/core/cross-spawn-spawner"
 import { FSUtil } from "@aigcfroge/core/fs-util"
 
 import { Instruction } from "../../src/session/instruction"
-import type { MessageV2 } from "../../src/session/message-v2"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
 import { Global } from "@aigcfroge/core/global"
 import { RuntimeFlags } from "../../src/effect/runtime-flags"

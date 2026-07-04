@@ -1163,7 +1163,7 @@ function Playground() {
     if (!root) return
     const next: Record<string, string> = {}
     for (const ctrl of CSS_CONTROLS) {
-      const el = (root.querySelector(sample(ctrl)) ?? root.querySelector(ctrl.selector)) as HTMLElement | null
+      const el = (root.querySelector(sample(ctrl)) ?? root.querySelector(ctrl.selector))
       if (!el) continue
       const styles = getComputedStyle(el)
       const raw = ctrl.property.startsWith("--")
@@ -1497,7 +1497,7 @@ function Playground() {
 
     const edits = controls.map((ctrl) => {
       const src = ctrl.source!
-      return { file: src.file, anchor: src.anchor, prop: src.prop, value: src.format(css[ctrl.key]!) }
+      return { file: src.file, anchor: src.anchor, prop: src.prop, value: src.format(css[ctrl.key]) }
     })
 
     try {
@@ -1518,7 +1518,7 @@ function Playground() {
       if (ok === edits.length) {
         batch(() => {
           for (const ctrl of controls) {
-            setDefaults(ctrl.key, css[ctrl.key]!)
+            setDefaults(ctrl.key, css[ctrl.key])
             setCss(ctrl.key, undefined as any)
           }
         })
@@ -1527,7 +1527,7 @@ function Playground() {
         setTimeout(readDefaults, 500)
       }
     } catch (err) {
-      setApplyResult(`Error: ${err}`)
+      setApplyResult(`Error: ${String(err)}`)
     } finally {
       setApplying(false)
     }
@@ -1585,7 +1585,7 @@ function Playground() {
   return (
     <div style={{ display: "flex", height: "calc(100vh - 48px)", gap: "0", overflow: "hidden", margin: "-24px" }}>
       {/* Inject dynamic style element */}
-      <style ref={styleEl!} />
+      <style ref={styleEl} />
 
       {/* Left sidebar: controls */}
       <div
@@ -1631,7 +1631,7 @@ function Playground() {
                   Import session
                 </button>
                 <input
-                  ref={pick!}
+                  ref={pick}
                   type="file"
                   accept=".json,application/json"
                   onChange={importFile}
@@ -1961,7 +1961,7 @@ function Playground() {
 
       {/* Main area: timeline preview */}
       <div
-        ref={previewRef!}
+        ref={previewRef}
         style={{ flex: "1", overflow: "auto", "min-width": "0", "background-color": "var(--background-stronger)" }}
       >
         <DataProvider data={data()} directory="/project">

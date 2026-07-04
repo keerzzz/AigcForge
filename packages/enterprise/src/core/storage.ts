@@ -100,7 +100,7 @@ export namespace Storage {
     return JSON.parse(result) as T
   }
 
-  export function write<T>(key: string[], value: T) {
+  export function write(key: string[], value: unknown) {
     return adapter().write(resolve(key), JSON.stringify(value))
   }
 

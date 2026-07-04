@@ -1,7 +1,6 @@
 import type { NamedError } from "@aigcfroge/core/util/error"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { Cause, Clock, Duration, Effect, Schedule } from "effect"
-import { MessageV2 } from "./message-v2"
 import { iife } from "@/util/iife"
 import { isRecord } from "@/util/record"
 
@@ -97,7 +96,7 @@ export function retryable(error: Err, provider: string) {
         const days = Math.floor(seconds / 86_400)
         const hours = Math.floor((seconds % 86_400) / 3_600)
         const minutes = Math.ceil((seconds % 3_600) / 60)
-        const unit = (value: number, name: string) => `${value} ${name}${value === 1 ? "" : "s"}`
+        const unit = (value: number, name: string) => `${String(value)} ${name}${value === 1 ? "" : "s"}`
 
         if (days > 0) return hours > 0 ? `${unit(days, "day")} ${unit(hours, "hour")}` : unit(days, "day")
         if (hours > 0) return minutes > 0 ? `${unit(hours, "hour")} ${unit(minutes, "minute")}` : unit(hours, "hour")
@@ -153,6 +152,7 @@ export function retryable(error: Err, provider: string) {
 
 function str(value: unknown) {
   if (value === undefined || value === null) return ""
+  if (typeof value === "object") return JSON.stringify(value)
   return String(value)
 }
 

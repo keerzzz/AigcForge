@@ -2,7 +2,7 @@ import yargs from "yargs"
 import { TuiThreadCommand } from "./cli/cmd/tui"
 import { InstallationVersion } from "@aigcfroge/core/installation/version"
 import { hideBin } from "yargs/helpers"
-const cli = yargs(hideBin(process.argv))
+  void yargs(hideBin(process.argv))
   .parserConfiguration({ "populate--": true })
   .scriptName("aigcfroge")
   .wrap(100)

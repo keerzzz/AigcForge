@@ -22,7 +22,7 @@ import { createEffect, createMemo, createResource, createSignal, onCleanup, onMo
 import { render } from "solid-js/web"
 import pkg from "../../package.json"
 import { initI18n, t } from "./i18n"
-import { initializationData, initializationReady } from "./initialization"
+import { initializationData } from "./initialization"
 import { resetZoom, setPinchZoomEnabled, webviewZoom, zoomIn, zoomOut } from "./webview-zoom"
 import { availableStartupServer, readyWslConnections } from "./wsl/connections"
 import "./styles.css"

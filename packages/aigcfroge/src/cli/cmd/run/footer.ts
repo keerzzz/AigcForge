@@ -258,13 +258,13 @@ export class RunFooter implements FooterApi {
     const [resources, setResources] = createSignal(options.resources)
     this.resources = resources
     this.setResources = setResources
-    const [commands, setCommands] = createSignal<RunCommand[] | undefined>(options.commands)
+    const [commands, setCommands] = createSignal(options.commands)
     this.commands = commands
     this.setCommands = setCommands
     const [providers, setProviders] = createSignal<RunProvider[] | undefined>()
     this.providers = providers
     this.setProviders = setProviders
-    const [currentModel, setCurrentModel] = createSignal<RunInput["model"]>(options.model)
+    const [currentModel, setCurrentModel] = createSignal(options.model)
     this.currentModel = currentModel
     this.setCurrentModel = setCurrentModel
     const [variants, setVariants] = createSignal<string[]>([])
@@ -639,7 +639,7 @@ export class RunFooter implements FooterApi {
     }
 
     this.closed = true
-    for (const fn of [...this.closes]) {
+    for (const fn of this.closes) {
       fn()
     }
   }
@@ -760,7 +760,7 @@ export class RunFooter implements FooterApi {
       return false
     }
 
-    for (const fn of [...this.prompts]) {
+    for (const fn of this.prompts) {
       fn(input)
     }
 
@@ -1103,7 +1103,7 @@ export class RunFooter implements FooterApi {
     this.queuedRemoves.clear()
     this.closes.clear()
     this.scrollback.destroy()
-    for (const theme of [...this.themes]) this.destroyTheme(theme)
+    for (const theme of this.themes) this.destroyTheme(theme)
   }
 
   // Drains the commit queue to scrollback. The surface manager owns grouping,

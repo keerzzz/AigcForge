@@ -152,7 +152,7 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
         // before the draft is removed from the store.
         const active = location.pathname === "/new-session" && location.query.draftId === draftID
         const next = { type: "session" as const, ...session }
-        startTransition(() => {
+        void startTransition(() => {
           setStore(
             produce((tabs) => {
               const index = tabs.findIndex((tab) => tab.type === "draft" && tab.draftID === draftID)

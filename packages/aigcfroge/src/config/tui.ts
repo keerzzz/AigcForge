@@ -89,7 +89,7 @@ const loadState = Effect.fn("TuiConfig.loadState")(function* (ctx: { directory: 
       return {
         ...config,
         plugin: yield* Effect.forEach(plugins, (plugin) =>
-          Effect.promise(() => ConfigPlugin.resolvePluginSpec(plugin as ConfigPlugin.Origin["spec"], configFilepath)),
+          Effect.promise(() => ConfigPlugin.resolvePluginSpec(plugin, configFilepath)),
         ),
       }
     })
@@ -157,7 +157,7 @@ const loadState = Effect.fn("TuiConfig.loadState")(function* (ctx: { directory: 
       const scope = pluginScope(file, ctx)
       const plugins = ConfigPlugin.deduplicatePluginOrigins([
         ...acc.plugin_origins,
-        ...data.plugin.map((spec) => ({ spec: spec as ConfigPlugin.Origin["spec"], scope, source: file })),
+        ...data.plugin.map((spec) => ({ spec, scope, source: file })),
       ])
       acc.result = {
         ...acc.result,

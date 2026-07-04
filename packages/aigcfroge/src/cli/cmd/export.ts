@@ -1,6 +1,5 @@
 import { Session } from "@/session/session"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
-import { MessageV2 } from "../../session/message-v2"
 import { SessionID } from "../../session/schema"
 import { effectCmd, fail } from "../effect-cmd"
 import { UI } from "../ui"
@@ -281,12 +280,12 @@ const run = Effect.fn("Cli.export.body")(function* (args: { sessionID?: string; 
   // Match legacy try/catch — catches both typed failures and defects
   // (Session.Service.get throws NotFoundError as a defect, not a typed E).
   return yield* Effect.gen(function* () {
-    const sessionInfo = yield* svc.get(sessionID!)
+    const sessionInfo = yield* svc.get(sessionID)
     const messages = yield* svc.messages({ sessionID: sessionInfo.id })
 
     const exportData = { info: sessionInfo, messages }
 
     process.stdout.write(JSON.stringify(args.sanitize ? sanitize(exportData) : exportData, null, 2))
     process.stdout.write(EOL)
-  }).pipe(Effect.catchCause(() => fail(`Session not found: ${sessionID!}`)))
+  }).pipe(Effect.catchCause(() => fail(`Session not found: ${sessionID}`)))
 })

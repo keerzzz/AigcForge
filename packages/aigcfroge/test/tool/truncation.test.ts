@@ -4,7 +4,6 @@ import { NodeFileSystem } from "@effect/platform-node"
 import { FSUtil } from "@aigcfroge/core/fs-util"
 import { Effect, FileSystem, Layer } from "effect"
 import { Truncate } from "@/tool/truncate"
-import { Config } from "@/config/config"
 import { Identifier } from "../../src/id/id"
 import { Process } from "@/util/process"
 import path from "path"
@@ -189,7 +188,7 @@ describe("Truncate", () => {
         expect(result.outputPath).toContain("tool_")
 
         const fsys = yield* FSUtil.Service
-        const written = yield* fsys.readFileString(result.outputPath!)
+        const written = yield* fsys.readFileString(result.outputPath)
         expect(written).toBe(lines)
       }),
     )

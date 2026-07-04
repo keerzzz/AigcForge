@@ -36,7 +36,6 @@ import { useServerSync } from "@/context/server-sync"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { usePrompt } from "@/context/prompt"
-import { usePlatform } from "@/context/platform"
 import { useSDK } from "@/context/sdk"
 import { useServerSDK } from "@/context/server-sdk"
 import { useSettings } from "@/context/settings"
@@ -87,7 +86,6 @@ export default function Page() {
   const sdk = useSDK()
   const serverSDK = useServerSDK()
   const settings = useSettings()
-  const platform = usePlatform()
   const prompt = usePrompt()
   const comments = useComments()
   const terminal = useTerminal()
@@ -201,7 +199,6 @@ export default function Page() {
 
   const info = createMemo(() => (params.id ? sync().session.get(params.id) : undefined))
   const isChildSession = createMemo(() => !!info()?.parentID)
-  const diffs = createMemo(() => (params.id ? list(sync().data.session_diff[params.id]) : []))
   const canReview = createMemo(() => !!sync().project)
   const reviewTab = createMemo(() => isDesktop())
   const tabState = createSessionTabs({
@@ -218,7 +215,6 @@ export default function Page() {
   const historyLoading = timeline.history.loading
   const historyMore = timeline.history.more
   const lastUserMessage = timeline.lastUserMessage
-  const messages = timeline.messages
   const messagesReady = timeline.ready
   const sessionSync = timeline.resource
   const userMessages = timeline.userMessages

@@ -105,7 +105,7 @@ describe("updater controller", () => {
     })
     await failed.start()
 
-    await expect(failed.install()).rejects.toThrow("stop failed")
+    expect(failed.install()).rejects.toThrow("stop failed")
     expect(failed.getState()).toEqual({ status: "ready", version: "2.0.0" })
   })
 })

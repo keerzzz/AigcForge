@@ -15,7 +15,7 @@ function markLocalServerStartup(error: unknown) {
   return failure
 }
 
-export function initializationReady<A>(state: (() => A | undefined) & { error: unknown; loading: boolean }) {
+export function initializationReady(state: (() => unknown) & { error: unknown; loading: boolean }) {
   if (state.loading) return false
   initializationData(state)
   return true

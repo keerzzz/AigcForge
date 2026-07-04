@@ -1,5 +1,4 @@
 import { PermissionV1 } from "@aigcfroge/core/v1/permission"
-import { Permission } from "@/permission"
 import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiError, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { PermissionNotFoundError } from "../errors"

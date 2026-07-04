@@ -135,7 +135,7 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const fs = yield* FSUtil.Service
-    const proc = yield* AppProcess.Service
+    yield* AppProcess.Service
     const spawner = yield* ChildProcessSpawner.ChildProcessSpawner
     const projectV2 = yield* ProjectV2.Service
     const projectDirectories = yield* ProjectDirectories.Service

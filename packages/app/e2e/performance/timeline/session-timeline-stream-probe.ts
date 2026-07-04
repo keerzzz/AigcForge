@@ -298,7 +298,7 @@ export async function installTimelineStreamProbe(
             state.visibleRows = new Set(visibleRows.map((item) => item.element))
             const rows = visibleRows.map((item) => item.rect)
             rows.slice(1).forEach((rect, index) => {
-              const previous = rows[index]!
+              const previous = rows[index]
               state.maxOverlap = Math.max(state.maxOverlap, previous.bottom - rect.top)
               state.maxGap = Math.max(state.maxGap, rect.top - previous.bottom)
             })
@@ -452,7 +452,7 @@ export async function collectTimelineStreamMetrics(
     const busyFrames =
       busyStart === undefined || busyEnd === undefined
         ? []
-        : state.frames.filter((_, index) => state.frameAt[index]! >= busyStart && state.frameAt[index]! <= busyEnd)
+        : state.frames.filter((_, index) => state.frameAt[index] >= busyStart && state.frameAt[index] <= busyEnd)
     const busySorted = busyFrames.slice().sort((a, b) => a - b)
     const busyDuration = busyFrames.reduce((sum, value) => sum + value, 0)
     const completionObservedMs = (completion?.at ?? NaN) - state.started

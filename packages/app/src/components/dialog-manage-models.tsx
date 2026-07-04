@@ -16,7 +16,7 @@ export const DialogManageModels: Component = () => {
   const dialog = useDialog()
 
   const handleConnectProvider = () => {
-    dialog.show(() => <DialogSelectProvider />)
+    void dialog.show(() => <DialogSelectProvider />)
   }
   const providerRank = (id: string) => popularProviders.indexOf(id)
   const providerList = (providerID: string) => local.model.list().filter((x) => x.provider.id === providerID)
@@ -88,7 +88,7 @@ export const DialogManageModels: Component = () => {
             <span>{i.name}</span>
             <div onClick={(e) => e.stopPropagation()}>
               <Switch
-                checked={!!local.model.visible({ modelID: i.id, providerID: i.provider.id })}
+                checked={local.model.visible({ modelID: i.id, providerID: i.provider.id })}
                 onChange={(checked) => {
                   local.model.setVisibility({ modelID: i.id, providerID: i.provider.id }, checked)
                 }}

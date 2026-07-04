@@ -255,7 +255,7 @@ export const githubInstall = Effect.fn("Cli.github.install")(function* () {
       }
 
       async function promptModel() {
-        const providerData = providers[provider]!
+        const providerData = providers[provider]
 
         const model = await prompts.select({
           message: "Select model",
@@ -1168,8 +1168,8 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
         permission = response.data.permission
         console.log(`  permission: ${permission}`)
       } catch (error) {
-        console.error(`Failed to check permissions: ${error}`)
-        throw new Error(`Failed to check permissions for user ${actor}: ${error}`, { cause: error })
+        console.error(`Failed to check permissions: ${String(error)}`)
+        throw new Error(`Failed to check permissions for user ${actor}: ${String(error)}`, { cause: error })
       }
 
       if (!["admin", "write"].includes(permission)) throw new Error(`User ${actor} does not have write permissions`)
@@ -1183,14 +1183,14 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
           return await octoRest.rest.reactions.createForPullRequestReviewComment({
             owner,
             repo,
-            comment_id: triggerCommentId!,
+            comment_id: triggerCommentId,
             content: AGENT_REACTION,
           })
         }
         return await octoRest.rest.reactions.createForIssueComment({
           owner,
           repo,
-          comment_id: triggerCommentId!,
+          comment_id: triggerCommentId,
           content: AGENT_REACTION,
         })
       }
@@ -1210,7 +1210,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
           const reactions = await octoRest.rest.reactions.listForPullRequestReviewComment({
             owner,
             repo,
-            comment_id: triggerCommentId!,
+            comment_id: triggerCommentId,
             content: AGENT_REACTION,
           })
 
@@ -1220,7 +1220,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
           return await octoRest.rest.reactions.deleteForPullRequestComment({
             owner,
             repo,
-            comment_id: triggerCommentId!,
+            comment_id: triggerCommentId,
             reaction_id: eyesReaction.id,
           })
         }
@@ -1228,7 +1228,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
         const reactions = await octoRest.rest.reactions.listForIssueComment({
           owner,
           repo,
-          comment_id: triggerCommentId!,
+          comment_id: triggerCommentId,
           content: AGENT_REACTION,
         })
 
@@ -1238,7 +1238,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
         return await octoRest.rest.reactions.deleteForIssueComment({
           owner,
           repo,
-          comment_id: triggerCommentId!,
+          comment_id: triggerCommentId,
           reaction_id: eyesReaction.id,
         })
       }
@@ -1294,7 +1294,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
         }
       } catch (e) {
         // If the check fails, proceed to create - we'll get a clear error if a PR already exists
-        console.log(`Failed to check for existing PR: ${e}`)
+        console.log(`Failed to check for existing PR: ${String(e)}`)
       }
 
       // Verify there are commits between base and head before creating the PR.

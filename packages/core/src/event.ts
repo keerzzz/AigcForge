@@ -239,7 +239,7 @@ export const layerWith = (options?: LayerOptions) =>
                             .pipe(Effect.orDie)
                           const latest = row?.seq ?? -1
                           const encoded = Schema.encodeUnknownSync(
-                            definition.data as Schema.Codec<unknown, unknown, never, never>,
+                            definition.data as Schema.Codec<unknown, unknown>,
                           )(event.data) as Record<string, unknown>
                           if (input?.strictOwner && row?.ownerID && row.ownerID !== input.ownerID) {
                             yield* Effect.die(
@@ -442,7 +442,7 @@ export const layerWith = (options?: LayerOptions) =>
             const payload = {
               id: event.id,
               type: definition.type,
-              data: Schema.decodeUnknownSync(definition.data as Schema.Codec<unknown, unknown, never, never>)(
+              data: Schema.decodeUnknownSync(definition.data as Schema.Codec<unknown, unknown>)(
                 event.data,
               ),
             } as Payload
@@ -539,7 +539,7 @@ export const layerWith = (options?: LayerOptions) =>
           id: event.id,
           type: definition.type,
           durable: { aggregateID: event.aggregateID, seq: event.seq, version: definition.durable.version },
-          data: Schema.decodeUnknownSync(definition.data as Schema.Codec<unknown, unknown, never, never>)(event.data),
+          data: Schema.decodeUnknownSync(definition.data as Schema.Codec<unknown, unknown>)(event.data),
         }
       }
 

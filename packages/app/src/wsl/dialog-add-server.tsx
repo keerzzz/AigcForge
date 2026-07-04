@@ -442,7 +442,7 @@ export function DialogAddWslServer(props: DialogWslServerProps = {}) {
                           variant="secondary"
                           size="small"
                           disabled={busy() || !installTarget()}
-                          onClick={() => void run(() => api.installDistro(installTarget()!.name))}
+                          onClick={() => void run(() => api.installDistro(installTarget().name))}
                         >
                           {installingDistro()
                             ? language.t("wsl.onboarding.installing")

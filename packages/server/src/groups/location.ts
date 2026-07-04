@@ -1,6 +1,5 @@
 import { Location } from "@aigcfroge/core/location"
 import { LocationServiceMap } from "@aigcfroge/core/location-layer"
-import { FileSystem } from "@aigcfroge/core/filesystem"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { WorkspaceV2 } from "@aigcfroge/core/workspace"
 import { Effect, Layer, Schema } from "effect"

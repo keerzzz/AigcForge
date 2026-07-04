@@ -51,7 +51,7 @@ export const DialogSelectMcp: Component = () => {
           const mcpStatus = () => sync().data.mcp[i.name]
           const status = () => mcpStatus()?.status
           const statusLabel = () => {
-            const key = status() ? statusLabels[status() as keyof typeof statusLabels] : undefined
+            const key = status() ? statusLabels[status()] : undefined
             if (!key) return
             return language.t(key)
           }

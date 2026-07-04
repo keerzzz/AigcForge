@@ -145,7 +145,7 @@ export const layer = Layer.effect(
     const events = yield* EventV2Bridge.Service
 
     const state = yield* InstanceState.make<State>(
-      Effect.fn("LSP.state")(function* (ctx) {
+      Effect.fn("LSP.state")(function* (_ctx) {
         const cfg = yield* config.get()
 
         const servers: Record<string, LSPServer.Info> = {}
@@ -277,7 +277,7 @@ export const layer = Layer.effect(
           const task = schedule(server, root, root + server.id)
           s.spawning.set(root + server.id, task)
 
-          task.finally(() => {
+          void task.finally(() => {
             if (s.spawning.get(root + server.id) === task) {
               s.spawning.delete(root + server.id)
             }

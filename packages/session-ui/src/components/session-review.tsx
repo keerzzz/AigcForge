@@ -68,7 +68,6 @@ type RawReviewDiff = (SnapshotFileDiff | VcsFileDiff) & {
 type ReviewDiff = ((SnapshotFileDiff & { file: string }) | VcsFileDiff) & {
   preloaded?: PreloadMultiFileDiffResult<any>
 }
-type Item = ViewDiff & { preloaded?: PreloadMultiFileDiffResult<any> }
 
 function diff(value: unknown): value is ReviewDiff {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false
@@ -396,8 +395,8 @@ export const SessionReview = (props: SessionReviewProps) => {
                     const diffCanRender = () => diff().additions !== 0 || diff().deletions !== 0
 
                     const expanded = createMemo(() => open().includes(file))
-                    const mounted = createMemo(() => expanded() && (!!store.visible[file] || pinned(file)))
-                    const force = () => !!store.force[file]
+                    const mounted = createMemo(() => expanded() && (store.visible[file] || pinned(file)))
+                    const force = () => store.force[file]
 
                     const comments = createMemo(() => grouped().get(file) ?? [])
                     const commentedLines = createMemo(() => comments().map((c) => c.selection))

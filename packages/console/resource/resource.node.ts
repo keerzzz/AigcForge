@@ -49,7 +49,7 @@ export const Resource = new Proxy(
               client.kv.namespaces.values.delete(namespaceId, k, {
                 account_id: accountId,
               }),
-            list: (opts?: KVNamespaceListOptions): Promise<KVNamespaceListResult<unknown, string>> =>
+            list: (opts?: KVNamespaceListOptions): Promise<KVNamespaceListResult<unknown>> =>
               client.kv.namespaces.keys
                 .list(namespaceId, {
                   account_id: accountId,

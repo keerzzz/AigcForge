@@ -27,7 +27,7 @@ export const questionHandlers = HttpApiBuilder.group(InstanceHttpApi, "question"
             Effect.fail(
               new QuestionNotFoundError({
                 requestID: String(error.requestID),
-                message: `Question request not found: ${error.requestID}`,
+                message: `Question request not found: ${String(error.requestID)}`,
               }),
             ),
           ),
@@ -41,7 +41,7 @@ export const questionHandlers = HttpApiBuilder.group(InstanceHttpApi, "question"
           Effect.fail(
             new QuestionNotFoundError({
               requestID: String(error.requestID),
-              message: `Question request not found: ${error.requestID}`,
+              message: `Question request not found: ${String(error.requestID)}`,
             }),
           ),
         ),

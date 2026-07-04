@@ -785,8 +785,8 @@ async function assertPermissions() {
     permission = response.data.permission
     console.log(`  permission: ${permission}`)
   } catch (error) {
-    console.error(`Failed to check permissions: ${error}`)
-    throw new Error(`Failed to check permissions for user ${actor}: ${error}`, { cause: error })
+    console.error(`Failed to check permissions: ${String(error)}`)
+    throw new Error(`Failed to check permissions for user ${actor}: ${String(error)}`, { cause: error })
   }
 
   if (!["admin", "write"].includes(permission)) throw new Error(`User ${actor} does not have write permissions`)

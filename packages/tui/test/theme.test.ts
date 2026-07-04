@@ -21,7 +21,7 @@ test("addTheme keeps first theme for duplicate names", () => {
 
   expect(addTheme(name, one)).toBe(true)
   expect(addTheme(name, two)).toBe(false)
-  expect(allThemes()[name]!.theme.primary).toBe("#101010")
+  expect(allThemes()[name].theme.primary).toBe("#101010")
 })
 
 test("addTheme ignores entries without a theme object", () => {
@@ -77,5 +77,5 @@ test("custom theme precedence follows directory order", async () => {
   await writeFile(path.join(global, "themes", "custom.json"), JSON.stringify({ source: "global" }))
   await writeFile(path.join(project, "themes", "custom.json"), JSON.stringify({ source: "project" }))
 
-  await expect(discoverThemes([global, project])).resolves.toEqual({ custom: { source: "project" } })
+  expect(discoverThemes([global, project])).resolves.toEqual({ custom: { source: "project" } })
 })

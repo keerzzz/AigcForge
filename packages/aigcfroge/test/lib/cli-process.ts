@@ -232,7 +232,7 @@ export function withCliFixture<A, E>(
             command: err.command,
             exitCode: err.exitCode ?? -1,
             stdout: Buffer.alloc(0),
-            stderr: Buffer.from((err.stderr ?? String(err.cause ?? err.message)) + "\n"),
+            stderr: Buffer.from((err.stderr ?? err.message) + "\n"),
             stdoutTruncated: false,
             stderrTruncated: false,
           } satisfies AppProcess.RunResult),
@@ -379,7 +379,7 @@ export function withCliFixture<A, E>(
         kill: () => {
           proc.kill()
         },
-        exited: proc.exited as Promise<number>,
+        exited: proc.exited,
       } satisfies ServeHandle
     })
 
@@ -458,7 +458,7 @@ export function withCliFixture<A, E>(
         receive: Queue.take(responses),
         // proc.stdin.end() is idempotent in Bun; no try/catch needed.
         close: () => proc.stdin.end(),
-        exited: proc.exited as Promise<number>,
+        exited: proc.exited,
       } satisfies AcpHandle
     })
 

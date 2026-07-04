@@ -242,7 +242,7 @@ export async function handler(
       return { providerInfo, reqBody, res, startTimestamp }
     }
 
-    const { providerInfo, reqBody, res, startTimestamp } = await retriableRequest()
+    const { providerInfo, reqBody: _reqBody, res, startTimestamp } = await retriableRequest()
 
     // Store sticky provider
     if (res.status === 200) await stickyTracker?.set(providerInfo.id)
@@ -924,7 +924,7 @@ export async function handler(
   }
 
   function calculateCost(modelInfo: ModelInfo, usageInfo: UsageInfo) {
-    const { inputTokens, outputTokens, reasoningTokens, cacheReadTokens, cacheWrite5mTokens, cacheWrite1hTokens } =
+    const { inputTokens, outputTokens, reasoningTokens: _reasoningTokens, cacheReadTokens, cacheWrite5mTokens, cacheWrite1hTokens } =
       usageInfo
 
     const modelCost =

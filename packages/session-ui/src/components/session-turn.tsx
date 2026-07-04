@@ -280,7 +280,7 @@ export function SessionTurn(
       for (let i = 0; i < messages.length; i++) {
         const item = messages[i]
         if (!item) continue
-        if (item.role === "assistant" && item.parentID === msg.id) result.push(item as AssistantMessage)
+        if (item.role === "assistant" && item.parentID === msg.id) result.push(item)
       }
       return result
     },

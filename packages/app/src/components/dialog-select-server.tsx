@@ -17,7 +17,6 @@ import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { normalizeServerUrl, ServerConnection, useServer } from "@/context/server"
 import { type ServerHealth, useCheckServerHealth } from "@/utils/server-health"
-import { useSettings } from "@/context/settings"
 import { useTabs } from "@/context/tabs"
 
 const DEFAULT_USERNAME = "aigcfroge"
@@ -335,7 +334,6 @@ export function useServerManagementController(options: { onSelect?: () => void; 
     return [current, ...list.filter((x) => x !== current)]
   })
 
-  const settings = useSettings()
 	const current = createMemo<ServerConnection.Any | undefined>(() => undefined)
 
   const sortedItems = createMemo(() => {
@@ -549,7 +547,6 @@ export function useServerManagementController(options: { onSelect?: () => void; 
 
 export function ServerConnectionList(props: { controller: ReturnType<typeof useServerManagementController> }) {
   const language = useLanguage()
-  const settings = useSettings()
 
   return (
     <div class="flex flex-1 min-h-0 flex-col gap-4">

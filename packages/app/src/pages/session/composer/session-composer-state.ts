@@ -21,8 +21,6 @@ export const todoState = (input: {
   return "close"
 }
 
-const idle = { type: "idle" as const }
-
 export function createSessionComposerState(options?: { closeMs?: number | (() => number) }) {
   const params = useParams()
   const sdk = useSDK()

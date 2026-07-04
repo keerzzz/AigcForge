@@ -66,7 +66,6 @@ type TauriApi = {
 const tauriApi = () => (window as unknown as { __TAURI__?: TauriApi }).__TAURI__
 const currentDesktopWindow = () => tauriApi()?.window?.getCurrentWindow?.()
 const currentThemeWindow = () => tauriApi()?.webviewWindow?.getCurrentWebviewWindow?.()
-const legacyTitlebarHeight = 40
 const v2TitlebarHeight = 36
 const minTitlebarZoom = 0.25
 const windowsControlsBaseWidth = 138 // 3 native Windows caption buttons at 46px each.

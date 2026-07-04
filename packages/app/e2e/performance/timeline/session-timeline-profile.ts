@@ -1,4 +1,4 @@
-import type { CDPSession, Page } from "@playwright/test"
+import type { Page } from "@playwright/test"
 
 export async function startTimelineProfile(page: Page, options: { cpuThrottle: number; profileCPU: boolean }) {
   const cdp = await page.context().newCDPSession(page)

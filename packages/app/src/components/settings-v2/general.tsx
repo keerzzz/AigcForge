@@ -5,7 +5,6 @@ import { SelectV2 } from "@aigcfroge/ui/v2/select-v2"
 import { Switch } from "@aigcfroge/ui/v2/switch-v2"
 import { TextInputV2 } from "@aigcfroge/ui/v2/text-input-v2"
 import { useTheme, type ColorScheme } from "@aigcfroge/ui/theme/context"
-import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useParams } from "@solidjs/router"
 import { useLanguage } from "@/context/language"
 import { usePermission } from "@/context/permission"
@@ -87,7 +86,6 @@ export const SettingsGeneralV2: Component = () => {
   const language = useLanguage()
   const permission = usePermission()
   const platform = usePlatform()
-  const dialog = useDialog()
   const params = useParams()
   const settings = useSettings()
   const mobile = createMediaQuery("(max-width: 767px)")
@@ -277,7 +275,7 @@ export const SettingsGeneralV2: Component = () => {
             onSelect={(option) => {
               if (!option) return
               if (option.value === currentShell()) return
-              serverSync().updateConfig({ shell: option.value })
+              void serverSync().updateConfig({ shell: option.value })
             }}
           />
         </SettingsRowV2>

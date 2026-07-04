@@ -83,7 +83,7 @@ export async function CopilotAuthPlugin(input: PluginInput): Promise<Hooks> {
               Object.entries(result.models).filter(([, model]) => result.pickerEnabled.has(model.api.id)),
             )
           })
-          .catch((error) => {
+          .catch((_error) => {
             models = {}
             return Object.fromEntries(
               Object.entries(provider.models).map(([id, model]) => [id, fix(model, base(auth.enterpriseUrl))]),
@@ -226,7 +226,7 @@ export async function CopilotAuthPlugin(input: PluginInput): Promise<Hooks> {
 
             if (deploymentType === "enterprise") {
               const enterpriseUrl = inputs.enterpriseUrl
-              domain = normalizeDomain(enterpriseUrl!)
+              domain = normalizeDomain(enterpriseUrl)
             }
 
             const urls = getUrls(domain)
