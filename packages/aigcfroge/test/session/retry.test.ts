@@ -344,6 +344,31 @@ describe("session.retry.retryable", () => {
       "Usage limit reached. It will reset in 15 minutes. To continue using this model now, enable usage from your available balance",
     )
   })
+
+  test("serializes object metadata to JSON instead of [object Object]", () => {
+    const error = Schema.decodeUnknownSync(SessionV1.APIError.Schema)(
+      new SessionV1.APIError({
+        message: "Subscription quota exceeded.",
+        isRetryable: true,
+        statusCode: 429,
+        responseHeaders: { "retry-after": "900" },
+        responseBody: JSON.stringify({
+          type: "error",
+          error: {
+            type: "GoUsageLimitError",
+            message: "Subscription quota exceeded.",
+          },
+          metadata: {
+            workspace: { weird: "object" },
+            limitName: "5 hour",
+          },
+        }),
+      }).toObject(),
+    )
+
+    const retryable = SessionRetry.retryable(error, "aigcfroge-go")
+    expect(retryable?.action?.link).toBe('https://aigcfroge.ai/workspace/{"weird":"object"}/go')
+  })
 })
 
 describe("session.message-v2.fromError", () => {
