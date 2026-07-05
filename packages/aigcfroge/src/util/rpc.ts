@@ -3,7 +3,7 @@ type Definition = {
 }
 
 export function listen(rpc: Definition) {
-  onmessage = async (evt) => {
+  self.onmessage = async (evt: MessageEvent) => {
     let parsed: any
     try {
       parsed = JSON.parse(evt.data)

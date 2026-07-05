@@ -181,7 +181,7 @@ Enforced across all Effect-touching packages. Detail lives in `.aigcfroge/skills
 
 ## V2 Session Core
 
-These are architectural invariants. The full subsystem picture lives in `ARCHITECTURE.md` §4.1. Symbols span two packages — implementations live in `packages/core/src`, consumers in `packages/aigcfroge/src`.
+These are architectural invariants. The full subsystem picture lives in `ARCHITECTURE.md` §4.1; terminology and relationship invariants live in `CONTEXT.md`. Symbols span two packages — implementations live in `packages/core/src`, consumers in `packages/aigcfroge/src`.
 
 - Keep durable prompt admission separate from model execution. `SessionV2.prompt(...)` admits one durable `session_input` row before scheduling advisory `SessionExecution.wake(sessionID)` unless `resume: false` requests admit-only behavior. The serialized runner promotes admitted inputs into visible user messages at safe boundaries.
 - Reusing a Session ID adopts the existing Session. Reusing a prompt message ID reconciles an exact retry only when Session, prompt, and delivery mode match; conflicting reuse fails. Historical projected prompts lazily synthesize promoted inbox records during exact retry.

@@ -2,6 +2,8 @@
 
 Aigcfroge sessions preserve durable conversational history while assembling the runtime context an agent needs to act correctly in its current environment.
 
+> **Protocol links**: this file is the Session Runtime terminology + relationship-invariant dictionary (not project-wide context). Architecture lives in [`ARCHITECTURE.md`](ARCHITECTURE.md) §4.1; architectural constraints in [`AGENTS.md`](AGENTS.md) → V2 Session Core; V2 API design in [`specs/v2/session.md`](specs/v2/session.md).
+
 ## Language
 
 **System Context**:

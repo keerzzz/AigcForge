@@ -21,7 +21,7 @@
 | Implementation plans & status | `docs/plan/`, `specs/v2/todo.md` |
 | Architecture decisions | `docs/architecture/adr/` |
 
-> **`CONTEXT.md` caveat**: despite its name, it is the Session Runtime terminology dictionary (23 terms + 135 relationship constraints), **not** a project-wide context file. Read it when working on Session V2 internals.
+> **`CONTEXT.md` caveat**: despite its name, it is the Session Runtime terminology dictionary (19 terms + 63 relationship constraints + 1 example dialogue + 1 flagged ambiguity), **not** a project-wide context file. Read it when working on Session V2 internals.
 >
 > **`packages/llm/DESIGN.md` caveat**: it is a Discussion draft for a future `@aigcfroge/ai` package, **not** a sub-protocol of the root `DESIGN.md`. The naming is coincidental.
 

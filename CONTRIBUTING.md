@@ -31,6 +31,8 @@ https://github.com/anomalyco/models.dev
 
 ## Developing Aigcfroge
 
+> **Project documentation**: [`CLAUDE.md`](CLAUDE.md) (first principles, gates, review flow) · [`AGENTS.md`](AGENTS.md) (code style — authoritative) · [`DESIGN.md`](DESIGN.md) (UI design, tokens, i18n, a11y) · [`ARCHITECTURE.md`](ARCHITECTURE.md) (system structure, package topology) · `CONTEXT.md` (Session V2 terminology dictionary). Package-level `AGENTS.md` files strengthen these rules per package.
+
 - Requirements: Bun 1.3+
 - Install dependencies and start the dev server from the repo root:
 
@@ -69,7 +71,7 @@ Then run it with:
 
 Replace `<platform>` with your platform (e.g., `darwin-arm64`, `linux-x64`).
 
-- Core pieces:
+- Core pieces (the most relevant packages for contributors; the full 21-package topology is in [`ARCHITECTURE.md`](ARCHITECTURE.md) §3):
   - `packages/aigcfroge`: Aigcfroge core business logic & server.
   - `packages/aigcfroge/src/cli/cmd/tui/`: The TUI code, written in SolidJS with [opentui](https://github.com/sst/opentui)
   - `packages/app`: The shared web UI components, written in SolidJS
@@ -237,16 +239,16 @@ Examples:
 
 ### Style Preferences
 
-These are not strictly enforced, they are just general guidelines:
+The authoritative rules live in [`AGENTS.md`](AGENTS.md) (Style Guide, Effect Coding, Schema, Testing); the bullets below are a quick summary for contributors:
 
 - **Functions:** Keep logic within a single function unless breaking it out adds clear reuse or composition benefits.
 - **Destructuring:** Do not do unnecessary destructuring of variables.
 - **Control flow:** Avoid `else` statements.
-- **Error handling:** Prefer `.catch(...)` instead of `try`/`catch` when possible.
-- **Types:** Reach for precise types and avoid `any`.
+- **Error handling:** Use `try`/`catch` only at effectful boundaries (external API, file, network, subprocess, JSON parsing); at Effect boundaries prefer `Effect.try` or `Effect.catchTag`. For promise chains, `.catch(...)` is fine.
+- **Types:** Reach for precise types and avoid `any`. Use `unknown` and narrow with type guards, or `Schema.Defect` at Effect defect boundaries.
 - **Variables:** Stick to immutable patterns and avoid `let`.
 - **Naming:** Choose concise single-word identifiers when they remain descriptive.
-- **Runtime APIs:** Use Bun helpers such as `Bun.file()` when they fit the use case.
+- **Runtime APIs:** Use Bun helpers such as `Bun.file()` in scripts and non-Effect entrypoints; Effect-scoped code uses `FileSystem`/`HttpClient` services instead.
 
 ## Feature Requests
 
