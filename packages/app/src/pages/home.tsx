@@ -155,12 +155,25 @@ export function Home() {
   const focusedSync = () => focusedServerCtx()?.sync ?? sync()
   const projects = createMemo(() => focusedServerCtx()?.projects.list() ?? layout.projects.list())
   const selectedProject = createMemo(() => projects().find((project) => project.worktree === state.selection.directory))
-  const newSessionProject = createMemo(
-    () =>
-      selectedProject() ??
-      projects().find((project) => project.worktree === focusedServerCtx()?.projects.last()) ??
-      projects()[0],
-  )
+  const focusedScope = createMemo(() => focusedServerCtx()?.sdk.scope)
+  // Directory for global "new session" entry points (mode cards, session-group header "+").
+  // Priority: if the selected project contains the last session's directory, continue there
+  // (preserves the workspace the user was last working in); otherwise fall back to the
+  // selected project root, then the last session directory, then the first project.
+  const newSessionDirectory = createMemo(() => {
+    const selected = selectedProject()
+    const last = focusedScope() ? global.lastSession.directory(focusedScope()!) : undefined
+    if (selected && last) {
+      const lastKey = pathKey(last)
+      const containsLast =
+        pathKey(selected.worktree) === lastKey ||
+        (selected.sandboxes ?? []).some((s) => pathKey(s) === lastKey)
+      if (containsLast) return last
+    }
+    if (selected) return selected.worktree
+    if (last) return last
+    return projects()[0]?.worktree
+  })
   const directories = (project: LocalProject) => [project.worktree, ...(project.sandboxes ?? [])]
   const projectDirectories = createMemo(() => {
     const project = selectedProject()
@@ -253,6 +266,29 @@ export function Home() {
     })
   }
 
+  // On first load (no project selected yet), default-select the project that
+  // contains the last session's directory, so the project list highlights where
+  // the user last worked. Runs once; later user selections are respected.
+  let defaultSelectionApplied = false
+  createEffect(() => {
+    if (defaultSelectionApplied) return
+    if (state.selection.directory) {
+      defaultSelectionApplied = true
+      return
+    }
+    const scope = focusedScope()
+    if (!scope) return
+    const last = global.lastSession.directory(scope)
+    if (!last) return
+    const lastKey = pathKey(last)
+    const project = projects().find(
+      (p) =>
+        pathKey(p.worktree) === lastKey || (p.sandboxes ?? []).some((s) => pathKey(s) === lastKey),
+    )
+    defaultSelectionApplied = true
+    if (project) setSelection({ server: state.selection.server, directory: project.worktree })
+  })
+
   function closeSearch() {
     setState("search", "")
     setState("searchFocused", false)
@@ -314,15 +350,26 @@ export function Home() {
 
   function openNewSession() {
     const conn = focusedServer()
-    const project = newSessionProject()
-    if (!conn || !project) return
-    openProjectNewSession(conn, project.worktree)
+    const directory = newSessionDirectory()
+    if (!conn || !directory) return
+    openProjectNewSession(conn, directory)
   }
 
   function openProjectNewSession(conn: ServerConnection.Any, directory: string) {
     const ctx = global.ensureServerCtx(conn)
-    ctx.projects.open(directory)
-    ctx.projects.touch(directory)
+    // If `directory` is a workspace (sandbox), open its parent project rather than
+    // registering the workspace itself as a top-level project (which would trigger
+    // the rootFor() redirect). The draft is still created in the exact directory.
+    const dirKey = pathKey(directory)
+    const parent = ctx.projects
+      .list()
+      .find(
+        (p) =>
+          pathKey(p.worktree) === dirKey || (p.sandboxes ?? []).some((s) => pathKey(s) === dirKey),
+      )
+    const projectWorktree = parent?.worktree ?? directory
+    ctx.projects.open(projectWorktree)
+    ctx.projects.touch(projectWorktree)
     tabs.newDraft({ server: ServerConnection.key(conn), directory })
   }
 
@@ -393,9 +440,9 @@ export function Home() {
       return
     }
     const conn = focusedServer()
-    const project = newSessionProject()
-    if (conn && project) {
-      openProjectNewSession(conn, project.worktree)
+    const directory = newSessionDirectory()
+    if (conn && directory) {
+      openProjectNewSession(conn, directory)
     }
   }
 
@@ -462,7 +509,7 @@ export function Home() {
                     <div class="flex min-w-0 flex-col gap-4">
                       <HomeSessionGroupHeader
                         title={language.t("home.sessions.empty")}
-                        onNewSession={newSessionProject() ? openNewSession : undefined}
+                        onNewSession={newSessionDirectory() ? openNewSession : undefined}
                       />
                     </div>
                   }
@@ -472,7 +519,7 @@ export function Home() {
                       <div class="flex min-w-0 flex-col gap-4">
                         <HomeSessionGroupHeader
                           title={group.title}
-                          onNewSession={index() === 0 && newSessionProject() ? openNewSession : undefined}
+                          onNewSession={index() === 0 && newSessionDirectory() ? openNewSession : undefined}
                         />
                         <div class="flex min-w-0 flex-col gap-px">
                           <For each={group.sessions}>
@@ -1173,7 +1220,7 @@ function HomeSessionGroupHeader(props: { title: string; onNewSession?: () => voi
             size="normal"
             icon="edit"
             class="h-7 px-2 [font-weight:530]"
-            onClick={onNewSession()}
+            onClick={onNewSession}
           >
             {language.t("command.session.new")}
           </ButtonV2>

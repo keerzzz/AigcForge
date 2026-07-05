@@ -603,6 +603,12 @@ export const maybeParseApplyPatchVerified = Effect.fn("Patch.maybeParseApplyPatc
           effectiveCwd,
           hunk.type === "update" && hunk.move_path ? hunk.move_path : hunk.path,
         )
+        if (!FSUtil.contains(effectiveCwd, resolvedPath)) {
+          return {
+            type: MaybeApplyPatchVerified.CorrectnessError,
+            error: new Error(`Path escapes the working directory: ${resolvedPath}`),
+          } satisfies MaybeApplyPatchVerifiedResult
+        }
 
         switch (hunk.type) {
           case "add":

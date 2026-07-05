@@ -1,4 +1,4 @@
-import { Show, createMemo, createSignal, For, onCleanup, onMount, type Accessor } from "solid-js"
+import { Show, createEffect, createMemo, createSignal, For, onCleanup, onMount, type Accessor } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { useParams } from "@solidjs/router"
 import { getFilename } from "@aigcfroge/core/util/path"
@@ -83,6 +83,30 @@ function SecondarySidebar() {
     return params.dir ?? ""
   })
 
+  // When navigating to a session (via the current-directory signal), auto-expand
+  // the project (and workspace) that contains it, and collapse other projects.
+  // This ensures the secondary sidebar always shows the conversation list of the
+  // project the user is currently viewing, without requiring a manual click.
+  createEffect(() => {
+    const dir = currentDir()
+    if (!dir) return
+    const dirKey = pathKey(dir)
+    const list = ctx()?.projects.list() ?? []
+    if (list.length === 0) return
+
+    for (const project of list) {
+      const dirs = [project.worktree, ...(project.sandboxes ?? [])]
+      const activeWs = dirs.find((w) => pathKey(w) === dirKey)
+
+      if (activeWs) {
+        if (collapsed[project.worktree] !== false) setCollapsed(project.worktree, false)
+        if (expanded[activeWs] !== true) setExpanded(activeWs, true)
+      } else {
+        if (collapsed[project.worktree] !== true) setCollapsed(project.worktree, true)
+      }
+    }
+  })
+
   const searchQuery = createMemo(() => state.search.trim().toLowerCase())
   const searchResults = createMemo(() => {
     const query = searchQuery()
@@ -106,8 +130,18 @@ function SecondarySidebar() {
 
   function openProjectNewSession(c: ServerConnection.Any, directory: string) {
     const ctxInst = global.ensureServerCtx(c)
-    ctxInst.projects.open(directory)
-    ctxInst.projects.touch(directory)
+    // If `directory` is a workspace (sandbox), open its parent project rather than
+    // registering the workspace itself as a top-level project (which would trigger
+    // the rootFor() redirect). The draft is still created in the exact directory.
+    const dirKey = pathKey(directory)
+    const parent = ctxInst.projects
+      .list()
+      .find(
+        (p) => pathKey(p.worktree) === dirKey || (p.sandboxes ?? []).some((s) => pathKey(s) === dirKey),
+      )
+    const projectWorktree = parent?.worktree ?? directory
+    ctxInst.projects.open(projectWorktree)
+    ctxInst.projects.touch(projectWorktree)
     tabs.newDraft({ server: ServerConnection.key(c), directory })
   }
 
@@ -179,7 +213,6 @@ function SecondarySidebar() {
     if (!result?.directory) return
     const branchName = result.branch ?? getFilename(result.directory)
     setWorkspaceNameStore(pathKey(result.directory), branchName)
-    setBusyState(result.directory, true)
     WorktreeState.pending(serverSDK().scope, result.directory)
     setExpanded(pathKey(result.directory), true)
     sync().set(
@@ -498,6 +531,15 @@ function SecondarySidebar() {
           onClick={() => {
             const c = conn()
             if (!c) return
+            // Prefer the active session's directory, then the last session's
+            // directory (persisted), so "new session" continues where the user
+            // last worked instead of always landing on the first project.
+            const scope = ctx()?.sdk.scope
+            const dir = currentDir() || (scope ? global.lastSession.directory(scope) : undefined)
+            if (dir) {
+              openProjectNewSession(c, dir)
+              return
+            }
             const project = projects()[0]
             if (project) newSessionInProject(project)
           }}

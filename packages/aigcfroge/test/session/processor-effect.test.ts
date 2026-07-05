@@ -356,7 +356,18 @@ it.live("session.processor effect tests preserve text start time", () =>
           ),
           "timed out waiting for text part",
         )
-        yield* Effect.sleep("20 millis")
+        yield* waitFor(
+          MessageV2.parts(msg.id).pipe(
+            Effect.map(
+              (parts): true | undefined => {
+                const text = parts.find((part): part is SessionV1.TextPart => part.type === "text")
+                return text?.time?.start && text.time.end ? true : undefined
+              },
+            ),
+            Effect.provideService(Database.Service, database),
+          ),
+          "timed out waiting for text part time metadata",
+        )
         gate.resolve()
 
         const exit = yield* Fiber.await(run)

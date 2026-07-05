@@ -64,7 +64,9 @@ export const fileHandlers = HttpApiBuilder.group(InstanceHttpApi, "file", (handl
     })
 
     const list = Effect.fn("FileHttpApi.list")(function* (ctx: { query: { path: string } }) {
-      ;(yield* InstanceState.context).directory
+      const directory = (yield* InstanceState.context).directory
+      const requestPath = path.resolve(directory, ctx.query.path)
+      if (!FSUtil.contains(directory, requestPath)) return yield* Effect.die(new Error("Path escapes the location"))
       return yield* filesystem(
         Effect.gen(function* () {
           const fs = yield* FileSystem.Service

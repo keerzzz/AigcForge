@@ -76,7 +76,22 @@ const triggerSystemTransform = Effect.fn("PluginTriggerTest.triggerSystemTransfo
     {
       model: {
         providerID: ProviderV2.ID.anthropic,
-        modelID: ModelV2.ID.make("claude-sonnet-4-6"),
+        id: ModelV2.ID.make("claude-sonnet-4-6"),
+        api: { id: "claude-sonnet-4-6", url: "", npm: "@ai-sdk/anthropic" },
+        name: "claude-sonnet-4-6",
+        capabilities: {
+          temperature: true,
+          reasoning: true,
+          attachment: true,
+          toolcall: true,
+          input: { text: true, audio: false, image: true, video: false, pdf: true },
+          output: { text: true, audio: false, image: false, video: false, pdf: false },
+        },
+        cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+        limit: { context: 200000, output: 8192 },
+        status: "active",
+        options: {},
+        headers: {},
       },
     },
     out,

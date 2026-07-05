@@ -244,7 +244,6 @@ describe("ShareNext", () => {
 
           const info = yield* session.create({ title: "first" })
           yield* share.init()
-          yield* Effect.sleep(50)
           const { db } = yield* Database.Service
           yield* db
             .insert(SessionShareTable)

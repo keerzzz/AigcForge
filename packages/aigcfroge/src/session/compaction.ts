@@ -305,7 +305,7 @@ export const layer = Layer.effect(
     }) {
       const parent = input.messages.findLast((m) => m.info.id === input.parentID)
       if (!parent || parent.info.role !== "user") {
-        throw new Error(`Compaction parent must be a user message: ${input.parentID}`)
+        return yield* Effect.die(new Error(`Compaction parent must be a user message: ${input.parentID}`))
       }
       const userMessage = parent.info
       const compactionPart = parent.parts.find((part): part is SessionV1.CompactionPart => part.type === "compaction")
@@ -481,11 +481,7 @@ export const layer = Layer.effect(
                 model: yield* provider
                   .getModel(userMessage.model.providerID, userMessage.model.modelID)
                   .pipe(Effect.orDie),
-                provider: {
-                  source: info.source,
-                  info,
-                  options: info.options,
-                },
+                provider: info,
                 message: userMessage,
                 overflow: input.overflow === true,
               },

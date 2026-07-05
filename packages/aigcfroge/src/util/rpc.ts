@@ -4,10 +4,24 @@ type Definition = {
 
 export function listen(rpc: Definition) {
   onmessage = async (evt) => {
-    const parsed = JSON.parse(evt.data)
+    let parsed: any
+    try {
+      parsed = JSON.parse(evt.data)
+    } catch {
+      return
+    }
     if (parsed.type === "rpc.request") {
-      const result = await rpc[parsed.method](parsed.input)
-      postMessage(JSON.stringify({ type: "rpc.result", result, id: parsed.id }))
+      const handler = rpc[parsed.method]
+      if (typeof handler !== "function") {
+        postMessage(JSON.stringify({ type: "rpc.result", error: `Unknown method: ${parsed.method}`, id: parsed.id }))
+        return
+      }
+      try {
+        const result = await handler(parsed.input)
+        postMessage(JSON.stringify({ type: "rpc.result", result, id: parsed.id }))
+      } catch (error) {
+        postMessage(JSON.stringify({ type: "rpc.result", error: String(error), id: parsed.id }))
+      }
     }
   }
 }
@@ -20,15 +34,21 @@ export function client<T extends Definition>(target: {
   postMessage: (data: string) => void | null
   onmessage: ((this: Worker, ev: MessageEvent) => any) | null
 }) {
-  const pending = new Map<number, (result: any) => void>()
+  const pending = new Map<number, { resolve: (result: any) => void; reject: (error: any) => void }>()
   const listeners = new Map<string, Set<(data: any) => void>>()
   let id = 0
   target.onmessage = async (evt) => {
-    const parsed = JSON.parse(evt.data)
+    let parsed: any
+    try {
+      parsed = JSON.parse(evt.data)
+    } catch {
+      return
+    }
     if (parsed.type === "rpc.result") {
-      const resolve = pending.get(parsed.id)
-      if (resolve) {
-        resolve(parsed.result)
+      const entry = pending.get(parsed.id)
+      if (entry) {
+        if ("error" in parsed) entry.reject(new Error(parsed.error))
+        else entry.resolve(parsed.result)
         pending.delete(parsed.id)
       }
     }
@@ -36,7 +56,9 @@ export function client<T extends Definition>(target: {
       const handlers = listeners.get(parsed.event)
       if (handlers) {
         for (const handler of handlers) {
-          handler(parsed.data)
+          try {
+            handler(parsed.data)
+          } catch { /* handler error does not affect other handlers */ }
         }
       }
     }
@@ -44,12 +66,12 @@ export function client<T extends Definition>(target: {
   return {
     call<Method extends keyof T>(method: Method, input: Parameters<T[Method]>[0]): Promise<ReturnType<T[Method]>> {
       const requestId = id++
-      return new Promise((resolve) => {
-        pending.set(requestId, resolve)
+      return new Promise((resolve, reject) => {
+        pending.set(requestId, { resolve, reject })
         target.postMessage(JSON.stringify({ type: "rpc.request", method, input, id: requestId }))
       })
     },
-    on(event: string, handler: (data: unknown) => void) {
+    on<E = unknown>(event: string, handler: (data: E) => void) {
       let handlers = listeners.get(event)
       if (!handlers) {
         handlers = new Set()

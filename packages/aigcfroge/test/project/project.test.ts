@@ -369,6 +369,33 @@ describe("Project.fromDirectory with worktrees", () => {
     }),
   )
 
+  it.live("separate clones of the same repo should not register as sandboxes", () =>
+    Effect.gen(function* () {
+      const project = yield* Project.Service
+      const tmp = yield* tmpdirScoped({ git: true })
+
+      const bare = tmp + "-bare"
+      const clone = tmp + "-clone"
+      yield* Effect.addFinalizer(() =>
+        Effect.promise(() => $`rm -rf ${bare} ${clone}`.quiet().nothrow()).pipe(Effect.ignore),
+      )
+      yield* Effect.promise(() => $`git clone --bare ${tmp} ${bare}`.quiet())
+      yield* Effect.promise(() => $`git clone ${bare} ${clone}`.quiet())
+
+      yield* project.fromDirectory(tmp)
+      const fromClone = yield* project.fromDirectory(clone)
+      const fromRoot = yield* project.fromDirectory(tmp)
+
+      // Same project ID (shared remote) is intentional, but a standalone clone
+      // must NOT be registered as a sandbox of the first clone. A clone has its
+      // own .git inside its directory; only linked worktrees (shared .git) should
+      // be sandboxes. Otherwise the client's rootFor() merges the two clones into
+      // one project entry and hides the second clone's sessions.
+      expect(fromClone.project.sandboxes).not.toContain(clone)
+      expect(fromRoot.project.sandboxes).not.toContain(clone)
+    }),
+  )
+
   it.live("should accumulate multiple worktrees in sandboxes", () =>
     Effect.gen(function* () {
       const project = yield* Project.Service

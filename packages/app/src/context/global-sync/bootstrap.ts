@@ -17,6 +17,7 @@ import { reconcile, type SetStoreFunction, type Store } from "solid-js/store"
 import type { State, VcsCache } from "./types"
 import { cmp, normalizeAgentList, normalizeProviderList } from "./utils"
 import { formatServerError } from "@/utils/server-errors"
+import { Worktree as WorktreeState } from "@/utils/worktree"
 import { QueryClient, queryOptions } from "@tanstack/solid-query"
 import { loadMcpQuery } from "../server-sync"
 import { NormalizedProviderListResponse } from "@aigcfroge/session-ui/context"
@@ -71,7 +72,13 @@ function runAll(list: Array<() => Promise<unknown>>) {
 export const loadGlobalConfigQuery = (scope: ServerScope, sdk: OpencodeClient) =>
   queryOptions({
     queryKey: [scope, "config"],
-    queryFn: () => retry(() => sdk.global.config.get().then((x) => x.data!)),
+    queryFn: () =>
+      retry(() =>
+        sdk.global.config.get().then((x) => {
+          if (!x.data) throw new Error("Empty global config response")
+          return x.data
+        }),
+      ),
   })
 
 export const loadProjectsQuery = (scope: ServerScope, sdk: OpencodeClient) =>
@@ -167,7 +174,13 @@ function warmSessions(input: {
 export const loadProvidersQuery = (scope: ServerScope, directory: string | null, sdk: OpencodeClient) =>
   queryOptions({
     queryKey: [scope, directory, "providers"],
-    queryFn: () => retry(() => sdk.provider.list().then((x) => normalizeProviderList(x.data!))),
+    queryFn: () =>
+      retry(() =>
+        sdk.provider.list().then((x) => {
+          if (!x.data) throw new Error("Empty provider list response")
+          return normalizeProviderList(x.data)
+        }),
+      ),
   })
 
 export const loadAgentsQuery = (scope: ServerScope, directory: string | null, sdk: OpencodeClient) =>
@@ -179,7 +192,13 @@ export const loadAgentsQuery = (scope: ServerScope, directory: string | null, sd
 export const loadPathQuery = (scope: ServerScope, directory: string | null, sdk: OpencodeClient) =>
   queryOptions<Path>({
     queryKey: [scope, directory, "path"],
-    queryFn: () => retry(() => sdk.path.get().then((x) => x.data!)),
+    queryFn: () =>
+      retry(() =>
+        sdk.path.get().then((x) => {
+          if (!x.data) throw new Error("Empty path response")
+          return x.data
+        }),
+      ),
   })
 
 export async function bootstrapDirectory(input: {
@@ -221,10 +240,25 @@ export async function bootstrapDirectory(input: {
           .ensureQueryData(loadAgentsQuery(input.scope, input.directory, input.sdk))
           .then((data) => input.setStore("agent", data)),
       () =>
-        retry(() => input.sdk.config.get().then((x) => input.setStore("config", reconcile(x.data!, { merge: false })))),
-      () => retry(() => input.sdk.session.status().then((x) => input.setStore("session_status", x.data!))),
+        retry(() =>
+          input.sdk.config.get().then((x) => {
+            if (!x.data) return
+            input.setStore("config", reconcile(x.data, { merge: false }))
+          }),
+        ),
+      () =>
+        retry(() =>
+          input.sdk.session.status().then((x) => {
+            if (!x.data) return
+            input.setStore("session_status", x.data)
+          }),
+        ),
       !seededProject &&
-        (() => retry(() => input.sdk.project.current()).then((x) => input.setStore("project", x.data!.id))),
+        (() =>
+          retry(() => input.sdk.project.current()).then((x) => {
+            if (!x.data || !x.data.id) return
+            input.setStore("project", x.data.id)
+          })),
       !seededPath &&
         (() =>
           input.queryClient.ensureQueryData(loadPathQuery(input.scope, input.directory, input.sdk)).then((data) => {
@@ -309,12 +343,23 @@ export async function bootstrapDirectory(input: {
     if (slowErrs.length > 0) {
       console.error("Failed to finish bootstrap instance", slowErrs[0])
       const project = getFilename(input.directory)
+      const description = formatServerError(slowErrs[0], input.translate)
       showToast({
         title: input.translate("toast.project.reloadFailed.title", { project }),
-        description: formatServerError(slowErrs[0], input.translate),
+        description,
       })
+      // Resolve any pending worktree waiters so submission fails fast instead of
+      // hanging until the 5-minute timeout. Without this, sending a message in a
+      // newly-created workspace produces no output because submit.ts waits on a
+      // "ready" signal that was never sent.
+      WorktreeState.failed(input.scope, input.directory, description)
     }
 
-    if (loading && slowErrs.length === 0) input.setStore("status", "complete")
+    if (loading && slowErrs.length === 0) {
+      input.setStore("status", "complete")
+      // Signal that the directory is bootstrapped so message submission in a
+      // newly-created workspace can proceed instead of waiting on the timeout.
+      WorktreeState.ready(input.scope, input.directory)
+    }
   })()
 }

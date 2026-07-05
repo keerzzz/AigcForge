@@ -259,20 +259,35 @@ export const layer = Layer.effect(
             time: { created: Date.now(), updated: Date.now() },
           }
 
-      if (flags.experimentalIconDiscovery) yield* discover(existing).pipe(Effect.ignore, Effect.forkIn(scope))
-
       const result: Info = {
         ...existing,
         worktree: projectID === ProjectV2.ID.global ? worktree : existing.worktree,
         vcs: data.vcs?.type ?? fakeVcs,
         time: { ...existing.time, updated: Date.now() },
       }
-      if (
-        projectID !== ProjectV2.ID.global &&
-        data.directory !== result.worktree &&
-        !result.sandboxes.includes(data.directory)
-      )
-        result.sandboxes.push(data.directory)
+      // Decide whether the resolved directory is a linked worktree of the
+      // existing project, or a standalone clone of the same remote.
+      //
+      // repo.store is `git rev-parse --git-common-dir` (the shared .git storage):
+      //   - A linked worktree at /a/feat (main /a/repo) shares the main repo's
+      //     .git, so store = /a/repo/.git, which is OUTSIDE /a/feat.
+      //   - A standalone clone at /b/repo has its own .git, so store = /b/repo/.git,
+      //     which is INSIDE /b/repo.
+      //
+      // Only linked worktrees should be registered as sandboxes. Registering a
+      // standalone clone as a sandbox makes the client's rootFor() merge it into
+      // the first-added clone, hiding its separate sessions behind the root
+      // worktree's project entry.
+      const store = data.vcs?.store
+      const isLinkedWorktree = !!store && !FSUtil.contains(data.directory, store)
+      if (projectID !== ProjectV2.ID.global && data.directory !== result.worktree) {
+        if (isLinkedWorktree) {
+          if (!result.sandboxes.includes(data.directory)) result.sandboxes.push(data.directory)
+        } else if (result.sandboxes.includes(data.directory)) {
+          // Clean up a prior registration that treated this clone as a sandbox.
+          result.sandboxes = result.sandboxes.filter((s) => s !== data.directory)
+        }
+      }
       result.sandboxes = yield* Effect.forEach(
         result.sandboxes,
         (s) =>
@@ -332,6 +347,7 @@ export const layer = Layer.effect(
       })
 
       yield* emitUpdated(result)
+      if (flags.experimentalIconDiscovery) yield* discover(result).pipe(Effect.ignore, Effect.forkIn(scope))
       if (projectID !== ProjectV2.ID.global && data.vcs?.type === "git") {
         yield* projectV2.commit({ store: data.vcs.store, id: data.id })
       }

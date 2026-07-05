@@ -4,7 +4,7 @@ import fs from "node:fs/promises"
 import Http from "node:http"
 import path from "node:path"
 import { NodeHttpServer } from "@effect/platform-node"
-import { Effect, Exit, Fiber, Layer, Schema } from "effect"
+import { Deferred, Effect, Exit, Fiber, Layer, Schema } from "effect"
 import { FetchHttpClient, HttpServer, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { eq } from "drizzle-orm"
 import { FSUtil } from "@aigcfroge/core/fs-util"
@@ -1087,9 +1087,13 @@ describe("workspace sync state", () => {
         registerAdapter(instance.project.id, type, localAdapter(path.join(dir, "flag-disabled")).adapter)
 
         yield* Effect.promise(() => startWorkspaceSyncingWithFlag(instance.project.id, false))
-        yield* Effect.sleep("25 millis")
-
-        expect((yield* workspace.status()).find((item) => item.workspaceID === info.id)?.status).toBeUndefined()
+        yield* eventuallyEffect(
+          Effect.gen(function* () {
+            expect(
+              (yield* workspace.status()).find((item) => item.workspaceID === info.id)?.status,
+            ).toBeUndefined()
+          }),
+        )
       }),
     { git: true },
   )
@@ -1242,13 +1246,15 @@ describe("workspace sync state", () => {
                 }),
               )
               yield* workspace.startWorkspaceSyncing(instance.project.id)
-              yield* Effect.sleep("25 millis")
-
-              expect(
-                captured.events
-                  .filter((event) => event.workspace === info.id && event.payload.type === Workspace.Event.Status.type)
-                  .map((event) => event.payload.properties.status),
-              ).toEqual(["disconnected", "connecting", "connected"])
+              yield* eventuallyEffect(
+                Effect.gen(function* () {
+                  expect(
+                    captured.events
+                      .filter((event) => event.workspace === info.id && event.payload.type === Workspace.Event.Status.type)
+                      .map((event) => event.payload.properties.status),
+                  ).toEqual(["disconnected", "connecting", "connected"])
+                }),
+              )
               expect(calls.filter((call) => call.url.pathname === "/sync/global/event")).toHaveLength(1)
               expect(calls.filter((call) => call.url.pathname === "/sync/sync/history")).toHaveLength(1)
               expect(yield* workspace.isSyncing(info.id)).toBe(true)
@@ -1610,11 +1616,16 @@ describe("workspace waitForSync", () => {
         const { db } = yield* Database.Service
         yield* db.insert(EventSequenceTable).values({ aggregate_id: sessionID, seq: 1 }).run().pipe(Effect.orDie)
 
+        const ready = yield* Deferred.make<void>()
         yield* Effect.all(
           [
-            workspace.waitForSync(workspaceID, { [sessionID]: 2 }),
             Effect.gen(function* () {
-              yield* Effect.sleep("10 millis")
+              yield* Deferred.succeed(ready, undefined)
+              yield* workspace.waitForSync(workspaceID, { [sessionID]: 2 })
+            }),
+            Effect.gen(function* () {
+              yield* Deferred.await(ready)
+              yield* Effect.yieldNow
               yield* db
                 .update(EventSequenceTable)
                 .set({ seq: 2 })
@@ -1640,11 +1651,16 @@ describe("workspace waitForSync", () => {
         const { db } = yield* Database.Service
         yield* db.insert(EventSequenceTable).values({ aggregate_id: sessionID, seq: 0 }).run().pipe(Effect.orDie)
 
+        const ready = yield* Deferred.make<void>()
         yield* Effect.all(
           [
-            workspace.waitForSync(workspaceID, { [sessionID]: 1 }),
             Effect.gen(function* () {
-              yield* Effect.sleep("10 millis")
+              yield* Deferred.succeed(ready, undefined)
+              yield* workspace.waitForSync(workspaceID, { [sessionID]: 1 })
+            }),
+            Effect.gen(function* () {
+              yield* Deferred.await(ready)
+              yield* Effect.yieldNow
               yield* db
                 .update(EventSequenceTable)
                 .set({ seq: 1 })

@@ -335,6 +335,15 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                 return
               }
 
+              // Fall back to the last session's directory (persisted) so a new tab
+              // continues where the user last worked, instead of always landing on
+              // the first project.
+              const lastDir = global.lastSession.directory(server.scope(server.key))
+              if (lastDir) {
+                tabs.newDraft({ server: server.key, directory: lastDir }, "")
+                return
+              }
+
               const current = layout.projects.list()[0]
               if (current) {
                 tabs.newDraft({ server: server.key, directory: current.worktree }, "")

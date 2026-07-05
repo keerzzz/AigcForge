@@ -184,7 +184,7 @@ export const SessionReview = (props: SessionReviewProps) => {
   const itemsMap = createMemo(() =>
     Object.fromEntries(list(props.diffs).map((diff) => [diff.file, { ...normalize(diff), preloaded: diff.preloaded }])),
   )
-  const files = createMemo(() => props.diffs.map((diff) => diff.file!))
+  const files = createMemo(() => props.diffs.map((diff) => diff.file).filter(Boolean) as string[])
   const grouped = createMemo(() => {
     const next = new Map<string, SessionReviewComment[]>()
     for (const comment of props.comments ?? []) {
@@ -392,7 +392,7 @@ export const SessionReview = (props: SessionReviewProps) => {
                     const diff = () => itemsMap()[file]
 
                     // binary files have empty diffs that we can't render
-                    const diffCanRender = () => diff().additions !== 0 || diff().deletions !== 0
+                    const diffCanRender = () => diff() != null && (diff().additions !== 0 || diff().deletions !== 0)
 
                     const expanded = createMemo(() => open().includes(file))
                     const mounted = createMemo(() => expanded() && (store.visible[file] || pinned(file)))
@@ -502,7 +502,7 @@ export const SessionReview = (props: SessionReviewProps) => {
 
                     return (
                       <AccordionV2.Item
-                        value={diffCanRender() ? file : null!}
+                        value={file}
                         id={diffId(file)}
                         data-file={file}
                         data-slot="session-review-accordion-item"
