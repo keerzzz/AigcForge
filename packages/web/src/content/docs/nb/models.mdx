@@ -53,7 +53,7 @@ Aigcfroge-konfigurasjon.
 
 ```json title="aigcfroge.json" {3}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "model": "lmstudio/google/gemma-3n-e4b"
 }
 ```
@@ -70,7 +70,7 @@ Du kan konfigurere en modells alternativer globalt gjennom konfigurasjonen.
 
 ```jsonc title="aigcfroge.jsonc" {7-12,19-24}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "openai": {
       "models": {
@@ -109,7 +109,7 @@ Du kan også definere tilpassede varianter som utvider de innebygde. Varianter l
 
 ```jsonc title="aigcfroge.jsonc" {6-21}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "aigcfroge": {
       "models": {
@@ -174,7 +174,7 @@ Du kan overstyre eksisterende varianter eller legge til dine egne:
 
 ```jsonc title="aigcfroge.jsonc" {7-18}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "openai": {
       "models": {
@@ -211,7 +211,7 @@ Når Aigcfroge starter opp, ser den etter modeller i følgende prioriterte rekke
 
    ```json title="aigcfroge.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://aigcfroge.ai/config.json",
      "model": "anthropic/claude-sonnet-4-20250514"
    }
    ```

@@ -1,6 +1,6 @@
 # aigcfroge GitHub Action
 
-A GitHub Action that integrates [aigcfroge](https://opencode.ai) directly into your GitHub workflow.
+A GitHub Action that integrates [aigcfroge](https://aigcfroge.ai) directly into your GitHub workflow.
 
 Mention `/aigcfroge` in your comment, and aigcfroge will execute tasks within your GitHub Actions runner.
 

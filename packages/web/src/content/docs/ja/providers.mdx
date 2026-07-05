@@ -35,7 +35,7 @@ config.
 
 ```json title="aigcfroge.json" {6}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "anthropic": {
       "options": {
@@ -57,7 +57,7 @@ Aigcfroge で適切に動作することがテストおよび検証されてい�
 初めての方は、Aigcfroge Zen から始めることをお勧めします。
 :::
 
-1. TUI で `/connect` コマンドを実行し、`Aigcfroge Zen` を選択して、[opencode.ai/zen](https://opencode.ai/zen) にアクセスします。
+1. TUI で `/connect` コマンドを実行し、`Aigcfroge Zen` を選択して、[aigcfroge.ai/zen](https://aigcfroge.ai/zen) にアクセスします。
 
    ```txt
    /connect
@@ -88,7 +88,7 @@ Aigcfroge で適切に動作することがテストおよび検証されてい�
 
 Aigcfroge Go は、Aigcfroge チームによって提供される、人気のあるオープンコーディングモデルへの信頼性の高いアクセスを提供する低コストのサブスクリプションプランです。これらは Aigcfroge でうまく機能することがテストおよび検証されています。
 
-1. TUI で `/connect` コマンドを実行し、`Aigcfroge Go` を選択して、[opencode.ai/zen](https://opencode.ai/zen) にアクセスします。
+1. TUI で `/connect` コマンドを実行し、`Aigcfroge Go` を選択して、[aigcfroge.ai/zen](https://aigcfroge.ai/zen) にアクセスします。
 
    ```txt
    /connect
@@ -197,7 +197,7 @@ Aigcfroge で Amazon Bedrock を使用するには:
 
    ```json title="aigcfroge.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://aigcfroge.ai/config.json",
      "provider": {
        "amazon-bedrock": {
          "options": {
@@ -226,7 +226,7 @@ Aigcfroge で Amazon Bedrock を使用するには:
 
    ```json title="aigcfroge.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://aigcfroge.ai/config.json",
      "provider": {
        "amazon-bedrock": {
          "options": {
@@ -275,7 +275,7 @@ Aigcfroge で Amazon Bedrock を使用するには:
 
 ```json title="aigcfroge.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "amazon-bedrock": {
       // ...
@@ -335,7 +335,7 @@ aigcfroge は、OpenAI 互換の API サーバーの背後でローカル LLM �
 
 ```json title="aigcfroge.json" "atomic-chat" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "atomic-chat": {
       "npm": "@ai-sdk/openai-compatible",
@@ -563,7 +563,7 @@ Aigcfroge 設定を通じてモデルを追加することもできます。
 
 ```json title="aigcfroge.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "cloudflare-ai-gateway": {
       "models": {
@@ -865,7 +865,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 ```json title="aigcfroge.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "gitlab": {
       "options": {
@@ -882,7 +882,7 @@ GitLab ツール (マージリクエスト、問題、パイプライン、CI/CD
 
 ```json title="aigcfroge.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "plugin": ["aigcfroge-gitlab-plugin"]
 }
 ```
@@ -1066,7 +1066,7 @@ Aigcfroge を通じて自動的に構成されていない Helicone の機能ま
 
 ```jsonc title="~/.config/aigcfroge/aigcfroge.jsonc"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1094,7 +1094,7 @@ Helicone は、キャッシュ、ユーザー追跡、セッション管理な�
 
 ```jsonc title="~/.config/aigcfroge/aigcfroge.jsonc"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1148,7 +1148,7 @@ npm install -g aigcfroge-helicone-session
 
 ```json title="aigcfroge.json" "llama.cpp" {5, 6, 8, 10-15}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "llama.cpp": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1215,7 +1215,7 @@ LM Studio を通じてローカルモデルを使用するように aigcfroge �
 
 ```json title="aigcfroge.json" "lmstudio" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "lmstudio": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1336,7 +1336,7 @@ Ollama は Aigcfroge 用に自動的に構成できます。詳細について�
 
 ```json title="aigcfroge.json" "ollama" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "ollama": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1498,7 +1498,7 @@ Aigcfroge 設定を通じて追加のモデルを追加することもできま�
 
 ```json title="aigcfroge.json" {6}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "openrouter": {
       "models": {
@@ -1513,7 +1513,7 @@ Aigcfroge 設定を通じて追加のモデルを追加することもできま�
 
    ```json title="aigcfroge.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://aigcfroge.ai/config.json",
      "provider": {
        "openrouter": {
          "models": {
@@ -1617,7 +1617,7 @@ SAP AI コアは、統合プラットフォームを通じて、OpenAI、Anthrop
 
 ### Scaleway
 
-[Scaleway Generative APIs](https://www.scaleway.com/en/docs/generative-apis/) を Opencode で使用するには:
+[Scaleway Generative APIs](https://www.scaleway.com/en/docs/generative-apis/) を Aigcfroge で使用するには:
 
 1. [Scaleway Console IAM settings](https://console.scaleway.com/iam/api-keys) に移動して、新しい API キーを生成します。
 
@@ -1729,7 +1729,7 @@ Aigcfroge 設定を通じてモデルをカスタマイズすることもでき�
 
 ```json title="aigcfroge.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "vercel": {
       "models": {
@@ -1839,7 +1839,7 @@ Aigcfroge 設定を通じて追加のモデルを追加することもできま�
 
 ```json title="aigcfroge.json" {6}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "zenmux": {
       "models": {
@@ -1907,7 +1907,7 @@ OpenAI と互換性のある任意のプロバイダーを Aigcfroge で使用�
 
    ```json title="aigcfroge.json" ""myprovider"" {5-15}
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://aigcfroge.ai/config.json",
      "provider": {
        "myprovider": {
          "npm": "@ai-sdk/openai-compatible",
@@ -1946,7 +1946,7 @@ OpenAI と互換性のある任意のプロバイダーを Aigcfroge で使用�
 
 ```json title="aigcfroge.json" {9,11,17-20}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "myprovider": {
       "npm": "@ai-sdk/openai-compatible",

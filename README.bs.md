@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://opencode.ai">
+  <a href="https://aigcfroge.ai">
     <picture>
       <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
       <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
@@ -9,7 +9,7 @@
 </p>
 <p align="center">Aigcfroge je open source AI agent za programiranje.</p>
 <p align="center">
-  <a href="https://opencode.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
+  <a href="https://aigcfroge.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
   <a href="https://www.npmjs.com/package/aigcfroge"><img alt="npm" src="https://img.shields.io/npm/v/aigcfroge?style=flat-square" /></a>
   <a href="https://github.com/keerzzz/AigcForge/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/keerzzz/AigcForge/publish.yml?style=flat-square&branch=dev" /></a>
 </p>
@@ -39,7 +39,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Aigcfroge Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://opencode.ai)
+[![Aigcfroge Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://aigcfroge.ai)
 
 ---
 
@@ -47,7 +47,7 @@
 
 ```bash
 # YOLO
-curl -fsSL https://opencode.ai/install | bash
+curl -fsSL https://aigcfroge.ai/install | bash
 
 # Package manageri
 npm i -g aigcfroge@latest        # ili bun/pnpm/yarn
@@ -66,7 +66,7 @@ nix run nixpkgs#aigcfroge           # ili github:keerzzz/AigcForge za najnoviji 
 
 ### Desktop aplikacija (BETA)
 
-Aigcfroge je dostupan i kao desktop aplikacija. Preuzmi je direktno sa [stranice izdanja](https://github.com/keerzzz/AigcForge/releases) ili sa [opencode.ai/download](https://opencode.ai/download).
+Aigcfroge je dostupan i kao desktop aplikacija. Preuzmi je direktno sa [stranice izdanja](https://github.com/keerzzz/AigcForge/releases) ili sa [aigcfroge.ai/download](https://aigcfroge.ai/download).
 
 | Platforma             | Preuzimanje                        |
 | --------------------- | ---------------------------------- |
@@ -93,8 +93,8 @@ Instalacijska skripta koristi sljedeći redoslijed prioriteta za putanju instala
 
 ```bash
 # Primjeri
-AIGCFROGE_INSTALL_DIR=/usr/local/bin curl -fsSL https://opencode.ai/install | bash
-XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://opencode.ai/install | bash
+AIGCFROGE_INSTALL_DIR=/usr/local/bin curl -fsSL https://aigcfroge.ai/install | bash
+XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://aigcfroge.ai/install | bash
 ```
 
 ### Agenti
@@ -110,11 +110,11 @@ Aigcfroge uključuje dva ugrađena agenta između kojih možeš prebacivati tast
 Uključen je i **general** pod-agent za složene pretrage i višekoračne zadatke.
 Koristi se interno i može se pozvati pomoću `@general` u porukama.
 
-Saznaj više o [agentima](https://opencode.ai/docs/agents).
+Saznaj više o [agentima](https://aigcfroge.ai/docs/agents).
 
 ### Dokumentacija
 
-Za više informacija o konfiguraciji Aigcfroge-a, [**pogledaj dokumentaciju**](https://opencode.ai/docs).
+Za više informacija o konfiguraciji Aigcfroge-a, [**pogledaj dokumentaciju**](https://aigcfroge.ai/docs).
 
 ### Doprinosi
 

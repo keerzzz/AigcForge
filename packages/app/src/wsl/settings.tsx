@@ -16,7 +16,7 @@ import { ServerConnection } from "@/context/server"
 import { showToast } from "@/utils/toast"
 import { DialogAddWslServer } from "./dialog-add-server"
 import { useWslServers } from "./context"
-import { wslOpencodeAction, wslRuntimeRetryable } from "./settings-model"
+import { wslAigcfrogeAction, wslRuntimeRetryable } from "./settings-model"
 
 type Controller = ReturnType<typeof useServerManagementController>
 
@@ -99,7 +99,7 @@ export function WslServerSettings(props: {
         {(item) => {
           const key = ServerConnection.Key.make(item.config.id)
           const check = () => wsl.data?.aigcfrogeChecks[item.config.distro]
-          const aigcfrogeAction = () => wslOpencodeAction(check())
+          const aigcfrogeAction = () => wslAigcfrogeAction(check())
           const busy = () => wsl.data?.job?.kind === "install-aigcfroge" && wsl.data.job.distro === item.config.distro
           return (
             <div class="settings-v2-servers-row">
@@ -126,7 +126,7 @@ export function WslServerSettings(props: {
                     <ButtonV2
                       size="small"
                       disabled={busy() || request.isPending}
-                      onClick={() => api && request.mutate(() => api.installOpencode(item.config.distro))}
+                      onClick={() => api && request.mutate(() => api.installAigcfroge(item.config.distro))}
                     >
                       {busy() ? language.t("wsl.server.updating") : label()}
                     </ButtonV2>

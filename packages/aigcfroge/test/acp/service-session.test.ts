@@ -10,7 +10,7 @@ import type {
   SessionConfigSelectOption,
   SetSessionConfigOptionResponse,
 } from "@agentclientprotocol/sdk"
-import type { OpencodeClient } from "@aigcfroge/sdk/v2"
+import type { AigcfrogeClient } from "@aigcfroge/sdk/v2"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { Effect } from "effect"
@@ -240,7 +240,7 @@ describe("ACP service sessions", () => {
           return Promise.resolve({ data: {} })
         },
       },
-    } as unknown as OpencodeClient
+    } as unknown as AigcfrogeClient
     const connection = {
       sessionUpdate: (update: SessionNotification) => {
         updates.push(update)
@@ -519,7 +519,7 @@ describe("ACP service sessions", () => {
         command: {
           list: () => Promise.resolve({ data: [] }),
         },
-      } as unknown as OpencodeClient,
+      } as unknown as AigcfrogeClient,
     })
     const error = await Effect.runPromise(
       service
@@ -557,7 +557,7 @@ describe("ACP service sessions", () => {
       mcp: {
         add: () => Promise.resolve({ data: {} }),
       },
-    } as unknown as OpencodeClient
+    } as unknown as AigcfrogeClient
     const service = ACPService.make({ sdk })
 
     const first = await Effect.runPromise(
@@ -600,7 +600,7 @@ describe("ACP service sessions", () => {
           return Promise.resolve({ data: {} })
         },
       },
-    } as unknown as OpencodeClient
+    } as unknown as AigcfrogeClient
     const service = ACPService.make({ sdk })
 
     await Effect.runPromise(
@@ -641,7 +641,7 @@ describe("ACP service sessions", () => {
       mcp: {
         add: () => Promise.resolve({ data: {} }),
       },
-    } as unknown as OpencodeClient
+    } as unknown as AigcfrogeClient
     const service = ACPService.make({ sdk })
 
     const result = await Effect.runPromise(service.newSession({ cwd: "/workspace", mcpServers: [] }))
@@ -680,7 +680,7 @@ describe("ACP service sessions", () => {
       mcp: {
         add: () => Promise.resolve({ data: {} }),
       },
-    } as unknown as OpencodeClient
+    } as unknown as AigcfrogeClient
     const service = ACPService.make({ sdk })
 
     const result = await Effect.runPromise(service.newSession({ cwd: "/workspace", mcpServers: [] }))
@@ -797,7 +797,7 @@ describe("ACP service sessions", () => {
           return Promise.resolve({ data: {} })
         },
       },
-    } as unknown as OpencodeClient
+    } as unknown as AigcfrogeClient
     const service = ACPService.make({ sdk })
     const session = await Effect.runPromise(service.newSession({ cwd: "/workspace", mcpServers: [] }))
 
@@ -852,7 +852,7 @@ describe("ACP service sessions", () => {
       mcp: {
         add: () => Promise.resolve({ data: {} }),
       },
-    } as unknown as OpencodeClient
+    } as unknown as AigcfrogeClient
     const service = ACPService.make({ sdk })
     const session = await Effect.runPromise(service.newSession({ cwd: "/workspace", mcpServers: [] }))
     const updated = await Effect.runPromise(
@@ -922,7 +922,7 @@ describe("ACP service sessions", () => {
       mcp: {
         add: () => Promise.resolve({ data: {} }),
       },
-    } as unknown as OpencodeClient
+    } as unknown as AigcfrogeClient
     const service = ACPService.make({ sdk })
 
     const first = await Effect.runPromise(service.newSession({ cwd: "/workspace", mcpServers: [] }))
@@ -1125,7 +1125,7 @@ describe("ACP service sessions", () => {
         mcp: {
           add: () => Promise.resolve({ data: {} }),
         },
-      } as unknown as OpencodeClient,
+      } as unknown as AigcfrogeClient,
       usage: UsageService.Service.of({
         buildUsage: UsageService.buildUsage,
         latestAssistantMessage: UsageService.latestAssistantMessage,

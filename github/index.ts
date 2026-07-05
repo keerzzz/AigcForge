@@ -6,7 +6,7 @@ import * as core from "@actions/core"
 import * as github from "@actions/github"
 import type { Context as GitHubContext } from "@actions/github/lib/context"
 import type { IssueCommentEvent, PullRequestReviewCommentEvent } from "@octokit/webhooks-types"
-import { createOpencodeClient } from "@aigcfroge/sdk"
+import { createAigcfrogeClient } from "@aigcfroge/sdk"
 import { spawn } from "node:child_process"
 import { setTimeout as sleep } from "node:timers/promises"
 
@@ -113,7 +113,7 @@ type IssueQueryResponse = {
   }
 }
 
-const { client, server } = createOpencode()
+const { client, server } = createAigcfroge()
 let accessToken: string
 let octoRest: Octokit
 let octoGraph: typeof graphql
@@ -127,7 +127,7 @@ type PromptFiles = Awaited<ReturnType<typeof getUserPrompt>>["promptFiles"]
 try {
   assertContextEvent("issue_comment", "pull_request_review_comment")
   assertPayloadKeyword()
-  await assertOpencodeConnected()
+  await assertAigcfrogeConnected()
 
   accessToken = await getAccessToken()
   octoRest = new Octokit({ auth: accessToken })
@@ -228,12 +228,12 @@ try {
 }
 process.exit(exitCode)
 
-function createOpencode() {
+function createAigcfroge() {
   const host = "127.0.0.1"
   const port = 4096
   const url = `http://${host}:${port}`
   const proc = spawn(`aigcfroge`, [`serve`, `--hostname=${host}`, `--port=${port}`])
-  const client = createOpencodeClient({ baseUrl: url })
+  const client = createAigcfrogeClient({ baseUrl: url })
 
   return {
     server: { url, close: () => proc.kill() },
@@ -267,7 +267,7 @@ function getReviewCommentContext() {
   }
 }
 
-async function assertOpencodeConnected() {
+async function assertAigcfrogeConnected() {
   let retry = 0
   let connected = false
   do {

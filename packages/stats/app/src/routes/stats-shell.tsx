@@ -222,7 +222,7 @@ export function Footer(props: {
     { href: "https://aigcfroge.ai/legal/privacy-policy", label: "Privacy policy" },
   ]
   const connect = [
-    { href: "mailto:hello@opencode.ai", label: "Contact us" },
+    { href: "mailto:hello@aigcfroge.ai", label: "Contact us" },
     { href: "https://aigcfroge.ai/discord", label: "Community" },
     { href: "https://x.com/aigcfroge", label: "X" },
     githubLink,

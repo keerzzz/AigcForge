@@ -7,7 +7,7 @@
   "homepage": "https://aigcfroge.ai",
   "author": {
     "name": "Aigcfroge",
-    "email": "hello@opencode.ai"
+    "email": "hello@aigcfroge.ai"
   },
   "scripts": {
     "typecheck": "tsgo -b",

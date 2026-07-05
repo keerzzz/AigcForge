@@ -28,9 +28,9 @@ npm install @aigcfroge/sdk
 Создайте экземпляр aigcfroge:
 
 ```javascript
-import { createOpencode } from "@aigcfroge/sdk"
+import { createAigcfroge } from "@aigcfroge/sdk"
 
-const { client } = await createOpencode()
+const { client } = await createAigcfroge()
 ```
 
 Это запускает и сервер, и клиент.
@@ -52,9 +52,9 @@ const { client } = await createOpencode()
 Вы можете передать объект конфигурации для настройки поведения. Экземпляр по-прежнему получает ваш `aigcfroge.json`, но вы можете переопределить или добавить встроенную конфигурацию:
 
 ```javascript
-import { createOpencode } from "@aigcfroge/sdk"
+import { createAigcfroge } from "@aigcfroge/sdk"
 
-const aigcfroge = await createOpencode({
+const aigcfroge = await createAigcfroge({
   hostname: "127.0.0.1",
   port: 4096,
   config: {
@@ -72,9 +72,9 @@ aigcfroge.server.close()
 Если у вас уже есть работающий экземпляр aigcfroge, вы можете создать экземпляр клиента для подключения к нему:
 
 ```javascript
-import { createOpencodeClient } from "@aigcfroge/sdk"
+import { createAigcfrogeClient } from "@aigcfroge/sdk"
 
-const client = createOpencodeClient({
+const client = createAigcfrogeClient({
   baseUrl: "http://localhost:4096",
 })
 ```

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { enterWslOpencodeStep, wslOpencodeAction, wslRuntimeRetryable } from "./settings-model"
+import { enterWslAigcfrogeStep, wslAigcfrogeAction, wslRuntimeRetryable } from "./settings-model"
 
 describe("WSL server settings presentation", () => {
   test("retries only settled unsuccessful runtimes", () => {
@@ -12,9 +12,9 @@ describe("WSL server settings presentation", () => {
   })
 
   test("offers install and update only when Aigcfroge needs attention", () => {
-    expect(wslOpencodeAction(undefined)).toBeUndefined()
+    expect(wslAigcfrogeAction(undefined)).toBeUndefined()
     expect(
-      wslOpencodeAction({
+      wslAigcfrogeAction({
         distro: "Debian",
         resolvedPath: null,
         version: null,
@@ -24,7 +24,7 @@ describe("WSL server settings presentation", () => {
       }),
     ).toBe("Install Aigcfroge")
     expect(
-      wslOpencodeAction({
+      wslAigcfrogeAction({
         distro: "Debian",
         resolvedPath: "/usr/local/bin/aigcfroge",
         version: "1.2.2",
@@ -34,7 +34,7 @@ describe("WSL server settings presentation", () => {
       }),
     ).toBe("Update Aigcfroge")
     expect(
-      wslOpencodeAction({
+      wslAigcfrogeAction({
         distro: "Debian",
         resolvedPath: "/usr/local/bin/aigcfroge",
         version: "1.2.3",
@@ -47,7 +47,7 @@ describe("WSL server settings presentation", () => {
 
   test("probes the selected distro before entering the Aigcfroge step", async () => {
     const calls: string[] = []
-    await enterWslOpencodeStep(
+    await enterWslAigcfrogeStep(
       "Debian",
       async (distro) => calls.push(distro),
       (step) => calls.push(step),

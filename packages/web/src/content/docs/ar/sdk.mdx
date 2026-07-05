@@ -28,9 +28,9 @@ npm install @aigcfroge/sdk
 أنشئ مثيلا من aigcfroge:
 
 ```javascript
-import { createOpencode } from "@aigcfroge/sdk"
+import { createAigcfroge } from "@aigcfroge/sdk"
 
-const { client } = await createOpencode()
+const { client } = await createAigcfroge()
 ```
 
 هذا يشغّل خادما وعميلا معا.
@@ -52,9 +52,9 @@ const { client } = await createOpencode()
 يمكنك تمرير كائن إعدادات لتخصيص السلوك. سيستمر المثيل في التقاط `aigcfroge.json` لديك، لكن يمكنك تجاوز الإعدادات أو إضافة إعدادات مباشرة:
 
 ```javascript
-import { createOpencode } from "@aigcfroge/sdk"
+import { createAigcfroge } from "@aigcfroge/sdk"
 
-const aigcfroge = await createOpencode({
+const aigcfroge = await createAigcfroge({
   hostname: "127.0.0.1",
   port: 4096,
   config: {
@@ -72,9 +72,9 @@ aigcfroge.server.close()
 إذا كان لديك مثيل aigcfroge يعمل بالفعل، يمكنك إنشاء مثيل عميل للاتصال به:
 
 ```javascript
-import { createOpencodeClient } from "@aigcfroge/sdk"
+import { createAigcfrogeClient } from "@aigcfroge/sdk"
 
-const client = createOpencodeClient({
+const client = createAigcfrogeClient({
   baseUrl: "http://localhost:4096",
 })
 ```

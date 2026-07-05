@@ -34,7 +34,7 @@ export const console = config.console
 
 ```json title="aigcfroge.json" {6}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "anthropic": {
       "options": {
@@ -56,7 +56,7 @@ Aigcfroge Zen هي قائمة نماذج يوفّرها فريق Aigcfroge وق�
 إذا كنت جديدا، فننصح بالبدء مع Aigcfroge Zen.
 :::
 
-1. شغّل الأمر `/connect` في TUI، واختر aigcfroge، ثم انتقل إلى [opencode.ai/auth](https://opencode.ai/auth).
+1. شغّل الأمر `/connect` في TUI، واختر aigcfroge، ثم انتقل إلى [aigcfroge.ai/auth](https://aigcfroge.ai/auth).
 
    ```txt
    /connect
@@ -87,7 +87,7 @@ Aigcfroge Zen هي قائمة نماذج يوفّرها فريق Aigcfroge وق�
 
 Aigcfroge Go هي خطة اشتراك منخفضة التكلفة توفّر وصولا موثوقا إلى نماذج البرمجة المفتوحة الشهيرة المقدّمة من فريق Aigcfroge، والتي تم اختبارها والتحقق من أنها تعمل بشكل جيد مع Aigcfroge.
 
-1. شغّل الأمر `/connect` في TUI، واختر `Aigcfroge Go`، ثم انتقل إلى [opencode.ai/auth](https://opencode.ai/zen).
+1. شغّل الأمر `/connect` في TUI، واختر `Aigcfroge Go`، ثم انتقل إلى [aigcfroge.ai/auth](https://aigcfroge.ai/zen).
 
    ```txt
    /connect
@@ -193,7 +193,7 @@ Aigcfroge Go هي خطة اشتراك منخفضة التكلفة توفّر و�
 
    ```json title="aigcfroge.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://aigcfroge.ai/config.json",
      "provider": {
        "amazon-bedrock": {
          "options": {
@@ -220,7 +220,7 @@ Aigcfroge Go هي خطة اشتراك منخفضة التكلفة توفّر و�
 
    ```json title="aigcfroge.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://aigcfroge.ai/config.json",
      "provider": {
        "amazon-bedrock": {
          "options": {
@@ -263,7 +263,7 @@ Aigcfroge Go هي خطة اشتراك منخفضة التكلفة توفّر و�
 
 ```json title="aigcfroge.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "amazon-bedrock": {
       // ...
@@ -325,7 +325,7 @@ Aigcfroge Go هي خطة اشتراك منخفضة التكلفة توفّر و�
 
 ```json title="aigcfroge.json" "atomic-chat" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "atomic-chat": {
       "npm": "@ai-sdk/openai-compatible",
@@ -553,7 +553,7 @@ Aigcfroge Go هي خطة اشتراك منخفضة التكلفة توفّر و�
 
    ```json title="aigcfroge.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://aigcfroge.ai/config.json",
      "provider": {
        "cloudflare-ai-gateway": {
          "models": {
@@ -758,7 +758,7 @@ Aigcfroge Go هي خطة اشتراك منخفضة التكلفة توفّر و�
 
 ```json
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "small_model": "gitlab/duo-chat-haiku-4-5",
   "share": "disabled"
 }
@@ -820,7 +820,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 ```json title="aigcfroge.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "gitlab": {
       "options": {
@@ -837,7 +837,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 ```json title="aigcfroge.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "plugin": ["aigcfroge-gitlab-plugin"]
 }
 ```
@@ -1019,7 +1019,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 ```jsonc title="~/.config/aigcfroge/aigcfroge.jsonc"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1047,7 +1047,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 ```jsonc title="~/.config/aigcfroge/aigcfroge.jsonc"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1101,7 +1101,7 @@ npm install -g aigcfroge-helicone-session
 
 ```json title="aigcfroge.json" "llama.cpp" {5, 6, 8, 10-15}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "llama.cpp": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1168,7 +1168,7 @@ npm install -g aigcfroge-helicone-session
 
 ```json title="aigcfroge.json" "lmstudio" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "lmstudio": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1289,7 +1289,7 @@ npm install -g aigcfroge-helicone-session
 
 ```json title="aigcfroge.json" "ollama" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "ollama": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1451,7 +1451,7 @@ Aigcfroge Zen هي قائمة من النماذج التي تم اختبارها
 
    ```json title="aigcfroge.json" {6}
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://aigcfroge.ai/config.json",
      "provider": {
        "openrouter": {
          "models": {
@@ -1466,7 +1466,7 @@ Aigcfroge Zen هي قائمة من النماذج التي تم اختبارها
 
    ```json title="aigcfroge.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://aigcfroge.ai/config.json",
      "provider": {
        "openrouter": {
          "models": {
@@ -1603,7 +1603,7 @@ Aigcfroge Zen هي قائمة من النماذج التي تم اختبارها
 
 ### Scaleway
 
-لاستخدام [Scaleway Generative APIs](https://www.scaleway.com/en/docs/generative-apis/) مع Opencode:
+لاستخدام [Scaleway Generative APIs](https://www.scaleway.com/en/docs/generative-apis/) مع Aigcfroge:
 
 1. توجّه إلى [Scaleway Console IAM settings](https://console.scaleway.com/iam/api-keys) لإنشاء مفتاح API جديد.
 
@@ -1715,7 +1715,7 @@ Aigcfroge Zen هي قائمة من النماذج التي تم اختبارها
 
 ```json title="aigcfroge.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "vercel": {
       "models": {
@@ -1825,7 +1825,7 @@ Aigcfroge Zen هي قائمة من النماذج التي تم اختبارها
 
    ```json title="aigcfroge.json" {6}
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://aigcfroge.ai/config.json",
      "provider": {
        "zenmux": {
          "models": {
@@ -1893,7 +1893,7 @@ Aigcfroge Zen هي قائمة من النماذج التي تم اختبارها
 
    ```json title="aigcfroge.json" ""myprovider"" {5-15}
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://aigcfroge.ai/config.json",
      "provider": {
        "myprovider": {
          "npm": "@ai-sdk/openai-compatible",
@@ -1931,7 +1931,7 @@ Aigcfroge Zen هي قائمة من النماذج التي تم اختبارها
 
 ```json title="aigcfroge.json" {9,11,17-20}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "myprovider": {
       "npm": "@ai-sdk/openai-compatible",

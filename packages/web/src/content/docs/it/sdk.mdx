@@ -28,9 +28,9 @@ npm install @aigcfroge/sdk
 Crea un'istanza di aigcfroge:
 
 ```javascript
-import { createOpencode } from "@aigcfroge/sdk"
+import { createAigcfroge } from "@aigcfroge/sdk"
 
-const { client } = await createOpencode()
+const { client } = await createAigcfroge()
 ```
 
 Questo avvia sia un server sia un client
@@ -52,9 +52,9 @@ Questo avvia sia un server sia un client
 Puoi passare un oggetto di configurazione per personalizzare il comportamento. L'istanza legge comunque `aigcfroge.json`, ma puoi sovrascrivere o aggiungere configurazione inline:
 
 ```javascript
-import { createOpencode } from "@aigcfroge/sdk"
+import { createAigcfroge } from "@aigcfroge/sdk"
 
-const aigcfroge = await createOpencode({
+const aigcfroge = await createAigcfroge({
   hostname: "127.0.0.1",
   port: 4096,
   config: {
@@ -72,9 +72,9 @@ aigcfroge.server.close()
 Se hai gia un'istanza di aigcfroge in esecuzione, puoi creare un client per collegarti:
 
 ```javascript
-import { createOpencodeClient } from "@aigcfroge/sdk"
+import { createAigcfrogeClient } from "@aigcfroge/sdk"
 
-const client = createOpencodeClient({
+const client = createAigcfrogeClient({
   baseUrl: "http://localhost:4096",
 })
 ```

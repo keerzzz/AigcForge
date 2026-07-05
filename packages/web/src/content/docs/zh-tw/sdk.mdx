@@ -28,9 +28,9 @@ npm install @aigcfroge/sdk
 建立一個 aigcfroge 實例：
 
 ```javascript
-import { createOpencode } from "@aigcfroge/sdk"
+import { createAigcfroge } from "@aigcfroge/sdk"
 
-const { client } = await createOpencode()
+const { client } = await createAigcfroge()
 ```
 
 這會同時啟動伺服器和用戶端。
@@ -52,9 +52,9 @@ const { client } = await createOpencode()
 您可以傳入一個設定物件來自訂行為。實例仍然會讀取您的 `aigcfroge.json`，但您可以透過內嵌方式覆寫或新增設定：
 
 ```javascript
-import { createOpencode } from "@aigcfroge/sdk"
+import { createAigcfroge } from "@aigcfroge/sdk"
 
-const aigcfroge = await createOpencode({
+const aigcfroge = await createAigcfroge({
   hostname: "127.0.0.1",
   port: 4096,
   config: {
@@ -72,9 +72,9 @@ aigcfroge.server.close()
 如果您已經有一個正在執行的 aigcfroge 實例，可以建立一個用戶端實例來連線：
 
 ```javascript
-import { createOpencodeClient } from "@aigcfroge/sdk"
+import { createAigcfrogeClient } from "@aigcfroge/sdk"
 
-const client = createOpencodeClient({
+const client = createAigcfrogeClient({
   baseUrl: "http://localhost:4096",
 })
 ```

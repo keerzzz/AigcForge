@@ -18,9 +18,9 @@ export const GenerateCommand = {
           {
             lang: "js",
             source: [
-              `import { createOpencodeClient } from "@aigcfroge/sdk`,
+              `import { createAigcfrogeClient } from "@aigcfroge/sdk`,
               ``,
-              `const client = createOpencodeClient()`,
+              `const client = createAigcfrogeClient()`,
               `await client.${operation.operationId}({`,
               `  ...`,
               `})`,

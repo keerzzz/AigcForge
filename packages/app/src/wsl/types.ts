@@ -23,7 +23,7 @@ export type WslDistroProbe = {
   error: string | null
 }
 
-export type WslOpencodeCheck = {
+export type WslAigcfrogeCheck = {
   distro: string
   resolvedPath: string | null
   version: string | null
@@ -62,7 +62,7 @@ export type WslServersState = {
   installed: WslInstalledDistro[]
   online: WslOnlineDistro[]
   distroProbes: Record<string, WslDistroProbe>
-  aigcfrogeChecks: Record<string, WslOpencodeCheck>
+  aigcfrogeChecks: Record<string, WslAigcfrogeCheck>
   pendingRestart: boolean
   servers: WslServerItem[]
   job: WslJob | null
@@ -78,8 +78,8 @@ export type WslServersPlatform = {
   installWsl(): Promise<void>
   installDistro(name: string): Promise<void>
   probeDistro(name: string): Promise<void>
-  probeOpencode(name: string): Promise<void>
-  installOpencode(name: string): Promise<void>
+  probeAigcfroge(name: string): Promise<void>
+  installAigcfroge(name: string): Promise<void>
   openTerminal(name: string): Promise<void>
   addServer(distro: string): Promise<WslServerConfig>
   removeServer(id: string): Promise<void>

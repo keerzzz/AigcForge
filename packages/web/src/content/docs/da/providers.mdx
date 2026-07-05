@@ -33,7 +33,7 @@ Du kan tilpasse base URL for enhver udbyder ved at angive muligheden `baseURL`. 
 
 ```json title="aigcfroge.json" {6}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "anthropic": {
       "options": {
@@ -54,7 +54,7 @@ Aigcfroge Zen er en liste over modeller leveret af Aigcfroge-teamet, som er blev
 Hvis du er ny, anbefaler vi at starte med Aigcfroge Zen.
 :::
 
-1. Kør kommandoen `/connect` i TUI, vælg aigcfroge og gå til [opencode.ai/auth](https://opencode.ai/auth).
+1. Kør kommandoen `/connect` i TUI, vælg aigcfroge og gå til [aigcfroge.ai/auth](https://aigcfroge.ai/auth).
 
    ```txt
    /connect
@@ -85,7 +85,7 @@ Det fungerer som alle andre udbydere i Aigcfroge og er helt valgfrit at bruge.
 
 Aigcfroge Go er en billig abonnementsplan, der giver pålidelig adgang til populære åbne kodningsmodeller leveret af Aigcfroge-teamet, som er testet og verificeret til at fungere godt med Aigcfroge.
 
-1. Kør kommandoen `/connect` i TUI, vælg `Aigcfroge Go`, og gå til [opencode.ai/auth](https://opencode.ai/zen).
+1. Kør kommandoen `/connect` i TUI, vælg `Aigcfroge Go`, og gå til [aigcfroge.ai/auth](https://aigcfroge.ai/zen).
 
    ```txt
    /connect
@@ -189,7 +189,7 @@ Sådan bruger du Amazon Bedrock med Aigcfroge:
 
    ```json title="aigcfroge.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://aigcfroge.ai/config.json",
      "provider": {
        "amazon-bedrock": {
          "options": {
@@ -216,7 +216,7 @@ Sådan bruger du Amazon Bedrock med Aigcfroge:
 
    ```json title="aigcfroge.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://aigcfroge.ai/config.json",
      "provider": {
        "amazon-bedrock": {
          "options": {
@@ -260,7 +260,7 @@ For brugerdefinerede inferensprofiler, brug modellen og udbydernavnet i nøglen 
 
 ```json title="aigcfroge.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "amazon-bedrock": {
       // ...
@@ -321,7 +321,7 @@ Du kan konfigurere aigcfroge til at bruge lokale modeller via [Atomic Chat](http
 
 ```json title="aigcfroge.json" "atomic-chat" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "atomic-chat": {
       "npm": "@ai-sdk/openai-compatible",
@@ -549,7 +549,7 @@ Cloudflare AI Gateway lader dig få adgang til modeller fra OpenAI, Anthropic, W
 
    ```json title="aigcfroge.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://aigcfroge.ai/config.json",
      "provider": {
        "cloudflare-ai-gateway": {
          "models": {
@@ -755,7 +755,7 @@ til kun at bruge din egen GitLab-hostede instans, tilføj følgende i din
 
 ```json
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "small_model": "gitlab/duo-chat-haiku-4-5",
   "share": "disabled"
 }
@@ -817,7 +817,7 @@ Tilpas gennem `aigcfroge.json`:
 
 ```json title="aigcfroge.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "gitlab": {
       "options": {
@@ -834,7 +834,7 @@ For at få adgang til GitLab-værktøjer (merge requests, problemer, pipelines, 
 
 ```json title="aigcfroge.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "plugin": ["aigcfroge-gitlab-plugin"]
 }
 ```
@@ -1017,7 +1017,7 @@ Her er [Helicone's Model Directory](https://helicone.ai/models), du skal bruge d
 
 ```jsonc title="~/.config/aigcfroge/aigcfroge.jsonc"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1045,7 +1045,7 @@ Helicone understøtter tilpassede headers for funktioner som caching, brugerspor
 
 ```jsonc title="~/.config/aigcfroge/aigcfroge.jsonc"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1099,7 +1099,7 @@ Du kan konfigurere aigcfroge til at bruge lokale modeller gennem [llama.cpps](ht
 
 ```json title="aigcfroge.json" "llama.cpp" {5, 6, 8, 10-15}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "llama.cpp": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1166,7 +1166,7 @@ Du kan konfigurere aigcfroge til at bruge lokale modeller gennem LM Studio.
 
 ```json title="aigcfroge.json" "lmstudio" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "lmstudio": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1287,7 +1287,7 @@ Ollama kan automatisk konfigurere sig selv for Aigcfroge. Se [Ollama-integration
 
 ```json title="aigcfroge.json" "ollama" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "ollama": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1449,7 +1449,7 @@ Aigcfroge Zen er en liste over testede og verificerede modeller leveret af Aigcf
 
    ```json title="aigcfroge.json" {6}
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://aigcfroge.ai/config.json",
      "provider": {
        "openrouter": {
          "models": {
@@ -1464,7 +1464,7 @@ Aigcfroge Zen er en liste over testede og verificerede modeller leveret af Aigcf
 
    ```json title="aigcfroge.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://aigcfroge.ai/config.json",
      "provider": {
        "openrouter": {
          "models": {
@@ -1713,7 +1713,7 @@ Du kan også tilpasse modeller gennem aigcfroge-konfigurationen. Her er et eksem
 
 ```json title="aigcfroge.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "vercel": {
       "models": {
@@ -1823,7 +1823,7 @@ Nogle nyttige rutealternativer:
 
    ```json title="aigcfroge.json" {6}
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://aigcfroge.ai/config.json",
      "provider": {
        "zenmux": {
          "models": {
@@ -1891,7 +1891,7 @@ Du kan bruge hvilken som helst OpenAI-kompatibel udbyder med aigcfroge. De flest
 
    ```json title="aigcfroge.json" ""myprovider"" {5-15}
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://aigcfroge.ai/config.json",
      "provider": {
        "myprovider": {
          "npm": "@ai-sdk/openai-compatible",
@@ -1929,7 +1929,7 @@ Her er et eksempel på indstilling af mulighederne `apiKey`, `headers` og model 
 
 ```json title="aigcfroge.json" {9,11,17-20}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "provider": {
     "myprovider": {
       "npm": "@ai-sdk/openai-compatible",

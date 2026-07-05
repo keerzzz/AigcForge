@@ -61,7 +61,7 @@ Puede personalizar los formateadores a través de la sección `formatter` en su 
 
 ```json title="aigcfroge.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "formatter": {}
 }
 ```
@@ -85,7 +85,7 @@ Para deshabilitar **todos** los formateadores globalmente, configure `formatter`
 
 ```json title="aigcfroge.json" {3}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "formatter": false
 }
 ```
@@ -94,7 +94,7 @@ Para deshabilitar un formateador **específico**, establezca `disabled` en `true
 
 ```json title="aigcfroge.json" {5}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "formatter": {
     "prettier": {
       "disabled": true
@@ -111,7 +111,7 @@ Puede anular los formateadores integrados o agregar otros nuevos especificando e
 
 ```json title="aigcfroge.json" {4-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "formatter": {
     "prettier": {
       "command": ["npx", "prettier", "--write", "$FILE"],

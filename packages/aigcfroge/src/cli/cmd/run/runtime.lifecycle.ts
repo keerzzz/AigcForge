@@ -13,7 +13,7 @@ import { CliRenderEvents, createCliRenderer, type CliRenderer, type ScrollbackWr
 import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
 import { Global } from "@aigcfroge/core/global"
 import { openEditor } from "@aigcfroge/tui/editor"
-import { registerOpencodeKeymap } from "@aigcfroge/tui/keymap"
+import { registerAigcfrogeKeymap } from "@aigcfroge/tui/keymap"
 import { Session as SessionApi } from "@/session/session"
 import * as Locale from "@/util/locale"
 import { resolveInteractiveStdin } from "./runtime.stdin"
@@ -196,7 +196,7 @@ export async function createRuntimeLifecycle(input: LifecycleInput): Promise<Lif
     const theme = await resolveRunTheme(renderer)
     renderer.setBackgroundColor(theme.background)
     const keymap = createDefaultOpenTuiKeymap(renderer)
-    unregisterKeymap = registerOpencodeKeymap(keymap, renderer, input.tuiConfig)
+    unregisterKeymap = registerAigcfrogeKeymap(keymap, renderer, input.tuiConfig)
     const state: SplashState = {
       entry: false,
       exit: false,

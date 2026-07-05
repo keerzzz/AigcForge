@@ -50,10 +50,10 @@ export function registerWslIpcHandlers(controller: WslServersController) {
     controller.probeDistro(requireWslIpcString("distro", name)),
   )
   ipcMain.handle("wsl-servers-probe-aigcfroge", (_event: IpcMainInvokeEvent, name: string) =>
-    controller.probeOpencode(requireWslIpcString("distro", name)),
+    controller.probeAigcfroge(requireWslIpcString("distro", name)),
   )
   ipcMain.handle("wsl-servers-install-aigcfroge", (_event: IpcMainInvokeEvent, name: string) =>
-    controller.installOpencode(requireWslIpcString("distro", name)),
+    controller.installAigcfroge(requireWslIpcString("distro", name)),
   )
   ipcMain.handle("wsl-servers-open-terminal", (_event: IpcMainInvokeEvent, name: string) =>
     controller.openTerminal(requireWslIpcString("distro", name)),

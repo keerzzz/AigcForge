@@ -1,10 +1,10 @@
 # aigcfroge VS Code Extension
 
-A Visual Studio Code extension that integrates [aigcfroge](https://opencode.ai) directly into your development workflow.
+A Visual Studio Code extension that integrates [aigcfroge](https://aigcfroge.ai) directly into your development workflow.
 
 ## Prerequisites
 
-This extension requires the [aigcfroge CLI](https://opencode.ai) to be installed on your system. Visit [opencode.ai](https://opencode.ai) for installation instructions.
+This extension requires the [aigcfroge CLI](https://aigcfroge.ai) to be installed on your system. Visit [aigcfroge.ai](https://aigcfroge.ai) for installation instructions.
 
 ## Features
 

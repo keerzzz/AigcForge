@@ -101,7 +101,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
   meta = {
     description = "The open source coding agent";
-    homepage = "https://opencode.ai";
+    homepage = "https://aigcfroge.ai";
     license = lib.licenses.mit;
     mainProgram = "aigcfroge";
     inherit (node_modules.meta) platforms;

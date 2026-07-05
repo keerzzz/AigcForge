@@ -74,7 +74,7 @@ function oauth(http: HttpClient.HttpClient) {
   } satisfies IntegrationOAuthMethodRegistration
 }
 
-export const OpencodePlugin = define<HttpClient.HttpClient | EventV2.Service | Scope.Scope>({
+export const AigcfrogePlugin = define<HttpClient.HttpClient | EventV2.Service | Scope.Scope>({
   id: "aigcfroge",
   effect: Effect.fn(function* (ctx) {
     const events = yield* EventV2.Service
@@ -82,7 +82,7 @@ export const OpencodePlugin = define<HttpClient.HttpClient | EventV2.Service | S
     let connected = false
     let providers: typeof ConfigV1.Info.Type.provider | undefined
 
-    const load = Effect.fn("OpencodePlugin.load")(function* () {
+    const load = Effect.fn("AigcfrogePlugin.load")(function* () {
       const connection = yield* ctx.integration.connection.active("aigcfroge")
       const credential = connection
         ? yield* ctx.integration.connection.resolve(connection).pipe(Effect.catch(() => Effect.succeed(undefined)))

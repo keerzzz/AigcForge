@@ -86,7 +86,7 @@ export AIGCFROGE_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
 
 ## Öncelik
 
-Opencode başlatıldığında kural dosyalarını şu sırayla arar:
+Aigcfroge başlatıldığında kural dosyalarını şu sırayla arar:
 
 1. **Yerel dosyalar** geçerli dizinden yukarıya doğru giderek (`AGENTS.md`, `CLAUDE.md`)
 2. **Global dosya** `~/.config/aigcfroge/AGENTS.md` adresinde
@@ -104,7 +104,7 @@ Her kategoride ilk eşleşen dosya kazanır. Örneğin, hem `AGENTS.md` hem de `
 
 ```json title="aigcfroge.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "instructions": ["CONTRIBUTING.md", "docs/guidelines.md", ".cursor/rules/*.md"]
 }
 ```
@@ -113,7 +113,7 @@ Web'den talimatlar yüklemek için uzak URL'leri de kullanabilirsiniz.
 
 ```json title="aigcfroge.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "instructions": ["https://raw.githubusercontent.com/my-org/shared-rules/main/style.md"]
 }
 ```
@@ -126,7 +126,7 @@ Tüm talimat dosyaları `AGENTS.md` dosyalarınızla birleştirilir.
 
 ## Harici Dosyalara Referans Verme
 
-Opencode, `AGENTS.md`'daki dosya referanslarını otomatik olarak ayrıştırmasa da, benzer işlevleri iki şekilde elde edebilirsiniz:
+Aigcfroge, `AGENTS.md`'daki dosya referanslarını otomatik olarak ayrıştırmasa da, benzer işlevleri iki şekilde elde edebilirsiniz:
 
 ### aigcfroge.json'u kullanma
 
@@ -134,7 +134,7 @@ Opencode, `AGENTS.md`'daki dosya referanslarını otomatik olarak ayrıştırmas
 
 ```json title="aigcfroge.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://aigcfroge.ai/config.json",
   "instructions": ["docs/development-standards.md", "test/testing-guidelines.md", "packages/*/AGENTS.md"]
 }
 ```

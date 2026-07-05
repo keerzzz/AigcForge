@@ -82,7 +82,7 @@ beforeAll(async () => {
   }))
 
   mock.module("@aigcfroge/sdk/v2/client", () => ({
-    createOpencodeClient: (input: { directory: string }) => {
+    createAigcfrogeClient: (input: { directory: string }) => {
       createdClients.push(input.directory)
       return clientFor(input.directory)
     },

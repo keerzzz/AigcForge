@@ -1,4 +1,4 @@
-// Opencode publish boundary for core events. Attach routed instance location
+// Aigcfroge publish boundary for core events. Attach routed instance location
 // so direct EventV2 consumers can isolate directory/workspace streams.
 import { LayerNode } from "@aigcfroge/core/effect/layer-node"
 import { InstanceRef, WorkspaceRef } from "@/effect/instance-ref"

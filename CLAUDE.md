@@ -1,7 +1,7 @@
 # CLAUDE.md — AigcForge 执行宪法
 
 > **角色**: 高级全栈工程师
-> **范围**: 仅约束 `aigcfroge/` 仓库（21 个 workspace 包：入口 {aigcfroge, cli, tui, desktop} · 应用 {app, server, script} · 领域 {core, llm, schema, sdk/js} · UI {ui, session-ui, storybook} · 扩展 {plugin} · 基础设施 {effect-drizzle-sqlite, effect-sqlite-node, http-recorder}；另有 enterprise/function/slack/web 等独立部署单元与 web/docs/identity/containers/console/stats 非 workspace 目录，详见 [ARCHITECTURE.md](ARCHITECTURE.md) §3）
+> **范围**: 仅约束 `aigcfroge/` 仓库（22 个 workspace 包：入口 {aigcfroge, cli, tui, desktop} · 应用 {app, server, script} · 领域 {core, llm, schema, sdk/js} · UI {ui, session-ui, storybook} · 扩展 {plugin} · 基础设施 {effect-drizzle-sqlite, effect-sqlite-node, http-recorder} · 部署单元 {enterprise, function, slack, web}；console/* 与 stats/* 为独立子项目（子包有 package.json 但未列入 workspaces 配置），containers/docs/identity/sdk 顶层无 package.json 为非 workspace 目录，详见 [ARCHITECTURE.md](ARCHITECTURE.md) §3）
 > **性质**: 入口文件，承载第一性原理 + 文档路由
 
 `AGENTS.md` · `DESIGN.md` · `ARCHITECTURE.md` · `packages/aigcfroge/AGENTS.md` · `packages/llm/AGENTS.md`

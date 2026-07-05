@@ -6,7 +6,7 @@ import { Integration } from "@aigcfroge/core/integration"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { PluginV2 } from "@aigcfroge/core/plugin"
 import { PluginHost } from "@aigcfroge/core/plugin/host"
-import { OpencodePlugin } from "@aigcfroge/core/plugin/provider/aigcfroge"
+import { AigcfrogePlugin } from "@aigcfroge/core/plugin/provider/aigcfroge"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
@@ -17,7 +17,7 @@ const addPlugin = Effect.fn(function* () {
   const plugin = yield* PluginV2.Service
   const host = yield* PluginHost.make(plugin)
   const integration = yield* Integration.Service
-  yield* OpencodePlugin.effect(host).pipe(Effect.provideService(Integration.Service, integration))
+  yield* AigcfrogePlugin.effect(host).pipe(Effect.provideService(Integration.Service, integration))
 })
 
 function required<T>(value: T | undefined): T {
@@ -48,7 +48,7 @@ function withEnv<A, E, R>(vars: Record<string, string | undefined>, effect: () =
 
 const cost = (input: number, output = 0) => [{ input, output, cache: { read: 0, write: 0 } }]
 
-describe("OpencodePlugin", () => {
+describe("AigcfrogePlugin", () => {
   it.effect("registers account and service account methods", () =>
     Effect.gen(function* () {
       yield* addPlugin()

@@ -1,4 +1,4 @@
-import { createOpencodeClient } from "@aigcfroge/sdk/v2"
+import { createAigcfrogeClient } from "@aigcfroge/sdk/v2"
 import type { GlobalEvent } from "@aigcfroge/sdk/v2"
 import { Flag } from "@aigcfroge/core/flag/flag"
 import { createSimpleContext } from "./helper"
@@ -21,7 +21,7 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
     let sse: AbortController | undefined
 
     function createSDK() {
-      return createOpencodeClient({
+      return createAigcfrogeClient({
         baseUrl: props.url,
         signal: abort.signal,
         directory: props.directory,

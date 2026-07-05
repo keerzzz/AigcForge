@@ -273,7 +273,20 @@ export const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProce
         )
         const data = yield* HttpClientResponse.schemaBodyJson(GitHubRelease)(response)
         return data.tag_name.replace(/^v/, "")
-      }, Effect.orDie),
+      }, (effect) =>
+        effect.pipe(
+          // Domain (aigcfroge.ai) unregistered or formula not yet submitted to
+          // Homebrew/Scoop/npm registries will surface as 404/DNS errors here.
+          // Degrade to current version so `upgrade` reports "already installed"
+          // instead of crashing — non-blocking until infra is in place.
+          Effect.catchCause((cause) =>
+            Effect.gen(function* () {
+              yield* Effect.logWarning("failed to check latest version; defaulting to current", { cause })
+              return InstallationVersion
+            }),
+          ),
+        ),
+      ),
       upgrade: Effect.fn("Installation.upgrade")(function* (m: Method, target: string) {
         let upgradeResult: { code: number; stdout: string; stderr: string } | undefined
         switch (m) {

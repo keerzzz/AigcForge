@@ -10,11 +10,11 @@ import { TestTuiContexts } from "../../fixture/tui-environment"
 import { discoverEditorConnection } from "@aigcfroge/tui/editor"
 
 const originalClaudePort = process.env.CLAUDE_CODE_SSE_PORT
-const originalOpencodePort = process.env.AIGCFROGE_EDITOR_SSE_PORT
+const originalAigcfrogePort = process.env.AIGCFROGE_EDITOR_SSE_PORT
 
 afterEach(() => {
   process.env.CLAUDE_CODE_SSE_PORT = originalClaudePort
-  process.env.AIGCFROGE_EDITOR_SSE_PORT = originalOpencodePort
+  process.env.AIGCFROGE_EDITOR_SSE_PORT = originalAigcfrogePort
 })
 
 function nextTick() {

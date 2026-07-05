@@ -7,7 +7,7 @@ import { createStore } from "solid-js/store"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { useWslServers } from "./context"
-import { enterWslOpencodeStep } from "./settings-model"
+import { enterWslAigcfrogeStep } from "./settings-model"
 
 type WslServerStep = "wsl" | "distro" | "aigcfroge"
 
@@ -113,7 +113,7 @@ export function DialogAddWslServer(props: DialogWslServerProps = {}) {
     () => installableDistros().find((item) => item.name === store.installTarget) ?? installableDistros()[0] ?? null,
   )
   const installingDistro = createMemo(() => current()?.job?.kind === "install-distro")
-  const installingOpencode = createMemo(() => {
+  const installingAigcfroge = createMemo(() => {
     const job = current()?.job
     return job?.kind === "install-aigcfroge" && job.distro === selectedDistro()
   })
@@ -148,7 +148,7 @@ export function DialogAddWslServer(props: DialogWslServerProps = {}) {
     }
     if (!distro || !distroReady()) return null
     if (!state.aigcfrogeChecks[distro]) {
-      return { key: `probe-aigcfroge:${distro}`, run: () => api.probeOpencode(distro) }
+      return { key: `probe-aigcfroge:${distro}`, run: () => api.probeAigcfroge(distro) }
     }
     return null
   })
@@ -199,23 +199,23 @@ export function DialogAddWslServer(props: DialogWslServerProps = {}) {
 
   const aigcfrogeMessage = createMemo(() => {
     const state = current()
-    if (!state) return language.t("wsl.onboarding.checkingOpencode")
+    if (!state) return language.t("wsl.onboarding.checkingAigcfroge")
     const distro = selectedDistro()
     if (state.job?.kind === "install-aigcfroge") {
       return distro
-        ? language.t("wsl.onboarding.updatingOpencodeIn", { distro })
-        : language.t("wsl.onboarding.updatingOpencode")
+        ? language.t("wsl.onboarding.updatingAigcfrogeIn", { distro })
+        : language.t("wsl.onboarding.updatingAigcfroge")
     }
     if (state.job?.kind === "probe-aigcfroge") {
       return distro
-        ? language.t("wsl.onboarding.checkingOpencodeIn", { distro })
-        : language.t("wsl.onboarding.checkingOpencode")
+        ? language.t("wsl.onboarding.checkingAigcfrogeIn", { distro })
+        : language.t("wsl.onboarding.checkingAigcfroge")
     }
     if (aigcfrogeCheck()?.error) return aigcfrogeCheck()!.error
     if (aigcfrogeCheck()?.matchesDesktop === false) {
       return distro
-        ? language.t("wsl.onboarding.updateOpencodeIn", { distro })
-        : language.t("wsl.onboarding.updateOpencode")
+        ? language.t("wsl.onboarding.updateAigcfrogeIn", { distro })
+        : language.t("wsl.onboarding.updateAigcfroge")
     }
     if (aigcfrogeReady()) {
       return distro
@@ -223,7 +223,7 @@ export function DialogAddWslServer(props: DialogWslServerProps = {}) {
         : language.t("wsl.onboarding.aigcfrogeReady")
     }
     return distro
-      ? language.t("wsl.onboarding.installOpencodeIn", { distro })
+      ? language.t("wsl.onboarding.installAigcfrogeIn", { distro })
       : language.t("wsl.onboarding.chooseDistroFirst")
   })
 
@@ -246,10 +246,10 @@ export function DialogAddWslServer(props: DialogWslServerProps = {}) {
     setStore("step", undefined)
   }
 
-  const openOpencodeStep = () => {
+  const openAigcfrogeStep = () => {
     const distro = selectedDistro()
     if (!distro) return
-    void run(() => enterWslOpencodeStep(distro, api.probeOpencode, (step) => setStore("step", step)))
+    void run(() => enterWslAigcfrogeStep(distro, api.probeAigcfroge, (step) => setStore("step", step)))
   }
 
   const finish = async () => {
@@ -528,7 +528,7 @@ export function DialogAddWslServer(props: DialogWslServerProps = {}) {
                     variant="secondary"
                     size="large"
                     disabled={busy() || !selectedDistro() || !distroReady()}
-                    onClick={openOpencodeStep}
+                    onClick={openAigcfrogeStep}
                   >
                     {language.t("wsl.onboarding.next")}
                   </Button>
@@ -546,7 +546,7 @@ export function DialogAddWslServer(props: DialogWslServerProps = {}) {
                         variant="ghost"
                         size="large"
                         disabled={busy()}
-                        onClick={() => runSelectedDistro((distro) => api.probeOpencode(distro))}
+                        onClick={() => runSelectedDistro((distro) => api.probeAigcfroge(distro))}
                       >
                         {language.t("wsl.onboarding.refresh")}
                       </Button>
@@ -556,14 +556,14 @@ export function DialogAddWslServer(props: DialogWslServerProps = {}) {
                         variant="secondary"
                         size="large"
                         disabled={busy()}
-                        onClick={() => runSelectedDistro((distro) => api.installOpencode(distro))}
+                        onClick={() => runSelectedDistro((distro) => api.installAigcfroge(distro))}
                       >
-                        <Show when={installingOpencode()}>
+                        <Show when={installingAigcfroge()}>
                           <Spinner class="size-4 shrink-0" />
                         </Show>
                         {aigcfrogeCheck()?.resolvedPath
-                          ? language.t("wsl.onboarding.updateOpencode")
-                          : language.t("wsl.onboarding.installOpencode")}
+                          ? language.t("wsl.onboarding.updateAigcfroge")
+                          : language.t("wsl.onboarding.installAigcfroge")}
                       </Button>
                     </Show>
                   </div>

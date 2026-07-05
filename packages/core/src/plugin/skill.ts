@@ -6,9 +6,9 @@ import { define } from "./internal"
 import { Effect } from "effect"
 import { AbsolutePath } from "../schema"
 import { SkillV2 } from "../skill"
-import customizeOpencodeContent from "./skill/customize-aigcfroge.md" with { type: "text" }
+import customizeAigcfrogeContent from "./skill/customize-aigcfroge.md" with { type: "text" }
 
-export const CustomizeOpencodeContent = customizeOpencodeContent
+export const CustomizeAigcfrogeContent = customizeAigcfrogeContent
 
 export const Plugin = define({
   id: "skill",
@@ -22,7 +22,7 @@ export const Plugin = define({
             description:
               "Use ONLY when the user is editing or creating aigcfroge's own configuration: aigcfroge.json, aigcfroge.jsonc, files under .aigcfroge/, or files under ~/.config/aigcfroge/. Also use when creating or fixing aigcfroge agents, subagents, commands, skills, plugins, MCP servers, or permission rules. Do not use for the user's own application code, or for any project that is not configuring aigcfroge itself.",
             location: AbsolutePath.make("/builtin/customize-aigcfroge.md"),
-            content: CustomizeOpencodeContent,
+            content: CustomizeAigcfrogeContent,
           }),
         }),
       )

@@ -8,7 +8,7 @@ import { ChildProcessSpawner } from "effect/unstable/process"
 import { FSUtil } from "@aigcfroge/core/fs-util"
 import { CrossSpawnSpawner } from "@aigcfroge/core/cross-spawn-spawner"
 import { Flag } from "@aigcfroge/core/flag/flag"
-import { createOpencodeClient } from "@aigcfroge/sdk/v2"
+import { createAigcfrogeClient } from "@aigcfroge/sdk/v2"
 import { validateSession } from "../../src/cli/tui/validate-session"
 import { InstanceBootstrap } from "../../src/project/bootstrap-service"
 import { InstanceStore } from "../../src/project/instance-store"
@@ -45,7 +45,7 @@ const original = {
 }
 
 type ServerPath = "default" | "raw"
-type Sdk = ReturnType<typeof createOpencodeClient>
+type Sdk = ReturnType<typeof createAigcfrogeClient>
 type SdkResult = { response: Response; data?: unknown; error?: unknown }
 type Captured = { status: number; data?: unknown; error?: unknown }
 type ProjectFixture = { sdk: Sdk; directory: string }
@@ -70,7 +70,7 @@ function client(
 ) {
   return serverFetch(serverPath, input).pipe(
     Effect.map((fetch) =>
-      createOpencodeClient({
+      createAigcfrogeClient({
         baseUrl: "http://localhost",
         directory,
         experimental_workspaceID: input?.workspaceID,
