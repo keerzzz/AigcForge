@@ -1,4 +1,4 @@
-import { Show, createEffect, createMemo, createSignal, For, onCleanup, onMount, type Accessor } from "solid-js"
+import { Show, createEffect, createMemo, createSignal, For, onCleanup, onMount, untrack, type Accessor } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { useParams } from "@solidjs/router"
 import { getFilename } from "@aigcfroge/core/util/path"
@@ -39,6 +39,11 @@ import { toasterV2 } from "@aigcfroge/ui/v2/toast-v2"
 import { clearWorkspaceTerminals } from "@/context/terminal"
 import { Worktree as WorktreeState } from "@/utils/worktree"
 import type { Session } from "@aigcfroge/sdk/v2/client"
+
+// Auto-sync decision logic lives in ./secondary-sidebar-autosync (pure function,
+// testable in isolation). The effect below only wires it into Solid's reactivity
+// (currentDir → store updates via untrack).
+import { computeAutoSync } from "./secondary-sidebar-autosync"
 
 function SecondarySidebar() {
   const language = useLanguage()
@@ -87,24 +92,24 @@ function SecondarySidebar() {
   // the project (and workspace) that contains it, and collapse other projects.
   // This ensures the secondary sidebar always shows the conversation list of the
   // project the user is currently viewing, without requiring a manual click.
+  //
+  // `untrack` is essential: without it, reading `collapsed`/`expanded` here would
+  // subscribe this effect to those stores, so a user's manual toggle would re-run
+  // this effect and immediately overwrite their choice (collapse forced back to
+  // false for the active project, true for others) — making the toggle appear dead.
+  // untrack keeps the effect driven only by navigation (currentDir / project list).
   createEffect(() => {
     const dir = currentDir()
     if (!dir) return
-    const dirKey = pathKey(dir)
     const list = ctx()?.projects.list() ?? []
     if (list.length === 0) return
 
-    for (const project of list) {
-      const dirs = [project.worktree, ...(project.sandboxes ?? [])]
-      const activeWs = dirs.find((w) => pathKey(w) === dirKey)
-
-      if (activeWs) {
-        if (collapsed[project.worktree] !== false) setCollapsed(project.worktree, false)
-        if (expanded[activeWs] !== true) setExpanded(activeWs, true)
-      } else {
-        if (collapsed[project.worktree] !== true) setCollapsed(project.worktree, true)
+    untrack(() => {
+      for (const { worktree, collapsed: wantCollapsed, expandWorktree } of computeAutoSync(dir, list)) {
+        if (collapsed[worktree] !== wantCollapsed) setCollapsed(worktree, wantCollapsed)
+        if (expandWorktree !== undefined && expanded[expandWorktree] !== true) setExpanded(expandWorktree, true)
       }
-    }
+    })
   })
 
   const searchQuery = createMemo(() => state.search.trim().toLowerCase())
