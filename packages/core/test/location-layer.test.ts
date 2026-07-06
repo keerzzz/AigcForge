@@ -7,6 +7,7 @@ import { define } from "@aigcfroge/plugin/v2/effect"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { Catalog } from "@aigcfroge/core/catalog"
 import { LocationServiceMap } from "@aigcfroge/core/location-layer"
+import { TaskDriver } from "@aigcfroge/core/tool/task-driver"
 import { Location } from "@aigcfroge/core/location"
 import { PluginV2 } from "@aigcfroge/core/plugin"
 import { ModelV2 } from "@aigcfroge/core/model"
@@ -126,6 +127,7 @@ describe("LocationServiceMap", () => {
             "question",
             "read",
             "skill",
+            "task",
             "todowrite",
             "webfetch",
             "websearch",

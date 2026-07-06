@@ -2,6 +2,8 @@ import { SessionV2 } from "@aigcfroge/core/session"
 import { LocationServiceMap } from "@aigcfroge/core/location-layer"
 import { PermissionSaved } from "@aigcfroge/core/permission/saved"
 import { PtyTicket } from "@aigcfroge/core/pty/ticket"
+import { TaskDriverFill } from "@aigcfroge/core/session/task-driver-fill"
+import { BackgroundJob } from "@aigcfroge/core/background-job"
 import { Layer } from "effect"
 import { layer as locationLayer } from "./groups/location"
 import { sessionLocationLayer } from "./middleware/session-location"
@@ -25,6 +27,16 @@ import { IntegrationHandler } from "./handlers/integration"
 import { CredentialHandler } from "./handlers/credential"
 import { Credential } from "@aigcfroge/core/credential"
 import { ProjectCopyHandler } from "./handlers/project-copy"
+
+// Install the SessionV2-backed TaskDriver bridge so the `task` built-in can
+// drive child Sessions. The bridge is a plain module singleton (see
+// tool/task-driver.ts), so this only needs SessionV2 + BackgroundJob — no Layer
+// wiring bubbles out to the handler graph. BackgroundJob runs child drains off
+// the caller's fiber.
+const fillerLayer = TaskDriverFill.layer.pipe(
+  Layer.provide(SessionV2.defaultLayer),
+  Layer.provide(BackgroundJob.defaultLayer),
+)
 
 export const handlers = Layer.mergeAll(
   HealthHandler,
@@ -52,6 +64,7 @@ export const handlers = Layer.mergeAll(
   Layer.provide(SessionExecutionLocal.defaultLayer),
   Layer.provide(PermissionSaved.defaultLayer),
   Layer.provide(PtyTicket.defaultLayer),
+  Layer.provide(fillerLayer),
   Layer.provide(LocationServiceMap.layer),
   Layer.provide(Credential.defaultLayer),
 )

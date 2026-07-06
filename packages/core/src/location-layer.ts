@@ -87,6 +87,9 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
     const referenceGuidance = ReferenceGuidance.locationLayer.pipe(Layer.provide(services))
     const todos = SessionTodo.layer.pipe(Layer.provide(services))
     const questions = QuestionV2.locationLayer.pipe(Layer.provide(services))
+    // The `task` built-in reaches child Sessions through the TaskDriver module
+    // bridge (a plain Deferred filled by the composition root), not a Layer, so
+    // BuiltInTools carries no extra requirement here. See tool/task-driver.ts.
     const builtInTools = BuiltInTools.locationLayer.pipe(
       Layer.provide(services),
       Layer.provide(mutation),

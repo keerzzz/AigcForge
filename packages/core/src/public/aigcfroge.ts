@@ -1,6 +1,7 @@
 export * as Aigcfroge from "./aigcfroge"
 
 import { Context, Effect, Layer } from "effect"
+import { BackgroundJob } from "../background-job"
 import { Database } from "../database/database"
 import { EventV2 } from "../event"
 import { LocationServiceMap } from "../location-layer"
@@ -10,6 +11,7 @@ import * as SessionExecutionLocal from "../session/execution/local"
 import { SessionProjector } from "../session/projector"
 import { SessionStore } from "../session/store"
 import { ApplicationTools } from "../tool/application-tools"
+import { TaskDriverFill } from "../session/task-driver-fill"
 import { Session } from "./session"
 import { Tool } from "./tool"
 
@@ -30,6 +32,13 @@ const SessionsLayer = SessionV2.layer.pipe(
   Layer.provide(ProjectV2.defaultLayer),
   Layer.provide(LocationServiceMap.layer.pipe(Layer.provide(ApplicationTools.layer))),
   Layer.orDie,
+)
+
+// Installs the SessionV2-backed TaskDriver bridge so the `task` built-in can
+// drive child Sessions. The child drain runs on a BackgroundJob fiber (never
+// the caller's), so wire BackgroundJob alongside SessionV2.
+const FillerLayer = TaskDriverFill.layer.pipe(
+  Layer.provide(Layer.merge(SessionsLayer, BackgroundJob.defaultLayer)),
 )
 // TODO: Accept explicit storage so tests and embeddings can select disposable or application-owned persistence.
 export const layer = Layer.effect(
@@ -71,6 +80,6 @@ export const layer = Layer.effect(
       },
     })
   }),
-).pipe(Layer.provide(Layer.merge(ApplicationTools.layer, SessionsLayer)))
+).pipe(Layer.provide(Layer.mergeAll(ApplicationTools.layer, SessionsLayer, FillerLayer)))
 
 // TODO: Add Aigcfroge.create(...) as the Promise facade over the same native API semantics.
