@@ -101,6 +101,7 @@ export interface Interface {
   readonly list: (input?: ListInput) => Effect.Effect<SessionSchema.Info[]>
   readonly create: (input: CreateInput) => Effect.Effect<SessionSchema.Info>
   readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<SessionSchema.Info, NotFoundError>
+  readonly children: (sessionID: SessionSchema.ID) => Effect.Effect<SessionSchema.Info[], NotFoundError>
   readonly messages: (input: {
     sessionID: SessionSchema.ID
     limit?: number
@@ -134,17 +135,17 @@ export interface Interface {
     resume?: boolean
   }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError>
   readonly shell: (input: {
-    id?: EventV2.ID
+    id?: SessionMessage.ID
     sessionID: SessionSchema.ID
     command: string
     resume?: boolean
-  }) => Effect.Effect<void, OperationUnavailableError>
+  }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError>
   readonly skill: (input: {
-    id?: EventV2.ID
+    id?: SessionMessage.ID
     sessionID: SessionSchema.ID
     skill: string
     resume?: boolean
-  }) => Effect.Effect<void, OperationUnavailableError>
+  }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError>
   readonly compact: (input: CompactInput) => Effect.Effect<void, NotFoundError | OperationUnavailableError>
   readonly wait: (id: SessionSchema.ID) => Effect.Effect<void, NotFoundError | OperationUnavailableError>
   readonly resume: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError | SessionRunner.RunError>
@@ -234,6 +235,10 @@ export const layer = Layer.effect(
         const session = yield* store.get(sessionID)
         if (!session) return yield* new NotFoundError({ sessionID })
         return session
+      }),
+      children: Effect.fn("V2Session.children")(function* (sessionID) {
+        yield* result.get(sessionID)
+        return yield* store.children(sessionID)
       }),
       list: Effect.fn("V2Session.list")(function* (input = {}) {
         const direction = input.anchor?.direction ?? "next"
@@ -345,12 +350,56 @@ export const layer = Layer.effect(
           }),
         ),
       ),
-      shell: Effect.fn("V2Session.shell")(function* () {
-        return yield* new OperationUnavailableError({ operation: "shell" })
-      }),
-      skill: Effect.fn("V2Session.skill")(function* () {
-        return yield* new OperationUnavailableError({ operation: "skill" })
-      }),
+      shell: Effect.fn("V2Session.shell")((input) =>
+        Effect.uninterruptible(
+          Effect.gen(function* () {
+            yield* result.get(input.sessionID)
+            const messageID = input.id ?? SessionMessage.ID.create()
+            const delivery: SessionInput.Delivery = "queue"
+            const expected = { sessionID: input.sessionID, messageID, command: input.command, delivery }
+            const admitted = yield* SessionInput.admitShell(db, events, {
+              id: messageID,
+              sessionID: input.sessionID,
+              command: input.command,
+            }).pipe(
+              Effect.catchDefect((defect) =>
+                defect instanceof SessionInput.LifecycleConflict
+                  ? new PromptConflictError({ sessionID: input.sessionID, messageID })
+                  : Effect.die(defect),
+              ),
+            )
+            if (!SessionInput.equivalentShell(admitted, expected))
+              return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
+            if (input.resume !== false) yield* execution.wake(admitted.sessionID)
+            return admitted
+          }),
+        ),
+      ),
+      skill: Effect.fn("V2Session.skill")((input) =>
+        Effect.uninterruptible(
+          Effect.gen(function* () {
+            yield* result.get(input.sessionID)
+            const messageID = input.id ?? SessionMessage.ID.create()
+            const delivery: SessionInput.Delivery = "steer"
+            const expected = { sessionID: input.sessionID, messageID, skill: input.skill, delivery }
+            const admitted = yield* SessionInput.admitSkill(db, events, {
+              id: messageID,
+              sessionID: input.sessionID,
+              skill: input.skill,
+            }).pipe(
+              Effect.catchDefect((defect) =>
+                defect instanceof SessionInput.LifecycleConflict
+                  ? new PromptConflictError({ sessionID: input.sessionID, messageID })
+                  : Effect.die(defect),
+              ),
+            )
+            if (!SessionInput.equivalentSkill(admitted, expected))
+              return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
+            if (input.resume !== false) yield* execution.wake(admitted.sessionID)
+            return admitted
+          }),
+        ),
+      ),
       switchAgent: Effect.fn("V2Session.switchAgent")(function* (input) {
         yield* result.get(input.sessionID)
         yield* events.publish(SessionEvent.AgentSwitched, {

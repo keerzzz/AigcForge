@@ -323,8 +323,9 @@ describe("SessionV2.create", () => {
           Effect.map((error) => (error instanceof SessionV2.OperationUnavailableError ? error.operation : "not-found")),
         )
 
-      expect(yield* unavailable(session.shell({ sessionID: created.id, command: "pwd" }))).toBe("shell")
-      expect(yield* unavailable(session.skill({ sessionID: created.id, skill: "review" }))).toBe("skill")
+      // shell and skill are implemented (admit to the durable inbox); compact and wait remain stubs.
+      expect(yield* unavailable(session.compact({ sessionID: created.id }))).toBe("compact")
+      expect(yield* unavailable(session.wait(created.id))).toBe("wait")
     }),
   )
 

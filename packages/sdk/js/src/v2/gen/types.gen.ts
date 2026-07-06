@@ -21,6 +21,8 @@ export type Event =
   | EventSessionNextMoved
   | EventSessionNextPrompted
   | EventSessionNextPromptAdmitted
+  | EventSessionNextShellAdmitted
+  | EventSessionNextSkillAdmitted
   | EventSessionNextContextUpdated
   | EventSessionNextSynthetic
   | EventSessionNextShellStarted
@@ -876,6 +878,28 @@ export type GlobalEvent = {
       }
     | {
         id: string
+        type: "session.next.shell.admitted"
+        properties: {
+          timestamp: number
+          sessionID: string
+          messageID: string
+          command: string
+          delivery: "steer" | "queue"
+        }
+      }
+    | {
+        id: string
+        type: "session.next.skill.admitted"
+        properties: {
+          timestamp: number
+          sessionID: string
+          messageID: string
+          skill: string
+          delivery: "steer" | "queue"
+        }
+      }
+    | {
+        id: string
         type: "session.next.context.updated"
         properties: {
           timestamp: number
@@ -1662,6 +1686,8 @@ export type GlobalEvent = {
     | SyncEventSessionNextMoved
     | SyncEventSessionNextPrompted
     | SyncEventSessionNextPromptAdmitted
+    | SyncEventSessionNextShellAdmitted
+    | SyncEventSessionNextSkillAdmitted
     | SyncEventSessionNextContextUpdated
     | SyncEventSessionNextSynthetic
     | SyncEventSessionNextShellStarted
@@ -2374,7 +2400,7 @@ export type VcsApplyError = {
   name: "VcsApplyError"
   data: {
     message: string
-    reason: "non-git" | "not-clean" | "stage-failed" | "commit-failed"
+    reason: "non-git" | "not-clean" | "stage-failed" | "unstage-failed" | "commit-failed"
   }
 }
 
@@ -2831,6 +2857,8 @@ export type V2Event =
   | V2EventSessionNextMoved
   | V2EventSessionNextPrompted
   | V2EventSessionNextPromptAdmitted
+  | V2EventSessionNextShellAdmitted
+  | V2EventSessionNextSkillAdmitted
   | V2EventSessionNextContextUpdated
   | V2EventSessionNextSynthetic
   | V2EventSessionNextShellStarted
@@ -3293,6 +3321,42 @@ export type SyncEventSessionNextPromptAdmitted = {
       sessionID: string
       messageID: string
       prompt: Prompt
+      delivery: "steer" | "queue"
+    }
+  }
+}
+
+export type SyncEventSessionNextShellAdmitted = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "session.next.shell.admitted.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      timestamp: number
+      sessionID: string
+      messageID: string
+      command: string
+      delivery: "steer" | "queue"
+    }
+  }
+}
+
+export type SyncEventSessionNextSkillAdmitted = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "session.next.skill.admitted.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      timestamp: number
+      sessionID: string
+      messageID: string
+      skill: string
       delivery: "steer" | "queue"
     }
   }
@@ -3811,15 +3875,40 @@ export type SessionV2Info = {
   subpath?: string
 }
 
-export type SessionInputAdmitted = {
+export type SessionInputAdmittedPrompt = {
+  kind: "prompt"
   admittedSeq: number
   id: string
   sessionID: string
-  prompt: Prompt
   delivery: "steer" | "queue"
   timeCreated: number
   promotedSeq?: number
+  prompt: Prompt
 }
+
+export type SessionInputAdmittedShell = {
+  kind: "shell"
+  admittedSeq: number
+  id: string
+  sessionID: string
+  delivery: "steer" | "queue"
+  timeCreated: number
+  promotedSeq?: number
+  command: string
+}
+
+export type SessionInputAdmittedSkill = {
+  kind: "skill"
+  admittedSeq: number
+  id: string
+  sessionID: string
+  delivery: "steer" | "queue"
+  timeCreated: number
+  promotedSeq?: number
+  skill: string
+}
+
+export type SessionInputAdmitted = SessionInputAdmittedPrompt | SessionInputAdmittedShell | SessionInputAdmittedSkill
 
 export type SessionMessageAgentSwitched = {
   id: string
@@ -4596,6 +4685,48 @@ export type V2EventSessionNextPromptAdmitted = {
     sessionID: string
     messageID: string
     prompt: Prompt
+    delivery: "steer" | "queue"
+  }
+}
+
+export type V2EventSessionNextShellAdmitted = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "session.next.shell.admitted"
+  data: {
+    timestamp: number
+    sessionID: string
+    messageID: string
+    command: string
+    delivery: "steer" | "queue"
+  }
+}
+
+export type V2EventSessionNextSkillAdmitted = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "session.next.skill.admitted"
+  data: {
+    timestamp: number
+    sessionID: string
+    messageID: string
+    skill: string
     delivery: "steer" | "queue"
   }
 }
@@ -6293,6 +6424,30 @@ export type EventSessionNextPromptAdmitted = {
     sessionID: string
     messageID: string
     prompt: Prompt
+    delivery: "steer" | "queue"
+  }
+}
+
+export type EventSessionNextShellAdmitted = {
+  id: string
+  type: "session.next.shell.admitted"
+  properties: {
+    timestamp: number
+    sessionID: string
+    messageID: string
+    command: string
+    delivery: "steer" | "queue"
+  }
+}
+
+export type EventSessionNextSkillAdmitted = {
+  id: string
+  type: "session.next.skill.admitted"
+  properties: {
+    timestamp: number
+    sessionID: string
+    messageID: string
+    skill: string
     delivery: "steer" | "queue"
   }
 }
@@ -11894,6 +12049,168 @@ export type V2SessionContextResponses = {
 }
 
 export type V2SessionContextResponse = V2SessionContextResponses[keyof V2SessionContextResponses]
+
+export type V2SessionChildrenData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/api/session/{sessionID}/children"
+}
+
+export type V2SessionChildrenErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+}
+
+export type V2SessionChildrenError = V2SessionChildrenErrors[keyof V2SessionChildrenErrors]
+
+export type V2SessionChildrenResponses = {
+  /**
+   * Success
+   */
+  200: {
+    data: Array<SessionV2Info>
+  }
+}
+
+export type V2SessionChildrenResponse = V2SessionChildrenResponses[keyof V2SessionChildrenResponses]
+
+export type V2SessionSkillData = {
+  body: {
+    id?: string
+    skill: string
+    resume?: boolean
+  }
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/api/session/{sessionID}/skill"
+}
+
+export type V2SessionSkillErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2SessionSkillError = V2SessionSkillErrors[keyof V2SessionSkillErrors]
+
+export type V2SessionSkillResponses = {
+  /**
+   * Success
+   */
+  200: {
+    data: SessionInputAdmitted
+  }
+}
+
+export type V2SessionSkillResponse = V2SessionSkillResponses[keyof V2SessionSkillResponses]
+
+export type V2SessionShellData = {
+  body: {
+    id?: string
+    command: string
+    resume?: boolean
+  }
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/api/session/{sessionID}/shell"
+}
+
+export type V2SessionShellErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2SessionShellError = V2SessionShellErrors[keyof V2SessionShellErrors]
+
+export type V2SessionShellResponses = {
+  /**
+   * Success
+   */
+  200: {
+    data: SessionInputAdmitted
+  }
+}
+
+export type V2SessionShellResponse = V2SessionShellResponses[keyof V2SessionShellResponses]
+
+export type V2SessionInterruptData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/api/session/{sessionID}/interrupt"
+}
+
+export type V2SessionInterruptErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+}
+
+export type V2SessionInterruptError = V2SessionInterruptErrors[keyof V2SessionInterruptErrors]
+
+export type V2SessionInterruptResponses = {
+  /**
+   * <No Content>
+   */
+  204: void
+}
+
+export type V2SessionInterruptResponse = V2SessionInterruptResponses[keyof V2SessionInterruptResponses]
 
 export type V2SessionMessagesData = {
   body?: never

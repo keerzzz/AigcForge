@@ -238,6 +238,78 @@ export const SessionGroup = HttpApiGroup.make("server.session")
         }),
       ),
   )
+  .add(
+    HttpApiEndpoint.get("session.children", "/api/session/:sessionID/children", {
+      params: { sessionID: SessionV2.ID },
+      success: Schema.Struct({ data: Schema.Array(SessionV2.Info) }),
+      error: SessionNotFoundError,
+    })
+      .middleware(SessionLocationMiddleware)
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.session.children",
+          summary: "List child sessions",
+          description: "List sessions forked or spawned from this session.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("session.skill", "/api/session/:sessionID/skill", {
+      params: { sessionID: SessionV2.ID },
+      payload: Schema.Struct({
+        id: SessionMessage.ID.pipe(Schema.optional),
+        skill: Schema.String,
+        resume: Schema.Boolean.pipe(Schema.optional),
+      }),
+      success: Schema.Struct({ data: SessionInput.Admitted }),
+      error: [ConflictError, SessionNotFoundError],
+    })
+      .middleware(SessionLocationMiddleware)
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.session.skill",
+          summary: "Invoke skill",
+          description:
+            "Admit a slash-command skill invocation to the durable inbox. The runner resolves the skill at the next promotion boundary and delivers it as a synthetic user turn.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("session.shell", "/api/session/:sessionID/shell", {
+      params: { sessionID: SessionV2.ID },
+      payload: Schema.Struct({
+        id: SessionMessage.ID.pipe(Schema.optional),
+        command: Schema.String,
+        resume: Schema.Boolean.pipe(Schema.optional),
+      }),
+      success: Schema.Struct({ data: SessionInput.Admitted }),
+      error: [ConflictError, SessionNotFoundError],
+    })
+      .middleware(SessionLocationMiddleware)
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.session.shell",
+          summary: "Run shell command",
+          description:
+            "Admit a user-run shell command to the durable inbox. The runner drains queued shell inputs at the next idle boundary, publishing shell.started and shell.ended events.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("session.interrupt", "/api/session/:sessionID/interrupt", {
+      params: { sessionID: SessionV2.ID },
+      success: HttpApiSchema.NoContent,
+      error: SessionNotFoundError,
+    })
+      .middleware(SessionLocationMiddleware)
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.session.interrupt",
+          summary: "Interrupt session execution",
+          description: "Interrupt active execution owned by this process. Idle interruption is a no-op.",
+        }),
+      ),
+  )
   .annotateMerge(
     OpenApi.annotations({
       title: "sessions",

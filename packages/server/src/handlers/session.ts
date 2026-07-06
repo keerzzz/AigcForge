@@ -236,5 +236,93 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
           }
         }),
       )
+      .handle(
+        "session.children",
+        Effect.fn(function* (ctx) {
+          return {
+            data: yield* session.children(ctx.params.sessionID).pipe(
+              Effect.catchTag("Session.NotFoundError", (error) =>
+                Effect.fail(
+                  new SessionNotFoundError({
+                    sessionID: error.sessionID,
+                    message: `Session not found: ${error.sessionID}`,
+                  }),
+                ),
+              ),
+            ),
+          }
+        }),
+      )
+      .handle(
+        "session.interrupt",
+        Effect.fn(function* (ctx) {
+          yield* session.interrupt(ctx.params.sessionID)
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.shell",
+        Effect.fn(function* (ctx) {
+          return {
+            data: yield* session
+              .shell({
+                sessionID: ctx.params.sessionID,
+                id: ctx.payload.id,
+                command: ctx.payload.command,
+                resume: ctx.payload.resume,
+              })
+              .pipe(
+                Effect.catchTag("Session.NotFoundError", (error) =>
+                  Effect.fail(
+                    new SessionNotFoundError({
+                      sessionID: error.sessionID,
+                      message: `Session not found: ${error.sessionID}`,
+                    }),
+                  ),
+                ),
+                Effect.catchTag("Session.PromptConflictError", (error) =>
+                  Effect.fail(
+                    new ConflictError({
+                      message: `Shell message ID conflicts with an existing durable record: ${error.messageID}`,
+                      resource: error.messageID,
+                    }),
+                  ),
+                ),
+              ),
+          }
+        }),
+      )
+      .handle(
+        "session.skill",
+        Effect.fn(function* (ctx) {
+          return {
+            data: yield* session
+              .skill({
+                sessionID: ctx.params.sessionID,
+                id: ctx.payload.id,
+                skill: ctx.payload.skill,
+                resume: ctx.payload.resume,
+              })
+              .pipe(
+                Effect.catchTag("Session.NotFoundError", (error) =>
+                  Effect.fail(
+                    new SessionNotFoundError({
+                      sessionID: error.sessionID,
+                      message: `Session not found: ${error.sessionID}`,
+                    }),
+                  ),
+                ),
+                Effect.catchTag("Session.PromptConflictError", (error) =>
+                  Effect.fail(
+                    new ConflictError({
+                      message: `Skill message ID conflicts with an existing durable record: ${error.messageID}`,
+                      resource: error.messageID,
+                    }),
+                  ),
+                ),
+              ),
+          }
+        }),
+      )
   }),
 )

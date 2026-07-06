@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "3d9aecd4-373a-4d15-a756-74e6ddc4fee1",
+  "id": "f001cc05-e75d-41aa-a75e-fc4b9a550ae9",
   "prevIds": [
-    "1e8b0ae2-f99f-4219-8e32-0600c65223cc"
+    "ce234338-84ff-4c67-8234-3db102519765"
   ],
   "ddl": [
     {
@@ -1228,9 +1228,39 @@
       "type": "text",
       "notNull": true,
       "autoincrement": false,
+      "default": "'prompt'",
+      "generated": null,
+      "name": "kind",
+      "entityType": "columns",
+      "table": "session_input"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
       "default": null,
       "generated": null,
       "name": "prompt",
+      "entityType": "columns",
+      "table": "session_input"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "command",
+      "entityType": "columns",
+      "table": "session_input"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "skill",
       "entityType": "columns",
       "table": "session_input"
     },

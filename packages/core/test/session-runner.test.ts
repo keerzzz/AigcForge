@@ -33,6 +33,8 @@ import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
 import { ToolRegistry } from "@aigcfroge/core/tool/registry"
 import { ToolOutputStore } from "@aigcfroge/core/tool-output-store"
 import { ApplicationTools } from "@aigcfroge/core/tool/application-tools"
+import { AppProcess } from "@aigcfroge/core/process"
+import { SkillV2 } from "@aigcfroge/core/skill"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { Config } from "@aigcfroge/core/config"
 import { ConfigCompaction } from "@aigcfroge/core/config/compaction"
@@ -51,7 +53,7 @@ import { ReferenceGuidance } from "@aigcfroge/core/reference/guidance"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { Location } from "@aigcfroge/core/location"
 import { ProviderV2 } from "@aigcfroge/core/provider"
-import { Cause, DateTime, Deferred, Effect, Exit, Fiber, Layer, Schema, Stream } from "effect"
+import { Cause, DateTime, Deferred, Duration, Effect, Exit, Fiber, Layer, Schema, Stream } from "effect"
 import { asc, eq } from "drizzle-orm"
 import { testEffect } from "./lib/effect"
 
@@ -229,7 +231,38 @@ const config = Layer.succeed(
       ]),
   }),
 )
+const appProcess = Layer.succeed(
+  AppProcess.Service,
+  AppProcess.Service.of({
+    run: () =>
+      Effect.succeed({
+        command: "mock",
+        exitCode: 0,
+        stdout: Buffer.from("shell-output\n"),
+        stderr: Buffer.alloc(0),
+        stdoutTruncated: false,
+        stderrTruncated: false,
+      }),
+  } as unknown as AppProcess.Interface),
+)
+const skillV2 = Layer.succeed(
+  SkillV2.Service,
+  SkillV2.Service.of({
+    list: () =>
+      Effect.succeed([
+        {
+          name: "test-skill",
+          description: "test",
+          slash: true,
+          location: AbsolutePath.make("/project"),
+          content: "Run the test skill workflow",
+        },
+      ]),
+  } as unknown as SkillV2.Interface),
+)
 const runner = SessionRunnerLLM.layer.pipe(
+  Layer.provide(appProcess),
+  Layer.provide(skillV2),
   Layer.provide(Database.defaultLayer),
   Layer.provide(SessionStore.defaultLayer),
   Layer.provide(EventV2.defaultLayer),
@@ -3207,6 +3240,60 @@ describe("SessionRunnerLLM", () => {
       expect(yield* session.resume(sessionID).pipe(Effect.catchDefect(Effect.succeed))).toBe(
         "Tool input delta before start: call-1",
       )
+    }),
+  )
+
+  it.effect("drains a queued shell input and publishes shell started/ended events", () =>
+    Effect.gen(function* () {
+      yield* setup
+      yield* insertSession(sessionID)
+      const session = yield* SessionV2.Service
+      const admitted = yield* session.shell({ sessionID, command: "echo hello", resume: false })
+      yield* (yield* SessionExecution.Service).wake(sessionID)
+
+      const events = yield* session
+        .events({ sessionID })
+        .pipe(
+          Stream.filter((event) =>
+            ["session.next.shell.started", "session.next.shell.ended"].includes(event.type),
+          ),
+          Stream.take(2),
+          Stream.timeout(Duration.seconds(5)),
+          Stream.runCollect,
+        )
+      const types = Array.from(events).map((event) => event.type)
+      expect(types).toEqual(["session.next.shell.started", "session.next.shell.ended"])
+
+      const message = yield* session.message({ sessionID, messageID: admitted.id })
+      expect(message?.type).toBe("shell")
+      expect(message && message.type === "shell" ? message.output : "").toContain("shell-output")
+    }),
+  )
+
+  it.effect("drains a queued skill invocation as a synthetic user turn", () =>
+    Effect.gen(function* () {
+      yield* setup
+      yield* insertSession(sessionID)
+      const session = yield* SessionV2.Service
+      const admitted = yield* session.skill({ sessionID, skill: "test-skill", resume: false })
+      yield* (yield* SessionExecution.Service).wake(sessionID)
+
+      const events = yield* session
+        .events({ sessionID })
+        .pipe(
+          Stream.filter((event) => event.type === "session.next.prompted"),
+          Stream.take(1),
+          Stream.timeout(Duration.seconds(5)),
+          Stream.runCollect,
+        )
+      const prompted = Array.from(events)[0]
+      expect(prompted?.type).toBe("session.next.prompted")
+      expect(prompted && "prompt" in prompted.data ? prompted.data.prompt.text : "").toBe(
+        "Run the test skill workflow",
+      )
+
+      const message = yield* session.message({ sessionID, messageID: admitted.id })
+      expect(message?.type).toBe("user")
     }),
   )
 })

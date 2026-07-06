@@ -33,6 +33,13 @@ const PromptFields = {
   delivery: Delivery,
 }
 
+const ShellFields = {
+  ...Base,
+  messageID: SessionMessageID.ID,
+  command: Schema.String,
+  delivery: Delivery,
+}
+
 const options = {
   durable: {
     aggregate: "sessionID",
@@ -95,6 +102,25 @@ export const PromptAdmitted = EventV2.define({
   schema: PromptFields,
 })
 export type PromptAdmitted = typeof PromptAdmitted.Type
+
+export const ShellAdmitted = EventV2.define({
+  type: "session.next.shell.admitted",
+  ...options,
+  schema: ShellFields,
+})
+export type ShellAdmitted = typeof ShellAdmitted.Type
+
+export const SkillAdmitted = EventV2.define({
+  type: "session.next.skill.admitted",
+  ...options,
+  schema: {
+    ...Base,
+    messageID: SessionMessageID.ID,
+    skill: Schema.String,
+    delivery: Delivery,
+  },
+})
+export type SkillAdmitted = typeof SkillAdmitted.Type
 
 export const ContextUpdated = EventV2.define({
   type: "session.next.context.updated",
@@ -471,6 +497,8 @@ const DurableDefinitions = [
   Moved,
   Prompted,
   PromptAdmitted,
+  ShellAdmitted,
+  SkillAdmitted,
   ContextUpdated,
   Synthetic,
   Shell.Started,

@@ -43,5 +43,7 @@ export const migrations = (
     import("./migration/20260629103917_meta_agent"),
     import("./migration/20260629170915_odd_bruce_banner"),
     import("./migration/20260630143921_ordinary_vulcan"),
+    import("./migration/20260705170359_session_input_kind"),
+    import("./migration/20260706021802_session_input_skill"),
   ])
 ).map((module) => module.default) satisfies DatabaseMigration.Migration[]

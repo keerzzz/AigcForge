@@ -52,6 +52,13 @@ import { BackgroundJob } from "@/background/job"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
 
+/**
+ * AIGCFROGE_V2_RUNTIME — Phase 0 flag to toggle V1→V2 runtime switch.
+ * Default false (V1). Phase 1 will use this to conditionally provide V2 layers.
+ * @see docs/plan/meta-agent-v2-production-closure.md
+ */
+export const AIGCFROGE_V2_RUNTIME = process.env.AIGCFROGE_V2_RUNTIME === "true"
+
 export const AppLayer = Layer.mergeAll(
   Npm.defaultLayer,
   FSUtil.defaultLayer,

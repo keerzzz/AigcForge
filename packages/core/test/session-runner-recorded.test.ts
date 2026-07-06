@@ -8,6 +8,8 @@ import { EventTable } from "@aigcfroge/core/event/sql"
 import { PermissionV2 } from "@aigcfroge/core/permission"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { Config } from "@aigcfroge/core/config"
+import { AppProcess } from "@aigcfroge/core/process"
+import { SkillV2 } from "@aigcfroge/core/skill"
 import { Project } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
 import { AbsolutePath } from "@aigcfroge/core/schema"
@@ -70,7 +72,17 @@ const location = Location.layer({ directory: AbsolutePath.make("/project") }).pi
 const skillGuidance = Layer.mock(SkillGuidance.Service, { load: () => Effect.succeed(SystemContext.empty) })
 const referenceGuidance = Layer.mock(ReferenceGuidance.Service, { load: () => Effect.succeed(SystemContext.empty) })
 const config = Layer.succeed(Config.Service, Config.Service.of({ entries: () => Effect.succeed([]) }))
+const appProcess = Layer.succeed(
+  AppProcess.Service,
+  AppProcess.Service.of({ run: () => Effect.die("AppProcess unused") } as unknown as AppProcess.Interface),
+)
+const skillV2 = Layer.succeed(
+  SkillV2.Service,
+  SkillV2.Service.of({ list: () => Effect.succeed([]) } as unknown as SkillV2.Interface),
+)
 const runner = SessionRunnerLLM.defaultLayer.pipe(
+  Layer.provide(appProcess),
+  Layer.provide(skillV2),
   Layer.provide(Database.defaultLayer),
   Layer.provide(SessionStore.defaultLayer),
   Layer.provide(EventV2.defaultLayer),

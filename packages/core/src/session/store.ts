@@ -20,6 +20,7 @@ export interface Interface {
   readonly message: (
     messageID: SessionMessage.ID,
   ) => Effect.Effect<{ readonly sessionID: SessionSchema.ID; readonly message: SessionMessage.Message } | undefined>
+  readonly children: (parentID: SessionSchema.ID) => Effect.Effect<SessionSchema.Info[]>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionStore") {}
@@ -54,6 +55,15 @@ export const layer = Layer.effect(
               message: yield* decodeMessage({ ...row.data, id: row.id, type: row.type }).pipe(Effect.orDie),
             }
           : undefined
+      }),
+      children: Effect.fn("SessionStore.children")(function* (parentID) {
+        const rows = yield* db
+          .select()
+          .from(SessionTable)
+          .where(eq(SessionTable.parent_id, parentID))
+          .all()
+          .pipe(Effect.orDie)
+        return rows.map(fromRow)
       }),
     })
   }),

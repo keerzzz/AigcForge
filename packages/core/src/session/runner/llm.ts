@@ -8,8 +8,10 @@ import {
   isContextOverflowFailure,
   type ProviderErrorEvent,
 } from "@aigcfroge/llm"
-import { Cause, DateTime, Effect, FiberSet, Layer, Option, Semaphore, Stream } from "effect"
+import { Cause, DateTime, Duration, Effect, Exit, FiberSet, Layer, Option, Semaphore, Stream } from "effect"
+import { ChildProcess } from "effect/unstable/process"
 import { AgentV2 } from "../../agent"
+import { AppProcess } from "../../process"
 import { Config } from "../../config"
 import { Database } from "../../database/database"
 import { EventV2 } from "../../event"
@@ -17,9 +19,11 @@ import { Location } from "../../location"
 import { ModelV2 } from "../../model"
 import { ProviderV2 } from "../../provider"
 import { QuestionV2 } from "../../question"
+import { Shell } from "../../shell"
 import { SystemContext } from "../../system-context/index"
 import { SystemContextRegistry } from "../../system-context/registry"
 import { SkillGuidance } from "../../skill/guidance"
+import { SkillV2 } from "../../skill"
 import { ReferenceGuidance } from "../../reference/guidance"
 import { ToolRegistry } from "../../tool/registry"
 import { CacheShape } from "../../cache/cache-shape"
@@ -28,6 +32,7 @@ import { SessionContextEpoch } from "../context-epoch"
 import { SessionCompaction } from "../compaction"
 import { SessionEvent } from "../event"
 import { SessionHistory } from "../history"
+import { Prompt } from "../prompt"
 import { SessionInput } from "../input"
 import { SessionSchema } from "../schema"
 import { SessionStore } from "../store"
@@ -108,7 +113,9 @@ export const layer = Layer.effect(
     const systemContext = yield* SystemContextRegistry.Service
     const skillGuidance = yield* SkillGuidance.Service
     const referenceGuidance = yield* ReferenceGuidance.Service
+    const skills = yield* SkillV2.Service
     const config = yield* Config.Service
+    const appProcess = yield* AppProcess.Service
     const db = (yield* Database.Service).db
     const compaction = SessionCompaction.make({ events, llm, config: yield* config.entries() })
 
@@ -189,10 +196,14 @@ export const layer = Layer.effect(
       if (promotion) {
         const cutoff = yield* EventV2.latestSequence(db, session.id)
         let promoted = 0
-        if (promotion === "steer") promoted = yield* SessionInput.promoteSteers(db, events, session.id, cutoff)
+        if (promotion === "steer") {
+          promoted = yield* SessionInput.promoteSteers(db, events, session.id, cutoff)
+          promoted += yield* promoteSkills(session.id, cutoff)
+        }
         if (promotion === "queue") {
           promoted += Number(yield* SessionInput.promoteNextQueued(db, events, session.id))
           promoted += yield* SessionInput.promoteSteers(db, events, session.id, cutoff)
+          promoted += yield* promoteSkills(session.id, cutoff)
         }
         if (promoted > 0) currentStep = 1
       }
@@ -397,6 +408,102 @@ export const layer = Layer.effect(
       )
     })
 
+    const promoteSkills = Effect.fn("SessionRunner.promoteSkills")(function* (
+      sessionID: SessionSchema.ID,
+      cutoff: number,
+    ) {
+      const pending = yield* SessionInput.pendingSkillSteers(db, sessionID, cutoff)
+      if (pending.length === 0) return 0
+      const available = yield* skills.list()
+      for (const admitted of pending) {
+        if (admitted.kind !== "skill") continue
+        const skill = available.find((candidate) => candidate.name === admitted.skill)
+        const text = skill ? skill.content : `Skill not found: ${admitted.skill}`
+        // Reuse the admission timestamp: projectPrompted's matchesProjection compares the
+        // Prompted event time against the stored inbox row's time_created (admission time).
+        // Using DateTime.now here (promotion time) would fail that check under a real clock.
+        yield* events.publish(SessionEvent.Prompted, {
+          sessionID,
+          messageID: admitted.id,
+          timestamp: yield* DateTime.now,
+          prompt: Prompt.make({ text }),
+          delivery: admitted.delivery,
+        })
+      }
+      return pending.length
+    })
+
+    const drainShell = Effect.fn("SessionRunner.drainShell")(function* (admitted: SessionInput.Admitted) {
+      if (admitted.kind !== "shell") return
+      // Fence shell execution to the session's owning Location, mirroring runTurnAttempt.
+      const session = yield* getSession(admitted.sessionID)
+      if (session.location.directory !== location.directory || session.location.workspaceID !== location.workspaceID)
+        return yield* Effect.interrupt
+      const callID = crypto.randomUUID()
+      yield* events.publish(SessionEvent.Shell.Started, {
+        sessionID: admitted.sessionID,
+        messageID: admitted.id,
+        timestamp: yield* DateTime.now,
+        callID,
+        command: admitted.command,
+      })
+      // Spawn is interruptible; Shell.Ended is published from an uninterruptible tail so the
+      // shell message never strands in "running" if the drain is interrupted or the spawn fails.
+      return yield* Effect.uninterruptibleMask((restore) =>
+        Effect.gen(function* () {
+          const exit = yield* restore(
+            Effect.gen(function* () {
+              const entries = yield* config.entries()
+              const shellConfig = Object.assign(
+                {},
+                ...entries.flatMap((entry) => (entry.type === "document" ? [entry.info] : [])),
+              ).shell
+              const command = ChildProcess.make(admitted.command, [], {
+                cwd: location.directory,
+                shell: Shell.preferred(shellConfig),
+                stdin: "ignore",
+                detached: process.platform !== "win32",
+                forceKillAfter: Duration.seconds(3),
+              })
+              const result = yield* appProcess
+                .run(command, {
+                  timeout: Duration.seconds(30),
+                  maxOutputBytes: 1024 * 1024,
+                  maxErrorBytes: 1024 * 1024,
+                })
+                .pipe(
+                  Effect.catchTag("AppProcessError", (error) =>
+                    Effect.succeed({
+                      command: admitted.command,
+                      exitCode: -1,
+                      stdout: Buffer.from(""),
+                      stderr: Buffer.from(String(error)),
+                      stdoutTruncated: false,
+                      stderrTruncated: false,
+                    }),
+                  ),
+                )
+              return [result.stdout.toString("utf8"), result.stderr.toString("utf8"), `exit code ${result.exitCode}`]
+                .filter((part) => part.length > 0)
+                .join("\n")
+            }),
+          ).pipe(Effect.exit)
+          const output = Exit.match(exit, {
+            onSuccess: (value) => value,
+            onFailure: (cause) => `Command failed: ${Cause.pretty(cause)}`,
+          })
+          yield* events.publish(SessionEvent.Shell.Ended, {
+            sessionID: admitted.sessionID,
+            timestamp: yield* DateTime.now,
+            callID,
+            output,
+          })
+          // Re-raise interrupt so the runner drain stops; other failures are absorbed (output captures them).
+          if (Exit.isFailure(exit) && Cause.hasInterrupts(exit.cause)) return yield* Effect.failCause(exit.cause)
+        }),
+      )
+    })
+
     const run = Effect.fn("SessionRunner.run")(function* (input: {
       readonly sessionID: SessionSchema.ID
       readonly force: boolean
@@ -408,24 +515,48 @@ export const layer = Layer.effect(
         rewriteVersion: 0,
       }
 
-      const hasSteer = yield* SessionInput.hasPending(db, input.sessionID, "steer")
+      const hasPromptSteer = yield* SessionInput.hasPending(db, input.sessionID, "steer", "prompt")
+      const hasSkillSteer = hasPromptSteer
+        ? false
+        : yield* SessionInput.hasPending(db, input.sessionID, "steer", "skill")
+      const hasSteer = hasPromptSteer || hasSkillSteer
       const hasQueue = hasSteer ? false : yield* SessionInput.hasPending(db, input.sessionID, "queue")
-      if (!input.force && !hasSteer && !hasQueue) return
+      const hasShell = hasQueue ? false : (yield* SessionInput.nextPendingShell(db, input.sessionID)) !== undefined
+      if (!input.force && !hasSteer && !hasQueue && !hasShell) return
       yield* failInterruptedTools(input.sessionID)
       let promotion: SessionInput.Delivery | undefined = hasSteer ? "steer" : hasQueue ? "queue" : undefined
-      let shouldRun = input.force || hasSteer || hasQueue
+      let shouldRun = input.force || hasSteer || hasQueue || hasShell
+      let forceTurn = input.force
       while (shouldRun) {
-        let needsContinuation = true
-        let step = 1
-        while (needsContinuation) {
-          const result = yield* runTurn(state, input.sessionID, promotion, step)
-          needsContinuation = result.needsContinuation
-          step = result.step + 1
-          promotion = "steer"
-          if (!needsContinuation) needsContinuation = yield* SessionInput.hasPending(db, input.sessionID, "steer")
+        // Run LLM turns only when there is a prompt to promote or an explicit force drain;
+        // a shell-only wake skips this to avoid firing a spurious provider turn with no new input.
+        if (promotion !== undefined || forceTurn) {
+          forceTurn = false
+          let needsContinuation = true
+          let step = 1
+          while (needsContinuation) {
+            const result = yield* runTurn(state, input.sessionID, promotion, step)
+            needsContinuation = result.needsContinuation
+            step = result.step + 1
+            promotion = "steer"
+            if (!needsContinuation)
+              needsContinuation =
+                (yield* SessionInput.hasPending(db, input.sessionID, "steer", "prompt")) ||
+                (yield* SessionInput.hasPending(db, input.sessionID, "steer", "skill"))
+          }
         }
-        shouldRun = yield* SessionInput.hasPending(db, input.sessionID, "queue")
-        promotion = shouldRun ? "queue" : undefined
+        // Drain queued shell inputs at the idle boundary.
+        let shell = yield* SessionInput.nextPendingShell(db, input.sessionID)
+        while (shell) {
+          yield* drainShell(shell)
+          shell = yield* SessionInput.nextPendingShell(db, input.sessionID)
+        }
+        const nextQueue = yield* SessionInput.hasPending(db, input.sessionID, "queue")
+        const nextShell = nextQueue
+          ? false
+          : (yield* SessionInput.nextPendingShell(db, input.sessionID)) !== undefined
+        shouldRun = nextQueue || nextShell
+        promotion = nextQueue ? "queue" : undefined
       }
     })
 

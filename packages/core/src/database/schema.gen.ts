@@ -200,7 +200,10 @@ export default {
         CREATE TABLE \`session_input\` (
           \`id\` text PRIMARY KEY,
           \`session_id\` text NOT NULL,
-          \`prompt\` text NOT NULL,
+          \`kind\` text DEFAULT 'prompt' NOT NULL,
+          \`prompt\` text,
+          \`command\` text,
+          \`skill\` text,
           \`delivery\` text NOT NULL,
           \`admitted_seq\` integer NOT NULL,
           \`promoted_seq\` integer,
