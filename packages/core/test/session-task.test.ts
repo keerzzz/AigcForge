@@ -49,7 +49,7 @@ import { SystemContextRegistry } from "@aigcfroge/core/system-context/registry"
 import { SkillGuidance } from "@aigcfroge/core/skill/guidance"
 import { ReferenceGuidance } from "@aigcfroge/core/reference/guidance"
 import { Location } from "@aigcfroge/core/location"
-import { Effect, Layer, Schema, Stream } from "effect"
+import { Duration, Effect, Layer, Schedule, Schema, Stream } from "effect"
 import { testEffect } from "./lib/effect"
 
 const parentID = SessionV2.ID.make("ses_task_parent")
@@ -57,6 +57,8 @@ const requests: LLMRequest[] = []
 // The parent emits the task tool call exactly once; its follow-up turn (after the
 // tool result) must stop, or the runner would re-emit the call and loop forever.
 let parentEmittedTask = false
+// When true, the parent's task call requests background delegation.
+let backgroundMode = false
 // Route by promptCacheKey (= sessionID): the parent emits a task tool call, any
 // other Session (the dynamically-created child) emits plain text.
 const stopWithText = (id: string, text: string): LLMEvent[] => [
@@ -82,7 +84,12 @@ const client = Layer.succeed(
         LLMEvent.toolCall({
           id: "call-task",
           name: "task",
-          input: { description: "do work", prompt: "Investigate the thing", subagent_type: "build" },
+          input: {
+            description: "do work",
+            prompt: "Investigate the thing",
+            subagent_type: "build",
+            ...(backgroundMode ? { background: true } : {}),
+          },
         }),
         LLMEvent.stepFinish({ index: 0, reason: "tool-calls" }),
         LLMEvent.finish({ reason: "tool-calls" }),
@@ -244,16 +251,15 @@ const setup = Effect.gen(function* () {
   const { db } = yield* Database.Service
   requests.length = 0
   parentEmittedTask = false
+  backgroundMode = false
   // Install the seam with the test's own SessionV2 so the tool's child Session
   // lands in the same in-memory db the test body reads. Register the default
-  // agent so the tool can resolve subagent_type "build".
+  // agent so the tool can resolve subagent_type "build". Mirrors TaskDriverFill.
   const sessions = yield* SessionV2.Service
   const background = yield* BackgroundJob.Service
   TaskDriver.install(sessions, {
-    runOffFiber: (sessionID, drain) =>
-      background
-        .start({ id: sessionID, type: "task", run: drain.pipe(Effect.as("")) })
-        .pipe(Effect.andThen(background.wait({ id: sessionID }))),
+    start: (sessionID, work) => background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
+    wait: (sessionID) => background.wait({ id: sessionID }),
   })
   const agents = yield* AgentV2.Service
   yield* agents.transform((editor) => {
@@ -312,6 +318,44 @@ describe("task tool — child Session delegation", () => {
               .join("")
           : ""
       expect(childText).toBe("child result payload")
+    }),
+  )
+
+  it.live("background delegation returns immediately and injects the result into the parent", () =>
+    Effect.gen(function* () {
+      process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS = "true"
+      yield* setup
+      // setup resets backgroundMode; enable it after so the mock LLM emits the
+      // `background: true` tool-call input when the parent's turn runs.
+      backgroundMode = true
+      const session = yield* SessionV2.Service
+
+      const background = yield* BackgroundJob.Service
+
+      yield* session.prompt({
+        sessionID: parentID,
+        prompt: Prompt.make({ text: "delegate in background" }),
+        resume: false,
+      })
+      yield* session.resume(parentID)
+
+      // Background delegation returns immediately, so a child Session exists while
+      // its drain is still scheduled on the BackgroundJob fiber.
+      const children = yield* session.children(parentID)
+      expect(children.length).toBe(1)
+      const childID = children[0]!.id
+
+      // Awaiting the job is the readiness signal (never a sleep): when it completes,
+      // the seam has driven the child and injected the synthetic result into the
+      // parent. The injection also wakes the parent to run a turn over the result.
+      yield* background.wait({ id: childID })
+
+      const synthetic = (yield* session.context(parentID)).find((message) => message.type === "synthetic")
+      expect(synthetic?.type).toBe("synthetic")
+      const syntheticText = synthetic?.type === "synthetic" ? synthetic.text : ""
+      expect(syntheticText).toContain("Background task completed")
+      expect(syntheticText).toContain("child result payload")
+      expect(syntheticText).toContain(childID)
     }),
   )
 })

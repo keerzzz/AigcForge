@@ -19,18 +19,29 @@ import { TaskDriver } from "../tool/task-driver"
  * fiber. The caller is a `task` tool executing inside the parent Session's own
  * drain; driving the child synchronously on the parent's fiber would deadlock
  * the single-connection SQLite serializer. This mirrors V1's task tool, which
- * also settles child Sessions on a BackgroundJob fiber and only awaits the
- * result.
+ * also settles child Sessions on a BackgroundJob fiber. Foreground delegation
+ * awaits the job; background delegation lets it run and inject its result into
+ * the parent later.
  */
 export const layer = Layer.effectDiscard(
   Effect.gen(function* () {
     const sessions = yield* SessionV2.Service
     const background = yield* BackgroundJob.Service
-    TaskDriver.install(sessions, {
-      runOffFiber: (sessionID, drain) =>
-        background
-          .start({ id: sessionID, type: "task", run: drain.pipe(Effect.as("")) })
-          .pipe(Effect.andThen(background.wait({ id: sessionID }))),
-    })
+    TaskDriver.install(
+      {
+        get: sessions.get,
+        create: sessions.create,
+        prompt: sessions.prompt,
+        resume: sessions.resume,
+        messages: (input) => sessions.messages({ sessionID: input.sessionID }),
+        injectSynthetic: sessions.injectSynthetic,
+        interrupt: sessions.interrupt,
+      },
+      {
+        start: (sessionID, work) =>
+          background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
+        wait: (sessionID) => background.wait({ id: sessionID }),
+      },
+    )
   }),
 )

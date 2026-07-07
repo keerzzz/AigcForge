@@ -150,6 +150,10 @@ export interface Interface {
   readonly compact: (input: CompactInput) => Effect.Effect<void, NotFoundError | OperationUnavailableError>
   readonly wait: (id: SessionSchema.ID) => Effect.Effect<void, NotFoundError | OperationUnavailableError>
   readonly resume: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError | SessionRunner.RunError>
+  readonly injectSynthetic: (input: {
+    sessionID: SessionSchema.ID
+    text: string
+  }) => Effect.Effect<void, NotFoundError | SessionRunner.RunError>
   readonly interrupt: (sessionID: SessionSchema.ID) => Effect.Effect<void>
 }
 
@@ -431,6 +435,18 @@ export const layer = Layer.effect(
       resume: Effect.fn("V2Session.resume")(function* (sessionID) {
         yield* result.get(sessionID)
         yield* execution.resume(sessionID)
+      }),
+      injectSynthetic: Effect.fn("V2Session.injectSynthetic")(function* (input) {
+        yield* result.get(input.sessionID)
+        yield* events.publish(SessionEvent.Synthetic, {
+          sessionID: input.sessionID,
+          messageID: SessionMessage.ID.create(),
+          timestamp: yield* DateTime.now,
+          text: input.text,
+        })
+        // Force a drain so the agent runs a turn that observes the synthetic
+        // message; resume is a force drain (coordinator.run starts with force).
+        yield* execution.resume(input.sessionID)
       }),
       interrupt: Effect.fn("V2Session.interrupt")((sessionID) =>
         Effect.uninterruptible(execution.interrupt(sessionID)),

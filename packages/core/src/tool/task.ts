@@ -10,10 +10,21 @@ import { Tools } from "./tools"
 
 export const name = "task"
 
+// Background delegation is gated behind an experimental env flag, mirroring V1's
+// AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS. When off, the `background` field is
+// not advertised and any value is ignored.
+const backgroundEnabled = () =>
+  process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS === "1" ||
+  process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS === "true"
+
 export const Input = Schema.Struct({
   description: Schema.String.annotate({ description: "A short (3-5 words) description of the task" }),
   prompt: Schema.String.annotate({ description: "The task for the agent to perform" }),
   subagent_type: Schema.String.annotate({ description: "The type of specialized agent to use for this task" }),
+  background: Schema.optional(Schema.Boolean).annotate({
+    description:
+      "Run the subagent in the background and return immediately. You will be notified when it completes; its result is injected back into this conversation. DO NOT poll or proactively check its progress.",
+  }),
 })
 
 export const Output = Schema.Struct({
@@ -22,7 +33,7 @@ export const Output = Schema.Struct({
 })
 export type Output = typeof Output.Type
 
-export const description = [
+const FOREGROUND_DESCRIPTION = [
   "Launch a new subagent to handle a complex, multi-step task autonomously.",
   "",
   "You must specify a subagent_type to select which agent handles the task. The subagent runs in the same workspace as this Session, receives your prompt as its only instruction, and returns a single final message once it settles.",
@@ -37,14 +48,29 @@ export const description = [
   "- Tell the subagent whether to write code or only research, and how to verify its work.",
 ].join("\n")
 
-const renderOutput = (input: { sessionID: string; state: "completed" | "error"; text: string }) =>
-  [
-    `<task id="${input.sessionID}" state="${input.state}">`,
-    `<${input.state === "error" ? "task_error" : "task_result"}>`,
-    input.text,
-    `</${input.state === "error" ? "task_error" : "task_result"}>`,
-    "</task>",
-  ].join("\n")
+const BACKGROUND_DESCRIPTION = [
+  "Set background=true to launch the subagent asynchronously and return immediately.",
+  "Use background only for independent work that can run while you continue elsewhere.",
+  "You will be notified automatically when it finishes; its result is injected back into this conversation.",
+  "DO NOT sleep, poll for progress, or duplicate the background task's work.",
+].join(" ")
+
+const BACKGROUND_STARTED = [
+  "The subagent is working in the background. You will be notified automatically when it finishes and its result is injected here.",
+  "DO NOT sleep, poll for progress, ask the task for status, or duplicate its work.",
+  "Work on non-overlapping tasks, or briefly tell the user what you launched and end your response.",
+].join("\n")
+
+export const description = backgroundEnabled()
+  ? [FOREGROUND_DESCRIPTION, "", BACKGROUND_DESCRIPTION].join("\n")
+  : FOREGROUND_DESCRIPTION
+
+const renderOutput = (input: { sessionID: string; state: "completed" | "error" | "running"; text: string }) => {
+  const tag = input.state === "error" ? "task_error" : "task_result"
+  return [`<task id="${input.sessionID}" state="${input.state}">`, `<${tag}>`, input.text, `</${tag}>`, "</task>"].join(
+    "\n",
+  )
+}
 
 export const layer = Layer.effectDiscard(
   Effect.gen(function* () {
@@ -82,6 +108,23 @@ export const layer = Layer.effectDiscard(
                 parentID: context.sessionID,
                 agent: subagent.id,
               })
+
+              // Background delegation: schedule the child, inject its result into
+              // the parent when it settles, and return immediately. Gated by the
+              // experimental flag; ignored otherwise.
+              if (input.background === true && backgroundEnabled()) {
+                yield* TaskDriver.delegateBackground({
+                  parentID: context.sessionID,
+                  sessionID: child.id,
+                  prompt: input.prompt,
+                  description: input.description,
+                })
+                return {
+                  sessionID: child.id,
+                  output: renderOutput({ sessionID: child.id, state: "running", text: BACKGROUND_STARTED }),
+                }
+              }
+
               const text = yield* TaskDriver.delegate({ sessionID: child.id, prompt: input.prompt }).pipe(
                 Effect.onInterrupt(() => TaskDriver.interrupt(child.id)),
               )
