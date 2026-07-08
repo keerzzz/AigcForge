@@ -688,4 +688,42 @@ describe("DatabaseMigration", () => {
       }),
     )
   })
+
+  test("backward-compatible add-column preserves existing rows", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+
+        // Create a minimal session table with existing data.
+        yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY, title text NOT NULL)`)
+        yield* db.run(sql`INSERT INTO session (id, title) VALUES ('ses_1', 'Original')`)
+        yield* db.run(sql`INSERT INTO session (id, title) VALUES ('ses_2', 'Another')`)
+
+        // Build a mock migration that adds a nullable column.
+        const addColumnMigration = {
+          id: "99999999999999_test_add_column",
+          up(tx: any) {
+            return Effect.gen(function* () {
+              yield* tx.run(sql`ALTER TABLE session ADD COLUMN summary text`)
+              yield* tx.run(
+                sql`CREATE INDEX session_summary_idx ON session (summary) WHERE summary IS NOT NULL`,
+              )
+            })
+          },
+        } satisfies DatabaseMigration.Migration
+
+        yield* DatabaseMigration.applyOnly(db, [addColumnMigration])
+
+        // Existing rows preserved.
+        expect(yield* db.all(sql`SELECT id, title, summary FROM session ORDER BY id`)).toEqual([
+          { id: "ses_1", title: "Original", summary: null },
+          { id: "ses_2", title: "Another", summary: null },
+        ])
+
+        // New column is writable.
+        yield* db.run(sql`UPDATE session SET summary = 'Updated' WHERE id = 'ses_1'`)
+        expect(yield* db.get(sql`SELECT summary FROM session WHERE id = 'ses_1'`)).toEqual({ summary: "Updated" })
+      }),
+    )
+  })
 })
