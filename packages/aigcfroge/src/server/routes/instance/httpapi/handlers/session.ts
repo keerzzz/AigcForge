@@ -2,6 +2,8 @@ import { PermissionV1 } from "@aigcfroge/core/v1/permission"
 import { Agent } from "@/agent/agent"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { SessionV2 } from "@aigcfroge/core/session"
+import { SessionRevert as V2SessionRevert } from "@aigcfroge/core/session/revert"
+import { SessionSummary as V2SessionSummary } from "@aigcfroge/core/session/summary"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Command } from "@/command"
 import { Permission } from "@/permission"
@@ -19,7 +21,7 @@ import { MessageID, PartID, SessionID } from "@/session/schema"
 import { getCacheDiagnostics } from "@aigcfroge/core/session/cache-diagnostics"
 import { Database } from "@aigcfroge/core/database/database"
 import { NamedError } from "@aigcfroge/core/util/error"
-import { Cause, Effect, Option, Schema, Scope } from "effect"
+import { Cause, DateTime, Effect, Option, Schema, Scope } from "effect"
 import * as Stream from "effect/Stream"
 import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder, HttpApiError, HttpApiSchema } from "effect/unstable/httpapi"
@@ -88,9 +90,12 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const get = Effect.fn("SessionHttpApi.get")(function* (ctx: { params: { sessionID: SessionID } }) {
       return yield* requireSession(ctx.params.sessionID)
     })
-
     const children = Effect.fn("SessionHttpApi.children")(function* (ctx: { params: { sessionID: SessionID } }) {
       yield* requireSession(ctx.params.sessionID)
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2session = yield* SessionV2.Service
+        return yield* v2session.children(ctx.params.sessionID as SessionV2.ID)
+      }
       return yield* session.children(ctx.params.sessionID)
     })
 
@@ -103,6 +108,10 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       params: { sessionID: SessionID }
       query: typeof DiffQuery.Type
     }) {
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2summary = yield* V2SessionSummary.Service
+        return yield* v2summary.diff({ sessionID: ctx.params.sessionID as SessionV2.ID, messageID: ctx.query.messageID })
+      }
       return yield* summary.diff({ sessionID: ctx.params.sessionID, messageID: ctx.query.messageID })
     })
 
@@ -233,6 +242,11 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     })
 
     const abort = Effect.fn("SessionHttpApi.abort")(function* (ctx: { params: { sessionID: SessionID } }) {
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2session = yield* SessionV2.Service
+        yield* v2session.interrupt(ctx.params.sessionID as SessionV2.ID)
+        return true
+      }
       yield* promptSvc.cancel(ctx.params.sessionID)
       return true
     })
@@ -364,6 +378,14 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof ShellPayload.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2session = yield* SessionV2.Service
+        return yield* v2session.shell({
+          sessionID: ctx.params.sessionID as SessionV2.ID,
+          command: ctx.payload.command
+          
+        })
+      }
       return yield* SessionError.mapBusy(promptSvc.shell({ ...ctx.payload, sessionID: ctx.params.sessionID }))
     })
 
@@ -372,11 +394,19 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof RevertPayload.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2revert = yield* V2SessionRevert.Service
+        return yield* v2revert.revert({ sessionID: ctx.params.sessionID as SessionV2.ID, ...ctx.payload })
+      }
       return yield* SessionError.mapBusy(revertSvc.revert({ sessionID: ctx.params.sessionID, ...ctx.payload }))
     })
 
     const unrevert = Effect.fn("SessionHttpApi.unrevert")(function* (ctx: { params: { sessionID: SessionID } }) {
       yield* requireSession(ctx.params.sessionID)
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2revert = yield* V2SessionRevert.Service
+        return yield* v2revert.unrevert({ sessionID: ctx.params.sessionID as SessionV2.ID })
+      }
       return yield* SessionError.mapBusy(revertSvc.unrevert({ sessionID: ctx.params.sessionID }))
     })
 
