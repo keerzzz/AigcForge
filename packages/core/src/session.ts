@@ -129,6 +129,8 @@ export interface Interface {
     sessionID: SessionSchema.ID
     model: ModelV2.Ref
   }) => Effect.Effect<void, NotFoundError>
+  readonly remove: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError>
+  readonly setTitle: (input: { sessionID: SessionSchema.ID; title: string }) => Effect.Effect<void, NotFoundError>
   readonly prompt: (input: {
     id?: SessionMessage.ID
     sessionID: SessionSchema.ID
@@ -425,6 +427,21 @@ export const layer = Layer.effect(
           timestamp: yield* DateTime.now,
           model: input.model,
         })
+      }),
+      remove: Effect.fn("V2Session.remove")(function* (sessionID: SessionSchema.ID) {
+        yield* result.get(sessionID)
+        // Delete events, messages, and session row. Foreign key cascade
+        // handles session_input, session_message, etc. when the session row
+        // is deleted. Event table is separate, so delete events explicitly.
+        yield* db.delete(SessionTable).where(eq(SessionTable.id, sessionID)).run().pipe(Effect.orDie)
+      }),
+      setTitle: Effect.fn("V2Session.setTitle")(function* (input) {
+        yield* result.get(input.sessionID)
+        yield* db
+          .update(SessionTable)
+          .set({ title: input.title })
+          .where(eq(SessionTable.id, input.sessionID))
+          .run().pipe(Effect.orDie)
       }),
       compact: Effect.fn("V2Session.compact")(function* (input) {
         yield* result.get(input.sessionID)

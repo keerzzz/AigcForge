@@ -2,6 +2,7 @@ import { PermissionV1 } from "@aigcfroge/core/v1/permission"
 import { Agent } from "@/agent/agent"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { SessionV2 } from "@aigcfroge/core/session"
+import { SessionTodo } from "@aigcfroge/core/session/todo"
 import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
 import { SessionRevert as V2SessionRevert } from "@aigcfroge/core/session/revert"
 import { SessionSummary as V2SessionSummary } from "@aigcfroge/core/session/summary"
@@ -103,6 +104,10 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
 
     const todo = Effect.fn("SessionHttpApi.todo")(function* (ctx: { params: { sessionID: SessionID } }) {
       yield* requireSession(ctx.params.sessionID)
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2todo = yield* SessionTodo.Service
+        return yield* v2todo.get(ctx.params.sessionID as SessionV2.ID)
+      }
       return yield* todoSvc.get(ctx.params.sessionID)
     })
 
@@ -206,6 +211,11 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     })
 
     const remove = Effect.fn("SessionHttpApi.remove")(function* (ctx: { params: { sessionID: SessionID } }) {
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2s = yield* SessionV2.Service
+        yield* v2s.remove(ctx.params.sessionID as SessionV2.ID)
+        return true
+      }
       yield* SessionError.mapStorageNotFound(session.remove(ctx.params.sessionID))
       return true
     })
@@ -216,7 +226,12 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     }) {
       const current = yield* requireSession(ctx.params.sessionID)
       if (ctx.payload.title !== undefined) {
-        yield* session.setTitle({ sessionID: ctx.params.sessionID, title: ctx.payload.title })
+        if (AIGCFROGE_V2_RUNTIME) {
+          const v2s = yield* SessionV2.Service
+          yield* v2s.setTitle({ sessionID: ctx.params.sessionID as SessionV2.ID, title: ctx.payload.title })
+        } else {
+          yield* session.setTitle({ sessionID: ctx.params.sessionID, title: ctx.payload.title })
+        }
       }
       if (ctx.payload.metadata !== undefined) {
         yield* session.setMetadata({ sessionID: ctx.params.sessionID, metadata: ctx.payload.metadata })
