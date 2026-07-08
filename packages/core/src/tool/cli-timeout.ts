@@ -9,7 +9,7 @@ import type { CliAdapter, DelegationResult } from "./cli-adapter"
 export function executeWithTimeout(
   spawner: ChildProcessSpawner["Service"],
   adapter: CliAdapter,
-  input: { prompt: string; cwd: string },
+  input: { prompt: string; cwd: string; resumeId?: string },
   timeoutMs: number = 300_000,
 ): Effect.Effect<DelegationResult> {
   return Effect.gen(function* () {
@@ -18,7 +18,7 @@ export function executeWithTimeout(
       return { status: "failed" as const, summary: `CLI "${adapter.name}" not available`, errors: ["CLI not found on system"] }
     }
 
-    const args = yield* adapter.buildArgs(input)
+    const args = yield* adapter.buildArgs({ prompt: input.prompt, cwd: input.cwd, resumeId: input.resumeId })
     const result = yield* Effect.scoped(
       Effect.gen(function* () {
         const handle = yield* spawner.spawn(

@@ -14,8 +14,10 @@ export const adapter: CliAdapter = {
 
   detect: () => Effect.sync(() => which(COMMAND) !== null),
 
-  buildArgs: (input: { prompt: string; cwd: string }) =>
-    Effect.succeed(["exec", "--json", input.prompt] as const),
+    buildArgs: (input: { prompt: string; cwd: string; resumeId?: string }) =>
+    Effect.succeed(
+      input.resumeId ? ["exec", "--json", "--resume", input.resumeId] : ["exec", "--json", input.prompt],
+    ),
 
   parseOutput: (stdout: string, stderr: string) =>
     Effect.gen(function* () {
@@ -42,4 +44,14 @@ export const adapter: CliAdapter = {
       if (result) return result
       return yield* DelegationParser.parseDelegationOutput(stdout, stderr)
     }),
+
+  parseResumeHint: (stdout: string) => {
+    for (const line of stdout.split("\n").filter(Boolean)) {
+      try {
+        const parsed = JSON.parse(line)
+        if (parsed.type === "session.resume_hint" && typeof parsed.sessionID === "string") return parsed.sessionID
+      } catch { continue }
+    }
+    return undefined
+  },
 }
