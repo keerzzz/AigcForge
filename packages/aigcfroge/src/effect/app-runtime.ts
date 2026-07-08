@@ -81,13 +81,35 @@ export const AIGCFROGE_V2_RUNTIME = process.env.AIGCFROGE_V2_RUNTIME !== "false"
 
 // ── AppLayer: V1 + V2 ────────────────────────────────────────────
 //
-// V1 services (@aigcfroge/Session etc.) and V2 services (@aigcfroge/v2/Session
-// etc.) coexist with different service tags. V1 bridge layers (SessionRevert,
-// SessionSummary, MCP, etc.) remain on V1 services until Phase 2/3 migrates them.
-// AIGCFROGE_V2_RUNTIME flag controls which handler path is active.
+// V2 services (@aigcfroge/v2/Session etc.) are always provided.
+// V1 services with V2 equivalents are only provided when
+// AIGCFROGE_V2_RUNTIME is false (opt-in V1 fallback mode).
+// V1 layers without V2 equivalents (Session, SessionStatus, etc.)
+// remain always-provided until their consumers are also migrated.
+
+const V1_ONLY_LAYERS = AIGCFROGE_V2_RUNTIME
+  ? []
+  : [
+      SessionProcessor.defaultLayer,
+      SessionCompaction.defaultLayer,
+      SessionRevert.defaultLayer,
+      SessionSummary.defaultLayer,
+      SessionPrompt.defaultLayer,
+      SessionRunState.defaultLayer,
+      Instruction.defaultLayer,
+      LLM.defaultLayer,
+      EventV2Bridge.defaultLayer,
+      MCP.defaultLayer,
+      McpAuth.defaultLayer,
+      Truncate.defaultLayer,
+      Format.defaultLayer,
+      ShareNext.defaultLayer,
+      SessionShare.defaultLayer,
+      RuntimeFlags.defaultLayer,
+    ]
 
 export const AppLayer = Layer.mergeAll(
-  // ── V1 ─────────────────────────────────────────────────────────
+  // ── Shared (always provided) ────────────────────────────────────
   Npm.defaultLayer,
   FSUtil.defaultLayer,
   Database.defaultLayer,
@@ -110,32 +132,19 @@ export const AppLayer = Layer.mergeAll(
   Session.defaultLayer,
   SessionStatus.defaultLayer,
   BackgroundJob.defaultLayer,
-  RuntimeFlags.defaultLayer,
-  EventV2Bridge.defaultLayer,
-  SessionRunState.defaultLayer,
-  SessionProcessor.defaultLayer,
-  SessionCompaction.defaultLayer,
-  SessionRevert.defaultLayer,
-  SessionSummary.defaultLayer,
-  SessionPrompt.defaultLayer,
-  Instruction.defaultLayer,
-  LLM.defaultLayer,
-  LSP.defaultLayer,
-  MCP.defaultLayer,
-  McpAuth.defaultLayer,
   Command.defaultLayer,
-  Truncate.defaultLayer,
+  LSP.defaultLayer,
   ToolRegistry.defaultLayer,
-  Format.defaultLayer,
   Project.defaultLayer,
   Vcs.defaultLayer,
   Workspace.defaultLayer,
   Worktree.appLayer,
   Installation.defaultLayer,
-  ShareNext.defaultLayer,
-  SessionShare.defaultLayer,
 
-  // ── V2 additions ───────────────────────────────────────────────
+  // ── V1 only (when flag is false) ────────────────────────────────
+  ...V1_ONLY_LAYERS,
+
+  // ── V2 always ───────────────────────────────────────────────────
   CoreGit.defaultLayer,
   CoreProject.defaultLayer,
   SessionStore.defaultLayer,
