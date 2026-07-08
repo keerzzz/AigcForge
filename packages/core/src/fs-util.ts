@@ -246,6 +246,22 @@ export namespace FSUtil {
       .replace(/^\/mnt\/([a-zA-Z])(?:\/|$)/, (_, drive) => `${drive.toUpperCase()}:/`)
   }
 
+  /**
+   * Resolve `target` relative to `worktree`, then verify the real (symlink-resolved)
+   * path stays within `worktree`. Returns the resolved canonical path on success,
+   * or throws a descriptive Error when the path escapes or is inaccessible.
+   *
+   * Use this in all file-access tools (Read, Write, Bash, glob, search) to prevent
+   * symlink-based path traversal attacks.
+   */
+  export function resolveSecurePath(worktree: string, target: string): string {
+    const absolute = pathResolve(worktree, target)
+    if (!contains(worktree, absolute)) throw new Error(`Path ${absolute} escapes the workspace boundary`)
+    const real = realpathSync(absolute)
+    if (!contains(worktree, real)) throw new Error(`Symlink at ${absolute} resolves outside the workspace boundary: ${real}`)
+    return real
+  }
+
   export function overlaps(a: string, b: string) {
     return contains(a, b) || contains(b, a)
   }
