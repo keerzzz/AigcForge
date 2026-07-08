@@ -1608,6 +1608,8 @@ export const defaultLayer = Layer.suspend(() =>
     Layer.provide(SessionRunState.defaultLayer),
     Layer.provide(SessionStatus.defaultLayer),
     Layer.provide(SessionCompaction.defaultLayer),
+    // V1 compatibility: SessionProcessor is still used by the V1 prompt loop.
+    // Remove with Phase 5 V1 retirement.
     Layer.provide(SessionProcessor.defaultLayer),
     Layer.provide(Command.defaultLayer),
     Layer.provide(Permission.defaultLayer),

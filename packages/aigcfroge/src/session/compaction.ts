@@ -593,8 +593,10 @@ export const defaultLayer = Layer.suspend(() =>
   layer.pipe(
     Layer.provide(Provider.defaultLayer),
     Layer.provide(Session.defaultLayer),
-    Layer.provide(SessionProcessor.defaultLayer),
     Layer.provide(Agent.defaultLayer),
+    // V1 compatibility: SessionProcessor is still used for compaction replay.
+    // Remove with Phase 5 V1 retirement.
+    Layer.provide(SessionProcessor.defaultLayer),
     Layer.provide(Plugin.defaultLayer),
     Layer.provide(Config.defaultLayer),
     Layer.provide(RuntimeFlags.defaultLayer),
@@ -607,6 +609,8 @@ export const node = LayerNode.make(layer, [
   Session.node,
   Agent.node,
   Plugin.node,
+  // V1 compatibility: SessionProcessor is still used for compaction replay.
+  // Remove with Phase 5 V1 retirement.
   SessionProcessor.node,
   Provider.node,
   EventV2Bridge.node,
