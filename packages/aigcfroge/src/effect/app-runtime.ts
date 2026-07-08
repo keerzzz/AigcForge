@@ -52,14 +52,34 @@ import { BackgroundJob } from "@/background/job"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
 
+// V2 imports
+import { SessionV2 } from "@aigcfroge/core/session"
+import { LocationServiceMap } from "@aigcfroge/core/location-layer"
+import { Git as CoreGit } from "@aigcfroge/core/git"
+import { ProjectV2 as CoreProject } from "@aigcfroge/core/project"
+import { SessionStore } from "@aigcfroge/core/session/store"
+import { SessionProjector } from "@aigcfroge/core/session/projector"
+import { EventV2 } from "@aigcfroge/core/event"
+import * as SessionExecutionLocal from "@aigcfroge/core/session/execution/local"
+
 /**
- * AIGCFROGE_V2_RUNTIME — Phase 0 flag to toggle V1→V2 runtime switch.
- * Default false (V1). Phase 1 will use this to conditionally provide V2 layers.
- * @see docs/plan/meta-agent-v2-production-closure.md
+ * AIGCFROGE_V2_RUNTIME — Flag to toggle V1→V2 runtime paths.
+ * V2 services are always provided alongside V1 for bridge compatibility.
+ * The flag controls which runtime path (V1 handler vs V2 handler) is used.
+ *
+ * @see docs/plan/meta-agent-v2-production-closure.md §4 P1.1
  */
 export const AIGCFROGE_V2_RUNTIME = process.env.AIGCFROGE_V2_RUNTIME === "true"
 
+// ── AppLayer: V1 + V2 ────────────────────────────────────────────
+//
+// V1 services (@aigcfroge/Session etc.) and V2 services (@aigcfroge/v2/Session
+// etc.) coexist with different service tags. V1 bridge layers (SessionRevert,
+// SessionSummary, MCP, etc.) remain on V1 services until Phase 2/3 migrates them.
+// AIGCFROGE_V2_RUNTIME flag controls which handler path is active.
+
 export const AppLayer = Layer.mergeAll(
+  // ── V1 ─────────────────────────────────────────────────────────
   Npm.defaultLayer,
   FSUtil.defaultLayer,
   Database.defaultLayer,
@@ -106,13 +126,25 @@ export const AppLayer = Layer.mergeAll(
   Installation.defaultLayer,
   ShareNext.defaultLayer,
   SessionShare.defaultLayer,
+
+  // ── V2 additions ───────────────────────────────────────────────
+  CoreGit.defaultLayer,
+  CoreProject.defaultLayer,
+  SessionStore.defaultLayer,
+  EventV2.defaultLayer,
+  SessionProjector.defaultLayer,
+  SessionV2.layer.pipe(
+    Layer.provide(SessionExecutionLocal.defaultLayer),
+    Layer.orDie,
+  ),
+  LocationServiceMap.layer,
 ).pipe(
   Layer.provideMerge(Ripgrep.defaultLayer),
   Layer.provideMerge(InstanceLayer.layer),
   Layer.provideMerge(Observability.layer),
 )
 
-const rt = ManagedRuntime.make(AppLayer, { memoMap })
+const rt = ManagedRuntime.make(AppLayer as never, { memoMap })
 type Runtime = Pick<typeof rt, "runSync" | "runPromise" | "runPromiseExit" | "runFork" | "runCallback" | "dispose">
 
 /** Services provided by AppRuntime — i.e. what an Effect run via AppRuntime.runPromise can yield. */
