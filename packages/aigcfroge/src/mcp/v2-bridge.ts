@@ -9,6 +9,9 @@ import { Effect, Layer } from "effect"
 import { McpV2 } from "@aigcfroge/core/mcp/mcp-v2"
 import { Config as ConfigV2 } from "@aigcfroge/core/config"
 import { InstallationVersion } from "@aigcfroge/core/installation/version"
+import { McpAuthV2 } from "./v2-auth"
+import { McpOAuthProvider, type McpOAuthConfig } from "./v2-oauth-provider"
+import * as McpOAuthCallback from "./v2-oauth-callback"
 
 const DEFAULT_TIMEOUT = 30_000
 
@@ -23,6 +26,7 @@ export const layer = Layer.effect(
   McpV2.Service,
   Effect.gen(function* () {
     const config = yield* ConfigV2.Service
+    const auth = yield* McpAuthV2.Service
     const servers = new Map<string, { client: any; defs: readonly MCPToolDef[] }>()
 
     const start = Effect.fn("McpV2.start")(function* () {
@@ -47,18 +51,40 @@ export const layer = Layer.effect(
             if (cfg.type === "local" || cfg.command) {
               const [cmd, ...args] = cfg.command ?? []
               const transport = new StdioClientTransport({
-                command: cmd,
-                args,
-                cwd: cfg.cwd,
+                command: cmd, args, cwd: cfg.cwd,
                 env: { ...process.env, ...(cmd === "aigcfroge" ? { BUN_BE_BUN: "1" } : {}), ...cfg.environment },
               })
               client = createMcpClient()
               await client.connect(transport)
             } else if (cfg.type === "remote" && cfg.url) {
               const url = new URL(cfg.url)
+              // Build OAuth provider if the config has OAuth enabled
+              const oauthConfig: McpOAuthConfig | undefined = cfg.oauth && typeof cfg.oauth === "object"
+                ? { clientId: cfg.oauth.clientId, clientSecret: cfg.oauth.clientSecret, scope: cfg.oauth.scope, callbackPort: cfg.oauth.callbackPort, redirectUri: cfg.oauth.redirectUri }
+                : cfg.oauth === false ? undefined : undefined
+              const oauthProvider = oauthConfig
+                ? new McpOAuthProvider(name, cfg.url.toString(), oauthConfig, {
+                    onRedirect: async (authUrl) => {
+                      await McpOAuthCallback.ensureRunning(oauthConfig.redirectUri)
+                      const urlStr = typeof authUrl === "string" ? authUrl : authUrl.toString()
+                      console.log(`Open browser to: ${urlStr}`)
+                      try {
+                        const mod = await import("open")
+                        mod.default(urlStr).catch(() => {})
+                      } catch { /* open not available */ }
+                    },
+                  }, auth)
+                : undefined
+
               for (const makeTransport of [
-                () => new StreamableHTTPClientTransport(url, cfg.headers ? { requestInit: { headers: cfg.headers } } : undefined),
-                () => new SSEClientTransport(url, cfg.headers ? { requestInit: { headers: cfg.headers } } : undefined),
+                () => new StreamableHTTPClientTransport(url, {
+                  ...(cfg.headers ? { requestInit: { headers: cfg.headers } } : {}),
+                  ...(oauthProvider ? { authProvider: oauthProvider } : {}),
+                }),
+                () => new SSEClientTransport(url, {
+                  ...(cfg.headers ? { requestInit: { headers: cfg.headers } } : {}),
+                  ...(oauthProvider ? { authProvider: oauthProvider } : {}),
+                }),
               ]) {
                 try {
                   const transport = makeTransport()
