@@ -1,4 +1,5 @@
 import { SessionV2 } from "@aigcfroge/core/session"
+import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
 import { DateTime, Effect } from "effect"
 import { HttpApiBuilder, HttpApiSchema } from "effect/unstable/httpapi"
 import { Api } from "../api"
@@ -322,6 +323,28 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                 ),
               ),
           }
+        }),
+      )
+      .handle(
+        "session.share",
+        Effect.fn(function* (ctx) {
+          const share = yield* SessionShareV2.Service
+          yield* share.share({
+            sourceSessionID: ctx.params.sessionID,
+            targetSessionID: ctx.payload.targetSessionID,
+            scope: ctx.payload.scope,
+            trigger: ctx.payload.trigger,
+          }).pipe(
+            Effect.catchTag("Session.NotFoundError", (error) =>
+              Effect.fail(
+                new SessionNotFoundError({
+                  sessionID: error.sessionID,
+                  message: `Session not found: ${error.sessionID}`,
+                }),
+              ),
+            ),
+          )
+          return HttpApiSchema.NoContent.make()
         }),
       )
   }),

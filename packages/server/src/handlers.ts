@@ -1,4 +1,5 @@
 import { SessionV2 } from "@aigcfroge/core/session"
+import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
 import { LocationServiceMap } from "@aigcfroge/core/location-layer"
 import { PermissionSaved } from "@aigcfroge/core/permission/saved"
 import { PtyTicket } from "@aigcfroge/core/pty/ticket"
@@ -62,6 +63,7 @@ export const handlers = Layer.mergeAll(
   Layer.provide(locationLayer),
   Layer.provide(SessionV2.defaultLayer),
   Layer.provide(SessionExecutionLocal.defaultLayer),
+  Layer.provide(SessionShareV2.defaultLayer),
   Layer.provide(PermissionSaved.defaultLayer),
   Layer.provide(PtyTicket.defaultLayer),
   Layer.provide(fillerLayer),

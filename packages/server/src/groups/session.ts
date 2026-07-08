@@ -310,6 +310,27 @@ export const SessionGroup = HttpApiGroup.make("server.session")
         }),
       ),
   )
+  .add(
+    HttpApiEndpoint.post("session.share", "/api/session/:sessionID/share", {
+      params: { sessionID: SessionV2.ID },
+      payload: Schema.Struct({
+        targetSessionID: SessionV2.ID,
+        scope: Schema.Literals(["reference", "output", "full"]),
+        trigger: Schema.Boolean.pipe(Schema.optional),
+      }),
+      success: HttpApiSchema.NoContent,
+      error: SessionNotFoundError,
+    })
+      .middleware(SessionLocationMiddleware)
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.session.share",
+          summary: "Share session content",
+          description:
+            "Share context from this session into another session. Scope controls what is shared: reference (session link), output (last assistant result), full (entire history).",
+        }),
+      ),
+  )
   .annotateMerge(
     OpenApi.annotations({
       title: "sessions",
