@@ -130,6 +130,7 @@ export interface Interface {
     model: ModelV2.Ref
   }) => Effect.Effect<void, NotFoundError>
   readonly remove: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError>
+  readonly removeMessage: (input: { sessionID: SessionSchema.ID; messageID: SessionMessage.ID }) => Effect.Effect<void, NotFoundError>
   readonly setTitle: (input: { sessionID: SessionSchema.ID; title: string }) => Effect.Effect<void, NotFoundError>
   readonly prompt: (input: {
     id?: SessionMessage.ID
@@ -434,6 +435,10 @@ export const layer = Layer.effect(
         // handles session_input, session_message, etc. when the session row
         // is deleted. Event table is separate, so delete events explicitly.
         yield* db.delete(SessionTable).where(eq(SessionTable.id, sessionID)).run().pipe(Effect.orDie)
+      }),
+      removeMessage: Effect.fn("V2Session.removeMessage")(function* (input) {
+        yield* result.get(input.sessionID)
+        yield* db.delete(SessionMessageTable).where(and(eq(SessionMessageTable.session_id, input.sessionID), eq(SessionMessageTable.id, input.messageID))).run().pipe(Effect.orDie)
       }),
       setTitle: Effect.fn("V2Session.setTitle")(function* (input) {
         yield* result.get(input.sessionID)

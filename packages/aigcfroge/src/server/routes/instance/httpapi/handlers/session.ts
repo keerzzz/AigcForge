@@ -3,6 +3,7 @@ import { Agent } from "@/agent/agent"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { SessionV2 } from "@aigcfroge/core/session"
 import { SessionTodo } from "@aigcfroge/core/session/todo"
+import { PermissionV2 } from "@aigcfroge/core/permission"
 import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
 import { SessionRevert as V2SessionRevert } from "@aigcfroge/core/session/revert"
 import { SessionSummary as V2SessionSummary } from "@aigcfroge/core/session/summary"
@@ -297,6 +298,11 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof InitPayload.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2s = yield* SessionV2.Service
+        yield* v2s.skill({ sessionID: ctx.params.sessionID as SessionV2.ID, skill: Command.Default.INIT, resume: false })
+        return true
+      }
       yield* promptSvc
         .command({
           sessionID: ctx.params.sessionID,
@@ -481,16 +487,30 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof PermissionResponsePayload.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
-      yield* permissionSvc.reply({ requestID: ctx.params.permissionID, reply: ctx.payload.response }).pipe(
-        Effect.catchTag("Permission.NotFoundError", (error) =>
-          Effect.fail(
-            new PermissionNotFoundError({
-              requestID: String(error.requestID),
-              message: `Permission request not found: ${error.requestID}`,
-            }),
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2perm = yield* PermissionV2.Service
+        yield* v2perm.reply({ requestID: ctx.params.permissionID as any, reply: ctx.payload.response as any }).pipe(
+          Effect.catchTag("PermissionV2.NotFoundError", (error) =>
+            Effect.fail(
+              new PermissionNotFoundError({
+                requestID: String(error.requestID),
+                message: `Permission request not found: ${error.requestID}`,
+              }),
+            ),
           ),
-        ),
-      )
+        )
+      } else {
+        yield* permissionSvc.reply({ requestID: ctx.params.permissionID, reply: ctx.payload.response }).pipe(
+          Effect.catchTag("Permission.NotFoundError", (error) =>
+            Effect.fail(
+              new PermissionNotFoundError({
+                requestID: String(error.requestID),
+                message: `Permission request not found: ${error.requestID}`,
+              }),
+            ),
+          ),
+        )
+      }
       return true
     })
 
@@ -499,6 +519,11 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     }) {
       yield* requireSession(ctx.params.sessionID)
       yield* SessionError.mapBusy(runState.assertNotBusy(ctx.params.sessionID))
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2s = yield* SessionV2.Service
+        yield* v2s.removeMessage({ sessionID: ctx.params.sessionID as SessionV2.ID, messageID: ctx.params.messageID as SessionV2.ID })
+        return true
+      }
       yield* session.removeMessage(ctx.params)
       return true
     })
