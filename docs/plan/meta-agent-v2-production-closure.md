@@ -1,17 +1,21 @@
 # Meta-Agent V2 生产级闭环升级方案
 
-> **状态**: v3 — 2026-07-08 更新，Range 3 task tool 对齐 + external-cli + attended 权限闭环已完成
+> **状态**: v4 — 2026-07-08 更新，Share V2 内部分享已实现（替代外网分享），V2 闭环接近完成
 > **作者**: 高级全栈顾问
-> **日期**: 2026-07-05（v3 更新 2026-07-08）
+> **日期**: 2026-07-05（v4 更新 2026-07-08）
 > **审批**: 有条件批准 → 已修正 3 项事实错误 + 4 项重大遗漏，详见各章修订注记
 > **范围**: 弃 V1，全切 V2，接线闭合到生产级闭环
-> **关联文档**: [meta-agent-orchestrator.md](meta-agent-orchestrator.md) · [cache-miss-diagnostics-and-agent-upgrade.md](cache-miss-diagnostics-and-agent-upgrade.md) · [subagent-protocol-cards.md](subagent-protocol-cards.md) · [../architecture/global-stats-design.md](../architecture/global-stats-design.md) · [../../specs/v2/todo.md](../../specs/v2/todo.md)
+> **关联文档**: [meta-agent-orchestrator.md](meta-agent-orchestrator.md) · [cache-miss-diagnostics-and-agent-upgrade.md](cache-miss-diagnostics-and-agent-upgrade.md) · [subagent-protocol-cards.md](subagent-protocol-cards.md) · [../architecture/global-stats-design.md](../architecture/global-stats-design.md) · [../../specs/v2/todo.md](../../specs/v2/todo.md) · [meta-agent-v2-session-endpoints-handoff.md](meta-agent-v2-session-endpoints-handoff.md)
 
 ---
 
 ## 0. 文档定位与原则
 
 本文档是 **V1→V2 全切换 + 接线闭合**的总执行方案。它不重复已有计划文档的细节，而是**聚合 + 排序 + 补 gap**：把分散在 5 份 meta-agent 计划、`specs/v2/todo.md`、`specs/effect/todo.md` 中的承诺与现状收敛成单一可执行路线。
+
+**v4 修订要点**：
+- R11：Share 方案变更——**外网分享改为内部分享**（[SessionShareV2](../../packages/core/src/session/share-v2.ts)），通过 EventV2 Synthetic 事件在会话间传递上下文
+- R12：V2 闭环接近完成，剩余 P3.2/P3.5/P3.6 为 Phase 3 收尾，Fork 为独立任务
 
 **v2 修订要点**（基于审批 R1-R10）：
 - R1：Stuck 事件已实现（[event.ts:440](../../packages/core/src/session/event.ts#L440) + [compaction.ts:278](../../packages/core/src/session/compaction.ts#L278)），删除"定义+publish"任务
@@ -87,6 +91,7 @@
 | UI event-reducer 识别 `session.next.*` | P1 | 无 | |
 | V2 config schema 落地 | P1 | 无 | R7 重估工期 |
 | V2 禁用 meta 回退开关 | P1 | 无 | **R5 新增** |
+| V2 SessionShare（内部分享） | P1 | 无 | **新决策：替代外网分享** |
 | Mode Switcher viewport（Chat/Work/Assistant） | P1 | ADR-09 | R8 拆出独立 plan |
 
 ### 1.4 文档漂移（必须同步）

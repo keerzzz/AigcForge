@@ -82,20 +82,40 @@ Range 3（V1 task tool 6 项功能对齐）**全部完成**（未提交，在 wo
 
 **V1 fork 端点**：`session.fork` POST，payload = ForkInput omit sessionID（含可选 messageID 边界）。handler 有 forkRaw（空 body 兜底）。
 
-### 任务 B：share（高难度 + 触及外部数据传输）
+### 任务 B：share（已完成 — V2 内部分享替代外网分享）
 
-**现状**：V2 core 只有 `SessionShareTable`（[share/sql.ts](../../packages/core/src/share/sql.ts)）+ `AccountV2` 的 sql.ts（无 service）。**无 SessionShare service、无 ShareNext、无 share 事件契约**。上游 V2 native 也无 share 端点。
+**现状**：✅ **已实现 V2 内部分享方案**，替代原外网分享计划。
 
-**specs/v2 裁决**：share 保留（[config.md:150](../../specs/v2/config.md#L150) "keep `manual|auto|disabled`"）。非否决（不同于 command）。
+**决策变更**：原计划是把会话同步到外部 `share.example.com`，涉及网络传输、账号认证、第三方数据安全风险。经产品分析后改为**纯本地的 Agent 间上下文分享**：
 
-**V1 实现依赖链庞大**：
-- `SessionShare.Service`（[aigcfroge/src/share/session.ts](../../packages/aigcfroge/src/share/session.ts)）：share/unshare/auto-share，依赖 Config/Session/ShareNext/RuntimeFlags
-- `ShareNext.Service`（[aigcfroge/src/share/share-next.ts](../../packages/aigcfroge/src/share/share-next.ts)）：**网络 sync/remove/data 到外部 share server**，依赖 Account/EventV2Bridge/Config/Provider/Session
-- V1 端点：`session.share`(POST) / `session.unshare`(DELETE)
+| 维度 | 原外网方案 | 现内部分享方案 |
+|---|---|---|
+| 数据流向 | 本地 → 外部服务器 | 本地会话 → 本地会话 |
+| 网络依赖 | 需要 | 不需要 |
+| 安全风险 | 高（第三方数据传输） | 无 |
+| 复杂度 | 高（ShareNext + Account + 网络） | 低（EventV2 + injectSynthetic） |
+| 工作量 | 3+ 天 | 1 天 |
 
-**⚠️ 安全性质**：share 把会话消息同步到外部 `share.example.com`。属 `<safety_guardrails>` 的"传输用户数据到第三方 / outward-facing"高风险类别 — 实现/接线前需向用户明确授权，Clean Logs 复查（禁泄露 token/url secret）。
+**V2 实现**：
 
-**工作量判断**：整个 share 子系统未建（非补端点）。需从零建 V2 SessionShare + ShareNext + Account service + share 事件契约。工作量可能超过前 4 批之和。
+- **核心服务**：[packages/core/src/session/share-v2.ts](../../packages/core/src/session/share-v2.ts) — `SessionShareV2.Service`
+- **三种分享范围（scope）**：
+  - `reference`：注入源会话 ID（最轻量，目标 agent 按需读取）
+  - `output`：注入源会话最后一条 AI 回复文本
+  - `full`：注入源会话完整投影对话历史
+- **触发方式**：可选 `trigger` 参数，注入后强制目标会话执行一次 drain
+- **实现机制**：通过 `EventV2` 发布 `SessionEvent.Synthetic` 事件到目标会话时间线，复用 `injectSynthetic` 路径
+- **HTTP 端点**：`POST /api/session/:sessionID/share`（V2 server handler）
+- **LLM 工具**：[packages/core/src/tool/share-tool.ts](../../packages/core/src/tool/share-tool.ts) — `share` 工具，可在对话中由 AI 调用
+- **测试**：[packages/core/test/session-share-v2.test.ts](../../packages/core/test/session-share-v2.test.ts) — 4 项测试全通过
+- **接线**：`packages/server/src/handlers.ts` + `packages/aigcfroge/src/effect/app-runtime.ts`
+
+**V1 遗留**：
+- `packages/aigcfroge/src/share/session.ts`（SessionShare）— V1 外网分享，保留到 Phase 5 退役
+- `packages/aigcfroge/src/share/share-next.ts`（ShareNext）— 同上
+- `packages/core/src/share/sql.ts`（SessionShareTable）— V1 分享表，保留到 Phase 5
+
+**未实现**：外网分享功能已**彻底否决**。如需向外部分享，可未来通过 plugin 系统实现。内部分享覆盖了 Agent 间上下文传递的核心需求。
 
 ---
 
