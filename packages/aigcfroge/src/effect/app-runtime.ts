@@ -64,6 +64,7 @@ import * as SessionExecutionLocal from "@aigcfroge/core/session/execution/local"
 import { V2Snapshot } from "@aigcfroge/core/session/v2-snapshot"
 import { SessionRevert as V2SessionRevert } from "@aigcfroge/core/session/revert"
 import { SessionSummary as V2SessionSummary } from "@aigcfroge/core/session/summary"
+import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
 
 /**
  * AIGCFROGE_V2_RUNTIME — Flag to toggle V1→V2 runtime paths.
@@ -159,6 +160,9 @@ export const AppLayer = Layer.mergeAll(
   // V2 revert + summary (depend on V2Snapshot + SessionStore)
   V2SessionRevert.defaultLayer,
   V2SessionSummary.defaultLayer,
+
+  // V2 MetaAgent service
+  MetaAgentService.defaultLayer,
 ).pipe(
   Layer.provideMerge(Ripgrep.defaultLayer),
   Layer.provideMerge(InstanceLayer.layer),

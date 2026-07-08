@@ -65,12 +65,15 @@ export const layer = Layer.effect(
     })
     const selectable = (agent: Info | undefined) =>
       agent && agent.mode !== "subagent" && !agent.hidden ? agent : undefined
+    const metaDisabled = typeof process !== "undefined" && process.env?.AIGCFROGE_DISABLE_META_AGENT === "true"
     const selectedDefault = () => {
       const data = state.get()
       const configured = data.default ? selectable(data.agents.get(data.default)) : undefined
       if (configured) return configured
-      const metaAgent = selectable(data.agents.get(ID.make("meta")))
-      if (metaAgent) return metaAgent
+      if (!metaDisabled) {
+        const metaAgent = selectable(data.agents.get(ID.make("meta")))
+        if (metaAgent) return metaAgent
+      }
       const build = selectable(data.agents.get(ID.make("build")))
       if (build) return build
       for (const agent of data.agents.values()) {
