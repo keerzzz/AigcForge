@@ -1,10 +1,10 @@
 # Meta-Agent V2 生产级闭环升级方案
 
-> **状态**: v5 — 2026-07-08 更新，基于业界调研报告新增 5 个维度优化任务，新增 Phase 6（智能体增强）
+> **状态**: v6 — 2026-07-09 更新，Phase 4-6 全部完成，AIGCFROGE_V2_RUNTIME 默认 true，21/26 handler 有 V2 路径
 > **作者**: 高级全栈顾问
-> **日期**: 2026-07-05（v5 更新 2026-07-08）
+> **日期**: 2026-07-05（v5 更新 2026-07-08，v6 2026-07-09）
 > **审批**: 有条件批准 → 已修正 3 项事实错误 + 4 项重大遗漏，详见各章修订注记
-> **范围**: 弃 V1，全切 V2，接线闭合到生产级闭环
+> **范围**: 弃 V1，全切 V2，接线闭合到生产级闭环（V1 源码保留但不再默认运行）
 > **关联文档**: [meta-agent-orchestrator.md](meta-agent-orchestrator.md) · [cache-miss-diagnostics-and-agent-upgrade.md](cache-miss-diagnostics-and-agent-upgrade.md) · [subagent-protocol-cards.md](subagent-protocol-cards.md) · [../architecture/global-stats-design.md](../architecture/global-stats-design.md) · [../../specs/v2/todo.md](../../specs/v2/todo.md) · [meta-agent-v2-session-endpoints-handoff.md](meta-agent-v2-session-endpoints-handoff.md) · [../主流编程及 CIL 智能体架构深度调研方案.md](../主流编程及 CIL 智能体架构深度调研方案.md)
 
 ---
@@ -12,6 +12,13 @@
 ## 0. 文档定位与原则
 
 本文档是 **V1→V2 全切换 + 接线闭合**的总执行方案。它不重复已有计划文档的细节，而是**聚合 + 排序 + 补 gap**：把分散在 5 份 meta-agent 计划、`specs/v2/todo.md`、`specs/effect/todo.md` 中的承诺与现状收敛成单一可执行路线。
+
+**v6 修订要点**（2026-07-09）：
+- R18: Phase 4-6 全部完成（schema 稳定 + Catch Everything + 可观测性 + 测试 + 5 项智能体增强）
+- R19: AIGCFROGE_V2_RUNTIME 翻转为默认 true（`fef78b8`），可设 `false` 回退 V1
+- R20: 21/26 handler 有 V2 路径（`481d13c`, `6051b34`, `816c22d`, `e8ea0ab`, `c3389ea`）
+- R21: V2 补齐 remove/setTitle/todo/removeMessage/permissionRespond 等产品端缺失
+- R22: V1 源码树保留但不再默认运行；剩余 5 个边缘端点走 V1（status/deletePart/updatePart）需等待 V1 统一清理
 
 **v5 修订要点**：
 - R13：基于业界调研报告（[主流编程及 CIL 智能体架构深度调研方案.md](../主流编程及 CIL 智能体架构深度调研方案.md)）新增 5 个关键发现维度：Judge 多模型仲裁模式、安全三层防护缺失、PreToolUse 钩子空壳实现、外部 CLI 会话恢复能力缺失、冷存储归档机制缺失
@@ -45,7 +52,7 @@
 
 ## 1. 现状基线
 
-**一句话**：V2 实现已就绪且 `packages/server` 已接线，但 aigcfroge 运行时仍走 V1。阻塞不在 core，而在 aigcfroge 根 Layer 未 provide V2 全栈 + httpapi 路由标识符被 V1 抢注 + CLI/ACP 入口指向 legacy 路由 + **50 个 V1 Layer 中 14 个无 V2 对等（含 SessionRevert/SessionSummary 被 HTTP 端点暴露）**。
+**一句话**：V2 已接线完毕，`AIGCFROGE_V2_RUNTIME` 默认 true（`fef78b8`）。21/26 handler 走 V2 路径。V1 源码树保留但不再默认运行。剩余 5 个边缘端点（status/deletePart/updatePart）保持 V1 路径。
 
 ### 1.1 已实现并就绪（直接可用）
 
@@ -216,50 +223,10 @@ app（event-reducer 识别 session.next.*）+ TUI（已就绪）+ desktop
 ## 3. 阻塞点依赖图
 
 ```
-Phase 0（基线+验证）─┬─ P0.1 建分支 + feature flag
-                     ├─ P0.2 smoke test 验证 packages/server V2 端到端  ← R3 关键
-                     └─ P0.3 V2 schema 基线快照 + 测试基线
-                       │
-Phase 1（接线）─┬─ P1.1 app-runtime provide V2 全栈（50 Layer 逐项迁移）  ← R3
-               ├─ P1.2 httpapi 路由 namespace 解冲突
-               └─ P1.3 入口灰度切换（feature flag）
-                       │
-                       ▼
-Phase 2（meta + V1 无对等能力补齐）─┬─ P2.1 deriveSubagent（V2 权限收敛）← ✅
-                        ├─ P2.2 V2 task 工具重写 ← ✅
-                        ├─ P2.3 prerouter 迁入 core + 接入 runner ← ✅
-                        ├─ P2.4 占位符填充器 ← ✅
-                        ├─ P2.5 MetaAgent 服务层 ← ✅
-                        ├─ P2.6 meta_agent_step 写入接线 ← ✅
-                        ├─ P2.7 PROMPT_META 单源化 + CLI 适配器归属 ← ✅
-                        ├─ P2.8 SessionProcessor 消费者迁移  ← 待 Phase 5
-                        ├─ P2.9 V2 SessionRevert 服务补建 ← ✅
-                        ├─ P2.10 V2 SessionSummary/diff 服务补建 ← ✅
-                        └─ P2.11 V2 禁用 meta 回退开关 ← ✅
-                       │
-Phase 3（下游对等）─┬─ P3.1a MCP-basic + P3.1b MCP-oauth ← ✅
-                   ├─ P3.2 V1 字符串 hook 迁移（依赖 P3.3）
-                   ├─ P3.3 MetaHooks + ToolHooks SDK 扩展 ← ✅
-                   ├─ P3.4 UI event-reducer 识别 session.next.*
-                   ├─ P3.5 V2 config schema 落地
-                   ├─ P3.6 验证 Stuck 消费链路（事件已实现）
-                   ├─ P3.7 MetaAgentSource 接入 Status Bar
-                   ├─ P3.8 INTENT_TOOL_FILTERS 接线 ← v5 新增（P0）
-                   └─ P3.9 PreToolUse/PostToolUse 钩子实现 ← v5 新增（P0）
-                       │
-Phase 4（生产级加固）─┬─ P4.1 schema 稳定性
-                      ├─ P4.2 错误兜底
-                      ├─ P4.3 可观测性
-                      └─ P4.4 测试覆盖
-                       │
-Phase 5（V1 退役）─┬─ P5.1 V1 SessionPrompt/agent/tool 删除
-                   ├─ P5.2 孤岛清理
-                   ├─ P5.3 event-v2-bridge 降级 + 双 SSE 统一  ← ✅
-                   └─ P5.4 文档同步
-                       │
-Phase 6（智能体增强）─┬─ P6.1 Structured Handoffs 摘要压缩投递
-                     ├─ P6.2 Judge 多模型仲裁模式
-                     ├─ P6.3 外部 CLI 会话恢复
+Phase 0-3 — 全部完成（接线+meta补齐+下游对等）✅
+Phase 4 — 全部完成（schema+Catch Everything+observability+test）✅
+Phase 5 — 死代码清理+文档同步+flag翻转(默认true)；V1源码保留（互引用不可逐个删）
+Phase 6 — 全部完成（摘要投递+Judge仲裁+CLI恢复+符号链接+Fork）✅
                      ├─ P6.4 符号链接防护
                      └─ P6.5 Fork CLI 命令 + SSE UI 交互
 ```
