@@ -1,11 +1,11 @@
 # Meta-Agent V2 生产级闭环升级方案
 
-> **状态**: v4 — 2026-07-08 更新，Share V2 内部分享已实现（替代外网分享），V2 闭环接近完成
+> **状态**: v5 — 2026-07-08 更新，基于业界调研报告新增 5 个维度优化任务，新增 Phase 6（智能体增强）
 > **作者**: 高级全栈顾问
-> **日期**: 2026-07-05（v4 更新 2026-07-08）
+> **日期**: 2026-07-05（v5 更新 2026-07-08）
 > **审批**: 有条件批准 → 已修正 3 项事实错误 + 4 项重大遗漏，详见各章修订注记
 > **范围**: 弃 V1，全切 V2，接线闭合到生产级闭环
-> **关联文档**: [meta-agent-orchestrator.md](meta-agent-orchestrator.md) · [cache-miss-diagnostics-and-agent-upgrade.md](cache-miss-diagnostics-and-agent-upgrade.md) · [subagent-protocol-cards.md](subagent-protocol-cards.md) · [../architecture/global-stats-design.md](../architecture/global-stats-design.md) · [../../specs/v2/todo.md](../../specs/v2/todo.md) · [meta-agent-v2-session-endpoints-handoff.md](meta-agent-v2-session-endpoints-handoff.md)
+> **关联文档**: [meta-agent-orchestrator.md](meta-agent-orchestrator.md) · [cache-miss-diagnostics-and-agent-upgrade.md](cache-miss-diagnostics-and-agent-upgrade.md) · [subagent-protocol-cards.md](subagent-protocol-cards.md) · [../architecture/global-stats-design.md](../architecture/global-stats-design.md) · [../../specs/v2/todo.md](../../specs/v2/todo.md) · [meta-agent-v2-session-endpoints-handoff.md](meta-agent-v2-session-endpoints-handoff.md) · [../主流编程及 CIL 智能体架构深度调研方案.md](../主流编程及 CIL 智能体架构深度调研方案.md)
 
 ---
 
@@ -13,9 +13,14 @@
 
 本文档是 **V1→V2 全切换 + 接线闭合**的总执行方案。它不重复已有计划文档的细节，而是**聚合 + 排序 + 补 gap**：把分散在 5 份 meta-agent 计划、`specs/v2/todo.md`、`specs/effect/todo.md` 中的承诺与现状收敛成单一可执行路线。
 
+**v5 修订要点**：
+- R13：基于业界调研报告（[主流编程及 CIL 智能体架构深度调研方案.md](../主流编程及 CIL 智能体架构深度调研方案.md)）新增 5 个关键发现维度：Judge 多模型仲裁模式、安全三层防护缺失、PreToolUse 钩子空壳实现、外部 CLI 会话恢复能力缺失、冷存储归档机制缺失
+- R14：Fork 功能决策——**不需要独立新建 Fork 服务**，现有 `SessionV2.create({parentID})` + `SessionShareV2.share({scope:"full"})` 组合即可覆盖 Fork 用例。缺的是 `/fork` CLI 命令 + UI 交互入口，独立为 P6.5
+- R15：新增 Phase 6（智能体增强），聚焦缓存优化、安全加固、摘要压缩、Judge 模式等业界已验证的方向
+- R16：INTENT_TOOL_FILTERS 死代码接入（P3.8）优先级提升至 P0——直接影响前缀缓存和工具裁剪
+- R17：MetaHooks middleware 钩子（P3.9）需填入真实 PreToolUse 拦截逻辑，不可停留在空壳状态
+
 **v4 修订要点**：
-- R11：Share 方案变更——**外网分享改为内部分享**（[SessionShareV2](../../packages/core/src/session/share-v2.ts)），通过 EventV2 Synthetic 事件在会话间传递上下文
-- R12：V2 闭环接近完成，剩余 P3.2/P3.5/P3.6 为 Phase 3 收尾，Fork 为独立任务
 
 **v2 修订要点**（基于审批 R1-R10）：
 - R1：Stuck 事件已实现（[event.ts:440](../../packages/core/src/session/event.ts#L440) + [compaction.ts:278](../../packages/core/src/session/compaction.ts#L278)），删除"定义+publish"任务
@@ -63,6 +68,17 @@
 | **V2 attended 权限收敛** | [permission.ts:160-175](../../packages/core/src/permission.ts#L160) + task tool Input `attended` | ✅ **2026-07-08 完成（替代 V1 deriveSubagentSessionPermission）** |
 | **external-cli 迁移** | [tool/cli-adapter.ts](../../packages/core/src/tool/cli-adapter.ts) + [tool/cli-timeout.ts](../../packages/core/src/tool/cli-timeout.ts) + 4 适配器 | ✅ **2026-07-08 完成（含 opencode）** |
 | **abort 级联传播** | [session.ts:453-463](../../packages/core/src/session.ts#L453)（interrupt cascade children） | ✅ **2026-07-08 完成** |
+| **V2 SessionRevert 服务** | [session/revert.ts](../../packages/core/src/session/revert.ts) | ✅ **2026-07-08 完成** |
+| **V2 SessionSummary/diff 服务** | [session/summary.ts](../../packages/core/src/session/summary.ts) | ✅ **2026-07-08 完成** |
+| **V2 SessionShare（内部分享）** | [session/share-v2.ts](../../packages/core/src/session/share-v2.ts) | ✅ **2026-07-08 完成（替代外网分享）** |
+| **MetaAgent 服务层** | [meta-agent/service.ts](../../packages/core/src/meta-agent/service.ts) | ✅ **2026-07-08 完成** |
+| **meta_agent_step 写入** | [session/task-driver-fill.ts](../../packages/core/src/session/task-driver-fill.ts) | ✅ **2026-07-08 完成** |
+| **PreRouter 迁移 + 占位符** | [agent/meta/](../../packages/core/src/agent/meta/) + [plugin/agent.ts](../../packages/core/src/plugin/agent.ts) | ✅ **2026-07-08 完成** |
+| **MetaHooks + ToolHooks SDK** | [plugin/src/v2/effect/](../../packages/plugin/src/v2/effect/) | ✅ **2026-07-08 完成** |
+| **SSE 统一** | [event-v2-bridge.ts](../../packages/aigcfroge/src/event-v2-bridge.ts) + [handlers/event.ts](../../packages/aigcfroge/src/server/routes/instance/httpapi/handlers/event.ts) | ✅ **2026-07-08 完成（GlobalBus 移除）** |
+| **MCP V2 (basic + OAuth)** | [mcp/](../../packages/core/src/mcp/) + [aigcfroge/src/mcp/v2-*.ts](../../packages/aigcfroge/src/mcp/) | ✅ **2026-07-08 完成** |
+| **AIGCFROGE_DISABLE_META_AGENT** | [agent.ts:68-81](../../packages/core/src/agent.ts#L68) | ✅ **2026-07-08 完成** |
+| **PROMPT_META 单源化** | [plugin/agent.ts](../../packages/core/src/plugin/agent.ts) | ✅ **2026-07-08 完成** |
 
 ### 1.2 已实现未接线（孤岛）
 
@@ -76,23 +92,37 @@
 | `meta_agent_step` 表 | [core/src/meta-agent/sql.ts:46](../../packages/core/src/meta-agent/sql.ts#L46) | 无写入方 |
 | TUI EventV2 消费 | [tui/src/context/data.tsx:132-345](../../packages/tui/src/context/data.tsx#L132) | 已就绪（V2 切换后无需改） |
 
-### 1.3 缺失（必须新建）
+### 1.3 已完成（原缺失已补建）
 
-| 缺口 | 严重度 | 依赖 | 修订注记 |
+| 缺口 | 严重度 | 完成情况 | 文件 |
 |---|---|---|---|
-| `{{SUBAGENTS_LIST}}`/`{{CLI_LIST}}` 填充器 | P0 | AgentV2.all()（已有） | |
-| MetaAgent 服务层（create/get/attach/stats） | P0 | 无 | |
-| prerouter 迁移到 core + 接入 runner | P0 | 无 | |
-| **V2 SessionRevert 服务** | **P0** | 无 | **R2 新增——断 revert/unrevert HTTP 端点** |
-| **V2 SessionSummary/diff 服务** | **P0** | 无 | **R2 新增——断 diff HTTP 端点** |
-| V2 MCP 领域模型 | P0 | 无 | R7 拆 basic/oauth |
-| MetaHooks 插件扩展点 | P1 | plugin SDK | |
-| V2 plugin 自定义工具（ToolHooks） | P1 | plugin SDK | |
-| UI event-reducer 识别 `session.next.*` | P1 | 无 | |
-| V2 config schema 落地 | P1 | 无 | R7 重估工期 |
-| V2 禁用 meta 回退开关 | P1 | 无 | **R5 新增** |
-| V2 SessionShare（内部分享） | P1 | 无 | **新决策：替代外网分享** |
-| Mode Switcher viewport（Chat/Work/Assistant） | P1 | ADR-09 | R8 拆出独立 plan |
+| `{{SUBAGENTS_LIST}}`/`{{CLI_LIST}}` 填充器 | P0 | ✅ | [agent/meta/meta-prompt.ts](../../packages/core/src/agent/meta/meta-prompt.ts) + [plugin/agent.ts](../../packages/core/src/plugin/agent.ts) |
+| MetaAgent 服务层（create/get/attach/stats） | P0 | ✅ | [meta-agent/service.ts](../../packages/core/src/meta-agent/service.ts) |
+| prerouter 迁移到 core + 接入 runner | P0 | ✅ | [agent/meta/prerouter.ts](../../packages/core/src/agent/meta/prerouter.ts) |
+| **V2 SessionRevert 服务** | **P0** | ✅ | [session/revert.ts](../../packages/core/src/session/revert.ts) |
+| **V2 SessionSummary/diff 服务** | **P0** | ✅ | [session/summary.ts](../../packages/core/src/session/summary.ts) |
+| V2 MCP 领域模型 | P0 | ✅ | [mcp/mcp-v2.ts](../../packages/core/src/mcp/mcp-v2.ts) + [v2-bridge.ts](../../packages/aigcfroge/src/mcp/v2-bridge.ts) |
+| MetaHooks 插件扩展点 | P1 | ✅ | [plugin/src/v2/effect/meta.ts](../../packages/plugin/src/v2/effect/meta.ts) |
+| V2 plugin 自定义工具（ToolHooks） | P1 | ✅ | [plugin/src/v2/effect/tool.ts](../../packages/plugin/src/v2/effect/tool.ts) |
+| V2 禁用 meta 回退开关 | P1 | ✅ | [agent.ts:68-81](../../packages/core/src/agent.ts#L68) |
+| V2 SessionShare（内部分享） | P1 | ✅ | [session/share-v2.ts](../../packages/core/src/session/share-v2.ts) |
+| meta_agent_step 写入 | P0 | ✅ | [session/task-driver-fill.ts](../../packages/core/src/session/task-driver-fill.ts) |
+| SSE 统一 | P0 | ✅ | [event-v2-bridge.ts](../../packages/aigcfroge/src/event-v2-bridge.ts) |
+| MCP OAuth | P0 | ✅ | [v2-auth.ts](../../packages/aigcfroge/src/mcp/v2-auth.ts) + [v2-oauth-*.ts](../../packages/aigcfroge/src/mcp/) |
+
+### 1.3b 缺失（必须新建 — 基于业界调研发现）
+
+**调研依据**：[../主流编程及 CIL 智能体架构深度调研方案.md](../主流编程及 CIL 智能体架构深度调研方案.md) §4-5
+
+| 缺口 | 严重度 | 依赖 | 调研来源 |
+|---|---|---|---|
+| **INTENT_TOOL_FILTERS 接线**（工具按需加载） | **P0** | prerouter（已有） | §4.3 On-Demand Tool Loading — Kimi Code select_tools 机制，减少前缀 Token 30%+ |
+| **PreToolUse/PostToolUse 钩子实现**（MetaHooks 空壳填实） | **P0** | MetaHooks SDK（已有） | §5.2 生命周期钩子 — 工具执行前拦截决策（allow/deny），安全底线 |
+| **Structured Handoffs 摘要压缩**（Share V2 full scope 改为自动摘要） | **P1** | LLM 模型调用 | §4.1 Summary Compression — 200-500 Token 结构化快照，保前缀缓存 |
+| **符号链接防护**（Symlink-aware Path Containment） | **P2** | 无 | §5.3.2 — realpath() 展开 + 工作区边界校验 |
+| **Judge 多模型仲裁模式** | **P2** | TaskDriver（已有） | §4.2 Chairman/Judge Pattern — 3-5 异构模型并行 + 仲裁合并 |
+| **外部 CLI 会话恢复**（断线重连） | **P2** | external-cli 适配器（已有） | §4.4 kimi-plugin-cc — stdout JSONL 帧截获 + 会话 ID 持久化 |
+| **冷存储归档**（长时间不活跃子会话归档唤醒） | **P3** | 无 | §4.5 Daytona — 冷启动 90ms，归档状态秒级唤醒 |
 
 ### 1.4 文档漂移（必须同步）
 
@@ -194,25 +224,28 @@ Phase 1（接线）─┬─ P1.1 app-runtime provide V2 全栈（50 Layer 逐�
                ├─ P1.2 httpapi 路由 namespace 解冲突
                └─ P1.3 入口灰度切换（feature flag）
                        │
-                       ▼（task/revert/summary 未补建前，meta 委派 + revert 端点降级）
-Phase 2（meta + V1 无对等能力补齐）─┬─ P2.1 deriveSubagent（V2 权限收敛）← **✅ 2026-07-08 完成**
-                        ├─ P2.2 V2 task 工具重写 ← 依赖 P2.1 **✅ 2026-07-08 完成**
-                        ├─ P2.3 prerouter 迁入 core + 接入 runner
-                        ├─ P2.4 占位符填充器
-                        ├─ P2.5 MetaAgent 服务层 ← 依赖 P2.2
-                        ├─ P2.6 meta_agent_step 写入接线 ← 依赖 P2.5
-                        ├─ P2.7 PROMPT_META 单源化 + CLI 适配器归属  ← R4 **✅ CLI 适配器已迁移 core（2026-07-08）**
-                        ├─ P2.8 SessionProcessor 消费者迁移  ← R2 新增
-                        ├─ P2.9 V2 SessionRevert 服务补建  ← R2 新增（断端点）
-                        ├─ P2.10 V2 SessionSummary/diff 服务补建  ← R2 新增（断端点）
-                        └─ P2.11 V2 禁用 meta 回退开关  ← R5 新增
+                       ▼
+Phase 2（meta + V1 无对等能力补齐）─┬─ P2.1 deriveSubagent（V2 权限收敛）← ✅
+                        ├─ P2.2 V2 task 工具重写 ← ✅
+                        ├─ P2.3 prerouter 迁入 core + 接入 runner ← ✅
+                        ├─ P2.4 占位符填充器 ← ✅
+                        ├─ P2.5 MetaAgent 服务层 ← ✅
+                        ├─ P2.6 meta_agent_step 写入接线 ← ✅
+                        ├─ P2.7 PROMPT_META 单源化 + CLI 适配器归属 ← ✅
+                        ├─ P2.8 SessionProcessor 消费者迁移  ← 待 Phase 5
+                        ├─ P2.9 V2 SessionRevert 服务补建 ← ✅
+                        ├─ P2.10 V2 SessionSummary/diff 服务补建 ← ✅
+                        └─ P2.11 V2 禁用 meta 回退开关 ← ✅
                        │
-Phase 3（下游对等）─┬─ P3.1a MCP-basic + P3.1b MCP-oauth  ← R7 拆分
-                   ├─ P3.2 V1 字符串 hook 迁移（依赖 P3.3）  ← R6 顺序调换
-                   ├─ P3.3 MetaHooks + ToolHooks SDK 扩展（先于 P3.2）  ← R6
+Phase 3（下游对等）─┬─ P3.1a MCP-basic + P3.1b MCP-oauth ← ✅
+                   ├─ P3.2 V1 字符串 hook 迁移（依赖 P3.3）
+                   ├─ P3.3 MetaHooks + ToolHooks SDK 扩展 ← ✅
                    ├─ P3.4 UI event-reducer 识别 session.next.*
-                   ├─ P3.5 V2 config schema 落地  ← R7 重估
-                   └─ P3.6 验证 Stuck 消费链路（事件已实现）  ← R1 修正
+                   ├─ P3.5 V2 config schema 落地
+                   ├─ P3.6 验证 Stuck 消费链路（事件已实现）
+                   ├─ P3.7 MetaAgentSource 接入 Status Bar
+                   ├─ P3.8 INTENT_TOOL_FILTERS 接线 ← v5 新增（P0）
+                   └─ P3.9 PreToolUse/PostToolUse 钩子实现 ← v5 新增（P0）
                        │
 Phase 4（生产级加固）─┬─ P4.1 schema 稳定性
                       ├─ P4.2 错误兜底
@@ -221,8 +254,14 @@ Phase 4（生产级加固）─┬─ P4.1 schema 稳定性
                        │
 Phase 5（V1 退役）─┬─ P5.1 V1 SessionPrompt/agent/tool 删除
                    ├─ P5.2 孤岛清理
-                   ├─ P5.3 event-v2-bridge 降级 + 双 SSE 统一  ← R9
+                   ├─ P5.3 event-v2-bridge 降级 + 双 SSE 统一  ← ✅
                    └─ P5.4 文档同步
+                       │
+Phase 6（智能体增强）─┬─ P6.1 Structured Handoffs 摘要压缩投递
+                     ├─ P6.2 Judge 多模型仲裁模式
+                     ├─ P6.3 外部 CLI 会话恢复
+                     ├─ P6.4 符号链接防护
+                     └─ P6.5 Fork CLI 命令 + SSE UI 交互
 ```
 
 **v2 修订**：新增 P0.2（smoke test）、P2.8/P2.9/P2.10（无对等能力补建）、P2.11（meta 开关）；P3.1 拆 a/b；P3.2/P3.3 调换；P3.6 改验证；P5.3 补 SSE 统一。
@@ -428,7 +467,9 @@ Phase 5（V1 退役）─┬─ P5.1 V1 SessionPrompt/agent/tool 删除
 
 ---
 
-### Phase 3 — 下游能力 V2 对等（5-6 天，R6/R7/R8 修订）
+### Phase 3 — 下游能力 V2 对等（5-6 天，R6/R7/R8 修订，v5 新增 P3.8/P3.9）
+
+**v5 修订**：基于业界调研报告新增 INTENT_TOOL_FILTERS 接线（P3.8，P0 优先级）和 PreToolUse 钩子实现（P3.9，P0 优先级）。
 
 #### P3.1a MCP V2 basic（1.5 天，R7 拆分）
 
@@ -500,7 +541,35 @@ V1 通用字符串 trigger 需对等迁移到 V2 域 transform 或 aisdk hook：
 
 **建议拆 slice**：config-schema（1 天）+ config-migration（1-2 天）。
 
-#### P3.6 验证 Stuck 消费链路（0.5 天，R1 修正）
+#### P3.8 INTENT_TOOL_FILTERS 接线 — 工具按需加载（1 天，v5 新增，P0）
+
+**调研来源**：[调研报告 §4.3](../../docs/主流编程及 CIL 智能体架构深度调研方案.md) — Kimi Code `select_tools` 机制，业界已验证的工具按需加载减少前缀 Token 30%+。
+
+**现状**：INTENT_TOOL_FILTERS 在 [registry.ts:15-40](../../packages/core/src/tool/registry.ts#L15) 已定义但 runner 不传 intent（[llm.ts:205](../../packages/core/src/session/runner/llm.ts#L205) 仅传 permissions），死代码。PreRouter 的 `preRoute` 已迁移到 core 但未接入。
+
+| 动作 | 文件 | 说明 |
+|---|---|---|
+| runner 传 intent 给 materialize | [runner/llm.ts:184-205](../../packages/core/src/session/runner/llm.ts#L184) | `agents.select` 前调用 `PreRouter.preRouteEffect`，将 intent category 传给 `materialize` |
+| materialize 接受并应用 intent | [registry.ts:132-153](../../packages/core/src/tool/registry.ts#L132) | 当前已有 filter 逻辑但 `filter` 变量来自 INTENT_TOOL_FILTERS，只需传入 intent 参数 |
+| 接入 PreRouter | [runner/llm.ts:184](../../packages/core/src/session/runner/llm.ts#L184) | `agents.select` 前插入 `preRoute(input)`，将 intent 注入 materialize |
+| 验证工具裁剪 | [session-runner.test.ts](../../packages/core/test/) | 验证 code_understanding intent 下只暴露 read/grep/glob 等只读工具 |
+
+**验收**：`code_understanding` intent 时 materialize 只返回只读工具（read/grep/glob）；`code_modification` 时返回全部工具。
+
+#### P3.9 PreToolUse/PostToolUse 钩子实现（1.5 天，v5 新增，P0）
+
+**调研来源**：[调研报告 §5.2](../../docs/主流编程及 CIL 智能体架构深度调研方案.md) — PreToolUse 在工具执行前拦截决策，PostToolUse 在工具执行后检查上下文阈值触发压缩。
+
+**现状**：MetaHooks 的 `middleware.register` 在 [host.ts](../../packages/core/src/plugin/host.ts) 中是空函数。需要填入真实拦截逻辑。
+
+| 动作 | 文件 | 说明 |
+|---|---|---|
+| 实现 `middleware.register` 存储 | [host.ts](../../packages/core/src/plugin/host.ts) | 维护已注册 middleware 列表，按注册顺序执行 |
+| PreToolUse 拦截点 | [registry.ts:76-108](../../packages/core/src/tool/registry.ts#L76) settle 前 | 遍历 middleware.before 钩子，返回 `{ action: "allow" | "deny", reason?: string }` |
+| PostToolUse 触发点 | [runner/llm.ts:174-435](../../packages/core/src/session/runner/llm.ts#L174) turn 结束后 | 遍历 middleware.after 钩子，检查上下文阈值触发 compaction |
+| 测试 | [plugin/test/](../../packages/plugin/test/) | 录制测试覆盖 allow/deny/compact 三种路径 |
+
+**验收**：plugin 注册 middleware 后，PreToolUse 能拦截指定工具调用并返回 deny；PostToolUse 能在上下文超过阈值时触发 compaction。
 
 **v1 错误**：声称"Stuck 事件定义缺失，需新建"。
 **v2 修正**：Stuck 已定义（[event.ts:440](../../packages/core/src/session/event.ts#L440)）且已 publish（[compaction.ts:278](../../packages/core/src/session/compaction.ts#L278)）。本任务仅为**验证消费链路**：
@@ -625,24 +694,105 @@ V1 通用字符串 trigger 需对等迁移到 V2 域 transform 或 aisdk hook：
 
 ---
 
-## 5. 风险与回退策略（v2 修订）
+### Phase 6 — 智能体增强与业界对齐（5-7 天，v5 新增）
+
+**目标**：基于业界调研报告（[../主流编程及 CIL 智能体架构深度调研方案.md](../主流编程及 CIL 智能体架构深度调研方案.md)）将 V2 智能体能力对齐业界前沿水平。本 Phase 不影响 V1→V2 闭环，可独立排期。
+
+**关键原则**：复用优先，新增即负债。优先利用 V2 已有基础设施（EventV2、SessionShareV2、TaskDriver）扩展能力，不重复建轮子。
+
+#### P6.1 Structured Handoffs — 摘要压缩投递（1.5 天）
+
+**调研对标**：§4.1 Summary Compression — 元智能体不投递全量历史，而是用廉价模型提炼 200-500 Token 结构化任务快照。
+
+**现状**：`SessionShareV2.share({scope: "full"})` 全量注入投影历史，未压缩。
+
+| 动作 | 文件 | 说明 |
+|---|---|---|
+| 新增 `share({scope: "summary"})` | [session/share-v2.ts](../../packages/core/src/session/share-v2.ts) | 新增 scope，调用 LLM（Haiku 级别）摘要源会话后注入 |
+| 摘要调用点 | 新建 [session/share-summary.ts](../../packages/core/src/session/) | 读源会话 context → 调用 LLMClient.generate → 返回摘要文本 |
+| 接线到 TaskDriver | [tool/task-driver-fill.ts](../../packages/core/src/session/task-driver-fill.ts) | delegate 时自动添加 `scope: "summary"` 将父上下文压缩后投递 |
+| 测试 | [core/test/](../../packages/core/test/) | `testEffect()` + `Layer.mock(LLMClient)` 验证摘要调用 |
+
+**验收**：TaskDriver.createChild 时自动注入摘要而非全量历史；摘要控制在 500 Token 内。
+
+#### P6.2 Judge 多模型仲裁模式（2 天）
+
+**调研对标**：§4.2 Chairman/Judge Pattern — 3-5 异构模型并行执行同质任务，Judge 模型择优合并。
+
+**现状**：TaskDriver 子 agent 单一路径执行，结果直接返回，无多路择优。
+
+| 动作 | 文件 | 说明 |
+|---|---|---|
+| 新增 `execution_type: "judge"` | [tool/task.ts](../../packages/core/src/tool/task.ts) | 新的执行模式 |
+| 并行派发 | [tool/task-driver.ts](../../packages/core/src/tool/task-driver.ts) | 同时创建 N 个子会话，使用不同 agent/模型 |
+| Judge 合并 | 新建 [agent/judge.ts](../../packages/core/src/agent/) | 收集所有子会话结果 → 调用 Judge 模型 → 返回最优结果 |
+| 安全约束 | 同上 | Judge 结果必须通过原 permission 系统（禁越权） |
+
+**验收**：task tool 指定 `execution_type: "judge"` + `judge_models: [3]` 时并行创建 3 个子 agent，结果经 Judge 合并后返回。
+
+#### P6.3 外部 CLI 会话恢复（1 天）
+
+**调研对标**：§4.4 kimi-plugin-cc — stdout JSONL 帧截获 + 会话 ID 持久化，断线可恢复。
+
+**现状**：`TaskDriver.executeCLI()` 执行外部 CLI 后如果中途断开，没有恢复能力。
+
+| 动作 | 文件 | 说明 |
+|---|---|---|
+| stdout 帧截获 | [tool/cli-adapter.ts](../../packages/core/src/tool/cli-adapter.ts) | 解析 `session.resume_hint` JSON 帧，提取会话 ID |
+| 会话 ID 持久化 | [tool/cli-timeout.ts](../../packages/core/src/tool/cli-timeout.ts) | 存入 SQLite，关联当前 Session |
+| 恢复入口 | [tool/task.ts](../../packages/core/src/tool/task.ts) | `task_id` 续接时检测是否有挂起的外部 CLI 会话，走 `kimi -r <id>` 恢复 |
+
+**验收**：外部 CLI 断线后，通过 `task_id` 续接可自动恢复执行。
+
+#### P6.4 符号链接防护（0.5 天）
+
+**调研对标**：§5.3.2 Symlink-aware Path Containment — realpath() 展开 + 工作区边界校验。
+
+**现状**：文件操作工具（Read/Write/Bash）未检查 symlink 逃逸。
+
+| 动作 | 文件 | 说明 |
+|---|---|---|
+| 新建路径校验工具 | [filesystem.ts](../../packages/core/src/filesystem.ts) | `resolveSecurePath(worktree, path)` 用 realpath 展开后校验在工作区内 |
+| Bash/Read/Write 工具接入 | [tool/bash.ts](../../packages/core/src/tool/bash.ts) + [read.ts](../../packages/core/src/tool/read.ts) + [write.ts](../../packages/core/src/tool/write.ts) | 所有文件操作前调用 `resolveSecurePath` |
+| 测试 | [core/test/](../../packages/core/test/) | symlink 指向外部路径时拒绝 |
+
+**验收**：symlink 指向工作区外的路径时，Read/Write/Bash 返回安全错误而非执行操作。
+
+#### P6.5 Fork CLI 命令 + SSE UI 交互（1 天）
+
+**决策依据（R14）**：业界（Claude Code /fork、Kimi Code /fork、OpenCode /fork &lt;index&gt;）均提供分支命令。V2 现有 `SessionV2.create({parentID})` + `SessionShareV2.share({scope:"full"})` 已覆盖 Fork 功能，缺的是用户入口。
+
+**现状**：Fork 功能可通过 API 组合实现，但无 CLI 命令、无 UI 交互。
+
+| 动作 | 文件 | 说明 |
+|---|---|---|
+| `/fork` CLI 命令 | [packages/aigcfroge/src/command/](../../packages/aigcfroge/src/command/) 新建 | 读取当前会话 → `SessionV2.create({parentID})` → `share({scope:"full"})` → 输出新会话 ID |
+| SSE Fork 事件 | [session/event.ts](../../packages/core/src/session/event.ts) | 定义 `session.forked` 事件类型，包含 parentID、childID、forkPoint |
+| UI Fork 交互 | [tui/src/](../../packages/tui/src/) + [session-ui/src/](../../packages/session-ui/src/) | 消息节点上加 Fork 按钮，点击后调 `/fork` API |
+| OpenCode 风格回溯索引 | 同上 | `/fork <index>` 参数表示回溯消息级数（0=当前，1=上一条用户消息） |
+
+**验收**：`/fork` 命令创建新会话并继承上下文；SSE 事件流可见 `session.forked`；TUI 消息节点有 Fork 按钮。
+
+---
+
+## 5. 风险与回退策略（v5 修订）
 
 | 风险 | 概率 | 影响 | 缓解 |
 |---|---|---|---|
 | **packages/server V2 路径跑不通**（SessionRunner.layer 解析失败） | 中 | Phase 1 阻塞 | **P0.2 smoke test 硬门槛**，失败则方案暂停先修 core |
-| **SessionRevert/SessionSummary 补建需 Snapshot diff 能力**（V2 core 无对应 Snapshot Service） | 中 | P2.9/P2.10 阻塞 | 先调研 V2 Snapshot 对等性，若无需补建 Snapshot Service |
-| V2 schema 不向前兼容 | 高 | 升级数据丢失 | P4.1 schema 稳定 + 版本化策略 |
-| task 工具 V2 重写遗漏 V1 边界 | 中 | meta 委派回归 | 录制测试覆盖三模式 + background 边界 |
-| MCP V2 工作量大 | 高 | Phase 3 延期 | R7 已拆 basic/oauth 两 slice |
-| 50 个 V1 Layer 迁移遗漏消费者 | 中 | 运行时 Service 解析失败 | P1.1 按 §1.5 清单逐项迁移 + grep 验证 |
-| V1 plugin 字符串 hook 迁移遗漏 | 中 | 插件回归 | 逐 hook 迁移测试 + 灰度 |
-| UI event-reducer 改造影响渲染 | 中 | UI 回归 | 保留 V1 reducer 作 fallback 直到 session-ui v2 主线就绪 |
-| C5 修复后子 agent 无限委派 | 低 | 资源耗尽 | 加委派深度限制 |
+| **INTENT_TOOL_FILTERS 接线后工具集裁剪错误** | 中 | agent 工具选择异常 | P3.8 需全量录制测试覆盖每种 intent |
+| **PreToolUse 钩子拦截性能影响** | 低 | tool 执行延迟增加 | 钩子只做同步检查，不做异步 I/O |
+| **V2 schema 不向前兼容** | 高 | 升级数据丢失 | P4.1 schema 稳定 + 版本化策略 |
+| **Structured Handoffs 摘要质量不足** | 中 | 子 agent 上下文缺失关键信息 | 保留 `full` scope 作为 fallback |
+| **Judge 模式 LLM 成本增加** | 高 | 每次 judge 调用 3-5 倍模型成本 | 仅在高复杂度任务启用（由 prerouter 判断） |
+| **外部 CLI 会话恢复依赖 CLI 自身能力** | 中 | CLI 不支持恢复则降级为新建 | 优雅降级：检测不到 resume_hint 时重新执行 |
+| **C5 修复后子 agent 无限委派** | 低 | 资源耗尽 | 加委派深度限制 |
 
 **回退策略**：
 - 全程 `AIGCFROGE_V2_RUNTIME` feature flag 控制，任何 Phase 失败可回退 V1
 - **V1 删除分两步**：先"V1 不再调用但保留代码"（Phase 5.1a），灰度 1 周后再"V1 代码物理删除"（Phase 5.1b）
 - 数据库迁移全部 forward-only（不写 down），V1 schema 表共存到 Phase 5
+- Phase 6 全量独立，不依赖前 5 个 Phase 的完成状态，可随时并行启动
 
 ---
 
@@ -672,6 +822,15 @@ V1 通用字符串 trigger 需对等迁移到 V2 域 transform 或 aisdk hook：
 - [ ] 孤岛代码全删
 - [ ] event-v2-bridge 降级 + 双 SSE 统一
 - [ ] 5 篇 meta-agent 计划标注 supersede
+
+### 6.4 智能体增强（Phase 6）
+- [ ] Structured Handoffs 摘要压缩（`share({scope:"summary"})`）
+- [ ] Judge 多模型仲裁（`execution_type: "judge"`）
+- [ ] 外部 CLI 会话恢复（stdout 帧截获 + resume_hint 持久化）
+- [ ] 符号链接防护（Read/Write/Bash 安全路径校验）
+- [ ] `/fork` CLI 命令 + SSE `session.forked` 事件 + TUI Fork 按钮
+- [ ] INTENT_TOOL_FILTERS 工具按需加载
+- [ ] PreToolUse/PostToolUse 钩子实现
 
 ---
 
@@ -739,29 +898,32 @@ V1 通用字符串 trigger 需对等迁移到 V2 域 transform 或 aisdk hook：
 
 ---
 
-## 9. 执行顺序总览（v2 修订）
+## 9. 执行顺序总览（v5 修订）
 
 ```
 Day 1-1.5:  Phase 0（基线 + P0.2 smoke test 硬门槛）
-Day 2-5:    Phase 1（接线闭合，50 Layer 迁移，task/revert/summary 降级）
+Day 2-5:    Phase 1（接线闭合，50 Layer 迁移）
 Day 6-11:   Phase 2（meta 能力 + P2.8/P2.9/P2.10/P2.11 补建）
-Day 12-17:  Phase 3（下游对等，P3.1a/b + P3.2/P3.3 + P3.4-P3.7）
+Day 12-17:  Phase 3（下游对等，含 P3.8/P3.9 新 P0 任务）
 Day 18-20:  Phase 4（生产级加固）
-Day 21-23:  Phase 5（V1 退役 + SSE 统一 + 文档同步）
+Day 21-23:  Phase 5（V1 退役 + 文档同步）
 Day 24+:    灰度运行 1 周 → 移除 feature flag → V1 物理删除
+            并行启动 Phase 6（智能体增强，5-7 天，独立排期）
 ```
 
-**v1 vs v2 工期对比**：
+**v5 工期对比**：
 - v1：18 天（低估）
-- v2：~23 天开发 + 1 周灰度（含 P2.8/P2.9/P2.10 补建 + P0.2 smoke test + 50 Layer 迁移工作量）
+- v2：~23 天开发 + 1 周灰度
+- v5：~23 天开发 + 1 周灰度 + 5-7 天 Phase 6（并行，不阻塞闭环）
 
 **关键里程碑**：
-- Phase 0 完成：V2 端到端可跑通验证（R3 硬门槛）
-- Phase 1 完成：V2 runner 真正运行（task/revert/summary 降级）
+- Phase 0 完成：V2 端到端可跑通验证
+- Phase 1 完成：V2 runner 真正运行
 - Phase 2 完成：meta 恢复完整委派 + revert/summary/diff 端点恢复
-- Phase 3 完成：全栈能力对等（含 MCP OAuth + MetaHooks）
+- Phase 3 完成：全栈能力对等 + INTENT_TOOL_FILTERS 工具裁剪 + PreToolUse 安全钩子
 - Phase 4 完成：生产级标准达成
-- Phase 5 完成：V1 彻底退役 + 单 SSE 路径
+- Phase 5 完成：V1 彻底退役
+- Phase 6 完成：智能体增强业界对齐（摘要压缩、Judge 模式、Fork UI、安全加固）
 
 ---
 
@@ -780,7 +942,14 @@ Day 24+:    灰度运行 1 周 → 移除 feature flag → V1 物理删除
 | v2 | 2026-07-05 | R8 P3.7 拆出 Mode Switcher viewport | 与 V2 闭环无直接依赖 |
 | v2 | 2026-07-05 | R9 P5.3 双 SSE 统一方向 | 审批遗漏 |
 | v2 | 2026-07-05 | R10 §8 协议合规约束 | [CLAUDE.md](../../CLAUDE.md) 八荣八耻 |
+| v4 | 2026-07-08 | R11 Share 方案变更：外网→内部分享 | 产品分析决策 |
+| v4 | 2026-07-08 | R12 V2 闭环接近完成，Fork 独立 | 实现状态检查 |
+| v5 | 2026-07-08 | R13 基于业界调研新增 5 维度优化 | [调研报告](../../docs/主流编程及 CIL 智能体架构深度调研方案.md) |
+| v5 | 2026-07-08 | R14 Fork 决策：不建新服务，复用 create({parentID}) + share | 复用优先原则 |
+| v5 | 2026-07-08 | R15 新增 Phase 6（智能体增强） | 业界对齐 |
+| v5 | 2026-07-08 | R16 INTENT_TOOL_FILTERS 接线升至 P0 | 缓存优化 |
+| v5 | 2026-07-08 | R17 MetaHooks middleware 需填真实逻辑 | 安全底线 |
 
 ---
 
-> **下一步**：v2 方案评审通过后，从 Phase 0 启动。**P0.2 smoke test 是硬门槛**——若 packages/server V2 路径跑不通，方案暂停先修 core runner layer 提供链。建议 P0.2 用 Workflow 并行验证 SessionRunner.layer 解析路径 + handlers.ts 端到端 + execution/local.ts drain 链路三处可行性。
+> **下一步**：v5 方案评审通过后，从 Phase 3 剩余任务开始执行（P3.2/P3.5/P3.6/P3.7）。**P3.8（INTENT_TOOL_FILTERS 接线）和 P3.9（PreToolUse 钩子）为 P0 优先级**，建议先于 P3.2/P3.5 启动。Phase 6（智能体增强）可并行规划，不阻塞 V1→V2 闭环。
