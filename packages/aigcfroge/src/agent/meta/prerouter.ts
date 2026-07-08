@@ -51,7 +51,7 @@ export function preRoute(input: string): RouteResult {
   }
 
   // Step 1: Check for @mentions first (highest precedence)
-  const parsed = parse(trimmed, ["build", "explore", "plan", "general"], ["claude-code", "gemini", "codex"])
+  const parsed = parse(trimmed, ["build", "explore", "plan", "general"], ["claude-code", "gemini", "codex", "opencode"])
   const hasAtMention = parsed.mentions.length > 0
 
   // Step 2: Classify intent from cleaned text (without @mentions)

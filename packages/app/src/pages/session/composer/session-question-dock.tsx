@@ -60,11 +60,12 @@ function Option(props: {
   )
 }
 
-export const SessionQuestionDock: Component<{ request: QuestionRequest; onSubmit: () => void }> = (props) => {
+export const SessionQuestionDock: Component<{ request: QuestionRequest; sessionID?: string; onSubmit: () => void }> = (props) => {
   const sdk = useSDK()
   const serverSDK = useServerSDK()
   const language = useLanguage()
   const cacheKey = ScopedKey.from(serverSDK().scope, props.request.id)
+  const isChildRequest = createMemo(() => props.sessionID !== undefined && props.request.sessionID !== props.sessionID)
 
   const questions = createMemo(() => props.request.questions)
   const total = createMemo(() => questions().length)
@@ -473,6 +474,16 @@ export const SessionQuestionDock: Component<{ request: QuestionRequest; onSubmit
         </>
       }
     >
+      <Show when={isChildRequest()}>
+        <div data-slot="permission-row" class="pb-2">
+          <span data-slot="permission-spacer" aria-hidden="true" />
+          <div data-slot="permission-subagent-badge" class="flex items-center gap-1 text-text-weak text-12-regular">
+            <Icon name="branch" size="small" />
+            <span>{language.t("notification.permission.fromSubagent")}</span>
+          </div>
+        </div>
+      </Show>
+
       <div data-slot="question-text" class="overflow-auto">
         {question()?.question}
       </div>

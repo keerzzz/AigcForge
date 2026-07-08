@@ -47,6 +47,7 @@ export const SessionTable = sqliteTable(
     tokens_cache_write: integer().notNull().default(0),
     revert: text({ mode: "json" }).$type<{ messageID: MessageID; partID?: PartID; snapshot?: string; diff?: string }>(),
     permission: text({ mode: "json" }).$type<PermissionV1.Ruleset>(),
+    attended: integer().$type<0 | 1>().default(0),
     agent: text(),
     model: text({ mode: "json" }).$type<{
       id: string

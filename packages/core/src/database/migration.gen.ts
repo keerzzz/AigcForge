@@ -45,5 +45,6 @@ export const migrations = (
     import("./migration/20260630143921_ordinary_vulcan"),
     import("./migration/20260705170359_session_input_kind"),
     import("./migration/20260706021802_session_input_skill"),
+    import("./migration/20260707100100_session_attended"),
   ])
 ).map((module) => module.default) satisfies DatabaseMigration.Migration[]

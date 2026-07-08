@@ -266,7 +266,7 @@ export function SessionComposerRegion(props: {
         <Show when={props.state.questionRequest()} keyed>
           {(request) => (
             <div>
-              <SessionQuestionDock request={request} onSubmit={props.onResponseSubmit} />
+              <SessionQuestionDock request={request} sessionID={route.params.id} onSubmit={props.onResponseSubmit} />
             </div>
           )}
         </Show>
@@ -277,6 +277,7 @@ export function SessionComposerRegion(props: {
               <SessionPermissionDock
                 request={request}
                 responding={props.state.permissionResponding()}
+                sessionID={route.params.id}
                 onDecide={(response) => {
                   props.onResponseSubmit()
                   props.state.decide(response)

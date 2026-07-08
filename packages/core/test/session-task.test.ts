@@ -12,7 +12,15 @@
  */
 
 import { describe, expect } from "bun:test"
-import { LLMClient, LLMEvent, Model, type LLMClientShape, type LLMRequest } from "@aigcfroge/llm"
+import {
+  LLMClient,
+  LLMError,
+  LLMEvent,
+  Model,
+  TransportReason,
+  type LLMClientShape,
+  type LLMRequest,
+} from "@aigcfroge/llm"
 import * as OpenAIChat from "@aigcfroge/llm/protocols/openai-chat"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
@@ -49,16 +57,28 @@ import { SystemContextRegistry } from "@aigcfroge/core/system-context/registry"
 import { SkillGuidance } from "@aigcfroge/core/skill/guidance"
 import { ReferenceGuidance } from "@aigcfroge/core/reference/guidance"
 import { Location } from "@aigcfroge/core/location"
-import { Duration, Effect, Layer, Schedule, Schema, Stream } from "effect"
+import { Deferred, Duration, Effect, Exit, Fiber, Layer, Schedule, Schema, Stream } from "effect"
 import { testEffect } from "./lib/effect"
 
 const parentID = SessionV2.ID.make("ses_task_parent")
 const requests: LLMRequest[] = []
-// The parent emits the task tool call exactly once; its follow-up turn (after the
-// tool result) must stop, or the runner would re-emit the call and loop forever.
-let parentEmittedTask = false
+// Parent emits up to `maxTaskCalls` task calls (resuming when `nextTaskID` is
+// set), then a terminal text turn. `taskCallsEmitted` tracks calls within the
+// current drain so a second prompt cycle can reset and emit another.
+let taskCallsEmitted = 0
+let maxTaskCalls = 1
+let nextTaskID: string | undefined
+// When > 0, the next child-directed stream fails with a provider error instead
+// of emitting text — used to exercise the retry path.
+let childStreamFailures = 0
+// When set, child streams signal `streamStarted` then block on `streamGate`
+// before emitting — used to exercise foreground abort mid-drain.
+let streamGate: Deferred.Deferred<void> | undefined
+let streamStarted: Deferred.Deferred<void> | undefined
 // When true, the parent's task call requests background delegation.
 let backgroundMode = false
+// When set, the parent's task call passes attended: <value> in the tool input.
+let attendedMode: boolean | undefined
 // Route by promptCacheKey (= sessionID): the parent emits a task tool call, any
 // other Session (the dynamically-created child) emits plain text.
 const stopWithText = (id: string, text: string): LLMEvent[] => [
@@ -69,6 +89,8 @@ const stopWithText = (id: string, text: string): LLMEvent[] => [
   LLMEvent.stepFinish({ index: 0, reason: "stop" }),
   LLMEvent.finish({ reason: "stop" }),
 ]
+const providerUnavailable = () =>
+  new LLMError({ module: "test", method: "stream", reason: new TransportReason({ message: "Provider unavailable" }) })
 const client = Layer.succeed(
   LLMClient.Service,
   LLMClient.Service.of({
@@ -76,9 +98,24 @@ const client = Layer.succeed(
     stream: ((request: LLMRequest) => {
       requests.push(request)
       const isParent = request.providerOptions?.openai?.promptCacheKey === parentID
-      if (!isParent) return Stream.fromIterable(stopWithText("text-child", "child result payload"))
-      if (parentEmittedTask) return Stream.fromIterable(stopWithText("text-parent", "delegation complete"))
-      parentEmittedTask = true
+      if (!isParent) {
+        if (childStreamFailures > 0) {
+          childStreamFailures--
+          return Stream.fail(providerUnavailable())
+        }
+        const events = Stream.fromIterable(stopWithText("text-child", "child result payload"))
+        if (!streamGate) return events
+        return Stream.unwrap(
+          (streamStarted ? Deferred.succeed(streamStarted, undefined) : Effect.void).pipe(
+            Effect.andThen(Deferred.await(streamGate)),
+            Effect.as(events),
+          ),
+        )
+      }
+      if (taskCallsEmitted >= maxTaskCalls) {
+        return Stream.fromIterable(stopWithText("text-parent", "delegation complete"))
+      }
+      taskCallsEmitted++
       return Stream.fromIterable([
         LLMEvent.stepStart({ index: 0 }),
         LLMEvent.toolCall({
@@ -88,7 +125,9 @@ const client = Layer.succeed(
             description: "do work",
             prompt: "Investigate the thing",
             subagent_type: "build",
+            ...(nextTaskID ? { task_id: nextTaskID } : {}),
             ...(backgroundMode ? { background: true } : {}),
+            ...(attendedMode !== undefined ? { attended: attendedMode } : {}),
           },
         }),
         LLMEvent.stepFinish({ index: 0, reason: "tool-calls" }),
@@ -181,7 +220,7 @@ const toolsRegister = Layer.effect(
 // Provide only taskTool-specific deps here; agents/permission stay as
 // requirements satisfied once at the outer pipe so setup's AgentV2.transform and
 // the tool's AgentV2.resolve share the same State instance.
-const taskTool = TaskTool.layer.pipe(Layer.provide(toolsRegister))
+const taskTool = TaskTool.layer.pipe(Layer.provide(toolsRegister), Layer.provide(config))
 
 const runner = SessionRunnerLLM.layer.pipe(
   Layer.provide(appProcess),
@@ -250,8 +289,14 @@ const it = testEffect(
 const setup = Effect.gen(function* () {
   const { db } = yield* Database.Service
   requests.length = 0
-  parentEmittedTask = false
+  taskCallsEmitted = 0
+  maxTaskCalls = 1
+  nextTaskID = undefined
+  childStreamFailures = 0
+  streamGate = undefined
+  streamStarted = undefined
   backgroundMode = false
+  attendedMode = undefined
   // Install the seam with the test's own SessionV2 so the tool's child Session
   // lands in the same in-memory db the test body reads. Register the default
   // agent so the tool can resolve subagent_type "build". Mirrors TaskDriverFill.
@@ -259,8 +304,17 @@ const setup = Effect.gen(function* () {
   const background = yield* BackgroundJob.Service
   TaskDriver.install(sessions, {
     start: (sessionID, work) => background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
-    wait: (sessionID) => background.wait({ id: sessionID }),
-  })
+    wait: (sessionID) =>
+      background.wait({ id: sessionID }).pipe(
+        Effect.map(({ info }) =>
+          info && info.status !== "running"
+            ? { status: info.status, ...(info.error ? { error: info.error } : {}) }
+            : undefined,
+        ),
+      ),
+    cancel: (sessionID) => background.cancel(sessionID).pipe(Effect.asVoid),
+    extend: (sessionID, work) => background.extend({ id: sessionID, run: work.pipe(Effect.as("")) }),
+  }, undefined)
   const agents = yield* AgentV2.Service
   yield* agents.transform((editor) => {
     editor.update(AgentV2.ID.make("build"), (draft) => {
@@ -356,6 +410,231 @@ describe("task tool — child Session delegation", () => {
       expect(syntheticText).toContain("Background task completed")
       expect(syntheticText).toContain("child result payload")
       expect(syntheticText).toContain(childID)
+    }),
+  )
+
+  it.live("task_id resumes the prior child Session instead of creating a new one", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* SessionV2.Service
+
+      // First delegation: no task_id → creates child A.
+      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate" }), resume: false })
+      yield* session.resume(parentID)
+      const childrenAfterFirst = yield* session.children(parentID)
+      expect(childrenAfterFirst.length).toBe(1)
+      const childID = childrenAfterFirst[0]!.id
+
+      // Second delegation: task_id = childA → resumes child A, no new child.
+      taskCallsEmitted = 0
+      nextTaskID = childID
+      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate again" }), resume: false })
+      yield* session.resume(parentID)
+      const childrenAfterSecond = yield* session.children(parentID)
+      expect(childrenAfterSecond.length).toBe(1)
+      expect(childrenAfterSecond[0]!.id).toBe(childID)
+    }),
+  )
+
+  it.live("retries once when the child drain crashes, cancelling the orphaned child", () =>
+    Effect.gen(function* () {
+      yield* setup
+      childStreamFailures = 1
+      const session = yield* SessionV2.Service
+      const background = yield* BackgroundJob.Service
+
+      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate" }), resume: false })
+      yield* session.resume(parentID)
+
+      // First child drain crashed → DelegateError → retry cancelled the orphan
+      // and created a fresh child that succeeded. Two children now exist.
+      const children = yield* session.children(parentID)
+      expect(children.length).toBe(2)
+      // The orphan's job settled as "error" (drain crashed); the retry's job
+      // completed. cancel on an already-settled job is a no-op, so the orphan's
+      // status reflects the crash, not the cleanup.
+      const orphanJob = yield* background.get(children[0]!.id)
+      expect(orphanJob?.status).toBe("error")
+      const retryJob = yield* background.get(children[1]!.id)
+      expect(retryJob?.status).toBe("completed")
+    }),
+  )
+
+  it.live("foreground abort cancels the in-flight child drain", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const gate = yield* Deferred.make<void>()
+      const started = yield* Deferred.make<void>()
+      streamGate = gate
+      streamStarted = started
+      const session = yield* SessionV2.Service
+
+      // Fork the parent drain; the child's LLM stream blocks on `gate`.
+      const fiber = yield* Effect.gen(function* () {
+        yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate" }), resume: false })
+        yield* session.resume(parentID)
+      }).pipe(Effect.forkIn(yield* Effect.scope))
+
+      // Wait until the child's stream is mid-flight, then abort the parent.
+      yield* Deferred.await(started)
+      yield* session.interrupt(parentID)
+      yield* Deferred.succeed(gate, undefined)
+
+      // The parent drain settles (interrupted).
+      const exit = yield* Fiber.await(fiber)
+      expect(Exit.isFailure(exit)).toBe(true)
+
+      // The child was interrupted; no completed assistant text.
+      const children = yield* session.children(parentID)
+      expect(children.length).toBe(1)
+      const childMessages = yield* session.context(children[0]!.id)
+      const childAssistant = childMessages.find((message) => message.type === "assistant")
+      const childText =
+        childAssistant?.type === "assistant"
+          ? childAssistant.content.filter((part) => part.type === "text").map((part) => part.text).join("")
+          : ""
+      expect(childText).toBe("")
+    }),
+  )
+
+  it.live("parent interrupt cascades to background child drain", () =>
+    Effect.gen(function* () {
+      process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS = "true"
+      yield* setup
+      const gate = yield* Deferred.make<void>()
+      const started = yield* Deferred.make<void>()
+      streamGate = gate
+      streamStarted = started
+      backgroundMode = true
+      const session = yield* SessionV2.Service
+      const background = yield* BackgroundJob.Service
+
+      // Start the parent drain which delegates to a background child.
+      const fiber = yield* Effect.gen(function* () {
+        yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate bg" }), resume: false })
+        yield* session.resume(parentID)
+      }).pipe(Effect.forkIn(yield* Effect.scope))
+
+      // Wait until the child's stream is mid-flight, then interrupt the parent.
+      yield* Deferred.await(started)
+      yield* session.interrupt(parentID)
+      yield* Deferred.succeed(gate, undefined)
+
+      // Parent settles (interrupted).
+      const exit = yield* Fiber.await(fiber)
+      expect(Exit.isFailure(exit)).toBe(true)
+
+      // The child's background job was cancelled by the cascade.
+      const children = yield* session.children(parentID)
+      expect(children.length).toBe(1)
+      const childID = children[0]!.id
+      const job = yield* background.get(childID)
+      // "error" or "cancelled" — either is valid depending on timing.
+      expect(job?.status === "error" || job?.status === "cancelled").toBe(true)
+    }),
+  )
+
+  it.live("background task_id resume extends a running background job", () =>
+    Effect.gen(function* () {
+      process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS = "true"
+      yield* setup
+      const session = yield* SessionV2.Service
+      const background = yield* BackgroundJob.Service
+
+      // Block the child's LLM stream so the first background job stays running
+      // while the second task call arrives.
+      const gate = yield* Deferred.make<void>()
+      streamGate = gate
+
+      // Cycle 1: launch a background task (no task_id).
+      maxTaskCalls = 1
+      backgroundMode = true
+      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate bg" }), resume: false })
+      yield* session.resume(parentID)
+      const children = yield* session.children(parentID)
+      expect(children.length).toBe(1)
+      const childID = children[0]!.id
+
+      // The background job must still be running (blocked on gate).
+      const jobBefore = yield* background.get(childID)
+      expect(jobBefore?.status).toBe("running")
+
+      // Cycle 2: resume with task_id → should extend the running job, not start new.
+      taskCallsEmitted = 0
+      nextTaskID = childID
+      backgroundMode = true
+      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "extend bg" }), resume: false })
+      yield* session.resume(parentID)
+
+      // Still one child (reused, not new).
+      const childrenAfter = yield* session.children(parentID)
+      expect(childrenAfter.length).toBe(1)
+      expect(childrenAfter[0]!.id).toBe(childID)
+
+      // Release the gate: first drain completes, then the extend's queued work
+      // runs (admit second prompt, drain, inject). Awaiting the job is the
+      // readiness signal that all queued work has settled.
+      yield* Deferred.succeed(gate, undefined)
+      yield* background.wait({ id: childID })
+
+      // Both prompts were drained (extend queued the second behind the first);
+      // a fallback `delegateBackground` would have admitted the second prompt
+      // but never drained it (background.start on a running job is a no-op),
+      // leaving only one assistant response.
+      const childMessages = yield* session.context(childID)
+      const assistantCount = childMessages.filter((message) => message.type === "assistant").length
+      expect(assistantCount).toBe(2)
+    }),
+  )
+
+  it.live("attended=true propagates to the child Session", () =>
+    Effect.gen(function* () {
+      yield* setup
+      attendedMode = true
+      const session = yield* SessionV2.Service
+
+      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate attended" }), resume: false })
+      yield* session.resume(parentID)
+
+      const children = yield* session.children(parentID)
+      expect(children.length).toBe(1)
+      // The child Session carries attended=true so PermissionV2.configured
+      // preserves ask rules (user will respond).
+      expect(children[0]?.attended).toBe(true)
+    }),
+  )
+
+  it.live("attended defaults to false when omitted (unattended child)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* SessionV2.Service
+
+      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate unattended" }), resume: false })
+      yield* session.resume(parentID)
+
+      const children = yield* session.children(parentID)
+      expect(children.length).toBe(1)
+      // No attended passed → defaults to false → ask rules converted to deny.
+      expect(children[0]?.attended).toBe(false)
+    }),
+  )
+
+  it.live("isChildSession returns true for child Sessions and false for root", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* SessionV2.Service
+
+      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate" }), resume: false })
+      yield* session.resume(parentID)
+
+      const children = yield* session.children(parentID)
+      expect(children.length).toBe(1)
+      const childID = children[0]!.id
+
+      // Parent (root) is not a child session.
+      expect(yield* TaskDriver.isChildSession(parentID)).toBe(false)
+      // Child session has a parentID → isChildSession returns true.
+      expect(yield* TaskDriver.isChildSession(childID)).toBe(true)
     }),
   )
 })

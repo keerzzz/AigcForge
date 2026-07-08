@@ -38,6 +38,7 @@ import { ToolRegistry } from "./tool/registry"
 import { ApplicationTools } from "./tool/application-tools"
 import { ToolOutputStore } from "./tool-output-store"
 import { AppProcess } from "./process"
+import { CrossSpawnSpawner } from "./cross-spawn-spawner"
 import { SessionStore } from "./session/store"
 import { SessionTodo } from "./session/todo"
 import { QuestionV2 } from "./question"
@@ -73,6 +74,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       SkillV2.locationLayer,
       systemContext,
       LocationMutation.locationLayer.pipe(Layer.orDie),
+      CrossSpawnSpawner.defaultLayer,
     ).pipe(Layer.provideMerge(location))
     const resources = ToolOutputStore.layer.pipe(Layer.provide(base))
     const permissionsAndTools = ToolRegistry.layer.pipe(

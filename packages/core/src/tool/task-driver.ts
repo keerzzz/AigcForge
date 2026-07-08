@@ -1,10 +1,23 @@
 export * as TaskDriver from "./task-driver"
 
-import { Effect } from "effect"
+import { Effect, Schema } from "effect"
 import { AgentV2 } from "../agent"
 import { Location } from "../location"
 import { SessionMessage } from "../session/message"
 import { SessionSchema } from "../session/schema"
+
+/**
+ * A foreground delegation ended without a usable result because the child
+ * Session's drain itself failed or was cancelled — as opposed to an
+ * infrastructure fault (admission, scheduling, history read), which dies. This
+ * is the one recoverable outcome the `task` tool retries: `reason` distinguishes
+ * a crashed subagent turn (`error`) from an interrupted one (`cancelled`).
+ */
+export class DelegateError extends Schema.TaggedErrorClass<DelegateError>()("TaskDriver.DelegateError", {
+  sessionID: SessionSchema.ID,
+  reason: Schema.Literals(["error", "cancelled"]),
+  message: Schema.optional(Schema.String),
+}) {}
 
 /**
  * Late-bound seam that lets the `task` built-in tool drive child Sessions
@@ -31,8 +44,18 @@ export interface Interface {
   /**
    * Create a child Session parented to `parentID`. The implementation inherits
    * the parent Session's Location so the child runs in the same place.
+   *
+   * When `id` is supplied, `SessionV2.create` is idempotent: an existing Session
+   * with that id is returned as-is (task `task_id` resume), otherwise a fresh one
+   * is created under it. The caller is responsible for verifying that a resumed
+   * Session actually belongs to `parentID` before prompting it.
    */
-  readonly createChild: (input: { parentID: SessionSchema.ID; agent?: AgentV2.ID }) => Effect.Effect<SessionSchema.Info>
+  readonly createChild: (input: {
+    parentID: SessionSchema.ID
+    agent?: AgentV2.ID
+    id?: SessionSchema.ID
+    attended?: boolean
+  }) => Effect.Effect<SessionSchema.Info>
   /**
    * Admit `prompt`, drive the child Session to settlement, and return its final
    * assistant text (foreground delegation).
@@ -44,8 +67,12 @@ export interface Interface {
    * parent holds the execution chain while the child waits for it). This mirrors
    * V1's task tool, which also settles child Sessions on a BackgroundJob fiber
    * and only awaits the result.
+   *
+   * Fails with {@link DelegateError} when the child's drain crashed or was
+   * cancelled — the recoverable outcome the tool retries. Infrastructure faults
+   * (admission, scheduling, history read) still die.
    */
-  readonly delegate: (input: { sessionID: SessionSchema.ID; prompt: string }) => Effect.Effect<string>
+  readonly delegate: (input: { sessionID: SessionSchema.ID; prompt: string }) => Effect.Effect<string, DelegateError>
   /**
    * Admit `prompt` and drive the child Session on an independent fiber, then
    * return immediately without awaiting it. When the child settles, its final
@@ -59,8 +86,41 @@ export interface Interface {
     prompt: string
     description: string
   }) => Effect.Effect<void>
+  /**
+   * Admit `prompt` to a child Session whose background drain is already running
+   * and append it to that job's work queue. Returns `true` when the job was
+   * extended (the prompt will be drained after the in-flight turn settles, then
+   * its result injected into `parentID`); `false` when there is no running job
+   * for that Session (caller falls back to {@link delegateBackground}). This is
+   * the V2 path for `task_id` resume against an in-flight background task.
+   */
+  readonly extendBackground: (input: {
+    parentID: SessionSchema.ID
+    sessionID: SessionSchema.ID
+    prompt: string
+    description: string
+  }) => Effect.Effect<boolean>
   /** Interrupt active work owned by this process. Idle interruption is a no-op. */
   readonly interrupt: (sessionID: SessionSchema.ID) => Effect.Effect<void>
+  /**
+   * Cancel a child Session's scheduled/running background drain and interrupt its
+   * active work. Used to clean up the orphan Session left by a failed delegation
+   * attempt before the tool retries, so the retry starts from a fresh child.
+   */
+  readonly cancel: (sessionID: SessionSchema.ID) => Effect.Effect<void>
+  /** Returns true when `sessionID` has a parent (is a child Session). */
+  readonly isChildSession: (sessionID: SessionSchema.ID) => Effect.Effect<boolean>
+  /**
+   * Execute a prompt against an external CLI tool (claude-code, gemini, codex,
+   * opencode, etc.). The adapter is resolved through the installed CLI adapter
+   * registry at the composition root. Returns the CLI's output text, or fails
+   * when the CLI is unavailable or times out.
+   */
+  readonly executeCLI: (input: {
+    cliTarget: string
+    prompt: string
+    sessionID: SessionSchema.ID
+  }) => Effect.Effect<string, Error>
 }
 
 // The process-global bridge cell. `install` replaces it; the accessors read it
@@ -73,12 +133,20 @@ const active = () =>
     : Effect.die("TaskDriver.install must run before the task tool executes")
 
 /** Create a child Session through the installed implementation. */
-export const createChild = (input: { parentID: SessionSchema.ID; agent?: AgentV2.ID }) =>
-  active().pipe(Effect.flatMap((impl) => impl.createChild(input)))
+export const createChild = (input: {
+  parentID: SessionSchema.ID
+  agent?: AgentV2.ID
+  id?: SessionSchema.ID
+  attended?: boolean
+}) => active().pipe(Effect.flatMap((impl) => impl.createChild(input)))
 
 /** Delegate a prompt to a child Session and await its final text (foreground). */
 export const delegate = (input: { sessionID: SessionSchema.ID; prompt: string }) =>
   active().pipe(Effect.flatMap((impl) => impl.delegate(input)))
+
+/** Cancel a child Session's background drain and interrupt its active work (orphan cleanup). */
+export const cancel = (sessionID: SessionSchema.ID) =>
+  active().pipe(Effect.flatMap((impl) => impl.cancel(sessionID)))
 
 /** Delegate to a child Session in the background; its result is injected into the parent later. */
 export const delegateBackground = (input: {
@@ -88,19 +156,40 @@ export const delegateBackground = (input: {
   description: string
 }) => active().pipe(Effect.flatMap((impl) => impl.delegateBackground(input)))
 
+/** Extend a running background delegation with an additional prompt; false if no running job. */
+export const extendBackground = (input: {
+  parentID: SessionSchema.ID
+  sessionID: SessionSchema.ID
+  prompt: string
+  description: string
+}) => active().pipe(Effect.flatMap((impl) => impl.extendBackground(input)))
+
 /** Interrupt a child Session's active work. */
 export const interrupt = (sessionID: SessionSchema.ID) =>
   active().pipe(Effect.flatMap((impl) => impl.interrupt(sessionID)))
 
+/** Returns true when `sessionID` has a parent (is a child Session). */
+export const isChildSession = (sessionID: SessionSchema.ID) =>
+  active().pipe(Effect.flatMap((impl) => impl.isChildSession(sessionID)))
+
+/** Execute a prompt against an external CLI tool through the installed adapter. */
+export const executeCLI = (input: { cliTarget: string; prompt: string; sessionID: SessionSchema.ID }) =>
+  active().pipe(Effect.flatMap((impl) => impl.executeCLI(input)))
+
 /** Minimal `SessionV2` surface the implementation needs. Structural to avoid importing SessionV2. */
 export interface SessionFacade {
-  readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<{ location: Location.Ref }, unknown>
+  readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<{ location: Location.Ref; parentID?: SessionSchema.ID }, unknown>
   readonly create: (input: {
+    id?: SessionSchema.ID
     parentID: SessionSchema.ID
     agent?: AgentV2.ID
     location: Location.Ref
+    attended?: boolean
   }) => Effect.Effect<SessionSchema.Info, unknown>
-  readonly prompt: (input: { sessionID: SessionSchema.ID; prompt: { text: string } }) => Effect.Effect<unknown, unknown>
+  readonly prompt: (input: { sessionID: SessionSchema.ID; prompt: { text: string }; resume?: boolean }) => Effect.Effect<
+    unknown,
+    unknown
+  >
   readonly resume: (sessionID: SessionSchema.ID) => Effect.Effect<void, unknown>
   readonly messages: (input: { sessionID: SessionSchema.ID }) => Effect.Effect<SessionMessage.Message[], unknown>
   /**
@@ -119,9 +208,27 @@ export interface SessionFacade {
  * {@link Interface.delegate} docstring for why the drain must not run on the
  * caller's fiber.
  */
+/**
+ * The terminal outcome of a scheduled child drain, as observed by `wait`. Mirrors
+ * the subset of `BackgroundJob.Info` the seam needs: a job that never registered
+ * (or whose owner scope closed) reports `undefined`, which `delegate` treats as a
+ * completed-but-empty drain rather than a failure.
+ */
+export interface BackgroundOutcome {
+  readonly status: "completed" | "error" | "cancelled"
+  readonly error?: string
+}
+
 export interface BackgroundRunner {
   readonly start: (sessionID: SessionSchema.ID, work: Effect.Effect<void, unknown>) => Effect.Effect<void, unknown>
-  readonly wait: (sessionID: SessionSchema.ID) => Effect.Effect<void, unknown>
+  readonly wait: (sessionID: SessionSchema.ID) => Effect.Effect<BackgroundOutcome | undefined, unknown>
+  /**
+   * Append `work` to a running job's queue. Returns `false` if no running job
+   * exists for `sessionID`; `true` if queued (work runs after the in-flight turn).
+   */
+  readonly extend: (sessionID: SessionSchema.ID, work: Effect.Effect<void, unknown>) => Effect.Effect<boolean, unknown>
+  /** Cancel a scheduled/running drain owned by this process. Idle cancel is a no-op. */
+  readonly cancel: (sessionID: SessionSchema.ID) => Effect.Effect<void, unknown>
 }
 
 const lastAssistantText = (messages: ReadonlyArray<SessionMessage.Message>) => {
@@ -157,7 +264,17 @@ const renderBackgroundResult = (input: { sessionID: SessionSchema.ID; descriptio
  * `delegateBackground` schedules the same drain plus a result injection into the
  * parent, then returns immediately without awaiting it.
  */
-export const install = (sessions: SessionFacade, background: BackgroundRunner) => {
+export const install = (
+  sessions: SessionFacade,
+  background: BackgroundRunner,
+  cli?: {
+    readonly execute: (input: {
+      cliTarget: string
+      prompt: string
+      sessionID: SessionSchema.ID
+    }) => Effect.Effect<string, Error>
+  },
+) => {
   const readResult = (sessionID: SessionSchema.ID) =>
     sessions.messages({ sessionID }).pipe(Effect.map(lastAssistantText))
 
@@ -165,19 +282,39 @@ export const install = (sessions: SessionFacade, background: BackgroundRunner) =
     createChild: (input) =>
       sessions.get(input.parentID).pipe(
         Effect.flatMap((parent) =>
-          sessions.create({ parentID: input.parentID, agent: input.agent, location: parent.location }),
+          sessions.create({
+            id: input.id,
+            parentID: input.parentID,
+            agent: input.agent,
+            location: parent.location,
+            attended: input.attended,
+          }),
         ),
         Effect.orDie,
       ),
     delegate: (input) =>
-      sessions.prompt({ sessionID: input.sessionID, prompt: { text: input.prompt } }).pipe(
+      sessions.prompt({ sessionID: input.sessionID, prompt: { text: input.prompt }, resume: false }).pipe(
         Effect.andThen(background.start(input.sessionID, sessions.resume(input.sessionID))),
         Effect.andThen(background.wait(input.sessionID)),
-        Effect.andThen(readResult(input.sessionID)),
+        // Infrastructure faults (admission, scheduling, history read) die; only a
+        // crashed or cancelled child drain is a recoverable DelegateError the tool
+        // retries. orDie collapses the `unknown` infra error channel here so the
+        // only surviving failure is the DelegateError raised below.
         Effect.orDie,
+        // A missing outcome (job never registered / owner scope closed) is treated
+        // as a completed-but-empty drain, not a failure.
+        Effect.flatMap((outcome) =>
+          outcome && (outcome.status === "error" || outcome.status === "cancelled")
+            ? new DelegateError({
+                sessionID: input.sessionID,
+                reason: outcome.status,
+                ...(outcome.error ? { message: outcome.error } : {}),
+              })
+            : readResult(input.sessionID).pipe(Effect.orDie),
+        ),
       ),
     delegateBackground: (input) =>
-      sessions.prompt({ sessionID: input.sessionID, prompt: { text: input.prompt } }).pipe(
+      sessions.prompt({ sessionID: input.sessionID, prompt: { text: input.prompt }, resume: false }).pipe(
         // Drive the child, then inject its result into the parent — all on the
         // background fiber, sequential (never nested), so no SQLite deadlock.
         // BackgroundJob isolates fiber failures, so a failed injection is logged
@@ -200,6 +337,45 @@ export const install = (sessions: SessionFacade, background: BackgroundRunner) =
         ),
         Effect.orDie,
       ),
+    extendBackground: (input) =>
+      // The prompt is admitted INSIDE the queued work, not before extend: if
+      // there is no running job (extend returns false), nothing is admitted and
+      // the caller falls back to delegateBackground. When extended, the work runs
+      // after the in-flight turn settles — admit, drain, read, inject — mirroring
+      // delegateBackground's tail but appended to the existing job's queue.
+      background
+        .extend(
+          input.sessionID,
+          sessions.prompt({ sessionID: input.sessionID, prompt: { text: input.prompt }, resume: false }).pipe(
+            Effect.andThen(sessions.resume(input.sessionID)),
+            Effect.andThen(readResult(input.sessionID)),
+            Effect.flatMap((text) =>
+              sessions.injectSynthetic({
+                sessionID: input.parentID,
+                text: renderBackgroundResult({ sessionID: input.sessionID, description: input.description, text }),
+              }),
+            ),
+            Effect.tapCause((cause) => Effect.logError("TaskDriver background extend injection failed", cause)),
+          ),
+        )
+        .pipe(Effect.orDie),
     interrupt: (sessionID) => sessions.interrupt(sessionID),
+    // Cancel the scheduled/running drain (so its BackgroundJob settles as
+    // cancelled and its scope closes), then interrupt any active execution the
+    // child still owns. Orphan cleanup before a retry: best-effort, so both legs
+    // ignore failure rather than masking the original delegation error.
+    cancel: (sessionID) =>
+      background
+        .cancel(sessionID)
+        .pipe(Effect.ignore, Effect.andThen(sessions.interrupt(sessionID))),
+    isChildSession: (sessionID) =>
+      sessions.get(sessionID).pipe(
+        Effect.map((info) => info.parentID !== undefined),
+        Effect.orDie,
+      ),
+    executeCLI: (input) =>
+      cli
+        ? cli.execute(input)
+        : Effect.fail(new Error("CLI adapter registry not available")),
   }
 }

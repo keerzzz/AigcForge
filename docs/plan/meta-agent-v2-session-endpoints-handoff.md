@@ -1,7 +1,7 @@
 # Meta-Agent V2 闭环 — Session 端点移植 Handoff
 
 > **用途**: 新对话接续的完整上下文快照
-> **更新**: 2026-07-06
+> **更新**: 2026-07-08
 > **分支**: `meta-v2-closure`
 > **主方案**: [meta-agent-v2-production-closure.md](meta-agent-v2-production-closure.md)
 
@@ -9,54 +9,55 @@
 
 ## 0. 一句话现状
 
-弃 V1 全切 V2 的接线闭合工程。6 个缺失 session 端点中 **4 批已完成并验证**（inbox 地基 + abort/children + shell + skill），**剩 share + fork 两批未做**。
+Range 1（前台派生+返回结果）和 Range 2（background 后台委托+synthetic 注入）**已提交**。
+Range 3（V1 task tool 6 项功能对齐）**全部完成**（未提交，在 working tree）：
 
-⚠️ **关键：4 批工作全部未提交**，仍在 working tree（`git log` HEAD = `c21bd96`；之前对话里"提交 8afac152b"的记录与实际 git 状态矛盾，以 `git log` 为准）。新对话第一步应先真正提交，再动 share/fork。
+| 范围 | 任务 | 状态 |
+|---|---|---|
+| batch A | task_id resume + retry + foreground abort + attended | ✅ 完成 |
+| batch A | background extend（task_id 命中运行中 job） | ✅ 完成 |
+| scope 升级 | attended 模式（字段→DB→configured→UI 标识→设置开关） | ✅ 完成 |
+| ⑥ | 后台 abort 级联传播 | ✅ 完成 |
+| ② | external-cli 迁移（CliTimeout 移 core + opencode + 4 适配器 + 去重） | ✅ 完成 |
+| — | 前端设置开关（V1 settings + V2 settings + server config 贯通） | ✅ 完成 |
+| — | 测试（session-task 10 + permission 13，全部通过） | ✅ 完成 |
+| — | V1 适配器代码去重（6 文件改为 re-export core） | ✅ 完成 |
+
+**剩余 unplanned**：share + fork 两批未做（待独立排期）。
 
 ---
 
-## 1. 已完成（未提交，在 working tree）
+## 1. 已完成并提交（git HEAD = `041463e`）
 
-### 核心成果：V2 durable inbox contract（三 kind union）
+### 已提交
 
-`SessionInput.Admitted` 从单一 `prompt` 字段改为 `Schema.Union` + `kind` 判别式（`prompt`/`shell`/`skill`），三者共用 `session_input` 表 + durable inbox，但生命周期不同构：
+- `041463e feat: add background subagent delegation to V2 task tool`（Range 1 + Range 2）
+- `3f8d2b2 feat: add V2 task tool for subagent delegation`（Range 1 基础）
 
-| kind | 生命周期 | delivery |
+### Range 3 完成（working tree，待提交）
+
+**关键成果：V2 task tool 功能对等 V1**
+
+| 功能 | V1 路径 | V2 路径 |
 |---|---|---|
-| prompt | admit → promote → `Prompted` → user message → LLM turn | steer（默认） |
-| shell | admit → runner drain 边界 spawn 子进程 → `Shell.Started`/`Shell.Ended` → shell message（**不进 LLM turn**） | queue |
-| skill | admit → promote 边界经 SkillV2 解析 name→content → emit `Prompted`（**复用 prompt 路径**） | steer |
+| 前台派生 | `executeCLI` + `runTask` | `TaskDriver.delegate`（seam）|
+| 后台派发 | `delegateBackground` | `TaskDriver.delegateBackground`（seam）|
+| task_id 续接 | `task_id` → `sessions.get` → 复用 | `task_id` → `SessionV2.create` idempotent |
+| 重试+孤儿清理 | `Effect.retry` + cancel orphan | 同左（DelegateError 判定）|
+| 前台 abort | runner interrupt → fiber cancelled | `Effect.onInterrupt` → `TaskDriver.cancel` |
+| 后台 abort 级联 | —（V1 无等同需求） | `SessionV2.interrupt` cascade `store.children` |
+| attended 模式 | `deriveSubagentSessionPermission`（Ruleset） | `session.attended` 布尔 → `configured` ask→deny |
+| background extend | `task_id` + running → append | `BackgroundJob.extend`（seam）|
+| external-cli | `AdapterRegistry` + `CliTimeout`（aigcfroge） | `TaskDriver.executeCLI` seam + core CliAdapter/CliTimeout |
+| 子会话权限 | Ruleset 合并 | `attended` 布尔（V2 PermissionV2 简化）|
 
-### 已改文件（4 批累计）
+### 已验证基线
 
-- `packages/schema/src/session-input.ts` — Admitted union（AdmittedPrompt/Shell/Skill）
-- `packages/core/src/session/sql.ts` — session_input 表加 `kind`/`command`/`skill` 列，prompt 改 nullable
-- `packages/core/src/database/migration/20260705170359_session_input_kind.ts` — 表重建（relax prompt NOT NULL + 加 kind/command，回填 kind='prompt'）
-- `packages/core/src/database/migration/20260706021802_session_input_skill.ts` — 加 skill 列（ALTER ADD）
-- `packages/core/src/database/{migration.gen.ts,schema.gen.ts}` + `schema.json` — 迁移注册 + 基线 DDL（由 `bun script/migration.ts` 生成，非手写）
-- `packages/core/src/session/event.ts` — 加 `ShellAdmitted`/`SkillAdmitted` 事件 + All union
-- `packages/core/src/session/input.ts` — admitShell/admitSkill + projectShellAdmitted/projectSkillAdmitted + nextPendingShell/pendingSkillSteers/markPromoted + equivalentShell/equivalentSkill + hasPending 加 kind 参数 + matchesProjection kind-aware
-- `packages/core/src/session/message-updater.ts` — shell.admitted/skill.admitted no-op（穷尽 handler map 强制）
-- `packages/core/src/session/projector.ts` — 注册 ShellAdmitted/SkillAdmitted 投影 + Shell.Started 扩展调 markPromoted
-- `packages/core/src/session/runner/llm.ts` — drainShell（timeout/uninterruptibleMask 保证 Shell.Ended/location fence）+ promoteSkills（用 admitted.timeCreated 非 wall-clock）+ run loop shell drain phase + shell-only 跳过空 LLM turn（forceTurn 一次性）
-- `packages/core/src/session.ts` — shell/skill 门面（admitShell/admitSkill + wake + equivalent 校验），children 门面 + interrupt
-- `packages/core/src/session/store.ts` — children SQL 方法
-- `packages/server/src/groups/session.ts` + `handlers/session.ts` — 端点：children(GET) / interrupt(POST，即 abort) / shell(POST) / skill(POST)
-- `packages/sdk/**` + `packages/sdk/openapi.json` — SDK 重生（bun dev generate + build.ts）
-- `packages/aigcfroge/src/effect/app-runtime.ts` — Phase 0 的 `AIGCFROGE_V2_RUNTIME` flag
-- 测试：session-children/session-shell/smoke-v2（新建）+ session-runner（shell/skill drain 测试，skill 用 **it.live** 捕获真实时钟 bug）+ session-create/session-prompt/session-runner-recorded（union 适配 + AppProcess/SkillV2 stub）+ database-migration（upgrade 测试）
-
-### 验证基线（当前 working tree）
-
-- core: 1042 pass, 1 fail（**pre-existing 无关**：`ProjectCopy > requires force to remove a dirty git worktree`，it.live git 测试）
-- typecheck: schema/core/server/sdk/aigcfroge/app/tui/desktop/session-ui 全 0 err
-- lint: 0 err
-- migration --check: pass + 17 migration 测试 pass
-
-### 已修的关键 bug（审批发现）
-
-- **shell（Stage 2 审批，6 major）**：drainShell 无 timeout / Shell.Ended 不保证（uninterruptibleMask+exit）/ 门面缺 equivalent / 无 location fence / shell-only 空 turn / 无测试
-- **skill（CRITICAL）**：promoteSkills 曾用 `timestamp: yield* DateTime.now`（promotion 时刻），但 projectPrompted 的 matchesProjection 比较 admission 时刻 → 真实时钟下崩溃（LifecycleConflict defect）。已修为 `admitted.timeCreated`。TestClock 冻结在 0 掩盖了它 → 测试改 it.live 对抗验证（回退失败/恢复通过）
+- core: 1050 pass, 6 fail（**pre-existing**：Git worktrees/ProjectCopy/DatabaseMigration/LocationServiceMap）
+- typecheck: schema/core/server/aigcfroge/app/sdk 全 0 err（root tsgo）
+- lint: 2 pre-existing errors（desktop/electron.vite.config.ts, tui/error.test.ts）
+- session-task: 10/10 × 5 rerun（无竞态）
+- permission: 13/13
 
 ---
 

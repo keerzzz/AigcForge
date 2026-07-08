@@ -21688,6 +21688,10 @@
           "default_agent": {
             "type": "string"
           },
+          "subagent_attended_default": {
+            "type": "boolean",
+            "description": "Default attended mode for subagent task delegation"
+          },
           "username": {
             "type": "string"
           },

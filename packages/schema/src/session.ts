@@ -36,6 +36,7 @@ export const Info = Schema.Struct({
   title: Schema.String,
   location: Location.Ref,
   subpath: RelativePath.pipe(Schema.optional),
+  attended: Schema.Boolean.pipe(Schema.optional),
 }).annotate({ identifier: "SessionV2.Info" })
 
 export const ListAnchor = Schema.Struct({

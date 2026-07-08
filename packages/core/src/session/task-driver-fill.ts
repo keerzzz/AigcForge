@@ -1,9 +1,16 @@
 export * as TaskDriverFill from "./task-driver-fill"
 
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import { Effect, Layer } from "effect"
 import { BackgroundJob } from "../background-job"
 import { SessionV2 } from "../session"
 import { TaskDriver } from "../tool/task-driver"
+import { getCliAdapter, registerCliAdapter } from "../tool/cli-adapter"
+import { executeWithTimeout } from "../tool/cli-timeout"
+import { adapter as opencodeAdapter } from "../tool/opencode"
+import { adapter as claudeCodeAdapter } from "../tool/claude-code"
+import { adapter as geminiAdapter } from "../tool/gemini"
+import { adapter as codexAdapter } from "../tool/codex"
 
 /**
  * Installs a `SessionV2`-backed implementation into the {@link TaskDriver}
@@ -27,6 +34,15 @@ export const layer = Layer.effectDiscard(
   Effect.gen(function* () {
     const sessions = yield* SessionV2.Service
     const background = yield* BackgroundJob.Service
+    const spawner = yield* Effect.serviceOption(ChildProcessSpawner).pipe(
+      Effect.map((op) => (op._tag === "Some" ? op.value : undefined)),
+    )
+    // Register built-in CLI adapters so the task tool can delegate to external
+    // CLI tools. Additional adapters can be registered before this layer runs.
+    registerCliAdapter(claudeCodeAdapter.name, claudeCodeAdapter)
+    registerCliAdapter(geminiAdapter.name, geminiAdapter)
+    registerCliAdapter(codexAdapter.name, codexAdapter)
+    registerCliAdapter(opencodeAdapter.name, opencodeAdapter)
     TaskDriver.install(
       {
         get: sessions.get,
@@ -40,7 +56,34 @@ export const layer = Layer.effectDiscard(
       {
         start: (sessionID, work) =>
           background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
-        wait: (sessionID) => background.wait({ id: sessionID }),
+        // Map BackgroundJob's terminal Info to the seam's BackgroundOutcome. A
+        // still-"running" status can't occur here (wait blocks until the job
+        // settles); a missing Info (job never registered / scope closed) is
+        // reported as undefined so delegate treats it as completed-but-empty.
+        wait: (sessionID) =>
+          background.wait({ id: sessionID }).pipe(
+            Effect.map(({ info }) =>
+              info && info.status !== "running"
+                ? { status: info.status, ...(info.error ? { error: info.error } : {}) }
+                : undefined,
+            ),
+          ),
+        cancel: (sessionID) => background.cancel(sessionID).pipe(Effect.asVoid),
+        extend: (sessionID, work) => background.extend({ id: sessionID, run: work.pipe(Effect.as("")) }),
+      },
+      {
+        execute: (input) =>
+          Effect.gen(function* () {
+            if (!spawner) return yield* Effect.fail(new Error("CLI execution not available (no process spawner)"))
+            const adapter = getCliAdapter(input.cliTarget)
+            if (!adapter) return yield* Effect.fail(new Error(`Unknown CLI target: ${input.cliTarget}`))
+            const session = yield* sessions.get(input.sessionID)
+            const result = yield* executeWithTimeout(spawner, adapter, {
+              prompt: input.prompt,
+              cwd: session.location.directory,
+            })
+            return result.summary
+          }),
       },
     )
   }),

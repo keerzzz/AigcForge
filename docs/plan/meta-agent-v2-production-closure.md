@@ -1,8 +1,8 @@
 # Meta-Agent V2 生产级闭环升级方案
 
-> **状态**: v2 — 审批修订版（已合并 R1-R10 修订项 + V1 Layer 栈对等性深度调研）
+> **状态**: v3 — 2026-07-08 更新，Range 3 task tool 对齐 + external-cli + attended 权限闭环已完成
 > **作者**: 高级全栈顾问
-> **日期**: 2026-07-05
+> **日期**: 2026-07-05（v3 更新 2026-07-08）
 > **审批**: 有条件批准 → 已修正 3 项事实错误 + 4 项重大遗漏，详见各章修订注记
 > **范围**: 弃 V1，全切 V2，接线闭合到生产级闭环
 > **关联文档**: [meta-agent-orchestrator.md](meta-agent-orchestrator.md) · [cache-miss-diagnostics-and-agent-upgrade.md](cache-miss-diagnostics-and-agent-upgrade.md) · [subagent-protocol-cards.md](subagent-protocol-cards.md) · [../architecture/global-stats-design.md](../architecture/global-stats-design.md) · [../../specs/v2/todo.md](../../specs/v2/todo.md)
@@ -55,6 +55,10 @@
 | `packages/server` V2 全栈 | [server/src/handlers.ts:22-56](../../packages/server/src/handlers.ts#L22) | ⚠️ 未端到端验证（见 R3） |
 | provider-defined tool (`providerExecuted`) | [runner/llm.ts:272](../../packages/core/src/session/runner/llm.ts#L272) | ✅ |
 | **Compaction.Stuck 事件** | [event.ts:440](../../packages/core/src/session/event.ts#L440) 定义 + [compaction.ts:278](../../packages/core/src/session/compaction.ts#L278) publish | ✅ **已实现（R1 修正）** |
+| **V2 task 工具** | [tool/task.ts](../../packages/core/src/tool/task.ts) + [tool/task-driver.ts](../../packages/core/src/tool/task-driver.ts) + [session/task-driver-fill.ts](../../packages/core/src/session/task-driver-fill.ts) | ✅ **2026-07-08 完成** |
+| **V2 attended 权限收敛** | [permission.ts:160-175](../../packages/core/src/permission.ts#L160) + task tool Input `attended` | ✅ **2026-07-08 完成（替代 V1 deriveSubagentSessionPermission）** |
+| **external-cli 迁移** | [tool/cli-adapter.ts](../../packages/core/src/tool/cli-adapter.ts) + [tool/cli-timeout.ts](../../packages/core/src/tool/cli-timeout.ts) + 4 适配器 | ✅ **2026-07-08 完成（含 opencode）** |
+| **abort 级联传播** | [session.ts:453-463](../../packages/core/src/session.ts#L453)（interrupt cascade children） | ✅ **2026-07-08 完成** |
 
 ### 1.2 已实现未接线（孤岛）
 
@@ -72,8 +76,6 @@
 
 | 缺口 | 严重度 | 依赖 | 修订注记 |
 |---|---|---|---|
-| V2 task 工具 | P0 阻塞 meta 委派 | deriveSubagent | |
-| V2 `deriveSubagent` 权限收敛 | P0 | 无 | |
 | `{{SUBAGENTS_LIST}}`/`{{CLI_LIST}}` 填充器 | P0 | AgentV2.all()（已有） | |
 | MetaAgent 服务层（create/get/attach/stats） | P0 | 无 | |
 | prerouter 迁移到 core + 接入 runner | P0 | 无 | |
@@ -188,13 +190,13 @@ Phase 1（接线）─┬─ P1.1 app-runtime provide V2 全栈（50 Layer 逐�
                └─ P1.3 入口灰度切换（feature flag）
                        │
                        ▼（task/revert/summary 未补建前，meta 委派 + revert 端点降级）
-Phase 2（meta + V1 无对等能力补齐）─┬─ P2.1 deriveSubagent（V2 权限收敛）
-                        ├─ P2.2 V2 task 工具重写 ← 依赖 P2.1
+Phase 2（meta + V1 无对等能力补齐）─┬─ P2.1 deriveSubagent（V2 权限收敛）← **✅ 2026-07-08 完成**
+                        ├─ P2.2 V2 task 工具重写 ← 依赖 P2.1 **✅ 2026-07-08 完成**
                         ├─ P2.3 prerouter 迁入 core + 接入 runner
                         ├─ P2.4 占位符填充器
                         ├─ P2.5 MetaAgent 服务层 ← 依赖 P2.2
                         ├─ P2.6 meta_agent_step 写入接线 ← 依赖 P2.5
-                        ├─ P2.7 PROMPT_META 单源化 + CLI 适配器归属  ← R4
+                        ├─ P2.7 PROMPT_META 单源化 + CLI 适配器归属  ← R4 **✅ CLI 适配器已迁移 core（2026-07-08）**
                         ├─ P2.8 SessionProcessor 消费者迁移  ← R2 新增
                         ├─ P2.9 V2 SessionRevert 服务补建  ← R2 新增（断端点）
                         ├─ P2.10 V2 SessionSummary/diff 服务补建  ← R2 新增（断端点）

@@ -248,6 +248,7 @@ export default {
           \`tokens_cache_write\` integer DEFAULT 0 NOT NULL,
           \`revert\` text,
           \`permission\` text,
+          \`attended\` integer DEFAULT 0,
           \`agent\` text,
           \`model\` text,
           \`time_created\` integer NOT NULL,

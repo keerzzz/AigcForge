@@ -27,11 +27,12 @@ export const Info = Schema.Struct({
   color: Color.pipe(Schema.optional),
   steps: PositiveInt.pipe(Schema.optional),
   permissions: Permission.Ruleset,
+  attended: Schema.Boolean.pipe(Schema.optional),
 })
   .annotate({ identifier: "AgentV2.Info" })
   .pipe(
     withStatics((schema) => ({
       empty: (id: ID) =>
-        schema.make({ id, request: { headers: {}, body: {} }, mode: "all", hidden: false, permissions: [] }),
+        schema.make({ id, request: { headers: {}, body: {} }, mode: "all", hidden: false, permissions: [], attended: false }),
     })),
   )

@@ -575,6 +575,7 @@ export const dict = {
 
   "notification.permission.title": "Permission required",
   "notification.permission.description": "{{sessionTitle}} in {{projectName}} needs permission",
+  "notification.permission.fromSubagent": "From subagent",
   "notification.question.title": "Question",
   "notification.question.description": "{{sessionTitle}} in {{projectName}} has a question",
   "notification.action.goToSession": "Go to session",
@@ -868,6 +869,8 @@ export const dict = {
     "Place the title bar and session tabs at the bottom of the screen on mobile",
   "settings.general.row.showCustomAgents.title": "Custom agents",
   "settings.general.row.showCustomAgents.description": "Show the agent picker in the composer",
+  "settings.general.row.subagentAttendedDefault.title": "Subagent attended mode",
+  "settings.general.row.subagentAttendedDefault.description": "When enabled, subagents wait for user approval on permission requests (attended). When disabled, asks are auto-denied (unattended).",
   "settings.general.row.reasoningSummaries.title": "Show reasoning summaries",
   "settings.general.row.reasoningSummaries.description": "Display model reasoning summaries in the timeline",
   "settings.general.row.shellToolPartsExpanded.title": "Expand shell tool parts",

@@ -421,6 +421,21 @@ export const SettingsGeneralV2: Component = () => {
             />
           </div>
         </SettingsRowV2>
+
+        <SettingsRowV2
+          title={language.t("settings.general.row.subagentAttendedDefault.title")}
+          description={language.t("settings.general.row.subagentAttendedDefault.description")}
+        >
+          <div data-action="settings-subagent-attended-default">
+            <Switch
+              checked={settings.general.subagentAttendedDefault()}
+              onChange={(checked) => {
+                settings.general.setSubagentAttendedDefault(checked)
+                void serverSync().updateConfig({ subagent_attended_default: checked })
+              }}
+            />
+          </div>
+        </SettingsRowV2>
       </SettingsListV2>
     </div>
   )

@@ -14,6 +14,7 @@ export const ENGINE_DISPATCH: Record<string, EngineDispatchEntry> = {
   "claude-code": { type: "external-cli", target: "claude-code" },
   gemini: { type: "external-cli", target: "gemini" },
   codex: { type: "external-cli", target: "codex" },
+  opencode: { type: "external-cli", target: "opencode" },
 }
 
 export const COMPLEXITY_DEFAULT_ENGINE: Record<Complexity, string> = {
