@@ -6,6 +6,7 @@ import { AgentV2 } from "../agent"
 import { PermissionV2 } from "../permission"
 import { SessionMessage } from "../session/message"
 import { SessionSchema } from "../session/schema"
+import { runPostToolUse, runPreToolUse } from "./lifecycle-hooks"
 import { ToolOutputStore } from "../tool-output-store"
 import { Wildcard } from "../util/wildcard"
 import { ApplicationTools } from "./application-tools"
@@ -85,6 +86,19 @@ const registryLayer = Layer.effect(
         }
       if (advertised && registration.identity !== advertised)
         return { result: { type: "error" as const, value: `Stale tool call: ${input.call.name}` } }
+      // PreToolUse: lifecycle hooks may deny the tool before execution.
+      const preCheck = yield* runPreToolUse({
+        toolName: input.call.name,
+        args: (input.call as { input?: Record<string, unknown> }).input ?? {},
+        sessionID: input.sessionID,
+      })
+      if (!preCheck.allow)
+        return {
+          result: {
+            type: "error" as const,
+            value: preCheck.reason ?? `Tool blocked by policy: ${input.call.name}`,
+          },
+        }
       const pending = yield* settle(registration.tool, input.call, {
         sessionID: input.sessionID,
         agent: input.agent,
@@ -96,10 +110,25 @@ const registryLayer = Layer.effect(
           Effect.succeed({ result: { type: "error" as const, value: failure.message } }),
         ),
       )
-      if ("result" in pending) return pending
+      const callInput = (input.call as { input?: Record<string, unknown> }).input ?? {}
+      if ("result" in pending) {
+        yield* runPostToolUse({
+          toolName: input.call.name,
+          args: callInput,
+          result: pending.result,
+          sessionID: input.sessionID,
+        }).pipe(Effect.ignore)
+        return pending
+      }
       const output = pending.output
       const bounded = yield* resources.bound({ sessionID: input.sessionID, toolCallID: input.call.id, output })
       const result = ToolOutput.toResultValue(bounded.output)
+      yield* runPostToolUse({
+        toolName: input.call.name,
+        args: callInput,
+        result,
+        sessionID: input.sessionID,
+      }).pipe(Effect.ignore)
       if (result.type === "error")
         return bounded.outputPaths.length > 0 ? { result, outputPaths: bounded.outputPaths } : { result }
       return bounded.outputPaths.length > 0

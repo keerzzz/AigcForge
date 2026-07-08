@@ -983,6 +983,10 @@ export const dict = {
   "statusBar.metrics.pin": "固定指标",
   "statusBar.metrics.unpin": "取消固定指标",
   "statusBar.metrics.details": "会话指标",
+  "statusBar.metrics.group.subagent": "子代理",
+  "statusBar.metrics.subagentActive": "活跃",
+  "statusBar.metrics.subagentCompleted": "已完成",
+  "statusBar.metrics.subagentFailed": "失败",
 
   "toolActivity.title": "工具活动",
   "toolActivity.category.read": "读取文件",

@@ -6,7 +6,7 @@ import { useServer, ServerConnection, serverName } from "@/context/server"
 import { useLanguage } from "@/context/language"
 import { getSessionContextMetrics } from "@/components/session/session-context-metrics"
 import { requireServerKey } from "@/utils/session-route"
-import type { ConnectionState, StatusBarModelInfo, StatusBarCacheInfo, StatusBarSource } from "./types"
+import type { ConnectionState, StatusBarModelInfo, StatusBarCacheInfo, StatusBarSubagentInfo, StatusBarSource } from "./types"
 import type { StatusBarMetric, MetricGroup } from "./metrics"
 import { createStore } from "solid-js/store"
 
@@ -90,6 +90,7 @@ export function createCurrentSessionSource(): StatusBarSource {
 
   const sessTokens = () => sessionInfo()?.tokens
   const sessCost = () => sessionInfo()?.cost
+  const sessAgent = () => sessionInfo()?.agent
   const modelLimit = () => {
     const ctx = context()
     if (!ctx) return undefined
@@ -110,6 +111,26 @@ export function createCurrentSessionSource(): StatusBarSource {
   }
 
   const [pinnedStore, setPinnedStore] = createStore({ ids: loadPinned() })
+
+  const subagentInfo = createMemo((): StatusBarSubagentInfo | undefined => {
+    const agent = sessAgent()
+    if (!agent) return undefined
+    const subagentMsgs = messages().filter(
+      (msg): msg is Message & { agent: string } =>
+        msg.role === "assistant" && "agent" in msg && msg.agent !== agent,
+    )
+    if (subagentMsgs.length === 0) return undefined
+    let active = 0
+    let completed = 0
+    let failed = 0
+    for (const msg of subagentMsgs) {
+      const m = msg as { error?: unknown; time?: { completed?: number } }
+      if (m.error) failed++
+      else if (m.time?.completed) completed++
+      else active++
+    }
+    return { active, completed, failed, total: subagentMsgs.length }
+  })
 
   const togglePin = (metricID: string) => {
     setPinnedStore("ids", (prev) => {
@@ -175,6 +196,24 @@ export function createCurrentSessionSource(): StatusBarSource {
       mk("cost.total", "cost", "statusBar.metrics.totalCost",
         () => c !== undefined ? fmtCurrency(c) : "—",
         () => c !== undefined),
+      mk("subagent.active", "subagent", "statusBar.metrics.subagentActive",
+        () => {
+          const s = subagentInfo()
+          return s ? String(s.active) : "—"
+        },
+        () => !!subagentInfo()),
+      mk("subagent.completed", "subagent", "statusBar.metrics.subagentCompleted",
+        () => {
+          const s = subagentInfo()
+          return s ? String(s.completed) : "—"
+        },
+        () => !!subagentInfo()),
+      mk("subagent.failed", "subagent", "statusBar.metrics.subagentFailed",
+        () => {
+          const s = subagentInfo()
+          return s ? String(s.failed) : "—"
+        },
+        () => !!subagentInfo()),
     ]
   })
 
@@ -205,6 +244,7 @@ export function createCurrentSessionSource(): StatusBarSource {
         ? { hitRate: Math.round((ctx.cacheRead / d) * 100), read: ctx.cacheRead, write: ctx.cacheWrite }
         : { hitRate: 0, read: ctx.cacheRead, write: ctx.cacheWrite }
     }),
+    subagent: subagentInfo,
     allMetrics,
     pinnedMetrics,
     togglePin,

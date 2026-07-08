@@ -1088,6 +1088,10 @@ export const dict = {
   "statusBar.metrics.pin": "Pin metric",
   "statusBar.metrics.unpin": "Unpin metric",
   "statusBar.metrics.details": "Session metrics",
+  "statusBar.metrics.group.subagent": "SUBAGENTS",
+  "statusBar.metrics.subagentActive": "Active",
+  "statusBar.metrics.subagentCompleted": "Completed",
+  "statusBar.metrics.subagentFailed": "Failed",
 
   "toolActivity.title": "Tool Activity",
   "toolActivity.category.read": "Read files",

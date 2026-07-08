@@ -1,10 +1,11 @@
-export type MetricGroup = "tokens" | "context" | "cache" | "cost"
+export type MetricGroup = "tokens" | "context" | "cache" | "cost" | "subagent"
 
 export const METRIC_GROUP_I18N: Record<MetricGroup, string> = {
   tokens: "statusBar.metrics.group.tokens",
   context: "statusBar.metrics.group.context",
   cache: "statusBar.metrics.group.cache",
   cost: "statusBar.metrics.group.cost",
+  subagent: "statusBar.metrics.group.subagent",
 }
 
 export type StatusBarMetric = {

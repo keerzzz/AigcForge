@@ -28,6 +28,7 @@ import { ReferenceGuidance } from "../../reference/guidance"
 import { ToolRegistry } from "../../tool/registry"
 import { CacheShape } from "../../cache/cache-shape"
 import { ToolOutputStore } from "../../tool-output-store"
+import { classify, type IntentCategory } from "../../agent/meta/intent"
 import { SessionContextEpoch } from "../context-epoch"
 import { SessionCompaction } from "../compaction"
 import { SessionEvent } from "../event"
@@ -213,7 +214,18 @@ export const layer = Layer.effect(
       const entries = yield* SessionHistory.entriesForRunner(db, session.id, system.baselineSeq)
       const context = entries.map((entry) => entry.message)
       const isLastStep = agent.info?.steps !== undefined && currentStep >= agent.info.steps
-      const toolMaterialization = isLastStep ? undefined : yield* tools.materialize(agent.info?.permissions)
+      // Derive tool-filtering intent from the latest user message, if available.
+      const intent: IntentCategory | undefined = (() => {
+        for (let i = context.length - 1; i >= 0; i--) {
+          const msg = context[i]
+          if (msg.type === "user") {
+            const category = classify(msg.text).category
+            return category !== "unknown" ? category : undefined
+          }
+        }
+        return undefined
+      })()
+      const toolMaterialization = isLastStep ? undefined : yield* tools.materialize(agent.info?.permissions, intent)
       const promptCacheKey = /^ses_[0-9a-f]{64}$/.test(session.id) ? session.id.slice(4) : session.id
       const request = LLM.request({
         model,

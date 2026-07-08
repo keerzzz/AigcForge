@@ -16,6 +16,13 @@ export type StatusBarCacheInfo = {
   readonly write: number
 }
 
+export type StatusBarSubagentInfo = {
+  readonly active: number
+  readonly completed: number
+  readonly failed: number
+  readonly total: number
+}
+
 export type StatusBarSource = {
   readonly label: () => string
   readonly connection: () => {
@@ -25,6 +32,7 @@ export type StatusBarSource = {
   }
   readonly model: () => StatusBarModelInfo | undefined
   readonly cache: () => StatusBarCacheInfo | undefined
+  readonly subagent: () => StatusBarSubagentInfo | undefined
   readonly allMetrics: () => StatusBarMetric[]
   readonly pinnedMetrics: () => StatusBarMetric[]
   readonly togglePin: (metricID: string) => void

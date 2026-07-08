@@ -14,6 +14,7 @@ import { ProviderV2 } from "../provider"
 import { Reference } from "../reference"
 import { SkillV2 } from "../skill"
 import { McpV2 } from "../mcp/mcp-v2"
+import { registerPreToolUse, registerPostToolUse } from "../tool/lifecycle-hooks"
 
 export const make = Effect.fn("PluginHost.make")(function* (plugin: PluginV2.Interface) {
   const agents = yield* AgentV2.Service
@@ -219,12 +220,32 @@ export const make = Effect.fn("PluginHost.make")(function* (plugin: PluginV2.Int
       transform: (callback) =>
         Effect.gen(function* () {
           yield* Scope.Scope
+          const cleanups: Array<() => void> = []
           callback({
             intent: { register: (_name, _classify) => {} },
             adapter: { register: (_name, _execute) => {} },
-            middleware: { register: (_name, _hooks) => {} },
+            middleware: {
+              register: (_name, hooks) => {
+                if (hooks.preToolUse)
+                  cleanups.push(
+                    registerPreToolUse((input) =>
+                      Effect.promise(() => hooks.preToolUse!(input)),
+                    ),
+                  )
+                if (hooks.postToolUse)
+                  cleanups.push(
+                    registerPostToolUse((input) =>
+                      Effect.promise(() => hooks.postToolUse!(input)),
+                    ),
+                  )
+              },
+            },
           })
-          return { dispose: Effect.void }
+          return {
+            dispose: Effect.sync(() => {
+              for (const c of cleanups) c()
+            }),
+          }
         }),
     },
     tool: {
