@@ -1,17 +1,20 @@
 export * as TaskDriverFill from "./task-driver-fill"
 
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
-import { Effect, Layer } from "effect"
+import { and, eq } from "drizzle-orm"
+import { Effect, Layer, Option } from "effect"
 import { BackgroundJob } from "../background-job"
 import { SessionV2 } from "../session"
 import { TaskDriver } from "../tool/task-driver"
 import { getCliAdapter, registerCliAdapter } from "../tool/cli-adapter"
 import { executeWithTimeout } from "../tool/cli-timeout"
+import { ExternalCliSessionTable } from "../tool/cli-session.sql"
 import { adapter as opencodeAdapter } from "../tool/opencode"
 import { adapter as claudeCodeAdapter } from "../tool/claude-code"
 import { adapter as geminiAdapter } from "../tool/gemini"
 import { adapter as codexAdapter } from "../tool/codex"
 import { MetaAgentService } from "../meta-agent/service"
+import { Database } from "../database/database"
 
 /**
  * Installs a `SessionV2`-backed implementation into the {@link TaskDriver}
@@ -97,12 +100,57 @@ export const layer = Layer.effectDiscard(
             const adapter = getCliAdapter(input.cliTarget)
             if (!adapter) return yield* Effect.fail(new Error(`Unknown CLI target: ${input.cliTarget}`))
             const session = yield* sessions.get(input.sessionID)
+
+            // Attempt to load DB for resume lookup and hint persistence.
+            // Not all callers (e.g. tests) provide Database.Service, so the
+            // optional service access is caught; when absent, DB operations
+            // are skipped without affecting CLI execution.
+            const dbOpt = yield* Effect.serviceOption(Database.Service).pipe(
+              Effect.catch(() => Effect.succeed(Option.none() as Option.Option<never>),
+            ))
+
+            // Check for a pending external CLI session to resume.
+            let resumeId: string | undefined
+            if (Option.isSome(dbOpt)) {
+              const db = dbOpt.value.db as any
+              const row = yield* (db as any)
+                .select()
+                .from(ExternalCliSessionTable)
+                .where(
+                  and(
+                    eq(ExternalCliSessionTable.session_id, input.sessionID),
+                    eq(ExternalCliSessionTable.status, "active"),
+                  ),
+                )
+                .get()
+              resumeId = row?.external_session_id
+            }
+
             const result = yield* executeWithTimeout(spawner, adapter, {
               prompt: input.prompt,
               cwd: session.location.directory,
+              resumeId,
             })
+
+            // Persist resume_hint if the CLI emitted one and DB is available.
+            if (Option.isSome(dbOpt) && adapter.parseResumeHint) {
+              const db = dbOpt.value.db as any
+              const hint = adapter.parseResumeHint(result.summary)
+              if (hint) {
+                yield* (db as any)
+                  .insert(ExternalCliSessionTable)
+                  .values({
+                    session_id: input.sessionID,
+                    cli_target: input.cliTarget,
+                    external_session_id: hint,
+                    status: "active",
+                  })
+                  .onConflictDoNothing()
+              }
+            }
+
             return result.summary
-          }),
+          }) as unknown as Effect.Effect<string, Error>,
       },
     )
   }),
