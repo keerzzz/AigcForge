@@ -1,7 +1,7 @@
 export * as PluginHost from "./host"
 
 import type { PluginContext as Interface } from "@aigcfroge/plugin/v2/effect"
-import { Effect, Schema } from "effect"
+import { Effect, Schema, Scope } from "effect"
 import { AgentV2 } from "../agent"
 import { AISDK } from "../aisdk"
 import { Catalog } from "../catalog"
@@ -13,6 +13,7 @@ import { PluginV2 } from "../plugin"
 import { ProviderV2 } from "../provider"
 import { Reference } from "../reference"
 import { SkillV2 } from "../skill"
+import { McpV2 } from "../mcp/mcp-v2"
 
 export const make = Effect.fn("PluginHost.make")(function* (plugin: PluginV2.Interface) {
   const agents = yield* AgentV2.Service
@@ -210,6 +211,30 @@ export const make = Effect.fn("PluginHost.make")(function* (plugin: PluginV2.Int
             list: draft.list,
           }),
         ),
+    },
+
+    // MetaHooks: meta agent extensions (intent, adapter, middleware registration).
+    meta: {
+      reload: () => Effect.void,
+      transform: (callback) =>
+        Effect.gen(function* () {
+          yield* Scope.Scope
+          callback({
+            intent: { register: (_name, _classify) => {} },
+            adapter: { register: (_name, _execute) => {} },
+            middleware: { register: (_name, _hooks) => {} },
+          })
+          return { dispose: Effect.void }
+        }),
+    },
+    tool: {
+      reload: () => Effect.void,
+      transform: (callback) =>
+        Effect.gen(function* () {
+          yield* Scope.Scope
+          callback({ register: (_name, _tool) => {} })
+          return { dispose: Effect.void }
+        }),
     },
   } satisfies Interface
 })
