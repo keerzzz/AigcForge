@@ -451,18 +451,19 @@ export const layer = Layer.effect(
       const session = yield* getSession(admitted.sessionID)
       if (session.location.directory !== location.directory || session.location.workspaceID !== location.workspaceID)
         return yield* Effect.interrupt
-      const callID = crypto.randomUUID()
-      yield* events.publish(SessionEvent.Shell.Started, {
-        sessionID: admitted.sessionID,
-        messageID: admitted.id,
-        timestamp: yield* DateTime.now,
-        callID,
-        command: admitted.command,
-      })
       // Spawn is interruptible; Shell.Ended is published from an uninterruptible tail so the
       // shell message never strands in "running" if the drain is interrupted or the spawn fails.
+      // Shell.Started is inside the mask so an interrupt cannot fire Started without Ended.
       return yield* Effect.uninterruptibleMask((restore) =>
         Effect.gen(function* () {
+          const callID = crypto.randomUUID()
+          yield* events.publish(SessionEvent.Shell.Started, {
+            sessionID: admitted.sessionID,
+            messageID: admitted.id,
+            timestamp: yield* DateTime.now,
+            callID,
+            command: admitted.command,
+          })
           const exit = yield* restore(
             Effect.gen(function* () {
               const entries = yield* config.entries()
