@@ -368,6 +368,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
             Effect.catchTag("Session.NotFoundError", (error: any) =>
               Effect.fail(new SessionNotFoundError({ sessionID: error.sessionID, message: `Session not found: ${error.sessionID}` })),
             ),
+          // as any: Effect.catchTag narrows error channel but HttpApiBuilder handler type expects un-narrowed union. Runtime result is same - only SessionNotFoundError survives.
           ) as any
         },
       )

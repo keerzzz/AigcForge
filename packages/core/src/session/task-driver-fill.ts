@@ -117,7 +117,7 @@ export const layer = Layer.effectDiscard(
               // drizzle query builder types don't compose across module
               // boundaries for the ExternalCliSessionTable schema.
               const db: any = dbOpt.value.db
-              const row = yield* (db as any)
+              const row = yield* db
                 .select()
                 .from(ExternalCliSessionTable)
                 .where(
@@ -138,10 +138,12 @@ export const layer = Layer.effectDiscard(
 
             // Persist resume_hint if the CLI emitted one and DB is available.
             if (Option.isSome(dbOpt) && adapter.parseResumeHint) {
-              const db = dbOpt.value.db as any
+              // Same drizzle type boundary as above — DatabaseShape doesn't
+              // compose with ExternalCliSessionTable's typed query builder.
+              const db: any = dbOpt.value.db
               const hint = adapter.parseResumeHint(result.rawStdout ?? result.summary)
               if (hint) {
-                yield* (db as any)
+                yield* db
                   .insert(ExternalCliSessionTable)
                   .values({
                     session_id: input.sessionID,
