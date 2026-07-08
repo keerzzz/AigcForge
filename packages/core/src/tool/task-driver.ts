@@ -74,6 +74,16 @@ export interface Interface {
    */
   readonly delegate: (input: { sessionID: SessionSchema.ID; prompt: string }) => Effect.Effect<string, DelegateError>
   /**
+   * Inject a text summary of the parent Session's last messages into the child
+   * Session, so the subagent receives context without full history. No LLM call;
+   * uses simple truncation of the last N messages. Safe to call anytime between
+   * createChild and delegate — fails gracefully when messages are inaccessible.
+   */
+  readonly injectParentSummary: (input: {
+    parentID: SessionSchema.ID
+    childID: SessionSchema.ID
+  }) => Effect.Effect<void>
+  /**
    * Admit `prompt` and drive the child Session on an independent fiber, then
    * return immediately without awaiting it. When the child settles, its final
    * assistant text is injected into `parentID` as a synthetic message and the
@@ -143,6 +153,10 @@ export const createChild = (input: {
 /** Delegate a prompt to a child Session and await its final text (foreground). */
 export const delegate = (input: { sessionID: SessionSchema.ID; prompt: string }) =>
   active().pipe(Effect.flatMap((impl) => impl.delegate(input)))
+
+/** Inject a text summary of the parent Session's last messages into a child Session. */
+export const injectParentSummary = (input: { parentID: SessionSchema.ID; childID: SessionSchema.ID }) =>
+  active().pipe(Effect.flatMap((impl) => impl.injectParentSummary(input)))
 
 /** Cancel a child Session's background drain and interrupt its active work (orphan cleanup). */
 export const cancel = (sessionID: SessionSchema.ID) =>
@@ -312,6 +326,23 @@ export const install = (
               })
             : readResult(input.sessionID).pipe(Effect.orDie),
         ),
+      ),
+    injectParentSummary: (input) =>
+      sessions.messages({ sessionID: input.parentID }).pipe(
+        Effect.flatMap((messages) => {
+          const tail = messages.slice(-5)
+          const lines: string[] = ["<parent_context_summary>"]
+          for (const m of tail) {
+            if (m.type === "user") lines.push(`[User] ${m.text}`)
+            if (m.type === "assistant") {
+              const textPart = m.content.find((p) => p.type === "text")
+              if (textPart) lines.push(`[Assistant] ${textPart.text.slice(0, 200)}`)
+            }
+          }
+          lines.push("</parent_context_summary>")
+          return sessions.injectSynthetic({ sessionID: input.childID, text: lines.join("\n\n") })
+        }),
+        Effect.catch(() => Effect.void),
       ),
     delegateBackground: (input) =>
       sessions.prompt({ sessionID: input.sessionID, prompt: { text: input.prompt }, resume: false }).pipe(
