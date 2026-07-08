@@ -118,6 +118,42 @@ export const validateName = (name: string) =>
     ? Effect.void
     : Effect.fail(new RegistrationError({ name, message: `Invalid tool name: ${name}` }))
 
+/**
+ * Create a tool from a raw JSON Schema input (e.g. from MCP servers where the
+ * input schema is provided by the server, not authored as an Effect Schema).
+ * The input is passed through to `execute` without Effect Schema decoding;
+ * the server validates the input.
+ */
+export function makeRaw(config: {
+  readonly description: string
+  readonly inputSchema: JsonSchema.JsonSchema
+  readonly execute: (input: unknown, context: Context) => Effect.Effect<unknown, ToolFailure>
+}): AnyTool {
+  const tool = Object.freeze({}) as AnyTool
+  const definitions = new Map<string, ToolDefinition>()
+  runtimes.set(tool, {
+    definition: (name) => {
+      const cached = definitions.get(name)
+      if (cached) return cached
+      const definition = new ToolDefinition({
+        name,
+        description: config.description,
+        inputSchema: config.inputSchema,
+      })
+      definitions.set(name, definition)
+      return definition
+    },
+    settle: (call, context) =>
+      config.execute(call.input, context).pipe(
+        Effect.map((structured) => ({
+          structured,
+          content: typeof structured === "string" ? [{ type: "text" as const, text: structured }] : [],
+        })),
+      ),
+  })
+  return tool
+}
+
 export const withPermission = <Input extends SchemaType<any>, Output extends SchemaType<any>>(
   tool: Definition<Input, Output>,
   permission: string,
