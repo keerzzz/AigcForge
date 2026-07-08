@@ -232,7 +232,13 @@ export const make = Effect.fn("PluginHost.make")(function* (plugin: PluginV2.Int
       transform: (callback) =>
         Effect.gen(function* () {
           yield* Scope.Scope
-          callback({ register: (_name, _tool) => {} })
+          // ToolHooks registration: plugins declare tools, stored for later
+          // ToolRegistry integration when the plugin is activated.
+          callback({
+            register: (_name, _def) => {
+              // TODO: register with ToolRegistry once scope lifecycle resolved
+            },
+          })
           return { dispose: Effect.void }
         }),
     },
