@@ -21,6 +21,20 @@ export interface Interface {
     messageID: SessionMessage.ID,
   ) => Effect.Effect<{ readonly sessionID: SessionSchema.ID; readonly message: SessionMessage.Message } | undefined>
   readonly children: (parentID: SessionSchema.ID) => Effect.Effect<SessionSchema.Info[]>
+  readonly setRevert: (input: {
+    sessionID: SessionSchema.ID
+    revert: {
+      messageID: string
+      snapshot?: string
+      diff?: string
+    }
+    summary: SessionSchema.Summary
+  }) => Effect.Effect<void>
+  readonly clearRevert: (sessionID: SessionSchema.ID) => Effect.Effect<void>
+  readonly setSummary: (input: {
+    sessionID: SessionSchema.ID
+    summary: SessionSchema.Summary
+  }) => Effect.Effect<void>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionStore") {}
@@ -64,6 +78,36 @@ export const layer = Layer.effect(
           .all()
           .pipe(Effect.orDie)
         return rows.map(fromRow)
+      }),
+      setRevert: Effect.fn("SessionStore.setRevert")(function* (input) {
+        yield* db
+          .update(SessionTable)
+          .set({
+            revert: { messageID: input.revert.messageID, snapshot: input.revert.snapshot ?? null, diff: input.revert.diff ?? null } as any,
+            summary_additions: input.summary.additions,
+            summary_deletions: input.summary.deletions,
+            summary_files: input.summary.files,
+          })
+          .where(eq(SessionTable.id, input.sessionID))
+          .pipe(Effect.orDie)
+      }),
+      clearRevert: Effect.fn("SessionStore.clearRevert")(function* (sessionID) {
+        yield* db
+          .update(SessionTable)
+          .set({ revert: null as any, summary_additions: null, summary_deletions: null, summary_files: null })
+          .where(eq(SessionTable.id, sessionID))
+          .pipe(Effect.orDie)
+      }),
+      setSummary: Effect.fn("SessionStore.setSummary")(function* (input) {
+        yield* db
+          .update(SessionTable)
+          .set({
+            summary_additions: input.summary.additions,
+            summary_deletions: input.summary.deletions,
+            summary_files: input.summary.files,
+          })
+          .where(eq(SessionTable.id, input.sessionID))
+          .pipe(Effect.orDie)
       }),
     })
   }),

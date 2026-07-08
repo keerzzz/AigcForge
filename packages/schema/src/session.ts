@@ -7,9 +7,24 @@ import { Model } from "./model"
 import { Project } from "./project"
 import { DateTimeUtcFromMillis, optionalOmitUndefined, RelativePath } from "./schema"
 import { SessionID } from "./session-id"
+import { SessionMessageID } from "./session-message-id"
 
 export const ID = SessionID.ID
 export type ID = SessionID.ID
+
+export const Revert = Schema.Struct({
+  messageID: SessionMessageID.ID,
+  snapshot: Schema.optional(Schema.String),
+  diff: Schema.optional(Schema.String),
+}).annotate({ identifier: "SessionV2.Revert" })
+export type Revert = typeof Revert.Type
+
+export const Summary = Schema.Struct({
+  additions: Schema.Finite,
+  deletions: Schema.Finite,
+  files: Schema.Finite,
+}).annotate({ identifier: "SessionV2.Summary" })
+export type Summary = typeof Summary.Type
 
 export interface Info extends Schema.Schema.Type<typeof Info> {}
 export const Info = Schema.Struct({
@@ -37,6 +52,8 @@ export const Info = Schema.Struct({
   location: Location.Ref,
   subpath: RelativePath.pipe(Schema.optional),
   attended: Schema.Boolean.pipe(Schema.optional),
+  revert: Schema.optional(Revert),
+  summary: Schema.optional(Summary),
 }).annotate({ identifier: "SessionV2.Info" })
 
 export const ListAnchor = Schema.Struct({

@@ -7,6 +7,7 @@ import { ProviderV2 } from "../provider"
 import { AbsolutePath, RelativePath } from "../schema"
 import { WorkspaceV2 } from "../workspace"
 import { SessionSchema } from "./schema"
+import { SessionMessage } from "./message"
 import { SessionTable } from "./sql"
 
 export function fromRow(row: typeof SessionTable.$inferSelect): SessionSchema.Info {
@@ -44,5 +45,20 @@ export function fromRow(row: typeof SessionTable.$inferSelect): SessionSchema.In
       updated: DateTime.makeUnsafe(row.time_updated),
       archived: row.time_archived ? DateTime.makeUnsafe(row.time_archived) : undefined,
     },
+    revert: row.revert
+      ? {
+          messageID: row.revert.messageID as unknown as SessionMessage.ID,
+          snapshot: row.revert.snapshot,
+          diff: row.revert.diff,
+        }
+      : undefined,
+    summary:
+      row.summary_additions !== null && row.summary_deletions !== null && row.summary_files !== null
+        ? {
+            additions: row.summary_additions,
+            deletions: row.summary_deletions,
+            files: row.summary_files,
+          }
+        : undefined,
   })
 }

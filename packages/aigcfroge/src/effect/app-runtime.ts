@@ -1,4 +1,4 @@
-import { Layer, ManagedRuntime } from "effect"
+import { Effect, Layer, ManagedRuntime } from "effect"
 import { attach } from "./run-service"
 import * as Observability from "@aigcfroge/core/observability"
 
@@ -61,6 +61,9 @@ import { SessionStore } from "@aigcfroge/core/session/store"
 import { SessionProjector } from "@aigcfroge/core/session/projector"
 import { EventV2 } from "@aigcfroge/core/event"
 import * as SessionExecutionLocal from "@aigcfroge/core/session/execution/local"
+import { V2Snapshot } from "@aigcfroge/core/session/v2-snapshot"
+import { SessionRevert as V2SessionRevert } from "@aigcfroge/core/session/revert"
+import { SessionSummary as V2SessionSummary } from "@aigcfroge/core/session/summary"
 
 /**
  * AIGCFROGE_V2_RUNTIME — Flag to toggle V1→V2 runtime paths.
@@ -138,6 +141,24 @@ export const AppLayer = Layer.mergeAll(
     Layer.orDie,
   ),
   LocationServiceMap.layer,
+
+  // V2 Snapshot bridge (wraps V1 Snapshot.Service into V2Snapshot tag)
+  Layer.effect(
+    V2Snapshot.Service,
+    Effect.gen(function* () {
+      const v1 = yield* Snapshot.Service
+      return V2Snapshot.Service.of({
+        track: () => v1.track(),
+        restore: (snap) => v1.restore(snap),
+        revert: (patches) => v1.revert(patches),
+        diffFull: (from, to) => v1.diffFull(from, to),
+      })
+    }),
+  ),
+
+  // V2 revert + summary (depend on V2Snapshot + SessionStore)
+  V2SessionRevert.defaultLayer,
+  V2SessionSummary.defaultLayer,
 ).pipe(
   Layer.provideMerge(Ripgrep.defaultLayer),
   Layer.provideMerge(InstanceLayer.layer),
