@@ -36,21 +36,31 @@ export const generateSummary = Effect.fn("SessionShare.generateSummary")(functio
 ) {
   const llmOpt = yield* Effect.serviceOption(LLMClient.Service)
   const catalogOpt = yield* Effect.serviceOption(Catalog.Service)
-  if (llmOpt._tag === "None" || catalogOpt._tag === "None")
+  if (llmOpt._tag === "None" || catalogOpt._tag === "None") {
+    yield* Effect.logDebug("SessionShare.generateSummary: LLM or Catalog unavailable, using truncation fallback")
     return simpleTruncate(messages, 5)
+  }
   const llm = llmOpt.value
   const catalog = catalogOpt.value
 
   // Find the first provider with a cheap model available.
   const cheapModel = yield* findCheapModel(catalog)
-  if (!cheapModel)
+  if (!cheapModel) {
+    yield* Effect.logDebug("SessionShare.generateSummary: no cheap model found, using truncation fallback")
     return simpleTruncate(messages, 5)
+  }
+
+  yield* Effect.logInfo(
+    `SessionShare.generateSummary: using ${cheapModel.providerID}/${cheapModel.id}, ${messages.length} input messages`,
+  )
 
   const model = yield* fromCatalogModel(cheapModel).pipe(
     Effect.catch(() => Effect.succeed(undefined as unknown as never)),
   )
-  if (!(model as unknown))
+  if (!(model as unknown)) {
+    yield* Effect.logWarning("SessionShare.generateSummary: model resolution failed, using truncation fallback")
     return simpleTruncate(messages, 5)
+  }
 
   const formatted = formatMessages(messages as SessionMessage.Message[])
   const maxTokens = input?.maxTokens ?? 500
@@ -65,11 +75,18 @@ export const generateSummary = Effect.fn("SessionShare.generateSummary")(functio
   const response = yield* llm.generate(request).pipe(
     Effect.catch(() => Effect.succeed(undefined as unknown as never)),
   )
-  if (!(response as unknown)) return simpleTruncate(messages, 5)
+  if (!(response as unknown)) {
+    yield* Effect.logWarning("SessionShare.generateSummary: LLM generate failed, using truncation fallback")
+    return simpleTruncate(messages, 5)
+  }
 
   const text = (response as unknown as { text: string }).text.trim()
-  if (text.length < 10) return simpleTruncate(messages, 5)
+  if (text.length < 10) {
+    yield* Effect.logDebug("SessionShare.generateSummary: generated summary too short, using truncation fallback")
+    return simpleTruncate(messages, 5)
+  }
 
+  yield* Effect.logDebug(`SessionShare.generateSummary: success, ${text.length} chars`)
   return [
     "<session_summary>",
     text,

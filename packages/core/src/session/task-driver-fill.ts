@@ -128,6 +128,9 @@ export const layer = Layer.effectDiscard(
                 )
                 .get()
               resumeId = row?.external_session_id
+              if (resumeId) yield* Effect.logInfo(
+                `CLI resume: found active session ${resumeId} for session ${input.sessionID}, target=${input.cliTarget}`,
+              )
             }
 
             const result = yield* executeWithTimeout(spawner, adapter, {
@@ -143,6 +146,9 @@ export const layer = Layer.effectDiscard(
               const db: any = dbOpt.value.db
               const hint = adapter.parseResumeHint(result.rawStdout ?? result.summary)
               if (hint) {
+                yield* Effect.logInfo(
+                  `CLI resume: persisted hint ${hint} for session ${input.sessionID}, target=${input.cliTarget}`,
+                )
                 yield* db
                   .insert(ExternalCliSessionTable)
                   .values({

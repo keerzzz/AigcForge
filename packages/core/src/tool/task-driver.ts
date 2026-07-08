@@ -401,11 +401,14 @@ export const install = (
           ),
           { concurrency: "unbounded" },
         )
+        yield* Effect.logDebug(
+          `delegateJudge: ${children.length} children, ${outcomes.filter((r): r is string => r.length > 0).length} succeeded`,
+        )
 
         // Cancel failed children so their BackgroundJob scopes close.
         for (let i = 0; i < children.length; i++) {
           if (!outcomes[i] || outcomes[i].length === 0)
-            yield* background.cancel(children[i])
+            yield* background.cancel(children[i]).pipe(Effect.ignore)
         }
 
         // Judge merge: non-empty results → LLM merge → final text.

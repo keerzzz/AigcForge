@@ -26,8 +26,17 @@ export const judgeMerge = (prompt: string, results: readonly string[]) =>
     const llm = yield* LLMClient.Service
     const catalog = yield* Catalog.Service
 
+    yield* Effect.logDebug(
+      `Judge.merge: ${results.length} results, lengths=[${results.map((r) => r.length).join(",")}]`,
+    )
+
     const judgeModel = yield* findJudgeModel(catalog)
-    if (!judgeModel) return results[0]
+    if (!judgeModel) {
+      yield* Effect.logWarning("Judge.merge: no cheap model available, falling back to first result")
+      return results[0]
+    }
+
+    yield* Effect.logInfo(`Judge.merge: using model ${judgeModel.providerID}/${judgeModel.id}`)
 
     // fromCatalogModel converts ModelV2.Info to LLM.Model (AI SDK route).
     // UnsupportedApiError means no SDK route exists for this model — treat
@@ -35,7 +44,10 @@ export const judgeMerge = (prompt: string, results: readonly string[]) =>
     const model = yield* fromCatalogModel(judgeModel).pipe(
       Effect.catchTag("SessionRunnerModel.UnsupportedApiError", () => Effect.succeed(undefined as unknown as never)),
     )
-    if (!(model as unknown)) return results[0]
+    if (!(model as unknown)) {
+      yield* Effect.logWarning("Judge.merge: model resolution failed, falling back to first result")
+      return results[0]
+    }
 
     const parts = results.map((r, i) => `<attempt index="${i + 1}">\n${r}\n</attempt>`)
     const formatted = [
@@ -55,10 +67,19 @@ export const judgeMerge = (prompt: string, results: readonly string[]) =>
     const response: LLMResponse | undefined = yield* llm.generate(request).pipe(
       Effect.catch(() => Effect.succeed(undefined)),
     )
-    if (!response) return results[0]
+    if (!response) {
+      yield* Effect.logWarning("Judge.merge: LLM generate failed, falling back to first result")
+      return results[0]
+    }
 
     const text = response.text.trim()
-    return text.length > 10 ? text : results[0]
+    if (text.length <= 10) {
+      yield* Effect.logWarning(`Judge.merge: merged text too short (${text.length}), falling back to first result`)
+      return results[0]
+    }
+
+    yield* Effect.logDebug(`Judge.merge: success, merged length=${text.length}`)
+    return text
   })
 
 const findJudgeModel = (catalog: Catalog.Interface) =>
