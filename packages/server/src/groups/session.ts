@@ -331,6 +331,25 @@ export const SessionGroup = HttpApiGroup.make("server.session")
         }),
       ),
   )
+  .add(
+    HttpApiEndpoint.post("session.fork", "/api/session/:sessionID/fork", {
+      params: { sessionID: SessionV2.ID },
+      payload: Schema.Struct({
+        prompt: Schema.String.pipe(Schema.optional),
+        agent: Schema.String.pipe(Schema.optional),
+      }),
+      success: Schema.Struct({ sessionID: SessionV2.ID }),
+      error: SessionNotFoundError,
+    })
+      .middleware(SessionLocationMiddleware)
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.session.fork",
+          summary: "Fork a session",
+          description: "Create a new session that inherits the full context of the source session.",
+        }),
+      ),
+  )
   .annotateMerge(
     OpenApi.annotations({
       title: "sessions",

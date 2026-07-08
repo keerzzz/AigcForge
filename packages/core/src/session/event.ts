@@ -144,6 +144,17 @@ export const Synthetic = EventV2.define({
 })
 export type Synthetic = typeof Synthetic.Type
 
+export const Forked = EventV2.define({
+  type: "session.next.forked",
+  ...options,
+  schema: {
+    ...Base,
+    childSessionID: SessionSchema.ID,
+    forkedMessageID: SessionMessageID.ID.pipe(Schema.optional),
+  },
+})
+export type Forked = typeof Forked.Type
+
 export namespace Shell {
   export const Started = EventV2.define({
     type: "session.next.shell.started",
@@ -501,6 +512,7 @@ const DurableDefinitions = [
   SkillAdmitted,
   ContextUpdated,
   Synthetic,
+  Forked,
   Shell.Started,
   Shell.Ended,
   Step.Started,

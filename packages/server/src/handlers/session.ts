@@ -347,5 +347,29 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
           return HttpApiSchema.NoContent.make()
         }),
       )
+      .handle(
+        "session.fork",
+        function (ctx: any) {
+          return Effect.gen(function* () {
+            const parent = yield* session.get(ctx.params.sessionID)
+            const child = yield* session.create({
+              location: parent.location,
+              parentID: parent.id,
+            })
+            const share = yield* SessionShareV2.Service
+            yield* share.share({
+              sourceSessionID: ctx.params.sessionID,
+              targetSessionID: child.id,
+              scope: "full",
+              trigger: true,
+            })
+            return { sessionID: child.id }
+          }).pipe(
+            Effect.catchTag("Session.NotFoundError", (error: any) =>
+              Effect.fail(new SessionNotFoundError({ sessionID: error.sessionID, message: `Session not found: ${error.sessionID}` })),
+            ),
+          ) as any
+        },
+      )
   }),
 )
