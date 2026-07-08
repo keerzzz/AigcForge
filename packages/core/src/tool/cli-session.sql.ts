@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core"
+import { sqliteTable, text, integer, index, uniqueIndex } from "drizzle-orm/sqlite-core"
 import { SessionTable } from "../session/sql"
 import { Timestamps } from "../database/schema.sql"
 import { SessionSchema } from "../session/schema"
@@ -24,5 +24,6 @@ export const ExternalCliSessionTable = sqliteTable(
   (table) => [
     index("external_cli_session_session_idx").on(table.session_id),
     index("external_cli_session_external_idx").on(table.external_session_id),
+    uniqueIndex("external_cli_session_unique_idx").on(table.session_id, table.external_session_id),
   ],
 )

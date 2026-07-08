@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "802835e8-6c64-4cda-a9b9-e11a8b928513",
+  "id": "ca260207-f5ac-444f-86fb-3f4e26d28101",
   "prevIds": [
-    "b3ab2891-9ace-4f7d-b1c4-c8ff227969c6"
+    "802835e8-6c64-4cda-a9b9-e11a8b928513"
   ],
   "ddl": [
     {
@@ -2335,6 +2335,24 @@
       "where": null,
       "origin": "manual",
       "name": "external_cli_session_external_idx",
+      "entityType": "indexes",
+      "table": "external_cli_session"
+    },
+    {
+      "columns": [
+        {
+          "value": "session_id",
+          "isExpression": false
+        },
+        {
+          "value": "external_session_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "external_cli_session_unique_idx",
       "entityType": "indexes",
       "table": "external_cli_session"
     },

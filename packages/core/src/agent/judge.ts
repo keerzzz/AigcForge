@@ -1,7 +1,7 @@
 import { Effect } from "effect"
-import { LLM, LLMClient, Message, SystemPart } from "@aigcfroge/llm"
+import { LLM, LLMClient, Message, SystemPart, LLMResponse } from "@aigcfroge/llm"
 import { Catalog } from "../catalog"
-import { fromCatalogModel } from "../session/runner/model"
+import { fromCatalogModel, UnsupportedApiError } from "../session/runner/model"
 
 const JUDGE_SYSTEM_PROMPT = `You are a Judge model in a multi-model arbitration system.
 Multiple AI agents have independently attempted the same task. Your job is to review their outputs and produce the best possible final result.
@@ -29,8 +29,11 @@ export const judgeMerge = (prompt: string, results: readonly string[]) =>
     const judgeModel = yield* findJudgeModel(catalog)
     if (!judgeModel) return results[0]
 
+    // fromCatalogModel converts ModelV2.Info to LLM.Model (AI SDK route).
+    // UnsupportedApiError means no SDK route exists for this model — treat
+    // as unavailable and fall back to first result.
     const model = yield* fromCatalogModel(judgeModel).pipe(
-      Effect.catch(() => Effect.succeed(undefined as unknown as never)),
+      Effect.catchTag("SessionRunnerModel.UnsupportedApiError", () => Effect.succeed(undefined as unknown as never)),
     )
     if (!(model as unknown)) return results[0]
 
@@ -41,18 +44,20 @@ export const judgeMerge = (prompt: string, results: readonly string[]) =>
     ].join("\n")
 
     const request = LLM.request({
-      model: model as unknown as Parameters<typeof LLM.request>[0]["model"],
+      model,
       system: [SystemPart.make(JUDGE_SYSTEM_PROMPT)],
       messages: [Message.user(formatted)],
       generation: { maxTokens: 4096, temperature: 0.3 },
     })
 
-    const response = yield* llm.generate(request).pipe(
-      Effect.catch(() => Effect.succeed(undefined as unknown as never)),
+    // LLMClient.generate returns Effect<LLMResponse, LLMError>. On any
+    // LLM failure (network, rate limit, etc.), fall back to first result.
+    const response: LLMResponse | undefined = yield* llm.generate(request).pipe(
+      Effect.catch(() => Effect.succeed(undefined)),
     )
-    if (!(response as unknown)) return results[0]
+    if (!response) return results[0]
 
-    const text = (response as unknown as { text: string }).text.trim()
+    const text = response.text.trim()
     return text.length > 10 ? text : results[0]
   })
 

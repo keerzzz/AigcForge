@@ -342,12 +342,8 @@ export const install = (
         // P6.1: prepend a compressed parent-context summary to the prompt so the
         // subagent receives context without the full history. The summary call
         // yields LLMClient/Catalog, resolved from the runner scope at runtime;
-        // the `as` below erases the R so the seam stays dependency-free.
-        let prompt = input.prompt
-        if (input.parentID) {
-          const summary = yield* composeParentSummary(input.parentID)
-          if (summary) prompt = `<parent_context>\n${summary}\n</parent_context>\n\n${prompt}`
-        }
+        const parentContextSummary = input.parentID ? (yield* composeParentSummary(input.parentID)) : ""
+        const prompt = parentContextSummary ? `<parent_context>\n${parentContextSummary}\n</parent_context>\n\n${input.prompt}` : input.prompt
         yield* sessions.prompt({ sessionID: input.sessionID, prompt: { text: prompt }, resume: false })
       }).pipe(
         Effect.andThen(background.start(input.sessionID, sessions.resume(input.sessionID))),
@@ -386,11 +382,8 @@ export const install = (
         }
 
         // Compose parent context summary (same as delegate's pattern).
-        let prompt = input.prompt
-        if (input.parentID) {
-          const summary = yield* composeParentSummary(input.parentID)
-          if (summary) prompt = `<parent_context>\n${summary}\n</parent_context>\n\n${prompt}`
-        }
+        const parentSummary = input.parentID ? (yield* composeParentSummary(input.parentID)) : ""
+        const prompt = parentSummary ? `<parent_context>\n${parentSummary}\n</parent_context>\n\n${input.prompt}` : input.prompt
 
         // Admit prompt to each child sequentially (SQLite serialization), then
         // start background drains and wait for all to complete concurrently.
@@ -424,6 +417,7 @@ export const install = (
             message: "All judge delegates failed",
           })
 
+        return yield* judgeMerge(prompt, results)
       }) as unknown as Effect.Effect<string, DelegateError>,
     delegateBackground: (input) =>
       sessions.prompt({ sessionID: input.sessionID, prompt: { text: input.prompt }, resume: false }).pipe(

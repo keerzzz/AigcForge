@@ -55,6 +55,10 @@ export function executeWithTimeout(
       ),
     )
 
-    return yield* adapter.parseOutput(result.stdout.toString("utf8"), result.stderr.toString("utf8"))
+    const stdoutStr = result.stdout.toString("utf8")
+    const parsed = yield* adapter.parseOutput(stdoutStr, result.stderr.toString("utf8"))
+    // Preserve raw stdout so the caller can run parseResumeHint on the original
+    // JSONL frames after parseOutput has consumed them.
+    return { ...parsed, rawStdout: stdoutStr }
   })
 }

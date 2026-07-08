@@ -112,7 +112,11 @@ export const layer = Layer.effectDiscard(
             // Check for a pending external CLI session to resume.
             let resumeId: string | undefined
             if (Option.isSome(dbOpt)) {
-              const db = dbOpt.value.db as any
+              // The drizzle db handle is typed as DatabaseShape (a complex
+              // EffectDrizzleSqlite type). Cast to any is needed because the
+              // drizzle query builder types don't compose across module
+              // boundaries for the ExternalCliSessionTable schema.
+              const db: any = dbOpt.value.db
               const row = yield* (db as any)
                 .select()
                 .from(ExternalCliSessionTable)
@@ -135,7 +139,7 @@ export const layer = Layer.effectDiscard(
             // Persist resume_hint if the CLI emitted one and DB is available.
             if (Option.isSome(dbOpt) && adapter.parseResumeHint) {
               const db = dbOpt.value.db as any
-              const hint = adapter.parseResumeHint(result.summary)
+              const hint = adapter.parseResumeHint(result.rawStdout ?? result.summary)
               if (hint) {
                 yield* (db as any)
                   .insert(ExternalCliSessionTable)

@@ -7,6 +7,8 @@ export type DelegationStatus = "success" | "partial" | "failed"
 export interface DelegationResult {
   status: DelegationStatus
   summary: string
+  /** Raw stdout from the CLI process, preserved for parseResumeHint. */
+  rawStdout?: string
   files?: { created?: string[]; modified?: string[]; deleted?: string[] }
   errors?: string[]
 }
