@@ -11,6 +11,7 @@ import { adapter as opencodeAdapter } from "../tool/opencode"
 import { adapter as claudeCodeAdapter } from "../tool/claude-code"
 import { adapter as geminiAdapter } from "../tool/gemini"
 import { adapter as codexAdapter } from "../tool/codex"
+import { MetaAgentService } from "../meta-agent/service"
 
 /**
  * Installs a `SessionV2`-backed implementation into the {@link TaskDriver}
@@ -43,10 +44,28 @@ export const layer = Layer.effectDiscard(
     registerCliAdapter(geminiAdapter.name, geminiAdapter)
     registerCliAdapter(codexAdapter.name, codexAdapter)
     registerCliAdapter(opencodeAdapter.name, opencodeAdapter)
+    const metaAgent = yield* Effect.serviceOption(MetaAgentService.Service)
     TaskDriver.install(
       {
         get: sessions.get,
-        create: sessions.create,
+        create: (input) =>
+          Effect.gen(function* () {
+            const child = yield* sessions.create(input)
+            // Record meta agent step if the parent session is associated with a meta agent.
+            if (metaAgent._tag === "Some" && input.parentID) {
+              const parentMeta = yield* metaAgent.value.findBySession(input.parentID)
+              if (parentMeta) {
+                yield* metaAgent.value.writeStep({
+                  metaAgentSessionID: parentMeta.sessionID,
+                  seq: yield* Effect.sync(() => Date.now()),
+                  engine: input.agent ? input.agent.toString() : "default",
+                  type: "subagent",
+                  prompt: undefined,
+                })
+              }
+            }
+            return child
+          }),
         prompt: sessions.prompt,
         resume: sessions.resume,
         messages: (input) => sessions.messages({ sessionID: input.sessionID }),

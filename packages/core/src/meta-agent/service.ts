@@ -48,6 +48,23 @@ export interface Interface {
   }) => Effect.Effect<void>
   readonly detach: (input: { metaID: MetaAgent.ID; sessionID: SessionSchema.ID }) => Effect.Effect<void>
   readonly remove: (id: MetaAgent.ID) => Effect.Effect<void>
+  readonly findBySession: (sessionID: SessionSchema.ID) => Effect.Effect<
+    | { metaID: MetaAgent.ID; sessionID: SessionSchema.ID; role: string }
+    | undefined
+  >
+  readonly writeStep: (input: {
+    metaAgentSessionID: string
+    seq: number
+    type: "subagent" | "external-cli" | "tool"
+    engine: string
+    prompt?: string
+  }) => Effect.Effect<string>
+  readonly updateStep: (input: {
+    stepID: string
+    status: "completed" | "failed"
+    result?: string
+    error?: string
+  }) => Effect.Effect<void>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/MetaAgentService") {}
@@ -197,7 +214,67 @@ export const layer = Layer.effect(
       yield* db.delete(MetaAgentTable).where(eq(MetaAgentTable.id, id)).pipe(Effect.orDie)
     })
 
-    return Service.of({ create, get, list, sessions, stats, attach, detach, remove })
+    const findBySession = Effect.fn("MetaAgentService.findBySession")(function* (
+      sessionID: SessionSchema.ID,
+    ) {
+      const row = yield* db
+        .select()
+        .from(MetaAgentSessionTable)
+        .where(eq(MetaAgentSessionTable.session_id, sessionID))
+        .get()
+        .pipe(Effect.orDie)
+      return row
+        ? { metaID: MetaAgent.ID.make(row.meta_agent_id), sessionID: SessionSchema.ID.make(row.session_id), role: row.role }
+        : undefined
+    })
+
+    let stepSeq = 0
+    const writeStep = Effect.fn("MetaAgentService.writeStep")(function* (input: {
+      metaAgentSessionID: string
+      seq: number
+      type: "subagent" | "external-cli" | "tool"
+      engine: string
+      prompt?: string
+    }) {
+      const id = `stp_${yield* Effect.sync(() => (++stepSeq).toString(36))}_${Date.now().toString(36)}`
+      const now = yield* DateTime.now
+      yield* db
+        .insert(MetaAgentStepTable)
+        .values({
+          id,
+          meta_agent_session_id: input.metaAgentSessionID,
+          seq: input.seq,
+          type: input.type,
+          engine: input.engine,
+          status: "running",
+          prompt: input.prompt ?? null,
+          time_created: DateTime.toEpochMillis(now),
+          time_updated: DateTime.toEpochMillis(now),
+        })
+        .pipe(Effect.orDie)
+      return id
+    })
+
+    const updateStep = Effect.fn("MetaAgentService.updateStep")(function* (input: {
+      stepID: string
+      status: "completed" | "failed"
+      result?: string
+      error?: string
+    }) {
+      const now = yield* DateTime.now
+      yield* db
+        .update(MetaAgentStepTable)
+        .set({
+          status: input.status,
+          result: input.result ?? null,
+          error: input.error ?? null,
+          time_updated: DateTime.toEpochMillis(now),
+        })
+        .where(eq(MetaAgentStepTable.id, input.stepID))
+        .pipe(Effect.orDie)
+    })
+
+    return Service.of({ create, get, list, sessions, stats, attach, detach, remove, findBySession, writeStep, updateStep })
   }),
 )
 
