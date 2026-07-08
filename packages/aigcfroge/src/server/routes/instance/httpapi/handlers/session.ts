@@ -2,6 +2,7 @@ import { PermissionV1 } from "@aigcfroge/core/v1/permission"
 import { Agent } from "@/agent/agent"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { SessionV2 } from "@aigcfroge/core/session"
+import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
 import { SessionRevert as V2SessionRevert } from "@aigcfroge/core/session/revert"
 import { SessionSummary as V2SessionSummary } from "@aigcfroge/core/session/summary"
 import { EventV2Bridge } from "@/event-v2-bridge"
@@ -18,6 +19,7 @@ import { SessionStatus } from "@/session/status"
 import { SessionSummary } from "@/session/summary"
 import { Todo } from "@/session/todo"
 import { MessageID, PartID, SessionID } from "@/session/schema"
+import { AbsolutePath } from "@aigcfroge/core/schema"
 import { getCacheDiagnostics } from "@aigcfroge/core/session/cache-diagnostics"
 import { Database } from "@aigcfroge/core/database/database"
 import { NamedError } from "@aigcfroge/core/util/error"
@@ -219,6 +221,14 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       params: { sessionID: SessionID }
       payload?: typeof ForkPayload.Type
     }) {
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2s = yield* SessionV2.Service
+        const parent = yield* SessionError.mapStorageNotFound(session.get(ctx.params.sessionID))
+        const child = yield* v2s.create({ location: { directory: AbsolutePath.make(parent.directory) }, parentID: parent.id })
+        const shareSvc = yield* SessionShareV2.Service
+        yield* shareSvc.share({ sourceSessionID: ctx.params.sessionID as SessionV2.ID, targetSessionID: child.id, scope: "full", trigger: true })
+        return child
+      }
       return yield* SessionError.mapStorageNotFound(
         session.fork({
           sessionID: ctx.params.sessionID,
@@ -275,7 +285,12 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     // every failure to a 400 BadRequest.
     const share = Effect.fn("SessionHttpApi.share")(function* (ctx: { params: { sessionID: SessionID } }) {
       yield* requireSession(ctx.params.sessionID)
+      if (AIGCFROGE_V2_RUNTIME) {
+        const shareSvc2 = yield* SessionShareV2.Service
+        yield* shareSvc2.share({ sourceSessionID: ctx.params.sessionID as SessionV2.ID, targetSessionID: ctx.params.sessionID as SessionV2.ID, scope: "full", trigger: false })
+      } else {
       yield* shareSvc.share(ctx.params.sessionID).pipe(Effect.mapError(() => new HttpApiError.InternalServerError({})))
+      }
       return yield* requireSession(ctx.params.sessionID)
     })
 
@@ -292,6 +307,11 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof SummarizePayload.Type
     }) {
       yield* revertSvc.cleanup(yield* requireSession(ctx.params.sessionID))
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2s = yield* SessionV2.Service
+        yield* v2s.compact({ sessionID: ctx.params.sessionID as SessionV2.ID })
+        return true
+      }
       const messages = yield* SessionError.mapStorageNotFound(session.messages({ sessionID: ctx.params.sessionID }))
       const defaultAgent = yield* agentSvc.defaultAgent()
       const currentAgent = messages.findLast((message) => message.info.role === "user")?.info.agent ?? defaultAgent
@@ -368,6 +388,10 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof CommandPayload.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2s = yield* SessionV2.Service
+        return yield* v2s.skill({ sessionID: ctx.params.sessionID as SessionV2.ID, skill: ctx.payload.command, resume: true })
+      }
       return yield* promptSvc
         .command({ ...ctx.payload, sessionID: ctx.params.sessionID })
         .pipe(Effect.mapError(() => new HttpApiError.BadRequest({})))
