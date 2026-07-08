@@ -245,7 +245,11 @@ export const layer = Layer.effectDiscard(
                   }
                 }
 
-                const text = yield* TaskDriver.delegate({ sessionID: child.id, prompt: input.prompt })
+                const text = yield* TaskDriver.delegate({
+                  sessionID: child.id,
+                  parentID: context.sessionID,
+                  prompt: input.prompt,
+                })
                 return {
                   sessionID: child.id,
                   output: renderOutput({ sessionID: child.id, state: "completed", text }),

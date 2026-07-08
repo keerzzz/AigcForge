@@ -5,6 +5,7 @@ import { AgentV2 } from "../agent"
 import { Location } from "../location"
 import { SessionMessage } from "../session/message"
 import { SessionSchema } from "../session/schema"
+import { generateSummary } from "../session/share-summary"
 
 /**
  * A foreground delegation ended without a usable result because the child
@@ -72,17 +73,11 @@ export interface Interface {
    * cancelled — the recoverable outcome the tool retries. Infrastructure faults
    * (admission, scheduling, history read) still die.
    */
-  readonly delegate: (input: { sessionID: SessionSchema.ID; prompt: string }) => Effect.Effect<string, DelegateError>
-  /**
-   * Inject a text summary of the parent Session's last messages into the child
-   * Session, so the subagent receives context without full history. No LLM call;
-   * uses simple truncation of the last N messages. Safe to call anytime between
-   * createChild and delegate — fails gracefully when messages are inaccessible.
-   */
-  readonly injectParentSummary: (input: {
-    parentID: SessionSchema.ID
-    childID: SessionSchema.ID
-  }) => Effect.Effect<void>
+  readonly delegate: (input: {
+    sessionID: SessionSchema.ID
+    parentID?: SessionSchema.ID
+    prompt: string
+  }) => Effect.Effect<string, DelegateError>
   /**
    * Admit `prompt` and drive the child Session on an independent fiber, then
    * return immediately without awaiting it. When the child settles, its final
@@ -151,12 +146,8 @@ export const createChild = (input: {
 }) => active().pipe(Effect.flatMap((impl) => impl.createChild(input)))
 
 /** Delegate a prompt to a child Session and await its final text (foreground). */
-export const delegate = (input: { sessionID: SessionSchema.ID; prompt: string }) =>
+export const delegate = (input: { sessionID: SessionSchema.ID; parentID?: SessionSchema.ID; prompt: string }) =>
   active().pipe(Effect.flatMap((impl) => impl.delegate(input)))
-
-/** Inject a text summary of the parent Session's last messages into a child Session. */
-export const injectParentSummary = (input: { parentID: SessionSchema.ID; childID: SessionSchema.ID }) =>
-  active().pipe(Effect.flatMap((impl) => impl.injectParentSummary(input)))
 
 /** Cancel a child Session's background drain and interrupt its active work (orphan cleanup). */
 export const cancel = (sessionID: SessionSchema.ID) =>
@@ -292,6 +283,25 @@ export const install = (
   const readResult = (sessionID: SessionSchema.ID) =>
     sessions.messages({ sessionID }).pipe(Effect.map(lastAssistantText))
 
+  // P6.1 Structured Handoffs: compress parent context into a 200-500 token
+  // summary via a cheap LLM. Runs in the caller's Effect context (the runner
+  // settle path), so LLMClient/Catalog are resolved from the runner scope at
+  // runtime - the `R` is erased here so the seam stays dependency-free. Falls
+  // back to empty string when summarization is unavailable or fails; defects
+  // (missing services in test contexts) are also caught so delegation never
+  // breaks due to summary generation.
+  const composeParentSummary = (parentID: SessionSchema.ID) =>
+    sessions.messages({ sessionID: parentID }).pipe(
+      Effect.flatMap((messages) =>
+        generateSummary(messages as SessionMessage.Message[]).pipe(
+          Effect.catchDefect(() => Effect.succeed("")),
+          Effect.catch(() => Effect.succeed("")),
+        ),
+      ),
+      Effect.catchDefect(() => Effect.succeed("")),
+      Effect.catch(() => Effect.succeed("")),
+    )
+
   installed = {
     createChild: (input) =>
       sessions.get(input.parentID).pipe(
@@ -307,7 +317,18 @@ export const install = (
         Effect.orDie,
       ),
     delegate: (input) =>
-      sessions.prompt({ sessionID: input.sessionID, prompt: { text: input.prompt }, resume: false }).pipe(
+      Effect.gen(function* () {
+        // P6.1: prepend a compressed parent-context summary to the prompt so the
+        // subagent receives context without the full history. The summary call
+        // yields LLMClient/Catalog, resolved from the runner scope at runtime;
+        // the `as` below erases the R so the seam stays dependency-free.
+        let prompt = input.prompt
+        if (input.parentID) {
+          const summary = yield* composeParentSummary(input.parentID)
+          if (summary) prompt = `<parent_context>\n${summary}\n</parent_context>\n\n${prompt}`
+        }
+        yield* sessions.prompt({ sessionID: input.sessionID, prompt: { text: prompt }, resume: false })
+      }).pipe(
         Effect.andThen(background.start(input.sessionID, sessions.resume(input.sessionID))),
         Effect.andThen(background.wait(input.sessionID)),
         // Infrastructure faults (admission, scheduling, history read) die; only a
@@ -326,24 +347,7 @@ export const install = (
               })
             : readResult(input.sessionID).pipe(Effect.orDie),
         ),
-      ),
-    injectParentSummary: (input) =>
-      sessions.messages({ sessionID: input.parentID }).pipe(
-        Effect.flatMap((messages) => {
-          const tail = messages.slice(-5)
-          const lines: string[] = ["<parent_context_summary>"]
-          for (const m of tail) {
-            if (m.type === "user") lines.push(`[User] ${m.text}`)
-            if (m.type === "assistant") {
-              const textPart = m.content.find((p) => p.type === "text")
-              if (textPart) lines.push(`[Assistant] ${textPart.text.slice(0, 200)}`)
-            }
-          }
-          lines.push("</parent_context_summary>")
-          return sessions.injectSynthetic({ sessionID: input.childID, text: lines.join("\n\n") })
-        }),
-        Effect.catch(() => Effect.void),
-      ),
+      ) as unknown as Effect.Effect<string, DelegateError>,
     delegateBackground: (input) =>
       sessions.prompt({ sessionID: input.sessionID, prompt: { text: input.prompt }, resume: false }).pipe(
         // Drive the child, then inject its result into the parent — all on the

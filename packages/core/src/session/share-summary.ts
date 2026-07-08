@@ -25,14 +25,21 @@ Output only the summary, no preamble.`
 /**
  * Generate a 200-500 token summary of session messages using a cheap model.
  * Falls back to returning the raw last N messages if the LLM call fails or
- * no cheap model is available.
+ * no cheap model is available. Uses `serviceOption` for LLMClient/Catalog so
+ * missing services degrade to fallback instead of defecting - this lets the
+ * summary run in any Effect context that provides the services, and safely
+ * no-ops (via fallback) in contexts that don't (e.g. tests).
  */
 export const generateSummary = Effect.fn("SessionShare.generateSummary")(function* (
   messages: ReadonlyArray<SessionMessage.Message>,
   input?: { maxTokens?: number },
 ) {
-  const llm = yield* LLMClient.Service
-  const catalog = yield* Catalog.Service
+  const llmOpt = yield* Effect.serviceOption(LLMClient.Service)
+  const catalogOpt = yield* Effect.serviceOption(Catalog.Service)
+  if (llmOpt._tag === "None" || catalogOpt._tag === "None")
+    return simpleTruncate(messages, 5)
+  const llm = llmOpt.value
+  const catalog = catalogOpt.value
 
   // Find the first provider with a cheap model available.
   const cheapModel = yield* findCheapModel(catalog)
