@@ -72,12 +72,12 @@ import { McpAuthV2 } from "@/mcp/v2-auth"
 
 /**
  * AIGCFROGE_V2_RUNTIME — Flag to toggle V1→V2 runtime paths.
- * V2 services are always provided alongside V1 for bridge compatibility.
- * The flag controls which runtime path (V1 handler vs V2 handler) is used.
+ * Default is now true — V1 paths are archived. Set to "false" to
+ * restore V1 behavior before the V1 source tree was archived.
  *
  * @see docs/plan/meta-agent-v2-production-closure.md §4 P1.1
  */
-export const AIGCFROGE_V2_RUNTIME = process.env.AIGCFROGE_V2_RUNTIME === "true"
+export const AIGCFROGE_V2_RUNTIME = process.env.AIGCFROGE_V2_RUNTIME !== "false"
 
 // ── AppLayer: V1 + V2 ────────────────────────────────────────────
 //
