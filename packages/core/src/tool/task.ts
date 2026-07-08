@@ -35,12 +35,16 @@ export const Input = Schema.Struct({
     description:
       "true=attended (subagent asks shown to user for approval), false=unattended (asks auto-denied). Defaults to the subagent's config.",
   }),
-  execution_type: Schema.optional(Schema.Literals(["subagent", "external-cli"])).annotate({
+  execution_type: Schema.optional(Schema.Literals(["subagent", "external-cli", "judge"])).annotate({
     description:
-      "Execution mode: subagent (default) for internal agents, external-cli for CLI tools like claude-code, gemini, opencode",
+      "Execution mode: subagent (default) for internal agents, external-cli for CLI tools like claude-code, gemini, opencode, judge for multi-model arbitration (runs the same prompt across N models and merges the best result).",
   }),
   cli_target: Schema.optional(Schema.String).annotate({
     description: "CLI name when execution_type is 'external-cli'",
+  }),
+  judge_models: Schema.optional(Schema.Array(Schema.String)).annotate({
+    description:
+      "Model IDs when execution_type is 'judge'. Each entry is a model ID (e.g. openai/gpt-5, anthropic/claude-sonnet-4). A judge model merges the results. Defaults to the session's model and one alternative. Max 5.",
   }),
 })
 
@@ -163,6 +167,31 @@ export const layer = Layer.effectDiscard(
                   prompt: input.prompt,
                   sessionID: context.sessionID,
                 }).pipe(Effect.mapError((error) => new ToolFailure({ message: error.message })))
+                return {
+                  sessionID: context.sessionID,
+                  output: renderOutput({ sessionID: context.sessionID, state: "completed", text }),
+                }
+              }
+
+              // Judge mode: parallel dispatch across multiple models, results
+              // merged by Judge LLM. Short-circuits before createChild.
+              if (input.execution_type === "judge") {
+                const models = input.judge_models
+                if (!models || models.length === 0) {
+                  return yield* new ToolFailure({
+                    message: "judge_models is required when execution_type is 'judge'",
+                  })
+                }
+                const text = yield* TaskDriver.delegateJudge({
+                  parentID: context.sessionID,
+                  models,
+                  prompt: input.prompt,
+                  description: input.description,
+                }).pipe(
+                  Effect.catchTag("TaskDriver.DelegateError", (error) =>
+                    new ToolFailure({ message: error.message }),
+                  ),
+                )
                 return {
                   sessionID: context.sessionID,
                   output: renderOutput({ sessionID: context.sessionID, state: "completed", text }),

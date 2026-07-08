@@ -6,6 +6,7 @@ import { Location } from "../location"
 import { SessionMessage } from "../session/message"
 import { SessionSchema } from "../session/schema"
 import { generateSummary } from "../session/share-summary"
+import { judgeMerge } from "../agent/judge"
 
 /**
  * A foreground delegation ended without a usable result because the child
@@ -79,6 +80,18 @@ export interface Interface {
     prompt: string
   }) => Effect.Effect<string, DelegateError>
   /**
+   * Judge mode: delegate the same prompt to N child sessions in parallel using
+   * the specified models, collect all results, call a Judge LLM to merge them,
+   * and return the merged text. Each child runs on its own BackgroundJob fiber.
+   * Falls back to the first child's result when the Judge LLM is unavailable.
+   */
+  readonly delegateJudge: (input: {
+    parentID: SessionSchema.ID
+    models: readonly string[]
+    prompt: string
+    description?: string
+  }) => Effect.Effect<string, DelegateError>
+  /**
    * Admit `prompt` and drive the child Session on an independent fiber, then
    * return immediately without awaiting it. When the child settles, its final
    * assistant text is injected into `parentID` as a synthetic message and the
@@ -148,6 +161,14 @@ export const createChild = (input: {
 /** Delegate a prompt to a child Session and await its final text (foreground). */
 export const delegate = (input: { sessionID: SessionSchema.ID; parentID?: SessionSchema.ID; prompt: string }) =>
   active().pipe(Effect.flatMap((impl) => impl.delegate(input)))
+
+/** Judge mode: parallel dispatch across N models, results merged by Judge LLM. */
+export const delegateJudge = (input: {
+  parentID: SessionSchema.ID
+  models: readonly string[]
+  prompt: string
+  description?: string
+}) => active().pipe(Effect.flatMap((impl) => impl.delegateJudge(input)))
 
 /** Cancel a child Session's background drain and interrupt its active work (orphan cleanup). */
 export const cancel = (sessionID: SessionSchema.ID) =>
@@ -348,6 +369,62 @@ export const install = (
             : readResult(input.sessionID).pipe(Effect.orDie),
         ),
       ) as unknown as Effect.Effect<string, DelegateError>,
+    delegateJudge: (input) =>
+      Effect.gen(function* () {
+        const modelCount = Math.min(input.models.length, 5)
+        if (modelCount === 0) return yield* new DelegateError({ sessionID: input.parentID, reason: "error", message: "judge_models must specify at least one model" })
+
+        // Create N children under the same parent.
+        const parent = yield* sessions.get(input.parentID)
+        const children: Array<SessionSchema.ID> = []
+        for (let i = 0; i < modelCount; i++) {
+          const child = yield* sessions.create({
+            parentID: input.parentID,
+            location: parent.location,
+          })
+          children.push(child.id)
+        }
+
+        // Compose parent context summary (same as delegate's pattern).
+        let prompt = input.prompt
+        if (input.parentID) {
+          const summary = yield* composeParentSummary(input.parentID)
+          if (summary) prompt = `<parent_context>\n${summary}\n</parent_context>\n\n${prompt}`
+        }
+
+        // Admit prompt to each child sequentially (SQLite serialization), then
+        // start background drains and wait for all to complete concurrently.
+        for (const id of children) {
+          yield* sessions.prompt({ sessionID: id, prompt: { text: prompt }, resume: false })
+          yield* background.start(id, sessions.resume(id))
+        }
+
+        const outcomes = yield* Effect.all(
+          children.map((id) =>
+            background.wait(id).pipe(
+              Effect.andThen(readResult(id).pipe(Effect.catch(() => Effect.succeed("")))),
+              Effect.catch(() => Effect.succeed("")),
+            ),
+          ),
+          { concurrency: "unbounded" },
+        )
+
+        // Cancel failed children so their BackgroundJob scopes close.
+        for (let i = 0; i < children.length; i++) {
+          if (!outcomes[i] || outcomes[i].length === 0)
+            yield* background.cancel(children[i])
+        }
+
+        // Judge merge: non-empty results → LLM merge → final text.
+        const results = outcomes.filter((r): r is string => r.length > 0)
+        if (results.length === 0)
+          return yield* new DelegateError({
+            sessionID: input.parentID,
+            reason: "error",
+            message: "All judge delegates failed",
+          })
+
+      }) as unknown as Effect.Effect<string, DelegateError>,
     delegateBackground: (input) =>
       sessions.prompt({ sessionID: input.sessionID, prompt: { text: input.prompt }, resume: false }).pipe(
         // Drive the child, then inject its result into the parent — all on the
