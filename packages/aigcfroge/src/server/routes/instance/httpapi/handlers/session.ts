@@ -1,6 +1,7 @@
 import { PermissionV1 } from "@aigcfroge/core/v1/permission"
 import { Agent } from "@/agent/agent"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
+import { SessionV2 } from "@aigcfroge/core/session"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Command } from "@/command"
 import { Permission } from "@/permission"
@@ -39,6 +40,7 @@ import {
 } from "../groups/session"
 import { PermissionNotFoundError } from "../errors"
 import * as SessionError from "./session-errors"
+import { AIGCFROGE_V2_RUNTIME } from "@/effect/app-runtime"
 
 const tryParseJson = (text: string) =>
   Effect.try({
@@ -314,6 +316,24 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof PromptPayload.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2session = yield* SessionV2.Service
+        // Extract text from the V1 prompt payload's first text part.
+        const parts = ctx.payload.parts as Array<{ type: string; text?: string }> | undefined
+        const textPart = parts?.find((p) => p.type === "text")
+        const promptText = textPart?.text ?? ""
+        if (promptText) {
+          yield* v2session
+            .prompt({
+              sessionID: ctx.params.sessionID as SessionV2.ID,
+              prompt: { text: promptText },
+              delivery: "steer",
+              resume: true,
+            })
+            .pipe(Effect.ignore)
+        }
+        return HttpApiSchema.NoContent.make()
+      }
       yield* promptSvc.prompt({ ...ctx.payload, sessionID: ctx.params.sessionID }).pipe(
         Effect.catchCause((cause) =>
           Effect.gen(function* () {
