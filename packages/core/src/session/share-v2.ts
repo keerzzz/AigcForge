@@ -29,7 +29,8 @@ export interface Interface {
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionShare") {}
 
-function formatMessages(messages: SessionMessage.Message[]): string {
+/** Exported for share-summary.ts to use without duplicating. */
+export function formatMessages(messages: SessionMessage.Message[]): string {
   const lines: string[] = []
   for (const msg of messages) {
     switch (msg.type) {
