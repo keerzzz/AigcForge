@@ -130,6 +130,10 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
         })
       }
       yield* requireSession(ctx.params.sessionID)
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2s = yield* SessionV2.Service
+        return yield* v2s.messages({ sessionID: ctx.params.sessionID as SessionV2.ID, order: ctx.query.before ? "desc" : "asc" })
+      }
       if (ctx.query.limit === undefined || ctx.query.limit === 0) {
         return yield* SessionError.mapStorageNotFound(session.messages({ sessionID: ctx.params.sessionID }))
       }
@@ -161,12 +165,24 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const message = Effect.fn("SessionHttpApi.message")(function* (ctx: {
       params: { sessionID: SessionID; messageID: MessageID }
     }) {
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2s = yield* SessionV2.Service
+        return yield* v2s.message({ sessionID: ctx.params.sessionID as SessionV2.ID, messageID: ctx.params.messageID as SessionV2.ID })
+      }
       return yield* SessionError.mapStorageNotFound(
         MessageV2.get({ sessionID: ctx.params.sessionID, messageID: ctx.params.messageID }),
       )
     })
 
     const create = Effect.fn("SessionHttpApi.create")(function* (ctx: { payload?: Session.CreateInput }) {
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2s = yield* SessionV2.Service
+        // V1 create payload maps differently: id is auto-generated, location is implied.
+        // V2 create will use the current working directory as a fallback location.
+        return yield* v2s.create({
+          location: { directory: AbsolutePath.make(process.cwd()) },
+        })
+      }
       return yield* shareSvc.create(ctx.payload)
     })
 
@@ -334,6 +350,17 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof PromptPayload.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2s = yield* SessionV2.Service
+        const parts = ctx.payload.parts as Array<{ type: string; text?: string }> | undefined
+        const textPart = parts?.find((p) => p.type === "text")
+        const promptText = textPart?.text ?? ""
+        if (promptText) {
+          const admitted = yield* v2s.prompt({ sessionID: ctx.params.sessionID as SessionV2.ID, prompt: { text: promptText }, delivery: "steer", resume: true })
+          return HttpServerResponse.jsonUnsafe(admitted)
+        }
+        return HttpApiSchema.NoContent.make()
+      }
       const message = yield* promptSvc
         .prompt({
           ...ctx.payload,
