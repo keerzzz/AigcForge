@@ -64,6 +64,7 @@ import * as SessionExecutionLocal from "@aigcfroge/core/session/execution/local"
 import { V2Snapshot } from "@aigcfroge/core/session/v2-snapshot"
 import { SessionRevert as V2SessionRevert } from "@aigcfroge/core/session/revert"
 import { SessionSummary as V2SessionSummary } from "@aigcfroge/core/session/summary"
+import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
 import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
 import { McpV2 } from "@aigcfroge/core/mcp/mcp-v2"
 import { McpV2Bridge } from "@/mcp/v2-bridge"
@@ -166,6 +167,9 @@ export const AppLayer = Layer.mergeAll(
 
   // V2 MetaAgent service
   MetaAgentService.defaultLayer,
+
+  // V2 internal share (agent-to-agent context sharing)
+  SessionShareV2.defaultLayer,
 
   // V2 MCP bridge (replaces noop default from location-layer)
   McpV2Bridge.layer.pipe(Layer.provide(McpAuthV2.defaultLayer)),
