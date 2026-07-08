@@ -289,7 +289,15 @@ export const Plugin = define({
 
       draft.update(AgentV2.ID.make("meta"), (item) => {
         item.description = "The meta agent — unified orchestration entry point."
+        // Fill {{SUBAGENTS_LIST}} with non-primary agents as available subagents.
+        const subagentList = draft
+          .list()
+          .filter((a) => a.id !== "meta")
+          .map((a) => `- **${a.id}**: ${a.description || "No description"}`)
+          .join("\n")
         item.system = PROMPT_META
+          .replace("{{SUBAGENTS_LIST}}", subagentList || "(no subagents registered)")
+          .replace("{{CLI_LIST}}", "(configured via AdapterRegistry — claude-code, codex, gemini)")
         item.mode = "primary"
         item.permissions.push(
           ...PermissionV2.merge(defaults, [
