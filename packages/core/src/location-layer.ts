@@ -33,7 +33,7 @@ import { Pty } from "./pty"
 import { SkillV2 } from "./skill"
 import { SkillGuidance } from "./skill/guidance"
 import { BuiltInTools } from "./tool/builtins"
-import { McpV2 } from "./mcp/mcp-v2"
+
 import { Image } from "./image"
 import { ToolRegistry } from "./tool/registry"
 import { ApplicationTools } from "./tool/application-tools"
@@ -76,7 +76,6 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       systemContext,
       LocationMutation.locationLayer.pipe(Layer.orDie),
       CrossSpawnSpawner.defaultLayer,
-      McpV2.noopLayer,
     ).pipe(Layer.provideMerge(location))
     const resources = ToolOutputStore.layer.pipe(Layer.provide(base))
     const permissionsAndTools = ToolRegistry.layer.pipe(

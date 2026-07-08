@@ -65,6 +65,8 @@ import { V2Snapshot } from "@aigcfroge/core/session/v2-snapshot"
 import { SessionRevert as V2SessionRevert } from "@aigcfroge/core/session/revert"
 import { SessionSummary as V2SessionSummary } from "@aigcfroge/core/session/summary"
 import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
+import { McpV2 } from "@aigcfroge/core/mcp/mcp-v2"
+import { McpV2Bridge } from "@/mcp/v2-bridge"
 
 /**
  * AIGCFROGE_V2_RUNTIME — Flag to toggle V1→V2 runtime paths.
@@ -163,6 +165,9 @@ export const AppLayer = Layer.mergeAll(
 
   // V2 MetaAgent service
   MetaAgentService.defaultLayer,
+
+  // V2 MCP bridge (replaces noop default from location-layer)
+  McpV2Bridge.layer,
 ).pipe(
   Layer.provideMerge(Ripgrep.defaultLayer),
   Layer.provideMerge(InstanceLayer.layer),
