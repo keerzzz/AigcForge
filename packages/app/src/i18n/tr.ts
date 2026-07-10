@@ -240,6 +240,8 @@ export const dict = {
   "prompt.mode.shell": "Kabuk",
   "prompt.mode.normal": "Komut",
   "prompt.mode.shell.exit": "çıkmak için esc",
+  "session.child.promptDisabled": "Alt ajan oturumlarına komut gönderilemez.",
+  "session.child.backToParent": "Ana oturuma dön。",
 
   "prompt.example.1": "Kod tabanındaki bir TODO'yu düzelt",
   "prompt.example.2": "Bu projenin teknoloji yığını nedir?",

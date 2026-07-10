@@ -47,6 +47,11 @@ export function preferAppEnv(userDataPath: string) {
     ...(shell ? loadShellEnv(shell, getLogger()) : null),
     AIGCFROGE_EXPERIMENTAL_ICON_DISCOVERY: "true",
     AIGCFROGE_EXPERIMENTAL_FILEWATCHER: "true",
+    // Enable V2 event system so the V1 SessionProcessor dual-publishes
+    // message.part.delta events (the UI subscribes to these for streaming).
+    // Without this, the UI only sees session.text.* events and cannot render
+    // incremental output - content appears all-at-once after re-sync.
+    AIGCFROGE_EXPERIMENTAL_EVENT_SYSTEM: "true",
     AIGCFROGE_CLIENT: "desktop",
     XDG_STATE_HOME: process.env.XDG_STATE_HOME ?? userDataPath,
   })

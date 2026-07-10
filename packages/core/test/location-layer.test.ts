@@ -7,7 +7,6 @@ import { define } from "@aigcfroge/plugin/v2/effect"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { Catalog } from "@aigcfroge/core/catalog"
 import { LocationServiceMap } from "@aigcfroge/core/location-layer"
-import { TaskDriver } from "@aigcfroge/core/tool/task-driver"
 import { Location } from "@aigcfroge/core/location"
 import { PluginV2 } from "@aigcfroge/core/plugin"
 import { ModelV2 } from "@aigcfroge/core/model"
@@ -145,6 +144,7 @@ describe("LocationServiceMap", () => {
             "question",
             "read",
             "skill",
+            "task",
             "todowrite",
             "webfetch",
             "websearch",
@@ -181,6 +181,8 @@ describe("LocationServiceMap", () => {
             models.resolve(
               SessionV2.Info.make({
                 id: SessionV2.ID.make("ses_unavailable_model"),
+                slug: "unavailable-model",
+                version: "0.0.0",
                 projectID: ProjectV2.ID.global,
                 title: "test",
                 model: {

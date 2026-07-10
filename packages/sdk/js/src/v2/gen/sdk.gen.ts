@@ -215,6 +215,8 @@ import type {
   SessionSummarizeResponses,
   SessionTodoErrors,
   SessionTodoResponses,
+  SessionToolSummaryErrors,
+  SessionToolSummaryResponses,
   SessionUnrevertErrors,
   SessionUnrevertResponses,
   SessionUnshareErrors,
@@ -339,6 +341,8 @@ import type {
   V2SessionContextResponses,
   V2SessionCreateErrors,
   V2SessionCreateResponses,
+  V2SessionForkErrors,
+  V2SessionForkResponses,
   V2SessionGetErrors,
   V2SessionGetResponses,
   V2SessionInterruptErrors,
@@ -359,6 +363,8 @@ import type {
   V2SessionQuestionRejectResponses,
   V2SessionQuestionReplyErrors,
   V2SessionQuestionReplyResponses,
+  V2SessionShareErrors,
+  V2SessionShareResponses,
   V2SessionShellErrors,
   V2SessionShellResponses,
   V2SessionSkillErrors,
@@ -4507,6 +4513,38 @@ export class Session2 extends HeyApiClient {
       ...params,
     })
   }
+
+  /**
+   * Get tool summary
+   *
+   * Retrieve aggregated tool call summary for a sub-agent session.
+   */
+  public toolSummary<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionToolSummaryResponses, SessionToolSummaryErrors, ThrowOnError>({
+      url: "/session/{sessionID}/tool-summary",
+      ...options,
+      ...params,
+    })
+  }
 }
 
 export class Part extends HeyApiClient {
@@ -5831,6 +5869,82 @@ export class Session3 extends HeyApiClient {
       url: "/api/session/{sessionID}/interrupt",
       ...options,
       ...params,
+    })
+  }
+
+  /**
+   * Share session content
+   *
+   * Share context from this session into another session. Scope controls what is shared: reference (session link), output (last assistant result), full (entire history).
+   */
+  public share<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      targetSessionID?: string
+      scope?: "reference" | "output" | "full"
+      trigger?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "body", key: "targetSessionID" },
+            { in: "body", key: "scope" },
+            { in: "body", key: "trigger" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<V2SessionShareResponses, V2SessionShareErrors, ThrowOnError>({
+      url: "/api/session/{sessionID}/share",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Fork a session
+   *
+   * Create a new session that inherits the full context of the source session.
+   */
+  public fork<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      prompt?: string
+      agent?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "body", key: "prompt" },
+            { in: "body", key: "agent" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<V2SessionForkResponses, V2SessionForkErrors, ThrowOnError>({
+      url: "/api/session/{sessionID}/fork",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
     })
   }
 

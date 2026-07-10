@@ -291,7 +291,6 @@ it.live("session.processor effect tests preserve text start time", () =>
   provideTmpdirServer(
     ({ dir, llm }) =>
       Effect.gen(function* () {
-        const database = yield* Database.Service
         const gate = defer<void>()
         const { processors, session, provider } = yield* boot()
 
@@ -349,25 +348,12 @@ it.live("session.processor effect tests preserve text start time", () =>
           })
           .pipe(Effect.forkChild)
 
-        yield* waitFor(
-          MessageV2.parts(msg.id).pipe(
-            Effect.map((parts) => parts.find((part): part is SessionV1.TextPart => part.type === "text")),
-            Effect.provideService(Database.Service, database),
-          ),
-          "timed out waiting for text part",
-        )
-        yield* waitFor(
-          MessageV2.parts(msg.id).pipe(
-            Effect.map(
-              (parts): true | undefined => {
-                const text = parts.find((part): part is SessionV1.TextPart => part.type === "text")
-                return text?.time?.start && text.time.end ? true : undefined
-              },
-            ),
-            Effect.provideService(Database.Service, database),
-          ),
-          "timed out waiting for text part time metadata",
-        )
+        // Wait for text-start + text-delta (head) to be processed so that
+        // ctx.currentText.time.start is captured. The part is NOT persisted
+        // until text-end (processor text-start no longer calls updatePart).
+        yield* llm.wait(1)
+        yield* Effect.sleep("50 millis")
+        // Release text-end (tail) - this persists the part via updatePart.
         gate.resolve()
 
         const exit = yield* Fiber.await(run)
@@ -1083,5 +1069,65 @@ itFragmentFailure.live("session.processor effect tests flush partial v2 fragment
         expect(reasoning).toBe("thinking")
       }),
     { config: cfg },
+  ),
+)
+
+// Regression guard: text-start must NOT call session.updatePart. The comment
+// at processor.ts:781 explains why - updatePart publishes message.part.updated,
+// which the UI's staleDeltas mechanism uses to mark the part as stale, causing
+// subsequent streaming deltas to be skipped. If someone re-adds the updatePart
+// call, a PartUpdated with empty text (from ctx.currentText.text = "") appears
+// before the first delta.
+it.live("session.processor text-start does not emit PartUpdated with empty text", () =>
+  provideTmpdirServer(
+    ({ dir, llm }) =>
+      Effect.gen(function* () {
+        const { processors, session, provider } = yield* boot()
+        const events = yield* EventV2Bridge.Service
+
+        yield* llm.text("hello")
+
+        const chat = yield* session.create({})
+        const parent = yield* user(chat.id, "hi")
+        const msg = yield* assistant(chat.id, parent.id, path.resolve(dir))
+        const mdl = yield* provider.getModel(ref.providerID, ref.modelID)
+        const handle = yield* processors.create({
+          assistantMessage: msg,
+          sessionID: chat.id,
+          model: mdl,
+        })
+
+        const textPartUpdates: string[] = []
+        const off = yield* events.listen((evt) => {
+          if (evt.type !== SessionV1.Event.PartUpdated.type) return Effect.void
+          const data = evt.data as { part: { type: string; text?: string } }
+          if (data.part.type === "text") textPartUpdates.push(data.part.text ?? "")
+          return Effect.void
+        })
+
+        yield* handle.process({
+          user: {
+            id: parent.id,
+            sessionID: chat.id,
+            role: "user",
+            time: parent.time,
+            agent: parent.agent,
+            model: { providerID: ref.providerID, modelID: ref.modelID },
+          } satisfies SessionV1.User,
+          sessionID: chat.id,
+          model: mdl,
+          agent: agent(),
+          system: [],
+          messages: [{ role: "user", content: "hi" }],
+          tools: {},
+        })
+        yield* off
+
+        // text-start must not emit a PartUpdated with empty text.
+        // The only text PartUpdated should come from text-end with "hello".
+        expect(textPartUpdates.some((text) => text === "")).toBe(false)
+        expect(textPartUpdates).toContain("hello")
+      }),
+    { config: (url) => providerCfg(url) },
   ),
 )

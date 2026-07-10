@@ -460,6 +460,7 @@ export const dict = {
   "context.usage.clickToView": "Click to view context",
   "context.usage.view": "View context usage",
 
+
   "language.en": "English",
   "language.zh": "简体中文",
   "language.zht": "繁體中文",
@@ -1092,6 +1093,9 @@ export const dict = {
   "statusBar.metrics.subagentActive": "Active",
   "statusBar.metrics.subagentCompleted": "Completed",
   "statusBar.metrics.subagentFailed": "Failed",
+  "statusBar.metrics.toolCount": "Tool calls",
+  "statusBar.metrics.group.tools": "TOOLS",
+  "statusBar.openContext": "Open context tab",
 
   "toolActivity.title": "Tool Activity",
   "toolActivity.category.read": "Read files",

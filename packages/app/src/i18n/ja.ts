@@ -217,6 +217,8 @@ export const dict = {
   "prompt.mode.shell": "シェル",
   "prompt.mode.normal": "プロンプト",
   "prompt.mode.shell.exit": "escで終了",
+  "session.child.promptDisabled": "サブエージェントセッションにはプロンプトを送信できません。",
+  "session.child.backToParent": "メインセッションに戻る。",
   "prompt.example.1": "コードベースのTODOを修正",
   "prompt.example.2": "このプロジェクトの技術スタックは何ですか？",
   "prompt.example.3": "壊れたテストを修正",

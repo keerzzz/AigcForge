@@ -9,6 +9,7 @@ import { Context, Effect, Layer, Schema } from "effect"
 import { produce } from "immer"
 import { Catalog } from "../../catalog"
 import { Credential } from "../../credential"
+import { getCredential as getSeamCredential } from "./auth-seam"
 import { Integration } from "../../integration"
 import { ModelV2 } from "../../model"
 import { ModelRequest } from "../../model-request"
@@ -228,14 +229,16 @@ export const locationLayer = Layer.effect(
         }
         if (!selected) return yield* new ModelNotSelectedError({ sessionID: session.id })
         const provider = yield* catalog.provider.get(selected.providerID)
-        const connection = yield* integrations.connection.active(
-          provider?.integrationID ?? Integration.ID.make(selected.providerID),
-        )
-        return yield* resolve(
-          session,
-          selected,
-          connection ? yield* integrations.connection.resolve(connection) : undefined,
-        )
+        const integrationID = provider?.integrationID ?? Integration.ID.make(selected.providerID)
+        const connection = yield* integrations.connection.active(integrationID)
+        // Fall back to the application-layer auth seam (auth.json via aigcfroge
+        // Auth.Service) when core Integration.Service has no connection. Without
+        // this, provider API keys stored in auth.json are invisible to V2 and the
+        // LLM request goes out with Auth.none -> 401.
+        const credential = connection
+          ? yield* integrations.connection.resolve(connection)
+          : yield* (getSeamCredential(selected.providerID) as unknown as Effect.Effect<Credential.Value | undefined>)
+        return yield* resolve(session, selected, credential)
       }),
     })
   }),

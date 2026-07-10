@@ -29,6 +29,7 @@ import { SessionExecution } from "./session/execution"
 import { MessageDecodeError } from "./session/error"
 import { SessionEvent } from "./session/event"
 import { SessionInput } from "./session/input"
+import { ToolSummary } from "./session/tool-summary"
 
 // get project -> project.locations
 //
@@ -159,6 +160,7 @@ export interface Interface {
     text: string
   }) => Effect.Effect<void, NotFoundError | SessionRunner.RunError>
   readonly interrupt: (sessionID: SessionSchema.ID) => Effect.Effect<void>
+  readonly toolSummary: (sessionID: SessionSchema.ID) => Effect.Effect<ToolSummary.Summary[], NotFoundError | MessageDecodeError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/Session") {}
@@ -485,6 +487,11 @@ export const layer = Layer.effect(
           }),
         ),
       ),
+      toolSummary: Effect.fn("V2Session.toolSummary")(function* (sessionID) {
+        yield* result.get(sessionID)
+        const messages = yield* result.messages({ sessionID, order: "asc" })
+        return ToolSummary.fromMessages(messages)
+      }),
     })
 
     return result

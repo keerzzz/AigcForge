@@ -29,6 +29,8 @@ export type Summary = typeof Summary.Type
 export interface Info extends Schema.Schema.Type<typeof Info> {}
 export const Info = Schema.Struct({
   id: ID,
+  slug: Schema.String,
+  version: Schema.String,
   parentID: ID.pipe(optionalOmitUndefined),
   projectID: Project.ID,
   agent: Agent.ID.pipe(Schema.optional),

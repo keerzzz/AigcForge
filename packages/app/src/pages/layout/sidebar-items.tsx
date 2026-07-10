@@ -5,7 +5,7 @@ import { IconButton } from "@aigcfroge/ui/icon-button"
 import { Spinner } from "@aigcfroge/ui/spinner"
 import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
 import { getFilename } from "@aigcfroge/core/util/path"
-import { A, useParams } from "@solidjs/router"
+import { A } from "@solidjs/router"
 import { type Accessor, createMemo, For, type JSX, Match, Show, Switch } from "solid-js"
 import { useServerSync } from "@/context/server-sync"
 import { useLanguage } from "@/context/language"
@@ -17,7 +17,7 @@ import { ServerConnection } from "@/context/server"
 import { sessionHref } from "@/utils/session-route"
 import { sessionTitle } from "@/utils/session-title"
 import { sessionPermissionRequest } from "../session/composer/session-request-tree"
-import { childSessionOnPath, getProjectAvatarSource, hasProjectPermissions } from "./helpers"
+import { getProjectAvatarSource, hasProjectPermissions } from "./helpers"
 
 export const ProjectIcon = (props: {
   project: LocalProject
@@ -145,7 +145,6 @@ const SessionRow = (props: {
 }
 
 export const SessionItem = (props: SessionItemProps): JSX.Element => {
-  const params = useParams()
   const layout = useLayout()
   const language = useLanguage()
   const notification = useNotification()
@@ -166,9 +165,9 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
 
   const tint = createMemo(() => messageAgentColor(sessionStore.message[props.session.id], sessionStore.agent))
   const tooltip = createMemo(() => props.showTooltip ?? (props.mobile || !props.sidebarExpanded()))
-  const currentChild = createMemo(() => {
-    if (!props.showChild) return undefined
-    return childSessionOnPath(sessionStore.session, props.session.id, params.id)
+  const children = createMemo(() => {
+    if (!props.showChild) return []
+    return (sessionStore.session ?? []).filter((s) => s.parentID === props.session.id)
   })
   const href = createMemo(() => {
     if (!props.serverKey) return `/${props.slug}/session/${props.session.id}`
@@ -267,12 +266,14 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
           </Show>
         </div>
       </div>
-      <Show when={currentChild()} keyed>
-        {(child) => (
-          <div class="w-full">
-            <SessionItem {...props} session={child} level={(props.level ?? 0) + 1} />
-          </div>
-        )}
+      <Show when={children().length > 0}>
+        <For each={children()}>
+          {(child) => (
+            <div class="w-full">
+              <SessionItem {...props} session={child} level={(props.level ?? 0) + 1} />
+            </div>
+          )}
+        </For>
       </Show>
     </>
   )

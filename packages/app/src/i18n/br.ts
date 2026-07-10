@@ -218,6 +218,8 @@ export const dict = {
   "prompt.mode.shell": "Shell",
   "prompt.mode.normal": "Prompt",
   "prompt.mode.shell.exit": "esc para sair",
+  "session.child.promptDisabled": "Ne c'hell ket bezañ goulennet evit ezpozadoù is-oberour.",
+  "session.child.backToParent": "Distro d'an ezpozadenn bennañ.",
   "prompt.example.1": "Corrigir um TODO no código",
   "prompt.example.2": "Qual é a stack tecnológica deste projeto?",
   "prompt.example.3": "Corrigir testes quebrados",

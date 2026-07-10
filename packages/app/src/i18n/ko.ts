@@ -217,6 +217,8 @@ export const dict = {
   "prompt.mode.shell": "셸",
   "prompt.mode.normal": "프롬프트",
   "prompt.mode.shell.exit": "종료하려면 esc",
+  "session.child.promptDisabled": "하위 에이전트 세션은 프롬프트를 보낼 수 없습니다.",
+  "session.child.backToParent": "메인 세션으로 돌아가기。",
   "prompt.example.1": "코드베이스의 TODO 수정",
   "prompt.example.2": "이 프로젝트의 기술 스택이 무엇인가요?",
   "prompt.example.3": "고장 난 테스트 수정",

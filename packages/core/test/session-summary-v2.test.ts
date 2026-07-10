@@ -6,6 +6,8 @@ import { SessionStore } from "@aigcfroge/core/session/store"
 import { SessionProjector } from "@aigcfroge/core/session/projector"
 import { V2Snapshot } from "@aigcfroge/core/session/v2-snapshot"
 import { SessionSummary } from "@aigcfroge/core/session/summary"
+import { SessionMessage } from "@aigcfroge/core/session/message"
+import { SessionV2 } from "@aigcfroge/core/session"
 import { ProjectV2 } from "@aigcfroge/core/project"
 import { testEffect } from "./lib/effect"
 
@@ -33,11 +35,10 @@ const sessionProjection = Layer.mergeAll(
 )
 
 // ── Layer under test ───────────────────────────────────────────────
-const testLayer = Layer.mergeAll(
-  SessionSummary.defaultLayer,
-  snapshotMock,
-  sessionProjection,
-) as never
+const testLayer = SessionSummary.layer.pipe(
+  Layer.provide(snapshotMock),
+  Layer.provide(sessionProjection),
+)
 
 const it = testEffect(testLayer)
 
@@ -45,7 +46,7 @@ describe("V2 SessionSummary", () => {
   it.effect("diff returns empty array when no messageID is provided", () =>
     Effect.gen(function* () {
       const svc = yield* SessionSummary.Service
-      const result = yield* svc.diff({ sessionID: "msg_any" })
+      const result = yield* svc.diff({ sessionID: SessionV2.ID.make("ses_any") })
       expect(result).toEqual([])
     }),
   )
@@ -54,8 +55,8 @@ describe("V2 SessionSummary", () => {
     Effect.gen(function* () {
       const svc = yield* SessionSummary.Service
       const result = yield* svc.diff({
-        sessionID: "msg_nonexistent" as any,
-        messageID: "msg_bogus" as any,
+        sessionID: SessionV2.ID.make("ses_nonexistent"),
+        messageID: SessionMessage.ID.make("msg_bogus"),
       })
       expect(result).toEqual([])
     }),

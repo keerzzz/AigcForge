@@ -1,5 +1,6 @@
 import { PermissionV1 } from "@aigcfroge/core/v1/permission"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
+import { ToolSummary } from "@aigcfroge/core/session/tool-summary"
 
 import { Session } from "@/session/session"
 import { SessionPrompt } from "@/session/prompt"
@@ -102,6 +103,7 @@ export const SessionPaths = {
   deletePart: `${root}/:sessionID/message/:messageID/part/:partID`,
   updatePart: `${root}/:sessionID/message/:messageID/part/:partID`,
   cacheDiagnostics: `${root}/:sessionID/cache-diagnostics`,
+  toolSummary: `${root}/:sessionID/tool-summary`,
 } as const
 
 export const SessionApi = HttpApi.make("session")
@@ -452,6 +454,18 @@ export const SessionApi = HttpApi.make("session")
             identifier: "session.cacheDiagnostics",
             summary: "Get cache diagnostics",
             description: "Retrieve cache hit rate and per-step cache statistics for a session.",
+          }),
+        ),
+        HttpApiEndpoint.get("toolSummary", SessionPaths.toolSummary, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          success: described(Schema.Array(ToolSummary.Summary), "Tool summary"),
+          error: [HttpApiError.BadRequest, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.toolSummary",
+            summary: "Get tool summary",
+            description: "Retrieve aggregated tool call summary for a sub-agent session.",
           }),
         ),
       )

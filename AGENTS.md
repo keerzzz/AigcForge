@@ -20,6 +20,31 @@ Examples: `fix(tui): simplify thinking toggle styling`, `docs: update contributi
 
 To regenerate the JavaScript SDK, run `./packages/sdk/js/script/build.ts`.
 
+## Code Retrieval
+
+Pick the tool by query shape. The `codegraph` MCP indexes symbols (definitions, calls, imports), not every text occurrence.
+
+- Symbol definition, call chain (`callers`/`callees`), or refactor blast radius -> `codegraph_search` / `codegraph_node` / `codegraph_callers` / `codegraph_callees` / `codegraph_impact` first. These have no per-project budget.
+- `codegraph_explore` is capped at **2 calls per project**; reserve it for multi-file source aggregation. For a single symbol, prefer `search`/`node` and only `explore` when you need verbatim source across several files at once.
+- String literal occurrences (env flags, error messages, i18n keys, magic strings), regex, or path globs -> `Grep` / `Glob`. `codegraph` is symbol-level: a flag read 19 times shows as 1 import node, so use `Grep` to find every use.
+- A single precise line range `codegraph` did not surface -> `Read`.
+- `codegraph` is read-only; edits still go through `Edit` / `Write`.
+
+## Agent Tool Synergy
+
+When the agent (aigcfroge product agent or Claude Code subagent) has `codegraph` MCP connected, prefer it over the matching builtin tool for symbol-shaped queries. Builtin tools come from `packages/aigcfroge/src/tool/registry.ts`; MCP tools inject via `MCP.Service` in `packages/aigcfroge/src/session/tools.ts`.
+
+| Builtin tool | Use `codegraph` instead when | Keep builtin for |
+|---|---|---|
+| `lsp` | call chain (`callers`/`callees`), refactor impact + test-coverage gap (`impact`) | diagnostics, hover |
+| `read` | multi-file verbatim source (`explore`, mind 2/project budget) | single precise line range |
+| `grep` | symbol definition lookup (`search`/`node`) | string literals, regex, magic strings |
+| `glob` | indexed file tree by language/symbol count (`files`) | path glob patterns |
+| `edit`/`write`/`patch` | n/a (codegraph read-only) — run `impact` first to size blast radius | the edit itself |
+| `plan` | `impact` before refactor planning | — |
+
+`codegraph` indexes symbols, not every text occurrence — same split as Code Retrieval above.
+
 ## Style Guide
 
 ### General Principles

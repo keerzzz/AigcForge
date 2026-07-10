@@ -1,22 +1,28 @@
 import { createMemo } from "solid-js"
 import { useParams } from "@solidjs/router"
-import type { Message } from "@aigcfroge/sdk/v2/client"
+import type { Message, Part } from "@aigcfroge/sdk/v2/client"
 import { useGlobal } from "@/context/global"
 import { useServer, ServerConnection, serverName } from "@/context/server"
 import { useLanguage } from "@/context/language"
+import { useLayout } from "@/context/layout"
 import { getSessionContextMetrics } from "@/components/session/session-context-metrics"
+import { openSessionContext } from "@/components/open-session-context"
+import { ServerScope, SessionRouteKey, SessionStateKey } from "@/utils/server-scope"
+import { base64Encode } from "@aigcfroge/core/util/encode"
 import { requireServerKey } from "@/utils/session-route"
+import { toolCountFromParts } from "./tool-count"
 import type { ConnectionState, StatusBarModelInfo, StatusBarCacheInfo, StatusBarSubagentInfo, StatusBarSource } from "./types"
 import type { StatusBarMetric, MetricGroup } from "./metrics"
 import { createStore } from "solid-js/store"
 
-const DEFAULT_PINNED = ["tokens.total", "cost.total"]
+const DEFAULT_PINNED = ["tokens.total", "cost.total", "tools.count"]
 
 export function createCurrentSessionSource(): StatusBarSource {
   const params = useParams<{ serverKey?: string; id?: string }>()
   const server = useServer()
   const global = useGlobal()
   const lang = useLanguage()
+  const layout = useLayout()
 
   const routeKey = createMemo(() => {
     if (!params.serverKey) return undefined
@@ -60,6 +66,9 @@ export function createCurrentSessionSource(): StatusBarSource {
     if (!id) return []
     return childStore()?.message[id] ?? []
   })
+
+  const allParts = createMemo((): Record<string, Part[] | undefined> => childStore()?.part ?? {})
+  const toolCount = createMemo(() => toolCountFromParts(allParts(), messages()))
 
   const metrics = createMemo(() => getSessionContextMetrics(messages()))
   const context = createMemo(() => metrics().context)
@@ -214,6 +223,9 @@ export function createCurrentSessionSource(): StatusBarSource {
           return s ? String(s.failed) : "—"
         },
         () => !!subagentInfo()),
+      mk("tools.count", "tools", "statusBar.metrics.toolCount",
+        () => fmtNum(toolCount()),
+        () => toolCount() > 0),
     ]
   })
 
@@ -221,6 +233,28 @@ export function createCurrentSessionSource(): StatusBarSource {
     const ids = pinnedStore.ids
     return allMetrics().filter((m) => ids.includes(m.id))
   })
+
+  // Compute sessionKey for layout tab/view access (same as useSessionKey but
+  // derives directory from global.sessionPlacement instead of useSDK).
+  const sessionKey = createMemo(() => {
+    const id = params.id
+    if (!id) return undefined
+    const scope = ServerScope.fromServerKey(activeServerKey())
+    const dirB64 = base64Encode(directory() ?? "")
+    return SessionStateKey.from(scope, SessionRouteKey.fromRoute(dirB64, id))
+  })
+
+  const openContext = () => {
+    const key = sessionKey()
+    if (!key) return
+    const tabs = layout.tabs(key)
+    const view = layout.view(key)
+    if (tabs.active() === "context") {
+      tabs.close("context")
+      return
+    }
+    openSessionContext({ view, layout, tabs })
+  }
 
   return {
     label: () => sessionInfo()?.title ?? "—",
@@ -248,5 +282,6 @@ export function createCurrentSessionSource(): StatusBarSource {
     allMetrics,
     pinnedMetrics,
     togglePin,
+    openContext,
   }
 }

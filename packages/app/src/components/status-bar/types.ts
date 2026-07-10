@@ -36,4 +36,6 @@ export type StatusBarSource = {
   readonly allMetrics: () => StatusBarMetric[]
   readonly pinnedMetrics: () => StatusBarMetric[]
   readonly togglePin: (metricID: string) => void
+  /** Toggle the session Context tab open/closed. No-op when no session is active. */
+  readonly openContext: () => void
 }

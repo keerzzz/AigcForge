@@ -121,6 +121,18 @@ export function StatusBar(props: { source: StatusBarSource }) {
 
           <div class="flex-1" />
 
+          <button
+            type="button"
+            class="shrink-0 flex items-center gap-1 px-1.5 rounded-sm text-xs text-text-weak hover:text-text-base hover:bg-v2-background-bg-hover transition-colors"
+            onClick={(e) => {
+              e.stopPropagation()
+              props.source.openContext()
+            }}
+            aria-label={language.t("statusBar.openContext")}
+          >
+            <Icon name="checklist" size="small" />
+          </button>
+
           <span class="text-xs text-text-weak truncate">
             {props.source.label()}
           </span>

@@ -700,6 +700,17 @@ it.instance(
   },
 )
 
+it.instance("meta agent prompt contains protocol documents and identity sections", () =>
+  Effect.gen(function* () {
+    const meta = yield* load((svc) => svc.get("meta"))
+    expect(meta).toBeDefined()
+    expect(meta?.prompt).toContain("## Protocol Documents")
+    expect(meta?.prompt).toContain("TEXT CONTENT")
+    expect(meta?.prompt).toContain("## Identity")
+    expect(meta?.prompt).toContain("AigcForge Meta Agent")
+  }),
+)
+
 it.instance(
   "defaultAgent throws when default_agent points to subagent",
   () => expectDefaultAgentError('default agent "explore" is a subagent'),

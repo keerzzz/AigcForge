@@ -219,6 +219,8 @@ export const dict = {
   "prompt.mode.shell": "Terminal",
   "prompt.mode.normal": "Prompt",
   "prompt.mode.shell.exit": "esc aby wyjść",
+  "session.child.promptDisabled": "Sesje podagentów nie mogą być wywoływane.",
+  "session.child.backToParent": "Powrót do głównej sesji.",
   "prompt.example.1": "Napraw TODO w bazie kodu",
   "prompt.example.2": "Jaki jest stos technologiczny tego projektu?",
   "prompt.example.3": "Napraw zepsute testy",

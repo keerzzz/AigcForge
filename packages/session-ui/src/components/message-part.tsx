@@ -2,6 +2,7 @@ import {
   Component,
   createEffect,
   createMemo,
+  createResource,
   createSignal,
   For,
   Match,
@@ -1858,9 +1859,17 @@ ToolRegistry.register({
           </div>
         </div>
         <Show when={clickable()}>
-          <div data-component="task-tool-action">
+          <a
+            data-component="task-tool-action"
+            href={href()}
+            aria-label={i18n.t("ui.tool.agent.openSession")}
+            onClick={(e) => {
+              e.stopPropagation()
+              navigate(e)
+            }}
+          >
             <Icon name="square-arrow-top-right" size="small" />
-          </div>
+          </a>
         </Show>
       </div>
     )
@@ -1871,9 +1880,6 @@ ToolRegistry.register({
         status={props.status}
         trigger={trigger()}
         hideDetails
-        triggerHref={href()}
-        clickable={clickable()}
-        onTriggerClick={navigate}
       />
     )
   },

@@ -235,6 +235,8 @@ export const dict = {
   "prompt.mode.shell": "Оболочка",
   "prompt.mode.normal": "Промпт",
   "prompt.mode.shell.exit": "esc для выхода",
+  "session.child.promptDisabled": "Сессии подчиненных агентов не могут получать запросы.",
+  "session.child.backToParent": "Вернуться к основной сессии.",
 
   "prompt.example.1": "Исправить TODO в коде",
   "prompt.example.2": "Какой технологический стек этого проекта?",

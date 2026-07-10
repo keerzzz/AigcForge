@@ -12,20 +12,7 @@ import { MetaProvider } from "@solidjs/meta"
 import { type BaseRouterProps, Navigate, Route, Router, useParams, useSearchParams } from "@solidjs/router"
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query"
 import { Effect } from "effect"
-import {
-  type Component,
-  createEffect,
-  createMemo,
-  createResource,
-  createSignal,
-  ErrorBoundary,
-  For,
-  type JSX,
-  lazy,
-  onCleanup,
-  type ParentProps,
-  Show,
-} from "solid-js"
+import { type Component, createEffect, createMemo, createResource, createSignal, ErrorBoundary, For, type JSX, lazy, onCleanup, type ParentProps, Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
 import { CommandProvider } from "@/context/command"
 import { CommentsProvider } from "@/context/comments"
@@ -59,11 +46,30 @@ import { Home } from "@/pages/home"
 const NewSession = lazy(() => import("@/pages/new-session"))
 
 // Redirects legacy /:dir/session/:id? URLs to the current new-layout format.
+// Without id: creates a new-session draft via the first available server+project.
+// Titlebar "new session" button now calls openNewTab directly (creates draft
+// with correct directory). Keyboard shortcut (mod+shift+s without serverKey)
+// and any other /:dir/session hit path land here as a safety net.
 function LegacySessionRedirect() {
   const params = useParams<{ dir: string; id?: string }>()
   const server = useServer()
+  const tabs = useTabs()
+  const global = useGlobal()
   if (params.id) return <Navigate href={sessionHref(server.key, params.id)} />
-  return <Navigate href="/" />
+  // First render: redirect to new-session placeholder; createEffect runs once
+  // to create an actual draft with the first available project directory.
+  createEffect(() => {
+    const conn = server.current ?? server.list[0]
+    if (!conn) return
+    const key = ServerConnection.key(conn)
+    try {
+      const ctx = global.ensureServerCtx(conn)
+      const projects = ctx.projects.list()
+      const dir = projects[0]?.worktree
+      if (dir) tabs.newDraft({ server: key, directory: dir })
+    } catch {}
+  })
+  return
 }
 
 

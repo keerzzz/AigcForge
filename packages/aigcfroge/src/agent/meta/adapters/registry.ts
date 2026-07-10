@@ -1,4 +1,5 @@
 import { Context, Effect, Layer } from "effect"
+import { LayerNode } from "@aigcfroge/core/effect/layer-node"
 import type { CliAdapter } from "./interface"
 import { adapter as claudeCodeAdapter } from "./claude-code"
 import { adapter as geminiAdapter } from "./gemini"
@@ -50,5 +51,7 @@ export const layer = Layer.effect(
 )
 
 export const defaultLayer = layer
+
+export const node = LayerNode.make(layer, [])
 
 export * as CliAdapterRegistry from "./registry"

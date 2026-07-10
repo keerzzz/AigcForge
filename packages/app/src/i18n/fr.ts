@@ -218,6 +218,8 @@ export const dict = {
   "prompt.mode.shell": "Shell",
   "prompt.mode.normal": "Prompt",
   "prompt.mode.shell.exit": "esc pour quitter",
+  "session.child.promptDisabled": "Les sessions des sous-agents ne peuvent pas être interrogées.",
+  "session.child.backToParent": "Revenir à la session principale.",
   "prompt.example.1": "Corriger un TODO dans la base de code",
   "prompt.example.2": "Quelle est la pile technique de ce projet ?",
   "prompt.example.3": "Réparer les tests échoués",

@@ -120,6 +120,8 @@ describe("SessionRunnerModel", () => {
       })
       const session = SessionV2.Info.make({
         id: SessionV2.ID.make("ses_model_variant"),
+        slug: "model-variant",
+        version: "0.0.0",
         projectID: ProjectV2.ID.global,
         title: "test",
         model: {
@@ -164,6 +166,8 @@ describe("SessionRunnerModel", () => {
       )
       const session = SessionV2.Info.make({
         id: SessionV2.ID.make("ses_compatible_variant"),
+        slug: "compatible-variant",
+        version: "0.0.0",
         projectID: ProjectV2.ID.global,
         title: "test",
         model: { id: catalog.id, providerID: catalog.providerID, variant: ModelV2.VariantID.make("high") },
@@ -190,6 +194,8 @@ describe("SessionRunnerModel", () => {
       const catalog = model({ type: "aisdk", package: "@ai-sdk/openai", url: "https://openai.example/v1" })
       const session = SessionV2.Info.make({
         id: SessionV2.ID.make("ses_model_variant_unavailable"),
+        slug: "model-variant-unavailable",
+        version: "0.0.0",
         projectID: ProjectV2.ID.global,
         title: "test",
         model: {
@@ -228,6 +234,8 @@ describe("SessionRunnerModel", () => {
       ])
       const session = SessionV2.Info.make({
         id: SessionV2.ID.make("ses_anthropic_variant"),
+        slug: "anthropic-variant",
+        version: "0.0.0",
         projectID: ProjectV2.ID.global,
         title: "test",
         model: { id: catalog.id, providerID: catalog.providerID, variant: ModelV2.VariantID.make("high") },

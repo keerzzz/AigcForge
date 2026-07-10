@@ -1,4 +1,4 @@
-export * as CliAdapter from "./interface"
+export * as CliAdapterInterface from "./interface"
 
 export type {
   CliAdapter,

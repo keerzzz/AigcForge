@@ -778,7 +778,12 @@ export const layer = Layer.effect(
               metadata: value.providerMetadata,
             }
             ctx.currentTextID = value.id
-            yield* session.updatePart(ctx.currentText)
+            // Do NOT call session.updatePart here. updatePart publishes
+            // message.part.updated, which the UI's staleDeltas mechanism uses to
+            // mark the part as stale. That causes subsequent message.part.delta
+            // (streaming) events for this part to be skipped in the same coalesce
+            // cycle, so the UI never renders incremental text. The part is set
+            // in-memory (ctx.currentText) and persisted at text-end via updatePart.
             return
 
           case "text-delta":

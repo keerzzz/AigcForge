@@ -67,17 +67,18 @@ import { SessionSummary as V2SessionSummary } from "@aigcfroge/core/session/summ
 import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
 import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
 import { McpV2 } from "@aigcfroge/core/mcp/mcp-v2"
-import { McpV2Bridge } from "@/mcp/v2-bridge"
-import { McpAuthV2 } from "@/mcp/v2-auth"
+import { TaskDriverFill } from "@aigcfroge/core/session/task-driver-fill"
+import { CrossSpawnSpawner } from "@aigcfroge/core/cross-spawn-spawner"
 
 /**
- * AIGCFROGE_V2_RUNTIME — Flag to toggle V1→V2 runtime paths.
- * Default is now true — V1 paths are archived. Set to "false" to
- * restore V1 behavior before the V1 source tree was archived.
+ * AIGCFROGE_V2_RUNTIME - Flag to toggle V1->V2 runtime paths.
+ * Default is false - V2 runtime has unresolved bugs (LLM auth not passed to
+ * LLMClient causing 401; V2 handler paths return V2 shapes mismatching V1 API
+ * schemas). Set to "true" to opt into V2 once fixed.
  *
  * @see docs/plan/meta-agent-v2-production-closure.md §4 P1.1
  */
-export const AIGCFROGE_V2_RUNTIME = process.env.AIGCFROGE_V2_RUNTIME !== "false"
+export const AIGCFROGE_V2_RUNTIME = process.env.AIGCFROGE_V2_RUNTIME === "true"
 
 // ── AppLayer: V1 + V2 ────────────────────────────────────────────
 //
@@ -107,6 +108,74 @@ const V1_ONLY_LAYERS = AIGCFROGE_V2_RUNTIME
       SessionShare.defaultLayer,
       RuntimeFlags.defaultLayer,
     ]
+
+const v2SessionStoreLayer = SessionStore.layer.pipe(Layer.provide(Database.defaultLayer))
+
+const v2SessionExecutionLayer = SessionExecutionLocal.layer.pipe(
+  Layer.provide(Layer.mergeAll(v2SessionStoreLayer, LocationServiceMap.layer)),
+)
+
+const v2SessionLayer = SessionV2.layer.pipe(
+  Layer.provide(
+    Layer.mergeAll(
+      v2SessionExecutionLayer,
+      v2SessionStoreLayer,
+      SessionProjector.defaultLayer,
+      EventV2.defaultLayer,
+      CoreProject.defaultLayer,
+    ),
+  ),
+)
+
+const v2SnapshotBridgeLayer = Layer.effect(
+  V2Snapshot.Service,
+  Effect.gen(function* () {
+    const v1 = yield* Snapshot.Service
+    return V2Snapshot.Service.of({
+      track: () => v1.track(),
+      restore: (snap) => v1.restore(snap),
+      revert: (patches) => v1.revert(patches),
+      diffFull: (from, to) => v1.diffFull(from, to),
+    })
+  }),
+).pipe(Layer.provide(Snapshot.defaultLayer))
+
+const v2SessionRevertLayer = V2SessionRevert.layer.pipe(
+  Layer.provide(Layer.mergeAll(v2SessionStoreLayer, v2SnapshotBridgeLayer)),
+)
+
+const v2SessionSummaryLayer = V2SessionSummary.layer.pipe(
+  Layer.provide(Layer.mergeAll(v2SessionStoreLayer, v2SnapshotBridgeLayer)),
+)
+
+const v2SessionShareLayer = SessionShareV2.layer.pipe(
+  Layer.provide(v2SessionLayer),
+  Layer.provide(EventV2.defaultLayer),
+)
+
+const v2TaskDriverFillLayer = TaskDriverFill.layer.pipe(
+  Layer.provide(CrossSpawnSpawner.defaultLayer),
+)
+
+const V2_LAYERS = Layer.mergeAll(
+  CoreGit.defaultLayer,
+  CoreProject.defaultLayer,
+  EventV2.defaultLayer,
+  SessionProjector.defaultLayer,
+  v2SessionStoreLayer,
+  LocationServiceMap.layer,
+  v2SessionExecutionLayer,
+  v2SessionLayer,
+  v2SnapshotBridgeLayer,
+  v2SessionRevertLayer,
+  v2SessionSummaryLayer,
+  MetaAgentService.defaultLayer,
+  v2SessionShareLayer,
+  v2TaskDriverFillLayer,
+  // McpV2Bridge depends on location-scoped ConfigV2; the app-wide runtime
+  // cannot build it without a Location. V1 MCP remains provided above.
+  McpV2.noopLayer,
+)
 
 export const AppLayer = Layer.mergeAll(
   // ── Shared (always provided) ────────────────────────────────────
@@ -145,43 +214,7 @@ export const AppLayer = Layer.mergeAll(
   ...V1_ONLY_LAYERS,
 
   // ── V2 always ───────────────────────────────────────────────────
-  CoreGit.defaultLayer,
-  CoreProject.defaultLayer,
-  SessionStore.defaultLayer,
-  EventV2.defaultLayer,
-  SessionProjector.defaultLayer,
-  SessionV2.layer.pipe(
-    Layer.provide(SessionExecutionLocal.defaultLayer),
-    Layer.orDie,
-  ),
-  LocationServiceMap.layer,
-
-  // V2 Snapshot bridge (wraps V1 Snapshot.Service into V2Snapshot tag)
-  Layer.effect(
-    V2Snapshot.Service,
-    Effect.gen(function* () {
-      const v1 = yield* Snapshot.Service
-      return V2Snapshot.Service.of({
-        track: () => v1.track(),
-        restore: (snap) => v1.restore(snap),
-        revert: (patches) => v1.revert(patches),
-        diffFull: (from, to) => v1.diffFull(from, to),
-      })
-    }),
-  ),
-
-  // V2 revert + summary (depend on V2Snapshot + SessionStore)
-  V2SessionRevert.defaultLayer,
-  V2SessionSummary.defaultLayer,
-
-  // V2 MetaAgent service
-  MetaAgentService.defaultLayer,
-
-  // V2 internal share (agent-to-agent context sharing)
-  SessionShareV2.defaultLayer,
-
-  // V2 MCP bridge (replaces noop default from location-layer)
-  McpV2Bridge.layer.pipe(Layer.provide(McpAuthV2.defaultLayer)),
+  V2_LAYERS,
 ).pipe(
   Layer.provideMerge(Ripgrep.defaultLayer),
   Layer.provideMerge(InstanceLayer.layer),

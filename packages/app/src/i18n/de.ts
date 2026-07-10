@@ -223,6 +223,8 @@ export const dict = {
   "prompt.mode.shell": "Shell",
   "prompt.mode.normal": "Prompt",
   "prompt.mode.shell.exit": "esc zum Verlassen",
+  "session.child.promptDisabled": "Untergeordnete Sitzungen können nicht aufgefordert werden.",
+  "session.child.backToParent": "Zurück zur Hauptsitzung.",
   "prompt.example.1": "Ein TODO in der Codebasis beheben",
   "prompt.example.2": "Was ist der Tech-Stack dieses Projekts?",
   "prompt.example.3": "Fehlerhafte Tests beheben",

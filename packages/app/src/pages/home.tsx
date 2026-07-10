@@ -350,8 +350,9 @@ export function Home() {
 
   function openNewSession() {
     const conn = focusedServer()
-    const directory = newSessionDirectory()
-    if (!conn || !directory) return
+    if (!conn) return
+    const directory = newSessionDirectory() || projects().find((p) => p.worktree)?.worktree
+    if (!directory) return
     openProjectNewSession(conn, directory)
   }
 
@@ -509,7 +510,7 @@ export function Home() {
                     <div class="flex min-w-0 flex-col gap-4">
                       <HomeSessionGroupHeader
                         title={language.t("home.sessions.empty")}
-                        onNewSession={newSessionDirectory() ? openNewSession : undefined}
+                        onNewSession={openNewSession}
                       />
                     </div>
                   }
@@ -519,7 +520,7 @@ export function Home() {
                       <div class="flex min-w-0 flex-col gap-4">
                         <HomeSessionGroupHeader
                           title={group.title}
-                          onNewSession={index() === 0 && newSessionDirectory() ? openNewSession : undefined}
+                          onNewSession={index() === 0 ? openNewSession : undefined}
                         />
                         <div class="flex min-w-0 flex-col gap-px">
                           <For each={group.sessions}>

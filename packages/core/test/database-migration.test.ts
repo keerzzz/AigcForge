@@ -702,7 +702,7 @@ describe("DatabaseMigration", () => {
         // Build a mock migration that adds a nullable column.
         const addColumnMigration = {
           id: "99999999999999_test_add_column",
-          up(tx: any) {
+          up(tx: Parameters<DatabaseMigration.Migration["up"]>[0]) {
             return Effect.gen(function* () {
               yield* tx.run(sql`ALTER TABLE session ADD COLUMN summary text`)
               yield* tx.run(

@@ -114,6 +114,7 @@ export const dict: Record<Keys, string> = {
   "ui.tool.questions": "Spørsmål",
   "ui.tool.agent": "{{type}}-agent",
   "ui.tool.agent.default": "Agent",
+  "ui.tool.agent.openSession": "Open sub-agent session",
 
   "ui.common.file.one": "fil",
   "ui.common.file.other": "filer",

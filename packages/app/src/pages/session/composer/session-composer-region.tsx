@@ -7,6 +7,7 @@ import { PromptInput } from "@/components/prompt-input"
 import { useLanguage } from "@/context/language"
 import { usePrompt } from "@/context/prompt"
 import { useSync } from "@/context/sync"
+import { Icon } from "@aigcfroge/ui/icon"
 import { getSessionHandoff, setSessionHandoff } from "@/pages/session/handoff"
 import { useSessionKey } from "@/pages/session/session-layout"
 import { SessionPermissionDock } from "@/pages/session/composer/session-permission-dock"
@@ -387,18 +388,24 @@ export function SessionComposerRegion(props: {
               >
                 <div
                   ref={props.inputRef}
-                  class="w-full rounded-[12px] border border-border-weak-base bg-background-base p-3 text-16-regular text-text-weak"
+                  class="flex items-center gap-3 w-full rounded-[12px] border border-border-weak-base bg-v2-background-bg-layer-01 p-4 text-14-regular"
                 >
-                  <span>{language.t("session.child.promptDisabled")} </span>
-                  <Show when={parentID()}>
-                    <button
-                      type="button"
-                      class="text-text-base transition-colors hover:text-text-strong"
-                      onClick={openParent}
-                    >
-                      {language.t("session.child.backToParent")}
-                    </button>
-                  </Show>
+                  <div class="shrink-0 size-8 flex items-center justify-center rounded-full bg-v2-background-bg-deep">
+                    <Icon name="circle-ban-sign" class="text-icon-muted" size="small" />
+                  </div>
+                  <div class="flex flex-col gap-1 min-w-0">
+                    <span class="text-text-weak">{language.t("session.child.promptDisabled")}</span>
+                    <Show when={parentID()}>
+                      <button
+                        type="button"
+                        class="flex items-center gap-1 text-text-base font-medium transition-colors hover:text-text-strong w-fit"
+                        onClick={openParent}
+                      >
+                        <Icon name="arrow-left" size="small" />
+                        {language.t("session.child.backToParent")}
+                      </button>
+                    </Show>
+                  </div>
                 </div>
               </Show>
             </div>
