@@ -26,7 +26,7 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
   name: "Models",
   gate: false,
   init: () => {
-    const providers = useProviders()
+    const providers = createMemo(() => useProviders())
 
     const [store, setStore, _, ready] = persisted(
       Persist.global("model", ["model.v1"]),
@@ -38,7 +38,7 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
     )
 
     const available = createMemo(() =>
-      providers.connected().flatMap((p) =>
+      providers().connected().flatMap((p) =>
         Object.values(p.models).map((m) => ({
           ...m,
           provider: p,

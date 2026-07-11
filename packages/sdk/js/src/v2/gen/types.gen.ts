@@ -51,6 +51,7 @@ export type Event =
   | EventSessionNextCompactionSoftWarning
   | EventSessionNextCompactionStuck
   | EventSessionNextCacheDiagnostic
+  | EventFileWatcherUpdated
   | EventMessagePartDelta
   | EventSessionDiff
   | EventSessionError
@@ -62,7 +63,6 @@ export type Event =
   | EventPermissionV2Replied
   | EventPluginAdded
   | EventProjectDirectoriesUpdated
-  | EventFileWatcherUpdated
   | EventPtyCreated
   | EventPtyUpdated
   | EventPtyExited
@@ -1264,6 +1264,14 @@ export type GlobalEvent = {
       }
     | {
         id: string
+        type: "file.watcher.updated"
+        properties: {
+          file: string
+          event: "add" | "change" | "unlink"
+        }
+      }
+    | {
+        id: string
         type: "message.part.delta"
         properties: {
           sessionID: string
@@ -1361,14 +1369,6 @@ export type GlobalEvent = {
         type: "project.directories.updated"
         properties: {
           projectID: string
-        }
-      }
-    | {
-        id: string
-        type: "file.watcher.updated"
-        properties: {
-          file: string
-          event: "add" | "change" | "unlink"
         }
       }
     | {
@@ -2107,6 +2107,7 @@ export type Config = {
     mcp_timeout?: number
     policies?: Array<ConfigV2ExperimentalPolicy>
   }
+  subagent_attended_default?: boolean
 }
 
 export type Model = {
@@ -3280,6 +3281,14 @@ export type UnauthorizedError = {
   message: string
 }
 
+export type Handoff = {
+  label: string
+  agent: string
+  prompt: string
+  send?: boolean
+  model?: string
+}
+
 export type SessionsResponse = {
   data: Array<SessionV2Info>
   cursor: {
@@ -3378,6 +3387,7 @@ export type V2Event =
   | V2EventSessionNextCompactionSoftWarning
   | V2EventSessionNextCompactionStuck
   | V2EventSessionNextCacheDiagnostic
+  | V2EventFileWatcherUpdated
   | V2EventMessagePartDelta
   | V2EventSessionDiff
   | V2EventSessionError
@@ -3389,7 +3399,6 @@ export type V2Event =
   | V2EventPermissionV2Replied
   | V2EventPluginAdded
   | V2EventProjectDirectoriesUpdated
-  | V2EventFileWatcherUpdated
   | V2EventPtyCreated
   | V2EventPtyUpdated
   | V2EventPtyExited
@@ -4369,6 +4378,7 @@ export type AgentV2Info = {
   steps?: number
   permissions: PermissionV2Ruleset
   attended?: boolean
+  handoffs: Array<Handoff>
 }
 
 export type SessionV2Revert = {
@@ -5916,6 +5926,24 @@ export type V2EventSessionNextCacheDiagnostic = {
   }
 }
 
+export type V2EventFileWatcherUpdated = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "file.watcher.updated"
+  data: {
+    file: string
+    event: "add" | "change" | "unlink"
+  }
+}
+
 export type V2EventMessagePartDelta = {
   id: string
   metadata?: {
@@ -6124,24 +6152,6 @@ export type V2EventProjectDirectoriesUpdated = {
   type: "project.directories.updated"
   data: {
     projectID: string
-  }
-}
-
-export type V2EventFileWatcherUpdated = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  durable?: {
-    aggregateID: string
-    seq: number
-    version: number
-  }
-  location?: LocationRef
-  type: "file.watcher.updated"
-  data: {
-    file: string
-    event: "add" | "change" | "unlink"
   }
 }
 
@@ -7405,6 +7415,15 @@ export type EventSessionNextCacheDiagnostic = {
   }
 }
 
+export type EventFileWatcherUpdated = {
+  id: string
+  type: "file.watcher.updated"
+  properties: {
+    file: string
+    event: "add" | "change" | "unlink"
+  }
+}
+
 export type EventMessagePartDelta = {
   id: string
   type: "message.part.delta"
@@ -7514,15 +7533,6 @@ export type EventProjectDirectoriesUpdated = {
   type: "project.directories.updated"
   properties: {
     projectID: string
-  }
-}
-
-export type EventFileWatcherUpdated = {
-  id: string
-  type: "file.watcher.updated"
-  properties: {
-    file: string
-    event: "add" | "change" | "unlink"
   }
 }
 

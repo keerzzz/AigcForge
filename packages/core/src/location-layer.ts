@@ -7,6 +7,7 @@ import { Catalog } from "./catalog"
 import { Integration } from "./integration"
 import { CommandV2 } from "./command"
 import { AgentV2 } from "./agent"
+import { AgentFileLoader } from "./agent/file-loader"
 import { PluginInternal } from "./plugin/internal"
 import { Project } from "./project"
 import { ProjectCopy } from "./project/copy"
@@ -21,6 +22,10 @@ import { Global } from "./global"
 import { Database } from "./database/database"
 import { PermissionV2 } from "./permission"
 import { PermissionSaved } from "./permission/saved"
+import { ToolPermissionHandler } from "./permission/tool-handler"
+import { registerBashHandler } from "./tool/bash-handler"
+import { registerReadHandler } from "./tool/read-handler"
+import { registerEditHandler } from "./tool/edit-handler"
 import { FileSystem } from "./filesystem"
 import { Ripgrep } from "./ripgrep"
 import { Watcher } from "./filesystem/watcher"
@@ -57,6 +62,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
     )
     const location = Location.layer(ref)
     const systemContext = SystemContextBuiltIns.locationLayer
+    const agentV2Layer = AgentV2.fileLayer.pipe(Layer.provide(AgentFileLoader.layer))
     const base = Layer.mergeAll(
       location,
       Policy.locationLayer,
@@ -66,7 +72,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       Catalog.locationLayer,
       Integration.locationLayer,
       CommandV2.locationLayer,
-      AgentV2.locationLayer,
+      agentV2Layer,
       PluginInternal.locationLayer,
       ProjectCopy.locationLayer,
       FileSystem.locationLayer,
@@ -79,6 +85,17 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
     ).pipe(Layer.provideMerge(location))
     const resources = ToolOutputStore.layer.pipe(Layer.provide(base))
     const permissionsAndTools = ToolRegistry.layer.pipe(
+      Layer.provideMerge(ToolPermissionHandler.layer),
+      Layer.provideMerge(
+        Layer.effectDiscard(
+          Effect.gen(function* () {
+            const service = yield* ToolPermissionHandler.Service
+            registerBashHandler(service)
+            registerReadHandler(service)
+            registerEditHandler(service)
+          }),
+        ),
+      ),
       Layer.provideMerge(PermissionV2.locationLayer),
       Layer.provide(resources),
       Layer.provide(base),

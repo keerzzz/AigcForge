@@ -69,6 +69,7 @@ export function migrate(info: typeof ConfigV1.Info.Type) {
     ),
     experimental: info.experimental?.policies && { policies: info.experimental.policies },
     providers: providers(info.provider),
+    subagent_attended_default: info.subagent_attended_default,
   }
 }
 

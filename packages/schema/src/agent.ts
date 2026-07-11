@@ -1,6 +1,7 @@
 export * as Agent from "./agent"
 
 import { Schema } from "effect"
+import { Handoff } from "./handoff"
 import { Model } from "./model"
 import { Permission } from "./permission"
 import { Provider } from "./provider"
@@ -28,11 +29,12 @@ export const Info = Schema.Struct({
   steps: PositiveInt.pipe(Schema.optional),
   permissions: Permission.Ruleset,
   attended: Schema.Boolean.pipe(Schema.optional),
+  handoffs: Schema.mutable(Schema.Array(Handoff)),
 })
   .annotate({ identifier: "AgentV2.Info" })
   .pipe(
     withStatics((schema) => ({
       empty: (id: ID) =>
-        schema.make({ id, request: { headers: {}, body: {} }, mode: "all", hidden: false, permissions: [], attended: false }),
+        schema.make({ id, request: { headers: {}, body: {} }, mode: "all", hidden: false, permissions: [], attended: false, handoffs: [] }),
     })),
   )

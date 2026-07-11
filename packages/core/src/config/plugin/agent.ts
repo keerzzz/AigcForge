@@ -31,6 +31,7 @@ const agentKeys = new Set([
   "steps",
   "disabled",
   "permissions",
+  "handoffs",
 ])
 
 export const Plugin = define({
@@ -92,6 +93,7 @@ export const Plugin = define({
               if (item.color !== undefined) agent.color = item.color
               if (item.steps !== undefined) agent.steps = item.steps
               if (item.permissions !== undefined) agent.permissions.push(...item.permissions)
+              if (item.handoffs !== undefined) agent.handoffs.push(...item.handoffs)
             })
           }
         }

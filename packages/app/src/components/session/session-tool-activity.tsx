@@ -20,7 +20,7 @@ function ToolActivitySection(props: { activity: ToolActivityType }) {
             <div class="flex items-center gap-2 text-11-regular">
               <div class="min-w-0 flex-1 truncate text-text-strong">{item.name}</div>
               <div class="flex items-center gap-1.5 shrink-0">
-                <div class="w-12 h-1.5 rounded-full bg-surface-base overflow-hidden">
+                <div class="w-20 h-1.5 rounded-full bg-surface-base overflow-hidden">
                   <div
                     class="h-full rounded-full bg-accent-base transition-all"
                     style={{ width: `${(item.count / maxCount()) * 100}%` }}
@@ -40,6 +40,8 @@ export function SessionToolActivity(props: { parts: () => readonly Part[] }) {
   const language = useLanguage()
 
   const activities = createMemo(() => aggregateToolActivity(props.parts()))
+  const totalCalls = createMemo(() => activities().reduce((sum, act) => sum + act.total, 0))
+  const totalTools = createMemo(() => activities().reduce((sum, act) => sum + act.items.length, 0))
 
   return (
     <Show when={activities().length > 0}>
@@ -50,7 +52,10 @@ export function SessionToolActivity(props: { parts: () => readonly Part[] }) {
               <AccordionV2.Trigger>
                 <div class="flex items-center gap-2 w-full">
                   <span class="text-12-regular text-text-weak">
-                    {language.t("toolActivity.title")}
+                    {language.t("toolActivity.summary", {
+                      total: totalCalls().toLocaleString(language.intl()),
+                      count: totalTools().toLocaleString(language.intl()),
+                    })}
                   </span>
                 </div>
               </AccordionV2.Trigger>

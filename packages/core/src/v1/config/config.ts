@@ -184,6 +184,10 @@ export const Info = Schema.Struct({
       }),
     }),
   ),
+  subagent_attended_default: Schema.optional(Schema.Boolean).annotate({
+    description:
+      "Default attended mode for subagent task delegation. true=user responds to permission prompts, false=asks auto-denied.",
+  }),
 }).annotate({ identifier: "Config" })
 
 export type Info = DeepMutable<Schema.Schema.Type<typeof Info>>

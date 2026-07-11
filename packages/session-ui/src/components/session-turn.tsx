@@ -161,6 +161,7 @@ export function SessionTurn(
     active?: boolean
     status?: SessionStatus
     onUserInteracted?: () => void
+    handoffs?: ReadonlyArray<{ readonly label: string; readonly agent: string; readonly prompt: string }>
     classes?: {
       root?: string
       content?: string
@@ -398,7 +399,7 @@ export function SessionTurn(
               class={props.classes?.container}
             >
               <div data-slot="session-turn-message-content" aria-live="off">
-                <Message message={message()!} parts={parts()} actions={props.actions} />
+                <Message message={message()!} parts={parts()} actions={props.actions} handoffs={props.handoffs} />
               </div>
               <Show when={divider()}>
                 <div data-slot="session-turn-compaction">

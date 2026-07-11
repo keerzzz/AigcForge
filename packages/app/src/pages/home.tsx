@@ -567,18 +567,20 @@ function HomeModeCards(props: {
   return (
     <div class="flex flex-col gap-3">
       <h2 class="text-v2-text-text-base [font-weight:600]">{props.language.t("home.modes.title")}</h2>
-      <div class="grid grid-cols-1 gap-2 lg:grid-cols-2">
+      <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <For each={MODES}>
           {(m) => {
             const active = () => props.mode.currentMode === m
+            const hasActiveSession = () => props.mode.activeSessionId(m)() !== undefined
+
             return (
               <button
                 type="button"
                 aria-label={props.language.t(`mode.${m}` as const)}
-                class="flex cursor-default items-center gap-2.5 rounded-[8px] border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+                class="relative flex cursor-default items-center gap-3.5 rounded-lg border p-4 text-left transition-[all] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
                 classList={{
-                  "bg-v2-background-bg-layer-01 border-v2-border-border-muted hover:bg-v2-overlay-simple-overlay-hover": !active(),
-                  "bg-v2-background-bg-layer-01 border-v2-border-border-focus": active(),
+                  "bg-v2-background-bg-layer-01 border-v2-border-border-base hover:bg-v2-overlay-simple-overlay-hover hover:border-v2-border-border-hover shadow-[var(--v2-elevation-base)]": !active(),
+                  "bg-v2-background-bg-layer-02 border-v2-border-border-focus shadow-inner ring-1 ring-v2-border-border-focus": active(),
                 }}
                 onClick={() => props.enterMode(m)}
                 onKeyDown={(e) => {
@@ -588,11 +590,32 @@ function HomeModeCards(props: {
                   }
                 }}
               >
+                {/* Active Indicator Strip on Left */}
+                <Show when={active()}>
+                  <div class="absolute left-0 top-0 bottom-0 w-0.5 bg-v2-border-border-focus rounded-l-lg" />
+                </Show>
+
                 <IconV2 name={MODE_ICONS[m]} size="large" class="shrink-0 text-v2-icon-icon-base" />
-                <div class="flex min-w-0 flex-col gap-0.5">
-                  <span class="text-v2-text-text-base [font-weight:530]">{props.language.t(`mode.${m}`)}</span>
-                  <span class="text-v2-text-text-muted [font-weight:440]">
+                <div class="flex min-w-0 flex-col gap-0.5 flex-1 pr-14">
+                  <span class="text-v2-text-text-base [font-weight:600]">{props.language.t(`mode.${m}`)}</span>
+                  <span class="text-11-regular text-v2-text-text-muted [font-weight:440]">
                     {props.language.t(`mode.${m}.description`)}
+                  </span>
+                </div>
+
+                {/* Status Badge in Top Right */}
+                <div class="absolute top-3 right-3 flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-v2-border-border-muted text-[10px] [font-weight:500] text-v2-text-text-muted select-none">
+                  <span
+                    class="size-1.5 rounded-full"
+                    classList={{
+                      "bg-[var(--syntax-success)]": hasActiveSession(),
+                      "bg-[var(--syntax-comment)]": !hasActiveSession(),
+                    }}
+                  />
+                  <span>
+                    {hasActiveSession()
+                      ? props.language.t("context.status.active")
+                      : props.language.t("context.status.idle")}
                   </span>
                 </div>
               </button>
@@ -633,17 +656,6 @@ function HomeProjectColumn(props: {
     >
       <div class="flex h-7 min-w-0 items-center justify-between pl-1.5">
         <div class={HOME_SECTION_LABEL}>{props.language.t("home.projects")}</div>
-        <Show when={global.servers.list().length === 1}>
-          <IconButtonV2
-            data-action="home-add-project"
-            variant="ghost-muted"
-            size="large"
-            class="titlebar-icon [&_[data-slot=icon-svg]]:text-v2-icon-icon-muted"
-            icon={<IconV2 name="folder-add-left" />}
-            onClick={() => props.chooseProject(global.servers.list()[0])}
-            aria-label={props.language.t("home.project.add")}
-          />
-        </Show>
       </div>
       <Show
         when={global.servers.list().length > 1}
@@ -679,6 +691,21 @@ function HomeProjectColumn(props: {
           }}
         </For>
       </Show>
+
+      {/* Prominent Add Project Button */}
+      <Show when={global.servers.list().length === 1}>
+        <div class="flex flex-col gap-1 mt-1">
+          <ButtonV2
+            onClick={() => props.chooseProject(global.servers.list()[0])}
+            variant="neutral"
+            class="w-full justify-start h-8 text-11-medium"
+            icon="folder-add-left"
+          >
+            {props.language.t("home.project.add")}
+          </ButtonV2>
+        </div>
+      </Show>
+
       <HomeUtilityNav
         class="mt-4 hidden lg:flex"
         openSettings={props.openSettings}
@@ -696,23 +723,21 @@ function HomeUtilityNav(props: {
   language: ReturnType<typeof useLanguage>
 }) {
   return (
-    <div class={`${props.class ?? ""} min-w-0 flex-col gap-1`}>
-      <button
-        type="button"
-        class={`${HOME_PROJECT_NAV_ROW} text-v2-text-text-faint [&>[data-slot=icon-svg]]:text-v2-icon-icon-muted`}
+    <div class={`${props.class ?? ""} min-w-0 flex-row gap-2 mt-4 pl-1.5`}>
+      <IconButtonV2
+        variant="ghost-muted"
+        size="small"
+        icon={<IconV2 name="settings-gear" />}
+        aria-label={props.language.t("sidebar.settings")}
         onClick={props.openSettings}
-      >
-        <IconV2 name="settings-gear" size="small" />
-        <span class={HOME_PROJECT_NAV_LABEL}>{props.language.t("sidebar.settings")}</span>
-      </button>
-      <button
-        type="button"
-        class={`${HOME_PROJECT_NAV_ROW} text-v2-text-text-faint [&>[data-slot=icon-svg]]:text-v2-icon-icon-muted`}
+      />
+      <IconButtonV2
+        variant="ghost-muted"
+        size="small"
+        icon={<IconV2 name="help" />}
+        aria-label={props.language.t("sidebar.help")}
         onClick={props.openHelp}
-      >
-        <IconV2 name="help" size="small" />
-        <span class={HOME_PROJECT_NAV_LABEL}>{props.language.t("sidebar.help")}</span>
-      </button>
+      />
     </div>
   )
 }
@@ -1211,8 +1236,9 @@ function HomeSessionSearchResultRow(props: {
 function HomeSessionGroupHeader(props: { title: string; onNewSession?: () => void }) {
   const language = useLanguage()
   return (
-    <div class="flex h-7 min-w-0 items-center justify-between pl-4 pr-2">
-      <div class={HOME_SECTION_LABEL}>{props.title}</div>
+    <div class="flex h-7 min-w-0 items-center gap-3 pl-4 pr-2">
+      <div class={`${HOME_SECTION_LABEL} shrink-0 uppercase tracking-wider text-11-bold`}>{props.title}</div>
+      <div class="flex-1 h-px bg-v2-border-border-muted opacity-40" />
       <Show when={props.onNewSession}>
         {(onNewSession) => (
           <ButtonV2
@@ -1220,7 +1246,7 @@ function HomeSessionGroupHeader(props: { title: string; onNewSession?: () => voi
             variant="ghost-muted"
             size="normal"
             icon="edit"
-            class="h-7 px-2 [font-weight:530]"
+            class="h-7 px-2 [font-weight:530] shrink-0"
             onClick={onNewSession}
           >
             {language.t("command.session.new")}
@@ -1239,29 +1265,39 @@ function HomeSessionRow(props: {
 }) {
   const title = createMemo(() => sessionTitle(props.record.session.title) || props.record.session.id)
 
+  const relativeTime = createMemo(() => {
+    const timeMs = props.record.session.time.updated ?? props.record.session.time.created ?? Date.now()
+    const dt = DateTime.fromMillis(timeMs)
+    const now = DateTime.local()
+    const diff = now.diff(dt, ["days", "hours", "minutes"])
+    if (diff.days > 0) return `${Math.floor(diff.days)}d ago`
+    if (diff.hours > 0) return `${Math.floor(diff.hours)}h ago`
+    return `${Math.max(Math.floor(diff.minutes), 1)}m ago`
+  })
+
   return (
     <button
       type="button"
       data-component="home-session-row"
-      class={`${HOME_ROW} h-10 gap-2 px-6 py-3 pl-4`}
+      class={`${HOME_ROW} h-10 gap-2 px-6 py-3 pl-4 flex items-center justify-between group`}
       onClick={props.onClick}
     >
-      <HomeSessionLeading
-        project={props.record.project}
-        session={props.record.session}
-        server={props.server}
-        activeServer={props.activeServer}
-      />
-      <span
-        class={`min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-v2-text-text-base [font-weight:530] ${props.record.projectName ? "max-w-[min(70%,480px)] flex-[0_1_auto]" : "flex-[1_1_auto]"}`}
-      >
-        {title()}
-      </span>
-      <Show when={props.record.projectName}>
-        <span class="min-w-0 flex-[1_1_auto] overflow-hidden text-ellipsis whitespace-nowrap text-v2-text-text-muted [font-weight:440]">
-          {props.record.projectName}
+      <div class="flex items-center gap-2 min-w-0 flex-1">
+        <HomeSessionLeading
+          project={props.record.project}
+          session={props.record.session}
+          server={props.server}
+          activeServer={props.activeServer}
+        />
+        <span
+          class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-v2-text-text-base [font-weight:530] group-hover:translate-x-0.5 transition-transform duration-150"
+        >
+          {title()}
         </span>
-      </Show>
+      </div>
+      <span class="text-11-regular text-v2-text-text-muted opacity-80 shrink-0 font-mono select-none pl-2">
+        {relativeTime()}
+      </span>
     </button>
   )
 }

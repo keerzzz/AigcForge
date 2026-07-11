@@ -7,11 +7,14 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js"
 import { CallToolResultSchema, type Tool as MCPToolDef } from "@modelcontextprotocol/sdk/types.js"
 import { Effect, Layer, Option } from "effect"
 import { McpV2 } from "@aigcfroge/core/mcp/mcp-v2"
+import { buildMcpServersFromRegistry } from "@aigcfroge/core/mcp/contributor"
 import { Config as ConfigV2 } from "@aigcfroge/core/config"
 import { InstallationVersion } from "@aigcfroge/core/installation/version"
 import { McpAuthV2 } from "./v2-auth"
 import { McpOAuthProvider, type McpOAuthConfig } from "./v2-oauth-provider"
 import * as McpOAuthCallback from "./v2-oauth-callback"
+// Import MCP contributors to trigger side-effect registration
+import "./contributors/ide"
 
 const DEFAULT_TIMEOUT = 30_000
 
@@ -40,7 +43,11 @@ export const layer = Layer.effect(
       }
       if (!mergedMcp?.servers) return
 
-      for (const [name, raw] of Object.entries(mergedMcp.servers)) {
+      // Merge contributor-provided servers as defaults (config overrides contributors)
+      const contributorServers = yield* buildMcpServersFromRegistry()
+      const allServers = { ...contributorServers, ...mergedMcp.servers }
+
+      for (const [name, raw] of Object.entries(allServers)) {
         const cfg = raw as any
         if (cfg.disabled) continue
         const timeout = cfg.timeout ?? DEFAULT_TIMEOUT

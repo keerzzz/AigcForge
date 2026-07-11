@@ -59,6 +59,7 @@ import { animate } from "motion"
 import { useLocation } from "@solidjs/router"
 import { attached, inline, kind } from "./message-file"
 import { readPartText } from "./message-part-text"
+import { HandoffButton } from "./handoff-button"
 
 async function writeClipboard(text: string): Promise<boolean> {
   const body = typeof document === "undefined" ? undefined : document.body
@@ -162,6 +163,8 @@ export interface MessageProps {
   actions?: UserActions
   showAssistantCopyPartID?: string | null
   showReasoningSummaries?: boolean
+  /** Handoff actions available for this assistant message's agent. */
+  handoffs?: ReadonlyArray<{ readonly label: string; readonly agent: string; readonly prompt: string }>
 }
 
 export type SessionAction = (input: { sessionID: string; messageID: string }) => Promise<void> | void
@@ -169,6 +172,7 @@ export type SessionAction = (input: { sessionID: string; messageID: string }) =>
 export type UserActions = {
   fork?: SessionAction
   revert?: SessionAction
+  handoff?: (agent: string, prompt: string) => void
 }
 
 export interface MessagePartProps {
@@ -857,12 +861,24 @@ export function Message(props: MessageProps) {
       </Match>
       <Match when={props.message.role === "assistant" && props.message}>
         {(assistantMessage) => (
-          <AssistantMessageDisplay
-            message={assistantMessage()}
-            parts={props.parts}
-            showAssistantCopyPartID={props.showAssistantCopyPartID}
-            showReasoningSummaries={props.showReasoningSummaries}
-          />
+          <>
+            <AssistantMessageDisplay
+              message={assistantMessage()}
+              parts={props.parts}
+              showAssistantCopyPartID={props.showAssistantCopyPartID}
+              showReasoningSummaries={props.showReasoningSummaries}
+            />
+            <Show when={props.handoffs && props.handoffs.length > 0 && props.actions?.handoff}>
+              <HandoffButton
+                actions={props.handoffs!.map((h) => ({
+                  label: h.label,
+                  agent: h.agent,
+                  prompt: h.prompt,
+                  onClick: () => props.actions!.handoff!(h.agent, h.prompt),
+                }))}
+              />
+            </Show>
+          </>
         )}
       </Match>
     </Switch>

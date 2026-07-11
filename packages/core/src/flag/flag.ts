@@ -75,4 +75,15 @@ export const Flag = {
   get AIGCFROGE_CLIENT() {
     return process.env["AIGCFROGE_CLIENT"] ?? "cli"
   },
+
+  // Feature flags for meta-agent VS Code alignment phases
+  get AIGCFROGE_ENABLE_AGENT_FILE() {
+    return truthy("AIGCFROGE_ENABLE_AGENT_FILE")
+  },
+  get AIGCFROGE_ENABLE_HANDOFF() {
+    return truthy("AIGCFROGE_ENABLE_HANDOFF")
+  },
+  get AIGCFROGE_ENABLE_HOT_RELOAD() {
+    return truthy("AIGCFROGE_ENABLE_HOT_RELOAD")
+  },
 }

@@ -63,6 +63,7 @@ import { SessionStore } from "@aigcfroge/core/session/store"
 import { SessionProjector } from "@aigcfroge/core/session/projector"
 import { EventV2 } from "@aigcfroge/core/event"
 import * as SessionExecutionLocal from "@aigcfroge/core/session/execution/local"
+import { HotReloadSessionExecution } from "@/session/hot-reload-execution"
 import { V2Snapshot } from "@aigcfroge/core/session/v2-snapshot"
 import { SessionRevert as V2SessionRevert } from "@aigcfroge/core/session/revert"
 import { SessionSummary as V2SessionSummary } from "@aigcfroge/core/session/summary"
@@ -113,7 +114,7 @@ const V1_ONLY_LAYERS = AIGCFROGE_V2_RUNTIME
 
 const v2SessionStoreLayer = SessionStore.layer.pipe(Layer.provide(Database.defaultLayer))
 
-const v2SessionExecutionLayer = SessionExecutionLocal.layer.pipe(
+const v2SessionExecutionLayer = HotReloadSessionExecution.layer.pipe(
   Layer.provide(Layer.mergeAll(v2SessionStoreLayer, LocationServiceMap.layer)),
 )
 

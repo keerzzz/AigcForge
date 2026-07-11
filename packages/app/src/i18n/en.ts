@@ -436,6 +436,10 @@ export const dict = {
 
   "context.systemPrompt.title": "System Prompt",
   "context.rawMessages.title": "Raw messages",
+  "context.status.active": "Active",
+  "context.status.idle": "Idle",
+  "context.section.tokens": "Token Details",
+  "context.section.activity": "Activity & Messages",
 
   "context.stats.session": "Session",
   "context.stats.messages": "Messages",
@@ -1097,7 +1101,8 @@ export const dict = {
   "statusBar.metrics.group.tools": "TOOLS",
   "statusBar.openContext": "Open context tab",
 
-  "toolActivity.title": "Tool Activity",
+  "toolActivity.title": "Tool Calls",
+  "toolActivity.summary": "Tool Calls ({{total}} total, {{count}} tools)",
   "toolActivity.category.read": "Read files",
   "toolActivity.category.write": "Write files",
   "toolActivity.category.command": "Commands",
