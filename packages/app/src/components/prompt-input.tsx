@@ -981,8 +981,8 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     const shellMode = store.mode === "shell"
 
     if (!shellMode) {
-      const atMatch = rawText.substring(0, cursorPosition).match(/@(\S*)$/)
-      const slashMatch = rawText.match(/^\/(\S*)$/)
+      const atMatch = !composing() && rawText.substring(0, cursorPosition).match(/@(\S*)$/)
+      const slashMatch = !composing() && rawText.match(/^\/(\S*)$/)
 
       if (atMatch) {
         atOnInput(atMatch[1])
