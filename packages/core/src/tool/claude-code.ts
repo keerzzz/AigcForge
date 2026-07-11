@@ -17,8 +17,8 @@ export const adapter: CliAdapter = {
   buildArgs: (input: { prompt: string; cwd: string; resumeId?: string }) =>
     Effect.succeed(
       input.resumeId
-        ? ["--print", "--output-format", "stream-json", "--resume", input.resumeId]
-        : ["--print", "--output-format", "stream-json", input.prompt],
+        ? ["-p", "--no-chrome", "--resume", input.resumeId]
+        : ["-p", "--no-chrome", input.prompt],
     ),
 
   parseOutput: (stdout: string, stderr: string) =>

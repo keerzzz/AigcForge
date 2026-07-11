@@ -2439,6 +2439,7 @@ export type Agent = {
   name: string
   description?: string
   mode: "subagent" | "primary" | "all"
+  source?: "native" | "external-cli"
   native?: boolean
   hidden?: boolean
   topP?: number

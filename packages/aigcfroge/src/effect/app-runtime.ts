@@ -37,6 +37,8 @@ import { McpAuth } from "@/mcp/auth"
 import { Command } from "@/command"
 import { Truncate } from "@/tool/truncate"
 import { ToolRegistry } from "@/tool/registry"
+import { CliAdapterRegistry } from "@/agent/meta/adapters/registry"
+import { MetaPromptFiller } from "@/agent/meta/meta-prompt-filler"
 import { Format } from "@/format"
 import { InstanceLayer } from "@/project/instance-layer"
 import { Project } from "@/project/project"
@@ -66,7 +68,7 @@ import { SessionRevert as V2SessionRevert } from "@aigcfroge/core/session/revert
 import { SessionSummary as V2SessionSummary } from "@aigcfroge/core/session/summary"
 import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
 import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
-import { McpV2 } from "@aigcfroge/core/mcp/mcp-v2"
+import { McpV2Bridge } from "@/mcp/v2-bridge"
 import { TaskDriverFill } from "@aigcfroge/core/session/task-driver-fill"
 import { CrossSpawnSpawner } from "@aigcfroge/core/cross-spawn-spawner"
 
@@ -170,11 +172,12 @@ const V2_LAYERS = Layer.mergeAll(
   v2SessionRevertLayer,
   v2SessionSummaryLayer,
   MetaAgentService.defaultLayer,
+  MetaPromptFiller.layer,
   v2SessionShareLayer,
   v2TaskDriverFillLayer,
-  // McpV2Bridge depends on location-scoped ConfigV2; the app-wide runtime
-  // cannot build it without a Location. V1 MCP remains provided above.
-  McpV2.noopLayer,
+  // McpV2Bridge depends on location-scoped ConfigV2; globalLayer
+  // falls back to noop when no Location context is available.
+  McpV2Bridge.globalLayer,
 )
 
 export const AppLayer = Layer.mergeAll(
@@ -193,6 +196,7 @@ export const AppLayer = Layer.mergeAll(
   Provider.defaultLayer,
   ProviderAuth.defaultLayer,
   Agent.defaultLayer,
+  CliAdapterRegistry.defaultLayer,
   Skill.defaultLayer,
   Discovery.defaultLayer,
   Question.defaultLayer,

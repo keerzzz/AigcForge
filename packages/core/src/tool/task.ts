@@ -162,14 +162,14 @@ export const layer = Layer.effectDiscard(
                     message: "cli_target is required when execution_type is 'external-cli'",
                   })
                 }
-                const text = yield* TaskDriver.executeCLI({
+                const result = yield* TaskDriver.executeCLI({
                   cliTarget: input.cli_target,
                   prompt: input.prompt,
                   sessionID: context.sessionID,
                 }).pipe(Effect.mapError((error) => new ToolFailure({ message: error.message })))
                 return {
-                  sessionID: context.sessionID,
-                  output: renderOutput({ sessionID: context.sessionID, state: "completed", text }),
+                  sessionID: result.sessionID,
+                  output: renderOutput({ sessionID: result.sessionID, state: "completed", text: result.text }),
                 }
               }
 

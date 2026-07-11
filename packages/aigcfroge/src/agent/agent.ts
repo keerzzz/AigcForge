@@ -15,6 +15,7 @@ import PROMPT_EXPLORE from "./prompt/explore.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
 import { MetaAgent } from "./meta-agent"
+import { CliAdapterRegistry } from "@/agent/meta/adapters/registry"
 import { Permission } from "@/permission"
 import { mergeDeep, pipe, sortBy, values } from "remeda"
 import { Global } from "@aigcfroge/core/global"
@@ -32,11 +33,13 @@ import { LocationServiceMap } from "@aigcfroge/core/location-layer"
 import { Reference } from "@aigcfroge/core/reference"
 import { Location } from "@aigcfroge/core/location"
 import { PluginV2 } from "@aigcfroge/core/plugin"
+import { MetaPrompt } from "@aigcfroge/core/agent/meta/meta-prompt"
 
 export const Info = Schema.Struct({
   name: Schema.String,
   description: Schema.optional(Schema.String),
   mode: Schema.Literals(["subagent", "primary", "all"]),
+  source: Schema.optional(Schema.Literals(["native", "external-cli"])),
   native: Schema.optional(Schema.Boolean),
   hidden: Schema.optional(Schema.Boolean),
   topP: Schema.optional(Schema.Finite),
@@ -95,6 +98,7 @@ export const layer = Layer.effect(
     const skill = yield* Skill.Service
     const provider = yield* Provider.Service
     const locations = yield* LocationServiceMap
+    const cliAdapterRegistry = yield* CliAdapterRegistry.AdapterRegistry
 
     const state = yield* InstanceState.make<State>(
       Effect.fn("Agent.state")(function* (ctx) {
@@ -146,6 +150,13 @@ export const layer = Layer.effect(
           }),
         )
 
+        // Fill {{CLI_LIST}} in the meta agent prompt with actually available CLI tools
+        const cliAdapters = yield* cliAdapterRegistry.available()
+        const cliNames = cliAdapters.map((a) => a.name)
+        const metaPrompt = MetaAgent.prompt.includes("{{CLI_LIST}}")
+          ? MetaPrompt.fillCliList(MetaAgent.prompt, cliNames)
+          : MetaAgent.prompt
+
         const agents: Record<string, Info> = {
           build: {
             name: "build",
@@ -170,7 +181,7 @@ export const layer = Layer.effect(
             mode: MetaAgent.mode,
             native: true,
             options: MetaAgent.options ?? {},
-            prompt: MetaAgent.prompt,
+            prompt: metaPrompt,
           },
           plan: {
             name: "plan",
@@ -334,9 +345,20 @@ export const layer = Layer.effect(
 
         const list = Effect.fnUntraced(function* () {
           const cfg = yield* config.get()
+          const cliAdapters = yield* cliAdapterRegistry.available()
+          const cliAgents = cliAdapters.map((adapter) => ({
+            name: adapter.name,
+            description: adapter.description,
+            mode: "subagent" as const,
+            source: "external-cli" as const,
+            native: false,
+            hidden: false,
+            permission: [],
+            options: {},
+          }))
+
           return pipe(
-            agents,
-            values(),
+            [...Object.values(agents), ...cliAgents],
             sortBy(
               [(x) => (cfg.default_agent ? x.name === cfg.default_agent : process.env.AIGCFROGE_DISABLE_META_AGENT === "true" ? x.name === "build" : x.name === "meta"), "desc"],
               [(x) => x.name, "asc"],
@@ -474,6 +496,7 @@ export const defaultLayer = layer.pipe(
   Layer.provide(Config.defaultLayer),
   Layer.provide(Skill.defaultLayer),
   Layer.provide(LocationServiceMap.layer),
+  Layer.provide(CliAdapterRegistry.defaultLayer),
 )
 
 const locationServiceMapNode = LayerNode.make(LocationServiceMap.layer, [])
@@ -485,6 +508,7 @@ export const node = LayerNode.make(layer, [
   Skill.node,
   Provider.node,
   locationServiceMapNode,
+  CliAdapterRegistry.node,
 ])
 
 export * as Agent from "./agent"

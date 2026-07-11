@@ -24,6 +24,7 @@ import { Session } from "../../src/session/session"
 import { SessionPrompt } from "../../src/session/prompt"
 import { disposeAllInstances, TestInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
+import { CliAdapterRegistry } from "../../src/agent/meta/adapters/registry"
 import { AccountTest } from "../fake/account"
 import { AuthTest } from "../fake/auth"
 import { NpmTest } from "../fake/npm"
@@ -55,6 +56,7 @@ const workspaceLayer = Workspace.layer.pipe(
   Layer.provide(FSUtil.defaultLayer),
   Layer.provide(InstanceStore.defaultLayer.pipe(Layer.provide(noopBootstrapLayer))),
   Layer.provide(RuntimeFlags.layer({ experimentalWorkspaces: true })),
+  Layer.provide(CliAdapterRegistry.defaultLayer),
 )
 const it = testEffect(
   Layer.mergeAll(pluginLayer, workspaceLayer, CrossSpawnSpawner.defaultLayer).pipe(Layer.provide(Ripgrep.defaultLayer)),

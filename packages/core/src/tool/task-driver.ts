@@ -138,7 +138,7 @@ export interface Interface {
     cliTarget: string
     prompt: string
     sessionID: SessionSchema.ID
-  }) => Effect.Effect<string, Error>
+  }) => Effect.Effect<{ text: string; sessionID: SessionSchema.ID }, Error>
 }
 
 // The process-global bridge cell. `install` replaces it; the accessors read it
@@ -200,7 +200,7 @@ export const isChildSession = (sessionID: SessionSchema.ID) =>
 
 /** Execute a prompt against an external CLI tool through the installed adapter. */
 export const executeCLI = (input: { cliTarget: string; prompt: string; sessionID: SessionSchema.ID }) =>
-  active().pipe(Effect.flatMap((impl) => impl.executeCLI(input)))
+  active().pipe(Effect.flatMap((impl) => impl.executeCLI(input))) as Effect.Effect<{ text: string; sessionID: SessionSchema.ID }, Error>
 
 /** Minimal `SessionV2` surface the implementation needs. Structural to avoid importing SessionV2. */
 export interface SessionFacade {
@@ -298,7 +298,7 @@ export const install = (
       cliTarget: string
       prompt: string
       sessionID: SessionSchema.ID
-    }) => Effect.Effect<string, Error>
+    }) => Effect.Effect<{ text: string; sessionID: SessionSchema.ID }, Error>
   },
 ) => {
   const readResult = (sessionID: SessionSchema.ID) =>

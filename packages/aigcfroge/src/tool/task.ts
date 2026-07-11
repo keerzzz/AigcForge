@@ -4,7 +4,7 @@ import { ToolJsonSchema } from "./json-schema"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { BackgroundJob } from "@/background/job"
 import { Session } from "@/session/session"
-import { SessionID, MessageID } from "../session/schema"
+import { SessionID, MessageID, PartID } from "../session/schema"
 import { MessageV2 } from "../session/message-v2"
 import { Agent } from "../agent/agent"
 import { deriveSubagentSessionPermission } from "../agent/subagent-permissions"
@@ -139,22 +139,82 @@ export const TaskTool = Tool.define(
         })
       }
 
-      const sessionId = SessionID.descending()
+      // Create real child session so the task card link navigates to an existing session
+      const parent = yield* sessions.get(ctx.sessionID)
+      const childSession = yield* sessions.create({
+        parentID: ctx.sessionID,
+        title: params.description,
+        agent: params.cli_target,
+        permission: parent.permission?.filter(
+          (rule) => rule.permission === "external_directory" || rule.action === "deny",
+        ),
+      })
+
+      // Resolve model from parent session or message
+      const parentMsg = yield* MessageV2.get({ sessionID: ctx.sessionID, messageID: ctx.messageID }).pipe(
+        Effect.provideService(Database.Service, database),
+        Effect.orDie,
+      )
+      const model = parent.model
+        ? { providerID: parent.model.providerID, modelID: parent.model.id }
+        : parentMsg.info.role === "assistant"
+          ? { providerID: parentMsg.info.providerID, modelID: parentMsg.info.modelID }
+          : { providerID: "unknown" as any, modelID: "unknown" as any }
+
+      // Write prompt message to child session
+      const promptMsgId = MessageID.ascending()
+      yield* sessions.updateMessage({
+        id: promptMsgId,
+        sessionID: childSession.id,
+        role: "user",
+        time: { created: Date.now() },
+        agent: params.cli_target,
+        model,
+      } as any)
+
+      yield* sessions.updatePart({
+        id: PartID.ascending(),
+        sessionID: childSession.id,
+        messageID: promptMsgId,
+        type: "text",
+        text: `[Project directory: ${params.cwd}]\n\n${params.prompt}`,
+      } as any)
+
       const result = yield* CliTimeout.executeWithTimeout(spawner, adapter, {
-        prompt: params.prompt,
+        prompt: `[Project directory: ${params.cwd}]\n\n${params.prompt}`,
         cwd: params.cwd,
       }, 300_000)
+
+      // Write output message to child session
+      const outputMsgId = MessageID.ascending()
+      yield* sessions.updateMessage({
+        id: outputMsgId,
+        sessionID: childSession.id,
+        role: "user",
+        time: { created: Date.now() },
+        agent: params.cli_target,
+        model,
+      } as any)
+
+      yield* sessions.updatePart({
+        id: PartID.ascending(),
+        sessionID: childSession.id,
+        messageID: outputMsgId,
+        type: "text",
+        text: result.summary,
+      } as any)
 
       return {
         title: `CLI: ${params.cli_target}`,
         metadata: {
-          sessionId,
+          sessionId: childSession.id,
           parentSessionId: ctx.sessionID,
           cli: params.cli_target,
           status: result.status,
+          execution_type: "external-cli",
         },
         output: renderOutput({
-          sessionID: sessionId,
+          sessionID: childSession.id,
           state: result.status === "failed" ? "error" : "completed",
           text: result.summary,
         }),

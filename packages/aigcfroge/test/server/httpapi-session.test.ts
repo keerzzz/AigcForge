@@ -35,11 +35,13 @@ import { disposeAllInstances, provideInstanceEffect, TestInstance, tmpdirScoped 
 import { TestLLMServer } from "../lib/llm-server"
 import { testProviderConfig } from "../lib/test-provider"
 import { testEffect } from "../lib/effect"
+import { CliAdapterRegistry } from "../../src/agent/meta/adapters/registry"
 
 const originalWorkspaces = Flag.AIGCFROGE_EXPERIMENTAL_WORKSPACES
 const workspaceLayer = Workspace.defaultLayer.pipe(
   Layer.provide(InstanceStore.defaultLayer),
   Layer.provide(InstanceBootstrap.defaultLayer),
+  Layer.provide(CliAdapterRegistry.defaultLayer),
 )
 const instanceStoreLayer = InstanceStore.defaultLayer.pipe(
   Layer.provide(

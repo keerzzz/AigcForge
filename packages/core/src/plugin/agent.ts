@@ -2,11 +2,12 @@ export * as AgentPlugin from "./agent"
 
 import path from "path"
 import { define } from "./internal"
-import { Effect } from "effect"
+import { Effect, Option } from "effect"
 import { AgentV2 } from "../agent"
 import { Global } from "../global"
 import { Location } from "../location"
 import { PermissionV2 } from "../permission"
+import { MetaPrompt } from "../agent/meta/meta-prompt"
 
 const TRUNCATION_GLOB = path.join(Global.Path.data, "tool-output", "*")
 const BUILD_SYSTEM =
@@ -320,9 +321,11 @@ export const Plugin = define({
           .filter((a) => a.id !== "meta")
           .map((a) => `- **${a.id}**: ${a.description || "No description"}`)
           .join("\n")
-        item.system = PROMPT_META
-          .replace("{{SUBAGENTS_LIST}}", subagentList || "(no subagents registered)")
-          .replace("{{CLI_LIST}}", "(configured via AdapterRegistry — claude-code, codex, gemini)")
+        const withSubagents = PROMPT_META.replace(
+          "{{SUBAGENTS_LIST}}",
+          subagentList || "(no subagents registered)",
+        )
+        item.system = MetaPrompt.fillCliList(withSubagents, [])
         item.mode = "primary"
         item.permissions.push(
           ...PermissionV2.merge(defaults, [

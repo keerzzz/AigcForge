@@ -451,7 +451,180 @@ bun dev -- --port 4444
 
 ---
 
-## 4. 风险与技术债
+## 4. 关联修复：external-cli task 点击 404
+
+在实现 `@` 自动补全后，用户点击 CLI 智能体的 task 卡片仍会报错：
+
+```
+Session not found: ses_xxx
+```
+
+因此必须把 external-cli 执行也纳入同一期修复。
+
+### 4.1 根因
+
+V1 task tool 的 external-cli 分支没有创建真实 child session：
+
+```ts
+// packages/aigcfroge/src/tool/task.ts:142
+const sessionId = SessionID.descending()
+```
+
+这个 `sessionId` 只被塞进 tool metadata 和 `<task id="...">` 输出，**从未写入 `SessionTable`**。
+
+但 UI 渲染 task 卡片时，只要 `metadata.sessionId` 存在就生成可点击链接：
+
+```ts
+// packages/session-ui/src/components/message-part.tsx:1804-1825
+const childSessionId = createMemo(() => {
+  const value = props.metadata.sessionId
+  if (typeof value === "string" && value) return value
+  return taskSession(...)
+})
+const href = createMemo(() => sessionLink(childSessionId(), location.pathname, data.sessionHref))
+const clickable = createMemo(() => !!(childSessionId() && (data.navigateToSession || href())))
+```
+
+用户点击后导航到不存在的 session，`directory-sync.ts` 调用 `client.session.get({ sessionID })`，后端返回 404。
+
+### 4.2 方案 A：external-cli 创建真实 child session（推荐）
+
+让 external-cli 分支像普通 subagent 一样调用 `sessions.create()`，生成真实 child session，并把 CLI 输出写入该 session。这样：
+
+- 不需要新建 UI 页面，复用现有 session 详情页；
+- task 卡片点击后能看到 CLI 执行结果；
+- 与普通 subagent 的 UX 完全一致。
+
+#### 实现步骤
+
+**步骤 1：在 `executeCLI` 中创建 child session**
+
+修改 `packages/aigcfroge/src/tool/task.ts` 的 `executeCLI`：
+
+```ts
+const executeCLI = Effect.fn("TaskTool.executeCLI")(function* (
+  params: { description: string; cli_target: string; prompt: string; cwd: string },
+  ctx: Tool.Context,
+) {
+  if (!adapterRegistry) return yield* Effect.fail(new Error("CLI adapter registry not available"))
+  const adapter = yield* adapterRegistry.get(params.cli_target)
+  if (!adapter) return yield* Effect.fail(new Error(`Unknown CLI target: ${params.cli_target}`))
+
+  if (!ctx.extra?.bypassAgentCheck) {
+    yield* ctx.ask({
+      permission: id,
+      patterns: [params.cli_target],
+      always: ["*"],
+      metadata: {
+        description: params.description,
+        subagent_type: params.cli_target,
+        execution_type: "external-cli",
+      },
+    })
+  }
+
+  // 创建真实 child session，用于承载 CLI 结果
+  const childSession = yield* sessions.create({
+    parentID: ctx.sessionID,
+    title: params.description + ` (@${params.cli_target} CLI)`,
+    agent: params.cli_target,
+    permission: deriveSubagentSessionPermission({
+      parentSessionPermission: parent.permission ?? [],
+      subagent: { name: params.cli_target, permission: [] },
+    }),
+  })
+
+  const result = yield* CliTimeout.executeWithTimeout(spawner, adapter, {
+    prompt: params.prompt,
+    cwd: params.cwd,
+  }, 300_000)
+
+  // 将 CLI 输出写入 child session 作为 assistant message
+  yield* sessions.updateMessage({
+    id: MessageID.descending(),
+    sessionID: childSession.id,
+    info: {
+      role: "assistant",
+      agent: params.cli_target,
+      modelID: parent.modelID,
+      providerID: parent.providerID,
+      variant: undefined,
+    },
+    parts: [{
+      id: PartID.make(),
+      type: "text",
+      text: result.summary,
+    }],
+  } as SessionV1.Info)
+
+  return {
+    title: `CLI: ${params.cli_target}`,
+    metadata: {
+      sessionId: childSession.id,
+      parentSessionId: ctx.sessionID,
+      cli: params.cli_target,
+      status: result.status,
+      execution_type: "external-cli",
+    },
+    output: renderOutput({
+      sessionID: childSession.id,
+      state: result.status === "failed" ? "error" : "completed",
+      text: result.summary,
+    }),
+  }
+})
+```
+
+> 说明：
+> - `sessions.create` 的 `agent` 字段是字符串，可以直接传 `params.cli_target`。
+> - `permission` 复用 `deriveSubagentSessionPermission`，把 CLI adapter 当作一个 permission 为空的 subagent。
+> - `sessions.updateMessage` 的调用需要确认当前 `Session` service 是否支持直接写入消息；如果不支持，可用 `MessageV2` 或 `ops.prompt` 的等价路径。具体 API 以实际代码为准。
+
+**步骤 2：在 metadata 中标记 `execution_type: "external-cli"`**
+
+即使创建真实 session，也保留 `execution_type` 标记，方便未来 UI 做特殊渲染（如 CLI 图标、禁止 retry 等）。
+
+**步骤 3：UI 无需修改点击行为**
+
+因为 `metadata.sessionId` 现在指向真实 session，`session-ui/message-part.tsx` 的 `sessionLink` 会正常工作。用户点击 task 卡片即可打开 child session 详情页，看到 CLI 输出。
+
+#### 测试
+
+**文件：`packages/aigcfroge/test/tool/task.test.ts`**
+
+新增测试断言 external-cli 执行后：
+
+```ts
+it.instance("external cli creates a real child session", () =>
+  Effect.gen(function* () {
+    // ... 触发 task tool execution_type: "external-cli" ...
+    const result = yield* tool.execute(...)
+    const sessionId = result.metadata.sessionId
+    const session = yield* Session.Service.get(sessionId)
+    expect(session).toBeDefined()
+    expect(session.parentID).toBe(parentSessionID)
+    expect(session.agent).toBe("claude-code")
+  }),
+)
+```
+
+**文件：`packages/app/src/pages/session/timeline/message-timeline.test.tsx`（新建或扩展）**
+
+- 渲染一个包含 external-cli task part 的 message；
+- 断言 task 卡片存在且 `href` 指向真实 session；
+- 点击后断言导航到该 session 且 `session.get` 成功。
+
+### 4.3 备选方案
+
+如果方案 A 因写入 message 的 API 不成熟而无法快速实现，可先实施方案 B 作为临时兜底：
+
+- **方案 B**：在 `session-ui/message-part.tsx` 中检测 `metadata.execution_type === "external-cli"`，将 `clickable` 置为 false，避免 404。
+
+方案 B 只解决“不报错”，但不提供详情页；建议作为方案 A 的 fallback，而非最终状态。
+
+---
+
+## 5. 风险与技术债
 
 | 风险 | 影响 | 缓解措施 |
 |------|------|----------|
@@ -461,24 +634,28 @@ bun dev -- --port 4444
 | 自定义 CLI adapter 名称与内置 agent 冲突 | `Agent.list()` 去重问题 | 在合成前检查冲突，冲突时 CLI adapter 优先或报错 |
 | TUI/App 对 `source` 字段的消费不一致 | UI 行为分叉 | 两端同时修改，并在计划中列明统一模式 |
 | PreRouter 动态化涉及调用方修改 | 影响 V1/V2 runner | 在计划中单独标注，分阶段实现；可先保留硬编码，后续迭代 |
+| external-cli 写入 child session 的 API 路径不成熟 | 可能需要绕过现有 message API | 提前确认 `Session.updateMessage` / `MessageV2` / `ops.prompt` 的可用性；必要时用 `sessions.injectSynthetic` 等效路径 |
+| 大量 CLI 子 session 污染会话列表 | 每个 CLI 调用都生成 session | child session 默认归档或按 parent 过滤；与现有 subagent 保持一致 |
 
 ---
 
-## 5. 最小可交付版本（MVP）
+## 6. 最小可交付版本（MVP）
 
-如果希望分阶段交付，第一期可只做：
+如果希望分阶段交付，第一期（MVP）应包含：
 
 1. `Agent.Info` schema 加 `source`。
 2. `Agent.Service.list()` 合并 `AdapterRegistry.available()`。
 3. `Agent.layer` / `Agent.node` 依赖 `CliAdapterRegistry`。
 4. SDK 重新生成。
 5. App 和 TUI 的 `@` 自动补全显示 CLI agent。
+6. **方案 A：external-cli 分支创建真实 child session 并写入 CLI 输出。**
+   这是必须项，否则用户点击 CLI task 卡片会立即遇到 `Session not found: ses_xxx` 404 错误。
 
-这样即可解决“输入框看不到 CLI 智能体”的问题。`prerouter` 和 `meta prompt` 的动态化可作为第二期。
+`prerouter` 和 `meta prompt` 的动态化可作为第二期。
 
 ---
 
-## 6. 变更清单
+## 7. 变更清单
 
 ### 后端
 
@@ -486,6 +663,7 @@ bun dev -- --port 4444
 - `packages/aigcfroge/src/effect/app-runtime.ts`：确保 `CliAdapterRegistry` 在 `AppLayer` 中显式提供（如尚未提供）。
 - `packages/core/src/plugin/agent.ts`：动态填充 `{{CLI_LIST}}`（可选/MVP 后）。
 - `packages/core/src/agent/meta/prerouter.ts`：`preRoute` 接受动态 CLI 列表（可选/MVP 后）。
+- `packages/aigcfroge/src/tool/task.ts`：external-cli 分支创建真实 child session 并写入 CLI 输出（方案 A）。
 
 ### SDK
 
@@ -500,16 +678,18 @@ bun dev -- --port 4444
 
 ### 测试
 
+- `packages/aigcfroge/test/tool/task.test.ts`：external-cli 权限与参数测试；新增“创建真实 child session”断言（方案 A）。
 - `packages/aigcfroge/test/agent/agent.test.ts`：`Agent.list()` 包含 CLI adapters。
 - `packages/aigcfroge/test/server/httpapi-instance.test.ts`：`GET /agent` 返回 CLI adapters。
 - `packages/aigcfroge/test/agent/meta/mention.test.ts` / `prerouter.test.ts`：动态 CLI 列表解析与路由。
 - `packages/app/src/context/global-sync/utils.test.ts`：归一化保留 CLI agent。
 - `packages/app/src/components/prompt-input/autocomplete.test.tsx`（新建）：`@` 补全包含 CLI。
+- `packages/app/src/pages/session/timeline/message-timeline.test.tsx`（新建或扩展）：external-cli task 卡片可点击并导航到真实 session（方案 A）。
 - TUI 测试扩展或新建。
 
 ---
 
-## 7. 参考协议与规范
+## 8. 参考协议与规范
 
 - `AGENTS.md`：Effect 编码、`InstanceState`、Layer 组合、self-export 模式。
 - `CLAUDE.md`：测试从包目录运行、typecheck 用 `tsgo`、禁止 `export namespace`、优先复用。
@@ -519,11 +699,13 @@ bun dev -- --port 4444
 
 ---
 
-## 8. 建议的提交顺序
+## 9. 建议的提交顺序
 
 1. `test(aigcfroge): add failing tests for CLI adapters in Agent.list and /agent endpoint`
 2. `feat(aigcfroge): include available CLI adapters in Agent.Service.list`
 3. `chore(sdk): regenerate v2 SDK types with Agent.source`
 4. `feat(app,tui): render external CLI agents in @ mention autocomplete`
 5. `test(app,tui): autocomplete coverage for external CLI agents`
-6. `refactor(core): use dynamic CLI list in prerouter and meta prompt`（可选/MVP 后）
+6. `feat(aigcfroge): create real child session for external-cli task execution`（方案 A）
+7. `test(aigcfroge): assert external-cli task creates a navigable child session`（方案 A）
+8. `refactor(core): use dynamic CLI list in prerouter and meta prompt`（可选/MVP 后）

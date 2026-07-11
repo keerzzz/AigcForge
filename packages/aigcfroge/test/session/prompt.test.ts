@@ -54,6 +54,7 @@ import { TestInstance } from "../fixture/fixture"
 import { awaitWithTimeout, pollWithTimeout, testEffect } from "../lib/effect"
 import { reply, TestLLMServer } from "../lib/llm-server"
 import { RuntimeFlags } from "@/effect/runtime-flags"
+import { CliAdapterRegistry } from "../../src/agent/meta/adapters/registry"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
 
@@ -227,6 +228,7 @@ function makePrompt(input?: { processor?: "blocking" }) {
     Layer.provide(RuntimeFlags.layer({ experimentalEventSystem: true })),
     Layer.provideMerge(deps),
     Layer.provide(summary),
+    Layer.provide(CliAdapterRegistry.defaultLayer),
   )
 }
 

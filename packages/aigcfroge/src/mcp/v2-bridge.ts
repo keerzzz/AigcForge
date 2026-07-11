@@ -5,7 +5,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js"
 import { CallToolResultSchema, type Tool as MCPToolDef } from "@modelcontextprotocol/sdk/types.js"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Option } from "effect"
 import { McpV2 } from "@aigcfroge/core/mcp/mcp-v2"
 import { Config as ConfigV2 } from "@aigcfroge/core/config"
 import { InstallationVersion } from "@aigcfroge/core/installation/version"
@@ -141,5 +141,17 @@ export const layer = Layer.effect(
     })
 
     return McpV2.Service.of({ start, stop, tools, callTool })
+  }),
+)
+
+/**
+ * Global-safe MCP layer: builds McpV2Bridge when a Location context is
+ * available (session scope), falls back to noop at app-wide level.
+ */
+export const globalLayer = Layer.unwrap(
+  Effect.gen(function* () {
+    const configOpt = yield* Effect.serviceOption(ConfigV2.Service)
+    if (Option.isSome(configOpt)) return layer
+    return McpV2.noopLayer
   }),
 )

@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm"
 import { Effect, Layer, Option } from "effect"
 import { BackgroundJob } from "../background-job"
 import { SessionV2 } from "../session"
+import { SessionSchema } from "../session/schema"
 import { TaskDriver } from "../tool/task-driver"
 import { getCliAdapter, registerCliAdapter } from "../tool/cli-adapter"
 import { executeWithTimeout } from "../tool/cli-timeout"
@@ -101,21 +102,21 @@ export const layer = Layer.effectDiscard(
             if (!adapter) return yield* Effect.fail(new Error(`Unknown CLI target: ${input.cliTarget}`))
             const session = yield* sessions.get(input.sessionID)
 
+            // Create a real child session so the task card link navigates to a real session.
+            const childSession = yield* sessions.create({
+              parentID: input.sessionID,
+              agent: input.cliTarget as any,
+              location: session.location,
+            })
+
             // Attempt to load DB for resume lookup and hint persistence.
-            // Not all callers (e.g. tests) provide Database.Service, so the
-            // optional service access is caught; when absent, DB operations
-            // are skipped without affecting CLI execution.
-            const dbOpt = yield* Effect.serviceOption(Database.Service).pipe(
-              Effect.catch(() => Effect.succeed(Option.none() as Option.Option<never>),
-            ))
+            // Not all callers (e.g. tests) provide Database.Service, so
+            // use serviceOption; when absent, DB operations are skipped.
+            const dbOpt = yield* Effect.serviceOption(Database.Service)
 
             // Check for a pending external CLI session to resume.
             let resumeId: string | undefined
             if (Option.isSome(dbOpt)) {
-              // The drizzle db handle is typed as DatabaseShape (a complex
-              // EffectDrizzleSqlite type). Cast to any is needed because the
-              // drizzle query builder types don't compose across module
-              // boundaries for the ExternalCliSessionTable schema.
               const db: any = dbOpt.value.db
               const row = yield* db
                 .select()
@@ -134,25 +135,23 @@ export const layer = Layer.effectDiscard(
             }
 
             const result = yield* executeWithTimeout(spawner, adapter, {
-              prompt: input.prompt,
+              prompt: `[Project directory: ${session.location.directory}]\n\n${input.prompt}`,
               cwd: session.location.directory,
               resumeId,
             })
 
             // Persist resume_hint if the CLI emitted one and DB is available.
             if (Option.isSome(dbOpt) && adapter.parseResumeHint) {
-              // Same drizzle type boundary as above — DatabaseShape doesn't
-              // compose with ExternalCliSessionTable's typed query builder.
               const db: any = dbOpt.value.db
               const hint = adapter.parseResumeHint(result.rawStdout ?? result.summary)
               if (hint) {
                 yield* Effect.logInfo(
-                  `CLI resume: persisted hint ${hint} for session ${input.sessionID}, target=${input.cliTarget}`,
+                  `CLI resume: persisted hint ${hint} for session ${childSession.id}, target=${input.cliTarget}`,
                 )
                 yield* db
                   .insert(ExternalCliSessionTable)
                   .values({
-                    session_id: input.sessionID,
+                    session_id: childSession.id,
                     cli_target: input.cliTarget,
                     external_session_id: hint,
                     status: "active",
@@ -161,8 +160,8 @@ export const layer = Layer.effectDiscard(
               }
             }
 
-            return result.summary
-          }) as unknown as Effect.Effect<string, Error>,
+            return { text: result.summary, sessionID: childSession.id }
+          }) as unknown as Effect.Effect<{ text: string; sessionID: SessionSchema.ID }, Error>,
       },
     )
   }),

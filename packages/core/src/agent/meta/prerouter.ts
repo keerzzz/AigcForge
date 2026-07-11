@@ -39,8 +39,12 @@ const EXTERNAL_CLI_NAMES = ["claude-code", "gemini", "codex", "opencode"]
  *
  * Takes raw user input, runs it through the full classification pipeline,
  * and returns either a direct route (skip LLM) or pass-through (let LLM handle).
+ *
+ * @param knownCLIs - Optional list of available external CLI tool names.
+ *   When provided, these are used for @mention routing instead of the
+ *   hardcoded default list. Pass [] to disable external CLI routing.
  */
-export function preRoute(input: string): RouteResult {
+export function preRoute(input: string, knownCLIs?: string[]): RouteResult {
   const trimmed = input.trim()
   if (!trimmed) {
     return {
@@ -54,7 +58,8 @@ export function preRoute(input: string): RouteResult {
   }
 
   // Step 1: Check for @mentions first (highest precedence)
-  const parsed = parse(trimmed, ["build", "explore", "plan", "general"], EXTERNAL_CLI_NAMES)
+  const cliNames = knownCLIs ?? EXTERNAL_CLI_NAMES
+  const parsed = parse(trimmed, ["build", "explore", "plan", "general"], cliNames)
   const hasAtMention = parsed.mentions.length > 0
 
   // Step 2: Classify intent from cleaned text (without @mentions)
@@ -111,6 +116,8 @@ export function preRoute(input: string): RouteResult {
 }
 
 /** Effect-wrapped version for V2 runner integration. */
-export const preRouteEffect = Effect.fn("PreRouter.preRoute")((input: string) => Effect.succeed(preRoute(input)))
+export const preRouteEffect = Effect.fn("PreRouter.preRoute")(
+  (input: string, knownCLIs?: string[]) => Effect.succeed(preRoute(input, knownCLIs)),
+)
 
 export * as PreRouter from "./prerouter"
