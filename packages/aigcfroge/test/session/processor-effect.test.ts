@@ -352,7 +352,14 @@ it.live("session.processor effect tests preserve text start time", () =>
         // ctx.currentText.time.start is captured. The part is NOT persisted
         // until text-end (processor text-start no longer calls updatePart).
         yield* llm.wait(1)
-        yield* Effect.sleep("50 millis")
+        // Poll for the text part's start time to be set (avoids Effect.sleep race)
+        const pollStart = Date.now() + 500
+        let startCaptured = false
+        while (Date.now() < pollStart && !startCaptured) {
+          const parts = yield* MessageV2.parts(msg.id)
+          startCaptured = parts.find((p): p is SessionV1.TextPart => p.type === "text")?.time?.start !== undefined
+          if (!startCaptured) yield* Effect.sleep("10 millis")
+        }
         // Release text-end (tail) - this persists the part via updatePart.
         gate.resolve()
 

@@ -2,7 +2,7 @@ export * as AgentPlugin from "./agent"
 
 import path from "path"
 import { define } from "./internal"
-import { Effect, Option } from "effect"
+import { Effect } from "effect"
 import { AgentV2 } from "../agent"
 import { Global } from "../global"
 import { Location } from "../location"

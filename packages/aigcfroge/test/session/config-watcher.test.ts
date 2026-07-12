@@ -1,5 +1,5 @@
 import { describe, expect, test, beforeEach } from "bun:test"
-import { Effect, Layer } from "effect"
+import { Effect } from "effect"
 import { ConfigWatcher } from "../../src/session/config-watcher"
 
 beforeEach(() => {

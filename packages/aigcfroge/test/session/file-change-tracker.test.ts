@@ -4,7 +4,6 @@ import { FileChangeTracker } from "../../src/session/file-change-tracker"
 
 const testDir = "/tmp/aigcfroge-test-file-change"
 const testFile = testDir + "/test.md"
-const testDir2 = testDir + "/agents"
 
 const write = (path: string, content: string) => Effect.promise(() => Bun.write(path, content))
 

@@ -47,7 +47,7 @@ import {
   UpdatePayload,
 } from "../groups/session"
 import { PermissionNotFoundError } from "../errors"
-import { notFound as apiNotFound } from "../errors"
+import { notFound } from "../errors"
 import * as SessionError from "./session-errors"
 import { AIGCFROGE_V2_RUNTIME } from "@/effect/app-runtime"
 
@@ -57,7 +57,7 @@ const tryParseJson = (text: string) =>
     catch: () => new HttpApiError.BadRequest({}),
   })
 
-const v2SessionNotFound = (error: SessionV2.NotFoundError) => apiNotFound(`Session not found: ${error.sessionID}`)
+const v2SessionNotFound = (error: SessionV2.NotFoundError) => notFound(`Session not found: ${error.sessionID}`)
 
 const v2OperationUnavailable = () => new HttpApiError.BadRequest({})
 

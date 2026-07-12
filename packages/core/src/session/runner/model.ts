@@ -9,7 +9,7 @@ import { Context, Effect, Layer, Schema } from "effect"
 import { produce } from "immer"
 import { Catalog } from "../../catalog"
 import { Credential } from "../../credential"
-import { getCredential as getSeamCredential } from "./auth-seam"
+import { getCredential } from "./auth-seam"
 import { Integration } from "../../integration"
 import { ModelV2 } from "../../model"
 import { ModelRequest } from "../../model-request"
@@ -237,7 +237,7 @@ export const locationLayer = Layer.effect(
         // LLM request goes out with Auth.none -> 401.
         const credential = connection
           ? yield* integrations.connection.resolve(connection)
-          : yield* (getSeamCredential(selected.providerID) as unknown as Effect.Effect<Credential.Value | undefined>)
+          : yield* (getCredential(selected.providerID) as unknown as Effect.Effect<Credential.Value | undefined>)
         return yield* resolve(session, selected, credential)
       }),
     })
