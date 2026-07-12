@@ -1,6 +1,10 @@
 # Global Mode Switcher + Secondary Sidebar Implementation Plan
 
-> Status: READY — approved 2026-06-27
+> 状态：SUPERSEDED
+> 取代方案：[`mode-module-switching-completion.md`](mode-module-switching-completion.md)
+> 说明：布局与组件历史仍可参考；`activeSessionId`、点击 Mode 自动恢复最近 Session、自动创建 Draft 的设计已由 ADR-11/ADR-12 废止。当前入口导航是 `/mode/:mode` 模块路由，不是 Session/Draft 生命周期操作。
+
+> Historical status: READY — approved 2026-06-27
 > Branch: brand-migration-v001
 > Target: v0.0.1
 > Last updated: 2026-06-28 — supplemented with full code dependency analysis

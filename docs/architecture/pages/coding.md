@@ -14,7 +14,7 @@ CODING 模式是 AigcForge 的默认工作台，提供 AI 辅助代码开发的�
 编写 Prompt → AI 生成/修改代码 → Diff 评审 → 行级评论 → 追加 Prompt → 持续迭代
 ```
 
-它是目前**唯一已实现的 Mode**（CHAT/WORK/ASSISTANT 为 PLANNED）。
+它是目前**唯一拥有专属完整工作台的 Mode**。四 Mode 的切换、Session 分类和过滤框架按 `mode-module-switching-completion.md` 补齐；CHAT/WORK/ASSISTANT 的专属 Viewport 仍为 PLANNED。
 
 ---
 
@@ -34,7 +34,7 @@ URL: /server/:serverKey/session/:id
           → Session 组件 (session.tsx)
 ```
 
-**关键决策**: Session 路由不编码 Mode。Mode 通过 `currentMode` + `activeSessionId[mode]` 独立管理，见 `docs/architecture/adr/ADR-09-mode-route-decoupling.md`。
+**关键决策**: Session 路由不编码 Mode。`/mode/:mode` 只作为模块入口，Session/Draft 仍使用 canonical URL；`Session.mode` 是持久化分类，模块入口导航不创建、不恢复、不重分类，见 ADR-09、ADR-11 与 ADR-12。
 
 ---
 

@@ -1,5 +1,17 @@
 # Session API
 
+## Approved Product Mode Extension (Not Yet Implemented)
+
+ADR-11 approves a durable Product Mode classification for Sessions:
+
+```text
+chat | coding | work | assistant
+```
+
+The target contract adds required `mode` to Session Info, optional `mode` to root Session creation, and optional `mode` filtering to Session list. Existing rows, legacy event payloads, and omitted create input decode as Coding. Child Sessions and forks inherit their parent/source Mode. Product Mode is separate from Agent execution mode and is not encoded in Session or Draft work-item routes.
+
+App module entry navigation is defined by ADR-12: Home cards and the global icon rail navigate to `/mode/:mode`, but that navigation never creates/restores a Session, creates a Draft, selects a Tab, changes Agent selection, or reclassifies the routed Session. Implementation and test sequencing are defined in `docs/plan/mode-module-switching-completion.md`.
+
 ## Current V2 Core Slice
 
 The Effect-native core facade treats prompt recording and execution as separate responsibilities:

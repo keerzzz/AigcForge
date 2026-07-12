@@ -8,7 +8,7 @@
 
 ## 1. 定位与职责
 
-Home 是应用入口页面——项目发现、Session 搜索、最近会话快速恢复的聚合中枢。所有路由均需经过 Home 确认活跃服务器连接。
+Home 是应用入口页面——Product Mode 模块入口、项目发现、Mode-scoped Session 搜索和最近会话恢复的聚合中枢。所有路由均需经过 Home 确认活跃服务器连接。
 
 ---
 
@@ -28,6 +28,7 @@ URL: /
 
 ```
 Home
+├── HomeModeCards         — 导航到 /mode/:mode，不创建/恢复工作
 ├── Header
 │   ├── SearchInput          — 搜索 Sessions (searchQuery signal)
 │   └── ServerPicker         — 服务器选择器
@@ -65,6 +66,7 @@ Home
 | 全局 | useCommand | 键盘快捷键注册 |
 | 全局 | useLanguage | i18n 翻译 |
 | 全局 | useMarked | Markdown 渲染 |
+| 全局 | useMode | Product Mode 选择与 Session 过滤 |
 
 ---
 
@@ -85,7 +87,8 @@ ServerSyncProvider.children()
 ### 5.2 搜索流
 
 ```
-searchQuery signal (用户输入)
+currentMode + searchQuery signal (用户输入)
+  -> modeRecords memo (session.mode === currentMode)
   -> filteredRecords memo (query.trim().toLowerCase() 模糊匹配)
     -> 搜索模式: 搜索框下方展示结果
     -> 无结果: empty message
@@ -93,13 +96,26 @@ searchQuery signal (用户输入)
 
 ### 5.3 路由跳转流
 
-```
+```text
 点击 Session 卡片
   -> navigate("/server/:serverKey/session/:rootID")
   -> URL 中不编码 Mode (见 docs/architecture/adr/ADR-09-mode-route-decoupling.md)
   -> TabsProvider.addSessionTab() 自动添加
   -> TargetSessionRoute 解析 placement
 ```
+
+### 5.4 Product Mode 模块入口流
+
+```text
+点击 HomeModeCard
+  -> modeHref(mode)
+  -> navigate("/mode/:mode")
+  -> ModeRoute 校验并激活 currentMode
+  -> ModeWorkspace / Home / Sidebar 使用 mode-scoped selectors
+  -> 不调用 tabs.newDraft()，不创建/恢复 Session，不选择 Tab，不改变 Agent
+```
+
+Project/Workspace 是跨 Mode 资源，不随 Mode 隐藏。无匹配 Session 时显示 Mode 名称、空状态和显式新建按钮。
 
 ---
 
@@ -124,6 +140,8 @@ searchQuery signal (用户输入)
 | 无项目 | 引导 UI — 打开项目的提示 |
 | 搜索为空 | "No results found" 反馈 |
 | Session 加载中 | createResource loading 状态 |
+| 当前 Mode 无 Session | Mode-scoped 空状态 + 显式新建入口，不自动创建 |
+| 当前 route Session 与 Mode 不一致 | 保留当前 Session，显示紧凑归属提示 |
 | 服务器断开 | ConnectionGate 401 门禁 |
 | settings 开关关闭 | showStatus / showFileTree 隐藏对应 UI |
 

@@ -23,6 +23,15 @@ Do not build landing-page hero patterns inside the app shell. Avoid decorative s
 - Keep app controls compact but readable. Reserve large display text for true first-screen marketing or documentation pages, not dashboards, panels, or toolbars.
 - Verify desktop and narrow viewports for text overflow, overlapping elements, clipped controls, and unusable scroll regions.
 
+## Product Mode Switching
+
+- Chat, Coding, Work, and Assistant have first-class module entry routes at `/mode/:mode`. Home cards and the global icon rail navigate to those routes, but selection alone must not create a Draft/Session, restore recent work, select a Tab, reclassify work, or change the Agent.
+- Projects and Workspaces remain visible across Mode changes. Session lists, search results, load-more state, empty states, and unread summaries reflect the selected Mode.
+- When the routed Session or current Draft belongs to a different Mode, show a compact contextual indicator. Do not silently reclassify it or interrupt the Composer.
+- An empty Mode provides an explicit, Mode-labelled new-session action; selection alone never creates work.
+- ModeSwitcher, Home cards, and ModeRoute share one definition registry for hrefs, icons, slots, and i18n keys so labels, ordering, and navigation cannot drift.
+- Mode entry navigation must preserve stable rail/sidebar dimensions, predictable keyboard focus, and scroll position where the routed surface remains mounted.
+
 ## Tokens And Styling
 
 - Use CSS variables for colors, spacing, radius, shadows, and surfaces. Do not hardcode visual constants unless documenting a third-party constraint.

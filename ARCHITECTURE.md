@@ -15,13 +15,14 @@
 | Desktop UI architecture (pages, providers, layout) | `docs/architecture/system-blueprint.md` |
 | Per-page UI architecture | `docs/architecture/pages/*.md` |
 | V2 subsystem API design | `specs/v2/*.md` |
+| Product Mode state and Session classification | `docs/architecture/adr/ADR-11-product-mode-session-classification.md` |
 | Effect coding detail | `.aigcfroge/skills/effect/SKILL.md` |
 | Database schema & migrations | `.aigcfroge/skills/database/SKILL.md` |
 | Theme engine internals | `.aigcfroge/skills/frontend-theming/SKILL.md` |
 | Implementation plans & status | `docs/plan/`, `specs/v2/todo.md` |
 | Architecture decisions | `docs/architecture/adr/` |
 
-> **`CONTEXT.md` caveat**: despite its name, it is the Session Runtime terminology dictionary (19 terms + 63 relationship constraints + 1 example dialogue + 1 flagged ambiguity), **not** a project-wide context file. Read it when working on Session V2 internals.
+> **`CONTEXT.md` caveat**: despite its name, it is the Session Runtime terminology and relationship-invariant dictionary, **not** a project-wide context file. Read it when working on Session V2 internals.
 >
 > **`packages/llm/DESIGN.md` caveat**: it is a Discussion draft for a future `@aigcfroge/ai` package, **not** a sub-protocol of the root `DESIGN.md`. The naming is coincidental.
 
@@ -194,6 +195,20 @@ Effect Schema-first provider abstraction. Default path is the AI SDK; native pat
 - Adapter in aigcfroge: `packages/aigcfroge/src/session/llm/` (see its `AGENTS.md` for the strict cross-file import boundary; only `native-request.ts` may construct `LLM.request` / `Message.*`).
 - Future proposal (not implemented): `packages/llm/DESIGN.md` — `@aigcfroge/ai` clean-break draft.
 
+### 4.10 Product Mode
+
+Product Mode (`chat | coding | work | assistant`) is a persisted App filtering context and a durable Session classification. It is separate from Agent execution mode (`primary | subagent | all`).
+
+- Home cards and the global icon rail navigate to `/mode/:mode`; that module-entry navigation never creates/restores a Draft or Session, selects a Tab, reclassifies work, or changes the Agent.
+- Session routes remain keyed only by server and Session identity.
+- Draft routes remain keyed by draft identity; Product Mode comes from `DraftTab.mode`.
+- `/mode/:mode` renders one shared `ModeRoute`/`ModeWorkspace` for all Product Modes; Mode-specific capability enters through typed slots/adapters instead of copied routes.
+- Root Sessions inherit the Mode frozen on their Draft; child Sessions and forks inherit their parent/source Mode.
+- Projects and Workspaces are shared across Modes; their Session descendants are filtered.
+- Existing rows and historical events without Product Mode decode as Coding.
+- Target implementation: `docs/plan/mode-module-switching-completion.md`.
+- Decisions: `docs/architecture/adr/ADR-11-product-mode-session-classification.md`, `docs/architecture/adr/ADR-12-product-mode-entry-routing.md`.
+
 ## 5. src/ Directory Index
 
 A directory-to-responsibility map for the two largest packages.
@@ -240,8 +255,8 @@ A directory-to-responsibility map for the two largest packages.
 | Status | Items |
 |---|---|
 | Implemented | Session V2, EventV2, Tool Registry, Provider/Model Catalog, System Context, Database layer, v2 UI design system, MetaAgent service, MetaHooks/ToolHooks SDK, MCP V2 (stdio+remote+OAuth), SessionShare V2 (internal), SessionRevert V2, SessionSummary V2, INTENT_TOOL_FILTERS, PreToolUse/PostToolUse hooks |
-| In progress | V2 config (`specs/v2/config.md`), TUI package extraction (`specs/tui-package.md`), legacy storage removal (`specs/storage/remove-opencode-db.md`) |
+| In progress | Product Mode Session classification/filtering (`docs/plan/mode-module-switching-completion.md`), V2 config (`specs/v2/config.md`), TUI package extraction (`specs/tui-package.md`), legacy storage removal (`specs/storage/remove-opencode-db.md`) |
 | Phase 6 complete | Structured Handoffs (summary compression), Judge multi-model arbitration, external CLI session recovery, symlink-aware path containment, Fork CLI endpoint |
-| Decisions | `docs/architecture/adr/ADR-09-mode-route-decoupling.md`, `docs/architecture/adr/ADR-10-schema-versioning.md` |
+| Decisions | `docs/architecture/adr/ADR-09-mode-route-decoupling.md`, `docs/architecture/adr/ADR-10-schema-versioning.md`, `docs/architecture/adr/ADR-11-product-mode-session-classification.md` |
 
 V2 migration status is tracked in `specs/v2/todo.md` and `packages/aigcfroge/specs/effect/todo.md`. The schema changelog lives in `specs/v2/schema-changelog.md`.

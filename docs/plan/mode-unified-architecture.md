@@ -1,6 +1,10 @@
 # Mode Framework — Unified Architecture (Phase 1)
 
-> Status: READY
+> 状态：SUPERSEDED
+> 取代方案：[`mode-module-switching-completion.md`](mode-module-switching-completion.md)
+> 说明：本文保留历史实施记录；其中 `activeSessionId` 自动恢复和无 placement 自动新建 Draft 的语义不再有效。当前决策见 ADR-12：Home 卡片与全局 Icon 导航到 `/mode/:mode` 模块入口，但不创建、恢复或重分类 Session/Draft。
+
+> Historical status: READY
 > Branch: brand-migration-v001
 > Scope: 3 changes, 3 files
 
@@ -11,7 +15,7 @@
 ```
 mode 状态流:
 
-  ModeSwitcher 点击 → setCurrentMode(m)           ← 只改状态，不导航。当前 session 继续显示 ✅
+  ModeSwitcher 点击 → setCurrentMode(m)           ← 旧实现：仅本地状态，无模块入口 URL
   HomeModeCards 点击 → enterMode(m)               ← 有分支：
     ├── 有 placement     → sessionHref 恢复        ← 所有 mode 统一 ✅
     ├── m === "coding"   → newDraft               ← 只有 Coding ✅
@@ -73,7 +77,7 @@ function enterMode(m: Mode) {
 
 ### 1.2 submit.ts — Record activeSessionId on draft submit
 
-**Location**: `createPromptSubmit` in [submit.ts:384-392](packages/app/src/components/prompt-input/submit.ts#L384-L392)
+**Location**: `createPromptSubmit` in [submit.ts:384-392](../../packages/app/src/components/prompt-input/submit.ts#L384-L392)
 
 After session creation (`session = created`), add:
 ```ts
@@ -87,7 +91,7 @@ Need to add `import { useMode } from "@/context/mode"` and `const mode = useMode
 
 ### 1.3 app.tsx — Record activeSessionId on session navigation
 
-**Location**: `ResolvedTargetSessionRoute` in [app.tsx:116-123](packages/app/src/app.tsx#L116-L123)
+**Location**: `ResolvedTargetSessionRoute` in [app.tsx:116-123](../../packages/app/src/app.tsx#L116-L123)
 
 After `tabs.addSessionTab(...)`, add:
 ```ts
@@ -136,9 +140,9 @@ bun run lint
 
 | File | Action | Lines |
 |------|--------|-------|
-| [home.tsx](packages/app/src/pages/home.tsx) | Delete `if (m === "coding")` branch + `navigate("/")` | -7 |
-| [submit.ts](packages/app/src/components/prompt-input/submit.ts) | Add `mode.setActiveSessionId(...)` after session create | +4 |
-| [app.tsx](packages/app/src/app.tsx) | Add `mode.setActiveSessionId(...)` after tab add | +4 |
+| [home.tsx](../../packages/app/src/pages/home.tsx) | Delete `if (m === "coding")` branch + `navigate("/")` | -7 |
+| [submit.ts](../../packages/app/src/components/prompt-input/submit.ts) | Add `mode.setActiveSessionId(...)` after session create | +4 |
+| [app.tsx](../../packages/app/src/app.tsx) | Add `mode.setActiveSessionId(...)` after tab add | +4 |
 
 ## 5. What This Does NOT Do
 
@@ -148,3 +152,7 @@ bun run lint
 - 不创建默认目录
 
 这些是后续特定 mode 的 agent 就绪后才需要的事。
+
+## 6. Mode-Based Filtering
+
+本节原待办已被 [`mode-module-switching-completion.md`](mode-module-switching-completion.md) 接管。新方案明确 Product Mode 是独立 Session 分类，不能从 Agent/Message 的 execution mode 继承；项目跨 Mode 共享，Session 列表、搜索、加载和未读状态按 Mode 过滤。

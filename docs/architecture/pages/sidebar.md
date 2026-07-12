@@ -74,7 +74,7 @@ SecondarySidebar
 | useDialog | workspace 删除/重置对话框 |
 | useLayout | sidebar.workspaces 开关, sidebar.setWorkspaceExpanded |
 | useLanguage | i18n |
-| useMode | 当前模式（为未来支持 mode 侧边栏预留） |
+| useMode | 当前 Product Mode；驱动 Session 列表、搜索、加载和未读聚合 |
 | WorkspaceSidebarContext | 桥接到 SortableWorkspace/LocalWorkspace |
 
 ## 4. WorkspaceSidebarContext 桥接
@@ -108,16 +108,25 @@ SecondarySidebar
 
 ## 6. 搜索面板
 
-- 输入：过滤 projects 列表（按 displayName）
+- 输入：过滤 projects 列表（按 displayName），Session 搜索只返回当前 Product Mode
 - 结果：每条显示项目名，点击 → newDraft({ server, directory })
 - 空结果：i18n "未找到结果"
 - 键盘：Escape 关闭
+
+## 6.1 Product Mode 过滤
+
+- Project/Workspace 树在 Mode 切换时保持可见、顺序和展开状态稳定。
+- Workspace Session 子项、Load more 和搜索结果只包含 `session.mode === currentMode`。
+- 新建 Draft 冻结当前 Product Mode；Mode 选择本身不创建 Draft。
+- 未读数按当前 Mode Session ID 聚合；“全部已读”不得清除其他 Mode 通知。
+- 当前路由 Session 被过滤掉时不改变路由，由主内容区显示 Session/Mode mismatch 提示。
 
 ## 7. 错误边界
 
 | 场景 | 处理 |
 |------|------|
 | server 未连接 | conn() 为空 → 不渲染项目列表 |
+| 当前 Mode 无 Session | 保留 Project/Workspace，显示 Mode-scoped 空状态 |
 | project 无 vcs | workspaceEnabled 为 false（workspaces 只对 git 项目可用） |
 | workspace 删除失败 | Toast 提示错误 |
 | workspace 重置失败 | Toast 提示错误 |
@@ -126,10 +135,10 @@ SecondarySidebar
 
 | 文件 | 用途 |
 |------|------|
-| [secondary-sidebar.tsx](../../packages/app/src/components/secondary-sidebar.tsx) | 组件本体 + WorkspaceSidebarContext 桥接 |
-| [sidebar-workspace.tsx](../../packages/app/src/pages/layout/sidebar-workspace.tsx) | SortableWorkspace/LocalWorkspace/WorkspaceSessionList |
-| [sidebar-items.tsx](../../packages/app/src/pages/layout/sidebar-items.tsx) | SessionItem/NewSessionItem/SessionSkeleton |
-| [inline-editor.tsx](../../packages/app/src/pages/layout/inline-editor.tsx) | 内联编辑 controller |
-| [helpers.ts](../../packages/app/src/pages/layout/helpers.ts) | displayName/sortedRootSessions/homeProjectDirectories |
-| [layout.tsx](../../packages/app/src/pages/layout.tsx) | 三栏布局宿主 |
-| [mode.tsx](../../packages/app/src/context/mode.tsx) | ModeProvider（次级侧边栏父级） |
+| [secondary-sidebar.tsx](../../../packages/app/src/components/secondary-sidebar.tsx) | 组件本体 + WorkspaceSidebarContext 桥接 |
+| [sidebar-workspace.tsx](../../../packages/app/src/pages/layout/sidebar-workspace.tsx) | SortableWorkspace/LocalWorkspace/WorkspaceSessionList |
+| [sidebar-items.tsx](../../../packages/app/src/pages/layout/sidebar-items.tsx) | SessionItem/NewSessionItem/SessionSkeleton |
+| [inline-editor.tsx](../../../packages/app/src/pages/layout/inline-editor.tsx) | 内联编辑 controller |
+| [helpers.ts](../../../packages/app/src/pages/layout/helpers.ts) | displayName/sortedRootSessions/homeProjectDirectories |
+| [layout.tsx](../../../packages/app/src/pages/layout.tsx) | 三栏布局宿主 |
+| [mode.tsx](../../../packages/app/src/context/mode.tsx) | ModeProvider（次级侧边栏父级） |
