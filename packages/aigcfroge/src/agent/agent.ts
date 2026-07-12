@@ -34,6 +34,7 @@ import { Reference } from "@aigcfroge/core/reference"
 import { Location } from "@aigcfroge/core/location"
 import { PluginV2 } from "@aigcfroge/core/plugin"
 import { MetaPrompt } from "@aigcfroge/core/agent/meta/meta-prompt"
+import { Handoff } from "@aigcfroge/schema/handoff"
 
 export const Info = Schema.Struct({
   name: Schema.String,
@@ -56,6 +57,7 @@ export const Info = Schema.Struct({
   prompt: Schema.optional(Schema.String),
   options: Schema.Record(Schema.String, Schema.Unknown),
   steps: Schema.optional(Schema.Finite),
+  handoffs: Schema.optional(Schema.mutable(Schema.Array(Handoff))),
 }).annotate({ identifier: "Agent" })
 export type Info = DeepMutable<Schema.Schema.Type<typeof Info>>
 
@@ -321,6 +323,7 @@ export const layer = Layer.effect(
           item.steps = value.steps ?? item.steps
           item.options = mergeDeep(item.options, value.options ?? {})
           item.permission = Permission.merge(item.permission, Permission.fromConfig(value.permission ?? {}))
+          if (value.handoffs) item.handoffs = [...(item.handoffs ?? []), ...value.handoffs]
         }
 
         // Ensure Truncate.GLOB is allowed unless explicitly configured

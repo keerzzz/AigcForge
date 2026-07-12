@@ -2457,6 +2457,7 @@ export type Agent = {
     [key: string]: unknown
   }
   steps?: number
+  handoffs?: Array<Handoff>
 }
 
 export type LspStatus = {

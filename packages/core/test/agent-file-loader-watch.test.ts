@@ -16,22 +16,25 @@ import path from "path"
 const agentFileLoaderLayer = AgentFileLoader.layer.pipe(Layer.provide(FSUtil.defaultLayer))
 const agentsLayer = AgentV2.fileLayer.pipe(Layer.provide(agentFileLoaderLayer))
 
-const makeLayer = (directory: string) =>
-  Layer.mergeAll(
-    agentsLayer,
-    Layer.succeed(
-      Location.Service,
-      Location.Service.of({
-        directory: AbsolutePath.make(directory),
-        workspaceID: undefined,
-        project: { id: Project.ID.make("test"), directory: AbsolutePath.make(directory) },
-      }),
-    ),
-  ).pipe(
-    Layer.provideMerge(
-      Layer.mergeAll(EventV2.defaultLayer, agentFileLoaderLayer).pipe(Layer.provide(FSUtil.defaultLayer)),
-    ),
+const makeLayer = (directory: string) => {
+  const locationLayer = Layer.succeed(
+    Location.Service,
+    Location.Service.of({
+      directory: AbsolutePath.make(directory),
+      workspaceID: undefined,
+      project: { id: Project.ID.make("test"), directory: AbsolutePath.make(directory) },
+    }),
   )
+  const fileLoaderLayer = AgentFileLoader.layer.pipe(
+    Layer.provide(FSUtil.defaultLayer),
+    Layer.provide(locationLayer),
+  )
+  const agentsLayer = AgentV2.fileLayer.pipe(
+    Layer.provide(fileLoaderLayer),
+    Layer.provideMerge(EventV2.defaultLayer),
+  )
+  return Layer.mergeAll(agentsLayer, locationLayer)
+}
 
 describe("AgentV2 file watcher refresh", () => {
   test("reloads file agents when .agent.md changes", async () => {

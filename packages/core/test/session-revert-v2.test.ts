@@ -1,5 +1,5 @@
 import { describe, expect } from "bun:test"
-import { Effect, Layer } from "effect"
+import { Effect, Exit, Layer } from "effect"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
 import { SessionV2 } from "@aigcfroge/core/session"
@@ -7,6 +7,8 @@ import { SessionStore } from "@aigcfroge/core/session/store"
 import { SessionProjector } from "@aigcfroge/core/session/projector"
 import { V2Snapshot } from "@aigcfroge/core/session/v2-snapshot"
 import { SessionRevert } from "@aigcfroge/core/session/revert"
+import { SessionSchema } from "@aigcfroge/core/session/schema"
+import { SessionMessage } from "@aigcfroge/core/session/message"
 import { ProjectV2 } from "@aigcfroge/core/project"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { testEffect } from "./lib/effect"
@@ -32,11 +34,11 @@ const sessionProjection = Layer.mergeAll(
 )
 
 // ── Layer under test ───────────────────────────────────────────────
-const testLayer = Layer.mergeAll(
-  SessionRevert.defaultLayer,
-  snapshotMock,
-  sessionProjection,
-) as never
+const testLayer = SessionRevert.defaultLayer.pipe(
+  Layer.provide(snapshotMock),
+  Layer.provide(sessionProjection),
+  Layer.provideMerge(SessionV2.defaultLayer),
+)
 
 const it = testEffect(testLayer)
 
@@ -45,10 +47,10 @@ describe("V2 SessionRevert", () => {
     Effect.gen(function* () {
       const svc = yield* SessionRevert.Service
       const result = yield* svc.revert({
-        sessionID: "msg_nonexistent" as any,
-        messageID: "msg_bogus" as any,
-      })
-      expect(result).toBeUndefined()
+        sessionID: SessionV2.ID.make("ses_nonexistent"),
+        messageID: SessionMessage.ID.make("msg_bogus"),
+      }).pipe(Effect.exit)
+      expect(Exit.isFailure(result)).toBe(true)
     }),
   )
 

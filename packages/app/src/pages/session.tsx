@@ -29,7 +29,7 @@ import { previewSelectedLines } from "@aigcfroge/session-ui/pierre/selection-bri
 import { Button } from "@aigcfroge/ui/button"
 import { showToast } from "@/utils/toast"
 import { base64Encode, checksum } from "@aigcfroge/core/util/encode"
-import { useLocation, useSearchParams } from "@solidjs/router"
+import { useLocation, useSearchParams, useNavigate } from "@solidjs/router"
 import { NewSessionView, SessionHeader, createGitState, GitStatusBar, GitCommitBar } from "@/components/session"
 import { useComments } from "@/context/comments"
 import { useServerSync } from "@/context/server-sync"
@@ -65,6 +65,7 @@ import { diffs as list } from "@/utils/diffs"
 import { Persist, persisted } from "@/utils/persist"
 import { extractPromptFromParts } from "@/utils/prompt"
 import { formatServerError } from "@/utils/server-errors"
+import { sessionHref, requireServerKey } from "@/utils/session-route"
 import { useUsageExceededDialogs } from "./session/usage-exceeded-dialogs"
 
 type FollowupItem = FollowupDraft & { id: string }
@@ -91,6 +92,7 @@ export default function Page() {
   const terminal = useTerminal()
   const [searchParams, setSearchParams] = useSearchParams<{ prompt?: string }>()
   const location = useLocation()
+  const navigate = useNavigate()
   const { params, sessionKey, workspaceKey, tabs, view } = useSessionLayout()
   const newSessionDesign = createMemo(() => true)
 
@@ -1472,7 +1474,39 @@ export default function Page() {
       .map((item) => ({ id: item.id, text: line(item.id) }))
   })
 
-  const actions = { revert }
+  const handoff = async (agent: string, prompt: string) => {
+    const sessionID = params.id
+    if (!sessionID) return
+
+    try {
+      const result = await sdk().client.v2.session.fork({
+        sessionID,
+        prompt,
+        agent,
+      })
+
+      const childID = result.data?.sessionID
+      if (!childID) {
+        showToast({
+          title: language.t("common.requestFailed"),
+          description: language.t("session.handoff.failed"),
+        })
+        return
+      }
+
+      const key = params.serverKey
+      if (!key) return
+
+      navigate(sessionHref(requireServerKey(key), childID))
+    } catch (err) {
+      showToast({
+        title: language.t("common.requestFailed"),
+        description: formatServerError(err, language.t),
+      })
+    }
+  }
+
+  const actions = { revert, handoff }
 
   createEffect(() => {
     const sessionID = params.id

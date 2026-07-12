@@ -17,7 +17,7 @@ function request(route: string, directory: string, query?: Record<string, string
   return HttpApiApp.webHandler().handler(
     new Request(url, {
       headers: {
-        "x-aigcfroge-directory": directory,
+        "x-aigcfroge-directory": encodeURIComponent(directory),
       },
     }),
     context,

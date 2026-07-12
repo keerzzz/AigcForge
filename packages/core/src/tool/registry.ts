@@ -4,7 +4,6 @@ import { ToolOutput, type ToolCall, type ToolDefinition, type ToolResultValue } 
 import { Context, Effect, Layer, Option, Scope } from "effect"
 import { AgentV2 } from "../agent"
 import { PermissionV2 } from "../permission"
-import { ToolPermissionHandler } from "../permission/tool-handler"
 import { SessionMessage } from "../session/message"
 import { SessionSchema } from "../session/schema"
 import { runPostToolUse, runPreToolUse } from "./lifecycle-hooks"
@@ -72,9 +71,6 @@ const registryLayer = Layer.effect(
   Effect.gen(function* () {
     const applications = yield* ApplicationTools.Service
     const resources = yield* ToolOutputStore.Service
-    const permissionHandler = yield* Effect.serviceOption(ToolPermissionHandler.Service).pipe(
-      Effect.map(Option.getOrUndefined),
-    )
     type Registration = { readonly identity: object; readonly tool: AnyTool }
     const local = new Map<string, Array<{ readonly token: object; readonly registration: Registration }>>()
 
@@ -103,26 +99,6 @@ const registryLayer = Layer.effect(
             value: preCheck.reason ?? `Tool blocked by policy: ${input.call.name}`,
           },
         }
-      // ToolPermissionHandler: per-tool permission strategy.
-      // Allows auto-approve for whitelisted tools, or defers to PermissionV2.
-      // Optional — falls back to PermissionV2 when no handler service is registered.
-      if (permissionHandler) {
-        const handlerResult = yield* permissionHandler.resolvePermission(
-          input.call.name,
-          (input.call as { input?: Record<string, unknown> }).input ?? {},
-          { sessionID: input.sessionID },
-        )
-        if (handlerResult && !handlerResult.allow) {
-          return {
-            result: {
-              type: "error" as const,
-              value: handlerResult.allow === false
-                ? (handlerResult as { readonly reason: string }).reason ?? `Blocked by tool policy: ${input.call.name}`
-                : `Blocked by tool policy: ${input.call.name}`,
-            },
-          }
-        }
-      }
       const pending = yield* settle(registration.tool, input.call, {
         sessionID: input.sessionID,
         agent: input.agent,

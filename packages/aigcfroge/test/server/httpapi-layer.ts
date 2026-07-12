@@ -28,6 +28,6 @@ export function request(path: string, init?: RequestInit) {
 
 export function requestInDirectory(path: string, directory: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers)
-  headers.set("x-aigcfroge-directory", directory)
+  headers.set("x-aigcfroge-directory", encodeURIComponent(directory))
   return request(path, { ...init, headers })
 }

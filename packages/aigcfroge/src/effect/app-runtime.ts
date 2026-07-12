@@ -69,9 +69,17 @@ import { SessionRevert as V2SessionRevert } from "@aigcfroge/core/session/revert
 import { SessionSummary as V2SessionSummary } from "@aigcfroge/core/session/summary"
 import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
 import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
-import { McpV2Bridge } from "@/mcp/v2-bridge"
+import { McpV2 } from "@aigcfroge/core/mcp/mcp-v2"
 import { TaskDriverFill } from "@aigcfroge/core/session/task-driver-fill"
 import { CrossSpawnSpawner } from "@aigcfroge/core/cross-spawn-spawner"
+import { Credential } from "@aigcfroge/core/credential"
+import { AppProcess } from "@aigcfroge/core/process"
+import { Global } from "@aigcfroge/core/global"
+import { ProjectDirectories } from "@aigcfroge/core/project/directories"
+import { PermissionSaved } from "@aigcfroge/core/permission/saved"
+import { RepositoryCache } from "@aigcfroge/core/repository-cache"
+import { ToolOutputStore } from "@aigcfroge/core/tool-output-store"
+import { ApplicationTools } from "@aigcfroge/core/tool/application-tools"
 
 /**
  * AIGCFROGE_V2_RUNTIME - Flag to toggle V1->V2 runtime paths.
@@ -123,6 +131,7 @@ const v2SessionLayer = SessionV2.layer.pipe(
     Layer.mergeAll(
       v2SessionExecutionLayer,
       v2SessionStoreLayer,
+      Database.defaultLayer,
       SessionProjector.defaultLayer,
       EventV2.defaultLayer,
       CoreProject.defaultLayer,
@@ -157,6 +166,8 @@ const v2SessionShareLayer = SessionShareV2.layer.pipe(
 )
 
 const v2TaskDriverFillLayer = TaskDriverFill.layer.pipe(
+  Layer.provide(v2SessionLayer),
+  Layer.provide(BackgroundJob.defaultLayer),
   Layer.provide(CrossSpawnSpawner.defaultLayer),
 )
 
@@ -176,9 +187,7 @@ const V2_LAYERS = Layer.mergeAll(
   MetaPromptFiller.layer,
   v2SessionShareLayer,
   v2TaskDriverFillLayer,
-  // McpV2Bridge depends on location-scoped ConfigV2; globalLayer
-  // falls back to noop when no Location context is available.
-  McpV2Bridge.globalLayer,
+  McpV2.noopLayer,
 )
 
 export const AppLayer = Layer.mergeAll(
@@ -214,19 +223,29 @@ export const AppLayer = Layer.mergeAll(
   Workspace.defaultLayer,
   Worktree.appLayer,
   Installation.defaultLayer,
+  CrossSpawnSpawner.defaultLayer,
+  Credential.defaultLayer,
+  AppProcess.defaultLayer,
+  Global.defaultLayer,
+  ProjectDirectories.defaultLayer,
+  PermissionSaved.defaultLayer,
+  RepositoryCache.defaultLayer,
+  ToolOutputStore.defaultCleanupLayer,
+  ApplicationTools.layer,
 
   // ── V1 only (when flag is false) ────────────────────────────────
-  ...V1_ONLY_LAYERS,
 
   // ── V2 always ───────────────────────────────────────────────────
+  ...V1_ONLY_LAYERS,
   V2_LAYERS,
 ).pipe(
+  Layer.provideMerge(CliAdapterRegistry.defaultLayer),
   Layer.provideMerge(Ripgrep.defaultLayer),
   Layer.provideMerge(InstanceLayer.layer),
   Layer.provideMerge(Observability.layer),
 )
 
-const rt = ManagedRuntime.make(AppLayer as never, { memoMap })
+const rt = ManagedRuntime.make(AppLayer, { memoMap })
 type Runtime = Pick<typeof rt, "runSync" | "runPromise" | "runPromiseExit" | "runFork" | "runCallback" | "dispose">
 
 /** Services provided by AppRuntime — i.e. what an Effect run via AppRuntime.runPromise can yield. */

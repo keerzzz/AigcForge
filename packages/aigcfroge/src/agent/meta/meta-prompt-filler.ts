@@ -1,6 +1,6 @@
 export * as MetaPromptFiller from "./meta-prompt-filler"
 
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Option } from "effect"
 import { MetaPrompt } from "@aigcfroge/core/agent/meta/meta-prompt"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { CliAdapterRegistry } from "@/agent/meta/adapters/registry"
@@ -21,17 +21,18 @@ export const layer = Layer.effect(
     const adapters = yield* registry.available()
     const cliNames = adapters.map((a) => a.name)
 
-    yield* AgentV2.Service.pipe(
-      Effect.andThen((agents) =>
-        agents.transform((draft) => {
-          draft.update(AgentV2.ID.make("meta"), (item) => {
-            if (item.system) {
-              item.system = MetaPrompt.fillCliList(item.system, cliNames)
-            }
-          })
-        }),
-      ),
-    )
+    // Attempt to register an AgentV2 transform; skip silently when
+    // AgentV2 is not available (e.g. outside a Location scope).
+    const agentV2Option = yield* Effect.serviceOption(AgentV2.Service)
+    if (Option.isSome(agentV2Option)) {
+      yield* agentV2Option.value.transform((draft) => {
+        draft.update(AgentV2.ID.make("meta"), (item) => {
+          if (item.system) {
+            item.system = MetaPrompt.fillCliList(item.system, cliNames)
+          }
+        })
+      })
+    }
 
     return MetaPrompt.Service.of({
       fill: (prompt: string) =>

@@ -42,7 +42,7 @@ describe("config HttpApi", () => {
             method: "PATCH",
             headers: {
               "content-type": "application/json",
-              "x-aigcfroge-directory": tmp.path,
+              "x-aigcfroge-directory": encodeURIComponent(tmp.path),
             },
             body: JSON.stringify({ username: "patched-user", formatter: false, lsp: false }),
           }),
@@ -87,7 +87,7 @@ describe("config HttpApi", () => {
         Promise.resolve(
           app().request("/config", {
             headers: {
-              "x-aigcfroge-directory": tmp.path,
+              "x-aigcfroge-directory": encodeURIComponent(tmp.path),
             },
           }),
         ),

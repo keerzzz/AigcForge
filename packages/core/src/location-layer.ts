@@ -22,10 +22,6 @@ import { Global } from "./global"
 import { Database } from "./database/database"
 import { PermissionV2 } from "./permission"
 import { PermissionSaved } from "./permission/saved"
-import { ToolPermissionHandler } from "./permission/tool-handler"
-import { registerBashHandler } from "./tool/bash-handler"
-import { registerReadHandler } from "./tool/read-handler"
-import { registerEditHandler } from "./tool/edit-handler"
 import { FileSystem } from "./filesystem"
 import { Ripgrep } from "./ripgrep"
 import { Watcher } from "./filesystem/watcher"
@@ -85,17 +81,6 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
     ).pipe(Layer.provideMerge(location))
     const resources = ToolOutputStore.layer.pipe(Layer.provide(base))
     const permissionsAndTools = ToolRegistry.layer.pipe(
-      Layer.provideMerge(ToolPermissionHandler.layer),
-      Layer.provideMerge(
-        Layer.effectDiscard(
-          Effect.gen(function* () {
-            const service = yield* ToolPermissionHandler.Service
-            registerBashHandler(service)
-            registerReadHandler(service)
-            registerEditHandler(service)
-          }),
-        ),
-      ),
       Layer.provideMerge(PermissionV2.locationLayer),
       Layer.provide(resources),
       Layer.provide(base),
