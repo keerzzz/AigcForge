@@ -99,4 +99,72 @@ describe("AgentV2 file watcher refresh", () => {
       else process.env.AIGCFROGE_ENABLE_AGENT_FILE = originalFlag
     }
   })
+
+  test("loads newly added .agent.md file via watcher add event", async () => {
+    const originalFlag = process.env.AIGCFROGE_ENABLE_AGENT_FILE
+    process.env.AIGCFROGE_ENABLE_AGENT_FILE = "1"
+
+    const dirpath = path.join(os.tmpdir(), "aigcfroge-agent-add-" + Math.random().toString(36).slice(2))
+    await fs.mkdir(dirpath, { recursive: true })
+    const dir = await fs.realpath(dirpath)
+    const agentsDir = path.join(dir, ".claude", "agents")
+    await fs.mkdir(agentsDir, { recursive: true })
+
+    // Start with one existing agent so loadAll has work; the new one is added mid-session.
+    await Bun.write(
+      path.join(agentsDir, "reviewer.agent.md"),
+      ["---", "name: reviewer", "description: Original", "tools:", "  - read", "---", "", "You review code."].join("\n"),
+    )
+
+    const originalCwd = process.cwd()
+    try {
+      process.chdir(dir)
+      const layer = makeLayer(dir)
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const agents = yield* AgentV2.Service
+          const events = yield* EventV2.Service
+
+          // Precondition: reviewer exists, optimizer does not
+          const reviewer = yield* agents.get(AgentV2.ID.make("reviewer"))
+          expect(reviewer?.description).toBe("Original")
+          expect(yield* agents.get(AgentV2.ID.make("optimizer"))).toBeUndefined()
+
+          // Add a brand new agent file while the session is "running"
+          yield* Effect.promise(() =>
+            Bun.write(
+              path.join(agentsDir, "optimizer.agent.md"),
+              ["---", "name: optimizer", "description: Optimizes code", "tools:", "  - read", "---", "", "You optimize code."].join("\n"),
+            ),
+          )
+
+          // Keep an inline subscription alive so the EventV2 typed pubsub is created
+          // before the watcher event is published.
+          yield* events
+            .subscribe(Watcher.Event.Updated)
+            .pipe(Stream.runForEach(() => Effect.void), Effect.forkScoped)
+          yield* Effect.yieldNow
+
+          // Watcher emits Event.Updated with event "add" for newly created files (watcher.ts:94).
+          // fileLayer filters *.agent.md and calls agents.reload() -> loadAll rescans the dir.
+          yield* events.publish(Watcher.Event.Updated, { file: ".claude/agents/optimizer.agent.md", event: "add" })
+
+          const added = yield* pollWithTimeout(
+            Effect.gen(function* () {
+              const agent = yield* agents.get(AgentV2.ID.make("optimizer"))
+              return agent?.description === "Optimizes code" ? agent : undefined
+            }),
+            "timed out waiting for newly added agent file to load",
+            "2 seconds",
+          )
+          expect(added.description).toBe("Optimizes code")
+        }).pipe(Effect.scoped, Effect.provide(layer)),
+      )
+    } finally {
+      process.chdir(originalCwd)
+      await fs.rm(dir, { recursive: true, force: true }).catch(() => undefined)
+      if (originalFlag === undefined) delete process.env.AIGCFROGE_ENABLE_AGENT_FILE
+      else process.env.AIGCFROGE_ENABLE_AGENT_FILE = originalFlag
+    }
+  })
 })
