@@ -436,6 +436,10 @@ export const dict = {
 
   "context.systemPrompt.title": "System Prompt",
   "context.rawMessages.title": "Raw messages",
+  "context.status.active": "Active",
+  "context.status.idle": "Idle",
+  "context.section.tokens": "Token Details",
+  "context.section.activity": "Activity & Messages",
 
   "context.stats.session": "Session",
   "context.stats.messages": "Messages",
@@ -459,6 +463,7 @@ export const dict = {
   "context.usage.cost": "Cost",
   "context.usage.clickToView": "Click to view context",
   "context.usage.view": "View context usage",
+
 
   "language.en": "English",
   "language.zh": "简体中文",
@@ -575,6 +580,7 @@ export const dict = {
 
   "notification.permission.title": "Permission required",
   "notification.permission.description": "{{sessionTitle}} in {{projectName}} needs permission",
+  "notification.permission.fromSubagent": "From subagent",
   "notification.question.title": "Question",
   "notification.question.description": "{{sessionTitle}} in {{projectName}} has a question",
   "notification.action.goToSession": "Go to session",
@@ -868,6 +874,8 @@ export const dict = {
     "Place the title bar and session tabs at the bottom of the screen on mobile",
   "settings.general.row.showCustomAgents.title": "Custom agents",
   "settings.general.row.showCustomAgents.description": "Show the agent picker in the composer",
+  "settings.general.row.subagentAttendedDefault.title": "Subagent attended mode",
+  "settings.general.row.subagentAttendedDefault.description": "When enabled, subagents wait for user approval on permission requests (attended). When disabled, asks are auto-denied (unattended).",
   "settings.general.row.reasoningSummaries.title": "Show reasoning summaries",
   "settings.general.row.reasoningSummaries.description": "Display model reasoning summaries in the timeline",
   "settings.general.row.shellToolPartsExpanded.title": "Expand shell tool parts",
@@ -1085,8 +1093,16 @@ export const dict = {
   "statusBar.metrics.pin": "Pin metric",
   "statusBar.metrics.unpin": "Unpin metric",
   "statusBar.metrics.details": "Session metrics",
+  "statusBar.metrics.group.subagent": "SUBAGENTS",
+  "statusBar.metrics.subagentActive": "Active",
+  "statusBar.metrics.subagentCompleted": "Completed",
+  "statusBar.metrics.subagentFailed": "Failed",
+  "statusBar.metrics.toolCount": "Tool calls",
+  "statusBar.metrics.group.tools": "TOOLS",
+  "statusBar.openContext": "Open context tab",
 
-  "toolActivity.title": "Tool Activity",
+  "toolActivity.title": "Tool Calls",
+  "toolActivity.summary": "Tool Calls ({{total}} total, {{count}} tools)",
   "toolActivity.category.read": "Read files",
   "toolActivity.category.write": "Write files",
   "toolActivity.category.command": "Commands",

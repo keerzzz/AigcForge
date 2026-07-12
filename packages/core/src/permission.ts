@@ -164,7 +164,14 @@ export const layer = Layer.effect(
       const session = yield* sessions.get(sessionID)
       if (!session) return yield* new SessionV2.NotFoundError({ sessionID })
       const agent = yield* agents.resolve(agentID ?? session.agent)
-      return agent?.permissions ?? missingAgentPermissions
+      const rules = agent?.permissions ?? missingAgentPermissions
+      // Child sessions that are unattended convert ask→deny: the user is not
+      // present to reply, so permission prompts become automatic rejections.
+      // A root session (no parentID) always has the user present.
+      if (session.parentID !== undefined && !session.attended) {
+        return rules.map((r) => (r.effect === "ask" ? { ...r, effect: "deny" as const } : r))
+      }
+      return rules
     })
 
     function denied(input: AssertInput, rules: Permission.Ruleset) {

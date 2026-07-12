@@ -20,6 +20,7 @@ import { MAX_STEPS_PROMPT } from "@aigcfroge/core/session/runner/max-steps"
 import { ToolRegistry } from "@/tool/registry"
 import { MCP } from "../mcp"
 import { LSP } from "@/lsp/lsp"
+import { CliAdapterRegistry } from "@/agent/meta/adapters/registry"
 import { ulid } from "ulid"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { CrossSpawnSpawner } from "@aigcfroge/core/cross-spawn-spawner"
@@ -141,6 +142,7 @@ export const layer = Layer.effect(
     const revert = yield* SessionRevert.Service
     const summary = yield* SessionSummary.Service
     const sys = yield* SystemPrompt.Service
+    const cliAdapterRegistry = yield* CliAdapterRegistry.AdapterRegistry
     const llm = yield* LLM.Service
     const events = yield* EventV2Bridge.Service
     const flags = yield* RuntimeFlags.Service
@@ -661,7 +663,9 @@ export const layer = Layer.effect(
         .map((part) => (part.type === "text" ? part.text : ""))
         .filter(Boolean)
         .join("\n")
-      const route = PreRouter.preRoute(text)
+      const cliAdapters = yield* cliAdapterRegistry.available()
+      const cliNames = cliAdapters.map((a) => a.name)
+      const route = PreRouter.preRoute(text, cliNames)
       const target = route.confidence === "high" && route.targets.length === 1 ? route.targets[0] : undefined
       if (!route.routed || !target) return yield* agents.defaultInfo()
 
@@ -1608,6 +1612,8 @@ export const defaultLayer = Layer.suspend(() =>
     Layer.provide(SessionRunState.defaultLayer),
     Layer.provide(SessionStatus.defaultLayer),
     Layer.provide(SessionCompaction.defaultLayer),
+    // V1 compatibility: SessionProcessor is still used by the V1 prompt loop.
+    // Remove with Phase 5 V1 retirement.
     Layer.provide(SessionProcessor.defaultLayer),
     Layer.provide(Command.defaultLayer),
     Layer.provide(Permission.defaultLayer),
@@ -1768,6 +1774,7 @@ export const node = LayerNode.make(layer, [
   EventV2Bridge.node,
   RuntimeFlags.node,
   Database.node,
+  CliAdapterRegistry.node,
 ])
 
 export * as SessionPrompt from "./prompt"

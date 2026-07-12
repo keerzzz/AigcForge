@@ -36,6 +36,7 @@ import { resetDatabase } from "../fixture/db"
 import { workspaceLayerWithRuntimeFlags } from "../fixture/workspace"
 import { tmpdirScoped } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
+import { CliAdapterRegistry } from "../../src/agent/meta/adapters/registry"
 
 const testStateLayer = Layer.effectDiscard(
   Effect.gen(function* () {
@@ -48,7 +49,9 @@ const testStateLayer = Layer.effectDiscard(
   }),
 )
 
-const workspaceLayer = workspaceLayerWithRuntimeFlags({ experimentalWorkspaces: true })
+const workspaceLayer = workspaceLayerWithRuntimeFlags({ experimentalWorkspaces: true }).pipe(
+  Layer.provide(CliAdapterRegistry.defaultLayer),
+)
 
 const it = testEffect(
   Layer.mergeAll(

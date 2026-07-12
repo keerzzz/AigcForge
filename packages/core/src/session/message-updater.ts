@@ -137,6 +137,8 @@ export function update(adapter: Adapter, event: SessionEvent.Event) {
         )
       },
       "session.next.prompt.admitted": () => Effect.void,
+      "session.next.shell.admitted": () => Effect.void,
+      "session.next.skill.admitted": () => Effect.void,
       "session.next.context.updated": (event) =>
         adapter.appendMessage(
           SessionMessage.System.make({
@@ -157,6 +159,7 @@ export function update(adapter: Adapter, event: SessionEvent.Event) {
           }),
         )
       },
+      "session.next.forked": () => Effect.void,
       "session.next.shell.started": (event) => {
         return adapter.appendMessage(
           SessionMessage.Shell.make({

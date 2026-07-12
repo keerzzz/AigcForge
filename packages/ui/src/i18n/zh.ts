@@ -114,6 +114,7 @@ export const dict = {
   "ui.tool.questions": "问题",
   "ui.tool.agent": "{{type}} 智能体",
   "ui.tool.agent.default": "智能体",
+  "ui.tool.agent.openSession": "Open sub-agent session",
 
   "ui.common.file.one": "个文件",
   "ui.common.file.other": "个文件",

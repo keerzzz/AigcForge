@@ -35,6 +35,7 @@ export interface Settings {
     editToolPartsExpanded: boolean
     showSessionProgressBar: boolean
     showCustomAgents: boolean
+    subagentAttendedDefault: boolean
     mobileTitlebarPosition: "top" | "bottom"
   }
   appearance: {
@@ -121,6 +122,7 @@ const defaultSettings: Settings = {
     editToolPartsExpanded: false,
     showSessionProgressBar: true,
     showCustomAgents: false,
+    subagentAttendedDefault: false,
     mobileTitlebarPosition: "top",
   },
   appearance: {
@@ -265,6 +267,13 @@ export const { use: useSettings, provider: SettingsProvider } = createSimpleCont
         showCustomAgents,
         setShowCustomAgents(value: boolean) {
           setStore("general", "showCustomAgents", value)
+        },
+        subagentAttendedDefault: withFallback(
+          () => store.general?.subagentAttendedDefault,
+          defaultSettings.general.subagentAttendedDefault,
+        ),
+        setSubagentAttendedDefault(value: boolean) {
+          setStore("general", "subagentAttendedDefault", value)
         },
         mobileTitlebarPosition: withFallback(
           () => store.general?.mobileTitlebarPosition,

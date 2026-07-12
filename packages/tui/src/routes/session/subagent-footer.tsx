@@ -1,7 +1,9 @@
-import { createMemo, createSignal, Show } from "solid-js"
+import { createMemo, createSignal, For, Show } from "solid-js"
 import { useRouteData } from "../../context/route"
 import { useSync } from "../../context/sync"
 import { useTheme } from "../../context/theme"
+import { useSDK } from "../../context/sdk"
+import { useRoute } from "../../context/route"
 import { SplitBorder } from "../../ui/border"
 import type { AssistantMessage } from "@aigcfroge/sdk/v2"
 import { Locale } from "../../util/locale"
@@ -11,6 +13,8 @@ import { useCommandShortcut, useAigcfrogeKeymap } from "../../keymap"
 export function SubagentFooter() {
   const route = useRouteData("session")
   const sync = useSync()
+  const sdk = useSDK()
+  const { navigate } = useRoute()
   const messages = createMemo(() => sync.data.message[route.sessionID] ?? [])
   const session = createMemo(() => sync.session.get(route.sessionID))
 
@@ -54,12 +58,43 @@ export function SubagentFooter() {
     }
   })
 
+  const currentAgentName = createMemo(() => {
+    const msgs = messages()
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const msg = msgs[i]
+      if (msg.role === "user" && msg.agent) return msg.agent
+    }
+    return undefined
+  })
+
+  const handoffActions = createMemo<
+    { label: string; agent: string; prompt: string }[]
+  >(() => {
+    const name = currentAgentName()
+    if (!name) return []
+    const agent = sync.data.agent.find((a) => a.name === name)
+    return (agent?.handoffs ?? []).filter((h) => h.label && h.agent && h.prompt)
+  })
+
+  const handleHandoff = async (agent: string, prompt: string) => {
+    const sessionID = route.sessionID
+    if (!sessionID) return
+    try {
+      const result = await sdk.client.v2.session.fork({ sessionID, prompt, agent })
+      const childID = result.data?.sessionID
+      if (childID) navigate({ type: "session", sessionID: childID })
+    } catch {
+      // handoff failed silently
+    }
+  }
+
   const { theme } = useTheme()
   const keymap = useAigcfrogeKeymap()
   const parentShortcut = useCommandShortcut("session.parent")
   const previousShortcut = useCommandShortcut("session.child.previous")
   const nextShortcut = useCommandShortcut("session.child.next")
   const [hover, setHover] = createSignal<"parent" | "prev" | "next" | null>(null)
+  const [handoffHover, setHandoffHover] = createSignal<number | null>(null)
   useTerminalDimensions()
 
   return (
@@ -75,56 +110,77 @@ export function SubagentFooter() {
         flexShrink={0}
         backgroundColor={theme.backgroundPanel}
       >
-        <box flexDirection="row" justifyContent="space-between" gap={1}>
-          <box flexDirection="row" gap={1}>
-            <text fg={theme.text}>
-              <b>{subagentInfo().label}</b>
-            </text>
-            <Show when={subagentInfo().total > 0}>
-              <text style={{ fg: theme.textMuted }}>
-                ({subagentInfo().index} of {subagentInfo().total})
+        <box flexDirection="column" gap={0}>
+          <box flexDirection="row" justifyContent="space-between" gap={1}>
+            <box flexDirection="row" gap={1}>
+              <text fg={theme.text}>
+                <b>{subagentInfo().label}</b>
               </text>
-            </Show>
-            <Show when={usage()}>
-              {(item) => (
-                <text fg={theme.textMuted} wrapMode="none">
-                  {[item().context, item().cost].filter(Boolean).join(" · ")}
+              <Show when={subagentInfo().total > 0}>
+                <text style={{ fg: theme.textMuted }}>
+                  ({subagentInfo().index} of {subagentInfo().total})
                 </text>
-              )}
-            </Show>
+              </Show>
+              <Show when={usage()}>
+                {(item) => (
+                  <text fg={theme.textMuted} wrapMode="none">
+                    {[item().context, item().cost].filter(Boolean).join(" · ")}
+                  </text>
+                )}
+              </Show>
+            </box>
+            <box flexDirection="row" gap={2}>
+              <box
+                onMouseOver={() => setHover("parent")}
+                onMouseOut={() => setHover(null)}
+                onMouseUp={() => keymap.dispatchCommand("session.parent")}
+                backgroundColor={hover() === "parent" ? theme.backgroundElement : theme.backgroundPanel}
+              >
+                <text fg={theme.text}>
+                  Parent <span style={{ fg: theme.textMuted }}>{parentShortcut()}</span>
+                </text>
+              </box>
+              <box
+                onMouseOver={() => setHover("prev")}
+                onMouseOut={() => setHover(null)}
+                onMouseUp={() => keymap.dispatchCommand("session.child.previous")}
+                backgroundColor={hover() === "prev" ? theme.backgroundElement : theme.backgroundPanel}
+              >
+                <text fg={theme.text}>
+                  Prev <span style={{ fg: theme.textMuted }}>{previousShortcut()}</span>
+                </text>
+              </box>
+              <box
+                onMouseOver={() => setHover("next")}
+                onMouseOut={() => setHover(null)}
+                onMouseUp={() => keymap.dispatchCommand("session.child.next")}
+                backgroundColor={hover() === "next" ? theme.backgroundElement : theme.backgroundPanel}
+              >
+                <text fg={theme.text}>
+                  Next <span style={{ fg: theme.textMuted }}>{nextShortcut()}</span>
+                </text>
+              </box>
+            </box>
           </box>
-          <box flexDirection="row" gap={2}>
-            <box
-              onMouseOver={() => setHover("parent")}
-              onMouseOut={() => setHover(null)}
-              onMouseUp={() => keymap.dispatchCommand("session.parent")}
-              backgroundColor={hover() === "parent" ? theme.backgroundElement : theme.backgroundPanel}
-            >
-              <text fg={theme.text}>
-                Parent <span style={{ fg: theme.textMuted }}>{parentShortcut()}</span>
-              </text>
+          <Show when={handoffActions().length > 0}>
+            <box flexDirection="row" gap={1} paddingTop={1}>
+              <text fg={theme.textMuted}>&#8594;</text>
+              <For each={handoffActions()}>
+                {(action, index) => (
+                  <box
+                    onMouseOver={() => setHandoffHover(index())}
+                    onMouseOut={() => setHandoffHover(null)}
+                    onMouseUp={() => handleHandoff(action.agent, action.prompt)}
+                    backgroundColor={
+                      handoffHover() === index() ? theme.backgroundElement : theme.backgroundPanel
+                    }
+                  >
+                    <text fg={theme.text}>{action.label}</text>
+                  </box>
+                )}
+              </For>
             </box>
-            <box
-              onMouseOver={() => setHover("prev")}
-              onMouseOut={() => setHover(null)}
-              onMouseUp={() => keymap.dispatchCommand("session.child.previous")}
-              backgroundColor={hover() === "prev" ? theme.backgroundElement : theme.backgroundPanel}
-            >
-              <text fg={theme.text}>
-                Prev <span style={{ fg: theme.textMuted }}>{previousShortcut()}</span>
-              </text>
-            </box>
-            <box
-              onMouseOver={() => setHover("next")}
-              onMouseOut={() => setHover(null)}
-              onMouseUp={() => keymap.dispatchCommand("session.child.next")}
-              backgroundColor={hover() === "next" ? theme.backgroundElement : theme.backgroundPanel}
-            >
-              <text fg={theme.text}>
-                Next <span style={{ fg: theme.textMuted }}>{nextShortcut()}</span>
-              </text>
-            </box>
-          </box>
+          </Show>
         </box>
       </box>
     </box>

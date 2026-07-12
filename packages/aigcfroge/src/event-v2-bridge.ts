@@ -1,8 +1,7 @@
-// Aigcfroge publish boundary for core events. Attach routed instance location
-// so direct EventV2 consumers can isolate directory/workspace streams.
+// Aigcfroge publish boundary for core events. Wraps EventV2.publish to attach
+// routed instance location so direct EventV2 consumers can isolate streams.
 import { LayerNode } from "@aigcfroge/core/effect/layer-node"
 import { InstanceRef, WorkspaceRef } from "@/effect/instance-ref"
-import { GlobalBus } from "@/bus/global"
 import { EventV2 } from "@aigcfroge/core/event"
 import { Location } from "@aigcfroge/core/location"
 import { Project } from "@aigcfroge/core/project"
@@ -34,39 +33,6 @@ export const layer = Layer.effect(
           }),
         })
       })
-
-    const unsubscribe = yield* events.listen((event) =>
-      Effect.gen(function* () {
-        const ctx = yield* InstanceRef
-        const workspaceID = (yield* WorkspaceRef) ?? event.location?.workspaceID
-        GlobalBus.emit("event", {
-          directory: event.location?.directory ?? ctx?.directory,
-          project: ctx?.project.id,
-          workspace: workspaceID,
-          payload: { id: event.id, type: event.type, properties: event.data },
-        })
-        const durable = EventV2.registry.get(event.type)?.durable
-        if (durable === undefined || event.durable === undefined) return
-        const aggregateID = (event.data as Record<string, unknown>)[durable.aggregate]
-        if (typeof aggregateID !== "string") return
-        GlobalBus.emit("event", {
-          directory: event.location?.directory ?? ctx?.directory,
-          project: ctx?.project.id,
-          workspace: workspaceID,
-          payload: {
-            type: "sync",
-            syncEvent: {
-              id: event.id,
-              type: EventV2.versionedType(event.type, event.durable.version),
-              seq: event.durable.seq,
-              aggregateID,
-              data: event.data,
-            },
-          },
-        })
-      }),
-    )
-    yield* Effect.addFinalizer(() => unsubscribe)
 
     return Service.of({ ...events, publish })
   }),

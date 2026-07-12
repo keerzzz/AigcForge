@@ -2,6 +2,7 @@ import {
   Component,
   createEffect,
   createMemo,
+  createResource,
   createSignal,
   For,
   Match,
@@ -58,6 +59,7 @@ import { animate } from "motion"
 import { useLocation } from "@solidjs/router"
 import { attached, inline, kind } from "./message-file"
 import { readPartText } from "./message-part-text"
+import { HandoffButton } from "./handoff-button"
 
 async function writeClipboard(text: string): Promise<boolean> {
   const body = typeof document === "undefined" ? undefined : document.body
@@ -161,6 +163,8 @@ export interface MessageProps {
   actions?: UserActions
   showAssistantCopyPartID?: string | null
   showReasoningSummaries?: boolean
+  /** Handoff actions available for this assistant message's agent. */
+  handoffs?: ReadonlyArray<{ readonly label: string; readonly agent: string; readonly prompt: string }>
 }
 
 export type SessionAction = (input: { sessionID: string; messageID: string }) => Promise<void> | void
@@ -168,6 +172,7 @@ export type SessionAction = (input: { sessionID: string; messageID: string }) =>
 export type UserActions = {
   fork?: SessionAction
   revert?: SessionAction
+  handoff?: (agent: string, prompt: string) => void
 }
 
 export interface MessagePartProps {
@@ -856,12 +861,24 @@ export function Message(props: MessageProps) {
       </Match>
       <Match when={props.message.role === "assistant" && props.message}>
         {(assistantMessage) => (
-          <AssistantMessageDisplay
-            message={assistantMessage()}
-            parts={props.parts}
-            showAssistantCopyPartID={props.showAssistantCopyPartID}
-            showReasoningSummaries={props.showReasoningSummaries}
-          />
+          <>
+            <AssistantMessageDisplay
+              message={assistantMessage()}
+              parts={props.parts}
+              showAssistantCopyPartID={props.showAssistantCopyPartID}
+              showReasoningSummaries={props.showReasoningSummaries}
+            />
+            <Show when={props.handoffs && props.handoffs.length > 0 && props.actions?.handoff}>
+              <HandoffButton
+                actions={props.handoffs!.map((h) => ({
+                  label: h.label,
+                  agent: h.agent,
+                  prompt: h.prompt,
+                  onClick: () => props.actions!.handoff!(h.agent, h.prompt),
+                }))}
+              />
+            </Show>
+          </>
         )}
       </Match>
     </Switch>
@@ -1858,9 +1875,17 @@ ToolRegistry.register({
           </div>
         </div>
         <Show when={clickable()}>
-          <div data-component="task-tool-action">
+          <a
+            data-component="task-tool-action"
+            href={href()}
+            aria-label={i18n.t("ui.tool.agent.openSession")}
+            onClick={(e) => {
+              e.stopPropagation()
+              navigate(e)
+            }}
+          >
             <Icon name="square-arrow-top-right" size="small" />
-          </div>
+          </a>
         </Show>
       </div>
     )
@@ -1871,9 +1896,6 @@ ToolRegistry.register({
         status={props.status}
         trigger={trigger()}
         hideDetails
-        triggerHref={href()}
-        clickable={clickable()}
-        onTriggerClick={navigate}
       />
     )
   },

@@ -70,4 +70,40 @@ describe("adapter registry", () => {
       expect(available.some((a) => a.name === "unavailable-cli")).toBe(false)
     }),
   )
+
+  it.instance("available adapters can be shaped as Agent.Info", () =>
+    Effect.gen(function* () {
+      const registry = yield* CliAdapterRegistry.AdapterRegistry
+      // Register a detect=true adapter for deterministic testing
+      yield* registry.register("test-agent-cli", {
+        name: "test-agent-cli",
+        command: "test",
+        description: "A test CLI agent",
+        detect: () => Effect.succeed(true),
+        buildArgs: () => Effect.succeed([]),
+        parseOutput: () => Effect.succeed({ status: "success", summary: "ok" }),
+      })
+      const available = yield* registry.available()
+      const testAdapter = available.find((a) => a.name === "test-agent-cli")
+      expect(testAdapter).toBeDefined()
+
+      // Convert to Agent.Info shape
+      const agentInfo = {
+        name: testAdapter!.name,
+        description: testAdapter!.description,
+        mode: "subagent" as const,
+        source: "external-cli" as const,
+        native: false,
+        hidden: false,
+        permission: [],
+        options: {},
+      }
+      expect(agentInfo.name).toBe("test-agent-cli")
+      expect(agentInfo.description).toBe("A test CLI agent")
+      expect(agentInfo.mode).toBe("subagent")
+      expect(agentInfo.source).toBe("external-cli")
+      expect(agentInfo.native).toBe(false)
+      expect(agentInfo.hidden).toBe(false)
+    }),
+  )
 })

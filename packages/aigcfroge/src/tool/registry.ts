@@ -52,7 +52,7 @@ import { BackgroundJob } from "@/background/job"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
-import { defaultLayer as adapterRegistryLayer } from "../agent/meta/adapters/registry"
+import { CliAdapterRegistry } from "../agent/meta/adapters/registry"
 
 export function webSearchEnabled(providerID: ProviderV2.ID, flags = { exa: false, parallel: false }) {
   return providerID === ProviderV2.ID.aigcfroge || flags.exa || flags.parallel
@@ -331,7 +331,7 @@ export const defaultLayer = Layer.suspend(() =>
     .pipe(
       Layer.provide(Config.defaultLayer),
       Layer.provide(Plugin.defaultLayer),
-      Layer.provide(adapterRegistryLayer),
+      Layer.provide(CliAdapterRegistry.defaultLayer),
       Layer.provide(Question.defaultLayer),
       Layer.provide(Todo.defaultLayer),
       Layer.provide(Skill.defaultLayer),
@@ -431,6 +431,7 @@ function isJsonSchemaObject(value: unknown): value is Record<string, unknown> {
 export const node = LayerNode.make(layer.pipe(Layer.provide(Ripgrep.defaultLayer)), [
   Config.node,
   Plugin.node,
+  CliAdapterRegistry.node,
   Question.node,
   Todo.node,
   Agent.node,

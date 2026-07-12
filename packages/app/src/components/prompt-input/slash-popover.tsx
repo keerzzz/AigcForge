@@ -4,7 +4,7 @@ import { Icon } from "@aigcfroge/ui/icon"
 import { getDirectory, getFilename } from "@aigcfroge/core/util/path"
 
 export type AtOption =
-  | { type: "agent"; name: string; display: string }
+  | { type: "agent"; name: string; display: string; source?: "native" | "external-cli" }
   | { type: "file"; path: string; display: string; recent?: boolean }
 
 export interface SlashCommand {
@@ -63,8 +63,11 @@ export const PromptPopover: Component<PromptPopoverProps> = (props) => {
                         onClick={() => props.onAtSelect(item)}
                         onMouseEnter={() => props.setAtActive(key)}
                       >
-                        <Icon name="brain" size="small" class="text-icon-info-active shrink-0" />
+                        <Icon name={item.source === "external-cli" ? "terminal" : "brain"} size="small" class={item.source === "external-cli" ? "text-icon-brand-onAlt shrink-0" : "text-icon-info-active shrink-0"} />
                         <span class="text-14-regular text-text-strong whitespace-nowrap">@{item.name}</span>
+                        <Show when={item.source === "external-cli"}>
+                          <span class="text-11-regular text-text-subtle px-1.5 py-0.5 bg-surface-base rounded">CLI</span>
+                        </Show>
                       </button>
                     )
                   }

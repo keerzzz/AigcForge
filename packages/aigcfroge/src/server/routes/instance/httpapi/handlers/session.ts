@@ -1,6 +1,13 @@
 import { PermissionV1 } from "@aigcfroge/core/v1/permission"
 import { Agent } from "@/agent/agent"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
+import { SessionV2 } from "@aigcfroge/core/session"
+import { SessionMessage } from "@aigcfroge/core/session/message"
+import { SessionTodo } from "@aigcfroge/core/session/todo"
+import { PermissionV2 } from "@aigcfroge/core/permission"
+import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
+import { SessionRevert as V2SessionRevert } from "@aigcfroge/core/session/revert"
+import { SessionSummary as V2SessionSummary } from "@aigcfroge/core/session/summary"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Command } from "@/command"
 import { Permission } from "@/permission"
@@ -8,6 +15,7 @@ import { SessionShare } from "@/share/session"
 import { Session } from "@/session/session"
 import { SessionCompaction } from "@/session/compaction"
 import { MessageV2 } from "@/session/message-v2"
+import { v2InfoToV1 } from "./session-adapter"
 import { SessionPrompt } from "@/session/prompt"
 import { SessionRevert } from "@/session/revert"
 import { SessionRunState } from "@/session/run-state"
@@ -15,6 +23,7 @@ import { SessionStatus } from "@/session/status"
 import { SessionSummary } from "@/session/summary"
 import { Todo } from "@/session/todo"
 import { MessageID, PartID, SessionID } from "@/session/schema"
+import { AbsolutePath } from "@aigcfroge/core/schema"
 import { getCacheDiagnostics } from "@aigcfroge/core/session/cache-diagnostics"
 import { Database } from "@aigcfroge/core/database/database"
 import { NamedError } from "@aigcfroge/core/util/error"
@@ -38,13 +47,19 @@ import {
   UpdatePayload,
 } from "../groups/session"
 import { PermissionNotFoundError } from "../errors"
+import { notFound } from "../errors"
 import * as SessionError from "./session-errors"
+import { AIGCFROGE_V2_RUNTIME } from "@/effect/app-runtime"
 
 const tryParseJson = (text: string) =>
   Effect.try({
     try: () => JSON.parse(text) as unknown,
     catch: () => new HttpApiError.BadRequest({}),
   })
+
+const v2SessionNotFound = (error: SessionV2.NotFoundError) => notFound(`Session not found: ${error.sessionID}`)
+
+const v2OperationUnavailable = () => new HttpApiError.BadRequest({})
 
 export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", (handlers) =>
   Effect.gen(function* () {
@@ -86,14 +101,24 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const get = Effect.fn("SessionHttpApi.get")(function* (ctx: { params: { sessionID: SessionID } }) {
       return yield* requireSession(ctx.params.sessionID)
     })
-
     const children = Effect.fn("SessionHttpApi.children")(function* (ctx: { params: { sessionID: SessionID } }) {
       yield* requireSession(ctx.params.sessionID)
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2session = yield* SessionV2.Service
+        const children = yield* v2session.children(ctx.params.sessionID as SessionV2.ID).pipe(
+          Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))),
+        )
+        return children.map(v2InfoToV1)
+      }
       return yield* session.children(ctx.params.sessionID)
     })
 
     const todo = Effect.fn("SessionHttpApi.todo")(function* (ctx: { params: { sessionID: SessionID } }) {
       yield* requireSession(ctx.params.sessionID)
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2todo = yield* SessionTodo.Service
+        return yield* v2todo.get(ctx.params.sessionID as SessionV2.ID)
+      }
       return yield* todoSvc.get(ctx.params.sessionID)
     })
 
@@ -101,6 +126,13 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       params: { sessionID: SessionID }
       query: typeof DiffQuery.Type
     }) {
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2summary = yield* V2SessionSummary.Service
+        return yield* v2summary.diff({
+          sessionID: ctx.params.sessionID as SessionV2.ID,
+          ...(ctx.query.messageID ? { messageID: SessionMessage.ID.make(ctx.query.messageID) } : {}),
+        })
+      }
       return yield* summary.diff({ sessionID: ctx.params.sessionID, messageID: ctx.query.messageID })
     })
 
@@ -117,6 +149,14 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
         })
       }
       yield* requireSession(ctx.params.sessionID)
+      // messages/message endpoints stay on the V1 path (MessageV2.page / session.messages)
+      // even when AIGCFROGE_V2_RUNTIME=true. The V2 session_message table only stores
+      // metadata events (agent-switched/model-switched); the actual conversation
+      // (user/assistant + parts) is written to the V1 message+part tables by both V1
+      // and V2 runtimes. v2s.messages reads session_message and returns flat V2
+      // SessionMessage.Message[] - incomplete data AND wrong shape (API schema expects
+      // SessionV1.WithParts[] = { info, parts }). Stay V1 until V2 message storage is
+      // complete and a V2->WithParts adapter exists.
       if (ctx.query.limit === undefined || ctx.query.limit === 0) {
         return yield* SessionError.mapStorageNotFound(session.messages({ sessionID: ctx.params.sessionID }))
       }
@@ -148,12 +188,22 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const message = Effect.fn("SessionHttpApi.message")(function* (ctx: {
       params: { sessionID: SessionID; messageID: MessageID }
     }) {
+      // V1 path: MessageV2.get reads message+part tables, returns WithParts.
+      // See `messages` handler comment for why this endpoint stays V1.
       return yield* SessionError.mapStorageNotFound(
         MessageV2.get({ sessionID: ctx.params.sessionID, messageID: ctx.params.messageID }),
       )
     })
 
-    const create = Effect.fn("SessionHttpApi.create")(function* (ctx: { payload?: Session.CreateInput }) {
+    const create = Effect.fn("SessionHttpApi.create")(function* (ctx: {
+      payload?: Session.CreateInput
+    }) {
+      // create stays on the V1 path (shareSvc.create) even when AIGCFROGE_V2_RUNTIME=true.
+      // V2 SessionV2.create requires an explicit location.directory, but the create
+      // endpoint is registered via handleRaw and the client (submit.ts) calls
+      // session.create() without passing directory. V1 shareSvc.create resolves the
+      // directory via the V1 Session service's workspace context. Re-enable V2 create
+      // once the client passes directory or V2 create can resolve it from context.
       return yield* shareSvc.create(ctx.payload)
     })
 
@@ -177,6 +227,13 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     })
 
     const remove = Effect.fn("SessionHttpApi.remove")(function* (ctx: { params: { sessionID: SessionID } }) {
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2s = yield* SessionV2.Service
+        yield* v2s.remove(ctx.params.sessionID as SessionV2.ID).pipe(
+          Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))),
+        )
+        return true
+      }
       yield* SessionError.mapStorageNotFound(session.remove(ctx.params.sessionID))
       return true
     })
@@ -187,7 +244,14 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     }) {
       const current = yield* requireSession(ctx.params.sessionID)
       if (ctx.payload.title !== undefined) {
-        yield* session.setTitle({ sessionID: ctx.params.sessionID, title: ctx.payload.title })
+        if (AIGCFROGE_V2_RUNTIME) {
+          const v2s = yield* SessionV2.Service
+          yield* v2s.setTitle({ sessionID: ctx.params.sessionID as SessionV2.ID, title: ctx.payload.title }).pipe(
+            Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))),
+          )
+        } else {
+          yield* session.setTitle({ sessionID: ctx.params.sessionID, title: ctx.payload.title })
+        }
       }
       if (ctx.payload.metadata !== undefined) {
         yield* session.setMetadata({ sessionID: ctx.params.sessionID, metadata: ctx.payload.metadata })
@@ -208,6 +272,21 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       params: { sessionID: SessionID }
       payload?: typeof ForkPayload.Type
     }) {
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2s = yield* SessionV2.Service
+        const parent = yield* SessionError.mapStorageNotFound(session.get(ctx.params.sessionID))
+        const child = yield* v2s.create({ location: { directory: AbsolutePath.make(parent.directory) }, parentID: parent.id })
+        const shareSvc = yield* SessionShareV2.Service
+        yield* shareSvc
+          .share({
+            sourceSessionID: ctx.params.sessionID as SessionV2.ID,
+            targetSessionID: child.id,
+            scope: "full",
+            trigger: true,
+          })
+          .pipe(Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))))
+        return v2InfoToV1(child)
+      }
       return yield* SessionError.mapStorageNotFound(
         session.fork({
           sessionID: ctx.params.sessionID,
@@ -231,6 +310,11 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     })
 
     const abort = Effect.fn("SessionHttpApi.abort")(function* (ctx: { params: { sessionID: SessionID } }) {
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2session = yield* SessionV2.Service
+        yield* v2session.interrupt(ctx.params.sessionID as SessionV2.ID)
+        return true
+      }
       yield* promptSvc.cancel(ctx.params.sessionID)
       return true
     })
@@ -240,6 +324,14 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof InitPayload.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2s = yield* SessionV2.Service
+        yield* v2s.skill({ sessionID: ctx.params.sessionID as SessionV2.ID, skill: Command.Default.INIT, resume: false }).pipe(
+          Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))),
+          Effect.catchTag("Session.PromptConflictError", () => Effect.fail(new HttpApiError.BadRequest({}))),
+        )
+        return true
+      }
       yield* promptSvc
         .command({
           sessionID: ctx.params.sessionID,
@@ -259,7 +351,19 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     // every failure to a 400 BadRequest.
     const share = Effect.fn("SessionHttpApi.share")(function* (ctx: { params: { sessionID: SessionID } }) {
       yield* requireSession(ctx.params.sessionID)
-      yield* shareSvc.share(ctx.params.sessionID).pipe(Effect.mapError(() => new HttpApiError.InternalServerError({})))
+      if (AIGCFROGE_V2_RUNTIME) {
+        const shareSvc2 = yield* SessionShareV2.Service
+        yield* shareSvc2
+          .share({
+            sourceSessionID: ctx.params.sessionID as SessionV2.ID,
+            targetSessionID: ctx.params.sessionID as SessionV2.ID,
+            scope: "full",
+            trigger: false,
+          })
+          .pipe(Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))))
+      } else {
+        yield* shareSvc.share(ctx.params.sessionID).pipe(Effect.mapError(() => new HttpApiError.InternalServerError({})))
+      }
       return yield* requireSession(ctx.params.sessionID)
     })
 
@@ -276,6 +380,14 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof SummarizePayload.Type
     }) {
       yield* revertSvc.cleanup(yield* requireSession(ctx.params.sessionID))
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2s = yield* SessionV2.Service
+        yield* v2s.compact({ sessionID: ctx.params.sessionID as SessionV2.ID }).pipe(
+          Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))),
+          Effect.catchTag("Session.OperationUnavailableError", () => Effect.fail(v2OperationUnavailable())),
+        )
+        return true
+      }
       const messages = yield* SessionError.mapStorageNotFound(session.messages({ sessionID: ctx.params.sessionID }))
       const defaultAgent = yield* agentSvc.defaultAgent()
       const currentAgent = messages.findLast((message) => message.info.role === "user")?.info.agent ?? defaultAgent
@@ -298,6 +410,13 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof PromptPayload.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
+      // prompt/command/shell stay on the V1 path even when AIGCFROGE_V2_RUNTIME=true.
+      // V2 v2s.prompt/v2s.skill/v2session.shell return SessionInput.Admitted (a flat
+      // durable-inbox admission record) but the API success schema is SessionV1.WithParts
+      // ({info, parts}). No Admitted->WithParts adapter exists, and the message/parts are
+      // not synchronously materialized after admission (V2 runner drains async). V1
+      // promptSvc returns WithParts directly. Re-enable V2 once the adapter + sync
+      // materialization exist.
       const message = yield* promptSvc
         .prompt({
           ...ctx.payload,
@@ -314,6 +433,24 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof PromptPayload.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2session = yield* SessionV2.Service
+        // Extract text from the V1 prompt payload's first text part.
+        const parts = ctx.payload.parts as Array<{ type: string; text?: string }> | undefined
+        const textPart = parts?.find((p) => p.type === "text")
+        const promptText = textPart?.text ?? ""
+        if (promptText) {
+          yield* v2session
+            .prompt({
+              sessionID: ctx.params.sessionID as SessionV2.ID,
+              prompt: { text: promptText },
+              delivery: "steer",
+              resume: true,
+            })
+            .pipe(Effect.ignore)
+        }
+        return HttpApiSchema.NoContent.make()
+      }
       yield* promptSvc.prompt({ ...ctx.payload, sessionID: ctx.params.sessionID }).pipe(
         Effect.catchCause((cause) =>
           Effect.gen(function* () {
@@ -334,6 +471,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof CommandPayload.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
+      // command stays V1 - see prompt handler comment (V2 v2s.skill returns Admitted, API expects WithParts)
       return yield* promptSvc
         .command({ ...ctx.payload, sessionID: ctx.params.sessionID })
         .pipe(Effect.mapError(() => new HttpApiError.BadRequest({})))
@@ -344,6 +482,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof ShellPayload.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
+      // shell stays V1 - see prompt handler comment (V2 v2session.shell returns Admitted, API expects WithParts)
       return yield* SessionError.mapBusy(promptSvc.shell({ ...ctx.payload, sessionID: ctx.params.sessionID }))
     })
 
@@ -352,11 +491,24 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof RevertPayload.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2revert = yield* V2SessionRevert.Service
+        const info = yield* v2revert.revert({
+          sessionID: ctx.params.sessionID as SessionV2.ID,
+          messageID: ctx.payload.messageID as unknown as SessionMessage.ID,
+        })
+        return v2InfoToV1(info)
+      }
       return yield* SessionError.mapBusy(revertSvc.revert({ sessionID: ctx.params.sessionID, ...ctx.payload }))
     })
 
     const unrevert = Effect.fn("SessionHttpApi.unrevert")(function* (ctx: { params: { sessionID: SessionID } }) {
       yield* requireSession(ctx.params.sessionID)
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2revert = yield* V2SessionRevert.Service
+        const info = yield* v2revert.unrevert({ sessionID: ctx.params.sessionID as SessionV2.ID })
+        return v2InfoToV1(info)
+      }
       return yield* SessionError.mapBusy(revertSvc.unrevert({ sessionID: ctx.params.sessionID }))
     })
 
@@ -365,16 +517,33 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof PermissionResponsePayload.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
-      yield* permissionSvc.reply({ requestID: ctx.params.permissionID, reply: ctx.payload.response }).pipe(
-        Effect.catchTag("Permission.NotFoundError", (error) =>
-          Effect.fail(
-            new PermissionNotFoundError({
-              requestID: String(error.requestID),
-              message: `Permission request not found: ${error.requestID}`,
-            }),
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2perm = yield* PermissionV2.Service
+        yield* v2perm.reply({
+          requestID: PermissionV2.ID.make(ctx.params.permissionID),
+          reply: ctx.payload.response,
+        }).pipe(
+          Effect.catchTag("PermissionV2.NotFoundError", (error) =>
+            Effect.fail(
+              new PermissionNotFoundError({
+                requestID: String(error.requestID),
+                message: `Permission request not found: ${error.requestID}`,
+              }),
+            ),
           ),
-        ),
-      )
+        )
+      } else {
+        yield* permissionSvc.reply({ requestID: ctx.params.permissionID, reply: ctx.payload.response }).pipe(
+          Effect.catchTag("Permission.NotFoundError", (error) =>
+            Effect.fail(
+              new PermissionNotFoundError({
+                requestID: String(error.requestID),
+                message: `Permission request not found: ${error.requestID}`,
+              }),
+            ),
+          ),
+        )
+      }
       return true
     })
 
@@ -383,6 +552,16 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     }) {
       yield* requireSession(ctx.params.sessionID)
       yield* SessionError.mapBusy(runState.assertNotBusy(ctx.params.sessionID))
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2s = yield* SessionV2.Service
+        yield* v2s.removeMessage({
+          sessionID: ctx.params.sessionID as SessionV2.ID,
+          messageID: SessionMessage.ID.make(ctx.params.messageID),
+        }).pipe(
+          Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))),
+        )
+        return true
+      }
       yield* session.removeMessage(ctx.params)
       return true
     })
@@ -420,6 +599,19 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       )
     })
 
+    const toolSummary = Effect.fn("SessionHttpApi.toolSummary")(function* (ctx: {
+      params: { sessionID: SessionID }
+    }) {
+      if (AIGCFROGE_V2_RUNTIME) {
+        const v2s = yield* SessionV2.Service
+        return yield* v2s.toolSummary(ctx.params.sessionID as SessionV2.ID).pipe(
+          Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))),
+          Effect.catchTag("Session.MessageDecodeError", () => Effect.fail(new HttpApiError.BadRequest({}))),
+        )
+      }
+      return []
+    })
+
     return handlers
       .handle("list", list)
       .handle("status", status)
@@ -449,5 +641,6 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       .handle("deletePart", deletePart)
       .handle("updatePart", updatePart)
       .handle("cacheDiagnostics", cacheDiagnostics)
+      .handle("toolSummary", toolSummary)
   }),
 )

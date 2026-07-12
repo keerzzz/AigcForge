@@ -151,7 +151,7 @@ describe("SessionV2.prompt", () => {
         resume: false,
       })
 
-      expect(message.prompt.text).toBe("Fix the failing tests")
+      expect(message).toMatchObject({ kind: "prompt", prompt: { text: "Fix the failing tests" } })
       expect(yield* session.messages({ sessionID })).toEqual([])
       expect(yield* admitted(message.id)).toMatchObject({
         id: message.id,

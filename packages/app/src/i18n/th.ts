@@ -235,6 +235,8 @@ export const dict = {
   "prompt.mode.shell": "เชลล์",
   "prompt.mode.normal": "พรอมต์",
   "prompt.mode.shell.exit": "กด esc เพื่อออก",
+  "session.child.promptDisabled": "ไม่สามารถส่งคำสั่งไปยังเซสชันของเอเจนต์ย่อยได้。",
+  "session.child.backToParent": "กลับไปยังเซสชันหลัก。",
 
   "prompt.example.1": "แก้ไข TODO ในโค้ดเบส",
   "prompt.example.2": "เทคโนโลยีของโปรเจกต์นี้คืออะไร?",

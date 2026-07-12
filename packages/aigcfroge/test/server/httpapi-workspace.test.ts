@@ -20,12 +20,14 @@ import { InstanceStore } from "../../src/project/instance-store"
 import { Project } from "../../src/project/project"
 import { InstancePaths } from "../../src/server/routes/instance/httpapi/groups/instance"
 import { testEffect } from "../lib/effect"
+import { CliAdapterRegistry } from "../../src/agent/meta/adapters/registry"
 import { httpApiLayer, requestInDirectory } from "./httpapi-layer"
 
 const originalWorkspaces = Flag.AIGCFROGE_EXPERIMENTAL_WORKSPACES
 const workspaceLayer = Workspace.defaultLayer.pipe(
   Layer.provide(InstanceStore.defaultLayer),
   Layer.provide(InstanceBootstrap.defaultLayer),
+  Layer.provide(CliAdapterRegistry.defaultLayer),
 )
 const it = testEffect(
   Layer.mergeAll(

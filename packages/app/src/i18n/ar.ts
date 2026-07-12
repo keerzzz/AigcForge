@@ -218,6 +218,8 @@ export const dict = {
   "prompt.mode.shell": "Shell",
   "prompt.mode.normal": "Prompt",
   "prompt.mode.shell.exit": "esc للخروج",
+  "session.child.promptDisabled": "لا يمكن تقديم طلبات لجلسات الوكيل الفرعي.",
+  "session.child.backToParent": "العودة إلى الجلسة الرئيسية.",
   "prompt.example.1": "إصلاح TODO في قاعدة التعليمات البرمجية",
   "prompt.example.2": "ما هو المكدس التقني لهذا المشروع؟",
   "prompt.example.3": "إصلاح الاختبارات المعطلة",

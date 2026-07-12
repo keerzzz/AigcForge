@@ -297,4 +297,49 @@ describe("PermissionV2", () => {
       expect(yield* saved.list()).toEqual([])
     }),
   )
+
+  it.effect("root Session preserves ask rules (user is present)", () =>
+    Effect.gen(function* () {
+      // ses_test has no parentID → root session. ask rules stay as ask.
+      yield* setup([{ action: "read", resource: "*", effect: "ask" }])
+      const service = yield* PermissionV2.Service
+      expect(yield* service.ask(assertion())).toMatchObject({ effect: "ask" })
+    }),
+  )
+
+  it.effect("unattended child Session converts ask to deny", () =>
+    Effect.gen(function* () {
+      // Agent has an explicit ask rule for read.
+      yield* setup([{ action: "read", resource: "*", effect: "ask" }])
+      // Mark ses_test as a child (parent_id set) with attended=false (default).
+      const { db } = yield* Database.Service
+      yield* db
+        .update(SessionTable)
+        .set({ parent_id: SessionV2.ID.make("ses_parent"), attended: 0 })
+        .where(eq(SessionTable.id, SessionV2.ID.make("ses_test")))
+        .run()
+        .pipe(Effect.orDie)
+
+      const service = yield* PermissionV2.Service
+      // Unattended child → ask rule converted to deny.
+      expect(yield* service.ask(assertion())).toMatchObject({ effect: "deny" })
+    }),
+  )
+
+  it.effect("attended child Session preserves ask rules", () =>
+    Effect.gen(function* () {
+      yield* setup([{ action: "read", resource: "*", effect: "ask" }])
+      const { db } = yield* Database.Service
+      yield* db
+        .update(SessionTable)
+        .set({ parent_id: SessionV2.ID.make("ses_parent"), attended: 1 })
+        .where(eq(SessionTable.id, SessionV2.ID.make("ses_test")))
+        .run()
+        .pipe(Effect.orDie)
+
+      const service = yield* PermissionV2.Service
+      // attended=true → ask preserved (user will respond).
+      expect(yield* service.ask(assertion())).toMatchObject({ effect: "ask" })
+    }),
+  )
 })

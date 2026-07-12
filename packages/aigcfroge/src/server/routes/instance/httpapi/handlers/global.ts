@@ -13,6 +13,10 @@ import * as Sse from "effect/unstable/encoding/Sse"
 import { RootHttpApi } from "../api"
 import { GlobalUpgradeInput } from "../groups/global"
 
+type LocationWithProject = NonNullable<EventV2.Payload["location"]> & {
+  project?: { id?: string }
+}
+
 function eventData(data: unknown): Sse.Event {
   return {
     _tag: "Event",
@@ -30,24 +34,51 @@ function parseBody(body: string) {
   }
 }
 
-function eventResponse() {
+function globalEventFromV2(event: EventV2.Payload): GlobalBusEvent {
+  const location = event.location as LocationWithProject | undefined
+  return {
+    directory: location?.directory ?? "global",
+    ...(location?.workspaceID ? { workspace: location.workspaceID } : {}),
+    ...(location?.project?.id ? { project: location.project.id } : {}),
+    payload: { id: event.id, type: event.type, properties: event.data },
+  }
+}
+
+function eventResponse(events: EventV2.Interface) {
   return Effect.gen(function* () {
     yield* Effect.logInfo("global event connected")
-    const events = Stream.callback<GlobalBusEvent>((queue) => {
+    const globalEvents = Stream.callback<GlobalBusEvent>((queue) => {
       const handler = (event: GlobalBusEvent) => Queue.offerUnsafe(queue, event)
       return Effect.acquireRelease(
         Effect.sync(() => GlobalBus.on("event", handler)),
         () => Effect.sync(() => GlobalBus.off("event", handler)),
       )
     })
+    const v2Queue = yield* Queue.unbounded<GlobalBusEvent>()
+    const unsubscribe = yield* events.listen((event) =>
+      Effect.sync(() => Queue.offerUnsafe(v2Queue, globalEventFromV2(event))),
+    )
+    yield* Effect.addFinalizer(() => unsubscribe)
+    const v2Events = Stream.fromQueue(v2Queue)
     const heartbeat = Stream.tick("10 seconds").pipe(
       Stream.drop(1),
-      Stream.map(() => ({ payload: { id: EventV2.ID.create(), type: "server.heartbeat", properties: {} } })),
+      Stream.map(() => ({
+        directory: "global",
+        payload: { id: EventV2.ID.create(), type: "server.heartbeat", properties: {} },
+      })),
     )
 
     return HttpServerResponse.stream(
-      Stream.make({ payload: { id: EventV2.ID.create(), type: "server.connected", properties: {} } }).pipe(
-        Stream.concat(events.pipe(Stream.merge(heartbeat, { haltStrategy: "left" }))),
+      Stream.make({
+        directory: "global",
+        payload: { id: EventV2.ID.create(), type: "server.connected", properties: {} },
+      }).pipe(
+        Stream.concat(
+          globalEvents.pipe(
+            Stream.merge(v2Events, { haltStrategy: "left" }),
+            Stream.merge(heartbeat, { haltStrategy: "left" }),
+          ),
+        ),
         Stream.map(eventData),
         Stream.pipeThroughChannel(Sse.encode()),
         Stream.encodeText,
@@ -69,6 +100,7 @@ export const globalHandlers = HttpApiBuilder.group(RootHttpApi, "global", (handl
   Effect.gen(function* () {
     const config = yield* Config.Service
     const installation = yield* Installation.Service
+    const events = yield* EventV2.Service
     const bridge = yield* EffectBridge.make()
 
     const health = Effect.fn("GlobalHttpApi.health")(function* () {
@@ -76,7 +108,7 @@ export const globalHandlers = HttpApiBuilder.group(RootHttpApi, "global", (handl
     })
 
     const event = Effect.fn("GlobalHttpApi.event")(function* () {
-      return yield* eventResponse()
+      return yield* eventResponse(events)
     })
 
     const configGet = Effect.fn("GlobalHttpApi.configGet")(function* () {

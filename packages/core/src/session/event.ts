@@ -33,6 +33,13 @@ const PromptFields = {
   delivery: Delivery,
 }
 
+const ShellFields = {
+  ...Base,
+  messageID: SessionMessageID.ID,
+  command: Schema.String,
+  delivery: Delivery,
+}
+
 const options = {
   durable: {
     aggregate: "sessionID",
@@ -96,6 +103,25 @@ export const PromptAdmitted = EventV2.define({
 })
 export type PromptAdmitted = typeof PromptAdmitted.Type
 
+export const ShellAdmitted = EventV2.define({
+  type: "session.next.shell.admitted",
+  ...options,
+  schema: ShellFields,
+})
+export type ShellAdmitted = typeof ShellAdmitted.Type
+
+export const SkillAdmitted = EventV2.define({
+  type: "session.next.skill.admitted",
+  ...options,
+  schema: {
+    ...Base,
+    messageID: SessionMessageID.ID,
+    skill: Schema.String,
+    delivery: Delivery,
+  },
+})
+export type SkillAdmitted = typeof SkillAdmitted.Type
+
 export const ContextUpdated = EventV2.define({
   type: "session.next.context.updated",
   ...options,
@@ -117,6 +143,17 @@ export const Synthetic = EventV2.define({
   },
 })
 export type Synthetic = typeof Synthetic.Type
+
+export const Forked = EventV2.define({
+  type: "session.next.forked",
+  ...options,
+  schema: {
+    ...Base,
+    childSessionID: SessionSchema.ID,
+    forkedMessageID: SessionMessageID.ID.pipe(Schema.optional),
+  },
+})
+export type Forked = typeof Forked.Type
 
 export namespace Shell {
   export const Started = EventV2.define({
@@ -471,8 +508,11 @@ const DurableDefinitions = [
   Moved,
   Prompted,
   PromptAdmitted,
+  ShellAdmitted,
+  SkillAdmitted,
   ContextUpdated,
   Synthetic,
+  Forked,
   Shell.Started,
   Shell.Ended,
   Step.Started,

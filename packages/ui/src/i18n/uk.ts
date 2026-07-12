@@ -115,6 +115,7 @@ export const dict: Record<string, string> = {
   "ui.tool.questions": "Питання",
   "ui.tool.agent": "Агент {{type}}",
   "ui.tool.agent.default": "Агент",
+  "ui.tool.agent.openSession": "Open sub-agent session",
   "ui.tool.skill": "Навичка",
 
   "ui.basicTool.called": "Викликано `{{tool}}`",

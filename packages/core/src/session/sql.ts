@@ -47,6 +47,7 @@ export const SessionTable = sqliteTable(
     tokens_cache_write: integer().notNull().default(0),
     revert: text({ mode: "json" }).$type<{ messageID: MessageID; partID?: PartID; snapshot?: string; diff?: string }>(),
     permission: text({ mode: "json" }).$type<PermissionV1.Ruleset>(),
+    attended: integer().$type<0 | 1>().default(0),
     agent: text(),
     model: text({ mode: "json" }).$type<{
       id: string
@@ -144,7 +145,10 @@ export const SessionInputTable = sqliteTable(
       .$type<SessionSchema.ID>()
       .notNull()
       .references(() => SessionTable.id, { onDelete: "cascade" }),
-    prompt: text({ mode: "json" }).notNull().$type<Prompt>(),
+    kind: text().$type<SessionInput.Admitted["kind"]>().notNull().default("prompt"),
+    prompt: text({ mode: "json" }).$type<Prompt>(),
+    command: text(),
+    skill: text(),
     delivery: text().$type<SessionInput.Delivery>().notNull(),
     admitted_seq: integer().notNull(),
     promoted_seq: integer(),

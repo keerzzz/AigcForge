@@ -235,6 +235,8 @@ export const dict = {
   "prompt.mode.shell": "Shell",
   "prompt.mode.normal": "Prompt",
   "prompt.mode.shell.exit": "按 esc 退出",
+  "session.child.promptDisabled": "子智能體會話無法發送提示。",
+  "session.child.backToParent": "返回主會話。",
 
   "prompt.example.1": "修復程式碼庫中的一個 TODO",
   "prompt.example.2": "這個專案的技術堆疊是什麼?",

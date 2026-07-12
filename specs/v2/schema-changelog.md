@@ -671,7 +671,7 @@ Change:
 Compatibility:
 
 - No database migration is required.
-- Pre-launch `session.next.*` databases remain disposable experimental state rather than compatibility targets; reset experimental V2 data when upgrading across incompatible event-schema iterations.
+- `session.next.*` databases are production-compatibile. Backward-compatible schema changes (add column, add index) are applied via TypeScript migration in `packages/core/src/database/migration/`. Incompatible changes (rename/drop/retable) require an explicit ADR with a two-phase plan: dual-write → backfill → switch, never requiring a full data reset.
 - V1 returns fetched images as attachments. The first Core V2 typed settlement remains text-only, so V2 continues to reject fetched images and other non-text files until attachment settlement is designed explicitly.
 
 ## 2026-06-03: Defer V2 Bash Background Execution

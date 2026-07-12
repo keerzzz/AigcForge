@@ -24,6 +24,17 @@ export default {
         );
       `)
       yield* tx.run(`
+        CREATE TABLE \`external_cli_session\` (
+          \`session_id\` text NOT NULL,
+          \`cli_target\` text NOT NULL,
+          \`external_session_id\` text NOT NULL,
+          \`status\` text DEFAULT 'active' NOT NULL,
+          \`time_created\` integer NOT NULL,
+          \`time_updated\` integer NOT NULL,
+          CONSTRAINT \`fk_external_cli_session_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
+        );
+      `)
+      yield* tx.run(`
         CREATE TABLE \`account_state\` (
           \`id\` integer PRIMARY KEY,
           \`active_account_id\` text,
@@ -200,7 +211,10 @@ export default {
         CREATE TABLE \`session_input\` (
           \`id\` text PRIMARY KEY,
           \`session_id\` text NOT NULL,
-          \`prompt\` text NOT NULL,
+          \`kind\` text DEFAULT 'prompt' NOT NULL,
+          \`prompt\` text,
+          \`command\` text,
+          \`skill\` text,
           \`delivery\` text NOT NULL,
           \`admitted_seq\` integer NOT NULL,
           \`promoted_seq\` integer,
@@ -245,6 +259,7 @@ export default {
           \`tokens_cache_write\` integer DEFAULT 0 NOT NULL,
           \`revert\` text,
           \`permission\` text,
+          \`attended\` integer DEFAULT 0,
           \`agent\` text,
           \`model\` text,
           \`time_created\` integer NOT NULL,
@@ -278,6 +293,13 @@ export default {
           CONSTRAINT \`fk_session_share_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
         );
       `)
+      yield* tx.run(`CREATE INDEX \`external_cli_session_session_idx\` ON \`external_cli_session\` (\`session_id\`);`)
+      yield* tx.run(
+        `CREATE INDEX \`external_cli_session_external_idx\` ON \`external_cli_session\` (\`external_session_id\`);`,
+      )
+      yield* tx.run(
+        `CREATE UNIQUE INDEX \`external_cli_session_unique_idx\` ON \`external_cli_session\` (\`session_id\`,\`external_session_id\`);`,
+      )
       yield* tx.run(`CREATE UNIQUE INDEX \`event_aggregate_seq_idx\` ON \`event\` (\`aggregate_id\`,\`seq\`);`)
       yield* tx.run(`CREATE INDEX \`event_aggregate_type_seq_idx\` ON \`event\` (\`aggregate_id\`,\`type\`,\`seq\`);`)
       yield* tx.run(`CREATE INDEX \`meta_agent_session_meta_agent_idx\` ON \`meta_agent_session\` (\`meta_agent_id\`);`)

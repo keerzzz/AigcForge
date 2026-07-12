@@ -1,22 +1,28 @@
 import { createMemo } from "solid-js"
 import { useParams } from "@solidjs/router"
-import type { Message } from "@aigcfroge/sdk/v2/client"
+import type { Message, Part } from "@aigcfroge/sdk/v2/client"
 import { useGlobal } from "@/context/global"
 import { useServer, ServerConnection, serverName } from "@/context/server"
 import { useLanguage } from "@/context/language"
+import { useLayout } from "@/context/layout"
 import { getSessionContextMetrics } from "@/components/session/session-context-metrics"
+import { openSessionContext } from "@/components/open-session-context"
+import { ServerScope, SessionRouteKey, SessionStateKey } from "@/utils/server-scope"
+import { base64Encode } from "@aigcfroge/core/util/encode"
 import { requireServerKey } from "@/utils/session-route"
-import type { ConnectionState, StatusBarModelInfo, StatusBarCacheInfo, StatusBarSource } from "./types"
+import { toolCountFromParts } from "./tool-count"
+import type { ConnectionState, StatusBarModelInfo, StatusBarCacheInfo, StatusBarSubagentInfo, StatusBarSource } from "./types"
 import type { StatusBarMetric, MetricGroup } from "./metrics"
 import { createStore } from "solid-js/store"
 
-const DEFAULT_PINNED = ["tokens.total", "cost.total"]
+const DEFAULT_PINNED = ["tokens.total", "cost.total", "tools.count"]
 
 export function createCurrentSessionSource(): StatusBarSource {
   const params = useParams<{ serverKey?: string; id?: string }>()
   const server = useServer()
   const global = useGlobal()
   const lang = useLanguage()
+  const layout = useLayout()
 
   const routeKey = createMemo(() => {
     if (!params.serverKey) return undefined
@@ -61,6 +67,9 @@ export function createCurrentSessionSource(): StatusBarSource {
     return childStore()?.message[id] ?? []
   })
 
+  const allParts = createMemo((): Record<string, Part[] | undefined> => childStore()?.part ?? {})
+  const toolCount = createMemo(() => toolCountFromParts(allParts(), messages()))
+
   const metrics = createMemo(() => getSessionContextMetrics(messages()))
   const context = createMemo(() => metrics().context)
   const findModel = (providerID: string, modelID: string) => childStore()?.provider.all.get(providerID)?.models[modelID]
@@ -90,6 +99,7 @@ export function createCurrentSessionSource(): StatusBarSource {
 
   const sessTokens = () => sessionInfo()?.tokens
   const sessCost = () => sessionInfo()?.cost
+  const sessAgent = () => sessionInfo()?.agent
   const modelLimit = () => {
     const ctx = context()
     if (!ctx) return undefined
@@ -110,6 +120,26 @@ export function createCurrentSessionSource(): StatusBarSource {
   }
 
   const [pinnedStore, setPinnedStore] = createStore({ ids: loadPinned() })
+
+  const subagentInfo = createMemo((): StatusBarSubagentInfo | undefined => {
+    const agent = sessAgent()
+    if (!agent) return undefined
+    const subagentMsgs = messages().filter(
+      (msg): msg is Message & { agent: string } =>
+        msg.role === "assistant" && "agent" in msg && msg.agent !== agent,
+    )
+    if (subagentMsgs.length === 0) return undefined
+    let active = 0
+    let completed = 0
+    let failed = 0
+    for (const msg of subagentMsgs) {
+      const m = msg as { error?: unknown; time?: { completed?: number } }
+      if (m.error) failed++
+      else if (m.time?.completed) completed++
+      else active++
+    }
+    return { active, completed, failed, total: subagentMsgs.length }
+  })
 
   const togglePin = (metricID: string) => {
     setPinnedStore("ids", (prev) => {
@@ -175,6 +205,27 @@ export function createCurrentSessionSource(): StatusBarSource {
       mk("cost.total", "cost", "statusBar.metrics.totalCost",
         () => c !== undefined ? fmtCurrency(c) : "—",
         () => c !== undefined),
+      mk("subagent.active", "subagent", "statusBar.metrics.subagentActive",
+        () => {
+          const s = subagentInfo()
+          return s ? String(s.active) : "—"
+        },
+        () => !!subagentInfo()),
+      mk("subagent.completed", "subagent", "statusBar.metrics.subagentCompleted",
+        () => {
+          const s = subagentInfo()
+          return s ? String(s.completed) : "—"
+        },
+        () => !!subagentInfo()),
+      mk("subagent.failed", "subagent", "statusBar.metrics.subagentFailed",
+        () => {
+          const s = subagentInfo()
+          return s ? String(s.failed) : "—"
+        },
+        () => !!subagentInfo()),
+      mk("tools.count", "tools", "statusBar.metrics.toolCount",
+        () => fmtNum(toolCount()),
+        () => toolCount() > 0),
     ]
   })
 
@@ -182,6 +233,28 @@ export function createCurrentSessionSource(): StatusBarSource {
     const ids = pinnedStore.ids
     return allMetrics().filter((m) => ids.includes(m.id))
   })
+
+  // Compute sessionKey for layout tab/view access (same as useSessionKey but
+  // derives directory from global.sessionPlacement instead of useSDK).
+  const sessionKey = createMemo(() => {
+    const id = params.id
+    if (!id) return undefined
+    const scope = ServerScope.fromServerKey(activeServerKey())
+    const dirB64 = base64Encode(directory() ?? "")
+    return SessionStateKey.from(scope, SessionRouteKey.fromRoute(dirB64, id))
+  })
+
+  const openContext = () => {
+    const key = sessionKey()
+    if (!key) return
+    const tabs = layout.tabs(key)
+    const view = layout.view(key)
+    if (tabs.active() === "context") {
+      tabs.close("context")
+      return
+    }
+    openSessionContext({ view, layout, tabs })
+  }
 
   return {
     label: () => sessionInfo()?.title ?? "—",
@@ -205,8 +278,10 @@ export function createCurrentSessionSource(): StatusBarSource {
         ? { hitRate: Math.round((ctx.cacheRead / d) * 100), read: ctx.cacheRead, write: ctx.cacheWrite }
         : { hitRate: 0, read: ctx.cacheRead, write: ctx.cacheWrite }
     }),
+    subagent: subagentInfo,
     allMetrics,
     pinnedMetrics,
     togglePin,
+    openContext,
   }
 }

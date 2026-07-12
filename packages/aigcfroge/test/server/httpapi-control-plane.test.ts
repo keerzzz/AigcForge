@@ -4,6 +4,7 @@ import { Context, Effect, Layer, Option, Ref } from "effect"
 import { HttpBody, HttpClient, HttpClientRequest, HttpRouter } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { MoveSession } from "@aigcfroge/core/control-plane/move-session"
+import { EventV2 } from "@aigcfroge/core/event"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionV2 } from "@aigcfroge/core/session"
 import { Auth } from "../../src/auth"
@@ -36,6 +37,7 @@ const apiLayer = HttpRouter.serve(
   { disableListenLog: true, disableLogger: true },
 ).pipe(
   Layer.provideMerge(NodeHttpServer.layerTest),
+  Layer.provide(EventV2.defaultLayer),
   Layer.provide(Layer.mock(Auth.Service)({})),
   Layer.provide(Layer.mock(Config.Service)({})),
   Layer.provide(Layer.mock(Installation.Service)({})),

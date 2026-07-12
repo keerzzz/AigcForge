@@ -238,6 +238,8 @@ export const dict = {
   "prompt.mode.shell": "Shell",
   "prompt.mode.normal": "Prompt",
   "prompt.mode.shell.exit": "ESC for å avslutte",
+  "session.child.promptDisabled": "Underagentsesjoner kan ikke bli spurt.",
+  "session.child.backToParent": "Tilbake til hovedsesjonen.",
 
   "prompt.example.1": "Fiks en TODO i kodebasen",
   "prompt.example.2": "Hva er teknologistabelen i dette prosjektet?",

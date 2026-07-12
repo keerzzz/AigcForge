@@ -85,7 +85,7 @@ export type PromptInputSubmission = {
 
 export type PromptInputControls = {
   agents: {
-    available: { name: string; hidden?: boolean; mode: string }[]
+    available: { name: string; hidden?: boolean; mode: string; source?: string }[]
     options: string[]
     current: string
     loading: boolean
@@ -656,7 +656,10 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   const agentList = createMemo(() =>
     props.controls.agents.available
       .filter((agent) => !agent.hidden && agent.mode !== "primary")
-      .map((agent): AtOption => ({ type: "agent", name: agent.name, display: agent.name })),
+      .map((agent): AtOption => {
+        const source = agent.source === "external-cli" ? "external-cli" as const : undefined
+        return { type: "agent", name: agent.name, display: agent.name, source }
+      }),
   )
 
   const handleAtSelect = (option: AtOption | undefined) => {
@@ -978,8 +981,8 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     const shellMode = store.mode === "shell"
 
     if (!shellMode) {
-      const atMatch = rawText.substring(0, cursorPosition).match(/@(\S*)$/)
-      const slashMatch = rawText.match(/^\/(\S*)$/)
+      const atMatch = !composing() && rawText.substring(0, cursorPosition).match(/@(\S*)$/)
+      const slashMatch = !composing() && rawText.match(/^\/(\S*)$/)
 
       if (atMatch) {
         atOnInput(atMatch[1])

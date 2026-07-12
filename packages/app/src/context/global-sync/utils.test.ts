@@ -32,6 +32,16 @@ describe("normalizeAgentList", () => {
     expect(normalizeAgentList({ name: "AbortError" })).toEqual([])
     expect(normalizeAgentList([{ name: "build" }, agent("docs")])).toEqual([agent("docs")])
   })
+
+  test("preserves handoffs field", () => {
+    const agentWithHandoffs = {
+      ...agent("build"),
+      handoffs: [{ label: "Ask docs", agent: "docs", prompt: "Review this" }],
+    } as Agent
+    const result = normalizeAgentList([agentWithHandoffs])
+    expect(result).toHaveLength(1)
+    expect(result[0]?.handoffs).toEqual([{ label: "Ask docs", agent: "docs", prompt: "Review this" }])
+  })
 })
 
 describe("directoryKey", () => {

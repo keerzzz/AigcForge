@@ -1,5 +1,4 @@
 import { createMemo, createEffect, on, onCleanup, For, Show } from "solid-js"
-import type { JSX } from "solid-js"
 import { useSync } from "@/context/sync"
 import { checksum } from "@aigcfroge/core/util/encode"
 import { findLast } from "@aigcfroge/core/util/array"
@@ -19,6 +18,7 @@ import { estimateSessionContextBreakdown, type SessionContextBreakdownKey } from
 import { createSessionContextFormatter } from "./session-context-format"
 import { SessionToolActivity } from "./session-tool-activity"
 import { SessionCacheDiagnostics } from "./session-cache-diagnostics"
+import { Tag } from "@aigcfroge/ui/v2/badge-v2"
 
 const BREAKDOWN_COLOR: Record<SessionContextBreakdownKey, string> = {
   system: "var(--syntax-info)",
@@ -26,15 +26,6 @@ const BREAKDOWN_COLOR: Record<SessionContextBreakdownKey, string> = {
   assistant: "var(--syntax-property)",
   tool: "var(--syntax-warning)",
   other: "var(--syntax-comment)",
-}
-
-function Stat(props: { label: string; value: JSX.Element }) {
-  return (
-    <div class="flex flex-col gap-1">
-      <div class="text-12-regular text-text-weak">{props.label}</div>
-      <div class="text-12-medium text-text-strong">{props.value}</div>
-    </div>
-  )
 }
 
 function RawMessageContent(props: { message: Message; getParts: (id: string) => Part[]; onRendered: () => void }) {
@@ -198,27 +189,6 @@ export function SessionContextTab() {
     return language.t("context.breakdown.other")
   }
 
-  const stats = [
-    { label: "context.stats.session", value: () => info()?.title ?? params.id ?? "—" },
-    { label: "context.stats.messages", value: () => counts().all.toLocaleString(language.intl()) },
-    { label: "context.stats.provider", value: providerLabel },
-    { label: "context.stats.model", value: modelLabel },
-    { label: "context.stats.limit", value: () => formatter().number(ctx()?.limit) },
-    { label: "context.stats.totalTokens", value: () => formatter().number(ctx()?.total) },
-    { label: "context.stats.usage", value: () => formatter().percent(ctx()?.usage) },
-    { label: "context.stats.inputTokens", value: () => formatter().number(ctx()?.input) },
-    { label: "context.stats.outputTokens", value: () => formatter().number(ctx()?.output) },
-    { label: "context.stats.reasoningTokens", value: () => formatter().number(ctx()?.reasoning) },
-    {
-      label: "context.stats.cacheTokens",
-      value: () => `${formatter().number(ctx()?.cacheRead)} / ${formatter().number(ctx()?.cacheWrite)}`,
-    },
-    { label: "context.stats.userMessages", value: () => counts().user.toLocaleString(language.intl()) },
-    { label: "context.stats.assistantMessages", value: () => counts().assistant.toLocaleString(language.intl()) },
-    { label: "context.stats.totalCost", value: cost },
-    { label: "context.stats.sessionCreated", value: () => formatter().time(info()?.time.created) },
-    { label: "context.stats.lastActivity", value: () => formatter().time(ctx()?.message.time.created) },
-  ] satisfies { label: string; value: () => JSX.Element }[]
 
   let scroll: HTMLDivElement | undefined
   let frame: number | undefined
@@ -292,11 +262,93 @@ export function SessionContextTab() {
       }}
       onScroll={handleScroll}
     >
-      <div class="px-6 pt-4 pb-10 flex flex-col gap-10">
-        <div class="grid grid-cols-1 @[32rem]:grid-cols-2 gap-4">
-          <For each={stats}>
-            {(stat) => <Stat label={language.t(stat.label as Parameters<typeof language.t>[0])} value={stat.value()} />}
-          </For>
+      <div class="px-6 pt-4 pb-10 flex flex-col gap-6">
+        {/* Overview Row */}
+        <div class="flex flex-wrap items-center gap-2">
+          <Tag>
+            <span class="text-text-weak">{language.t("context.stats.session")}:</span>
+            <span class="text-text-strong font-medium truncate max-w-48">
+              {info()?.title ?? params.id ?? "—"}
+            </span>
+          </Tag>
+          <Tag>
+            <span class="text-text-weak">{language.t("context.stats.provider")}:</span>
+            <span class="text-text-strong font-medium">
+              {providerLabel()}
+            </span>
+          </Tag>
+          <Tag>
+            <span class="text-text-weak">{language.t("context.stats.model")}:</span>
+            <span class="text-text-strong font-medium">
+              {modelLabel()}
+            </span>
+          </Tag>
+          <Tag>
+            <span class="text-text-weak">{language.t("status.popover.trigger")}:</span>
+            <div class="flex items-center gap-1">
+              <span
+                class="size-1.5 rounded-full"
+                style={{
+                  "background-color":
+                    sync().data.session_status[params.id ?? ""]?.type === "busy"
+                      ? "var(--syntax-success)"
+                      : "var(--syntax-comment)",
+                }}
+              />
+              <span class="text-text-strong font-medium">
+                {sync().data.session_status[params.id ?? ""]?.type === "busy"
+                  ? language.t("context.status.active")
+                  : language.t("context.status.idle")}
+              </span>
+            </div>
+          </Tag>
+        </div>
+
+        {/* Core Metrics Cards */}
+        <div class="grid grid-cols-1 @[32rem]:grid-cols-2 gap-3">
+          <div class="p-3.5 border border-border-weaker-base rounded-lg bg-surface-raised-base flex flex-col gap-1 shadow-[var(--v2-elevation-raised)]">
+            <span class="text-12-regular text-text-weak">{language.t("context.stats.usage")}</span>
+            <span class="text-24-medium text-text-strong tracking-tight">
+              {formatter().percent(ctx()?.usage)}
+            </span>
+            <span class="text-11-regular text-text-weaker">
+              {formatter().number(ctx()?.total)} / {formatter().number(ctx()?.limit)} tokens
+            </span>
+          </div>
+          <div class="p-3.5 border border-border-weaker-base rounded-lg bg-surface-raised-base flex flex-col gap-1 shadow-[var(--v2-elevation-raised)]">
+            <span class="text-12-regular text-text-weak">{language.t("context.stats.totalCost")}</span>
+            <span class="text-24-medium text-text-strong tracking-tight">
+              {cost()}
+            </span>
+            <span class="text-11-regular text-text-weaker">
+              {counts().all.toLocaleString(language.intl())} {language.t("context.stats.messages")}
+            </span>
+          </div>
+        </div>
+
+        {/* Token Details */}
+        <div class="flex flex-col gap-2">
+          <span class="text-12-bold uppercase tracking-wider text-text-weak">{language.t("context.section.tokens")}</span>
+          <div class="grid grid-cols-2 @[32rem]:grid-cols-4 gap-3 bg-surface-raised-base border border-border-weaker-base rounded-lg p-3">
+            <div class="flex flex-col gap-0.5">
+              <span class="text-11-regular text-text-weak">{language.t("context.stats.inputTokens")}</span>
+              <span class="text-13-medium text-text-strong">{formatter().number(ctx()?.input)}</span>
+            </div>
+            <div class="flex flex-col gap-0.5">
+              <span class="text-11-regular text-text-weak">{language.t("context.stats.outputTokens")}</span>
+              <span class="text-13-medium text-text-strong">{formatter().number(ctx()?.output)}</span>
+            </div>
+            <div class="flex flex-col gap-0.5">
+              <span class="text-11-regular text-text-weak">{language.t("context.stats.reasoningTokens")}</span>
+              <span class="text-13-medium text-text-strong">{formatter().number(ctx()?.reasoning)}</span>
+            </div>
+            <div class="flex flex-col gap-0.5">
+              <span class="text-11-regular text-text-weak">{language.t("context.stats.cacheTokens")}</span>
+              <span class="text-13-medium text-text-strong">
+                {formatter().number(ctx()?.cacheRead)} / {formatter().number(ctx()?.cacheWrite)}
+              </span>
+            </div>
+          </div>
         </div>
 
         <Show when={breakdown().length > 0}>
@@ -337,6 +389,33 @@ export function SessionContextTab() {
           </>
         )}
         </Show>
+
+        {/* Activity & Messages */}
+        <div class="flex flex-col gap-2">
+          <span class="text-12-bold uppercase tracking-wider text-text-weak">{language.t("context.section.activity")}</span>
+          <div class="grid grid-cols-1 @[32rem]:grid-cols-2 gap-3 bg-surface-raised-base border border-border-weaker-base rounded-lg p-3">
+            <div class="grid grid-cols-2 gap-2">
+              <div class="flex flex-col gap-0.5">
+                <span class="text-11-regular text-text-weak">{language.t("context.stats.userMessages")}</span>
+                <span class="text-13-medium text-text-strong">{counts().user.toLocaleString(language.intl())}</span>
+              </div>
+              <div class="flex flex-col gap-0.5">
+                <span class="text-11-regular text-text-weak">{language.t("context.stats.assistantMessages")}</span>
+                <span class="text-13-medium text-text-strong">{counts().assistant.toLocaleString(language.intl())}</span>
+              </div>
+            </div>
+            <div class="flex flex-col gap-1 text-11-regular">
+              <div class="flex justify-between">
+                <span class="text-text-weak">{language.t("context.stats.sessionCreated")}:</span>
+                <span class="text-text-strong font-medium">{formatter().time(info()?.time.created)}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-text-weak">{language.t("context.stats.lastActivity")}:</span>
+                <span class="text-text-strong font-medium">{formatter().time(ctx()?.message.time.created)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <Show when={systemPrompt()}>
           {(prompt) => (

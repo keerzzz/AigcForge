@@ -16,6 +16,7 @@ import { AuthTest } from "../fake/auth"
 import { NpmTest } from "../fake/npm"
 import { ProviderTest } from "../fake/provider"
 import { SkillTest } from "../fake/skill"
+import { CliAdapterRegistry } from "../../src/agent/meta/adapters/registry"
 import { testEffect } from "../lib/effect"
 import { PLUGIN_AGENT } from "../fixture/agent-plugin.constants"
 
@@ -45,6 +46,7 @@ const agentLayer = Agent.layer.pipe(
   Layer.provide(provider.layer),
   Layer.provide(pluginLayer),
   Layer.provide(LocationServiceMap.layer),
+  Layer.provide(CliAdapterRegistry.layer),
   Layer.provide(RuntimeFlags.layer({ disableDefaultPlugins: true })),
 )
 

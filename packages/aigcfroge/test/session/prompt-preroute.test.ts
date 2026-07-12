@@ -6,6 +6,7 @@ import { ModelV2 } from "@aigcfroge/core/model"
 import { Session } from "@/session/session"
 import { SessionPrompt } from "../../src/session/prompt"
 import { testEffect } from "../lib/effect"
+import { CliAdapterRegistry } from "../../src/agent/meta/adapters/registry"
 
 const ref = {
   providerID: ProviderV2.ID.make("test"),
@@ -38,7 +39,7 @@ const cfg = {
 }
 
 const it = testEffect(
-  Layer.mergeAll(SessionPrompt.defaultLayer, Session.defaultLayer).pipe(Layer.provide(Ripgrep.defaultLayer)),
+  Layer.mergeAll(SessionPrompt.defaultLayer, Session.defaultLayer).pipe(Layer.provide(CliAdapterRegistry.defaultLayer)).pipe(Layer.provide(Ripgrep.defaultLayer)),
 )
 
 it.instance(

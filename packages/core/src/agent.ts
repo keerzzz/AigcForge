@@ -1,8 +1,12 @@
 export * as AgentV2 from "./agent"
 
-import { Array, Context, Effect, Layer, Types } from "effect"
+import { Array, Context, Effect, Layer, Option, Scope, Stream, Types } from "effect"
 import { Agent } from "@aigcfroge/schema/agent"
 import { State } from "./state"
+import { AgentFileLoader } from "./agent/file-loader"
+import { EventV2 } from "./event"
+import { Flag } from "./flag/flag"
+import { Watcher } from "./filesystem/watcher"
 
 export const ID = Agent.ID
 export type ID = typeof ID.Type
@@ -65,12 +69,15 @@ export const layer = Layer.effect(
     })
     const selectable = (agent: Info | undefined) =>
       agent && agent.mode !== "subagent" && !agent.hidden ? agent : undefined
+    const metaDisabled = typeof process !== "undefined" && process.env?.AIGCFROGE_DISABLE_META_AGENT === "true"
     const selectedDefault = () => {
       const data = state.get()
       const configured = data.default ? selectable(data.agents.get(data.default)) : undefined
       if (configured) return configured
-      const metaAgent = selectable(data.agents.get(ID.make("meta")))
-      if (metaAgent) return metaAgent
+      if (!metaDisabled) {
+        const metaAgent = selectable(data.agents.get(ID.make("meta")))
+        if (metaAgent) return metaAgent
+      }
       const build = selectable(data.agents.get(ID.make("build")))
       if (build) return build
       for (const agent of data.agents.values()) {
@@ -109,3 +116,48 @@ export const layer = Layer.effect(
 )
 
 export const locationLayer = layer
+
+const registerFileAgentTransform = (agents: Interface): Effect.Effect<void, never, Scope.Scope> =>
+  agents.transform((draft) =>
+    Effect.gen(function* () {
+      if (!Flag.AIGCFROGE_ENABLE_AGENT_FILE) return
+      const fileLoader = yield* Effect.serviceOption(AgentFileLoader.Service).pipe(
+        Effect.map(Option.getOrUndefined),
+      )
+      if (!fileLoader) return
+      const fileAgents = yield* fileLoader.loadAll()
+      for (const fa of fileAgents) {
+        draft.update(fa.info.id, (item) => {
+          Object.assign(item, fa.info)
+        })
+      }
+    }),
+  ).pipe(Effect.asVoid)
+
+const subscribeToFileWatcher = Effect.fn("AgentV2.subscribeToFileWatcher")(function* (
+  agents: Interface,
+  scope: Scope.Scope,
+) {
+  const events = yield* EventV2.Service
+  yield* events
+    .subscribe(Watcher.Event.Updated)
+    .pipe(
+      Stream.filter((event) => event.data.event === "add" || event.data.event === "change" || event.data.event === "unlink"),
+      Stream.filter((event) => event.data.file.endsWith(".agent.md")),
+      Stream.runForEach(() => agents.reload()),
+      Effect.forkIn(scope),
+    )
+})
+
+export const fileLayer = Layer.effect(
+  Service,
+  Effect.gen(function* () {
+    const agents = yield* Service
+    if (Flag.AIGCFROGE_ENABLE_AGENT_FILE) {
+      yield* registerFileAgentTransform(agents)
+      const scope = yield* Scope.Scope
+      yield* subscribeToFileWatcher(agents, scope)
+    }
+    return agents
+  }),
+).pipe(Layer.provide(layer))

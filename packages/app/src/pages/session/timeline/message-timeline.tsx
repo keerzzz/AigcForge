@@ -27,6 +27,7 @@ import {
   partDefaultOpen,
   type UserActions,
 } from "@aigcfroge/session-ui/message-part"
+import { HandoffButton } from "@aigcfroge/session-ui/handoff-button"
 import { DiffChanges } from "@aigcfroge/ui/v2/diff-changes-v2"
 import { FileIcon } from "@aigcfroge/ui/file-icon"
 import { Icon } from "@aigcfroge/ui/icon"
@@ -283,6 +284,22 @@ export function MessageTimeline(props: {
   const working = createMemo(() => sessionStatus().type !== "idle")
   const sessionMessages = createMemo(() => (sessionID() ? (sync().data.message[sessionID()!] ?? []) : []))
   const tint = createMemo(() => messageAgentColor(sessionMessages(), sync().data.agent))
+
+  const currentAgentName = createMemo(() => {
+    const msgs = sessionMessages()
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const msg = msgs[i]
+      if (msg.role === "user" && msg.agent) return msg.agent
+    }
+    return undefined
+  })
+
+  const handoffs = createMemo<ReadonlyArray<{ readonly label: string; readonly agent: string; readonly prompt: string }>>(() => {
+    const name = currentAgentName()
+    if (!name) return []
+    const agent = (sync().data.agent as ReadonlyArray<{ name: string; handoffs?: Array<{ label: string; agent: string; prompt: string }> }>).find((a) => a.name === name)
+    return agent?.handoffs ?? []
+  })
 
   const [timeoutDone, setTimeoutDone] = createSignal(true)
 
@@ -1133,6 +1150,23 @@ export function MessageTimeline(props: {
                 aria-hidden={workingTurn(assistantPartRow().userMessageID)}
               >
                 {renderAssistantPartGroup(assistantPartRow, onSizeChange)}
+                <Show
+                  when={
+                    lastAssistantGroupKey().get(assistantPartRow().userMessageID) === assistantPartRow().group.key &&
+                    !workingTurn(assistantPartRow().userMessageID) &&
+                    handoffs().length > 0 &&
+                    props.actions?.handoff
+                  }
+                >
+                  <HandoffButton
+                    actions={handoffs().map((h) => ({
+                      label: h.label,
+                      agent: h.agent,
+                      prompt: h.prompt,
+                      onClick: () => props.actions!.handoff!(h.agent, h.prompt),
+                    }))}
+                  />
+                </Show>
               </div>
             </div>
           </TimelineRowFrame>

@@ -110,6 +110,7 @@ export const dict = {
   "ui.tool.questions": "Pytania",
   "ui.tool.agent": "Agent {{type}}",
   "ui.tool.agent.default": "Agent",
+  "ui.tool.agent.openSession": "Open sub-agent session",
 
   "ui.common.file.one": "plik",
   "ui.common.file.other": "pliki",

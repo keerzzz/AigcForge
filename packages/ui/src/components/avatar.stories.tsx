@@ -1,5 +1,5 @@
 // @ts-nocheck
-import *  from "../v2/components/project-avatar-v2"
+import { ProjectAvatar } from "../v2/components/project-avatar-v2"
 import { create } from "../storybook/scaffold"
 
 const docs = `### Overview
@@ -60,9 +60,9 @@ export const WithImage = {
 export const Sizes = {
   render: () => (
     <div style={{ display: "flex", gap: "12px", "align-items": "center" }}>
-      <ProjectAvatarAvatar size="small" fallback="S" />
-      <ProjectAvatarAvatar size="normal" fallback="N" />
-      <ProjectAvatarAvatar size="large" fallback="L" />
+      <ProjectAvatar size="small" fallback="S" />
+      <ProjectAvatar size="normal" fallback="N" />
+      <ProjectAvatar size="large" fallback="L" />
     </div>
   ),
 }

@@ -2659,6 +2659,295 @@
         ]
       }
     },
+    "/vcs/stage": {
+      "post": {
+        "tags": ["instance"],
+        "operationId": "vcs.stage",
+        "parameters": [
+          {
+            "name": "directory",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "workspace",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Files staged"
+          },
+          "400": {
+            "description": "VcsApplyError | InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/VcsApplyError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestError"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Stage specified files for commit.",
+        "summary": "Stage files",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": ["files"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createAigcfrogeClient } from \"@aigcfroge/sdk\n\nconst client = createAigcfrogeClient()\nawait client.vcs.stage({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/vcs/unstage": {
+      "post": {
+        "tags": ["instance"],
+        "operationId": "vcs.unstage",
+        "parameters": [
+          {
+            "name": "directory",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "workspace",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Files unstaged"
+          },
+          "400": {
+            "description": "VcsApplyError | InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/VcsApplyError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestError"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Unstage specified files.",
+        "summary": "Unstage files",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": ["files"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createAigcfrogeClient } from \"@aigcfroge/sdk\n\nconst client = createAigcfrogeClient()\nawait client.vcs.unstage({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/vcs/commit": {
+      "post": {
+        "tags": ["instance"],
+        "operationId": "vcs.commit",
+        "parameters": [
+          {
+            "name": "directory",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "workspace",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Changes committed"
+          },
+          "400": {
+            "description": "VcsApplyError | InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/VcsApplyError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestError"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Commit staged changes with a message.",
+        "summary": "Commit changes",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string"
+                  }
+                },
+                "required": ["message"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createAigcfrogeClient } from \"@aigcfroge/sdk\n\nconst client = createAigcfrogeClient()\nawait client.vcs.commit({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/vcs/log": {
+      "get": {
+        "tags": ["instance"],
+        "operationId": "vcs.log",
+        "parameters": [
+          {
+            "name": "directory",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "workspace",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Commit log",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VcsCommitEntry"
+                  },
+                  "description": "Commit log"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VcsApplyError | InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/VcsApplyError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestError"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Retrieve recent commit history.",
+        "summary": "Get commit log",
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createAigcfrogeClient } from \"@aigcfroge/sdk\n\nconst client = createAigcfrogeClient()\nawait client.vcs.log({\n  ...\n})"
+          }
+        ]
+      }
+    },
     "/command": {
       "get": {
         "tags": ["instance"],
@@ -8085,6 +8374,86 @@
         ]
       }
     },
+    "/session/{sessionID}/cache-diagnostics": {
+      "get": {
+        "tags": ["session"],
+        "operationId": "session.cacheDiagnostics",
+        "parameters": [
+          {
+            "name": "sessionID",
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "pattern": "^ses"
+            },
+            "required": true
+          },
+          {
+            "name": "directory",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "workspace",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cache diagnostics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CacheDiagnostics"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadRequest | InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/effect_HttpApiError_BadRequest"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Retrieve cache hit rate and per-step cache statistics for a session.",
+        "summary": "Get cache diagnostics",
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createAigcfrogeClient } from \"@aigcfroge/sdk\n\nconst client = createAigcfrogeClient()\nawait client.session.cacheDiagnostics({\n  ...\n})"
+          }
+        ]
+      }
+    },
     "/sync/start": {
       "post": {
         "tags": ["sync"],
@@ -10875,6 +11244,391 @@
           {
             "lang": "js",
             "source": "import { createAigcfrogeClient } from \"@aigcfroge/sdk\n\nconst client = createAigcfrogeClient()\nawait client.v2.session.context({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/api/session/{sessionID}/children": {
+      "get": {
+        "tags": ["sessions"],
+        "operationId": "v2.session.children",
+        "parameters": [
+          {
+            "name": "sessionID",
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "pattern": "^ses"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SessionV2Info"
+                      }
+                    }
+                  },
+                  "required": ["data"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SessionNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "List sessions forked or spawned from this session.",
+        "summary": "List child sessions",
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createAigcfrogeClient } from \"@aigcfroge/sdk\n\nconst client = createAigcfrogeClient()\nawait client.v2.session.children({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/api/session/{sessionID}/skill": {
+      "post": {
+        "tags": ["sessions"],
+        "operationId": "v2.session.skill",
+        "parameters": [
+          {
+            "name": "sessionID",
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "pattern": "^ses"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SessionInputAdmitted"
+                    }
+                  },
+                  "required": ["data"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SessionNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ConflictError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Admit a slash-command skill invocation to the durable inbox. The runner resolves the skill at the next promotion boundary and delivers it as a synthetic user turn.",
+        "summary": "Invoke skill",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^msg_"
+                  },
+                  "skill": {
+                    "type": "string"
+                  },
+                  "resume": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["skill"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createAigcfrogeClient } from \"@aigcfroge/sdk\n\nconst client = createAigcfrogeClient()\nawait client.v2.session.skill({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/api/session/{sessionID}/shell": {
+      "post": {
+        "tags": ["sessions"],
+        "operationId": "v2.session.shell",
+        "parameters": [
+          {
+            "name": "sessionID",
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "pattern": "^ses"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SessionInputAdmitted"
+                    }
+                  },
+                  "required": ["data"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SessionNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ConflictError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Admit a user-run shell command to the durable inbox. The runner drains queued shell inputs at the next idle boundary, publishing shell.started and shell.ended events.",
+        "summary": "Run shell command",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^msg_"
+                  },
+                  "command": {
+                    "type": "string"
+                  },
+                  "resume": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["command"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createAigcfrogeClient } from \"@aigcfroge/sdk\n\nconst client = createAigcfrogeClient()\nawait client.v2.session.shell({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/api/session/{sessionID}/interrupt": {
+      "post": {
+        "tags": ["sessions"],
+        "operationId": "v2.session.interrupt",
+        "parameters": [
+          {
+            "name": "sessionID",
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "pattern": "^ses"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "204": {
+            "description": "<No Content>"
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SessionNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Interrupt active execution owned by this process. Idle interruption is a no-op.",
+        "summary": "Interrupt session execution",
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createAigcfrogeClient } from \"@aigcfroge/sdk\n\nconst client = createAigcfrogeClient()\nawait client.v2.session.interrupt({\n  ...\n})"
           }
         ]
       }
@@ -14690,6 +15444,12 @@
             "$ref": "#/components/schemas/EventSessionNextPromptAdmitted"
           },
           {
+            "$ref": "#/components/schemas/EventSessionNextShellAdmitted"
+          },
+          {
+            "$ref": "#/components/schemas/EventSessionNextSkillAdmitted"
+          },
+          {
             "$ref": "#/components/schemas/EventSessionNextContextUpdated"
           },
           {
@@ -14760,6 +15520,15 @@
           },
           {
             "$ref": "#/components/schemas/EventSessionNextCompactionEnded"
+          },
+          {
+            "$ref": "#/components/schemas/EventSessionNextCompactionSoft-warning"
+          },
+          {
+            "$ref": "#/components/schemas/EventSessionNextCompactionStuck"
+          },
+          {
+            "$ref": "#/components/schemas/EventSessionNextCacheDiagnostic"
           },
           {
             "$ref": "#/components/schemas/EventMessagePartDelta"
@@ -17289,6 +18058,86 @@
                   },
                   "type": {
                     "type": "string",
+                    "enum": ["session.next.shell.admitted"]
+                  },
+                  "properties": {
+                    "type": "object",
+                    "properties": {
+                      "timestamp": {
+                        "type": "number"
+                      },
+                      "sessionID": {
+                        "type": "string",
+                        "pattern": "^ses"
+                      },
+                      "messageID": {
+                        "type": "string",
+                        "pattern": "^msg_"
+                      },
+                      "command": {
+                        "type": "string"
+                      },
+                      "delivery": {
+                        "type": "string",
+                        "enum": ["steer", "queue"]
+                      }
+                    },
+                    "required": ["timestamp", "sessionID", "messageID", "command", "delivery"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id", "type", "properties"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^evt_"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["session.next.skill.admitted"]
+                  },
+                  "properties": {
+                    "type": "object",
+                    "properties": {
+                      "timestamp": {
+                        "type": "number"
+                      },
+                      "sessionID": {
+                        "type": "string",
+                        "pattern": "^ses"
+                      },
+                      "messageID": {
+                        "type": "string",
+                        "pattern": "^msg_"
+                      },
+                      "skill": {
+                        "type": "string"
+                      },
+                      "delivery": {
+                        "type": "string",
+                        "enum": ["steer", "queue"]
+                      }
+                    },
+                    "required": ["timestamp", "sessionID", "messageID", "skill", "delivery"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id", "type", "properties"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^evt_"
+                  },
+                  "type": {
+                    "type": "string",
                     "enum": ["session.next.context.updated"]
                   },
                   "properties": {
@@ -18339,6 +19188,221 @@
                       }
                     },
                     "required": ["timestamp", "sessionID", "messageID", "reason", "text", "recent"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id", "type", "properties"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^evt_"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["session.next.compaction.soft-warning"]
+                  },
+                  "properties": {
+                    "type": "object",
+                    "properties": {
+                      "timestamp": {
+                        "type": "number"
+                      },
+                      "sessionID": {
+                        "type": "string",
+                        "pattern": "^ses"
+                      },
+                      "watermark": {
+                        "type": "number"
+                      },
+                      "compactAt": {
+                        "type": "number"
+                      }
+                    },
+                    "required": ["timestamp", "sessionID", "watermark", "compactAt"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id", "type", "properties"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^evt_"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["session.next.compaction.stuck"]
+                  },
+                  "properties": {
+                    "type": "object",
+                    "properties": {
+                      "timestamp": {
+                        "type": "number"
+                      },
+                      "sessionID": {
+                        "type": "string",
+                        "pattern": "^ses"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["timestamp", "sessionID", "message"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id", "type", "properties"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^evt_"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["session.next.cache.diagnostic"]
+                  },
+                  "properties": {
+                    "type": "object",
+                    "properties": {
+                      "timestamp": {
+                        "type": "number"
+                      },
+                      "sessionID": {
+                        "type": "string",
+                        "pattern": "^ses"
+                      },
+                      "assistantMessageID": {
+                        "type": "string",
+                        "pattern": "^msg_"
+                      },
+                      "prefixHash": {
+                        "type": "string"
+                      },
+                      "prefixChanged": {
+                        "type": "boolean"
+                      },
+                      "prefixChangeReasons": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "cacheReadInputTokens": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "string",
+                            "enum": ["NaN"]
+                          },
+                          {
+                            "type": "string",
+                            "enum": ["Infinity"]
+                          },
+                          {
+                            "type": "string",
+                            "enum": ["-Infinity"]
+                          },
+                          {
+                            "type": "string",
+                            "enum": ["Infinity", "-Infinity", "NaN"]
+                          }
+                        ]
+                      },
+                      "nonCachedInputTokens": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "string",
+                            "enum": ["NaN"]
+                          },
+                          {
+                            "type": "string",
+                            "enum": ["Infinity"]
+                          },
+                          {
+                            "type": "string",
+                            "enum": ["-Infinity"]
+                          },
+                          {
+                            "type": "string",
+                            "enum": ["Infinity", "-Infinity", "NaN"]
+                          }
+                        ]
+                      },
+                      "sessionCacheRead": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "string",
+                            "enum": ["NaN"]
+                          },
+                          {
+                            "type": "string",
+                            "enum": ["Infinity"]
+                          },
+                          {
+                            "type": "string",
+                            "enum": ["-Infinity"]
+                          },
+                          {
+                            "type": "string",
+                            "enum": ["Infinity", "-Infinity", "NaN"]
+                          }
+                        ]
+                      },
+                      "sessionNonCached": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "string",
+                            "enum": ["NaN"]
+                          },
+                          {
+                            "type": "string",
+                            "enum": ["Infinity"]
+                          },
+                          {
+                            "type": "string",
+                            "enum": ["-Infinity"]
+                          },
+                          {
+                            "type": "string",
+                            "enum": ["Infinity", "-Infinity", "NaN"]
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "timestamp",
+                      "sessionID",
+                      "assistantMessageID",
+                      "prefixHash",
+                      "prefixChanged",
+                      "prefixChangeReasons",
+                      "cacheReadInputTokens",
+                      "nonCachedInputTokens",
+                      "sessionCacheRead",
+                      "sessionNonCached"
+                    ],
                     "additionalProperties": false
                   }
                 },
@@ -19819,6 +20883,12 @@
                 "$ref": "#/components/schemas/SyncEventSessionNextPromptAdmitted"
               },
               {
+                "$ref": "#/components/schemas/SyncEventSessionNextShellAdmitted"
+              },
+              {
+                "$ref": "#/components/schemas/SyncEventSessionNextSkillAdmitted"
+              },
+              {
                 "$ref": "#/components/schemas/SyncEventSessionNextContextUpdated"
               },
               {
@@ -20617,6 +21687,10 @@
           },
           "default_agent": {
             "type": "string"
+          },
+          "subagent_attended_default": {
+            "type": "boolean",
+            "description": "Default attended mode for subagent task delegation"
           },
           "username": {
             "type": "string"
@@ -21750,9 +22824,12 @@
           "status": {
             "type": "string",
             "enum": ["added", "deleted", "modified"]
+          },
+          "staged": {
+            "type": "boolean"
           }
         },
-        "required": ["file", "additions", "deletions", "status"],
+        "required": ["file", "additions", "deletions", "status", "staged"],
         "additionalProperties": false
       },
       "VcsFileDiff": {
@@ -21793,7 +22870,7 @@
               },
               "reason": {
                 "type": "string",
-                "enum": ["non-git", "not-clean"]
+                "enum": ["non-git", "not-clean", "stage-failed", "unstage-failed", "commit-failed"]
               }
             },
             "required": ["message", "reason"],
@@ -21801,6 +22878,25 @@
           }
         },
         "required": ["name", "data"],
+        "additionalProperties": false
+      },
+      "VcsCommitEntry": {
+        "type": "object",
+        "properties": {
+          "hash": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "author": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string"
+          }
+        },
+        "required": ["hash", "message", "author", "date"],
         "additionalProperties": false
       },
       "Command": {
@@ -22611,6 +23707,270 @@
         "required": ["_tag", "sessionID", "message"],
         "additionalProperties": false
       },
+      "StepCacheStats": {
+        "type": "object",
+        "properties": {
+          "assistantMessageID": {
+            "type": "string"
+          },
+          "hitRate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "enum": ["NaN"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["-Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity", "-Infinity", "NaN"]
+              }
+            ]
+          },
+          "cacheRead": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "enum": ["NaN"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["-Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity", "-Infinity", "NaN"]
+              }
+            ]
+          },
+          "cacheWrite": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "enum": ["NaN"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["-Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity", "-Infinity", "NaN"]
+              }
+            ]
+          }
+        },
+        "required": ["assistantMessageID", "hitRate", "cacheRead", "cacheWrite"],
+        "additionalProperties": false
+      },
+      "CacheDiagnostics": {
+        "type": "object",
+        "properties": {
+          "sessionHitRate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "enum": ["NaN"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["-Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity", "-Infinity", "NaN"]
+              }
+            ]
+          },
+          "sessionCacheRead": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "enum": ["NaN"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["-Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity", "-Infinity", "NaN"]
+              }
+            ]
+          },
+          "sessionCacheWrite": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "enum": ["NaN"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["-Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity", "-Infinity", "NaN"]
+              }
+            ]
+          },
+          "sessionTotalInput": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "enum": ["NaN"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["-Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity", "-Infinity", "NaN"]
+              }
+            ]
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "estimated", "unavailable"]
+          },
+          "perStep": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StepCacheStats"
+            }
+          },
+          "globalTotalCalls": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "enum": ["NaN"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["-Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity", "-Infinity", "NaN"]
+              }
+            ]
+          },
+          "globalHitRate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "enum": ["NaN"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["-Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity", "-Infinity", "NaN"]
+              }
+            ]
+          },
+          "globalTotalTokens": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "enum": ["NaN"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["-Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity", "-Infinity", "NaN"]
+              }
+            ]
+          }
+        },
+        "required": [
+          "sessionHitRate",
+          "sessionCacheRead",
+          "sessionCacheWrite",
+          "sessionTotalInput",
+          "confidence",
+          "perStep"
+        ],
+        "additionalProperties": false
+      },
       "EventTuiPromptAppend": {
         "type": "object",
         "properties": {
@@ -23060,6 +24420,12 @@
             "$ref": "#/components/schemas/V2EventSessionNextPromptAdmitted"
           },
           {
+            "$ref": "#/components/schemas/V2EventSessionNextShellAdmitted"
+          },
+          {
+            "$ref": "#/components/schemas/V2EventSessionNextSkillAdmitted"
+          },
+          {
             "$ref": "#/components/schemas/V2EventSessionNextContextUpdated"
           },
           {
@@ -23130,6 +24496,15 @@
           },
           {
             "$ref": "#/components/schemas/V2EventSessionNextCompactionEnded"
+          },
+          {
+            "$ref": "#/components/schemas/V2EventSessionNextCompactionSoft-warning"
+          },
+          {
+            "$ref": "#/components/schemas/V2EventSessionNextCompactionStuck"
+          },
+          {
+            "$ref": "#/components/schemas/V2EventSessionNextCacheDiagnostic"
           },
           {
             "$ref": "#/components/schemas/V2EventMessagePartDelta"
@@ -24428,6 +25803,128 @@
                   }
                 },
                 "required": ["timestamp", "sessionID", "messageID", "prompt", "delivery"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["type", "id", "seq", "aggregateID", "data"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["type", "id", "syncEvent"],
+        "additionalProperties": false
+      },
+      "SyncEventSessionNextShellAdmitted": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["sync"]
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "syncEvent": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["session.next.shell.admitted.1"]
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^evt_"
+              },
+              "seq": {
+                "type": "number"
+              },
+              "aggregateID": {
+                "type": "string"
+              },
+              "data": {
+                "type": "object",
+                "properties": {
+                  "timestamp": {
+                    "type": "number"
+                  },
+                  "sessionID": {
+                    "type": "string",
+                    "pattern": "^ses"
+                  },
+                  "messageID": {
+                    "type": "string",
+                    "pattern": "^msg_"
+                  },
+                  "command": {
+                    "type": "string"
+                  },
+                  "delivery": {
+                    "type": "string",
+                    "enum": ["steer", "queue"]
+                  }
+                },
+                "required": ["timestamp", "sessionID", "messageID", "command", "delivery"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["type", "id", "seq", "aggregateID", "data"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["type", "id", "syncEvent"],
+        "additionalProperties": false
+      },
+      "SyncEventSessionNextSkillAdmitted": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["sync"]
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "syncEvent": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["session.next.skill.admitted.1"]
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^evt_"
+              },
+              "seq": {
+                "type": "number"
+              },
+              "aggregateID": {
+                "type": "string"
+              },
+              "data": {
+                "type": "object",
+                "properties": {
+                  "timestamp": {
+                    "type": "number"
+                  },
+                  "sessionID": {
+                    "type": "string",
+                    "pattern": "^ses"
+                  },
+                  "messageID": {
+                    "type": "string",
+                    "pattern": "^msg_"
+                  },
+                  "skill": {
+                    "type": "string"
+                  },
+                  "delivery": {
+                    "type": "string",
+                    "enum": ["steer", "queue"]
+                  }
+                },
+                "required": ["timestamp", "sessionID", "messageID", "skill", "delivery"],
                 "additionalProperties": false
               }
             },
@@ -26063,9 +27560,13 @@
         "required": ["id", "projectID", "cost", "tokens", "time", "title", "location"],
         "additionalProperties": false
       },
-      "SessionInputAdmitted": {
+      "SessionInputAdmittedPrompt": {
         "type": "object",
         "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["prompt"]
+          },
           "admittedSeq": {
             "type": "integer",
             "minimum": 0
@@ -26078,8 +27579,42 @@
             "type": "string",
             "pattern": "^ses"
           },
+          "delivery": {
+            "type": "string",
+            "enum": ["steer", "queue"]
+          },
+          "timeCreated": {
+            "type": "number"
+          },
+          "promotedSeq": {
+            "type": "integer",
+            "minimum": 0
+          },
           "prompt": {
             "$ref": "#/components/schemas/Prompt"
+          }
+        },
+        "required": ["kind", "admittedSeq", "id", "sessionID", "delivery", "timeCreated", "prompt"],
+        "additionalProperties": false
+      },
+      "SessionInputAdmittedShell": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["shell"]
+          },
+          "admittedSeq": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^msg_"
+          },
+          "sessionID": {
+            "type": "string",
+            "pattern": "^ses"
           },
           "delivery": {
             "type": "string",
@@ -26091,10 +27626,63 @@
           "promotedSeq": {
             "type": "integer",
             "minimum": 0
+          },
+          "command": {
+            "type": "string"
           }
         },
-        "required": ["admittedSeq", "id", "sessionID", "prompt", "delivery", "timeCreated"],
+        "required": ["kind", "admittedSeq", "id", "sessionID", "delivery", "timeCreated", "command"],
         "additionalProperties": false
+      },
+      "SessionInputAdmittedSkill": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["skill"]
+          },
+          "admittedSeq": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^msg_"
+          },
+          "sessionID": {
+            "type": "string",
+            "pattern": "^ses"
+          },
+          "delivery": {
+            "type": "string",
+            "enum": ["steer", "queue"]
+          },
+          "timeCreated": {
+            "type": "number"
+          },
+          "promotedSeq": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "skill": {
+            "type": "string"
+          }
+        },
+        "required": ["kind", "admittedSeq", "id", "sessionID", "delivery", "timeCreated", "skill"],
+        "additionalProperties": false
+      },
+      "SessionInputAdmitted": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/SessionInputAdmittedPrompt"
+          },
+          {
+            "$ref": "#/components/schemas/SessionInputAdmittedShell"
+          },
+          {
+            "$ref": "#/components/schemas/SessionInputAdmittedSkill"
+          }
+        ]
       },
       "SessionMessageAgentSwitched": {
         "type": "object",
@@ -28637,6 +30225,130 @@
         "required": ["id", "type", "data"],
         "additionalProperties": false
       },
+      "V2EventSessionNextShellAdmitted": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "durable": {
+            "type": "object",
+            "properties": {
+              "aggregateID": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": ["aggregateID", "seq", "version"],
+            "additionalProperties": false
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["session.next.shell.admitted"]
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "number"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "messageID": {
+                "type": "string",
+                "pattern": "^msg_"
+              },
+              "command": {
+                "type": "string"
+              },
+              "delivery": {
+                "type": "string",
+                "enum": ["steer", "queue"]
+              }
+            },
+            "required": ["timestamp", "sessionID", "messageID", "command", "delivery"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "data"],
+        "additionalProperties": false
+      },
+      "V2EventSessionNextSkillAdmitted": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "durable": {
+            "type": "object",
+            "properties": {
+              "aggregateID": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": ["aggregateID", "seq", "version"],
+            "additionalProperties": false
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["session.next.skill.admitted"]
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "number"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "messageID": {
+                "type": "string",
+                "pattern": "^msg_"
+              },
+              "skill": {
+                "type": "string"
+              },
+              "delivery": {
+                "type": "string",
+                "enum": ["steer", "queue"]
+              }
+            },
+            "required": ["timestamp", "sessionID", "messageID", "skill", "delivery"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "data"],
+        "additionalProperties": false
+      },
       "V2EventSessionNextContextUpdated": {
         "type": "object",
         "properties": {
@@ -30216,6 +31928,287 @@
               }
             },
             "required": ["timestamp", "sessionID", "messageID", "reason", "text", "recent"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "data"],
+        "additionalProperties": false
+      },
+      "V2EventSessionNextCompactionSoft-warning": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "durable": {
+            "type": "object",
+            "properties": {
+              "aggregateID": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": ["aggregateID", "seq", "version"],
+            "additionalProperties": false
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["session.next.compaction.soft-warning"]
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "number"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "watermark": {
+                "type": "number"
+              },
+              "compactAt": {
+                "type": "number"
+              }
+            },
+            "required": ["timestamp", "sessionID", "watermark", "compactAt"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "data"],
+        "additionalProperties": false
+      },
+      "V2EventSessionNextCompactionStuck": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "durable": {
+            "type": "object",
+            "properties": {
+              "aggregateID": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": ["aggregateID", "seq", "version"],
+            "additionalProperties": false
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["session.next.compaction.stuck"]
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "number"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": ["timestamp", "sessionID", "message"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "data"],
+        "additionalProperties": false
+      },
+      "V2EventSessionNextCacheDiagnostic": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "durable": {
+            "type": "object",
+            "properties": {
+              "aggregateID": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": ["aggregateID", "seq", "version"],
+            "additionalProperties": false
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["session.next.cache.diagnostic"]
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "number"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "assistantMessageID": {
+                "type": "string",
+                "pattern": "^msg_"
+              },
+              "prefixHash": {
+                "type": "string"
+              },
+              "prefixChanged": {
+                "type": "boolean"
+              },
+              "prefixChangeReasons": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "cacheReadInputTokens": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity", "-Infinity", "NaN"]
+                  }
+                ]
+              },
+              "nonCachedInputTokens": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity", "-Infinity", "NaN"]
+                  }
+                ]
+              },
+              "sessionCacheRead": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity", "-Infinity", "NaN"]
+                  }
+                ]
+              },
+              "sessionNonCached": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity", "-Infinity", "NaN"]
+                  }
+                ]
+              }
+            },
+            "required": [
+              "timestamp",
+              "sessionID",
+              "assistantMessageID",
+              "prefixHash",
+              "prefixChanged",
+              "prefixChangeReasons",
+              "cacheReadInputTokens",
+              "nonCachedInputTokens",
+              "sessionCacheRead",
+              "sessionNonCached"
+            ],
             "additionalProperties": false
           }
         },
@@ -33261,6 +35254,86 @@
         "required": ["id", "type", "properties"],
         "additionalProperties": false
       },
+      "EventSessionNextShellAdmitted": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["session.next.shell.admitted"]
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "number"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "messageID": {
+                "type": "string",
+                "pattern": "^msg_"
+              },
+              "command": {
+                "type": "string"
+              },
+              "delivery": {
+                "type": "string",
+                "enum": ["steer", "queue"]
+              }
+            },
+            "required": ["timestamp", "sessionID", "messageID", "command", "delivery"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "properties"],
+        "additionalProperties": false
+      },
+      "EventSessionNextSkillAdmitted": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["session.next.skill.admitted"]
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "number"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "messageID": {
+                "type": "string",
+                "pattern": "^msg_"
+              },
+              "skill": {
+                "type": "string"
+              },
+              "delivery": {
+                "type": "string",
+                "enum": ["steer", "queue"]
+              }
+            },
+            "required": ["timestamp", "sessionID", "messageID", "skill", "delivery"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "properties"],
+        "additionalProperties": false
+      },
       "EventSessionNextContextUpdated": {
         "type": "object",
         "properties": {
@@ -34312,6 +36385,205 @@
               }
             },
             "required": ["timestamp", "sessionID", "messageID", "reason", "text", "recent"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "properties"],
+        "additionalProperties": false
+      },
+      "EventSessionNextCompactionSoft-warning": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["session.next.compaction.soft-warning"]
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "number"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "watermark": {
+                "type": "number"
+              },
+              "compactAt": {
+                "type": "number"
+              }
+            },
+            "required": ["timestamp", "sessionID", "watermark", "compactAt"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "properties"],
+        "additionalProperties": false
+      },
+      "EventSessionNextCompactionStuck": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["session.next.compaction.stuck"]
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "number"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": ["timestamp", "sessionID", "message"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "properties"],
+        "additionalProperties": false
+      },
+      "EventSessionNextCacheDiagnostic": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["session.next.cache.diagnostic"]
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "number"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "assistantMessageID": {
+                "type": "string",
+                "pattern": "^msg_"
+              },
+              "prefixHash": {
+                "type": "string"
+              },
+              "prefixChanged": {
+                "type": "boolean"
+              },
+              "prefixChangeReasons": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "cacheReadInputTokens": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  }
+                ]
+              },
+              "nonCachedInputTokens": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  }
+                ]
+              },
+              "sessionCacheRead": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  }
+                ]
+              },
+              "sessionNonCached": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  }
+                ]
+              }
+            },
+            "required": [
+              "timestamp",
+              "sessionID",
+              "assistantMessageID",
+              "prefixHash",
+              "prefixChanged",
+              "prefixChangeReasons",
+              "cacheReadInputTokens",
+              "nonCachedInputTokens",
+              "sessionCacheRead",
+              "sessionNonCached"
+            ],
             "additionalProperties": false
           }
         },

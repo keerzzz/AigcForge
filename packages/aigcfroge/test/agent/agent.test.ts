@@ -15,6 +15,7 @@ import { Provider } from "../../src/provider/provider"
 import { Skill } from "../../src/skill"
 import { Truncate } from "../../src/tool/truncate"
 import { LocationServiceMap } from "@aigcfroge/core/location-layer"
+import { CliAdapterRegistry } from "../../src/agent/meta/adapters/registry"
 
 const agentLayer = (flags: Partial<RuntimeFlags.Info> = {}) =>
   Agent.layer.pipe(
@@ -24,6 +25,7 @@ const agentLayer = (flags: Partial<RuntimeFlags.Info> = {}) =>
     Layer.provide(Config.defaultLayer),
     Layer.provide(Skill.defaultLayer),
     Layer.provide(LocationServiceMap.layer),
+    Layer.provide(CliAdapterRegistry.layer),
     Layer.provide(RuntimeFlags.layer(flags)),
   )
 
@@ -700,6 +702,17 @@ it.instance(
   },
 )
 
+it.instance("meta agent prompt contains protocol documents and identity sections", () =>
+  Effect.gen(function* () {
+    const meta = yield* load((svc) => svc.get("meta"))
+    expect(meta).toBeDefined()
+    expect(meta?.prompt).toContain("## Protocol Documents")
+    expect(meta?.prompt).toContain("TEXT CONTENT")
+    expect(meta?.prompt).toContain("## Identity")
+    expect(meta?.prompt).toContain("AigcForge Meta Agent")
+  }),
+)
+
 it.instance(
   "defaultAgent throws when default_agent points to subagent",
   () => expectDefaultAgentError('default agent "explore" is a subagent'),
@@ -759,4 +772,15 @@ it.instance(
       },
     },
   },
+)
+
+it.instance("Agent.list includes CLI agents with source=external-cli", () =>
+  Effect.gen(function* () {
+    const agents = yield* load((svc) => svc.list())
+    const cliAgents = agents.filter((a) => a.source === "external-cli")
+    expect(cliAgents.length).toBeGreaterThan(0)
+    expect(cliAgents.every((a) => a.mode === "subagent")).toBe(true)
+    expect(cliAgents.every((a) => !a.hidden)).toBe(true)
+    expect(cliAgents.some((a) => a.name === "claude-code")).toBe(true)
+  }),
 )

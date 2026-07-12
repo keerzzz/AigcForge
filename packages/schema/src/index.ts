@@ -1,3 +1,4 @@
+export { Handoff } from "./handoff"
 export { Agent } from "./agent"
 export { Command } from "./command"
 export { Connection } from "./connection"

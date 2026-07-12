@@ -111,6 +111,7 @@ export const dict = {
   "ui.tool.questions": "Preguntas",
   "ui.tool.agent": "Agente {{type}}",
   "ui.tool.agent.default": "Agente",
+  "ui.tool.agent.openSession": "Open sub-agent session",
 
   "ui.common.file.one": "archivo",
   "ui.common.file.other": "archivos",

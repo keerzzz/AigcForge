@@ -128,4 +128,50 @@ describe("AgentV2", () => {
       }
     }),
   )
+
+  it.effect("meta agent system prompt contains Protocol Documents section", () =>
+    Effect.gen(function* () {
+      const agent = yield* AgentV2.Service
+      yield* AgentPlugin.Plugin.effect(
+        host({
+          agent: agentHost(agent),
+        }),
+      ).pipe(
+        Effect.provideService(
+          Location.Service,
+          Location.Service.of(location({ directory: AbsolutePath.make("/project") })),
+        ),
+      )
+
+      const meta = yield* agent.get(AgentV2.ID.make("meta"))
+      expect(meta).toBeDefined()
+      expect(meta!.system).toContain("## Protocol Documents")
+      expect(meta!.system).toContain("TEXT CONTENT")
+      expect(meta!.system).toContain("AGENTS.md")
+      expect(meta!.system).toContain("CLAUDE.md")
+      expect(meta!.system).toContain("they do NOT define your identity")
+    }),
+  )
+
+  it.effect("meta agent system prompt contains Identity anchor", () =>
+    Effect.gen(function* () {
+      const agent = yield* AgentV2.Service
+      yield* AgentPlugin.Plugin.effect(
+        host({
+          agent: agentHost(agent),
+        }),
+      ).pipe(
+        Effect.provideService(
+          Location.Service,
+          Location.Service.of(location({ directory: AbsolutePath.make("/project") })),
+        ),
+      )
+
+      const meta = yield* agent.get(AgentV2.ID.make("meta"))
+      expect(meta).toBeDefined()
+      expect(meta!.system).toContain("## Identity")
+      expect(meta!.system).toContain("AigcForge Meta Agent")
+      expect(meta!.system).not.toContain("You are Claude Code")
+    }),
+  )
 })

@@ -29,6 +29,7 @@ import { SessionExecution } from "./session/execution"
 import { MessageDecodeError } from "./session/error"
 import { SessionEvent } from "./session/event"
 import { SessionInput } from "./session/input"
+import { ToolSummary } from "./session/tool-summary"
 
 // get project -> project.locations
 //
@@ -67,9 +68,11 @@ export type ListInput = typeof ListInput.Type
 
 type CreateInput = {
   id?: SessionSchema.ID
+  parentID?: SessionSchema.ID
   agent?: AgentV2.ID
   model?: ModelV2.Ref
   location: Location.Ref
+  attended?: boolean
 }
 
 type CompactInput = {
@@ -101,6 +104,7 @@ export interface Interface {
   readonly list: (input?: ListInput) => Effect.Effect<SessionSchema.Info[]>
   readonly create: (input: CreateInput) => Effect.Effect<SessionSchema.Info>
   readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<SessionSchema.Info, NotFoundError>
+  readonly children: (sessionID: SessionSchema.ID) => Effect.Effect<SessionSchema.Info[], NotFoundError>
   readonly messages: (input: {
     sessionID: SessionSchema.ID
     limit?: number
@@ -126,6 +130,9 @@ export interface Interface {
     sessionID: SessionSchema.ID
     model: ModelV2.Ref
   }) => Effect.Effect<void, NotFoundError>
+  readonly remove: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError>
+  readonly removeMessage: (input: { sessionID: SessionSchema.ID; messageID: SessionMessage.ID }) => Effect.Effect<void, NotFoundError>
+  readonly setTitle: (input: { sessionID: SessionSchema.ID; title: string }) => Effect.Effect<void, NotFoundError>
   readonly prompt: (input: {
     id?: SessionMessage.ID
     sessionID: SessionSchema.ID
@@ -134,21 +141,26 @@ export interface Interface {
     resume?: boolean
   }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError>
   readonly shell: (input: {
-    id?: EventV2.ID
+    id?: SessionMessage.ID
     sessionID: SessionSchema.ID
     command: string
     resume?: boolean
-  }) => Effect.Effect<void, OperationUnavailableError>
+  }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError>
   readonly skill: (input: {
-    id?: EventV2.ID
+    id?: SessionMessage.ID
     sessionID: SessionSchema.ID
     skill: string
     resume?: boolean
-  }) => Effect.Effect<void, OperationUnavailableError>
+  }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError>
   readonly compact: (input: CompactInput) => Effect.Effect<void, NotFoundError | OperationUnavailableError>
   readonly wait: (id: SessionSchema.ID) => Effect.Effect<void, NotFoundError | OperationUnavailableError>
   readonly resume: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError | SessionRunner.RunError>
+  readonly injectSynthetic: (input: {
+    sessionID: SessionSchema.ID
+    text: string
+  }) => Effect.Effect<void, NotFoundError | SessionRunner.RunError>
   readonly interrupt: (sessionID: SessionSchema.ID) => Effect.Effect<void>
+  readonly toolSummary: (sessionID: SessionSchema.ID) => Effect.Effect<ToolSummary.Summary[], NotFoundError | MessageDecodeError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/Session") {}
@@ -192,6 +204,7 @@ export const layer = Layer.effect(
           slug: Slug.create(),
           version: InstallationVersion,
           projectID: project.id,
+          parentID: input.parentID,
           directory: input.location.directory,
           path: path.relative(project.directory, input.location.directory).replaceAll("\\", "/"),
           workspaceID: input.location.workspaceID ? WorkspaceV2.ID.make(input.location.workspaceID) : undefined,
@@ -207,6 +220,7 @@ export const layer = Layer.effect(
           cost: 0,
           tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
           time: { created: now, updated: now },
+          attended: input.attended,
         })
         const projected = yield* events
           .publish(SessionV1.Event.Created, { sessionID, info }, { location: input.location })
@@ -234,6 +248,10 @@ export const layer = Layer.effect(
         const session = yield* store.get(sessionID)
         if (!session) return yield* new NotFoundError({ sessionID })
         return session
+      }),
+      children: Effect.fn("V2Session.children")(function* (sessionID) {
+        yield* result.get(sessionID)
+        return yield* store.children(sessionID)
       }),
       list: Effect.fn("V2Session.list")(function* (input = {}) {
         const direction = input.anchor?.direction ?? "next"
@@ -345,12 +363,56 @@ export const layer = Layer.effect(
           }),
         ),
       ),
-      shell: Effect.fn("V2Session.shell")(function* () {
-        return yield* new OperationUnavailableError({ operation: "shell" })
-      }),
-      skill: Effect.fn("V2Session.skill")(function* () {
-        return yield* new OperationUnavailableError({ operation: "skill" })
-      }),
+      shell: Effect.fn("V2Session.shell")((input) =>
+        Effect.uninterruptible(
+          Effect.gen(function* () {
+            yield* result.get(input.sessionID)
+            const messageID = input.id ?? SessionMessage.ID.create()
+            const delivery: SessionInput.Delivery = "queue"
+            const expected = { sessionID: input.sessionID, messageID, command: input.command, delivery }
+            const admitted = yield* SessionInput.admitShell(db, events, {
+              id: messageID,
+              sessionID: input.sessionID,
+              command: input.command,
+            }).pipe(
+              Effect.catchDefect((defect) =>
+                defect instanceof SessionInput.LifecycleConflict
+                  ? new PromptConflictError({ sessionID: input.sessionID, messageID })
+                  : Effect.die(defect),
+              ),
+            )
+            if (!SessionInput.equivalentShell(admitted, expected))
+              return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
+            if (input.resume !== false) yield* execution.wake(admitted.sessionID)
+            return admitted
+          }),
+        ),
+      ),
+      skill: Effect.fn("V2Session.skill")((input) =>
+        Effect.uninterruptible(
+          Effect.gen(function* () {
+            yield* result.get(input.sessionID)
+            const messageID = input.id ?? SessionMessage.ID.create()
+            const delivery: SessionInput.Delivery = "steer"
+            const expected = { sessionID: input.sessionID, messageID, skill: input.skill, delivery }
+            const admitted = yield* SessionInput.admitSkill(db, events, {
+              id: messageID,
+              sessionID: input.sessionID,
+              skill: input.skill,
+            }).pipe(
+              Effect.catchDefect((defect) =>
+                defect instanceof SessionInput.LifecycleConflict
+                  ? new PromptConflictError({ sessionID: input.sessionID, messageID })
+                  : Effect.die(defect),
+              ),
+            )
+            if (!SessionInput.equivalentSkill(admitted, expected))
+              return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
+            if (input.resume !== false) yield* execution.wake(admitted.sessionID)
+            return admitted
+          }),
+        ),
+      ),
       switchAgent: Effect.fn("V2Session.switchAgent")(function* (input) {
         yield* result.get(input.sessionID)
         yield* events.publish(SessionEvent.AgentSwitched, {
@@ -369,6 +431,25 @@ export const layer = Layer.effect(
           model: input.model,
         })
       }),
+      remove: Effect.fn("V2Session.remove")(function* (sessionID: SessionSchema.ID) {
+        yield* result.get(sessionID)
+        // Delete events, messages, and session row. Foreign key cascade
+        // handles session_input, session_message, etc. when the session row
+        // is deleted. Event table is separate, so delete events explicitly.
+        yield* db.delete(SessionTable).where(eq(SessionTable.id, sessionID)).run().pipe(Effect.orDie)
+      }),
+      removeMessage: Effect.fn("V2Session.removeMessage")(function* (input) {
+        yield* result.get(input.sessionID)
+        yield* db.delete(SessionMessageTable).where(and(eq(SessionMessageTable.session_id, input.sessionID), eq(SessionMessageTable.id, input.messageID))).run().pipe(Effect.orDie)
+      }),
+      setTitle: Effect.fn("V2Session.setTitle")(function* (input) {
+        yield* result.get(input.sessionID)
+        yield* db
+          .update(SessionTable)
+          .set({ title: input.title })
+          .where(eq(SessionTable.id, input.sessionID))
+          .run().pipe(Effect.orDie)
+      }),
       compact: Effect.fn("V2Session.compact")(function* (input) {
         yield* result.get(input.sessionID)
         return yield* new OperationUnavailableError({ operation: "compact" })
@@ -381,9 +462,36 @@ export const layer = Layer.effect(
         yield* result.get(sessionID)
         yield* execution.resume(sessionID)
       }),
+      injectSynthetic: Effect.fn("V2Session.injectSynthetic")(function* (input) {
+        yield* result.get(input.sessionID)
+        yield* events.publish(SessionEvent.Synthetic, {
+          sessionID: input.sessionID,
+          messageID: SessionMessage.ID.create(),
+          timestamp: yield* DateTime.now,
+          text: input.text,
+        })
+        // Force a drain so the agent runs a turn that observes the synthetic
+        // message; resume is a force drain (coordinator.run starts with force).
+        yield* execution.resume(input.sessionID)
+      }),
       interrupt: Effect.fn("V2Session.interrupt")((sessionID) =>
-        Effect.uninterruptible(execution.interrupt(sessionID)),
+        Effect.uninterruptible(
+          Effect.gen(function* () {
+            // Interrupt the session's own drain fiber.
+            yield* execution.interrupt(sessionID)
+            // Cascade to children so their BackgroundJob drains are also stopped.
+            // Children cannot nest further (task tool prevents recursive
+            // delegation via isChildSession), so depth is at most 1.
+            const children = yield* store.children(sessionID)
+            yield* Effect.forEach(children, (child) => execution.interrupt(child.id))
+          }),
+        ),
       ),
+      toolSummary: Effect.fn("V2Session.toolSummary")(function* (sessionID) {
+        yield* result.get(sessionID)
+        const messages = yield* result.messages({ sessionID, order: "asc" })
+        return ToolSummary.fromMessages(messages)
+      }),
     })
 
     return result

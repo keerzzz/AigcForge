@@ -1,8 +1,10 @@
 import { Context, Effect, Layer } from "effect"
+import { LayerNode } from "@aigcfroge/core/effect/layer-node"
 import type { CliAdapter } from "./interface"
 import { adapter as claudeCodeAdapter } from "./claude-code"
 import { adapter as geminiAdapter } from "./gemini"
 import { adapter as codexAdapter } from "./codex"
+import { adapter as opencodeAdapter } from "@aigcfroge/core/tool/opencode"
 
 export interface Interface {
   readonly register: (name: string, adapter: CliAdapter) => Effect.Effect<void>
@@ -22,6 +24,7 @@ export const layer = Layer.effect(
     adapters.set(claudeCodeAdapter.name, claudeCodeAdapter)
     adapters.set(geminiAdapter.name, geminiAdapter)
     adapters.set(codexAdapter.name, codexAdapter)
+    adapters.set(opencodeAdapter.name, opencodeAdapter)
 
     return AdapterRegistry.of({
       register: Effect.fn("AdapterRegistry.register")(function* (name: string, adapter: CliAdapter) {
@@ -40,7 +43,12 @@ export const layer = Layer.effect(
         const results = yield* Effect.forEach(
           Array.from(adapters.values()),
           (adapter) =>
-            adapter.detect().pipe(Effect.map((available) => ({ adapter, available }))),
+            adapter
+              .detect()
+              .pipe(
+                Effect.map((available) => ({ adapter, available })),
+                Effect.catch(() => Effect.succeed({ adapter, available: false as const })),
+              ),
           { concurrency: "unbounded" },
         )
         return results.filter((r) => r.available).map((r) => r.adapter)
@@ -50,5 +58,7 @@ export const layer = Layer.effect(
 )
 
 export const defaultLayer = layer
+
+export const node = LayerNode.make(layer, [])
 
 export * as CliAdapterRegistry from "./registry"

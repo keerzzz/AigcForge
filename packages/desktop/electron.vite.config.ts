@@ -47,22 +47,23 @@ export default defineConfig({
         name: "aigcfroge:node-pty-narrower",
         enforce: "pre",
         resolveId(s) {
-          if (s === "@lydell/node-pty") return nodePtyPkg
+          return s === "@lydell/node-pty" ? nodePtyPkg : null
         },
       },
       {
-        name: "aigcfroge:virtual-server-module",
+        name: "aigcfroge:server-dist",
         enforce: "pre",
         resolveId(id) {
-          if (id === "virtual:aigcfroge-server") return this.resolve(`${AIGCFROGE_SERVER_DIST}/node.js`)
+          return id === "virtual:aigcfroge-server"
+            ? this.resolve(`${AIGCFROGE_SERVER_DIST}/node.js`)
+            : null
         },
-      },
-      {
-        name: "aigcfroge:copy-server-assets",
         async writeBundle() {
+          const outDir = "./out/main/chunks"
+          await fs.mkdir(outDir, { recursive: true })
           for (const l of await fs.readdir(AIGCFROGE_SERVER_DIST)) {
             if (!l.endsWith(".wasm")) continue
-            await fs.writeFile(`./out/main/chunks/${l}`, await fs.readFile(`${AIGCFROGE_SERVER_DIST}/${l}`))
+            await fs.writeFile(`${outDir}/${l}`, await fs.readFile(`${AIGCFROGE_SERVER_DIST}/${l}`))
           }
         },
       },

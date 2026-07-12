@@ -131,32 +131,58 @@ export function SessionCacheDiagnostics(props: { sessionID: string }) {
 
                 {/* Per-step hit rate */}
                 <Show when={data().perStep.length > 0}>
-                  <div class="flex flex-col gap-1.5">
+                  <div class="flex flex-col gap-2">
                     <div class="text-12-regular text-text-weak">
                       {language.t("cacheDiagnostics.perStepTitle")}
                     </div>
-                    <div class="flex items-end gap-1.5 h-10 @[40rem]:h-12">
+                    <div class="flex flex-wrap items-center gap-3">
                       <For each={data().perStep}>
-                        {(step, idx) => (
-                          <div class="flex flex-col items-center gap-0.5 flex-1 min-w-0 max-w-12">
-                            <div class="w-full h-7 @[40rem]:h-9 rounded-sm bg-surface-base overflow-hidden">
-                              <div
-                                class="h-full rounded-sm"
-                                style={{
-                                  width: `${Math.max(n(step.hitRate), 1)}%`,
-                                  "background-color": n(step.hitRate) > 50
-                                    ? "var(--syntax-success)"
-                                    : n(step.hitRate) > 20
-                                      ? "var(--syntax-warning)"
-                                      : "var(--syntax-danger)",
-                                }}
-                              />
+                        {(step, idx) => {
+                          const radius = 14
+                          const circumference = 2 * Math.PI * radius
+                          const strokeDashoffset = () => circumference - (Math.min(n(step.hitRate), 100) / 100) * circumference
+                          const color = () =>
+                            n(step.hitRate) > 50
+                              ? "var(--syntax-success)"
+                              : n(step.hitRate) > 20
+                                ? "var(--syntax-warning)"
+                                : "var(--syntax-danger)"
+
+                          return (
+                            <div class="flex flex-col items-center gap-1">
+                              <div class="relative size-9 flex items-center justify-center">
+                                <svg class="size-full transform -rotate-90">
+                                  {/* Background ring */}
+                                  <circle
+                                    cx="18"
+                                    cy="18"
+                                    r={radius}
+                                    class="stroke-border-weaker-base fill-none"
+                                    stroke-width="2.5"
+                                  />
+                                  {/* Foreground ring */}
+                                  <circle
+                                    cx="18"
+                                    cy="18"
+                                    r={radius}
+                                    class="fill-none transition-all duration-300"
+                                    stroke-width="2.5"
+                                    stroke={color()}
+                                    stroke-dasharray={`${circumference}`}
+                                    stroke-dashoffset={`${strokeDashoffset()}`}
+                                    stroke-linecap="round"
+                                  />
+                                </svg>
+                                <span class="absolute text-[8px] font-semibold text-text-strong">
+                                  {Math.round(n(step.hitRate))}%
+                                </span>
+                              </div>
+                              <span class="text-10-regular text-text-weaker">
+                                R{idx() + 1}
+                              </span>
                             </div>
-                            <span class="text-10-regular text-text-weaker truncate max-w-full">
-                              R{idx() + 1}
-                            </span>
-                          </div>
-                        )}
+                          )
+                        }}
                       </For>
                     </div>
                   </div>

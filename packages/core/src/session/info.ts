@@ -7,6 +7,7 @@ import { ProviderV2 } from "../provider"
 import { AbsolutePath, RelativePath } from "../schema"
 import { WorkspaceV2 } from "../workspace"
 import { SessionSchema } from "./schema"
+import { SessionMessage } from "./message"
 import { SessionTable } from "./sql"
 
 export function fromRow(row: typeof SessionTable.$inferSelect): SessionSchema.Info {
@@ -14,6 +15,8 @@ export function fromRow(row: typeof SessionTable.$inferSelect): SessionSchema.In
     id: SessionSchema.ID.make(row.id),
     projectID: ProjectV2.ID.make(row.project_id),
     title: row.title,
+    slug: row.slug,
+    version: row.version,
     parentID: row.parent_id ? SessionSchema.ID.make(row.parent_id) : undefined,
     agent: row.agent ? AgentV2.ID.make(row.agent) : undefined,
     model: row.model
@@ -38,10 +41,26 @@ export function fromRow(row: typeof SessionTable.$inferSelect): SessionSchema.In
       workspaceID: row.workspace_id ? WorkspaceV2.ID.make(row.workspace_id) : undefined,
     }),
     subpath: row.path ? RelativePath.make(row.path) : undefined,
+    attended: row.attended === null ? undefined : row.attended === 1 ? true : false,
     time: {
       created: DateTime.makeUnsafe(row.time_created),
       updated: DateTime.makeUnsafe(row.time_updated),
       archived: row.time_archived ? DateTime.makeUnsafe(row.time_archived) : undefined,
     },
+    revert: row.revert
+      ? {
+          messageID: row.revert.messageID as unknown as SessionMessage.ID,
+          snapshot: row.revert.snapshot,
+          diff: row.revert.diff,
+        }
+      : undefined,
+    summary:
+      row.summary_additions !== null && row.summary_deletions !== null && row.summary_files !== null
+        ? {
+            additions: row.summary_additions,
+            deletions: row.summary_deletions,
+            files: row.summary_files,
+          }
+        : undefined,
   })
 }

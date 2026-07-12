@@ -23,6 +23,7 @@ import { testEffect } from "../lib/effect"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { AdapterRegistry, defaultLayer as adapterRegistryLayer } from "../../src/agent/meta/adapters/registry"
+import type { CliAdapter } from "../../src/agent/meta/adapters/interface"
 
 afterEach(async () => {
   await disposeAllInstances()
@@ -308,13 +309,13 @@ describe("tool.task", () => {
         command: process.execPath,
         description: "argv test adapter",
         detect: () => Effect.succeed(true),
-        buildArgs: (input) =>
+        buildArgs: (input: Parameters<CliAdapter["buildArgs"]>[0]) =>
           Effect.succeed([
             "-e",
             "process.stdout.write(JSON.stringify({ prompt: process.argv[1], cwd: process.cwd() }))",
             input.prompt,
           ]),
-        parseOutput: (stdout) =>
+        parseOutput: (stdout: string) =>
           Effect.sync(() => {
             const parsed = Schema.decodeUnknownSync(Schema.fromJsonString(CliEchoOutput))(stdout)
             return { status: "success" as const, summary: `${parsed.prompt}\n${parsed.cwd}` }
@@ -375,13 +376,13 @@ describe("tool.task", () => {
         command: process.execPath,
         description: "argv bypass adapter",
         detect: () => Effect.succeed(true),
-        buildArgs: (input) =>
+        buildArgs: (input: Parameters<CliAdapter["buildArgs"]>[0]) =>
           Effect.succeed([
             "-e",
             "process.stdout.write(process.argv[1])",
             input.prompt,
           ]),
-        parseOutput: (stdout, stderr) =>
+        parseOutput: (stdout: string, stderr: string) =>
           Effect.succeed({
             status: stderr ? "failed" as const : "success" as const,
             summary: stdout,

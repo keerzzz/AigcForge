@@ -126,6 +126,7 @@ describe("LocationServiceMap", () => {
             "question",
             "read",
             "skill",
+            "task",
             "todowrite",
             "webfetch",
             "websearch",
@@ -143,6 +144,7 @@ describe("LocationServiceMap", () => {
             "question",
             "read",
             "skill",
+            "task",
             "todowrite",
             "webfetch",
             "websearch",
@@ -179,6 +181,8 @@ describe("LocationServiceMap", () => {
             models.resolve(
               SessionV2.Info.make({
                 id: SessionV2.ID.make("ses_unavailable_model"),
+                slug: "unavailable-model",
+                version: "0.0.0",
                 projectID: ProjectV2.ID.global,
                 title: "test",
                 model: {

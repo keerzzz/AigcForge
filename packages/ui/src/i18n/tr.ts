@@ -117,6 +117,7 @@ export const dict = {
   "ui.tool.questions": "Sorular",
   "ui.tool.agent": "{{type}} Ajan",
   "ui.tool.agent.default": "Ajan",
+  "ui.tool.agent.openSession": "Open sub-agent session",
 
   "ui.common.file.one": "dosya",
   "ui.common.file.other": "dosya",

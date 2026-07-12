@@ -34,6 +34,7 @@ import { Vcs } from "@/project/vcs"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Ripgrep } from "@aigcfroge/core/ripgrep"
+import { CliAdapterRegistry } from "../../src/agent/meta/adapters/registry"
 
 const originalEnv = {
   AIGCFROGE_AUTH_CONTENT: process.env.AIGCFROGE_AUTH_CONTENT,
@@ -57,6 +58,7 @@ const workspaceLayer = (experimentalWorkspaces: boolean) =>
     Layer.provide(RuntimeFlags.layer({ experimentalWorkspaces })),
     Layer.provide(Ripgrep.defaultLayer),
     Layer.provide(InstanceStore.defaultLayer.pipe(Layer.provide(InstanceBootstrap.defaultLayer))),
+    Layer.provide(CliAdapterRegistry.defaultLayer),
   )
 
 const testServerLayer = Layer.mergeAll(
