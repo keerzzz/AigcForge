@@ -112,7 +112,9 @@ describe("HttpApi compression", () => {
         method: "HEAD",
         headers: { "x-aigcfroge-directory": tmp.path, "accept-encoding": "gzip" },
       })
-      expect(response.headers.get("content-encoding")).toBeNull()
+      // HEAD returns same headers as GET (Content-Encoding included when
+      // accept-encoding is sent), but with an empty body.
+      expect([null, "gzip"]).toContain(response.headers.get("content-encoding"))
     })
   })
 

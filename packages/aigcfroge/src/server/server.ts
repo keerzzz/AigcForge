@@ -57,7 +57,15 @@ export const Default = lazy(() => {
   const app: ServerApp = {
     fetch: (request: Request) => handler(request, HttpApiApp.context),
     request(input, init) {
-      return app.fetch(input instanceof Request ? input : new Request(new URL(input, "http://localhost"), init))
+      // HEAD→GET: Effect HttpRouter hangs on HEAD. Convert to GET, strip body.
+      const request = input instanceof Request ? input : new Request(new URL(input, "http://localhost"), init)
+      if (request.method === "HEAD") {
+        const getRequest = new Request(request, { method: "GET" })
+        return app.fetch(getRequest, HttpApiApp.context).then(
+          (response) => new Response(null, { status: response.status, statusText: response.statusText, headers: response.headers }),
+        )
+      }
+      return app.fetch(request, HttpApiApp.context)
     },
   }
   return { app }

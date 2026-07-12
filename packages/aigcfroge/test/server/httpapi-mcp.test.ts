@@ -29,7 +29,7 @@ const request = Effect.fnUntraced(function* (
   init?: RequestInit,
 ) {
   const headers = new Headers(init?.headers)
-  headers.set("x-aigcfroge-directory", directory)
+  headers.set("x-aigcfroge-directory", encodeURIComponent(directory))
   return yield* Effect.promise(() =>
     Promise.resolve(
       handler.handler(

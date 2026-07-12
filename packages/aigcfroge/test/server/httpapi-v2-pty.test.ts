@@ -19,7 +19,7 @@ const testPty = process.platform === "win32" ? test.skip : test
 
 function request(route: string, directory: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers)
-  headers.set("x-aigcfroge-directory", directory)
+  headers.set("x-aigcfroge-directory", encodeURIComponent(directory))
   return HttpApiApp.webHandler().handler(
     new Request(`http://localhost${route}`, {
       ...init,

@@ -50,7 +50,7 @@ function requestDefault(path: string, directory: string, init: RequestInit = {})
 
 function requestServer(path: string, directory: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers)
-  headers.set("x-aigcfroge-directory", directory)
+  headers.set("x-aigcfroge-directory", encodeURIComponent(directory))
   return Effect.promise(() => Promise.resolve(Server.Default().app.request(path, { ...init, headers })))
 }
 

@@ -6,6 +6,21 @@ import fs from "fs/promises"
 import { setTimeout as sleep } from "node:timers/promises"
 import { afterAll } from "bun:test"
 
+// ASCII-only temp directory: Bun's HTTP Headers.set() rejects non-ASCII header
+// values per RFC 7230. When os.tmpdir() returns a path with non-ASCII characters
+// (e.g. Chinese characters), ALL server tests that set x-aigcfroge-directory via
+// Header fail. Override TMPDIR to a guaranteed-ASCII path before os.tmpdir() reads it.
+const _tmpdir = os.tmpdir()
+if (/[^\x20-\x7E]/.test(_tmpdir)) {
+  process.env["TMPDIR"] = "/tmp"
+}
+
+// Allow bare repository operations in tests (Bun spawns git with
+// safe.bareRepository=explicit which rejects `git clone --bare` + `git worktree add`)
+delete process.env["GIT_CONFIG_COUNT"]
+delete process.env["GIT_CONFIG_KEY_0"]
+delete process.env["GIT_CONFIG_VALUE_0"]
+
 // Set XDG env vars FIRST, before any src/ imports
 const dir = path.join(os.tmpdir(), "aigcfroge-test-data-" + process.pid)
 await fs.mkdir(dir, { recursive: true })
