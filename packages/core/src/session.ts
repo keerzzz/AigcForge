@@ -7,6 +7,7 @@ import { and, asc, desc, eq, gt, like, lt, or, type SQL } from "drizzle-orm"
 import { ProjectV2 } from "./project"
 import { WorkspaceV2 } from "./workspace"
 import { ModelV2 } from "./model"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { Location } from "./location"
 import { SessionMessage } from "./session/message"
 import { Prompt } from "./session/prompt"
@@ -44,6 +45,7 @@ export { ListAnchor }
 
 const ListInputBase = {
   workspaceID: WorkspaceV2.ID.pipe(Schema.optional),
+  mode: ProductMode.ID.pipe(Schema.optional),
   search: Schema.String.pipe(Schema.optional),
   limit: PositiveInt.pipe(Schema.optional),
   order: Schema.Literals(["asc", "desc"]).pipe(Schema.optional),
@@ -69,6 +71,7 @@ export type ListInput = typeof ListInput.Type
 type CreateInput = {
   id?: SessionSchema.ID
   parentID?: SessionSchema.ID
+  mode?: ProductMode.ID
   agent?: AgentV2.ID
   model?: ModelV2.Ref
   location: Location.Ref
@@ -191,6 +194,7 @@ export const layer = Layer.effect(
         const sessionID = input.id ?? SessionSchema.ID.create()
         const recorded = yield* store.get(sessionID)
         if (recorded) return recorded
+        const parent = input.parentID ? yield* store.get(input.parentID) : undefined
         const project = yield* projects.resolve(input.location.directory)
         yield* db
           .insert(ProjectTable)
@@ -205,6 +209,7 @@ export const layer = Layer.effect(
           version: InstallationVersion,
           projectID: project.id,
           parentID: input.parentID,
+          mode: parent?.mode ?? input.mode ?? ProductMode.Default,
           directory: input.location.directory,
           path: path.relative(project.directory, input.location.directory).replaceAll("\\", "/"),
           workspaceID: input.location.workspaceID ? WorkspaceV2.ID.make(input.location.workspaceID) : undefined,
@@ -261,6 +266,7 @@ export const layer = Layer.effect(
         const conditions: SQL[] = []
         if ("directory" in input) conditions.push(eq(SessionTable.directory, input.directory))
         if (input.workspaceID) conditions.push(eq(SessionTable.workspace_id, input.workspaceID))
+        if (input.mode) conditions.push(eq(SessionTable.mode, input.mode))
         if ("project" in input) conditions.push(eq(SessionTable.project_id, input.project))
         if (input.search) conditions.push(like(SessionTable.title, `%${input.search}%`))
         if (input.anchor) {

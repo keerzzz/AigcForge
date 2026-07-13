@@ -61,11 +61,16 @@ export const Default = lazy(() => {
       const request = input instanceof Request ? input : new Request(new URL(input, "http://localhost"), init)
       if (request.method === "HEAD") {
         const getRequest = new Request(request, { method: "GET" })
-        return app.fetch(getRequest, HttpApiApp.context).then(
-          (response) => new Response(null, { status: response.status, statusText: response.statusText, headers: response.headers }),
+        return Promise.resolve(app.fetch(getRequest)).then(
+          (response) =>
+            new Response(null, {
+              status: response.status,
+              statusText: response.statusText,
+              headers: response.headers,
+            }),
         )
       }
-      return app.fetch(request, HttpApiApp.context)
+      return app.fetch(request)
     },
   }
   return { app }

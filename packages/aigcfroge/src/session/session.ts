@@ -44,6 +44,7 @@ import { NonNegativeInt, optionalOmitUndefined } from "@aigcfroge/core/schema"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 
 const runtime = makeRuntime(Database.Service, Database.defaultLayer)
 
@@ -72,6 +73,7 @@ export function fromRow(row: SessionRow): Info {
   const revert = row.revert ?? undefined
   return {
     id: row.id,
+    mode: Schema.decodeUnknownSync(ProductMode.ID)(row.mode ?? ProductMode.Default),
     slug: row.slug,
     projectID: row.project_id,
     workspaceID: row.workspace_id ?? undefined,
@@ -118,6 +120,7 @@ export function toRow(info: Info) {
     project_id: info.projectID,
     workspace_id: info.workspaceID,
     parent_id: info.parentID,
+    mode: info.mode ?? ProductMode.Default,
     slug: info.slug,
     directory: info.directory,
     path: info.path,
@@ -211,6 +214,10 @@ export const Metadata = Schema.Record(Schema.String, Schema.Any)
 
 export const Info = Schema.Struct({
   id: SessionID,
+  mode: ProductMode.ID.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed(ProductMode.Default as ProductMode.ID)),
+    Schema.withConstructorDefault(Effect.succeed(ProductMode.Default as ProductMode.ID)),
+  ),
   slug: Schema.String,
   projectID: ProjectV2.ID,
   workspaceID: optionalOmitUndefined(WorkspaceV2.ID),
@@ -248,6 +255,7 @@ export type GlobalInfo = Types.DeepMutable<Schema.Schema.Type<typeof GlobalInfo>
 export const CreateInput = Schema.optional(
   Schema.Struct({
     parentID: Schema.optional(SessionID),
+    mode: Schema.optional(ProductMode.ID),
     title: Schema.optional(Schema.String),
     agent: Schema.optional(Schema.String),
     model: Schema.optional(Model),
@@ -296,6 +304,7 @@ export type ListInput = {
   start?: number
   search?: string
   limit?: number
+  mode?: ProductMode.ID
 }
 
 export type GlobalListInput = {
@@ -306,6 +315,7 @@ export type GlobalListInput = {
   search?: string
   limit?: number
   archived?: boolean
+  mode?: ProductMode.ID
 }
 
 
@@ -420,6 +430,7 @@ export interface Interface {
   readonly listGlobal: (input?: GlobalListInput) => Effect.Effect<GlobalInfo[]>
   readonly create: (input?: {
     parentID?: SessionID
+    mode?: ProductMode.ID
     title?: string
     agent?: string
     model?: Schema.Schema.Type<typeof Model>
@@ -497,6 +508,7 @@ export const layer: Layer.Layer<
 
     const createNext = Effect.fn("Session.createNext")(function* (input: {
       id?: SessionID
+      mode?: ProductMode.ID
       title?: string
       agent?: string
       model?: Schema.Schema.Type<typeof Model>
@@ -510,6 +522,7 @@ export const layer: Layer.Layer<
       const ctx = yield* InstanceState.context
       const result: Info = {
         id: SessionID.descending(input.id),
+        mode: input.mode ?? ProductMode.Default,
         slug: Slug.create(),
         version: InstallationVersion,
         projectID: ctx.project.id,
@@ -559,6 +572,7 @@ export const layer: Layer.Layer<
       if (input?.cursor) conditions.push(lt(SessionTable.time_updated, input.cursor))
       if (input?.search) conditions.push(like(SessionTable.title, `%${input.search}%`))
       if (!input?.archived) conditions.push(isNull(SessionTable.time_archived))
+      if (input?.mode) conditions.push(eq(SessionTable.mode, input.mode))
 
       const query =
         conditions.length > 0
@@ -665,6 +679,7 @@ export const layer: Layer.Layer<
 
     const create = Effect.fn("Session.create")(function* (input?: {
       parentID?: SessionID
+      mode?: ProductMode.ID
       title?: string
       agent?: string
       model?: Schema.Schema.Type<typeof Model>
@@ -674,8 +689,10 @@ export const layer: Layer.Layer<
     }) {
       const ctx = yield* InstanceState.context
       const workspace = yield* InstanceState.workspaceID
+      const parent = input?.parentID ? Option.getOrUndefined(yield* Effect.option(get(input.parentID))) : undefined
       return yield* createNext({
         parentID: input?.parentID,
+        mode: parent?.mode ?? input?.mode,
         directory: ctx.directory,
         path: sessionPath(ctx.worktree, ctx.directory),
         title: input?.title,
@@ -695,6 +712,7 @@ export const layer: Layer.Layer<
         directory: ctx.directory,
         path: sessionPath(ctx.worktree, ctx.directory),
         workspaceID: original.workspaceID,
+        mode: original.mode,
         title,
         metadata: structuredClone(original.metadata),
       })
@@ -985,6 +1003,9 @@ function listByProject(
   if (input.search) {
     conditions.push(like(SessionTable.title, `%${input.search}%`))
   }
+  if (input.mode) {
+    conditions.push(eq(SessionTable.mode, input.mode))
+  }
 
   const limit = input.limit ?? 100
 
@@ -1009,6 +1030,7 @@ export function* listGlobal(input?: {
   search?: string
   limit?: number
   archived?: boolean
+  mode?: ProductMode.ID
 }) {
   const conditions: SQL[] = []
 
@@ -1029,6 +1051,9 @@ export function* listGlobal(input?: {
   }
   if (!input?.archived) {
     conditions.push(isNull(SessionTable.time_archived))
+  }
+  if (input?.mode) {
+    conditions.push(eq(SessionTable.mode, input.mode))
   }
 
   const limit = input?.limit ?? 100

@@ -322,6 +322,7 @@ describe("DatabaseMigration", () => {
             sessionID: SessionSchema.ID.make("session"),
             info: {
               id: SessionSchema.ID.make("session"),
+              mode: "coding",
               slug: "session",
               projectID: ProjectV2.ID.global,
               directory: "/project",

@@ -25,11 +25,13 @@ import { described } from "./metadata"
 import { QueryBoolean } from "./query"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 
 const root = "/session"
 export const ListQuery = Schema.Struct({
   ...WorkspaceRoutingQueryFields,
   scope: Schema.optional(Schema.Literals(["project"])),
+  mode: Schema.optional(ProductMode.ID),
   path: Schema.optional(Schema.String),
   roots: Schema.optional(QueryBoolean),
   start: Schema.optional(Schema.NumberFromString),

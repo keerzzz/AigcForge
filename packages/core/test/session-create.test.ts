@@ -67,6 +67,19 @@ describe("SessionV2.create", () => {
     }),
   )
 
+  it.effect("stores a root product mode and inherits it for children", () =>
+    Effect.gen(function* () {
+      const session = yield* SessionV2.Service
+      const parent = yield* session.create({ location, mode: "chat" })
+      const child = yield* session.create({ location, parentID: parent.id, mode: "work" })
+
+      expect(parent.mode).toBe("chat")
+      expect(child.mode).toBe("chat")
+      expect(yield* session.list({ mode: "chat" })).toEqual([child, parent])
+      expect(yield* session.list({ mode: "coding" })).toEqual([])
+    }),
+  )
+
   it.effect("returns the original session when the ID is retried", () =>
     Effect.gen(function* () {
       const session = yield* SessionV2.Service

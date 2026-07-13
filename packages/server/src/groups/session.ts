@@ -19,9 +19,11 @@ import { SessionLocationMiddleware } from "../middleware/session-location"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { Location } from "@aigcfroge/core/location"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 
 const SessionsQueryFields = {
   workspace: WorkspaceV2.ID.pipe(Schema.optional),
+  mode: ProductMode.ID.pipe(Schema.optional),
   limit: Schema.NumberFromString.pipe(Schema.decodeTo(PositiveInt), Schema.optional).annotate({
     description: "Maximum number of sessions to return. Defaults to the newest 50 sessions.",
   }),
@@ -112,6 +114,8 @@ export const SessionGroup = HttpApiGroup.make("server.session")
     HttpApiEndpoint.post("session.create", "/api/session", {
       payload: Schema.Struct({
         id: SessionV2.ID.pipe(Schema.optional),
+        parentID: SessionV2.ID.pipe(Schema.optional),
+        mode: ProductMode.ID.pipe(Schema.optional),
         agent: AgentV2.ID.pipe(Schema.optional),
         model: ModelV2.Ref.pipe(Schema.optional),
         location: Location.Ref.pipe(Schema.optional),

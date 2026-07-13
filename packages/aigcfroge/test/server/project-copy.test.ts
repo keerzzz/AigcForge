@@ -86,8 +86,8 @@ describe("project directories and copies endpoints", () => {
           body: JSON.stringify({ directory: created.directory, force: false }),
         })
         expect(remove.status).toBe(400)
-        expect(yield* json<{ data: { forceRequired?: boolean; message?: string } }>(remove)).toSatisfy(
-          (body: { data: { forceRequired?: boolean; message?: string } }) =>
+        expect(yield* json<{ name?: string; data: { forceRequired?: boolean; message?: string } }>(remove)).toSatisfy(
+          (body: { name?: string; data: { forceRequired?: boolean; message?: string } }) =>
             body.data?.forceRequired === true ||
             (body.data?.message !== undefined && body.name === "ProjectCopyError"),
         )

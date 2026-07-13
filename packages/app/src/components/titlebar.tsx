@@ -30,7 +30,7 @@ import { useLanguage } from "@/context/language"
 import { useSettings } from "@/context/settings"
 import { WindowsAppMenu } from "./windows-app-menu"
 import { applyPath, backPath, forwardPath } from "./titlebar-history"
-import { projectForSession } from "@/pages/layout/helpers"
+import { openProjectNewSession, projectForSession } from "@/pages/layout/helpers"
 import { SessionTabAvatar } from "@/pages/layout/session-tab-avatar"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
@@ -83,6 +83,7 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
   const language = useLanguage()
   const settings = useSettings()
   const theme = useTheme()
+  const mode = useMode()
   const server = useServer()
   const navigate = useNavigate()
   const location = useLocation()
@@ -330,8 +331,19 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
             const openNewTab = () => {
               const route = layout.route()
               const activeSession = session()
+
+              const draftInDir = (serverKey: ServerConnection.Key, directory: string) => {
+                const conn = server.list.find((item) => ServerConnection.key(item) === serverKey)
+                if (conn) {
+                  const ctx = global.ensureServerCtx(conn)
+                  openProjectNewSession(ctx.projects, (s, d) => tabs.newDraft({ server: s, directory: d, mode: mode.currentMode }), serverKey, directory)
+                } else {
+                  tabs.newDraft({ server: serverKey, directory, mode: mode.currentMode })
+                }
+              }
+
               if (route.type === "session" && activeSession) {
-                tabs.newDraft({ server: route.server ?? server.key, directory: activeSession.directory }, "")
+                draftInDir(route.server ?? server.key, activeSession.directory)
                 return
               }
 
@@ -340,13 +352,13 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
               // the first project.
               const lastDir = global.lastSession.directory(server.scope(server.key))
               if (lastDir) {
-                tabs.newDraft({ server: server.key, directory: lastDir }, "")
+                draftInDir(server.key, lastDir)
                 return
               }
 
               const current = layout.projects.list()[0]
               if (current) {
-                tabs.newDraft({ server: server.key, directory: current.worktree }, "")
+                draftInDir(server.key, current.worktree)
                 return
               }
 
@@ -356,7 +368,7 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
               })[0]
               if (!fallback) return
 
-              tabs.newDraft({ server: fallback.server, directory: fallback.project.worktree }, "")
+              draftInDir(fallback.server, fallback.project.worktree)
             }
             const toggleHome = () => tabs.toggleHome({ home: layout.route().type === "home", current: currentTab() })
 

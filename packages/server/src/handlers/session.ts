@@ -32,6 +32,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
           const sessions = yield* session.list({
             ...query,
             workspaceID: query.workspace,
+            mode: query.mode,
             limit: ctx.query.limit ?? DefaultSessionsLimit,
           })
           const first = sessions[0]
@@ -69,6 +70,8 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
           return {
             data: yield* session.create({
               id: ctx.payload.id,
+              parentID: ctx.payload.parentID,
+              mode: ctx.payload.mode,
               agent: ctx.payload.agent,
               model: ctx.payload.model,
               location: ctx.payload.location ?? { directory: AbsolutePath.make(process.cwd()) },

@@ -2,7 +2,7 @@
 
 > 状态：SUPERSEDED
 > 取代方案：[`mode-module-switching-completion.md`](mode-module-switching-completion.md)
-> 说明：本文保留历史实施记录；其中 `activeSessionId` 自动恢复和无 placement 自动新建 Draft 的语义不再有效。当前决策见 ADR-12：Home 卡片与全局 Icon 导航到 `/mode/:mode` 模块入口，但不创建、恢复或重分类 Session/Draft。
+> 说明：本文保留历史实施记录；其中 `activeSessionId` 自动恢复和无 placement 自动新建 Draft 的语义不再有效。当前实现见 [`mode-module-switching-completion.md`](mode-module-switching-completion.md)：模式切换导航到 `/mode/:mode`，Mode Route 校验参数并同步 `currentMode`；首页即模式工作区，会话列表按 Mode 发起服务端过滤查询。
 
 > Historical status: READY
 > Branch: brand-migration-v001

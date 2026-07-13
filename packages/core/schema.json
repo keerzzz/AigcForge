@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "ca260207-f5ac-444f-86fb-3f4e26d28101",
+  "id": "3433062a-710a-450f-999d-fe858de9b6f9",
   "prevIds": [
-    "802835e8-6c64-4cda-a9b9-e11a8b928513"
+    "ca260207-f5ac-444f-86fb-3f4e26d28101"
   ],
   "ddl": [
     {
@@ -1482,6 +1482,16 @@
       "type": "text",
       "notNull": true,
       "autoincrement": false,
+      "default": "'coding'",
+      "generated": null,
+      "name": "mode",
+      "entityType": "columns",
+      "table": "session"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
       "default": null,
       "generated": null,
       "name": "slug",
@@ -2691,6 +2701,50 @@
       "where": null,
       "origin": "manual",
       "name": "session_parent_idx",
+      "entityType": "indexes",
+      "table": "session"
+    },
+    {
+      "columns": [
+        {
+          "value": "project_id",
+          "isExpression": false
+        },
+        {
+          "value": "mode",
+          "isExpression": false
+        },
+        {
+          "value": "time_updated",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "session_project_mode_time_updated_idx",
+      "entityType": "indexes",
+      "table": "session"
+    },
+    {
+      "columns": [
+        {
+          "value": "directory",
+          "isExpression": false
+        },
+        {
+          "value": "mode",
+          "isExpression": false
+        },
+        {
+          "value": "time_updated",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "session_directory_mode_time_updated_idx",
       "entityType": "indexes",
       "table": "session"
     },

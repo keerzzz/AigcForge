@@ -128,6 +128,7 @@ import type {
   PermissionRespondResponses,
   PermissionRuleset,
   PermissionV2Reply,
+  ProductMode,
   ProjectCurrentErrors,
   ProjectCurrentResponses,
   ProjectDirectoriesErrors,
@@ -3522,6 +3523,7 @@ export class Session2 extends HeyApiClient {
       directory?: string
       workspace?: string
       scope?: "project"
+      mode?: ProductMode
       path?: string
       roots?: boolean | "true" | "false"
       start?: number
@@ -3538,6 +3540,7 @@ export class Session2 extends HeyApiClient {
             { in: "query", key: "directory" },
             { in: "query", key: "workspace" },
             { in: "query", key: "scope" },
+            { in: "query", key: "mode" },
             { in: "query", key: "path" },
             { in: "query", key: "roots" },
             { in: "query", key: "start" },
@@ -3564,6 +3567,7 @@ export class Session2 extends HeyApiClient {
       directory?: string
       workspace?: string
       parentID?: string
+      mode?: ProductMode
       title?: string
       agent?: string
       model?: {
@@ -3587,6 +3591,7 @@ export class Session2 extends HeyApiClient {
             { in: "query", key: "directory" },
             { in: "query", key: "workspace" },
             { in: "body", key: "parentID" },
+            { in: "body", key: "mode" },
             { in: "body", key: "title" },
             { in: "body", key: "agent" },
             { in: "body", key: "model" },
@@ -5480,6 +5485,7 @@ export class Session3 extends HeyApiClient {
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
       workspace?: string
+      mode?: ProductMode
       limit?: number
       order?: "asc" | "desc"
       search?: string
@@ -5496,6 +5502,7 @@ export class Session3 extends HeyApiClient {
         {
           args: [
             { in: "query", key: "workspace" },
+            { in: "query", key: "mode" },
             { in: "query", key: "limit" },
             { in: "query", key: "order" },
             { in: "query", key: "search" },
@@ -5522,6 +5529,8 @@ export class Session3 extends HeyApiClient {
   public create<ThrowOnError extends boolean = false>(
     parameters?: {
       id?: string
+      parentID?: string
+      mode?: ProductMode
       agent?: string
       model?: {
         id: string
@@ -5538,6 +5547,8 @@ export class Session3 extends HeyApiClient {
         {
           args: [
             { in: "body", key: "id" },
+            { in: "body", key: "parentID" },
+            { in: "body", key: "mode" },
             { in: "body", key: "agent" },
             { in: "body", key: "model" },
             { in: "body", key: "location" },

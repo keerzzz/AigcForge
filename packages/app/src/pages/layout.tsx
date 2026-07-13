@@ -18,7 +18,7 @@ function LayoutContent(props: ParentProps & { update: TitlebarUpdate }) {
   const mode = useMode()
   const statusSource = createCurrentSessionSource()
 
-  const isHome = () => location.pathname === "/"
+  const isHome = () => location.pathname === "/" || location.pathname.startsWith("/mode/")
   const isNewSession = () => location.pathname === "/new-session"
   const showSecondarySidebar = () => mode.secondarySidebarOpen && !isHome() && !isNewSession()
 

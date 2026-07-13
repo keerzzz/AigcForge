@@ -17,7 +17,7 @@ import { Dynamic } from "solid-js/web"
 import { CommandProvider } from "@/context/command"
 import { CommentsProvider } from "@/context/comments"
 import { FileProvider } from "@/context/file"
-import { useMode } from "@/context/mode"
+import { isMode, useMode } from "@/context/mode"
 import { ServerSDKProvider, useServerSDK } from "@/context/server-sdk"
 import { ServerSyncProvider } from "@/context/server-sync"
 import { GlobalProvider, useGlobal } from "@/context/global"
@@ -55,6 +55,7 @@ function LegacySessionRedirect() {
   const server = useServer()
   const tabs = useTabs()
   const global = useGlobal()
+  const mode = useMode()
   if (params.id) return <Navigate href={sessionHref(server.key, params.id)} />
   // First render: redirect to new-session placeholder; createEffect runs once
   // to create an actual draft with the first available project directory.
@@ -66,7 +67,7 @@ function LegacySessionRedirect() {
       const ctx = global.ensureServerCtx(conn)
       const projects = ctx.projects.list()
       const dir = projects[0]?.worktree
-      if (dir) tabs.newDraft({ server: key, directory: dir })
+      if (dir) tabs.newDraft({ server: key, directory: dir, mode: mode.currentMode })
     } catch {}
   })
   return
@@ -101,21 +102,22 @@ function ResolvedTargetSessionRoute() {
   const serverKey = createMemo(() => requireServerKey(params.serverKey))
   const placement = createMemo(() => global.sessionPlacement.get(serverKey(), params.id))
   const [resolved] = createResource(
-    () => {
-      if (placement()) return
-      return { id: params.id, sdk: serverSDK() }
-    },
-    async ({ id, sdk }) => {
+    () => ({ id: params.id, sdk: serverSDK(), current: placement() }),
+    async ({ id, sdk, current }) => {
       const session = (await sdk.client.session.get({ sessionID: id })).data!
+      if (current) return { ...current, mode: session.mode }
       const root = await rootSession(session, (sessionID) =>
         sdk.client.session.get({ sessionID }).then((result) => result.data!),
       )
-      return global.sessionPlacement.set({
-        server: serverKey(),
-        leafID: session.id,
-        rootID: root.id,
-        directory: session.directory,
-      })
+      return {
+        ...global.sessionPlacement.set({
+          server: serverKey(),
+          leafID: session.id,
+          rootID: root.id,
+          directory: session.directory,
+        }),
+        mode: session.mode,
+      }
     },
   )
   const directory = createMemo(() => placement()?.directory ?? resolved()?.directory)
@@ -128,10 +130,8 @@ function ResolvedTargetSessionRoute() {
       server: serverKey(),
       sessionId: current.rootID,
     })
-    mode.setActiveSessionId(mode.currentMode, {
-      server: serverKey(),
-      sessionId: current.rootID,
-    })
+    const sessionMode = resolved()?.mode
+    if (isMode(sessionMode)) mode.setCurrentMode(sessionMode)
   })
 
 	return (
@@ -193,9 +193,12 @@ function DraftRoute() {
 
 function ResolvedDraftRoute(props: { draft: DraftTab }) {
   const server = useServer()
+  const mode = useMode()
   const conn = createMemo(() => server.list.find((item) => ServerConnection.key(item) === props.draft.server))
   const directory = () => props.draft.directory
   const serverKey = () => props.draft.server
+
+  createEffect(() => mode.setCurrentMode(props.draft.mode))
 
   return (
     <ServerSDKProvider server={conn}>
@@ -531,10 +534,28 @@ export function AppInterface(props: {
 	}
 
 
+function ModeRoute() {
+  const params = useParams<{ mode: string }>()
+  const mode = useMode()
+  const selected = createMemo(() => (isMode(params.mode) ? params.mode : undefined))
+
+  createEffect(() => {
+    const current = selected()
+    if (current) mode.setCurrentMode(current)
+  })
+
+  return (
+    <Show when={selected()} fallback={<Navigate href="/" />}>
+      <Home />
+    </Show>
+  )
+}
+
 function Routes() {
 	return (
 		<>
 			<Route path="/" component={Home} />
+			<Route path="/mode/:mode" component={ModeRoute} />
 			<Route path="/new-session" component={DraftRoute} />
 			<Route path="/server/:serverKey/session/:id" component={TargetSessionRoute} />
 			<Route path="/:dir/session/:id?" component={LegacySessionRedirect} />

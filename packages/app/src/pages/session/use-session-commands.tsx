@@ -4,6 +4,7 @@ import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { previewSelectedLines } from "@aigcfroge/session-ui/pierre/selection-bridge"
 import { useFile, selectionFromLines, type FileSelection, type SelectedLineRange } from "@/context/file"
 import { useLanguage } from "@/context/language"
+import { useMode } from "@/context/mode"
 import { useLayout } from "@/context/layout"
 import { useLocal } from "@/context/local"
 import { usePermission } from "@/context/permission"
@@ -40,6 +41,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
   const dialog = useDialog()
   const file = useFile()
   const language = useLanguage()
+  const mode = useMode()
   const local = useLocal()
   const permission = usePermission()
   const prompt = usePrompt()
@@ -381,7 +383,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
       slash: "new",
       onSelect: () => {
         if (params.serverKey) {
-          sessionTabs.newDraft({ server: requireServerKey(params.serverKey), directory: sdk().directory })
+          sessionTabs.newDraft({ server: requireServerKey(params.serverKey), directory: sdk().directory, mode: mode.currentMode })
           return
         }
         navigate(`/${params.dir}/session`)

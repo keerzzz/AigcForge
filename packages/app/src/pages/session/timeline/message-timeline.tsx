@@ -59,6 +59,7 @@ import { SessionContextUsage } from "@/components/session-context-usage"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 import { useLanguage } from "@/context/language"
+import { useMode } from "@/context/mode"
 import { useSessionKey } from "@/pages/session/session-layout"
 import { useServerSDK } from "@/context/server-sdk"
 import { usePlatform } from "@/context/platform"
@@ -267,6 +268,7 @@ export function MessageTimeline(props: {
   const tabs = useTabs()
   const dialog = useDialog()
   const language = useLanguage()
+  const mode = useMode()
   const { params, sessionKey } = useSessionKey()
   const ownerSessionKey = sessionKey()
   const cached = timelineCache.get(ownerSessionKey)
@@ -796,7 +798,7 @@ export function MessageTimeline(props: {
       navigate(href(nextSessionID))
       return
     }
-    tabs.newDraft({ server: requireServerKey(key), directory: sdk().directory })
+    tabs.newDraft({ server: requireServerKey(key), directory: sdk().directory, mode: mode.currentMode })
   }
 
   const archiveSession = async (sessionID: string) => {

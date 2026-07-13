@@ -152,6 +152,8 @@ export type MoveSessionError = {
   }
 }
 
+export type ProductMode = "chat" | "coding" | "work" | "assistant"
+
 export type SnapshotFileDiff = {
   file?: string
   patch?: string
@@ -172,6 +174,7 @@ export type PermissionRuleset = Array<PermissionRule>
 
 export type Session = {
   id: string
+  mode?: ProductMode
   slug: string
   projectID: string
   workspaceID?: string
@@ -2275,6 +2278,7 @@ export type ProjectSummary = {
 
 export type GlobalSession = {
   id: string
+  mode?: ProductMode
   slug: string
   projectID: string
   workspaceID?: string
@@ -2434,6 +2438,14 @@ export type Command = {
   template: string
   subtask?: boolean
   hints: Array<string>
+}
+
+export type Handoff = {
+  label: string
+  agent: string
+  prompt: string
+  send?: boolean
+  model?: string
 }
 
 export type Agent = {
@@ -2646,6 +2658,7 @@ export type ProviderAuthError1 = {
 
 export type Session1 = {
   id: string
+  mode?: ProductMode
   slug: string
   projectID: string
   workspaceID?: string
@@ -2699,6 +2712,7 @@ export type Session1 = {
 
 export type Session2 = {
   id: string
+  mode?: ProductMode
   slug: string
   projectID: string
   workspaceID?: string
@@ -2759,6 +2773,7 @@ export type NotFoundError = {
 
 export type Session3 = {
   id: string
+  mode?: ProductMode
   slug: string
   projectID: string
   workspaceID?: string
@@ -2812,6 +2827,7 @@ export type Session3 = {
 
 export type Session4 = {
   id: string
+  mode?: ProductMode
   slug: string
   projectID: string
   workspaceID?: string
@@ -2865,6 +2881,7 @@ export type Session4 = {
 
 export type Session5 = {
   id: string
+  mode?: ProductMode
   slug: string
   projectID: string
   workspaceID?: string
@@ -2918,6 +2935,7 @@ export type Session5 = {
 
 export type Session6 = {
   id: string
+  mode?: ProductMode
   slug: string
   projectID: string
   workspaceID?: string
@@ -2971,6 +2989,7 @@ export type Session6 = {
 
 export type Session7 = {
   id: string
+  mode?: ProductMode
   slug: string
   projectID: string
   workspaceID?: string
@@ -3078,6 +3097,7 @@ export type SessionBusyError = {
 
 export type Session8 = {
   id: string
+  mode?: ProductMode
   slug: string
   projectID: string
   workspaceID?: string
@@ -3131,6 +3151,7 @@ export type Session8 = {
 
 export type Session9 = {
   id: string
+  mode?: ProductMode
   slug: string
   projectID: string
   workspaceID?: string
@@ -3280,14 +3301,6 @@ export type WorkspaceWarpError = {
 export type UnauthorizedError = {
   _tag: "UnauthorizedError"
   message: string
-}
-
-export type Handoff = {
-  label: string
-  agent: string
-  prompt: string
-  send?: boolean
-  model?: string
 }
 
 export type SessionsResponse = {
@@ -4396,6 +4409,7 @@ export type SessionV2Summary = {
 
 export type SessionV2Info = {
   id: string
+  mode?: ProductMode
   slug: string
   version: string
   parentID?: string
@@ -10351,6 +10365,7 @@ export type SessionListData = {
     directory?: string
     workspace?: string
     scope?: "project"
+    mode?: ProductMode
     path?: string
     roots?: boolean | "true" | "false"
     start?: number
@@ -10381,6 +10396,7 @@ export type SessionListResponse = SessionListResponses[keyof SessionListResponse
 export type SessionCreateData = {
   body?: {
     parentID?: string
+    mode?: ProductMode
     title?: string
     agent?: string
     model?: {
@@ -12313,6 +12329,7 @@ export type V2SessionListData = {
   path?: never
   query?: {
     workspace?: string
+    mode?: ProductMode
     limit?: number
     order?: "asc" | "desc"
     search?: string
@@ -12352,6 +12369,8 @@ export type V2SessionListResponse = V2SessionListResponses[keyof V2SessionListRe
 export type V2SessionCreateData = {
   body: {
     id?: string
+    parentID?: string
+    mode?: ProductMode
     agent?: string
     model?: {
       id: string

@@ -40,6 +40,14 @@ describe("reference HttpApi", () => {
       ),
     )
     expect(body).toMatchObject({ location: { directory: tmp.path } })
+
+    const head = await Server.Default().app.request("/api/reference", {
+      method: "HEAD",
+      headers: { "x-aigcfroge-directory": tmp.path },
+    })
+    expect(head.status).toBe(200)
+    expect(await head.text()).toBe("")
+
     expect(body.data).toEqual([
       {
         name: "docs",

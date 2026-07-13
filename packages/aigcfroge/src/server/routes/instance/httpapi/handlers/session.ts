@@ -82,6 +82,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       return yield* session.list({
         directory: ctx.query.scope === "project" ? undefined : ctx.query.directory,
         scope: ctx.query.scope,
+        mode: ctx.query.mode,
         path: ctx.query.path,
         roots: ctx.query.roots,
         start: ctx.query.start,
@@ -105,12 +106,12 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       yield* requireSession(ctx.params.sessionID)
       if (AIGCFROGE_V2_RUNTIME) {
         const v2session = yield* SessionV2.Service
-        const children = yield* v2session.children(ctx.params.sessionID as SessionV2.ID).pipe(
+        const result = yield* v2session.children(ctx.params.sessionID as SessionV2.ID).pipe(
           Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))),
         )
-        return children.map(v2InfoToV1)
+        return result.map(v2InfoToV1) as Session.Info[] // brand escape: V1→V2 type bridge, same shape at runtime
       }
-      return yield* session.children(ctx.params.sessionID)
+      return yield* SessionError.mapStorageNotFound(session.children(ctx.params.sessionID))
     })
 
     const todo = Effect.fn("SessionHttpApi.todo")(function* (ctx: { params: { sessionID: SessionID } }) {
@@ -285,7 +286,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
             trigger: true,
           })
           .pipe(Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))))
-        return v2InfoToV1(child)
+        return v2InfoToV1(child) as Session.Info // brand escape: V1→V2 type bridge
       }
       return yield* SessionError.mapStorageNotFound(
         session.fork({
@@ -497,7 +498,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
           sessionID: ctx.params.sessionID as SessionV2.ID,
           messageID: ctx.payload.messageID as unknown as SessionMessage.ID,
         })
-        return v2InfoToV1(info)
+        return v2InfoToV1(info) as Session.Info // brand escape: V1→V2 type bridge
       }
       return yield* SessionError.mapBusy(revertSvc.revert({ sessionID: ctx.params.sessionID, ...ctx.payload }))
     })
@@ -507,7 +508,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       if (AIGCFROGE_V2_RUNTIME) {
         const v2revert = yield* V2SessionRevert.Service
         const info = yield* v2revert.unrevert({ sessionID: ctx.params.sessionID as SessionV2.ID })
-        return v2InfoToV1(info)
+        return v2InfoToV1(info) as Session.Info // brand escape: V1→V2 type bridge
       }
       return yield* SessionError.mapBusy(revertSvc.unrevert({ sessionID: ctx.params.sessionID }))
     })

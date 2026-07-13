@@ -39,6 +39,7 @@ import {
   displayName,
   getProjectAvatarSource,
   homeProjectDirectories,
+  openProjectNewSession,
   type HomeProjectSelection,
   projectForSession,
   sortedRootSessions,
@@ -55,8 +56,7 @@ import { type ServerHealth } from "@/utils/server-health"
 import { Persist, persisted } from "@/utils/persist"
 import { useMarked } from "@aigcfroge/ui/context/marked"
 import { preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"
-import { useMode, MODES, type Mode } from "@/context/mode"
-import { sessionHref } from "@/utils/session-route"
+import { BUILTIN_MODES, modeHref, useMode, type Mode } from "@/context/mode"
 
 const HOME_SESSION_LIMIT = 64
 const HOME_ROW_LAYOUT =
@@ -128,6 +128,7 @@ export function Home() {
   const layout = useLayout()
   const platform = usePlatform()
   const pickDirectory = useDirectoryPicker()
+  const mode = useMode()
   const dialog = useDialog()
   const navigate = useNavigate()
   const server = useServer()
@@ -182,11 +183,11 @@ export function Home() {
   })
   const search = createMemo(() => state.search.trim())
   const sessionLoad = useQuery(() => ({
-    queryKey: ["home", "sessions", state.selection.server, ...projectDirectories()] as const,
+    queryKey: ["home", "sessions", mode.currentMode, state.selection.server, ...projectDirectories()] as const,
     queryFn: async () => {
       await Promise.all(
         projectDirectories().map((directory) =>
-          focusedSync().project.loadSessions(directory, { limit: HOME_SESSION_LIMIT }),
+          focusedSync().project.loadSessions(directory, { limit: HOME_SESSION_LIMIT, mode: mode.currentMode }),
         ),
       )
       return null
@@ -196,19 +197,40 @@ export function Home() {
   const projectByID = createMemo(
     () => new Map(projects().flatMap((project) => (project.id ? [[project.id, project] as const] : []))),
   )
-  const allRecords = createMemo(() =>
-    buildHomeSessionRecords({
-      sync: focusedSync(),
+  const allRecords = createMemo(() => {
+    const sync = focusedSync()
+    if (!sync) return []
+    return buildHomeSessionRecords({
+      sync,
       projectDirectories,
       projects,
       projectByID,
-    }),
-  )
-  const records = createMemo(() => allRecords().slice(0, HOME_SESSION_LIMIT))
+    })
+  })
+  const records = createMemo(() => {
+    const current = mode.currentMode
+    const all = allRecords()
+    if (!all) return []
+    return all
+      .filter((r) => {
+        // Include sessions that match currentMode, or have no mode (backward compat → treat as "coding")
+        if (r.session.mode === undefined) return current === "coding"
+        return r.session.mode === current
+      })
+      .slice(0, HOME_SESSION_LIMIT)
+  })
   const searchResults = createMemo(() => {
     const query = search().toLowerCase()
     if (!query) return []
-    return allRecords().filter((record) => matchesHomeSessionSearch(record, query))
+    const current = mode.currentMode
+    const all = allRecords()
+    if (!all) return []
+    return all
+      .filter((r) => {
+        if (r.session.mode === undefined) return current === "coding"
+        return r.session.mode === current
+      })
+      .filter((record) => matchesHomeSessionSearch(record, query))
   })
   const searchOpen = createMemo(() => state.searchFocused && search().length > 0)
   const groups = createMemo(() => groupSessions(records(), language))
@@ -350,28 +372,15 @@ export function Home() {
 
   function openNewSession() {
     const conn = focusedServer()
-    if (!conn) return
+    if (!conn) return console.warn("openNewSession: no server available")
     const directory = newSessionDirectory() || projects().find((p) => p.worktree)?.worktree
-    if (!directory) return
-    openProjectNewSession(conn, directory)
+    if (!directory) return console.warn("openNewSession: no directory available")
+    openProjectNewSessionFn(conn, directory)
   }
 
-  function openProjectNewSession(conn: ServerConnection.Any, directory: string) {
+  function openProjectNewSessionFn(conn: ServerConnection.Any, directory: string) {
     const ctx = global.ensureServerCtx(conn)
-    // If `directory` is a workspace (sandbox), open its parent project rather than
-    // registering the workspace itself as a top-level project (which would trigger
-    // the rootFor() redirect). The draft is still created in the exact directory.
-    const dirKey = pathKey(directory)
-    const parent = ctx.projects
-      .list()
-      .find(
-        (p) =>
-          pathKey(p.worktree) === dirKey || (p.sandboxes ?? []).some((s) => pathKey(s) === dirKey),
-      )
-    const projectWorktree = parent?.worktree ?? directory
-    ctx.projects.open(projectWorktree)
-    ctx.projects.touch(projectWorktree)
-    tabs.newDraft({ server: ServerConnection.key(conn), directory })
+    openProjectNewSession(ctx.projects, (s, d) => tabs.newDraft({ server: s, directory: d, mode: mode.currentMode }), ServerConnection.key(conn), directory)
   }
 
   function editProject(conn: ServerConnection.Any, project: LocalProject) {
@@ -431,20 +440,8 @@ export function Home() {
     })
   }
 
-  const mode = useMode()
-
-  function enterMode(m: Mode) {
-    mode.setCurrentMode(m)
-    const placement = mode.activeSessionId(m)()
-    if (placement) {
-      navigate(sessionHref(placement.server, placement.sessionId))
-      return
-    }
-    const conn = focusedServer()
-    const directory = newSessionDirectory()
-    if (conn && directory) {
-      openProjectNewSession(conn, directory)
-    }
+  function enterMode(selected: Mode) {
+    navigate(modeHref(selected))
   }
 
   return (
@@ -458,7 +455,7 @@ export function Home() {
           selected={state.selection}
           focusServer={focusServer}
           selectProject={selectProject}
-          openNewSession={openProjectNewSession}
+          openNewSession={openProjectNewSessionFn}
           chooseProject={(conn) => { chooseProject(conn) }}
           editProject={editProject}
           closeProject={(conn, directory) => {
@@ -568,10 +565,9 @@ function HomeModeCards(props: {
     <div class="flex flex-col gap-3">
       <h2 class="text-v2-text-text-base [font-weight:600]">{props.language.t("home.modes.title")}</h2>
       <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <For each={MODES}>
+        <For each={BUILTIN_MODES}>
           {(m) => {
             const active = () => props.mode.currentMode === m
-            const hasActiveSession = () => props.mode.activeSessionId(m)() !== undefined
 
             return (
               <button
@@ -600,22 +596,6 @@ function HomeModeCards(props: {
                   <span class="text-v2-text-text-base [font-weight:600]">{props.language.t(`mode.${m}`)}</span>
                   <span class="text-11-regular text-v2-text-text-muted [font-weight:440]">
                     {props.language.t(`mode.${m}.description`)}
-                  </span>
-                </div>
-
-                {/* Status Badge in Top Right */}
-                <div class="absolute top-3 right-3 flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-v2-border-border-muted text-[10px] [font-weight:500] text-v2-text-text-muted select-none">
-                  <span
-                    class="size-1.5 rounded-full"
-                    classList={{
-                      "bg-[var(--syntax-success)]": hasActiveSession(),
-                      "bg-[var(--syntax-comment)]": !hasActiveSession(),
-                    }}
-                  />
-                  <span>
-                    {hasActiveSession()
-                      ? props.language.t("context.status.active")
-                      : props.language.t("context.status.idle")}
                   </span>
                 </div>
               </button>
@@ -1316,6 +1296,7 @@ function HomeSessionSkeleton(props: { label: string }) {
 }
 
 function groupSessions(records: HomeSessionRecord[], language: ReturnType<typeof useLanguage>): HomeSessionGroup[] {
+  records = records ?? []
   const now = DateTime.local()
   const yesterday = now.minus({ days: 1 })
   const todaySessions = records.filter((record) =>

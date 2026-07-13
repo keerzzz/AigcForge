@@ -20,6 +20,7 @@ import type { SessionSchema } from "@aigcfroge/core/session/schema"
 export function v2InfoToV1(info: SessionSchema.Info): SessionV1.SessionInfo {
   return {
     id: info.id,
+    mode: info.mode,
     slug: info.slug,
     version: info.version,
     projectID: info.projectID,

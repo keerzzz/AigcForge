@@ -215,6 +215,27 @@ describe("Session", () => {
     }),
   )
 
+  it.instance("inherits product mode for children and forks", () =>
+    Effect.gen(function* () {
+      const session = yield* SessionNs.Service
+      const parent = yield* Effect.acquireRelease(session.create({ mode: "chat" }), (info) =>
+        session.remove(info.id).pipe(Effect.ignore),
+      )
+      const child = yield* Effect.acquireRelease(session.create({ parentID: parent.id, mode: "work" }), (info) =>
+        session.remove(info.id).pipe(Effect.ignore),
+      )
+      const fork = yield* Effect.acquireRelease(session.fork({ sessionID: parent.id }), (info) =>
+        session.remove(info.id).pipe(Effect.ignore),
+      )
+
+      expect(parent.mode).toBe("chat")
+      expect(child.mode).toBe("chat")
+      expect(fork.mode).toBe("chat")
+      expect((yield* session.list({ roots: true, mode: "chat" })).map((info) => info.id)).toEqual([fork.id, parent.id])
+      expect(yield* session.list({ roots: true, mode: "coding" })).toEqual([])
+    }),
+  )
+
   it.instance("persists metadata and copies it on fork by default", () =>
     Effect.gen(function* () {
       const session = yield* SessionNs.Service

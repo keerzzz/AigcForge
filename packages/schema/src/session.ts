@@ -1,9 +1,10 @@
 export * as Session from "./session"
 
-import { Schema } from "effect"
+import { Effect, Schema } from "effect"
 import { Agent } from "./agent"
 import { Location } from "./location"
 import { Model } from "./model"
+import { ProductMode } from "./product-mode"
 import { Project } from "./project"
 import { DateTimeUtcFromMillis, optionalOmitUndefined, RelativePath } from "./schema"
 import { SessionID } from "./session-id"
@@ -29,6 +30,10 @@ export type Summary = typeof Summary.Type
 export interface Info extends Schema.Schema.Type<typeof Info> {}
 export const Info = Schema.Struct({
   id: ID,
+  mode: ProductMode.ID.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed(ProductMode.Default as ProductMode.ID)),
+    Schema.withConstructorDefault(Effect.succeed(ProductMode.Default as ProductMode.ID)),
+  ),
   slug: Schema.String,
   version: Schema.String,
   parentID: ID.pipe(optionalOmitUndefined),

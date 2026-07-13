@@ -2,7 +2,7 @@
 
 > 状态：SUPERSEDED
 > 取代方案：[`mode-module-switching-completion.md`](mode-module-switching-completion.md)
-> 说明：布局与组件历史仍可参考；`activeSessionId`、点击 Mode 自动恢复最近 Session、自动创建 Draft 的设计已由 ADR-11/ADR-12 废止。当前入口导航是 `/mode/:mode` 模块路由，不是 Session/Draft 生命周期操作。
+> 说明：布局与组件历史仍可参考；`activeSessionId`、点击 Mode 自动恢复最近 Session、自动创建 Draft 的设计已由 ADR-11/ADR-12 废止。当前实现见 [`mode-module-switching-completion.md`](mode-module-switching-completion.md)：模式切换导航到 `/mode/:mode`，Mode Route 校验参数并同步 `currentMode`；首页按 Mode 发起服务端过滤查询，且不创建/恢复 Session。
 
 > Historical status: READY — approved 2026-06-27
 > Branch: brand-migration-v001

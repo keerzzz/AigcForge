@@ -1,4 +1,5 @@
 import { Show, createEffect, createMemo, createSignal, For, onCleanup, onMount, untrack, type Accessor } from "solid-js"
+import { Dynamic } from "solid-js/web"
 import { createStore, produce } from "solid-js/store"
 import { useParams } from "@solidjs/router"
 import { getFilename } from "@aigcfroge/core/util/path"
@@ -17,6 +18,8 @@ import {
 } from "@thisbeyond/solid-dnd"
 import { ConstrainDragXAxis } from "@/utils/solid-dnd"
 import { useLanguage } from "@/context/language"
+import { useMode, type Mode } from "@/context/mode"
+import { MODE_SURFACES } from "@/components/mode-surfaces"
 import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
 import { ServerConnection, useServer } from "@/context/server"
@@ -26,7 +29,7 @@ import { useDirectoryPicker } from "@/components/directory-picker"
 import { useNotification } from "@/context/notification"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useLayout, type LocalProject } from "@/context/layout"
-import { displayName, errorMessage, homeProjectDirectories, sortedRootSessions } from "@/pages/layout/helpers"
+import { displayName, errorMessage, homeProjectDirectories, openProjectNewSession, sortedRootSessions } from "@/pages/layout/helpers"
 import { SortableWorkspace, LocalWorkspace, WorkspaceDragOverlay } from "@/pages/layout/sidebar-workspace"
 import type { WorkspaceSidebarContext } from "@/pages/layout/sidebar-workspace"
 import { ProjectIcon } from "@/pages/layout/sidebar-items"
@@ -47,6 +50,7 @@ import { computeAutoSync } from "./secondary-sidebar-autosync"
 
 function SecondarySidebar() {
   const language = useLanguage()
+  const mode = useMode()
   const global = useGlobal()
   const tabs = useTabs()
   const server = useServer()
@@ -128,26 +132,12 @@ function SecondarySidebar() {
     const c = conn()
     if (!c) return
     const ctxInst = global.ensureServerCtx(c)
-    ctxInst.projects.open(project.worktree)
-    ctxInst.projects.touch(project.worktree)
-    tabs.newDraft({ server: ServerConnection.key(c), directory: project.worktree })
+    openProjectNewSession(ctxInst.projects, (s, d) => tabs.newDraft({ server: s, directory: d, mode: mode.currentMode }), ServerConnection.key(c), project.worktree)
   }
 
-  function openProjectNewSession(c: ServerConnection.Any, directory: string) {
+  function openProjectNewSessionFn(c: ServerConnection.Any, directory: string) {
     const ctxInst = global.ensureServerCtx(c)
-    // If `directory` is a workspace (sandbox), open its parent project rather than
-    // registering the workspace itself as a top-level project (which would trigger
-    // the rootFor() redirect). The draft is still created in the exact directory.
-    const dirKey = pathKey(directory)
-    const parent = ctxInst.projects
-      .list()
-      .find(
-        (p) => pathKey(p.worktree) === dirKey || (p.sandboxes ?? []).some((s) => pathKey(s) === dirKey),
-      )
-    const projectWorktree = parent?.worktree ?? directory
-    ctxInst.projects.open(projectWorktree)
-    ctxInst.projects.touch(projectWorktree)
-    tabs.newDraft({ server: ServerConnection.key(c), directory })
+    openProjectNewSession(ctxInst.projects, (s, d) => tabs.newDraft({ server: s, directory: d, mode: mode.currentMode }), ServerConnection.key(c), directory)
   }
 
   function addProject() {
@@ -336,12 +326,7 @@ function SecondarySidebar() {
           label: language.t("command.session.new"),
           onClick: () => {
             const c = conn()
-            if (c) {
-              const cctx = global.ensureServerCtx(c)
-              cctx.projects.open(directory)
-              cctx.projects.touch(directory)
-              tabs.newDraft({ server: ServerConnection.key(c), directory })
-            }
+            if (c) openProjectNewSessionFn(c, directory)
           },
         },
         {
@@ -542,7 +527,7 @@ function SecondarySidebar() {
             const scope = ctx()?.sdk.scope
             const dir = currentDir() || (scope ? global.lastSession.directory(scope) : undefined)
             if (dir) {
-              openProjectNewSession(c, dir)
+              openProjectNewSessionFn(c, dir)
               return
             }
             const project = projects()[0]
@@ -611,7 +596,7 @@ function SecondarySidebar() {
                       onClick={() => {
                         closeSearch()
                         const c = conn()
-                        if (c) openProjectNewSession(c, project.worktree)
+                        if (c) openProjectNewSessionFn(c, project.worktree)
                       }}
                     >
                       {displayName(project)}
@@ -624,33 +609,38 @@ function SecondarySidebar() {
         </div>
       </Show>
 
-      <div class="flex items-center justify-between px-3 pt-1 pb-1">
-        <span class="text-v2-text-text-muted [font-weight:440]">{language.t("sidebar.secondary.projectList")}</span>
-        <IconButtonV2
-          variant="ghost-muted"
-          size="small"
-          icon={<Icon name="folder-add-left" />}
-          aria-label={language.t("sidebar.secondary.addProject")}
-          onClick={addProject}
-        />
-      </div>
-
-      <div class="min-h-0 flex-1 overflow-y-auto px-2">
-        <For each={projects()}>
-          {(project) => (
-            <SecondaryProjectRow
-              project={project}
-              ctx={sidebarCtx}
-              sortNow={sortNow}
-              serverKey={serverKey()}
-              currentDir={currentDir}
-              collapsed={collapsed[project.worktree] ?? false}
-              onToggleCollapse={() => setCollapsed(project.worktree, !(collapsed[project.worktree] ?? false))}
-              onCreateWorkspace={() => createWorkspace(project)}
-            />
-          )}
-        </For>
-      </div>
+      <Show when={mode.currentMode === "coding"}>
+        <div class="flex items-center justify-between px-3 pt-1 pb-1">
+          <span class="text-v2-text-text-muted [font-weight:440]">{language.t("sidebar.secondary.projectList")}</span>
+          <IconButtonV2
+            variant="ghost-muted"
+            size="small"
+            icon={<Icon name="folder-add-left" />}
+            aria-label={language.t("sidebar.secondary.addProject")}
+            onClick={addProject}
+          />
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto px-2">
+          <For each={projects()}>
+            {(project) => (
+              <SecondaryProjectRow
+                project={project}
+                ctx={sidebarCtx}
+                sortNow={sortNow}
+                serverKey={serverKey()}
+                currentDir={currentDir}
+                collapsed={collapsed[project.worktree] ?? false}
+                onToggleCollapse={() => setCollapsed(project.worktree, !(collapsed[project.worktree] ?? false))}
+                onCreateWorkspace={() => createWorkspace(project)}
+                currentMode={mode.currentMode}
+              />
+            )}
+          </For>
+        </div>
+      </Show>
+      <Show when={mode.currentMode !== "coding"}>
+        <Dynamic component={MODE_SURFACES[mode.currentMode]?.Sidebar ?? MODE_SURFACES.chat.Sidebar} />
+      </Show>
     </aside>
   )
 }
@@ -664,6 +654,7 @@ function SecondaryProjectRow(props: {
   currentDir: Accessor<string>
   collapsed: boolean
   onToggleCollapse: () => void
+  currentMode: Mode
 }) {
   const language = useLanguage()
   const global = useGlobal()
@@ -706,9 +697,7 @@ function SecondaryProjectRow(props: {
     const c = conn()
     if (!c) return
     const cctx = global.ensureServerCtx(c)
-    cctx.projects.open(props.project.worktree)
-    cctx.projects.touch(props.project.worktree)
-    tabs.newDraft({ server: ServerConnection.key(c), directory: props.project.worktree })
+    openProjectNewSession(cctx.projects, (s, d) => tabs.newDraft({ server: s, directory: d, mode: props.currentMode }), ServerConnection.key(c), props.project.worktree)
   }
 
   function newSessionInDir(directory: string) {
@@ -716,10 +705,8 @@ function SecondaryProjectRow(props: {
       const c = conn()
       if (!c) return
       const cctx = global.ensureServerCtx(c)
-      cctx.projects.open(directory)
-      cctx.projects.touch(directory)
       props.ctx.setWorkspaceExpanded(directory, true)
-      tabs.newDraft({ server: ServerConnection.key(c), directory })
+      openProjectNewSession(cctx.projects, (s, d) => tabs.newDraft({ server: s, directory: d, mode: props.currentMode }), ServerConnection.key(c), directory)
     }
   }
 

@@ -149,3 +149,28 @@ export const effectiveWorkspaceOrder = (local: string, dirs: string[], persisted
 
   return [...result, ...live.values()]
 }
+
+type ProjectActions = {
+  open: (directory: string) => void
+  touch: (directory: string) => void
+  list: () => Array<{ worktree: string; sandboxes?: string[] }>
+}
+
+export function openProjectNewSession(
+  projects: ProjectActions,
+  newDraft: (server: ServerConnection.Key, directory: string) => void,
+  server: ServerConnection.Key,
+  directory: string,
+) {
+  const dirKey = pathKey(directory)
+  const parent = projects
+    .list()
+    .find(
+      (p) =>
+        pathKey(p.worktree) === dirKey || (p.sandboxes ?? []).some((s) => pathKey(s) === dirKey),
+    )
+  const projectWorktree = parent?.worktree ?? directory
+  projects.open(projectWorktree)
+  projects.touch(projectWorktree)
+  newDraft(server, directory)
+}

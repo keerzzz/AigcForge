@@ -183,7 +183,7 @@ export const SessionReview = (props: SessionReviewProps) => {
   const itemsMap = createMemo(() =>
     Object.fromEntries(list(props.diffs).map((diff) => [diff.file, { ...normalize(diff), preloaded: diff.preloaded }])),
   )
-  const files = createMemo(() => props.diffs.map((diff) => diff.file).filter(Boolean) as string[])
+  const files = createMemo(() => list(props.diffs).map((diff) => diff.file).filter(Boolean))
   const grouped = createMemo(() => {
     const next = new Map<string, SessionReviewComment[]>()
     for (const comment of props.comments ?? []) {
@@ -426,7 +426,7 @@ export const SessionReview = (props: SessionReviewProps) => {
 
                     const beforeText = () => text(diff(), "deletions")
                     const afterText = () => text(diff(), "additions")
-                    const changedLines = () => diff().additions + diff().deletions
+                    const changedLines = () => (diff()?.additions ?? 0) + (diff()?.deletions ?? 0)
                     const mediaKind = createMemo(() => mediaKindFromPath(file))
 
                     const tooLarge = createMemo(() => {

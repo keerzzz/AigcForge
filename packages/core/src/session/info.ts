@@ -1,7 +1,8 @@
-import { DateTime } from "effect"
+import { DateTime, Schema } from "effect"
 import { AgentV2 } from "../agent"
 import { Location } from "../location"
 import { ModelV2 } from "../model"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { ProjectV2 } from "../project"
 import { ProviderV2 } from "../provider"
 import { AbsolutePath, RelativePath } from "../schema"
@@ -13,6 +14,7 @@ import { SessionTable } from "./sql"
 export function fromRow(row: typeof SessionTable.$inferSelect): SessionSchema.Info {
   return SessionSchema.Info.make({
     id: SessionSchema.ID.make(row.id),
+    mode: Schema.decodeUnknownSync(ProductMode.ID)(row.mode ?? ProductMode.Default),
     projectID: ProjectV2.ID.make(row.project_id),
     title: row.title,
     slug: row.slug,

@@ -1,4 +1,4 @@
-import type { Config, AigcfrogeClient, Path, Project, ProviderAuthResponse, Todo } from "@aigcfroge/sdk/v2/client"
+import type { AigcfrogeClient, Config, Path, ProductMode, Project, ProviderAuthResponse, Todo } from "@aigcfroge/sdk/v2/client"
 import { showToast } from "@/utils/toast"
 import { getFilename } from "@aigcfroge/core/util/path"
 import { type Accessor, batch, createMemo, getOwner, onCleanup, onMount, untrack } from "solid-js"
@@ -80,7 +80,7 @@ function makeQueryOptionsApi(
     agents: (directory: PathKey) => loadAgentsQuery(scope, directory, sdkFor(directory)),
     mcp: (directory: PathKey) => loadMcpQuery(scope, directory, sdkFor(directory)),
     lsp: (directory: PathKey) => loadLspQuery(scope, directory, sdkFor(directory)),
-    sessions: (directory: PathKey) => ({ queryKey: [scope, directory, "loadSessions"] as const }),
+    sessions: (directory: PathKey, mode?: ProductMode) => ({ queryKey: [scope, directory, "loadSessions", mode] as const }),
   }
 }
 export type QueryOptionsApi = ReturnType<typeof makeQueryOptionsApi>
@@ -216,7 +216,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     scope: serverSDK.scope,
     persist: persisted,
     isBooting: (directory) => booting.has(directory),
-    isLoadingSessions: (directory) => sessionLoads.has(directory),
+    isLoadingSessions: (directory) => Array.from(sessionLoads.keys()).some((key) => key === directory || key.startsWith(`${directory}\0`)),
     onBootstrap: (directory) => {
       void bootstrapInstance(directory)
     },
@@ -235,7 +235,12 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     onDispose: (directory) => {
       const key = directoryKey(directory)
       queue.clear(key)
-      sessionMeta.delete(key)
+      for (const bucket of sessionMeta.keys()) {
+        if (bucket === key || bucket.startsWith(`${key}\0`)) sessionMeta.delete(bucket)
+      }
+      for (const bucket of sessionLoads.keys()) {
+        if (bucket === key || bucket.startsWith(`${key}\0`)) sessionLoads.delete(bucket)
+      }
       sdkCache.delete(key)
       clearProviderRev(serverSDK.scope, key)
       clearSessionPrefetchDirectory(serverSDK.scope, key)
@@ -247,9 +252,10 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     },
   })
 
-  async function loadSessions(directory: string, options?: { limit?: number }) {
+  async function loadSessions(directory: string, options?: { limit?: number; mode?: ProductMode }) {
     const key = directoryKey(directory)
-    const pending = sessionLoads.get(key)
+    const bucket = options?.mode ? `${key}\0${options.mode}` : key
+    const pending = sessionLoads.get(bucket)
     if (pending) {
       await pending
       return loadSessions(directory, options)
@@ -257,9 +263,13 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
 
     children.pin(key)
     const [store, setStore] = children.child(directory, { bootstrap: false })
-    const meta = sessionMeta.get(key)
+    const meta = sessionMeta.get(bucket)
     const retainedLimit = Math.max(store.limit, options?.limit ?? 0, meta?.limit ?? 0)
     if (meta && meta.limit >= retainedLimit) {
+      if (options?.mode) {
+        children.unpin(key)
+        return
+      }
       const next = trimSessions(store.session, {
         limit: retainedLimit,
         permission: store.permission,
@@ -275,11 +285,12 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     const limit = Math.max(retainedLimit + SESSION_RECENT_LIMIT, SESSION_RECENT_LIMIT)
     const promise = queryClient
       .fetchQuery({
-        ...queryOptionsApi.sessions(key),
+        ...queryOptionsApi.sessions(key, options?.mode),
         queryFn: () =>
           loadRootSessionsWithFallback({
             directory,
             limit,
+            mode: options?.mode,
             list: (query) => serverSDK.client.session.list(query),
           })
             .then((x) => {
@@ -287,10 +298,21 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
                 .filter((s) => !!s?.id)
                 .filter((s) => !s.time?.archived)
                 .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-              const limit = Math.max(store.limit, options?.limit ?? 0, sessionMeta.get(key)?.limit ?? 0)
-              const childSessions = store.session.filter((s) => !!s.parentID)
+              const retained = Math.max(store.limit, options?.limit ?? 0, sessionMeta.get(bucket)?.limit ?? 0)
+              if (options?.mode) {
+                const retainedSessions = store.session.filter(
+                  (session) => !!session.parentID || (session.mode ?? "coding") !== options.mode,
+                )
+                const sessions = Array.from(
+                  new Map([...retainedSessions, ...nonArchived].map((session) => [session.id, session])).values(),
+                )
+                setStore("session", reconcile(sessions, { key: "id" }))
+                sessionMeta.set(bucket, { limit: retained })
+                return
+              }
+              const childSessions = store.session.filter((session) => !!session.parentID)
               const sessions = trimSessions([...nonArchived, ...childSessions], {
-                limit,
+                limit: retained,
                 permission: store.permission,
               })
               batch(() => {
@@ -305,7 +327,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
                 setStore("session", reconcile(sessions, { key: "id" }))
                 cleanupDroppedSessionCaches(store, setStore, sessions, setSessionTodo)
               })
-              sessionMeta.set(key, { limit })
+              sessionMeta.set(bucket, { limit: retained })
             })
             .catch((err) => {
               console.error("Failed to load sessions", err)
@@ -319,9 +341,9 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
       })
       .then(() => {})
 
-    sessionLoads.set(key, promise)
+    sessionLoads.set(bucket, promise)
     void promise.finally(() => {
-      sessionLoads.delete(key)
+      sessionLoads.delete(bucket)
       children.unpin(key)
     })
     return promise

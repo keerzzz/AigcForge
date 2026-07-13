@@ -6,6 +6,7 @@ import { Session } from "../../src/session/session"
 
 const info = {
   id: SessionID.descending(),
+  mode: "coding" as const,
   slug: "test-session",
   projectID: ProjectV2.ID.global,
   workspaceID: undefined,

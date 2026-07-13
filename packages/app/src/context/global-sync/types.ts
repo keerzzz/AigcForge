@@ -12,6 +12,7 @@ import type {
   Session,
   SessionStatus,
   SnapshotFileDiff,
+  ProductMode,
   Todo,
   VcsInfo,
 } from "@aigcfroge/sdk/v2/client"
@@ -125,7 +126,8 @@ export type DisposeCheck = {
 export type RootLoadArgs = {
   directory: string
   limit: number
-  list: (query: { directory: string; roots: true; limit?: number }) => Promise<{ data?: Session[] }>
+  mode?: ProductMode
+  list: (query: { directory: string; roots: true; mode?: ProductMode; limit?: number }) => Promise<{ data?: Session[] }>
 }
 
 export type RootLoadResult = {

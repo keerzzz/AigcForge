@@ -46,8 +46,8 @@ export function normalize(diff: ReviewDiff): ViewDiff {
   }
 }
 
-export function text(diff: ViewDiff, side: "deletions" | "additions") {
-  if (!diff.fileDiff) return ""
+export function text(diff: ViewDiff | undefined, side: "deletions" | "additions") {
+  if (!diff?.fileDiff) return ""
   if (side === "deletions") return diff.fileDiff.deletionLines.join("")
   return diff.fileDiff.additionLines.join("")
 }

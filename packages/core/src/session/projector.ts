@@ -47,6 +47,7 @@ function sessionRow(info: SessionV1.SessionInfo): typeof SessionTable.$inferInse
     project_id: info.projectID,
     workspace_id: info.workspaceID ?? null,
     parent_id: info.parentID,
+    mode: info.mode,
     slug: info.slug,
     directory: info.directory,
     path: info.path,

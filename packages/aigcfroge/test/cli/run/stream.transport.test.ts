@@ -351,6 +351,7 @@ function textDelta(messageID: string, partID: string, delta: string, sessionID =
 function child(id: string): SessionChild {
   return {
     id,
+    mode: "coding",
     slug: id,
     projectID: "project-1",
     directory: "/tmp",

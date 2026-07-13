@@ -43,7 +43,7 @@ describe("Session.Info", () => {
       version: "0.1.0",
       time: { created: 1, updated: 2 },
     }
-    expect(decode(input)).toEqual(input)
+    expect(decode(input)).toEqual({ ...input, mode: "coding" })
   })
 
   test("round-trips every optional field", () => {
@@ -53,6 +53,7 @@ describe("Session.Info", () => {
       projectID,
       workspaceID,
       directory: "/tmp/proj",
+      mode: "coding" as const,
       path: "packages/aigcfroge",
       parentID: sessionIDChild,
       summary: {
@@ -83,6 +84,7 @@ describe("Session.Info", () => {
       slug: "legacy-diff",
       projectID,
       directory: "/tmp/proj",
+      mode: "coding" as const,
       title: "Legacy diff",
       version: "0.1.0",
       summary: {
@@ -127,6 +129,7 @@ describe("Session.GlobalInfo", () => {
       slug: "global",
       projectID,
       directory: "/tmp/proj",
+      mode: "coding" as const,
       title: "global",
       version: "0",
       time: { created: 0, updated: 0 },
@@ -141,6 +144,7 @@ describe("Session.GlobalInfo", () => {
       slug: "global",
       projectID,
       directory: "/tmp/proj",
+      mode: "coding" as const,
       title: "global",
       version: "0",
       time: { created: 0, updated: 0 },
