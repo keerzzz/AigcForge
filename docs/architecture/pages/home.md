@@ -45,10 +45,9 @@ Home
 │   │   └── SessionCard[]    — Session 卡片 (名称/时间/预览)
 │   ├── YesterdayGroup       — 昨天创建的 Sessions
 │   └── OlderGroup           — 更早的 Sessions
-│
-└── BottomBar
-    └── SettingsButton       — gear 图标 -> DialogSettings
 ```
+
+帮助和设置属于共享 `ModeSwitcher` 底部工具区，不由 Home 维护另一套桌面/窄屏入口。
 
 ---
 
@@ -62,7 +61,6 @@ Home
 | 全局 | useTabs | Session Tab 生命周期 |
 | 全局 | useGlobal | sessionPlacement 缓存 |
 | 全局 | useDialog | 模态对话框堆栈 |
-| 全局 | usePlatform | 平台检测 (desktop/web/mobile) |
 | 全局 | useCommand | 键盘快捷键注册 |
 | 全局 | useLanguage | i18n 翻译 |
 | 全局 | useMarked | Markdown 渲染 |

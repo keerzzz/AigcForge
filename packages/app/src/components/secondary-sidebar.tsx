@@ -19,7 +19,7 @@ import {
 import { ConstrainDragXAxis } from "@/utils/solid-dnd"
 import { useLanguage } from "@/context/language"
 import { useMode, type Mode } from "@/context/mode"
-import { MODE_SURFACES } from "@/components/mode-surfaces"
+import { modeSurface } from "@/components/mode-surfaces"
 import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
 import { ServerConnection, useServer } from "@/context/server"
@@ -639,7 +639,7 @@ function SecondarySidebar() {
         </div>
       </Show>
       <Show when={mode.currentMode !== "coding"}>
-        <Dynamic component={MODE_SURFACES[mode.currentMode]?.Sidebar ?? MODE_SURFACES.chat.Sidebar} />
+        <Dynamic component={modeSurface(mode.currentMode).Sidebar} />
       </Show>
     </aside>
   )

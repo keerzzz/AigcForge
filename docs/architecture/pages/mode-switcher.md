@@ -1,7 +1,7 @@
 # Mode Switcher
 
-> 状态：IN PROGRESS — 视觉切换器已实现，Session 分类/过滤按新计划补齐
-> 代码位置：packages/app/src/context/mode.tsx, packages/app/src/components/mode-switcher.tsx
+> 状态：IMPLEMENTED — Product Mode 分类、入口路由与共享导航骨架已完成；专属 Mode surface 仍按各自 PRD 推进
+> 代码位置：packages/app/src/context/mode.tsx, packages/app/src/components/mode-switcher.tsx, packages/app/src/components/mode-surfaces.tsx
 > 决策：[`ADR-11-product-mode-session-classification.md`](../adr/ADR-11-product-mode-session-classification.md)、[`ADR-12-product-mode-entry-routing.md`](../adr/ADR-12-product-mode-entry-routing.md)
 > 实施计划：[`mode-module-switching-completion.md`](../../plan/mode-module-switching-completion.md)
 
@@ -13,12 +13,14 @@
 
 - **Coding** (默认): 代码编辑 Session 分类
 - **Chat**: 对话 Session 分类
-- **Work**: 工作流 Session 分类
+- **Work**: 非编程产出 Session 分类
 - **Assistant**: 自定义助手 Session 分类
 
 四个 Mode 在切换、Draft 创建、Session 持久化和列表过滤层面统一可用；专属 Agent、工具组合和 Viewport 仍由各 Mode 的后续方案实现。
 
 三栏布局：`ModeSwitcher(64px) | SecondarySidebar(256px) | Main(flex-1)`
+
+ModeSwitcher 底部同时拥有全局帮助和设置入口。Home 不再维护另一套响应式工具导航。
 
 ## 核心接口 (mode.tsx)
 
@@ -70,10 +72,11 @@ Fork → 继承 source.mode
 
 ## 入口文件
 
-- `modeHref(m)` / Mode registry — Home 卡片、ModeSwitcher 和 ModeRoute 的单一导航/展示契约
+- `MODE_DEFINITIONS` / `modeHref(m)` — Home 卡片、ModeSwitcher、ModeRoute 与 Mode surface 的单一导航/展示契约（id、href、icon、i18n keys、surface slot）
 - `setCurrentMode(m)` — [mode.tsx](../../../packages/app/src/context/mode.tsx) 只接受 route/work item authority 的单向激活
 - `HomeModeCards` — [home.tsx](../../../packages/app/src/pages/home.tsx) 复用 Mode registry 并导航到 `/mode/:mode`
 - `ModeSwitcher` — [mode-switcher.tsx](../../../packages/app/src/components/mode-switcher.tsx) 全局 Icon 导航入口
+- `ModeSwitcher` utilities — 帮助打开反馈页；设置打开共享 `DialogSettings`
 - `ModeRoute` / `ModeWorkspace` — `/mode/:mode` 的参数化入口和共享工作区
 - `DraftTab.mode` — [tabs.tsx](../../../packages/app/src/context/tabs.tsx) Session 创建归属来源
 
@@ -81,7 +84,7 @@ Fork → 继承 source.mode
 
 - Layout 中预留 ModeSwitcher 插槽 ✅
 - 各 Mode 共享同一套 session/project 基础设施 ✅
-- Session Product Mode Schema/API/SDK：IN PROGRESS
-- `/mode/:mode` ModeRoute + shared ModeWorkspace：IN PROGRESS
-- Mode-aware ServerSync/Home/Sidebar：IN PROGRESS
+- Session Product Mode Schema/API/SDK：IMPLEMENTED
+- `/mode/:mode` ModeRoute + shared ModeWorkspace：IMPLEMENTED
+- Mode-aware ServerSync/Home/Sidebar：IMPLEMENTED
 - 各 Mode 专属 Agent/Viewport：PLANNED

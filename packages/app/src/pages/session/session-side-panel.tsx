@@ -21,7 +21,7 @@ import { useFile, type SelectedLineRange } from "@/context/file"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { useMode } from "@/context/mode"
-import { MODE_SURFACES } from "@/components/mode-surfaces"
+import { modeSurface } from "@/components/mode-surfaces"
 import { useSettings } from "@/context/settings"
 import { createFileTabListSync } from "@/pages/session/file-tab-scroll"
 import { FileTabContent } from "@/pages/session/file-tabs"
@@ -477,7 +477,7 @@ export function SessionSidePanel(props: {
       </aside>
     </Show>
     <Show when={mode.currentMode !== "coding"}>
-      <Dynamic component={MODE_SURFACES[mode.currentMode]?.RightPanel ?? MODE_SURFACES.chat.RightPanel} />
+      <Dynamic component={modeSurface(mode.currentMode).RightPanel} />
     </Show>
     </Show>
   )

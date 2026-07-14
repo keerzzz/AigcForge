@@ -254,9 +254,11 @@ A directory-to-responsibility map for the two largest packages.
 
 | Status | Items |
 |---|---|
-| Implemented | Session V2, EventV2, Tool Registry, Provider/Model Catalog, System Context, Database layer, v2 UI design system, MetaAgent service, MetaHooks/ToolHooks SDK, MCP V2 (stdio+remote+OAuth), SessionShare V2 (internal), SessionRevert V2, SessionSummary V2, INTENT_TOOL_FILTERS, PreToolUse/PostToolUse hooks |
-| In progress | Product Mode Session classification/filtering (`docs/plan/mode-module-switching-completion.md`), V2 config (`specs/v2/config.md`), TUI package extraction (`specs/tui-package.md`), legacy storage removal (`specs/storage/remove-opencode-db.md`) |
+| Implemented | Session V2, EventV2, Tool Registry, Provider/Model Catalog, System Context, Database layer, v2 UI design system, MetaAgent service, MetaHooks/ToolHooks SDK, MCP V2 (stdio+remote+OAuth), SessionShare V2 (internal), SessionRevert V2, SessionSummary V2, INTENT_TOOL_FILTERS, PreToolUse/PostToolUse hooks, Product Mode skeleton (mode classification + `/mode/:mode` entry routing) |
+| Design in progress | Chat/Work/Assistant/My Agents v3 PRDs are drafts gated by accepted ADRs and owner contracts (`docs/prd/chat-mode-creation-layer.md`, `docs/prd/work-mode-execution-layer.md`, `docs/prd/assistant-mode-personal-agent.md`, `docs/prd/my-agents-launcher.md`) |
+| In progress | V2 config (`specs/v2/config.md`), TUI package extraction (`specs/tui-package.md`), legacy storage removal (`specs/storage/remove-opencode-db.md`) |
 | Phase 6 complete | Structured Handoffs (summary compression), Judge multi-model arbitration, external CLI session recovery, symlink-aware path containment, Fork CLI endpoint |
-| Decisions | `docs/architecture/adr/ADR-09-mode-route-decoupling.md`, `docs/architecture/adr/ADR-10-schema-versioning.md`, `docs/architecture/adr/ADR-11-product-mode-session-classification.md` |
+| Accepted decisions | `docs/architecture/adr/ADR-09-mode-route-decoupling.md`, `docs/architecture/adr/ADR-10-schema-versioning.md`, `docs/architecture/adr/ADR-11-product-mode-session-classification.md`, `docs/architecture/adr/ADR-12-product-mode-entry-routing.md` |
+| Proposed decisions | `docs/architecture/adr/ADR-13-chat-work-mode-boundary.md`, `docs/architecture/adr/ADR-14-persistence-and-scope-strategy.md` |
 
 V2 migration status is tracked in `specs/v2/todo.md` and `packages/aigcfroge/specs/effect/todo.md`. The schema changelog lives in `specs/v2/schema-changelog.md`.

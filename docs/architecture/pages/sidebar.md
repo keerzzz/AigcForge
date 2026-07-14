@@ -28,7 +28,7 @@
 +---------+-------------------+---------------------------+
 ```
 
-隐藏条件：路由为 `/` 或 `/new-session` 时自动隐藏（可通过 toggle 手动显示）。
+隐藏条件：路由为 `/`、`/mode/:mode` 或 `/new-session` 时自动隐藏。Session 路由中可通过 titlebar toggle 手动显示；模块入口和 Draft 路由不显示无效开关。
 
 ### V1 Sidebar (sidebar-shell.tsx)
 

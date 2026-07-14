@@ -1,5 +1,5 @@
 import type { Component } from "solid-js"
-import type { Mode } from "@/context/mode"
+import { modeDefinition, type Mode, type ModeSurfaceSlot } from "@/context/mode"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { useLanguage } from "@/context/language"
 
@@ -29,7 +29,7 @@ function PlaceholderPanel() {
   )
 }
 
-export const MODE_SURFACES: Record<Mode, ModeSurface> = {
+const MODE_SURFACES: Record<ModeSurfaceSlot, ModeSurface> = {
   coding: {
     Sidebar: () => null,
     RightPanel: () => null,
@@ -46,4 +46,8 @@ export const MODE_SURFACES: Record<Mode, ModeSurface> = {
     Sidebar: () => <PlaceholderSidebar mode="assistant" />,
     RightPanel: PlaceholderPanel,
   },
+}
+
+export function modeSurface(mode: Mode) {
+  return MODE_SURFACES[modeDefinition(mode).surface]
 }

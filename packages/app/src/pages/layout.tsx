@@ -12,15 +12,14 @@ import { ModeSwitcher } from "@/components/mode-switcher"
 import { SecondarySidebar } from "@/components/secondary-sidebar"
 import { StatusBar } from "@/components/status-bar/status-bar"
 import { createCurrentSessionSource } from "@/components/status-bar/current-session-source"
+import { secondarySidebarAvailable } from "@/utils/secondary-sidebar-route"
 
 function LayoutContent(props: ParentProps & { update: TitlebarUpdate }) {
   const location = useLocation()
   const mode = useMode()
   const statusSource = createCurrentSessionSource()
 
-  const isHome = () => location.pathname === "/" || location.pathname.startsWith("/mode/")
-  const isNewSession = () => location.pathname === "/new-session"
-  const showSecondarySidebar = () => mode.secondarySidebarOpen && !isHome() && !isNewSession()
+  const showSecondarySidebar = () => mode.secondarySidebarOpen && secondarySidebarAvailable(location.pathname)
 
   return (
     <div

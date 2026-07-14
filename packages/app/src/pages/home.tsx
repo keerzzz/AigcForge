@@ -23,7 +23,6 @@ import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { MenuV2 } from "@aigcfroge/ui/v2/menu-v2"
 import { getProjectAvatarVariant, useLayout, type LocalProject } from "@/context/layout"
 import { useNavigate } from "@solidjs/router"
-import { usePlatform } from "@/context/platform"
 import { DateTime } from "luxon"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useDirectoryPicker } from "@/components/directory-picker"
@@ -56,7 +55,7 @@ import { type ServerHealth } from "@/utils/server-health"
 import { Persist, persisted } from "@/utils/persist"
 import { useMarked } from "@aigcfroge/ui/context/marked"
 import { preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"
-import { BUILTIN_MODES, modeHref, useMode, type Mode } from "@/context/mode"
+import { MODE_DEFINITIONS, modeHref, useMode, type Mode } from "@/context/mode"
 
 const HOME_SESSION_LIMIT = 64
 const HOME_ROW_LAYOUT =
@@ -126,7 +125,6 @@ function homeSessionSearchKey(record: HomeSessionRecord) {
 export function Home() {
   const sync = useServerSync()
   const layout = useLayout()
-  const platform = usePlatform()
   const pickDirectory = useDirectoryPicker()
   const mode = useMode()
   const dialog = useDialog()
@@ -434,12 +432,6 @@ export function Home() {
     })
   }
 
-  function openSettings() {
-    void import("@/components/settings-v2").then((x) => {
-      void dialog.show(() => <x.DialogSettings />)
-    })
-  }
-
   function enterMode(selected: Mode) {
     navigate(modeHref(selected))
   }
@@ -469,8 +461,6 @@ export function Home() {
           }}
           clearNotifications={clearNotifications}
           unseenCount={unseenCount}
-          openSettings={openSettings}
-          openHelp={() => platform.openLink("https://aigcfroge.ai/desktop-feedback")}
           language={language}
         />
 
@@ -539,12 +529,6 @@ export function Home() {
             </div>
           </ScrollView>
         </section>
-        <HomeUtilityNav
-          class="flex lg:hidden"
-          openSettings={openSettings}
-          openHelp={() => platform.openLink("https://aigcfroge.ai/desktop-feedback")}
-          language={language}
-        />
       </div>
     </div>
   )
@@ -555,34 +539,28 @@ function HomeModeCards(props: {
   language: ReturnType<typeof useLanguage>
   enterMode: (m: Mode) => void
 }) {
-  const MODE_ICONS: Record<Mode, string> = {
-    chat: "mode-chat",
-    coding: "mode-coding",
-    work: "mode-work",
-    assistant: "mode-assistant",
-  }
   return (
     <div class="flex flex-col gap-3">
       <h2 class="text-v2-text-text-base [font-weight:600]">{props.language.t("home.modes.title")}</h2>
       <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <For each={BUILTIN_MODES}>
+        <For each={MODE_DEFINITIONS}>
           {(m) => {
-            const active = () => props.mode.currentMode === m
+            const active = () => props.mode.currentMode === m.id
 
             return (
               <button
                 type="button"
-                aria-label={props.language.t(`mode.${m}` as const)}
+                aria-label={props.language.t(m.labelKey)}
                 class="relative flex cursor-default items-center gap-3.5 rounded-lg border p-4 text-left transition-[all] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
                 classList={{
                   "bg-v2-background-bg-layer-01 border-v2-border-border-base hover:bg-v2-overlay-simple-overlay-hover hover:border-v2-border-border-hover shadow-[var(--v2-elevation-base)]": !active(),
                   "bg-v2-background-bg-layer-02 border-v2-border-border-focus shadow-inner ring-1 ring-v2-border-border-focus": active(),
                 }}
-                onClick={() => props.enterMode(m)}
+                onClick={() => props.enterMode(m.id)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault()
-                    props.enterMode(m)
+                    props.enterMode(m.id)
                   }
                 }}
               >
@@ -591,11 +569,11 @@ function HomeModeCards(props: {
                   <div class="absolute left-0 top-0 bottom-0 w-0.5 bg-v2-border-border-focus rounded-l-lg" />
                 </Show>
 
-                <IconV2 name={MODE_ICONS[m]} size="large" class="shrink-0 text-v2-icon-icon-base" />
+                <IconV2 name={m.icon} size="large" class="shrink-0 text-v2-icon-icon-base" />
                 <div class="flex min-w-0 flex-col gap-0.5 flex-1 pr-14">
-                  <span class="text-v2-text-text-base [font-weight:600]">{props.language.t(`mode.${m}`)}</span>
+                  <span class="text-v2-text-text-base [font-weight:600]">{props.language.t(m.labelKey)}</span>
                   <span class="text-11-regular text-v2-text-text-muted [font-weight:440]">
-                    {props.language.t(`mode.${m}.description`)}
+                    {props.language.t(m.descriptionKey)}
                   </span>
                 </div>
               </button>
@@ -618,8 +596,6 @@ function HomeProjectColumn(props: {
   closeProject: (server: ServerConnection.Any, directory: string) => void
   clearNotifications: (server: ServerConnection.Any, project: LocalProject) => void
   unseenCount: (server: ServerConnection.Any, project: LocalProject) => number
-  openSettings: () => void
-  openHelp: () => void
   language: ReturnType<typeof useLanguage>
 }) {
   const global = useGlobal()
@@ -685,42 +661,10 @@ function HomeProjectColumn(props: {
           </ButtonV2>
         </div>
       </Show>
-
-      <HomeUtilityNav
-        class="mt-4 hidden lg:flex"
-        openSettings={props.openSettings}
-        openHelp={props.openHelp}
-        language={props.language}
-      />
     </aside>
   )
 }
 
-function HomeUtilityNav(props: {
-  class?: string
-  openSettings: () => void
-  openHelp: () => void
-  language: ReturnType<typeof useLanguage>
-}) {
-  return (
-    <div class={`${props.class ?? ""} min-w-0 flex-row gap-2 mt-4 pl-1.5`}>
-      <IconButtonV2
-        variant="ghost-muted"
-        size="small"
-        icon={<IconV2 name="settings-gear" />}
-        aria-label={props.language.t("sidebar.settings")}
-        onClick={props.openSettings}
-      />
-      <IconButtonV2
-        variant="ghost-muted"
-        size="small"
-        icon={<IconV2 name="help" />}
-        aria-label={props.language.t("sidebar.help")}
-        onClick={props.openHelp}
-      />
-    </div>
-  )
-}
 
 function HomeServerRow(props: {
   server: ServerConnection.Any

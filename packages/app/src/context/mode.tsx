@@ -2,29 +2,60 @@ import { createContext, useContext, type ParentProps } from "solid-js"
 import { createStore } from "solid-js/store"
 import { Persist, persisted } from "@/utils/persist"
 
-export const BUILTIN_MODES = ["chat", "coding", "work", "assistant"] as const
-export type Mode = (typeof BUILTIN_MODES)[number]
+export const MODE_DEFINITIONS = [
+  {
+    id: "chat",
+    href: "/mode/chat",
+    icon: "mode-chat",
+    labelKey: "mode.chat",
+    descriptionKey: "mode.chat.description",
+    surface: "chat",
+  },
+  {
+    id: "coding",
+    href: "/mode/coding",
+    icon: "mode-coding",
+    labelKey: "mode.coding",
+    descriptionKey: "mode.coding.description",
+    surface: "coding",
+  },
+  {
+    id: "work",
+    href: "/mode/work",
+    icon: "mode-work",
+    labelKey: "mode.work",
+    descriptionKey: "mode.work.description",
+    surface: "work",
+  },
+  {
+    id: "assistant",
+    href: "/mode/assistant",
+    icon: "mode-assistant",
+    labelKey: "mode.assistant",
+    descriptionKey: "mode.assistant.description",
+    surface: "assistant",
+  },
+] as const
+
+export type Mode = (typeof MODE_DEFINITIONS)[number]["id"]
+export type ModeDefinition = (typeof MODE_DEFINITIONS)[number]
+export type ModeSurfaceSlot = ModeDefinition["surface"]
+
+export const BUILTIN_MODES: readonly Mode[] = MODE_DEFINITIONS.map((definition) => definition.id)
 
 export function isMode(value: unknown): value is Mode {
   return BUILTIN_MODES.some((mode) => mode === value)
 }
 
+export function modeDefinition(mode: Mode) {
+  const definition = MODE_DEFINITIONS.find((definition) => definition.id === mode)
+  if (!definition) throw new Error(`Missing mode definition for ${mode}`)
+  return definition
+}
+
 export function modeHref(mode: Mode) {
-  return `/mode/${mode}`
+  return modeDefinition(mode).href
 }
-
-export type ModeConfig = {
-  id: Mode
-  labelKey: string
-  descriptionKey: string
-}
-
-export const MODE_CONFIGS: ModeConfig[] = [
-  { id: "chat", labelKey: "mode.chat", descriptionKey: "mode.chat.desc" },
-  { id: "coding", labelKey: "mode.coding", descriptionKey: "mode.coding.desc" },
-  { id: "work", labelKey: "mode.work", descriptionKey: "mode.work.desc" },
-  { id: "assistant", labelKey: "mode.assistant", descriptionKey: "mode.assistant.desc" },
-]
 
 type ModeContext = {
   currentMode: Mode
