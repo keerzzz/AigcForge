@@ -136,6 +136,7 @@ function decode(file: { directory: string; filepath: string; primary: boolean },
   if (!agent) return
   const info = Option.getOrUndefined(
     decodeConfig({
+      // eslint-disable-next-line no-misused-spread -- decodeConfig immediately rebuilds the Schema class after overriding the primary-mode field
       agents: { [name]: file.primary ? { ...agent, mode: "primary" } : agent },
     }),
   )

@@ -106,6 +106,7 @@ export function errorFormat(error: unknown): string {
       // serialize to "{}", which prints as a useless bare `{}` on stderr.
       // Fall back to a custom toString first, then to ctor name + own prop names.
       if (json === "{}") {
+        // eslint-disable-next-line no-base-to-string -- intentional: result is checked against "[object Object]" on the next line and falls back to ctor + own props
         const str = String(error)
         if (str && str !== "[object Object]") return str
         const ctor = error.constructor?.name

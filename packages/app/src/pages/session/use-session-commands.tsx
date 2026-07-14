@@ -1,6 +1,7 @@
 import { useNavigate } from "@solidjs/router"
 import { useCommand, type CommandOption } from "@/context/command"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { DialogSelectModel } from "@/components/dialog-select-model"
 import { previewSelectedLines } from "@aigcfroge/session-ui/pierre/selection-bridge"
 import { useFile, selectionFromLines, type FileSelection, type SelectedLineRange } from "@/context/file"
 import { useLanguage } from "@/context/language"
@@ -250,9 +251,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
   }
 
   const chooseModel = () => {
-    void import("@/components/dialog-select-model").then((x) => {
-      void dialog.show(() => <x.DialogSelectModel model={local.model} />)
-    })
+    void dialog.show(() => <DialogSelectModel model={local.model} />)
   }
 
   const chooseMcp = () => {
@@ -383,7 +382,11 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
       slash: "new",
       onSelect: () => {
         if (params.serverKey) {
-          sessionTabs.newDraft({ server: requireServerKey(params.serverKey), directory: sdk().directory, mode: mode.currentMode })
+          sessionTabs.newDraft({
+            server: requireServerKey(params.serverKey),
+            directory: sdk().directory,
+            mode: mode.currentMode,
+          })
           return
         }
         navigate(`/${params.dir}/session`)

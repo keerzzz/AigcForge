@@ -379,10 +379,10 @@ function unsupportedParts(msgs: ModelMessage[], model: Provider.Model): ModelMes
       if (part.type !== "file" && part.type !== "image") return part
 
       // Check for empty base64 image data
+      const image = part.type === "image" && typeof part.image === "string" ? part.image : undefined
       if (part.type === "image") {
-        const imageStr = String(part.image)
-        if (imageStr.startsWith("data:")) {
-          const match = imageStr.match(/^data:([^;]+);base64,(.*)$/)
+        if (image?.startsWith("data:")) {
+          const match = image.match(/^data:([^;]+);base64,(.*)$/)
           if (match && (!match[2] || match[2].length === 0)) {
             return {
               type: "text" as const,
@@ -392,7 +392,8 @@ function unsupportedParts(msgs: ModelMessage[], model: Provider.Model): ModelMes
         }
       }
 
-      const mime = part.type === "image" ? String(part.image).split(";")[0].replace("data:", "") : part.mediaType
+      const mime = part.type === "image" ? (image?.split(";")[0].replace("data:", "") ?? part.mediaType) : part.mediaType
+      if (!mime) return part
       const filename = part.type === "file" ? part.filename : undefined
       const modality = mimeToModality(mime)
       if (!modality) return part

@@ -3,7 +3,6 @@ import { createSlot, createSolidSlotRegistry, type JSX, type SolidPlugin } from 
 import { createSignal } from "solid-js"
 import { isRecord } from "../util/record"
 
-type RuntimeSlotMap = TuiSlotMap<Record<string, object>>
 type SlotView = <Name extends string>(props: TuiSlotProps<Name>) => JSX.Element | null
 
 export type HostSlotPlugin<Slots extends Record<string, object> = {}> = SolidPlugin<TuiSlotMap<Slots>, TuiSlotContext>

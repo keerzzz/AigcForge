@@ -2,6 +2,7 @@ export * from "./gen/types.gen.js"
 
 import { createClient } from "./gen/client/client.gen.js"
 import { type Config } from "./gen/client/types.gen.js"
+import { mergeHeaders } from "./gen/client/utils.gen.js"
 import { AigcfrogeClient } from "./gen/sdk.gen.js"
 import { wrapClientError } from "./error-interceptor.js"
 export { type Config as AigcfrogeClientConfig, AigcfrogeClient }
@@ -44,10 +45,9 @@ export function createAigcfrogeClient(config?: Config & { directory?: string }) 
   }
 
   if (config?.directory) {
-    config.headers = {
-      ...config.headers,
+    config.headers = mergeHeaders(config.headers, {
       "x-aigcfroge-directory": encodeURIComponent(config.directory),
-    }
+    })
   }
 
   const client = createClient(config)

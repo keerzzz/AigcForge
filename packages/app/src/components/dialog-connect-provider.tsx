@@ -17,18 +17,14 @@ import { useServerSync } from "@/context/server-sync"
 import { useLanguage } from "@/context/language"
 import { useProviders } from "@/hooks/use-providers"
 
-export function DialogConnectProvider(props: { provider: string }) {
+export function DialogConnectProvider(props: { provider: string; onShowAll: () => void }) {
   const dialog = useDialog()
   const serverSync = useServerSync()
   const serverSDK = useServerSDK()
   const language = useLanguage()
   const providers = useProviders()
 
-  const all = () => {
-    void import("./dialog-select-provider").then((x) => {
-      void dialog.show(() => <x.DialogSelectProvider />)
-    })
-  }
+  const all = () => props.onShowAll()
 
   const alive = { value: true }
   const timer = { current: undefined as ReturnType<typeof setTimeout> | undefined }

@@ -106,6 +106,7 @@ function parseToolParams(input?: string) {
       return JSON.parse(trimmed)
     } catch (jsonError) {
       try {
+        // eslint-disable-next-line no-implied-eval -- debug-only CLI: parses user-supplied --params as a JS object literal; input is local and user-controlled
         return new Function(`return (${trimmed})`)()
       } catch (evalError) {
         throw new Error(

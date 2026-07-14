@@ -25,15 +25,15 @@ let known: Set<string> | undefined
 
 function getFiles() {
   if (files) return files
-  files = import.meta.glob<{ default: DesktopTheme }>("./themes/*.json")
+  files = import.meta.glob<{ default: DesktopTheme }>(["./themes/*.json", "!./themes/oc-2.json"])
   return files
 }
 
 function themeIDs() {
   if (ids) return ids
-  ids = Object.keys(getFiles())
-    .map((path) => path.slice("./themes/".length, -".json".length))
-    .sort()
+  // oc-2 is the static default theme (imported above); excluded from the glob to avoid a
+  // duplicate dynamic import, but still listed so the theme picker shows it.
+  ids = ["oc-2", ...Object.keys(getFiles()).map((path) => path.slice("./themes/".length, -".json".length))].sort()
   return ids
 }
 

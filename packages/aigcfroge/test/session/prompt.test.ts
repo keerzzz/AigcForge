@@ -328,24 +328,6 @@ const waitForBusy = (sessionID: SessionID, duration: Duration.Input = "2 seconds
 
 const hasBash = Effect.sync(() => Bun.which("bash") !== null)
 
-const deferredAsPromise = <A>(deferred: Deferred.Deferred<A>): PromiseLike<A> => ({
-  then: (onfulfilled, onrejected) => {
-    Effect.runFork(
-      Deferred.await(deferred).pipe(
-        Effect.match({
-          onFailure: (error) => {
-            onrejected?.(error)
-          },
-          onSuccess: (value) => {
-            onfulfilled?.(value)
-          },
-        }),
-      ),
-    )
-    return deferredAsPromise(deferred) as PromiseLike<never>
-  },
-})
-
 function defer<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void
   const promise = new Promise<T>((done) => {
@@ -1277,12 +1259,12 @@ it.instance("concurrent loop callers all receive same error result", () =>
 it.instance("prompt submitted during an active run is included in the next LLM input", () =>
   Effect.gen(function* () {
     const { llm } = yield* useServerConfig(providerCfg)
-    const gate = yield* Deferred.make<void>()
+    const gate = defer<void>()
     const prompt = yield* SessionPrompt.Service
     const sessions = yield* Session.Service
     const chat = yield* sessions.create({ title: "Pinned" })
 
-    yield* llm.hold("first", deferredAsPromise(gate))
+    yield* llm.hold("first", gate.promise)
     yield* llm.text("second")
 
     const a = yield* prompt
@@ -1317,7 +1299,7 @@ it.instance("prompt submitted during an active run is included in the next LLM i
       "timed out waiting for second prompt to save",
     )
 
-    yield* Deferred.succeed(gate, void 0)
+    yield* Effect.sync(() => gate.resolve())
 
     const [ea, eb] = yield* Effect.all([Fiber.await(a), Fiber.await(b)])
     expect(Exit.isSuccess(ea)).toBe(true)

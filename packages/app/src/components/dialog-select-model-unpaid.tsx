@@ -9,6 +9,8 @@ import { type Component, Show } from "solid-js"
 import { useLocal } from "@/context/local"
 import { popularProviders, useProviders } from "@/hooks/use-providers"
 import { ModelTooltip } from "./model-tooltip"
+import { DialogConnectProvider } from "./dialog-connect-provider"
+import { DialogSelectProvider } from "./dialog-select-provider"
 import { useLanguage } from "@/context/language"
 
 type ModelState = ReturnType<typeof useLocal>["model"]
@@ -19,16 +21,12 @@ export const DialogSelectModelUnpaid: Component<{ model?: ModelState }> = (props
   const providers = useProviders()
   const language = useLanguage()
 
-  const connect = (provider: string) => {
-    void import("./dialog-connect-provider").then((x) => {
-      void dialog.show(() => <x.DialogConnectProvider provider={provider} />)
-    })
+  const all = () => {
+    void dialog.show(() => <DialogSelectProvider />)
   }
 
-  const all = () => {
-    void import("./dialog-select-provider").then((x) => {
-      void dialog.show(() => <x.DialogSelectProvider />)
-    })
+  const connect = (provider: string) => {
+    void dialog.show(() => <DialogConnectProvider provider={provider} onShowAll={all} />)
   }
 
   let listRef: ListRef | undefined
@@ -109,7 +107,9 @@ export const DialogSelectModelUnpaid: Component<{ model?: ModelState }> = (props
                     <ProviderIcon data-slot="list-item-extra-icon" id={i.id} />
                     <span>{i.name}</span>
                     <Show when={i.id === "aigcfroge"}>
-                      <div class="text-14-regular text-text-weak">{language.t("dialog.provider.aigcfroge.tagline")}</div>
+                      <div class="text-14-regular text-text-weak">
+                        {language.t("dialog.provider.aigcfroge.tagline")}
+                      </div>
                     </Show>
                     <Show when={i.id === "aigcfroge"}>
                       <Tag>{language.t("dialog.provider.tag.recommended")}</Tag>

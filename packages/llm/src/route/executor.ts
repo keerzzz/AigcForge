@@ -61,7 +61,7 @@ const redactHeaders = (headers: Headers.Headers, redactedNames: ReadonlyArray<st
   Object.fromEntries(
     Object.entries(Headers.redact(headers, [...redactedNames, SENSITIVE_NAME])).map(([name, value]) => [
       name,
-      String(value),
+      typeof value === "string" ? value : "<redacted>",
     ]),
   )
 

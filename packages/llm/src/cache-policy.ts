@@ -48,6 +48,7 @@ const markLastTool = (tools: ReadonlyArray<ToolDefinition>, hint: CacheHint): Re
   if (tools.length === 0) return tools
   const last = tools.length - 1
   if (tools[last].cache) return tools
+  // eslint-disable-next-line no-misused-spread -- ToolDefinition is immediately reconstructed as a Schema class with one cache field changed
   return tools.map((tool, i) => (i === last ? new ToolDefinition({ ...tool, cache: hint }) : tool))
 }
 
@@ -73,6 +74,7 @@ const markMessageAt = (messages: ReadonlyArray<Message>, index: number, hint: Ca
   const existing = target.content[markAt]
   if ("cache" in existing && existing.cache) return messages
   const nextContent = target.content.map((part, i) => (i === markAt ? ({ ...part, cache: hint } as ContentPart) : part))
+  // eslint-disable-next-line no-misused-spread -- Message is immediately reconstructed as a Schema class with updated content
   const next = new Message({ ...target, content: nextContent })
   // Single pass over `messages`, substituting the one updated entry. Long
   // conversations call this on every request, so avoid `.map()` here — its

@@ -11,6 +11,7 @@ import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { List } from "@aigcfroge/ui/list"
 import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
 import { ModelTooltip } from "./model-tooltip"
+import { DialogSelectProvider } from "./dialog-select-provider"
 import { useLanguage } from "@/context/language"
 
 const isFree = (provider: string, cost: { input: number } | undefined) =>
@@ -119,9 +120,7 @@ export function ModelSelectorPopover(props: {
 
   const handleConnectProvider = () => {
     close("provider")
-    void import("./dialog-select-provider").then((x) => {
-      void dialog.show(() => <x.DialogSelectProvider />)
-    })
+    void dialog.show(() => <DialogSelectProvider />)
   }
   const language = useLanguage()
 
@@ -201,9 +200,7 @@ export const DialogSelectModel: Component<{ provider?: string; model?: ModelStat
   const language = useLanguage()
 
   const provider = () => {
-    void import("./dialog-select-provider").then((x) => {
-      void dialog.show(() => <x.DialogSelectProvider />)
-    })
+    void dialog.show(() => <DialogSelectProvider />)
   }
 
   const manage = () => {

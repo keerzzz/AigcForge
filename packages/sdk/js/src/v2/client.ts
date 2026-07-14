@@ -3,6 +3,7 @@ export type { FileSystemEntry as LocationFileSystemEntry } from "./gen/types.gen
 
 import { createClient } from "./gen/client/client.gen.js"
 import { type Config } from "./gen/client/types.gen.js"
+import { mergeHeaders } from "./gen/client/utils.gen.js"
 import { AigcfrogeClient } from "./gen/sdk.gen.js"
 import { wrapClientError } from "../error-interceptor.js"
 export { type Config as AigcfrogeClientConfig, AigcfrogeClient }
@@ -61,17 +62,15 @@ export function createAigcfrogeClient(config?: Config & { directory?: string; ex
   }
 
   if (config?.directory) {
-    config.headers = {
-      ...config.headers,
+    config.headers = mergeHeaders(config.headers, {
       "x-aigcfroge-directory": encodeURIComponent(config.directory),
-    }
+    })
   }
 
   if (config?.experimental_workspaceID) {
-    config.headers = {
-      ...config.headers,
+    config.headers = mergeHeaders(config.headers, {
       "x-aigcfroge-workspace": config.experimental_workspaceID,
-    }
+    })
   }
 
   const client = createClient(config)

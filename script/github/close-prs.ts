@@ -293,12 +293,11 @@ async function ensureCleanupLabel() {
 }
 
 async function githubRequest(path: string, init: RequestInit, attempt = 0): Promise<Response> {
+  const requestHeaders = new Headers(headers)
+  new Headers(init.headers).forEach((value, name) => requestHeaders.set(name, value))
   const response = await fetch(path.startsWith("https://") ? path : `https://api.github.com${path}`, {
     ...init,
-    headers: {
-      ...headers,
-      ...init.headers,
-    },
+    headers: requestHeaders,
   })
 
   if (response.ok) return response

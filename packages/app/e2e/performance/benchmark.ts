@@ -15,6 +15,7 @@ export type PerformancePageDiagnostics = {
 const pages = new WeakMap<Page, PerformancePageDiagnostics>()
 
 export const benchmark = base.extend<BenchmarkFixtures>({
+  // eslint-disable-next-line no-empty-pattern -- Playwright fixture callbacks require the first destructured argument even when the fixture has no dependencies
   reportState: async ({}, use) => use({}),
   report: async ({ reportState }, use) => {
     await use((metrics, context = {}) => {

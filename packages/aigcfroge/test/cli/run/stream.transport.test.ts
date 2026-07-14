@@ -107,6 +107,7 @@ function feed<T, R = never>(returnValue: R = StreamClosed) {
   let wake: (() => void) | undefined
 
   const wrapped = (async function* (): AsyncGenerator<T, R, unknown> {
+    // eslint-disable-next-line no-unmodified-loop-condition -- done is flipped by the feed controller while this generator awaits new items
     while (!done || list.length > 0) {
       if (list.length === 0) {
         await new Promise<void>((resolve) => {

@@ -1715,7 +1715,7 @@ export default function Page() {
             classList={{
               "flex-1 min-h-0 flex flex-col bg-background-stronger": true,
               "rounded-[10px] overflow-hidden": true,
-              "shadow-[var(--v2-elevation-raised)]": true && !!params.id,
+              "shadow-[var(--v2-elevation-raised)]": !!params.id,
             }}
           >
             <Show when={!isDesktop() && !!params.id && true && !mobileTabsBottom()}>

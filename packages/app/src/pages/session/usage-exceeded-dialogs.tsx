@@ -6,6 +6,8 @@ import { createStore } from "solid-js/store"
 import { useSessionLayout } from "./session-layout"
 import { useDialog } from "@aigcfroge/ui/context"
 import { DialogUsageExceeded } from "@/components/dialog-usage-exceeded"
+import { DialogConnectProvider } from "@/components/dialog-connect-provider"
+import { DialogSelectProvider } from "@/components/dialog-select-provider"
 import { useI18n } from "@aigcfroge/ui/context"
 
 const GO_UPSELL_FREE_TIER_LAST_SEEN_AT = "go_upsell_last_seen_at"
@@ -76,9 +78,12 @@ export function useUsageExceededDialogs() {
               setGoUpsellState(keys.lastSeenAt, Date.now())
               if (dontShowAgain) setGoUpsellState(keys.dontShow, Date.now())
               else {
-                void import("../../components/dialog-connect-provider").then((x) =>
-                  dialog.show(() => <x.DialogConnectProvider provider="aigcfroge-go" />),
-                )
+                void dialog.show(() => (
+                  <DialogConnectProvider
+                    provider="aigcfroge-go"
+                    onShowAll={() => void dialog.show(() => <DialogSelectProvider />)}
+                  />
+                ))
               }
             }}
           />

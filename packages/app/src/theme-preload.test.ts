@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test"
 
 const src = await Bun.file(new URL("../public/oc-theme-preload.js", import.meta.url)).text()
 
+// eslint-disable-next-line no-implied-eval -- executes the checked-in preload script inside the test DOM global
 const run = () => Function(src)()
 
 beforeEach(() => {

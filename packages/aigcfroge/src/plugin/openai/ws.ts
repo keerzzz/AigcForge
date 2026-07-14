@@ -184,7 +184,7 @@ export function streamResponsesWebSocket(options: StreamResponsesWebSocketOption
       return
     }
 
-    const text = String(data)
+    const text = decodeTextFrame(data)
     const event = (() => {
       try {
         const parsed = JSON.parse(text)
@@ -376,6 +376,12 @@ function closeMessage(message: string, code: number, reason: Buffer) {
   if (code === 1009) details.push("message too big")
   if (reason.length > 0) details.push(reason.toString())
   return `${message} (${details.join(": ")})`
+}
+
+function decodeTextFrame(data: WebSocket.RawData) {
+  if (Array.isArray(data)) return Buffer.concat(data).toString("utf8")
+  if (data instanceof ArrayBuffer) return Buffer.from(data).toString("utf8")
+  return data.toString("utf8")
 }
 
 export * as OpenAIWebSocket from "./ws"

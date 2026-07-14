@@ -26,8 +26,8 @@ export const questionHandlers = HttpApiBuilder.group(InstanceHttpApi, "question"
           Effect.catchTag("Question.NotFoundError", (error) =>
             Effect.fail(
               new QuestionNotFoundError({
-                requestID: String(error.requestID),
-                message: `Question request not found: ${String(error.requestID)}`,
+                requestID: unwrapQuestionID(error.requestID),
+                message: `Question request not found: ${unwrapQuestionID(error.requestID)}`,
               }),
             ),
           ),
@@ -40,8 +40,8 @@ export const questionHandlers = HttpApiBuilder.group(InstanceHttpApi, "question"
         Effect.catchTag("Question.NotFoundError", (error) =>
           Effect.fail(
             new QuestionNotFoundError({
-              requestID: String(error.requestID),
-              message: `Question request not found: ${String(error.requestID)}`,
+              requestID: unwrapQuestionID(error.requestID),
+              message: `Question request not found: ${unwrapQuestionID(error.requestID)}`,
             }),
           ),
         ),
@@ -52,3 +52,8 @@ export const questionHandlers = HttpApiBuilder.group(InstanceHttpApi, "question"
     return handlers.handle("list", list).handle("reply", reply).handle("reject", reject)
   }),
 )
+
+function unwrapQuestionID(id: QuestionID) {
+  // eslint-disable-next-line no-base-to-string -- QuestionID is a nominal Newtype whose runtime representation is the validated string
+  return String(id)
+}

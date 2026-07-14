@@ -9,7 +9,7 @@
  * @see docs/plan/meta-agent-v2-production-closure.md §Phase 0
  */
 
-import { afterEach, beforeEach, describe, expect } from "bun:test"
+import { afterEach, describe, expect } from "bun:test"
 import {
   LLMClient,
   Model,
@@ -21,12 +21,9 @@ import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
 import { PermissionV2 } from "@aigcfroge/core/permission"
 import { Project } from "@aigcfroge/core/project"
-import { QuestionV2 } from "@aigcfroge/core/question"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionV2 } from "@aigcfroge/core/session"
-import { SessionEvent } from "@aigcfroge/core/session/event"
 import { SessionExecution } from "@aigcfroge/core/session/execution"
-import * as SessionExecutionLocal from "@aigcfroge/core/session/execution/local"
 import { SessionProjector } from "@aigcfroge/core/session/projector"
 import { SessionRunCoordinator } from "@aigcfroge/core/session/run-coordinator"
 import { SessionRunner } from "@aigcfroge/core/session/runner"
@@ -40,7 +37,6 @@ import { SkillV2 } from "@aigcfroge/core/skill"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { Config } from "@aigcfroge/core/config"
 import { ConfigCompaction } from "@aigcfroge/core/config/compaction"
-import { Tool } from "@aigcfroge/core/tool/tool"
 import {
   SessionTable,
 } from "@aigcfroge/core/session/sql"
@@ -50,11 +46,8 @@ import { SystemContext } from "@aigcfroge/core/system-context"
 import { SystemContextRegistry } from "@aigcfroge/core/system-context/registry"
 import { SkillGuidance } from "@aigcfroge/core/skill/guidance"
 import { ReferenceGuidance } from "@aigcfroge/core/reference/guidance"
-import { ModelV2 } from "@aigcfroge/core/model"
 import { Location } from "@aigcfroge/core/location"
-import { ProviderV2 } from "@aigcfroge/core/provider"
-import { Cause, Effect, Exit, Fiber, Layer, Schema, Stream } from "effect"
-import { eq } from "drizzle-orm"
+import { Effect, Layer, Schema, Stream } from "effect"
 import { testEffect } from "./lib/effect"
 
 // ── Mock LLM client ──────────────────────────────────────────────
@@ -272,7 +265,7 @@ describe("smoke-v2 — V2 Layer chain end-to-end (R3)", () => {
   it.effect("resolves SessionRunner.Service through the Layer chain", () =>
     Effect.gen(function* () {
       yield* SessionRunner.Service
-      const session = yield* SessionV2.Service
+      yield* SessionV2.Service
       // Service tags are resolvable — Layer chain is sound.
     }),
   )

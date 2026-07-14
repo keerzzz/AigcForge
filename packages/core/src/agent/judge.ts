@@ -1,7 +1,7 @@
 import { Effect } from "effect"
 import { LLM, LLMClient, Message, SystemPart, LLMResponse } from "@aigcfroge/llm"
 import { Catalog } from "../catalog"
-import { fromCatalogModel, UnsupportedApiError } from "../session/runner/model"
+import { fromCatalogModel } from "../session/runner/model"
 
 const JUDGE_SYSTEM_PROMPT = `You are a Judge model in a multi-model arbitration system.
 Multiple AI agents have independently attempted the same task. Your job is to review their outputs and produce the best possible final result.

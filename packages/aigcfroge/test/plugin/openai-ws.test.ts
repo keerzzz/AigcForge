@@ -71,7 +71,8 @@ describe("plugin.openai.ws", () => {
     let requestBody: unknown
     await using server = await createWebSocketServer((socket) => {
       socket.once("message", (data) => {
-        requestBody = JSON.parse(String(data))
+        if (!Buffer.isBuffer(data)) throw new Error("Expected the request body as a Buffer")
+        requestBody = JSON.parse(data.toString("utf8"))
         socket.send(JSON.stringify({ type: "response.output_text.delta", delta: "hello" }))
         socket.send(JSON.stringify({ type: "response.done", response: { id: "resp_123" } }))
         socket.close(1000, "done")
@@ -95,6 +96,28 @@ describe("plugin.openai.ws", () => {
     expect(requestBody).toEqual({ type: "response.create", input: "hi" })
     expect(completed).toHaveLength(1)
     expect(completed[0]?.type).toBe("response.done")
+  })
+
+  test("decodes non-Buffer text frame representations", async () => {
+    const payload = JSON.stringify({ type: "response.completed", response: { id: "resp_123" } })
+    const bytes = new TextEncoder().encode(payload)
+
+    for (const data of [bytes.buffer, [Buffer.from(payload)]] satisfies WebSocket.RawData[]) {
+      const socket = new (class extends EventEmitter {
+        readonly url = "ws://test"
+
+        send(_data: string, callback: (error?: Error) => void) {
+          callback()
+          queueMicrotask(() => this.emit("message", data, false))
+        }
+      })() as unknown as WebSocket
+      const response = OpenAIWebSocket.streamResponsesWebSocket({
+        socket,
+        body: { stream: true, input: "hi" },
+      })
+
+      expect(await response.text()).toBe(`data: ${payload}\n\ndata: [DONE]\n\n`)
+    }
   })
 
   test("errors the SSE stream when the server closes before a terminal event", async () => {

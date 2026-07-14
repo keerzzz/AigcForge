@@ -5,9 +5,11 @@ export const worktree = "/tmp/aigcfroge"
 export const directory = `${worktree}/packages/tui`
 
 export function json(data: unknown, init?: ResponseInit) {
+  const headers = new Headers({ "content-type": "application/json" })
+  new Headers(init?.headers).forEach((value, name) => headers.set(name, value))
   return new Response(JSON.stringify(data), {
     ...init,
-    headers: { "content-type": "application/json", ...init?.headers },
+    headers,
   })
 }
 

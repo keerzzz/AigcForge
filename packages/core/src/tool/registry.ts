@@ -1,7 +1,7 @@
 export * as ToolRegistry from "./registry"
 
 import { ToolOutput, type ToolCall, type ToolDefinition, type ToolResultValue } from "@aigcfroge/llm"
-import { Context, Effect, Layer, Option, Scope } from "effect"
+import { Context, Effect, Layer, Scope } from "effect"
 import { AgentV2 } from "../agent"
 import { PermissionV2 } from "../permission"
 import { SessionMessage } from "../session/message"

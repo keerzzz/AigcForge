@@ -59,7 +59,9 @@ export const DialogSelectProvider: Component = () => {
             void dialog.show(() => <DialogCustomProvider back="providers" />)
             return
           }
-          void dialog.show(() => <DialogConnectProvider provider={x.id} />)
+          void dialog.show(() => (
+            <DialogConnectProvider provider={x.id} onShowAll={() => void dialog.show(() => <DialogSelectProvider />)} />
+          ))
         }}
       >
         {(i) => (

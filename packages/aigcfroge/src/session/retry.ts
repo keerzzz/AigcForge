@@ -79,7 +79,8 @@ export function retryable(error: Err, provider: string) {
           reason: "free_tier_limit",
           provider,
           title: "Free limit reached",
-          message: "Subscribe to Aigcfroge Go for reliable access to the best open-source models, starting at $5/month.",
+          message:
+            "Subscribe to Aigcfroge Go for reliable access to the best open-source models, starting at $5/month.",
           label: "subscribe",
           link: GO_UPSELL_URL,
         },
@@ -153,6 +154,7 @@ export function retryable(error: Err, provider: string) {
 function str(value: unknown) {
   if (value === undefined || value === null) return ""
   if (typeof value === "object") return JSON.stringify(value)
+  // eslint-disable-next-line no-base-to-string -- value is narrowed to non-object primitives by the typeof guard above, so String() cannot produce "[object Object]"
   return String(value)
 }
 

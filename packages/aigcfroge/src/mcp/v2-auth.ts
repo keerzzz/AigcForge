@@ -109,7 +109,7 @@ export const layer = Layer.effect(
       Effect.fn(`McpAuthV2.${String(field)}`)(function* (mcpName: string, value: NonNullable<Entry[K]>, serverUrl?: string) {
         yield* mutate((data) => {
           const existing = data[mcpName]
-          return { ...data, [mcpName]: { ...(existing ?? {}), [field]: value, ...(serverUrl ? { serverUrl } : {}) } as Entry }
+          return { ...data, [mcpName]: { ...existing, [field]: value, ...(serverUrl ? { serverUrl } : {}) } as Entry }
         })
       })
 

@@ -13,9 +13,6 @@ import fs from "fs/promises"
 import os from "os"
 import path from "path"
 
-const agentFileLoaderLayer = AgentFileLoader.layer.pipe(Layer.provide(FSUtil.defaultLayer))
-const agentsLayer = AgentV2.fileLayer.pipe(Layer.provide(agentFileLoaderLayer))
-
 const makeLayer = (directory: string) => {
   const locationLayer = Layer.succeed(
     Location.Service,

@@ -1,5 +1,5 @@
 import { describe, expect } from "bun:test"
-import { DateTime, Effect, Layer, Stream } from "effect"
+import { DateTime, Effect, Layer } from "effect"
 import { eq } from "drizzle-orm"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"

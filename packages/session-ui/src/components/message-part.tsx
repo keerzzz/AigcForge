@@ -2,7 +2,6 @@ import {
   Component,
   createEffect,
   createMemo,
-  createResource,
   createSignal,
   For,
   Match,

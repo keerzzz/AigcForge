@@ -24,11 +24,10 @@ export function cortexFetch(upstream: FetchLike = fetch) {
     if (!response.ok && response.status === 400) {
       try {
         const errorData = (await response.clone().json()) as Record<string, unknown>
-        if (
-          String(errorData.message || errorData.error || "")
-            .toLowerCase()
-            .includes("conversation complete")
-        ) {
+        const complete = [errorData.message, errorData.error].some(
+          (message) => typeof message === "string" && message.toLowerCase().includes("conversation complete"),
+        )
+        if (complete) {
           return new Response(
             JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: "", role: "assistant" } }] }),
             { status: 200, headers: new Headers({ "content-type": "application/json" }) },

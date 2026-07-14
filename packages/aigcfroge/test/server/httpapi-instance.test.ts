@@ -17,6 +17,11 @@ import { resetDatabase } from "../fixture/db"
 import { tmpdirScoped } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
+function unwrapQuestionID(id: QuestionID) {
+  // eslint-disable-next-line no-base-to-string -- QuestionID is a nominal Newtype whose runtime representation is the validated string
+  return String(id)
+}
+
 // Flip the experimental workspaces flag so EventV2.run actually writes to
 // EventSequenceTable (the source of truth the fence middleware reads). Reset
 // the database around the test so per-instance state does not leak between
@@ -124,15 +129,14 @@ describe("instance HttpApi", () => {
     Effect.gen(function* () {
       const dir = yield* tmpdirScoped({ git: true })
       const request = (path: string, init?: RequestInit) =>
-        Effect.promise(() =>
-          HttpApiApp.webHandler().handler(
-            new Request(`http://localhost${path}`, {
-              ...init,
-              headers: { "x-aigcfroge-directory": dir, "content-type": "application/json", ...init?.headers },
-            }),
+        Effect.promise(() => {
+          const headers = new Headers({ "x-aigcfroge-directory": dir, "content-type": "application/json" })
+          new Headers(init?.headers).forEach((value, name) => headers.set(name, value))
+          return HttpApiApp.webHandler().handler(
+            new Request(`http://localhost${path}`, { ...init, headers }),
             handlerContext,
-          ),
-        )
+          )
+        })
       const [permission, questionReply, questionReject] = yield* Effect.all(
         [
           request("/permission/invalid-permission-id/reply", {
@@ -158,15 +162,14 @@ describe("instance HttpApi", () => {
     Effect.gen(function* () {
       const dir = yield* tmpdirScoped({ git: true })
       const request = (path: string, init?: RequestInit) =>
-        Effect.promise(() =>
-          HttpApiApp.webHandler().handler(
-            new Request(`http://localhost${path}`, {
-              ...init,
-              headers: { "x-aigcfroge-directory": dir, "content-type": "application/json", ...init?.headers },
-            }),
+        Effect.promise(() => {
+          const headers = new Headers({ "x-aigcfroge-directory": dir, "content-type": "application/json" })
+          new Headers(init?.headers).forEach((value, name) => headers.set(name, value))
+          return HttpApiApp.webHandler().handler(
+            new Request(`http://localhost${path}`, { ...init, headers }),
             handlerContext,
-          ),
-        )
+          )
+        })
       const permissionID = PermissionV1.ID.ascending()
       const questionReplyID = QuestionID.ascending()
       const questionRejectID = QuestionID.ascending()
@@ -176,11 +179,11 @@ describe("instance HttpApi", () => {
             method: "POST",
             body: JSON.stringify({ reply: "once" }),
           }),
-          request(`/question/${String(questionReplyID)}/reply`, {
+          request(`/question/${unwrapQuestionID(questionReplyID)}/reply`, {
             method: "POST",
             body: JSON.stringify({ answers: [["Yes"]] }),
           }),
-          request(`/question/${String(questionRejectID)}/reject`, { method: "POST" }),
+          request(`/question/${unwrapQuestionID(questionRejectID)}/reject`, { method: "POST" }),
         ],
         { concurrency: "unbounded" },
       )
@@ -195,13 +198,13 @@ describe("instance HttpApi", () => {
       expect(yield* Effect.promise(() => questionReply.json())).toEqual({
         _tag: "QuestionNotFoundError",
         requestID: questionReplyID,
-        message: `Question request not found: ${String(questionReplyID)}`,
+        message: `Question request not found: ${unwrapQuestionID(questionReplyID)}`,
       })
       expect(questionReject.status).toBe(404)
       expect(yield* Effect.promise(() => questionReject.json())).toEqual({
         _tag: "QuestionNotFoundError",
         requestID: questionRejectID,
-        message: `Question request not found: ${String(questionRejectID)}`,
+        message: `Question request not found: ${unwrapQuestionID(questionRejectID)}`,
       })
     }),
   )

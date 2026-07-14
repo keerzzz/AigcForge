@@ -9,6 +9,7 @@ const dim = "\x1b[90m"
 
 function wordmark(pad = "") {
   const draw = (line: string, fg: string, shadow: string, bg: string) =>
+    // eslint-disable-next-line no-misused-spread -- terminal wordmark renders char-by-char; code-point splitting is intentional for cell-based drawing
     [...line]
       .map((char) => {
         if (char === "_") return `${bg} ${reset}`

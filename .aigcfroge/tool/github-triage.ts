@@ -20,14 +20,15 @@ function getIssueNumber(): number {
 }
 
 async function githubFetch(endpoint: string, options: RequestInit = {}) {
+  const headers = new Headers({
+    Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+    Accept: "application/vnd.github+json",
+    "Content-Type": "application/json",
+  })
+  new Headers(options.headers).forEach((value, name) => headers.set(name, value))
   const response = await fetch(`https://api.github.com${endpoint}`, {
     ...options,
-    headers: {
-      Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
-      Accept: "application/vnd.github+json",
-      "Content-Type": "application/json",
-      ...(options.headers instanceof Headers ? Object.fromEntries(options.headers.entries()) : options.headers),
-    },
+    headers,
   })
   if (!response.ok) {
     throw new Error(`GitHub API error: ${response.status} ${response.statusText}`)

@@ -13,7 +13,6 @@ import { PluginV2 } from "../plugin"
 import { ProviderV2 } from "../provider"
 import { Reference } from "../reference"
 import { SkillV2 } from "../skill"
-import { McpV2 } from "../mcp/mcp-v2"
 import { registerPreToolUse, registerPostToolUse } from "../tool/lifecycle-hooks"
 
 export const make = Effect.fn("PluginHost.make")(function* (plugin: PluginV2.Interface) {

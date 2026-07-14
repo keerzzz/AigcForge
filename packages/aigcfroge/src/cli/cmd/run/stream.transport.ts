@@ -560,6 +560,7 @@ function createLayer(input: StreamInput) {
 
           recovering.add(partID)
           try {
+            // eslint-disable-next-line no-unmodified-loop-condition -- closed is mutated by transport callbacks while this recovery fiber is suspended
             while (!closed && !abort.signal.aborted && !input.footer.isClosed) {
               if (state.data.questions.length > 0 || !state.data.tools.has(partID)) {
                 return
@@ -865,6 +866,7 @@ function createLayer(input: StreamInput) {
         })
 
         const poll = Effect.fn("RunStreamTransport.poll")(function* (next: Wait, signal: AbortSignal) {
+          // eslint-disable-next-line no-unmodified-loop-condition -- closed and state.wait are mutated by event callbacks between Effect.sleep iterations
           while (state.wait === next && !signal.aborted && !input.footer.isClosed && !closed) {
             yield* Effect.sleep("250 millis")
             yield* complete(next, false)

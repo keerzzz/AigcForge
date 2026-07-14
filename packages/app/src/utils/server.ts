@@ -33,7 +33,11 @@ export function createSdkForServer({
   return createAigcfrogeClient({
     ...config,
     headers: {
-      ...(config.headers instanceof Headers ? Object.fromEntries(config.headers.entries()) : config.headers),
+      ...(config.headers instanceof Headers
+        ? Object.fromEntries(config.headers.entries())
+        : Array.isArray(config.headers)
+          ? Object.fromEntries(config.headers)
+          : config.headers),
       ...auth,
     },
     baseUrl: server.url,

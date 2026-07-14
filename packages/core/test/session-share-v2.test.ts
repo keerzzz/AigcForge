@@ -1,12 +1,7 @@
 import { describe, expect } from "bun:test"
-import { Effect, Layer } from "effect"
-import { Database } from "@aigcfroge/core/database/database"
-import { EventV2 } from "@aigcfroge/core/event"
+import { Effect } from "effect"
 import { SessionV2 } from "@aigcfroge/core/session"
-import { SessionStore } from "@aigcfroge/core/session/store"
-import { SessionProjector } from "@aigcfroge/core/session/projector"
 import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
-import { ProjectV2 } from "@aigcfroge/core/project"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { testEffect } from "./lib/effect"
 
