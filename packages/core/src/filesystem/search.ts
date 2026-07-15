@@ -129,6 +129,8 @@ export const fffLayer = Layer.effect(
           aiMode: true,
           enableFsRootScanning: true,
           enableHomeDirScanning: true,
+          disableMmapCache: true,
+          disableContentIndexing: true,
         }),
       catch: (cause) => cause,
     }).pipe(Effect.orDie)
