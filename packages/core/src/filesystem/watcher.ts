@@ -112,7 +112,7 @@ export const layer = Layer.effect(
     const config = (yield* (yield* Config.Service).entries())
       .filter((entry): entry is Config.Document => entry.type === "document")
       .flatMap((item) => item.info.watcher?.ignore ?? [])
-    if (yield* Flag.AIGCFROGE_EXPERIMENTAL_FILEWATCHER) {
+    if (location.vcs && (yield* Flag.AIGCFROGE_EXPERIMENTAL_FILEWATCHER)) {
       yield* Effect.forkScoped(
         subscribe(location.directory, [...Ignore.PATTERNS, ...config, ...protecteds(location.directory)]),
       )
