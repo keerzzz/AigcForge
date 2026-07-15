@@ -4,6 +4,12 @@ import fs from "fs/promises"
 import { tmpdir } from "./fixture"
 
 describe("tmpdir", () => {
+  test("creates an empty directory without options", async () => {
+    await using tmp = await tmpdir()
+
+    expect((await fs.stat(tmp.path)).isDirectory()).toBe(true)
+  })
+
   test("disables fsmonitor for git fixtures", async () => {
     await using tmp = await tmpdir({ git: true })
 

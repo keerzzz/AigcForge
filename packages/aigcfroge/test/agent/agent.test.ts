@@ -25,7 +25,7 @@ const agentLayer = (flags: Partial<RuntimeFlags.Info> = {}) =>
     Layer.provide(Config.defaultLayer),
     Layer.provide(Skill.defaultLayer),
     Layer.provide(LocationServiceMap.layer),
-    Layer.provide(CliAdapterRegistry.layer),
+    Layer.provideMerge(CliAdapterRegistry.layer),
     Layer.provide(RuntimeFlags.layer(flags)),
   )
 
@@ -774,13 +774,19 @@ it.instance(
   },
 )
 
-it.instance("Agent.list includes CLI agents with source=external-cli", () =>
+it.instance("Agent.list includes available CLI agents with source=external-cli", () =>
   Effect.gen(function* () {
+    const registry = yield* CliAdapterRegistry.AdapterRegistry
+    const claudeCode = yield* registry.get("claude-code")
+    expect(claudeCode).toBeDefined()
+    if (!claudeCode) return
+    yield* registry.register("claude-code", { ...claudeCode, detect: () => Effect.succeed(true) })
+
     const agents = yield* load((svc) => svc.list())
-    const cliAgents = agents.filter((a) => a.source === "external-cli")
+    const cliAgents = agents.filter((agent) => agent.source === "external-cli")
     expect(cliAgents.length).toBeGreaterThan(0)
-    expect(cliAgents.every((a) => a.mode === "subagent")).toBe(true)
-    expect(cliAgents.every((a) => !a.hidden)).toBe(true)
-    expect(cliAgents.some((a) => a.name === "claude-code")).toBe(true)
+    expect(cliAgents.every((agent) => agent.mode === "subagent")).toBe(true)
+    expect(cliAgents.every((agent) => !agent.hidden)).toBe(true)
+    expect(cliAgents.some((agent) => agent.name === "claude-code")).toBe(true)
   }),
 )
