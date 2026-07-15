@@ -18,6 +18,7 @@ const DefaultSessionsLimit = 50
 export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handlers) =>
   Effect.gen(function* () {
     const session = yield* SessionV2.Service
+    const share = yield* SessionShareV2.Service
 
     return handlers
       .handle(
@@ -331,49 +332,50 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       .handle(
         "session.share",
         Effect.fn(function* (ctx) {
-          const share = yield* SessionShareV2.Service
-          yield* share.share({
-            sourceSessionID: ctx.params.sessionID,
-            targetSessionID: ctx.payload.targetSessionID,
-            scope: ctx.payload.scope,
-            trigger: ctx.payload.trigger,
-          }).pipe(
-            Effect.catchTag("Session.NotFoundError", (error) =>
-              Effect.fail(
-                new SessionNotFoundError({
-                  sessionID: error.sessionID,
-                  message: `Session not found: ${error.sessionID}`,
-                }),
+          yield* share
+            .share({
+              sourceSessionID: ctx.params.sessionID,
+              targetSessionID: ctx.payload.targetSessionID,
+              scope: ctx.payload.scope,
+              trigger: ctx.payload.trigger,
+            })
+            .pipe(
+              Effect.catchTag("Session.NotFoundError", (error) =>
+                Effect.fail(
+                  new SessionNotFoundError({
+                    sessionID: error.sessionID,
+                    message: `Session not found: ${error.sessionID}`,
+                  }),
+                ),
               ),
-            ),
-          )
+            )
           return HttpApiSchema.NoContent.make()
         }),
       )
-      .handle(
-        "session.fork",
-        function (ctx: any) {
-          return Effect.gen(function* () {
-            const parent = yield* session.get(ctx.params.sessionID)
-            const child = yield* session.create({
-              location: parent.location,
-              parentID: parent.id,
-            })
-            const share = yield* SessionShareV2.Service
-            yield* share.share({
-              sourceSessionID: ctx.params.sessionID,
-              targetSessionID: child.id,
-              scope: "full",
-              trigger: true,
-            })
-            return { sessionID: child.id }
-          }).pipe(
-            Effect.catchTag("Session.NotFoundError", (error: any) =>
-              Effect.fail(new SessionNotFoundError({ sessionID: error.sessionID, message: `Session not found: ${error.sessionID}` })),
+      .handle("session.fork", function (ctx) {
+        return Effect.gen(function* () {
+          const parent = yield* session.get(ctx.params.sessionID)
+          const child = yield* session.create({
+            location: parent.location,
+            parentID: parent.id,
+          })
+          yield* share.share({
+            sourceSessionID: ctx.params.sessionID,
+            targetSessionID: child.id,
+            scope: "full",
+            trigger: true,
+          })
+          return { sessionID: child.id }
+        }).pipe(
+          Effect.catchTag("Session.NotFoundError", (error) =>
+            Effect.fail(
+              new SessionNotFoundError({
+                sessionID: error.sessionID,
+                message: `Session not found: ${error.sessionID}`,
+              }),
             ),
-          // as any: Effect.catchTag narrows error channel but HttpApiBuilder handler type expects un-narrowed union. Runtime result is same - only SessionNotFoundError survives.
-          ) as any
-        },
-      )
+          ),
+        )
+      })
   }),
 )
