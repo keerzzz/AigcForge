@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url"
 import { Flag } from "@aigcfroge/core/flag/flag"
 import { Server } from "../../src/server/server"
 import { PtyPaths } from "../../src/server/routes/instance/httpapi/groups/pty"
+import { GlobalPaths } from "../../src/server/routes/instance/httpapi/groups/global"
 import { withTimeout } from "../../src/util/timeout"
 import { resetDatabase } from "../fixture/db"
 import { disposeAllInstances, tmpdir } from "../fixture/fixture"
@@ -293,7 +294,7 @@ describe("HttpApi Server.listen", () => {
       return true
     }) as typeof process.stderr.write
     try {
-      const response = await Server.Default().app.request("/status")
+      const response = await Server.Default().app.request(GlobalPaths.health)
       expect(response.status).toBe(200)
     } finally {
       process.stderr.write = original

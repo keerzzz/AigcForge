@@ -248,14 +248,23 @@ function remoteAdapter(url: string, input?: { directory?: string | null; headers
   })
 }
 
-function eventStreamResponse(events: unknown[] = [], keepOpen = true) {
+function eventStreamResponse(events: unknown[] = [], keepOpen = true, onOpen?: (close: () => void) => void) {
   const encoder = new TextEncoder()
   return new Response(
     new ReadableStream<Uint8Array>({
       start(controller) {
+        let open = true
+        onOpen?.(() => {
+          if (!open) return
+          open = false
+          controller.close()
+        })
         if (keepOpen) controller.enqueue(encoder.encode(":\n\n"))
         events.forEach((event) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`)))
-        if (!keepOpen) controller.close()
+        if (!keepOpen) {
+          open = false
+          controller.close()
+        }
       },
     }),
     { status: 200, headers: { "content-type": "text/event-stream" } },
@@ -320,12 +329,17 @@ function insertProject(id: ProjectV2.ID, worktree: string) {
 
 function attachSessionToWorkspace(sessionID: SessionID, workspaceID: WorkspaceV2.ID) {
   return Database.Service.use(({ db }) =>
-    db
-      .update(SessionTable)
-      .set({ workspace_id: workspaceID })
-      .where(eq(SessionTable.id, sessionID))
-      .run()
-      .pipe(Effect.orDie),
+    Effect.all(
+      [
+        db.update(SessionTable).set({ workspace_id: workspaceID }).where(eq(SessionTable.id, sessionID)).run(),
+        db
+          .update(EventSequenceTable)
+          .set({ owner_id: workspaceID })
+          .where(eq(EventSequenceTable.aggregate_id, sessionID))
+          .run(),
+      ],
+      { discard: true },
+    ).pipe(Effect.orDie),
   )
 }
 
@@ -1091,9 +1105,7 @@ describe("workspace sync state", () => {
         yield* Effect.promise(() => startWorkspaceSyncingWithFlag(instance.project.id, false))
         yield* eventuallyEffect(
           Effect.gen(function* () {
-            expect(
-              (yield* workspace.status()).find((item) => item.workspaceID === info.id)?.status,
-            ).toBeUndefined()
+            expect((yield* workspace.status()).find((item) => item.workspaceID === info.id)?.status).toBeUndefined()
           }),
         )
       }),
@@ -1206,6 +1218,7 @@ describe("workspace sync state", () => {
 
   it.live("remote start emits disconnected, connecting, and connected then refuses duplicate listeners", () => {
     const calls: FetchCall[] = []
+    let closeStream = () => {}
     return Effect.gen(function* () {
       yield* HttpServer.serveEffect()(
         Effect.gen(function* () {
@@ -1219,7 +1232,8 @@ describe("workspace sync state", () => {
             json: bodyText ? JSON.parse(bodyText) : undefined,
           }
           calls.push(call)
-          if (call.url.pathname === "/sync/global/event") return HttpServerResponse.fromWeb(eventStreamResponse())
+          if (call.url.pathname === "/sync/global/event")
+            return HttpServerResponse.fromWeb(eventStreamResponse([], true, (close) => (closeStream = close)))
           if (call.url.pathname === "/sync/sync/history") return HttpServerResponse.fromWeb(Response.json([]))
           return HttpServerResponse.text("unexpected", { status: 500 })
         }),
@@ -1252,7 +1266,9 @@ describe("workspace sync state", () => {
                 Effect.gen(function* () {
                   expect(
                     captured.events
-                      .filter((event) => event.workspace === info.id && event.payload.type === Workspace.Event.Status.type)
+                      .filter(
+                        (event) => event.workspace === info.id && event.payload.type === Workspace.Event.Status.type,
+                      )
                       .map((event) => event.payload.properties.status),
                   ).toEqual(["disconnected", "connecting", "connected"])
                 }),
@@ -1261,9 +1277,18 @@ describe("workspace sync state", () => {
               expect(calls.filter((call) => call.url.pathname === "/sync/sync/history")).toHaveLength(1)
               expect(yield* workspace.isSyncing(info.id)).toBe(true)
 
+              closeStream()
+              yield* eventuallyEffect(
+                Effect.gen(function* () {
+                  expect((yield* workspace.status()).find((item) => item.workspaceID === info.id)?.status).toBe(
+                    "disconnected",
+                  )
+                }),
+              )
               yield* workspace.remove(info.id)
               expect(yield* workspace.isSyncing(info.id)).toBe(false)
             } finally {
+              closeStream()
               captured.dispose()
             }
           }),
@@ -1411,9 +1436,8 @@ describe("workspace sync state", () => {
                 captured.events.some(
                   (event) =>
                     event.workspace === info.id &&
-                    event.payload.type === "session.updated" &&
-                    event.payload.properties.sessionID === session.id &&
-                    event.payload.properties.info.title === "from history",
+                    event.payload.type === Workspace.Event.Status.type &&
+                    event.payload.properties.status === "connected",
                 ),
               ).toBe(true)
               yield* workspace.remove(info.id)

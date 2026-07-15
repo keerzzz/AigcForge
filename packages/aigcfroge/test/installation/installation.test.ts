@@ -139,7 +139,7 @@ describe("installation", () => {
         () => jsonResponse({ versions: { stable: "2.0.0" } }),
         (cmd, args) => {
           // getBrewFormula: return core formula (no tap)
-          if (cmd === "brew" && args.includes("--formula") && args.includes("anomalyco/tap/aigcfroge")) return ""
+          if (cmd === "brew" && args.includes("--formula") && args.includes("keerzzz/tap/aigcfroge")) return ""
           if (cmd === "brew" && args.includes("--formula") && args.includes("aigcfroge")) return "aigcfroge"
           return ""
         },
@@ -158,7 +158,7 @@ describe("installation", () => {
       testLayer(
         () => jsonResponse({}), // HTTP not used for tap formula
         (cmd, args) => {
-          if (cmd === "brew" && args.includes("anomalyco/tap/aigcfroge") && args.includes("--formula")) return "aigcfroge"
+          if (cmd === "brew" && args.includes("keerzzz/tap/aigcfroge") && args.includes("--formula")) return "aigcfroge"
           if (cmd === "brew" && args.includes("--json=v2")) return brewInfoJson
           return ""
         },
