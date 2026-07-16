@@ -232,7 +232,14 @@ export const ReadTool = Tool.define<
     ) {
       const instance = yield* InstanceState.context
       let filepath = params.filePath
-      if (!path.isAbsolute(filepath)) {
+      // On Windows a drive-less root-relative path (e.g. "/users/foo") reports
+      // path.isAbsolute=true but has no drive letter, so path.resolve/normalizePath
+      // drop it onto the process CWD's drive. Anchor it to the instance directory's
+      // drive so it resolves like the original full path.
+      if (
+        !path.isAbsolute(filepath) ||
+        (process.platform === "win32" && /^[\\/]/.test(filepath) && !/^[A-Za-z]:/.test(filepath))
+      ) {
         filepath = path.resolve(instance.directory, filepath)
       }
       if (process.platform === "win32") {

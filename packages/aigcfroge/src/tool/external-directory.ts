@@ -22,7 +22,15 @@ export const assertExternalDirectoryEffect = Effect.fn("Tool.assertExternalDirec
   if (options?.bypass) return false
 
   const ins = yield* InstanceState.context
-  const full = process.platform === "win32" ? FSUtil.normalizePath(target) : target
+  // On Windows a drive-less root-relative path (e.g. "/users/foo") has no drive
+  // letter, so normalizePath would drop it onto the process CWD's drive. Anchor it
+  // to the instance directory's drive so it resolves like the original full path.
+  const full =
+    process.platform === "win32"
+      ? FSUtil.normalizePath(
+          /^[\\/]/.test(target) && !/^[A-Za-z]:/.test(target) ? path.resolve(ins.directory, target) : target,
+        )
+      : target
   if (containsPath(full, ins)) return false
 
   const kind = options?.kind ?? "file"
