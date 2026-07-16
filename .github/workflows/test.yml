@@ -68,7 +68,9 @@ jobs:
             turbo-${{ runner.os }}-
 
       - name: Run unit tests
-        timeout-minutes: 20
+        # Windows is ~2.9x slower (subprocess-heavy aigcfroge:test: 9.3m on Linux -> ~27m);
+        # 20m timed out with aigcfroge:test ~65% done. 40m gives headroom for the slow CLI tests.
+        timeout-minutes: 40
         run: GITHUB_ACTIONS=false bun turbo test
         env:
           AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || '' }}
