@@ -17,6 +17,7 @@
  * - `.json(...)` / `.jsonEffect(...)` assert response shape and optional side effects.
  * - `.mutating()` tells the runner to reset isolated state after destructive routes.
  */
+import { $ } from "bun"
 import { Effect } from "effect"
 import { OpenApi } from "effect/unstable/httpapi"
 import { TestLLMServer } from "../../lib/llm-server"
@@ -139,6 +140,88 @@ const scenarios: Scenario[] = [
     .inProject({ git: false })
     .at((ctx) => ({ path: "/vcs/apply", headers: ctx.headers(), body: { patch: "" } }))
     .status(400, undefined, "status"),
+  http.protected
+    .get("/vcs/log", "vcs.log")
+    .at((ctx) => ({ path: "/vcs/log", headers: ctx.headers() }))
+    .json(200, (body) => {
+      array(body)
+      check(body.length >= 1, "vcs log should include the seeded root commit")
+      const first = body[0]
+      object(first)
+      check(typeof first.hash === "string", "commit entry should expose a hash")
+      check(typeof first.message === "string", "commit entry should expose a message")
+      check(typeof first.author === "string", "commit entry should expose an author")
+      check(typeof first.date === "string", "commit entry should expose a date")
+    }),
+  http.protected
+    .post("/vcs/stage", "vcs.stage")
+    .mutating()
+    .seeded((ctx) => ctx.file("stage-me.txt", "stage content\n"))
+    .at((ctx) => ({ path: "/vcs/stage", headers: ctx.headers(), body: { files: ["stage-me.txt"] } }))
+    .status(
+      204,
+      (ctx) =>
+        Effect.gen(function* () {
+          const dir = ctx.directory
+          if (!dir) throw new Error("vcs stage needs a project directory")
+          const status = yield* Effect.promise(() => $`git -C ${dir} status --porcelain`.text())
+          check(status.includes("A  stage-me.txt"), "vcs stage should stage the seeded file")
+        }),
+      "status",
+    ),
+  http.protected
+    .post("/vcs/unstage", "vcs.unstage")
+    .mutating()
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        yield* ctx.file("unstage-me.txt", "unstage content\n")
+        const dir = ctx.directory
+        if (!dir) throw new Error("vcs unstage needs a project directory")
+        yield* Effect.promise(async () => {
+          await $`git -C ${dir} add unstage-me.txt`.quiet()
+        })
+      }),
+    )
+    .at((ctx) => ({ path: "/vcs/unstage", headers: ctx.headers(), body: { files: ["unstage-me.txt"] } }))
+    .status(
+      204,
+      (ctx) =>
+        Effect.gen(function* () {
+          const dir = ctx.directory
+          if (!dir) throw new Error("vcs unstage needs a project directory")
+          const status = yield* Effect.promise(() => $`git -C ${dir} status --porcelain`.text())
+          check(
+            status.includes("?? unstage-me.txt") && !status.includes("A  unstage-me.txt"),
+            "vcs unstage should remove the file from the index",
+          )
+        }),
+      "status",
+    ),
+  http.protected
+    .post("/vcs/commit", "vcs.commit")
+    .mutating()
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        yield* ctx.file("commit-me.txt", "commit content\n")
+        const dir = ctx.directory
+        if (!dir) throw new Error("vcs commit needs a project directory")
+        yield* Effect.promise(async () => {
+          await $`git -C ${dir} add commit-me.txt`.quiet()
+        })
+      }),
+    )
+    .at((ctx) => ({ path: "/vcs/commit", headers: ctx.headers(), body: { message: "httpapi commit" } }))
+    .status(
+      204,
+      (ctx) =>
+        Effect.gen(function* () {
+          const dir = ctx.directory
+          if (!dir) throw new Error("vcs commit needs a project directory")
+          const subject = yield* Effect.promise(() => $`git -C ${dir} log -1 --format=%s`.text())
+          check(subject.trim() === "httpapi commit", "vcs commit should record the staged message")
+        }),
+      "status",
+    ),
   http.protected.get("/command", "command.list").json(200, array, "status"),
   http.protected.get("/agent", "app.agents").json(200, array, "status"),
   http.protected.get("/skill", "app.skills").json(200, array, "status"),
@@ -1043,6 +1126,102 @@ const scenarios: Scenario[] = [
     }))
     .status(404, undefined, "status"),
   http.protected
+    .get("/api/session/{sessionID}/children", "v2.session.children")
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const parent = yield* ctx.session({ title: "V2 children parent" })
+        const child = yield* ctx.session({ title: "V2 child", parentID: parent.id })
+        return { parent, child }
+      }),
+    )
+    .at((ctx) => ({
+      path: route("/api/session/{sessionID}/children", { sessionID: ctx.state.parent.id }),
+      headers: ctx.headers(),
+    }))
+    .json(200, (body, ctx) => {
+      object(body)
+      array(body.data)
+      check(
+        body.data.some((item) => isRecord(item) && item.id === ctx.state.child.id),
+        "v2 session children should include the seeded child",
+      )
+    }),
+  http.protected
+    .post("/api/session/{sessionID}/interrupt", "v2.session.interrupt")
+    .seeded((ctx) => ctx.session({ title: "Interrupt session" }))
+    .at((ctx) => ({
+      path: route("/api/session/{sessionID}/interrupt", { sessionID: ctx.state.id }),
+      headers: ctx.headers(),
+    }))
+    .status(204, undefined, "status"),
+  http.protected
+    .post("/api/session/{sessionID}/shell", "v2.session.shell")
+    .mutating()
+    .seeded((ctx) => ctx.session({ title: "V2 shell session" }))
+    .at((ctx) => ({
+      path: route("/api/session/{sessionID}/shell", { sessionID: ctx.state.id }),
+      headers: ctx.headers(),
+      body: { command: "printf v2-shell-ok", resume: false },
+    }))
+    .json(200, (body, ctx) => {
+      object(body)
+      object(body.data)
+      check(body.data.kind === "shell", "v2 shell should admit a shell input")
+      check(body.data.sessionID === ctx.state.id, "v2 shell should target the seeded session")
+      check(body.data.command === "printf v2-shell-ok", "v2 shell should preserve the command")
+    }),
+  http.protected
+    .post("/api/session/{sessionID}/skill", "v2.session.skill")
+    .mutating()
+    .seeded((ctx) => ctx.session({ title: "V2 skill session" }))
+    .at((ctx) => ({
+      path: route("/api/session/{sessionID}/skill", { sessionID: ctx.state.id }),
+      headers: ctx.headers(),
+      body: { skill: "init", resume: false },
+    }))
+    .json(200, (body, ctx) => {
+      object(body)
+      object(body.data)
+      check(body.data.kind === "skill", "v2 skill should admit a skill input")
+      check(body.data.sessionID === ctx.state.id, "v2 skill should target the seeded session")
+      check(body.data.skill === "init", "v2 skill should preserve the skill name")
+    }),
+  http.protected
+    .post("/api/session/{sessionID}/share", "v2.session.share")
+    .mutating()
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const source = yield* ctx.session({ title: "V2 share source" })
+        const target = yield* ctx.session({ title: "V2 share target" })
+        return { source, target }
+      }),
+    )
+    .at((ctx) => ({
+      path: route("/api/session/{sessionID}/share", { sessionID: ctx.state.source.id }),
+      headers: ctx.headers(),
+      body: { targetSessionID: ctx.state.target.id, scope: "reference" },
+    }))
+    .status(204, undefined, "status"),
+  http.protected
+    .post("/api/session/{sessionID}/fork", "v2.session.fork")
+    .mutating()
+    .preserveDatabase()
+    .seeded((ctx) => ctx.session({ title: "V2 fork source" }))
+    .at((ctx) => ({
+      path: route("/api/session/{sessionID}/fork", { sessionID: ctx.state.id }),
+      headers: ctx.headers(),
+      body: {},
+    }))
+    .json(
+      200,
+      (body, ctx) => {
+        object(body)
+        check(typeof body.sessionID === "string", "v2 fork should return a child session id")
+        check(body.sessionID !== ctx.state.id, "v2 fork should create a new session")
+      },
+      "status",
+    ),
+  http.protected
     .get("/session", "session.list")
     .seeded((ctx) => ctx.session({ title: "List me" }))
     .at((ctx) => ({ path: "/session?roots=true", headers: ctx.headers() }))
@@ -1143,6 +1322,33 @@ const scenarios: Scenario[] = [
         "children should include seeded child",
       )
     }),
+  http.protected
+    .get("/session/{sessionID}/cache-diagnostics", "session.cacheDiagnostics")
+    .seeded((ctx) => ctx.session({ title: "Cache diagnostics session" }))
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/cache-diagnostics", { sessionID: ctx.state.id }),
+      headers: ctx.headers(),
+    }))
+    .json(200, (body) => {
+      object(body)
+      check(typeof body.sessionHitRate === "number", "cache diagnostics should expose session hit rate")
+      check(typeof body.sessionCacheRead === "number", "cache diagnostics should expose cache read")
+      check(typeof body.sessionCacheWrite === "number", "cache diagnostics should expose cache write")
+      check(typeof body.sessionTotalInput === "number", "cache diagnostics should expose total input")
+      check(
+        body.confidence === "high" || body.confidence === "estimated" || body.confidence === "unavailable",
+        "cache diagnostics should expose a confidence level",
+      )
+      array(body.perStep)
+    }),
+  http.protected
+    .get("/session/{sessionID}/tool-summary", "session.toolSummary")
+    .seeded((ctx) => ctx.session({ title: "Tool summary session" }))
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/tool-summary", { sessionID: ctx.state.id }),
+      headers: ctx.headers(),
+    }))
+    .json(200, array),
   http.protected
     .get("/session/{sessionID}/todo", "session.todo")
     .seeded((ctx) =>
