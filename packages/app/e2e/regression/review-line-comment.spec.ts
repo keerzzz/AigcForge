@@ -36,12 +36,16 @@ test("opens the comment editor for a line number range", async ({ page }) => {
   await expectAppVisible(start)
   await expectAppVisible(end)
 
-  const from = await start.boundingBox()
-  const to = await end.boundingBox()
-  if (!from || !to) throw new Error("Missing line number bounds")
-  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  const bounds = await review.locator('[data-column-number="1"], [data-column-number="3"]').evaluateAll((elements) => {
+    const start = elements.filter((element) => element.getAttribute("data-column-number") === "1").at(-1)
+    const end = elements.filter((element) => element.getAttribute("data-column-number") === "3").at(-1)
+    if (!start || !end) return null
+    return { from: start.getBoundingClientRect(), to: end.getBoundingClientRect() }
+  })
+  if (!bounds) throw new Error("Missing line number bounds")
+  await page.mouse.move(bounds.from.x + bounds.from.width / 2, bounds.from.y + bounds.from.height / 2)
   await page.mouse.down()
-  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2)
+  await page.mouse.move(bounds.to.x + bounds.to.width / 2, bounds.to.y + bounds.to.height / 2)
   await page.mouse.up()
 
   await expect(review.getByRole("textbox")).toBeVisible()

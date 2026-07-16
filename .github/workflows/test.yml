@@ -54,6 +54,10 @@ jobs:
           git config --global user.email "bot@aigcfroge.dev"
           git config --global user.name "aigcfroge"
 
+      - name: Install ripgrep on Windows
+        if: runner.os == 'Windows'
+        run: choco install ripgrep --yes --no-progress
+
       - name: Cache Turbo
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
