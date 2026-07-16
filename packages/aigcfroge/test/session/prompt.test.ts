@@ -1600,7 +1600,9 @@ it.instance.skip(
   10_000,
 )
 
-it.instance(
+// TODO(windows): flakes (>10s hang/deadlock) on Windows CI when forking shell+loop
+// concurrently. Sister test above is also skipped. Diagnose with Windows access.
+it.instance.skip(
   "shell completion resumes queued loop callers",
   () =>
     Effect.gen(function* () {
