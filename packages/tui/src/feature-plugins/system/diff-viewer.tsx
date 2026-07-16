@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/solid */
-import type { TuiPlugin, TuiPluginApi, TuiRouteCurrent } from "@opencode-ai/plugin/tui"
-import type { SnapshotFileDiff, VcsFileDiff } from "@opencode-ai/sdk/v2"
+import type { TuiPlugin, TuiPluginApi, TuiRouteCurrent } from "@aigcfroge/plugin/tui"
+import type { SnapshotFileDiff, VcsFileDiff } from "@aigcfroge/sdk/v2"
 import {
   TextAttributes,
   type BorderSides,
@@ -38,7 +38,7 @@ import {
 const ROUTE = "diff"
 const MIN_SPLIT_WIDTH = 100
 const FILE_TREE_WIDTH = 32
-const PLAIN_TEXT_FILETYPE = "opencode-plain-text"
+const PLAIN_TEXT_FILETYPE = "aigcfroge-plain-text"
 const VCS_DIFF_CONTEXT_LINES = 12
 const KV_SHOW_FILE_TREE = "diff_viewer_show_file_tree"
 const KV_SINGLE_PATCH = "diff_viewer_single_patch"
@@ -160,10 +160,10 @@ function DiffViewer(props: { api: TuiPluginApi }) {
   const previousHunkShortcut = useCommandShortcut("diff.previous_hunk")
   const nextFileShortcut = useCommandShortcut("diff.next_file")
   const previousFileShortcut = useCommandShortcut("diff.previous_file")
-  const toggleFileTreeShortcut = useCommandShortcut("diff.toggle_file_tree")
-  const singlePatchShortcut = useCommandShortcut("diff.single_patch")
+  const _toggleFileTreeShortcut = useCommandShortcut("diff.toggle_file_tree")
+  const _singlePatchShortcut = useCommandShortcut("diff.single_patch")
   const switchSourceShortcut = useCommandShortcut("diff.switch_source")
-  const toggleViewShortcut = useCommandShortcut("diff.toggle_view")
+  const _toggleViewShortcut = useCommandShortcut("diff.toggle_view")
   const markReviewedShortcut = useCommandShortcut("diff.mark_reviewed")
   const helpShortcut = useCommandShortcut("diff.help")
   let scroll: ScrollBoxRenderable | undefined
@@ -314,7 +314,7 @@ function DiffViewer(props: { api: TuiPluginApi }) {
     setSelectedHunk({ fileIndex: next.fileIndex, hunkIndex: next.hunkIndex, scrollTop: patchScroll.scrollTop })
   }
 
-  const highlightedPatchFileIndex = () => fileRows().find((row) => row.id === highlightedFileNode())?.fileIndex
+  const _highlightedPatchFileIndex = () => fileRows().find((row) => row.id === highlightedFileNode())?.fileIndex
   const firstPatchFileIndex = () => fileRows().find((row) => row.fileIndex !== undefined)?.fileIndex
   const visiblePatchFiles = createMemo(() => {
     if (!singlePatch()) {

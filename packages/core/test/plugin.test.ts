@@ -1,8 +1,8 @@
 import { describe, expect } from "bun:test"
 import { Effect, Exit, Fiber } from "effect"
-import { define } from "@opencode-ai/plugin/v2/effect"
-import { AgentV2 } from "@opencode-ai/core/agent"
-import { PluginV2 } from "@opencode-ai/core/plugin"
+import { define } from "@aigcfroge/plugin/v2/effect"
+import { AgentV2 } from "@aigcfroge/core/agent"
+import { PluginV2 } from "@aigcfroge/core/plugin"
 import { testEffect } from "./lib/effect"
 import { PluginTestLayer } from "./plugin/fixture"
 

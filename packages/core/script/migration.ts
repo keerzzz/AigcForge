@@ -28,7 +28,7 @@ if (args.values.check) {
 await generate()
 
 async function generate() {
-  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-core-migration-"))
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-core-migration-"))
   const incremental = path.join(temporary, "incremental")
   const full = path.join(temporary, "full")
   try {
@@ -62,7 +62,7 @@ async function generate() {
 }
 
 async function check() {
-  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-core-migration-check-"))
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-core-migration-check-"))
   const incremental = path.join(temporary, "incremental")
   const full = path.join(temporary, "full")
   try {
@@ -115,7 +115,7 @@ async function generatedMigrations(directory: string) {
 async function generatedSql(directory: string) {
   const generated = await generatedMigrations(directory)
   if (generated.length !== 1) throw new Error(`Expected one full schema migration, found ${generated.length}.`)
-  return Bun.file(path.join(directory, generated[0]!, "migration.sql")).text()
+  return Bun.file(path.join(directory, generated[0], "migration.sql")).text()
 }
 
 async function typescriptMigrations() {

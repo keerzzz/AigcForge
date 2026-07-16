@@ -1,5 +1,5 @@
-import { SessionMessage } from "@opencode-ai/core/session/message"
-import { SessionV2 } from "@opencode-ai/core/session"
+import { SessionMessage } from "@aigcfroge/core/session/message"
+import { SessionV2 } from "@aigcfroge/core/session"
 import { Effect, Schema } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { Api } from "../api"

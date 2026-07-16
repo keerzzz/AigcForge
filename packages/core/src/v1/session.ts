@@ -12,6 +12,7 @@ import { NonNegativeInt } from "../schema"
 import { NamedError } from "../util/error"
 import { SessionSchema } from "../session/schema"
 import { WorkspaceV2 } from "../workspace"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 
 const Timestamp = Schema.Finite.check(Schema.isGreaterThanOrEqualTo(0))
 
@@ -544,6 +545,10 @@ const SessionModel = Schema.Struct({
 
 export const SessionInfo = Schema.Struct({
   id: SessionSchema.ID,
+  mode: ProductMode.ID.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed(ProductMode.Default as ProductMode.ID)),
+    Schema.withConstructorDefault(Effect.succeed(ProductMode.Default as ProductMode.ID)),
+  ),
   slug: Schema.String,
   projectID: ProjectV2.ID,
   workspaceID: optionalOmitUndefined(WorkspaceV2.ID),
@@ -566,6 +571,7 @@ export const SessionInfo = Schema.Struct({
     archived: optionalOmitUndefined(Schema.Finite),
   }),
   permission: optionalOmitUndefined(PermissionV1.Ruleset),
+  attended: optionalOmitUndefined(Schema.Boolean),
   revert: optionalOmitUndefined(SessionRevert),
 }).annotate({ identifier: "Session" })
 export type SessionInfo = typeof SessionInfo.Type

@@ -1,6 +1,6 @@
 import type {
   Config,
-  OpencodeClient,
+  AigcfrogeClient,
   Path,
   PermissionRequest,
   Project,
@@ -8,18 +8,19 @@ import type {
   QuestionRequest,
   Session,
   Todo,
-} from "@opencode-ai/sdk/v2/client"
+} from "@aigcfroge/sdk/v2/client"
 import { showToast } from "@/utils/toast"
-import { getFilename } from "@opencode-ai/core/util/path"
-import { retry } from "@opencode-ai/core/util/retry"
+import { getFilename } from "@aigcfroge/core/util/path"
+import { retry } from "@aigcfroge/core/util/retry"
 import { batch } from "solid-js"
 import { reconcile, type SetStoreFunction, type Store } from "solid-js/store"
 import type { State, VcsCache } from "./types"
 import { cmp, normalizeAgentList, normalizeProviderList } from "./utils"
 import { formatServerError } from "@/utils/server-errors"
+import { Worktree as WorktreeState } from "@/utils/worktree"
 import { QueryClient, queryOptions } from "@tanstack/solid-query"
 import { loadMcpQuery } from "../server-sync"
-import { NormalizedProviderListResponse } from "@opencode-ai/session-ui/context"
+import { NormalizedProviderListResponse } from "@aigcfroge/session-ui/context"
 import { ScopedKey, type ServerScope } from "@/utils/server-scope"
 
 type GlobalStore = {
@@ -68,29 +69,19 @@ function runAll(list: Array<() => Promise<unknown>>) {
   return Promise.allSettled(list.map((item) => item()))
 }
 
-function showErrors(input: {
-  errors: unknown[]
-  title: string
-  translate: (key: string, vars?: Record<string, string | number>) => string
-  formatMoreCount: (count: number) => string
-}) {
-  if (input.errors.length === 0) return
-  const message = formatServerError(input.errors[0], input.translate)
-  const more = input.errors.length > 1 ? input.formatMoreCount(input.errors.length - 1) : ""
-  showToast({
-    variant: "error",
-    title: input.title,
-    description: message + more,
-  })
-}
-
-export const loadGlobalConfigQuery = (scope: ServerScope, sdk: OpencodeClient) =>
+export const loadGlobalConfigQuery = (scope: ServerScope, sdk: AigcfrogeClient) =>
   queryOptions({
     queryKey: [scope, "config"],
-    queryFn: () => retry(() => sdk.global.config.get().then((x) => x.data!)),
+    queryFn: () =>
+      retry(() =>
+        sdk.global.config.get().then((x) => {
+          if (!x.data) throw new Error("Empty global config response")
+          return x.data
+        }),
+      ),
   })
 
-export const loadProjectsQuery = (scope: ServerScope, sdk: OpencodeClient) =>
+export const loadProjectsQuery = (scope: ServerScope, sdk: AigcfrogeClient) =>
   queryOptions({
     queryKey: [scope, "project"],
     queryFn: () =>
@@ -98,7 +89,7 @@ export const loadProjectsQuery = (scope: ServerScope, sdk: OpencodeClient) =>
         sdk.project.list().then((x) => {
           return (x.data ?? [])
             .filter((p) => !!p?.id)
-            .filter((p) => !!p.worktree && !p.worktree.includes("opencode-test"))
+            .filter((p) => !!p.worktree && !p.worktree.includes("aigcfroge-test"))
             .slice()
             .sort((a, b) => cmp(a.id, b.id))
         }),
@@ -106,7 +97,7 @@ export const loadProjectsQuery = (scope: ServerScope, sdk: OpencodeClient) =>
   })
 
 export async function bootstrapGlobal(input: {
-  serverSDK: OpencodeClient
+  serverSDK: AigcfrogeClient
   scope: ServerScope
   requestFailedTitle: string
   translate: (key: string, vars?: Record<string, string | number>) => string
@@ -164,7 +155,7 @@ function warmSessions(input: {
   ids: string[]
   store: Store<State>
   setStore: SetStoreFunction<State>
-  sdk: OpencodeClient
+  sdk: AigcfrogeClient
 }) {
   const known = new Set(input.store.session.map((item) => item.id))
   const ids = [...new Set(input.ids)].filter((id) => !!id && !known.has(id))
@@ -180,29 +171,41 @@ function warmSessions(input: {
   ).then(() => undefined)
 }
 
-export const loadProvidersQuery = (scope: ServerScope, directory: string | null, sdk: OpencodeClient) =>
+export const loadProvidersQuery = (scope: ServerScope, directory: string | null, sdk: AigcfrogeClient) =>
   queryOptions({
     queryKey: [scope, directory, "providers"],
-    queryFn: () => retry(() => sdk.provider.list().then((x) => normalizeProviderList(x.data!))),
+    queryFn: () =>
+      retry(() =>
+        sdk.provider.list().then((x) => {
+          if (!x.data) throw new Error("Empty provider list response")
+          return normalizeProviderList(x.data)
+        }),
+      ),
   })
 
-export const loadAgentsQuery = (scope: ServerScope, directory: string | null, sdk: OpencodeClient) =>
+export const loadAgentsQuery = (scope: ServerScope, directory: string | null, sdk: AigcfrogeClient) =>
   queryOptions({
     queryKey: [scope, directory, "agents"],
     queryFn: () => retry(() => sdk.app.agents().then((x) => normalizeAgentList(x.data))),
   })
 
-export const loadPathQuery = (scope: ServerScope, directory: string | null, sdk: OpencodeClient) =>
+export const loadPathQuery = (scope: ServerScope, directory: string | null, sdk: AigcfrogeClient) =>
   queryOptions<Path>({
     queryKey: [scope, directory, "path"],
-    queryFn: () => retry(() => sdk.path.get().then((x) => x.data!)),
+    queryFn: () =>
+      retry(() =>
+        sdk.path.get().then((x) => {
+          if (!x.data) throw new Error("Empty path response")
+          return x.data
+        }),
+      ),
   })
 
 export async function bootstrapDirectory(input: {
   directory: string
   scope: ServerScope
   mcp: boolean
-  sdk: OpencodeClient
+  sdk: AigcfrogeClient
   store: Store<State>
   setStore: SetStoreFunction<State>
   vcsCache: VcsCache
@@ -229,7 +232,7 @@ export async function bootstrapDirectory(input: {
   const revKey = ScopedKey.from(input.scope, input.directory)
   const rev = (providerRev.get(revKey) ?? 0) + 1
   providerRev.set(revKey, rev)
-  ;(async () => {
+  void (async () => {
     const slow = [
       () => Promise.resolve(input.loadSessions(input.directory)),
       () =>
@@ -237,10 +240,25 @@ export async function bootstrapDirectory(input: {
           .ensureQueryData(loadAgentsQuery(input.scope, input.directory, input.sdk))
           .then((data) => input.setStore("agent", data)),
       () =>
-        retry(() => input.sdk.config.get().then((x) => input.setStore("config", reconcile(x.data!, { merge: false })))),
-      () => retry(() => input.sdk.session.status().then((x) => input.setStore("session_status", x.data!))),
+        retry(() =>
+          input.sdk.config.get().then((x) => {
+            if (!x.data) return
+            input.setStore("config", reconcile(x.data, { merge: false }))
+          }),
+        ),
+      () =>
+        retry(() =>
+          input.sdk.session.status().then((x) => {
+            if (!x.data) return
+            input.setStore("session_status", x.data)
+          }),
+        ),
       !seededProject &&
-        (() => retry(() => input.sdk.project.current()).then((x) => input.setStore("project", x.data!.id))),
+        (() =>
+          retry(() => input.sdk.project.current()).then((x) => {
+            if (!x.data || !x.data.id) return
+            input.setStore("project", x.data.id)
+          })),
       !seededPath &&
         (() =>
           input.queryClient.ensureQueryData(loadPathQuery(input.scope, input.directory, input.sdk)).then((data) => {
@@ -314,7 +332,6 @@ export async function bootstrapDirectory(input: {
         input.queryClient.fetchQuery(loadProvidersQuery(input.scope, input.directory, input.sdk)).catch((err) => {
           const project = getFilename(input.directory)
           showToast({
-            variant: "error",
             title: input.translate("toast.project.reloadFailed.title", { project }),
             description: formatServerError(err, input.translate),
           })
@@ -326,13 +343,23 @@ export async function bootstrapDirectory(input: {
     if (slowErrs.length > 0) {
       console.error("Failed to finish bootstrap instance", slowErrs[0])
       const project = getFilename(input.directory)
+      const description = formatServerError(slowErrs[0], input.translate)
       showToast({
-        variant: "error",
         title: input.translate("toast.project.reloadFailed.title", { project }),
-        description: formatServerError(slowErrs[0], input.translate),
+        description,
       })
+      // Resolve any pending worktree waiters so submission fails fast instead of
+      // hanging until the 5-minute timeout. Without this, sending a message in a
+      // newly-created workspace produces no output because submit.ts waits on a
+      // "ready" signal that was never sent.
+      WorktreeState.failed(input.scope, input.directory, description)
     }
 
-    if (loading && slowErrs.length === 0) input.setStore("status", "complete")
+    if (loading && slowErrs.length === 0) {
+      input.setStore("status", "complete")
+      // Signal that the directory is bootstrapped so message submission in a
+      // newly-created workspace can proceed instead of waiting on the timeout.
+      WorktreeState.ready(input.scope, input.directory)
+    }
   })()
 }

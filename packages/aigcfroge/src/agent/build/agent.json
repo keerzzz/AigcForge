@@ -1,0 +1,15 @@
+{
+  "name": "build",
+  "mode": "primary",
+  "description": "The default agent. Executes tools based on configured permissions.",
+  "capabilities": ["code_modification", "file_operations", "test_execution", "configuration"],
+  "constraints": [],
+  "protocol": "build",
+  "card": {
+    "version": "1.0.0",
+    "readOnly": false,
+    "tools": ["read", "write", "edit", "bash", "glob", "grep", "task"],
+    "endpoints": { "type": "internal" },
+    "auth": { "type": "inherited" }
+  }
+}

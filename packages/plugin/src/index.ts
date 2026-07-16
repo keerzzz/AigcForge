@@ -1,27 +1,25 @@
 import type {
   Event,
-  createOpencodeClient,
+  createAigcfrogeClient,
   Project,
   Model,
   Provider,
   Permission,
-  UserMessage,
   Message,
   Part,
   Config as SDKConfig,
-} from "@opencode-ai/sdk"
-import type { Provider as ProviderV2, Model as ModelV2, Auth } from "@opencode-ai/sdk/v2"
+} from "@aigcfroge/sdk"
+import type { Provider as ProviderV2, Model as ModelV2, Auth, UserMessage } from "@aigcfroge/sdk/v2"
 
 import type { BunShell } from "./shell.js"
 import { type ToolDefinition } from "./tool.js"
 
 export * from "./tool.js"
 
-export type ProviderContext = {
-  source: "env" | "config" | "custom" | "api"
-  info: Provider
-  options: Record<string, any>
-}
+// Plugin hooks receive the resolved SDK Provider directly. Previously this wrapped
+// Provider in an `info` field, but no caller populated it and no plugin read it,
+// so it aliases Provider to keep the exported name for back-compat.
+export type ProviderContext = Provider
 
 export type WorkspaceInfo = {
   id: string
@@ -29,7 +27,7 @@ export type WorkspaceInfo = {
   name: string
   branch: string | null
   directory: string | null
-  extra: unknown | null
+  extra: unknown
   projectID: string
 }
 
@@ -54,7 +52,7 @@ export type WorkspaceAdapter = {
 }
 
 export type PluginInput = {
-  client: ReturnType<typeof createOpencodeClient>
+  client: ReturnType<typeof createAigcfrogeClient>
   project: Project
   directory: string
   worktree: string
@@ -264,7 +262,7 @@ export interface Hooks {
     output: { parts: Part[] },
   ) => Promise<void>
   "tool.execute.before"?: (
-    input: { tool: string; sessionID: string; callID: string },
+    input: { tool: string; sessionID: string; callID?: string },
     output: { args: any },
   ) => Promise<void>
   "shell.env"?: (
@@ -272,7 +270,7 @@ export interface Hooks {
     output: { env: Record<string, string> },
   ) => Promise<void>
   "tool.execute.after"?: (
-    input: { tool: string; sessionID: string; callID: string; args: any },
+    input: { tool: string; sessionID: string; callID?: string; args: any },
     output: {
       title: string
       output: string

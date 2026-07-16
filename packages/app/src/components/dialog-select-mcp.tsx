@@ -1,8 +1,8 @@
 import { Component, createMemo, Show } from "solid-js"
 import { useSync } from "@/context/sync"
-import { Dialog } from "@opencode-ai/ui/dialog"
-import { List } from "@opencode-ai/ui/list"
-import { Switch } from "@opencode-ai/ui/switch"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
+import { List } from "@aigcfroge/ui/list"
+import { Switch } from "@aigcfroge/ui/v2/switch-v2"
 import { useLanguage } from "@/context/language"
 import { useMcpToggle } from "@/context/mcp"
 
@@ -51,7 +51,7 @@ export const DialogSelectMcp: Component = () => {
           const mcpStatus = () => sync().data.mcp[i.name]
           const status = () => mcpStatus()?.status
           const statusLabel = () => {
-            const key = status() ? statusLabels[status() as keyof typeof statusLabels] : undefined
+            const key = status() ? statusLabels[status()] : undefined
             if (!key) return
             return language.t(key)
           }

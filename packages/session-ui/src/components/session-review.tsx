@@ -1,21 +1,20 @@
-import { Accordion } from "@opencode-ai/ui/accordion"
-import { Button } from "@opencode-ai/ui/button"
-import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
-import { RadioGroup } from "@opencode-ai/ui/radio-group"
-import { DiffChanges } from "@opencode-ai/ui/diff-changes"
-import { FileIcon } from "@opencode-ai/ui/file-icon"
-import { Icon } from "@opencode-ai/ui/icon"
-import { IconButton } from "@opencode-ai/ui/icon-button"
-import { StickyAccordionHeader } from "@opencode-ai/ui/sticky-accordion-header"
-import { Tooltip } from "@opencode-ai/ui/tooltip"
-import { ScrollView } from "@opencode-ai/ui/scroll-view"
-import { useFileComponent } from "@opencode-ai/ui/context/file"
-import { useI18n } from "@opencode-ai/ui/context/i18n"
-import { getDirectory, getFilename } from "@opencode-ai/core/util/path"
-import { checksum } from "@opencode-ai/core/util/encode"
+import { AccordionV2 } from "@aigcfroge/ui/v2/accordion-v2"
+import { Button } from "@aigcfroge/ui/button"
+import { SegmentedControlV2, SegmentedControlItemV2 } from "@aigcfroge/ui/v2/segmented-control-v2"
+import { DropdownMenu } from "@aigcfroge/ui/dropdown-menu"
+import { FileIcon } from "@aigcfroge/ui/file-icon"
+import { Icon } from "@aigcfroge/ui/icon"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { StickyAccordionHeader } from "@aigcfroge/ui/sticky-accordion-header"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
+import { ScrollView } from "@aigcfroge/ui/scroll-view"
+import { useFileComponent } from "@aigcfroge/ui/context/file"
+import { useI18n } from "@aigcfroge/ui/context/i18n"
+import { getDirectory, getFilename } from "@aigcfroge/core/util/path"
+import { checksum } from "@aigcfroge/core/util/encode"
 import { createEffect, createMemo, For, Match, onCleanup, Show, Switch, untrack, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
-import { type FileContent, type SnapshotFileDiff, type VcsFileDiff } from "@opencode-ai/sdk/v2"
+import { type FileContent, type SnapshotFileDiff, type VcsFileDiff } from "@aigcfroge/sdk/v2"
 import { PreloadMultiFileDiffResult } from "@pierre/diffs/ssr"
 import { type SelectedLineRange } from "@pierre/diffs"
 import { Dynamic } from "solid-js/web"
@@ -68,7 +67,6 @@ type RawReviewDiff = (SnapshotFileDiff | VcsFileDiff) & {
 type ReviewDiff = ((SnapshotFileDiff & { file: string }) | VcsFileDiff) & {
   preloaded?: PreloadMultiFileDiffResult<any>
 }
-type Item = ViewDiff & { preloaded?: PreloadMultiFileDiffResult<any> }
 
 function diff(value: unknown): value is ReviewDiff {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false
@@ -185,7 +183,7 @@ export const SessionReview = (props: SessionReviewProps) => {
   const itemsMap = createMemo(() =>
     Object.fromEntries(list(props.diffs).map((diff) => [diff.file, { ...normalize(diff), preloaded: diff.preloaded }])),
   )
-  const files = createMemo(() => props.diffs.map((diff) => diff.file!))
+  const files = createMemo(() => list(props.diffs).map((diff) => diff.file).filter(Boolean))
   const grouped = createMemo(() => {
     const next = new Map<string, SessionReviewComment[]>()
     for (const comment of props.comments ?? []) {
@@ -200,6 +198,10 @@ export const SessionReview = (props: SessionReviewProps) => {
   })
   const diffStyle = () => props.diffStyle ?? (props.split ? "split" : "unified")
   const hasDiffs = () => files().length > 0
+
+  const totalFiles = createMemo(() => files().length)
+  const totalAdditions = createMemo(() => list(props.diffs).reduce((sum, d) => sum + (d.additions ?? 0), 0))
+  const totalDeletions = createMemo(() => list(props.diffs).reduce((sum, d) => sum + (d.deletions ?? 0), 0))
 
   const syncVisible = () => {
     frame = undefined
@@ -339,21 +341,41 @@ export const SessionReview = (props: SessionReviewProps) => {
   return (
     <div data-component="session-review" class={props.class} classList={props.classList}>
       <div data-slot="session-review-header" class={props.classes?.header}>
-        <div data-slot="session-review-title">
-          {props.title === undefined ? i18n.t("ui.sessionReview.title") : props.title}
+        <div class="flex items-center gap-2">
+          <div data-slot="session-review-title">
+            {props.title === undefined ? i18n.t("ui.sessionReview.title") : props.title}
+          </div>
+          <Show when={hasDiffs()}>
+            <div class="flex items-center gap-1.5 text-11-medium">
+              <span class="px-1.5 py-0.5 rounded bg-surface-base text-text-weak">
+                {totalFiles()} {i18n.t(totalFiles() === 1 ? "ui.common.file.one" : "ui.common.file.other")}
+              </span>
+              <Show when={totalAdditions() > 0}>
+                <span class="px-1.5 py-0.5 rounded text-[var(--v2-state-fg-success)]" style={{ "background-color": "var(--v2-state-bg-success)" }}>
+                  +{totalAdditions()}
+                </span>
+              </Show>
+              <Show when={totalDeletions() > 0}>
+                <span class="px-1.5 py-0.5 rounded text-[var(--v2-state-fg-danger)]" style={{ "background-color": "var(--v2-state-bg-danger)" }}>
+                  -{totalDeletions()}
+                </span>
+              </Show>
+            </div>
+          </Show>
         </div>
         <div data-slot="session-review-actions">
           <Show when={hasDiffs() && props.onDiffStyleChange}>
-            <RadioGroup
-              options={["unified", "split"] as const}
-              current={diffStyle()}
-              size="small"
-              value={(style) => style}
-              label={(style) =>
-                i18n.t(style === "unified" ? "ui.sessionReview.diffStyle.unified" : "ui.sessionReview.diffStyle.split")
-              }
-              onSelect={(style) => style && props.onDiffStyleChange?.(style)}
-            />
+            <SegmentedControlV2
+              value={diffStyle()}
+              onChange={(style) => style && props.onDiffStyleChange?.(style as SessionReviewDiffStyle)}
+            >
+              <SegmentedControlItemV2 value="unified">
+                {i18n.t("ui.sessionReview.diffStyle.unified")}
+              </SegmentedControlItemV2>
+              <SegmentedControlItemV2 value="split">
+                {i18n.t("ui.sessionReview.diffStyle.split")}
+              </SegmentedControlItemV2>
+            </SegmentedControlV2>
           </Show>
           <Show when={hasDiffs()}>
             <Button
@@ -387,24 +409,24 @@ export const SessionReview = (props: SessionReviewProps) => {
         <div data-slot="session-review-container" class={props.classes?.container}>
           <Show when={hasDiffs()} fallback={props.empty}>
             <div data-slot="session-review-list" class="pb-6">
-              <Accordion multiple value={open()} onChange={handleChange}>
+              <AccordionV2 multiple value={open()} onChange={handleChange}>
                 <For each={files()}>
                   {(file) => {
                     const diff = () => itemsMap()[file]
 
                     // binary files have empty diffs that we can't render
-                    const diffCanRender = () => diff().additions !== 0 || diff().deletions !== 0
+                    const diffCanRender = () => diff() != null && (diff().additions !== 0 || diff().deletions !== 0)
 
                     const expanded = createMemo(() => open().includes(file))
-                    const mounted = createMemo(() => expanded() && (!!store.visible[file] || pinned(file)))
-                    const force = () => !!store.force[file]
+                    const mounted = createMemo(() => expanded() && (store.visible[file] || pinned(file)))
+                    const force = () => store.force[file]
 
                     const comments = createMemo(() => grouped().get(file) ?? [])
                     const commentedLines = createMemo(() => comments().map((c) => c.selection))
 
                     const beforeText = () => text(diff(), "deletions")
                     const afterText = () => text(diff(), "additions")
-                    const changedLines = () => diff().additions + diff().deletions
+                    const changedLines = () => (diff()?.additions ?? 0) + (diff()?.deletions ?? 0)
                     const mediaKind = createMemo(() => mediaKindFromPath(file))
 
                     const tooLarge = createMemo(() => {
@@ -415,9 +437,9 @@ export const SessionReview = (props: SessionReviewProps) => {
                     })
 
                     const isAdded = () =>
-                      diff().status === "added" || (beforeText().length === 0 && afterText().length > 0)
+                      diff()?.status === "added" || (beforeText().length === 0 && afterText().length > 0)
                     const isDeleted = () =>
-                      diff().status === "deleted" || (afterText().length === 0 && beforeText().length > 0)
+                      diff()?.status === "deleted" || (afterText().length === 0 && beforeText().length > 0)
 
                     const selectedLines = createMemo(() => {
                       const current = selection()
@@ -502,25 +524,27 @@ export const SessionReview = (props: SessionReviewProps) => {
                     }
 
                     return (
-                      <Accordion.Item
-                        value={diffCanRender() ? file : null!}
+                      <AccordionV2.Item
+                        value={file}
                         id={diffId(file)}
                         data-file={file}
                         data-slot="session-review-accordion-item"
                         data-selected={props.focusedFile === file ? "" : undefined}
                       >
                         <StickyAccordionHeader>
-                          <Accordion.Trigger disabled={!diffCanRender()} class="cursor-default">
+                          <AccordionV2.Trigger disabled={!diffCanRender()} class="cursor-default">
                             <div data-slot="session-review-trigger-content">
                               <div data-slot="session-review-file-info">
                                 <FileIcon node={{ path: file, type: "file" }} />
                                 <div data-slot="session-review-file-name-container">
-                                  <Show when={file.includes("/")}>
-                                    <span data-slot="session-review-directory">{`\u202A${getDirectory(file)}\u202C`}</span>
-                                  </Show>
-                                  <span data-slot="session-review-filename">{getFilename(file)}</span>
+                                  <div class="flex flex-col min-w-0 items-start">
+                                    <Show when={file.includes("/")}>
+                                      <span data-slot="session-review-directory">{`\u202A${getDirectory(file)}\u202C`}</span>
+                                    </Show>
+                                    <span data-slot="session-review-filename">{getFilename(file)}</span>
+                                  </div>
                                   <Show when={props.onViewFile && diffCanRender()}>
-                                    <Tooltip value={openFileLabel()} placement="top" gutter={4}>
+                                    <TooltipV2 value={openFileLabel()} placement="top" gutter={4}>
                                       <button
                                         data-slot="session-review-view-button"
                                         type="button"
@@ -532,34 +556,44 @@ export const SessionReview = (props: SessionReviewProps) => {
                                       >
                                         <Icon name="open-file" size="small" />
                                       </button>
-                                    </Tooltip>
+                                    </TooltipV2>
                                   </Show>
                                 </div>
                               </div>
                               <div data-slot="session-review-trigger-actions">
-                                <Switch>
-                                  <Match when={isAdded()}>
-                                    <div data-slot="session-review-change-group" data-type="added">
-                                      <span data-slot="session-review-change" data-type="added">
+                                <div class="flex items-center gap-3 shrink-0">
+                                  <Switch>
+                                    <Match when={isAdded()}>
+                                      <span data-slot="session-review-change" data-type="added" class="text-11-medium">
                                         {i18n.t("ui.sessionReview.change.added")}
                                       </span>
-                                      <DiffChanges changes={diff()} />
+                                    </Match>
+                                    <Match when={isDeleted()}>
+                                      <span data-slot="session-review-change" data-type="removed" class="text-11-medium">
+                                        {i18n.t("ui.sessionReview.change.removed")}
+                                      </span>
+                                    </Match>
+                                    <Match when={!!mediaKind()}>
+                                      <span data-slot="session-review-change" data-type="modified" class="text-11-medium">
+                                        {i18n.t("ui.sessionReview.change.modified")}
+                                      </span>
+                                    </Match>
+                                  </Switch>
+                                  <Show when={diffCanRender()}>
+                                    <div class="flex items-center gap-1.5 shrink-0">
+                                      <Show when={diff().additions > 0}>
+                                        <span class="text-11-medium text-[var(--v2-state-fg-success)]">+{diff().additions}</span>
+                                      </Show>
+                                      <Show when={diff().deletions > 0}>
+                                        <span class="text-11-medium text-[var(--v2-state-fg-danger)]">-{diff().deletions}</span>
+                                      </Show>
+                                      <div class="w-8 h-1 rounded-full bg-surface-base overflow-hidden flex shrink-0">
+                                        <div class="h-full bg-[var(--v2-state-fg-success)]" style={{ width: `${(diff().additions / Math.max(diff().additions + diff().deletions, 1)) * 100}%` }} />
+                                        <div class="h-full bg-[var(--v2-state-fg-danger)]" style={{ width: `${(diff().deletions / Math.max(diff().additions + diff().deletions, 1)) * 100}%` }} />
+                                      </div>
                                     </div>
-                                  </Match>
-                                  <Match when={isDeleted()}>
-                                    <span data-slot="session-review-change" data-type="removed">
-                                      {i18n.t("ui.sessionReview.change.removed")}
-                                    </span>
-                                  </Match>
-                                  <Match when={!!mediaKind()}>
-                                    <span data-slot="session-review-change" data-type="modified">
-                                      {i18n.t("ui.sessionReview.change.modified")}
-                                    </span>
-                                  </Match>
-                                  <Match when={true}>
-                                    <DiffChanges changes={diff()} />
-                                  </Match>
-                                </Switch>
+                                  </Show>
+                                </div>
                                 <Show when={diffCanRender()}>
                                   <span data-slot="session-review-diff-chevron">
                                     <Icon name="chevron-down" size="small" />
@@ -567,9 +601,9 @@ export const SessionReview = (props: SessionReviewProps) => {
                                 </Show>
                               </div>
                             </div>
-                          </Accordion.Trigger>
+                          </AccordionV2.Trigger>
                         </StickyAccordionHeader>
-                        <Accordion.Content data-slot="session-review-accordion-content">
+                        <AccordionV2.Content data-slot="session-review-accordion-content">
                           <div
                             data-slot="session-review-diff-wrapper"
                             ref={(el) => {
@@ -641,12 +675,12 @@ export const SessionReview = (props: SessionReviewProps) => {
                               </Switch>
                             </Show>
                           </div>
-                        </Accordion.Content>
-                      </Accordion.Item>
+                        </AccordionV2.Content>
+                      </AccordionV2.Item>
                     )
                   }}
                 </For>
-              </Accordion>
+              </AccordionV2>
             </div>
           </Show>
         </div>

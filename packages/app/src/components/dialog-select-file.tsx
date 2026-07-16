@@ -1,11 +1,11 @@
-import { useDialog } from "@opencode-ai/ui/context/dialog"
-import { Dialog } from "@opencode-ai/ui/dialog"
-import { FileIcon } from "@opencode-ai/ui/file-icon"
-import { Icon } from "@opencode-ai/ui/icon"
-import { Keybind } from "@opencode-ai/ui/keybind"
-import { List } from "@opencode-ai/ui/list"
-import { base64Encode } from "@opencode-ai/core/util/encode"
-import { getDirectory, getFilename } from "@opencode-ai/core/util/path"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
+import { FileIcon } from "@aigcfroge/ui/file-icon"
+import { Icon } from "@aigcfroge/ui/icon"
+import { Keybind } from "@aigcfroge/ui/keybind"
+import { List } from "@aigcfroge/ui/list"
+import { base64Encode } from "@aigcfroge/core/util/encode"
+import { getDirectory, getFilename } from "@aigcfroge/core/util/path"
 import { useNavigate } from "@solidjs/router"
 import { createMemo, createSignal, lazy, Match, onCleanup, Show, Switch } from "solid-js"
 import { formatKeybind, useCommand, type CommandOption } from "@/context/command"
@@ -16,7 +16,6 @@ import { useFile } from "@/context/file"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { useServer } from "@/context/server"
-import { useSettings } from "@/context/settings"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { createSessionTabs } from "@/pages/session/helpers"
 import { decode64 } from "@/utils/base64"
@@ -273,7 +272,6 @@ export function DialogSelectFile(props: { mode?: DialogSelectFileMode; onOpenFil
   const language = useLanguage()
   const platform = usePlatform()
   const server = useServer()
-  const settings = useSettings()
   const layout = useLayout()
   const file = useFile()
   const dialog = useDialog()
@@ -393,7 +391,7 @@ export function DialogSelectFile(props: { mode?: DialogSelectFileMode; onOpenFil
     state.cleanup?.()
   })
 
-  if (filesOnly() && platform.platform === "desktop" && settings.general.newLayoutDesigns() && server.current) {
+  if (filesOnly() && platform.platform === "desktop" && true && server.current) {
     return (
       <DialogSelectFileV2
         server={server.current}
@@ -409,7 +407,7 @@ export function DialogSelectFile(props: { mode?: DialogSelectFileMode; onOpenFil
   }
 
   return (
-    <Dialog class="pt-3 pb-0 !max-h-[480px]" transition>
+    <Dialog class="pt-3 pb-0 !max-h-[480px]">
       <List
         class="px-3"
         search={{

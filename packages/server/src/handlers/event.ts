@@ -1,4 +1,4 @@
-import { EventV2 } from "@opencode-ai/core/event"
+import { EventV2 } from "@aigcfroge/core/event"
 import { Effect, Stream } from "effect"
 import { HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"

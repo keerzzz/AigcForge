@@ -246,7 +246,7 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
           type: "tool-call",
           toolCallId: toolCall.id ?? generateId(),
           toolName: toolCall.function.name,
-          input: toolCall.function.arguments!,
+          input: toolCall.function.arguments,
           providerMetadata: choice.message.reasoning_opaque
             ? { copilot: { reasoningOpaque: choice.message.reasoning_opaque } }
             : undefined,
@@ -610,7 +610,7 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
                 }
 
                 if (toolCallDelta.function?.arguments != null) {
-                  toolCall.function!.arguments += toolCallDelta.function?.arguments ?? ""
+                  toolCall.function.arguments += toolCallDelta.function?.arguments ?? ""
                 }
 
                 // send delta

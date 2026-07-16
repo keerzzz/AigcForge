@@ -7,7 +7,7 @@ import {
   PositiveInt,
   RelativePath,
   withStatics,
-} from "@opencode-ai/schema/schema"
+} from "@aigcfroge/schema/schema"
 
 export {
   AbsolutePath,

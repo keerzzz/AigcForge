@@ -2,15 +2,15 @@ import { createEffect, createMemo, createSignal, Match, on, onCleanup, Switch } 
 import { createStore } from "solid-js/store"
 import { Dynamic } from "solid-js/web"
 import { makeEventListener } from "@solid-primitives/event-listener"
-import type { FileSearchHandle } from "@opencode-ai/session-ui/file"
-import { useFileComponent } from "@opencode-ai/ui/context/file"
-import { cloneSelectedLineRange, previewSelectedLines } from "@opencode-ai/session-ui/pierre/selection-bridge"
-import { createLineCommentController } from "@opencode-ai/session-ui/line-comment-annotations"
-import { sampledChecksum } from "@opencode-ai/core/util/encode"
-import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
-import { IconButton } from "@opencode-ai/ui/icon-button"
-import { Tabs } from "@opencode-ai/ui/tabs"
-import { ScrollView } from "@opencode-ai/ui/scroll-view"
+import type { FileSearchHandle } from "@aigcfroge/session-ui/file"
+import { useFileComponent } from "@aigcfroge/ui/context/file"
+import { cloneSelectedLineRange, previewSelectedLines } from "@aigcfroge/session-ui/pierre/selection-bridge"
+import { createLineCommentController } from "@aigcfroge/session-ui/line-comment-annotations"
+import { sampledChecksum } from "@aigcfroge/core/util/encode"
+import { DropdownMenu } from "@aigcfroge/ui/dropdown-menu"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
+import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { showToast } from "@/utils/toast"
 import { selectionFromLines, useFile, type FileSelection, type SelectedLineRange } from "@/context/file"
 import { useComments } from "@/context/comments"
@@ -430,7 +430,6 @@ export function FileTabContent(props: { tab: string }) {
           onError: (args: { kind: "image" | "audio" | "svg" }) => {
             if (args.kind !== "svg") return
             showToast({
-              variant: "error",
               title: language.t("toast.file.loadFailed.title"),
             })
           },
@@ -440,7 +439,7 @@ export function FileTabContent(props: { tab: string }) {
   )
 
   return (
-    <Tabs.Content value={props.tab} class="mt-3 relative h-full">
+    <TabsV2.Content value={props.tab} class="mt-3 relative h-full">
       <ScrollView class="h-full" viewportRef={scrollSync.setViewport} onScroll={scrollSync.handleScroll as any}>
         <Switch>
           <Match when={state()?.loaded}>{renderFile(contents())}</Match>
@@ -450,6 +449,6 @@ export function FileTabContent(props: { tab: string }) {
           <Match when={state()?.error}>{(err) => <div class="px-6 py-4 text-text-weak">{err()}</div>}</Match>
         </Switch>
       </ScrollView>
-    </Tabs.Content>
+    </TabsV2.Content>
   )
 }

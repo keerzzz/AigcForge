@@ -1,9 +1,8 @@
-import { Button } from "@opencode-ai/ui/button"
-import { useDialog } from "@opencode-ai/ui/context/dialog"
-import { Icon } from "@opencode-ai/ui/icon"
-import { Switch } from "@opencode-ai/ui/switch"
-import { Tabs } from "@opencode-ai/ui/tabs"
-import { showToast } from "@/utils/toast"
+import { Button } from "@aigcfroge/ui/button"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { Icon } from "@aigcfroge/ui/icon"
+import { Switch } from "@aigcfroge/ui/v2/switch-v2"
+import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { useNavigate } from "@solidjs/router"
 import { type Accessor, createEffect, createMemo, For, type JSXElement, onCleanup, Show } from "solid-js"
 import { createStore } from "solid-js/store"
@@ -14,7 +13,6 @@ import { ServerConnection, useServer } from "@/context/server"
 import { useSync } from "@/context/sync"
 import { type ServerHealth } from "@/utils/server-health"
 import { useGlobal } from "@/context/global"
-import { useSettings } from "@/context/settings"
 import { useMcpToggle } from "@/context/mcp"
 
 const pluginEmptyMessage = (value: string, file: string): JSXElement => {
@@ -161,7 +159,7 @@ export function StatusPopoverServerBody() {
           const run = ++dialogRun
           void import("./dialog-select-server").then((x) => {
             if (dialogDead || dialogRun !== run) return
-            dialog.show(() => <x.DialogSelectServer />, defaultServer.refresh)
+            void dialog.show(() => <x.DialogSelectServer />, defaultServer.refresh)
           })
         },
       }}
@@ -172,24 +170,24 @@ export function StatusPopoverServerBody() {
 function ServerStatusPopoverView(props: { state: ServerStatusState }) {
   return (
     <div class="flex items-center gap-1 w-[360px] rounded-xl shadow-[var(--shadow-lg-border-base)]">
-      <Tabs
+      <TabsV2
         aria-label={props.state.ariaLabel}
         class="tabs bg-background-strong rounded-xl overflow-hidden"
         data-component="tabs"
         data-active="servers"
         defaultValue="servers"
-        variant="alt"
+        variant="normal"
       >
-        <Tabs.List data-slot="tablist" class="bg-transparent border-b-0 px-4 pt-2 pb-0 gap-4 h-10">
-          <Tabs.Trigger value="servers" data-slot="tab" class="text-12-regular">
+        <TabsV2.List data-slot="tablist" class="bg-transparent border-b-0 px-4 pt-2 pb-0 gap-4 h-10">
+          <TabsV2.Trigger value="servers" data-slot="tab" class="text-12-regular">
             {props.state.servers().length > 0 ? `${props.state.servers().length} ` : ""}
             {props.state.serversLabel}
-          </Tabs.Trigger>
-        </Tabs.List>
-        <Tabs.Content value="servers">
+          </TabsV2.Trigger>
+        </TabsV2.List>
+        <TabsV2.Content value="servers">
           <ServerStatusList state={props.state} />
-        </Tabs.Content>
-      </Tabs>
+        </TabsV2.Content>
+      </TabsV2>
     </div>
   )
 }
@@ -250,35 +248,17 @@ function ServerStatusList(props: { state: ServerStatusState }) {
 
 export function StatusPopoverBody(props: { shown: Accessor<boolean> }) {
   const sync = useSync()
-  const global = useGlobal()
-  const server = useServer()
-  const platform = usePlatform()
-  const dialog = useDialog()
   const language = useLanguage()
-  const navigate = useNavigate()
-  const settings = useSettings()
-
-  const fail = (err: unknown) => {
-    showToast({
-      variant: "error",
-      title: language.t("common.requestFailed"),
-      description: err instanceof Error ? err.message : String(err),
-    })
-  }
 
   createEffect(() => {
     if (!props.shown()) return
   })
 
   let dialogRun = 0
-  let dialogDead = false
   onCleanup(() => {
-    dialogDead = true
     dialogRun += 1
   })
-  const sortedServers = createMemo(() => listServersByHealth(global.servers.list(), server.key, global.servers.health))
   const toggleMcp = useMcpToggle()
-  const defaultServer = useDefaultServerKey(platform.getDefaultServer)
   const mcpNames = createMemo(() => Object.keys(sync().data.mcp ?? {}).sort((a, b) => a.localeCompare(b)))
   const mcpStatus = (name: string) => sync().data.mcp?.[name]?.status
   const mcpConnected = createMemo(() => mcpNames().filter((name) => mcpStatus(name) === "connected").length)
@@ -288,107 +268,34 @@ export function StatusPopoverBody(props: { shown: Accessor<boolean> }) {
     (sync().data.config.plugin ?? []).map((item) => (typeof item === "string" ? item : item[0])),
   )
   const pluginCount = createMemo(() => plugins().length)
-  const pluginEmpty = createMemo(() => pluginEmptyMessage(language.t("dialog.plugins.empty"), "opencode.json"))
+  const pluginEmpty = createMemo(() => pluginEmptyMessage(language.t("dialog.plugins.empty"), "aigcfroge.json"))
 
   return (
     <div class="flex items-center gap-1 w-[360px] rounded-xl shadow-[var(--shadow-lg-border-base)]">
-      <Tabs
+      <TabsV2
         aria-label={language.t("status.popover.ariaLabel")}
         class="tabs bg-background-strong rounded-xl overflow-hidden"
         data-component="tabs"
-        data-active={settings.general.newLayoutDesigns() ? "mcp" : "servers"}
-        defaultValue={settings.general.newLayoutDesigns() ? "mcp" : "servers"}
-        variant="alt"
+        data-active="mcp"
+        defaultValue="mcp"
+        variant="normal"
       >
-        <Tabs.List data-slot="tablist" class="bg-transparent border-b-0 px-4 pt-2 pb-0 gap-4 h-10">
-          {!settings.general.newLayoutDesigns() && (
-            <Tabs.Trigger value="servers" data-slot="tab" class="text-12-regular">
-              {global.servers.list().length > 0 ? `${global.servers.list().length} ` : ""}
-              {language.t("status.popover.tab.servers")}
-            </Tabs.Trigger>
-          )}
-          <Tabs.Trigger value="mcp" data-slot="tab" class="text-12-regular">
+        <TabsV2.List data-slot="tablist" class="bg-transparent border-b-0 px-4 pt-2 pb-0 gap-4 h-10">
+          <TabsV2.Trigger value="mcp" data-slot="tab" class="text-12-regular">
             {mcpConnected() > 0 ? `${mcpConnected()} ` : ""}
             {language.t("status.popover.tab.mcp")}
-          </Tabs.Trigger>
-          <Tabs.Trigger value="lsp" data-slot="tab" class="text-12-regular">
+          </TabsV2.Trigger>
+          <TabsV2.Trigger value="lsp" data-slot="tab" class="text-12-regular">
             {lspCount() > 0 ? `${lspCount()} ` : ""}
             {language.t("status.popover.tab.lsp")}
-          </Tabs.Trigger>
-          <Tabs.Trigger value="plugins" data-slot="tab" class="text-12-regular">
+          </TabsV2.Trigger>
+          <TabsV2.Trigger value="plugins" data-slot="tab" class="text-12-regular">
             {pluginCount() > 0 ? `${pluginCount()} ` : ""}
             {language.t("status.popover.tab.plugins")}
-          </Tabs.Trigger>
-        </Tabs.List>
+          </TabsV2.Trigger>
+        </TabsV2.List>
 
-        {!settings.general.newLayoutDesigns() && (
-          <Tabs.Content value="servers">
-            <div class="flex flex-col px-2 pb-2">
-              <div class="flex flex-col p-3 bg-background-base rounded-sm min-h-14">
-                <For each={sortedServers()}>
-                  {(s) => {
-                    const key = ServerConnection.key(s)
-                    const blocked = () => global.servers.health[key]?.healthy === false
-                    return (
-                      <button
-                        type="button"
-                        class="flex items-center gap-2 w-full h-8 pl-3 pr-1.5 py-1.5 rounded-md transition-colors text-left"
-                        classList={{
-                          "hover:bg-surface-raised-base-hover": !blocked(),
-                          "cursor-not-allowed": blocked(),
-                        }}
-                        aria-disabled={blocked()}
-                        onClick={() => {
-                          if (blocked()) return
-                          navigate("/")
-                          queueMicrotask(() => server.setActive(key))
-                        }}
-                      >
-                        <ServerHealthIndicator health={global.servers.health[key]} />
-                        <ServerRow
-                          conn={s}
-                          dimmed={blocked()}
-                          status={global.servers.health[key]}
-                          class="flex items-center gap-2 w-full min-w-0"
-                          nameClass="text-14-regular text-text-base truncate"
-                          versionClass="text-12-regular text-text-weak truncate"
-                          badge={
-                            <Show when={key === defaultServer.key()}>
-                              <span class="text-11-regular text-text-base bg-surface-base px-1.5 py-0.5 rounded-md">
-                                {language.t("common.default")}
-                              </span>
-                            </Show>
-                          }
-                        >
-                          <div class="flex-1" />
-                          <Show when={server.current && key === ServerConnection.key(server.current)}>
-                            <Icon name="check" size="small" class="text-icon-weak shrink-0" />
-                          </Show>
-                        </ServerRow>
-                      </button>
-                    )
-                  }}
-                </For>
-
-                <Button
-                  variant="secondary"
-                  class="mt-3 self-start h-8 px-3 py-1.5"
-                  onClick={() => {
-                    const run = ++dialogRun
-                    void import("./dialog-select-server").then((x) => {
-                      if (dialogDead || dialogRun !== run) return
-                      dialog.show(() => <x.DialogSelectServer />, defaultServer.refresh)
-                    })
-                  }}
-                >
-                  {language.t("status.popover.action.manageServers")}
-                </Button>
-              </div>
-            </div>
-          </Tabs.Content>
-        )}
-
-        <Tabs.Content value="mcp">
+        <TabsV2.Content value="mcp">
           <div class="flex flex-col px-2 pb-2">
             <div class="flex flex-col p-3 bg-background-base rounded-sm min-h-14">
               <Show
@@ -448,9 +355,9 @@ export function StatusPopoverBody(props: { shown: Accessor<boolean> }) {
               </Show>
             </div>
           </div>
-        </Tabs.Content>
+        </TabsV2.Content>
 
-        <Tabs.Content value="lsp">
+        <TabsV2.Content value="lsp">
           <div class="flex flex-col px-2 pb-2">
             <div class="flex flex-col p-3 bg-background-base rounded-sm min-h-14">
               <Show
@@ -476,9 +383,9 @@ export function StatusPopoverBody(props: { shown: Accessor<boolean> }) {
               </Show>
             </div>
           </div>
-        </Tabs.Content>
+        </TabsV2.Content>
 
-        <Tabs.Content value="plugins">
+        <TabsV2.Content value="plugins">
           <div class="flex flex-col px-2 pb-2">
             <div class="flex flex-col p-3 bg-background-base rounded-sm min-h-14">
               <Show
@@ -496,8 +403,8 @@ export function StatusPopoverBody(props: { shown: Accessor<boolean> }) {
               </Show>
             </div>
           </div>
-        </Tabs.Content>
-      </Tabs>
+        </TabsV2.Content>
+      </TabsV2>
     </div>
   )
 }

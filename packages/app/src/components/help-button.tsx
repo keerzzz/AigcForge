@@ -1,10 +1,10 @@
-import { Icon } from "@opencode-ai/ui/v2/icon"
-import { Popover } from "@opencode-ai/ui/popover"
+import { Icon } from "@aigcfroge/ui/v2/icon"
+import { Popover } from "@aigcfroge/ui/popover"
 import { createSignal, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 
 export function HelpButton() {
-  if (import.meta.env.VITE_OPENCODE_CHANNEL !== "dev") return null
+  if (import.meta.env.VITE_AIGCFROGE_CHANNEL !== "dev") return null
 
   const [state, setState] = /* persisted(Persist.global("help-button"), */ createStore({ dismissed: false }) /* ) */
   const [shown, setShown] = createSignal(false)

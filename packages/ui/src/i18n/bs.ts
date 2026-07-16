@@ -52,7 +52,7 @@ export const dict = {
 
   "dialog.usageExceeded.freeTier.title": "Dostignut besplatan limit",
   "dialog.usageExceeded.freeTier.description":
-    "Pretplatite se na OpenCode Go za pouzdan pristup najboljim open-source modelima, počevši od $5/mjesec.",
+    "Pretplatite se na Aigcfroge Go za pouzdan pristup najboljim open-source modelima, počevši od $5/mjesec.",
   "dialog.usageExceeded.freeTier.actionLabel": "Pretplati se",
   "dialog.usageExceeded.accountRateLimit.title": "Dostignut Go limit",
   "dialog.usageExceeded.accountRateLimit.description":
@@ -115,6 +115,7 @@ export const dict = {
   "ui.tool.questions": "Pitanja",
   "ui.tool.agent": "{{type}} agent",
   "ui.tool.agent.default": "agent",
+  "ui.tool.agent.openSession": "Open sub-agent session",
 
   "ui.common.file.one": "datoteka",
   "ui.common.file.other": "datoteke",

@@ -3,7 +3,7 @@
 import { $ } from "bun"
 import fs from "fs/promises"
 
-const model = "opencode/gpt-5.3-codex"
+const model = "aigcfroge/gpt-5.3-codex"
 
 interface PR {
   number: number
@@ -29,7 +29,7 @@ Please resolve this issue to include this PR in the next beta release.`
     await $`gh pr comment ${prNumber} --body ${body}`
     console.log(`  Posted comment on PR #${prNumber}`)
   } catch (err) {
-    console.log(`  Failed to post comment on PR #${prNumber}: ${err}`)
+    console.log(`  Failed to post comment on PR #${prNumber}: ${String(err)}`)
   }
 }
 
@@ -77,7 +77,7 @@ async function typecheck() {
     await $`bun typecheck`
     return true
   } catch (err) {
-    console.log(`Typecheck failed: ${err}`)
+    console.log(`Typecheck failed: ${String(err)}`)
     return false
   }
 }
@@ -86,10 +86,10 @@ async function build() {
   console.log("  Running final build smoke check...")
 
   try {
-    await $`./script/build.ts --single`.cwd("packages/opencode")
+    await $`./script/build.ts --single`.cwd("packages/aigcfroge")
     return true
   } catch (err) {
-    console.log(`Build failed: ${err}`)
+    console.log(`Build failed: ${String(err)}`)
     return false
   }
 }
@@ -111,7 +111,7 @@ async function commitSmokeChanges() {
     await $`git add -A`
     await $`git commit -m "Fix beta integration"`
   } catch (err) {
-    console.log(`Failed to commit smoke fixes: ${err}`)
+    console.log(`Failed to commit smoke fixes: ${String(err)}`)
     return false
   }
 
@@ -136,13 +136,13 @@ async function install() {
     await $`git add bun.lock`
     return true
   } catch (err) {
-    console.log(`Install failed: ${err}`)
+    console.log(`Install failed: ${String(err)}`)
     return false
   }
 }
 
 async function fix(pr: PR, files: string[], prs: PR[], applied: number[], idx: number) {
-  console.log(`  Trying to auto-resolve ${files.length} conflict(s) with opencode...`)
+  console.log(`  Trying to auto-resolve ${files.length} conflict(s) with aigcfroge...`)
 
   const done = lines(prs.filter((x) => applied.includes(x.number)))
   const next = lines(prs.slice(idx + 1))
@@ -168,9 +168,9 @@ async function fix(pr: PR, files: string[], prs: PR[], applied: number[], idx: n
   ].join("\n")
 
   try {
-    await $`opencode run -m ${model} ${prompt}`
+    await $`aigcfroge run -m ${model} ${prompt}`
   } catch (err) {
-    console.log(`  opencode failed: ${err}`)
+    console.log(`  aigcfroge failed: ${String(err)}`)
     return false
   }
 
@@ -184,7 +184,7 @@ async function fix(pr: PR, files: string[], prs: PR[], applied: number[], idx: n
 
   if (!(await typecheck())) return false
 
-  console.log("  Conflicts resolved with opencode")
+  console.log("  Conflicts resolved with aigcfroge")
   return true
 }
 
@@ -193,22 +193,22 @@ async function smoke(prs: PR[], applied: number[]) {
 
   if (await validate()) return commitSmokeChanges()
 
-  console.log("\nTrying to fix final smoke check with opencode...")
+  console.log("\nTrying to fix final smoke check with aigcfroge...")
 
   const done = lines(prs.filter((x) => applied.includes(x.number)))
   const prompt = [
     "The beta merge batch is complete, but the deterministic final smoke check failed.",
     `Merged PRs on HEAD:\n${done}`,
     "Run `bun typecheck` at the repo root.",
-    "Run `./script/build.ts --single` in `packages/opencode`.",
+    "Run `./script/build.ts --single` in `packages/aigcfroge`.",
     "Fix any merge-caused issues until both commands pass.",
     "Do not create a commit.",
   ].join("\n")
 
   try {
-    await $`opencode run -m ${model} ${prompt}`
+    await $`aigcfroge run -m ${model} ${prompt}`
   } catch (err) {
-    console.log(`Smoke fix failed: ${err}`)
+    console.log(`Smoke fix failed: ${String(err)}`)
     return false
   }
 
@@ -246,7 +246,7 @@ async function main() {
     try {
       await $`git fetch origin pull/${pr.number}/head:pr/${pr.number}`
     } catch (err) {
-      console.log(`  Failed to fetch: ${err}`)
+      console.log(`  Failed to fetch: ${String(err)}`)
       failed.push({ number: pr.number, title: pr.title, reason: "Fetch failed" })
       await commentOnPR(pr.number, "Fetch failed")
       continue
@@ -294,7 +294,7 @@ async function main() {
     try {
       await $`git commit -m ${commitMsg}`
     } catch (err) {
-      console.log(`  Failed to commit: ${err}`)
+      console.log(`  Failed to commit: ${String(err)}`)
       failed.push({ number: pr.number, title: pr.title, reason: "Commit failed" })
       await commentOnPR(pr.number, "Failed to commit changes")
       continue

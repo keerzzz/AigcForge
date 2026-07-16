@@ -5,7 +5,6 @@ import { Effect } from "effect"
 import { Config } from "../../config"
 import { ModelV2 } from "../../model"
 import { ModelRequest } from "../../model-request"
-import { ProviderV2 } from "../../provider"
 
 export const Plugin = define({
   id: "config-provider",
@@ -113,6 +112,7 @@ export const Plugin = define({
                   }))
                 }
                 if (config.disabled !== undefined) model.enabled = !config.disabled
+                // eslint-disable-next-line no-misused-spread -- catalog limits are plain mutable data; the Config Schema instance is intentionally projected into that shape
                 if (config.limit !== undefined) model.limit = { ...model.limit, ...config.limit }
               })
             }

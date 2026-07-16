@@ -2,7 +2,7 @@ import { type DiffLineAnnotation, type SelectedLineRange } from "@pierre/diffs"
 import { createEffect, createMemo, createSignal, onCleanup, Show, type Accessor, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 import { render as renderSolid } from "solid-js/web"
-import { useI18n } from "@opencode-ai/ui/context/i18n"
+import { useI18n } from "@aigcfroge/ui/context/i18n"
 import { createHoverCommentUtility } from "../pierre/comment-hover"
 import { cloneSelectedLineRange, formatSelectedLineLabel, lineInSelectedRange } from "../pierre/selection-bridge"
 import { LineComment, LineCommentEditor, type LineCommentEditorProps } from "./line-comment"
@@ -180,7 +180,7 @@ export function createLineCommentAnnotationRenderer<T>(props: {
     return node
   }
 
-  const render = <A extends { metadata: LineCommentAnnotationMeta<T> }>(annotation: A) => {
+  const render = (annotation: { metadata: LineCommentAnnotationMeta<T> }) => {
     const meta = annotation.metadata
     const node = nodes.get(meta.key) ?? mount(meta)
     if (!node) return
@@ -188,7 +188,7 @@ export function createLineCommentAnnotationRenderer<T>(props: {
     return node.host
   }
 
-  const reconcile = <A extends { metadata: LineCommentAnnotationMeta<T> }>(annotations: A[]) => {
+  const reconcile = (annotations: { metadata: LineCommentAnnotationMeta<T> }[]) => {
     const next = new Set(annotations.map((annotation) => annotation.metadata.key))
     for (const [key, node] of nodes) {
       if (next.has(key)) continue

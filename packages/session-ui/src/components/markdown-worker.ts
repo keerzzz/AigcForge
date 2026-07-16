@@ -1,5 +1,5 @@
 import MarkdownShikiWorkerUrl from "./markdown-shiki.worker.ts?worker&url"
-import { OpenCodeTheme } from "@opencode-ai/ui/context/marked"
+import { AigcfrogeTheme } from "@aigcfroge/ui/context/marked"
 import {
   applyMarkdownWorkerResponse,
   shouldReleaseMarkdownWorkerState,
@@ -34,7 +34,7 @@ const transport = createWorkerTransport<Extract<MarkdownWorkerRequest, { type: "
 })
 
 export function highlightStreamingCode(key: string, text: string, language: string, complete = false) {
-  const instance = getWorker()
+  const _instance = getWorker()
   const id = ++nextID
   latest.set(key, id)
   keys.delete(key)
@@ -117,6 +117,6 @@ function getWorker() {
   }
   worker.onerror = (event) => fail(event.message || "Markdown highlighting worker failed")
   worker.onmessageerror = () => fail("Markdown worker response failed")
-  worker.postMessage({ type: "init", theme: OpenCodeTheme } satisfies MarkdownWorkerRequest)
+  worker.postMessage({ type: "init", theme: AigcfrogeTheme } satisfies MarkdownWorkerRequest)
   return worker
 }

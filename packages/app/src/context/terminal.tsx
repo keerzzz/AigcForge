@@ -1,11 +1,11 @@
 import { createStore, produce } from "solid-js/store"
-import { createSimpleContext } from "@opencode-ai/ui/context"
+import { createSimpleContext } from "@aigcfroge/ui/context"
 import { batch, createEffect, createMemo, createRoot, on, onCleanup } from "solid-js"
 import { useParams } from "@solidjs/router"
 import { useSDK, type DirectorySDK } from "./sdk"
 import type { Platform } from "./platform"
 import { useServerSDK } from "./server-sdk"
-import { base64Encode } from "@opencode-ai/core/util/encode"
+import { base64Encode } from "@aigcfroge/core/util/encode"
 import { defaultTitle, titleNumber } from "./terminal-title"
 import { Persist, persisted, removePersisted } from "@/utils/persist"
 import { ScopedKey, ServerScope, type ServerScope as ServerScopeValue } from "@/utils/server-scope"
@@ -129,7 +129,7 @@ export function clearWorkspaceTerminals(
     entry?.value.clear()
   }
 
-  void removePersisted(terminalPersistTarget(scope, dir), platform)
+  removePersisted(terminalPersistTarget(scope, dir), platform)
 
   if (scope !== ServerScope.local) return
   const legacy = new Set(getLegacyTerminalStorageKeys(dir))
@@ -139,7 +139,7 @@ export function clearWorkspaceTerminals(
     }
   }
   for (const key of legacy) {
-    void removePersisted({ key }, platform)
+    removePersisted({ key }, platform)
   }
 }
 

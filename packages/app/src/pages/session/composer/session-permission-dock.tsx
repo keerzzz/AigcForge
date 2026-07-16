@@ -1,16 +1,18 @@
-import { For, Show } from "solid-js"
-import type { PermissionRequest } from "@opencode-ai/sdk/v2"
-import { Button } from "@opencode-ai/ui/button"
-import { DockPrompt } from "@opencode-ai/session-ui/dock-prompt"
-import { Icon } from "@opencode-ai/ui/icon"
+import { For, Show, createMemo } from "solid-js"
+import type { PermissionRequest } from "@aigcfroge/sdk/v2"
+import { Button } from "@aigcfroge/ui/button"
+import { DockPrompt } from "@aigcfroge/session-ui/dock-prompt"
+import { Icon } from "@aigcfroge/ui/icon"
 import { useLanguage } from "@/context/language"
 
 export function SessionPermissionDock(props: {
   request: PermissionRequest
   responding: boolean
+  sessionID?: string
   onDecide: (response: "once" | "always" | "reject") => void
 }) {
   const language = useLanguage()
+  const isChildRequest = createMemo(() => props.sessionID !== undefined && props.request.sessionID !== props.sessionID)
 
   const toolDescription = () => {
     const key = `settings.permissions.tool.${props.request.permission}.description`
@@ -52,6 +54,16 @@ export function SessionPermissionDock(props: {
         </>
       }
     >
+      <Show when={isChildRequest()}>
+        <div data-slot="permission-row">
+          <span data-slot="permission-spacer" aria-hidden="true" />
+          <div data-slot="permission-subagent-badge" class="flex items-center gap-1 text-text-weak text-12-regular">
+            <Icon name="branch" size="small" />
+            <span>{language.t("notification.permission.fromSubagent")}</span>
+          </div>
+        </div>
+      </Show>
+
       <Show when={toolDescription()}>
         <div data-slot="permission-row">
           <span data-slot="permission-spacer" aria-hidden="true" />

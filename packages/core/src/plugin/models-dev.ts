@@ -43,7 +43,7 @@ function variants(model: ModelsDev.Model, packageName?: string) {
     const request = ModelRequest.normalizeAiSdkOptions(packageName, item.provider?.body ?? {})
     return {
       id: ModelV2.VariantID.make(id),
-      headers: { ...(item.provider?.headers ?? {}) },
+      headers: { ...item.provider?.headers },
       ...request,
     }
   })

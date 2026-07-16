@@ -1,12 +1,12 @@
-import { AISDK } from "@opencode-ai/core/aisdk"
+import { AISDK } from "@aigcfroge/core/aisdk"
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
-import { Catalog } from "@opencode-ai/core/catalog"
-import { ModelV2 } from "@opencode-ai/core/model"
-import { PluginV2 } from "@opencode-ai/core/plugin"
-import { PluginHost } from "@opencode-ai/core/plugin/host"
-import { VercelPlugin } from "@opencode-ai/core/plugin/provider/vercel"
-import { ProviderV2 } from "@opencode-ai/core/provider"
+import { Catalog } from "@aigcfroge/core/catalog"
+import { ModelV2 } from "@aigcfroge/core/model"
+import { PluginV2 } from "@aigcfroge/core/plugin"
+import { PluginHost } from "@aigcfroge/core/plugin/host"
+import { VercelPlugin } from "@aigcfroge/core/plugin/provider/vercel"
+import { ProviderV2 } from "@aigcfroge/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -14,7 +14,7 @@ const it = testEffect(PluginTestLayer)
 
 const addPlugin = Effect.fn(function* () {
   const plugin = yield* PluginV2.Service
-  const aisdk = yield* AISDK.Service
+  yield* AISDK.Service
   const host = yield* PluginHost.make(plugin)
   yield* VercelPlugin.effect(host)
 })
@@ -32,8 +32,8 @@ describe("VercelPlugin", () => {
       yield* addPlugin()
       expect((yield* catalog.provider.get(ProviderV2.ID.make("vercel")))?.request.headers).toEqual({
         Existing: "1",
-        "http-referer": "https://opencode.ai/",
-        "x-title": "opencode",
+        "http-referer": "https://aigcfroge.ai/",
+        "x-title": "aigcfroge",
       })
     }),
   )
@@ -56,7 +56,7 @@ describe("VercelPlugin", () => {
 
   it.effect("creates @ai-sdk/vercel SDKs for custom provider IDs", () =>
     Effect.gen(function* () {
-      const plugin = yield* PluginV2.Service
+      yield* PluginV2.Service
       const aisdk = yield* AISDK.Service
       yield* addPlugin()
       const event = yield* aisdk.runSDK({

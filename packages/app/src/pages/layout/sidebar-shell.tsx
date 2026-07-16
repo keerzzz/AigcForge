@@ -8,8 +8,9 @@ import {
   type DragEvent,
 } from "@thisbeyond/solid-dnd"
 import { ConstrainDragXAxis } from "@/utils/solid-dnd"
-import { IconButton } from "@opencode-ai/ui/icon-button"
-import { Tooltip, TooltipKeybind } from "@opencode-ai/ui/tooltip"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
+import { TooltipKeybind } from "@/components/tooltip-keybind"
 import { type LocalProject } from "@/context/layout"
 
 export const SidebarContent = (props: {
@@ -66,7 +67,7 @@ export const SidebarContent = (props: {
               <SortableProvider ids={props.projects().map((p) => p.worktree)}>
                 <For each={props.projects()}>{(project) => props.renderProject(project)}</For>
               </SortableProvider>
-              <Tooltip
+              <TooltipV2
                 placement={placement()}
                 value={
                   <div class="flex items-center gap-2">
@@ -84,7 +85,7 @@ export const SidebarContent = (props: {
                   onClick={props.onOpenProject}
                   aria-label={typeof props.openProjectLabel === "string" ? props.openProjectLabel : undefined}
                 />
-              </Tooltip>
+              </TooltipV2>
             </div>
             <DragOverlay>{props.renderProjectOverlay()}</DragOverlay>
           </DragDropProvider>
@@ -99,7 +100,7 @@ export const SidebarContent = (props: {
               aria-label={props.settingsLabel()}
             />
           </TooltipKeybind>
-          <Tooltip placement={placement()} value={props.helpLabel()}>
+          <TooltipV2 placement={placement()} value={props.helpLabel()}>
             <IconButton
               icon="help"
               variant="ghost"
@@ -107,7 +108,7 @@ export const SidebarContent = (props: {
               onClick={props.onOpenHelp}
               aria-label={props.helpLabel()}
             />
-          </Tooltip>
+          </TooltipV2>
         </div>
       </div>
 

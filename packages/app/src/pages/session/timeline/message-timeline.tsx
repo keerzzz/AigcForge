@@ -16,9 +16,9 @@ import { Dynamic } from "solid-js/web"
 import { useNavigate } from "@solidjs/router"
 import { useMutation } from "@tanstack/solid-query"
 import { createVirtualizer, defaultRangeExtractor, elementScroll, type VirtualItem } from "@tanstack/solid-virtual"
-import { Accordion } from "@opencode-ai/ui/accordion"
-import { Button } from "@opencode-ai/ui/button"
-import { Card } from "@opencode-ai/ui/card"
+import { AccordionV2 } from "@aigcfroge/ui/v2/accordion-v2"
+import { Button } from "@aigcfroge/ui/button"
+import { Card } from "@aigcfroge/ui/card"
 import {
   ContextToolGroup,
   Message,
@@ -26,44 +26,46 @@ import {
   Part as MessagePart,
   partDefaultOpen,
   type UserActions,
-} from "@opencode-ai/session-ui/message-part"
-import { DiffChanges } from "@opencode-ai/ui/diff-changes"
-import { FileIcon } from "@opencode-ai/ui/file-icon"
-import { Icon } from "@opencode-ai/ui/icon"
-import { IconButton } from "@opencode-ai/ui/icon-button"
-import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
-import { Dialog } from "@opencode-ai/ui/dialog"
-import { InlineInput } from "@opencode-ai/ui/inline-input"
-import { Spinner } from "@opencode-ai/ui/spinner"
-import { SessionRetry } from "@opencode-ai/session-ui/session-retry"
-import { ScrollView } from "@opencode-ai/ui/scroll-view"
-import { StickyAccordionHeader } from "@opencode-ai/ui/sticky-accordion-header"
-import { TextField } from "@opencode-ai/ui/text-field"
-import { TextReveal } from "@opencode-ai/ui/text-reveal"
-import { TextShimmer } from "@opencode-ai/ui/text-shimmer"
+} from "@aigcfroge/session-ui/message-part"
+import { HandoffButton } from "@aigcfroge/session-ui/handoff-button"
+import { DiffChanges } from "@aigcfroge/ui/v2/diff-changes-v2"
+import { FileIcon } from "@aigcfroge/ui/file-icon"
+import { Icon } from "@aigcfroge/ui/icon"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { DropdownMenu } from "@aigcfroge/ui/dropdown-menu"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
+import { InlineInput } from "@aigcfroge/ui/inline-input"
+import { Spinner } from "@aigcfroge/ui/spinner"
+import { SessionRetry } from "@aigcfroge/session-ui/session-retry"
+import { ScrollView } from "@aigcfroge/ui/scroll-view"
+import { StickyAccordionHeader } from "@aigcfroge/ui/sticky-accordion-header"
+import { TextField } from "@aigcfroge/ui/text-field"
+import { TextReveal } from "@aigcfroge/ui/text-reveal"
+import { TextShimmerV2 } from "@aigcfroge/ui/v2/text-shimmer-v2"
 import type {
   AssistantMessage,
   Message as MessageType,
   Part as PartType,
   ToolPart,
   UserMessage,
-} from "@opencode-ai/sdk/v2"
+} from "@aigcfroge/sdk/v2"
 import { showToast } from "@/utils/toast"
-import { getDirectory, getFilename } from "@opencode-ai/core/util/path"
+import { getDirectory, getFilename } from "@aigcfroge/core/util/path"
 import { Popover as KobaltePopover } from "@kobalte/core/popover"
-import { normalize } from "@opencode-ai/session-ui/session-diff"
-import { useFileComponent } from "@opencode-ai/ui/context/file"
+import { normalize } from "@aigcfroge/session-ui/session-diff"
+import { useFileComponent } from "@aigcfroge/ui/context/file"
 import { shouldMarkBoundaryGesture, normalizeWheelDelta } from "@/pages/session/message-gesture"
 import { SessionContextUsage } from "@/components/session-context-usage"
-import { useDialog } from "@opencode-ai/ui/context/dialog"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 import { useLanguage } from "@/context/language"
+import { useMode } from "@/context/mode"
 import { useSessionKey } from "@/pages/session/session-layout"
 import { useServerSDK } from "@/context/server-sdk"
 import { usePlatform } from "@/context/platform"
 import { useSettings } from "@/context/settings"
 import { useTabs } from "@/context/tabs"
-import { legacySessionHref, requireServerKey, sessionHref } from "@/utils/session-route"
+import { requireServerKey, sessionHref } from "@/utils/session-route"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { notifySessionTabsRemoved } from "@/components/titlebar-session-events"
@@ -133,7 +135,7 @@ function TimelineThinkingRow(props: { reasoningHeading?: string; showReasoningSu
 
   return (
     <div data-slot="session-turn-thinking">
-      <TextShimmer text={language.t("ui.sessionTurn.status.thinking")} />
+      <TextShimmerV2 text={language.t("ui.sessionTurn.status.thinking")} />
       <Show when={!props.showReasoningSummaries}>
         <TextReveal text={props.reasoningHeading} class="session-turn-thinking-heading" travel={25} duration={700} />
       </Show>
@@ -172,7 +174,7 @@ function TimelineDiffSummaryRow(props: { diffs: SummaryDiff[] }) {
         </Show>
       </div>
       <div data-component="session-turn-diffs-content">
-        <Accordion
+        <AccordionV2
           multiple
           style={{ "--sticky-accordion-offset": "44px" }}
           value={expanded()}
@@ -183,9 +185,9 @@ function TimelineDiffSummaryRow(props: { diffs: SummaryDiff[] }) {
               const opened = createMemo(() => expanded().includes(diff.file))
 
               return (
-                <Accordion.Item value={diff.file}>
+                <AccordionV2.Item value={diff.file}>
                   <StickyAccordionHeader>
-                    <Accordion.Trigger>
+                    <AccordionV2.Trigger>
                       <div data-slot="session-turn-diff-trigger">
                         <span data-slot="session-turn-diff-path">
                           <Show when={diff.file.includes("/")}>
@@ -202,18 +204,18 @@ function TimelineDiffSummaryRow(props: { diffs: SummaryDiff[] }) {
                           </span>
                         </div>
                       </div>
-                    </Accordion.Trigger>
+                    </AccordionV2.Trigger>
                   </StickyAccordionHeader>
-                  <Accordion.Content>
+                  <AccordionV2.Content>
                     <Show when={opened()}>
                       <TimelineDiffView diff={diff} />
                     </Show>
-                  </Accordion.Content>
-                </Accordion.Item>
+                  </AccordionV2.Content>
+                </AccordionV2.Item>
               )
             }}
           </For>
-        </Accordion>
+        </AccordionV2>
         <Show when={!showAll() && overflow() > 0}>
           <div data-slot="session-turn-diffs-more" onClick={() => setState("showAll", true)}>
             {language.t("ui.sessionTurn.diffs.more", { count: String(overflow()) })}
@@ -239,7 +241,7 @@ export function MessageTimeline(props: {
   actions?: UserActions
   scroll: { overflow: boolean; bottom: boolean; jump: boolean }
   onResumeScroll: () => void
-  setScrollRef: (el: HTMLDivElement | undefined) => void
+  setScrollRef: (el: HTMLDivElement | undefined, owner: HTMLDivElement) => void
   onScheduleScrollState: (el: HTMLDivElement) => void
   onAutoScrollHandleScroll: () => void
   onMarkScrollGesture: (target?: EventTarget | null) => void
@@ -254,7 +256,10 @@ export function MessageTimeline(props: {
   anchor: (id: string) => string
   setRevealMessage?: (fn: (id: string) => void) => void
   setScrollToEnd?: (fn: () => void) => void
-  setHistoryAnchor?: (handlers: { capture: () => void; restore: (done: boolean) => void }) => void
+  setHistoryAnchor?: (
+    handlers: { capture: () => void; restore: (done: boolean) => void } | undefined,
+    owner: HTMLDivElement,
+  ) => void
 }) {
   let touchGesture: number | undefined
 
@@ -266,6 +271,7 @@ export function MessageTimeline(props: {
   const tabs = useTabs()
   const dialog = useDialog()
   const language = useLanguage()
+  const mode = useMode()
   const { params, sessionKey } = useSessionKey()
   const ownerSessionKey = sessionKey()
   const cached = timelineCache.get(ownerSessionKey)
@@ -274,6 +280,7 @@ export function MessageTimeline(props: {
   const platform = usePlatform()
 
   const [listRoot, setListRoot] = createSignal<HTMLDivElement>()
+  let boundListRoot: HTMLDivElement | undefined
   const sessionID = createMemo(() => params.id)
   const sessionStatus = createMemo(() => {
     const id = sessionID()
@@ -283,6 +290,22 @@ export function MessageTimeline(props: {
   const working = createMemo(() => sessionStatus().type !== "idle")
   const sessionMessages = createMemo(() => (sessionID() ? (sync().data.message[sessionID()!] ?? []) : []))
   const tint = createMemo(() => messageAgentColor(sessionMessages(), sync().data.agent))
+
+  const currentAgentName = createMemo(() => {
+    const msgs = sessionMessages()
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const msg = msgs[i]
+      if (msg.role === "user" && msg.agent) return msg.agent
+    }
+    return undefined
+  })
+
+  const handoffs = createMemo<ReadonlyArray<{ readonly label: string; readonly agent: string; readonly prompt: string }>>(() => {
+    const name = currentAgentName()
+    if (!name) return []
+    const agent = (sync().data.agent as ReadonlyArray<{ name: string; handoffs?: Array<{ label: string; agent: string; prompt: string }> }>).find((a) => a.name === name)
+    return agent?.handoffs ?? []
+  })
 
   const [timeoutDone, setTimeoutDone] = createSignal(true)
 
@@ -495,7 +518,6 @@ export function MessageTimeline(props: {
       virtualizer.scrollToIndex(index, { align: "center" })
     })
     props.setScrollToEnd?.(() => virtualizer.scrollToEnd())
-    props.setHistoryAnchor?.({ capture: capturePrependAnchor, restore: restorePrependAnchor })
   })
 
   let overscanFrame: number | undefined
@@ -551,7 +573,10 @@ export function MessageTimeline(props: {
     if (overscanFrame !== undefined) cancelAnimationFrame(overscanFrame)
     props.setRevealMessage?.(() => {})
     props.setScrollToEnd?.(() => {})
-    props.setHistoryAnchor?.({ capture: () => {}, restore: () => {} })
+    if (boundListRoot) {
+      props.setScrollRef(undefined, boundListRoot)
+      props.setHistoryAnchor?.(undefined, boundListRoot)
+    }
   })
 
   const [title, setTitle] = createStore({
@@ -581,9 +606,24 @@ export function MessageTimeline(props: {
   createResizeObserver(() => head, updateTitleMetrics)
 
   const bindListRoot = (root: HTMLDivElement) => {
-    if (root === listRoot()) return
-    setListRoot(root)
-    props.setScrollRef(root)
+    boundListRoot = root
+    let active = false
+    const update = () => {
+      const next = root.clientWidth > 0 && root.clientHeight > 0
+      if (next === active) return
+      active = next
+      if (!next) {
+        if (listRoot() === root) setListRoot(undefined)
+        props.setScrollRef(undefined, root)
+        props.setHistoryAnchor?.(undefined, root)
+        return
+      }
+      setListRoot(root)
+      props.setScrollRef(root, root)
+      props.setHistoryAnchor?.({ capture: capturePrependAnchor, restore: restorePrependAnchor }, root)
+    }
+    createResizeObserver(root, update)
+    update()
   }
 
   const handleListWheel = (event: WheelEvent & { currentTarget: HTMLDivElement }) => {
@@ -639,10 +679,6 @@ export function MessageTimeline(props: {
     props.onAutoScrollHandleScroll()
     props.onMarkScrollGesture(event.currentTarget)
   }
-
-  onCleanup(() => {
-    props.setScrollRef(undefined)
-  })
 
   const viewShare = () => {
     const url = shareUrl()
@@ -764,8 +800,13 @@ export function MessageTimeline(props: {
 
   const navigateAfterSessionRemoval = (sessionID: string, parentID?: string, nextSessionID?: string) => {
     if (params.id !== sessionID) return
+    const key = params.serverKey
+    if (!key) {
+      navigate(`/${params.dir}/session`)
+      return
+    }
     const href = (id: string) =>
-      params.serverKey ? sessionHref(requireServerKey(params.serverKey), id) : legacySessionHref(sdk().directory, id)
+      sessionHref(requireServerKey(key), id)
     if (parentID) {
       navigate(href(parentID))
       return
@@ -774,11 +815,7 @@ export function MessageTimeline(props: {
       navigate(href(nextSessionID))
       return
     }
-    if (params.serverKey) {
-      tabs.newDraft({ server: requireServerKey(params.serverKey), directory: sdk().directory })
-      return
-    }
-    navigate(`/${params.dir}/session`)
+    tabs.newDraft({ server: requireServerKey(key), directory: sdk().directory, mode: mode.currentMode })
   }
 
   const archiveSession = async (sessionID: string) => {
@@ -877,8 +914,10 @@ export function MessageTimeline(props: {
   const navigateParent = () => {
     const id = parentID()
     if (!id) return
+    const key = params.serverKey
+    if (!key) return
     navigate(
-      params.serverKey ? sessionHref(requireServerKey(params.serverKey), id) : legacySessionHref(sdk().directory, id),
+      sessionHref(requireServerKey(key), id),
     )
   }
 
@@ -1130,6 +1169,23 @@ export function MessageTimeline(props: {
                 aria-hidden={workingTurn(assistantPartRow().userMessageID)}
               >
                 {renderAssistantPartGroup(assistantPartRow, onSizeChange)}
+                <Show
+                  when={
+                    lastAssistantGroupKey().get(assistantPartRow().userMessageID) === assistantPartRow().group.key &&
+                    !workingTurn(assistantPartRow().userMessageID) &&
+                    handoffs().length > 0 &&
+                    props.actions?.handoff
+                  }
+                >
+                  <HandoffButton
+                    actions={handoffs().map((h) => ({
+                      label: h.label,
+                      agent: h.agent,
+                      prompt: h.prompt,
+                      onClick: () => props.actions!.handoff!(h.agent, h.prompt),
+                    }))}
+                  />
+                </Show>
               </div>
             </div>
           </TimelineRowFrame>
@@ -1301,8 +1357,8 @@ export function MessageTimeline(props: {
               "w-full": true,
               "pb-4": true,
               "pr-3": true,
-              "pl-4": settings.general.newLayoutDesigns(),
-              "pl-2 md:pl-4": !settings.general.newLayoutDesigns(),
+              "pl-4": true,
+              "pl-2 md:pl-4": false,
               "md:max-w-200 md:mx-auto 2xl:max-w-[1000px]": props.centered,
             }}
           >
@@ -1381,7 +1437,7 @@ export function MessageTimeline(props: {
                           event.stopPropagation()
                           if (event.key === "Enter") {
                             event.preventDefault()
-                            void saveTitleEditor()
+                            saveTitleEditor()
                             return
                           }
                           if (event.key === "Escape") {

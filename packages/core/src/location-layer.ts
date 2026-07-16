@@ -7,6 +7,7 @@ import { Catalog } from "./catalog"
 import { Integration } from "./integration"
 import { CommandV2 } from "./command"
 import { AgentV2 } from "./agent"
+import { AgentFileLoader } from "./agent/file-loader"
 import { PluginInternal } from "./plugin/internal"
 import { Project } from "./project"
 import { ProjectCopy } from "./project/copy"
@@ -33,28 +34,31 @@ import { Pty } from "./pty"
 import { SkillV2 } from "./skill"
 import { SkillGuidance } from "./skill/guidance"
 import { BuiltInTools } from "./tool/builtins"
+
 import { Image } from "./image"
 import { ToolRegistry } from "./tool/registry"
 import { ApplicationTools } from "./tool/application-tools"
 import { ToolOutputStore } from "./tool-output-store"
 import { AppProcess } from "./process"
+import { CrossSpawnSpawner } from "./cross-spawn-spawner"
 import { SessionStore } from "./session/store"
 import { SessionTodo } from "./session/todo"
 import { QuestionV2 } from "./question"
-import { LLMClient } from "@opencode-ai/llm"
-import { RequestExecutor } from "@opencode-ai/llm/route"
+import { LLMClient } from "@aigcfroge/llm"
+import { RequestExecutor } from "@aigcfroge/llm/route"
 import * as SessionRunnerLLM from "./session/runner/llm"
 import { SessionRunnerModel } from "./session/runner/model"
 import { SystemContextBuiltIns } from "./system-context/builtins"
 import { FetchHttpClient } from "effect/unstable/http"
 
-export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("@opencode/example/LocationServiceMap", {
+export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("@aigcfroge/example/LocationServiceMap", {
   lookup: (ref: Location.Ref) => {
     const boot = Layer.effectDiscard(
       Effect.logInfo("booting location services", { directory: ref.directory, workspaceID: ref.workspaceID }),
     )
     const location = Location.layer(ref)
     const systemContext = SystemContextBuiltIns.locationLayer
+    const agentV2Layer = AgentV2.fileLayer.pipe(Layer.provide(AgentFileLoader.layer))
     const base = Layer.mergeAll(
       location,
       Policy.locationLayer,
@@ -64,7 +68,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       Catalog.locationLayer,
       Integration.locationLayer,
       CommandV2.locationLayer,
-      AgentV2.locationLayer,
+      agentV2Layer,
       PluginInternal.locationLayer,
       ProjectCopy.locationLayer,
       FileSystem.locationLayer,
@@ -73,6 +77,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       SkillV2.locationLayer,
       systemContext,
       LocationMutation.locationLayer.pipe(Layer.orDie),
+      CrossSpawnSpawner.defaultLayer,
     ).pipe(Layer.provideMerge(location))
     const resources = ToolOutputStore.layer.pipe(Layer.provide(base))
     const permissionsAndTools = ToolRegistry.layer.pipe(
@@ -87,6 +92,9 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
     const referenceGuidance = ReferenceGuidance.locationLayer.pipe(Layer.provide(services))
     const todos = SessionTodo.layer.pipe(Layer.provide(services))
     const questions = QuestionV2.locationLayer.pipe(Layer.provide(services))
+    // The `task` built-in reaches child Sessions through the TaskDriver module
+    // bridge (a plain Deferred filled by the composition root), not a Layer, so
+    // BuiltInTools carries no extra requirement here. See tool/task-driver.ts.
     const builtInTools = BuiltInTools.locationLayer.pipe(
       Layer.provide(services),
       Layer.provide(mutation),

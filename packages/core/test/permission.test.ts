@@ -1,19 +1,19 @@
 import { describe, expect } from "bun:test"
 import { Deferred, Effect, Fiber, Layer } from "effect"
-import { AgentV2 } from "@opencode-ai/core/agent"
-import { Database } from "@opencode-ai/core/database/database"
-import { EventV2 } from "@opencode-ai/core/event"
-import { Location } from "@opencode-ai/core/location"
-import { PermissionV2 } from "@opencode-ai/core/permission"
-import { PermissionTable } from "@opencode-ai/core/permission/sql"
-import { PermissionSaved } from "@opencode-ai/core/permission/saved"
-import { Project } from "@opencode-ai/core/project"
-import { ProjectTable } from "@opencode-ai/core/project/sql"
-import { AbsolutePath } from "@opencode-ai/core/schema"
-import { SessionV2 } from "@opencode-ai/core/session"
-import { SessionTable } from "@opencode-ai/core/session/sql"
-import { SessionExecution } from "@opencode-ai/core/session/execution"
-import { SessionStore } from "@opencode-ai/core/session/store"
+import { AgentV2 } from "@aigcfroge/core/agent"
+import { Database } from "@aigcfroge/core/database/database"
+import { EventV2 } from "@aigcfroge/core/event"
+import { Location } from "@aigcfroge/core/location"
+import { PermissionV2 } from "@aigcfroge/core/permission"
+import { PermissionTable } from "@aigcfroge/core/permission/sql"
+import { PermissionSaved } from "@aigcfroge/core/permission/saved"
+import { Project } from "@aigcfroge/core/project"
+import { ProjectTable } from "@aigcfroge/core/project/sql"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { SessionV2 } from "@aigcfroge/core/session"
+import { SessionTable } from "@aigcfroge/core/session/sql"
+import { SessionExecution } from "@aigcfroge/core/session/execution"
+import { SessionStore } from "@aigcfroge/core/session/store"
 import { eq } from "drizzle-orm"
 import { location } from "./fixture/location"
 import { testEffect } from "./lib/effect"
@@ -290,11 +290,56 @@ describe("PermissionV2", () => {
         yield* db.select().from(PermissionTable).where(eq(PermissionTable.project_id, Project.ID.global)).all(),
       ).toMatchObject([{ action: "read", resource: "src/*" }])
       const saved = yield* PermissionSaved.Service
-      const id = (yield* saved.list())[0]!.id
+      const id = (yield* saved.list())[0].id
       expect(yield* saved.list()).toEqual([{ id, projectID: Project.ID.global, action: "read", resource: "src/*" }])
       yield* service.assert(assertion({ id: PermissionV2.ID.create("per_next"), resources: ["src/next.ts"] }))
       yield* saved.remove(id)
       expect(yield* saved.list()).toEqual([])
+    }),
+  )
+
+  it.effect("root Session preserves ask rules (user is present)", () =>
+    Effect.gen(function* () {
+      // ses_test has no parentID → root session. ask rules stay as ask.
+      yield* setup([{ action: "read", resource: "*", effect: "ask" }])
+      const service = yield* PermissionV2.Service
+      expect(yield* service.ask(assertion())).toMatchObject({ effect: "ask" })
+    }),
+  )
+
+  it.effect("unattended child Session converts ask to deny", () =>
+    Effect.gen(function* () {
+      // Agent has an explicit ask rule for read.
+      yield* setup([{ action: "read", resource: "*", effect: "ask" }])
+      // Mark ses_test as a child (parent_id set) with attended=false (default).
+      const { db } = yield* Database.Service
+      yield* db
+        .update(SessionTable)
+        .set({ parent_id: SessionV2.ID.make("ses_parent"), attended: 0 })
+        .where(eq(SessionTable.id, SessionV2.ID.make("ses_test")))
+        .run()
+        .pipe(Effect.orDie)
+
+      const service = yield* PermissionV2.Service
+      // Unattended child → ask rule converted to deny.
+      expect(yield* service.ask(assertion())).toMatchObject({ effect: "deny" })
+    }),
+  )
+
+  it.effect("attended child Session preserves ask rules", () =>
+    Effect.gen(function* () {
+      yield* setup([{ action: "read", resource: "*", effect: "ask" }])
+      const { db } = yield* Database.Service
+      yield* db
+        .update(SessionTable)
+        .set({ parent_id: SessionV2.ID.make("ses_parent"), attended: 1 })
+        .where(eq(SessionTable.id, SessionV2.ID.make("ses_test")))
+        .run()
+        .pipe(Effect.orDie)
+
+      const service = yield* PermissionV2.Service
+      // attended=true → ask preserved (user will respond).
+      expect(yield* service.ask(assertion())).toMatchObject({ effect: "ask" })
     }),
   )
 })

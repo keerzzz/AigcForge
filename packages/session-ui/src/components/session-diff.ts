@@ -1,6 +1,6 @@
 import { parseDiffFromFile, parsePatchFiles, type FileDiffMetadata } from "@pierre/diffs"
 import { parsePatch } from "diff"
-import type { SnapshotFileDiff, VcsFileDiff } from "@opencode-ai/sdk/v2"
+import type { SnapshotFileDiff, VcsFileDiff } from "@aigcfroge/sdk/v2"
 
 type LegacyDiff = {
   file: string
@@ -46,7 +46,8 @@ export function normalize(diff: ReviewDiff): ViewDiff {
   }
 }
 
-export function text(diff: ViewDiff, side: "deletions" | "additions") {
+export function text(diff: ViewDiff | undefined, side: "deletions" | "additions") {
+  if (!diff?.fileDiff) return ""
   if (side === "deletions") return diff.fileDiff.deletionLines.join("")
   return diff.fileDiff.additionLines.join("")
 }

@@ -1,10 +1,10 @@
 import { batch, createEffect, createMemo, onCleanup } from "solid-js"
 import { createStore, produce, reconcile } from "solid-js/store"
-import { createSimpleContext } from "@opencode-ai/ui/context"
+import { createSimpleContext } from "@aigcfroge/ui/context"
 import { showToast } from "@/utils/toast"
 import { useParams } from "@solidjs/router"
-import { base64Encode } from "@opencode-ai/core/util/encode"
-import { getFilename } from "@opencode-ai/core/util/path"
+import { base64Encode } from "@aigcfroge/core/util/encode"
+import { getFilename } from "@aigcfroge/core/util/path"
 import { useSDK } from "./sdk"
 import { useSync } from "./sync"
 import { useLanguage } from "@/context/language"
@@ -85,7 +85,6 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
           .then((x) => x.data ?? []),
       onError: (message) => {
         showToast({
-          variant: "error",
           title: language.t("toast.file.listFailed.title"),
           description: message,
         })
@@ -158,7 +157,6 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
         }),
       )
       showToast({
-        variant: "error",
         title: language.t("toast.file.loadFailed.title"),
         description: message,
       })

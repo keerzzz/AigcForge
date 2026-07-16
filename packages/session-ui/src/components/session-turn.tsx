@@ -3,27 +3,27 @@ import {
   type SnapshotFileDiff,
   Message as MessageType,
   Part as PartType,
-} from "@opencode-ai/sdk/v2/client"
-import type { SessionStatus } from "@opencode-ai/sdk/v2"
+} from "@aigcfroge/sdk/v2/client"
+import type { SessionStatus } from "@aigcfroge/sdk/v2"
 import { useData } from "../context"
-import { useFileComponent } from "@opencode-ai/ui/context/file"
+import { useFileComponent } from "@aigcfroge/ui/context/file"
 
-import { Binary } from "@opencode-ai/core/util/binary"
-import { getDirectory, getFilename } from "@opencode-ai/core/util/path"
+import { Binary } from "@aigcfroge/core/util/binary"
+import { getDirectory, getFilename } from "@aigcfroge/core/util/path"
 import { createEffect, createMemo, createSignal, For, on, ParentProps, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { Dynamic } from "solid-js/web"
 import { AssistantParts, Message, MessageDivider, PART_MAPPING, type UserActions } from "./message-part"
-import { Card } from "@opencode-ai/ui/card"
-import { Accordion } from "@opencode-ai/ui/accordion"
-import { StickyAccordionHeader } from "@opencode-ai/ui/sticky-accordion-header"
-import { DiffChanges } from "@opencode-ai/ui/diff-changes"
-import { Icon } from "@opencode-ai/ui/icon"
-import { TextShimmer } from "@opencode-ai/ui/text-shimmer"
+import { Card } from "@aigcfroge/ui/card"
+import { AccordionV2 } from "@aigcfroge/ui/v2/accordion-v2"
+import { StickyAccordionHeader } from "@aigcfroge/ui/sticky-accordion-header"
+import { DiffChanges } from "@aigcfroge/ui/v2/diff-changes-v2"
+import { Icon } from "@aigcfroge/ui/icon"
+import { TextShimmerV2 } from "@aigcfroge/ui/v2/text-shimmer-v2"
 import { SessionRetry } from "./session-retry"
-import { TextReveal } from "@opencode-ai/ui/text-reveal"
-import { createAutoScroll } from "@opencode-ai/ui/hooks"
-import { useI18n } from "@opencode-ai/ui/context/i18n"
+import { TextReveal } from "@aigcfroge/ui/text-reveal"
+import { createAutoScroll } from "@aigcfroge/ui/hooks"
+import { useI18n } from "@aigcfroge/ui/context/i18n"
 import { normalize } from "./session-diff"
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -161,6 +161,7 @@ export function SessionTurn(
     active?: boolean
     status?: SessionStatus
     onUserInteracted?: () => void
+    handoffs?: ReadonlyArray<{ readonly label: string; readonly agent: string; readonly prompt: string }>
     classes?: {
       root?: string
       content?: string
@@ -280,7 +281,7 @@ export function SessionTurn(
       for (let i = 0; i < messages.length; i++) {
         const item = messages[i]
         if (!item) continue
-        if (item.role === "assistant" && item.parentID === msg.id) result.push(item as AssistantMessage)
+        if (item.role === "assistant" && item.parentID === msg.id) result.push(item)
       }
       return result
     },
@@ -398,7 +399,7 @@ export function SessionTurn(
               class={props.classes?.container}
             >
               <div data-slot="session-turn-message-content" aria-live="off">
-                <Message message={message()!} parts={parts()} actions={props.actions} />
+                <Message message={message()!} parts={parts()} actions={props.actions} handoffs={props.handoffs} />
               </div>
               <Show when={divider()}>
                 <div data-slot="session-turn-compaction">
@@ -420,7 +421,7 @@ export function SessionTurn(
               </Show>
               <Show when={showThinking()}>
                 <div data-slot="session-turn-thinking">
-                  <TextShimmer text={i18n.t("ui.sessionTurn.status.thinking")} />
+                  <TextShimmerV2 text={i18n.t("ui.sessionTurn.status.thinking")} />
                   <Show when={!showReasoningSummaries()}>
                     <TextReveal
                       text={reasoningHeading()}
@@ -451,7 +452,7 @@ export function SessionTurn(
                     </Show>
                   </div>
                   <div data-component="session-turn-diffs-content">
-                    <Accordion
+                    <AccordionV2
                       multiple
                       style={{ "--sticky-accordion-offset": "44px" }}
                       value={expanded()}
@@ -482,9 +483,9 @@ export function SessionTurn(
                           )
 
                           return (
-                            <Accordion.Item value={diff.file}>
+                            <AccordionV2.Item value={diff.file}>
                               <StickyAccordionHeader>
-                                <Accordion.Trigger>
+                                <AccordionV2.Trigger>
                                   <div data-slot="session-turn-diff-trigger">
                                     <span data-slot="session-turn-diff-path">
                                       <Show when={diff.file.includes("/")}>
@@ -503,20 +504,20 @@ export function SessionTurn(
                                       </span>
                                     </div>
                                   </div>
-                                </Accordion.Trigger>
+                                </AccordionV2.Trigger>
                               </StickyAccordionHeader>
-                              <Accordion.Content>
+                              <AccordionV2.Content>
                                 <Show when={shown()}>
                                   <div data-slot="session-turn-diff-view" data-scrollable>
                                     <Dynamic component={fileComponent} mode="diff" fileDiff={view.fileDiff} />
                                   </div>
                                 </Show>
-                              </Accordion.Content>
-                            </Accordion.Item>
+                              </AccordionV2.Content>
+                            </AccordionV2.Item>
                           )
                         }}
                       </For>
-                    </Accordion>
+                    </AccordionV2>
                     <Show when={!showAll() && overflow() > 0}>
                       <div data-slot="session-turn-diffs-more" onClick={toggleAll}>
                         {i18n.t("ui.sessionTurn.diffs.more", { count: String(overflow()) })}

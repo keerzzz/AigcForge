@@ -1,10 +1,10 @@
-import { useDialog } from "@opencode-ai/ui/context/dialog"
-import { Tag } from "@opencode-ai/ui/v2/badge-v2"
-import { ButtonV2 } from "@opencode-ai/ui/v2/button-v2"
-import { Dialog } from "@opencode-ai/ui/v2/dialog-v2"
-import { Icon as IconV2 } from "@opencode-ai/ui/v2/icon"
-import { IconButtonV2 } from "@opencode-ai/ui/v2/icon-button-v2"
-import { MenuV2 } from "@opencode-ai/ui/v2/menu-v2"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { Tag } from "@aigcfroge/ui/v2/badge-v2"
+import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
+import { Icon as IconV2 } from "@aigcfroge/ui/v2/icon"
+import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
+import { MenuV2 } from "@aigcfroge/ui/v2/menu-v2"
 import { useMutation } from "@tanstack/solid-query"
 import fuzzysort from "fuzzysort"
 import { type Accessor, For, Show, createMemo } from "solid-js"
@@ -16,7 +16,7 @@ import { ServerConnection } from "@/context/server"
 import { showToast } from "@/utils/toast"
 import { DialogAddWslServer } from "./dialog-add-server"
 import { useWslServers } from "./context"
-import { wslOpencodeAction, wslRuntimeRetryable } from "./settings-model"
+import { wslAigcfrogeAction, wslRuntimeRetryable } from "./settings-model"
 
 type Controller = ReturnType<typeof useServerManagementController>
 
@@ -29,7 +29,7 @@ export function AddServerMenu(props: { onAddServer: () => void }) {
   const dialog = useDialog()
   const language = useLanguage()
   const openAddWsl = () => {
-    dialog.push(() => (
+    void dialog.push(() => (
       <Dialog title={language.t("wsl.server.add")} size="large" fit class="settings-v2-wsl-dialog">
         <DialogAddWslServer />
       </Dialog>
@@ -84,7 +84,6 @@ export function WslServerSettings(props: {
     mutationFn: (action: () => Promise<unknown>) => action(),
     onError: (error) =>
       showToast({
-        variant: "error",
         title: language.t("common.requestFailed"),
         description: error instanceof Error ? error.message : String(error),
       }),
@@ -99,9 +98,9 @@ export function WslServerSettings(props: {
       <For each={props.servers()}>
         {(item) => {
           const key = ServerConnection.Key.make(item.config.id)
-          const check = () => wsl.data?.opencodeChecks[item.config.distro]
-          const opencodeAction = () => wslOpencodeAction(check())
-          const busy = () => wsl.data?.job?.kind === "install-opencode" && wsl.data.job.distro === item.config.distro
+          const check = () => wsl.data?.aigcfrogeChecks[item.config.distro]
+          const aigcfrogeAction = () => wslAigcfrogeAction(check())
+          const busy = () => wsl.data?.job?.kind === "install-aigcfroge" && wsl.data.job.distro === item.config.distro
           return (
             <div class="settings-v2-servers-row">
               <div class="settings-v2-servers-lead">
@@ -122,12 +121,12 @@ export function WslServerSettings(props: {
                 <Show when={props.controller.canDefault() && props.controller.defaultKey() === key}>
                   <Tag>{language.t("dialog.server.status.default")}</Tag>
                 </Show>
-                <Show when={opencodeAction()}>
+                <Show when={aigcfrogeAction()}>
                   {(label) => (
                     <ButtonV2
                       size="small"
                       disabled={busy() || request.isPending}
-                      onClick={() => api && request.mutate(() => api.installOpencode(item.config.distro))}
+                      onClick={() => api && request.mutate(() => api.installAigcfroge(item.config.distro))}
                     >
                       {busy() ? language.t("wsl.server.updating") : label()}
                     </ButtonV2>

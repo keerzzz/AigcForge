@@ -1,13 +1,13 @@
-import { AISDK } from "@opencode-ai/core/aisdk"
+import { AISDK } from "@aigcfroge/core/aisdk"
 import { describe, expect } from "bun:test"
 import type { LanguageModelV3 } from "@ai-sdk/provider"
 import { Effect } from "effect"
-import { Catalog } from "@opencode-ai/core/catalog"
-import { ModelV2 } from "@opencode-ai/core/model"
-import { PluginV2 } from "@opencode-ai/core/plugin"
-import { PluginHost } from "@opencode-ai/core/plugin/host"
-import { AzureCognitiveServicesPlugin } from "@opencode-ai/core/plugin/provider/azure"
-import { ProviderV2 } from "@opencode-ai/core/provider"
+import { Catalog } from "@aigcfroge/core/catalog"
+import { ModelV2 } from "@aigcfroge/core/model"
+import { PluginV2 } from "@aigcfroge/core/plugin"
+import { PluginHost } from "@aigcfroge/core/plugin/host"
+import { AzureCognitiveServicesPlugin } from "@aigcfroge/core/plugin/provider/azure"
+import { ProviderV2 } from "@aigcfroge/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -15,7 +15,7 @@ const it = testEffect(PluginTestLayer)
 
 const addPlugin = Effect.fn(function* () {
   const plugin = yield* PluginV2.Service
-  const aisdk = yield* AISDK.Service
+  yield* AISDK.Service
   const host = yield* PluginHost.make(plugin)
   yield* AzureCognitiveServicesPlugin.effect(host)
 })
@@ -115,7 +115,7 @@ describe("AzureCognitiveServicesPlugin", () => {
 
   it.effect("selects chat only for completion URLs", () =>
     Effect.gen(function* () {
-      const plugin = yield* PluginV2.Service
+      yield* PluginV2.Service
       const aisdk = yield* AISDK.Service
       const calls: string[] = []
       yield* addPlugin()
@@ -133,7 +133,7 @@ describe("AzureCognitiveServicesPlugin", () => {
 
   it.effect("uses the legacy Azure selector order and provider guard", () =>
     Effect.gen(function* () {
-      const plugin = yield* PluginV2.Service
+      yield* PluginV2.Service
       const aisdk = yield* AISDK.Service
       const calls: string[] = []
       yield* addPlugin()
@@ -160,7 +160,7 @@ describe("AzureCognitiveServicesPlugin", () => {
 
   it.effect("falls back from responses to messages, chat, then languageModel", () =>
     Effect.gen(function* () {
-      const plugin = yield* PluginV2.Service
+      yield* PluginV2.Service
       const aisdk = yield* AISDK.Service
       const calls: string[] = []
       const sdk = fakeSelectorSdk(calls)

@@ -1,27 +1,27 @@
 import { describe, expect } from "bun:test"
 import path from "path"
 import { Effect, Layer, Stream } from "effect"
-import { AgentV2 } from "@opencode-ai/core/agent"
+import { AgentV2 } from "@aigcfroge/core/agent"
 import { asc, eq } from "drizzle-orm"
-import { Database } from "@opencode-ai/core/database/database"
-import { EventV2 } from "@opencode-ai/core/event"
-import { EventTable } from "@opencode-ai/core/event/sql"
-import { Location } from "@opencode-ai/core/location"
-import { ModelV2 } from "@opencode-ai/core/model"
-import { ProjectV2 } from "@opencode-ai/core/project"
-import { ProjectTable } from "@opencode-ai/core/project/sql"
-import { ProviderV2 } from "@opencode-ai/core/provider"
-import { AbsolutePath } from "@opencode-ai/core/schema"
-import { SessionV2 } from "@opencode-ai/core/session"
-import { SessionV1 } from "@opencode-ai/core/v1/session"
-import { Prompt } from "@opencode-ai/core/session/prompt"
-import { SessionProjector } from "@opencode-ai/core/session/projector"
-import { SessionExecution } from "@opencode-ai/core/session/execution"
-import { SessionInput } from "@opencode-ai/core/session/input"
-import { SessionEvent } from "@opencode-ai/core/session/event"
-import { SessionTable } from "@opencode-ai/core/session/sql"
-import { SessionStore } from "@opencode-ai/core/session/store"
-import { WorkspaceV2 } from "@opencode-ai/core/workspace"
+import { Database } from "@aigcfroge/core/database/database"
+import { EventV2 } from "@aigcfroge/core/event"
+import { EventTable } from "@aigcfroge/core/event/sql"
+import { Location } from "@aigcfroge/core/location"
+import { ModelV2 } from "@aigcfroge/core/model"
+import { ProjectV2 } from "@aigcfroge/core/project"
+import { ProjectTable } from "@aigcfroge/core/project/sql"
+import { ProviderV2 } from "@aigcfroge/core/provider"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { SessionV2 } from "@aigcfroge/core/session"
+import { SessionV1 } from "@aigcfroge/core/v1/session"
+import { Prompt } from "@aigcfroge/core/session/prompt"
+import { SessionProjector } from "@aigcfroge/core/session/projector"
+import { SessionExecution } from "@aigcfroge/core/session/execution"
+import { SessionInput } from "@aigcfroge/core/session/input"
+import { SessionEvent } from "@aigcfroge/core/session/event"
+import { SessionTable } from "@aigcfroge/core/session/sql"
+import { SessionStore } from "@aigcfroge/core/session/store"
+import { WorkspaceV2 } from "@aigcfroge/core/workspace"
 import { testEffect } from "./lib/effect"
 import { tmpdir } from "./fixture/tmpdir"
 
@@ -64,6 +64,19 @@ describe("SessionV2.create", () => {
 
       expect(second.id).not.toBe(first.id)
       expect(yield* session.list()).toHaveLength(2)
+    }),
+  )
+
+  it.effect("stores a root product mode and inherits it for children", () =>
+    Effect.gen(function* () {
+      const session = yield* SessionV2.Service
+      const parent = yield* session.create({ location, mode: "chat" })
+      const child = yield* session.create({ location, parentID: parent.id, mode: "work" })
+
+      expect(parent.mode).toBe("chat")
+      expect(child.mode).toBe("chat")
+      expect(yield* session.list({ mode: "chat" })).toEqual([child, parent])
+      expect(yield* session.list({ mode: "coding" })).toEqual([])
     }),
   )
 
@@ -323,8 +336,9 @@ describe("SessionV2.create", () => {
           Effect.map((error) => (error instanceof SessionV2.OperationUnavailableError ? error.operation : "not-found")),
         )
 
-      expect(yield* unavailable(session.shell({ sessionID: created.id, command: "pwd" }))).toBe("shell")
-      expect(yield* unavailable(session.skill({ sessionID: created.id, skill: "review" }))).toBe("skill")
+      // shell and skill are implemented (admit to the durable inbox); compact and wait remain stubs.
+      expect(yield* unavailable(session.compact({ sessionID: created.id }))).toBe("compact")
+      expect(yield* unavailable(session.wait(created.id))).toBe("wait")
     }),
   )
 

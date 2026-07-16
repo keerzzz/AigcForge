@@ -2,11 +2,11 @@ import fs from "fs/promises"
 import path from "path"
 import { describe, expect, test } from "bun:test"
 import { NodeFileSystem } from "@effect/platform-node"
-import { Effect, Layer, Option } from "effect"
-import { FSUtil } from "@opencode-ai/core/fs-util"
-import { Global } from "@opencode-ai/core/global"
-import { Npm } from "@opencode-ai/core/npm"
-import { EffectFlock } from "@opencode-ai/core/util/effect-flock"
+import { Effect, Layer } from "effect"
+import { FSUtil } from "@aigcfroge/core/fs-util"
+import { Global } from "@aigcfroge/core/global"
+import { Npm } from "@aigcfroge/core/npm"
+import { EffectFlock } from "@aigcfroge/core/util/effect-flock"
 import { tmpdir } from "./fixture/tmpdir"
 
 const win = process.platform === "win32"
@@ -30,14 +30,14 @@ const npmLayer = (cache: string) =>
 
 describe("Npm.sanitize", () => {
   test("keeps normal scoped package specs unchanged", () => {
-    expect(Npm.sanitize("@opencode/acme")).toBe("@opencode/acme")
-    expect(Npm.sanitize("@opencode/acme@1.0.0")).toBe("@opencode/acme@1.0.0")
+    expect(Npm.sanitize("@aigcfroge/acme")).toBe("@aigcfroge/acme")
+    expect(Npm.sanitize("@aigcfroge/acme@1.0.0")).toBe("@aigcfroge/acme@1.0.0")
     expect(Npm.sanitize("prettier")).toBe("prettier")
   })
 
   test("handles git https specs", () => {
-    const spec = "acme@git+https://github.com/opencode/acme.git"
-    const expected = win ? "acme@git+https_//github.com/opencode/acme.git" : spec
+    const spec = "acme@git+https://github.com/aigcfroge/acme.git"
+    const expected = win ? "acme@git+https_//github.com/aigcfroge/acme.git" : spec
     expect(Npm.sanitize(spec)).toBe(expected)
   })
 })
@@ -85,7 +85,7 @@ describe("Npm.install", () => {
 
     await Npm.install(tmp.path)
 
-    await expect(fs.stat(path.join(tmp.path, "node_modules", "prod-pkg"))).resolves.toBeDefined()
-    await expect(fs.stat(path.join(tmp.path, "node_modules", "dev-pkg"))).rejects.toThrow()
+    expect(fs.stat(path.join(tmp.path, "node_modules", "prod-pkg"))).resolves.toBeDefined()
+    expect(fs.stat(path.join(tmp.path, "node_modules", "dev-pkg"))).rejects.toThrow()
   })
 })

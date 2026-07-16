@@ -1,12 +1,11 @@
 import { Component, Show, createMemo, createResource, onMount, type JSX } from "solid-js"
-import { Button } from "@opencode-ai/ui/button"
-import { Icon } from "@opencode-ai/ui/icon"
-import { Select } from "@opencode-ai/ui/select"
-import { Switch } from "@opencode-ai/ui/switch"
-import { TextField } from "@opencode-ai/ui/text-field"
-import { Tooltip } from "@opencode-ai/ui/tooltip"
-import { useTheme, type ColorScheme } from "@opencode-ai/ui/theme/context"
-import { useDialog } from "@opencode-ai/ui/context/dialog"
+import { Button } from "@aigcfroge/ui/button"
+import { Icon } from "@aigcfroge/ui/icon"
+import { Select } from "@aigcfroge/ui/select"
+import { Switch } from "@aigcfroge/ui/v2/switch-v2"
+import { TextField } from "@aigcfroge/ui/text-field"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
+import { useTheme, type ColorScheme } from "@aigcfroge/ui/theme/context"
 import { useParams } from "@solidjs/router"
 import { useLanguage } from "@/context/language"
 import { usePermission } from "@/context/permission"
@@ -86,7 +85,6 @@ export const SettingsGeneral: Component = () => {
   const language = useLanguage()
   const permission = usePermission()
   const platform = usePlatform()
-  const dialog = useDialog()
   const params = useParams()
   const settings = useSettings()
 
@@ -290,7 +288,7 @@ export const SettingsGeneral: Component = () => {
             onSelect={(option) => {
               if (!option) return
               if (option.value === currentShell()) return
-              serverSync().updateConfig({ shell: option.value })
+              void serverSync().updateConfig({ shell: option.value })
             }}
             variant="secondary"
             size="small"
@@ -343,24 +341,6 @@ export const SettingsGeneral: Component = () => {
             <Switch
               checked={settings.general.showSessionProgressBar()}
               onChange={(checked) => settings.general.setShowSessionProgressBar(checked)}
-            />
-          </div>
-        </SettingsRow>
-
-        <SettingsRow
-          title={language.t("settings.general.row.newLayoutDesigns.title")}
-          description={language.t("settings.general.row.newLayoutDesigns.description")}
-        >
-          <div data-action="settings-new-layout-designs">
-            <Switch
-              checked={settings.general.newLayoutDesigns()}
-              onChange={(checked) => {
-                settings.general.setNewLayoutDesigns(checked)
-                if (!checked) return
-                void import("@/components/settings-v2").then((module) => {
-                  dialog.show(() => <module.DialogSettings />)
-                })
-              }}
             />
           </div>
         </SettingsRow>
@@ -432,6 +412,18 @@ export const SettingsGeneral: Component = () => {
             />
           </div>
         </SettingsRow>
+
+        <SettingsRow
+          title={language.t("settings.general.row.subagentAttendedDefault.title")}
+          description={language.t("settings.general.row.subagentAttendedDefault.description")}
+        >
+          <div data-action="settings-subagent-attended-default">
+            <Switch
+              checked={settings.general.subagentAttendedDefault()}
+              onChange={(checked) => settings.general.setSubagentAttendedDefault(checked)}
+            />
+          </div>
+        </SettingsRow>
       </SettingsList>
     </div>
   )
@@ -469,7 +461,7 @@ export const SettingsGeneral: Component = () => {
           description={
             <>
               {language.t("settings.general.row.theme.description")}{" "}
-              <Link href="https://opencode.ai/docs/themes/">{language.t("common.learnMore")}</Link>
+              <Link href="https://aigcfroge.ai/docs/themes/">{language.t("common.learnMore")}</Link>
             </>
           }
         >
@@ -712,11 +704,11 @@ export const SettingsGeneral: Component = () => {
               title={
                 <div class="flex items-center gap-2">
                   <span>{language.t("settings.general.row.wayland.title")}</span>
-                  <Tooltip value={language.t("settings.general.row.wayland.tooltip")} placement="top">
+                  <TooltipV2 value={language.t("settings.general.row.wayland.tooltip")} placement="top">
                     <span class="text-text-weak">
                       <Icon name="help" size="small" />
                     </span>
-                  </Tooltip>
+                  </TooltipV2>
                 </div>
               }
               description={language.t("settings.general.row.wayland.description")}

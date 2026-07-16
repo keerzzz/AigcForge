@@ -1,12 +1,12 @@
-import { AISDK } from "@opencode-ai/core/aisdk"
+import { AISDK } from "@aigcfroge/core/aisdk"
 import { describe, expect } from "bun:test"
 import { createAlibaba } from "@ai-sdk/alibaba"
 import { Effect } from "effect"
-import { ModelV2 } from "@opencode-ai/core/model"
-import { PluginV2 } from "@opencode-ai/core/plugin"
-import { PluginHost } from "@opencode-ai/core/plugin/host"
-import { AlibabaPlugin } from "@opencode-ai/core/plugin/provider/alibaba"
-import { ProviderV2 } from "@opencode-ai/core/provider"
+import { ModelV2 } from "@aigcfroge/core/model"
+import { PluginV2 } from "@aigcfroge/core/plugin"
+import { PluginHost } from "@aigcfroge/core/plugin/host"
+import { AlibabaPlugin } from "@aigcfroge/core/plugin/provider/alibaba"
+import { ProviderV2 } from "@aigcfroge/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -14,7 +14,7 @@ const it = testEffect(PluginTestLayer)
 
 const addPlugin = Effect.fn(function* () {
   const plugin = yield* PluginV2.Service
-  const aisdk = yield* AISDK.Service
+  yield* AISDK.Service
   const host = yield* PluginHost.make(plugin)
   yield* AlibabaPlugin.effect(host)
 })
@@ -22,7 +22,7 @@ const addPlugin = Effect.fn(function* () {
 describe("AlibabaPlugin", () => {
   it.effect("creates an Alibaba SDK for @ai-sdk/alibaba", () =>
     Effect.gen(function* () {
-      const plugin = yield* PluginV2.Service
+      yield* PluginV2.Service
       const aisdk = yield* AISDK.Service
       yield* addPlugin()
       const result = yield* aisdk.runSDK({
@@ -39,7 +39,7 @@ describe("AlibabaPlugin", () => {
 
   it.effect("ignores non-Alibaba SDK packages", () =>
     Effect.gen(function* () {
-      const plugin = yield* PluginV2.Service
+      yield* PluginV2.Service
       const aisdk = yield* AISDK.Service
       yield* addPlugin()
       const result = yield* aisdk.runSDK({
@@ -56,7 +56,7 @@ describe("AlibabaPlugin", () => {
 
   it.effect("matches the old bundled Alibaba SDK provider naming", () =>
     Effect.gen(function* () {
-      const plugin = yield* PluginV2.Service
+      yield* PluginV2.Service
       const aisdk = yield* AISDK.Service
       yield* addPlugin()
       const result = yield* aisdk.runSDK({
@@ -67,7 +67,8 @@ describe("AlibabaPlugin", () => {
         package: "@ai-sdk/alibaba",
         options: { name: "custom-alibaba", apiKey: "test" },
       })
-      const expected = createAlibaba({ apiKey: "test", ...{ name: "custom-alibaba" } }).languageModel("qwen")
+      const expectedOptions = { apiKey: "test", name: "custom-alibaba" }
+      const expected = createAlibaba(expectedOptions).languageModel("qwen")
       const actual = result.sdk?.languageModel("qwen")
       expect(actual?.provider).toBe(expected.provider)
       expect(actual?.modelId).toBe(expected.modelId)
@@ -76,7 +77,7 @@ describe("AlibabaPlugin", () => {
 
   it.effect("uses the old default languageModel(api.id) behavior", () =>
     Effect.gen(function* () {
-      const plugin = yield* PluginV2.Service
+      yield* PluginV2.Service
       const aisdk = yield* AISDK.Service
       yield* addPlugin()
       const item = ModelV2.Info.make({

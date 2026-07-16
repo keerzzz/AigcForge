@@ -11,7 +11,7 @@ afterEach(() => {
 
 test("rejects when the external editor cannot start", async () => {
   delete process.env.VISUAL
-  process.env.EDITOR = "opencode-editor-that-does-not-exist"
+  process.env.EDITOR = "aigcfroge-editor-that-does-not-exist"
   const renderer = {
     suspend() {},
     resume() {},
@@ -19,7 +19,7 @@ test("rejects when the external editor cannot start", async () => {
     currentRenderBuffer: { clear() {} },
   }
 
-  await expect(openEditor({ value: "original", renderer: renderer as never })).rejects.toThrow()
+  expect(openEditor({ value: "original", renderer: renderer as never })).rejects.toThrow()
 })
 
 test("normalizes a single trailing editor newline for one-line prompts", () => {

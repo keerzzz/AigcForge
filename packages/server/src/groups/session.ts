@@ -1,10 +1,10 @@
-import { SessionMessage } from "@opencode-ai/core/session/message"
-import { SessionInput } from "@opencode-ai/core/session/input"
-import { Prompt } from "@opencode-ai/core/session/prompt"
-import { SessionV2 } from "@opencode-ai/core/session"
-import { ProjectV2 } from "@opencode-ai/core/project"
-import { AbsolutePath, PositiveInt, RelativePath, withStatics } from "@opencode-ai/core/schema"
-import { WorkspaceV2 } from "@opencode-ai/core/workspace"
+import { SessionMessage } from "@aigcfroge/core/session/message"
+import { SessionInput } from "@aigcfroge/core/session/input"
+import { Prompt } from "@aigcfroge/core/session/prompt"
+import { SessionV2 } from "@aigcfroge/core/session"
+import { ProjectV2 } from "@aigcfroge/core/project"
+import { AbsolutePath, PositiveInt, RelativePath, withStatics } from "@aigcfroge/core/schema"
+import { WorkspaceV2 } from "@aigcfroge/core/workspace"
 import { Schema, Struct } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/unstable/httpapi"
 import {
@@ -16,12 +16,14 @@ import {
   UnknownError,
 } from "../errors"
 import { SessionLocationMiddleware } from "../middleware/session-location"
-import { AgentV2 } from "@opencode-ai/core/agent"
-import { ModelV2 } from "@opencode-ai/core/model"
-import { Location } from "@opencode-ai/core/location"
+import { AgentV2 } from "@aigcfroge/core/agent"
+import { ModelV2 } from "@aigcfroge/core/model"
+import { Location } from "@aigcfroge/core/location"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 
 const SessionsQueryFields = {
   workspace: WorkspaceV2.ID.pipe(Schema.optional),
+  mode: ProductMode.ID.pipe(Schema.optional),
   limit: Schema.NumberFromString.pipe(Schema.decodeTo(PositiveInt), Schema.optional).annotate({
     description: "Maximum number of sessions to return. Defaults to the newest 50 sessions.",
   }),
@@ -112,6 +114,8 @@ export const SessionGroup = HttpApiGroup.make("server.session")
     HttpApiEndpoint.post("session.create", "/api/session", {
       payload: Schema.Struct({
         id: SessionV2.ID.pipe(Schema.optional),
+        parentID: SessionV2.ID.pipe(Schema.optional),
+        mode: ProductMode.ID.pipe(Schema.optional),
         agent: AgentV2.ID.pipe(Schema.optional),
         model: ModelV2.Ref.pipe(Schema.optional),
         location: Location.Ref.pipe(Schema.optional),
@@ -235,6 +239,118 @@ export const SessionGroup = HttpApiGroup.make("server.session")
           identifier: "v2.session.context",
           summary: "Get session context",
           description: "Retrieve the active context messages for a session (all messages after the last compaction).",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("session.children", "/api/session/:sessionID/children", {
+      params: { sessionID: SessionV2.ID },
+      success: Schema.Struct({ data: Schema.Array(SessionV2.Info) }),
+      error: SessionNotFoundError,
+    })
+      .middleware(SessionLocationMiddleware)
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.session.children",
+          summary: "List child sessions",
+          description: "List sessions forked or spawned from this session.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("session.skill", "/api/session/:sessionID/skill", {
+      params: { sessionID: SessionV2.ID },
+      payload: Schema.Struct({
+        id: SessionMessage.ID.pipe(Schema.optional),
+        skill: Schema.String,
+        resume: Schema.Boolean.pipe(Schema.optional),
+      }),
+      success: Schema.Struct({ data: SessionInput.Admitted }),
+      error: [ConflictError, SessionNotFoundError],
+    })
+      .middleware(SessionLocationMiddleware)
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.session.skill",
+          summary: "Invoke skill",
+          description:
+            "Admit a slash-command skill invocation to the durable inbox. The runner resolves the skill at the next promotion boundary and delivers it as a synthetic user turn.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("session.shell", "/api/session/:sessionID/shell", {
+      params: { sessionID: SessionV2.ID },
+      payload: Schema.Struct({
+        id: SessionMessage.ID.pipe(Schema.optional),
+        command: Schema.String,
+        resume: Schema.Boolean.pipe(Schema.optional),
+      }),
+      success: Schema.Struct({ data: SessionInput.Admitted }),
+      error: [ConflictError, SessionNotFoundError],
+    })
+      .middleware(SessionLocationMiddleware)
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.session.shell",
+          summary: "Run shell command",
+          description:
+            "Admit a user-run shell command to the durable inbox. The runner drains queued shell inputs at the next idle boundary, publishing shell.started and shell.ended events.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("session.interrupt", "/api/session/:sessionID/interrupt", {
+      params: { sessionID: SessionV2.ID },
+      success: HttpApiSchema.NoContent,
+      error: SessionNotFoundError,
+    })
+      .middleware(SessionLocationMiddleware)
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.session.interrupt",
+          summary: "Interrupt session execution",
+          description: "Interrupt active execution owned by this process. Idle interruption is a no-op.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("session.share", "/api/session/:sessionID/share", {
+      params: { sessionID: SessionV2.ID },
+      payload: Schema.Struct({
+        targetSessionID: SessionV2.ID,
+        scope: Schema.Literals(["reference", "output", "full"]),
+        trigger: Schema.Boolean.pipe(Schema.optional),
+      }),
+      success: HttpApiSchema.NoContent,
+      error: SessionNotFoundError,
+    })
+      .middleware(SessionLocationMiddleware)
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.session.share",
+          summary: "Share session content",
+          description:
+            "Share context from this session into another session. Scope controls what is shared: reference (session link), output (last assistant result), full (entire history).",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("session.fork", "/api/session/:sessionID/fork", {
+      params: { sessionID: SessionV2.ID },
+      payload: Schema.Struct({
+        prompt: Schema.String.pipe(Schema.optional),
+        agent: Schema.String.pipe(Schema.optional),
+      }),
+      success: Schema.Struct({ sessionID: SessionV2.ID }),
+      error: SessionNotFoundError,
+    })
+      .middleware(SessionLocationMiddleware)
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.session.fork",
+          summary: "Fork a session",
+          description: "Create a new session that inherits the full context of the source session.",
         }),
       ),
   )

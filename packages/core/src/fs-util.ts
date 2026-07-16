@@ -16,7 +16,7 @@ export namespace FSUtil {
     cause: Schema.optional(Schema.Defect()),
   }) {
     override get message() {
-      const detail = this.cause instanceof Error ? this.cause.message : this.cause && String(this.cause)
+      const detail = this.cause instanceof Error ? this.cause.message : String(this.cause)
       return `Filesystem operation failed: ${this.method}${detail ? `: ${detail}` : ""}`
     }
   }
@@ -45,7 +45,7 @@ export namespace FSUtil {
     readonly globMatch: (pattern: string, filepath: string) => boolean
   }
 
-  export class Service extends Context.Service<Service, Interface>()("@opencode/FileSystem") {}
+  export class Service extends Context.Service<Service, Interface>()("@aigcfroge/FileSystem") {}
 
   export const use = serviceUse(Service)
 
@@ -244,6 +244,22 @@ export namespace FSUtil {
       .replace(/^\/([a-zA-Z])(?:\/|$)/, (_, drive) => `${drive.toUpperCase()}:/`)
       .replace(/^\/cygdrive\/([a-zA-Z])(?:\/|$)/, (_, drive) => `${drive.toUpperCase()}:/`)
       .replace(/^\/mnt\/([a-zA-Z])(?:\/|$)/, (_, drive) => `${drive.toUpperCase()}:/`)
+  }
+
+  /**
+   * Resolve `target` relative to `worktree`, then verify the real (symlink-resolved)
+   * path stays within `worktree`. Returns the resolved canonical path on success,
+   * or throws a descriptive Error when the path escapes or is inaccessible.
+   *
+   * Use this in all file-access tools (Read, Write, Bash, glob, search) to prevent
+   * symlink-based path traversal attacks.
+   */
+  export function resolveSecurePath(worktree: string, target: string): string {
+    const absolute = pathResolve(worktree, target)
+    if (!contains(worktree, absolute)) throw new Error(`Path ${absolute} escapes the workspace boundary`)
+    const real = realpathSync(absolute)
+    if (!contains(worktree, real)) throw new Error(`Symlink at ${absolute} resolves outside the workspace boundary: ${real}`)
+    return real
   }
 
   export function overlaps(a: string, b: string) {

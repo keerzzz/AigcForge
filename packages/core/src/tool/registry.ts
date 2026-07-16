@@ -1,16 +1,44 @@
 export * as ToolRegistry from "./registry"
 
-import { ToolOutput, type ToolCall, type ToolDefinition, type ToolResultValue } from "@opencode-ai/llm"
+import { ToolOutput, type ToolCall, type ToolDefinition, type ToolResultValue } from "@aigcfroge/llm"
 import { Context, Effect, Layer, Scope } from "effect"
 import { AgentV2 } from "../agent"
 import { PermissionV2 } from "../permission"
 import { SessionMessage } from "../session/message"
 import { SessionSchema } from "../session/schema"
+import { runPostToolUse, runPreToolUse } from "./lifecycle-hooks"
 import { ToolOutputStore } from "../tool-output-store"
 import { Wildcard } from "../util/wildcard"
 import { ApplicationTools } from "./application-tools"
 import { definition, permission, settle, validateName, type AnyTool, type RegistrationError } from "./tool"
 import { Tools } from "./tools"
+
+// Phase 4: intent-based tool filtering rules.
+// Keyed by the IntentCategory string from the meta-agent prerouter.
+const INTENT_TOOL_FILTERS: Record<string, (name: string) => boolean> = {
+  code_understanding: (name) => READONLY_TOOL_NAMES.has(name),
+  content_creation: (name) => WRITE_TOOL_NAMES.has(name) || READONLY_TOOL_NAMES.has(name),
+  configuration: (name) => CONFIG_TOOL_NAMES.has(name),
+  code_modification: () => true,
+  workflow: () => true,
+  mention: () => true,
+}
+
+const READONLY_TOOL_NAMES = new Set([
+  "read", "read_file", "grep", "glob", "search", "list_files",
+  "code_search", "tool_search", "web_fetch", "fetch",
+  "todo_write", "todo_list", "complete_step",
+])
+
+const WRITE_TOOL_NAMES = new Set([
+  "write", "write_file", "edit", "edit_file", "patch", "apply_patch",
+  "create", "delete", "remove", "rename", "move",
+  "multi_edit", "bash",
+])
+
+const CONFIG_TOOL_NAMES = new Set([
+  "config", "agent", "skill", "mcp", "workflow",
+])
 
 export type ExecuteInput = {
   readonly sessionID: SessionSchema.ID
@@ -20,7 +48,7 @@ export type ExecuteInput = {
 }
 
 export interface Interface {
-  readonly materialize: (permissions?: PermissionV2.Ruleset) => Effect.Effect<Materialization>
+  readonly materialize: (permissions?: PermissionV2.Ruleset, intent?: string) => Effect.Effect<Materialization>
   /** Internal registration capability exposed publicly only through Tools.Service. */
   readonly register: (tools: Readonly<Record<string, AnyTool>>) => Effect.Effect<void, RegistrationError, Scope.Scope>
 }
@@ -36,7 +64,7 @@ export interface Settlement {
   readonly outputPaths?: ReadonlyArray<string>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/v2/ToolRegistry") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/ToolRegistry") {}
 
 const registryLayer = Layer.effect(
   Service,
@@ -58,6 +86,19 @@ const registryLayer = Layer.effect(
         }
       if (advertised && registration.identity !== advertised)
         return { result: { type: "error" as const, value: `Stale tool call: ${input.call.name}` } }
+      // PreToolUse: lifecycle hooks may deny the tool before execution.
+      const preCheck = yield* runPreToolUse({
+        toolName: input.call.name,
+        args: (input.call as { input?: Record<string, unknown> }).input ?? {},
+        sessionID: input.sessionID,
+      })
+      if (!preCheck.allow)
+        return {
+          result: {
+            type: "error" as const,
+            value: preCheck.reason ?? `Tool blocked by policy: ${input.call.name}`,
+          },
+        }
       const pending = yield* settle(registration.tool, input.call, {
         sessionID: input.sessionID,
         agent: input.agent,
@@ -69,10 +110,25 @@ const registryLayer = Layer.effect(
           Effect.succeed({ result: { type: "error" as const, value: failure.message } }),
         ),
       )
-      if ("result" in pending) return pending
+      const callInput = (input.call as { input?: Record<string, unknown> }).input ?? {}
+      if ("result" in pending) {
+        yield* runPostToolUse({
+          toolName: input.call.name,
+          args: callInput,
+          result: pending.result,
+          sessionID: input.sessionID,
+        }).pipe(Effect.ignore)
+        return pending
+      }
       const output = pending.output
       const bounded = yield* resources.bound({ sessionID: input.sessionID, toolCallID: input.call.id, output })
       const result = ToolOutput.toResultValue(bounded.output)
+      yield* runPostToolUse({
+        toolName: input.call.name,
+        args: callInput,
+        result,
+        sessionID: input.sessionID,
+      }).pipe(Effect.ignore)
       if (result.type === "error")
         return bounded.outputPaths.length > 0 ? { result, outputPaths: bounded.outputPaths } : { result }
       return bounded.outputPaths.length > 0
@@ -102,11 +158,16 @@ const registryLayer = Layer.effect(
           }),
         )
       }),
-      materialize: Effect.fn("ToolRegistry.materialize")(function* (permissions = []) {
+      materialize: Effect.fn("ToolRegistry.materialize")(function* (permissions = [], intent?: string) {
         const registrations = new Map(applications.entries())
         for (const [name, entries] of local) {
           const registration = entries.at(-1)?.registration
           if (registration) registrations.set(name, registration)
+        }
+        // Phase 4: intent-based tool filtering
+        const filter = intent ? INTENT_TOOL_FILTERS[intent] : undefined
+        for (const [name] of registrations) {
+          if (filter && !filter(name)) registrations.delete(name)
         }
         for (const [name, registration] of registrations)
           if (whollyDisabled(permission(registration.tool, name), permissions)) registrations.delete(name)

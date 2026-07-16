@@ -12,10 +12,10 @@ import type { DesktopTheme } from "./types"
 export type ColorScheme = "light" | "dark" | "system"
 
 const STORAGE_KEYS = {
-  THEME_ID: "opencode-theme-id",
-  COLOR_SCHEME: "opencode-color-scheme",
-  THEME_CSS_LIGHT: "opencode-theme-css-light",
-  THEME_CSS_DARK: "opencode-theme-css-dark",
+  THEME_ID: "aigcfroge-theme-id",
+  COLOR_SCHEME: "aigcfroge-color-scheme",
+  THEME_CSS_LIGHT: "aigcfroge-theme-css-light",
+  THEME_CSS_DARK: "aigcfroge-theme-css-dark",
 } as const
 
 const THEME_STYLE_ID = "oc-theme"
@@ -25,15 +25,15 @@ let known: Set<string> | undefined
 
 function getFiles() {
   if (files) return files
-  files = import.meta.glob<{ default: DesktopTheme }>("./themes/*.json")
+  files = import.meta.glob<{ default: DesktopTheme }>(["./themes/*.json", "!./themes/oc-2.json"])
   return files
 }
 
 function themeIDs() {
   if (ids) return ids
-  ids = Object.keys(getFiles())
-    .map((path) => path.slice("./themes/".length, -".json".length))
-    .sort()
+  // oc-2 is the static default theme (imported above); excluded from the glob to avoid a
+  // duplicate dynamic import, but still listed so the theme picker shows it.
+  ids = ["oc-2", ...Object.keys(getFiles()).map((path) => path.slice("./themes/".length, -".json".length))].sort()
   return ids
 }
 
@@ -69,7 +69,7 @@ const names: Record<string, string> = {
   nord: "Nord",
   "one-dark": "One Dark",
   onedarkpro: "One Dark Pro",
-  opencode: "OpenCode",
+  aigcfroge: "Aigcfroge",
   orng: "Orng",
   "osaka-jade": "Osaka Jade",
   palenight: "Palenight",

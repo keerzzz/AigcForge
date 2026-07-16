@@ -2,7 +2,7 @@
 
 import { parseArgs } from "util"
 
-const defaultRepo = "anomalyco/opencode"
+const defaultRepo = "keerzzz/AigcForge"
 const defaultAgeMonths = 1
 const defaultThreshold = 2
 const defaultSleepMs = 20_000
@@ -123,7 +123,7 @@ type CleanupCandidate = PullRequest & {
 
 const message = `Automated PR Cleanup
 
-Thank you for contributing to opencode.
+Thank you for contributing to aigcfroge.
 
 Due to the high volume of PRs from users and AI agents, we periodically close older PRs using automated criteria so maintainers can focus review time on the most active and community-supported contributions.
 
@@ -293,12 +293,11 @@ async function ensureCleanupLabel() {
 }
 
 async function githubRequest(path: string, init: RequestInit, attempt = 0): Promise<Response> {
+  const requestHeaders = new Headers(headers)
+  new Headers(init.headers).forEach((value, name) => requestHeaders.set(name, value))
   const response = await fetch(path.startsWith("https://") ? path : `https://api.github.com${path}`, {
     ...init,
-    headers: {
-      ...headers,
-      ...init.headers,
-    },
+    headers: requestHeaders,
   })
 
   if (response.ok) return response

@@ -3,13 +3,13 @@ import { expect, test } from "bun:test"
 import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
 import { DiffRenderable, type Renderable, ScrollBoxRenderable } from "@opentui/core"
 import { testRender, useRenderer } from "@opentui/solid"
-import type { TuiPluginApi, TuiPluginMeta, TuiRouteCurrent, TuiRouteDefinition } from "@opencode-ai/plugin/tui"
-import type { Session } from "@opencode-ai/sdk/v2"
+import type { TuiPluginApi, TuiPluginMeta, TuiRouteCurrent, TuiRouteDefinition } from "@aigcfroge/plugin/tui"
+import type { Session } from "@aigcfroge/sdk/v2"
 import { KVProvider } from "../../../src/context/kv"
 import { ThemeProvider } from "../../../src/context/theme"
 import { TuiConfigProvider } from "../../../src/config"
 import { TuiKeybind } from "../../../src/config/keybind"
-import { OpencodeKeymapProvider } from "../../../src/keymap"
+import { AigcfrogeKeymapProvider } from "../../../src/keymap"
 import diffViewerPlugin from "../../../src/feature-plugins/system/diff-viewer"
 import { createTuiPluginApi } from "../../fixture/tui-plugin"
 import { createTuiResolvedConfig } from "../../fixture/tui-runtime"
@@ -25,7 +25,7 @@ test("closing the diff viewer returns to the route it opened from", async () => 
     expect(viewer.vcsDiffInput()).toEqual({ directory: "/repo/session", mode: "git", context: 12 })
 
     expect(viewer.commands.has("diff.close")).toBe(true)
-    viewer.commands.get("diff.close")!.run?.({} as never)
+    void viewer.commands.get("diff.close")!.run?.({} as never)
     expect(viewer.current()).toEqual(startRoute)
   } finally {
     viewer.app.renderer.destroy()
@@ -71,26 +71,26 @@ test("brackets navigate diff hunks", async () => {
     expect(TuiKeybind.defaultValue("diff_next_hunk")).toBe("]")
     expect(TuiKeybind.defaultValue("diff_previous_hunk")).toBe("[")
 
-    viewer.commands.get("diff.next_hunk")!.run?.({} as never)
+    void viewer.commands.get("diff.next_hunk")!.run?.({} as never)
     await viewer.app.renderOnce()
     const first = scroll.scrollTop
     expect(first).toBeGreaterThan(initial)
 
-    viewer.commands.get("diff.next_hunk")!.run?.({} as never)
+    void viewer.commands.get("diff.next_hunk")!.run?.({} as never)
     await viewer.app.renderOnce()
     const second = scroll.scrollTop
     expect(second).toBeGreaterThan(first)
 
-    viewer.commands.get("diff.previous_hunk")!.run?.({} as never)
+    void viewer.commands.get("diff.previous_hunk")!.run?.({} as never)
     await viewer.app.renderOnce()
     expect(scroll.scrollTop).toBe(first)
 
-    viewer.commands.get("diff.next_hunk")!.run?.({} as never)
+    void viewer.commands.get("diff.next_hunk")!.run?.({} as never)
     await viewer.app.renderOnce()
     expect(scroll.scrollTop).toBe(second)
 
     scroll.scrollTo(initial)
-    viewer.commands.get("diff.next_hunk")!.run?.({} as never)
+    void viewer.commands.get("diff.next_hunk")!.run?.({} as never)
     await viewer.app.renderOnce()
     expect(scroll.scrollTop).toBe(first)
   } finally {
@@ -155,11 +155,11 @@ async function renderDiffViewer(vcsDiff: unknown[], height = 20, initialRoute?: 
     } satisfies TuiPluginApi
 
     void diffViewerPlugin.tui(api, undefined, pluginMeta)
-    if (!initialRoute) commands.get("diff.open")?.run?.({} as never)
+    if (!initialRoute) void commands.get("diff.open")?.run?.({} as never)
 
     return (
       <TestTuiContexts>
-        <OpencodeKeymapProvider keymap={keymap}>
+        <AigcfrogeKeymapProvider keymap={keymap}>
           <TuiConfigProvider config={config}>
             <KVProvider>
               <ThemeProvider mode="dark">
@@ -167,7 +167,7 @@ async function renderDiffViewer(vcsDiff: unknown[], height = 20, initialRoute?: 
               </ThemeProvider>
             </KVProvider>
           </TuiConfigProvider>
-        </OpencodeKeymapProvider>
+        </AigcfrogeKeymapProvider>
       </TestTuiContexts>
     )
   }

@@ -3,14 +3,14 @@ import type {
   TuiPluginInstallOptions,
   TuiPluginInstallResult,
   TuiPluginStatus,
-} from "@opencode-ai/plugin/tui"
+} from "@aigcfroge/plugin/tui"
 import type { TuiConfig } from "../config"
 import { createContext, createSignal, useContext, type JSX, type ParentProps } from "solid-js"
 import { createPluginRoutes } from "./api"
 import { createSlots, type HostSlots } from "./slots"
 
 export function createPluginRuntime() {
-  const [commands, setCommands] = createSignal<PluginRuntimeCommands>(emptyCommands)
+  const [commands, setCommands] = createSignal(emptyCommands)
   const [status, setStatus] = createSignal<ReadonlyArray<TuiPluginStatus>>([])
   const slots = createSlots()
 

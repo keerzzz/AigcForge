@@ -1,14 +1,16 @@
-import type { Agent, Project, ProviderListResponse } from "@opencode-ai/sdk/v2/client"
-import { NormalizedProviderListResponse } from "@opencode-ai/session-ui/context"
+import type { Agent, Project, ProviderListResponse } from "@aigcfroge/sdk/v2/client"
+import { NormalizedProviderListResponse } from "@aigcfroge/session-ui/context"
 export { pathKey as directoryKey, type PathKey as DirectoryKey } from "@/utils/path-key"
 
 export const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
 
 function isAgent(input: unknown): input is Agent {
   if (!input || typeof input !== "object") return false
-  const item = input as { name?: unknown; mode?: unknown }
+  const item = input as { name?: unknown; mode?: unknown; source?: unknown }
   if (typeof item.name !== "string") return false
-  return item.mode === "subagent" || item.mode === "primary" || item.mode === "all"
+  if (item.mode !== "subagent" && item.mode !== "primary" && item.mode !== "all") return false
+  if (item.source !== undefined && item.source !== "native" && item.source !== "external-cli") return false
+  return true
 }
 
 export function normalizeAgentList(input: unknown): Agent[] {

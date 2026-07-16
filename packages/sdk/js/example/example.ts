@@ -1,13 +1,13 @@
-import { createOpencodeClient, createOpencodeServer } from "@opencode-ai/sdk"
+import { createAigcfrogeClient, createAigcfrogeServer } from "@aigcfroge/sdk"
 import { pathToFileURL } from "bun"
 
-const server = await createOpencodeServer()
-const client = createOpencodeClient({ baseUrl: server.url })
+const server = await createAigcfrogeServer()
+const client = createAigcfrogeClient({ baseUrl: server.url })
 
 const input = await Array.fromAsync(new Bun.Glob("packages/core/*.ts").scan())
 
 const tasks: Promise<void>[] = []
-for await (const file of input) {
+for (const file of input) {
   console.log("processing", file)
   const session = await client.session.create()
   tasks.push(

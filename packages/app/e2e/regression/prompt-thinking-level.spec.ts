@@ -1,14 +1,14 @@
 import { expect, test, type Page } from "@playwright/test"
-import { base64Encode } from "@opencode-ai/core/util/encode"
-import { mockOpenCodeServer } from "../utils/mock-server"
+import { base64Encode } from "@aigcfroge/core/util/encode"
+import { mockAigcfrogeServer } from "../utils/mock-server"
 import { expectAppVisible } from "../utils/waits"
 
-const directory = "C:/OpenCode/PromptThinkingLevelRegression"
+const directory = "C:/Aigcfroge/PromptThinkingLevelRegression"
 const projectID = "proj_prompt_thinking_level_regression"
 const sessionID = "ses_prompt_thinking_level_regression"
 
 test("shows the V2 thinking level control while relevant", async ({ page }) => {
-  await mockOpenCodeServer(page, {
+  await mockAigcfrogeServer(page, {
     directory,
     project: {
       id: projectID,
@@ -21,8 +21,8 @@ test("shows the V2 thinking level control while relevant", async ({ page }) => {
     provider: {
       all: [
         {
-          id: "opencode",
-          name: "OpenCode",
+          id: "aigcfroge",
+          name: "Aigcfroge",
           models: {
             "thinking-model": {
               id: "thinking-model",
@@ -33,8 +33,8 @@ test("shows the V2 thinking level control while relevant", async ({ page }) => {
           },
         },
       ],
-      connected: ["opencode"],
-      default: { providerID: "opencode", modelID: "thinking-model" },
+      connected: ["aigcfroge"],
+      default: { providerID: "aigcfroge", modelID: "thinking-model" },
     },
     sessions: [
       {

@@ -1,5 +1,5 @@
-import { AgentV2 } from "@opencode-ai/core/agent"
-import { Location } from "@opencode-ai/core/location"
+import { AgentV2 } from "@aigcfroge/core/agent"
+import { Location } from "@aigcfroge/core/location"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { LocationQuery, locationQueryOpenApi, LocationMiddleware } from "./location"

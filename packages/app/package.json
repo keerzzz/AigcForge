@@ -1,6 +1,6 @@
 {
-  "name": "@opencode-ai/app",
-  "version": "1.17.9",
+  "name": "@aigcfroge/app",
+  "version": "0.0.1",
   "description": "",
   "type": "module",
   "exports": {
@@ -45,10 +45,10 @@
   },
   "dependencies": {
     "@kobalte/core": "catalog:",
-    "@opencode-ai/core": "workspace:*",
-    "@opencode-ai/sdk": "workspace:*",
-    "@opencode-ai/session-ui": "workspace:*",
-    "@opencode-ai/ui": "workspace:*",
+    "@aigcfroge/core": "workspace:*",
+    "@aigcfroge/sdk": "workspace:*",
+    "@aigcfroge/session-ui": "workspace:*",
+    "@aigcfroge/ui": "workspace:*",
     "@pierre/trees": "1.0.0-beta.4",
     "@sentry/solid": "catalog:",
     "@shikijs/transformers": "3.9.2",

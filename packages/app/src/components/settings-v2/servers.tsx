@@ -1,8 +1,8 @@
-import { Tag } from "@opencode-ai/ui/v2/badge-v2"
-import { Icon as IconV2 } from "@opencode-ai/ui/v2/icon"
-import { IconButtonV2 } from "@opencode-ai/ui/v2/icon-button-v2"
-import { TextInputV2 } from "@opencode-ai/ui/v2/text-input-v2"
-import { useDialog } from "@opencode-ai/ui/context/dialog"
+import { Tag } from "@aigcfroge/ui/v2/badge-v2"
+import { Icon as IconV2 } from "@aigcfroge/ui/v2/icon"
+import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
+import { TextInputV2 } from "@aigcfroge/ui/v2/text-input-v2"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
 import fuzzysort from "fuzzysort"
 import { type Component, For, Show, createMemo } from "solid-js"
 import { createStore } from "solid-js/store"
@@ -39,11 +39,11 @@ export const SettingsServersV2: Component = () => {
   })
 
   const openAdd = () => {
-    dialog.push(() => <DialogServerV2 mode="add" />)
+    void dialog.push(() => <DialogServerV2 mode="add" />)
   }
 
   const openEdit = (server: ServerConnection.Http) => {
-    dialog.push(() => <DialogServerV2 mode="edit" server={server} />)
+    void dialog.push(() => <DialogServerV2 mode="edit" server={server} />)
   }
 
   return (

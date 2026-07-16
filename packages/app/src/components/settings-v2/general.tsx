@@ -1,11 +1,10 @@
 import { Component, Show, createMemo, createResource, onMount } from "solid-js"
 import { createMediaQuery } from "@solid-primitives/media"
-import { ButtonV2 } from "@opencode-ai/ui/v2/button-v2"
-import { SelectV2 } from "@opencode-ai/ui/v2/select-v2"
-import { Switch } from "@opencode-ai/ui/v2/switch-v2"
-import { TextInputV2 } from "@opencode-ai/ui/v2/text-input-v2"
-import { useTheme, type ColorScheme } from "@opencode-ai/ui/theme/context"
-import { useDialog } from "@opencode-ai/ui/context/dialog"
+import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
+import { SelectV2 } from "@aigcfroge/ui/v2/select-v2"
+import { Switch } from "@aigcfroge/ui/v2/switch-v2"
+import { TextInputV2 } from "@aigcfroge/ui/v2/text-input-v2"
+import { useTheme, type ColorScheme } from "@aigcfroge/ui/theme/context"
 import { useParams } from "@solidjs/router"
 import { useLanguage } from "@/context/language"
 import { usePermission } from "@/context/permission"
@@ -87,7 +86,6 @@ export const SettingsGeneralV2: Component = () => {
   const language = useLanguage()
   const permission = usePermission()
   const platform = usePlatform()
-  const dialog = useDialog()
   const params = useParams()
   const settings = useSettings()
   const mobile = createMediaQuery("(max-width: 767px)")
@@ -277,7 +275,7 @@ export const SettingsGeneralV2: Component = () => {
             onSelect={(option) => {
               if (!option) return
               if (option.value === currentShell()) return
-              serverSync().updateConfig({ shell: option.value })
+              void serverSync().updateConfig({ shell: option.value })
             }}
           />
         </SettingsRowV2>
@@ -326,24 +324,6 @@ export const SettingsGeneralV2: Component = () => {
             <Switch
               checked={settings.general.showSessionProgressBar()}
               onChange={(checked) => settings.general.setShowSessionProgressBar(checked)}
-            />
-          </div>
-        </SettingsRowV2>
-
-        <SettingsRowV2
-          title={language.t("settings.general.row.newLayoutDesigns.title")}
-          description={language.t("settings.general.row.newLayoutDesigns.description")}
-        >
-          <div data-action="settings-new-layout-designs">
-            <Switch
-              checked={settings.general.newLayoutDesigns()}
-              onChange={(checked) => {
-                settings.general.setNewLayoutDesigns(checked)
-                if (checked) return
-                void import("@/components/dialog-settings").then((module) => {
-                  dialog.show(() => <module.DialogSettings />)
-                })
-              }}
             />
           </div>
         </SettingsRowV2>
@@ -407,6 +387,30 @@ export const SettingsGeneralV2: Component = () => {
         </SettingsRowV2>
 
         <SettingsRowV2
+          title={language.t("settings.general.row.showSecondarySidebarToggle.title")}
+          description={language.t("settings.general.row.showSecondarySidebarToggle.description")}
+        >
+          <div data-action="settings-show-secondary-sidebar-toggle">
+            <Switch
+              checked={settings.general.showSecondarySidebarToggle()}
+              onChange={(checked) => settings.general.setShowSecondarySidebarToggle(checked)}
+            />
+          </div>
+        </SettingsRowV2>
+
+        <SettingsRowV2
+          title={language.t("settings.general.row.showReviewPanelToggle.title")}
+          description={language.t("settings.general.row.showReviewPanelToggle.description")}
+        >
+          <div data-action="settings-show-review-panel-toggle">
+            <Switch
+              checked={settings.general.showReviewPanelToggle()}
+              onChange={(checked) => settings.general.setShowReviewPanelToggle(checked)}
+            />
+          </div>
+        </SettingsRowV2>
+
+        <SettingsRowV2
           title={language.t("settings.general.row.showCustomAgents.title")}
           description={language.t("settings.general.row.showCustomAgents.description")}
         >
@@ -414,6 +418,21 @@ export const SettingsGeneralV2: Component = () => {
             <Switch
               checked={settings.general.showCustomAgents()}
               onChange={(checked) => settings.general.setShowCustomAgents(checked)}
+            />
+          </div>
+        </SettingsRowV2>
+
+        <SettingsRowV2
+          title={language.t("settings.general.row.subagentAttendedDefault.title")}
+          description={language.t("settings.general.row.subagentAttendedDefault.description")}
+        >
+          <div data-action="settings-subagent-attended-default">
+            <Switch
+              checked={settings.general.subagentAttendedDefault()}
+              onChange={(checked) => {
+                settings.general.setSubagentAttendedDefault(checked)
+                void serverSync().updateConfig({ subagent_attended_default: checked })
+              }}
             />
           </div>
         </SettingsRowV2>
@@ -453,7 +472,7 @@ export const SettingsGeneralV2: Component = () => {
           description={
             <>
               {language.t("settings.general.row.theme.description")}{" "}
-              <Link class="settings-v2-link" href="https://opencode.ai/docs/themes/">
+              <Link class="settings-v2-link" href="https://aigcfroge.ai/docs/themes/">
                 {language.t("common.learnMore")}
               </Link>
             </>

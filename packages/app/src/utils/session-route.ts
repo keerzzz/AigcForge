@@ -1,13 +1,9 @@
-import { base64Encode } from "@opencode-ai/core/util/encode"
+import { base64Encode } from "@aigcfroge/core/util/encode"
 import { ServerConnection } from "@/context/server"
 import { decode64 } from "@/utils/base64"
 
 export function sessionHref(server: ServerConnection.Key, sessionID: string) {
   return `/server/${base64Encode(server)}/session/${sessionID}`
-}
-
-export function legacySessionHref(directory: string, sessionID: string) {
-  return `/${base64Encode(directory)}/session/${sessionID}`
 }
 
 export function requireServerKey(segment: string | undefined) {

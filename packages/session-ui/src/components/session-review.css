@@ -112,10 +112,13 @@
     align-items: center;
     flex-grow: 1;
     min-width: 0;
+    gap: 8px;
   }
 
   [data-slot="session-review-directory"] {
-    color: var(--text-base);
+    color: var(--text-weaker);
+    font-size: 10px;
+    line-height: 12px;
     text-overflow: ellipsis;
     overflow: hidden;
     white-space: nowrap;
@@ -125,6 +128,9 @@
 
   [data-slot="session-review-filename"] {
     color: var(--text-strong);
+    font-size: 12px;
+    font-weight: var(--font-weight-semibold);
+    line-height: 16px;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;

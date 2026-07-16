@@ -1,7 +1,8 @@
 export * as ConfigAgent from "./agent"
 
 import { Schema } from "effect"
-import { Permission } from "@opencode-ai/schema/permission"
+import { Permission } from "@aigcfroge/schema/permission"
+import { Handoff } from "@aigcfroge/schema/handoff"
 import { ConfigProvider } from "./provider"
 import { PositiveInt } from "../schema"
 
@@ -22,4 +23,5 @@ export class Info extends Schema.Class<Info>("ConfigV2.Agent")({
   steps: PositiveInt.pipe(Schema.optional),
   disabled: Schema.Boolean.pipe(Schema.optional),
   permissions: Permission.Ruleset.pipe(Schema.optional),
+  handoffs: Schema.mutable(Schema.Array(Handoff)).pipe(Schema.optional),
 }) {}

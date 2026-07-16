@@ -220,7 +220,7 @@ export const validateMedia = Effect.fn("ProviderShared.validateMedia")(function*
   } else if (part.data.startsWith("data:")) {
     const match = /^data:([^;,]+);base64,([A-Za-z0-9+/]*={0,2})$/s.exec(part.data)
     if (!match) return yield* invalidRequest(`${route} media data URL must contain valid base64`)
-    if (match[1]!.toLowerCase() !== mime)
+    if (match[1].toLowerCase() !== mime)
       return yield* invalidRequest(`${route} media type ${part.mediaType} does not match data URL type ${match[1]}`)
     base64 = match[2]!
   } else {

@@ -1,14 +1,14 @@
-import { AISDK } from "@opencode-ai/core/aisdk"
+import { AISDK } from "@aigcfroge/core/aisdk"
 import { describe, expect } from "bun:test"
 import type { LanguageModelV3 } from "@ai-sdk/provider"
 import { Effect } from "effect"
-import { Catalog } from "@opencode-ai/core/catalog"
-import { Integration } from "@opencode-ai/core/integration"
-import { ModelV2 } from "@opencode-ai/core/model"
-import { PluginV2 } from "@opencode-ai/core/plugin"
-import { PluginHost } from "@opencode-ai/core/plugin/host"
-import { OpenAIPlugin } from "@opencode-ai/core/plugin/provider/openai"
-import { ProviderV2 } from "@opencode-ai/core/provider"
+import { Catalog } from "@aigcfroge/core/catalog"
+import { Integration } from "@aigcfroge/core/integration"
+import { ModelV2 } from "@aigcfroge/core/model"
+import { PluginV2 } from "@aigcfroge/core/plugin"
+import { PluginHost } from "@aigcfroge/core/plugin/host"
+import { OpenAIPlugin } from "@aigcfroge/core/plugin/provider/openai"
+import { ProviderV2 } from "@aigcfroge/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -16,7 +16,7 @@ const it = testEffect(PluginTestLayer)
 
 const addPlugin = Effect.fn(function* () {
   const plugin = yield* PluginV2.Service
-  const aisdk = yield* AISDK.Service
+  yield* AISDK.Service
   const host = yield* PluginHost.make(plugin)
   const integrations = yield* Integration.Service
   yield* OpenAIPlugin.effect(host).pipe(Effect.provideService(Integration.Service, integrations))
@@ -61,7 +61,7 @@ describe("OpenAIPlugin", () => {
 
   it.effect("creates an OpenAI SDK for @ai-sdk/openai using the provider ID as SDK name", () =>
     Effect.gen(function* () {
-      const plugin = yield* PluginV2.Service
+      yield* PluginV2.Service
       const aisdk = yield* AISDK.Service
       yield* addPlugin()
       const result = yield* aisdk.runSDK({
@@ -78,7 +78,7 @@ describe("OpenAIPlugin", () => {
 
   it.effect("ignores non-OpenAI SDK packages", () =>
     Effect.gen(function* () {
-      const plugin = yield* PluginV2.Service
+      yield* PluginV2.Service
       const aisdk = yield* AISDK.Service
       yield* addPlugin()
       const result = yield* aisdk.runSDK({
@@ -95,7 +95,7 @@ describe("OpenAIPlugin", () => {
 
   it.effect("uses the Responses API for language models", () =>
     Effect.gen(function* () {
-      const plugin = yield* PluginV2.Service
+      yield* PluginV2.Service
       const aisdk = yield* AISDK.Service
       const calls: string[] = []
       yield* addPlugin()
@@ -114,7 +114,7 @@ describe("OpenAIPlugin", () => {
 
   it.effect("ignores non-OpenAI providers", () =>
     Effect.gen(function* () {
-      const plugin = yield* PluginV2.Service
+      yield* PluginV2.Service
       const aisdk = yield* AISDK.Service
       const calls: string[] = []
       yield* addPlugin()

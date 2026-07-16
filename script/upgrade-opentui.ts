@@ -35,7 +35,7 @@ if (snapshotArg === "--snapshot=") {
 const ver = raw.replace(/^v/, "")
 const root = path.resolve(import.meta.dir, "..")
 const lockfile = path.join(root, "bun.lock")
-const skip = new Set([".git", ".opencode", ".turbo", "dist", "node_modules"])
+const skip = new Set([".git", ".aigcfroge", ".turbo", "dist", "node_modules"])
 const keys = ["@opentui/core", "@opentui/keymap", "@opentui/solid"] as const
 
 const files = (await Array.fromAsync(new Bun.Glob("**/package.json").scan({ cwd: root }))).filter(
@@ -162,7 +162,7 @@ async function fixKnownLockfileIssues() {
 
   const removed = txt
     .split("\n")
-    .map((line) => line.match(/^    "(opentui-spinner\/@opentui\/[^\"]+)": /)?.[1])
+    .map((line) => line.match(/^    "(opentui-spinner\/@opentui\/[^"]+)": /)?.[1])
     .filter((item): item is string => item !== undefined)
 
   if (removed.length === 0) return []

@@ -1,21 +1,23 @@
-import type { Session } from "@opencode-ai/sdk/v2/client"
-import { Avatar } from "@opencode-ai/ui/avatar"
-import { Icon } from "@opencode-ai/ui/icon"
-import { IconButton } from "@opencode-ai/ui/icon-button"
-import { Spinner } from "@opencode-ai/ui/spinner"
-import { Tooltip } from "@opencode-ai/ui/tooltip"
-import { getFilename } from "@opencode-ai/core/util/path"
-import { A, useParams } from "@solidjs/router"
+import type { Session } from "@aigcfroge/sdk/v2/client"
+import { ProjectAvatar } from "@aigcfroge/ui/v2/project-avatar-v2"
+import { Icon } from "@aigcfroge/ui/icon"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { Spinner } from "@aigcfroge/ui/spinner"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
+import { getFilename } from "@aigcfroge/core/util/path"
+import { A } from "@solidjs/router"
 import { type Accessor, createMemo, For, type JSX, Match, Show, Switch } from "solid-js"
 import { useServerSync } from "@/context/server-sync"
 import { useLanguage } from "@/context/language"
-import { getAvatarColors, type LocalProject, useLayout } from "@/context/layout"
+import { getProjectAvatarVariant, type LocalProject, useLayout } from "@/context/layout"
 import { useNotification } from "@/context/notification"
 import { usePermission } from "@/context/permission"
 import { messageAgentColor } from "@/utils/agent"
+import { ServerConnection } from "@/context/server"
+import { sessionHref } from "@/utils/session-route"
 import { sessionTitle } from "@/utils/session-title"
 import { sessionPermissionRequest } from "../session/composer/session-request-tree"
-import { childSessionOnPath, getProjectAvatarSource, hasProjectPermissions } from "./helpers"
+import { getProjectAvatarSource, hasProjectPermissions } from "./helpers"
 
 export const ProjectIcon = (props: {
   project: LocalProject
@@ -43,10 +45,10 @@ export const ProjectIcon = (props: {
   return (
     <div class={`relative size-8 shrink-0 rounded ${props.class ?? ""}`}>
       <div class="size-full rounded overflow-clip">
-        <Avatar
+        <ProjectAvatar
           fallback={name()}
           src={getProjectAvatarSource(props.project.id, props.project.icon)}
-          {...getAvatarColors(props.project.icon?.color)}
+          variant={getProjectAvatarVariant(props.project.icon?.color)}
           class="size-full rounded"
           classList={{ "badge-mask": notify() }}
         />
@@ -75,6 +77,7 @@ export type SessionItemProps = {
   list: Session[]
   navList?: Accessor<Session[]>
   slug: string
+  serverKey?: ServerConnection.Key
   mobile?: boolean
   dense?: boolean
   showTooltip?: boolean
@@ -89,6 +92,7 @@ export type SessionItemProps = {
 const SessionRow = (props: {
   session: Session
   slug: string
+  href?: string
   mobile?: boolean
   dense?: boolean
   tint: Accessor<string | undefined>
@@ -105,7 +109,7 @@ const SessionRow = (props: {
 
   return (
     <A
-      href={`/${props.slug}/session/${props.session.id}`}
+      href={props.href ?? `/${props.slug}/session/${props.session.id}`}
       class={`flex items-center gap-2 min-w-0 w-full text-left focus:outline-none ${props.dense ? "py-0.5" : "py-1"}`}
       onPointerDown={props.warmPress}
       onFocus={props.warmFocus}
@@ -141,7 +145,6 @@ const SessionRow = (props: {
 }
 
 export const SessionItem = (props: SessionItemProps): JSX.Element => {
-  const params = useParams()
   const layout = useLayout()
   const language = useLanguage()
   const notification = useNotification()
@@ -162,9 +165,13 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
 
   const tint = createMemo(() => messageAgentColor(sessionStore.message[props.session.id], sessionStore.agent))
   const tooltip = createMemo(() => props.showTooltip ?? (props.mobile || !props.sidebarExpanded()))
-  const currentChild = createMemo(() => {
-    if (!props.showChild) return
-    return childSessionOnPath(sessionStore.session, props.session.id, params.id)
+  const children = createMemo(() => {
+    if (!props.showChild) return []
+    return (sessionStore.session ?? []).filter((s) => s.parentID === props.session.id)
+  })
+  const href = createMemo(() => {
+    if (!props.serverKey) return `/${props.slug}/session/${props.session.id}`
+    return sessionHref(props.serverKey, props.session.id)
   })
 
   const warm = (span: number, priority: "high" | "low") => {
@@ -191,6 +198,7 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
     <SessionRow
       session={props.session}
       slug={props.slug}
+      href={href()}
       mobile={props.mobile}
       dense={props.dense}
       tint={tint}
@@ -217,14 +225,14 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
             <Show
               when={!tooltip()}
               fallback={
-                <Tooltip
+                <TooltipV2
                   placement={props.mobile ? "bottom" : "right"}
                   value={sessionTitle(props.session.title)}
                   gutter={10}
                   class="min-w-0 w-full"
                 >
                   {item}
-                </Tooltip>
+                </TooltipV2>
               }
             >
               {item}
@@ -241,7 +249,7 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
                 "group-focus-within/session:w-6 group-focus-within/session:opacity-100 group-focus-within/session:pointer-events-auto": true,
               }}
             >
-              <Tooltip value={language.t("common.archive")} placement="top">
+              <TooltipV2 value={language.t("common.archive")} placement="top">
                 <IconButton
                   icon="archive"
                   variant="ghost"
@@ -253,17 +261,19 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
                     void props.archiveSession(props.session)
                   }}
                 />
-              </Tooltip>
+              </TooltipV2>
             </div>
           </Show>
         </div>
       </div>
-      <Show when={currentChild()} keyed>
-        {(child) => (
-          <div class="w-full">
-            <SessionItem {...props} session={child} level={(props.level ?? 0) + 1} />
-          </div>
-        )}
+      <Show when={children().length > 0}>
+        <For each={children()}>
+          {(child) => (
+            <div class="w-full">
+              <SessionItem {...props} session={child} level={(props.level ?? 0) + 1} />
+            </div>
+          )}
+        </For>
       </Show>
     </>
   )
@@ -271,6 +281,8 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
 
 export const NewSessionItem = (props: {
   slug: string
+  href?: string
+  onClick?: (event: MouseEvent) => void
   mobile?: boolean
   dense?: boolean
   sidebarExpanded: Accessor<boolean>
@@ -282,10 +294,11 @@ export const NewSessionItem = (props: {
   const tooltip = () => props.mobile || !props.sidebarExpanded()
   const item = (
     <A
-      href={`/${props.slug}/session`}
+      href={props.href ?? `/${props.slug}/session`}
       end
       class={`flex items-center gap-2 min-w-0 w-full text-left focus:outline-none ${props.dense ? "py-0.5" : "py-1"}`}
-      onClick={() => {
+      onClick={(event) => {
+        props.onClick?.(event)
         if (layout.sidebar.opened()) return
         props.clearHoverProjectSoon()
       }}
@@ -302,9 +315,9 @@ export const NewSessionItem = (props: {
       <Show
         when={!tooltip()}
         fallback={
-          <Tooltip placement={props.mobile ? "bottom" : "right"} value={label} gutter={10} class="min-w-0 w-full">
+          <TooltipV2 placement={props.mobile ? "bottom" : "right"} value={label} gutter={10} class="min-w-0 w-full">
             {item}
-          </Tooltip>
+          </TooltipV2>
         }
       >
         {item}

@@ -1,17 +1,17 @@
 ---
 title: Zen
-description: Wyselekcjonowana lista modeli dostarczonych przez OpenCode.
+description: Wyselekcjonowana lista modeli dostarczonych przez Aigcfroge.
 ---
 
 import config from "../../../../config.mjs"
 export const console = config.console
 export const email = `mailto:${config.email}`
 
-OpenCode Zen to lista przetestowanych i zweryfikowanych modeli udostępniana przez zespół OpenCode.
+Aigcfroge Zen to lista przetestowanych i zweryfikowanych modeli udostępniana przez zespół Aigcfroge.
 
-Zen działa jak każdy inny dostawca w OpenCode. Logujesz się do OpenCode Zen i otrzymujesz
+Zen działa jak każdy inny dostawca w Aigcfroge. Logujesz się do Aigcfroge Zen i otrzymujesz
 swój klucz API. To **całkowicie opcjonalne** i nie musisz z tego korzystać, aby używać
-OpenCode.
+Aigcfroge.
 
 ---
 
@@ -22,7 +22,7 @@ agenci kodujący. Dodatkowo większość dostawców jest skonfigurowana bardzo r
 więc otrzymujesz bardzo różną wydajność i jakość.
 
 :::tip
-Przetestowaliśmy wybraną grupę modeli i dostawców, którzy dobrze współpracują z OpenCode.
+Przetestowaliśmy wybraną grupę modeli i dostawców, którzy dobrze współpracują z Aigcfroge.
 :::
 
 Jeśli więc używasz modelu przez coś takiego jak OpenRouter, nigdy nie masz
@@ -37,17 +37,17 @@ Aby to naprawić, zrobiliśmy kilka rzeczy:
 3. Na końcu porównaliśmy wydajność kombinacji model/dostawca i stworzyliśmy
    listę, którą z przekonaniem polecamy.
 
-OpenCode Zen to brama AI, która daje dostęp do tych modeli.
+Aigcfroge Zen to brama AI, która daje dostęp do tych modeli.
 
 ---
 
 ## Jak to działa
 
-OpenCode Zen działa jak każdy inny dostawca w OpenCode.
+Aigcfroge Zen działa jak każdy inny dostawca w Aigcfroge.
 
-1. Logujesz się do **<a href={console}>OpenCode Zen</a>**, dodajesz dane
+1. Logujesz się do **<a href={console}>Aigcfroge Zen</a>**, dodajesz dane
    rozliczeniowe i kopiujesz swój klucz API.
-2. Uruchamiasz polecenie `/connect` w TUI, wybierasz OpenCode Zen i wklejasz swój klucz API.
+2. Uruchamiasz polecenie `/connect` w TUI, wybierasz Aigcfroge Zen i wklejasz swój klucz API.
 3. Uruchamiasz `/models` w TUI, aby zobaczyć listę modeli, które rekomendujemy.
 
 Płatność jest naliczana za każde żądanie i możesz doładować swoje konto.
@@ -60,60 +60,60 @@ Możesz też uzyskać dostęp do naszych modeli przez poniższe endpointy API.
 
 | Model                  | ID modelu              | Endpoint                                             | Pakiet AI SDK               |
 | ---------------------- | ---------------------- | ---------------------------------------------------- | --------------------------- |
-| GPT 5.5                | gpt-5.5                | `https://opencode.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
-| GPT 5.5 Pro            | gpt-5.5-pro            | `https://opencode.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
-| GPT 5.4                | gpt-5.4                | `https://opencode.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
-| GPT 5.4 Pro            | gpt-5.4-pro            | `https://opencode.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
-| GPT 5.4 Mini           | gpt-5.4-mini           | `https://opencode.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
-| GPT 5.4 Nano           | gpt-5.4-nano           | `https://opencode.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
-| GPT 5.3 Codex          | gpt-5.3-codex          | `https://opencode.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
-| GPT 5.3 Codex Spark    | gpt-5.3-codex-spark    | `https://opencode.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
-| GPT 5.2                | gpt-5.2                | `https://opencode.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
-| GPT 5.2 Codex          | gpt-5.2-codex          | `https://opencode.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
-| GPT 5.1                | gpt-5.1                | `https://opencode.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
-| GPT 5.1 Codex          | gpt-5.1-codex          | `https://opencode.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
-| GPT 5.1 Codex Max      | gpt-5.1-codex-max      | `https://opencode.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
-| GPT 5.1 Codex Mini     | gpt-5.1-codex-mini     | `https://opencode.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
-| GPT 5                  | gpt-5                  | `https://opencode.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
-| GPT 5 Codex            | gpt-5-codex            | `https://opencode.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
-| GPT 5 Nano             | gpt-5-nano             | `https://opencode.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
-| Claude Fable 5         | claude-fable-5         | `https://opencode.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
-| Claude Opus 4.8        | claude-opus-4-8        | `https://opencode.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
-| Claude Opus 4.7        | claude-opus-4-7        | `https://opencode.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
-| Claude Opus 4.6        | claude-opus-4-6        | `https://opencode.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
-| Claude Opus 4.5        | claude-opus-4-5        | `https://opencode.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
-| Claude Opus 4.1        | claude-opus-4-1        | `https://opencode.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
-| Claude Sonnet 4.6      | claude-sonnet-4-6      | `https://opencode.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
-| Claude Sonnet 4.5      | claude-sonnet-4-5      | `https://opencode.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
-| Claude Sonnet 4        | claude-sonnet-4        | `https://opencode.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
-| Claude Haiku 4.5       | claude-haiku-4-5       | `https://opencode.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
-| Claude Haiku 3.5       | claude-3-5-haiku       | `https://opencode.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
-| Gemini 3.5 Flash       | gemini-3.5-flash       | `https://opencode.ai/zen/v1/models/gemini-3.5-flash` | `@ai-sdk/google`            |
-| Gemini 3.1 Pro         | gemini-3.1-pro         | `https://opencode.ai/zen/v1/models/gemini-3.1-pro`   | `@ai-sdk/google`            |
-| Gemini 3 Flash         | gemini-3-flash         | `https://opencode.ai/zen/v1/models/gemini-3-flash`   | `@ai-sdk/google`            |
-| Qwen3.7 Max            | qwen3.7-max            | `https://opencode.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
-| Qwen3.7 Plus           | qwen3.7-plus           | `https://opencode.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
-| Qwen3.6 Plus           | qwen3.6-plus           | `https://opencode.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
-| Qwen3.5 Plus           | qwen3.5-plus           | `https://opencode.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
-| DeepSeek V4 Pro        | deepseek-v4-pro        | `https://opencode.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
-| DeepSeek V4 Flash      | deepseek-v4-flash      | `https://opencode.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
-| MiniMax M2.7           | minimax-m2.7           | `https://opencode.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
-| MiniMax M2.5           | minimax-m2.5           | `https://opencode.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
-| GLM 5.2                | glm-5.2                | `https://opencode.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
-| GLM 5.1                | glm-5.1                | `https://opencode.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
-| GLM 5                  | glm-5                  | `https://opencode.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
-| Kimi K2.5              | kimi-k2.5              | `https://opencode.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
-| Kimi K2.6              | kimi-k2.6              | `https://opencode.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
-| Grok Build 0.1         | grok-build-0.1         | `https://opencode.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
-| Big Pickle             | big-pickle             | `https://opencode.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
-| MiMo-V2.5 Free         | mimo-v2.5-free         | `https://opencode.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
-| North Mini Code Free   | north-mini-code-free   | `https://opencode.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
-| Nemotron 3 Ultra Free  | nemotron-3-ultra-free  | `https://opencode.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
-| DeepSeek V4 Flash Free | deepseek-v4-flash-free | `https://opencode.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| GPT 5.5                | gpt-5.5                | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.5 Pro            | gpt-5.5-pro            | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.4                | gpt-5.4                | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.4 Pro            | gpt-5.4-pro            | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.4 Mini           | gpt-5.4-mini           | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.4 Nano           | gpt-5.4-nano           | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.3 Codex          | gpt-5.3-codex          | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.3 Codex Spark    | gpt-5.3-codex-spark    | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.2                | gpt-5.2                | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.2 Codex          | gpt-5.2-codex          | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.1                | gpt-5.1                | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.1 Codex          | gpt-5.1-codex          | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.1 Codex Max      | gpt-5.1-codex-max      | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.1 Codex Mini     | gpt-5.1-codex-mini     | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5                  | gpt-5                  | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5 Codex            | gpt-5-codex            | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5 Nano             | gpt-5-nano             | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| Claude Fable 5         | claude-fable-5         | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Claude Opus 4.8        | claude-opus-4-8        | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Claude Opus 4.7        | claude-opus-4-7        | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Claude Opus 4.6        | claude-opus-4-6        | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Claude Opus 4.5        | claude-opus-4-5        | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Claude Opus 4.1        | claude-opus-4-1        | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Claude Sonnet 4.6      | claude-sonnet-4-6      | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Claude Sonnet 4.5      | claude-sonnet-4-5      | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Claude Sonnet 4        | claude-sonnet-4        | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Claude Haiku 4.5       | claude-haiku-4-5       | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Claude Haiku 3.5       | claude-3-5-haiku       | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Gemini 3.5 Flash       | gemini-3.5-flash       | `https://aigcfroge.ai/zen/v1/models/gemini-3.5-flash` | `@ai-sdk/google`            |
+| Gemini 3.1 Pro         | gemini-3.1-pro         | `https://aigcfroge.ai/zen/v1/models/gemini-3.1-pro`   | `@ai-sdk/google`            |
+| Gemini 3 Flash         | gemini-3-flash         | `https://aigcfroge.ai/zen/v1/models/gemini-3-flash`   | `@ai-sdk/google`            |
+| Qwen3.7 Max            | qwen3.7-max            | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Qwen3.7 Plus           | qwen3.7-plus           | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Qwen3.6 Plus           | qwen3.6-plus           | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Qwen3.5 Plus           | qwen3.5-plus           | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| DeepSeek V4 Pro        | deepseek-v4-pro        | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| DeepSeek V4 Flash      | deepseek-v4-flash      | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| MiniMax M2.7           | minimax-m2.7           | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| MiniMax M2.5           | minimax-m2.5           | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| GLM 5.2                | glm-5.2                | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| GLM 5.1                | glm-5.1                | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| GLM 5                  | glm-5                  | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| Kimi K2.5              | kimi-k2.5              | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| Kimi K2.6              | kimi-k2.6              | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| Grok Build 0.1         | grok-build-0.1         | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| Big Pickle             | big-pickle             | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| MiMo-V2.5 Free         | mimo-v2.5-free         | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| North Mini Code Free   | north-mini-code-free   | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| Nemotron 3 Ultra Free  | nemotron-3-ultra-free  | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| DeepSeek V4 Flash Free | deepseek-v4-flash-free | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
 
-[ID modelu](/docs/config/#models) w Twojej konfiguracji OpenCode używa formatu
-`opencode/<model-id>`. Na przykład dla GPT 5.5 użyjesz w konfiguracji
-`opencode/gpt-5.5`.
+[ID modelu](/docs/config/#models) w Twojej konfiguracji Aigcfroge używa formatu
+`aigcfroge/<model-id>`. Na przykład dla GPT 5.5 użyjesz w konfiguracji
+`aigcfroge/gpt-5.5`.
 
 ---
 
@@ -122,7 +122,7 @@ Możesz też uzyskać dostęp do naszych modeli przez poniższe endpointy API.
 Pełną listę dostępnych modeli i ich metadane możesz pobrać z:
 
 ```
-https://opencode.ai/zen/v1/models
+https://aigcfroge.ai/zen/v1/models
 ```
 
 ---
@@ -197,11 +197,11 @@ Opłaty za karty kredytowe są przenoszone po kosztach (4.4% + $0.30 per transac
 
 Darmowe modele:
 
-- DeepSeek V4 Flash Free jest dostępny w OpenCode przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
-- MiMo-V2.5 Free jest dostępny w OpenCode przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
-- North Mini Code Free jest dostępny w OpenCode przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
-- Nemotron 3 Ultra Free jest dostępny w OpenCode przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
-- Big Pickle to stealth model, który jest darmowy w OpenCode przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
+- DeepSeek V4 Flash Free jest dostępny w Aigcfroge przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
+- MiMo-V2.5 Free jest dostępny w Aigcfroge przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
+- North Mini Code Free jest dostępny w Aigcfroge przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
+- Nemotron 3 Ultra Free jest dostępny w Aigcfroge przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
+- Big Pickle to stealth model, który jest darmowy w Aigcfroge przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
 
 <a href={email}>Skontaktuj się z nami</a>, jeśli masz pytania.
 
@@ -308,9 +308,9 @@ chcesz używać go zamiast tego, który udostępnia Zen.
 
 ## Cele
 
-Stworzyliśmy OpenCode Zen, aby:
+Stworzyliśmy Aigcfroge Zen, aby:
 
 1. **Benchmarkować** najlepsze modele/dostawców dla agentów kodujących.
 2. Mieć dostęp do opcji o **najwyższej jakości** i nie obniżać wydajności ani nie kierować ruchu do tańszych dostawców.
 3. Przekazywać wszelkie **obniżki cen**, sprzedając po kosztach; jedyna marża pokrywa nasze opłaty za przetwarzanie.
-4. Nie tworzyć **lock-in**, pozwalając używać tego z dowolnym innym agentem kodującym. I zawsze pozwalać Ci używać w OpenCode także dowolnego innego dostawcy.
+4. Nie tworzyć **lock-in**, pozwalając używać tego z dowolnym innym agentem kodującym. I zawsze pozwalać Ci używać w Aigcfroge także dowolnego innego dostawcy.

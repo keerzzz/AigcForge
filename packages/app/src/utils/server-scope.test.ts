@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { ScopedKey, ServerScope, SessionRouteKey, SessionStateKey, migrateLegacySessionStateKeys } from "./server-scope"
+import { ScopedKey, ServerScope, SessionRouteKey, SessionStateKey } from "./server-scope"
 
 describe("ServerScope", () => {
   test("uses a stable local scope for the canonical sidecar", () => {
@@ -39,20 +39,7 @@ describe("SessionStateKey", () => {
   })
 })
 
-describe("migrateLegacySessionStateKeys", () => {
-  test("copies legacy route keys into local scope without overwriting scoped state", () => {
-    expect(
-      migrateLegacySessionStateKeys({
-        "cmVwbw/session-1": { active: "legacy" },
-        "local\0cmVwbw/session-1": { active: "scoped" },
-        "https://debian.example\0cmVwbw/session-1": { active: "remote" },
-      }),
-    ).toEqual({
-      "local\0cmVwbw/session-1": { active: "scoped" },
-      "https://debian.example\0cmVwbw/session-1": { active: "remote" },
-    })
-  })
-
+describe("ScopedKey", () => {
   test("rejects invalid identity fragments", () => {
     expect(() => ScopedKey.from(ServerScope.local, "bad\0directory")).toThrow(
       "Scoped key part cannot contain null bytes",

@@ -1,6 +1,6 @@
 import { createStore, reconcile } from "solid-js/store"
 import { createEffect, createMemo } from "solid-js"
-import { createSimpleContext } from "@opencode-ai/ui/context"
+import { createSimpleContext } from "@aigcfroge/ui/context"
 import { persisted } from "@/utils/persist"
 
 export interface NotificationSettings {
@@ -28,13 +28,15 @@ export interface Settings {
     showSearch: boolean
     showStatus: boolean
     showTerminal: boolean
+    showSecondarySidebarToggle: boolean
+    showReviewPanelToggle: boolean
     showReasoningSummaries: boolean
     shellToolPartsExpanded: boolean
     editToolPartsExpanded: boolean
     showSessionProgressBar: boolean
     showCustomAgents: boolean
+    subagentAttendedDefault: boolean
     mobileTitlebarPosition: "top" | "bottom"
-    newLayoutDesigns?: boolean
   }
   appearance: {
     fontSize: number
@@ -53,7 +55,6 @@ export interface Settings {
 export const monoDefault = "System Mono"
 export const sansDefault = "System Sans"
 export const terminalDefault = "JetBrainsMono Nerd Font Mono"
-export const newLayoutDesignsDefault = import.meta.env.VITE_OPENCODE_CHANNEL !== "prod"
 
 const monoFallback =
   'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
@@ -114,11 +115,14 @@ const defaultSettings: Settings = {
     showSearch: false,
     showStatus: false,
     showTerminal: false,
+    showSecondarySidebarToggle: true,
+    showReviewPanelToggle: true,
     showReasoningSummaries: false,
     shellToolPartsExpanded: false,
     editToolPartsExpanded: false,
     showSessionProgressBar: true,
     showCustomAgents: false,
+    subagentAttendedDefault: false,
     mobileTitlebarPosition: "top",
   },
   appearance: {
@@ -158,12 +162,18 @@ export const { use: useSettings, provider: SettingsProvider } = createSimpleCont
     const showFileTree = withFallback(() => store.general?.showFileTree, defaultSettings.general.showFileTree)
     const showSearch = withFallback(() => store.general?.showSearch, defaultSettings.general.showSearch)
     const showStatus = withFallback(() => store.general?.showStatus, defaultSettings.general.showStatus)
+    const showSecondarySidebarToggle = withFallback(
+      () => store.general?.showSecondarySidebarToggle,
+      defaultSettings.general.showSecondarySidebarToggle,
+    )
+    const showReviewPanelToggle = withFallback(
+      () => store.general?.showReviewPanelToggle,
+      defaultSettings.general.showReviewPanelToggle,
+    )
     const showCustomAgents = withFallback(
       () => store.general?.showCustomAgents,
       defaultSettings.general.showCustomAgents,
     )
-    const newLayoutDesigns = withFallback(() => store.general?.newLayoutDesigns, newLayoutDesignsDefault)
-    const visible = (preference: () => boolean) => createMemo(() => !newLayoutDesigns() || preference())
 
     createEffect(() => {
       if (typeof document === "undefined") return
@@ -214,6 +224,14 @@ export const { use: useSettings, provider: SettingsProvider } = createSimpleCont
         setShowStatus(value: boolean) {
           setStore("general", "showStatus", value)
         },
+        showSecondarySidebarToggle,
+        setShowSecondarySidebarToggle(value: boolean) {
+          setStore("general", "showSecondarySidebarToggle", value)
+        },
+        showReviewPanelToggle,
+        setShowReviewPanelToggle(value: boolean) {
+          setStore("general", "showReviewPanelToggle", value)
+        },
         showTerminal: withFallback(() => store.general?.showTerminal, defaultSettings.general.showTerminal),
         setShowTerminal(value: boolean) {
           setStore("general", "showTerminal", value)
@@ -250,6 +268,13 @@ export const { use: useSettings, provider: SettingsProvider } = createSimpleCont
         setShowCustomAgents(value: boolean) {
           setStore("general", "showCustomAgents", value)
         },
+        subagentAttendedDefault: withFallback(
+          () => store.general?.subagentAttendedDefault,
+          defaultSettings.general.subagentAttendedDefault,
+        ),
+        setSubagentAttendedDefault(value: boolean) {
+          setStore("general", "subagentAttendedDefault", value)
+        },
         mobileTitlebarPosition: withFallback(
           () => store.general?.mobileTitlebarPosition,
           defaultSettings.general.mobileTitlebarPosition,
@@ -257,16 +282,14 @@ export const { use: useSettings, provider: SettingsProvider } = createSimpleCont
         setMobileTitlebarPosition(value: "top" | "bottom") {
           setStore("general", "mobileTitlebarPosition", value)
         },
-        newLayoutDesigns,
-        setNewLayoutDesigns(value: boolean) {
-          setStore("general", "newLayoutDesigns", value)
-        },
       },
       visibility: {
-        fileTree: visible(showFileTree),
-        search: visible(showSearch),
-        status: visible(showStatus),
-        customAgents: visible(showCustomAgents),
+        fileTree: showFileTree,
+        search: showSearch,
+        status: showStatus,
+        customAgents: showCustomAgents,
+        secondarySidebarToggle: showSecondarySidebarToggle,
+        reviewPanelToggle: showReviewPanelToggle,
       },
       appearance: {
         fontSize: withFallback(() => store.appearance?.fontSize, defaultSettings.appearance.fontSize),

@@ -1,9 +1,9 @@
 import { describe, expect } from "bun:test"
 import { Context, Deferred, Effect, Exit, Fiber, Layer, Scope } from "effect"
-import { Database } from "@opencode-ai/core/database/database"
-import { EventV2 } from "@opencode-ai/core/event"
-import { QuestionV2 } from "@opencode-ai/core/question"
-import { SessionV2 } from "@opencode-ai/core/session"
+import { Database } from "@aigcfroge/core/database/database"
+import { EventV2 } from "@aigcfroge/core/event"
+import { QuestionV2 } from "@aigcfroge/core/question"
+import { SessionV2 } from "@aigcfroge/core/session"
 import { testEffect } from "./lib/effect"
 
 const questions = QuestionV2.layer.pipe(Layer.provide(EventV2.defaultLayer))
@@ -96,7 +96,7 @@ describe("QuestionV2", () => {
       const second = Context.get(yield* Layer.buildWithScope(Layer.fresh(questions), secondScope), QuestionV2.Service)
       const fiber = yield* first.ask({ sessionID, questions: [question] }).pipe(Effect.forkScoped)
       yield* Effect.yieldNow
-      const request = (yield* first.list())[0]!
+      const request = (yield* first.list())[0]
 
       expect(yield* second.list()).toEqual([])
       expect(yield* second.reply({ requestID: request.id, answers: [["One"]] }).pipe(Effect.flip)).toEqual(

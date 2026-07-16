@@ -9,6 +9,7 @@ const emptyList = new Set([
   "/question",
   "/vcs/status",
   "/vcs/diff",
+  "/vcs/log",
 ])
 const emptyObject = new Set(["/global/config", "/config", "/provider/auth", "/mcp", "/session/status"])
 
@@ -25,7 +26,7 @@ export interface MockServerConfig {
   eventRetry?: number
 }
 
-export async function mockOpenCodeServer(page: Page, config: MockServerConfig) {
+export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) {
   const cursors = new Map<string, string>()
   let nextCursor = 0
   const staticRoutes: Record<string, unknown> = {
@@ -35,7 +36,7 @@ export async function mockOpenCodeServer(page: Page, config: MockServerConfig) {
       config: config.directory,
       worktree: config.directory,
       directory: config.directory,
-      home: "C:/OpenCode",
+      home: "C:/Aigcfroge",
     },
     "/project": [config.project],
     "/project/current": config.project,

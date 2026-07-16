@@ -1,13 +1,13 @@
-import { Dialog } from "@opencode-ai/ui/dialog"
-import { List } from "@opencode-ai/ui/list"
-import { Switch } from "@opencode-ai/ui/switch"
-import { Tooltip } from "@opencode-ai/ui/tooltip"
-import { Button } from "@opencode-ai/ui/button"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
+import { List } from "@aigcfroge/ui/list"
+import { Switch } from "@aigcfroge/ui/v2/switch-v2"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
+import { Button } from "@aigcfroge/ui/button"
 import type { Component } from "solid-js"
 import { useLocal } from "@/context/local"
 import { popularProviders } from "@/hooks/use-providers"
 import { useLanguage } from "@/context/language"
-import { useDialog } from "@opencode-ai/ui/context/dialog"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { DialogSelectProvider } from "./dialog-select-provider"
 
 export const DialogManageModels: Component = () => {
@@ -16,7 +16,7 @@ export const DialogManageModels: Component = () => {
   const dialog = useDialog()
 
   const handleConnectProvider = () => {
-    dialog.show(() => <DialogSelectProvider />)
+    void dialog.show(() => <DialogSelectProvider />)
   }
   const providerRank = (id: string) => popularProviders.indexOf(id)
   const providerList = (providerID: string) => local.model.list().filter((x) => x.provider.id === providerID)
@@ -52,7 +52,7 @@ export const DialogManageModels: Component = () => {
           return (
             <>
               <span>{provider.name}</span>
-              <Tooltip
+              <TooltipV2
                 placement="top"
                 value={language.t("dialog.model.manage.provider.toggle", { provider: provider.name })}
               >
@@ -64,7 +64,7 @@ export const DialogManageModels: Component = () => {
                 >
                   {provider.name}
                 </Switch>
-              </Tooltip>
+              </TooltipV2>
             </>
           )
         }}
@@ -88,7 +88,7 @@ export const DialogManageModels: Component = () => {
             <span>{i.name}</span>
             <div onClick={(e) => e.stopPropagation()}>
               <Switch
-                checked={!!local.model.visible({ modelID: i.id, providerID: i.provider.id })}
+                checked={local.model.visible({ modelID: i.id, providerID: i.provider.id })}
                 onChange={(checked) => {
                   local.model.setVisibility({ modelID: i.id, providerID: i.provider.id }, checked)
                 }}

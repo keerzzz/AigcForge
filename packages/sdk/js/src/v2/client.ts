@@ -3,9 +3,10 @@ export type { FileSystemEntry as LocationFileSystemEntry } from "./gen/types.gen
 
 import { createClient } from "./gen/client/client.gen.js"
 import { type Config } from "./gen/client/types.gen.js"
-import { OpencodeClient } from "./gen/sdk.gen.js"
+import { mergeHeaders } from "./gen/client/utils.gen.js"
+import { AigcfrogeClient } from "./gen/sdk.gen.js"
 import { wrapClientError } from "../error-interceptor.js"
-export { type Config as OpencodeClientConfig, OpencodeClient }
+export { type Config as AigcfrogeClientConfig, AigcfrogeClient }
 
 function pick(value: string | null, fallback?: string, encode?: (value: string) => string) {
   if (!value) return
@@ -22,8 +23,8 @@ function rewrite(request: Request, values: { directory?: string; workspace?: str
   let changed = false
 
   for (const [name, key] of [
-    ["x-opencode-directory", "directory"],
-    ["x-opencode-workspace", "workspace"],
+    ["x-aigcfroge-directory", "directory"],
+    ["x-aigcfroge-workspace", "workspace"],
   ] as const) {
     const value = pick(
       request.headers.get(name),
@@ -42,12 +43,12 @@ function rewrite(request: Request, values: { directory?: string; workspace?: str
   if (!changed) return request
 
   const next = new Request(url, request)
-  next.headers.delete("x-opencode-directory")
-  next.headers.delete("x-opencode-workspace")
+  next.headers.delete("x-aigcfroge-directory")
+  next.headers.delete("x-aigcfroge-workspace")
   return next
 }
 
-export function createOpencodeClient(config?: Config & { directory?: string; experimental_workspaceID?: string }) {
+export function createAigcfrogeClient(config?: Config & { directory?: string; experimental_workspaceID?: string }) {
   if (!config?.fetch) {
     const customFetch: any = (req: any) => {
       // @ts-ignore
@@ -61,17 +62,15 @@ export function createOpencodeClient(config?: Config & { directory?: string; exp
   }
 
   if (config?.directory) {
-    config.headers = {
-      ...config.headers,
-      "x-opencode-directory": encodeURIComponent(config.directory),
-    }
+    config.headers = mergeHeaders(config.headers, {
+      "x-aigcfroge-directory": encodeURIComponent(config.directory),
+    })
   }
 
   if (config?.experimental_workspaceID) {
-    config.headers = {
-      ...config.headers,
-      "x-opencode-workspace": config.experimental_workspaceID,
-    }
+    config.headers = mergeHeaders(config.headers, {
+      "x-aigcfroge-workspace": config.experimental_workspaceID,
+    })
   }
 
   const client = createClient(config)
@@ -84,10 +83,10 @@ export function createOpencodeClient(config?: Config & { directory?: string; exp
   client.interceptors.response.use((response) => {
     const contentType = response.headers.get("content-type")
     if (contentType === "text/html")
-      throw new Error("Request is not supported by this version of OpenCode Server (Server responded with text/html)")
+      throw new Error("Request is not supported by this version of Aigcfroge Server (Server responded with text/html)")
 
     return response
   })
   client.interceptors.error.use(wrapClientError)
-  return new OpencodeClient({ client })
+  return new AigcfrogeClient({ client })
 }

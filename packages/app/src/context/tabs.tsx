@@ -1,5 +1,5 @@
-import type { Session } from "@opencode-ai/sdk/v2/client"
-import { createSimpleContext } from "@opencode-ai/ui/context"
+import type { Session } from "@aigcfroge/sdk/v2/client"
+import { createSimpleContext } from "@aigcfroge/ui/context"
 import { createStore, produce } from "solid-js/store"
 import { Persist, persisted, removePersisted, draftPersistedKeys } from "@/utils/persist"
 import { ServerConnection, useServer } from "./server"
@@ -10,6 +10,7 @@ import { uuid } from "@/utils/uuid"
 import { SessionTabsRemovedDetail } from "@/components/titlebar-session-events"
 import { sessionHref } from "@/utils/session-route"
 import { createTabMemory } from "./tab-memory"
+import { isMode, type Mode } from "./mode"
 
 export type SessionTab = {
   type: "session"
@@ -23,6 +24,7 @@ export type DraftTab = {
   server: ServerConnection.Key
   directory: string
   worktree?: string
+  mode: Mode
 }
 
 export type Tab = SessionTab | DraftTab
@@ -55,8 +57,13 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
         migrate: (value: unknown) => {
           if (!Array.isArray(value)) return value
           return value.map((tab) => {
-            if (!tab || typeof tab !== "object" || "server" in tab) return tab
-            return { ...tab, server: fallback }
+            if (!tab || typeof tab !== "object") return tab
+            const migrated = "server" in tab ? tab : { ...tab, server: fallback }
+            if (!("type" in migrated) || migrated.type !== "draft") return migrated
+            const mode = "mode" in migrated && typeof migrated.mode === "string" && isMode(migrated.mode)
+              ? migrated.mode
+              : "coding"
+            return { ...migrated, mode }
           })
         },
       },
@@ -152,7 +159,7 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
         // before the draft is removed from the store.
         const active = location.pathname === "/new-session" && location.query.draftId === draftID
         const next = { type: "session" as const, ...session }
-        startTransition(() => {
+        void startTransition(() => {
           setStore(
             produce((tabs) => {
               const index = tabs.findIndex((tab) => tab.type === "draft" && tab.draftID === draftID)

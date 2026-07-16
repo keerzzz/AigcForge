@@ -1,10 +1,10 @@
-import { base64Encode } from "@opencode-ai/core/util/encode"
+import { base64Encode } from "@aigcfroge/core/util/encode"
 import type { Page } from "@playwright/test"
-import { mockOpenCodeServer } from "../../utils/mock-server"
+import { mockAigcfrogeServer } from "../../utils/mock-server"
 import { expectAppVisible, expectSessionTitle } from "../../utils/waits"
 import { expect } from "../benchmark"
 
-const directory = "C:/OpenCode/TimelineStateRegression"
+const directory = "C:/Aigcfroge/TimelineStateRegression"
 const projectID = "proj_timeline_state_regression"
 const sessionID = "ses_timeline_state_regression"
 const userMessageID = "msg_user_regression"
@@ -12,7 +12,7 @@ const assistantMessageID = "msg_assistant_regression"
 const editPartID = "prt_0001_edit"
 export const textPartID = "prt_9999_text"
 const title = "Timeline collapse state regression"
-const model = { providerID: "opencode", modelID: "claude-opus-4-6", variant: "max" }
+const model = { providerID: "aigcfroge", modelID: "claude-opus-4-6", variant: "max" }
 
 type EventPayload = {
   directory: string
@@ -96,7 +96,7 @@ const assistantMessage = {
 export async function setupTimelineBenchmark(page: Page, options: { historyTurns: number; eventBatch: number }) {
   const events: EventPayload[] = []
   let eventBatch = options.eventBatch
-  await mockOpenCodeServer(page, {
+  await mockAigcfrogeServer(page, {
     directory,
     project: project(),
     provider: provider(),
@@ -447,7 +447,7 @@ export function streamChunk(index: number, count: number) {
     ` activeID()) // stream-${index}\n`,
     `// stream-${index}\n\`\`\`\n\n### Iteration ${section}\n\nStreaming **bold analysis`,
   ]
-  return fragments[(index - 1) % fragments.length]!
+  return fragments[(index - 1) % fragments.length]
 }
 
 function project() {
@@ -477,12 +477,12 @@ function provider() {
   return {
     all: [
       {
-        id: "opencode",
-        name: "OpenCode",
+        id: "aigcfroge",
+        name: "Aigcfroge",
         models: { "claude-opus-4-6": { id: "claude-opus-4-6", name: "Claude Opus 4.6", limit: { context: 200_000 } } },
       },
     ],
-    connected: ["opencode"],
-    default: { providerID: "opencode", modelID: "claude-opus-4-6" },
+    connected: ["aigcfroge"],
+    default: { providerID: "aigcfroge", modelID: "claude-opus-4-6" },
   }
 }

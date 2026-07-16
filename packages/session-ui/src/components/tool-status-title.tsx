@@ -1,6 +1,6 @@
 import { Show, createEffect, createMemo, on, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
-import { TextShimmer } from "@opencode-ai/ui/text-shimmer"
+import { TextShimmerV2 } from "@aigcfroge/ui/v2/text-shimmer-v2"
 
 function common(active: string, done: string) {
   const a = Array.from(active)
@@ -102,12 +102,12 @@ export function ToolStatusTitle(props: {
           <span data-slot="tool-status-swap" ref={widthRef} style={{ width: width() }}>
             <Show when={animating() || active()}>
               <span data-slot="tool-status-active" ref={activeRef}>
-                <TextShimmer text={activeTail()} active={active()} offset={0} />
+                <TextShimmerV2 text={activeTail()} active={active()} offset={0} />
               </span>
             </Show>
             <Show when={animating() || !active()}>
               <span data-slot="tool-status-done" ref={doneRef}>
-                <TextShimmer text={doneTail()} active={false} offset={0} />
+                <TextShimmerV2 text={doneTail()} active={false} offset={0} />
               </span>
             </Show>
           </span>
@@ -115,17 +115,17 @@ export function ToolStatusTitle(props: {
       >
         <span data-slot="tool-status-suffix">
           <span data-slot="tool-status-prefix">
-            <TextShimmer text={split().prefix} active={active()} offset={0} />
+            <TextShimmerV2 text={split().prefix} active={active()} offset={0} />
           </span>
           <span data-slot="tool-status-tail" ref={widthRef} style={{ width: width() }}>
             <Show when={animating() || active()}>
               <span data-slot="tool-status-active" ref={activeRef}>
-                <TextShimmer text={activeTail()} active={active()} offset={prefixLen()} />
+                <TextShimmerV2 text={activeTail()} active={active()} offset={prefixLen()} />
               </span>
             </Show>
             <Show when={animating() || !active()}>
               <span data-slot="tool-status-done" ref={doneRef}>
-                <TextShimmer text={doneTail()} active={false} offset={prefixLen()} />
+                <TextShimmerV2 text={doneTail()} active={false} offset={prefixLen()} />
               </span>
             </Show>
           </span>

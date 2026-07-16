@@ -47,7 +47,7 @@ export const dict = {
 
   "dialog.usageExceeded.freeTier.title": "Osiągnięto limit darmowy",
   "dialog.usageExceeded.freeTier.description":
-    "Subskrybuj OpenCode Go, aby uzyskać niezawodny dostęp do najlepszych modeli open source, od $5/miesiąc.",
+    "Subskrybuj Aigcfroge Go, aby uzyskać niezawodny dostęp do najlepszych modeli open source, od $5/miesiąc.",
   "dialog.usageExceeded.freeTier.actionLabel": "Subskrybuj",
   "dialog.usageExceeded.accountRateLimit.title": "Osiągnięto limit Go",
   "dialog.usageExceeded.accountRateLimit.description":
@@ -110,6 +110,7 @@ export const dict = {
   "ui.tool.questions": "Pytania",
   "ui.tool.agent": "Agent {{type}}",
   "ui.tool.agent.default": "Agent",
+  "ui.tool.agent.openSession": "Open sub-agent session",
 
   "ui.common.file.one": "plik",
   "ui.common.file.other": "pliki",

@@ -82,7 +82,7 @@ function prepareOptions(model: ModelV2.Info, pkg: string) {
   const chunkTimeout = options.chunkTimeout
   delete options.chunkTimeout
   options.fetch = async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
-    const opts = { ...(init ?? {}) }
+    const opts = { ...init }
     const signals = [
       opts.signal,
       typeof chunkTimeout === "number" && chunkTimeout > 0 ? new AbortController() : undefined,
@@ -143,7 +143,7 @@ export interface Interface {
   readonly language: (model: ModelV2.Info) => Effect.Effect<LanguageModelV3, InitError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/v2/AISDK") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/AISDK") {}
 
 export const locationLayer = Layer.effect(
   Service,

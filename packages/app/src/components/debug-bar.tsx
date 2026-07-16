@@ -2,7 +2,7 @@ import { useIsRouting, useLocation } from "@solidjs/router"
 import { batch, createEffect, onCleanup, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
 import { makeEventListener } from "@solid-primitives/event-listener"
-import { Tooltip } from "@opencode-ai/ui/tooltip"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
 import { useLanguage } from "@/context/language"
 
 type Mem = Performance & {
@@ -53,7 +53,7 @@ const session = (path: string) => path.includes("/session")
 
 function Cell(props: { bad?: boolean; dim?: boolean; label: string; tip: string; value: string; wide?: boolean }) {
   return (
-    <Tooltip value={props.tip} placement="top">
+    <TooltipV2 value={props.tip} placement="top">
       <div
         classList={{
           "flex min-h-[42px] w-full min-w-0 flex-col items-center justify-center rounded-[8px] px-0.5 py-1 text-center": true,
@@ -71,7 +71,7 @@ function Cell(props: { bad?: boolean; dim?: boolean; label: string; tip: string;
           {props.value}
         </div>
       </div>
-    </Tooltip>
+    </TooltipV2>
   )
 }
 

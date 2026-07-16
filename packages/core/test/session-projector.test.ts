@@ -1,24 +1,24 @@
 import { describe, expect } from "bun:test"
 import { DateTime, Effect, Layer, Schema } from "effect"
 import { asc, eq } from "drizzle-orm"
-import { Database } from "@opencode-ai/core/database/database"
-import { EventV2 } from "@opencode-ai/core/event"
-import { EventTable } from "@opencode-ai/core/event/sql"
-import { ModelV2 } from "@opencode-ai/core/model"
-import { Project } from "@opencode-ai/core/project"
-import { ProjectTable } from "@opencode-ai/core/project/sql"
-import { ProviderV2 } from "@opencode-ai/core/provider"
-import { AbsolutePath } from "@opencode-ai/core/schema"
-import { SessionV2 } from "@opencode-ai/core/session"
-import { SessionEvent } from "@opencode-ai/core/session/event"
-import { SessionMessage } from "@opencode-ai/core/session/message"
-import { Prompt } from "@opencode-ai/core/session/prompt"
-import { SessionMessageUpdater } from "@opencode-ai/core/session/message-updater"
-import { SessionProjector } from "@opencode-ai/core/session/projector"
-import { SessionExecution } from "@opencode-ai/core/session/execution"
-import { SessionInput } from "@opencode-ai/core/session/input"
-import { SessionStore } from "@opencode-ai/core/session/store"
-import { SessionInputTable, SessionMessageTable, SessionTable } from "@opencode-ai/core/session/sql"
+import { Database } from "@aigcfroge/core/database/database"
+import { EventV2 } from "@aigcfroge/core/event"
+import { EventTable } from "@aigcfroge/core/event/sql"
+import { ModelV2 } from "@aigcfroge/core/model"
+import { Project } from "@aigcfroge/core/project"
+import { ProjectTable } from "@aigcfroge/core/project/sql"
+import { ProviderV2 } from "@aigcfroge/core/provider"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { SessionV2 } from "@aigcfroge/core/session"
+import { SessionEvent } from "@aigcfroge/core/session/event"
+import { SessionMessage } from "@aigcfroge/core/session/message"
+import { Prompt } from "@aigcfroge/core/session/prompt"
+import { SessionMessageUpdater } from "@aigcfroge/core/session/message-updater"
+import { SessionProjector } from "@aigcfroge/core/session/projector"
+import { SessionExecution } from "@aigcfroge/core/session/execution"
+import { SessionInput } from "@aigcfroge/core/session/input"
+import { SessionStore } from "@aigcfroge/core/session/store"
+import { SessionInputTable, SessionMessageTable, SessionTable } from "@aigcfroge/core/session/sql"
 import { testEffect } from "./lib/effect"
 
 const it = testEffect(Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer, SessionProjector.defaultLayer))
@@ -93,7 +93,7 @@ describe("SessionProjector", () => {
         sessionID,
         limit: 1,
         order: "asc",
-        cursor: { id: firstPage[0]!.id, direction: "next" },
+        cursor: { id: firstPage[0].id, direction: "next" },
       })
       expect(secondPage.map((message) => (message.type === "user" ? message.text : message.type))).toEqual(["second"])
       expect(
@@ -101,7 +101,7 @@ describe("SessionProjector", () => {
           sessionID,
           limit: 1,
           order: "asc",
-          cursor: { id: secondPage[0]!.id, direction: "previous" },
+          cursor: { id: secondPage[0].id, direction: "previous" },
         })).map((message) => (message.type === "user" ? message.text : message.type)),
       ).toEqual(["first"])
       expect(

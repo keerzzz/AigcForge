@@ -8,50 +8,52 @@ import {
   InvalidRequestReason,
   type LLMClientShape,
   type LLMRequest,
-} from "@opencode-ai/llm"
-import * as OpenAIChat from "@opencode-ai/llm/protocols/openai-chat"
-import { Database } from "@opencode-ai/core/database/database"
-import { EventV2 } from "@opencode-ai/core/event"
-import { PermissionV2 } from "@opencode-ai/core/permission"
-import { EventTable } from "@opencode-ai/core/event/sql"
-import { Project } from "@opencode-ai/core/project"
-import { ProjectTable } from "@opencode-ai/core/project/sql"
-import { QuestionV2 } from "@opencode-ai/core/question"
-import { AbsolutePath } from "@opencode-ai/core/schema"
-import { SessionV2 } from "@opencode-ai/core/session"
-import { ContextSnapshotDecodeError } from "@opencode-ai/core/session/error"
-import { SessionEvent } from "@opencode-ai/core/session/event"
-import { SessionInput } from "@opencode-ai/core/session/input"
-import { SessionMessage } from "@opencode-ai/core/session/message"
-import { Prompt } from "@opencode-ai/core/session/prompt"
-import { SessionProjector } from "@opencode-ai/core/session/projector"
-import { SessionExecution } from "@opencode-ai/core/session/execution"
-import { SessionRunCoordinator } from "@opencode-ai/core/session/run-coordinator"
-import { SessionRunner } from "@opencode-ai/core/session/runner"
-import * as SessionRunnerLLM from "@opencode-ai/core/session/runner/llm"
-import { SessionRunnerModel } from "@opencode-ai/core/session/runner/model"
-import { ToolRegistry } from "@opencode-ai/core/tool/registry"
-import { ToolOutputStore } from "@opencode-ai/core/tool-output-store"
-import { ApplicationTools } from "@opencode-ai/core/tool/application-tools"
-import { AgentV2 } from "@opencode-ai/core/agent"
-import { Config } from "@opencode-ai/core/config"
-import { ConfigCompaction } from "@opencode-ai/core/config/compaction"
-import { Tool } from "@opencode-ai/core/tool/tool"
+} from "@aigcfroge/llm"
+import * as OpenAIChat from "@aigcfroge/llm/protocols/openai-chat"
+import { Database } from "@aigcfroge/core/database/database"
+import { EventV2 } from "@aigcfroge/core/event"
+import { PermissionV2 } from "@aigcfroge/core/permission"
+import { EventTable } from "@aigcfroge/core/event/sql"
+import { Project } from "@aigcfroge/core/project"
+import { ProjectTable } from "@aigcfroge/core/project/sql"
+import { QuestionV2 } from "@aigcfroge/core/question"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { SessionV2 } from "@aigcfroge/core/session"
+import { ContextSnapshotDecodeError } from "@aigcfroge/core/session/error"
+import { SessionEvent } from "@aigcfroge/core/session/event"
+import { SessionInput } from "@aigcfroge/core/session/input"
+import { SessionMessage } from "@aigcfroge/core/session/message"
+import { Prompt } from "@aigcfroge/core/session/prompt"
+import { SessionProjector } from "@aigcfroge/core/session/projector"
+import { SessionExecution } from "@aigcfroge/core/session/execution"
+import { SessionRunCoordinator } from "@aigcfroge/core/session/run-coordinator"
+import { SessionRunner } from "@aigcfroge/core/session/runner"
+import * as SessionRunnerLLM from "@aigcfroge/core/session/runner/llm"
+import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
+import { ToolRegistry } from "@aigcfroge/core/tool/registry"
+import { ToolOutputStore } from "@aigcfroge/core/tool-output-store"
+import { ApplicationTools } from "@aigcfroge/core/tool/application-tools"
+import { AppProcess } from "@aigcfroge/core/process"
+import { SkillV2 } from "@aigcfroge/core/skill"
+import { AgentV2 } from "@aigcfroge/core/agent"
+import { Config } from "@aigcfroge/core/config"
+import { ConfigCompaction } from "@aigcfroge/core/config/compaction"
+import { Tool } from "@aigcfroge/core/tool/tool"
 import {
   SessionContextEpochTable,
   SessionInputTable,
   SessionMessageTable,
   SessionTable,
-} from "@opencode-ai/core/session/sql"
-import { SessionStore } from "@opencode-ai/core/session/store"
-import { SystemContext } from "@opencode-ai/core/system-context"
-import { SystemContextRegistry } from "@opencode-ai/core/system-context/registry"
-import { SkillGuidance } from "@opencode-ai/core/skill/guidance"
-import { ReferenceGuidance } from "@opencode-ai/core/reference/guidance"
-import { ModelV2 } from "@opencode-ai/core/model"
-import { Location } from "@opencode-ai/core/location"
-import { ProviderV2 } from "@opencode-ai/core/provider"
-import { Cause, DateTime, Deferred, Effect, Exit, Fiber, Layer, Schema, Stream } from "effect"
+} from "@aigcfroge/core/session/sql"
+import { SessionStore } from "@aigcfroge/core/session/store"
+import { SystemContext } from "@aigcfroge/core/system-context"
+import { SystemContextRegistry } from "@aigcfroge/core/system-context/registry"
+import { SkillGuidance } from "@aigcfroge/core/skill/guidance"
+import { ReferenceGuidance } from "@aigcfroge/core/reference/guidance"
+import { ModelV2 } from "@aigcfroge/core/model"
+import { Location } from "@aigcfroge/core/location"
+import { ProviderV2 } from "@aigcfroge/core/provider"
+import { Cause, DateTime, Deferred, Duration, Effect, Exit, Fiber, Layer, Schema, Stream } from "effect"
 import { asc, eq } from "drizzle-orm"
 import { testEffect } from "./lib/effect"
 
@@ -229,7 +231,38 @@ const config = Layer.succeed(
       ]),
   }),
 )
+const appProcess = Layer.succeed(
+  AppProcess.Service,
+  AppProcess.Service.of({
+    run: () =>
+      Effect.succeed({
+        command: "mock",
+        exitCode: 0,
+        stdout: Buffer.from("shell-output\n"),
+        stderr: Buffer.alloc(0),
+        stdoutTruncated: false,
+        stderrTruncated: false,
+      }),
+  } as unknown as AppProcess.Interface),
+)
+const skillV2 = Layer.succeed(
+  SkillV2.Service,
+  SkillV2.Service.of({
+    list: () =>
+      Effect.succeed([
+        {
+          name: "test-skill",
+          description: "test",
+          slash: true,
+          location: AbsolutePath.make("/project"),
+          content: "Run the test skill workflow",
+        },
+      ]),
+  } as unknown as SkillV2.Interface),
+)
 const runner = SessionRunnerLLM.layer.pipe(
+  Layer.provide(appProcess),
+  Layer.provide(skillV2),
   Layer.provide(Database.defaultLayer),
   Layer.provide(SessionStore.defaultLayer),
   Layer.provide(EventV2.defaultLayer),
@@ -880,7 +913,7 @@ describe("SessionRunnerLLM", () => {
         ["Initial context\n\nBuild skills"],
         ["Initial context\n\nBuild skills"],
       ])
-      expect(systemTexts(requests[1]!)).toContainEqual(expect.stringContaining("Reviewer skills"))
+      expect(systemTexts(requests[1])).toContainEqual(expect.stringContaining("Reviewer skills"))
     }),
   )
 
@@ -1503,7 +1536,7 @@ describe("SessionRunnerLLM", () => {
         ["Initial context"],
         ["Initial context"],
       ])
-      expect(systemTexts(requests[1]!)).toContain("Replacement context")
+      expect(systemTexts(requests[1])).toContain("Replacement context")
     }),
   )
 
@@ -1839,8 +1872,8 @@ describe("SessionRunnerLLM", () => {
       yield* Effect.yieldNow
 
       expect(requests).toHaveLength(2)
-      expect(userTexts(requests[0]!)).toEqual(["Start working"])
-      expect(userTexts(requests[1]!)).toEqual(["Start working", "Change direction"])
+      expect(userTexts(requests[0])).toEqual(["Start working"])
+      expect(userTexts(requests[1])).toEqual(["Start working", "Change direction"])
       expect((yield* session.context(sessionID)).map((message) => message.type)).toEqual([
         "user",
         "assistant",
@@ -1891,9 +1924,9 @@ describe("SessionRunnerLLM", () => {
       streamStarted = undefined
 
       expect(requests).toHaveLength(3)
-      expect(userTexts(requests[0]!)).toEqual(["Start working"])
-      expect(userTexts(requests[1]!)).toEqual(["Start working"])
-      expect(userTexts(requests[2]!)).toEqual(["Start working", "Wait until continuation ends"])
+      expect(userTexts(requests[0])).toEqual(["Start working"])
+      expect(userTexts(requests[1])).toEqual(["Start working"])
+      expect(userTexts(requests[2])).toEqual(["Start working", "Wait until continuation ends"])
     }),
   )
 
@@ -1935,8 +1968,8 @@ describe("SessionRunnerLLM", () => {
       streamStarted = undefined
 
       expect(requests).toHaveLength(2)
-      expect(userTexts(requests[0]!)).toEqual(["Interrupt current work"])
-      expect(userTexts(requests[1]!)).toEqual(["Interrupt current work", "Run after interrupt"])
+      expect(userTexts(requests[0])).toEqual(["Interrupt current work"])
+      expect(userTexts(requests[1])).toEqual(["Interrupt current work", "Run after interrupt"])
     }),
   )
 
@@ -1978,8 +2011,8 @@ describe("SessionRunnerLLM", () => {
       streamStarted = undefined
 
       expect(requests).toHaveLength(2)
-      expect(userTexts(requests[0]!)).toEqual(["Interrupt current work"])
-      expect(userTexts(requests[1]!)).toEqual(["Interrupt current work", "Steer after interrupt"])
+      expect(userTexts(requests[0])).toEqual(["Interrupt current work"])
+      expect(userTexts(requests[1])).toEqual(["Interrupt current work", "Steer after interrupt"])
     }),
   )
 
@@ -2020,9 +2053,9 @@ describe("SessionRunnerLLM", () => {
       streamStarted = undefined
 
       expect(requests).toHaveLength(3)
-      expect(userTexts(requests[0]!)).toEqual(["Start working"])
-      expect(userTexts(requests[1]!)).toEqual(["Start working", "Queue first"])
-      expect(userTexts(requests[2]!)).toEqual(["Start working", "Queue first", "Queue second"])
+      expect(userTexts(requests[0])).toEqual(["Start working"])
+      expect(userTexts(requests[1])).toEqual(["Start working", "Queue first"])
+      expect(userTexts(requests[2])).toEqual(["Start working", "Queue first", "Queue second"])
     }),
   )
 
@@ -2055,8 +2088,8 @@ describe("SessionRunnerLLM", () => {
       yield* session.resume(sessionID)
 
       expect(requests).toHaveLength(2)
-      expect(userTexts(requests[0]!)).toEqual(["Start steering"])
-      expect(userTexts(requests[1]!)).toEqual(["Start steering", "Queue for later"])
+      expect(userTexts(requests[0])).toEqual(["Start steering"])
+      expect(userTexts(requests[1])).toEqual(["Start steering", "Queue for later"])
     }),
   )
 
@@ -2107,15 +2140,15 @@ describe("SessionRunnerLLM", () => {
       streamGate = undefined
 
       expect(requests).toHaveLength(4)
-      expect(userTexts(requests[0]!)).toEqual(["Start working"])
-      expect(userTexts(requests[1]!)).toEqual(["Start working", "Queue first"])
-      expect(userTexts(requests[2]!)).toEqual([
+      expect(userTexts(requests[0])).toEqual(["Start working"])
+      expect(userTexts(requests[1])).toEqual(["Start working", "Queue first"])
+      expect(userTexts(requests[2])).toEqual([
         "Start working",
         "Queue first",
         "Steer before next queued input",
         "Also steer before next queued input",
       ])
-      expect(userTexts(requests[3]!)).toEqual([
+      expect(userTexts(requests[3])).toEqual([
         "Start working",
         "Queue first",
         "Steer before next queued input",
@@ -2158,7 +2191,7 @@ describe("SessionRunnerLLM", () => {
       yield* Effect.yieldNow
 
       expect(requests).toHaveLength(2)
-      expect(userTexts(requests[1]!)).toEqual(["Start working", "First steer", "Second steer"])
+      expect(userTexts(requests[1])).toEqual(["Start working", "First steer", "Second steer"])
       yield* (yield* SessionExecution.Service).wake(sessionID)
       yield* Effect.yieldNow
       expect(requests).toHaveLength(2)
@@ -2190,7 +2223,7 @@ describe("SessionRunnerLLM", () => {
       yield* Effect.yieldNow
 
       expect(requests).toHaveLength(2)
-      expect(userTexts(requests[1]!)).toEqual(["Start working", "Recover with this"])
+      expect(userTexts(requests[1])).toEqual(["Start working", "Recover with this"])
     }),
   )
 
@@ -2369,7 +2402,7 @@ describe("SessionRunnerLLM", () => {
       yield* Effect.yieldNow
 
       expect(requests).toHaveLength(1)
-      expect(userTexts(requests[0]!)).toEqual(["Wait in queue"])
+      expect(userTexts(requests[0])).toEqual(["Wait in queue"])
     }),
   )
 
@@ -2395,7 +2428,7 @@ describe("SessionRunnerLLM", () => {
       yield* (yield* SessionExecution.Service).wake(sessionID)
       while (requests.length === 0) yield* Effect.yieldNow
 
-      expect(userTexts(requests[0]!)).toEqual(["Recover promoted input"])
+      expect(userTexts(requests[0])).toEqual(["Recover promoted input"])
     }),
   )
 
@@ -2417,7 +2450,7 @@ describe("SessionRunnerLLM", () => {
       yield* session.resume(sessionID)
 
       expect(requests).toHaveLength(1)
-      expect(userTexts(requests[0]!)).toEqual(["Run committed promotion"])
+      expect(userTexts(requests[0])).toEqual(["Run committed promotion"])
     }),
   )
 
@@ -2632,7 +2665,7 @@ describe("SessionRunnerLLM", () => {
         yield* Effect.yieldNow
         pending = yield* questions.list()
       }
-      yield* questions.reject(pending[0]!.id)
+      yield* questions.reject(pending[0].id)
       const exit = yield* Fiber.join(run)
 
       expect(exit._tag).toBe("Failure")
@@ -3207,6 +3240,60 @@ describe("SessionRunnerLLM", () => {
       expect(yield* session.resume(sessionID).pipe(Effect.catchDefect(Effect.succeed))).toBe(
         "Tool input delta before start: call-1",
       )
+    }),
+  )
+
+  it.effect("drains a queued shell input and publishes shell started/ended events", () =>
+    Effect.gen(function* () {
+      yield* setup
+      yield* insertSession(sessionID)
+      const session = yield* SessionV2.Service
+      const admitted = yield* session.shell({ sessionID, command: "echo hello", resume: false })
+      yield* (yield* SessionExecution.Service).wake(sessionID)
+
+      const events = yield* session
+        .events({ sessionID })
+        .pipe(
+          Stream.filter((event) =>
+            ["session.next.shell.started", "session.next.shell.ended"].includes(event.type),
+          ),
+          Stream.take(2),
+          Stream.timeout(Duration.seconds(5)),
+          Stream.runCollect,
+        )
+      const types = Array.from(events).map((event) => event.type)
+      expect(types).toEqual(["session.next.shell.started", "session.next.shell.ended"])
+
+      const message = yield* session.message({ sessionID, messageID: admitted.id })
+      expect(message?.type).toBe("shell")
+      expect(message && message.type === "shell" ? message.output : "").toContain("shell-output")
+    }),
+  )
+
+  it.effect("drains a queued skill invocation as a synthetic user turn", () =>
+    Effect.gen(function* () {
+      yield* setup
+      yield* insertSession(sessionID)
+      const session = yield* SessionV2.Service
+      const admitted = yield* session.skill({ sessionID, skill: "test-skill", resume: false })
+      yield* (yield* SessionExecution.Service).wake(sessionID)
+
+      const events = yield* session
+        .events({ sessionID })
+        .pipe(
+          Stream.filter((event) => event.type === "session.next.prompted"),
+          Stream.take(1),
+          Stream.timeout(Duration.seconds(5)),
+          Stream.runCollect,
+        )
+      const prompted = Array.from(events)[0]
+      expect(prompted?.type).toBe("session.next.prompted")
+      expect(prompted && "prompt" in prompted.data ? prompted.data.prompt.text : "").toBe(
+        "Run the test skill workflow",
+      )
+
+      const message = yield* session.message({ sessionID, messageID: admitted.id })
+      expect(message?.type).toBe("user")
     }),
   )
 })

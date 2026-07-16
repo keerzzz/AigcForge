@@ -1,14 +1,14 @@
-import { Button } from "@opencode-ai/ui/button"
-import { useDialog } from "@opencode-ai/ui/context/dialog"
-import { Dialog } from "@opencode-ai/ui/dialog"
-import { TextField } from "@opencode-ai/ui/text-field"
+import { Button } from "@aigcfroge/ui/button"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
+import { TextField } from "@aigcfroge/ui/text-field"
 import { useMutation } from "@tanstack/solid-query"
-import { Icon } from "@opencode-ai/ui/icon"
+import { Icon } from "@aigcfroge/ui/icon"
 import { createMemo, For, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { type LocalProject, getAvatarColors } from "@/context/layout"
-import { getFilename } from "@opencode-ai/core/util/path"
-import { Avatar } from "@opencode-ai/ui/avatar"
+import { getFilename } from "@aigcfroge/core/util/path"
+import { ProjectAvatar } from "@aigcfroge/ui/v2/project-avatar-v2"
 import { useLanguage } from "@/context/language"
 import { getProjectAvatarSource } from "@/pages/layout/helpers"
 import { ServerConnection } from "@/context/server"
@@ -154,7 +154,7 @@ export function DialogEditProject(props: { project: LocalProject; server: Server
                     })}
                     fallback={
                       <div class="size-full flex items-center justify-center">
-                        <Avatar
+                        <ProjectAvatar
                           fallback={store.name || defaultName()}
                           {...getAvatarColors(store.color)}
                           class="size-full text-[32px]"
@@ -229,7 +229,7 @@ export function DialogEditProject(props: { project: LocalProject; server: Server
                         setStore("color", store.color === color ? undefined : color)
                       }}
                     >
-                      <Avatar
+                      <ProjectAvatar
                         fallback={store.name || defaultName()}
                         {...getAvatarColors(color)}
                         class="size-full rounded"

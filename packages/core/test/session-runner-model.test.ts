@@ -1,15 +1,15 @@
 import { describe, expect } from "bun:test"
-import { LLM } from "@opencode-ai/llm"
-import { LLMClient } from "@opencode-ai/llm/route"
+import { LLM } from "@aigcfroge/llm"
+import { LLMClient } from "@aigcfroge/llm/route"
 import { DateTime, Effect } from "effect"
 import { Headers } from "effect/unstable/http"
-import { Credential } from "@opencode-ai/core/credential"
-import { ModelV2 } from "@opencode-ai/core/model"
-import { ProviderV2 } from "@opencode-ai/core/provider"
-import { ProjectV2 } from "@opencode-ai/core/project"
-import { SessionRunnerModel } from "@opencode-ai/core/session/runner/model"
-import { SessionV2 } from "@opencode-ai/core/session"
-import { AbsolutePath } from "@opencode-ai/core/schema"
+import { Credential } from "@aigcfroge/core/credential"
+import { ModelV2 } from "@aigcfroge/core/model"
+import { ProviderV2 } from "@aigcfroge/core/provider"
+import { ProjectV2 } from "@aigcfroge/core/project"
+import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
+import { SessionV2 } from "@aigcfroge/core/session"
+import { AbsolutePath } from "@aigcfroge/core/schema"
 import { it } from "./lib/effect"
 
 type Api =
@@ -120,6 +120,8 @@ describe("SessionRunnerModel", () => {
       })
       const session = SessionV2.Info.make({
         id: SessionV2.ID.make("ses_model_variant"),
+        slug: "model-variant",
+        version: "0.0.0",
         projectID: ProjectV2.ID.global,
         title: "test",
         model: {
@@ -164,6 +166,8 @@ describe("SessionRunnerModel", () => {
       )
       const session = SessionV2.Info.make({
         id: SessionV2.ID.make("ses_compatible_variant"),
+        slug: "compatible-variant",
+        version: "0.0.0",
         projectID: ProjectV2.ID.global,
         title: "test",
         model: { id: catalog.id, providerID: catalog.providerID, variant: ModelV2.VariantID.make("high") },
@@ -190,6 +194,8 @@ describe("SessionRunnerModel", () => {
       const catalog = model({ type: "aisdk", package: "@ai-sdk/openai", url: "https://openai.example/v1" })
       const session = SessionV2.Info.make({
         id: SessionV2.ID.make("ses_model_variant_unavailable"),
+        slug: "model-variant-unavailable",
+        version: "0.0.0",
         projectID: ProjectV2.ID.global,
         title: "test",
         model: {
@@ -228,6 +234,8 @@ describe("SessionRunnerModel", () => {
       ])
       const session = SessionV2.Info.make({
         id: SessionV2.ID.make("ses_anthropic_variant"),
+        slug: "anthropic-variant",
+        version: "0.0.0",
         projectID: ProjectV2.ID.global,
         title: "test",
         model: { id: catalog.id, providerID: catalog.providerID, variant: ModelV2.VariantID.make("high") },

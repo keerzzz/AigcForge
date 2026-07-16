@@ -48,7 +48,7 @@ export const dict = {
 
   "dialog.usageExceeded.freeTier.title": "무료 한도에 도달했습니다",
   "dialog.usageExceeded.freeTier.description":
-    "OpenCode Go를 구독하여 최고의 오픈 소스 모델에 안정적으로 액세스하세요. 월 $5부터 시작합니다.",
+    "Aigcfroge Go를 구독하여 최고의 오픈 소스 모델에 안정적으로 액세스하세요. 월 $5부터 시작합니다.",
   "dialog.usageExceeded.freeTier.actionLabel": "구독",
   "dialog.usageExceeded.accountRateLimit.title": "Go 한도에 도달했습니다",
   "dialog.usageExceeded.accountRateLimit.description":
@@ -111,6 +111,7 @@ export const dict = {
   "ui.tool.questions": "질문",
   "ui.tool.agent": "{{type}} 에이전트",
   "ui.tool.agent.default": "에이전트",
+  "ui.tool.agent.openSession": "Open sub-agent session",
 
   "ui.common.file.one": "파일",
   "ui.common.file.other": "파일",

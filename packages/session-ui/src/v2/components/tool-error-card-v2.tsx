@@ -21,7 +21,7 @@ function BanIcon() {
   )
 }
 
-/** duo-progress-25: faint track ring + ~25% solid arc (Figma OpenCode DS) */
+/** duo-progress-25: faint track ring + ~25% solid arc (Figma Aigcfroge DS) */
 function LoaderIcon() {
   const r = 5.9
   return (
@@ -141,7 +141,7 @@ export function ToolErrorCardV2(props: ToolErrorCardV2Props) {
             >
               <a
                 data-slot="tool-error-card-subtitle"
-                href={local.subtitleHref!}
+                href={local.subtitleHref}
                 onClick={(e) => e.stopPropagation()}
                 onPointerDown={(e) => e.stopPropagation()}
               >

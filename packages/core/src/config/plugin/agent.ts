@@ -31,6 +31,7 @@ const agentKeys = new Set([
   "steps",
   "disabled",
   "permissions",
+  "handoffs",
 ])
 
 export const Plugin = define({
@@ -92,6 +93,7 @@ export const Plugin = define({
               if (item.color !== undefined) agent.color = item.color
               if (item.steps !== undefined) agent.steps = item.steps
               if (item.permissions !== undefined) agent.permissions.push(...item.permissions)
+              if (item.handoffs !== undefined) agent.handoffs.push(...item.handoffs)
             })
           }
         }
@@ -134,6 +136,7 @@ function decode(file: { directory: string; filepath: string; primary: boolean },
   if (!agent) return
   const info = Option.getOrUndefined(
     decodeConfig({
+      // eslint-disable-next-line no-misused-spread -- decodeConfig immediately rebuilds the Schema class after overriding the primary-mode field
       agents: { [name]: file.primary ? { ...agent, mode: "primary" } : agent },
     }),
   )

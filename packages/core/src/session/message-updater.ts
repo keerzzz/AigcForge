@@ -137,6 +137,8 @@ export function update(adapter: Adapter, event: SessionEvent.Event) {
         )
       },
       "session.next.prompt.admitted": () => Effect.void,
+      "session.next.shell.admitted": () => Effect.void,
+      "session.next.skill.admitted": () => Effect.void,
       "session.next.context.updated": (event) =>
         adapter.appendMessage(
           SessionMessage.System.make({
@@ -157,6 +159,7 @@ export function update(adapter: Adapter, event: SessionEvent.Event) {
           }),
         )
       },
+      "session.next.forked": () => Effect.void,
       "session.next.shell.started": (event) => {
         return adapter.appendMessage(
           SessionMessage.Shell.make({
@@ -367,6 +370,8 @@ export function update(adapter: Adapter, event: SessionEvent.Event) {
       "session.next.retried": () => Effect.void,
       "session.next.compaction.started": () => Effect.void,
       "session.next.compaction.delta": () => Effect.void,
+      "session.next.compaction.soft-warning": () => Effect.void,
+      "session.next.compaction.stuck": () => Effect.void,
       "session.next.compaction.ended": (event) => {
         return adapter.appendMessage(
           SessionMessage.Compaction.make({
@@ -380,6 +385,7 @@ export function update(adapter: Adapter, event: SessionEvent.Event) {
           }),
         )
       },
+      "session.next.cache.diagnostic": () => Effect.void,
     })
   })
 }

@@ -13,7 +13,7 @@ export class AppProcessError extends Schema.TaggedErrorClass<AppProcessError>()(
 }) {
   override get message() {
     const detail =
-      this.stderr?.trim() || (this.cause instanceof Error ? this.cause.message : this.cause && String(this.cause))
+      this.stderr?.trim() || (this.cause instanceof Error ? this.cause.message : String(this.cause))
     const status = this.exitCode === undefined ? "" : ` (exit ${this.exitCode})`
     return `Command failed${status}: ${this.command}${detail ? `: ${detail}` : ""}`
   }
@@ -51,7 +51,7 @@ export type Interface = ChildProcessSpawner["Service"] & {
   ) => Stream.Stream<string, AppProcessError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/AppProcess") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/AppProcess") {}
 
 export const requireSuccess = (result: RunResult): Effect.Effect<RunResult, AppProcessError> =>
   result.exitCode === 0
@@ -220,7 +220,7 @@ export const layer = Layer.effect(
               return Stream.empty
             }),
           )
-          return Stream.concat(lines, tail) as Stream.Stream<string, AppProcessError | PlatformError>
+          return Stream.concat(lines, tail)
         }),
       )
       const mapped = built.pipe(

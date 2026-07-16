@@ -24,9 +24,9 @@ const words = [
 const sourceID = "ses_smoke_source"
 const targetID = "ses_smoke_target"
 const childID = "ses_smoke_child"
-const directory = "C:/OpenCode/SmokeProject"
+const directory = "C:/Aigcfroge/SmokeProject"
 const projectID = "proj_smoke_timeline"
-const model = { providerID: "opencode", modelID: "claude-opus-4-6", variant: "max" }
+const model = { providerID: "aigcfroge", modelID: "claude-opus-4-6", variant: "max" }
 
 type MessageInfo = Record<string, unknown> & { id: string; role: "user" | "assistant" }
 type MessagePart = Record<string, unknown> & { id: string; type: string; text?: string; tool?: string }
@@ -135,7 +135,7 @@ function toolPart(
       ? { files: [patchFile(index, "update"), patchFile(index + 1, index % 2 === 0 ? "add" : "delete")] }
       : tool === "edit" || tool === "write"
         ? {
-            filediff: fileDiff(String(input.filePath ?? `src/generated/file-${index}.ts`), index),
+            filediff: fileDiff(typeof input.filePath === "string" ? input.filePath : `src/generated/file-${index}.ts`, index),
             diff: patch(index, outputLength),
             preview: patch(index + 1, 420),
           }
@@ -292,13 +292,13 @@ export const fixture = {
   provider: {
     all: [
       {
-        id: "opencode",
-        name: "OpenCode",
+        id: "aigcfroge",
+        name: "Aigcfroge",
         models: { "claude-opus-4-6": { id: "claude-opus-4-6", name: "Claude Opus 4.6", limit: { context: 200_000 } } },
       },
     ],
-    connected: ["opencode"],
-    default: { providerID: "opencode", modelID: "claude-opus-4-6" },
+    connected: ["aigcfroge"],
+    default: { providerID: "aigcfroge", modelID: "claude-opus-4-6" },
   },
   sessions: [
     {
@@ -364,6 +364,6 @@ export function pageMessages(sessionID: string, limit: number, before?: string) 
   const start = Math.max(0, end - limit)
   return {
     items: messages.slice(start, end),
-    cursor: start > 0 ? messages[start]!.info.id : undefined,
+    cursor: start > 0 ? messages[start].info.id : undefined,
   }
 }

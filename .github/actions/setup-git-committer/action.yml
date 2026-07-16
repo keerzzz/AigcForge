@@ -1,33 +1,34 @@
 name: "Setup Git Committer"
-description: "Create app token and configure git user"
+description: "Configure git user"
 inputs:
-  opencode-app-id:
-    description: "OpenCode GitHub App ID"
-    required: true
-  opencode-app-secret:
-    description: "OpenCode GitHub App private key"
-    required: true
+  aigcfroge-app-id:
+    description: "Aigcfroge GitHub App ID"
+    required: false
+  aigcfroge-app-secret:
+    description: "Aigcfroge GitHub App private key"
+    required: false
 outputs:
   token:
-    description: "GitHub App token"
-    value: ${{ steps.apptoken.outputs.token }}
+    description: "GitHub App token or GitHub Token"
+    value: ${{ steps.apptoken.outputs.token || github.token }}
   app-slug:
     description: "GitHub App slug"
-    value: ${{ steps.apptoken.outputs.app-slug }}
+    value: ${{ steps.apptoken.outputs.app-slug || 'github-actions' }}
 runs:
   using: "composite"
   steps:
     - name: Create app token
       id: apptoken
+      if: inputs.aigcfroge-app-id != '' && inputs.aigcfroge-app-secret != ''
       uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
       with:
-        app-id: ${{ inputs.opencode-app-id }}
-        private-key: ${{ inputs.opencode-app-secret }}
+        app-id: ${{ inputs.aigcfroge-app-id }}
+        private-key: ${{ inputs.aigcfroge-app-secret }}
         owner: ${{ github.repository_owner }}
 
     - name: Configure git user
       run: |
-        slug="${{ steps.apptoken.outputs.app-slug }}"
+        slug="${{ steps.apptoken.outputs.app-slug || 'github-actions' }}"
         git config --global user.name "${slug}[bot]"
         git config --global user.email "${slug}[bot]@users.noreply.github.com"
       shell: bash
@@ -39,5 +40,7 @@ runs:
 
     - name: Configure git remote
       run: |
-        git remote set-url origin https://x-access-token:${{ steps.apptoken.outputs.token }}@github.com/${{ github.repository }}
+        token="${{ steps.apptoken.outputs.token || github.token }}"
+        echo "::add-mask::$token"
+        git remote set-url origin https://x-access-token:${token}@github.com/${{ github.repository }}
       shell: bash

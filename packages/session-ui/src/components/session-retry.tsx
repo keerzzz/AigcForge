@@ -1,9 +1,9 @@
 import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "solid-js"
-import type { SessionStatus } from "@opencode-ai/sdk/v2/client"
-import { useI18n } from "@opencode-ai/ui/context/i18n"
-import { Card } from "@opencode-ai/ui/card"
-import { Tooltip } from "@opencode-ai/ui/tooltip"
-import { Spinner } from "@opencode-ai/ui/spinner"
+import type { SessionStatus } from "@aigcfroge/sdk/v2/client"
+import { useI18n } from "@aigcfroge/ui/context/i18n"
+import { Card } from "@aigcfroge/ui/card"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
+import { Spinner } from "@aigcfroge/ui/spinner"
 
 export function SessionRetry(props: { status: SessionStatus; show?: boolean }) {
   const i18n = useI18n()
@@ -58,11 +58,11 @@ export function SessionRetry(props: { status: SessionStatus; show?: boolean }) {
             <Spinner class="size-4 mt-0.5" />
             <div class="min-w-0">
               <Show when={truncated()} fallback={<div data-slot="session-turn-retry-message">{message()}</div>}>
-                <Tooltip value={retry()?.message ?? ""} placement="top">
+                <TooltipV2 value={retry()?.message ?? ""} placement="top">
                   <div data-slot="session-turn-retry-message" class="cursor-help truncate">
                     {message()}
                   </div>
-                </Tooltip>
+                </TooltipV2>
               </Show>
               <Show when={info()}>{(line) => <div data-slot="session-turn-retry-info">{line()}</div>}</Show>
             </div>

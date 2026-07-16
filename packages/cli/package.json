@@ -1,11 +1,11 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@opencode-ai/cli",
-  "version": "1.17.9",
+  "name": "@aigcfroge/cli",
+  "version": "0.0.1",
   "type": "module",
   "license": "MIT",
   "bin": {
-    "lildax": "./bin/lildax.cjs"
+    "aigcfroge": "./bin/aigcfroge.cjs"
   },
   "files": [
     "bin"
@@ -16,19 +16,19 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
+    "@aigcfroge/core": "workspace:*",
+    "@aigcfroge/sdk": "workspace:*",
+    "@aigcfroge/server": "workspace:*",
+    "@aigcfroge/tui": "workspace:*",
     "@effect/platform-node": "catalog:",
-    "@opencode-ai/core": "workspace:*",
-    "@opencode-ai/sdk": "workspace:*",
-    "@opencode-ai/server": "workspace:*",
-    "@opencode-ai/tui": "workspace:*",
-    "@opentui/core": "catalog:",
+    "@opentui/core": "0.4.2",
     "@opentui/solid": "catalog:",
     "@parcel/watcher": "2.5.1",
     "effect": "catalog:",
     "solid-js": "catalog:"
   },
   "devDependencies": {
-    "@opencode-ai/script": "workspace:*",
+    "@aigcfroge/script": "workspace:*",
     "@tsconfig/bun": "catalog:",
     "@types/bun": "catalog:",
     "@typescript/native-preview": "catalog:"

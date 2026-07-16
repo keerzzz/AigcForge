@@ -1,10 +1,10 @@
 import { For, Show, createEffect, createMemo, on, onCleanup, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
 import { makeEventListener } from "@solid-primitives/event-listener"
-import { Tabs } from "@opencode-ai/ui/tabs"
-import { ResizeHandle } from "@opencode-ai/ui/resize-handle"
-import { IconButton } from "@opencode-ai/ui/icon-button"
-import { TooltipKeybind } from "@opencode-ai/ui/tooltip"
+import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
+import { ResizeHandle } from "@aigcfroge/ui/resize-handle"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { TooltipKeybind } from "@/components/tooltip-keybind"
 import { DragDropProvider, DragDropSensors, DragOverlay, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd"
 import type { DragEvent } from "@thisbeyond/solid-dnd"
 import { ConstrainDragYAxis, getDraggableId } from "@/utils/solid-dnd"
@@ -14,7 +14,6 @@ import { Terminal } from "@/components/terminal"
 import { useCommand } from "@/context/command"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
-import { useSettings } from "@/context/settings"
 import { useTerminal } from "@/context/terminal"
 import { useSDK } from "@/context/sdk"
 import { terminalTabLabel } from "@/pages/session/terminal-label"
@@ -29,7 +28,6 @@ export function TerminalPanel() {
   const sdk = useSDK()
   const language = useLanguage()
   const command = useCommand()
-  const settings = useSettings()
   const { workspaceKey, view } = useSessionLayout()
 
   const opened = createMemo(() => view().terminal.opened())
@@ -212,7 +210,7 @@ export function TerminalPanel() {
       <div class="hidden md:block" onPointerDown={() => size.start()}>
         <ResizeHandle
           classList={{
-            "-top-1": settings.general.newLayoutDesigns(),
+            "-top-1": true,
           }}
           direction="vertical"
           size={pane()}
@@ -265,13 +263,13 @@ export function TerminalPanel() {
             <DragDropSensors />
             <ConstrainDragYAxis />
             <div class="flex flex-col h-full">
-              <Tabs
-                variant="alt"
+              <TabsV2
+                variant="normal"
                 value={terminal.active()}
                 onChange={(id) => terminal.open(id)}
                 class="!h-auto !flex-none"
               >
-                <Tabs.List class="h-10 border-b border-border-weaker-base">
+                <TabsV2.List class="h-10 border-b border-border-weaker-base">
                   <SortableProvider ids={ids()}>
                     <For each={all()}>{(pty) => <SortableTerminalTab terminal={pty} onClose={close} />}</For>
                   </SortableProvider>
@@ -290,8 +288,8 @@ export function TerminalPanel() {
                       />
                     </TooltipKeybind>
                   </div>
-                </Tabs.List>
-              </Tabs>
+                </TabsV2.List>
+              </TabsV2>
               <div class="flex-1 min-h-0 relative">
                 <Show when={terminal.active()} keyed>
                   {(id) => {

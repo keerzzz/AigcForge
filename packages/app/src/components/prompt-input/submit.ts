@@ -1,16 +1,17 @@
-import type { Message, Session } from "@opencode-ai/sdk/v2/client"
+import type { Message, Session } from "@aigcfroge/sdk/v2/client"
 import { showToast } from "@/utils/toast"
-import { base64Encode } from "@opencode-ai/core/util/encode"
-import { Binary } from "@opencode-ai/core/util/binary"
+import { base64Encode } from "@aigcfroge/core/util/encode"
+import { Binary } from "@aigcfroge/core/util/binary"
 import { useNavigate, useParams, useSearchParams } from "@solidjs/router"
 import { batch, type Accessor } from "solid-js"
 import type { FileSelection } from "@/context/file"
 import { useServer } from "@/context/server"
-import { useTabs } from "@/context/tabs"
+import { useTabs, type DraftTab } from "@/context/tabs"
 import { useServerSync, type ServerSync } from "@/context/server-sync"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { useLocal } from "@/context/local"
+import { useGlobal } from "@/context/global"
 import { usePermission } from "@/context/permission"
 import { type ContextItem, type ImageAttachmentPart, type Prompt, type usePrompt } from "@/context/prompt"
 import { useSDK, type DirectorySDK } from "@/context/sdk"
@@ -219,6 +220,12 @@ export function createPromptSubmit(input: PromptSubmitInput) {
   const [search] = useSearchParams<{ draftId?: string }>()
   const server = useServer()
   const tabs = useTabs()
+  let global: ReturnType<typeof useGlobal> | undefined
+  try {
+    global = useGlobal()
+  } catch {
+    // GlobalProvider not available (e.g. in tests)
+  }
   const pendingKey = (sessionID: string) => ScopedKey.from(sdk().scope, sessionID)
 
   const errorMessage = (err: unknown) => {
@@ -371,8 +378,13 @@ export function createPromptSubmit(input: PromptSubmitInput) {
 
     let session = input.info()
     if (!session && isNewSession) {
+      // Pass the draft's mode to session.create so it's categorized correctly
+      const draftID = search.draftId
+      const draftTab = draftID ? tabs.store.find(
+        (tab): tab is DraftTab => tab.type === "draft" && tab.draftID === draftID,
+      ) : undefined
       const created = await client.session
-        .create()
+        .create({ mode: draftTab?.mode ?? "coding" })
         .then((x) => x.data ?? undefined)
         .catch((err) => {
           showToast({
@@ -387,6 +399,12 @@ export function createPromptSubmit(input: PromptSubmitInput) {
         if (shouldAutoAccept) permission.enableAutoAccept(session.id, sessionDirectory)
         local.session.promote(sessionDirectory, session.id)
         layout.handoff.setTabs(base64Encode(sessionDirectory), session.id)
+        global?.sessionPlacement.set({
+          server: server.key,
+          leafID: created.id,
+          rootID: created.parentID ?? created.id,
+          directory: created.directory,
+        })
         const draftID = search.draftId
         if (draftID) tabs.promoteDraft(draftID, { server: server.key, sessionId: session.id })
         else navigate(`/${base64Encode(sessionDirectory)}/session/${session.id}`)

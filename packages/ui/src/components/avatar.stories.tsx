@@ -1,5 +1,5 @@
 // @ts-nocheck
-import * as mod from "./avatar"
+import { ProjectAvatar } from "../v2/components/project-avatar-v2"
 import { create } from "../storybook/scaffold"
 
 const docs = `### Overview
@@ -60,9 +60,9 @@ export const WithImage = {
 export const Sizes = {
   render: () => (
     <div style={{ display: "flex", gap: "12px", "align-items": "center" }}>
-      <mod.Avatar size="small" fallback="S" />
-      <mod.Avatar size="normal" fallback="N" />
-      <mod.Avatar size="large" fallback="L" />
+      <ProjectAvatar size="small" fallback="S" />
+      <ProjectAvatar size="normal" fallback="N" />
+      <ProjectAvatar size="large" fallback="L" />
     </div>
   ),
 }

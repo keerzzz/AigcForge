@@ -1,14 +1,15 @@
 export * as SessionRunnerModel from "./model"
 
-import { type Model } from "@opencode-ai/llm"
-import * as AnthropicMessages from "@opencode-ai/llm/protocols/anthropic-messages"
-import * as OpenAICompatibleChat from "@opencode-ai/llm/protocols/openai-compatible-chat"
-import * as OpenAIResponses from "@opencode-ai/llm/protocols/openai-responses"
-import { Auth, type AnyRoute } from "@opencode-ai/llm/route"
+import { type Model } from "@aigcfroge/llm"
+import * as AnthropicMessages from "@aigcfroge/llm/protocols/anthropic-messages"
+import * as OpenAICompatibleChat from "@aigcfroge/llm/protocols/openai-compatible-chat"
+import * as OpenAIResponses from "@aigcfroge/llm/protocols/openai-responses"
+import { Auth, type AnyRoute } from "@aigcfroge/llm/route"
 import { Context, Effect, Layer, Schema } from "effect"
 import { produce } from "immer"
 import { Catalog } from "../../catalog"
 import { Credential } from "../../credential"
+import { getCredential } from "./auth-seam"
 import { Integration } from "../../integration"
 import { ModelV2 } from "../../model"
 import { ModelRequest } from "../../model-request"
@@ -72,10 +73,10 @@ export type Error =
   | Integration.AuthorizationError
 
 export interface Interface {
-  readonly resolve: (session: SessionSchema.Info) => Effect.Effect<Model, Error>
+  readonly resolve: (session: SessionSchema.Info, intent?: string) => Effect.Effect<Model, Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/v2/SessionRunnerModel") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionRunnerModel") {}
 
 /** Test or embedding seam for supplying a model resolver directly. */
 export const layerWith = (resolve: Interface["resolve"]) => Layer.succeed(Service, Service.of({ resolve }))
@@ -172,8 +173,12 @@ export const fromCatalogModel = (
   )
 }
 
-export const resolve = (session: SessionSchema.Info, model: ModelV2.Info, credential?: Credential.Value) =>
-  withVariant(model, session.model?.variant).pipe(Effect.flatMap((model) => fromCatalogModel(model, credential)))
+export const resolve = (
+  session: SessionSchema.Info,
+  model: ModelV2.Info,
+  credential?: Credential.Value,
+  _intent?: string,
+) => withVariant(model, session.model?.variant).pipe(Effect.flatMap((model) => fromCatalogModel(model, credential)))
 
 export const supported = (model: ModelV2.Info) =>
   model.api.type === "aisdk" &&
@@ -188,31 +193,52 @@ export const locationLayer = Layer.effect(
     const catalog = yield* Catalog.Service
     const integrations = yield* Integration.Service
     return Service.of({
-      resolve: Effect.fn("SessionRunnerModel.resolve")(function* (session) {
+      resolve: Effect.fn("SessionRunnerModel.resolve")(function* (session, intent?) {
         // Location plugins populate and filter the catalog asynchronously during layer startup.
+        const allModels = yield* catalog.model.available()
         const defaultModel = session.model ? undefined : yield* catalog.model.default()
-        const selected = session.model
-          ? (yield* catalog.model.available()).find(
+        let selected = session.model
+          ? allModels.find(
               (model) => model.providerID === session.model?.providerID && model.id === session.model.id,
             )
           : defaultModel && supported(defaultModel)
             ? defaultModel
-            : (yield* catalog.model.available()).find(supported)
+            : allModels.find(supported)
         if (!selected && session.model)
           return yield* new ModelUnavailableError({
             providerID: session.model.providerID,
             modelID: session.model.id,
           })
         if (!selected) return yield* new ModelNotSelectedError({ sessionID: session.id })
+
+        // Phase 6: for simple intents, try a cheaper model from the same provider
+        if (intent && (intent === "code_understanding" || intent === "content_creation") && selected) {
+          const current = selected
+          const fallback = allModels.find(
+            (m) =>
+              m.providerID === current.providerID &&
+              m.id !== current.id &&
+              supported(m) &&
+              !m.id.includes("reasoner") &&
+              !m.id.includes("max") &&
+              !m.id.includes("ultra") &&
+              !m.id.includes("opus") &&
+              !m.id.includes("sonnet"),
+          )
+          if (fallback) selected = fallback
+        }
+        if (!selected) return yield* new ModelNotSelectedError({ sessionID: session.id })
         const provider = yield* catalog.provider.get(selected.providerID)
-        const connection = yield* integrations.connection.active(
-          provider?.integrationID ?? Integration.ID.make(selected.providerID),
-        )
-        return yield* resolve(
-          session,
-          selected,
-          connection ? yield* integrations.connection.resolve(connection) : undefined,
-        )
+        const integrationID = provider?.integrationID ?? Integration.ID.make(selected.providerID)
+        const connection = yield* integrations.connection.active(integrationID)
+        // Fall back to the application-layer auth seam (auth.json via aigcfroge
+        // Auth.Service) when core Integration.Service has no connection. Without
+        // this, provider API keys stored in auth.json are invisible to V2 and the
+        // LLM request goes out with Auth.none -> 401.
+        const credential = connection
+          ? yield* integrations.connection.resolve(connection)
+          : yield* (getCredential(selected.providerID) as unknown as Effect.Effect<Credential.Value | undefined>)
+        return yield* resolve(session, selected, credential)
       }),
     })
   }),

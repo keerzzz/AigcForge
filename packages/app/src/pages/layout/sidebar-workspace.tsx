@@ -3,17 +3,18 @@ import { createEffect, createMemo, For, Show, type Accessor, type JSX } from "so
 import { createStore } from "solid-js/store"
 import { createSortable } from "@thisbeyond/solid-dnd"
 import { createMediaQuery } from "@solid-primitives/media"
-import { base64Encode } from "@opencode-ai/core/util/encode"
-import { getFilename } from "@opencode-ai/core/util/path"
-import { Button } from "@opencode-ai/ui/button"
-import { Collapsible } from "@opencode-ai/ui/collapsible"
-import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
-import { Icon } from "@opencode-ai/ui/icon"
-import { IconButton } from "@opencode-ai/ui/icon-button"
-import { Spinner } from "@opencode-ai/ui/spinner"
-import { Tooltip } from "@opencode-ai/ui/tooltip"
-import { type Session } from "@opencode-ai/sdk/v2/client"
+import { base64Encode } from "@aigcfroge/core/util/encode"
+import { getFilename } from "@aigcfroge/core/util/path"
+import { Button } from "@aigcfroge/ui/button"
+import { Collapsible } from "@aigcfroge/ui/collapsible"
+import { DropdownMenu } from "@aigcfroge/ui/dropdown-menu"
+import { Icon } from "@aigcfroge/ui/icon"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { Spinner } from "@aigcfroge/ui/spinner"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
+import { type Session } from "@aigcfroge/sdk/v2/client"
 import { type LocalProject } from "@/context/layout"
+import { ServerConnection } from "@/context/server"
 import { useServerSync, useQueryOptions } from "@/context/server-sync"
 import { useLanguage } from "@/context/language"
 import { pathKey } from "@/utils/path-key"
@@ -64,9 +65,9 @@ export const WorkspaceDragOverlay = (props: {
   const language = useLanguage()
   const label = createMemo(() => {
     const project = props.sidebarProject()
-    if (!project) return
+    if (!project) return undefined
     const directory = props.activeWorkspace()
-    if (!directory) return
+    if (!directory) return undefined
 
     const [workspaceStore] = serverSync().child(directory, { bootstrap: false })
     const kind =
@@ -168,7 +169,7 @@ const WorkspaceActions = (props: {
       open={props.menuOpen()}
       onOpenChange={(open) => props.setMenuOpen(open)}
     >
-      <Tooltip value={props.language.t("common.moreOptions")} placement="top">
+      <TooltipV2 value={props.language.t("common.moreOptions")} placement="top">
         <DropdownMenu.Trigger
           as={IconButton}
           icon="dot-grid"
@@ -178,7 +179,7 @@ const WorkspaceActions = (props: {
           data-workspace={base64Encode(props.directory)}
           aria-label={props.language.t("common.moreOptions")}
         />
-      </Tooltip>
+      </TooltipV2>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           onCloseAutoFocus={(event) => {
@@ -213,7 +214,7 @@ const WorkspaceActions = (props: {
       </DropdownMenu.Portal>
     </DropdownMenu>
     <Show when={!props.touch()}>
-      <Tooltip value={props.language.t("command.session.new")} placement="top">
+      <TooltipV2 value={props.language.t("command.session.new")} placement="top">
         <IconButton
           icon="new-session"
           variant="ghost"
@@ -228,7 +229,7 @@ const WorkspaceActions = (props: {
             props.navigateToNewSession()
           }}
         />
-      </Tooltip>
+      </TooltipV2>
     </Show>
   </div>
 )
@@ -243,6 +244,8 @@ const WorkspaceSessionList = (props: {
   hasMore: Accessor<boolean>
   loadMore: () => Promise<void>
   language: ReturnType<typeof useLanguage>
+  onNewSession?: () => void
+  serverKey?: ServerConnection.Key
 }): JSX.Element => (
   <nav class="flex flex-col gap-1">
     <Show when={props.showNew()}>
@@ -251,6 +254,14 @@ const WorkspaceSessionList = (props: {
         mobile={props.mobile}
         sidebarExpanded={props.ctx.sidebarExpanded}
         clearHoverProjectSoon={props.ctx.clearHoverProjectSoon}
+        onClick={
+          props.onNewSession
+            ? (event) => {
+                event.preventDefault()
+                props.onNewSession?.()
+              }
+            : undefined
+        }
       />
     </Show>
     <Show when={props.loading()}>
@@ -263,6 +274,7 @@ const WorkspaceSessionList = (props: {
           list={props.sessions()}
           navList={props.ctx.navList}
           slug={props.slug()}
+          serverKey={props.serverKey}
           mobile={props.mobile}
           showChild
           sidebarExpanded={props.ctx.sidebarExpanded}
@@ -280,7 +292,7 @@ const WorkspaceSessionList = (props: {
           size="large"
           onClick={(e: MouseEvent) => {
             void props.loadMore()
-            ;(e.currentTarget as HTMLButtonElement).blur()
+            if (e.currentTarget instanceof HTMLElement) e.currentTarget.blur()
           }}
         >
           {props.language.t("common.loadMore")}
@@ -296,6 +308,8 @@ export const SortableWorkspace = (props: {
   project: LocalProject
   sortNow: Accessor<number>
   mobile?: boolean
+  navigateToNewSession?: () => void
+  serverKey?: ServerConnection.Key
 }): JSX.Element => {
   const navigate = useNavigate()
   const params = useParams()
@@ -416,7 +430,7 @@ export const SortableWorkspace = (props: {
                 showDeleteWorkspaceDialog={props.ctx.showDeleteWorkspaceDialog}
                 root={props.project.worktree}
                 clearHoverProjectSoon={props.ctx.clearHoverProjectSoon}
-                navigateToNewSession={() => navigate(`/${slug()}/session`)}
+                navigateToNewSession={props.navigateToNewSession ?? (() => navigate(`/${slug()}/session`))}
               />
             </div>
           </div>
@@ -433,6 +447,8 @@ export const SortableWorkspace = (props: {
             hasMore={hasMore}
             loadMore={loadMore}
             language={language}
+            onNewSession={props.navigateToNewSession}
+            serverKey={props.serverKey}
           />
         </Collapsible.Content>
       </Collapsible>
@@ -445,6 +461,7 @@ export const LocalWorkspace = (props: {
   project: LocalProject
   sortNow: Accessor<number>
   mobile?: boolean
+  serverKey?: ServerConnection.Key
 }): JSX.Element => {
   const serverSync = useServerSync()
   const queryOptions = useQueryOptions()
@@ -479,6 +496,7 @@ export const LocalWorkspace = (props: {
         hasMore={hasMore}
         loadMore={loadMore}
         language={language}
+        serverKey={props.serverKey}
       />
     </div>
   )

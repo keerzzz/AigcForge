@@ -29,28 +29,28 @@ import {
   Todo,
   QuestionAnswer,
   QuestionInfo,
-} from "@opencode-ai/sdk/v2"
+} from "@aigcfroge/sdk/v2"
 import { useData } from "../context"
-import { useFileComponent } from "@opencode-ai/ui/context/file"
-import { useDialog } from "@opencode-ai/ui/context/dialog"
-import { type UiI18n, useI18n } from "@opencode-ai/ui/context/i18n"
+import { useFileComponent } from "@aigcfroge/ui/context/file"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { type UiI18n, useI18n } from "@aigcfroge/ui/context/i18n"
 import { BasicTool, GenericTool } from "./basic-tool"
-import { Accordion } from "@opencode-ai/ui/accordion"
-import { StickyAccordionHeader } from "@opencode-ai/ui/sticky-accordion-header"
-import { Collapsible } from "@opencode-ai/ui/collapsible"
-import { FileIcon } from "@opencode-ai/ui/file-icon"
-import { Icon } from "@opencode-ai/ui/icon"
+import { AccordionV2 } from "@aigcfroge/ui/v2/accordion-v2"
+import { StickyAccordionHeader } from "@aigcfroge/ui/sticky-accordion-header"
+import { Collapsible } from "@aigcfroge/ui/collapsible"
+import { FileIcon } from "@aigcfroge/ui/file-icon"
+import { Icon } from "@aigcfroge/ui/icon"
 import { ToolErrorCard } from "./tool-error-card"
-import { Checkbox } from "@opencode-ai/ui/checkbox"
-import { DiffChanges } from "@opencode-ai/ui/diff-changes"
+import { CheckboxV2 } from "@aigcfroge/ui/v2/checkbox-v2"
+import { DiffChanges } from "@aigcfroge/ui/v2/diff-changes-v2"
 import { Markdown } from "./markdown"
-import { ImagePreview } from "@opencode-ai/ui/image-preview"
-import { getDirectory as _getDirectory, getFilename } from "@opencode-ai/core/util/path"
-import { checksum } from "@opencode-ai/core/util/encode"
-import { Tooltip } from "@opencode-ai/ui/tooltip"
-import { IconButton } from "@opencode-ai/ui/icon-button"
-import { Spinner } from "@opencode-ai/ui/spinner"
-import { TextShimmer } from "@opencode-ai/ui/text-shimmer"
+import { ImagePreview } from "@aigcfroge/ui/image-preview"
+import { getDirectory as _getDirectory, getFilename } from "@aigcfroge/core/util/path"
+import { checksum } from "@aigcfroge/core/util/encode"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { Spinner } from "@aigcfroge/ui/spinner"
+import { TextShimmerV2 } from "@aigcfroge/ui/v2/text-shimmer-v2"
 import { AnimatedCountList } from "./tool-count-summary"
 import { ToolStatusTitle } from "./tool-status-title"
 import { patchFiles } from "./apply-patch-file"
@@ -58,6 +58,7 @@ import { animate } from "motion"
 import { useLocation } from "@solidjs/router"
 import { attached, inline, kind } from "./message-file"
 import { readPartText } from "./message-part-text"
+import { HandoffButton } from "./handoff-button"
 
 async function writeClipboard(text: string): Promise<boolean> {
   const body = typeof document === "undefined" ? undefined : document.body
@@ -161,6 +162,8 @@ export interface MessageProps {
   actions?: UserActions
   showAssistantCopyPartID?: string | null
   showReasoningSummaries?: boolean
+  /** Handoff actions available for this assistant message's agent. */
+  handoffs?: ReadonlyArray<{ readonly label: string; readonly agent: string; readonly prompt: string }>
 }
 
 export type SessionAction = (input: { sessionID: string; messageID: string }) => Promise<void> | void
@@ -168,6 +171,7 @@ export type SessionAction = (input: { sessionID: string; messageID: string }) =>
 export type UserActions = {
   fork?: SessionAction
   revert?: SessionAction
+  handoff?: (agent: string, prompt: string) => void
 }
 
 export interface MessagePartProps {
@@ -303,8 +307,8 @@ function getDirectory(path: string | undefined) {
   return relativizeProjectPath(_getDirectory(path), data.directory)
 }
 
-import type { IconProps } from "@opencode-ai/ui/icon"
-import { normalize, resolveFileDiff } from "./session-diff"
+import type { IconProps } from "@aigcfroge/ui/icon"
+import { resolveFileDiff } from "./session-diff"
 
 export type ToolInfo = {
   icon: IconProps["name"]
@@ -564,7 +568,7 @@ export function sameGroups(a: readonly PartGroup[] | undefined, b: readonly Part
   if (a === b) return true
   if (!a || !b) return false
   if (a.length !== b.length) return false
-  return a.every((item, i) => sameGroup(item, b[i]!))
+  return a.every((item, i) => sameGroup(item, b[i]))
 }
 
 export function groupParts(parts: { messageID: string; part: PartType }[]) {
@@ -851,17 +855,29 @@ export function Message(props: MessageProps) {
     <Switch>
       <Match when={props.message.role === "user" && props.message}>
         {(userMessage) => (
-          <UserMessageDisplay message={userMessage() as UserMessage} parts={props.parts} actions={props.actions} />
+          <UserMessageDisplay message={userMessage()} parts={props.parts} actions={props.actions} />
         )}
       </Match>
       <Match when={props.message.role === "assistant" && props.message}>
         {(assistantMessage) => (
-          <AssistantMessageDisplay
-            message={assistantMessage() as AssistantMessage}
-            parts={props.parts}
-            showAssistantCopyPartID={props.showAssistantCopyPartID}
-            showReasoningSummaries={props.showReasoningSummaries}
-          />
+          <>
+            <AssistantMessageDisplay
+              message={assistantMessage()}
+              parts={props.parts}
+              showAssistantCopyPartID={props.showAssistantCopyPartID}
+              showReasoningSummaries={props.showReasoningSummaries}
+            />
+            <Show when={props.handoffs && props.handoffs.length > 0 && props.actions?.handoff}>
+              <HandoffButton
+                actions={props.handoffs!.map((h) => ({
+                  label: h.label,
+                  agent: h.agent,
+                  prompt: h.prompt,
+                  onClick: () => props.actions!.handoff!(h.agent, h.prompt),
+                }))}
+              />
+            </Show>
+          </>
         )}
       </Match>
     </Switch>
@@ -1027,7 +1043,7 @@ export function ContextToolGroup(props: { parts: ToolPart[]; busy?: boolean; onS
                         <div data-slot="basic-tool-tool-info-structured">
                           <div data-slot="basic-tool-tool-info-main">
                             <span data-slot="basic-tool-tool-title">
-                              <TextShimmer text={trigger().title} active={running()} />
+                              <TextShimmerV2 text={trigger().title} active={running()} />
                             </span>
                             <Show when={!running() && trigger().subtitle}>
                               <span data-slot="basic-tool-tool-subtitle">{trigger().subtitle}</span>
@@ -1075,7 +1091,7 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
 
   const inlineFiles = createMemo(() => files().filter(inline))
 
-  const agents = createMemo(() => (props.parts?.filter((p) => p.type === "agent") as AgentPart[]) ?? [])
+  const agents = createMemo(() => (props.parts?.filter((p) => p.type === "agent")) ?? [])
 
   const model = createMemo(() => {
     const providerID = props.message.model?.providerID
@@ -1101,7 +1117,7 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
   const metaTail = stamp
 
   const openImagePreview = (url: string, alt?: string) => {
-    dialog.show(() => <ImagePreview src={url} alt={alt} />)
+    void dialog.show(() => <ImagePreview src={url} alt={alt} />)
   }
 
   const handleCopy = async () => {
@@ -1191,12 +1207,12 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
               </span>
             </Show>
             <Show when={props.actions?.revert}>
-              <Tooltip value={i18n.t("ui.message.revertMessage")} placement="top" gutter={4}>
+              <TooltipV2 value={i18n.t("ui.message.revertMessage")} placement="top" gutter={4}>
                 <IconButton
                   icon="reset"
                   size="normal"
                   variant="ghost"
-                  disabled={!!busy()}
+                  disabled={busy()}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={(event) => {
                     event.stopPropagation()
@@ -1204,9 +1220,9 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
                   }}
                   aria-label={i18n.t("ui.message.revertMessage")}
                 />
-              </Tooltip>
+              </TooltipV2>
             </Show>
-            <Tooltip
+            <TooltipV2
               value={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copyMessage")}
               placement="top"
               gutter={4}
@@ -1222,7 +1238,7 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
                 }}
                 aria-label={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copyMessage")}
               />
-            </Tooltip>
+            </TooltipV2>
           </div>
         </>
       </Show>
@@ -1239,7 +1255,7 @@ function HighlightedText(props: { text: string; references: FilePart[]; agents: 
     const allRefs: { start: number; end: number; type: "file" | "agent" }[] = [
       ...props.references
         .filter((r) => r.source?.text?.start !== undefined && r.source?.text?.end !== undefined)
-        .map((r) => ({ start: r.source!.text!.start, end: r.source!.text!.end, type: "file" as const })),
+        .map((r) => ({ start: r.source!.text.start, end: r.source!.text.end, type: "file" as const })),
       ...props.agents
         .filter((a) => a.source?.start !== undefined && a.source?.end !== undefined)
         .map((a) => ({ start: a.source!.start, end: a.source!.end, type: "agent" as const })),
@@ -1337,15 +1353,15 @@ function ToolFileAccordion(props: { path: string; actions?: JSX.Element; childre
   const value = createMemo(() => props.path || "tool-file")
 
   return (
-    <Accordion
+    <AccordionV2
       multiple
       data-scope="apply-patch"
       style={{ "--sticky-accordion-offset": "calc(32px + var(--tool-content-gap))" }}
       defaultValue={[value()]}
     >
-      <Accordion.Item value={value()}>
+      <AccordionV2.Item value={value()}>
         <StickyAccordionHeader>
-          <Accordion.Trigger>
+          <AccordionV2.Trigger>
             <div data-slot="apply-patch-trigger-content">
               <div data-slot="apply-patch-file-info">
                 <FileIcon node={{ path: props.path, type: "file" }} />
@@ -1361,11 +1377,11 @@ function ToolFileAccordion(props: { path: string; actions?: JSX.Element; childre
                 <Icon name="chevron-grabber-vertical" size="small" />
               </div>
             </div>
-          </Accordion.Trigger>
+          </AccordionV2.Trigger>
         </StickyAccordionHeader>
-        <Accordion.Content>{props.children}</Accordion.Content>
-      </Accordion.Item>
-    </Accordion>
+        <AccordionV2.Content>{props.children}</AccordionV2.Content>
+      </AccordionV2.Item>
+    </AccordionV2>
   )
 }
 
@@ -1486,19 +1502,19 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
   const part = () => props.part as TextPart
   const interrupted = createMemo(
     () =>
-      props.message.role === "assistant" && (props.message as AssistantMessage).error?.name === "MessageAbortedError",
+      props.message.role === "assistant" && props.message.error?.name === "MessageAbortedError",
   )
 
   const model = createMemo(() => {
     if (props.message.role !== "assistant") return ""
-    const message = props.message as AssistantMessage
+    const message = props.message
     const match = data.store.provider?.all?.get(message.providerID)
     return match?.models?.[message.modelID]?.name ?? message.modelID
   })
 
   const duration = createMemo(() => {
     if (props.message.role !== "assistant") return ""
-    const message = props.message as AssistantMessage
+    const message = props.message
     const completed = message.time.completed
     const ms =
       typeof props.turnDurationMs === "number"
@@ -1519,7 +1535,7 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
 
   const meta = createMemo(() => {
     if (props.message.role !== "assistant") return ""
-    const agent = (props.message as AssistantMessage).agent
+    const agent = props.message.agent
     const items = [
       agent ? agent[0]?.toUpperCase() + agent.slice(1) : "",
       model(),
@@ -1530,7 +1546,7 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
   })
 
   const streaming = createMemo(
-    () => props.message.role === "assistant" && typeof (props.message as AssistantMessage).time.completed !== "number",
+    () => props.message.role === "assistant" && typeof props.message.time.completed !== "number",
   )
   const text = () => readPartText(data.store.part_text_accum_delta, part())
   const isLastTextPart = createMemo(() => {
@@ -1566,7 +1582,7 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
         </div>
         <Show when={showCopy()}>
           <div data-slot="text-part-copy-wrapper" data-interrupted={interrupted() ? "" : undefined}>
-            <Tooltip
+            <TooltipV2
               value={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copyResponse")}
               placement="top"
               gutter={4}
@@ -1579,7 +1595,7 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
                 onClick={handleCopy}
                 aria-label={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copyResponse")}
               />
-            </Tooltip>
+            </TooltipV2>
             <Show when={meta()}>
               <span data-slot="text-part-meta" class="text-12-regular text-text-weak cursor-default">
                 {meta()}
@@ -1596,7 +1612,7 @@ PART_MAPPING["reasoning"] = function ReasoningPartDisplay(props) {
   const data = useData()
   const part = () => props.part as ReasoningPart
   const streaming = createMemo(
-    () => props.message.role === "assistant" && typeof (props.message as AssistantMessage).time.completed !== "number",
+    () => props.message.role === "assistant" && typeof props.message.time.completed !== "number",
   )
   const text = () => readPartText(data.store.part_text_accum_delta, part())
 
@@ -1741,7 +1757,7 @@ ToolRegistry.register({
           <div data-slot="basic-tool-tool-info-structured">
             <div data-slot="basic-tool-tool-info-main">
               <span data-slot="basic-tool-tool-title">
-                <TextShimmer text={i18n.t("ui.tool.webfetch")} active={pending()} />
+                <TextShimmerV2 text={i18n.t("ui.tool.webfetch")} active={pending()} />
               </span>
               <Show when={!pending() && url()}>
                 <a
@@ -1858,9 +1874,17 @@ ToolRegistry.register({
           </div>
         </div>
         <Show when={clickable()}>
-          <div data-component="task-tool-action">
+          <a
+            data-component="task-tool-action"
+            href={href()}
+            aria-label={i18n.t("ui.tool.agent.openSession")}
+            onClick={(e) => {
+              e.stopPropagation()
+              navigate(e)
+            }}
+          >
             <Icon name="square-arrow-top-right" size="small" />
-          </div>
+          </a>
         </Show>
       </div>
     )
@@ -1871,9 +1895,6 @@ ToolRegistry.register({
         status={props.status}
         trigger={trigger()}
         hideDetails
-        triggerHref={href()}
-        clickable={clickable()}
-        onTriggerClick={navigate}
       />
     )
   },
@@ -1909,7 +1930,7 @@ ToolRegistry.register({
           <div data-slot="basic-tool-tool-info-structured">
             <div data-slot="basic-tool-tool-info-main">
               <span data-slot="basic-tool-tool-title">
-                <TextShimmer text={i18n.t("ui.tool.shell")} active={pending()} />
+                <TextShimmerV2 text={i18n.t("ui.tool.shell")} active={pending()} />
               </span>
               <Show when={!pending() && !open() && props.input.command}>
                 <ShellSubmessage text={props.input.command} animate={sawPending} />
@@ -1920,7 +1941,7 @@ ToolRegistry.register({
       >
         <div data-component="bash-output">
           <div data-slot="bash-copy">
-            <Tooltip
+            <TooltipV2
               value={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copy")}
               placement="top"
               gutter={4}
@@ -1933,7 +1954,7 @@ ToolRegistry.register({
                 onClick={handleCopy}
                 aria-label={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copy")}
               />
-            </Tooltip>
+            </TooltipV2>
           </div>
           <div data-slot="bash-scroll" data-scrollable>
             <pre data-slot="bash-pre">
@@ -2005,7 +2026,7 @@ ToolRegistry.register({
               <div data-slot="message-part-title-area">
                 <div data-slot="message-part-title">
                   <span data-slot="message-part-title-text">
-                    <TextShimmer text={i18n.t("ui.messagePart.title.edit")} active={pending()} />
+                    <TextShimmerV2 text={i18n.t("ui.messagePart.title.edit")} active={pending()} />
                   </span>
                   <Show when={!pending()}>
                     <span data-slot="message-part-title-filename">{filename()}</span>
@@ -2013,7 +2034,7 @@ ToolRegistry.register({
                 </div>
                 <Show when={!pending() && props.input.filePath?.includes("/")}>
                   <div data-slot="message-part-path">
-                    <span data-slot="message-part-directory">{getDirectory(props.input.filePath!)}</span>
+                    <span data-slot="message-part-directory">{getDirectory(props.input.filePath)}</span>
                   </div>
                 </Show>
               </div>
@@ -2030,7 +2051,7 @@ ToolRegistry.register({
               path={path()}
               actions={
                 <Show when={!pending() && props.metadata.filediff}>
-                  <DiffChanges changes={props.metadata.filediff!} />
+                  <DiffChanges changes={props.metadata.filediff} />
                 </Show>
               }
             >
@@ -2072,7 +2093,7 @@ ToolRegistry.register({
               <div data-slot="message-part-title-area">
                 <div data-slot="message-part-title">
                   <span data-slot="message-part-title-text">
-                    <TextShimmer text={i18n.t("ui.messagePart.title.write")} active={pending()} />
+                    <TextShimmerV2 text={i18n.t("ui.messagePart.title.write")} active={pending()} />
                   </span>
                   <Show when={!pending()}>
                     <span data-slot="message-part-title-filename">{filename()}</span>
@@ -2080,7 +2101,7 @@ ToolRegistry.register({
                 </div>
                 <Show when={!pending() && props.input.filePath?.includes("/")}>
                   <div data-slot="message-part-path">
-                    <span data-slot="message-part-directory">{getDirectory(props.input.filePath!)}</span>
+                    <span data-slot="message-part-directory">{getDirectory(props.input.filePath)}</span>
                   </div>
                 </Show>
               </div>
@@ -2156,7 +2177,7 @@ ToolRegistry.register({
               }}
             >
               <Show when={files().length > 0}>
-                <Accordion
+                <AccordionV2
                   multiple
                   data-scope="apply-patch"
                   style={{ "--sticky-accordion-offset": "calc(32px + var(--tool-content-gap))" }}
@@ -2181,9 +2202,9 @@ ToolRegistry.register({
                       })
 
                       return (
-                        <Accordion.Item value={file.filePath} data-type={file.type}>
+                        <AccordionV2.Item value={file.filePath} data-type={file.type}>
                           <StickyAccordionHeader>
-                            <Accordion.Trigger>
+                            <AccordionV2.Trigger>
                               <div data-slot="apply-patch-trigger-content">
                                 <div data-slot="apply-patch-file-info">
                                   <FileIcon node={{ path: file.relativePath, type: "file" }} />
@@ -2218,9 +2239,9 @@ ToolRegistry.register({
                                   <Icon name="chevron-grabber-vertical" size="small" />
                                 </div>
                               </div>
-                            </Accordion.Trigger>
+                            </AccordionV2.Trigger>
                           </StickyAccordionHeader>
-                          <Accordion.Content>
+                          <AccordionV2.Content>
                             <Show when={props.deferContent === false || visible()}>
                               <div data-component="apply-patch-file-diff">
                                 <Dynamic
@@ -2233,12 +2254,12 @@ ToolRegistry.register({
                                 />
                               </div>
                             </Show>
-                          </Accordion.Content>
-                        </Accordion.Item>
+                          </AccordionV2.Content>
+                        </AccordionV2.Item>
                       )
                     }}
                   </For>
-                </Accordion>
+                </AccordionV2>
               </Show>
             </BasicTool>
           </div>
@@ -2254,7 +2275,7 @@ ToolRegistry.register({
                 <div data-slot="message-part-title-area">
                   <div data-slot="message-part-title">
                     <span data-slot="message-part-title-text">
-                      <TextShimmer text={i18n.t("ui.tool.patch")} active={pending()} />
+                      <TextShimmerV2 text={i18n.t("ui.tool.patch")} active={pending()} />
                     </span>
                     <Show when={!pending()}>
                       <span data-slot="message-part-title-filename">{getFilename(single()!.relativePath)}</span>
@@ -2350,14 +2371,11 @@ ToolRegistry.register({
           <div data-component="todos">
             <For each={todos()}>
               {(todo: Todo) => (
-                <Checkbox readOnly checked={todo.status === "completed"}>
-                  <span
-                    data-slot="message-part-todo-content"
-                    data-completed={todo.status === "completed" ? "completed" : undefined}
-                  >
+                <CheckboxV2 label={<span data-slot="message-part-todo-content"
+                    data-completed={todo.status === "completed" ? "completed" : undefined}>
                     {todo.content}
-                  </span>
-                </Checkbox>
+                  </span>}
+                  readOnly checked={todo.status === "completed"} />
               )}
             </For>
           </div>
@@ -2419,7 +2437,7 @@ ToolRegistry.register({
     const title = createMemo(() => props.input.name || i18n.t("ui.tool.skill"))
     const running = createMemo(() => props.status === "pending" || props.status === "running")
 
-    const titleContent = () => <TextShimmer text={title()} active={running()} />
+    const titleContent = () => <TextShimmerV2 text={title()} active={running()} />
 
     const trigger = () => (
       <div data-slot="basic-tool-tool-info-structured">

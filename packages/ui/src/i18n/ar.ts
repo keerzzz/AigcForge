@@ -48,7 +48,7 @@ export const dict = {
 
   "dialog.usageExceeded.freeTier.title": "تم الوصول إلى الحد المجاني",
   "dialog.usageExceeded.freeTier.description":
-    "اشترك في OpenCode Go للحصول على وصول موثوق إلى أفضل النماذج مفتوحة المصدر، ابتداءً من $5/شهر.",
+    "اشترك في Aigcfroge Go للحصول على وصول موثوق إلى أفضل النماذج مفتوحة المصدر، ابتداءً من $5/شهر.",
   "dialog.usageExceeded.freeTier.actionLabel": "اشترك",
   "dialog.usageExceeded.accountRateLimit.title": "تم الوصول إلى حد Go",
   "dialog.usageExceeded.accountRateLimit.description":
@@ -111,6 +111,7 @@ export const dict = {
   "ui.tool.questions": "أسئلة",
   "ui.tool.agent": "وكيل {{type}}",
   "ui.tool.agent.default": "وكيل",
+  "ui.tool.agent.openSession": "Open sub-agent session",
 
   "ui.common.file.one": "ملف",
   "ui.common.file.other": "ملفات",

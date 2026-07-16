@@ -3,8 +3,8 @@ import { $ } from "bun"
 import fs from "fs/promises"
 import path from "path"
 import { Effect } from "effect"
-import { Git } from "@opencode-ai/core/git"
-import { AbsolutePath } from "@opencode-ai/core/schema"
+import { Git } from "@aigcfroge/core/git"
+import { AbsolutePath } from "@aigcfroge/core/schema"
 import { branch, commit, gitRemote } from "./fixture/git"
 import { tmpdir } from "./fixture/tmpdir"
 import { testEffect } from "./lib/effect"
@@ -12,43 +12,49 @@ import { testEffect } from "./lib/effect"
 const it = testEffect(Git.defaultLayer)
 
 describe("Git", () => {
-  it.live("clones a remote and reads checkout metadata", () =>
-    withRemote((fixture) =>
-      Effect.gen(function* () {
-        const git = yield* Git.Service
-        const target = path.join(fixture.root, "checkout")
-        const result = yield* git.clone({ remote: fixture.remote, target })
+  it.live(
+    "clones a remote and reads checkout metadata",
+    () =>
+      withRemote((fixture) =>
+        Effect.gen(function* () {
+          const git = yield* Git.Service
+          const target = path.join(fixture.root, "checkout")
+          const result = yield* git.clone({ remote: fixture.remote, target })
 
-        expect(result.exitCode).toBe(0)
-        expect(yield* git.origin(target)).toBe(fixture.remote)
-        expect(yield* git.head(target)).toBeString()
-        expect(yield* git.branch(target)).toBe("main")
-        expect(yield* git.remoteHead(target)).toBe("origin/main")
-        expect(yield* read(path.join(target, "README.md"))).toBe("one\n")
-      }),
-    ),
+          expect(result.exitCode).toBe(0)
+          expect(yield* git.origin(target)).toBe(fixture.remote)
+          expect(yield* git.head(target)).toBeString()
+          expect(yield* git.branch(target)).toBe("main")
+          expect(yield* git.remoteHead(target)).toBe("origin/main")
+          expect(yield* read(path.join(target, "README.md"))).toBe("one\n")
+        }),
+      ),
+    60000,
   )
 
-  it.live("fetches, checks out, and resets remote changes", () =>
-    withRemote((fixture) =>
-      Effect.gen(function* () {
-        const git = yield* Git.Service
-        const target = path.join(fixture.root, "checkout")
-        yield* git.clone({ remote: fixture.remote, target })
+  it.live(
+    "fetches, checks out, and resets remote changes",
+    () =>
+      withRemote((fixture) =>
+        Effect.gen(function* () {
+          const git = yield* Git.Service
+          const target = path.join(fixture.root, "checkout")
+          yield* git.clone({ remote: fixture.remote, target })
 
-        yield* Effect.promise(() => commit(fixture.source, "two\n", "second"))
-        expect((yield* git.fetch(target)).exitCode).toBe(0)
-        expect((yield* git.reset(target, "origin/main")).exitCode).toBe(0)
-        expect(yield* read(path.join(target, "README.md"))).toBe("two\n")
+          yield* Effect.promise(() => commit(fixture.source, "two\n", "second"))
+          expect((yield* git.fetch(target)).exitCode).toBe(0)
+          expect((yield* git.reset(target, "origin/main")).exitCode).toBe(0)
+          expect(yield* read(path.join(target, "README.md"))).toBe("two\n")
 
-        yield* Effect.promise(() => branch(fixture.source, "feature/docs", "feature\n"))
-        expect((yield* git.fetchBranch(target, "feature/docs")).exitCode).toBe(0)
-        expect((yield* git.checkout(target, "feature/docs")).exitCode).toBe(0)
-        expect((yield* git.reset(target, "origin/feature/docs")).exitCode).toBe(0)
-        expect(yield* git.branch(target)).toBe("feature/docs")
-        expect(yield* read(path.join(target, "README.md"))).toBe("feature\n")
-      }),
-    ),
+          yield* Effect.promise(() => branch(fixture.source, "feature/docs", "feature\n"))
+          expect((yield* git.fetchBranch(target, "feature/docs")).exitCode).toBe(0)
+          expect((yield* git.checkout(target, "feature/docs")).exitCode).toBe(0)
+          expect((yield* git.reset(target, "origin/feature/docs")).exitCode).toBe(0)
+          expect(yield* git.branch(target)).toBe("feature/docs")
+          expect(yield* read(path.join(target, "README.md"))).toBe("feature\n")
+        }),
+      ),
+    60000,
   )
 })
 
@@ -71,7 +77,7 @@ async function initRepo(directory: string) {
   await $`git init`.cwd(directory).quiet()
   await $`git config core.fsmonitor false`.cwd(directory).quiet()
   await $`git config commit.gpgsign false`.cwd(directory).quiet()
-  await $`git config user.email test@opencode.test`.cwd(directory).quiet()
+  await $`git config user.email test@aigcfroge.test`.cwd(directory).quiet()
   await $`git config user.name Test`.cwd(directory).quiet()
   await $`git commit --allow-empty -m root`.cwd(directory).quiet()
 }

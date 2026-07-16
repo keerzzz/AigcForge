@@ -3,6 +3,8 @@
 import { generateNeutralScale, hexToOklch, oklchToHex, shift } from "../color"
 import { mapV2Foreground } from "./foreground"
 import { mapV2Semantics, mergeV2Tokens } from "./mapping"
+import { mapV2Syntax, mapV2Markdown } from "./syntax-markdown"
+import { mapV2Diff } from "./diff"
 import type { DesktopTheme, HexColor, ResolvedV2Theme, ThemeVariant, V2ColorValue } from "../types"
 import { V2_PRIMITIVES_DEFAULT } from "./default-primitives"
 
@@ -49,7 +51,7 @@ function generateV2HueScale(seed: HexColor, isDark: boolean): HexColor[] {
   return lightSteps.map((l, i) =>
     oklchToHex({
       l,
-      c: base.c * chromaMultipliers[i]! * chromaBoost,
+      c: base.c * chromaMultipliers[i] * chromaBoost,
       h: base.h,
     }),
   )
@@ -136,7 +138,10 @@ export function resolveThemeVariantV2(variant: ThemeVariant, isDark: boolean): R
   const primitives = generateV2Primitives(variant, isDark)
   const semantics = mapV2Semantics(isDark)
   const foreground = mapV2Foreground(readPalette(variant).ink, isDark, primitives, variant.overrides)
-  return mergeV2Tokens(primitives, semantics, foreground, variant.v2Overrides ?? {})
+  const syntax = mapV2Syntax(isDark)
+  const markdown = mapV2Markdown(isDark)
+  const diff = mapV2Diff(isDark)
+  return mergeV2Tokens(primitives, semantics, foreground, syntax, markdown, diff, variant.v2Overrides ?? {})
 }
 
 export function resolveThemeV2(theme: DesktopTheme): { light: ResolvedV2Theme; dark: ResolvedV2Theme } {

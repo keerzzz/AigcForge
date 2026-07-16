@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import type { ProductMode } from "@aigcfroge/sdk/v2/client"
 import { canDisposeDirectory, pickDirectoriesToEvict } from "./global-sync/eviction"
 import { estimateRootSessionTotal, loadRootSessionsWithFallback } from "./global-sync/session-load"
 
@@ -39,6 +40,27 @@ describe("loadRootSessionsWithFallback", () => {
     expect(result.data).toEqual([])
     expect(result.limited).toBe(true)
     expect(calls).toEqual([{ directory: "dir", roots: true, limit: 10 }])
+  })
+
+
+  test("forwards product mode to limited and fallback queries", async () => {
+    const calls: Array<{ directory: string; roots: true; mode?: ProductMode; limit?: number }> = []
+
+    await loadRootSessionsWithFallback({
+      directory: "dir",
+      limit: 10,
+      mode: "chat",
+      list: async (query) => {
+        calls.push(query)
+        if (query.limit) throw new Error("unsupported")
+        return { data: [] }
+      },
+    })
+
+    expect(calls).toEqual([
+      { directory: "dir", roots: true, mode: "chat", limit: 10 },
+      { directory: "dir", roots: true, mode: "chat" },
+    ])
   })
 
   test("falls back to full roots query on limited-query failure", async () => {

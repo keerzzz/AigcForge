@@ -12,10 +12,11 @@ import type {
   Session,
   SessionStatus,
   SnapshotFileDiff,
+  ProductMode,
   Todo,
   VcsInfo,
-} from "@opencode-ai/sdk/v2/client"
-import { NormalizedProviderListResponse } from "@opencode-ai/session-ui/context"
+} from "@aigcfroge/sdk/v2/client"
+import { NormalizedProviderListResponse } from "@aigcfroge/session-ui/context"
 import type { Accessor } from "solid-js"
 import type { SetStoreFunction, Store } from "solid-js/store"
 
@@ -125,7 +126,8 @@ export type DisposeCheck = {
 export type RootLoadArgs = {
   directory: string
   limit: number
-  list: (query: { directory: string; roots: true; limit?: number }) => Promise<{ data?: Session[] }>
+  mode?: ProductMode
+  list: (query: { directory: string; roots: true; mode?: ProductMode; limit?: number }) => Promise<{ data?: Session[] }>
 }
 
 export type RootLoadResult = {

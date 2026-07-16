@@ -30,9 +30,6 @@ export const SessionRouteKey = {
   fromRoute(dir: string | undefined, sessionID?: string) {
     return fragment("Session route", `${dir ?? ""}${sessionID ? "/" + sessionID : ""}`) as SessionRouteKey
   },
-  fromLegacy(key: string) {
-    return fragment("Legacy session route", key) as SessionRouteKey
-  },
 }
 
 export const SessionStateKey = {
@@ -41,7 +38,7 @@ export const SessionStateKey = {
   },
   route(key: string) {
     const split = key.lastIndexOf(separator)
-    return SessionRouteKey.fromLegacy(split === -1 ? key : key.slice(split + 1))
+    return fragment("Session route", split === -1 ? key : key.slice(split + 1)) as SessionRouteKey
   },
   scope(key: string) {
     const split = key.indexOf(separator)
@@ -59,15 +56,3 @@ export const ScopedKey = {
   },
 }
 
-export function migrateLegacySessionStateKeys(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return value
-  const entries = Object.entries(value)
-  if (entries.every(([key]) => key.includes(separator))) return value
-  const scoped = Object.fromEntries(entries.filter(([key]) => key.includes(separator)))
-  for (const [key, item] of entries) {
-    if (key.includes(separator)) continue
-    const next = SessionStateKey.from(ServerScope.local, SessionRouteKey.fromLegacy(key))
-    if (!(next in scoped)) scoped[next] = item
-  }
-  return scoped
-}

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Aigcfroge
+Exec=/opt/Aigcfroge/ai.aigcfroge.desktop %U
+Terminal=false
+Type=Application
+Icon=ai.aigcfroge.desktop
+StartupWMClass=ai.aigcfroge.desktop
+NoDisplay=true
+Comment=Open source AI coding agent
+Categories=Development;

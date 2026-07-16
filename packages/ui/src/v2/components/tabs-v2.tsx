@@ -12,6 +12,10 @@ export interface TabsV2TriggerProps extends ComponentProps<typeof Kobalte.Trigge
   onMiddleClick?: () => void
   /** Optional subtext shown beside the primary content (muted style) */
   subtext?: JSX.Element | string
+  /** Optional close button element rendered at the end of the trigger content. */
+  closeButton?: JSX.Element
+  /** When true, the close button stays hidden until the trigger is hovered or focused. */
+  hideCloseButton?: boolean
 }
 export interface TabsV2CloseButtonProps extends ComponentProps<"div"> {}
 export interface TabsV2ContentProps extends ComponentProps<typeof Kobalte.Content> {}
@@ -48,11 +52,20 @@ function TabsV2List(props: TabsV2ListProps) {
 }
 
 function TabsV2Trigger(props: ParentProps<TabsV2TriggerProps>) {
-  const [split, rest] = splitProps(props, ["class", "classList", "children", "onMiddleClick", "subtext"])
+  const [split, rest] = splitProps(props, [
+    "class",
+    "classList",
+    "children",
+    "onMiddleClick",
+    "subtext",
+    "closeButton",
+    "hideCloseButton",
+  ])
   return (
     <div
       data-slot="tabs-v2-trigger-wrapper"
       data-value={props.value}
+      data-hide-close-button={split.hideCloseButton ? "" : undefined}
       classList={{
         ...split.classList,
         [split.class ?? ""]: !!split.class,
@@ -78,6 +91,9 @@ function TabsV2Trigger(props: ParentProps<TabsV2TriggerProps>) {
                 {subtext()}
               </span>
             )}
+          </Show>
+          <Show when={split.closeButton}>
+            <span data-slot="tabs-v2-close-button">{split.closeButton}</span>
           </Show>
         </span>
       </Kobalte.Trigger>

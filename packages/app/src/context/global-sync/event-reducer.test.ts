@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { Message, Part, PermissionRequest, Project, QuestionRequest, Session } from "@opencode-ai/sdk/v2/client"
+import type { Message, Part, PermissionRequest, Project, QuestionRequest, Session } from "@aigcfroge/sdk/v2/client"
 import { createStore } from "solid-js/store"
 import type { State } from "./types"
 import { applyDirectoryEvent, applyGlobalEvent, cleanupDroppedSessionCaches } from "./event-reducer"
@@ -151,7 +151,7 @@ describe("applyDirectoryEvent", () => {
     })
 
     expect(store.part_text_accum_delta.part).toBe("existing appended")
-    expect((store.part.message?.[0] as { text: string }).text).toBe("existing appended")
+    expect(store.part.message?.[0]).toMatchObject({ text: "existing appended" })
   })
 
   test("preserves a Home-specific retained session limit", () => {

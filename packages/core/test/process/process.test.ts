@@ -5,7 +5,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { Effect, Exit, Fiber, Stream } from "effect"
 import { ChildProcess } from "effect/unstable/process"
-import { AppProcess } from "@opencode-ai/core/process"
+import { AppProcess } from "@aigcfroge/core/process"
 import { testEffect } from "../lib/effect"
 
 const it = testEffect(AppProcess.defaultLayer)
@@ -60,8 +60,8 @@ describe("AppProcess", () => {
           const reason = exit.cause.reasons[0]
           if (reason && reason._tag === "Fail") {
             expect(reason.error).toBeInstanceOf(AppProcess.AppProcessError)
-            expect((reason.error as AppProcess.AppProcessError).exitCode).toBe(1)
-            expect((reason.error as AppProcess.AppProcessError).message).toContain("Command failed (exit 1)")
+            expect((reason.error).exitCode).toBe(1)
+            expect((reason.error).message).toContain("Command failed (exit 1)")
           } else {
             throw new Error("expected fail reason")
           }
@@ -93,7 +93,7 @@ describe("AppProcess", () => {
           const reason = exit.cause.reasons[0]
           if (reason && reason._tag === "Fail") {
             expect(reason.error).toBeInstanceOf(AppProcess.AppProcessError)
-            expect((reason.error as AppProcess.AppProcessError).exitCode).toBe(2)
+            expect((reason.error).exitCode).toBe(2)
           }
         }
       }),
@@ -138,7 +138,7 @@ describe("AppProcess", () => {
       it.live(
         "timeout cleans up the scoped child process",
         Effect.acquireUseRelease(
-          Effect.promise(() => fs.mkdtemp(path.join(tmpdir(), "opencode-process-timeout-"))),
+          Effect.promise(() => fs.mkdtemp(path.join(tmpdir(), "aigcfroge-process-timeout-"))),
           (directory) => {
             const ready = path.join(directory, "ready")
             const settled = path.join(directory, "settled")
@@ -159,7 +159,7 @@ describe("AppProcess", () => {
       it.live(
         "fiber interruption cleans up the scoped child process after readiness",
         Effect.acquireUseRelease(
-          Effect.promise(() => fs.mkdtemp(path.join(tmpdir(), "opencode-process-interrupt-"))),
+          Effect.promise(() => fs.mkdtemp(path.join(tmpdir(), "aigcfroge-process-interrupt-"))),
           (directory) => {
             const ready = path.join(directory, "ready")
             const settled = path.join(directory, "settled")

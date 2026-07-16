@@ -1,5 +1,5 @@
-import { getFilename } from "@opencode-ai/core/util/path"
-import { type Session } from "@opencode-ai/sdk/v2/client"
+import { getFilename } from "@aigcfroge/core/util/path"
+import { type Session } from "@aigcfroge/sdk/v2/client"
 import { pathKey } from "@/utils/path-key"
 import type { ServerConnection } from "@/context/server"
 
@@ -93,10 +93,10 @@ export function homeSessionServerStatus(active: boolean, status: () => { working
   return status()
 }
 
-const OPENCODE_PROJECT_ID = "4b0ea68d7af9a6031a7ffda7ad66e0cb83315750"
+const AIGCFROGE_PROJECT_ID = "4b0ea68d7af9a6031a7ffda7ad66e0cb83315750"
 
 export function getProjectAvatarSource(id?: string, icon?: { color?: string; url?: string; override?: string }) {
-  if (id === OPENCODE_PROJECT_ID) return "https://opencode.ai/favicon.svg"
+  if (id === AIGCFROGE_PROJECT_ID) return "https://aigcfroge.ai/favicon.svg"
   if (icon?.override) return icon.override
   if (icon?.color) return undefined
   return icon?.url
@@ -148,4 +148,29 @@ export const effectiveWorkspaceOrder = (local: string, dirs: string[], persisted
   }
 
   return [...result, ...live.values()]
+}
+
+type ProjectActions = {
+  open: (directory: string) => void
+  touch: (directory: string) => void
+  list: () => Array<{ worktree: string; sandboxes?: string[] }>
+}
+
+export function openProjectNewSession(
+  projects: ProjectActions,
+  newDraft: (server: ServerConnection.Key, directory: string) => void,
+  server: ServerConnection.Key,
+  directory: string,
+) {
+  const dirKey = pathKey(directory)
+  const parent = projects
+    .list()
+    .find(
+      (p) =>
+        pathKey(p.worktree) === dirKey || (p.sandboxes ?? []).some((s) => pathKey(s) === dirKey),
+    )
+  const projectWorktree = parent?.worktree ?? directory
+  projects.open(projectWorktree)
+  projects.touch(projectWorktree)
+  newDraft(server, directory)
 }

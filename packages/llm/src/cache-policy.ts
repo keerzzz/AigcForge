@@ -47,14 +47,15 @@ const makeHint = (ttlSeconds: number | undefined): CacheHint =>
 const markLastTool = (tools: ReadonlyArray<ToolDefinition>, hint: CacheHint): ReadonlyArray<ToolDefinition> => {
   if (tools.length === 0) return tools
   const last = tools.length - 1
-  if (tools[last]!.cache) return tools
+  if (tools[last].cache) return tools
+  // eslint-disable-next-line no-misused-spread -- ToolDefinition is immediately reconstructed as a Schema class with one cache field changed
   return tools.map((tool, i) => (i === last ? new ToolDefinition({ ...tool, cache: hint }) : tool))
 }
 
 const markLastSystem = (system: LLMRequest["system"], hint: CacheHint): LLMRequest["system"] => {
   if (system.length === 0) return system
   const last = system.length - 1
-  if (system[last]!.cache) return system
+  if (system[last].cache) return system
   return system.map((part, i) => (i === last ? { ...part, cache: hint } : part))
 }
 
@@ -66,13 +67,14 @@ const lastIndexOfRole = (messages: ReadonlyArray<Message>, role: Message["role"]
 // in tool-result-only messages too.
 const markMessageAt = (messages: ReadonlyArray<Message>, index: number, hint: CacheHint): ReadonlyArray<Message> => {
   if (index < 0 || index >= messages.length) return messages
-  const target = messages[index]!
+  const target = messages[index]
   if (target.content.length === 0) return messages
   const lastTextIndex = target.content.findLastIndex((part) => part.type === "text")
   const markAt = lastTextIndex >= 0 ? lastTextIndex : target.content.length - 1
-  const existing = target.content[markAt]!
+  const existing = target.content[markAt]
   if ("cache" in existing && existing.cache) return messages
   const nextContent = target.content.map((part, i) => (i === markAt ? ({ ...part, cache: hint } as ContentPart) : part))
+  // eslint-disable-next-line no-misused-spread -- Message is immediately reconstructed as a Schema class with updated content
   const next = new Message({ ...target, content: nextContent })
   // Single pass over `messages`, substituting the one updated entry. Long
   // conversations call this on every request, so avoid `.map()` here — its

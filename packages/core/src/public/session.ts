@@ -10,6 +10,7 @@ import { Prompt } from "../session/prompt"
 import { Agent } from "./agent"
 import { Location } from "./location"
 import { Model } from "./model"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 
 export const ID = SessionV2.ID
 export type ID = SessionV2.ID
@@ -44,6 +45,8 @@ export { MessageDecodeError }
 
 export interface CreateInput {
   readonly id?: ID
+  readonly parentID?: ID
+  readonly mode?: ProductMode.ID
   readonly agent?: Agent.ID
   readonly model?: Model.Ref
   readonly location: Location.Ref

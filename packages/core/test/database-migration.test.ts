@@ -3,29 +3,30 @@ import { $ } from "bun"
 import { fileURLToPath } from "url"
 import path from "path"
 import { SqliteClient } from "@effect/sql-sqlite-bun"
-import { EffectDrizzleSqlite } from "@opencode-ai/effect-drizzle-sqlite"
+import { EffectDrizzleSqlite } from "@aigcfroge/effect-drizzle-sqlite"
 import { Effect, Layer } from "effect"
 import { eq, inArray, sql } from "drizzle-orm"
-import { DatabaseMigration } from "@opencode-ai/core/database/migration"
-import { migrations } from "@opencode-ai/core/database/migration.gen"
-import sessionUsageMigration from "@opencode-ai/core/database/migration/20260510033149_session_usage"
-import normalizeStoragePathsMigration from "@opencode-ai/core/database/migration/20260601010001_normalize_storage_paths"
-import sessionMessageProjectionOrderMigration from "@opencode-ai/core/database/migration/20260603040000_session_message_projection_order"
-import eventSourcedSessionInputMigration from "@opencode-ai/core/database/migration/20260604172448_event_sourced_session_input"
-import contextEpochAgentMigration from "@opencode-ai/core/database/migration/20260605042240_add_context_epoch_agent"
-import simplifyIntegrationCredentialsMigration from "@opencode-ai/core/database/migration/20260611192811_lush_chimera"
-import simplifySessionInputMigration from "@opencode-ai/core/database/migration/20260622202450_simplify_session_input"
-import { EventV2 } from "@opencode-ai/core/event"
-import { ProjectV2 } from "@opencode-ai/core/project"
-import { ProjectTable } from "@opencode-ai/core/project/sql"
-import { AbsolutePath } from "@opencode-ai/core/schema"
-import { SessionSchema } from "@opencode-ai/core/session/schema"
-import { SessionTable } from "@opencode-ai/core/session/sql"
-import sessionMetadataMigration from "@opencode-ai/core/database/migration/20260511173437_session-metadata"
+import { DatabaseMigration } from "@aigcfroge/core/database/migration"
+import { migrations } from "@aigcfroge/core/database/migration.gen"
+import sessionUsageMigration from "@aigcfroge/core/database/migration/20260510033149_session_usage"
+import normalizeStoragePathsMigration from "@aigcfroge/core/database/migration/20260601010001_normalize_storage_paths"
+import sessionMessageProjectionOrderMigration from "@aigcfroge/core/database/migration/20260603040000_session_message_projection_order"
+import eventSourcedSessionInputMigration from "@aigcfroge/core/database/migration/20260604172448_event_sourced_session_input"
+import contextEpochAgentMigration from "@aigcfroge/core/database/migration/20260605042240_add_context_epoch_agent"
+import simplifyIntegrationCredentialsMigration from "@aigcfroge/core/database/migration/20260611192811_lush_chimera"
+import simplifySessionInputMigration from "@aigcfroge/core/database/migration/20260622202450_simplify_session_input"
+import sessionInputKindMigration from "@aigcfroge/core/database/migration/20260705170359_session_input_kind"
+import { EventV2 } from "@aigcfroge/core/event"
+import { ProjectV2 } from "@aigcfroge/core/project"
+import { ProjectTable } from "@aigcfroge/core/project/sql"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { SessionSchema } from "@aigcfroge/core/session/schema"
+import { SessionTable } from "@aigcfroge/core/session/sql"
+import sessionMetadataMigration from "@aigcfroge/core/database/migration/20260511173437_session-metadata"
 import type { SqlClient as SqlClientService } from "effect/unstable/sql/SqlClient"
-import { Database } from "@opencode-ai/core/database/database"
-import { SessionProjector } from "@opencode-ai/core/session/projector"
-import { SessionV1 } from "@opencode-ai/core/v1/session"
+import { Database } from "@aigcfroge/core/database/database"
+import { SessionProjector } from "@aigcfroge/core/session/projector"
+import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { tmpdir } from "./fixture/tmpdir"
 
 const run = <A, E>(effect: Effect.Effect<A, E, SqlClientService>) =>
@@ -97,8 +98,8 @@ describe("DatabaseMigration", () => {
     )
   })
 
-  test("rejects a non-empty database without a session table", async () => {
-    await expect(
+  test("rejects a non-empty database without a session table", () => {
+    expect(
       run(
         Effect.gen(function* () {
           const db = yield* makeDb
@@ -149,6 +150,53 @@ describe("DatabaseMigration", () => {
         )
         expect(yield* db.get(sql`SELECT connector_id, method_id, active FROM credential WHERE id = 'current'`)).toEqual(
           { connector_id: null, method_id: null, active: null },
+        )
+      }),
+    )
+  })
+
+  test("backfills existing session_input rows as prompt kind and relaxes prompt nullability", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        // Pre-migration shape: prompt NOT NULL, no kind/command columns.
+        yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY)`)
+        yield* db.run(
+          sql`CREATE TABLE session_input (id text PRIMARY KEY, session_id text NOT NULL, prompt text NOT NULL, delivery text NOT NULL, admitted_seq integer NOT NULL, promoted_seq integer, time_created integer NOT NULL)`,
+        )
+        yield* db.run(
+          sql`INSERT INTO session_input (id, session_id, prompt, delivery, admitted_seq, time_created) VALUES ('inp_old', 'ses_old', '{"text":"hi"}', 'steer', 1, 1)`,
+        )
+
+        yield* DatabaseMigration.applyOnly(db, [sessionInputKindMigration])
+
+        // Existing row backfilled as a prompt input.
+        expect(yield* db.get(sql`SELECT kind, prompt, command FROM session_input WHERE id = 'inp_old'`)).toEqual({
+          kind: "prompt",
+          prompt: '{"text":"hi"}',
+          command: null,
+        })
+        // prompt is now nullable so shell inputs can store a command instead.
+        yield* db.run(
+          sql`INSERT INTO session_input (id, session_id, kind, command, delivery, admitted_seq, time_created) VALUES ('inp_shell', 'ses_old', 'shell', 'pwd', 'queue', 2, 2)`,
+        )
+        expect(yield* db.get(sql`SELECT kind, prompt, command FROM session_input WHERE id = 'inp_shell'`)).toEqual({
+          kind: "shell",
+          prompt: null,
+          command: "pwd",
+        })
+        // Named indexes survived the rebuild (auto-indexes are excluded).
+        expect(
+          (yield* db.all<{ name: string }>(sql`PRAGMA index_list(session_input)`))
+            .map((index) => index.name)
+            .filter((name) => !name.startsWith("sqlite_autoindex_"))
+            .sort(),
+        ).toEqual(
+          [
+            "session_input_session_admitted_seq_idx",
+            "session_input_session_pending_delivery_seq_idx",
+            "session_input_session_promoted_seq_idx",
+          ].sort(),
         )
       }),
     )
@@ -274,6 +322,7 @@ describe("DatabaseMigration", () => {
             sessionID: SessionSchema.ID.make("session"),
             info: {
               id: SessionSchema.ID.make("session"),
+              mode: "coding",
               slug: "session",
               projectID: ProjectV2.ID.global,
               directory: "/project",
@@ -637,6 +686,44 @@ describe("DatabaseMigration", () => {
         yield* DatabaseMigration.applyOnly(db, [])
 
         expect(yield* db.all(sql`SELECT id FROM migration ORDER BY id`)).toEqual([{ id: "existing" }])
+      }),
+    )
+  })
+
+  test("backward-compatible add-column preserves existing rows", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+
+        // Create a minimal session table with existing data.
+        yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY, title text NOT NULL)`)
+        yield* db.run(sql`INSERT INTO session (id, title) VALUES ('ses_1', 'Original')`)
+        yield* db.run(sql`INSERT INTO session (id, title) VALUES ('ses_2', 'Another')`)
+
+        // Build a mock migration that adds a nullable column.
+        const addColumnMigration = {
+          id: "99999999999999_test_add_column",
+          up(tx: Parameters<DatabaseMigration.Migration["up"]>[0]) {
+            return Effect.gen(function* () {
+              yield* tx.run(sql`ALTER TABLE session ADD COLUMN summary text`)
+              yield* tx.run(
+                sql`CREATE INDEX session_summary_idx ON session (summary) WHERE summary IS NOT NULL`,
+              )
+            })
+          },
+        } satisfies DatabaseMigration.Migration
+
+        yield* DatabaseMigration.applyOnly(db, [addColumnMigration])
+
+        // Existing rows preserved.
+        expect(yield* db.all(sql`SELECT id, title, summary FROM session ORDER BY id`)).toEqual([
+          { id: "ses_1", title: "Original", summary: null },
+          { id: "ses_2", title: "Another", summary: null },
+        ])
+
+        // New column is writable.
+        yield* db.run(sql`UPDATE session SET summary = 'Updated' WHERE id = 'ses_1'`)
+        expect(yield* db.get(sql`SELECT summary FROM session WHERE id = 'ses_1'`)).toEqual({ summary: "Updated" })
       }),
     )
   })

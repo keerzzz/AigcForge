@@ -1,5 +1,5 @@
-import { createSimpleContext } from "@opencode-ai/ui/context"
-import { base64Encode, checksum } from "@opencode-ai/core/util/encode"
+import { createSimpleContext } from "@aigcfroge/ui/context"
+import { base64Encode, checksum } from "@aigcfroge/core/util/encode"
 import { useParams, useSearchParams } from "@solidjs/router"
 import { batch, createMemo, createRoot, getOwner, onCleanup, type Accessor } from "solid-js"
 import { createStore, type SetStoreFunction } from "solid-js/store"
@@ -11,7 +11,6 @@ import { useSDK } from "./sdk"
 import { useTabs, type Tab } from "./tabs"
 import { useServer } from "./server"
 import { requireServerKey } from "@/utils/session-route"
-import { useSettings } from "./settings"
 
 interface PartBase {
   content: string
@@ -278,7 +277,6 @@ export const { use: usePrompt, provider: PromptProvider } = createSimpleContext(
     const serverSDK = useServerSDK()
     const server = useServer()
     const tabs = useTabs()
-    const settings = useSettings()
     const cache = new Map<string, PromptCacheEntry>()
 
     const disposeAll = () => {
@@ -302,7 +300,6 @@ export const { use: usePrompt, provider: PromptProvider } = createSimpleContext(
 
     const owner = getOwner()
     const tab = createMemo<Tab | undefined>(() => {
-      if (!settings.general.newLayoutDesigns()) return
       if (search.draftId) {
         return tabs.store.find((item) => item.type === "draft" && item.draftID === search.draftId)
       }

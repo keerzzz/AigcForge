@@ -13,15 +13,15 @@ import {
 } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLocation, useNavigate, useParams } from "@solidjs/router"
-import { IconButton } from "@opencode-ai/ui/icon-button"
-import { Icon } from "@opencode-ai/ui/icon"
-import { Button } from "@opencode-ai/ui/button"
-import { Tooltip, TooltipKeybind } from "@opencode-ai/ui/tooltip"
-import { useTheme } from "@opencode-ai/ui/theme/context"
-import { IconButtonV2 } from "@opencode-ai/ui/v2/icon-button-v2"
-import { Icon as IconV2 } from "@opencode-ai/ui/v2/icon"
-import { KeybindV2 } from "@opencode-ai/ui/v2/keybind-v2"
-import { TooltipV2 } from "@opencode-ai/ui/v2/tooltip-v2"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { Icon } from "@aigcfroge/ui/icon"
+import { Button } from "@aigcfroge/ui/button"
+import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
+import { TooltipKeybind } from "@/components/tooltip-keybind"
+import { useTheme } from "@aigcfroge/ui/theme/context"
+import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
+import { Icon as IconV2 } from "@aigcfroge/ui/v2/icon"
+import { KeybindV2 } from "@aigcfroge/ui/v2/keybind-v2"
 
 import { LayoutRoute, useLayout } from "@/context/layout"
 import { usePlatform } from "@/context/platform"
@@ -30,7 +30,7 @@ import { useLanguage } from "@/context/language"
 import { useSettings } from "@/context/settings"
 import { WindowsAppMenu } from "./windows-app-menu"
 import { applyPath, backPath, forwardPath } from "./titlebar-history"
-import { projectForSession } from "@/pages/layout/helpers"
+import { openProjectNewSession, projectForSession } from "@/pages/layout/helpers"
 import { SessionTabAvatar } from "@/pages/layout/session-tab-avatar"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
@@ -40,9 +40,11 @@ import { useGlobal } from "@/context/global"
 import { ServerConnection, useServer } from "@/context/server"
 import { tabHref, useTabs } from "@/context/tabs"
 import "./titlebar.css"
-import { Session } from "@opencode-ai/sdk/v2"
-import { base64Encode } from "@opencode-ai/core/util/encode"
+import { Session } from "@aigcfroge/sdk/v2"
+import { base64Encode } from "@aigcfroge/core/util/encode"
 import { createTabPromptState } from "@/context/prompt"
+import { useMode } from "@/context/mode"
+import { secondarySidebarAvailable } from "@/utils/secondary-sidebar-route"
 
 type TauriDesktopWindow = {
   startDragging?: () => Promise<void>
@@ -65,7 +67,6 @@ type TauriApi = {
 const tauriApi = () => (window as unknown as { __TAURI__?: TauriApi }).__TAURI__
 const currentDesktopWindow = () => tauriApi()?.window?.getCurrentWindow?.()
 const currentThemeWindow = () => tauriApi()?.webviewWindow?.getCurrentWebviewWindow?.()
-const legacyTitlebarHeight = 40
 const v2TitlebarHeight = 36
 const minTitlebarZoom = 0.25
 const windowsControlsBaseWidth = 138 // 3 native Windows caption buttons at 46px each.
@@ -83,11 +84,12 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
   const language = useLanguage()
   const settings = useSettings()
   const theme = useTheme()
+  const mode = useMode()
   const server = useServer()
   const navigate = useNavigate()
   const location = useLocation()
   const params = useParams()
-  const useV2Titlebar = createMemo(() => settings.general.newLayoutDesigns())
+  const useV2Titlebar = createMemo(() => true)
   const mobile = createMediaQuery("(max-width: 767px)")
   const bottom = createMemo(() => useV2Titlebar() && mobile() && settings.general.mobileTitlebarPosition() === "bottom")
 
@@ -100,7 +102,7 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
   const titlebarZoom = () => (windows() ? Math.max(zoom(), minTitlebarZoom) : zoom())
   const counterZoom = () => (windows() && titlebarZoom() < 1 ? 1 / titlebarZoom() : 1)
   const minHeight = () => {
-    const height = useV2Titlebar() ? v2TitlebarHeight : legacyTitlebarHeight
+    const height = v2TitlebarHeight
     if (mac()) return `${height / zoom()}px`
     if (windows()) return `${height / Math.min(titlebarZoom(), 1)}px`
     return undefined
@@ -330,14 +332,34 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
             const openNewTab = () => {
               const route = layout.route()
               const activeSession = session()
+
+              const draftInDir = (serverKey: ServerConnection.Key, directory: string) => {
+                const conn = server.list.find((item) => ServerConnection.key(item) === serverKey)
+                if (conn) {
+                  const ctx = global.ensureServerCtx(conn)
+                  openProjectNewSession(ctx.projects, (s, d) => tabs.newDraft({ server: s, directory: d, mode: mode.currentMode }), serverKey, directory)
+                } else {
+                  tabs.newDraft({ server: serverKey, directory, mode: mode.currentMode })
+                }
+              }
+
               if (route.type === "session" && activeSession) {
-                tabs.newDraft({ server: route.server ?? server.key, directory: activeSession.directory }, "")
+                draftInDir(route.server ?? server.key, activeSession.directory)
+                return
+              }
+
+              // Fall back to the last session's directory (persisted) so a new tab
+              // continues where the user last worked, instead of always landing on
+              // the first project.
+              const lastDir = global.lastSession.directory(server.scope(server.key))
+              if (lastDir) {
+                draftInDir(server.key, lastDir)
                 return
               }
 
               const current = layout.projects.list()[0]
               if (current) {
-                tabs.newDraft({ server: server.key, directory: current.worktree }, "")
+                draftInDir(server.key, current.worktree)
                 return
               }
 
@@ -347,7 +369,7 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
               })[0]
               if (!fallback) return
 
-              tabs.newDraft({ server: fallback.server, directory: fallback.project.worktree }, "")
+              draftInDir(fallback.server, fallback.project.worktree)
             }
             const toggleHome = () => tabs.toggleHome({ home: layout.route().type === "home", current: currentTab() })
 
@@ -765,7 +787,7 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                   >
                     <Show when={hasProjects() && nav()}>
                       <div class="flex items-center gap-0 transition-transform">
-                        <Tooltip placement="bottom" value={language.t("common.goBack")} openDelay={2000}>
+                        <TooltipV2 placement="bottom" value={language.t("common.goBack")} openDelay={2000}>
                           <Button
                             variant="ghost"
                             icon="chevron-left"
@@ -774,8 +796,8 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                             onClick={back}
                             aria-label={language.t("common.goBack")}
                           />
-                        </Tooltip>
-                        <Tooltip placement="bottom" value={language.t("common.goForward")} openDelay={2000}>
+                        </TooltipV2>
+                        <TooltipV2 placement="bottom" value={language.t("common.goForward")} openDelay={2000}>
                           <Button
                             variant="ghost"
                             icon="chevron-right"
@@ -784,10 +806,10 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                             onClick={forward}
                             aria-label={language.t("common.goForward")}
                           />
-                        </Tooltip>
+                        </TooltipV2>
                       </div>
                     </Show>
-                    <div id="opencode-titlebar-left" class="flex items-center gap-3 min-w-0 px-2" />
+                    <div id="aigcfroge-titlebar-left" class="flex items-center gap-3 min-w-0 px-2" />
                     <ChannelIndicator />
                   </div>
                 </div>
@@ -796,7 +818,7 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
 
             <div class="min-w-0 flex items-center justify-center pointer-events-none">
               <div
-                id="opencode-titlebar-center"
+                id="aigcfroge-titlebar-center"
                 class="pointer-events-auto min-w-0 flex justify-center w-fit max-w-full"
               />
             </div>
@@ -809,7 +831,7 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
               data-tauri-drag-region
               onMouseDown={drag}
             >
-              <div id="opencode-titlebar-right" class="flex items-center gap-1 shrink-0 justify-end" />
+              <div id="aigcfroge-titlebar-right" class="flex items-center gap-1 shrink-0 justify-end" />
               <Show when={windows()}>
                 {!tauriApi() && <div class="shrink-0" style={{ width: windowsControlsWidth() }} />}
                 <div data-tauri-decorum-tb class="flex flex-row" />
@@ -836,12 +858,33 @@ type TitlebarV2RightState = {
 }
 
 function TitlebarV2Right(props: { state: TitlebarV2RightState }) {
+  const mode = useMode()
+  const language = useLanguage()
+  const settings = useSettings()
+  const location = useLocation()
   return (
     <div class="relative z-20 flex shrink-0 items-center justify-end gap-0 overflow-visible">
       <Show when={props.state.update.visible}>
         <TitlebarUpdateIconButton state={props.state.update} />
       </Show>
-      <div id="opencode-titlebar-right" class="flex shrink-0 items-center justify-end gap-0" />
+      <Show when={settings.visibility.secondarySidebarToggle() && secondarySidebarAvailable(location.pathname)}>
+        <TooltipV2
+          value={language.t(mode.secondarySidebarOpen ? "sidebar.secondary.hide" : "sidebar.secondary.show")}
+          placement="bottom"
+          gutter={8}
+        >
+          <IconButtonV2
+            variant="ghost-muted"
+            size="large"
+            class="titlebar-icon mr-1 !w-9 shrink-0"
+            state={mode.secondarySidebarOpen ? "pressed" : undefined}
+            icon={<IconV2 name="sidebar-right" />}
+            aria-label={language.t(mode.secondarySidebarOpen ? "sidebar.secondary.hide" : "sidebar.secondary.show")}
+            onClick={() => mode.toggleSecondarySidebar()}
+          />
+        </TooltipV2>
+      </Show>
+      <div id="aigcfroge-titlebar-right" class="flex shrink-0 items-center justify-end gap-0" />
     </div>
   )
 }
@@ -1076,11 +1119,12 @@ function NewSessionTabItem(props: { ref?: HTMLDivElement; href: string; title: s
 }
 
 function ChannelIndicator() {
+  const channel = import.meta.env.VITE_AIGCFROGE_CHANNEL
   return (
     <>
-      {["beta", "dev"].includes(import.meta.env.VITE_OPENCODE_CHANNEL) && (
+      {channel && ["beta", "dev"].includes(channel) && (
         <div class="bg-icon-interactive-base text-[#FFF] font-medium px-2 rounded-sm uppercase font-mono">
-          {import.meta.env.VITE_OPENCODE_CHANNEL.toUpperCase()}
+          {channel.toUpperCase()}
         </div>
       )}
     </>

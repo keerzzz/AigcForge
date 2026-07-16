@@ -1,7 +1,7 @@
 import { Match, Show, Switch, createMemo } from "solid-js"
-import { Tooltip, type TooltipProps } from "@opencode-ai/ui/tooltip"
-import { ProgressCircle } from "@opencode-ai/ui/progress-circle"
-import { Button } from "@opencode-ai/ui/button"
+import { TooltipV2, type TooltipV2Props } from "@aigcfroge/ui/v2/tooltip-v2"
+import { ProgressCircle } from "@aigcfroge/ui/progress-circle"
+import { Button } from "@aigcfroge/ui/button"
 
 import { useFile } from "@/context/file"
 import { useLayout } from "@/context/layout"
@@ -11,21 +11,11 @@ import { useProviders } from "@/hooks/use-providers"
 import { getSessionContextMetrics } from "@/components/session/session-context-metrics"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { createSessionTabs } from "@/pages/session/helpers"
+import { openSessionContext } from "./open-session-context"
 
 interface SessionContextUsageProps {
   variant?: "button" | "indicator"
-  placement?: TooltipProps["placement"]
-}
-
-function openSessionContext(args: {
-  view: ReturnType<ReturnType<typeof useLayout>["view"]>
-  layout: ReturnType<typeof useLayout>
-  tabs: ReturnType<ReturnType<typeof useLayout>["tabs"]>
-}) {
-  if (!args.view.reviewPanel.opened()) args.view.reviewPanel.open()
-  if (args.layout.fileTree.opened() && args.layout.fileTree.tab() !== "all") args.layout.fileTree.setTab("all")
-  void args.tabs.open("context")
-  args.tabs.setActive("context")
+  placement?: TooltipV2Props["placement"]
 }
 
 export function SessionContextUsage(props: SessionContextUsageProps) {
@@ -103,7 +93,7 @@ export function SessionContextUsage(props: SessionContextUsageProps) {
 
   return (
     <Show when={params.id}>
-      <Tooltip value={tooltipValue()} placement={props.placement ?? "top"}>
+      <TooltipV2 value={tooltipValue()} placement={props.placement ?? "top"}>
         <Switch>
           <Match when={variant() === "indicator"}>{circle()}</Match>
           <Match when={true}>
@@ -118,7 +108,7 @@ export function SessionContextUsage(props: SessionContextUsageProps) {
             </Button>
           </Match>
         </Switch>
-      </Tooltip>
+      </TooltipV2>
     </Show>
   )
 }

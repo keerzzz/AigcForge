@@ -1,4 +1,4 @@
-import type { ExperimentalWorkspaceAdapterListResponse, Workspace } from "@opencode-ai/sdk/v2"
+import type { ExperimentalWorkspaceAdapterListResponse, Workspace } from "@aigcfroge/sdk/v2"
 import { useDialog } from "../ui/dialog"
 import { DialogSelect, type DialogSelectOption } from "../ui/dialog-select"
 import { useSync } from "../context/sync"
@@ -185,7 +185,7 @@ export function DialogWorkspaceSelect(props: {
   const sync = useSync()
   const sdk = useSDK()
   const toast = useToast()
-  const [adapters, setAdapters] = createSignal<Adapter[] | undefined>(props.adapters)
+  const [adapters, setAdapters] = createSignal(props.adapters)
   const omittedWorkspaceID = createMemo(() => (route.data.type === "session" ? project.workspace.current() : undefined))
 
   onMount(() => {

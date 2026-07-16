@@ -1,8 +1,8 @@
-import { UserMessage } from "@opencode-ai/sdk/v2"
+import { UserMessage } from "@aigcfroge/sdk/v2"
 import { HoverCard } from "@kobalte/core/hover-card"
 import { ComponentProps, For, Match, Show, createSignal, splitProps, Switch } from "solid-js"
-import { DiffChanges } from "@opencode-ai/ui/diff-changes"
-import { useI18n } from "@opencode-ai/ui/context/i18n"
+import { DiffChanges } from "@aigcfroge/ui/v2/diff-changes-v2"
+import { useI18n } from "@aigcfroge/ui/context/i18n"
 
 export function MessageNav(
   props: ComponentProps<"ul"> & {
@@ -51,7 +51,7 @@ export function MessageNav(
                 </Match>
                 <Match when={local.size === "normal"}>
                   <button data-slot="message-nav-message-button" onClick={handleClick} onKeyDown={handleKeyPress}>
-                    <DiffChanges changes={message.summary?.diffs ?? []} variant="bars" />
+                    <DiffChanges changes={message.summary?.diffs ?? []} />
                     <div
                       data-slot="message-nav-title-preview"
                       data-active={message.id === local.current?.id || undefined}

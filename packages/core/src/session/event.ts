@@ -1,6 +1,6 @@
 import { Schema } from "effect"
-import { ProviderMetadata, ToolContent } from "@opencode-ai/schema/llm"
-import { Delivery } from "@opencode-ai/schema/session-delivery"
+import { ProviderMetadata, ToolContent } from "@aigcfroge/schema/llm"
+import { Delivery } from "@aigcfroge/schema/session-delivery"
 import { EventV2 } from "../event"
 import { ModelV2 } from "../model"
 import { DateTimeUtcFromMillis, NonNegativeInt, RelativePath } from "../schema"
@@ -9,6 +9,7 @@ import { SessionSchema } from "./schema"
 import { Location } from "../location"
 import { SessionMessageID } from "./message-id"
 import { SessionMessage } from "./message"
+
 
 export { FileAttachment }
 
@@ -29,6 +30,13 @@ const PromptFields = {
   ...Base,
   messageID: SessionMessageID.ID,
   prompt: Prompt,
+  delivery: Delivery,
+}
+
+const ShellFields = {
+  ...Base,
+  messageID: SessionMessageID.ID,
+  command: Schema.String,
   delivery: Delivery,
 }
 
@@ -95,6 +103,25 @@ export const PromptAdmitted = EventV2.define({
 })
 export type PromptAdmitted = typeof PromptAdmitted.Type
 
+export const ShellAdmitted = EventV2.define({
+  type: "session.next.shell.admitted",
+  ...options,
+  schema: ShellFields,
+})
+export type ShellAdmitted = typeof ShellAdmitted.Type
+
+export const SkillAdmitted = EventV2.define({
+  type: "session.next.skill.admitted",
+  ...options,
+  schema: {
+    ...Base,
+    messageID: SessionMessageID.ID,
+    skill: Schema.String,
+    delivery: Delivery,
+  },
+})
+export type SkillAdmitted = typeof SkillAdmitted.Type
+
 export const ContextUpdated = EventV2.define({
   type: "session.next.context.updated",
   ...options,
@@ -116,6 +143,17 @@ export const Synthetic = EventV2.define({
   },
 })
 export type Synthetic = typeof Synthetic.Type
+
+export const Forked = EventV2.define({
+  type: "session.next.forked",
+  ...options,
+  schema: {
+    ...Base,
+    childSessionID: SessionSchema.ID,
+    forkedMessageID: SessionMessageID.ID.pipe(Schema.optional),
+  },
+})
+export type Forked = typeof Forked.Type
 
 export namespace Shell {
   export const Started = EventV2.define({
@@ -425,6 +463,43 @@ export namespace Compaction {
     },
   })
   export type Ended = typeof Ended.Type
+
+  export const SoftWarning = EventV2.define({
+    type: "session.next.compaction.soft-warning",
+    schema: {
+      ...Base,
+      watermark: Schema.Finite,
+      compactAt: Schema.Finite,
+    },
+  })
+  export type SoftWarning = typeof SoftWarning.Type
+
+  export const Stuck = EventV2.define({
+    type: "session.next.compaction.stuck",
+    schema: {
+      ...Base,
+      message: Schema.String,
+    },
+  })
+  export type Stuck = typeof Stuck.Type
+}
+
+export namespace Cache {
+  export const Diagnostic = EventV2.define({
+    type: "session.next.cache.diagnostic",
+    schema: {
+      ...Base,
+      assistantMessageID: SessionMessageID.ID,
+      prefixHash: Schema.String,
+      prefixChanged: Schema.Boolean,
+      prefixChangeReasons: Schema.Array(Schema.String),
+      cacheReadInputTokens: Schema.Number,
+      nonCachedInputTokens: Schema.Number,
+      sessionCacheRead: Schema.Number,
+      sessionNonCached: Schema.Number,
+    },
+  })
+  export type Diagnostic = typeof Diagnostic.Type
 }
 
 const DurableDefinitions = [
@@ -433,8 +508,11 @@ const DurableDefinitions = [
   Moved,
   Prompted,
   PromptAdmitted,
+  ShellAdmitted,
+  SkillAdmitted,
   ContextUpdated,
   Synthetic,
+  Forked,
   Shell.Started,
   Shell.Ended,
   Step.Started,
@@ -454,7 +532,7 @@ const DurableDefinitions = [
   Compaction.Started,
   Compaction.Ended,
 ] as const
-const EphemeralDefinitions = [Text.Delta, Tool.Input.Delta, Reasoning.Delta, Compaction.Delta] as const
+const EphemeralDefinitions = [Text.Delta, Tool.Input.Delta, Reasoning.Delta, Compaction.Delta, Compaction.SoftWarning, Compaction.Stuck, Cache.Diagnostic] as const
 
 export const Durable = Schema.Union(DurableDefinitions, { mode: "oneOf" }).pipe(Schema.toTaggedUnion("type"))
 export type DurableEvent = typeof Durable.Type

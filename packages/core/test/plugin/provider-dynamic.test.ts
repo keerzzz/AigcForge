@@ -1,16 +1,16 @@
-import { Npm } from "@opencode-ai/core/npm"
+import { Npm } from "@aigcfroge/core/npm"
 import { describe, expect } from "bun:test"
 import { Cause, Effect, Layer } from "effect"
 import fs from "fs/promises"
 import os from "os"
 import path from "path"
 import { fileURLToPath } from "url"
-import { AISDK } from "@opencode-ai/core/aisdk"
-import { ModelV2 } from "@opencode-ai/core/model"
-import { PluginV2 } from "@opencode-ai/core/plugin"
-import { PluginHost } from "@opencode-ai/core/plugin/host"
-import { DynamicProviderPlugin } from "@opencode-ai/core/plugin/provider/dynamic"
-import { ProviderV2 } from "@opencode-ai/core/provider"
+import { AISDK } from "@aigcfroge/core/aisdk"
+import { ModelV2 } from "@aigcfroge/core/model"
+import { PluginV2 } from "@aigcfroge/core/plugin"
+import { PluginHost } from "@aigcfroge/core/plugin/host"
+import { DynamicProviderPlugin } from "@aigcfroge/core/plugin/provider/dynamic"
+import { ProviderV2 } from "@aigcfroge/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -36,7 +36,7 @@ const addPlugin = Effect.fn(function* (npm?: Npm.Interface) {
 function tempEntrypoint(source: string) {
   return Effect.acquireRelease(
     Effect.promise(async () => {
-      const directory = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-provider-dynamic-"))
+      const directory = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-provider-dynamic-"))
       const entrypoint = path.join(directory, "provider.mjs")
       await Bun.write(entrypoint, source)
       return { directory, entrypoint }
@@ -149,7 +149,7 @@ describe("DynamicProviderPlugin", () => {
 
   itWithAISDK.live("wraps missing provider factory exports as AISDK init errors", () =>
     Effect.gen(function* () {
-      const plugin = yield* PluginV2.Service
+      yield* PluginV2.Service
       const aisdk = yield* AISDK.Service
       const tmp = yield* tempEntrypoint("export const notAProviderFactory = true\n")
       yield* addPlugin(npmEntrypoint(tmp.entrypoint))
@@ -168,7 +168,7 @@ describe("DynamicProviderPlugin", () => {
 
   itWithAISDK.effect("uses the model api.id for the default language model", () =>
     Effect.gen(function* () {
-      const plugin = yield* PluginV2.Service
+      yield* PluginV2.Service
       const aisdk = yield* AISDK.Service
       yield* addPlugin()
       const language = yield* aisdk.language(

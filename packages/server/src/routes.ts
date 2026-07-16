@@ -1,6 +1,8 @@
-import { Database } from "@opencode-ai/core/database/database"
-import { EventV2 } from "@opencode-ai/core/event"
-import { LocationServiceMap } from "@opencode-ai/core/location-layer"
+import { Database } from "@aigcfroge/core/database/database"
+import { EventV2 } from "@aigcfroge/core/event"
+import { ProjectV2 } from "@aigcfroge/core/project"
+import { BackgroundJob } from "@aigcfroge/core/background-job"
+import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
 import { FetchHttpClient, HttpRouter, HttpServer } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { Layer, Option } from "effect"
@@ -19,10 +21,12 @@ export function createRoutes(password?: string) {
     Layer.provide(schemaErrorLayer),
     Layer.provide(
       password
-        ? ServerAuth.Config.layer({ username: "opencode", password: Option.some(password) })
+        ? ServerAuth.Config.layer({ username: "aigcfroge", password: Option.some(password) })
         : ServerAuth.Config.defaultLayer,
     ),
-    Layer.provide(LocationServiceMap.layer),
+    Layer.provide(BackgroundJob.defaultLayer),
+    Layer.provide(MetaAgentService.defaultLayer),
+    Layer.provide(ProjectV2.defaultLayer),
     Layer.provide(Database.defaultLayer),
     Layer.provide(EventV2.defaultLayer),
     Layer.provide(FetchHttpClient.layer),

@@ -21,7 +21,7 @@ import monokai from "./assets/monokai.json" with { type: "json" }
 import nightowl from "./assets/nightowl.json" with { type: "json" }
 import nord from "./assets/nord.json" with { type: "json" }
 import onedark from "./assets/one-dark.json" with { type: "json" }
-import opencode from "./assets/opencode.json" with { type: "json" }
+import aigcfroge from "./assets/aigcfroge.json" with { type: "json" }
 import orng from "./assets/orng.json" with { type: "json" }
 import osakaJade from "./assets/osaka-jade.json" with { type: "json" }
 import palenight from "./assets/palenight.json" with { type: "json" }
@@ -110,16 +110,14 @@ export function selectedForeground(theme: Theme, bg?: RGBA): RGBA {
   return theme.background
 }
 
-type HexColor = `#${string}`
-type RefName = string
 type Variant = {
-  dark: HexColor | RefName
-  light: HexColor | RefName
+  dark: string
+  light: string
 }
-type ColorValue = HexColor | RefName | Variant | RGBA
+type ColorValue = string | Variant | RGBA
 export type ThemeJson = {
   $schema?: string
-  defs?: Record<string, HexColor | RefName>
+  defs?: Record<string, string>
   theme: Omit<Record<ThemeColor, ColorValue>, "selectedListItemText" | "backgroundMenu"> & {
     selectedListItemText?: ColorValue
     backgroundMenu?: ColorValue
@@ -149,7 +147,7 @@ export const DEFAULT_THEMES: Record<string, ThemeJson> = {
   nord,
   ["one-dark"]: onedark,
   ["osaka-jade"]: osakaJade,
-  opencode,
+  aigcfroge,
   orng,
   ["lucent-orng"]: lucentOrng,
   palenight,

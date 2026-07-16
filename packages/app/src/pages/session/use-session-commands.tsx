@@ -1,9 +1,11 @@
 import { useNavigate } from "@solidjs/router"
 import { useCommand, type CommandOption } from "@/context/command"
-import { useDialog } from "@opencode-ai/ui/context/dialog"
-import { previewSelectedLines } from "@opencode-ai/session-ui/pierre/selection-bridge"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { DialogSelectModel } from "@/components/dialog-select-model"
+import { previewSelectedLines } from "@aigcfroge/session-ui/pierre/selection-bridge"
 import { useFile, selectionFromLines, type FileSelection, type SelectedLineRange } from "@/context/file"
 import { useLanguage } from "@/context/language"
+import { useMode } from "@/context/mode"
 import { useLayout } from "@/context/layout"
 import { useLocal } from "@/context/local"
 import { usePermission } from "@/context/permission"
@@ -13,10 +15,10 @@ import { useSettings } from "@/context/settings"
 import { useSync } from "@/context/sync"
 import { useTerminal } from "@/context/terminal"
 import { showToast } from "@/utils/toast"
-import { findLast } from "@opencode-ai/core/util/array"
+import { findLast } from "@aigcfroge/core/util/array"
 import { createSessionTabs } from "@/pages/session/helpers"
 import { extractPromptFromParts } from "@/utils/prompt"
-import { UserMessage } from "@opencode-ai/sdk/v2"
+import { UserMessage } from "@aigcfroge/sdk/v2"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { useTabs } from "@/context/tabs"
 import { requireServerKey } from "@/utils/session-route"
@@ -40,6 +42,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
   const dialog = useDialog()
   const file = useFile()
   const language = useLanguage()
+  const mode = useMode()
   const local = useLocal()
   const permission = usePermission()
   const prompt = usePrompt()
@@ -78,7 +81,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     if (!id) return []
     return sync().data.message[id] ?? []
   }
-  const userMessages = () => messages().filter((m) => m.role === "user") as UserMessage[]
+  const userMessages = () => messages().filter((m) => m.role === "user")
   const visibleUserMessages = () => {
     const revert = info()?.revert?.messageID
     if (!revert) return userMessages()
@@ -156,7 +159,6 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     if (!(await write(url))) {
       showToast({
         title: language.t("toast.session.share.copyFailed.title"),
-        variant: "error",
       })
       return
     }
@@ -164,7 +166,6 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     showToast({
       title: existing ? language.t("session.share.copy.copied") : language.t("toast.session.share.success.title"),
       description: language.t("toast.session.share.success.description"),
-      variant: "success",
     })
   }
 
@@ -186,7 +187,6 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
       showToast({
         title: language.t("toast.session.share.failed.title"),
         description: language.t("toast.session.share.failed.description"),
-        variant: "error",
       })
       return
     }
@@ -204,21 +204,19 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
         showToast({
           title: language.t("toast.session.unshare.success.title"),
           description: language.t("toast.session.unshare.success.description"),
-          variant: "success",
         }),
       )
       .catch(() =>
         showToast({
           title: language.t("toast.session.unshare.failed.title"),
           description: language.t("toast.session.unshare.failed.description"),
-          variant: "error",
         }),
       )
   }
 
   const openFile = () => {
     void import("@/components/dialog-select-file").then((x) => {
-      dialog.show(() => <x.DialogSelectFile onOpenFile={showAllFiles} />)
+      void dialog.show(() => <x.DialogSelectFile onOpenFile={showAllFiles} />)
     })
   }
 
@@ -253,14 +251,12 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
   }
 
   const chooseModel = () => {
-    void import("@/components/dialog-select-model").then((x) => {
-      dialog.show(() => <x.DialogSelectModel model={local.model} />)
-    })
+    void dialog.show(() => <DialogSelectModel model={local.model} />)
   }
 
   const chooseMcp = () => {
     void import("@/components/dialog-select-mcp").then((x) => {
-      dialog.show(() => <x.DialogSelectMcp />)
+      void dialog.show(() => <x.DialogSelectMcp />)
     })
   }
 
@@ -350,7 +346,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
 
   const fork = () => {
     void import("@/components/dialog-fork").then((x) => {
-      dialog.show(() => <x.DialogFork />)
+      void dialog.show(() => <x.DialogFork />)
     })
   }
 
@@ -386,7 +382,11 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
       slash: "new",
       onSelect: () => {
         if (params.serverKey) {
-          sessionTabs.newDraft({ server: requireServerKey(params.serverKey), directory: sdk().directory })
+          sessionTabs.newDraft({
+            server: requireServerKey(params.serverKey),
+            directory: sdk().directory,
+            mode: mode.currentMode,
+          })
           return
         }
         navigate(`/${params.dir}/session`)

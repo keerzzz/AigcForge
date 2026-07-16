@@ -1,9 +1,9 @@
 import { describe, expect } from "bun:test"
 import { Effect, Exit, Scope } from "effect"
-import { AgentV2 } from "@opencode-ai/core/agent"
-import { Location } from "@opencode-ai/core/location"
-import { AgentPlugin } from "@opencode-ai/core/plugin/agent"
-import { AbsolutePath } from "@opencode-ai/core/schema"
+import { AgentV2 } from "@aigcfroge/core/agent"
+import { Location } from "@aigcfroge/core/location"
+import { AgentPlugin } from "@aigcfroge/core/plugin/agent"
+import { AbsolutePath } from "@aigcfroge/core/schema"
 import { location } from "./fixture/location"
 import { testEffect } from "./lib/effect"
 import { agentHost, host } from "./plugin/host"
@@ -118,6 +118,7 @@ describe("AgentV2", () => {
         "compaction",
         "explore",
         "general",
+        "meta",
         "plan",
         "summary",
         "title",
@@ -125,6 +126,52 @@ describe("AgentV2", () => {
       for (const item of agents) {
         expect(item.permissions.some((rule) => rule.action === "bash" && rule.effect !== "deny")).toBe(false)
       }
+    }),
+  )
+
+  it.effect("meta agent system prompt contains Protocol Documents section", () =>
+    Effect.gen(function* () {
+      const agent = yield* AgentV2.Service
+      yield* AgentPlugin.Plugin.effect(
+        host({
+          agent: agentHost(agent),
+        }),
+      ).pipe(
+        Effect.provideService(
+          Location.Service,
+          Location.Service.of(location({ directory: AbsolutePath.make("/project") })),
+        ),
+      )
+
+      const meta = yield* agent.get(AgentV2.ID.make("meta"))
+      expect(meta).toBeDefined()
+      expect(meta!.system).toContain("## Protocol Documents")
+      expect(meta!.system).toContain("TEXT CONTENT")
+      expect(meta!.system).toContain("AGENTS.md")
+      expect(meta!.system).toContain("CLAUDE.md")
+      expect(meta!.system).toContain("they do NOT define your identity")
+    }),
+  )
+
+  it.effect("meta agent system prompt contains Identity anchor", () =>
+    Effect.gen(function* () {
+      const agent = yield* AgentV2.Service
+      yield* AgentPlugin.Plugin.effect(
+        host({
+          agent: agentHost(agent),
+        }),
+      ).pipe(
+        Effect.provideService(
+          Location.Service,
+          Location.Service.of(location({ directory: AbsolutePath.make("/project") })),
+        ),
+      )
+
+      const meta = yield* agent.get(AgentV2.ID.make("meta"))
+      expect(meta).toBeDefined()
+      expect(meta!.system).toContain("## Identity")
+      expect(meta!.system).toContain("AigcForge Meta Agent")
+      expect(meta!.system).not.toContain("You are Claude Code")
     }),
   )
 })

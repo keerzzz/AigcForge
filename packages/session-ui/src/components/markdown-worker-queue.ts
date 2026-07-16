@@ -14,7 +14,7 @@ export function createLatestWorkerQueue<T extends { key: string }>(input: {
     running = Promise.resolve()
       .then(async () => {
         while (cursor < jobs.length) {
-          const job = jobs[cursor++]!
+          const job = jobs[cursor++]
           if (job.type === "dispose") {
             input.dispose(job.key)
             continue
@@ -58,6 +58,7 @@ export function createLatestWorkerQueue<T extends { key: string }>(input: {
     },
     pending: () => slots.size,
     async idle() {
+      // eslint-disable-next-line no-unmodified-loop-condition -- each awaited run clears or replaces the shared promise in its finally callback
       while (running) await running
     },
   }

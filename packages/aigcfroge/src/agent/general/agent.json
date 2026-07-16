@@ -1,0 +1,15 @@
+{
+  "name": "general",
+  "mode": "subagent",
+  "description": "General-purpose agent for researching complex questions and executing multi-step tasks.",
+  "capabilities": ["research", "multi_step_tasks", "parallel_execution"],
+  "constraints": ["no_todowrite"],
+  "protocol": "general",
+  "card": {
+    "version": "1.0.0",
+    "readOnly": false,
+    "tools": ["read", "write", "grep", "glob", "search", "web_fetch", "task"],
+    "endpoints": { "type": "internal" },
+    "auth": { "type": "inherited" }
+  }
+}

@@ -15,7 +15,7 @@ describe("command keybind helpers", () => {
     })
     expect(keybinds[1]?.shift).toBe(true)
     expect(keybinds[1]?.key).toBe("comma")
-    expect(Boolean(keybinds[1]?.ctrl || keybinds[1]?.meta)).toBe(true)
+    expect(keybinds[1]?.ctrl || keybinds[1]?.meta).toBe(true)
   })
 
   test("parseKeybind treats none and empty as disabled", () => {

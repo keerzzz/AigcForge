@@ -1,16 +1,17 @@
+import { Dynamic } from "solid-js/web"
 import { For, Match, Show, Switch, createEffect, createMemo, onCleanup, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createMediaQuery } from "@solid-primitives/media"
-import { Tabs } from "@opencode-ai/ui/tabs"
-import { IconButton } from "@opencode-ai/ui/icon-button"
-import { TooltipKeybind } from "@opencode-ai/ui/tooltip"
-import { ResizeHandle } from "@opencode-ai/ui/resize-handle"
-import { Mark } from "@opencode-ai/ui/logo"
+import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { TooltipKeybind } from "@/components/tooltip-keybind"
+import { ResizeHandle } from "@aigcfroge/ui/resize-handle"
+import { Mark } from "@aigcfroge/ui/logo"
 import { DragDropProvider, DragDropSensors, DragOverlay, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd"
 import type { DragEvent } from "@thisbeyond/solid-dnd"
-import type { SnapshotFileDiff, VcsFileDiff } from "@opencode-ai/sdk/v2"
+import type { SnapshotFileDiff, VcsFileDiff } from "@aigcfroge/sdk/v2"
 import { ConstrainDragYAxis, getDraggableId } from "@/utils/solid-dnd"
-import { useDialog } from "@opencode-ai/ui/context/dialog"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
 
 import FileTree from "@/components/file-tree"
 import { SessionContextUsage } from "@/components/session-context-usage"
@@ -19,8 +20,9 @@ import { useCommand } from "@/context/command"
 import { useFile, type SelectedLineRange } from "@/context/file"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
+import { useMode } from "@/context/mode"
+import { modeSurface } from "@/components/mode-surfaces"
 import { useSettings } from "@/context/settings"
-import { useSync } from "@/context/sync"
 import { createFileTabListSync } from "@/pages/session/file-tab-scroll"
 import { FileTabContent } from "@/pages/session/file-tabs"
 import {
@@ -54,9 +56,9 @@ export function SessionSidePanel(props: {
 }) {
   const layout = useLayout()
   const settings = useSettings()
-  const sync = useSync()
   const file = useFile()
   const language = useLanguage()
+  const mode = useMode()
   const command = useCommand()
   const dialog = useDialog()
   const { sessionKey, tabs, view, params } = useSessionLayout()
@@ -213,9 +215,10 @@ export function SessionSidePanel(props: {
   })
 
   return (
-    <Show when={isDesktop() && !(settings.general.newLayoutDesigns() && !params.id)}>
-      <aside
-        id="review-panel"
+    <Show when={isDesktop() && !!params.id}>
+      <Show when={mode.currentMode === "coding"}>
+        <aside
+          id="review-panel"
         aria-label={language.t("session.panel.reviewAndFiles")}
         aria-hidden={!open()}
         inert={!open()}
@@ -224,7 +227,7 @@ export function SessionSidePanel(props: {
           "pointer-events-none": !open(),
           "transition-[width] duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width] motion-reduce:transition-none":
             !props.size.active() && !props.reviewSnap,
-          "rounded-[10px] shadow-[var(--v2-elevation-raised)] overflow-hidden": settings.general.newLayoutDesigns(),
+          "rounded-[10px] shadow-[var(--v2-elevation-raised)] overflow-hidden": true,
           "flex-1": reviewOpen(),
         }}
         style={{ width: panelWidth() }}
@@ -233,7 +236,7 @@ export function SessionSidePanel(props: {
           <div
             class="size-full flex"
             classList={{
-              "border-l border-border-weaker-base": !settings.general.newLayoutDesigns(),
+              "border-l border-border-weaker-base": false,
             }}
           >
             <div
@@ -253,26 +256,26 @@ export function SessionSidePanel(props: {
                 >
                   <DragDropSensors />
                   <ConstrainDragYAxis />
-                  <Tabs value={activeTab()} onChange={openTab}>
+                  <TabsV2 value={activeTab()} onChange={openTab}>
                     <div class="sticky top-0 shrink-0 flex">
-                      <Tabs.List
+                      <TabsV2.List
                         ref={(el: HTMLDivElement) => {
                           const stop = createFileTabListSync({ el, contextOpen })
                           onCleanup(stop)
                         }}
                       >
                         <Show when={reviewTab() && props.canReview()}>
-                          <Tabs.Trigger value="review">
+                          <TabsV2.Trigger value="review">
                             <div class="flex items-center gap-1.5">
                               <div>{language.t("session.tab.review")}</div>
                               <Show when={props.hasReview()}>
                                 <div>{props.reviewCount()}</div>
                               </Show>
                             </div>
-                          </Tabs.Trigger>
+                          </TabsV2.Trigger>
                         </Show>
                         <Show when={contextOpen()}>
-                          <Tabs.Trigger
+                          <TabsV2.Trigger
                             value="context"
                             closeButton={
                               <TooltipKeybind
@@ -297,12 +300,14 @@ export function SessionSidePanel(props: {
                               <SessionContextUsage variant="indicator" />
                               <div>{language.t("session.tab.context")}</div>
                             </div>
-                          </Tabs.Trigger>
+                          </TabsV2.Trigger>
                         </Show>
                         <SortableProvider ids={openedTabs()}>
                           <For each={openedTabs()}>{(tab) => <SortableTab tab={tab} onTabClose={tabs().close} />}</For>
                         </SortableProvider>
-                        <div class="bg-background-stronger h-full shrink-0 sticky right-0 z-10 flex items-center justify-center pr-3">
+                        <div
+                          class="bg-background-stronger shrink-0 sticky right-0 z-10 flex items-center justify-center px-2 self-start h-full"
+                        >
                           <TooltipKeybind
                             title={language.t("command.file.open")}
                             keybind={command.keybind("file.open")}
@@ -315,23 +320,23 @@ export function SessionSidePanel(props: {
                               class="!rounded-md"
                               onClick={() => {
                                 void import("@/components/dialog-select-file").then((x) => {
-                                  dialog.show(() => <x.DialogSelectFile mode="files" onOpenFile={showAllFiles} />)
+                                  void dialog.show(() => <x.DialogSelectFile mode="files" onOpenFile={showAllFiles} />)
                                 })
                               }}
                               aria-label={language.t("command.file.open")}
                             />
                           </TooltipKeybind>
                         </div>
-                      </Tabs.List>
+                      </TabsV2.List>
                     </div>
 
                     <Show when={reviewTab() && props.canReview()}>
-                      <Tabs.Content value="review" class="flex flex-col h-full overflow-hidden contain-strict">
+                      <TabsV2.Content value="review" class="flex flex-col h-full overflow-hidden contain-strict">
                         <Show when={reviewOpen() && activeTab() === "review"}>{props.reviewPanel()}</Show>
-                      </Tabs.Content>
+                      </TabsV2.Content>
                     </Show>
 
-                    <Tabs.Content value="empty" class="flex flex-col h-full overflow-hidden contain-strict">
+                    <TabsV2.Content value="empty" class="flex flex-col h-full overflow-hidden contain-strict">
                       <Show when={activeTab() === "empty"}>
                         <div class="relative pt-2 flex-1 min-h-0 overflow-hidden">
                           <div class="h-full px-6 pb-42 -mt-4 flex flex-col items-center justify-center text-center gap-6">
@@ -342,22 +347,22 @@ export function SessionSidePanel(props: {
                           </div>
                         </div>
                       </Show>
-                    </Tabs.Content>
+                    </TabsV2.Content>
 
                     <Show when={contextOpen()}>
-                      <Tabs.Content value="context" class="flex flex-col h-full overflow-hidden contain-strict">
+                      <TabsV2.Content value="context" class="flex flex-col h-full overflow-hidden contain-strict">
                         <Show when={activeTab() === "context"}>
                           <div class="relative pt-2 flex-1 min-h-0 overflow-hidden">
                             <SessionContextTab />
                           </div>
                         </Show>
-                      </Tabs.Content>
+                      </TabsV2.Content>
                     </Show>
 
                     <Show when={activeFileTab()} keyed>
                       {(tab) => <FileTabContent tab={tab} />}
                     </Show>
-                  </Tabs>
+                  </TabsV2>
                   <DragOverlay>
                     <Show when={store.activeDraggable} keyed>
                       {(tab) => {
@@ -391,25 +396,25 @@ export function SessionSidePanel(props: {
                   class="h-full flex flex-col overflow-hidden group/filetree"
                   classList={{ "border-l border-border-weaker-base": reviewOpen() }}
                 >
-                  <Tabs
+                  <TabsV2
                     variant="pill"
                     value={fileTreeTab()}
                     onChange={setFileTreeTabValue}
                     class="h-full"
                     data-scope="filetree"
                   >
-                    <Tabs.List>
-                      <Tabs.Trigger value="changes" class="flex-1" classes={{ button: "w-full" }}>
+                    <TabsV2.List>
+                      <TabsV2.Trigger value="changes" class="flex-1" classes={{ button: "w-full" }}>
                         {props.reviewCount()}{" "}
                         {language.t(
                           props.reviewCount() === 1 ? "session.review.change.one" : "session.review.change.other",
                         )}
-                      </Tabs.Trigger>
-                      <Tabs.Trigger value="all" class="flex-1" classes={{ button: "w-full" }}>
+                      </TabsV2.Trigger>
+                      <TabsV2.Trigger value="all" class="flex-1" classes={{ button: "w-full" }}>
                         {language.t("session.files.all")}
-                      </Tabs.Trigger>
-                    </Tabs.List>
-                    <Tabs.Content value="changes" class="bg-background-stronger px-3 py-0">
+                      </TabsV2.Trigger>
+                    </TabsV2.List>
+                    <TabsV2.Content value="changes" class="bg-background-stronger px-3 py-0">
                       <Switch>
                         <Match when={props.hasReview() || !props.diffsReady()}>
                           <Show
@@ -433,8 +438,8 @@ export function SessionSidePanel(props: {
                           </Show>
                         </Match>
                       </Switch>
-                    </Tabs.Content>
-                    <Tabs.Content value="all" class="bg-background-stronger px-3 py-0">
+                    </TabsV2.Content>
+                    <TabsV2.Content value="all" class="bg-background-stronger px-3 py-0">
                       <Switch>
                         <Match when={nofiles()}>{empty(language.t("session.files.empty"))}</Match>
                         <Match when={true}>
@@ -447,8 +452,8 @@ export function SessionSidePanel(props: {
                           />
                         </Match>
                       </Switch>
-                    </Tabs.Content>
-                  </Tabs>
+                    </TabsV2.Content>
+                  </TabsV2>
                 </div>
                 <Show when={fileOpen()}>
                   <div onPointerDown={() => props.size.start()}>
@@ -470,6 +475,10 @@ export function SessionSidePanel(props: {
           </div>
         </Show>
       </aside>
+    </Show>
+    <Show when={mode.currentMode !== "coding"}>
+      <Dynamic component={modeSurface(mode.currentMode).RightPanel} />
+    </Show>
     </Show>
   )
 }

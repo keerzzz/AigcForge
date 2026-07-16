@@ -1,7 +1,7 @@
 export * as PluginV2 from "./plugin"
 
 import { Context, Deferred, Effect, Exit, Layer, Schema, Scope } from "effect"
-import type { Plugin } from "@opencode-ai/plugin/v2/effect"
+import type { Plugin } from "@aigcfroge/plugin/v2/effect"
 import { AgentV2 } from "./agent"
 import { AISDK } from "./aisdk"
 import { Catalog } from "./catalog"
@@ -32,7 +32,7 @@ export interface Interface {
   readonly wait: (id: ID) => Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/v2/Plugin") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/Plugin") {}
 
 export const layer = Layer.effect(
   Service,
@@ -43,7 +43,7 @@ export const layer = Layer.effect(
     const active = new Map<ID, Scope.Closeable>()
     const loading = new Set<ID>()
     const waiters = new Map<ID, Set<Deferred.Deferred<void>>>()
-    const failures = new Map<ID, Exit.Exit<void, never>>()
+    const failures = new Map<ID, Exit.Exit<void>>()
     let host: Parameters<Plugin["effect"]>[0]
 
     const add = Effect.fn("Plugin.add")(function* (id: ID, effect: Plugin["effect"]) {

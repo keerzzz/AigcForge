@@ -1,0 +1,15 @@
+{
+  "name": "explore",
+  "mode": "subagent",
+  "description": "Fast agent specialized for exploring codebases.",
+  "capabilities": ["code_search", "grep", "file_reading", "glob", "web_search"],
+  "constraints": ["no_file_creation", "no_modification", "read_only"],
+  "protocol": "explore",
+  "card": {
+    "version": "1.0.0",
+    "readOnly": true,
+    "tools": ["read", "grep", "glob", "search", "web_fetch"],
+    "endpoints": { "type": "internal" },
+    "auth": { "type": "inherited" }
+  }
+}

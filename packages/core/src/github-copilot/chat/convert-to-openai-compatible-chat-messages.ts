@@ -161,7 +161,7 @@ export function convertToOpenAICompatibleChatMessages(prompt: LanguageModelV3Pro
 
       default: {
         const _exhaustiveCheck: never = role
-        throw new Error(`Unsupported role: ${_exhaustiveCheck}`)
+        throw new Error(`Unsupported role: ${String(_exhaustiveCheck)}`)
       }
     }
   }

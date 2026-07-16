@@ -54,7 +54,7 @@ export const dict = {
 
   "dialog.usageExceeded.freeTier.title": "Ücretsiz sınıra ulaşıldı",
   "dialog.usageExceeded.freeTier.description":
-    "En iyi açık kaynak modellere güvenilir erişim için OpenCode Go'ya abone olun. Aylık $5'tan başlar.",
+    "En iyi açık kaynak modellere güvenilir erişim için Aigcfroge Go'ya abone olun. Aylık $5'tan başlar.",
   "dialog.usageExceeded.freeTier.actionLabel": "Abone ol",
   "dialog.usageExceeded.accountRateLimit.title": "Go sınırına ulaşıldı",
   "dialog.usageExceeded.accountRateLimit.description":
@@ -117,6 +117,7 @@ export const dict = {
   "ui.tool.questions": "Sorular",
   "ui.tool.agent": "{{type}} Ajan",
   "ui.tool.agent.default": "Ajan",
+  "ui.tool.agent.openSession": "Open sub-agent session",
 
   "ui.common.file.one": "dosya",
   "ui.common.file.other": "dosya",

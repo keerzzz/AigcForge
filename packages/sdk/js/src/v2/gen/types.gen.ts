@@ -21,8 +21,11 @@ export type Event =
   | EventSessionNextMoved
   | EventSessionNextPrompted
   | EventSessionNextPromptAdmitted
+  | EventSessionNextShellAdmitted
+  | EventSessionNextSkillAdmitted
   | EventSessionNextContextUpdated
   | EventSessionNextSynthetic
+  | EventSessionNextForked
   | EventSessionNextShellStarted
   | EventSessionNextShellEnded
   | EventSessionNextStepStarted
@@ -45,6 +48,10 @@ export type Event =
   | EventSessionNextCompactionStarted
   | EventSessionNextCompactionDelta
   | EventSessionNextCompactionEnded
+  | EventSessionNextCompactionSoftWarning
+  | EventSessionNextCompactionStuck
+  | EventSessionNextCacheDiagnostic
+  | EventFileWatcherUpdated
   | EventMessagePartDelta
   | EventSessionDiff
   | EventSessionError
@@ -56,7 +63,6 @@ export type Event =
   | EventPermissionV2Replied
   | EventPluginAdded
   | EventProjectDirectoriesUpdated
-  | EventFileWatcherUpdated
   | EventPtyCreated
   | EventPtyUpdated
   | EventPtyExited
@@ -146,6 +152,8 @@ export type MoveSessionError = {
   }
 }
 
+export type ProductMode = "chat" | "coding" | "work" | "assistant"
+
 export type SnapshotFileDiff = {
   file?: string
   patch?: string
@@ -166,6 +174,7 @@ export type PermissionRuleset = Array<PermissionRule>
 
 export type Session = {
   id: string
+  mode?: ProductMode
   slug: string
   projectID: string
   workspaceID?: string
@@ -209,6 +218,7 @@ export type Session = {
     archived?: number
   }
   permission?: PermissionRuleset
+  attended?: boolean
   revert?: {
     messageID: string
     partID?: string
@@ -873,6 +883,28 @@ export type GlobalEvent = {
       }
     | {
         id: string
+        type: "session.next.shell.admitted"
+        properties: {
+          timestamp: number
+          sessionID: string
+          messageID: string
+          command: string
+          delivery: "steer" | "queue"
+        }
+      }
+    | {
+        id: string
+        type: "session.next.skill.admitted"
+        properties: {
+          timestamp: number
+          sessionID: string
+          messageID: string
+          skill: string
+          delivery: "steer" | "queue"
+        }
+      }
+    | {
+        id: string
         type: "session.next.context.updated"
         properties: {
           timestamp: number
@@ -889,6 +921,16 @@ export type GlobalEvent = {
           sessionID: string
           messageID: string
           text: string
+        }
+      }
+    | {
+        id: string
+        type: "session.next.forked"
+        properties: {
+          timestamp: number
+          sessionID: string
+          childSessionID: string
+          forkedMessageID?: string
         }
       }
     | {
@@ -1190,6 +1232,49 @@ export type GlobalEvent = {
       }
     | {
         id: string
+        type: "session.next.compaction.soft-warning"
+        properties: {
+          timestamp: number
+          sessionID: string
+          watermark: number
+          compactAt: number
+        }
+      }
+    | {
+        id: string
+        type: "session.next.compaction.stuck"
+        properties: {
+          timestamp: number
+          sessionID: string
+          message: string
+        }
+      }
+    | {
+        id: string
+        type: "session.next.cache.diagnostic"
+        properties: {
+          timestamp: number
+          sessionID: string
+          assistantMessageID: string
+          prefixHash: string
+          prefixChanged: boolean
+          prefixChangeReasons: Array<string>
+          cacheReadInputTokens: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+          nonCachedInputTokens: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+          sessionCacheRead: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+          sessionNonCached: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "file.watcher.updated"
+        properties: {
+          file: string
+          event: "add" | "change" | "unlink"
+        }
+      }
+    | {
+        id: string
         type: "message.part.delta"
         properties: {
           sessionID: string
@@ -1287,14 +1372,6 @@ export type GlobalEvent = {
         type: "project.directories.updated"
         properties: {
           projectID: string
-        }
-      }
-    | {
-        id: string
-        type: "file.watcher.updated"
-        properties: {
-          file: string
-          event: "add" | "change" | "unlink"
         }
       }
     | {
@@ -1624,8 +1701,11 @@ export type GlobalEvent = {
     | SyncEventSessionNextMoved
     | SyncEventSessionNextPrompted
     | SyncEventSessionNextPromptAdmitted
+    | SyncEventSessionNextShellAdmitted
+    | SyncEventSessionNextSkillAdmitted
     | SyncEventSessionNextContextUpdated
     | SyncEventSessionNextSynthetic
+    | SyncEventSessionNextForked
     | SyncEventSessionNextShellStarted
     | SyncEventSessionNextShellEnded
     | SyncEventSessionNextStepStarted
@@ -1652,7 +1732,7 @@ export type GlobalEvent = {
 export type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR"
 
 /**
- * Server configuration for opencode serve and web commands
+ * Server configuration for aigcfroge serve and web commands
  */
 export type ServerConfig = {
   port?: number
@@ -2030,6 +2110,7 @@ export type Config = {
     mcp_timeout?: number
     policies?: Array<ConfigV2ExperimentalPolicy>
   }
+  subagent_attended_default?: boolean
 }
 
 export type Model = {
@@ -2197,6 +2278,7 @@ export type ProjectSummary = {
 
 export type GlobalSession = {
   id: string
+  mode?: ProductMode
   slug: string
   projectID: string
   workspaceID?: string
@@ -2321,6 +2403,7 @@ export type VcsFileStatus = {
   additions: number
   deletions: number
   status: "added" | "deleted" | "modified"
+  staged: boolean
 }
 
 export type VcsFileDiff = {
@@ -2335,8 +2418,15 @@ export type VcsApplyError = {
   name: "VcsApplyError"
   data: {
     message: string
-    reason: "non-git" | "not-clean"
+    reason: "non-git" | "not-clean" | "stage-failed" | "unstage-failed" | "commit-failed"
   }
+}
+
+export type VcsCommitEntry = {
+  hash: string
+  message: string
+  author: string
+  date: string
 }
 
 export type Command = {
@@ -2350,10 +2440,19 @@ export type Command = {
   hints: Array<string>
 }
 
+export type Handoff = {
+  label: string
+  agent: string
+  prompt: string
+  send?: boolean
+  model?: string
+}
+
 export type Agent = {
   name: string
   description?: string
   mode: "subagent" | "primary" | "all"
+  source?: "native" | "external-cli"
   native?: boolean
   hidden?: boolean
   topP?: number
@@ -2370,6 +2469,7 @@ export type Agent = {
     [key: string]: unknown
   }
   steps?: number
+  handoffs?: Array<Handoff>
 }
 
 export type LspStatus = {
@@ -2556,10 +2656,388 @@ export type ProviderAuthError1 = {
   }
 }
 
+export type Session1 = {
+  id: string
+  mode?: ProductMode
+  slug: string
+  projectID: string
+  workspaceID?: string
+  directory: string
+  path?: string
+  parentID?: string
+  summary?: {
+    additions: number
+    deletions: number
+    files: number
+    diffs?: Array<SnapshotFileDiff>
+  }
+  cost?: number
+  tokens?: {
+    input: number
+    output: number
+    reasoning: number
+    cache: {
+      read: number
+      write: number
+    }
+  }
+  share?: {
+    url: string
+  }
+  title: string
+  agent?: string
+  model?: {
+    id: string
+    providerID: string
+    variant?: string
+  }
+  version: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  time: {
+    created: number
+    updated: number
+    compacting?: number
+    archived?: number
+  }
+  permission?: PermissionRuleset
+  revert?: {
+    messageID: string
+    partID?: string
+    snapshot?: string
+    diff?: string
+  }
+}
+
+export type Session2 = {
+  id: string
+  mode?: ProductMode
+  slug: string
+  projectID: string
+  workspaceID?: string
+  directory: string
+  path?: string
+  parentID?: string
+  summary?: {
+    additions: number
+    deletions: number
+    files: number
+    diffs?: Array<SnapshotFileDiff>
+  }
+  cost?: number
+  tokens?: {
+    input: number
+    output: number
+    reasoning: number
+    cache: {
+      read: number
+      write: number
+    }
+  }
+  share?: {
+    url: string
+  }
+  title: string
+  agent?: string
+  model?: {
+    id: string
+    providerID: string
+    variant?: string
+  }
+  version: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  time: {
+    created: number
+    updated: number
+    compacting?: number
+    archived?: number
+  }
+  permission?: PermissionRuleset
+  revert?: {
+    messageID: string
+    partID?: string
+    snapshot?: string
+    diff?: string
+  }
+}
+
 export type NotFoundError = {
   name: "NotFoundError"
   data: {
     message: string
+  }
+}
+
+export type Session3 = {
+  id: string
+  mode?: ProductMode
+  slug: string
+  projectID: string
+  workspaceID?: string
+  directory: string
+  path?: string
+  parentID?: string
+  summary?: {
+    additions: number
+    deletions: number
+    files: number
+    diffs?: Array<SnapshotFileDiff>
+  }
+  cost?: number
+  tokens?: {
+    input: number
+    output: number
+    reasoning: number
+    cache: {
+      read: number
+      write: number
+    }
+  }
+  share?: {
+    url: string
+  }
+  title: string
+  agent?: string
+  model?: {
+    id: string
+    providerID: string
+    variant?: string
+  }
+  version: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  time: {
+    created: number
+    updated: number
+    compacting?: number
+    archived?: number
+  }
+  permission?: PermissionRuleset
+  revert?: {
+    messageID: string
+    partID?: string
+    snapshot?: string
+    diff?: string
+  }
+}
+
+export type Session4 = {
+  id: string
+  mode?: ProductMode
+  slug: string
+  projectID: string
+  workspaceID?: string
+  directory: string
+  path?: string
+  parentID?: string
+  summary?: {
+    additions: number
+    deletions: number
+    files: number
+    diffs?: Array<SnapshotFileDiff>
+  }
+  cost?: number
+  tokens?: {
+    input: number
+    output: number
+    reasoning: number
+    cache: {
+      read: number
+      write: number
+    }
+  }
+  share?: {
+    url: string
+  }
+  title: string
+  agent?: string
+  model?: {
+    id: string
+    providerID: string
+    variant?: string
+  }
+  version: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  time: {
+    created: number
+    updated: number
+    compacting?: number
+    archived?: number
+  }
+  permission?: PermissionRuleset
+  revert?: {
+    messageID: string
+    partID?: string
+    snapshot?: string
+    diff?: string
+  }
+}
+
+export type Session5 = {
+  id: string
+  mode?: ProductMode
+  slug: string
+  projectID: string
+  workspaceID?: string
+  directory: string
+  path?: string
+  parentID?: string
+  summary?: {
+    additions: number
+    deletions: number
+    files: number
+    diffs?: Array<SnapshotFileDiff>
+  }
+  cost?: number
+  tokens?: {
+    input: number
+    output: number
+    reasoning: number
+    cache: {
+      read: number
+      write: number
+    }
+  }
+  share?: {
+    url: string
+  }
+  title: string
+  agent?: string
+  model?: {
+    id: string
+    providerID: string
+    variant?: string
+  }
+  version: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  time: {
+    created: number
+    updated: number
+    compacting?: number
+    archived?: number
+  }
+  permission?: PermissionRuleset
+  revert?: {
+    messageID: string
+    partID?: string
+    snapshot?: string
+    diff?: string
+  }
+}
+
+export type Session6 = {
+  id: string
+  mode?: ProductMode
+  slug: string
+  projectID: string
+  workspaceID?: string
+  directory: string
+  path?: string
+  parentID?: string
+  summary?: {
+    additions: number
+    deletions: number
+    files: number
+    diffs?: Array<SnapshotFileDiff>
+  }
+  cost?: number
+  tokens?: {
+    input: number
+    output: number
+    reasoning: number
+    cache: {
+      read: number
+      write: number
+    }
+  }
+  share?: {
+    url: string
+  }
+  title: string
+  agent?: string
+  model?: {
+    id: string
+    providerID: string
+    variant?: string
+  }
+  version: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  time: {
+    created: number
+    updated: number
+    compacting?: number
+    archived?: number
+  }
+  permission?: PermissionRuleset
+  revert?: {
+    messageID: string
+    partID?: string
+    snapshot?: string
+    diff?: string
+  }
+}
+
+export type Session7 = {
+  id: string
+  mode?: ProductMode
+  slug: string
+  projectID: string
+  workspaceID?: string
+  directory: string
+  path?: string
+  parentID?: string
+  summary?: {
+    additions: number
+    deletions: number
+    files: number
+    diffs?: Array<SnapshotFileDiff>
+  }
+  cost?: number
+  tokens?: {
+    input: number
+    output: number
+    reasoning: number
+    cache: {
+      read: number
+      write: number
+    }
+  }
+  share?: {
+    url: string
+  }
+  title: string
+  agent?: string
+  model?: {
+    id: string
+    providerID: string
+    variant?: string
+  }
+  version: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  time: {
+    created: number
+    updated: number
+    compacting?: number
+    archived?: number
+  }
+  permission?: PermissionRuleset
+  revert?: {
+    messageID: string
+    partID?: string
+    snapshot?: string
+    diff?: string
   }
 }
 
@@ -2615,6 +3093,133 @@ export type SessionBusyError = {
   _tag: "SessionBusyError"
   sessionID: string
   message: string
+}
+
+export type Session8 = {
+  id: string
+  mode?: ProductMode
+  slug: string
+  projectID: string
+  workspaceID?: string
+  directory: string
+  path?: string
+  parentID?: string
+  summary?: {
+    additions: number
+    deletions: number
+    files: number
+    diffs?: Array<SnapshotFileDiff>
+  }
+  cost?: number
+  tokens?: {
+    input: number
+    output: number
+    reasoning: number
+    cache: {
+      read: number
+      write: number
+    }
+  }
+  share?: {
+    url: string
+  }
+  title: string
+  agent?: string
+  model?: {
+    id: string
+    providerID: string
+    variant?: string
+  }
+  version: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  time: {
+    created: number
+    updated: number
+    compacting?: number
+    archived?: number
+  }
+  permission?: PermissionRuleset
+  revert?: {
+    messageID: string
+    partID?: string
+    snapshot?: string
+    diff?: string
+  }
+}
+
+export type Session9 = {
+  id: string
+  mode?: ProductMode
+  slug: string
+  projectID: string
+  workspaceID?: string
+  directory: string
+  path?: string
+  parentID?: string
+  summary?: {
+    additions: number
+    deletions: number
+    files: number
+    diffs?: Array<SnapshotFileDiff>
+  }
+  cost?: number
+  tokens?: {
+    input: number
+    output: number
+    reasoning: number
+    cache: {
+      read: number
+      write: number
+    }
+  }
+  share?: {
+    url: string
+  }
+  title: string
+  agent?: string
+  model?: {
+    id: string
+    providerID: string
+    variant?: string
+  }
+  version: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  time: {
+    created: number
+    updated: number
+    compacting?: number
+    archived?: number
+  }
+  permission?: PermissionRuleset
+  revert?: {
+    messageID: string
+    partID?: string
+    snapshot?: string
+    diff?: string
+  }
+}
+
+export type StepCacheStats = {
+  assistantMessageID: string
+  hitRate: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  cacheRead: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  cacheWrite: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+}
+
+export type CacheDiagnostics = {
+  sessionHitRate: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  sessionCacheRead: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  sessionCacheWrite: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  sessionTotalInput: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  confidence: "high" | "estimated" | "unavailable"
+  perStep: Array<StepCacheStats>
+  globalTotalCalls?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  globalHitRate?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  globalTotalTokens?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
 }
 
 export type EventTuiPromptAppend = {
@@ -2766,8 +3371,11 @@ export type V2Event =
   | V2EventSessionNextMoved
   | V2EventSessionNextPrompted
   | V2EventSessionNextPromptAdmitted
+  | V2EventSessionNextShellAdmitted
+  | V2EventSessionNextSkillAdmitted
   | V2EventSessionNextContextUpdated
   | V2EventSessionNextSynthetic
+  | V2EventSessionNextForked
   | V2EventSessionNextShellStarted
   | V2EventSessionNextShellEnded
   | V2EventSessionNextStepStarted
@@ -2790,6 +3398,10 @@ export type V2Event =
   | V2EventSessionNextCompactionStarted
   | V2EventSessionNextCompactionDelta
   | V2EventSessionNextCompactionEnded
+  | V2EventSessionNextCompactionSoftWarning
+  | V2EventSessionNextCompactionStuck
+  | V2EventSessionNextCacheDiagnostic
+  | V2EventFileWatcherUpdated
   | V2EventMessagePartDelta
   | V2EventSessionDiff
   | V2EventSessionError
@@ -2801,7 +3413,6 @@ export type V2Event =
   | V2EventPermissionV2Replied
   | V2EventPluginAdded
   | V2EventProjectDirectoriesUpdated
-  | V2EventFileWatcherUpdated
   | V2EventPtyCreated
   | V2EventPtyUpdated
   | V2EventPtyExited
@@ -3230,6 +3841,42 @@ export type SyncEventSessionNextPromptAdmitted = {
   }
 }
 
+export type SyncEventSessionNextShellAdmitted = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "session.next.shell.admitted.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      timestamp: number
+      sessionID: string
+      messageID: string
+      command: string
+      delivery: "steer" | "queue"
+    }
+  }
+}
+
+export type SyncEventSessionNextSkillAdmitted = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "session.next.skill.admitted.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      timestamp: number
+      sessionID: string
+      messageID: string
+      skill: string
+      delivery: "steer" | "queue"
+    }
+  }
+}
+
 export type SyncEventSessionNextContextUpdated = {
   type: "sync"
   id: string
@@ -3260,6 +3907,23 @@ export type SyncEventSessionNextSynthetic = {
       sessionID: string
       messageID: string
       text: string
+    }
+  }
+}
+
+export type SyncEventSessionNextForked = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "session.next.forked.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      timestamp: number
+      sessionID: string
+      childSessionID: string
+      forkedMessageID?: string
     }
   }
 }
@@ -3670,6 +4334,22 @@ export type ProjectDirectories = Array<{
   strategy?: string
 }>
 
+export type ToolSummaryEntry = {
+  tool: string
+  file?: string
+  count: number
+  duration?: number
+  status: string
+}
+
+export type ToolSummarySummary = {
+  agent: string
+  engine: string
+  tools: Array<ToolSummaryEntry>
+  totalDuration: number
+  totalTokens?: number
+}
+
 export type LocationInfo = {
   directory: string
   workspaceID?: string
@@ -3711,10 +4391,27 @@ export type AgentV2Info = {
   color?: string | "primary" | "secondary" | "accent" | "success" | "warning" | "error" | "info"
   steps?: number
   permissions: PermissionV2Ruleset
+  attended?: boolean
+  handoffs: Array<Handoff>
+}
+
+export type SessionV2Revert = {
+  messageID: string
+  snapshot?: string
+  diff?: string
+}
+
+export type SessionV2Summary = {
+  additions: number
+  deletions: number
+  files: number
 }
 
 export type SessionV2Info = {
   id: string
+  mode?: ProductMode
+  slug: string
+  version: string
   parentID?: string
   projectID: string
   agent?: string
@@ -3741,17 +4438,45 @@ export type SessionV2Info = {
   title: string
   location: LocationRef
   subpath?: string
+  attended?: boolean
+  revert?: SessionV2Revert
+  summary?: SessionV2Summary
 }
 
-export type SessionInputAdmitted = {
+export type SessionInputAdmittedPrompt = {
+  kind: "prompt"
   admittedSeq: number
   id: string
   sessionID: string
-  prompt: Prompt
   delivery: "steer" | "queue"
   timeCreated: number
   promotedSeq?: number
+  prompt: Prompt
 }
+
+export type SessionInputAdmittedShell = {
+  kind: "shell"
+  admittedSeq: number
+  id: string
+  sessionID: string
+  delivery: "steer" | "queue"
+  timeCreated: number
+  promotedSeq?: number
+  command: string
+}
+
+export type SessionInputAdmittedSkill = {
+  kind: "skill"
+  admittedSeq: number
+  id: string
+  sessionID: string
+  delivery: "steer" | "queue"
+  timeCreated: number
+  promotedSeq?: number
+  skill: string
+}
+
+export type SessionInputAdmitted = SessionInputAdmittedPrompt | SessionInputAdmittedShell | SessionInputAdmittedSkill
 
 export type SessionMessageAgentSwitched = {
   id: string
@@ -4532,6 +5257,48 @@ export type V2EventSessionNextPromptAdmitted = {
   }
 }
 
+export type V2EventSessionNextShellAdmitted = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "session.next.shell.admitted"
+  data: {
+    timestamp: number
+    sessionID: string
+    messageID: string
+    command: string
+    delivery: "steer" | "queue"
+  }
+}
+
+export type V2EventSessionNextSkillAdmitted = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "session.next.skill.admitted"
+  data: {
+    timestamp: number
+    sessionID: string
+    messageID: string
+    skill: string
+    delivery: "steer" | "queue"
+  }
+}
+
 export type V2EventSessionNextContextUpdated = {
   id: string
   metadata?: {
@@ -4569,6 +5336,26 @@ export type V2EventSessionNextSynthetic = {
     sessionID: string
     messageID: string
     text: string
+  }
+}
+
+export type V2EventSessionNextForked = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "session.next.forked"
+  data: {
+    timestamp: number
+    sessionID: string
+    childSessionID: string
+    forkedMessageID?: string
   }
 }
 
@@ -5089,6 +5876,89 @@ export type V2EventSessionNextCompactionEnded = {
   }
 }
 
+export type V2EventSessionNextCompactionSoftWarning = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "session.next.compaction.soft-warning"
+  data: {
+    timestamp: number
+    sessionID: string
+    watermark: number
+    compactAt: number
+  }
+}
+
+export type V2EventSessionNextCompactionStuck = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "session.next.compaction.stuck"
+  data: {
+    timestamp: number
+    sessionID: string
+    message: string
+  }
+}
+
+export type V2EventSessionNextCacheDiagnostic = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "session.next.cache.diagnostic"
+  data: {
+    timestamp: number
+    sessionID: string
+    assistantMessageID: string
+    prefixHash: string
+    prefixChanged: boolean
+    prefixChangeReasons: Array<string>
+    cacheReadInputTokens: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    nonCachedInputTokens: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    sessionCacheRead: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    sessionNonCached: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventFileWatcherUpdated = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "file.watcher.updated"
+  data: {
+    file: string
+    event: "add" | "change" | "unlink"
+  }
+}
+
 export type V2EventMessagePartDelta = {
   id: string
   metadata?: {
@@ -5297,24 +6167,6 @@ export type V2EventProjectDirectoriesUpdated = {
   type: "project.directories.updated"
   data: {
     projectID: string
-  }
-}
-
-export type V2EventFileWatcherUpdated = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  durable?: {
-    aggregateID: string
-    seq: number
-    version: number
-  }
-  location?: LocationRef
-  type: "file.watcher.updated"
-  data: {
-    file: string
-    event: "add" | "change" | "unlink"
   }
 }
 
@@ -6164,6 +7016,30 @@ export type EventSessionNextPromptAdmitted = {
   }
 }
 
+export type EventSessionNextShellAdmitted = {
+  id: string
+  type: "session.next.shell.admitted"
+  properties: {
+    timestamp: number
+    sessionID: string
+    messageID: string
+    command: string
+    delivery: "steer" | "queue"
+  }
+}
+
+export type EventSessionNextSkillAdmitted = {
+  id: string
+  type: "session.next.skill.admitted"
+  properties: {
+    timestamp: number
+    sessionID: string
+    messageID: string
+    skill: string
+    delivery: "steer" | "queue"
+  }
+}
+
 export type EventSessionNextContextUpdated = {
   id: string
   type: "session.next.context.updated"
@@ -6183,6 +7059,17 @@ export type EventSessionNextSynthetic = {
     sessionID: string
     messageID: string
     text: string
+  }
+}
+
+export type EventSessionNextForked = {
+  id: string
+  type: "session.next.forked"
+  properties: {
+    timestamp: number
+    sessionID: string
+    childSessionID: string
+    forkedMessageID?: string
   }
 }
 
@@ -6505,6 +7392,53 @@ export type EventSessionNextCompactionEnded = {
   }
 }
 
+export type EventSessionNextCompactionSoftWarning = {
+  id: string
+  type: "session.next.compaction.soft-warning"
+  properties: {
+    timestamp: number
+    sessionID: string
+    watermark: number
+    compactAt: number
+  }
+}
+
+export type EventSessionNextCompactionStuck = {
+  id: string
+  type: "session.next.compaction.stuck"
+  properties: {
+    timestamp: number
+    sessionID: string
+    message: string
+  }
+}
+
+export type EventSessionNextCacheDiagnostic = {
+  id: string
+  type: "session.next.cache.diagnostic"
+  properties: {
+    timestamp: number
+    sessionID: string
+    assistantMessageID: string
+    prefixHash: string
+    prefixChanged: boolean
+    prefixChangeReasons: Array<string>
+    cacheReadInputTokens: number | "NaN" | "Infinity" | "-Infinity"
+    nonCachedInputTokens: number | "NaN" | "Infinity" | "-Infinity"
+    sessionCacheRead: number | "NaN" | "Infinity" | "-Infinity"
+    sessionNonCached: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventFileWatcherUpdated = {
+  id: string
+  type: "file.watcher.updated"
+  properties: {
+    file: string
+    event: "add" | "change" | "unlink"
+  }
+}
+
 export type EventMessagePartDelta = {
   id: string
   type: "message.part.delta"
@@ -6614,15 +7548,6 @@ export type EventProjectDirectoriesUpdated = {
   type: "project.directories.updated"
   properties: {
     projectID: string
-  }
-}
-
-export type EventFileWatcherUpdated = {
-  id: string
-  type: "file.watcher.updated"
-  properties: {
-    file: string
-    event: "add" | "change" | "unlink"
   }
 }
 
@@ -8149,6 +9074,125 @@ export type VcsApplyResponses = {
 
 export type VcsApplyResponse = VcsApplyResponses[keyof VcsApplyResponses]
 
+export type VcsStageData = {
+  body?: {
+    files: Array<string>
+  }
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/vcs/stage"
+}
+
+export type VcsStageErrors = {
+  /**
+   * VcsApplyError | InvalidRequestError
+   */
+  400: VcsApplyError | InvalidRequestError
+}
+
+export type VcsStageError = VcsStageErrors[keyof VcsStageErrors]
+
+export type VcsStageResponses = {
+  /**
+   * Files staged
+   */
+  204: void
+}
+
+export type VcsStageResponse = VcsStageResponses[keyof VcsStageResponses]
+
+export type VcsUnstageData = {
+  body?: {
+    files: Array<string>
+  }
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/vcs/unstage"
+}
+
+export type VcsUnstageErrors = {
+  /**
+   * VcsApplyError | InvalidRequestError
+   */
+  400: VcsApplyError | InvalidRequestError
+}
+
+export type VcsUnstageError = VcsUnstageErrors[keyof VcsUnstageErrors]
+
+export type VcsUnstageResponses = {
+  /**
+   * Files unstaged
+   */
+  204: void
+}
+
+export type VcsUnstageResponse = VcsUnstageResponses[keyof VcsUnstageResponses]
+
+export type VcsCommitData = {
+  body?: {
+    message: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/vcs/commit"
+}
+
+export type VcsCommitErrors = {
+  /**
+   * VcsApplyError | InvalidRequestError
+   */
+  400: VcsApplyError | InvalidRequestError
+}
+
+export type VcsCommitError = VcsCommitErrors[keyof VcsCommitErrors]
+
+export type VcsCommitResponses = {
+  /**
+   * Changes committed
+   */
+  204: void
+}
+
+export type VcsCommitResponse = VcsCommitResponses[keyof VcsCommitResponses]
+
+export type VcsLogData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+    count?: string
+  }
+  url: "/vcs/log"
+}
+
+export type VcsLogErrors = {
+  /**
+   * VcsApplyError | InvalidRequestError
+   */
+  400: VcsApplyError | InvalidRequestError
+}
+
+export type VcsLogError = VcsLogErrors[keyof VcsLogErrors]
+
+export type VcsLogResponses = {
+  /**
+   * Commit log
+   */
+  200: Array<VcsCommitEntry>
+}
+
+export type VcsLogResponse = VcsLogResponses[keyof VcsLogResponses]
+
 export type CommandListData = {
   body?: never
   path?: never
@@ -9321,6 +10365,7 @@ export type SessionListData = {
     directory?: string
     workspace?: string
     scope?: "project"
+    mode?: ProductMode
     path?: string
     roots?: boolean | "true" | "false"
     start?: number
@@ -9343,7 +10388,7 @@ export type SessionListResponses = {
   /**
    * List of sessions
    */
-  200: Array<Session>
+  200: Array<Session1>
 }
 
 export type SessionListResponse = SessionListResponses[keyof SessionListResponses]
@@ -9351,6 +10396,7 @@ export type SessionListResponse = SessionListResponses[keyof SessionListResponse
 export type SessionCreateData = {
   body?: {
     parentID?: string
+    mode?: ProductMode
     title?: string
     agent?: string
     model?: {
@@ -9385,7 +10431,7 @@ export type SessionCreateResponses = {
   /**
    * Successfully created session
    */
-  200: Session
+  200: Session3
 }
 
 export type SessionCreateResponse = SessionCreateResponses[keyof SessionCreateResponses]
@@ -9483,7 +10529,7 @@ export type SessionGetResponses = {
   /**
    * Get session
    */
-  200: Session
+  200: Session2
 }
 
 export type SessionGetResponse = SessionGetResponses[keyof SessionGetResponses]
@@ -9526,7 +10572,7 @@ export type SessionUpdateResponses = {
   /**
    * Successfully updated session
    */
-  200: Session
+  200: Session4
 }
 
 export type SessionUpdateResponse = SessionUpdateResponses[keyof SessionUpdateResponses]
@@ -9560,7 +10606,7 @@ export type SessionChildrenResponses = {
   /**
    * List of children
    */
-  200: Array<Session>
+  200: Array<Session1>
 }
 
 export type SessionChildrenResponse = SessionChildrenResponses[keyof SessionChildrenResponses]
@@ -9829,7 +10875,7 @@ export type SessionForkResponses = {
   /**
    * 200
    */
-  200: Session
+  200: Session5
 }
 
 export type SessionForkResponse = SessionForkResponses[keyof SessionForkResponses]
@@ -9935,7 +10981,7 @@ export type SessionUnshareResponses = {
   /**
    * Successfully unshared session
    */
-  200: Session
+  200: Session7
 }
 
 export type SessionUnshareResponse = SessionUnshareResponses[keyof SessionUnshareResponses]
@@ -9973,7 +11019,7 @@ export type SessionShareResponses = {
   /**
    * Successfully shared session
    */
-  200: Session
+  200: Session6
 }
 
 export type SessionShareResponse = SessionShareResponses[keyof SessionShareResponses]
@@ -10202,7 +11248,7 @@ export type SessionRevertResponses = {
   /**
    * Updated session
    */
-  200: Session
+  200: Session8
 }
 
 export type SessionRevertResponse = SessionRevertResponses[keyof SessionRevertResponses]
@@ -10240,7 +11286,7 @@ export type SessionUnrevertResponses = {
   /**
    * Updated session
    */
-  200: Session
+  200: Session9
 }
 
 export type SessionUnrevertResponse = SessionUnrevertResponses[keyof SessionUnrevertResponses]
@@ -10353,6 +11399,74 @@ export type PartUpdateResponses = {
 }
 
 export type PartUpdateResponse = PartUpdateResponses[keyof PartUpdateResponses]
+
+export type SessionCacheDiagnosticsData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/cache-diagnostics"
+}
+
+export type SessionCacheDiagnosticsErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionCacheDiagnosticsError = SessionCacheDiagnosticsErrors[keyof SessionCacheDiagnosticsErrors]
+
+export type SessionCacheDiagnosticsResponses = {
+  /**
+   * Cache diagnostics
+   */
+  200: CacheDiagnostics
+}
+
+export type SessionCacheDiagnosticsResponse = SessionCacheDiagnosticsResponses[keyof SessionCacheDiagnosticsResponses]
+
+export type SessionToolSummaryData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/tool-summary"
+}
+
+export type SessionToolSummaryErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionToolSummaryError = SessionToolSummaryErrors[keyof SessionToolSummaryErrors]
+
+export type SessionToolSummaryResponses = {
+  /**
+   * Tool summary
+   */
+  200: Array<ToolSummarySummary>
+}
+
+export type SessionToolSummaryResponse = SessionToolSummaryResponses[keyof SessionToolSummaryResponses]
 
 export type SyncStartData = {
   body?: never
@@ -11215,6 +12329,7 @@ export type V2SessionListData = {
   path?: never
   query?: {
     workspace?: string
+    mode?: ProductMode
     limit?: number
     order?: "asc" | "desc"
     search?: string
@@ -11254,6 +12369,8 @@ export type V2SessionListResponse = V2SessionListResponses[keyof V2SessionListRe
 export type V2SessionCreateData = {
   body: {
     id?: string
+    parentID?: string
+    mode?: ProductMode
     agent?: string
     model?: {
       id: string
@@ -11570,6 +12687,247 @@ export type V2SessionContextResponses = {
 }
 
 export type V2SessionContextResponse = V2SessionContextResponses[keyof V2SessionContextResponses]
+
+export type V2SessionChildrenData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/api/session/{sessionID}/children"
+}
+
+export type V2SessionChildrenErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+}
+
+export type V2SessionChildrenError = V2SessionChildrenErrors[keyof V2SessionChildrenErrors]
+
+export type V2SessionChildrenResponses = {
+  /**
+   * Success
+   */
+  200: {
+    data: Array<SessionV2Info>
+  }
+}
+
+export type V2SessionChildrenResponse = V2SessionChildrenResponses[keyof V2SessionChildrenResponses]
+
+export type V2SessionSkillData = {
+  body: {
+    id?: string
+    skill: string
+    resume?: boolean
+  }
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/api/session/{sessionID}/skill"
+}
+
+export type V2SessionSkillErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2SessionSkillError = V2SessionSkillErrors[keyof V2SessionSkillErrors]
+
+export type V2SessionSkillResponses = {
+  /**
+   * Success
+   */
+  200: {
+    data: SessionInputAdmitted
+  }
+}
+
+export type V2SessionSkillResponse = V2SessionSkillResponses[keyof V2SessionSkillResponses]
+
+export type V2SessionShellData = {
+  body: {
+    id?: string
+    command: string
+    resume?: boolean
+  }
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/api/session/{sessionID}/shell"
+}
+
+export type V2SessionShellErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2SessionShellError = V2SessionShellErrors[keyof V2SessionShellErrors]
+
+export type V2SessionShellResponses = {
+  /**
+   * Success
+   */
+  200: {
+    data: SessionInputAdmitted
+  }
+}
+
+export type V2SessionShellResponse = V2SessionShellResponses[keyof V2SessionShellResponses]
+
+export type V2SessionInterruptData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/api/session/{sessionID}/interrupt"
+}
+
+export type V2SessionInterruptErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+}
+
+export type V2SessionInterruptError = V2SessionInterruptErrors[keyof V2SessionInterruptErrors]
+
+export type V2SessionInterruptResponses = {
+  /**
+   * <No Content>
+   */
+  204: void
+}
+
+export type V2SessionInterruptResponse = V2SessionInterruptResponses[keyof V2SessionInterruptResponses]
+
+export type V2SessionShareData = {
+  body: {
+    targetSessionID: string
+    scope: "reference" | "output" | "full"
+    trigger?: boolean
+  }
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/api/session/{sessionID}/share"
+}
+
+export type V2SessionShareErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+}
+
+export type V2SessionShareError = V2SessionShareErrors[keyof V2SessionShareErrors]
+
+export type V2SessionShareResponses = {
+  /**
+   * <No Content>
+   */
+  204: void
+}
+
+export type V2SessionShareResponse = V2SessionShareResponses[keyof V2SessionShareResponses]
+
+export type V2SessionForkData = {
+  body: {
+    prompt?: string
+    agent?: string
+  }
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/api/session/{sessionID}/fork"
+}
+
+export type V2SessionForkErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+}
+
+export type V2SessionForkError = V2SessionForkErrors[keyof V2SessionForkErrors]
+
+export type V2SessionForkResponses = {
+  /**
+   * Success
+   */
+  200: {
+    sessionID: string
+  }
+}
+
+export type V2SessionForkResponse = V2SessionForkResponses[keyof V2SessionForkResponses]
 
 export type V2SessionMessagesData = {
   body?: never

@@ -1,0 +1,15 @@
+{
+  "name": "plan",
+  "mode": "primary",
+  "description": "Plan mode. Disallows all edit tools.",
+  "capabilities": ["architecture_design", "requirements_analysis", "planning"],
+  "constraints": ["no_code_modification", "read_only"],
+  "protocol": "plan",
+  "card": {
+    "version": "1.0.0",
+    "readOnly": true,
+    "tools": ["read", "grep", "glob", "search", "web_fetch"],
+    "endpoints": { "type": "internal" },
+    "auth": { "type": "inherited" }
+  }
+}

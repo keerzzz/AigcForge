@@ -1,11 +1,11 @@
-import { Button } from "@opencode-ai/ui/button"
-import { useDialog } from "@opencode-ai/ui/context/dialog"
-import { Dialog } from "@opencode-ai/ui/dialog"
-import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
-import { Icon } from "@opencode-ai/ui/icon"
-import { IconButton } from "@opencode-ai/ui/icon-button"
-import { List } from "@opencode-ai/ui/list"
-import { TextField } from "@opencode-ai/ui/text-field"
+import { Button } from "@aigcfroge/ui/button"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
+import { DropdownMenu } from "@aigcfroge/ui/dropdown-menu"
+import { Icon } from "@aigcfroge/ui/icon"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { List } from "@aigcfroge/ui/list"
+import { TextField } from "@aigcfroge/ui/text-field"
 import { useMutation } from "@tanstack/solid-query"
 import { showToast } from "@/utils/toast"
 import { useNavigate } from "@solidjs/router"
@@ -17,10 +17,9 @@ import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { normalizeServerUrl, ServerConnection, useServer } from "@/context/server"
 import { type ServerHealth, useCheckServerHealth } from "@/utils/server-health"
-import { useSettings } from "@/context/settings"
 import { useTabs } from "@/context/tabs"
 
-const DEFAULT_USERNAME = "opencode"
+const DEFAULT_USERNAME = "aigcfroge"
 
 interface ServerFormProps {
   value: string
@@ -41,7 +40,6 @@ interface ServerFormProps {
 
 function showRequestError(language: ReturnType<typeof useLanguage>, err: unknown) {
   showToast({
-    variant: "error",
     title: language.t("common.requestFailed"),
     description: err instanceof Error ? err.message : String(err),
   })
@@ -336,12 +334,7 @@ export function useServerManagementController(options: { onSelect?: () => void; 
     return [current, ...list.filter((x) => x !== current)]
   })
 
-  const settings = useSettings()
-  const current = createMemo<ServerConnection.Any | undefined>(() =>
-    settings.general.newLayoutDesigns()
-      ? undefined
-      : (items().find((x) => ServerConnection.key(x) === server.key) ?? items()[0]),
-  )
+	const current = createMemo<ServerConnection.Any | undefined>(() => undefined)
 
   const sortedItems = createMemo(() => {
     const list = items()
@@ -554,7 +547,6 @@ export function useServerManagementController(options: { onSelect?: () => void; 
 
 export function ServerConnectionList(props: { controller: ReturnType<typeof useServerManagementController> }) {
   const language = useLanguage()
-  const settings = useSettings()
 
   return (
     <div class="flex flex-1 min-h-0 flex-col gap-4">
@@ -569,7 +561,7 @@ export function ServerConnectionList(props: { controller: ReturnType<typeof useS
         items={props.controller.sortedItems}
         key={(x) => x.http.url}
         onSelect={(x) => {
-          if (x && !settings.general.newLayoutDesigns()) void props.controller.select(x)
+          if (x) void props.controller.select(x)
         }}
         divider={true}
       >

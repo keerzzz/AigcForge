@@ -10,7 +10,7 @@ function truncateReason(reason: string) {
 }
 
 export class SchemaErrorMiddleware extends HttpApiMiddleware.Service<SchemaErrorMiddleware>()(
-  "@opencode/HttpApiSchemaError",
+  "@aigcfroge/HttpApiSchemaError",
   { error: InvalidRequestError },
 ) {}
 

@@ -1,4 +1,4 @@
-import type { Message, UserMessage } from "@opencode-ai/sdk/v2"
+import type { Message, UserMessage } from "@aigcfroge/sdk/v2"
 import { createMemo, createResource, onCleanup, untrack, type Accessor } from "solid-js"
 import { getSessionPrefetch, SESSION_PREFETCH_TTL } from "@/context/global-sync/session-prefetch"
 import { useSDK } from "@/context/sdk"

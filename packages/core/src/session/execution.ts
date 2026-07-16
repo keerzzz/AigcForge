@@ -14,7 +14,7 @@ export interface Interface {
 }
 
 /** Routes execution from a Session ID to the runner owned by that Session's Location. */
-export class Service extends Context.Service<Service, Interface>()("@opencode/v2/SessionExecution") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionExecution") {}
 
 /** Low-level compatibility layer for callers that only need durable Session recording. */
 export const noopLayer = Layer.succeed(

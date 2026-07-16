@@ -1,11 +1,11 @@
 import { createMemo, Show } from "solid-js"
 import type { JSX } from "solid-js"
 import { createSortable } from "@thisbeyond/solid-dnd"
-import { FileIcon } from "@opencode-ai/ui/file-icon"
-import { IconButton } from "@opencode-ai/ui/icon-button"
-import { TooltipKeybind } from "@opencode-ai/ui/tooltip"
-import { Tabs } from "@opencode-ai/ui/tabs"
-import { getFilename } from "@opencode-ai/core/util/path"
+import { FileIcon } from "@aigcfroge/ui/file-icon"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { TooltipKeybind } from "@/components/tooltip-keybind"
+import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
+import { getFilename } from "@aigcfroge/core/util/path"
 import { useFile } from "@/context/file"
 import { useLanguage } from "@/context/language"
 import { useCommand } from "@/context/command"
@@ -41,7 +41,7 @@ export function SortableTab(props: { tab: string; onTabClose: (tab: string) => v
   return (
     <div use:sortable class="h-full flex items-center" classList={{ "opacity-0": sortable.isActiveDraggable }}>
       <div class="relative">
-        <Tabs.Trigger
+        <TabsV2.Trigger
           value={props.tab}
           closeButton={
             <TooltipKeybind
@@ -63,7 +63,7 @@ export function SortableTab(props: { tab: string; onTabClose: (tab: string) => v
           onMiddleClick={() => props.onTabClose(props.tab)}
         >
           <Show when={content()}>{(value) => value()}</Show>
-        </Tabs.Trigger>
+        </TabsV2.Trigger>
       </div>
     </div>
   )

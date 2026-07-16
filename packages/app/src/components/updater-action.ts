@@ -37,7 +37,6 @@ export function useUpdaterAction() {
       const state = await platform.updater?.check()
       if (state?.status === "up-to-date") {
         showToast({
-          variant: "success",
           icon: "circle-check",
           title: language.t("settings.updates.toast.latest.title"),
           description: language.t("settings.updates.toast.latest.description", { version: platform.version ?? "" }),

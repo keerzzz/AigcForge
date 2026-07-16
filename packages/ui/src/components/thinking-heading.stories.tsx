@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { createEffect, on, onMount, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
-import { TextShimmer } from "./text-shimmer"
+import { TextShimmerV2 } from "../v2/components/text-shimmer-v2"
 import { TextReveal } from "./text-reveal"
 
 export default {
@@ -653,7 +653,7 @@ export const Playground = {
           <div style={cardStyle}>
             <span style={cardLabel}>TextReveal (production)</span>
             <span style={thinkingRow}>
-              <TextShimmer text="Thinking" active={active()} />
+              <TextShimmerV2 text="Thinking" active={active()} />
               <span style={headingSlot}>
                 <TextReveal
                   text={heading()}
@@ -671,7 +671,7 @@ export const Playground = {
             <div style={cardStyle}>
               <span style={cardLabel}>{v.label}</span>
               <span style={thinkingRow}>
-                <TextShimmer text="Thinking" active={active()} />
+                <TextShimmerV2 text="Thinking" active={active()} />
                 <span style={headingSlot}>
                   <AnimatedHeading
                     text={heading()}

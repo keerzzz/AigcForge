@@ -1,11 +1,11 @@
-import type { PluginContext } from "@opencode-ai/plugin/v2/effect"
-import { AgentV2 } from "@opencode-ai/core/agent"
-import { Catalog } from "@opencode-ai/core/catalog"
-import { Credential } from "@opencode-ai/core/credential"
-import { Integration } from "@opencode-ai/core/integration"
-import { ModelV2 } from "@opencode-ai/core/model"
-import { ProviderV2 } from "@opencode-ai/core/provider"
-import type { IntegrationEnvMethod, IntegrationKeyMethod, IntegrationOAuthMethod } from "@opencode-ai/sdk/v2/types"
+import type { PluginContext } from "@aigcfroge/plugin/v2/effect"
+import { AgentV2 } from "@aigcfroge/core/agent"
+import { Catalog } from "@aigcfroge/core/catalog"
+import { Credential } from "@aigcfroge/core/credential"
+import { Integration } from "@aigcfroge/core/integration"
+import { ModelV2 } from "@aigcfroge/core/model"
+import { ProviderV2 } from "@aigcfroge/core/provider"
+import type { IntegrationEnvMethod, IntegrationKeyMethod, IntegrationOAuthMethod } from "@aigcfroge/sdk/v2/types"
 import { Effect } from "effect"
 
 type Overrides = Partial<Omit<PluginContext, "options">>
@@ -48,6 +48,14 @@ export function host(overrides: Overrides = {}): PluginContext {
     skill: overrides.skill ?? {
       transform: () => Effect.die("unused skill.transform"),
       reload: () => Effect.die("unused skill.reload"),
+    },
+    meta: overrides.meta ?? {
+      transform: () => Effect.die("unused meta.transform"),
+      reload: () => Effect.die("unused meta.reload"),
+    },
+    tool: overrides.tool ?? {
+      transform: () => Effect.die("unused tool.transform"),
+      reload: () => Effect.die("unused tool.reload"),
     },
   }
 }

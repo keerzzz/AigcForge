@@ -24,6 +24,17 @@ export default {
         );
       `)
       yield* tx.run(`
+        CREATE TABLE \`external_cli_session\` (
+          \`session_id\` text NOT NULL,
+          \`cli_target\` text NOT NULL,
+          \`external_session_id\` text NOT NULL,
+          \`status\` text DEFAULT 'active' NOT NULL,
+          \`time_created\` integer NOT NULL,
+          \`time_updated\` integer NOT NULL,
+          CONSTRAINT \`fk_external_cli_session_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
+        );
+      `)
+      yield* tx.run(`
         CREATE TABLE \`account_state\` (
           \`id\` integer PRIMARY KEY,
           \`active_account_id\` text,
@@ -84,6 +95,48 @@ export default {
           \`type\` text NOT NULL,
           \`data\` text NOT NULL,
           CONSTRAINT \`fk_event_aggregate_id_event_sequence_aggregate_id_fk\` FOREIGN KEY (\`aggregate_id\`) REFERENCES \`event_sequence\`(\`aggregate_id\`) ON DELETE CASCADE
+        );
+      `)
+      yield* tx.run(`
+        CREATE TABLE \`meta_agent_session\` (
+          \`meta_agent_id\` text NOT NULL,
+          \`session_id\` text NOT NULL,
+          \`role\` text DEFAULT 'worker' NOT NULL,
+          \`effort\` text,
+          \`tokens_used\` integer,
+          \`error\` text,
+          \`result_summary\` text,
+          \`time_created\` integer NOT NULL,
+          \`time_updated\` integer NOT NULL,
+          CONSTRAINT \`meta_agent_session_pk\` PRIMARY KEY(\`meta_agent_id\`, \`session_id\`),
+          CONSTRAINT \`fk_meta_agent_session_meta_agent_id_meta_agent_id_fk\` FOREIGN KEY (\`meta_agent_id\`) REFERENCES \`meta_agent\`(\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_meta_agent_session_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
+        );
+      `)
+      yield* tx.run(`
+        CREATE TABLE \`meta_agent_step\` (
+          \`id\` text PRIMARY KEY,
+          \`meta_agent_session_id\` text NOT NULL,
+          \`seq\` integer NOT NULL,
+          \`type\` text NOT NULL,
+          \`engine\` text NOT NULL,
+          \`status\` text NOT NULL,
+          \`prompt\` text,
+          \`result\` text,
+          \`error\` text,
+          \`time_created\` integer NOT NULL,
+          \`time_updated\` integer NOT NULL
+        );
+      `)
+      yield* tx.run(`
+        CREATE TABLE \`meta_agent\` (
+          \`id\` text PRIMARY KEY,
+          \`title\` text NOT NULL,
+          \`agent\` text NOT NULL,
+          \`model\` text NOT NULL,
+          \`time_created\` integer NOT NULL,
+          \`time_updated\` integer NOT NULL,
+          \`time_archived\` integer
         );
       `)
       yield* tx.run(`
@@ -158,7 +211,10 @@ export default {
         CREATE TABLE \`session_input\` (
           \`id\` text PRIMARY KEY,
           \`session_id\` text NOT NULL,
-          \`prompt\` text NOT NULL,
+          \`kind\` text DEFAULT 'prompt' NOT NULL,
+          \`prompt\` text,
+          \`command\` text,
+          \`skill\` text,
           \`delivery\` text NOT NULL,
           \`admitted_seq\` integer NOT NULL,
           \`promoted_seq\` integer,
@@ -184,6 +240,7 @@ export default {
           \`project_id\` text NOT NULL,
           \`workspace_id\` text,
           \`parent_id\` text,
+          \`mode\` text DEFAULT 'coding' NOT NULL,
           \`slug\` text NOT NULL,
           \`directory\` text NOT NULL,
           \`path\` text,
@@ -203,6 +260,7 @@ export default {
           \`tokens_cache_write\` integer DEFAULT 0 NOT NULL,
           \`revert\` text,
           \`permission\` text,
+          \`attended\` integer DEFAULT 0,
           \`agent\` text,
           \`model\` text,
           \`time_created\` integer NOT NULL,
@@ -236,8 +294,18 @@ export default {
           CONSTRAINT \`fk_session_share_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
         );
       `)
+      yield* tx.run(`CREATE INDEX \`external_cli_session_session_idx\` ON \`external_cli_session\` (\`session_id\`);`)
+      yield* tx.run(
+        `CREATE INDEX \`external_cli_session_external_idx\` ON \`external_cli_session\` (\`external_session_id\`);`,
+      )
+      yield* tx.run(
+        `CREATE UNIQUE INDEX \`external_cli_session_unique_idx\` ON \`external_cli_session\` (\`session_id\`,\`external_session_id\`);`,
+      )
       yield* tx.run(`CREATE UNIQUE INDEX \`event_aggregate_seq_idx\` ON \`event\` (\`aggregate_id\`,\`seq\`);`)
       yield* tx.run(`CREATE INDEX \`event_aggregate_type_seq_idx\` ON \`event\` (\`aggregate_id\`,\`type\`,\`seq\`);`)
+      yield* tx.run(`CREATE INDEX \`meta_agent_session_meta_agent_idx\` ON \`meta_agent_session\` (\`meta_agent_id\`);`)
+      yield* tx.run(`CREATE INDEX \`meta_agent_session_session_idx\` ON \`meta_agent_session\` (\`session_id\`);`)
+      yield* tx.run(`CREATE INDEX \`meta_agent_step_session_idx\` ON \`meta_agent_step\` (\`meta_agent_session_id\`);`)
       yield* tx.run(
         `CREATE UNIQUE INDEX \`permission_project_action_resource_idx\` ON \`permission\` (\`project_id\`,\`action\`,\`resource\`);`,
       )
@@ -268,6 +336,12 @@ export default {
       yield* tx.run(`CREATE INDEX \`session_project_idx\` ON \`session\` (\`project_id\`);`)
       yield* tx.run(`CREATE INDEX \`session_workspace_idx\` ON \`session\` (\`workspace_id\`);`)
       yield* tx.run(`CREATE INDEX \`session_parent_idx\` ON \`session\` (\`parent_id\`);`)
+      yield* tx.run(
+        `CREATE INDEX \`session_project_mode_time_updated_idx\` ON \`session\` (\`project_id\`,\`mode\`,\`time_updated\`);`,
+      )
+      yield* tx.run(
+        `CREATE INDEX \`session_directory_mode_time_updated_idx\` ON \`session\` (\`directory\`,\`mode\`,\`time_updated\`);`,
+      )
       yield* tx.run(`CREATE INDEX \`todo_session_idx\` ON \`todo\` (\`session_id\`);`)
     })
   },

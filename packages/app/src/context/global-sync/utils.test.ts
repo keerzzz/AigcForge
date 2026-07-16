@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { Agent } from "@opencode-ai/sdk/v2/client"
+import type { Agent } from "@aigcfroge/sdk/v2/client"
 import { directoryKey, normalizeAgentList } from "./utils"
 
 const agent = (name = "build") =>
@@ -32,12 +32,22 @@ describe("normalizeAgentList", () => {
     expect(normalizeAgentList({ name: "AbortError" })).toEqual([])
     expect(normalizeAgentList([{ name: "build" }, agent("docs")])).toEqual([agent("docs")])
   })
+
+  test("preserves handoffs field", () => {
+    const agentWithHandoffs = {
+      ...agent("build"),
+      handoffs: [{ label: "Ask docs", agent: "docs", prompt: "Review this" }],
+    } as Agent
+    const result = normalizeAgentList([agentWithHandoffs])
+    expect(result).toHaveLength(1)
+    expect(result[0]?.handoffs).toEqual([{ label: "Ask docs", agent: "docs", prompt: "Review this" }])
+  })
 })
 
 describe("directoryKey", () => {
   test("normalizes slashes", () => {
-    expect(String(directoryKey("C:\\Repos\\sst\\opencode"))).toBe("C:/Repos/sst/opencode")
-    expect(String(directoryKey("C:/Repos/sst/opencode"))).toBe("C:/Repos/sst/opencode")
+    expect(String(directoryKey("C:\\Repos\\sst\\aigcfroge"))).toBe("C:/Repos/sst/aigcfroge")
+    expect(String(directoryKey("C:/Repos/sst/aigcfroge"))).toBe("C:/Repos/sst/aigcfroge")
   })
 
   test("preserves backslashes in posix paths", () => {
@@ -45,7 +55,7 @@ describe("directoryKey", () => {
   })
 
   test("trims trailing slashes without breaking roots", () => {
-    expect(String(directoryKey("C:/Repos/sst/opencode/"))).toBe("C:/Repos/sst/opencode")
+    expect(String(directoryKey("C:/Repos/sst/aigcfroge/"))).toBe("C:/Repos/sst/aigcfroge")
     expect(String(directoryKey("C:/"))).toBe("C:/")
     expect(String(directoryKey("/"))).toBe("/")
   })

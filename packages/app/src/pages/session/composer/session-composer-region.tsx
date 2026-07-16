@@ -1,12 +1,13 @@
 import { Show, createEffect, createMemo, createResource, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useNavigate, useSearchParams } from "@solidjs/router"
-import { useSpring } from "@opencode-ai/ui/motion-spring"
+import { useSpring } from "@aigcfroge/ui/motion-spring"
 import { useLayout } from "@/context/layout"
 import { PromptInput } from "@/components/prompt-input"
 import { useLanguage } from "@/context/language"
 import { usePrompt } from "@/context/prompt"
 import { useSync } from "@/context/sync"
+import { Icon } from "@aigcfroge/ui/icon"
 import { getSessionHandoff, setSessionHandoff } from "@/pages/session/handoff"
 import { useSessionKey } from "@/pages/session/session-layout"
 import { SessionPermissionDock } from "@/pages/session/composer/session-permission-dock"
@@ -28,8 +29,8 @@ import { useSettings } from "@/context/settings"
 import { ServerConnection, useServer } from "@/context/server"
 import { type DraftTab, useTabs } from "@/context/tabs"
 import { useDirectoryPicker } from "@/components/directory-picker"
-import { base64Encode } from "@opencode-ai/core/util/encode"
-import { legacySessionHref, requireServerKey, sessionHref } from "@/utils/session-route"
+import { base64Encode } from "@aigcfroge/core/util/encode"
+import { requireServerKey, sessionHref } from "@/utils/session-route"
 import { useGlobal } from "@/context/global"
 
 export function SessionComposerRegion(props: {
@@ -152,7 +153,6 @@ export function SessionComposerRegion(props: {
       tabs: layout.tabs(route.sessionKey),
       reviewPanel: view.reviewPanel,
     },
-    newLayoutDesigns: settings.general.newLayoutDesigns(),
   }))
 
   const handoffPrompt = createMemo(() => getSessionHandoff(route.sessionKey())?.prompt)
@@ -228,11 +228,9 @@ export function SessionComposerRegion(props: {
   const openParent = () => {
     const id = parentID()
     if (!id) return
-    navigate(
-      route.params.serverKey
-        ? sessionHref(requireServerKey(route.params.serverKey), id)
-        : legacySessionHref(sdk().directory, id),
-    )
+    const key = route.params.serverKey
+    if (!key) return
+    navigate(sessionHref(requireServerKey(key), id))
   }
 
   createEffect(() => {
@@ -269,7 +267,7 @@ export function SessionComposerRegion(props: {
         <Show when={props.state.questionRequest()} keyed>
           {(request) => (
             <div>
-              <SessionQuestionDock request={request} onSubmit={props.onResponseSubmit} />
+              <SessionQuestionDock request={request} sessionID={route.params.id} onSubmit={props.onResponseSubmit} />
             </div>
           )}
         </Show>
@@ -280,6 +278,7 @@ export function SessionComposerRegion(props: {
               <SessionPermissionDock
                 request={request}
                 responding={props.state.permissionResponding()}
+                sessionID={route.params.id}
                 onDecide={(response) => {
                   props.onResponseSubmit()
                   props.state.decide(response)
@@ -389,18 +388,24 @@ export function SessionComposerRegion(props: {
               >
                 <div
                   ref={props.inputRef}
-                  class="w-full rounded-[12px] border border-border-weak-base bg-background-base p-3 text-16-regular text-text-weak"
+                  class="flex items-center gap-3 w-full rounded-[12px] border border-border-weak-base bg-v2-background-bg-layer-01 p-4 text-14-regular"
                 >
-                  <span>{language.t("session.child.promptDisabled")} </span>
-                  <Show when={parentID()}>
-                    <button
-                      type="button"
-                      class="text-text-base transition-colors hover:text-text-strong"
-                      onClick={openParent}
-                    >
-                      {language.t("session.child.backToParent")}
-                    </button>
-                  </Show>
+                  <div class="shrink-0 size-8 flex items-center justify-center rounded-full bg-v2-background-bg-deep">
+                    <Icon name="circle-ban-sign" class="text-icon-muted" size="small" />
+                  </div>
+                  <div class="flex flex-col gap-1 min-w-0">
+                    <span class="text-text-weak">{language.t("session.child.promptDisabled")}</span>
+                    <Show when={parentID()}>
+                      <button
+                        type="button"
+                        class="flex items-center gap-1 text-text-base font-medium transition-colors hover:text-text-strong w-fit"
+                        onClick={openParent}
+                      >
+                        <Icon name="arrow-left" size="small" />
+                        {language.t("session.child.backToParent")}
+                      </button>
+                    </Show>
+                  </div>
                 </div>
               </Show>
             </div>

@@ -1,20 +1,20 @@
 import { createStore, produce } from "solid-js/store"
 import { batch, createEffect, createMemo, onCleanup, onMount, type Accessor } from "solid-js"
 import { useLocation } from "@solidjs/router"
-import { createSimpleContext } from "@opencode-ai/ui/context"
+import { createSimpleContext } from "@aigcfroge/ui/context"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { useServerSync } from "./server-sync"
 import { useServerSDK } from "./server-sdk"
 import { ServerConnection, useServer } from "./server"
 import { usePlatform } from "./platform"
-import { Project } from "@opencode-ai/sdk/v2"
+import { Project } from "@aigcfroge/sdk/v2"
 import { Persist, persisted, removePersisted } from "@/utils/persist"
 import { decode64 } from "@/utils/base64"
 import { same } from "@/utils/same"
 import { createScrollPersistence, type SessionScroll } from "./layout-scroll"
 import { createPathHelpers } from "./file/path"
-import type { ProjectAvatarVariant } from "@opencode-ai/ui/v2/project-avatar-v2"
-import { migrateLegacySessionStateKeys, ServerScope, SessionStateKey } from "@/utils/server-scope"
+import type { ProjectAvatarVariant } from "@aigcfroge/ui/v2/project-avatar-v2"
+import { ServerScope, SessionStateKey } from "@/utils/server-scope"
 import { createSessionKeyReader, ensureSessionKey, pruneSessionKeys } from "./layout-helpers"
 import { requireServerKey } from "@/utils/session-route"
 
@@ -210,8 +210,8 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
         }
       })()
 
-      const sessionTabs = migrateLegacySessionStateKeys(value.sessionTabs)
-      const sessionView = migrateLegacySessionStateKeys(value.sessionView)
+      const sessionTabs = value.sessionTabs
+      const sessionView = value.sessionView
       const migratedSessionTabs = (() => {
         if (!isRecord(sessionTabs)) return sessionTabs
 
@@ -319,11 +319,11 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
           const target = session
             ? Persist.serverSession(scope, dir, session, entry.key)
             : Persist.serverWorkspace(scope, dir, entry.key)
-          void removePersisted(target, platform)
+          removePersisted(target, platform)
 
           if (scope !== ServerScope.local) continue
           const legacyKey = `${dir}/${entry.legacy}${session ? "/" + session : ""}.${entry.version}`
-          void removePersisted({ key: legacyKey }, platform)
+          removePersisted({ key: legacyKey }, platform)
         }
       }
     }

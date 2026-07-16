@@ -1,11 +1,11 @@
-import { AISDK } from "@opencode-ai/core/aisdk"
+import { AISDK } from "@aigcfroge/core/aisdk"
 import { describe, expect, mock } from "bun:test"
 import { Effect } from "effect"
-import { ModelV2 } from "@opencode-ai/core/model"
-import { PluginV2 } from "@opencode-ai/core/plugin"
-import { PluginHost } from "@opencode-ai/core/plugin/host"
-import { DeepInfraPlugin } from "@opencode-ai/core/plugin/provider/deepinfra"
-import { ProviderV2 } from "@opencode-ai/core/provider"
+import { ModelV2 } from "@aigcfroge/core/model"
+import { PluginV2 } from "@aigcfroge/core/plugin"
+import { PluginHost } from "@aigcfroge/core/plugin/host"
+import { DeepInfraPlugin } from "@aigcfroge/core/plugin/provider/deepinfra"
+import { ProviderV2 } from "@aigcfroge/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -15,7 +15,7 @@ const deepinfraLanguageModels: string[] = []
 
 const addPlugin = Effect.fn(function* () {
   const plugin = yield* PluginV2.Service
-  const aisdk = yield* AISDK.Service
+  yield* AISDK.Service
   const host = yield* PluginHost.make(plugin)
   yield* DeepInfraPlugin.effect(host)
 })
@@ -27,7 +27,11 @@ void mock.module("@ai-sdk/deepinfra", () => ({
     return {
       languageModel: (modelID: string) => {
         deepinfraLanguageModels.push(modelID)
-        return { modelID, provider: `${captured.name ?? "deepinfra"}.chat`, specificationVersion: "v3" }
+        return {
+          modelID,
+          provider: `${typeof captured.name === "string" ? captured.name : "deepinfra"}.chat`,
+          specificationVersion: "v3",
+        }
       },
     }
   },
@@ -42,7 +46,7 @@ describe("DeepInfraPlugin", () => {
   it.effect("creates a DeepInfra SDK for @ai-sdk/deepinfra", () =>
     Effect.gen(function* () {
       resetDeepInfraMock()
-      const plugin = yield* PluginV2.Service
+      yield* PluginV2.Service
       const aisdk = yield* AISDK.Service
       yield* addPlugin()
       const result = yield* aisdk.runSDK({
@@ -60,7 +64,7 @@ describe("DeepInfraPlugin", () => {
   it.effect("passes the model provider ID as the bundled DeepInfra SDK name", () =>
     Effect.gen(function* () {
       resetDeepInfraMock()
-      const plugin = yield* PluginV2.Service
+      yield* PluginV2.Service
       const aisdk = yield* AISDK.Service
       yield* addPlugin()
       const result = yield* aisdk.runSDK({
@@ -79,7 +83,7 @@ describe("DeepInfraPlugin", () => {
   it.effect("uses the canonical provider ID as the bundled DeepInfra SDK name", () =>
     Effect.gen(function* () {
       resetDeepInfraMock()
-      const plugin = yield* PluginV2.Service
+      yield* PluginV2.Service
       const aisdk = yield* AISDK.Service
       yield* addPlugin()
       const result = yield* aisdk.runSDK({
@@ -98,7 +102,7 @@ describe("DeepInfraPlugin", () => {
   it.effect("matches only the exact bundled DeepInfra package", () =>
     Effect.gen(function* () {
       resetDeepInfraMock()
-      const plugin = yield* PluginV2.Service
+      yield* PluginV2.Service
       const aisdk = yield* AISDK.Service
       yield* addPlugin()
       const packages = [
@@ -135,7 +139,7 @@ describe("DeepInfraPlugin", () => {
   it.effect("uses the default languageModel selection for DeepInfra models", () =>
     Effect.gen(function* () {
       resetDeepInfraMock()
-      const plugin = yield* PluginV2.Service
+      yield* PluginV2.Service
       const aisdk = yield* AISDK.Service
       yield* addPlugin()
       const sdkEvent = yield* aisdk.runSDK({

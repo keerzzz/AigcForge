@@ -15,6 +15,7 @@ export type PerformancePageDiagnostics = {
 const pages = new WeakMap<Page, PerformancePageDiagnostics>()
 
 export const benchmark = base.extend<BenchmarkFixtures>({
+  // eslint-disable-next-line no-empty-pattern -- Playwright fixture callbacks require the first destructured argument even when the fixture has no dependencies
   reportState: async ({}, use) => use({}),
   report: async ({ reportState }, use) => {
     await use((metrics, context = {}) => {
@@ -29,7 +30,7 @@ export const benchmark = base.extend<BenchmarkFixtures>({
       console.log(
         `BENCHMARK ${JSON.stringify({
           schemaVersion: 2,
-          runID: process.env.OPENCODE_PERFORMANCE_RUN_ID,
+          runID: process.env.AIGCFROGE_PERFORMANCE_RUN_ID,
           name: benchmarkName(testInfo),
           status: missing ? "failed" : testInfo.status,
           expectedStatus: testInfo.expectedStatus,
@@ -122,7 +123,7 @@ async function reportPerformancePage(name: string, diagnostics: PerformancePageD
   console.log(
     `BENCHMARK_PAGE ${JSON.stringify({
       schemaVersion: 2,
-      runID: process.env.OPENCODE_PERFORMANCE_RUN_ID,
+      runID: process.env.AIGCFROGE_PERFORMANCE_RUN_ID,
       name,
       test: testInfo ? benchmarkName(testInfo) : undefined,
       retry: testInfo?.retry,
@@ -130,7 +131,7 @@ async function reportPerformancePage(name: string, diagnostics: PerformancePageD
       context: {
         platform: process.platform,
         trace,
-        selectorTrace: process.env.OPENCODE_PERFORMANCE_SELECTOR_TRACE === "1",
+        selectorTrace: process.env.AIGCFROGE_PERFORMANCE_SELECTOR_TRACE === "1",
       },
       navigations: diagnostics.navigations,
     })}`,

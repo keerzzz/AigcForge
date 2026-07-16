@@ -1,6 +1,6 @@
-import { Button } from "@opencode-ai/ui/button"
-import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
-import { Icon } from "@opencode-ai/ui/icon"
+import { Button } from "@aigcfroge/ui/button"
+import { DropdownMenu } from "@aigcfroge/ui/dropdown-menu"
+import { Icon } from "@aigcfroge/ui/icon"
 import { QueryClientProvider } from "@tanstack/solid-query"
 import { createMemo, For, type ParentProps, Show } from "solid-js"
 import { ServerHealthIndicator, ServerRow } from "@/components/server/server-row"
@@ -9,14 +9,12 @@ import { ServerConnection } from "@/context/server"
 import { ServerSDKProvider } from "@/context/server-sdk"
 import { ServerSyncProvider } from "@/context/server-sync"
 import { useGlobal } from "@/context/global"
-import { useSettings } from "@/context/settings"
 
 export function SettingsServerScope(props: ParentProps) {
   const global = useGlobal()
-  const settings = useSettings()
 
   return (
-    <Show when={settings.general.newLayoutDesigns()} fallback={props.children}>
+    <Show when={true} fallback={props.children}>
       <Show when={global.settings.server.selected()}>
         {(server) => <SettingsServerDataProviders server={server()}>{props.children}</SettingsServerDataProviders>}
       </Show>
@@ -41,10 +39,7 @@ function SettingsServerDataProviders(props: ParentProps<{ server: ServerConnecti
 
 export function SettingsServerPicker() {
   const global = useGlobal()
-  const settings = useSettings()
-  const selected = createMemo(() =>
-    settings.general.newLayoutDesigns() ? global.settings.server.selected() : undefined,
-  )
+  const selected = createMemo(() => global.settings.server.selected())
 
   return (
     <Show when={selected()}>

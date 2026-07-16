@@ -1,5 +1,5 @@
-import type { Project, UserMessage } from "@opencode-ai/sdk/v2"
-import { useDialog } from "@opencode-ai/ui/context/dialog"
+import type { Project, UserMessage } from "@aigcfroge/sdk/v2"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { createQuery, skipToken, useMutation, useQueryClient } from "@tanstack/solid-query"
 import {
   batch,
@@ -21,22 +21,21 @@ import { debounce } from "@solid-primitives/scheduled"
 import { useLocal } from "@/context/local"
 import { selectionFromLines, useFile, type FileSelection, type SelectedLineRange } from "@/context/file"
 import { createStore } from "solid-js/store"
-import { ResizeHandle } from "@opencode-ai/ui/resize-handle"
-import { Select } from "@opencode-ai/ui/select"
-import { Tabs } from "@opencode-ai/ui/tabs"
-import { createAutoScroll } from "@opencode-ai/ui/hooks"
-import { previewSelectedLines } from "@opencode-ai/session-ui/pierre/selection-bridge"
-import { Button } from "@opencode-ai/ui/button"
+import { ResizeHandle } from "@aigcfroge/ui/resize-handle"
+import { Select } from "@aigcfroge/ui/select"
+import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
+import { createAutoScroll } from "@aigcfroge/ui/hooks"
+import { previewSelectedLines } from "@aigcfroge/session-ui/pierre/selection-bridge"
+import { Button } from "@aigcfroge/ui/button"
 import { showToast } from "@/utils/toast"
-import { base64Encode, checksum } from "@opencode-ai/core/util/encode"
-import { useLocation, useSearchParams } from "@solidjs/router"
-import { NewSessionView, SessionHeader } from "@/components/session"
+import { base64Encode, checksum } from "@aigcfroge/core/util/encode"
+import { useLocation, useSearchParams, useNavigate } from "@solidjs/router"
+import { NewSessionView, SessionHeader, createGitState, GitStatusBar, GitCommitBar } from "@/components/session"
 import { useComments } from "@/context/comments"
 import { useServerSync } from "@/context/server-sync"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { usePrompt } from "@/context/prompt"
-import { usePlatform } from "@/context/platform"
 import { useSDK } from "@/context/sdk"
 import { useServerSDK } from "@/context/server-sdk"
 import { useSettings } from "@/context/settings"
@@ -66,6 +65,7 @@ import { diffs as list } from "@/utils/diffs"
 import { Persist, persisted } from "@/utils/persist"
 import { extractPromptFromParts } from "@/utils/prompt"
 import { formatServerError } from "@/utils/server-errors"
+import { sessionHref, requireServerKey } from "@/utils/session-route"
 import { useUsageExceededDialogs } from "./session/usage-exceeded-dialogs"
 
 type FollowupItem = FollowupDraft & { id: string }
@@ -87,14 +87,14 @@ export default function Page() {
   const sdk = useSDK()
   const serverSDK = useServerSDK()
   const settings = useSettings()
-  const platform = usePlatform()
   const prompt = usePrompt()
   const comments = useComments()
   const terminal = useTerminal()
   const [searchParams, setSearchParams] = useSearchParams<{ prompt?: string }>()
   const location = useLocation()
+  const navigate = useNavigate()
   const { params, sessionKey, workspaceKey, tabs, view } = useSessionLayout()
-  const newSessionDesign = createMemo(() => settings.general.newLayoutDesigns())
+  const newSessionDesign = createMemo(() => true)
 
   createEffect(() => {
     if (!prompt.ready()) return
@@ -201,7 +201,6 @@ export default function Page() {
 
   const info = createMemo(() => (params.id ? sync().session.get(params.id) : undefined))
   const isChildSession = createMemo(() => !!info()?.parentID)
-  const diffs = createMemo(() => (params.id ? list(sync().data.session_diff[params.id]) : []))
   const canReview = createMemo(() => !!sync().project)
   const reviewTab = createMemo(() => isDesktop())
   const tabState = createSessionTabs({
@@ -218,7 +217,6 @@ export default function Page() {
   const historyLoading = timeline.history.loading
   const historyMore = timeline.history.more
   const lastUserMessage = timeline.lastUserMessage
-  const messages = timeline.messages
   const messagesReady = timeline.ready
   const sessionSync = timeline.resource
   const userMessages = timeline.userMessages
@@ -357,6 +355,12 @@ export default function Page() {
     }
   })
   const refreshVcs = debounce(() => void queryClient.invalidateQueries({ queryKey: vcsKey() }), 100)
+
+  const git = createGitState({
+    statusEnabled: !nogit() && wantsReview() && (store.changes === "git" || store.changes === "branch"),
+    directory: sdk().directory,
+  })
+
   const reviewDiffs = () => {
     if (store.changes === "git" || store.changes === "branch")
       // avoids suspense
@@ -461,7 +465,6 @@ export default function Page() {
     },
     onError: (err) => {
       showToast({
-        variant: "error",
         title: language.t("common.requestFailed"),
         description: formatServerError(err, language.t),
       })
@@ -863,18 +866,43 @@ export default function Page() {
     </Show>
   )
 
-  const reviewPanel = () => (
-    <div class="flex flex-col h-full overflow-hidden bg-background-stronger contain-strict">
-      <div class="relative pt-2 flex-1 min-h-0 overflow-hidden">
-        {reviewContent({
-          diffStyle: layout.review.diffStyle(),
-          onDiffStyleChange: layout.review.setDiffStyle,
-          loadingClass: "px-6 py-4 text-text-weak",
-          emptyClass: "h-full pb-64 -mt-4 flex flex-col items-center justify-center text-center gap-6",
-        })}
+  const reviewPanel = () => {
+    const branch = sync().data.vcs?.branch
+    const isGit = !nogit() && !!branch
+
+    return (
+      <div class="flex flex-col h-full overflow-hidden bg-background-stronger contain-strict">
+        <Show when={isGit}>
+          <GitStatusBar
+            branch={branch}
+            stagedCount={git.stagedCount()}
+            unstagedCount={git.unstagedCount()}
+            hasChanges={git.stagedCount() + git.unstagedCount() > 0}
+            onStageAll={git.stageAll}
+            onUnstageAll={git.unstageAll}
+          />
+        </Show>
+        <div class="relative flex-1 min-h-0 overflow-hidden">
+          {reviewContent({
+            diffStyle: layout.review.diffStyle(),
+            onDiffStyleChange: layout.review.setDiffStyle,
+            loadingClass: "px-6 py-4 text-text-weak",
+            emptyClass: "h-full pb-64 -mt-4 flex flex-col items-center justify-center text-center gap-6",
+          })}
+        </div>
+        <Show when={isGit}>
+          <GitCommitBar
+            message={git.commitMessage()}
+            onMessageChange={git.setCommitMessage}
+            hasStaged={git.hasStaged()}
+            onCommit={git.handleCommit}
+            isCommitting={git.commitMutation.isPending}
+            log={git.logQuery.data}
+          />
+        </Show>
       </div>
-    </div>
-  )
+    )
+  }
 
   createEffect(
     on(
@@ -1106,10 +1134,18 @@ export default function Page() {
 
   let fill = () => {}
 
-  const setScrollRef = (el: HTMLDivElement | undefined) => {
+  let scrollerOwner: HTMLDivElement | undefined
+  const setScrollRef = (el: HTMLDivElement | undefined, owner: HTMLDivElement) => {
+    if (!el) {
+      if (scrollerOwner !== owner) return
+      scrollerOwner = undefined
+      scroller = undefined
+      autoScroll.scrollRef(undefined)
+      return
+    }
+    scrollerOwner = owner
     scroller = el
     autoScroll.scrollRef(el)
-    if (!el) return
     scheduleScrollState(el)
     fill()
   }
@@ -1129,10 +1165,12 @@ export default function Page() {
 
   let captureHistoryAnchor = () => {}
   let restoreHistoryAnchor = (_done: boolean) => {}
+  let historyAnchorOwner: HTMLDivElement | undefined
+  let historyAnchorReady = false
   let historyRequest = false
   let historyContinuationFrame: number | undefined
   const loadOlder = async () => {
-    if (historyRequest || historyLoading()) return
+    if (!historyAnchorReady || historyRequest || historyLoading()) return
     historyRequest = true
     const before = timeline.messages().length
     try {
@@ -1214,7 +1252,6 @@ export default function Page() {
 
   const fail = (err: unknown) => {
     showToast({
-      variant: "error",
       title: language.t("common.requestFailed"),
       description: formatServerError(err, language.t),
     })
@@ -1447,7 +1484,39 @@ export default function Page() {
       .map((item) => ({ id: item.id, text: line(item.id) }))
   })
 
-  const actions = { revert }
+  const handoff = async (agent: string, prompt: string) => {
+    const sessionID = params.id
+    if (!sessionID) return
+
+    try {
+      const result = await sdk().client.v2.session.fork({
+        sessionID,
+        prompt,
+        agent,
+      })
+
+      const childID = result.data?.sessionID
+      if (!childID) {
+        showToast({
+          title: language.t("common.requestFailed"),
+          description: language.t("session.handoff.failed"),
+        })
+        return
+      }
+
+      const key = params.serverKey
+      if (!key) return
+
+      navigate(sessionHref(requireServerKey(key), childID))
+    } catch (err) {
+      showToast({
+        title: language.t("common.requestFailed"),
+        description: formatServerError(err, language.t),
+      })
+    }
+  }
+
+  const actions = { revert, handoff }
 
   createEffect(() => {
     const sessionID = params.id
@@ -1592,14 +1661,14 @@ export default function Page() {
   )
 
   const mobileTabs = (compact = false, bottom = false) => (
-    <Tabs value={store.mobileTab} class="h-auto">
-      <Tabs.List
+    <TabsV2 value={store.mobileTab} class="!h-auto !flex-none">
+      <TabsV2.List
         classList={{
           "!h-9": compact,
           "[&::after]:!border-b-0 [&::after]:!border-t [&::after]:!border-border-weak-base": bottom,
         }}
       >
-        <Tabs.Trigger
+        <TabsV2.Trigger
           value="session"
           classList={{
             "!w-1/2 !max-w-none": true,
@@ -1609,8 +1678,8 @@ export default function Page() {
           onClick={() => setStore("mobileTab", "session")}
         >
           {language.t("session.tab.session")}
-        </Tabs.Trigger>
-        <Tabs.Trigger
+        </TabsV2.Trigger>
+        <TabsV2.Trigger
           value="changes"
           classList={{
             "!w-1/2 !max-w-none !border-r-0": true,
@@ -1622,12 +1691,12 @@ export default function Page() {
           {hasReview()
             ? language.t("session.review.filesChanged", { count: reviewCount() })
             : language.t("session.review.change.other")}
-        </Tabs.Trigger>
-      </Tabs.List>
-    </Tabs>
+        </TabsV2.Trigger>
+      </TabsV2.List>
+    </TabsV2>
   )
   const mobileTabsBottom = createMemo(
-    () => !isDesktop() && settings.general.newLayoutDesigns() && settings.general.mobileTitlebarPosition() === "bottom",
+    () => !isDesktop() && true && settings.general.mobileTitlebarPosition() === "bottom",
   )
 
   return (
@@ -1637,10 +1706,10 @@ export default function Page() {
       <div
         class="flex-1 min-h-0 flex flex-col md:flex-row"
         classList={{
-          "gap-2 p-2": settings.general.newLayoutDesigns(),
+          "gap-2 p-2": true,
         }}
       >
-        <Show when={!isDesktop() && !!params.id && !settings.general.newLayoutDesigns()}>{mobileTabs()}</Show>
+        <Show when={!isDesktop() && !!params.id && false}>{mobileTabs()}</Show>
 
         <div
           classList={{
@@ -1655,11 +1724,11 @@ export default function Page() {
           <div
             classList={{
               "flex-1 min-h-0 flex flex-col bg-background-stronger": true,
-              "rounded-[10px] overflow-hidden": settings.general.newLayoutDesigns(),
-              "shadow-[var(--v2-elevation-raised)]": settings.general.newLayoutDesigns() && !!params.id,
+              "rounded-[10px] overflow-hidden": true,
+              "shadow-[var(--v2-elevation-raised)]": !!params.id,
             }}
           >
-            <Show when={!isDesktop() && !!params.id && settings.general.newLayoutDesigns() && !mobileTabsBottom()}>
+            <Show when={!isDesktop() && !!params.id && true && !mobileTabsBottom()}>
               {mobileTabs(true)}
             </Show>
             <div class="flex-1 min-h-0 overflow-hidden">
@@ -1705,9 +1774,20 @@ export default function Page() {
                           if (root) scheduleScrollState(root)
                         }}
                         userMessages={visibleUserMessages()}
-                        setHistoryAnchor={(handlers) => {
+                        setHistoryAnchor={(handlers, owner) => {
+                          if (!handlers) {
+                            if (historyAnchorOwner !== owner) return
+                            historyAnchorOwner = undefined
+                            historyAnchorReady = false
+                            captureHistoryAnchor = () => {}
+                            restoreHistoryAnchor = () => {}
+                            return
+                          }
+                          historyAnchorOwner = owner
                           captureHistoryAnchor = handlers.capture
                           restoreHistoryAnchor = handlers.restore
+                          historyAnchorReady = true
+                          fill()
                         }}
                         anchor={anchor}
                         setRevealMessage={(fn) => {
@@ -1734,7 +1814,7 @@ export default function Page() {
             <div onPointerDown={() => size.start()}>
               <ResizeHandle
                 classList={{
-                  "-right-1": settings.general.newLayoutDesigns(),
+                  "-right-1": true,
                 }}
                 direction="horizontal"
                 size={layout.session.width()}

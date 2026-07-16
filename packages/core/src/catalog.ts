@@ -60,7 +60,7 @@ export interface Interface extends State.Transformable<Draft> {
   }
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/v2/Catalog") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/Catalog") {}
 
 export const layer = Layer.effect(
   Service,
@@ -107,7 +107,7 @@ export const layer = Layer.effect(
       draft: (draft) => {
         const result: Draft = {
           provider: {
-            list: () => Array.fromIterable(draft.providers.values()) as ProviderRecord[],
+            list: () => Array.fromIterable(draft.providers.values()),
             get: (providerID) => draft.providers.get(providerID),
             update: (providerID, fn) => {
               let current = draft.providers.get(providerID)
@@ -159,7 +159,7 @@ export const layer = Layer.effect(
       },
       finalize: Effect.fn("CatalogV2.finalize")(function* (catalog) {
         if (policy.hasStatements()) {
-          for (const record of [...catalog.provider.list()]) {
+          for (const record of catalog.provider.list()) {
             if ((yield* policy.evaluate("provider.use", record.provider.id, "allow")) === "deny") {
               catalog.provider.remove(record.provider.id)
             }
@@ -236,7 +236,7 @@ export const layer = Layer.effect(
           if (!record) return
           const provider = record.provider
 
-          if (providerID === ProviderV2.ID.opencode) {
+          if (providerID === ProviderV2.ID.aigcfroge) {
             const gpt5Nano = record.models.get(ModelV2.ID.make("gpt-5-nano"))
             if (gpt5Nano?.enabled && gpt5Nano.status === "active") return projectModel(gpt5Nano, provider)
           }

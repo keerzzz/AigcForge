@@ -1,10 +1,8 @@
-import { Binary } from "@opencode-ai/core/util/binary"
+import { Binary } from "@aigcfroge/core/util/binary"
 import { createMemo } from "solid-js"
 import { useServerSync } from "./server-sync"
 import { useSDK } from "./sdk"
-import type { Message, Part } from "@opencode-ai/sdk/v2/client"
-
-const SKIP_PARTS = new Set(["patch", "step-start", "step-finish"])
+import type { Message, Part } from "@aigcfroge/sdk/v2/client"
 
 function sortParts(parts: Part[]) {
   return parts.filter((part) => !!part?.id).sort((a, b) => cmp(a.id, b.id))

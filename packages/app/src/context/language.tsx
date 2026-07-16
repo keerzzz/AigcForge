@@ -1,10 +1,10 @@
 import * as i18n from "@solid-primitives/i18n"
 import { createEffect, createMemo, createResource } from "solid-js"
 import { createStore } from "solid-js/store"
-import { createSimpleContext } from "@opencode-ai/ui/context"
+import { createSimpleContext } from "@aigcfroge/ui/context"
 import { Persist, persisted } from "@/utils/persist"
 import { dict as en } from "@/i18n/en"
-import { dict as uiEn } from "@opencode-ai/ui/i18n/en"
+import { dict as uiEn } from "@aigcfroge/ui/i18n/en"
 
 export type Locale =
   | "en"
@@ -27,7 +27,7 @@ export type Locale =
   | "tr"
 
 type RawDictionary = typeof en & typeof uiEn
-type Dictionary = i18n.Flatten<RawDictionary>
+export type Dictionary = i18n.Flatten<RawDictionary>
 type Source = { dict: Record<string, string> }
 
 function cookie(locale: Locale) {
@@ -104,23 +104,23 @@ const merge = (app: Promise<Source>, ui: Promise<Source>) =>
   Promise.all([app, ui]).then(([a, b]) => ({ ...base, ...i18n.flatten({ ...a.dict, ...b.dict }) }) as Dictionary)
 
 const loaders: Record<Exclude<Locale, "en">, () => Promise<Dictionary>> = {
-  zh: () => merge(import("@/i18n/zh"), import("@opencode-ai/ui/i18n/zh")),
-  zht: () => merge(import("@/i18n/zht"), import("@opencode-ai/ui/i18n/zht")),
-  ko: () => merge(import("@/i18n/ko"), import("@opencode-ai/ui/i18n/ko")),
-  de: () => merge(import("@/i18n/de"), import("@opencode-ai/ui/i18n/de")),
-  es: () => merge(import("@/i18n/es"), import("@opencode-ai/ui/i18n/es")),
-  fr: () => merge(import("@/i18n/fr"), import("@opencode-ai/ui/i18n/fr")),
-  da: () => merge(import("@/i18n/da"), import("@opencode-ai/ui/i18n/da")),
-  ja: () => merge(import("@/i18n/ja"), import("@opencode-ai/ui/i18n/ja")),
-  pl: () => merge(import("@/i18n/pl"), import("@opencode-ai/ui/i18n/pl")),
-  ru: () => merge(import("@/i18n/ru"), import("@opencode-ai/ui/i18n/ru")),
-  uk: () => merge(import("@/i18n/uk"), import("@opencode-ai/ui/i18n/uk")),
-  ar: () => merge(import("@/i18n/ar"), import("@opencode-ai/ui/i18n/ar")),
-  no: () => merge(import("@/i18n/no"), import("@opencode-ai/ui/i18n/no")),
-  br: () => merge(import("@/i18n/br"), import("@opencode-ai/ui/i18n/br")),
-  th: () => merge(import("@/i18n/th"), import("@opencode-ai/ui/i18n/th")),
-  bs: () => merge(import("@/i18n/bs"), import("@opencode-ai/ui/i18n/bs")),
-  tr: () => merge(import("@/i18n/tr"), import("@opencode-ai/ui/i18n/tr")),
+  zh: () => merge(import("@/i18n/zh"), import("@aigcfroge/ui/i18n/zh")),
+  zht: () => merge(import("@/i18n/zht"), import("@aigcfroge/ui/i18n/zht")),
+  ko: () => merge(import("@/i18n/ko"), import("@aigcfroge/ui/i18n/ko")),
+  de: () => merge(import("@/i18n/de"), import("@aigcfroge/ui/i18n/de")),
+  es: () => merge(import("@/i18n/es"), import("@aigcfroge/ui/i18n/es")),
+  fr: () => merge(import("@/i18n/fr"), import("@aigcfroge/ui/i18n/fr")),
+  da: () => merge(import("@/i18n/da"), import("@aigcfroge/ui/i18n/da")),
+  ja: () => merge(import("@/i18n/ja"), import("@aigcfroge/ui/i18n/ja")),
+  pl: () => merge(import("@/i18n/pl"), import("@aigcfroge/ui/i18n/pl")),
+  ru: () => merge(import("@/i18n/ru"), import("@aigcfroge/ui/i18n/ru")),
+  uk: () => merge(import("@/i18n/uk"), import("@aigcfroge/ui/i18n/uk")),
+  ar: () => merge(import("@/i18n/ar"), import("@aigcfroge/ui/i18n/ar")),
+  no: () => merge(import("@/i18n/no"), import("@aigcfroge/ui/i18n/no")),
+  br: () => merge(import("@/i18n/br"), import("@aigcfroge/ui/i18n/br")),
+  th: () => merge(import("@/i18n/th"), import("@aigcfroge/ui/i18n/th")),
+  bs: () => merge(import("@/i18n/bs"), import("@aigcfroge/ui/i18n/bs")),
+  tr: () => merge(import("@/i18n/tr"), import("@aigcfroge/ui/i18n/tr")),
 }
 
 function loadDict(locale: Locale) {
@@ -183,7 +183,7 @@ export function normalizeLocale(value: string): Locale {
 function readStoredLocale() {
   if (typeof localStorage !== "object") return
   try {
-    const raw = localStorage.getItem("opencode.global.dat:language")
+    const raw = localStorage.getItem("aigcfroge.global.dat:language")
     if (!raw) return
     const next = JSON.parse(raw) as { locale?: string }
     if (typeof next?.locale !== "string") return

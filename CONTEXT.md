@@ -1,6 +1,8 @@
-# OpenCode Session Runtime
+# Aigcfroge Session Runtime
 
-OpenCode sessions preserve durable conversational history while assembling the runtime context an agent needs to act correctly in its current environment.
+Aigcfroge sessions preserve durable conversational history while assembling the runtime context an agent needs to act correctly in its current environment.
+
+> **Protocol links**: this file is the Session Runtime terminology + relationship-invariant dictionary (not project-wide context). Architecture lives in [`ARCHITECTURE.md`](ARCHITECTURE.md) §4.1; architectural constraints in [`AGENTS.md`](AGENTS.md) → V2 Session Core; V2 API design in [`specs/v2/session.md`](specs/v2/session.md); Product Mode classification in [`ADR-11`](docs/architecture/adr/ADR-11-product-mode-session-classification.md).
 
 ## Language
 
@@ -51,11 +53,19 @@ One request to a model provider and the response projected from that request.
 **Session Drain**:
 One process-local execution span that promotes eligible input and runs required **Provider Turns** until no immediate continuation remains. A Session Drain has no durable identity or transcript boundary.
 
+**Product Mode**:
+The durable product-module classification of a Session and the independently persisted App filtering selection, with values Chat, Coding, Work, or Assistant.
+_Avoid_: Agent mode, route mode, execution mode
+
+**Agent Execution Mode**:
+The Agent role classification Primary, Subagent, or All, used for Agent visibility and execution policy. It is orthogonal to **Product Mode**.
+_Avoid_: Product module
+
 **Model Tool Output**:
 The bounded projection of a Core-executed tool result persisted in Session history and replayed to the model. A tool may shape this projection semantically, but the Tool Registry enforces the final size limit.
 
 **Managed Tool Output File**:
-A temporary file created under OpenCode's shared tool-output directory to retain complete output that was too large for Session history.
+A temporary file created under Aigcfroge's shared tool-output directory to retain complete output that was too large for Session history.
 
 **Model Request Options**:
 Provider-semantic model settings selected from the Catalog and active Session variant before the LLM protocol adapter encodes them for a provider request.
@@ -84,6 +94,13 @@ The host-supplied environment overlay applied by the server when creating a PTY,
 - Steering prompts promote at the next **Safe Provider-Turn Boundary** while the current **Session Drain** still requires continuation. Promoting any newly admitted user input resets the selected agent's provider-turn allowance; multiple prompts promoted at one boundary reset it once.
 - A queued prompt does not promote while the current **Session Drain** requires continuation. The runner promotes one queued prompt when the Session would otherwise become idle, then reevaluates continuation before promoting another.
 - A **Session Drain** is process-local coordination rather than a durable domain entity. Durable recovery must reason from prompts, projected history, provider attempts, and tool state rather than inventing an enclosing execution identity.
+- Every Session has exactly one **Product Mode**. A root Session inherits the Mode frozen on its Draft; a child Session and a fork inherit the Mode of their parent/source Session.
+- **Product Mode** is immutable after Session creation. Changing the App's selected Product Mode never reclassifies a Draft or Session implicitly.
+- App `currentMode` is the latest valid Product Mode mirror, not Session identity. On `/mode/:mode` it follows the validated route parameter; on Draft/Session routes it follows `DraftTab.mode` or `Session.mode`. It never restores Sessions, creates Drafts, mutates Session placement, changes Agent selection, or affects provider execution.
+- Home cards and the global Mode icon rail navigate to `/mode/:mode`. That module-entry route is authoritative for Mode presentation only; Session and Draft routes remain canonical work-item routes and do not encode Product Mode.
+- Projects and Workspaces are shared across **Product Modes**; only their Session views are partitioned.
+- **Product Mode** must never be inferred from **Agent Execution Mode** or Assistant Message mode.
+- Historical Session rows and event payloads that predate Product Mode decode as Coding.
 - The first provider turn renders the latest complete **Baseline System Context** and initializes its **Context Snapshot** without emitting a redundant **Mid-Conversation System Message**; unavailable initial context blocks the turn instead of persisting an incomplete baseline.
 - Initial **System Context** preparation precedes the first durable input promotion so an unavailable baseline leaves that input pending and retryable; ordinary reconciliation remains after promotion.
 - Compaction starts a new **Context Epoch** with a freshly rendered **Baseline System Context** and **Context Snapshot**; prior **Mid-Conversation System Messages** remain durable audit history but leave projected model history.
@@ -116,11 +133,11 @@ The host-supplied environment overlay applied by the server when creating a PTY,
 - A model/provider switch preserves the current **Context Epoch** and chronological conversation history; the new selection applies to the next provider turn.
 - **Model Request Options** remain provider-semantic through Catalog resolution. The Session runner maps them into the LLM package's provider-option namespace; the selected protocol adapter alone owns provider wire encoding.
 - **Generation Controls**, protocol-semantic **Model Request Options**, and compatibility request body fields are separate Catalog domains. A shared ingestion adapter partitions legacy and models.dev AI-SDK-shaped options before routing.
-- The **PTY Environment** is a server concern rather than a Core PTY concern. PTY creation merges caller values, then the host overlay, then Core-forced terminal invariants such as `TERM` and `OPENCODE_TERMINAL`.
+- The **PTY Environment** is a server concern rather than a Core PTY concern. PTY creation merges caller values, then the host overlay, then Core-forced terminal invariants such as `TERM` and `AIGCFROGE_TERMINAL`.
 - A **PTY Environment** adapter observes plugins in the request Location while passing the resolved PTY working directory to the hook; standalone servers use an empty adapter.
 - A **Mid-Conversation System Message** lowers to the provider's native chronological instruction role when supported and to a wrapped chronological fallback otherwise.
 - When the effective aggregate instruction set changes, its **Mid-Conversation System Message** includes the complete current ordered set and supersedes the prior aggregate value; when no ambient instructions remain, the message states that previously loaded instructions no longer apply.
-- Ambient project instruction discovery honors `OPENCODE_DISABLE_PROJECT_CONFIG`; global instructions remain eligible.
+- Ambient project instruction discovery honors `AIGCFROGE_DISABLE_PROJECT_CONFIG`; global instructions remain eligible.
 - Oversized textual **Model Tool Output** retains a bounded preview in Session history while its complete text moves to managed tool-output storage. Arbitrary structured-result size is a separate concern.
 - One tool settlement receives one aggregate textual limit, using the configured maximum lines or UTF-8 bytes, whichever is reached first. The limit is provider-independent; token pressure belongs to context assembly and compaction.
 - Generic truncation preserves the beginning and end of textual output. Tools may apply a more meaningful strategy before the Tool Registry enforces the final limit.

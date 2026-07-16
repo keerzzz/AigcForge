@@ -1,4 +1,4 @@
-import { createSimpleContext } from "@opencode-ai/ui/context"
+import { createSimpleContext } from "@aigcfroge/ui/context"
 import { createEffect, createMemo, createRoot } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createServerProjects, ServerConnection, useServer } from "./server"
@@ -9,12 +9,33 @@ import { getOwner } from "solid-js/web"
 import { QueryClient } from "@tanstack/solid-query"
 import type { ServerScope } from "@/utils/server-scope"
 import { createSessionPlacementStore } from "@/utils/session-placement"
+import { Persist, persisted } from "@/utils/persist"
 
 export const { use: useGlobal, provider: GlobalProvider } = createSimpleContext({
   name: "Global",
   init: () => {
     const server = useServer()
-    const sessionPlacement = createSessionPlacementStore()
+    // Persisted "last session directory" per server scope, used by the home page
+    // (and other global "new session" entry points) to default to the project the
+    // user was last working in. Updated whenever a session placement is recorded
+    // (view / send / home navigation).
+    const [lastSessionStore, setLastSessionStore] = persisted(
+      Persist.global("lastSession", ["last-session.v1"]),
+      createStore({} as Record<string, string>),
+    )
+    const lastSession = {
+      directory(scope: ServerScope) {
+        return lastSessionStore[scope]
+      },
+      set(scope: ServerScope, directory: string) {
+        if (lastSessionStore[scope] !== directory) setLastSessionStore(scope, directory)
+      },
+    }
+    const sessionPlacement = createSessionPlacementStore({
+      onSet: (serverKey, directory) => {
+        lastSession.set(server.scope(serverKey), directory)
+      },
+    })
     const serverHealth = useServerHealth(
       () => server.list,
       () => true,
@@ -88,6 +109,7 @@ export const { use: useGlobal, provider: GlobalProvider } = createSimpleContext(
         },
       },
       sessionPlacement,
+      lastSession,
       ensureServerCtx(conn: ServerConnection.Any) {
         return ensureServerCtx(conn)
       },

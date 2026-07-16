@@ -1,11 +1,11 @@
-import type { Todo } from "@opencode-ai/sdk/v2"
-import { AnimatedNumber } from "@opencode-ai/ui/animated-number"
-import { Checkbox } from "@opencode-ai/ui/checkbox"
-import { DockTray } from "@opencode-ai/ui/dock-surface"
-import { IconButton } from "@opencode-ai/ui/icon-button"
-import { useSpring } from "@opencode-ai/ui/motion-spring"
-import { TextReveal } from "@opencode-ai/ui/text-reveal"
-import { TextStrikethrough } from "@opencode-ai/ui/text-strikethrough"
+import type { Todo } from "@aigcfroge/sdk/v2"
+import { AnimatedNumber } from "@aigcfroge/ui/animated-number"
+import { CheckboxV2 } from "@aigcfroge/ui/v2/checkbox-v2"
+import { DockTray } from "@aigcfroge/ui/dock-surface"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { useSpring } from "@aigcfroge/ui/motion-spring"
+import { TextReveal } from "@aigcfroge/ui/text-reveal"
+import { TextStrikethrough } from "@aigcfroge/ui/text-strikethrough"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 import { Index, createEffect, createMemo } from "solid-js"
 import { createStore } from "solid-js/store"
@@ -14,30 +14,6 @@ import { useLanguage } from "@/context/language"
 const doneToken = "\u0000done\u0000"
 const totalToken = "\u0000total\u0000"
 
-function dot(status: Todo["status"]) {
-  if (status !== "in_progress") return undefined
-  return (
-    <svg
-      viewBox="0 0 12 12"
-      width="12"
-      height="12"
-      fill="currentColor"
-      xmlns="http://www.w3.org/2000/svg"
-      class="block"
-    >
-      <circle
-        cx="6"
-        cy="6"
-        r="3"
-        style={{
-          animation: "var(--animate-pulse-scale)",
-          "transform-origin": "center",
-          "transform-box": "fill-box",
-        }}
-      />
-    </svg>
-  )
-}
 
 export function SessionTodoDock(props: {
   sessionID?: string
@@ -212,27 +188,20 @@ function TodoList(props: { todos: Todo[] }) {
       >
         <Index each={props.todos}>
           {(todo) => (
-            <Checkbox
+            <CheckboxV2
               readOnly
               checked={todo().status === "completed"}
               indeterminate={todo().status === "in_progress"}
               data-in-progress={todo().status === "in_progress" ? "" : undefined}
               data-state={todo().status}
-              icon={dot(todo().status)}
-              style={{
-                "--checkbox-align": "flex-start",
-                "--checkbox-offset": "1px",
-                transition: "opacity 220ms var(--tool-motion-ease, cubic-bezier(0.22, 1, 0.36, 1))",
-                opacity: todo().status === "pending" ? "0.94" : "1",
-              }}
-            >
-              <TextStrikethrough
-                active={todo().status === "completed" || todo().status === "cancelled"}
-                text={todo().content}
-                class="text-14-regular min-w-0 break-words"
-                style={{
-                  "line-height": "var(--line-height-normal)",
-                  transition:
+              label={
+                <TextStrikethrough
+                  active={todo().status === "completed" || todo().status === "cancelled"}
+                  text={todo().content}
+                  class="text-14-regular min-w-0 break-words"
+                  style={{
+                    "line-height": "var(--line-height-normal)",
+                    transition:
                     "color 220ms var(--tool-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)), opacity 220ms var(--tool-motion-ease, cubic-bezier(0.22, 1, 0.36, 1))",
                   color:
                     todo().status === "completed" || todo().status === "cancelled"
@@ -241,7 +210,9 @@ function TodoList(props: { todos: Todo[] }) {
                   opacity: todo().status === "pending" ? "0.92" : "1",
                 }}
               />
-            </Checkbox>
+              }
+            >
+            </CheckboxV2>
           )}
         </Index>
       </div>

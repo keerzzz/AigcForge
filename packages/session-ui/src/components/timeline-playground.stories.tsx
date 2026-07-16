@@ -11,9 +11,9 @@ import type {
   ToolPart,
   FilePart,
   AgentPart,
-} from "@opencode-ai/sdk/v2"
+} from "@aigcfroge/sdk/v2"
 import { DataProvider } from "../context/data"
-import { FileComponentProvider } from "@opencode-ai/ui/context/file"
+import { FileComponentProvider } from "@aigcfroge/ui/context/file"
 import { SessionTurn } from "./session-turn"
 
 // ---------------------------------------------------------------------------
@@ -460,7 +460,7 @@ function normalize(raw: unknown) {
   }
 
   if (!record(raw) || !record(raw.info) || typeof raw.info.id !== "string" || !Array.isArray(raw.messages)) {
-    throw new Error("Expected an `opencode export` JSON file")
+    throw new Error("Expected an `aigcfroge export` JSON file")
   }
 
   return {
@@ -1163,7 +1163,7 @@ function Playground() {
     if (!root) return
     const next: Record<string, string> = {}
     for (const ctrl of CSS_CONTROLS) {
-      const el = (root.querySelector(sample(ctrl)) ?? root.querySelector(ctrl.selector)) as HTMLElement | null
+      const el = (root.querySelector(sample(ctrl)) ?? root.querySelector(ctrl.selector))
       if (!el) continue
       const styles = getComputedStyle(el)
       const raw = ctrl.property.startsWith("--")
@@ -1497,7 +1497,7 @@ function Playground() {
 
     const edits = controls.map((ctrl) => {
       const src = ctrl.source!
-      return { file: src.file, anchor: src.anchor, prop: src.prop, value: src.format(css[ctrl.key]!) }
+      return { file: src.file, anchor: src.anchor, prop: src.prop, value: src.format(css[ctrl.key]) }
     })
 
     try {
@@ -1518,7 +1518,7 @@ function Playground() {
       if (ok === edits.length) {
         batch(() => {
           for (const ctrl of controls) {
-            setDefaults(ctrl.key, css[ctrl.key]!)
+            setDefaults(ctrl.key, css[ctrl.key])
             setCss(ctrl.key, undefined as any)
           }
         })
@@ -1527,7 +1527,7 @@ function Playground() {
         setTimeout(readDefaults, 500)
       }
     } catch (err) {
-      setApplyResult(`Error: ${err}`)
+      setApplyResult(`Error: ${String(err)}`)
     } finally {
       setApplying(false)
     }
@@ -1585,7 +1585,7 @@ function Playground() {
   return (
     <div style={{ display: "flex", height: "calc(100vh - 48px)", gap: "0", overflow: "hidden", margin: "-24px" }}>
       {/* Inject dynamic style element */}
-      <style ref={styleEl!} />
+      <style ref={styleEl} />
 
       {/* Left sidebar: controls */}
       <div
@@ -1624,14 +1624,14 @@ function Playground() {
               {/* ---- Session import ---- */}
               <div style={sectionLabel}>Import session</div>
               <div style={{ "font-size": "10px", color: "var(--text-weaker)", "margin-bottom": "2px" }}>
-                Replaces the current timeline with an `opencode export` JSON file
+                Replaces the current timeline with an `aigcfroge export` JSON file
               </div>
               <div style={{ display: "flex", "flex-wrap": "wrap", gap: "4px" }}>
                 <button style={btnAccent} onClick={() => pick?.click()}>
                   Import session
                 </button>
                 <input
-                  ref={pick!}
+                  ref={pick}
                   type="file"
                   accept=".json,application/json"
                   onChange={importFile}
@@ -1961,7 +1961,7 @@ function Playground() {
 
       {/* Main area: timeline preview */}
       <div
-        ref={previewRef!}
+        ref={previewRef}
         style={{ flex: "1", overflow: "auto", "min-width": "0", "background-color": "var(--background-stronger)" }}
       >
         <DataProvider data={data()} directory="/project">

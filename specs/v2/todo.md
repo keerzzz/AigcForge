@@ -1,146 +1,103 @@
-# TODO
+# V2 Implementation Status
 
-ok we need to work towards a launch of v2 so we can get out of this rebuild phase
+## ✅ Done
 
-## Post-Hono cleanup - Kit
+### Session V2 core
+- [x] Durable prompt admission (session_input inbox: steer/queue delivery)
+- [x] SessionExecution (process-global, Session-ID based)
+- [x] SessionRunner (Location-scoped, one provider turn at a time)
+- [x] SessionRunCoordinator (coalesce joins, concurrent Sessions)
+- [x] EventV2 PubSub + durable persistence
+- [x] SessionProjector (projects V2 events into SessionMessage views)
+- [x] V2 SessionMessage projection (user, assistant, tool, shell, synthetic)
+- [x] Prompt admission via V2 API (V1→V2 bridge in handlers/session.ts)
 
-The opencode server has moved to the Effect HttpApi backend. Remaining work is
-mostly cleanup: delete compatibility shims, shrink Zod surfaces, and simplify
-test harnesses that used to compare Hono and HttpApi behavior.
+### Tool System
+- [x] V2 ToolRegistry (scoped materialization, permission checks)
+- [x] INTENT_TOOL_FILTERS — intent-based tool filtering via classify()
+- [x] PreToolUse/PostToolUse lifecycle hooks (module-level seam)
+- [x] V2 task tool (foreground/background/external-cli/task_id-resume/judge)
+- [x] Tool.makeRaw (JSON Schema tools for MCP)
+- [x] ApplicationTools (location-scoped)
 
-## New Data Mode - Dax
+### Meta-Agent
+- [x] MetaAgent service layer (create/get/list/attach/detach/stats/remove)
+- [x] meta_agent_step wiring
+- [x] PreRouter (intent classification, engine selection, @mention routing)
+- [x] {{SUBAGENTS_LIST}}/{{CLI_LIST}} placeholder fillers
+- [x] PROMPT_META single-sourced to core
+- [x] AIGCFROGE_DISABLE_META_AGENT flag
 
-This is mostly done. I'm working through modeling subagents, skill invocations
-and shell commands.
+### MCP V2
+- [x] Stdio + remote transports
+- [x] OAuth support (auth storage, provider, callback server)
+- [x] V2 MCP domain model (Service, clients, tools, resources)
 
-## Rework agent loop - Kit?
+### Plugin & Hooks
+- [x] MetaHooks SDK (intent, adapter, middleware registration)
+- [x] ToolHooks SDK (plugin-registered tool registration)
+- [x] PluginContext (agent, aisdk, catalog, command, integration, meta, tool hooks)
 
-The first Effect-native local runner slice is implemented without bridging
-through legacy `SessionPrompt.loop(...)`:
+### Session Operations
+- [x] V2 SessionRevert (revert/unrevert/cleanup)
+- [x] V2 SessionSummary (diff: additions/deletions/files)
+- [x] V2 SessionShare (internal: reference/output/full scopes)
+- [x] Fork endpoint POST /api/session/:sessionID/fork
+- [x] Session children + interrupt endpoints
 
-- process-global `SessionExecution.resume(sessionID)` discovers Location from
-  the Session read model
-- cached Location-scoped `SessionRunner` resolves one supported catalog model
-  and issues one explicit `llm.stream(request)` provider turn at a time
-- durable V2 projections record text, reasoning, provider failures, tool calls,
-  tool results, and assistant output
-- a scoped `ToolRegistry` advertises definitions and the first permission-checked
-  `read` built-in
-- local continuation reloads projected history, and promoting new user input resets the selected agent's configured provider-turn allowance
-- concurrent resumes for one Session join one process-local run while different
-  Sessions remain concurrent
+### Phase 6 — Intelligence Enhancements
+- [x] Structured Handoffs (LLM summary via catalog.model.small, injected into delegate prompt)
+- [x] Judge multi-model arbitration (parallel N delegates + LLM merge)
+- [x] External CLI session recovery (parseResumeHint + resumeId + DB persistence)
+- [x] Symlink-aware path containment (FSUtil.resolveSecurePath)
+- [x] Fork endpoint + session.next.forked event
 
-Prompt admission now uses a durable `session_input` inbox rather than immediate
-transcript projection. `steer` inputs promote at the next safe provider-turn
-boundary while the current drain requires continuation. `queue` inputs remain in
-a FIFO until the Session would otherwise become idle and then promote one at a time.
+### Schema & Database
+- [x] Drizzle ORM + Effect SQLite integration
+- [x] TypeScript migration system (bun script/migration.ts --check)
+- [x] ADR-10: Schema versioning policy (backward-compat via migration, incompatible via two-phase)
+- [x] ~16 incremental migrations
 
-Next reviewed slices:
+### Production Hardening
+- [x] Catch Everything audit (runner turn boundary, drainShell interrupt fix)
+- [x] Observability logging (Judge merge, summary gen, CLI resume, delegateJudge)
+- [x] catchDefect on missing LLMClient/Catalog (serviceOption pattern)
+- [x] register/unregister pattern for PreToolUse/PostToolUse (plugin lifecycle)
 
-- preserve eager structured local-tool settlement: durably record each complete
-  call, start its child execution immediately, await every settlement after the
-  provider turn closes, then reload projected history once
-- revisit per-turn tool-call limits, output truncation, and operational
-  backpressure before broadening exposure; eager local execution is deliberately
-  unbounded in the current local slice while SQLite publication stays serialized
-- remove the public in-memory `@opencode-ai/llm` tool loop after replacing its
-  remaining one-turn native-adapter use with a narrow typed dispatcher
-- batch streamed deltas and add covering context indexes
-- expose replayable Session event cursors over HTTP and the generated SDK where remote consumers need them
-- integrate the new BackgroundJob service with V2 tool execution: support background
-  bash jobs and background agent dispatch with durable status observation,
-  completion delivery, and explicit cancellation / continuation semantics
-- add durable/clustered interruption, retries, and stale-owner fencing only as
-  their slices become concrete
+## 🔄 In Progress
 
-### Deferred durable continuation recovery
+### V2 Config
+- Schema defined in core/src/config.ts (agents, providers, mcp, skills, permissions...)
+- spec review in specs/v2/config.md (11 groups)
+- Remaining: RuntimeFlags migration, consumer migration — deferred to Phase 5 V1 removal
 
-Do not infer that ambiguous provider work is safe to retry from an advisory wake.
-The first inbox-driven runner intentionally omits outer provider-attempt markers
-until they have a concrete consumer and a complete recovery policy.
+### TUI Package Extraction
+- TUI EventV2 consumer ready
+- Pending: full extraction plan
 
-Design post-crash continuation recovery as one explicit slice. It should model:
+### Legacy Storage Removal
+- remove-opencode-db spec exists
+- Pending: execution
 
-- promoted input and projected-history state
-- queued-input promotion and steering assignment
-- provider-attempt preparation versus provider-dispatch ambiguity
-- required post-tool continuation across process loss
-- explicit `retry` and `abandon` decisions for unknown outcomes
-- bounded automatic retry only where provider and tool idempotency make it safe
-- retry budget, backoff, visible recovery status, startup discovery, and future
-  clustered ownership fencing
+## 📋 Planned
 
-Do not introduce an enclosing durable execution identity solely to group these
-facts; a process-local Session drain has no durable transcript boundary.
+### Phase 5 — V1 Retirement
+- Flip AIGCFROGE_V2_RUNTIME to default true after V2 path coverage validation
+- Physical V1 file deletion (prompt.ts, agent.ts, processor.ts, plugin/, mcp/, etc.)
+- 14 unpaired V1 Layer decisions
+- RuntimeFlags → V2 Config migration
+- experimental.chat.* hooks → V2 SystemContext/SessionRunnerModel equivalents
 
-## Plugin API design - James?
+### Post-V2 Launch Cleanup
+- HttpApi backend: delete compatibility shims, shrink Zod surfaces
+- Session cursor API over HTTP (EventV2 replay cursor exposure)
+- Batch streamed deltas, add covering context indexes
+- Durable/clustered interruption, retries, stale-owner fencing
+- Process database migration claiming (currently in-process semaphore only)
 
-We need to figure out how we want server plugins to work and what hooks are useful.
-
-Some ideas:
-
-- plugins get immer drafts so bad mutations can be thrown away
-- plugins get global "opencode" instance like in that post i showed
-- opencode instance has stuff like `opencode.session.prompt()` or
-  `opencode.tool.register({...})`
-
-## Rework Config - ???
-
-We should do another pass on config to clean up any mistakes we made with it and
-simplify as much as possible. Old configs should get auto-converted to new
-
-## Auth - ???
-
-I have a basic auth system that can track any kind of auth, not just providers
-
-## Model Database - ???
-
-I have a basic model service that allows for models to be registered dynamically
-
-## Provider - ???
-
-Providers should register as plugins and autoload based on whatever logic they
-want / config. They should register models into model database
-
-## Event - Kit
-
-The self-contained durable `EventV2` core service is implemented. It owns
-sync-versioned persistence, transactional sequencing, pub/sub, replay, and
-replay-owner claims without relying on the old bus system.
-
-Remaining slices:
-
-- expose the embedded consumer-facing Session cursor API over HTTP and the
-  generated SDK where remote consumers need it
-- keep replay-owner claims distinct from future clustered Session execution
-  ownership and stale-runtime fencing
-
-## Deferred hardening cleanup
-
-Keep these visible, but do not block functionality slices on them unless a concrete
-failure appears during canary work:
-
-- serialize database migration claiming across processes; current migration
-  application is protected only by an in-process semaphore, so two processes
-  starting against one SQLite database can still race
-- simplify process-local durable-tail wake lifecycle with Effect `RcMap` and one
-  shared `PubSub.sliding<void>(1)` per active aggregate; keep SQLite cursor replay
-  and subscribe-before-history semantics unchanged
-- page large durable aggregate replay reads instead of loading every row after a
-  stale cursor into one array
-- decide whether connected tails need a periodic polling fallback for
-  cross-process SQLite writers; current advisory wakes are intentionally
-  process-local
-- stream-cap websearch body collection before parsing
-- add ripgrep execution timeout and bounded line framing
-- materialize or consistently reject unresolved URL and file attachment sources
-- decide stateless OpenAI Responses hosted-tool continuation behavior; reconstructed hosted output can replay as a stored `item_reference` when `store !== false`, while `store: false` intentionally omits the unavailable reference path
-- decide whether to preserve deprecated `@opencode-ai/llm` orchestration exports
-- preserve or alias renamed filesystem SDK generated type names if compatibility
-  consumers require them
-- revisit syscall-level mutation confinement for hostile external processes
-  (`openat`, `O_NOFOLLOW`, and descriptor-relative mutation where supported)
-
-## Everything is hotreloadable - ???
-
-Instead of needing to tear down things when something changes every service should emit granular events so services can react to them and reconfigure themselves. Allows frontend to receive these too, eg model.added. also prevents startup from blocking
+## 🗂 Deferred (non-blocking)
+- cross-process SQLite polling fallback for connected tails
+- stream-cap websearch body collection
+- ripgrep execution timeout + bounded line framing
+- materialize or reject unresolved URL/file attachment sources
+- syscall-level mutation confinement (openat, O_NOFOLLOW) for hostile processes

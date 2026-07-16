@@ -33,7 +33,7 @@ type Usage = {
   }
 }
 
-function usage(part: (typeof SessionV1.Event.PartUpdated.Type)["data"]["part"] | unknown): Usage | undefined {
+function usage(part: unknown): Usage | undefined {
   if (typeof part !== "object" || part === null) return undefined
   const value = part as Record<string, unknown>
   if (value.type !== "step-finish") return undefined
@@ -47,6 +47,7 @@ function sessionRow(info: SessionV1.SessionInfo): typeof SessionTable.$inferInse
     project_id: info.projectID,
     workspace_id: info.workspaceID ?? null,
     parent_id: info.parentID,
+    mode: info.mode,
     slug: info.slug,
     directory: info.directory,
     path: info.path,
@@ -68,6 +69,7 @@ function sessionRow(info: SessionV1.SessionInfo): typeof SessionTable.$inferInse
     tokens_cache_write: (info.tokens ?? { cache: { write: 0 } }).cache.write,
     revert: info.revert ?? null,
     permission: info.permission ? [...info.permission] : undefined,
+    attended: info.attended === undefined ? null : info.attended ? 1 : 0,
     time_created: info.time.created,
     time_updated: info.time.updated,
     time_compacting: info.time.compacting,
@@ -374,9 +376,46 @@ export const layer = Layer.effectDiscard(
         })
       }),
     )
+    yield* events.project(SessionEvent.ShellAdmitted, (event) =>
+      Effect.gen(function* () {
+        if (event.durable === undefined) return yield* Effect.die("Durable Session event is missing aggregate sequence")
+        yield* SessionInput.projectShellAdmitted(db, {
+          admittedSeq: event.durable.seq,
+          id: event.data.messageID,
+          sessionID: event.data.sessionID,
+          command: event.data.command,
+          delivery: event.data.delivery,
+          timeCreated: event.data.timestamp,
+        })
+      }),
+    )
+    yield* events.project(SessionEvent.SkillAdmitted, (event) =>
+      Effect.gen(function* () {
+        if (event.durable === undefined) return yield* Effect.die("Durable Session event is missing aggregate sequence")
+        yield* SessionInput.projectSkillAdmitted(db, {
+          admittedSeq: event.durable.seq,
+          id: event.data.messageID,
+          sessionID: event.data.sessionID,
+          skill: event.data.skill,
+          delivery: event.data.delivery,
+          timeCreated: event.data.timestamp,
+        })
+      }),
+    )
     yield* events.project(SessionEvent.ContextUpdated, (event) => run(db, event))
     yield* events.project(SessionEvent.Synthetic, (event) => run(db, event))
-    yield* events.project(SessionEvent.Shell.Started, (event) => run(db, event))
+    yield* events.project(SessionEvent.Shell.Started, (event) =>
+      Effect.gen(function* () {
+        if (event.durable !== undefined) {
+          yield* SessionInput.markPromoted(db, {
+            id: event.data.messageID,
+            sessionID: event.data.sessionID,
+            promotedSeq: event.durable.seq,
+          })
+        }
+        yield* run(db, event)
+      }),
+    )
     yield* events.project(SessionEvent.Shell.Ended, (event) => run(db, event))
     yield* events.project(SessionEvent.Step.Started, (event) => run(db, event))
     yield* events.project(SessionEvent.Step.Ended, (event) => run(db, event))

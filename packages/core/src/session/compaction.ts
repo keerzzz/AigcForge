@@ -1,6 +1,6 @@
 export * as SessionCompaction from "./compaction"
 
-import { LLM, LLMError, LLMEvent, Message, type LLMRequest, type Model } from "@opencode-ai/llm"
+import { LLM, LLMError, LLMEvent, Message, type LLMRequest, type Model } from "@aigcfroge/llm"
 import { DateTime, Effect, Stream } from "effect"
 import type { Config } from "../config"
 import type { EventV2 } from "../event"
@@ -11,6 +11,11 @@ import { Token } from "../util/token"
 
 const DEFAULT_BUFFER = 20_000
 const DEFAULT_KEEP_TOKENS = 8_000
+
+// Phase 3: multi-level watermark ratios
+const SOFT_RATIO = 0.50
+const SNIP_RATIO = 0.60
+const COMPACT_RATIO = 0.80
 const TOOL_OUTPUT_MAX_CHARS = 2_000
 const SUMMARY_OUTPUT_TOKENS = 4_096
 const SUMMARY_TEMPLATE = `Output exactly the Markdown structure shown inside <template> and keep the section order unchanged. Do not include the <template> tags in your response.
@@ -174,6 +179,11 @@ export const buildPrompt = (input: { readonly previousSummary?: string; readonly
 
 export const make = (dependencies: Dependencies) => {
   const config = settings(dependencies.config)
+
+  // Phase 3: stuck-compaction guard state
+  let consecutiveCompacts = 0
+  let compactStuck = false
+
   const compactAfterOverflow = Effect.fn("SessionCompaction.compactAfterOverflow")(function* (input: Input) {
     const context = input.model.route.defaults.limits?.context
     if (context === undefined || context <= 0) return false
@@ -231,13 +241,48 @@ export const make = (dependencies: Dependencies) => {
     if (!config.auto) return false
     const context = input.model.route.defaults.limits?.context
     if (context === undefined || context <= 0) return false
+    const total = estimate({ system: input.request.system, messages: input.request.messages, tools: input.request.tools })
     const output = input.request.generation?.maxTokens ?? input.model.route.defaults.limits?.output ?? 0
-    if (
-      estimate({ system: input.request.system, messages: input.request.messages, tools: input.request.tools }) <=
-      context - Math.max(output, config.buffer)
-    )
-      return false
-    return yield* compactAfterOverflow(input)
+    const watermark = context > 0 ? total / context : 0
+
+    // Clear stuck state when the prompt shrinks below the compact trigger
+    if (watermark < COMPACT_RATIO) {
+      consecutiveCompacts = 0
+      compactStuck = false
+    }
+
+    // Stuck guard: if compaction keeps re-firing, pause auto-compaction
+    if (compactStuck) return false
+
+    // Original threshold: would the old code have compacted?
+    const wouldCompact = total > context - Math.max(output, config.buffer)
+    if (!wouldCompact) return false
+
+    // Soft zone (50%-60%): emit a warning but still compact.
+    // The warning is advisory — the old threshold is the binding trigger.
+    if (watermark >= SOFT_RATIO && watermark < SNIP_RATIO) {
+      yield* dependencies.events.publish(SessionEvent.Compaction.SoftWarning, {
+        sessionID: input.sessionID,
+        timestamp: yield* DateTime.now,
+        watermark,
+        compactAt: COMPACT_RATIO,
+      })
+    }
+
+    // Compact zone (≥60% or wouldCompact): run summary compaction.
+    const ok = yield* compactAfterOverflow(input)
+    if (ok) {
+      consecutiveCompacts++
+      if (consecutiveCompacts >= 2) {
+        compactStuck = true
+        yield* dependencies.events.publish(SessionEvent.Compaction.Stuck, {
+          sessionID: input.sessionID,
+          timestamp: yield* DateTime.now,
+          message: `context_window=${context} is too small for compaction to help; auto-compaction paused`,
+        })
+      }
+    }
+    return ok
   })
   return {
     compactIfNeeded,
