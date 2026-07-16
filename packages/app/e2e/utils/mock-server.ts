@@ -9,6 +9,7 @@ const emptyList = new Set([
   "/question",
   "/vcs/status",
   "/vcs/diff",
+  "/vcs/log",
 ])
 const emptyObject = new Set(["/global/config", "/config", "/provider/auth", "/mcp", "/session/status"])
 

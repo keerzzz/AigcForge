@@ -1134,10 +1134,18 @@ export default function Page() {
 
   let fill = () => {}
 
-  const setScrollRef = (el: HTMLDivElement | undefined) => {
+  let scrollerOwner: HTMLDivElement | undefined
+  const setScrollRef = (el: HTMLDivElement | undefined, owner: HTMLDivElement) => {
+    if (!el) {
+      if (scrollerOwner !== owner) return
+      scrollerOwner = undefined
+      scroller = undefined
+      autoScroll.scrollRef(undefined)
+      return
+    }
+    scrollerOwner = owner
     scroller = el
     autoScroll.scrollRef(el)
-    if (!el) return
     scheduleScrollState(el)
     fill()
   }
@@ -1157,10 +1165,12 @@ export default function Page() {
 
   let captureHistoryAnchor = () => {}
   let restoreHistoryAnchor = (_done: boolean) => {}
+  let historyAnchorOwner: HTMLDivElement | undefined
+  let historyAnchorReady = false
   let historyRequest = false
   let historyContinuationFrame: number | undefined
   const loadOlder = async () => {
-    if (historyRequest || historyLoading()) return
+    if (!historyAnchorReady || historyRequest || historyLoading()) return
     historyRequest = true
     const before = timeline.messages().length
     try {
@@ -1651,7 +1661,7 @@ export default function Page() {
   )
 
   const mobileTabs = (compact = false, bottom = false) => (
-    <TabsV2 value={store.mobileTab} class="h-auto">
+    <TabsV2 value={store.mobileTab} class="!h-auto !flex-none">
       <TabsV2.List
         classList={{
           "!h-9": compact,
@@ -1764,9 +1774,20 @@ export default function Page() {
                           if (root) scheduleScrollState(root)
                         }}
                         userMessages={visibleUserMessages()}
-                        setHistoryAnchor={(handlers) => {
+                        setHistoryAnchor={(handlers, owner) => {
+                          if (!handlers) {
+                            if (historyAnchorOwner !== owner) return
+                            historyAnchorOwner = undefined
+                            historyAnchorReady = false
+                            captureHistoryAnchor = () => {}
+                            restoreHistoryAnchor = () => {}
+                            return
+                          }
+                          historyAnchorOwner = owner
                           captureHistoryAnchor = handlers.capture
                           restoreHistoryAnchor = handlers.restore
+                          historyAnchorReady = true
+                          fill()
                         }}
                         anchor={anchor}
                         setRevealMessage={(fn) => {

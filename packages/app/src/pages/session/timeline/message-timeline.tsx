@@ -241,7 +241,7 @@ export function MessageTimeline(props: {
   actions?: UserActions
   scroll: { overflow: boolean; bottom: boolean; jump: boolean }
   onResumeScroll: () => void
-  setScrollRef: (el: HTMLDivElement | undefined) => void
+  setScrollRef: (el: HTMLDivElement | undefined, owner: HTMLDivElement) => void
   onScheduleScrollState: (el: HTMLDivElement) => void
   onAutoScrollHandleScroll: () => void
   onMarkScrollGesture: (target?: EventTarget | null) => void
@@ -256,7 +256,10 @@ export function MessageTimeline(props: {
   anchor: (id: string) => string
   setRevealMessage?: (fn: (id: string) => void) => void
   setScrollToEnd?: (fn: () => void) => void
-  setHistoryAnchor?: (handlers: { capture: () => void; restore: (done: boolean) => void }) => void
+  setHistoryAnchor?: (
+    handlers: { capture: () => void; restore: (done: boolean) => void } | undefined,
+    owner: HTMLDivElement,
+  ) => void
 }) {
   let touchGesture: number | undefined
 
@@ -277,6 +280,7 @@ export function MessageTimeline(props: {
   const platform = usePlatform()
 
   const [listRoot, setListRoot] = createSignal<HTMLDivElement>()
+  let boundListRoot: HTMLDivElement | undefined
   const sessionID = createMemo(() => params.id)
   const sessionStatus = createMemo(() => {
     const id = sessionID()
@@ -514,7 +518,6 @@ export function MessageTimeline(props: {
       virtualizer.scrollToIndex(index, { align: "center" })
     })
     props.setScrollToEnd?.(() => virtualizer.scrollToEnd())
-    props.setHistoryAnchor?.({ capture: capturePrependAnchor, restore: restorePrependAnchor })
   })
 
   let overscanFrame: number | undefined
@@ -570,7 +573,10 @@ export function MessageTimeline(props: {
     if (overscanFrame !== undefined) cancelAnimationFrame(overscanFrame)
     props.setRevealMessage?.(() => {})
     props.setScrollToEnd?.(() => {})
-    props.setHistoryAnchor?.({ capture: () => {}, restore: () => {} })
+    if (boundListRoot) {
+      props.setScrollRef(undefined, boundListRoot)
+      props.setHistoryAnchor?.(undefined, boundListRoot)
+    }
   })
 
   const [title, setTitle] = createStore({
@@ -600,9 +606,24 @@ export function MessageTimeline(props: {
   createResizeObserver(() => head, updateTitleMetrics)
 
   const bindListRoot = (root: HTMLDivElement) => {
-    if (root === listRoot()) return
-    setListRoot(root)
-    props.setScrollRef(root)
+    boundListRoot = root
+    let active = false
+    const update = () => {
+      const next = root.clientWidth > 0 && root.clientHeight > 0
+      if (next === active) return
+      active = next
+      if (!next) {
+        if (listRoot() === root) setListRoot(undefined)
+        props.setScrollRef(undefined, root)
+        props.setHistoryAnchor?.(undefined, root)
+        return
+      }
+      setListRoot(root)
+      props.setScrollRef(root, root)
+      props.setHistoryAnchor?.({ capture: capturePrependAnchor, restore: restorePrependAnchor }, root)
+    }
+    createResizeObserver(root, update)
+    update()
   }
 
   const handleListWheel = (event: WheelEvent & { currentTarget: HTMLDivElement }) => {
@@ -658,10 +679,6 @@ export function MessageTimeline(props: {
     props.onAutoScrollHandleScroll()
     props.onMarkScrollGesture(event.currentTarget)
   }
-
-  onCleanup(() => {
-    props.setScrollRef(undefined)
-  })
 
   const viewShare = () => {
     const url = shareUrl()
