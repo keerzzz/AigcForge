@@ -18,7 +18,7 @@ import {
 } from "@thisbeyond/solid-dnd"
 import { ConstrainDragXAxis } from "@/utils/solid-dnd"
 import { useLanguage } from "@/context/language"
-import { useMode, type Mode } from "@/context/mode"
+import { modeDraft, useMode, type Mode } from "@/context/mode"
 import { modeSurface } from "@/components/mode-surfaces"
 import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
@@ -132,12 +132,12 @@ function SecondarySidebar() {
     const c = conn()
     if (!c) return
     const ctxInst = global.ensureServerCtx(c)
-    openProjectNewSession(ctxInst.projects, (s, d) => tabs.newDraft({ server: s, directory: d, mode: mode.currentMode }), ServerConnection.key(c), project.worktree)
+    openProjectNewSession(ctxInst.projects, (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(mode.currentMode) }), ServerConnection.key(c), project.worktree)
   }
 
   function openProjectNewSessionFn(c: ServerConnection.Any, directory: string) {
     const ctxInst = global.ensureServerCtx(c)
-    openProjectNewSession(ctxInst.projects, (s, d) => tabs.newDraft({ server: s, directory: d, mode: mode.currentMode }), ServerConnection.key(c), directory)
+    openProjectNewSession(ctxInst.projects, (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(mode.currentMode) }), ServerConnection.key(c), directory)
   }
 
   function addProject() {
@@ -512,7 +512,8 @@ function SecondarySidebar() {
       aria-label={language.t("sidebar.secondary.projectList")}
       class="flex w-64 shrink-0 flex-col border-r border-v2-border-border-base bg-v2-background-bg-base"
     >
-      <div class="flex items-center justify-between gap-1 px-3 pt-3 pb-2">
+      <Show when={mode.currentMode === "coding"}>
+        <div class="flex items-center justify-between gap-1 px-3 pt-3 pb-2">
         <ButtonV2
           variant="neutral"
           size="normal"
@@ -550,9 +551,10 @@ function SecondarySidebar() {
             setState("searchOpen", true)
           }}
         />
-      </div>
+        </div>
+      </Show>
 
-      <Show when={state.searchOpen}>
+      <Show when={mode.currentMode === "coding" && state.searchOpen}>
         <div class="flex flex-col gap-2 px-3 pb-2">
           <div class="flex items-center gap-2 rounded-[6px] bg-v2-background-bg-layer-03 px-2 py-1.5">
             <Icon name="magnifying-glass" size="small" class="shrink-0 text-v2-icon-icon-muted" />
@@ -697,7 +699,7 @@ function SecondaryProjectRow(props: {
     const c = conn()
     if (!c) return
     const cctx = global.ensureServerCtx(c)
-    openProjectNewSession(cctx.projects, (s, d) => tabs.newDraft({ server: s, directory: d, mode: props.currentMode }), ServerConnection.key(c), props.project.worktree)
+    openProjectNewSession(cctx.projects, (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(props.currentMode) }), ServerConnection.key(c), props.project.worktree)
   }
 
   function newSessionInDir(directory: string) {
@@ -706,7 +708,7 @@ function SecondaryProjectRow(props: {
       if (!c) return
       const cctx = global.ensureServerCtx(c)
       props.ctx.setWorkspaceExpanded(directory, true)
-      openProjectNewSession(cctx.projects, (s, d) => tabs.newDraft({ server: s, directory: d, mode: props.currentMode }), ServerConnection.key(c), directory)
+      openProjectNewSession(cctx.projects, (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(props.currentMode) }), ServerConnection.key(c), directory)
     }
   }
 

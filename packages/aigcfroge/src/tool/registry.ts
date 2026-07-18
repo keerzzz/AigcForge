@@ -17,6 +17,7 @@ import { WriteTool } from "./write"
 import { InvalidTool } from "./invalid"
 import { SkillTool } from "./skill"
 import { DelegationProtocolTool } from "./delegation-protocol"
+import { ProposePromptAssetV1 } from "./propose-prompt-asset"
 import * as Tool from "./tool"
 import { Config } from "@/config/config"
 import { type ToolContext as PluginToolContext, type ToolDefinition } from "@aigcfroge/plugin"
@@ -44,6 +45,7 @@ import { Todo } from "../session/todo"
 import { LSP } from "@/lsp/lsp"
 import { Instruction } from "../session/instruction"
 import { FSUtil } from "@aigcfroge/core/fs-util"
+import { LocationServiceMap } from "@aigcfroge/core/location-layer"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Agent } from "../agent/agent"
 import { Skill } from "../skill"
@@ -107,6 +109,7 @@ export const layer = Layer.effect(
     const patchtool = yield* ApplyPatchTool
     const skilltool = yield* SkillTool
     const delegationProtocol = yield* DelegationProtocolTool
+    const proposePromptAsset = yield* ProposePromptAssetV1
     const agent = yield* Agent.Service
 
     const state = yield* InstanceState.make<State>(
@@ -220,6 +223,7 @@ export const layer = Layer.effect(
           lsp: Tool.init(lsptool),
           plan: Tool.init(plan),
           delegationProtocol: Tool.init(delegationProtocol),
+          proposePromptAsset: Tool.init(proposePromptAsset),
         })
 
         return {
@@ -235,6 +239,7 @@ export const layer = Layer.effect(
             tool.write,
             tool.task,
             tool.delegationProtocol,
+            ...(flags.experimentalChatPromptAsset ? [tool.proposePromptAsset] : []),
             tool.fetch,
             tool.todo,
             tool.search,
@@ -343,6 +348,7 @@ export const defaultLayer = Layer.suspend(() =>
       Layer.provide(Instruction.defaultLayer),
       Layer.provide(FSUtil.defaultLayer),
       Layer.provide(EventV2Bridge.defaultLayer),
+      Layer.provide(LocationServiceMap.layer),
       Layer.provide(FetchHttpClient.layer),
       Layer.provide(Format.defaultLayer),
       Layer.provide(CrossSpawnSpawner.defaultLayer),
@@ -428,6 +434,8 @@ function isJsonSchemaObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
+const locationServiceMapNode = LayerNode.make(LocationServiceMap.layer, [])
+
 export const node = LayerNode.make(layer.pipe(Layer.provide(Ripgrep.defaultLayer)), [
   Config.node,
   Plugin.node,
@@ -443,6 +451,7 @@ export const node = LayerNode.make(layer.pipe(Layer.provide(Ripgrep.defaultLayer
   Instruction.node,
   FSUtil.node,
   EventV2Bridge.node,
+  locationServiceMapNode,
   httpClient,
   CrossSpawnSpawner.node,
   Format.node,

@@ -300,10 +300,17 @@ export function MessageTimeline(props: {
     return undefined
   })
 
-  const handoffs = createMemo<ReadonlyArray<{ readonly label: string; readonly agent: string; readonly prompt: string }>>(() => {
+  const handoffs = createMemo<
+    ReadonlyArray<{ readonly label: string; readonly agent: string; readonly prompt: string }>
+  >(() => {
     const name = currentAgentName()
     if (!name) return []
-    const agent = (sync().data.agent as ReadonlyArray<{ name: string; handoffs?: Array<{ label: string; agent: string; prompt: string }> }>).find((a) => a.name === name)
+    const agent = (
+      sync().data.agent as ReadonlyArray<{
+        name: string
+        handoffs?: Array<{ label: string; agent: string; prompt: string }>
+      }>
+    ).find((a) => a.name === name)
     return agent?.handoffs ?? []
   })
 
@@ -805,8 +812,7 @@ export function MessageTimeline(props: {
       navigate(`/${params.dir}/session`)
       return
     }
-    const href = (id: string) =>
-      sessionHref(requireServerKey(key), id)
+    const href = (id: string) => sessionHref(requireServerKey(key), id)
     if (parentID) {
       navigate(href(parentID))
       return
@@ -916,9 +922,7 @@ export function MessageTimeline(props: {
     if (!id) return
     const key = params.serverKey
     if (!key) return
-    navigate(
-      sessionHref(requireServerKey(key), id),
-    )
+    navigate(sessionHref(requireServerKey(key), id))
   }
 
   function DialogDeleteSession(props: { sessionID: string }) {

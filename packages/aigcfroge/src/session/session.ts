@@ -42,6 +42,7 @@ import { Global } from "@aigcfroge/core/global"
 import { Effect, Layer, Option, Context, Schema, Types } from "effect"
 import { NonNegativeInt, optionalOmitUndefined } from "@aigcfroge/core/schema"
 import { RuntimeFlags } from "@/effect/runtime-flags"
+import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
@@ -687,6 +688,12 @@ export const layer: Layer.Layer<
       permission?: PermissionV1.Ruleset
       workspaceID?: WorkspaceV2.ID
     }) {
+      // Enforce Product Mode × Agent policy
+      const mode = input?.mode ?? ProductMode.Default
+      if (input?.agent) {
+        const verdict = ProductModeAgentPolicy.checkPrimaryAgent(mode, input.agent)
+        if (!verdict.allowed) return yield* Effect.die(verdict.error)
+      }
       const ctx = yield* InstanceState.context
       const workspace = yield* InstanceState.workspaceID
       const parent = input?.parentID ? Option.getOrUndefined(yield* Effect.option(get(input.parentID))) : undefined

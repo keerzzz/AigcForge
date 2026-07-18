@@ -17,7 +17,7 @@ import { Dynamic } from "solid-js/web"
 import { CommandProvider } from "@/context/command"
 import { CommentsProvider } from "@/context/comments"
 import { FileProvider } from "@/context/file"
-import { isMode, useMode } from "@/context/mode"
+import { isMode, modeDraft, useMode } from "@/context/mode"
 import { ServerSDKProvider, useServerSDK } from "@/context/server-sdk"
 import { ServerSyncProvider } from "@/context/server-sync"
 import { GlobalProvider, useGlobal } from "@/context/global"
@@ -67,7 +67,7 @@ function LegacySessionRedirect() {
       const ctx = global.ensureServerCtx(conn)
       const projects = ctx.projects.list()
       const dir = projects[0]?.worktree
-      if (dir) tabs.newDraft({ server: key, directory: dir, mode: mode.currentMode })
+      if (dir) tabs.newDraft({ server: key, directory: dir, ...modeDraft(mode.currentMode) })
     } catch {}
   })
   return
@@ -537,18 +537,9 @@ export function AppInterface(props: {
 function ModeRoute() {
   const params = useParams<{ mode: string }>()
   const mode = useMode()
-  const selected = createMemo(() => (isMode(params.mode) ? params.mode : undefined))
-
-  createEffect(() => {
-    const current = selected()
-    if (current) mode.setCurrentMode(current)
-  })
-
-  return (
-    <Show when={selected()} fallback={<Navigate href="/" />}>
-      <Home />
-    </Show>
-  )
+  // 首页就地分流（m1 §1.4）：/mode/:mode 不再渲染独立页，设置 currentMode 后重定向到首页 /
+  if (isMode(params.mode)) mode.setCurrentMode(params.mode)
+  return <Navigate href="/" />
 }
 
 function Routes() {

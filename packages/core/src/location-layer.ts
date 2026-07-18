@@ -34,6 +34,8 @@ import { Pty } from "./pty"
 import { SkillV2 } from "./skill"
 import { SkillGuidance } from "./skill/guidance"
 import { BuiltInTools } from "./tool/builtins"
+import { PromptAsset } from "./prompt-asset"
+import { PromptAssetService } from "./prompt-asset-service"
 
 import { Image } from "./image"
 import { ToolRegistry } from "./tool/registry"
@@ -75,9 +77,11 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       Watcher.locationLayer,
       Pty.locationLayer,
       SkillV2.locationLayer,
+      PromptAsset.locationLayer,
       systemContext,
       LocationMutation.locationLayer.pipe(Layer.orDie),
       CrossSpawnSpawner.defaultLayer,
+      FSUtil.defaultLayer,
     ).pipe(Layer.provideMerge(location))
     const resources = ToolOutputStore.layer.pipe(Layer.provide(base))
     const permissionsAndTools = ToolRegistry.layer.pipe(
@@ -88,6 +92,10 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
     const services = Layer.mergeAll(base, resources, permissionsAndTools)
     const image = Image.layer.pipe(Layer.provide(services))
     const mutation = FileMutation.locationLayer.pipe(Layer.provide(services))
+    const promptAssetService = PromptAssetService.locationLayer.pipe(
+      Layer.provide(services),
+      Layer.provide(mutation),
+    )
     const skillGuidance = SkillGuidance.locationLayer.pipe(Layer.provide(services))
     const referenceGuidance = ReferenceGuidance.locationLayer.pipe(Layer.provide(services))
     const todos = SessionTodo.layer.pipe(Layer.provide(services))
@@ -120,6 +128,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       services,
       image,
       mutation,
+      promptAssetService,
       resources,
       todos,
       questions,

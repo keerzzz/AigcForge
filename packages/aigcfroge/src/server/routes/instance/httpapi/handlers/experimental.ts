@@ -37,7 +37,7 @@ export const experimentalHandlers = HttpApiBuilder.group(InstanceHttpApi, "exper
     const flags = yield* RuntimeFlags.Service
 
     const capabilities = Effect.fn("ExperimentalHttpApi.capabilities")(function* () {
-      return { backgroundSubagents: flags.experimentalBackgroundSubagents }
+      return { backgroundSubagents: flags.experimentalBackgroundSubagents, chatPromptAsset: flags.experimentalChatPromptAsset }
     })
 
     const getConsole = Effect.fn("ExperimentalHttpApi.console")(function* () {

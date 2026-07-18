@@ -2212,6 +2212,7 @@ export type Provider = {
 
 export type ExperimentalCapabilities = {
   backgroundSubagents: boolean
+  chatPromptAsset: boolean
 }
 
 export type ConsoleState = {
@@ -2600,6 +2601,12 @@ export type PermissionNotFoundError = {
   _tag: "PermissionNotFoundError"
   requestID: string
   message: string
+}
+
+export type ConflictError = {
+  _tag: "ConflictError"
+  message: string
+  resource?: string
 }
 
 export type ProviderAuthMethod = {
@@ -3320,12 +3327,6 @@ export type SessionNotFoundError = {
   _tag: "SessionNotFoundError"
   sessionID: string
   message: string
-}
-
-export type ConflictError = {
-  _tag: "ConflictError"
-  message: string
-  resource?: string
 }
 
 export type ServiceUnavailableError = {
@@ -4333,6 +4334,30 @@ export type ProjectDirectories = Array<{
   directory: string
   strategy?: string
 }>
+
+export type PromptAssetSummary = {
+  kind: "prompt"
+  name: string
+  description: string
+  relativePath: string
+  revision: string
+}
+
+export type PromptAssetInfo = {
+  kind: "prompt"
+  name: string
+  description: string
+  relativePath: string
+  revision: string
+  template: string
+}
+
+export type PromptAssetCandidate = {
+  name: string
+  description: string
+  template: string
+  relativePath: string
+}
 
 export type ToolSummaryEntry = {
   tool: string
@@ -10219,6 +10244,102 @@ export type PermissionReplyResponses = {
 }
 
 export type PermissionReplyResponse = PermissionReplyResponses[keyof PermissionReplyResponses]
+
+export type PromptAssetListData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+    search?: string
+  }
+  url: "/prompt-asset"
+}
+
+export type PromptAssetListErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type PromptAssetListError = PromptAssetListErrors[keyof PromptAssetListErrors]
+
+export type PromptAssetListResponses = {
+  /**
+   * List of prompt assets
+   */
+  200: Array<PromptAssetSummary>
+}
+
+export type PromptAssetListResponse = PromptAssetListResponses[keyof PromptAssetListResponses]
+
+export type PromptAssetContentData = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    workspace?: string
+    path: string
+  }
+  url: "/prompt-asset/content"
+}
+
+export type PromptAssetContentErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type PromptAssetContentError = PromptAssetContentErrors[keyof PromptAssetContentErrors]
+
+export type PromptAssetContentResponses = {
+  /**
+   * Prompt asset content
+   */
+  200: PromptAssetInfo
+}
+
+export type PromptAssetContentResponse = PromptAssetContentResponses[keyof PromptAssetContentResponses]
+
+export type PromptAssetApplyData = {
+  body?: {
+    candidate: PromptAssetCandidate
+    baseRevision: string
+    overwrite: boolean
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/prompt-asset/apply"
+}
+
+export type PromptAssetApplyErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type PromptAssetApplyError = PromptAssetApplyErrors[keyof PromptAssetApplyErrors]
+
+export type PromptAssetApplyResponses = {
+  /**
+   * Applied prompt asset
+   */
+  200: PromptAssetInfo
+}
+
+export type PromptAssetApplyResponse = PromptAssetApplyResponses[keyof PromptAssetApplyResponses]
 
 export type ProviderListData = {
   body?: never

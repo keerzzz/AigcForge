@@ -1,6 +1,7 @@
 import { createContext, useContext, type ParentProps } from "solid-js"
 import { createStore } from "solid-js/store"
 import { Persist, persisted } from "@/utils/persist"
+import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
 
 export const MODE_DEFINITIONS = [
   {
@@ -55,6 +56,13 @@ export function modeDefinition(mode: Mode) {
 
 export function modeHref(mode: Mode) {
   return modeDefinition(mode).href
+}
+
+export function modeDraft(mode: Mode) {
+  return {
+    mode,
+    agent: mode === "chat" ? ProductModeAgentPolicy.CHAT_ORCHESTRATOR : undefined,
+  }
 }
 
 type ModeContext = {

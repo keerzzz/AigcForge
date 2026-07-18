@@ -4,6 +4,7 @@ import path from "path"
 import { define } from "./internal"
 import { Effect } from "effect"
 import { AgentV2 } from "../agent"
+import { SYSTEM_PROMPT as CHAT_ORCHESTRATOR_PROMPT } from "../agent/prompt/chat-orchestrator"
 import { Global } from "../global"
 import { Location } from "../location"
 import { PermissionV2 } from "../permission"
@@ -286,6 +287,29 @@ export const Plugin = define({
               { action: "webfetch", resource: "*", effect: "allow" },
               { action: "websearch", resource: "*", effect: "allow" },
               { action: "read", resource: "*", effect: "allow" },
+            ],
+            readonlyExternalDirectory,
+          ),
+        )
+      })
+
+      // chat-orchestrator: Chat mode only, fail-closed permissions
+      draft.update(AgentV2.ID.make("chat-orchestrator"), (item) => {
+        item.description = "Chat mode agent for creating reusable prompt assets via conversation."
+        item.system = CHAT_ORCHESTRATOR_PROMPT
+        item.mode = "primary"
+        item.hidden = false
+        item.permissions.push(
+          ...PermissionV2.merge(
+            defaults,
+            [
+              { action: "*", resource: "*", effect: "deny" },
+              { action: "read", resource: "*", effect: "allow" },
+              { action: "glob", resource: "*", effect: "allow" },
+              { action: "grep", resource: "*", effect: "allow" },
+              { action: "question", resource: "*", effect: "allow" },
+              { action: "propose_prompt_asset", resource: "*", effect: "allow" },
+              { action: "prompt_asset_apply", resource: "*", effect: "allow" },
             ],
             readonlyExternalDirectory,
           ),

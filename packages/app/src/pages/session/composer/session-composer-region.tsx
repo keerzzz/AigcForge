@@ -32,6 +32,7 @@ import { useDirectoryPicker } from "@/components/directory-picker"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { requireServerKey, sessionHref } from "@/utils/session-route"
 import { useGlobal } from "@/context/global"
+import { useMode } from "@/context/mode"
 
 export function SessionComposerRegion(props: {
   state: SessionComposerState
@@ -76,6 +77,7 @@ export function SessionComposerRegion(props: {
   const server = useServer()
   const tabs = useTabs()
   const global = useGlobal()
+  const modeCtx = useMode()
   const pickDirectory = useDirectoryPicker()
   const [search] = useSearchParams<{ draftId?: string }>()
   const view = layout.view(route.sessionKey)
@@ -128,32 +130,37 @@ export function SessionComposerRegion(props: {
       },
     })
   }
-  const controls = createMemo(() => ({
-    agents: {
-      available: sync().data.agent,
-      options: local.agent.list().map((agent) => agent.name),
-      current: local.agent.current()?.name ?? "",
-      loading: agentsQuery.isLoading,
-      visible: settings.visibility.customAgents(),
-      select: local.agent.set,
-    },
-    model: {
-      selection: local.model,
-      paid: providers.paid().length > 0,
-      loading: agentsQuery.isLoading || providersQuery.isLoading || globalProvidersQuery.isLoading,
-    },
-    projects: {
-      available: projects(),
-      directory: sdk().directory,
-      select: selectProject,
-      add: addProject,
-    },
-    session: {
-      id: route.params.id,
-      tabs: layout.tabs(route.sessionKey),
-      reviewPanel: view.reviewPanel,
-    },
-  }))
+  const controls = createMemo(() => {
+    const allAgents = local.agent.list().map((agent) => agent.name)
+    const agentOptions =
+      modeCtx.currentMode === "chat" ? allAgents.filter((name) => name === "chat-orchestrator") : allAgents
+    return {
+      agents: {
+        available: sync().data.agent,
+        options: agentOptions,
+        current: local.agent.current()?.name ?? "",
+        loading: agentsQuery.isLoading,
+        visible: settings.visibility.customAgents(),
+        select: local.agent.set,
+      },
+      model: {
+        selection: local.model,
+        paid: providers.paid().length > 0,
+        loading: agentsQuery.isLoading || providersQuery.isLoading || globalProvidersQuery.isLoading,
+      },
+      projects: {
+        available: projects(),
+        directory: sdk().directory,
+        select: selectProject,
+        add: addProject,
+      },
+      session: {
+        id: route.params.id,
+        tabs: layout.tabs(route.sessionKey),
+        reviewPanel: view.reviewPanel,
+      },
+    }
+  })
 
   const handoffPrompt = createMemo(() => getSessionHandoff(route.sessionKey())?.prompt)
   const info = createMemo(() => (route.params.id ? sync().session.get(route.params.id) : undefined))

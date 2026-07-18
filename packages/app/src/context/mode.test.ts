@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { BUILTIN_MODES, isMode, modeDefinition, modeHref, MODE_DEFINITIONS } from "./mode"
+import { BUILTIN_MODES, isMode, modeDefinition, modeDraft, modeHref, MODE_DEFINITIONS } from "./mode"
 
 describe("product mode", () => {
   test("accepts only built-in modes", () => {
@@ -27,5 +27,10 @@ describe("product mode", () => {
       expect(definition.descriptionKey).toBe(`mode.${definition.id}.description`)
       expect(definition.surface).toBe(definition.id)
     }
+  })
+
+  test("binds chat drafts to the chat orchestrator", () => {
+    expect(modeDraft("chat")).toEqual({ mode: "chat", agent: "chat-orchestrator" })
+    expect(modeDraft("coding")).toEqual({ mode: "coding", agent: undefined })
   })
 })

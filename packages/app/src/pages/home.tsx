@@ -11,6 +11,7 @@ import {
   Show,
   startTransition,
 } from "solid-js"
+import { Dynamic } from "solid-js/web"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { createStore } from "solid-js/store"
 import { useQuery } from "@tanstack/solid-query"
@@ -22,7 +23,7 @@ import { Icon as IconV2 } from "@aigcfroge/ui/v2/icon"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { MenuV2 } from "@aigcfroge/ui/v2/menu-v2"
 import { getProjectAvatarVariant, useLayout, type LocalProject } from "@/context/layout"
-import { useNavigate } from "@solidjs/router"
+import { useNavigate, type RouteSectionProps } from "@solidjs/router"
 import { DateTime } from "luxon"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useDirectoryPicker } from "@/components/directory-picker"
@@ -55,7 +56,9 @@ import { type ServerHealth } from "@/utils/server-health"
 import { Persist, persisted } from "@/utils/persist"
 import { useMarked } from "@aigcfroge/ui/context/marked"
 import { preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"
-import { MODE_DEFINITIONS, modeHref, useMode, type Mode } from "@/context/mode"
+import { MODE_DEFINITIONS, modeDraft, useMode, type Mode } from "@/context/mode"
+import { ChatFeaturePanel, modeSurface } from "@/components/mode-surfaces"
+import { chatFeature } from "@/context/chat-feature"
 
 const HOME_SESSION_LIMIT = 64
 const HOME_ROW_LAYOUT =
@@ -122,7 +125,7 @@ function homeSessionSearchKey(record: HomeSessionRecord) {
   return `${pathKey(record.session.directory)}:${record.session.id}`
 }
 
-export function Home() {
+export function Home(props: Partial<RouteSectionProps> & { modeEntry?: boolean } = {}) {
   const sync = useServerSync()
   const layout = useLayout()
   const pickDirectory = useDirectoryPicker()
@@ -165,8 +168,7 @@ export function Home() {
     if (selected && last) {
       const lastKey = pathKey(last)
       const containsLast =
-        pathKey(selected.worktree) === lastKey ||
-        (selected.sandboxes ?? []).some((s) => pathKey(s) === lastKey)
+        pathKey(selected.worktree) === lastKey || (selected.sandboxes ?? []).some((s) => pathKey(s) === lastKey)
       if (containsLast) return last
     }
     if (selected) return selected.worktree
@@ -302,11 +304,23 @@ export function Home() {
     if (!last) return
     const lastKey = pathKey(last)
     const project = projects().find(
-      (p) =>
-        pathKey(p.worktree) === lastKey || (p.sandboxes ?? []).some((s) => pathKey(s) === lastKey),
+      (p) => pathKey(p.worktree) === lastKey || (p.sandboxes ?? []).some((s) => pathKey(s) === lastKey),
     )
     defaultSelectionApplied = true
     if (project) setSelection({ server: state.selection.server, directory: project.worktree })
+  })
+
+  // chat 模式：功能树 Location 切换（lastSession.directory 变化）联动右侧会话列表（m1 §1.4）
+  createEffect(() => {
+    if (mode.currentMode !== "chat") return
+    const scope = focusedScope()
+    if (!scope) return
+    const dir = global.lastSession.directory(scope)
+    if (!dir) return
+    const conn = focusedServer()
+    if (!conn) return
+    if (state.selection.directory === dir) return
+    setSelection({ server: ServerConnection.key(conn), directory: dir })
   })
 
   function closeSearch() {
@@ -378,7 +392,12 @@ export function Home() {
 
   function openProjectNewSessionFn(conn: ServerConnection.Any, directory: string) {
     const ctx = global.ensureServerCtx(conn)
-    openProjectNewSession(ctx.projects, (s, d) => tabs.newDraft({ server: s, directory: d, mode: mode.currentMode }), ServerConnection.key(conn), directory)
+    openProjectNewSession(
+      ctx.projects,
+      (server, draftDirectory) => tabs.newDraft({ server, directory: draftDirectory, ...modeDraft(mode.currentMode) }),
+      ServerConnection.key(conn),
+      directory,
+    )
   }
 
   function editProject(conn: ServerConnection.Any, project: LocalProject) {
@@ -433,41 +452,61 @@ export function Home() {
   }
 
   function enterMode(selected: Mode) {
-    navigate(modeHref(selected))
+    // 首页就地分流（m1 §1.4）：点卡片只切 currentMode，不跳路由，下方左右栏就地切换
+    mode.setCurrentMode(selected)
   }
 
   return (
     <div class="rounded-[10px] shadow-[var(--v2-elevation-raised)] m-2 min-h-0 lg:overflow-hidden bg-v2-background-bg-base self-stretch flex-1 flex flex-col">
-      <div class="shrink-0 px-6 pt-6 lg:pt-12">
-        <HomeModeCards mode={mode} language={language} enterMode={enterMode} />
-      </div>
-      <div class="mx-auto grid h-full w-full max-w-[1080px] grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-3 pb-3 lg:grid-cols-[280px_minmax(0,720px)] lg:grid-rows-1 lg:gap-8 lg:px-6 lg:pb-16">
-        <HomeProjectColumn
-          projects={projects()}
-          selected={state.selection}
-          focusServer={focusServer}
-          selectProject={selectProject}
-          openNewSession={openProjectNewSessionFn}
-          chooseProject={(conn) => { chooseProject(conn) }}
-          editProject={editProject}
-          closeProject={(conn, directory) => {
-            const next = closeHomeProject(
-              state.selection,
-              ServerConnection.key(conn),
-              global.ensureServerCtx(conn).projects,
-              directory,
-            )
-            if (next) setSelection(next)
-          }}
-          clearNotifications={clearNotifications}
-          unseenCount={unseenCount}
-          language={language}
-        />
+      <Show when={!props.modeEntry}>
+        <div class="shrink-0 px-6 pt-6 lg:pt-12">
+          <HomeModeCards mode={mode} language={language} enterMode={enterMode} />
+        </div>
+      </Show>
+      <div
+        class={`mx-auto grid h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-3 pb-3 lg:grid-rows-1 lg:px-6 lg:pb-16 ${
+          props.modeEntry
+            ? "max-w-[720px] lg:grid-cols-1"
+            : "max-w-[1080px] lg:grid-cols-[280px_minmax(0,720px)] lg:gap-8"
+        }`}
+      >
+        <Show
+          when={mode.currentMode === "coding"}
+          fallback={<Dynamic component={modeSurface(mode.currentMode).Sidebar} />}
+        >
+          <HomeProjectColumn
+            projects={projects()}
+            selected={state.selection}
+            focusServer={focusServer}
+            selectProject={selectProject}
+            openNewSession={openProjectNewSessionFn}
+            chooseProject={(conn) => {
+              chooseProject(conn)
+            }}
+            editProject={editProject}
+            closeProject={(conn, directory) => {
+              const next = closeHomeProject(
+                state.selection,
+                ServerConnection.key(conn),
+                global.ensureServerCtx(conn).projects,
+                directory,
+              )
+              if (next) setSelection(next)
+            }}
+            clearNotifications={clearNotifications}
+            unseenCount={unseenCount}
+            language={language}
+          />
+        </Show>
 
         <section
           class="min-h-0 min-w-0 flex-1 flex flex-col pt-6 lg:pt-12"
           aria-label={language.t("sidebar.project.recentSessions")}
         >
+          <Show
+            when={!(mode.currentMode === "chat" && chatFeature() !== "prompt")}
+            fallback={<ChatFeaturePanel />}
+          >
           <HomeSessionSearch
             value={state.search}
             placeholder={language.t("home.sessions.search.placeholder")}
@@ -498,6 +537,9 @@ export function Home() {
                       <HomeSessionGroupHeader
                         title={language.t("home.sessions.empty")}
                         onNewSession={openNewSession}
+                        actionLabel={
+                          mode.currentMode === "chat" ? language.t("promptAsset.panel.newPrompt") : undefined
+                        }
                       />
                     </div>
                   }
@@ -508,6 +550,9 @@ export function Home() {
                         <HomeSessionGroupHeader
                           title={group.title}
                           onNewSession={index() === 0 ? openNewSession : undefined}
+                          actionLabel={
+                            mode.currentMode === "chat" ? language.t("promptAsset.panel.newPrompt") : undefined
+                          }
                         />
                         <div class="flex min-w-0 flex-col gap-px">
                           <For each={group.sessions}>
@@ -528,6 +573,7 @@ export function Home() {
               </Show>
             </div>
           </ScrollView>
+          </Show>
         </section>
       </div>
     </div>
@@ -553,8 +599,10 @@ function HomeModeCards(props: {
                 aria-label={props.language.t(m.labelKey)}
                 class="relative flex cursor-default items-center gap-3.5 rounded-lg border p-4 text-left transition-[all] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
                 classList={{
-                  "bg-v2-background-bg-layer-01 border-v2-border-border-base hover:bg-v2-overlay-simple-overlay-hover hover:border-v2-border-border-hover shadow-[var(--v2-elevation-base)]": !active(),
-                  "bg-v2-background-bg-layer-02 border-v2-border-border-focus shadow-inner ring-1 ring-v2-border-border-focus": active(),
+                  "bg-v2-background-bg-layer-01 border-v2-border-border-base hover:bg-v2-overlay-simple-overlay-hover hover:border-v2-border-border-hover shadow-[var(--v2-elevation-base)]":
+                    !active(),
+                  "bg-v2-background-bg-layer-02 border-v2-border-border-focus shadow-inner ring-1 ring-v2-border-border-focus":
+                    active(),
                 }}
                 onClick={() => props.enterMode(m.id)}
                 onKeyDown={(e) => {
@@ -664,7 +712,6 @@ function HomeProjectColumn(props: {
     </aside>
   )
 }
-
 
 function HomeServerRow(props: {
   server: ServerConnection.Any
@@ -1157,25 +1204,23 @@ function HomeSessionSearchResultRow(props: {
   )
 }
 
-function HomeSessionGroupHeader(props: { title: string; onNewSession?: () => void }) {
+function HomeSessionGroupHeader(props: { title: string; onNewSession?: () => void; actionLabel?: string }) {
   const language = useLanguage()
   return (
     <div class="flex h-7 min-w-0 items-center gap-3 pl-4 pr-2">
       <div class={`${HOME_SECTION_LABEL} shrink-0 uppercase tracking-wider text-11-bold`}>{props.title}</div>
       <div class="flex-1 h-px bg-v2-border-border-muted opacity-40" />
       <Show when={props.onNewSession}>
-        {(onNewSession) => (
-          <ButtonV2
-            data-action="home-new-session"
-            variant="ghost-muted"
-            size="normal"
-            icon="edit"
-            class="h-7 px-2 [font-weight:530] shrink-0"
-            onClick={onNewSession}
-          >
-            {language.t("command.session.new")}
-          </ButtonV2>
-        )}
+        <ButtonV2
+          data-action="home-new-session"
+          variant="ghost-muted"
+          size="normal"
+          icon="edit"
+          class="h-7 px-2 [font-weight:530] shrink-0"
+          onClick={() => props.onNewSession?.()}
+        >
+          {props.actionLabel ?? language.t("command.session.new")}
+        </ButtonV2>
       </Show>
     </div>
   )
@@ -1213,9 +1258,7 @@ function HomeSessionRow(props: {
           server={props.server}
           activeServer={props.activeServer}
         />
-        <span
-          class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-v2-text-text-base [font-weight:530] group-hover:translate-x-0.5 transition-transform duration-150"
-        >
+        <span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-v2-text-text-base [font-weight:530] group-hover:translate-x-0.5 transition-transform duration-150">
           {title()}
         </span>
       </div>

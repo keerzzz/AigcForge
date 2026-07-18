@@ -45,7 +45,7 @@ Chat 是**资产创建层**，不是通用执行层。Chat 负责把自然语言
 
 ### 4.2 非目标
 
-- M1 不创建 Skill、MCP、Agent、工作流、斜杠命令或协议文件。
+- M1 不创建 Skill、MCP、Agent、工作流、斜杠命令或协议文件；Chat 功能导航可以展示这些分类及其现有注册项，但对应创建闭环仍属于后续里程碑。
 - M1 不创建或修改 AGENTS.md、CLAUDE.md，也不把普通提示词注入 System Context。
 - M1 不做全局资产、导入导出、归档、软删除、依赖图、版本管理或独立测试 Session。
 - M1 不按资产类型分组 Session，不修改 `DraftTab.type`，不新增数据库 migration。
@@ -110,8 +110,9 @@ Chat 复用 ADR-12 的 `ModeRoute`/`ModeWorkspace`、Project/Workspace 导航、
 
 ### 8.1 Mode 首页
 
-- 紧凑的“新建提示词”主操作、搜索和 `mode=chat` Session 列表。
-- M1 不展示六类空资产分组，不把未来能力伪装成可用入口。
+- Chat 复用 Coding 工作台结构，但二级侧栏将项目树替换为功能分类：提示词、Skills、MCP、命令、智能体。
+- 紧凑的“新建提示词”主操作、搜索和 `mode=chat` Session 列表；新建动作必须进入绑定 `chat-orchestrator` 的 Draft。
+- M1 只有提示词分类提供资产创建闭环；其余分类展示已有注册项或既有管理能力，不展示虚假的创建成功动作。
 - 空、加载、错误和无 Location 状态均提供明确下一步。
 
 ### 8.2 Session 详情

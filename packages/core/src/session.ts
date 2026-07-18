@@ -21,6 +21,7 @@ import { AgentV2 } from "./agent"
 import { SessionV1 } from "./v1/session"
 import { InstallationVersion } from "./installation/version"
 import { Slug } from "./util/slug"
+import { ProductModeAgentPolicy } from "./product-mode-agent-policy"
 import { ProjectTable } from "./project/sql"
 import path from "path"
 import { fromRow } from "./session/info"
@@ -194,6 +195,12 @@ export const layer = Layer.effect(
         const sessionID = input.id ?? SessionSchema.ID.create()
         const recorded = yield* store.get(sessionID)
         if (recorded) return recorded
+        // Enforce Product Mode × Agent policy
+        const mode = input.mode ?? ProductMode.Default
+        if (input.agent) {
+          const verdict = ProductModeAgentPolicy.checkPrimaryAgent(mode, input.agent)
+          if (!verdict.allowed) return yield* Effect.die(verdict.error)
+        }
         const parent = input.parentID ? yield* store.get(input.parentID) : undefined
         const project = yield* projects.resolve(input.location.directory)
         yield* db

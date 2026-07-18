@@ -14,6 +14,7 @@ import { TaskTool } from "./task"
 import { TodoWriteTool } from "./todowrite"
 import { WebFetchTool } from "./webfetch"
 import { WebSearchTool } from "./websearch"
+import { ProposePromptAssetTool } from "./propose-prompt-asset"
 import { WriteTool } from "./write"
 
 /**

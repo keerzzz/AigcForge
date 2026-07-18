@@ -47,6 +47,7 @@ import { Cause, Effect, Exit, Latch, Layer, Option, Scope, Context, Schema, Type
 import { InstanceState } from "@/effect/instance-state"
 import { TaskTool, type TaskPromptOps } from "@/tool/task"
 import { SessionRunState } from "./run-state"
+import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Database } from "@aigcfroge/core/database/database"
@@ -464,6 +465,11 @@ export const layer = Layer.effect(
             const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
             if (session.revert) {
               yield* revert.cleanup(session)
+            }
+            // Enforce Product Mode × shell policy
+            if (session.mode) {
+              const verdict = ProductModeAgentPolicy.checkCommandAllowed(session.mode)
+              if (!verdict.allowed) return yield* Effect.die(verdict.error)
             }
             const agent = yield* agents.get(input.agent)
             if (!agent) {
@@ -1475,6 +1481,12 @@ export const layer = Layer.effect(
         command: input.command,
         agent: input.agent,
       })
+      // Enforce Product Mode × command policy
+      const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
+      if (session.mode) {
+        const verdict = ProductModeAgentPolicy.checkCommandAllowed(session.mode)
+        if (!verdict.allowed) return yield* Effect.die(verdict.error)
+      }
       const cmd = yield* commands.get(input.command)
       if (!cmd) {
         const available = (yield* commands.list()).map((c) => c.name)

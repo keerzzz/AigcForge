@@ -43,7 +43,7 @@ import "./titlebar.css"
 import { Session } from "@aigcfroge/sdk/v2"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { createTabPromptState } from "@/context/prompt"
-import { useMode } from "@/context/mode"
+import { modeDraft, useMode } from "@/context/mode"
 import { secondarySidebarAvailable } from "@/utils/secondary-sidebar-route"
 
 type TauriDesktopWindow = {
@@ -337,9 +337,9 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                 const conn = server.list.find((item) => ServerConnection.key(item) === serverKey)
                 if (conn) {
                   const ctx = global.ensureServerCtx(conn)
-                  openProjectNewSession(ctx.projects, (s, d) => tabs.newDraft({ server: s, directory: d, mode: mode.currentMode }), serverKey, directory)
+                  openProjectNewSession(ctx.projects, (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(mode.currentMode) }), serverKey, directory)
                 } else {
-                  tabs.newDraft({ server: serverKey, directory, mode: mode.currentMode })
+                  tabs.newDraft({ server: serverKey, directory, ...modeDraft(mode.currentMode) })
                 }
               }
 

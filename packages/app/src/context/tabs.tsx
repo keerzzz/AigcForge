@@ -25,6 +25,7 @@ export type DraftTab = {
   directory: string
   worktree?: string
   mode: Mode
+  agent?: string
 }
 
 export type Tab = SessionTab | DraftTab

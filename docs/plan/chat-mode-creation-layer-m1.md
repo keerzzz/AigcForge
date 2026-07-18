@@ -27,11 +27,13 @@
 
 ### 1.1 M1 目标
 
-用户从 `/mode/chat` 显式点击“新建提示词”，进入绑定 `mode=chat`、`agent=chat-orchestrator` 的 Draft/Session，通过对话生成候选，经只读预览、路径/冲突校验和明确应用确认后写入当前 Location 的 `.aigcfroge/prompts/`。应用成功后必须从 registry 重新查询到资产，并能在当前或新 Session 的 Composer 中插入复用。
+用户在首页 `/` 选择 chat 模式卡片后，于功能树“提示词”分类点击“新建提示词”，进入绑定 `mode=chat`、`agent=chat-orchestrator` 的 Draft/Session，通过对话生成候选，经只读预览、路径/冲突校验和明确应用确认后写入当前 Location 的 `.aigcfroge/prompts/`。应用成功后必须从 registry 重新查询到资产，并能在当前或新 Session 的 Composer 中插入复用。
+
+Chat 复用 Coding 工作台布局，但二级侧栏不展示项目树，而展示功能分类：提示词、技能、MCP、命令、智能体、工作流（6 分类）。首页 `/` 顶部模式卡片就地切换下方左右栏（不跳 `/mode/:mode`，详见 §1.4）：左栏 = 功能树（项目级 Location 选择器 + 6 分类），右栏按选中功能切换内容。M1 只有“提示词”具备创建闭环——右栏显示 chat 会话列表（`SessionTable.mode=chat`）+ 提示词资产入口；其余 5 分类右栏只显示该分类的能力清单（server sync 的 command/mcp/agent 数据，只读），无会话、无创建入口。会话不按功能分类区分（`SessionTable` 无功能分类字段，**不加 DB migration**）；“功能分类”是首页 UI 导航分组，不是会话数据维度。工作流分类在 M1 无数据源，先占位。
 
 ### 1.2 非目标
 
-- 不创建 Skill、Command、MCP、用户 Agent、工作流或协议文件资产。
+- 不创建 Skill、Command、MCP、用户 Agent、工作流或协议文件资产；这些分类可以出现在 Chat 功能导航中并展示现有注册项，但不得提供虚假的创建成功入口。
 - 不新增 EventV2 领域事件，不修改 `DraftTab.type`，不新增数据库 migration。
 - 不注入 System Context，不提供表单编辑器、版本管理、归档、全局资产或导入导出。
 - 不在 M1 实现 meta 跨模式自动委派。ADR-13 将跨模式委派列为后续独立决策，本期只做直接主路径。
@@ -49,6 +51,48 @@
 | 只从 tool result 插入候选                | **增加 registry list/search API**；reload 后从 registry 重新查询再插入                |
 | ConfigPromptPlugin 注入目录              | **删除**。M1 只有固定项目级 owner 目录，由 Location-scoped registry 直接加载          |
 | 只列 V2 Agent/Tool                       | **补齐 V1/V2 双适配**；当前 App Session create 仍走 V1 handler                        |
+
+### 1.4 首页交互设计
+
+首页 `/` = 顶部模式卡片（可扩展，`MODE_DEFINITIONS` 数据驱动，后期不止 4 种）+ 下方左右两栏**就地按 `currentMode` 分流**。点卡片不跳路由，下方内容随选中卡片切换；点会话标题才跳会话详情页 `/server/:serverKey/session/:id`（现有跳转逻辑，模式无关）。
+
+**布局矩阵：**
+
+| 模式 | 左侧 | 右侧 |
+|---|---|---|
+| coding | 项目树（保留现有效果） | 会话列表（关联项目树选中，`directory+mode` 过滤） |
+| chat | 功能树（项目级 Location 选择器 + 6 分类） | 按选中功能切换：提示词=会话列表+资产入口；其他 5=能力清单只读 |
+| work / assistant | 占位 PlaceholderSidebar | 占位（M1 之后实现） |
+
+**chat 功能树 × 右侧内容映射（补法 1，闭环）：**
+
+| 功能分类 | 右侧内容 | 数据来源 | 动作 |
+|---|---|---|---|
+| 提示词 | chat 会话列表 + 资产入口（会话详情页右栏 `ChatRightPanel`，非首页） | `SessionTable.mode=chat` + `prompts/*.md` | “新建提示词”-> Draft -> propose/apply 闭环 |
+| 技能 | 能力清单（只读） | server sync `command`(source=skill) | 无 |
+| MCP | 能力清单（只读） | server sync `mcp` | 无 |
+| 命令 | 能力清单（只读） | server sync `command`(source≠skill) | 无 |
+| 智能体 | 能力清单（只读） | server sync `agent` | 无 |
+| 工作流 | 占位 | M1 无数据源 | 无 |
+
+**关键不变量：**
+
+- 会话不按功能分类区分：`SessionTable` 只有 `mode`，无功能分类字段，**不加 DB migration**。所有 chat 会话都属于“提示词”分类（M1 chat-orchestrator 单一职责=创建提示词）。
+- chat Location 复用 code 的 `projects` 列表（项目级，B2 决策）：功能树顶部 Location 选择器 = 选项目目录，与 code 共享一套项目数据。不做全局 Location（§1.2 非目标“不做全局资产”保持）。
+- 其他 5 分类无创建入口、无会话：不伪装可用能力（M1 §1.1 精神）。其创建闭环为 M1 之后演进。
+- `/mode/:mode` 路由废弃：首页用 `currentMode`（persisted）前端分流，刷新 `/` 恢复上次模式。`/mode/:mode` 保留为重定向到 `/` + `setCurrentMode`，兼容旧深链。
+- ModeSwitcher 在首页 `/` 隐藏（用顶部卡片切换），会话详情页保留。
+
+**数据关系：**
+
+```
+ProjectTable(worktree=目录) --1:N--> SessionTable(mode=chat, agent=chat-orchestrator)
+                                          │ 产物在文件系统，不在 DB
+                                          └--> <Location.directory>/.aigcfroge/prompts/<name>.md
+                                              identity=(Location, relativePath)，不关联 session_id
+```
+
+prompt 资产与 session 松耦合：会话中 chat-orchestrator 调 propose -> 用户 apply -> 写文件；资产不记“由哪个会话创建”。
 
 ---
 
@@ -429,8 +473,11 @@ bun --cwd packages/aigcfroge test --timeout 30000
 | `packages/app/src/components/chat/chat-right-panel.tsx`                          | 新增 | 预览/已保存资产/上下文入口                                       |
 | `packages/app/src/components/chat/chat-preview-tab.tsx`                          | 新增 | 候选预览、冲突 diff、应用                                        |
 | `packages/app/src/components/chat/chat-prompt-assets.tsx`                        | 新增 | registry search/list/insert                                      |
-| `packages/app/src/components/mode-surfaces.tsx`                                  | 修改 | chat RightPanel 接入                                             |
-| `packages/app/src/pages/home.tsx`                                                | 修改 | “新建提示词”创建带 agent 的 Draft                                |
+| `packages/app/src/components/mode-surfaces.tsx`                                  | 修改 | Chat 功能树（6 分类 + 项目级 Location 选择器）、RightPanel、右侧内容联动 |
+| `packages/app/src/pages/home.tsx`                                                | 修改 | 首页就地分流骨架、模式卡片、左右栏按 currentMode 切换、新建按钮回调 |
+| `packages/app/src/app.tsx`                                                       | 修改 | `/mode/:mode` 改为重定向到 `/` + setCurrentMode（兼容旧深链）    |
+| `packages/app/src/pages/layout.tsx`                                              | 修改 | ModeSwitcher 在首页 `/` 隐藏，会话详情页保留                     |
+| `packages/app/src/context/mode.tsx`                                              | 修改 | 所有入口复用统一 Mode→Draft/Agent 规则                           |
 | `packages/app/src/i18n/*.ts`                                                     | 修改 | 18 locale 完整键值，不依赖英文 fallback 通过 parity              |
 | `packages/app/src/i18n/parity.test.ts`                                           | 修改 | 新 key 全 locale 存在且非空                                      |
 | App/API 测试                                                                     | 新增 | normalization、状态机、错误映射、交互                            |
@@ -458,6 +505,10 @@ POST /session/:sessionID/prompt-asset/apply
 
 #### UI 要求
 
+- 首页 `/` 就地分流（§1.4）：点模式卡片切换下方左右栏，不跳 `/mode/:mode`。coding 左=项目树、右=会话列表（关联项目）；chat 左=功能树（6 分类：提示词/技能/MCP/命令/智能体/工作流 + 项目级 Location 选择器，复用 code projects）、右=按选中功能切换（提示词=会话列表+资产入口；其他 5=能力清单只读）。
+- “提示词”提供新建入口并显示 chat 会话列表（`mode=chat`）；其他分类只展示现有注册项（能力清单，只读），无会话、无创建入口，未实现创建闭环前不得显示可成功创建的动作。
+- 首页搜索框下方的新建操作必须真实调用回调；Chat 显示“新建提示词”，其他模式显示“新建会话”。
+- 所有 Draft 创建入口统一携带 Mode 默认 Agent，Chat 固定为 `chat-orchestrator`，Composer 不得回退到上次 Coding Agent。
 - 预览展示 name、description、完整 template、Location、relativePath。
 - 候选无效时应用按钮 disabled；pending 时尺寸稳定且防重复提交。
 - 冲突展示旧/新 diff；只有二次确认后发送 `overwrite=true`。
@@ -621,39 +672,43 @@ Phase F E2E/internal flag
 
 ### 架构/安全
 
-- [ ] G0/G1/G2 有明确 owner 审批记录。
-- [ ] Chat 根 Session 只能使用 chat-orchestrator；服务端 V1/V2 均 enforce。
-- [ ] chat-orchestrator 无 task/edit/write/apply_patch/bash/shell 能力。
-- [ ] propose 不写盘；apply 不作为模型工具暴露。
-- [ ] apply 使用 `prompt_asset_apply`，不复用被 deny 的 `edit`。
-- [ ] target lexical/canonical 都位于 `.aigcfroge/prompts/`。
+- [x] G0/G1/G2 有明确 owner 审批记录。
+- [x] Chat 根 Session 只能使用 chat-orchestrator；服务端 V1/V2 均 enforce。
+- [x] chat-orchestrator 无 task/edit/write/apply_patch/bash/shell 能力。
+- [x] propose 不写盘；apply 不作为模型工具暴露。
+- [x] apply 使用 `prompt_asset_apply`，不复用被 deny 的 `edit`。
+- [x] target lexical/canonical 都位于 `.aigcfroge/prompts/`。
 
 ### 数据/事务
 
-- [ ] 正常创建、中文名称、同名/同路径冲突、取消、覆盖确认、连续点击。
-- [ ] 绝对路径、`..`、非法字符、owner root 外路径、符号链接越界、超限模板全部拒绝。
-- [ ] registry 外已有文件不会被静默覆盖。
-- [ ] propose→apply 间文件变化返回 stale。
-- [ ] 写入/reload/readback 失败后，新文件不存在或旧 bytes 一致。
-- [ ] 并发失败回滚不会覆盖另一成功写入或外部修改。
-- [ ] 重建 Location service/页面 reload 后仍可检索资产。
+- [x] 正常创建、中文名称、同名/同路径冲突、取消、覆盖确认、连续点击。
+- [x] 绝对路径、`..`、非法字符、owner root 外路径、符号链接越界、超限模板全部拒绝。
+- [x] registry 外已有文件不会被静默覆盖。
+- [x] propose→apply 间文件变化返回 stale。
+- [x] 写入/reload/readback 失败后，新文件不存在或旧 bytes 一致。
+- [x] 并发失败回滚不会覆盖另一成功写入或外部修改。
+- [x] 重建 Location service/页面 reload 后仍可检索资产。
 
 ### App/复用
 
-- [ ] Draft create 请求同时携带 `mode=chat` 与 `agent=chat-orchestrator`。
-- [ ] 预览、diff、pending、error、empty 状态完整。
-- [ ] apply 后从 registry refetch，插入使用最终持久化资产。
-- [ ] 新 Session 可 search/insert 已保存资产。
-- [ ] 桌面/窄屏、键盘、ARIA、明暗主题、中英文溢出通过。
-- [ ] 18 locale 新 key 完整。
+- [x] Draft create 请求同时携带 `mode=chat` 与 `agent=chat-orchestrator`。
+- [ ] 预览、diff、pending、error、empty 状态完整（M1 简化：无 diff 可视化，预览为右栏基本展示）。
+- [x] apply 后从 registry refetch，插入使用最终持久化资产。
+- [x] 新 Session 可 search/insert 已保存资产。
+- [x] 首页 `/` 点模式卡片就地切换左右栏，不跳 `/mode/:mode`；code 项目树×会话联动不回归。
+- [x] chat 功能树 6 分类：提示词=会话列表+资产入口；其他 5=能力清单只读，无创建入口、无会话。
+- [x] chat Location 复用 code projects；ModeSwitcher 首页 `/` 隐藏、会话详情页保留。
+- [x] `/mode/:mode` 重定向到 `/` + setCurrentMode，旧深链兼容。
+- [ ] 桌面/窄屏、键盘、ARIA、明暗主题、中英文溢出通过（需人工验证）。
+- [ ] 18 locale 新 key 完整（当前仅 en.ts，其余自动 fallback）。
 
 ### 工程
 
-- [ ] 受影响包 typecheck/test 通过；没有从仓库根目录执行 `bun test`。
-- [ ] 无 `any`、无不必要 alias/star import、无 raw fs/fetch 绕过 Effect service。
-- [ ] 新 Effect 模块自导出；错误为 typed schema；后台 watcher 使用 `forkIn(scope)`。
-- [ ] 日志/API error 不含 template 或旧文件正文。
-- [ ] SDK 通过正式脚本重新生成。
+- [x] 受影响包 typecheck/test 通过；没有从仓库根目录执行 `bun test`。
+- [x] 无 `any`、无不必要 alias/star import、无 raw fs/fetch 绕过 Effect service。（1 处 `as unknown as` 类型边界转换，已注释原因）
+- [x] 新 Effect 模块自导出；错误为 typed schema；后台 watcher 使用 `forkIn(scope)`。
+- [x] 日志/API error 不含 template 或旧文件正文。
+- [x] SDK 通过正式脚本重新生成。
 
 ---
 
@@ -692,6 +747,7 @@ Phase F E2E/internal flag
 4. **跨进程竞争**：M1 使用进程内目标锁 + revision 检测 + 不覆盖外部修改的回滚规则。若要求严格跨进程 CAS，需要独立文件锁/事务 ADR，不在实现中临时发明。
 5. **G3 分析设施**：需要确定外部分桶和 7 日归因 owner；未确定不阻塞内部闭环，但阻塞 Beta。
 6. **未来 meta 委派**：另立设计，必须解决跨模式 owner、child candidate 可见性、权限继承和审计；M1 不预埋半成品。
+7. **其他功能分类的创建闭环**：技能/MCP/命令/智能体/工作流 5 个分类在 M1 只读展示现有注册项（§1.4），无会话、无创建入口。其创建闭环（如"创建技能资产""配置 MCP"）为 M1 之后演进，需各自定义资产契约、agent 边界和 propose/apply 流程，不在本期预埋半成品 UI。
 
 ---
 

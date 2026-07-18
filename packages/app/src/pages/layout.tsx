@@ -31,7 +31,9 @@ function LayoutContent(props: ParentProps & { update: TitlebarUpdate }) {
     >
       <Titlebar update={props.update} />
       <div class="flex-1 min-h-0 min-w-0 flex">
-        <ModeSwitcher />
+        <Show when={location.pathname !== "/"}>
+          <ModeSwitcher />
+        </Show>
         <Show when={showSecondarySidebar()}>
           <SecondarySidebar />
         </Show>

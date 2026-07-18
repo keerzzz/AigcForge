@@ -380,11 +380,11 @@ export function createPromptSubmit(input: PromptSubmitInput) {
     if (!session && isNewSession) {
       // Pass the draft's mode to session.create so it's categorized correctly
       const draftID = search.draftId
-      const draftTab = draftID ? tabs.store.find(
-        (tab): tab is DraftTab => tab.type === "draft" && tab.draftID === draftID,
-      ) : undefined
+      const draftTab = draftID
+        ? tabs.store.find((tab): tab is DraftTab => tab.type === "draft" && tab.draftID === draftID)
+        : undefined
       const created = await client.session
-        .create({ mode: draftTab?.mode ?? "coding" })
+        .create({ mode: draftTab?.mode ?? "coding", agent: draftTab?.agent })
         .then((x) => x.data ?? undefined)
         .catch((err) => {
           showToast({

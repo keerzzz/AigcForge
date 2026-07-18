@@ -50,6 +50,19 @@ export interface RemoveResult {
   readonly existed: boolean
 }
 
+export interface AtomicWriteInput {
+  readonly target: Target
+  readonly content: string | Uint8Array
+}
+
+export interface AtomicWriteResult {
+  readonly operation: "atomic_write"
+  readonly target: string
+  readonly resource: string
+  readonly existed: boolean
+  readonly priorBytes: Uint8Array | null
+}
+
 export interface Interface {
   /** Create without replacing an existing target. */
   readonly create: (input: WriteInput) => Effect.Effect<WriteResult, TargetExistsError | FSUtil.Error>
@@ -61,6 +74,8 @@ export interface Interface {
     input: ConditionalWriteInput,
   ) => Effect.Effect<WriteResult, StaleContentError | FSUtil.Error>
   readonly remove: (input: RemoveInput) => Effect.Effect<RemoveResult, FSUtil.Error>
+  /** Atomically write to a temp file then rename to target. Returns prior bytes for rollback. */
+  readonly writeAtomic: (input: AtomicWriteInput) => Effect.Effect<AtomicWriteResult, FSUtil.Error>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/FileMutation") {}
@@ -167,7 +182,54 @@ export const layer = Layer.effect(
       ),
     )
 
-    return Service.of({ create, write, writeTextPreservingBom, writeIfUnchanged, remove })
+    const writeAtomic = Effect.fn("FileMutation.writeAtomic")((input: AtomicWriteInput) =>
+      withTargetLock(input.target)(
+        Effect.scoped(
+          Effect.gen(function* () {
+            const { canonical } = input.target
+            const tmp = `${canonical}.tmp.${process.pid}.${randomHex()}`
+            const existed = yield* fs.exists(canonical)
+            const priorBytes: Uint8Array | null = existed
+              ? yield* fs.readFile(canonical).pipe(Effect.catch(() => Effect.succeed(undefined as unknown as never)))
+              : null
+
+            // Register temp cleanup on any failure or interruption
+            yield* Effect.addFinalizer(() =>
+              fs.exists(tmp).pipe(
+                Effect.andThen((exists) => (exists ? fs.remove(tmp) : Effect.void)),
+                Effect.catch(() => Effect.void),
+              ),
+            )
+
+            yield* (typeof input.content === "string"
+              ? fs.writeFileString(tmp, input.content)
+              : fs.writeFile(tmp, input.content)
+            ).pipe(
+              Effect.catchReason("PlatformError", "NotFound", () =>
+                fs.makeDirectory(dirname(tmp), { recursive: true }).pipe(
+                  Effect.andThen(
+                    typeof input.content === "string"
+                      ? fs.writeFileString(tmp, input.content)
+                      : fs.writeFile(tmp, input.content),
+                  ),
+                ),
+              ),
+            )
+            yield* fs.rename(tmp, canonical)
+
+            return {
+              operation: "atomic_write" as const,
+              target: canonical,
+              resource: input.target.resource,
+              existed,
+              priorBytes,
+            } satisfies AtomicWriteResult
+          }),
+        ),
+      ),
+    )
+
+    return Service.of({ create, write, writeTextPreservingBom, writeIfUnchanged, remove, writeAtomic })
   }),
 )
 
@@ -188,6 +250,12 @@ function hasUtf8Bom(content: Uint8Array) {
 function sameBytes(left: Uint8Array, right: Uint8Array) {
   if (left.length !== right.length) return false
   return left.every((byte, index) => byte === right[index])
+}
+
+function randomHex() {
+  const bytes = new Uint8Array(8)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")
 }
 
 export const locationLayer = layer

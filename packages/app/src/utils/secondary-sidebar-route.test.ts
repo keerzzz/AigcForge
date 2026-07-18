@@ -2,14 +2,14 @@ import { describe, expect, test } from "bun:test"
 import { secondarySidebarAvailable } from "./secondary-sidebar-route"
 
 describe("secondary sidebar routes", () => {
-  test("hides the sidebar on module entry and draft routes", () => {
+  test("hides the sidebar only on the launcher and draft route", () => {
     expect(secondarySidebarAvailable("/")).toBe(false)
-    expect(secondarySidebarAvailable("/mode/chat")).toBe(false)
-    expect(secondarySidebarAvailable("/mode/coding")).toBe(false)
     expect(secondarySidebarAvailable("/new-session")).toBe(false)
   })
 
-  test("keeps the sidebar available on session routes", () => {
+  test("shows the mode-specific sidebar on mode and session routes", () => {
+    expect(secondarySidebarAvailable("/mode/chat")).toBe(true)
+    expect(secondarySidebarAvailable("/mode/coding")).toBe(true)
     expect(secondarySidebarAvailable("/server/local/session/session-1")).toBe(true)
   })
 })

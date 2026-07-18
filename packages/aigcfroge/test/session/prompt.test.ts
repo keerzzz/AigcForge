@@ -46,6 +46,7 @@ import { SystemPrompt } from "../../src/session/system"
 import { Shell } from "@aigcfroge/core/shell"
 import { Snapshot } from "../../src/snapshot"
 import { ToolRegistry } from "@/tool/registry"
+import { LocationServiceMap } from "@aigcfroge/core/location-layer"
 import { Truncate } from "@/tool/truncate"
 import { CrossSpawnSpawner } from "@aigcfroge/core/cross-spawn-spawner"
 import { Ripgrep } from "@aigcfroge/core/ripgrep"
@@ -189,6 +190,7 @@ function makePrompt(input?: { processor?: "blocking" }) {
   const todo = Todo.layer.pipe(Layer.provideMerge(deps))
   const registry = ToolRegistry.layer.pipe(
     Layer.provide(Skill.defaultLayer),
+    Layer.provide(LocationServiceMap.layer),
     Layer.provide(FetchHttpClient.layer),
     Layer.provide(CrossSpawnSpawner.defaultLayer),
     Layer.provide(Git.defaultLayer),

@@ -35,6 +35,7 @@ import { Location } from "@aigcfroge/core/location"
 import { PluginV2 } from "@aigcfroge/core/plugin"
 import { MetaPrompt } from "@aigcfroge/core/agent/meta/meta-prompt"
 import { Handoff } from "@aigcfroge/schema/handoff"
+import { SYSTEM_PROMPT as CHAT_ORCHESTRATOR_PROMPT } from "@aigcfroge/core/agent/prompt/chat-orchestrator"
 
 export const Info = Schema.Struct({
   name: Schema.String,
@@ -160,6 +161,23 @@ export const layer = Layer.effect(
           : MetaAgent.prompt
 
         const agents: Record<string, Info> = {
+          "chat-orchestrator": {
+            name: "chat-orchestrator",
+            description: "Chat mode agent. Orchestrates prompt asset creation in chat mode.",
+            options: {},
+            permission: Permission.fromConfig({
+              "*": "deny",
+              read: "allow",
+              glob: "allow",
+              grep: "allow",
+              question: "allow",
+              propose_prompt_asset: "allow",
+              prompt_asset_apply: "allow",
+            }),
+            mode: "primary",
+            native: true,
+            prompt: CHAT_ORCHESTRATOR_PROMPT,
+          },
           build: {
             name: "build",
             description: "The default agent. Executes tools based on configured permissions.",

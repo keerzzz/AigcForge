@@ -11,6 +11,7 @@ import {
 import { Cause, DateTime, Duration, Effect, Exit, FiberSet, Layer, Option, Semaphore, Stream } from "effect"
 import { ChildProcess } from "effect/unstable/process"
 import { AgentV2 } from "../../agent"
+import { ProductModeAgentPolicy } from "../../product-mode-agent-policy"
 import { AppProcess } from "../../process"
 import { Config } from "../../config"
 import { Database } from "../../database/database"
@@ -187,6 +188,11 @@ export const layer = Layer.effect(
       recoverOverflow?: typeof compaction.compactAfterOverflow,
     ) {
       const session = yield* getSession(sessionID)
+      // Enforce Product Mode × Agent policy on each provider turn
+      if (session.agent) {
+        const verdict = ProductModeAgentPolicy.checkPrimaryAgent(session.mode, session.agent)
+        if (!verdict.allowed) return yield* Effect.die(verdict.error)
+      }
       if (session.location.directory !== location.directory || session.location.workspaceID !== location.workspaceID)
         return yield* Effect.interrupt
       const agent = yield* agents.select(session.agent)

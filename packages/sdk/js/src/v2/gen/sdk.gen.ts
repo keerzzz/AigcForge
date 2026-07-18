@@ -140,6 +140,13 @@ import type {
   ProjectUpdateErrors,
   ProjectUpdateResponses,
   Prompt,
+  PromptAssetApplyErrors,
+  PromptAssetApplyResponses,
+  PromptAssetCandidate,
+  PromptAssetContentErrors,
+  PromptAssetContentResponses,
+  PromptAssetListErrors,
+  PromptAssetListResponses,
   ProviderAuthErrors,
   ProviderAuthResponses,
   ProviderListErrors,
@@ -3340,6 +3347,115 @@ export class Permission extends HeyApiClient {
     )
     return (options?.client ?? this.client).post<PermissionRespondResponses, PermissionRespondErrors, ThrowOnError>({
       url: "/session/{sessionID}/permissions/{permissionID}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
+export class PromptAsset extends HeyApiClient {
+  /**
+   * List prompt assets
+   *
+   * List all prompt assets for the current Location.
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      search?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "search" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<PromptAssetListResponses, PromptAssetListErrors, ThrowOnError>({
+      url: "/prompt-asset",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get prompt asset content
+   *
+   * Get the full content of a prompt asset by path.
+   */
+  public content<ThrowOnError extends boolean = false>(
+    parameters: {
+      directory?: string
+      workspace?: string
+      path: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "path" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<PromptAssetContentResponses, PromptAssetContentErrors, ThrowOnError>({
+      url: "/prompt-asset/content",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Apply prompt asset
+   *
+   * Apply a proposed prompt asset candidate, persisting it to disk.
+   */
+  public apply<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      candidate?: PromptAssetCandidate
+      baseRevision?: string
+      overwrite?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "candidate" },
+            { in: "body", key: "baseRevision" },
+            { in: "body", key: "overwrite" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<PromptAssetApplyResponses, PromptAssetApplyErrors, ThrowOnError>({
+      url: "/session/{sessionID}/prompt-asset/apply",
       ...options,
       ...params,
       headers: {
@@ -7316,6 +7432,11 @@ export class AigcfrogeClient extends HeyApiClient {
   private _permission?: Permission
   get permission(): Permission {
     return (this._permission ??= new Permission({ client: this.client }))
+  }
+
+  private _promptAsset?: PromptAsset
+  get promptAsset(): PromptAsset {
+    return (this._promptAsset ??= new PromptAsset({ client: this.client }))
   }
 
   private _provider?: Provider
