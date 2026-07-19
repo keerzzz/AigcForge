@@ -1,25 +1,29 @@
 # Chat 模式 M1 实施计划：提示词资产创建闭环
 
-> 状态：REVIEW READY v3（2026-07-16 修订；**尚未批准实施**）
+> 状态：**实施记录**（M1 + S2/A1-A5 已实现，commit `6fa57a49a` + 工作树待 commit；PRD v4.3 已 Approved 2026-07-18）；以 [PRD v4.3](../prd/chat-mode-creation-layer.md) 为范围真源，差异见 §13（含 v4.1/v4.2/v4.3 修订 §13.5/§13.6）
 > 范围：`packages/schema` + `packages/core` + `packages/aigcfroge` + `packages/app` + `packages/sdk/js`
-> 关联：[Chat PRD v3](../prd/chat-mode-creation-layer.md)、[ADR-13](../architecture/adr/ADR-13-chat-work-mode-boundary.md)、[ADR-14](../architecture/adr/ADR-14-persistence-and-scope-strategy.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md) §4.10/§7、[CONTEXT.md](../../CONTEXT.md)
+> 关联：[Chat PRD v4.3](../prd/chat-mode-creation-layer.md)、[ADR-13](../architecture/adr/ADR-13-chat-work-mode-boundary.md)、[ADR-14](../architecture/adr/ADR-14-persistence-and-scope-strategy.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md) §4.10/§7、[CONTEXT.md](../../CONTEXT.md)
 > 依据：`CLAUDE.md`、根/包级 `AGENTS.md`、`effect`/`database`/`frontend-theming` skills、实际 V1/V2 Session/Agent/Tool/API/App 代码
-> 最后更新：2026-07-16
+> 最后更新：2026-07-18（v4.3：§0 剩余工作同步为已实现、§3.3 删旧 apply 权限动作 bullet、§13.5 delete 授权措辞修正（与 apply 同构）、Phase B 加 listInvalid、§9 加 baseline 落点；v4.2：§0 G0 PASS、§6 Phase E 重估）
 
 ---
 
 ## 0. 审批状态与执行 Gate
 
-本版本吸收上一轮审批的阻断项，取消原 v2 的“全量推进、无 Gate 阻塞”结论。任何实现开始前必须确认下表。
+本版本吸收上一轮审批的阻断项，取消原 v2 的“全量推进、无 Gate 阻塞”结论。Gate 状态截至 2026-07-18（v4.1 对齐修订后）：
 
-| Gate             | 条件                                                                                                                                      | 阻塞范围                            |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| **G0 文档真源**  | ADR-13/14 的 Accepted 状态与 `ARCHITECTURE.md` 变更已提交/合并；Chat PRD 不再写“ADR 提出”并明确本 M1 的内部 Agent 不属于“创建 Agent 资产” | 全部 Phase                          |
-| **G1 产品契约**  | 产品确认字段上限、文件名规则和默认路径；本计划建议值见 §3.1                                                                               | Phase A-F                           |
-| **G2 安全边界**  | Core/Security owner 接受：Chat M1 只允许 chat-orchestrator；`prompt_asset_apply` 是独立的用户确认权限，不复用模型 `edit` 权限             | Phase C-F                           |
-| **G3 灰度/分析** | 明确 10% Beta 的外部分桶 owner、产品分析事件 owner 和 7 日归因设施                                                                        | 仅 Phase F Beta；不阻塞内部闭环开发 |
+| Gate             | 条件                                                                                                                                      | 状态（2026-07-18） | 阻塞范围                            |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ----------------------------------- |
+| **G0 文档真源**  | ADR-13/14 的 Accepted 状态与 `ARCHITECTURE.md` 变更已提交/合并；Chat PRD 不再写“ADR 提出”并明确本 M1 的内部 Agent 不属于“创建 Agent 资产” | **PASS**：ADR-13/14 已于 2026-07-15 Accepted（见各 ADR 头部）；`ARCHITECTURE.md` §7 已同步列 Accepted；commit `6fa57a49a` M1 闭环收尾已提交 | 全部 Phase                          |
+| **G1 产品契约**  | 产品确认字段上限、文件名规则和默认路径；本计划建议值见 §3.1                                                                               | 产品 owner 确认 §3.1 建议值即过     | Phase A-F                           |
+| **G2 安全边界**  | Core/Security owner 接受：Chat M1 只允许 chat-orchestrator；`prompt_asset_apply` 是独立权限标识，不复用模型 `edit` 权限（见 §3.3 v4.1 修订） | 安全 owner 确认 §3.3/§13.5 apply 授权模型即过 | Phase C-F                           |
+| **G3 灰度/分析** | 明确 10% Beta 的外部分桶 owner、产品分析事件 owner 和 7 日归因设施                                                                        | DEFERRED：不阻塞内部闭环，阻塞外部 Beta | 仅 Phase F Beta；不阻塞内部闭环开发 |
 
-截至 2026-07-16，G0 在当前工作区仅表现为未提交修改，`HEAD/main` 仍将 ADR-13/14 列为 Proposed；因此本文状态只能是 Review Ready，不能标记 Approved。
+**实施状态（2026-07-18）：** M1 主体已实现并提交（commit `6fa57a49a` “M1 提示词闭环收尾”）：prompt-asset schema/registry/service/事务、V1+V2 propose 工具、chat-orchestrator Agent、ProductModeAgentPolicy、HTTP API（list/content/apply）、App Chat 面板与首页就地分流均落地。本文自 v4.1 起转为**实施记录 + v4 差异清单（§13）+ 剩余工作**：
+
+- **已完成**：Phase A-F 对应的提示词创建闭环（apply 走 HTTP 认证 + 服务端事务，非动作级 check，见 §3.3 v4.1 修订）。
+- **v4.1/v4.2/v4.3 剩余工作已实现**（工作树，待 commit）：delete 路由 + delete 事务（S2）、右栏双区重构（A1）、编辑器选型 textarea（A2）、diff 复用自绘 LCS（A3）、i18n Chat key 补齐（A4）、窄屏双区抽屉（A5）。详见 §13.5/§13.6。
+- **估算口径调整**：§6 估算表为 v3 全量估算（12-15d）；M1 主体 + v4.2/v4.3 剩余工作（S2/A1-A5）已实现，typecheck/lint/test 通过。
 
 ---
 
@@ -159,9 +163,8 @@ export class Info extends Schema.Class<Info>("PromptAsset.Info")({
 ### 3.3 propose/apply 边界
 
 - `propose_prompt_asset`：模型可调用，只做 decode、规范化、路径验证、文件系统/registry 冲突检测，**不写盘**。
-- `apply`：只有已认证客户端的显式用户操作可调用；服务端从 Session 读取 mode、agent、Location，不接受客户端伪造这些字段。
-- apply 使用独立权限动作 `prompt_asset_apply`。它不复用 `edit`，也不向模型暴露 apply 工具。
-- apply 必须重新执行全部校验，不能信任 tool result 或前端状态。
+- `apply`：只有已认证客户端的显式用户操作可调用；apply 必须重新执行全部校验，不能信任 tool result 或前端状态。
+- **v4.2 修订（C2/S2/S1，见 PRD §8.3.1）**：apply 鉴权从“绑定 chat 会话 `mode=chat`”（v3 设计意图）调整为“任意会话可发起 + 用户显式确认 + 服务端从 Location 真值重校验”。**实现（commit `6fa57a49a` + v4.3 工作树）已符合**：handler 从 `ctx2.directory`（InstanceState.context）解析 Location（不经 sessionID 查 mode/agent），apply/delete 走 `Authorization` middleware（HTTP 认证）+ 服务端事务。`prompt_asset_apply` 是 Agent 工具权限层标识（chat-orchestrator 信封 allow，但 apply 不作为模型工具暴露，规则不被触发），**不在 HTTP 层 check** -- apply/delete 安全由 HTTP 认证 + 事务 + UI 显式确认保证（delete 同构，见 §13.5）。
 
 ### 3.4 完整事务不变量
 
@@ -273,6 +276,9 @@ interface PromptAsset.Interface {
   getByPath(relativePath: string): Effect.Effect<PromptAsset.Info, PromptAsset.NotFoundError>
   findByName(name: string): Effect.Effect<PromptAsset.Info | undefined>
   reload(): Effect.Effect<void>
+  // C3:未解析区接口(PRD §9.4),Phase B 契约须扩,供 UI 与管理视图消费
+  listInvalid(): Effect.Effect<ReadonlyArray<{ relativePath: string; errorTag: string }>>
+  getInvalid(relativePath: string): Effect.Effect<{ relativePath: string; errorTag: string } | undefined>
 }
 ```
 
@@ -638,10 +644,10 @@ Phase F E2E/internal flag
 | B     | 1-1.5d | Registry、watcher、Location layer      |
 | C     | 2-2.5d | 完整事务、CAS、故障注入                |
 | D     | 2-2.5d | V1/V2 Agent/Tool/Session policy        |
-| E     | 2.5-3d | API、SDK、App 查询/预览/插入           |
+| E     | 4-4.5d | per-slot 右栏重构（A1）+ API、SDK、App 查询/预览/插入、diff 复用（A3）、窄屏双区（A5） |
 | F     | 1.5-2d | 双路径验证、flag、内部 E2E             |
 
-**工程估算：10-13d，不含 G0/G1/G2 等待和 G3 分析设施建设。** 原 v2 的 6.5d 未覆盖双运行时、API handler、registry 复用入口和完整事务，作废。
+**工程估算：12-15d，不含 G0/G1/G2 等待和 G3 分析设施建设。** 原 v2 的 6.5d 未覆盖双运行时、API handler、registry 复用入口和完整事务，作废。v4.1 将 Phase E 从 2.5-3d 上调至 4-4.5d：A1 的 `SessionSidePanel` per-slot 可插拔重构（§13.2）是双区映射的前置，原估算未含。
 
 ---
 
@@ -700,7 +706,7 @@ Phase F E2E/internal flag
 - [x] chat Location 复用 code projects；ModeSwitcher 首页 `/` 隐藏、会话详情页保留。
 - [x] `/mode/:mode` 重定向到 `/` + setCurrentMode，旧深链兼容。
 - [ ] 桌面/窄屏、键盘、ARIA、明暗主题、中英文溢出通过（需人工验证）。
-- [ ] 18 locale 新 key 完整（当前仅 en.ts，其余自动 fallback）。
+- [x] 18 locale 新 key：zh 补齐（含 `promptAsset.asset.*`），其余 16 locale fallback en（M1 决策，后续本地化）；`parity.test.ts` 通过（只校验 unseen session key，不查 Chat key）。
 
 ### 工程
 
@@ -715,6 +721,10 @@ Phase F E2E/internal flag
 ## 9. 灰度、回滚与监控
 
 - 内部 flag 首先验证 50 次有效 apply 尝试；G3 未通过前不进入外部 10% Beta。
+- **50 次基线结论落点（PRD §11.2）**：基线完成后在此记录分路径复用率 / 闭环成功率 / 首次产出时间 P50，作为 Beta Gate 前置：
+  - 引导创建：复用率 __ / 闭环成功率 __ / 首次产出 P50 __
+  - 导入：复用率 __ / 首次产出 P50 __
+  - 捕获：复用率 __ / 首次产出 P50 __
 - 关闭 flag 只隐藏创建/apply/propose，保留已有资产读取和插入。
 - 应用代码回滚不删除用户资产；单事务失败仅按 §3.4 安全恢复。
 - 任一 owner-root escape、未确认覆盖、旧内容被错误覆盖、日志正文泄露均立即停止内部灰度。
@@ -765,3 +775,60 @@ App owner:
 允许启动的 Phase:
 附加条件:
 ```
+
+---
+
+## 13. v4 对齐修订（2026-07-18）
+
+PRD 已从 v3（提示词单类型闭环）升级为 v4（资产工作室：引导创建/会话捕获/外部导入三路径，类型按消费路径开闸）。本文 Phase A-F 仍是**提示词类型**的有效实施记录；以下为与 v4 的口径差异与缺口清单，评审前以此为准。
+
+### 13.1 本文被 v4 取代的表述
+
+- §1.1/§1.4 的"6 分类功能树作为创建导航"：v4 降级为管理视图分组；创建入口改为"新建资产"（类型由 Agent 推断），不再是"新建提示词"单一主操作。
+- §1.1 的"chat-orchestrator 单一职责=创建提示词"：v4 为多类型创建 Agent（`propose_<kind>_asset` 工具族），fail-closed 权限模型不变。
+- 会话页右栏单面板（ChatRightPanel）：v4 改为与 Coding 槽位一一映射的双区结构（§13.2）。
+- 预览只读：v4 改为预览可编辑（apply 仍全量重校验）。
+
+### 13.2 Phase E 缺口清单（右栏重构，评审前完成设计）
+
+**前置重构（A1，工作量重估）**：`session-side-panel.tsx:479-481` 当前对非 coding 模式是整体替换，双区槽位映射要求将该组件重构为 **per-mode slot 可插拔**（A 区 tab 工作区 / B 区树区各自暴露 slot，chat 注入预览/资产 tab + 资产树）。此重构不在原 Phase E 2.5-3d 内，重估见 §6。
+
+以 `SessionSidePanel` 双区结构为基座逐槽位映射，不整体自绘：
+
+1. **预览 tab**（对应 Coding 审查 tab，带候选计数）：类型 badge、名称/描述可编辑、目标路径、完整正文可编辑；冲突展示旧↔新 diff + 显式覆盖确认；相似资产提示；状态机（候选/校验/pending/已应用/失败）。**diff 渲染复用范围（A3）**：复用 Coding 审查 tab 的 diff 组件（行级新增/删除高亮）；若该组件与文件类型耦合，抽取为纯 diff 渲染工具复用。M1 砍掉的 diff 可视化在 v4 回归，依赖评审前确认复用入口，不新引 diff 库。
+2. **上下文 tab**：原样复用 `SessionContextTab`。
+3. **资产 tab**（对应文件 tab）：复用文件 tab 打开机制与查看层（`file://` 身份、只读渲染、搜索、滚动恢复）；查看/编辑两态，编辑态应用走 apply 事务（baseRevision CAS）。
+4. **资产树 B 区**（对应文件树）：registry 驱动、按消费路径分组、计数、最近修改排序、行操作（插入/编辑/删除）、"未解析"区展示坏文件；**不**复用文件系统 `FileTree`。
+5. **"＋"资产选择器**（对应打开文件对话框）。
+6. **V1 候选检测去字符串匹配**：`prompt-asset-candidate.ts` 目前用 `output.includes(...)` 推断状态，需改为结构化 metadata，保证 V1/V2 等价。
+
+### 13.3 v4 新增量（各自后续 plan，不在本文展开）
+
+- 外部导入路径：入口、解析器（剥离思考过程/注入防护/超限）、批量逐条确认。
+- 会话捕获路径：全模式消息"存为资产"动作、会话内重复启发式（可关闭）。
+- 类型推断 UI 与命令类型开闸（提示词复用数据达标后裁决）。
+- 相似资产去重（propose 时检测）。
+
+### 13.4 v4 明确不做（新增非目标）
+
+- "本次"（会话产出）tab：预览已应用态 + 资产树最近修改排序覆盖；未来需要时用内存态 session-scoped 关联，不落库。
+- 内置版本管理：覆盖 diff + 显式确认 + git 未提交提示（只提示不阻塞）。
+- 测试模块：后置为预览内动作“在临时会话中试跑”；轻量替代为插入 Composer 立即试用。
+
+### 13.5 apply/delete 授权模型修订（C2/S2，v4.1）
+
+见 PRD §8.3.1。M1 §3.3 的“apply 从 sessionID 查 `mode=chat`/agent”调整为“从 sessionID 解析 Location + 用户显式确认动作”。
+
+实现影响：
+
+- `handlers/prompt-asset.ts`：apply/delete 从 `ctx2.directory`（InstanceState.context）解析 Location，不经 sessionID 查 mode/agent；apply/delete 安全由 HTTP 认证（`Authorization` middleware）+ 服务端事务（路径 containment / CAS / 回滚）+ UI 显式确认保证，不依赖 HTTP 层动作级 check（S-1 定论）。
+- delete 事务已实现（service 层：备份旧 bytes / 原子删除 / registry reload / readback 确认不存在 / CAS 防删外部修改）；`prompt_asset_delete` 不需在 chat-orchestrator 信封声明（delete 不作为模型工具暴露，与 apply 同构，安全靠 HTTP 认证 + 事务 + UI 确认）。
+- Phase E 资产 tab 编辑态 apply 与查看态 delete 走同一授权模型（§13.2 第 3 项）。
+- 测试：任意会话（含 coding/work/assistant）发起 apply/delete 均不放宽写边界；路径越界、未确认、stale revision 仍拒绝；外部修改返回 `concurrent_modification`。
+- 不影响：M1 的 fail-closed chat-orchestrator 权限、propose 不写盘、事务不变量（§3.4）。
+
+### 13.6 App 评审子项落地（A2/A4/A5，v4.1）
+
+- **A2 编辑器选型**：资产 tab 编辑态正文用受控 textarea 起步（等宽字体 + v2 token），不引入编辑器依赖；后续如需语法高亮/结构化 diff，单独走依赖评审（见 PRD §9.5）。
+- **A4 i18n 补齐计划（v4.2 决策：zh 补齐 + 其他 locale fallback）**：核实发现 `parity.test.ts` 只校验 unseen session key（`command.session.previous/next.unseen`），**不查 Chat/promptAsset key**；Chat 相关 35 个 key 在 en.ts 全有，zh.ts 已补齐（含 `promptAsset.asset.*` 17 个缺失 key），其余 16 locale（ar/br/bs/da/de/es/fr/ja/ko/no/pl/ru/th/tr/uk/zht）M1 阶段依赖 fallback en，后续本地化。运行时缺失 key fallback 到 en，功能不阻断。§8 验收清单的 i18n 项据此调整为“zh 补齐 + 其他 fallback（M1）”。
+- **A5 窄屏双区**：`isDesktop` gate 从 coding 专属扩展为 chat 共用；视口 <768px 时 B 区资产树折叠为抽屉，A 区全宽，折叠/展开状态内存态（见 PRD §9.6）。
