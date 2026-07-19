@@ -28,6 +28,24 @@ function toApplyError(err: unknown): Effect.Effect<never, ConflictError | Invali
   return Effect.fail(error)
 }
 
+function toDeleteError(err: unknown): Effect.Effect<never, ConflictError | InvalidRequestError, never> {
+  let error: ConflictError | InvalidRequestError
+  if (err instanceof PromptAssetService.NotFoundError) {
+    error = new InvalidRequestError({ message: `Not found: ${err.relativePath}` })
+  } else if (err instanceof PromptAssetService.InvalidCandidateError) {
+    error = new InvalidRequestError({ message: err.reason })
+  } else if (err instanceof PromptAssetService.StaleRevisionError) {
+    error = new ConflictError({ message: `Stale revision: ${err.relativePath}`, resource: err.relativePath })
+  } else if (err instanceof PromptAssetService.WriteFailedError) {
+    error = new InvalidRequestError({ message: err.reason })
+  } else if (err instanceof PromptAssetService.ConcurrentModificationError) {
+    error = new ConflictError({ message: `Concurrent modification: ${err.relativePath}`, resource: err.relativePath })
+  } else {
+    error = new InvalidRequestError({ message: String(err) })
+  }
+  return Effect.fail(error)
+}
+
 export const promptAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "prompt-asset", (handlers) =>
   Effect.gen(function* () {
     const locations = yield* LocationServiceMap
@@ -89,6 +107,18 @@ export const promptAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "prompt
       })
     })
 
-    return handlers.handle("list", list).handle("content", content).handle("apply", apply)
+    const deleteAsset = Effect.fn("PromptAssetHttpApi.delete")(function* (ctx: {
+      payload: { relativePath: string; baseRevision: string | null }
+    }) {
+      const ctx2 = yield* InstanceState.context
+      const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
+      const service = yield* PromptAssetService.Service.pipe(Effect.provide(layer), Effect.orDie)
+      yield* service.delete({
+        relativePath: ctx.payload.relativePath,
+        baseRevision: ctx.payload.baseRevision,
+      }).pipe(Effect.catch(toDeleteError))
+    })
+
+    return handlers.handle("list", list).handle("content", content).handle("apply", apply).handle("delete", deleteAsset)
   }),
 ).pipe(Layer.provide(LocationServiceMap.layer))

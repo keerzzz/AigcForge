@@ -145,6 +145,8 @@ import type {
   PromptAssetCandidate,
   PromptAssetContentErrors,
   PromptAssetContentResponses,
+  PromptAssetDeleteErrors,
+  PromptAssetDeleteResponses,
   PromptAssetListErrors,
   PromptAssetListResponses,
   ProviderAuthErrors,
@@ -3456,6 +3458,47 @@ export class PromptAsset extends HeyApiClient {
     )
     return (options?.client ?? this.client).post<PromptAssetApplyResponses, PromptAssetApplyErrors, ThrowOnError>({
       url: "/session/{sessionID}/prompt-asset/apply",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete prompt asset
+   *
+   * Delete a prompt asset by relative path with baseRevision CAS.
+   */
+  public delete<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      relativePath?: string
+      baseRevision?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "relativePath" },
+            { in: "body", key: "baseRevision" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<PromptAssetDeleteResponses, PromptAssetDeleteErrors, ThrowOnError>({
+      url: "/session/{sessionID}/prompt-asset/delete",
       ...options,
       ...params,
       headers: {

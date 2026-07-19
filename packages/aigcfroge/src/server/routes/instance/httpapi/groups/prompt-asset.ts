@@ -27,10 +27,16 @@ export const ApplyPayload = Schema.Struct({
   overwrite: Schema.Boolean,
 })
 
+export const DeletePayload = Schema.Struct({
+  relativePath: Schema.String,
+  baseRevision: Schema.NullOr(Schema.String),
+})
+
 export const PromptAssetPaths = {
   list: root,
   content: `${root}/content`,
   apply: `${sessionRoot}/apply`,
+  delete: `${sessionRoot}/delete`,
 } as const
 
 export const PromptAssetApi = HttpApi.make("prompt-asset").add(
@@ -68,6 +74,19 @@ export const PromptAssetApi = HttpApi.make("prompt-asset").add(
           identifier: "prompt-asset.apply",
           summary: "Apply prompt asset",
           description: "Apply a proposed prompt asset candidate, persisting it to disk.",
+        }),
+      ),
+      HttpApiEndpoint.post("delete", PromptAssetPaths.delete, {
+        params: { sessionID: SessionID },
+        query: Schema.Struct(WorkspaceRoutingQueryFields),
+        payload: DeletePayload,
+        success: described(Schema.Void, "Deleted"),
+        error: [InvalidRequestError, ConflictError],
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "prompt-asset.delete",
+          summary: "Delete prompt asset",
+          description: "Delete a prompt asset by relative path with baseRevision CAS.",
         }),
       ),
     )

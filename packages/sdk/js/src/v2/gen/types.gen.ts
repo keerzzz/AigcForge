@@ -10341,6 +10341,41 @@ export type PromptAssetApplyResponses = {
 
 export type PromptAssetApplyResponse = PromptAssetApplyResponses[keyof PromptAssetApplyResponses]
 
+export type PromptAssetDeleteData = {
+  body?: {
+    relativePath: string
+    baseRevision: string
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/prompt-asset/delete"
+}
+
+export type PromptAssetDeleteErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type PromptAssetDeleteError = PromptAssetDeleteErrors[keyof PromptAssetDeleteErrors]
+
+export type PromptAssetDeleteResponses = {
+  /**
+   * Deleted
+   */
+  200: unknown
+}
+
 export type ProviderListData = {
   body?: never
   path?: never

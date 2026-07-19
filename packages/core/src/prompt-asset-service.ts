@@ -56,6 +56,11 @@ export class ConcurrentModificationError extends Schema.TaggedErrorClass<Concurr
   { relativePath: Schema.String },
 ) {}
 
+export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()(
+  "PromptAssetService.NotFound",
+  { relativePath: Schema.String },
+) {}
+
 export interface ProposeResult {
   readonly relativePath: string
   readonly exists: boolean
@@ -70,9 +75,15 @@ export interface ApplyInput {
   overwrite: boolean
 }
 
+export interface DeleteInput {
+  relativePath: string
+  baseRevision: string | null
+}
+
 export interface Interface {
   readonly propose: (input: SchemaPromptAsset.Candidate) => Effect.Effect<ProposeResult, InvalidCandidateError>
   readonly apply: (input: ApplyInput) => Effect.Effect<PromptAsset.Info, unknown>
+  readonly delete: (input: DeleteInput) => Effect.Effect<void, unknown>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/PromptAssetService") {}
@@ -226,7 +237,84 @@ export const locationLayer = Layer.effect(
       )
     })
 
-    return Service.of({ propose, apply })
+    const deleteAsset = Effect.fn("PromptAssetService.delete")(function* (input: DeleteInput) {
+      // 1. Validate + normalize path(用 normalized 返回值,非 raw input)
+      let relativePath: string
+      try {
+        relativePath = validateRelativePath(input.relativePath)
+      } catch (e) {
+        return yield* new InvalidCandidateError({
+          reason: `Invalid path: ${e instanceof Error ? e.message : String(e)}`,
+        })
+      }
+
+      const fullPath = path.join(ownerRoot, relativePath)
+      const target = { canonical: fullPath, resource: relativePath }
+
+      // Acquire target-level lock for the full transaction(用 normalized relativePath 作 key)
+      return yield* locks.withLock(relativePath)(
+        Effect.uninterruptible(
+          Effect.gen(function* () {
+            // 2. Read current bytes(readFile 失败:NotFound 视幂等成功,其他报 WriteFailed)
+            const fileExists = yield* fs.exists(fullPath).pipe(Effect.catch(() => Effect.succeed(false)))
+            if (!fileExists) {
+              // 幂等 delete:文件不存在视为成功(REST DELETE 语义,M6)
+              // 仍 reload 清理 registry 可能的陈旧条目(N2)
+              yield* registry.reload()
+              return
+            }
+
+            const currentBytes = yield* fs.readFile(fullPath).pipe(
+              Effect.catch((err) => {
+                // TOCTOU:exists 后文件被并发删 -> NotFound 视幂等成功(N3)
+                if (err instanceof Error && /ENOENT|NotFound/i.test(err.message)) {
+                  return Effect.succeed(null)
+                }
+                return Effect.fail(
+                  new WriteFailedError({
+                    relativePath,
+                    reason: `read before delete failed: ${err instanceof Error ? err.message : String(err)}`,
+                  }),
+                )
+              }),
+            )
+            // currentBytes 为 null 仅在 TOCTOU 文件被并发删时,视幂等成功
+            if (currentBytes === null) {
+              yield* registry.reload()
+              return
+            }
+            const currentRevision = Hash.sha256(Buffer.from(currentBytes))
+
+            // 3. CAS:baseRevision != null 时必须校验;baseRevision === null = 强删(delete 独有语义)
+            if (input.baseRevision !== null && currentRevision !== input.baseRevision) {
+              return yield* new StaleRevisionError({ relativePath })
+            }
+
+            // 4. Atomic remove via fileMutation(幂等:NotFound 视成功,M4/M5/M6)
+            yield* fileMutation.remove({ target }).pipe(
+              Effect.catch((err) =>
+                Effect.fail(
+                  new WriteFailedError({
+                    relativePath,
+                    reason: err instanceof Error ? err.message : String(err),
+                  }),
+                ),
+              ),
+            )
+
+            // 5. Reload registry(不校验"文件不存在" -- 并发重建不算我们 delete 失败,M4)
+            //    只确认 registry 不再含我们删的 relativePath(若仍含,registry 与 disk 背离,报并发)
+            yield* registry.reload()
+            const stillInRegistry = yield* registry.getByPath(relativePath).pipe(Effect.option)
+            if (Option.isSome(stillInRegistry)) {
+              return yield* new ConcurrentModificationError({ relativePath })
+            }
+          }),
+        ),
+      )
+    })
+
+    return Service.of({ propose, apply, delete: deleteAsset })
   }),
 )
 

@@ -256,3 +256,112 @@ describe("PromptAssetService serializes concurrent writes", () => {
     })
   })
 })
+
+describe("PromptAssetService.delete", () => {
+  async function fileExists(dir: string, name: string): Promise<boolean> {
+    try {
+      await fs.access(path.join(dir, ".aigcfroge", "prompts", `${name}.md`))
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  async function makeSvc(dir: string) {
+    return runNow(
+      Effect.gen(function* () { return yield* PromptAssetService.Service }).pipe(
+        Effect.provide(fullLayer(dir)), Effect.scoped,
+      ),
+    )
+  }
+
+  test("deletes an existing asset with matching revision", async () => {
+    await withTmp(async (dir) => {
+      await initAsset(dir, "todelete")
+      const svc = await makeSvc(dir)
+      const propose = await runNow(svc.propose(makeCandidate("todelete")))
+      expect(propose.revision).not.toBeNull()
+      await runNow(svc.delete({ relativePath: "todelete.md", baseRevision: propose.revision! }))
+      expect(await fileExists(dir, "todelete")).toBe(false)
+    })
+  })
+
+  test("idempotent: deleting non-existent asset succeeds (REST DELETE semantics)", async () => {
+    await withTmp(async (dir) => {
+      const svc = await makeSvc(dir)
+      // 不存在 -> 成功(幂等),不抛 NotFound
+      await runNow(svc.delete({ relativePath: "ghost.md", baseRevision: null }))
+    })
+  })
+
+  test("idempotent: re-delete after success succeeds", async () => {
+    await withTmp(async (dir) => {
+      await initAsset(dir, "once")
+      const svc = await makeSvc(dir)
+      await runNow(svc.delete({ relativePath: "once.md", baseRevision: null }))
+      expect(await fileExists(dir, "once")).toBe(false)
+      // 重删(已不存在)-> 成功(幂等)
+      await runNow(svc.delete({ relativePath: "once.md", baseRevision: null }))
+    })
+  })
+
+  test("fails StaleRevisionError on revision mismatch and keeps file", async () => {
+    await withTmp(async (dir) => {
+      await initAsset(dir, "locked")
+      const svc = await makeSvc(dir)
+      const err = await runNow(
+        svc.delete({ relativePath: "locked.md", baseRevision: "bad".repeat(32) }).pipe(Effect.flip),
+      )
+      expect(err).toMatchObject({ _tag: "PromptAssetService.StaleRevision" })
+      expect(await fileExists(dir, "locked")).toBe(true)
+    })
+  })
+
+  test("baseRevision=null force-deletes (no CAS, delete-specific semantics)", async () => {
+    await withTmp(async (dir) => {
+      await initAsset(dir, "force")
+      const svc = await makeSvc(dir)
+      await runNow(svc.delete({ relativePath: "force.md", baseRevision: null }))
+      expect(await fileExists(dir, "force")).toBe(false)
+    })
+  })
+
+  test("rejects invalid path (traversal/backslash normalized)", async () => {
+    await withTmp(async (dir) => {
+      const svc = await makeSvc(dir)
+      const err = await runNow(
+        svc.delete({ relativePath: "../escape.md", baseRevision: null }).pipe(Effect.flip),
+      )
+      expect(err).toMatchObject({ _tag: "PromptAssetService.InvalidCandidate" })
+    })
+  })
+
+  test("uses normalized path: leading/trailing whitespace does not cause NotFound", async () => {
+    await withTmp(async (dir) => {
+      await initAsset(dir, "trim")
+      const svc = await makeSvc(dir)
+      // 带空格的 relativePath 应被 normalize(trim)后正确删除,而非 NotFound
+      await runNow(svc.delete({ relativePath: " trim.md ", baseRevision: null }))
+      expect(await fileExists(dir, "trim")).toBe(false)
+    })
+  })
+
+  test("delete is retrievable as gone after reload", async () => {
+    await withTmp(async (dir) => {
+      await initAsset(dir, "gone")
+      const svc = await makeSvc(dir)
+      await runNow(svc.delete({ relativePath: "gone.md", baseRevision: null }))
+      const reg = await runNow(
+        Effect.gen(function* () { return yield* PromptAsset.Service }).pipe(
+          Effect.provide(PromptAsset.locationLayer.pipe(
+            Layer.provide(EventV2.defaultLayer),
+            Layer.provide(locationLayer(dir)),
+            Layer.provide(FSUtil.defaultLayer),
+          )), Effect.scoped,
+        ),
+      )
+      const list = await runNow(reg.list())
+      expect(list.length).toBe(0)
+    })
+  })
+})
