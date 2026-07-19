@@ -19,6 +19,8 @@ import { dict as zht } from "./zht"
 import { dict as tr } from "./tr"
 
 const locales = [ar, br, bs, da, de, es, fr, ja, ko, no, pl, ru, uk, th, tr, zh, zht]
+// 注:promptAsset.* key 当前仅 en/zh 完整,其余 16 locale fallback en(plan §13.6 记录的 M1 债务);
+// parity 暂只查跨模式共有的 unseen key。16 locale 本地化后可扩 promptAsset.asset.deleteConfirm。
 const keys = ["command.session.previous.unseen", "command.session.next.unseen"] as const
 
 describe("i18n parity", () => {

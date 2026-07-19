@@ -1173,4 +1173,5 @@ export const dict = {
   "promptAsset.candidate.template": "Template",
   "promptAsset.candidate.insert": "Insert to input",
   "promptAsset.error.applyFailed": "Failed to apply prompt asset",
+  "promptAsset.asset.deleteConfirm": "Delete this asset?",
 }
