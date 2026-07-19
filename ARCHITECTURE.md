@@ -207,7 +207,7 @@ Product Mode (`chat | coding | work | assistant`) is a persisted App filtering c
 - Projects and Workspaces are shared across Modes; their Session descendants are filtered.
 - Existing rows and historical events without Product Mode decode as Coding.
 - Target implementation: `docs/plan/mode-module-switching-completion.md`.
-- Decisions: `docs/architecture/adr/ADR-11-product-mode-session-classification.md`, `docs/architecture/adr/ADR-12-product-mode-entry-routing.md`.
+- Decisions: `docs/architecture/adr/ADR-11-product-mode-session-classification.md`, `docs/architecture/adr/ADR-12-product-mode-entry-routing.md`, `docs/architecture/adr/ADR-15-mode-workspace-main-area-slot.md` (Accepted; main-area typed slot, Chat asset-centric).
 
 ## 5. src/ Directory Index
 
@@ -258,7 +258,7 @@ A directory-to-responsibility map for the two largest packages.
 | Design in progress | Chat PRD v4.3（资产工作室，已批准 2026-07-18；M1 + S2/A1-A5 已实现）与 Work/Assistant/My Agents v3 PRDs are drafts gated by accepted ADRs and owner contracts (`docs/prd/chat-mode-creation-layer.md`, `docs/prd/work-mode-execution-layer.md`, `docs/prd/assistant-mode-personal-agent.md`, `docs/prd/my-agents-launcher.md`) |
 | In progress | V2 config (`specs/v2/config.md`), TUI package extraction (`specs/tui-package.md`), legacy storage removal (`specs/storage/remove-opencode-db.md`) |
 | Phase 6 complete | Structured Handoffs (summary compression), Judge multi-model arbitration, external CLI session recovery, symlink-aware path containment, Fork CLI endpoint |
-| Accepted decisions | `docs/architecture/adr/ADR-09-mode-route-decoupling.md`, `docs/architecture/adr/ADR-10-schema-versioning.md`, `docs/architecture/adr/ADR-11-product-mode-session-classification.md`, `docs/architecture/adr/ADR-12-product-mode-entry-routing.md`, `docs/architecture/adr/ADR-13-chat-work-mode-boundary.md`, `docs/architecture/adr/ADR-14-persistence-and-scope-strategy.md` |
-| Proposed decisions | （无；ADR-13/14 已于 2026-07-15 接受，见 Accepted 行） |
+| Accepted decisions | `docs/architecture/adr/ADR-09-mode-route-decoupling.md`, `docs/architecture/adr/ADR-10-schema-versioning.md`, `docs/architecture/adr/ADR-11-product-mode-session-classification.md`, `docs/architecture/adr/ADR-12-product-mode-entry-routing.md`, `docs/architecture/adr/ADR-13-chat-work-mode-boundary.md`, `docs/architecture/adr/ADR-14-persistence-and-scope-strategy.md`, `docs/architecture/adr/ADR-15-mode-workspace-main-area-slot.md` |
+| Proposed decisions | （无；ADR-15 已于 2026-07-19 接受，见 Accepted 行） |
 
 V2 migration status is tracked in `specs/v2/todo.md` and `packages/aigcfroge/specs/effect/todo.md`. The schema changelog lives in `specs/v2/schema-changelog.md`.

@@ -241,14 +241,17 @@ M1 原假设 apply 绑定 chat 会话（从 sessionID 读 `mode=chat`/agent 校�
 
 ### 9.1 总体布局
 
-- 首页 `/` 顶部模式卡片就地切换左右栏（已实现）；Chat 工作台即资产工作室。
-- 首页左栏：项目级 Location 选择器（复用 Coding projects）+ 主操作"新建资产"/"导入" + 资产分组导航（计数）。
-- 首页右栏：会话列表，与 Coding 完全同构（按时间分组、搜索置顶、按 Location 联动过滤）；会话行只显示标题与时间，不显示产物信息；空态提供"新建资产"引导。
-- 会话页中栏：消息流与 Composer；消息操作含"存为资产"（所有模式可用）。
+> 依据 [ADR-15](../architecture/adr/ADR-15-mode-workspace-main-area-slot.md)（amends ADR-12 §3）：ModeWorkspace 主区为 typed slot，按模式核心对象差异化。Chat 核心对象为可复用资产（[ADR-13](../architecture/adr/ADR-13-chat-work-mode-boundary.md) 模式定位表），故 Chat 首页主区为资产工作台，不以会话列表为主。
+
+- 模块入口 `/mode/chat`（ADR-12 §1）渲染共享 ModeWorkspace；ModeSwitcher / SecondarySidebar / StatusBar 为全模式共享外壳（不打破），主区按模式 slot 差异化。`ModeRoute` 渲染 ModeWorkspace（不 redirect），`/mode/:mode` 参数变化时同路由组件不 remount，从根上消除模式切换闪烁。
+- Chat 首页主区 = 资产工作台：资产树（按消费路径分组 + 计数，§9.4）+ 资产编辑/预览（查看/编辑两态，复用 §9.5 资产 tab）+ 主操作"新建资产"/"导入"。slot 切换**禁用** `<Dynamic>`/`<Switch>`-`<Match>`/非 keyed `<Show>`（三者切换均 remount，见 ADR-15 §4）；改用 render-all+display:none 或上提 createResource 到 ModeWorkspace 级 provider（推荐）。
+- 会话在 Chat 降为次级视图（SecondarySidebar 或主区 tab），不占主位；会话列表仍按 Location 联动过滤（与 Coding 共享查询/过滤逻辑），会话行只显示标题与时间，不显示产物信息；空态提供"新建资产"引导。
+- 会话页（canonical `/server/:serverKey/session/:id`，ADR-09/12 §5 不编 mode）中栏：消息流与 Composer；消息操作含"存为资产"（所有模式可用）；右栏复用 SessionSidePanel 槽位（§9.2）。
+- 会话↔资产不落库（ADR-14 §4：资产真源为 typed registry + 文件，非 Session transcript；ADR-15 §5）；如需会话产出资产的记忆，用内存态 session-scoped 记录（§9.6），不新增 migration（§5.2 不变）。
 
 ### 9.2 会话页右栏：与 Coding 槽位一一映射
 
-Chat 会话页右栏复用 Coding 的双区结构（`SessionSidePanel`），逐槽位替换内容，不整体自绘：
+Chat 会话页（canonical `/server/:serverKey/session/:id`，外壳与 Coding 共享：ModeSwitcher / SecondarySidebar / StatusBar，见 §9.1）右栏复用 Coding 的双区结构（`SessionSidePanel`），逐槽位替换内容，不整体自绘：
 
 | Coding 槽位 | Chat 对应 | 说明 |
 |---|---|---|
@@ -285,7 +288,7 @@ Chat 会话页右栏复用 Coding 的双区结构（`SessionSidePanel`），逐�
 
 - 插入 Composer 的形态：提示词 = 正文文本注入输入框（可再编辑后发送）；命令类型为 `/name` 调用；不做 mention chip。
 - 已应用反馈：右栏内联成功态 + 一键插入，不用 toast 抢焦点。
-- 不做"本次"（会话产出）tab：预览 tab 已应用态 + 资产树最近修改排序已覆盖该需求；未来如需会话↔资产关联，用内存态 session-scoped 记录，不落库。
+- 不做"本次"（会话产出）tab：预览 tab 已应用态 + 资产树最近修改排序已覆盖该需求；会话↔资产不落库（ADR-14 §4 资产真源为 typed registry + 文件；ADR-15 §5），如需会话产出资产的记忆用内存态 session-scoped 记录，不新增 migration。
 - 不做内置版本管理：覆盖必 diff + 显式确认；apply 时若资产文件在 git 仓库中有未提交变更，预览区提示"该文件有未提交更改"（只提示，不阻塞）。
 - 测试模块后置：预览内动作"在临时会话中试跑"为后续里程碑；轻量替代为插入 Composer 立即试用。
 - 遵循 DESIGN.md：选择模式不创建 Draft/Session；v2 token 无硬编码颜色；i18n 覆盖 18 locale 且通过 parity；键盘焦点、ARIA、对比度（正文 4.5:1、大文本与指示器 3:1）、窄屏溢出、明暗主题、空/加载/错误状态。
@@ -421,5 +424,7 @@ PRD 覆盖全部路径与类型；实施按供给路径先后推进、按消费�
 | 5. App A1-A5 | **PASS** | §13.2 A1 per-slot；A2 textarea；A3 diff 复用；A4 i18n 补齐 18 locale；A5 窄屏 | App owner: ✓ |
 
 **四方顾问批准建议：** **APPROVED**（2026-07-18，全权 owner 拍板，Gate 1-5 全 PASS）。文档层 v4.2 已过二次评审复查，无阻断；S-1 深挖定论非缺口；剩余工作（delete 路由 + A1-A5）为实现项，非 PRD 阻断。
+
+**v4.4 修订记录（2026-07-19，已签字 Accepted）：** 新增 [ADR-15](../architecture/adr/ADR-15-mode-workspace-main-area-slot.md)（amends ADR-12 §3：ModeWorkspace 主区为 typed slot，调和 ADR-12 §3"主区=Session lists"与 ADR-13"Chat 核心对象=资产"的张力）。据此重写 §9.1：Chat 首页主区=资产工作台（Y 方案），会话降为次级，外壳共享；§9.2 补外壳共享说明；§9.6 对齐 ADR-14 §4。双 owner 三轮 agent 评审通过（Core/App 文档层 ACCEPT，P0/P1 全 RESOLVED：§4 SolidJS 机制 solid-js@1.9.10 实证、plan step 1 createEffect、§4 禁令传导 plan/PRD）。全权 owner 授权 AI 代理 Gate 1+5 签字（见 ADR-15 接受记录）。
 
 **实现状态：** S2 delete 后端 + A1-A5（右栏双区 / 编辑态 / diff / i18n / 窄屏）已实现（工作树，待 commit），typecheck/lint/test 通过，见 plan §13.5/§13.6。
