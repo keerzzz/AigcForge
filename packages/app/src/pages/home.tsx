@@ -56,7 +56,7 @@ import { type ServerHealth } from "@/utils/server-health"
 import { Persist, persisted } from "@/utils/persist"
 import { useMarked } from "@aigcfroge/ui/context/marked"
 import { preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"
-import { MODE_DEFINITIONS, modeDraft, useMode, type Mode } from "@/context/mode"
+import { modeDraft, useMode, type Mode } from "@/context/mode"
 import { ChatFeaturePanel, modeSurface } from "@/components/mode-surfaces"
 import { chatFeature } from "@/context/chat-feature"
 
@@ -125,7 +125,7 @@ function homeSessionSearchKey(record: HomeSessionRecord) {
   return `${pathKey(record.session.directory)}:${record.session.id}`
 }
 
-export function Home(props: Partial<RouteSectionProps> & { modeEntry?: boolean } = {}) {
+export function Home(props: Partial<RouteSectionProps> = {}) {
   const sync = useServerSync()
   const layout = useLayout()
   const pickDirectory = useDirectoryPicker()
@@ -451,24 +451,10 @@ export function Home(props: Partial<RouteSectionProps> & { modeEntry?: boolean }
     })
   }
 
-  function enterMode(selected: Mode) {
-    // 首页就地分流（m1 §1.4）：点卡片只切 currentMode，不跳路由，下方左右栏就地切换
-    mode.setCurrentMode(selected)
-  }
-
   return (
     <div class="rounded-[10px] shadow-[var(--v2-elevation-raised)] m-2 min-h-0 lg:overflow-hidden bg-v2-background-bg-base self-stretch flex-1 flex flex-col">
-      <Show when={!props.modeEntry}>
-        <div class="shrink-0 px-6 pt-6 lg:pt-12">
-          <HomeModeCards mode={mode} language={language} enterMode={enterMode} />
-        </div>
-      </Show>
       <div
-        class={`mx-auto grid h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-3 pb-3 lg:grid-rows-1 lg:px-6 lg:pb-16 ${
-          props.modeEntry
-            ? "max-w-[720px] lg:grid-cols-1"
-            : "max-w-[1080px] lg:grid-cols-[280px_minmax(0,720px)] lg:gap-8"
-        }`}
+        class="mx-auto grid h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-3 pb-3 lg:grid-rows-1 lg:px-6 lg:pb-16 max-w-[1080px] lg:grid-cols-[280px_minmax(0,720px)] lg:gap-8"
       >
         <Show
           when={mode.currentMode === "coding"}
@@ -575,59 +561,6 @@ export function Home(props: Partial<RouteSectionProps> & { modeEntry?: boolean }
           </ScrollView>
           </Show>
         </section>
-      </div>
-    </div>
-  )
-}
-
-function HomeModeCards(props: {
-  mode: ReturnType<typeof useMode>
-  language: ReturnType<typeof useLanguage>
-  enterMode: (m: Mode) => void
-}) {
-  return (
-    <div class="flex flex-col gap-3">
-      <h2 class="text-v2-text-text-base [font-weight:600]">{props.language.t("home.modes.title")}</h2>
-      <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <For each={MODE_DEFINITIONS}>
-          {(m) => {
-            const active = () => props.mode.currentMode === m.id
-
-            return (
-              <button
-                type="button"
-                aria-label={props.language.t(m.labelKey)}
-                class="relative flex cursor-default items-center gap-3.5 rounded-lg border p-4 text-left transition-[all] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
-                classList={{
-                  "bg-v2-background-bg-layer-01 border-v2-border-border-base hover:bg-v2-overlay-simple-overlay-hover hover:border-v2-border-border-hover shadow-[var(--v2-elevation-base)]":
-                    !active(),
-                  "bg-v2-background-bg-layer-02 border-v2-border-border-focus shadow-inner ring-1 ring-v2-border-border-focus":
-                    active(),
-                }}
-                onClick={() => props.enterMode(m.id)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault()
-                    props.enterMode(m.id)
-                  }
-                }}
-              >
-                {/* Active Indicator Strip on Left */}
-                <Show when={active()}>
-                  <div class="absolute left-0 top-0 bottom-0 w-0.5 bg-v2-border-border-focus rounded-l-lg" />
-                </Show>
-
-                <IconV2 name={m.icon} size="large" class="shrink-0 text-v2-icon-icon-base" />
-                <div class="flex min-w-0 flex-col gap-0.5 flex-1 pr-14">
-                  <span class="text-v2-text-text-base [font-weight:600]">{props.language.t(m.labelKey)}</span>
-                  <span class="text-11-regular text-v2-text-text-muted [font-weight:440]">
-                    {props.language.t(m.descriptionKey)}
-                  </span>
-                </div>
-              </button>
-            )
-          }}
-        </For>
       </div>
     </div>
   )

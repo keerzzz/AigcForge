@@ -537,15 +537,24 @@ export function AppInterface(props: {
 function ModeRoute() {
   const params = useParams<{ mode: string }>()
   const mode = useMode()
-  // 首页就地分流（m1 §1.4）：/mode/:mode 不再渲染独立页，设置 currentMode 后重定向到首页 /
-  if (isMode(params.mode)) mode.setCurrentMode(params.mode)
-  return <Navigate href="/" />
+  // ADR-15：ModeRoute 渲染共享 ModeWorkspace（不 redirect），setCurrentMode 在 createEffect
+  // 响应 params 变化（不靠 redirect 重挂）；/mode/:mode 同路由组件参数变不 remount，治闪烁
+  createEffect(() => {
+    if (isMode(params.mode)) mode.setCurrentMode(params.mode)
+  })
+  return <Home />
+}
+
+// ADR-15 §对齐：/ 重定向到 /mode/<persistedMode>（one-time landing，非 authority）
+function HomeRedirect() {
+  const mode = useMode()
+  return <Navigate href={`/mode/${mode.currentMode}`} />
 }
 
 function Routes() {
 	return (
 		<>
-			<Route path="/" component={Home} />
+			<Route path="/" component={HomeRedirect} />
 			<Route path="/mode/:mode" component={ModeRoute} />
 			<Route path="/new-session" component={DraftRoute} />
 			<Route path="/server/:serverKey/session/:id" component={TargetSessionRoute} />
