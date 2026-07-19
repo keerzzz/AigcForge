@@ -261,6 +261,8 @@ Chat 会话页（canonical `/server/:serverKey/session/:id`，外壳与 Coding �
 | "＋"打开文件 | "＋"打开资产 | 资产选择器 |
 | B 区文件树（可调宽） | 资产树 | 见 9.4；宽度与拖拽调宽交互一致 |
 
+`SessionSidePanel` 为纯空壳双区框架（A 区 TabsV2 + B 区树），Coding 的 review 面板与 Chat 的资产内容均抽为 slot 注入，完全对称（决策见 [plan A1](../plan/chat-asset-workspace-implementation.md)）。
+
 ### 9.3 预览 tab
 
 - 内容列：类型 badge、名称（可编辑）、描述（可编辑）、目标路径（Location + relativePath）、完整正文（可编辑，等宽字体）。
