@@ -1,7 +1,20 @@
 import fs from "fs/promises"
 import path from "path"
-import { describe, expect } from "bun:test"
+import { beforeAll, afterAll, describe, expect } from "bun:test"
 import { DateTime, Effect, Equal, Hash, Layer, Schema } from "effect"
+
+const FLAG_KEY = "AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET"
+const _origFlag = process.env[FLAG_KEY]
+beforeAll(() => {
+  // The ProposePromptAssetTool flags behind this env var.
+  // These tests check that propose_prompt_asset appears in the tool list,
+  // so enable the flag before the layout layer is evaluated.
+  process.env[FLAG_KEY] = "true"
+})
+afterAll(() => {
+  if (_origFlag === undefined) delete process.env[FLAG_KEY]
+  else process.env[FLAG_KEY] = _origFlag
+})
 import { Tool } from "@aigcfroge/core/public"
 import { define } from "@aigcfroge/plugin/v2/effect"
 import { AgentV2 } from "@aigcfroge/core/agent"

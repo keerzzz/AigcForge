@@ -1,6 +1,7 @@
 export * as PromptAssetHandlers from "./prompt-asset"
 
 import { InstanceState } from "@/effect/instance-state"
+import { RuntimeFlags } from "@/effect/runtime-flags"
 import { LocationServiceMap } from "@aigcfroge/core/location-layer"
 import { PromptAssetService } from "@aigcfroge/core/prompt-asset-service"
 import { PromptAsset } from "@aigcfroge/core/prompt-asset"
@@ -59,6 +60,7 @@ function toDeleteError(err: unknown): Effect.Effect<never, ConflictError | Inval
 export const promptAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "prompt-asset", (handlers) =>
   Effect.gen(function* () {
     const locations = yield* LocationServiceMap
+    const flags = yield* RuntimeFlags.Service
 
     const list = Effect.fn("PromptAssetHttpApi.list")(function* (ctx: { query: { search?: string } }) {
       const ctx2 = yield* InstanceState.context
@@ -99,6 +101,9 @@ export const promptAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "prompt
     const apply = Effect.fn("PromptAssetHttpApi.apply")(function* (ctx: {
       payload: { candidate: SchemaPromptAsset.Candidate; baseRevision?: string; overwrite: boolean }
     }) {
+      if (!flags.experimentalChatPromptAsset) {
+        return yield* Effect.fail(new InvalidRequestError({ message: "Chat prompt asset creation is not enabled" }))
+      }
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const service = yield* PromptAssetService.Service.pipe(Effect.provide(layer), Effect.orDie)

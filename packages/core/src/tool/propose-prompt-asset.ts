@@ -2,6 +2,7 @@ export * as ProposePromptAssetTool from "./propose-prompt-asset"
 
 import { ToolFailure } from "@aigcfroge/llm"
 import { Effect, Layer, Schema } from "effect"
+import { Flag } from "../flag/flag"
 import { PromptAsset } from "@aigcfroge/schema/prompt-asset"
 import { PromptAssetService } from "../prompt-asset-service"
 import { Tool } from "./tool"
@@ -36,6 +37,8 @@ export const Output = Schema.Struct({
 
 export const layer = Layer.effectDiscard(
   Effect.gen(function* () {
+    if (!Flag.AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET) return
+
     const tools = yield* Tools.Service
     const service = yield* PromptAssetService.Service
 
