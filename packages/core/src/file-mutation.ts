@@ -189,8 +189,13 @@ export const layer = Layer.effect(
             const { canonical } = input.target
             const tmp = `${canonical}.tmp.${process.pid}.${randomHex()}`
             const existed = yield* fs.exists(canonical)
+            // Tolerate a TOCTOU delete between exists and read (file removed after
+            // exists=true) by treating the missing file as no prior bytes; any other
+            // read error still propagates.
             const priorBytes: Uint8Array | null = existed
-              ? yield* fs.readFile(canonical).pipe(Effect.catch(() => Effect.succeed(undefined as unknown as never)))
+              ? yield* fs.readFile(canonical).pipe(
+                  Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)),
+                )
               : null
 
             // Register temp cleanup on any failure or interruption

@@ -1,5 +1,7 @@
+export * as ProposePromptAsset from "./propose-prompt-asset"
+
 import { Effect, Schema } from "effect"
-import { PromptAsset as SchemaPromptAsset } from "@aigcfroge/schema/prompt-asset"
+import { PromptAsset } from "@aigcfroge/schema/prompt-asset"
 import { PromptAssetService } from "@aigcfroge/core/prompt-asset-service"
 import { LocationServiceMap } from "@aigcfroge/core/location-layer"
 import { Location } from "@aigcfroge/core/location"
@@ -8,12 +10,20 @@ import { InstanceState } from "@/effect/instance-state"
 import { define } from "./tool"
 
 export const Parameters = Schema.Struct({
-  name: Schema.String,
-  description: Schema.String,
-  template: Schema.String,
+  name: PromptAsset.Name,
+  description: PromptAsset.Description,
+  template: PromptAsset.Template,
 })
 
-export const ProposePromptAssetV1 = define<typeof Parameters, Record<string, unknown>, LocationServiceMap>(
+type Metadata = {
+  relativePath: string
+  exists: boolean
+  revision?: string
+  nameConflict: boolean
+  pathConflict: boolean
+}
+
+export const ProposePromptAssetV1 = define<typeof Parameters, Metadata, LocationServiceMap>(
   "propose_prompt_asset",
   Effect.gen(function* () {
     const locations = yield* LocationServiceMap
@@ -29,12 +39,7 @@ export const ProposePromptAssetV1 = define<typeof Parameters, Record<string, unk
           const directory = yield* InstanceState.directory
           const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(directory) }))
           const service = yield* PromptAssetService.Service.pipe(Effect.provide(layer), Effect.orDie)
-          const candidate = yield* Schema.decodeUnknownEffect(SchemaPromptAsset.Candidate)({
-            name: params.name,
-            description: params.description,
-            template: params.template,
-            relativePath: "",
-          })
+          const candidate = PromptAsset.Candidate.make({ ...params, relativePath: "" })
           const result = yield* service.propose(candidate)
           const lines: string[] = []
           if (result.nameConflict) {
@@ -51,16 +56,16 @@ export const ProposePromptAssetV1 = define<typeof Parameters, Record<string, unk
           }
           return {
             title: "Propose prompt asset",
-            metadata: {},
+            metadata: {
+              relativePath: result.relativePath,
+              exists: result.exists,
+              revision: result.revision ?? undefined,
+              nameConflict: result.nameConflict,
+              pathConflict: result.pathConflict,
+            },
             output: lines.join("\n") || "Valid and ready for review.",
           }
-        }).pipe(Effect.catch((err) =>
-          Effect.succeed({
-            title: "Propose failed",
-            metadata: {},
-            output: `Validation error: ${(err as Error).message}`,
-          }),
-        )),
+        }).pipe(Effect.orDie),
     }
   }),
 )

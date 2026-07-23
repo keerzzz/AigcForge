@@ -8,6 +8,7 @@ import { useLanguage } from "@/context/language"
 import { usePrompt } from "@/context/prompt"
 import { useSync } from "@/context/sync"
 import { Icon } from "@aigcfroge/ui/icon"
+import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
 import { getSessionHandoff, setSessionHandoff } from "@/pages/session/handoff"
 import { useSessionKey } from "@/pages/session/session-layout"
 import { SessionPermissionDock } from "@/pages/session/composer/session-permission-dock"
@@ -133,7 +134,7 @@ export function SessionComposerRegion(props: {
   const controls = createMemo(() => {
     const allAgents = local.agent.list().map((agent) => agent.name)
     const agentOptions =
-      modeCtx.currentMode === "chat" ? allAgents.filter((name) => name === "chat-orchestrator") : allAgents
+      modeCtx.currentMode === "chat" ? allAgents.filter((name) => name === ProductModeAgentPolicy.CHAT_ORCHESTRATOR) : allAgents
     return {
       agents: {
         available: sync().data.agent,

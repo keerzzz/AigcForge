@@ -1,3 +1,5 @@
+export * as PromptAssetApiGroup from "./prompt-asset"
+
 import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { WorkspaceRoutingMiddleware, WorkspaceRoutingQueryFields } from "../middleware/workspace-routing"
@@ -23,13 +25,13 @@ export const ContentQuery = Schema.Struct({
 
 export const ApplyPayload = Schema.Struct({
   candidate: PromptAsset.Candidate,
-  baseRevision: Schema.NullOr(Schema.String),
+  baseRevision: Schema.optional(Schema.String),
   overwrite: Schema.Boolean,
 })
 
 export const DeletePayload = Schema.Struct({
   relativePath: Schema.String,
-  baseRevision: Schema.NullOr(Schema.String),
+  baseRevision: Schema.optional(Schema.String),
 })
 
 export const PromptAssetPaths = {

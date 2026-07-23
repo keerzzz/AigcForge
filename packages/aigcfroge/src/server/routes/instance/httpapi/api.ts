@@ -15,7 +15,7 @@ import { FileApi } from "./groups/file"
 import { InstanceApi } from "./groups/instance"
 import { McpApi } from "./groups/mcp"
 import { PermissionApi } from "./groups/permission"
-import { PromptAssetApi } from "./groups/prompt-asset"
+import { PromptAssetApiGroup } from "./groups/prompt-asset"
 import { ProjectApi } from "./groups/project"
 import { ProjectCopyApi } from "./groups/project-copy"
 import { ProviderApi } from "./groups/provider"
@@ -63,7 +63,7 @@ export const InstanceHttpApi = HttpApi.make("aigcfroge-instance")
   .addHttpApi(PtyApi)
   .addHttpApi(QuestionApi)
   .addHttpApi(PermissionApi)
-  .addHttpApi(PromptAssetApi)
+  .addHttpApi(PromptAssetApiGroup.PromptAssetApi)
   .addHttpApi(ProviderApi)
   .addHttpApi(SessionApi)
   .addHttpApi(SyncApi)

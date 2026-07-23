@@ -2,15 +2,18 @@ export * as PromptAsset from "./prompt-asset"
 
 import { Context, Effect, Layer, Option, Schema, Scope, Stream } from "effect"
 import path from "path"
-import { PromptAsset as SchemaPromptAsset } from "@aigcfroge/schema/prompt-asset"
+import { PromptAsset as SchemaPromptAsset } from "@aigcfroge/schema/prompt-asset" // Schema namespace; local/core PromptAsset uses the unaliased name.
 import { ConfigMarkdown } from "./config/markdown"
 import { EventV2 } from "./event"
 import { FSUtil } from "./fs-util"
+import { KeyedMutex } from "./effect/keyed-mutex"
 import { Location } from "./location"
 import { Hash } from "./util/hash"
 import { Watcher } from "./filesystem/watcher"
+import { PROMPTS_DIR } from "./constants"
 
-export const PROMPTS_DIR = ".aigcfroge/prompts"
+// Re-export so PromptAsset.PROMPTS_DIR still works for existing consumers.
+export { PROMPTS_DIR }
 
 export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("PromptAsset.NotFound", {
   relativePath: Schema.String,
@@ -29,28 +32,29 @@ export interface Interface {
   readonly list: () => Effect.Effect<ReadonlyArray<Info>>
   readonly getByPath: (relativePath: string) => Effect.Effect<Info, NotFoundError>
   readonly findByName: (name: string) => Effect.Effect<Info | undefined>
-  readonly reload: () => Effect.Effect<void>
+  readonly reload: () => Effect.Effect<void, FSUtil.Error>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/PromptAsset") {}
 
-function loadDir(fs: FSUtil.Interface, ownerRoot: string): Effect.Effect<Map<string, Info>> {
+function loadDir(fs: FSUtil.Interface, ownerRoot: string): Effect.Effect<Map<string, Info>, FSUtil.Error> {
   return Effect.gen(function* () {
     const next = new Map<string, Info>()
-    const byName = new Map<string, string>()
+    const byName = new Map<string, string[]>()
 
-    const files = yield* fs.glob("**/*.md", { cwd: ownerRoot, absolute: true, include: "file", dot: true }).pipe(
-      Effect.catch(() => Effect.succeed([] as string[])),
-    )
+    const files = yield* fs.glob("**/*.md", { cwd: ownerRoot, absolute: true, include: "file", dot: true })
 
     for (const file of files) {
-      const raw = yield* fs.readFile(file).pipe(Effect.catch(() => Effect.succeed(undefined as unknown as never)))
+      const relativePath = path.relative(ownerRoot, file).replaceAll("\\", "/")
+      const raw = yield* fs.readFile(file).pipe(
+        Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)),
+      )
       if (!raw) continue
 
       const text = new TextDecoder().decode(raw)
       const parsed = ConfigMarkdown.parseOption(text)
       if (!parsed) {
-        yield* Effect.logWarning("Skipping invalid prompt asset (parse error)", { file })
+        yield* Effect.logWarning("Skipping invalid prompt asset", { relativePath, errorTag: "parse_error" })
         continue
       }
 
@@ -58,19 +62,20 @@ function loadDir(fs: FSUtil.Interface, ownerRoot: string): Effect.Effect<Map<str
       try {
         frontmatter = Schema.decodeUnknownSync(SchemaPromptAsset.Frontmatter)(parsed.data)
       } catch {
-        yield* Effect.logWarning("Skipping prompt asset (bad frontmatter)", { file })
+        yield* Effect.logWarning("Skipping invalid prompt asset", { relativePath, errorTag: "bad_frontmatter" })
         continue
       }
 
-      const relativePath = path.relative(ownerRoot, file)
       const revision = Hash.sha256(Buffer.from(raw))
 
-      const conflict = byName.get(frontmatter.name)
-      if (conflict) {
-        yield* Effect.logWarning("Prompt asset name conflict", { name: frontmatter.name, paths: [conflict, relativePath] })
+      const conflicts = byName.get(frontmatter.name)
+      if (conflicts) {
+        conflicts.push(relativePath)
+        next.delete(conflicts[0])
+        yield* Effect.logWarning("Prompt asset name conflict", { name: frontmatter.name, paths: [...conflicts] })
         continue
       }
-      byName.set(frontmatter.name, relativePath)
+      byName.set(frontmatter.name, [relativePath])
 
       next.set(relativePath, {
         kind: "prompt",
@@ -94,9 +99,14 @@ export const layer = Layer.effect(
 
     const ownerRoot = path.resolve(location.directory, PROMPTS_DIR)
     let assets = new Map<string, Info>()
+    const reloadLock = KeyedMutex.makeUnsafe<string>()
 
     const reload = Effect.fn("PromptAsset.reload")(function* () {
-      assets = yield* loadDir(fs, ownerRoot)
+      yield* reloadLock.withLock("reload")(
+        Effect.gen(function* () {
+          assets = yield* loadDir(fs, ownerRoot)
+        }),
+      )
     })
 
     const list = Effect.fn("PromptAsset.list")(function* () {
@@ -111,7 +121,7 @@ export const layer = Layer.effect(
 
     const findByName = Effect.fn("PromptAsset.findByName")(function* (name: string) {
       for (const entry of assets.values()) {
-        if (entry.name === name) return entry as Info
+        if (entry.name === name) return entry
       }
       return undefined
     })
@@ -124,13 +134,21 @@ export const layer = Layer.effect(
       yield* eventsOpt.value
         .subscribe(Watcher.Event.Updated)
         .pipe(
-          Stream.filter((e) => e.data.file.startsWith(ownerRoot) && e.data.file.endsWith(".md")),
-          Stream.runForEach(() => reload()),
+          Stream.filter((e) => FSUtil.contains(ownerRoot, e.data.file) && e.data.file.endsWith(".md")),
+          Stream.runForEach(() =>
+            reload().pipe(
+              Effect.catch((error) =>
+                Effect.logWarning("Failed to reload prompt assets", {
+                  errorTag: "_tag" in error ? String(error._tag) : "filesystem_error",
+                }),
+              ),
+            ),
+          ),
           Effect.forkIn(scope),
         )
     }
 
-    yield* reload()
+    yield* reload().pipe(Effect.orDie)
 
     return Service.of({ list, getByPath, findByName, reload })
   }),

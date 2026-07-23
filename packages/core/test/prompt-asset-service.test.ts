@@ -1,9 +1,11 @@
 import path from "path"
 import { describe, expect, test } from "bun:test"
-import { Effect, Fiber, Layer } from "effect"
+import { Effect, Fiber, Layer, Schema } from "effect"
+import { PromptAsset as SchemaPromptAsset } from "@aigcfroge/schema/prompt-asset"
 import { PromptAssetService } from "@aigcfroge/core/prompt-asset-service"
 import { PromptAsset } from "@aigcfroge/core/prompt-asset"
 import { FileMutation } from "@aigcfroge/core/file-mutation"
+import { LocationMutation } from "@aigcfroge/core/location-mutation"
 import { FSUtil } from "@aigcfroge/core/fs-util"
 import { Location } from "@aigcfroge/core/location"
 import { EventV2 } from "@aigcfroge/core/event"
@@ -22,6 +24,7 @@ function locationLayer(dir: string) {
 function fullLayer(dir: string) {
   return PromptAssetService.locationLayer.pipe(
     Layer.provide(FileMutation.locationLayer),
+    Layer.provide(LocationMutation.locationLayer),
     Layer.provide(PromptAsset.locationLayer),
     Layer.provide(EventV2.defaultLayer),
     Layer.provide(locationLayer(dir)),
@@ -54,7 +57,7 @@ async function initAsset(dir: string, name: string) {
 }
 
 function makeCandidate(name: string, description = "desc", template = "content") {
-  return { name: name as any, description: description as any, template: template as any, relativePath: "" }
+  return Schema.decodeUnknownSync(SchemaPromptAsset.Candidate)({ name, description, template, relativePath: "" })
 }
 
 // ---- Phase C.3: Fault injection & concurrency ----
@@ -119,6 +122,31 @@ describe("PromptAssetService.apply creates", () => {
       )
       expect(info.name).toBe("提示词")
       expect(info.template).toBe("你好")
+    })
+  })
+
+  test("rolls back when the registry rejects a duplicate name", async () => {
+    await withTmp(async (dir) => {
+      const promptsDir = path.join(dir, ".aigcfroge", "prompts")
+      await fs.mkdir(promptsDir, { recursive: true })
+      await fs.writeFile(
+        path.join(promptsDir, "existing.md"),
+        `---\nkind: prompt\nname: "duplicate"\ndescription: "existing"\n---\nold`,
+      )
+      const svc = await runNow(
+        Effect.gen(function* () { return yield* PromptAssetService.Service }).pipe(
+          Effect.provide(fullLayer(dir)), Effect.scoped,
+        ),
+      )
+
+      const error = await runNow(
+        svc.apply({ candidate: makeCandidate("duplicate", "new", "new"), baseRevision: null, overwrite: false }).pipe(
+          Effect.flip,
+        ),
+      )
+
+      expect(error).toMatchObject({ _tag: "PromptAssetService.ReadbackMismatch" })
+      expect(await fs.stat(path.join(promptsDir, "duplicate.md")).then(() => true, () => false)).toBe(false)
     })
   })
 

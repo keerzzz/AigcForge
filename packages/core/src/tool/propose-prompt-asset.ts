@@ -2,7 +2,7 @@ export * as ProposePromptAssetTool from "./propose-prompt-asset"
 
 import { ToolFailure } from "@aigcfroge/llm"
 import { Effect, Layer, Schema } from "effect"
-import { PromptAsset as SchemaPromptAsset } from "@aigcfroge/schema/prompt-asset"
+import { PromptAsset } from "@aigcfroge/schema/prompt-asset"
 import { PromptAssetService } from "../prompt-asset-service"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
@@ -20,7 +20,11 @@ Usage:
 - \`description\`: What this prompt does (max 300 chars)
 - \`template\`: The full prompt template content (1-100000 bytes)`
 
-export const Input = SchemaPromptAsset.Candidate
+export const Input = Schema.Struct({
+  name: PromptAsset.Name,
+  description: PromptAsset.Description,
+  template: PromptAsset.Template,
+})
 
 export const Output = Schema.Struct({
   relativePath: Schema.String,
@@ -41,7 +45,8 @@ export const layer = Layer.effectDiscard(
       output: Output,
       execute: (input) =>
         Effect.gen(function* () {
-          const result = yield* service.propose(input)
+          const candidate = PromptAsset.Candidate.make({ ...input, relativePath: "" })
+          const result = yield* service.propose(candidate)
           return {
             relativePath: result.relativePath,
             exists: result.exists,
@@ -68,6 +73,8 @@ export const layer = Layer.effectDiscard(
       ],
     })
 
-    yield* tools.register({ [name]: tool })
+    yield* tools.register({ [name]: tool }).pipe(
+      Effect.catch((err) => Effect.die(err)),
+    )
   }),
 )

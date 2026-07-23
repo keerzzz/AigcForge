@@ -1183,7 +1183,8 @@ export const layer = Layer.effect(
     )(function* (input: PromptInput) {
       const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
       yield* revert.cleanup(session)
-      const message = yield* createUserMessage(input)
+      const agent = yield* ProductModeAgentPolicy.enforcePrimary(session.mode, input.agent ?? session.agent)
+      const message = yield* createUserMessage({ ...input, agent })
       yield* sessions.touch(input.sessionID)
 
       const permissions: PermissionV1.Rule[] = []

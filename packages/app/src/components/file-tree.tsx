@@ -92,7 +92,7 @@ const buildDragImage = (target: HTMLElement) => {
 
   const image = document.createElement("div")
   image.className =
-    "flex items-center gap-x-2 px-2 py-1 bg-surface-raised-base rounded-md border border-border-base text-12-regular text-text-strong"
+    "flex items-center gap-x-2 px-2 py-1 bg-v2-background-bg-layer-02 rounded-md border border-v2-border-border-base text-12-regular text-v2-text-text-base"
   image.style.position = "absolute"
   image.style.top = "-1000px"
   image.innerHTML = icon.outerHTML + text.outerHTML
@@ -146,8 +146,8 @@ const FileTreeNode = (
     <Dynamic
       component={local.as ?? "div"}
       classList={{
-        "w-full min-w-0 h-6 flex items-center justify-start gap-x-1.5 rounded-md px-1.5 py-0 text-left hover:bg-surface-raised-base-hover active:bg-surface-base-active transition-colors cursor-pointer": true,
-        "bg-surface-base-active": local.node.path === local.active,
+        "w-full min-w-0 h-6 flex items-center justify-start gap-x-1.5 rounded-md px-1.5 py-0 text-left hover:bg-v2-overlay-simple-overlay-hover active:bg-v2-overlay-simple-overlay-pressed transition-colors cursor-pointer": true,
+        "bg-v2-overlay-simple-overlay-pressed": local.node.path === local.active,
         ...local.classList,
         [local.class ?? ""]: !!local.class,
         [local.nodeClass ?? ""]: !!local.nodeClass,
@@ -167,8 +167,8 @@ const FileTreeNode = (
       <span
         classList={{
           "flex-1 min-w-0 text-12-medium whitespace-nowrap truncate": true,
-          "text-text-weaker": local.node.ignored,
-          "text-text-weak": !local.node.ignored && !active(),
+          "text-v2-text-text-faint": local.node.ignored,
+          "text-v2-text-text-muted": !local.node.ignored && !active(),
         }}
         style={active() ? color() : undefined}
       >
@@ -429,7 +429,7 @@ export default function FileTree(props: {
                     />
                     <Show
                       when={level < MAX_DEPTH && !chain.includes(key(node.path))}
-                      fallback={<div class="px-2 py-1 text-12-regular text-text-weak">...</div>}
+                      fallback={<div class="px-2 py-1 text-12-regular text-v2-text-text-muted">...</div>}
                     >
                       <FileTree
                         path={node.path}

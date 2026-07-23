@@ -9,17 +9,12 @@ import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { MenuV2 } from "@aigcfroge/ui/v2/menu-v2"
 import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { Button } from "@aigcfroge/ui/button"
-import {
-  DragDropProvider,
-  DragDropSensors,
-  DragOverlay,
-  SortableProvider,
-  closestCenter,
-} from "@thisbeyond/solid-dnd"
+import { DragDropProvider, DragDropSensors, DragOverlay, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd"
 import { ConstrainDragXAxis } from "@/utils/solid-dnd"
 import { useLanguage } from "@/context/language"
 import { modeDraft, useMode, type Mode } from "@/context/mode"
 import { modeSurface } from "@/components/mode-surfaces"
+import { ChatSessionList } from "@/components/chat/chat-session-list"
 import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
 import { ServerConnection, useServer } from "@/context/server"
@@ -29,7 +24,13 @@ import { useDirectoryPicker } from "@/components/directory-picker"
 import { useNotification } from "@/context/notification"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useLayout, type LocalProject } from "@/context/layout"
-import { displayName, errorMessage, homeProjectDirectories, openProjectNewSession, sortedRootSessions } from "@/pages/layout/helpers"
+import {
+  displayName,
+  errorMessage,
+  homeProjectDirectories,
+  openProjectNewSession,
+  sortedRootSessions,
+} from "@/pages/layout/helpers"
 import { SortableWorkspace, LocalWorkspace, WorkspaceDragOverlay } from "@/pages/layout/sidebar-workspace"
 import type { WorkspaceSidebarContext } from "@/pages/layout/sidebar-workspace"
 import { ProjectIcon } from "@/pages/layout/sidebar-items"
@@ -92,6 +93,14 @@ function SecondarySidebar() {
     return params.dir ?? ""
   })
 
+  const chatDirectory = createMemo(() => {
+    const routed = currentDir()
+    if (routed) return routed
+    const current = ctx()
+    if (!current) return ""
+    return global.lastSession.directory(current.sdk.scope) ?? current.projects.list()[0]?.worktree ?? ""
+  })
+
   // When navigating to a session (via the current-directory signal), auto-expand
   // the project (and workspace) that contains it, and collapse other projects.
   // This ensures the secondary sidebar always shows the conversation list of the
@@ -132,12 +141,22 @@ function SecondarySidebar() {
     const c = conn()
     if (!c) return
     const ctxInst = global.ensureServerCtx(c)
-    openProjectNewSession(ctxInst.projects, (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(mode.currentMode) }), ServerConnection.key(c), project.worktree)
+    openProjectNewSession(
+      ctxInst.projects,
+      (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(mode.currentMode) }),
+      ServerConnection.key(c),
+      project.worktree,
+    )
   }
 
   function openProjectNewSessionFn(c: ServerConnection.Any, directory: string) {
     const ctxInst = global.ensureServerCtx(c)
-    openProjectNewSession(ctxInst.projects, (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(mode.currentMode) }), ServerConnection.key(c), directory)
+    openProjectNewSession(
+      ctxInst.projects,
+      (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(mode.currentMode) }),
+      ServerConnection.key(c),
+      directory,
+    )
   }
 
   function addProject() {
@@ -396,7 +415,10 @@ function SecondarySidebar() {
         .client.session.list({ directory: props.directory })
         .then((x) => x.data ?? [])
         .catch(() => [])
-      setState("sessions", sessions.filter((session) => session.time.archived === undefined))
+      setState(
+        "sessions",
+        sessions.filter((session) => session.time.archived === undefined),
+      )
     }
     onMount(() => {
       serverSDK()
@@ -479,9 +501,7 @@ function SecondarySidebar() {
         }),
       )
       if (session.id === params.id) {
-        const tabIdx = tabs.store.findIndex(
-          (t) => t.type === "session" && t.sessionId === session.id,
-        )
+        const tabIdx = tabs.store.findIndex((t) => t.type === "session" && t.sessionId === session.id)
         if (tabIdx !== -1) tabs.removeTab(tabIdx)
       }
     },
@@ -514,43 +534,43 @@ function SecondarySidebar() {
     >
       <Show when={mode.currentMode === "coding"}>
         <div class="flex items-center justify-between gap-1 px-3 pt-3 pb-2">
-        <ButtonV2
-          variant="neutral"
-          size="normal"
-          icon="edit"
-          class="flex-1"
-          onClick={() => {
-            const c = conn()
-            if (!c) return
-            // Prefer the active session's directory, then the last session's
-            // directory (persisted), so "new session" continues where the user
-            // last worked instead of always landing on the first project.
-            const scope = ctx()?.sdk.scope
-            const dir = currentDir() || (scope ? global.lastSession.directory(scope) : undefined)
-            if (dir) {
-              openProjectNewSessionFn(c, dir)
-              return
-            }
-            const project = projects()[0]
-            if (project) newSessionInProject(project)
-          }}
-        >
-          {language.t("sidebar.secondary.newSession")}
-        </ButtonV2>
-        <IconButtonV2
-          variant="ghost-muted"
-          size="normal"
-          icon={<Icon name="magnifying-glass" />}
-          aria-label={language.t("sidebar.secondary.search")}
-          aria-expanded={state.searchOpen}
-          onClick={() => {
-            if (state.searchOpen) {
-              closeSearch()
-              return
-            }
-            setState("searchOpen", true)
-          }}
-        />
+          <ButtonV2
+            variant="neutral"
+            size="normal"
+            icon="edit"
+            class="flex-1"
+            onClick={() => {
+              const c = conn()
+              if (!c) return
+              // Prefer the active session's directory, then the last session's
+              // directory (persisted), so "new session" continues where the user
+              // last worked instead of always landing on the first project.
+              const scope = ctx()?.sdk.scope
+              const dir = currentDir() || (scope ? global.lastSession.directory(scope) : undefined)
+              if (dir) {
+                openProjectNewSessionFn(c, dir)
+                return
+              }
+              const project = projects()[0]
+              if (project) newSessionInProject(project)
+            }}
+          >
+            {language.t("sidebar.secondary.newSession")}
+          </ButtonV2>
+          <IconButtonV2
+            variant="ghost-muted"
+            size="normal"
+            icon={<Icon name="magnifying-glass" />}
+            aria-label={language.t("sidebar.secondary.search")}
+            aria-expanded={state.searchOpen}
+            onClick={() => {
+              if (state.searchOpen) {
+                closeSearch()
+                return
+              }
+              setState("searchOpen", true)
+            }}
+          />
         </div>
       </Show>
 
@@ -642,6 +662,15 @@ function SecondarySidebar() {
       </Show>
       <Show when={mode.currentMode !== "coding"}>
         <Dynamic component={modeSurface(mode.currentMode).Sidebar} />
+        {/* Chat 对话列表:功能树下方,当前项目 sessions,mode="chat" 过滤(对齐 code session list) */}
+        <Show when={mode.currentMode === "chat" && chatDirectory()}>
+          <ChatSessionList
+            directory={chatDirectory}
+            sortNow={sortNow}
+            ctx={sidebarCtx}
+            serverKey={serverKey() ?? undefined}
+          />
+        </Show>
       </Show>
     </aside>
   )
@@ -677,9 +706,7 @@ function SecondaryProjectRow(props: {
     return props.project.vcs === "git" && layout.sidebar.workspaces(props.project.worktree)()
   })
 
-  const sortableIds = createMemo(() =>
-    workspaces().map((d) => pathKey(d)),
-  )
+  const sortableIds = createMemo(() => workspaces().map((d) => pathKey(d)))
 
   const [menu, setMenu] = createStore({ open: false })
 
@@ -699,7 +726,12 @@ function SecondaryProjectRow(props: {
     const c = conn()
     if (!c) return
     const cctx = global.ensureServerCtx(c)
-    openProjectNewSession(cctx.projects, (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(props.currentMode) }), ServerConnection.key(c), props.project.worktree)
+    openProjectNewSession(
+      cctx.projects,
+      (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(props.currentMode) }),
+      ServerConnection.key(c),
+      props.project.worktree,
+    )
   }
 
   function newSessionInDir(directory: string) {
@@ -708,7 +740,12 @@ function SecondaryProjectRow(props: {
       if (!c) return
       const cctx = global.ensureServerCtx(c)
       props.ctx.setWorkspaceExpanded(directory, true)
-      openProjectNewSession(cctx.projects, (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(props.currentMode) }), ServerConnection.key(c), directory)
+      openProjectNewSession(
+        cctx.projects,
+        (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(props.currentMode) }),
+        ServerConnection.key(c),
+        directory,
+      )
     }
   }
 
@@ -723,9 +760,7 @@ function SecondaryProjectRow(props: {
   function clearNotifications() {
     if (!conn()) return
     const dirs = [props.project.worktree, ...(props.project.sandboxes ?? [])]
-    dirs
-      .filter((d) => notification.project.unseenCount(d) > 0)
-      .forEach((d) => notification.project.markViewed(d))
+    dirs.filter((d) => notification.project.unseenCount(d) > 0).forEach((d) => notification.project.markViewed(d))
   }
 
   function closeProject() {
@@ -808,17 +843,13 @@ function SecondaryProjectRow(props: {
             />
             <MenuV2.Portal>
               <MenuV2.Content>
-                <MenuV2.Item onSelect={navigateToNewSession}>
-                  {language.t("command.session.new")}
-                </MenuV2.Item>
+                <MenuV2.Item onSelect={navigateToNewSession}>{language.t("command.session.new")}</MenuV2.Item>
                 <MenuV2.Item onSelect={editProject}>{language.t("common.edit")}</MenuV2.Item>
                 <MenuV2.Item disabled={unseen() === 0} onSelect={clearNotifications}>
                   {language.t("sidebar.project.clearNotifications")}
                 </MenuV2.Item>
                 <MenuV2.Item disabled={props.project.vcs !== "git"} onSelect={toggleWorkspaces}>
-                  {language.t(
-                    workspaceEnabled() ? "sidebar.workspaces.disable" : "sidebar.workspaces.enable",
-                  )}
+                  {language.t(workspaceEnabled() ? "sidebar.workspaces.disable" : "sidebar.workspaces.enable")}
                 </MenuV2.Item>
                 <MenuV2.Separator />
                 <MenuV2.Item onSelect={closeProject}>{language.t("common.close")}</MenuV2.Item>
@@ -833,7 +864,12 @@ function SecondaryProjectRow(props: {
           when={workspaceEnabled()}
           fallback={
             <div class="pl-2">
-              <LocalWorkspace ctx={props.ctx} project={props.project} sortNow={props.sortNow} serverKey={props.serverKey} />
+              <LocalWorkspace
+                ctx={props.ctx}
+                project={props.project}
+                sortNow={props.sortNow}
+                serverKey={props.serverKey}
+              />
             </div>
           }
         >
@@ -851,11 +887,7 @@ function SecondaryProjectRow(props: {
             </ButtonV2>
           </div>
           <div class="relative">
-            <DragDropProvider
-              onDragStart={() => {}}
-              onDragEnd={() => {}}
-              collisionDetector={closestCenter}
-            >
+            <DragDropProvider onDragStart={() => {}} onDragEnd={() => {}} collisionDetector={closestCenter}>
               <DragDropSensors />
               <ConstrainDragXAxis />
               <div class="flex flex-col gap-4 overflow-y-auto py-2">

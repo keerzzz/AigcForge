@@ -537,12 +537,16 @@ export function AppInterface(props: {
 function ModeRoute() {
   const params = useParams<{ mode: string }>()
   const mode = useMode()
+  const selected = createMemo(() => (isMode(params.mode) ? params.mode : undefined))
+
   // ADR-15：ModeRoute 渲染共享 ModeWorkspace（不 redirect），setCurrentMode 在 createEffect
   // 响应 params 变化（不靠 redirect 重挂）；/mode/:mode 同路由组件参数变不 remount，治闪烁
   createEffect(() => {
-    if (isMode(params.mode)) mode.setCurrentMode(params.mode)
+    const current = selected()
+    if (current) mode.setCurrentMode(current)
   })
-  return <Home />
+
+  return <Show when={selected()} fallback={<Navigate href="/" />}><Home /></Show>
 }
 
 // ADR-15 §对齐：/ 重定向到 /mode/<persistedMode>（one-time landing，非 authority）

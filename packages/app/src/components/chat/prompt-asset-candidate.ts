@@ -1,9 +1,4 @@
-/**
- * Normalize V1/V2 propose_prompt_asset tool results into a unified CandidateInfo.
- *
- * V1 ToolPart: input in `state.input`, result text in `state.output`, metadata in `state.metadata`.
- * V2 tool result: input in `state.input`, structured result in `state.structured`.
- */
+/** Normalize V1/V2 propose_prompt_asset tool results into one UI shape. */
 
 export type CandidateInfo = {
   name: string
@@ -14,47 +9,23 @@ export type CandidateInfo = {
   revision: string | null
   nameConflict: boolean
   pathConflict: boolean
-  /** Human-readable status summary for the preview header. */
   status: "valid" | "conflict" | "exists"
 }
 
-type ToolStateInput = {
-  name?: string
-  description?: string
-  template?: string
-  relativePath?: string
-  [key: string]: unknown
+type UnknownRecord = Record<string, unknown>
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
-type V1ToolState = {
-  input: ToolStateInput
-  output?: string
-  metadata?: Record<string, unknown>
+function stringField(record: UnknownRecord, key: string) {
+  const value = record[key]
+  return typeof value === "string" ? value : undefined
 }
 
-type V2ToolState = {
-  input: ToolStateInput
-  structured?: {
-    relativePath?: string
-    exists?: boolean
-    revision?: string | null
-    nameConflict?: boolean
-    pathConflict?: boolean
-    [key: string]: unknown
-  }
-}
-
-type NormalizationInput = {
-  tool: string
-  state: V1ToolState | V2ToolState
-}
-
-function isV1(state: V1ToolState | V2ToolState): state is V1ToolState {
-  return "output" in state && !("structured" in state)
-}
-
-function isV2(state: V1ToolState | V2ToolState): state is V2ToolState {
-  return "structured" in state
+function booleanField(record: UnknownRecord | undefined, key: string) {
+  const value = record?.[key]
+  return typeof value === "boolean" ? value : undefined
 }
 
 function statusFrom(exists: boolean, nameConflict: boolean, pathConflict: boolean): CandidateInfo["status"] {
@@ -63,47 +34,54 @@ function statusFrom(exists: boolean, nameConflict: boolean, pathConflict: boolea
   return "valid"
 }
 
-export function normalizeProposeCandidate(input: NormalizationInput): CandidateInfo | null {
+export function normalizeProposeCandidate(input: { tool: string; state: unknown }): CandidateInfo | null {
   if (input.tool !== "propose_prompt_asset") return null
+  if (!isRecord(input.state)) return null
 
-  const name = input.state.input?.name ?? ""
-  const description = input.state.input?.description ?? ""
-  const template = input.state.input?.template ?? ""
+  const rawInput = input.state.input
+  if (!isRecord(rawInput)) return null
+
+  const name = stringField(rawInput, "name") ?? ""
+  const description = stringField(rawInput, "description") ?? ""
+  const template = stringField(rawInput, "template") ?? ""
   if (!name || !template) return null
 
-  if (isV2(input.state) && input.state.structured) {
-    const s = input.state.structured
-    return {
-      name,
-      description,
-      template,
-      relativePath: s.relativePath ?? "",
-      exists: s.exists ?? false,
-      revision: s.revision ?? null,
-      nameConflict: s.nameConflict ?? false,
-      pathConflict: s.pathConflict ?? false,
-      status: statusFrom(s.exists ?? false, s.nameConflict ?? false, s.pathConflict ?? false),
+  const structured = isRecord(input.state.structured) ? input.state.structured : undefined
+  const metadata = isRecord(input.state.metadata) ? input.state.metadata : undefined
+  const result = structured ?? metadata
+  const output = stringField(input.state, "output") ?? ""
+  const exists = booleanField(result, "exists") ?? output.includes("exists")
+  const nameConflict = booleanField(result, "nameConflict") ?? output.includes("Name conflict")
+  const pathConflict = booleanField(result, "pathConflict") ?? output.includes("Path conflict")
+  const revision = result?.revision
+
+  return {
+    name,
+    description,
+    template,
+    relativePath: stringField(result ?? rawInput, "relativePath") ?? stringField(rawInput, "relativePath") ?? "",
+    exists,
+    revision: typeof revision === "string" ? revision : null,
+    nameConflict,
+    pathConflict,
+    status: statusFrom(exists, nameConflict, pathConflict),
+  }
+}
+
+export function findProposeResult(
+  messages: readonly { id: string }[],
+  partsByMessage: Record<string, readonly unknown[] | undefined>,
+) {
+  for (const message of messages.toReversed()) {
+    const parts = partsByMessage[message.id]
+    if (!parts) continue
+    for (const part of parts.toReversed()) {
+      if (!isRecord(part)) continue
+      if (part.type !== "tool" || part.tool !== "propose_prompt_asset") continue
+      if (!isRecord(part.state) || part.state.status !== "completed") continue
+      const candidate = normalizeProposeCandidate({ tool: part.tool, state: part.state })
+      if (candidate) return candidate
     }
   }
-
-  if (isV1(input.state)) {
-    const output = input.state.output ?? ""
-    const exists = output.includes("exists")
-    const nameConflict = output.includes("Name conflict")
-    const pathConflict = output.includes("Path conflict")
-    const relativePath = input.state.input?.relativePath ?? ""
-    return {
-      name,
-      description,
-      template,
-      relativePath,
-      exists,
-      revision: null,
-      nameConflict,
-      pathConflict,
-      status: statusFrom(exists, nameConflict, pathConflict),
-    }
-  }
-
   return null
 }

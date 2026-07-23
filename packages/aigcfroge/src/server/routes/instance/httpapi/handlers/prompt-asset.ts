@@ -1,8 +1,10 @@
-import * as InstanceState from "@/effect/instance-state"
+export * as PromptAssetHandlers from "./prompt-asset"
+
+import { InstanceState } from "@/effect/instance-state"
 import { LocationServiceMap } from "@aigcfroge/core/location-layer"
 import { PromptAssetService } from "@aigcfroge/core/prompt-asset-service"
 import { PromptAsset } from "@aigcfroge/core/prompt-asset"
-import { PromptAsset as SchemaPromptAsset } from "@aigcfroge/schema/prompt-asset"
+import { PromptAsset as SchemaPromptAsset } from "@aigcfroge/schema/prompt-asset" // Schema namespace; local/core PromptAsset uses the unaliased name.
 import { Location } from "@aigcfroge/core/location"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { Effect, Layer, Schema } from "effect"
@@ -22,6 +24,10 @@ function toApplyError(err: unknown): Effect.Effect<never, ConflictError | Invali
     error = new InvalidRequestError({ message: err.reason })
   } else if (err instanceof PromptAssetService.ConcurrentModificationError) {
     error = new ConflictError({ message: `Concurrent modification: ${err.relativePath}`, resource: err.relativePath })
+  } else if (err instanceof PromptAssetService.ReadbackMismatchError) {
+    error = new ConflictError({ message: `Readback mismatch at ${err.relativePath} — possible name conflict with another asset`, resource: err.relativePath })
+  } else if (err instanceof PromptAssetService.RollbackFailedError) {
+    error = new InvalidRequestError({ message: err.reason })
   } else {
     error = new InvalidRequestError({ message: String(err) })
   }
@@ -40,6 +46,10 @@ function toDeleteError(err: unknown): Effect.Effect<never, ConflictError | Inval
     error = new InvalidRequestError({ message: err.reason })
   } else if (err instanceof PromptAssetService.ConcurrentModificationError) {
     error = new ConflictError({ message: `Concurrent modification: ${err.relativePath}`, resource: err.relativePath })
+  } else if (err instanceof PromptAssetService.ReadbackMismatchError) {
+    error = new ConflictError({ message: `Readback mismatch at ${err.relativePath} — possible name conflict with another asset`, resource: err.relativePath })
+  } else if (err instanceof PromptAssetService.RollbackFailedError) {
+    error = new InvalidRequestError({ message: err.reason })
   } else {
     error = new InvalidRequestError({ message: String(err) })
   }
@@ -87,14 +97,14 @@ export const promptAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "prompt
     })
 
     const apply = Effect.fn("PromptAssetHttpApi.apply")(function* (ctx: {
-      payload: { candidate: SchemaPromptAsset.Candidate; baseRevision: string | null; overwrite: boolean }
+      payload: { candidate: SchemaPromptAsset.Candidate; baseRevision?: string; overwrite: boolean }
     }) {
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const service = yield* PromptAssetService.Service.pipe(Effect.provide(layer), Effect.orDie)
       const info = yield* service.apply({
         candidate: ctx.payload.candidate,
-        baseRevision: ctx.payload.baseRevision,
+        baseRevision: ctx.payload.baseRevision ?? null,
         overwrite: ctx.payload.overwrite,
       }).pipe(Effect.catch(toApplyError))
       return Schema.decodeUnknownSync(SchemaPromptAsset.Info)({
@@ -108,14 +118,14 @@ export const promptAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "prompt
     })
 
     const deleteAsset = Effect.fn("PromptAssetHttpApi.delete")(function* (ctx: {
-      payload: { relativePath: string; baseRevision: string | null }
+      payload: { relativePath: string; baseRevision?: string }
     }) {
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const service = yield* PromptAssetService.Service.pipe(Effect.provide(layer), Effect.orDie)
       yield* service.delete({
         relativePath: ctx.payload.relativePath,
-        baseRevision: ctx.payload.baseRevision,
+        baseRevision: ctx.payload.baseRevision ?? null,
       }).pipe(Effect.catch(toDeleteError))
     })
 

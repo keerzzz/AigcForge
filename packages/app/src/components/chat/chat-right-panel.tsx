@@ -1,36 +1,32 @@
-import { For, Show, createEffect, createMemo, createResource, createSignal } from "solid-js"
-import { createMediaQuery } from "@solid-primitives/media"
+import { For, Show, createEffect, createMemo, createResource, createSignal, onCleanup } from "solid-js"
+import { createStore } from "solid-js/store"
 import { diffLines } from "diff"
+import { DragDropProvider, DragDropSensors, DragOverlay, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd"
+import type { DragEvent } from "@thisbeyond/solid-dnd"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
+import { ResizeHandle } from "@aigcfroge/ui/resize-handle"
+import { PROMPTS_DIR } from "@aigcfroge/core/constants"
+import { useLayout } from "@/context/layout"
 import { useLanguage } from "@/context/language"
+import { useSettings } from "@/context/settings"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { useSessionLayout } from "@/pages/session/session-layout"
-import { useNavigate } from "@solidjs/router"
-import { useProposeCandidate, setProposeCandidate, setApplying, setApplied } from "./prompt-asset-store"
-import { normalizeProposeCandidate } from "./prompt-asset-candidate"
-import type { Part, PromptAssetSummary } from "@aigcfroge/sdk/v2/client"
-
-// SDK Part.state 是 union;normalizeProposeCandidate 期望 V1/V2 tool state 结构。
-// 第三方类型逃逸,注释原因(AGENTS.md No Cheating:兼容第三方类型逃逸必须注释)。
-type ToolState = { input: Record<string, unknown>; output?: string; structured?: Record<string, unknown> }
-
-/** 在会话所有消息的 parts 里找首个完成的 propose_prompt_asset 结果。 */
-function findProposeResult(messages: { id: string }[], partsByMsg: Record<string, Part[] | undefined>) {
-  for (const msg of messages) {
-    const parts = partsByMsg[msg.id]
-    if (!parts) continue
-    for (const part of parts) {
-      if (part.type !== "tool") continue
-      if (part.tool !== "propose_prompt_asset") continue
-      if (part.state.status !== "completed") continue
-      return normalizeProposeCandidate({ tool: part.tool, state: part.state as unknown as ToolState })
-    }
-  }
-  return null
-}
+import { useFile } from "@/context/file"
+import { SessionContextTab, SortableTab, FileVisual } from "@/components/session"
+import FileTree from "@/components/file-tree"
+import { FileTabContent } from "@/pages/session/file-tabs"
+import { SessionContextUsage } from "@/components/session-context-usage"
+import { TooltipKeybind } from "@/components/tooltip-keybind"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { useCommand } from "@/context/command"
+import { ConstrainDragYAxis, getDraggableId } from "@/utils/solid-dnd"
+import { getTabReorderIndex, shouldShowFileTree, createSizing } from "@/pages/session/helpers"
+import { createFileTabListSync } from "@/pages/session/file-tab-scroll"
+import { clearProposeCandidate, useProposeCandidate, setProposeCandidate, setApplying, setApplied } from "./prompt-asset-store"
+import { findProposeResult } from "./prompt-asset-candidate"
 
 type DiffLine = { type: "add" | "del" | "eq"; text: string }
 
@@ -51,19 +47,10 @@ export function ChatRightPanel() {
   const language = useLanguage()
   const sdk = useSDK()
   const sync = useSync()
-  const navigate = useNavigate()
   const candidate = useProposeCandidate()
   const [searchQuery, setSearchQuery] = createSignal("")
-  const [openAssets, setOpenAssets] = createSignal<string[]>([])
-  const [activeTab, setActiveTab] = createSignal<string>("preview")
-  const [deletingPath, setDeletingPath] = createSignal<string | null>(null)
-  const [deleting, setDeleting] = createSignal(false)
-  // per-asset 编辑槽(Map),避免编辑第二资产丢第一未保存编辑(F5)
-  const [editingPath, setEditingPath] = createSignal<string | null>(null)
-  const [editedTemplates, setEditedTemplates] = createSignal<Record<string, string>>({})
-  // TODO: 768px 应引用 v2 断点常量(D6);当前 v2 未暴露常量,暂字面量
-  const isDesktop = createMediaQuery("(min-width: 768px)")
-  const [treeOpen, setTreeOpen] = createSignal(false)
+  const layout = useLayout()
+  const file = useFile()
   let sessionLayout: ReturnType<typeof useSessionLayout> | undefined
 
   try {
@@ -71,41 +58,120 @@ export function ChatRightPanel() {
   } catch {
     // Not inside a session layout
   }
+  const command = useCommand()
+  // tab 状态走 layout.tabs store(对齐 code:持久化 + 拖拽 move/close 复用)。
+  // preview 为固定 tab(不进 all,仅 setActive);context 已由 openSessionContext 写 store;文件 tab 走 file:// 进 all。
+  const tabs = createMemo(() => sessionLayout?.tabs())
+  const openedFileTabs = createMemo(
+    () =>
+      tabs()
+        ?.all()
+        .filter((t) => t.startsWith("file://")) ?? [],
+  )
+  const contextOpen = createMemo(() => tabs()?.active() === "context" || (tabs()?.all().includes("context") ?? false))
+  const activeTab = createMemo(() => {
+    const active = tabs()?.active()
+    if (active === "preview" || active === "context" || active?.startsWith("file://")) return active
+    return openedFileTabs()[0] ?? (contextOpen() ? "context" : "preview")
+  })
+  createEffect(() => {
+    const current = tabs()
+    const active = activeTab()
+    if (!current || current.active() === active) return
+    current.setActive(active)
+  })
+  // A 区显隐:复用 view().reviewPanel.opened()(对齐 code review toggle;session-header 的 sidebar-right icon 点击 toggle 此状态)。全局单例,chat/code 共享同一 A 区开关。
+  const reviewOpen = createMemo(() => (sessionLayout ? sessionLayout.view().reviewPanel.opened() : true))
+  // B 区显隐 + 宽度联动:复用 layout.fileTree + settings.visibility.fileTree(对齐 code file-tree;命令面板 fileTree.toggle 切换)。size 复用 createSizing(ResizeHandle 拖拽态,对齐 code props.size)。
+  const settings = useSettings()
+  const size = createSizing()
+  const shown = createMemo(() => settings.visibility.fileTree())
+  const fileOpen = createMemo(() => shouldShowFileTree({ visible: shown(), opened: layout.fileTree.opened() }))
+  const open = createMemo(() => reviewOpen() || fileOpen())
+  const panelWidth = createMemo(() => {
+    if (!open()) return "0px"
+    if (reviewOpen()) return "auto"
+    return `${layout.fileTree.width()}px`
+  })
+  const treeWidth = createMemo(() => (fileOpen() ? `${layout.fileTree.width()}px` : "0px"))
+  // 拖拽排序:复用 code 的 DragDrop + getTabReorderIndex + tabs().move 模式(session-side-panel)
+  const [dragStore, setDragStore] = createStore({ activeDraggable: undefined as string | undefined })
+  const handleDragStart = (event: unknown) => {
+    const id = getDraggableId(event)
+    if (!id) return
+    setDragStore("activeDraggable", id)
+  }
+  const handleDragOver = (event: DragEvent) => {
+    const { draggable, droppable } = event
+    if (!draggable || !droppable) return
+    const currentTabs = tabs()?.all() ?? []
+    const toIndex = getTabReorderIndex(currentTabs, draggable.id.toString(), droppable.id.toString())
+    if (toIndex === undefined) return
+    tabs()?.move(draggable.id.toString(), toIndex)
+  }
+  const handleDragEnd = () => {
+    setDragStore("activeDraggable", undefined)
+  }
+  // 文件 tab:点击 FileTree 文件 -> open file:// tab(对齐 code session-side-panel openTab(file.tab(path)))
+  const openFileTab = (path: string) => {
+    void tabs()?.open(file.tab(path))
+  }
+  // FileTree active:当前激活 file:// tab 的 path(高亮 FileTree 对应文件,对齐 code active prop)
+  const activeFilePath = createMemo(() => {
+    const tab = activeTab()
+    return tab.startsWith("file://") ? (file.pathFromTab(tab) ?? undefined) : undefined
+  })
+  // 搜索过滤:query 变 -> 防抖 150ms -> 递归遍历 .aigcfroge/ 匹配文件名 -> allowed 集合。
+  // 用 cancelled flag + onCleanup 取消先前慢 walk，避免并发。
+  const [searchAllowed, setSearchAllowed] = createSignal<readonly string[] | undefined>(undefined)
+  createEffect(() => {
+    const q = searchQuery().trim().toLowerCase()
+    if (!q) {
+      setSearchAllowed(undefined)
+      return
+    }
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      const result: string[] = []
+      const walk = async (dir: string) => {
+        if (cancelled) return
+        await file.tree.list(dir)
+        for (const child of file.tree.children(dir) ?? []) {
+          if (cancelled) return
+          if (child.type === "directory") await walk(child.path)
+          else if (child.path.toLowerCase().includes(q)) result.push(child.path)
+        }
+      }
+      try {
+        await walk(".aigcfroge")
+        if (!cancelled) setSearchAllowed(result)
+      } catch {
+        if (!cancelled) setSearchAllowed([])
+      }
+    }, 150)
+    onCleanup(() => { cancelled = true; clearTimeout(timer) })
+  })
 
   // Detect propose results:sync.data.message[sessionID] -> 各 message 的 parts(F-critical 修复)
   createEffect(() => {
     if (!sessionLayout) return
     const sessionID = sessionLayout.params.id
     if (!sessionID) return
-    const data = sync().data as { message?: Record<string, { id: string }[] | undefined>; part?: Record<string, Part[] | undefined> }
-    const messages = data.message?.[sessionID] ?? []
-    const info = findProposeResult(messages, data.part ?? {})
-    if (info && info.status !== "conflict") {
+    const data = sync().data
+    const messages: readonly { id: string }[] = data.message?.[sessionID] ?? []
+    const info = findProposeResult(messages, data.part)
+    if (info) {
       setProposeCandidate(sessionID, info)
+      return
     }
+    if (candidate.sessionID === sessionID || candidate.sessionID === null) return
+    clearProposeCandidate()
   })
 
-  const [result, { refetch }] = createResource(
+  const [, { refetch }] = createResource(
     () => sdk().client,
     (client) => client.promptAsset.list(),
   )
-  const assets = createMemo(() => result()?.data ?? [])
-
-  const filteredAssets = createMemo(() => {
-    const all = assets()
-    if (!all) return []
-    const q = searchQuery().toLowerCase()
-    if (!q) return all
-    return all.filter((a: PromptAssetSummary) => a.name.toLowerCase().includes(q) || a.description.toLowerCase().includes(q))
-  })
-
-  // Asset tab content:fetched on tab switch,暴露 refetch 供 editApply 后刷新(F4)
-  const [assetContent, { refetch: refetchContent }] = createResource(activeTab, async (tab) => {
-    if (tab === "preview") return null
-    const r = await sdk().client.promptAsset.content({ path: tab })
-    return r.data ?? null
-  })
-
   // Existing asset template (overwrite diff when candidate.status === "exists")
   const [oldTemplate] = createResource(
     () => (candidate.candidate?.exists ? candidate.candidate?.relativePath : null),
@@ -132,7 +198,8 @@ export function ChatRightPanel() {
         overwrite: false,
       })
       setApplied()
-      refetch()
+      void refetch()
+      void file.tree.refresh(PROMPTS_DIR)
     } catch (err) {
       console.error("Apply failed:", err)
       setApplying(false)
@@ -151,360 +218,277 @@ export function ChatRightPanel() {
         overwrite: true,
       })
       setApplied()
-      refetch()
+      void refetch()
+      void file.tree.refresh(PROMPTS_DIR)
     } catch (err) {
       console.error("Apply overwrite failed:", err)
       setApplying(false)
     }
   }
 
-  const openAsset = (relativePath: string) => {
-    if (!openAssets().includes(relativePath)) setOpenAssets([...openAssets(), relativePath])
-    setActiveTab(relativePath)
-  }
-
-  const handleDelete = async (relativePath: string, revision: string | null) => {
-    if (!sessionLayout?.params.id || deleting()) return
-    setDeleting(true)
-    try {
-      await sdk().client.promptAsset.delete({
-        sessionID: sessionLayout.params.id,
-        relativePath,
-        baseRevision: revision ?? undefined,
-      })
-      setOpenAssets(openAssets().filter((p) => p !== relativePath))
-      if (activeTab() === relativePath) setActiveTab("preview")
-      if (editingPath() === relativePath) {
-        setEditingPath(null)
-        setEditedTemplates((m) => {
-          const next = { ...m }
-          delete next[relativePath]
-          return next
-        })
-      }
-      setDeletingPath(null)
-      refetch()
-    } catch (err) {
-      console.error("Delete failed:", err)
-      setDeletingPath(null)
-    } finally {
-      setDeleting(false)
-    }
-  }
-
-  const startEdit = (p: string) => {
-    const info = assetContent()
-    setEditingPath(p)
-    setEditedTemplates((m) => ({
-      ...m,
-      [p]: m[p] ?? (info?.relativePath === p ? (info.template ?? "") : ""),
-    }))
-  }
-
-  const cancelEdit = () => {
-    const p = editingPath()
-    if (p) {
-      setEditedTemplates((m) => {
-        const next = { ...m }
-        delete next[p]
-        return next
-      })
-    }
-    setEditingPath(null)
-  }
-
-  const handleEditApply = async (p: string) => {
-    if (!sessionLayout?.params.id || candidate.applying) return
-    const info = assetContent()
-    if (!info || info.relativePath !== p) return
-    setApplying(true)
-    try {
-      await sdk().client.promptAsset.apply({
-        sessionID: sessionLayout.params.id,
-        candidate: {
-          name: info.name,
-          description: info.description,
-          template: editedTemplates()[p] ?? "",
-          relativePath: info.relativePath,
-        },
-        baseRevision: info.revision ?? undefined,
-        overwrite: true,
-      })
-      setEditingPath(null)
-      refetch()
-      refetchContent()
-    } catch (err) {
-      console.error("Edit apply failed:", err)
-    } finally {
-      setApplying(false)
-    }
-  }
-
-  const tabLabel = (p: string) => p.replace(/\.md$/, "")
-
   return (
-    <aside class="relative flex h-full shrink-0 overflow-hidden border-l border-v2-border-border-base bg-v2-background-bg-base">
-      {/* A 区:tab 工作区(预览 + 已打开资产) */}
-      <div class="flex min-w-0 flex-1 flex-col">
-        <Show when={!isDesktop()}>
-          <div class="flex shrink-0 items-center border-b border-v2-border-border-base px-2 py-1">
-            <ButtonV2 variant="ghost" size="small" onClick={() => setTreeOpen(true)}>
-              <Icon name="list" size="small" />
-              <span class="ml-1">{language.t("promptAsset.panel.title")}</span>
-            </ButtonV2>
-          </div>
-        </Show>
-        <TabsV2 value={activeTab()} onChange={setActiveTab} class="flex min-h-0 flex-1 flex-col">
-          <TabsV2.List class="shrink-0">
-            <TabsV2.Trigger value="preview">{language.t("promptAsset.tab.preview")}</TabsV2.Trigger>
-            <For each={openAssets()}>{(p) => <TabsV2.Trigger value={p}>{tabLabel(p)}</TabsV2.Trigger>}</For>
-          </TabsV2.List>
-
-          {/* 预览 tab:候选预览 + apply */}
-          <TabsV2.Content value="preview" class="min-h-0 flex-1 overflow-y-auto">
-            <Show
-              when={candidate.candidate && !candidate.applied}
-              fallback={
-                <Show
-                  when={candidate.applied}
-                  fallback={
-                    <div class="p-4 text-center text-v2-text-text-muted text-12-regular">
-                      {language.t("promptAsset.candidate.noCandidate")}
-                    </div>
-                  }
-                >
-                  <div class="p-3">
-                    <span class="text-v2-state-fg-success text-12-semibold">{language.t("promptAsset.candidate.applied")}</span>
-                  </div>
-                </Show>
-              }
-            >
-              <div class="flex h-full flex-col p-3">
-                <div class="mb-1 truncate text-v2-text-text-base text-12-semibold">{candidate.candidate?.name}</div>
-                <div class="mb-2 line-clamp-2 text-v2-text-text-muted text-12-regular">{candidate.candidate?.description}</div>
-                <Show
-                  when={candidate.candidate?.status === "valid"}
-                  fallback={
-                    <Show
-                      when={candidate.candidate?.status === "exists"}
-                      fallback={
-                        <span class="mb-2 block shrink-0 text-v2-state-fg-warning text-12-regular">
-                          {language.t("promptAsset.candidate.conflict")}
-                        </span>
-                      }
-                    >
-                      {/* exists: 旧↔新 diff + 显式覆盖确认(PRD §9.3) */}
-                      <span class="mb-2 block shrink-0 text-v2-state-fg-warning text-12-regular">
-                        {language.t("promptAsset.candidate.exists")}
-                      </span>
-                      <div class="min-h-0 flex-1 overflow-y-auto rounded-md border border-v2-border-border-base">
-                        <Show
-                          when={!oldTemplate.loading && oldTemplate() !== undefined}
-                          fallback={
-                            <div class="p-2 text-v2-text-text-muted text-12-regular">
-                              {language.t("promptAsset.panel.loading")}
-                            </div>
-                          }
-                        >
-                          <For each={diffLinesMemo() ?? []}>
-                            {(line) => (
-                              <div
-                                class="flex px-1 font-mono text-12-regular"
-                                classList={{
-                                  "text-v2-state-fg-success": line.type === "add",
-                                  "text-v2-state-fg-warning": line.type === "del",
-                                  "text-v2-text-text-muted": line.type === "eq",
-                                }}
-                              >
-                                <span class="shrink-0 select-none">
-                                  {line.type === "add" ? "+" : line.type === "del" ? "-" : " "}
-                                </span>
-                                <span class="whitespace-pre-wrap break-all">{line.text}</span>
-                              </div>
-                            )}
-                          </For>
-                        </Show>
-                      </div>
-                      <div class="mt-2 shrink-0">
-                        <ButtonV2
-                          variant="contrast"
-                          size="small"
-                          class="w-full"
-                          onClick={handleApplyOverwrite}
-                          disabled={candidate.applying}
-                        >
-                          {candidate.applying ? language.t("promptAsset.candidate.applying") : language.t("promptAsset.candidate.apply")}
-                        </ButtonV2>
-                      </div>
-                    </Show>
-                  }
-                >
-                  {/* valid: 直接应用(overwrite=false) */}
-                  <span class="mb-2 block shrink-0 text-v2-state-fg-success text-12-regular">
-                    {language.t("promptAsset.candidate.valid")}
-                  </span>
-                  <div class="mt-auto shrink-0">
-                    <ButtonV2
-                      variant="contrast"
-                      size="small"
-                      class="w-full"
-                      onClick={handleApply}
-                      disabled={candidate.applying}
-                    >
-                      {candidate.applying ? language.t("promptAsset.candidate.applying") : language.t("promptAsset.candidate.apply")}
-                    </ButtonV2>
-                  </div>
-                </Show>
-              </div>
-            </Show>
-          </TabsV2.Content>
-
-          {/* 资产 tab:查看/编辑两态(content API) */}
-          <For each={openAssets()}>
-            {(p) => (
-              <TabsV2.Content value={p} class="min-h-0 flex-1 overflow-y-auto">
-                <Show
-                  when={assetContent()?.relativePath === p}
-                  fallback={
-                    <div class="p-4 text-center text-v2-text-text-muted text-12-regular">
-                      {language.t("promptAsset.panel.loading")}
-                    </div>
-                  }
-                >
-                  <div class="flex h-full flex-col p-3">
-                    <div class="mb-1 text-v2-text-text-base text-13-semibold">{assetContent()?.name}</div>
-                    <div class="mb-3 text-v2-text-text-muted text-12-regular">{assetContent()?.description}</div>
-                    <Show
-                      when={editingPath() === p}
-                      fallback={
-                        <>
-                          <pre class="min-h-0 flex-1 whitespace-pre-wrap break-words overflow-y-auto font-mono text-v2-text-text-base text-12-regular">
-                            {assetContent()?.template}
-                          </pre>
-                          <div class="mt-2 flex shrink-0 gap-2">
-                            <ButtonV2 variant="ghost" size="small" onClick={() => startEdit(p)}>
-                              {language.t("common.edit")}
-                            </ButtonV2>
-                          </div>
-                        </>
-                      }
-                    >
-                      {/* 编辑态:受控 textarea + apply CAS（PRD §9.5/§8.3.1） */}
-                      <textarea
-                        class="min-h-0 flex-1 resize-none rounded-md border border-v2-border-border-base bg-v2-background-bg-base p-2 font-mono text-v2-text-text-base text-12-regular outline-none focus:border-v2-border-border-focus"
-                        aria-label={language.t("promptAsset.candidate.template")}
-                        value={editedTemplates()[p] ?? ""}
-                        onInput={(e) => setEditedTemplates((m) => ({ ...m, [p]: e.currentTarget.value }))}
-                      />
-                      <div class="mt-2 flex shrink-0 gap-2">
-                        <ButtonV2 variant="contrast" size="small" onClick={() => handleEditApply(p)} disabled={candidate.applying}>
-                          {candidate.applying ? language.t("promptAsset.candidate.applying") : language.t("promptAsset.candidate.apply")}
-                        </ButtonV2>
-                        <ButtonV2 variant="ghost" size="small" onClick={cancelEdit} disabled={candidate.applying}>
-                          {language.t("common.cancel")}
-                        </ButtonV2>
-                      </div>
-                    </Show>
-                  </div>
-                </Show>
-              </TabsV2.Content>
-            )}
-          </For>
-        </TabsV2>
-      </div>
-
-      {/* B 区:资产树(桌面固定 / 窄屏抽屉,PRD §9.6 A5) */}
-      <Show when={isDesktop() || treeOpen()}>
-      <div
-        class="flex w-60 shrink-0 flex-col border-l border-v2-border-border-base bg-v2-background-bg-base"
-        classList={{ "absolute inset-y-0 right-0 z-20 shadow-[var(--v2-elevation-raised)]": !isDesktop() }}
-      >
-        <Show when={!isDesktop()}>
-          <div class="flex shrink-0 items-center justify-between border-b border-v2-border-border-base px-2 py-1">
-            <span class="text-v2-text-text-base text-12-semibold">{language.t("promptAsset.panel.title")}</span>
-            <ButtonV2 variant="ghost" size="small" onClick={() => setTreeOpen(false)} aria-label={language.t("common.close")}>
-              <Icon name="close-small" size="small" />
-            </ButtonV2>
-          </div>
-        </Show>
-        <div class="flex items-center gap-2 border-b border-v2-border-border-base px-3 py-1.5">
-          <input
-            type="text"
-            placeholder={language.t("promptAsset.list.searchPlaceholder")}
-            aria-label={language.t("promptAsset.list.searchPlaceholder")}
-            class="min-w-0 flex-1 bg-transparent text-v2-text-text-base text-12-regular outline-none placeholder:text-v2-text-text-faint"
-            value={searchQuery()}
-            onInput={(e) => setSearchQuery(e.currentTarget.value)}
-          />
-          <ButtonV2 variant="ghost" size="small" onClick={() => navigate("/mode/chat")} aria-label={language.t("promptAsset.panel.newPrompt")}>
-            <Icon name="plus" size="small" />
-          </ButtonV2>
-        </div>
-
-        <div class="min-h-0 flex-1 overflow-y-auto px-2 py-1">
-          <Show
-            when={!result.loading}
-            fallback={
-              <div class="py-4 text-center text-v2-text-text-muted text-12-regular">
-                {language.t("promptAsset.panel.loading")}
-              </div>
-            }
+    // id="review-panel": 复用 session-header icon 的 aria-controls 目标(对齐 code aside id),chat 模式下指向受控右栏容器
+    <aside
+      id="review-panel"
+      class="relative min-w-0 h-full flex shrink-0 overflow-hidden bg-v2-background-bg-base"
+      classList={{
+        "rounded-[10px] shadow-[var(--v2-elevation-raised)] overflow-hidden": true,
+        "flex-1": reviewOpen(),
+      }}
+      style={{ width: panelWidth() }}
+    >
+      <Show when={open()}>
+        <div class="size-full flex">
+          {/* A 区:tab 工作区。显隐复用 reviewOpen(对齐 code review toggle,session-header icon);窄屏由 SessionSidePanel 外层 Show 挡住。 */}
+          <div
+            class="relative min-w-0 h-full flex-1 overflow-hidden bg-v2-background-bg-base"
+            inert={!reviewOpen()}
           >
-            <Show
-              when={filteredAssets().length > 0}
-              fallback={
-                <div class="py-4 text-center text-v2-text-text-muted text-12-regular">
-                  {language.t("promptAsset.panel.noAssets")}
-                </div>
-              }
+            <DragDropProvider
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDragOver={handleDragOver}
+              collisionDetector={closestCenter}
             >
-              <For each={filteredAssets()}>
-                {(asset: PromptAssetSummary) => (
-                  <div class="group flex items-center rounded-md px-2 py-1.5 hover:bg-v2-overlay-simple-overlay-hover">
-                    <Show
-                      when={deletingPath() === asset.relativePath}
-                      fallback={
-                        <>
-                          <button type="button" class="min-w-0 flex-1 text-left" onClick={() => openAsset(asset.relativePath)}>
-                            <div class="truncate text-v2-text-text-base text-12-semibold">{asset.name}</div>
-                            <div class="line-clamp-1 text-v2-text-text-muted text-11-regular">{asset.description}</div>
-                          </button>
-                          <button
-                            type="button"
-                            class="shrink-0 text-v2-icon-icon-muted opacity-0 transition-opacity hover:text-v2-text-text-base group-hover:opacity-100"
-                            onClick={() => setDeletingPath(asset.relativePath)}
-                            aria-label={language.t("common.delete")}
-                          >
-                            <Icon name="trash" size="small" />
-                          </button>
-                        </>
-                      }
-                    >
-                      {/* 删除二次确认(内联) */}
-                      <div class="flex w-full items-center gap-1">
-                        <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-12-regular">
-                          {language.t("promptAsset.asset.deleteConfirm")}
-                        </span>
-                        <ButtonV2 variant="ghost" size="small" onClick={() => setDeletingPath(null)} disabled={deleting()}>
-                          {language.t("common.cancel")}
-                        </ButtonV2>
-                        <ButtonV2
-                          variant="contrast"
-                          size="small"
-                          onClick={() => handleDelete(asset.relativePath, asset.revision ?? null)}
-                          disabled={deleting()}
+              <DragDropSensors />
+              <ConstrainDragYAxis />
+              <TabsV2 value={activeTab()} onChange={(t) => tabs()?.setActive(t)} class="flex min-h-0 flex-1 flex-col">
+                <TabsV2.List
+                  class="shrink-0"
+                  ref={(el: HTMLDivElement) => {
+                    const stop = createFileTabListSync({ el, contextOpen })
+                    onCleanup(stop)
+                  }}
+                >
+                  <TabsV2.Trigger value="preview">{language.t("promptAsset.tab.preview")}</TabsV2.Trigger>
+                  <Show when={contextOpen()}>
+                    <TabsV2.Trigger
+                      value="context"
+                      closeButton={
+                        <TooltipKeybind
+                          title={language.t("common.closeTab")}
+                          keybind={command.keybind("tab.close")}
+                          placement="bottom"
+                          gutter={10}
                         >
-                          {language.t("common.delete")}
-                        </ButtonV2>
+                          <IconButton
+                            icon="close-small"
+                            variant="ghost"
+                            class="h-5 w-5"
+                            onClick={() => sessionLayout?.tabs().close("context")}
+                            aria-label={language.t("common.closeTab")}
+                          />
+                        </TooltipKeybind>
+                      }
+                      hideCloseButton
+                      onMiddleClick={() => sessionLayout?.tabs().close("context")}
+                    >
+                      <div class="flex items-center gap-2">
+                        <SessionContextUsage variant="indicator" />
+                        <div>{language.t("session.tab.context")}</div>
+                      </div>
+                    </TabsV2.Trigger>
+                  </Show>
+                  {/* 文件 tab:复用 SortableTab(默认 file visual:file.pathFromTab + FileVisual) + SortableProvider 拖拽排序,对齐 code */}
+                  <SortableProvider ids={openedFileTabs()}>
+                    <For each={openedFileTabs()}>
+                      {(p) => <SortableTab tab={p} onTabClose={(t) => tabs()?.close(t)} />}
+                    </For>
+                  </SortableProvider>
+                </TabsV2.List>
+
+                {/* 预览 tab:候选预览 + apply */}
+                <TabsV2.Content value="preview" class="min-h-0 flex-1 overflow-y-auto">
+                  <Show
+                    when={candidate.candidate && !candidate.applied}
+                    fallback={
+                      <Show
+                        when={candidate.applied}
+                        fallback={
+                          <div class="p-4 text-center text-v2-text-text-muted text-12-regular">
+                            {language.t("promptAsset.candidate.noCandidate")}
+                          </div>
+                        }
+                      >
+                        <div class="p-3">
+                          <span class="text-v2-state-fg-success text-12-semibold">
+                            {language.t("promptAsset.candidate.applied")}
+                          </span>
+                        </div>
+                      </Show>
+                    }
+                  >
+                    <div class="flex h-full flex-col p-3">
+                      <div class="mb-1 truncate text-v2-text-text-base text-12-semibold">
+                        {candidate.candidate?.name}
+                      </div>
+                      <div class="mb-2 line-clamp-2 text-v2-text-text-muted text-12-regular">
+                        {candidate.candidate?.description}
+                      </div>
+                      <Show
+                        when={candidate.candidate?.status === "valid"}
+                        fallback={
+                          <Show
+                            when={candidate.candidate?.status === "exists"}
+                            fallback={
+                              <span class="mb-2 block shrink-0 text-v2-state-fg-warning text-12-regular">
+                                {language.t("promptAsset.candidate.conflict")}
+                              </span>
+                            }
+                          >
+                            {/* exists: 旧↔新 diff + 显式覆盖确认(PRD §9.3) */}
+                            <span class="mb-2 block shrink-0 text-v2-state-fg-warning text-12-regular">
+                              {language.t("promptAsset.candidate.exists")}
+                            </span>
+                            <div class="min-h-0 flex-1 overflow-y-auto rounded-md border border-v2-border-border-base">
+                              <Show
+                                when={!oldTemplate.loading && oldTemplate() !== undefined}
+                                fallback={
+                                  <div class="p-2 text-v2-text-text-muted text-12-regular">
+                                    {language.t("promptAsset.panel.loading")}
+                                  </div>
+                                }
+                              >
+                                <For each={diffLinesMemo() ?? []}>
+                                  {(line) => (
+                                    <div
+                                      class="flex px-1 font-mono text-12-regular"
+                                      classList={{
+                                        "text-v2-state-fg-success": line.type === "add",
+                                        "text-v2-state-fg-warning": line.type === "del",
+                                        "text-v2-text-text-muted": line.type === "eq",
+                                      }}
+                                    >
+                                      <span class="shrink-0 select-none">
+                                        {line.type === "add" ? "+" : line.type === "del" ? "-" : " "}
+                                      </span>
+                                      <span class="whitespace-pre-wrap break-all">{line.text}</span>
+                                    </div>
+                                  )}
+                                </For>
+                              </Show>
+                            </div>
+                            <div class="mt-2 shrink-0">
+                              <ButtonV2
+                                variant="contrast"
+                                size="small"
+                                class="w-full"
+                                onClick={handleApplyOverwrite}
+                                disabled={candidate.applying}
+                              >
+                                {candidate.applying
+                                  ? language.t("promptAsset.candidate.applying")
+                                  : language.t("promptAsset.candidate.apply")}
+                              </ButtonV2>
+                            </div>
+                          </Show>
+                        }
+                      >
+                        {/* valid: 直接应用(overwrite=false) */}
+                        <span class="mb-2 block shrink-0 text-v2-state-fg-success text-12-regular">
+                          {language.t("promptAsset.candidate.valid")}
+                        </span>
+                        <div class="mt-auto shrink-0">
+                          <ButtonV2
+                            variant="contrast"
+                            size="small"
+                            class="w-full"
+                            onClick={handleApply}
+                            disabled={candidate.applying}
+                          >
+                            {candidate.applying
+                              ? language.t("promptAsset.candidate.applying")
+                              : language.t("promptAsset.candidate.apply")}
+                          </ButtonV2>
+                        </div>
+                      </Show>
+                    </div>
+                  </Show>
+                </TabsV2.Content>
+
+                {/* 上下文 tab:复用 SessionContextTab(ADR-15 A1-3, PRD §9.2),对齐 Code contextOpen 开关 */}
+                <Show when={contextOpen()}>
+                  <TabsV2.Content value="context" class="flex flex-col h-full overflow-hidden contain-strict">
+                    <Show when={activeTab() === "context"}>
+                      <div class="relative pt-2 flex-1 min-h-0 overflow-hidden">
+                        <SessionContextTab />
                       </div>
                     </Show>
-                  </div>
-                )}
-              </For>
-            </Show>
+                  </TabsV2.Content>
+                </Show>
+
+                {/* 文件 tab:FileTabContent(文件系统查看/编辑,对齐 code session-side-panel)。Step 2 改 ChatFileTabContent 加弹窗确认 */}
+                <Show when={activeTab().startsWith("file://") ? activeTab() : undefined} keyed>
+                  {(tab) => <FileTabContent tab={tab} />}
+                </Show>
+              </TabsV2>
+              <DragOverlay>
+                <Show when={dragStore.activeDraggable} keyed>
+                  {(tab) => (
+                    <div data-component="tabs-drag-preview">
+                      <FileVisual active path={file.pathFromTab(tab) ?? ""} />
+                    </div>
+                  )}
+                </Show>
+              </DragOverlay>
+            </DragDropProvider>
+          </div>
+
+          {/* B 区:资产树。显隐复用 fileOpen(对齐 code file-tree:settings.visibility.fileTree + layout.fileTree.opened,命令面板 toggle);宽度复用 layout.fileTree.width。 */}
+          <Show when={shown()}>
+            <div
+              id="file-tree-panel"
+              class="relative min-w-0 h-full shrink-0 overflow-hidden"
+              inert={!fileOpen()}
+              classList={{
+                "transition-[width] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width] motion-reduce:transition-none":
+                  !size.active(),
+              }}
+              style={{ width: treeWidth() }}
+            >
+              <div
+                class="h-full flex flex-col overflow-hidden group/filetree"
+                classList={{ "border-l border-v2-border-border-base": reviewOpen() }}
+              >
+                <div class="flex h-8 items-center gap-2 border-b border-v2-border-border-base px-2">
+                  <Icon name="magnifying-glass" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+                  <input
+                    type="text"
+                    placeholder={language.t("promptAsset.list.searchPlaceholder")}
+                    aria-label={language.t("promptAsset.list.searchPlaceholder")}
+                    class="min-w-0 flex-1 bg-transparent text-v2-text-text-base text-12-regular outline-none placeholder:text-v2-text-text-faint"
+                    value={searchQuery()}
+                    onInput={(e) => setSearchQuery(e.currentTarget.value)}
+                  />
+                </div>
+                {/* FileTree:复用 code FileTree 组件,path=".aigcfroge" 显示总文件夹文件树(对齐 code)。搜索框过滤:query -> 递归 walk .aigcfroge/ 匹配文件名 -> allowed 集合 */}
+                <div class="min-h-0 flex-1 overflow-y-auto px-3 pt-3">
+                  <FileTree
+                    path=".aigcfroge"
+                    active={activeFilePath()}
+                    allowed={searchAllowed()}
+                    onFileClick={(node) => openFileTab(node.path)}
+                  />
+                </div>
+              </div>
+              <Show when={fileOpen()}>
+                <div onPointerDown={() => size.start()}>
+                  <ResizeHandle
+                    direction="horizontal"
+                    edge="start"
+                    size={layout.fileTree.width()}
+                    min={200}
+                    max={480}
+                    onResize={(width) => {
+                      size.touch()
+                      layout.fileTree.resize(width)
+                    }}
+                  />
+                </div>
+              </Show>
+            </div>
           </Show>
         </div>
-      </div>
       </Show>
     </aside>
   )

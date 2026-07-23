@@ -35,7 +35,7 @@ import { Location } from "@aigcfroge/core/location"
 import { PluginV2 } from "@aigcfroge/core/plugin"
 import { MetaPrompt } from "@aigcfroge/core/agent/meta/meta-prompt"
 import { Handoff } from "@aigcfroge/schema/handoff"
-import { SYSTEM_PROMPT as CHAT_ORCHESTRATOR_PROMPT } from "@aigcfroge/core/agent/prompt/chat-orchestrator"
+import { ChatOrchestratorPrompt } from "@aigcfroge/core/agent/prompt/chat-orchestrator"
 
 export const Info = Schema.Struct({
   name: Schema.String,
@@ -172,11 +172,10 @@ export const layer = Layer.effect(
               grep: "allow",
               question: "allow",
               propose_prompt_asset: "allow",
-              prompt_asset_apply: "allow",
             }),
             mode: "primary",
             native: true,
-            prompt: CHAT_ORCHESTRATOR_PROMPT,
+            prompt: ChatOrchestratorPrompt.SYSTEM_PROMPT,
           },
           build: {
             name: "build",

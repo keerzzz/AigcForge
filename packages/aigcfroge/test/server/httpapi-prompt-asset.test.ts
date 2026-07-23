@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { Context } from "effect"
-import { PromptAssetPaths } from "../../src/server/routes/instance/httpapi/groups/prompt-asset"
+import { Context, Schema } from "effect"
+import { PromptAssetApiGroup } from "../../src/server/routes/instance/httpapi/groups/prompt-asset"
 import { HttpApiApp } from "../../src/server/routes/instance/httpapi/server"
 import { resetDatabase } from "../fixture/db"
 import { disposeAllInstances, tmpdir } from "../fixture/fixture"
@@ -27,9 +27,23 @@ describe("prompt asset HttpApi", () => {
   test("lists assets in the request instance", async () => {
     await using tmp = await tmpdir({ git: true })
 
-    const response = await request(PromptAssetPaths.list, tmp.path)
+    const response = await request(PromptAssetApiGroup.PromptAssetPaths.list, tmp.path)
 
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual([])
+  })
+
+  test("accepts omitted baseRevision for a new asset", () => {
+    const payload = Schema.decodeUnknownSync(PromptAssetApiGroup.ApplyPayload)({
+      candidate: {
+        name: "new-prompt",
+        description: "description",
+        template: "template",
+        relativePath: "new-prompt.md",
+      },
+      overwrite: false,
+    })
+
+    expect(payload.baseRevision).toBeUndefined()
   })
 })

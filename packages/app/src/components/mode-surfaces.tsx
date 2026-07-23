@@ -61,7 +61,10 @@ function useChatFeatureData() {
     if (feature === "mcp") return Object.keys(data.mcp ?? {}).sort((a, b) => a.localeCompare(b))
     if (feature === "command") return data.command.filter((item) => item.source !== "skill").map((item) => item.name)
     if (feature === "agent")
-      return data.agent.filter((item) => !item.hidden).map((item) => item.name).sort((a, b) => a.localeCompare(b))
+      return data.agent
+        .filter((item) => !item.hidden)
+        .map((item) => item.name)
+        .sort((a, b) => a.localeCompare(b))
     return []
   })
   const featureCount = (feature: ChatFeatureID) => {
@@ -141,7 +144,7 @@ function ChatFeatureSidebar() {
   }
 
   return (
-    <div class="flex min-h-0 flex-1 flex-col">
+    <div class="flex min-h-0 shrink-0 flex-col">
       <div class="flex items-center gap-1.5 border-b border-v2-border-border-base px-3 pb-3 pt-3">
         <Icon name="folder" size="small" class="shrink-0 text-v2-icon-icon-muted" />
         <span class="shrink-0 text-v2-text-text-muted text-11-regular">{language.t("chat.feature.project")}</span>

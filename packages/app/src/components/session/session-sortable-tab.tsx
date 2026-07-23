@@ -32,9 +32,8 @@ export function SortableTab(props: { tab: string; onTabClose: (tab: string) => v
   const language = useLanguage()
   const command = useCommand()
   const sortable = createSortable(props.tab)
-  const path = createMemo(() => file.pathFromTab(props.tab))
   const content = createMemo(() => {
-    const value = path()
+    const value = file.pathFromTab(props.tab)
     if (!value) return
     return <FileVisual path={value} />
   })

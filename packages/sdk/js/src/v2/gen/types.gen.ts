@@ -10306,7 +10306,7 @@ export type PromptAssetContentResponse = PromptAssetContentResponses[keyof Promp
 export type PromptAssetApplyData = {
   body?: {
     candidate: PromptAssetCandidate
-    baseRevision: string
+    baseRevision?: string
     overwrite: boolean
   }
   path: {
@@ -10344,7 +10344,7 @@ export type PromptAssetApplyResponse = PromptAssetApplyResponses[keyof PromptAss
 export type PromptAssetDeleteData = {
   body?: {
     relativePath: string
-    baseRevision: string
+    baseRevision?: string
   }
   path: {
     sessionID: string

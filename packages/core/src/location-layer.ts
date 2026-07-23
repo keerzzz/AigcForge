@@ -106,6 +106,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
     const builtInTools = BuiltInTools.locationLayer.pipe(
       Layer.provide(services),
       Layer.provide(mutation),
+      Layer.provide(promptAssetService),
       Layer.provide(resources),
       Layer.provide(todos),
       Layer.provide(questions),

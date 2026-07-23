@@ -163,7 +163,7 @@ describe("PromptAsset registry", () => {
     })
   })
 
-  test("skips duplicate names", async () => {
+  test("excludes every asset participating in a duplicate-name conflict", async () => {
     await withTmp(async (dir) => {
       const promptsDir = path.join(dir, ".aigcfroge", "prompts")
       await fs.mkdir(promptsDir, { recursive: true })
@@ -176,7 +176,7 @@ describe("PromptAsset registry", () => {
           Effect.scoped,
         ),
       )
-      expect(list.length).toBe(1)
+      expect(list).toEqual([])
     })
   })
 

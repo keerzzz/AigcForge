@@ -4,7 +4,7 @@ import path from "path"
 import { define } from "./internal"
 import { Effect } from "effect"
 import { AgentV2 } from "../agent"
-import { SYSTEM_PROMPT as CHAT_ORCHESTRATOR_PROMPT } from "../agent/prompt/chat-orchestrator"
+import { ChatOrchestratorPrompt } from "../agent/prompt/chat-orchestrator"
 import { Global } from "../global"
 import { Location } from "../location"
 import { PermissionV2 } from "../permission"
@@ -296,7 +296,7 @@ export const Plugin = define({
       // chat-orchestrator: Chat mode only, fail-closed permissions
       draft.update(AgentV2.ID.make("chat-orchestrator"), (item) => {
         item.description = "Chat mode agent for creating reusable prompt assets via conversation."
-        item.system = CHAT_ORCHESTRATOR_PROMPT
+        item.system = ChatOrchestratorPrompt.SYSTEM_PROMPT
         item.mode = "primary"
         item.hidden = false
         item.permissions.push(
@@ -309,7 +309,6 @@ export const Plugin = define({
               { action: "grep", resource: "*", effect: "allow" },
               { action: "question", resource: "*", effect: "allow" },
               { action: "propose_prompt_asset", resource: "*", effect: "allow" },
-              { action: "prompt_asset_apply", resource: "*", effect: "allow" },
             ],
             readonlyExternalDirectory,
           ),

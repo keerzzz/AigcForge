@@ -1,10 +1,27 @@
 import { describe, expect, test } from "bun:test"
-import { checkPrimaryAgent, checkCommandAllowed, CHAT_ORCHESTRATOR } from "../src/product-mode-agent-policy"
+import { checkPrimaryAgent, checkCommandAllowed, resolvePrimaryAgent, CHAT_ORCHESTRATOR } from "../src/product-mode-agent-policy"
+
+
+describe("resolvePrimaryAgent", () => {
+  test("defaults chat mode to chat-orchestrator", () => {
+    expect(resolvePrimaryAgent("chat")).toBe(CHAT_ORCHESTRATOR)
+  })
+
+  test("preserves an explicit agent for policy validation", () => {
+    expect(resolvePrimaryAgent("chat", "build")).toBe("build")
+  })
+})
 
 describe("checkPrimaryAgent", () => {
   test("allows chat-orchestrator in chat mode", () => {
     const r = checkPrimaryAgent("chat", CHAT_ORCHESTRATOR)
     expect(r.allowed).toBe(true)
+  })
+
+  test("rejects an implicit default agent in chat mode", () => {
+    const r = checkPrimaryAgent("chat", undefined)
+    expect(r.allowed).toBe(false)
+    if (!r.allowed && r.error._tag === "AgentNotAllowedError") expect(r.error.agent).toBeUndefined()
   })
 
   test("rejects build agent in chat mode", () => {

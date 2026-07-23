@@ -688,22 +688,18 @@ export const layer: Layer.Layer<
       permission?: PermissionV1.Ruleset
       workspaceID?: WorkspaceV2.ID
     }) {
-      // Enforce Product Mode × Agent policy
-      const mode = input?.mode ?? ProductMode.Default
-      if (input?.agent) {
-        const verdict = ProductModeAgentPolicy.checkPrimaryAgent(mode, input.agent)
-        if (!verdict.allowed) return yield* Effect.die(verdict.error)
-      }
       const ctx = yield* InstanceState.context
       const workspace = yield* InstanceState.workspaceID
       const parent = input?.parentID ? Option.getOrUndefined(yield* Effect.option(get(input.parentID))) : undefined
+      const mode = parent?.mode ?? input?.mode ?? ProductMode.Default
+      const agent = yield* ProductModeAgentPolicy.enforcePrimary(mode, input?.agent ?? parent?.agent)
       return yield* createNext({
         parentID: input?.parentID,
-        mode: parent?.mode ?? input?.mode,
+        mode,
         directory: ctx.directory,
         path: sessionPath(ctx.worktree, ctx.directory),
         title: input?.title,
-        agent: input?.agent,
+        agent,
         model: input?.model,
         metadata: input?.metadata,
         permission: input?.permission,
@@ -721,6 +717,8 @@ export const layer: Layer.Layer<
         workspaceID: original.workspaceID,
         mode: original.mode,
         title,
+        agent: original.agent,
+        model: original.model,
         metadata: structuredClone(original.metadata),
       })
       const msgs = yield* messages({ sessionID: input.sessionID })

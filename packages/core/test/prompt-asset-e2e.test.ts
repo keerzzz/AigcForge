@@ -4,6 +4,7 @@ import { Effect, Layer } from "effect"
 import { PromptAssetService } from "@aigcfroge/core/prompt-asset-service"
 import { PromptAsset } from "@aigcfroge/core/prompt-asset"
 import { FileMutation } from "@aigcfroge/core/file-mutation"
+import { LocationMutation } from "@aigcfroge/core/location-mutation"
 import { FSUtil } from "@aigcfroge/core/fs-util"
 import { Location } from "@aigcfroge/core/location"
 import { EventV2 } from "@aigcfroge/core/event"
@@ -22,6 +23,7 @@ function locationLayer(dir: string) {
 function fullLayer(dir: string) {
   return PromptAssetService.locationLayer.pipe(
     Layer.provide(FileMutation.locationLayer),
+    Layer.provide(LocationMutation.locationLayer),
     Layer.provideMerge(PromptAsset.locationLayer),
     Layer.provide(EventV2.defaultLayer),
     Layer.provide(locationLayer(dir)),

@@ -17,7 +17,7 @@ import { WriteTool } from "./write"
 import { InvalidTool } from "./invalid"
 import { SkillTool } from "./skill"
 import { DelegationProtocolTool } from "./delegation-protocol"
-import { ProposePromptAssetV1 } from "./propose-prompt-asset"
+import { ProposePromptAsset } from "./propose-prompt-asset"
 import * as Tool from "./tool"
 import { Config } from "@/config/config"
 import { type ToolContext as PluginToolContext, type ToolDefinition } from "@aigcfroge/plugin"
@@ -109,7 +109,7 @@ export const layer = Layer.effect(
     const patchtool = yield* ApplyPatchTool
     const skilltool = yield* SkillTool
     const delegationProtocol = yield* DelegationProtocolTool
-    const proposePromptAsset = yield* ProposePromptAssetV1
+    const proposePromptAsset = yield* ProposePromptAsset.ProposePromptAssetV1
     const agent = yield* Agent.Service
 
     const state = yield* InstanceState.make<State>(
@@ -239,7 +239,7 @@ export const layer = Layer.effect(
             tool.write,
             tool.task,
             tool.delegationProtocol,
-            ...(flags.experimentalChatPromptAsset ? [tool.proposePromptAsset] : []),
+            tool.proposePromptAsset,
             tool.fetch,
             tool.todo,
             tool.search,

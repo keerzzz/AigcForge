@@ -188,14 +188,11 @@ export const layer = Layer.effect(
       recoverOverflow?: typeof compaction.compactAfterOverflow,
     ) {
       const session = yield* getSession(sessionID)
-      // Enforce Product Mode × Agent policy on each provider turn
-      if (session.agent) {
-        const verdict = ProductModeAgentPolicy.checkPrimaryAgent(session.mode, session.agent)
-        if (!verdict.allowed) return yield* Effect.die(verdict.error)
-      }
+      // Enforce Product Mode × Agent policy on each provider turn.
+      const agentID = yield* ProductModeAgentPolicy.enforcePrimary(session.mode, session.agent)
       if (session.location.directory !== location.directory || session.location.workspaceID !== location.workspaceID)
         return yield* Effect.interrupt
-      const agent = yield* agents.select(session.agent)
+      const agent = yield* agents.select(agentID)
       const initialized = yield* SessionContextEpoch.initialize(db, loadSystemContext(agent), session.id)
       const toolFibers = yield* FiberSet.make<void, ToolOutputStore.Error>()
       let needsContinuation = false
@@ -455,6 +452,10 @@ export const layer = Layer.effect(
       if (admitted.kind !== "shell") return
       // Fence shell execution to the session's owning Location, mirroring runTurnAttempt.
       const session = yield* getSession(admitted.sessionID)
+      // V2 shell policy guard: deny shell in chat mode (defense in depth, shell method
+      // also checks this, but drainShell executes independently via the runner loop).
+      const commandVerdict = ProductModeAgentPolicy.checkCommandAllowed(session.mode)
+      if (!commandVerdict.allowed) return yield* Effect.die(commandVerdict.error)
       if (session.location.directory !== location.directory || session.location.workspaceID !== location.workspaceID)
         return yield* Effect.interrupt
       // Spawn is interruptible; Shell.Ended is published from an uninterruptible tail so the

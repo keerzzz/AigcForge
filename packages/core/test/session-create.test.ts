@@ -70,13 +70,28 @@ describe("SessionV2.create", () => {
   it.effect("stores a root product mode and inherits it for children", () =>
     Effect.gen(function* () {
       const session = yield* SessionV2.Service
-      const parent = yield* session.create({ location, mode: "chat" })
+      const parent = yield* session.create({ location, mode: "chat", agent: AgentV2.ID.make("chat-orchestrator") })
       const child = yield* session.create({ location, parentID: parent.id, mode: "work" })
 
       expect(parent.mode).toBe("chat")
+      expect(parent.agent).toBe(AgentV2.ID.make("chat-orchestrator"))
       expect(child.mode).toBe("chat")
+      expect(child.agent).toBe(AgentV2.ID.make("chat-orchestrator"))
       expect(yield* session.list({ mode: "chat" })).toEqual([child, parent])
       expect(yield* session.list({ mode: "coding" })).toEqual([])
+    }),
+  )
+
+  // D.5 safety net: chat sessions default to chat-orchestrator when no agent is
+  // supplied, so the fail-closed primary-agent check never rejects a bare chat
+  // session (app callers usually pass the agent, but the default must hold).
+  it.effect("defaults a chat session to chat-orchestrator when no agent is supplied", () =>
+    Effect.gen(function* () {
+      const session = yield* SessionV2.Service
+      const root = yield* session.create({ location, mode: "chat" })
+
+      expect(root.mode).toBe("chat")
+      expect(root.agent).toBe(AgentV2.ID.make("chat-orchestrator"))
     }),
   )
 

@@ -191,7 +191,7 @@ describe("Session", () => {
   it.instance("inherits product mode for children and forks", () =>
     Effect.gen(function* () {
       const session = yield* SessionNs.Service
-      const parent = yield* Effect.acquireRelease(session.create({ mode: "chat" }), (info) =>
+      const parent = yield* Effect.acquireRelease(session.create({ mode: "chat", agent: "chat-orchestrator" }), (info) =>
         session.remove(info.id).pipe(Effect.ignore),
       )
       const child = yield* Effect.acquireRelease(session.create({ parentID: parent.id, mode: "work" }), (info) =>
@@ -202,8 +202,11 @@ describe("Session", () => {
       )
 
       expect(parent.mode).toBe("chat")
+      expect(parent.agent).toBe("chat-orchestrator")
       expect(child.mode).toBe("chat")
+      expect(child.agent).toBe("chat-orchestrator")
       expect(fork.mode).toBe("chat")
+      expect(fork.agent).toBe("chat-orchestrator")
       expect((yield* session.list({ roots: true, mode: "chat" })).map((info) => info.id)).toEqual([fork.id, parent.id])
       expect(yield* session.list({ roots: true, mode: "coding" })).toEqual([])
     }),

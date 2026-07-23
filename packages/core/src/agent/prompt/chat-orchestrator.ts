@@ -1,3 +1,5 @@
+export * as ChatOrchestratorPrompt from "./chat-orchestrator"
+
 /**
  * Shared system prompt for the chat-orchestrator agent.
  * Used by both V1 and V2 agent registrations.

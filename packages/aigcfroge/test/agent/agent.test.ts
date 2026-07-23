@@ -769,6 +769,7 @@ it.instance(
         meta: { disable: true },
         build: { disable: true },
         plan: { disable: true },
+        "chat-orchestrator": { disable: true },
       },
     },
   },

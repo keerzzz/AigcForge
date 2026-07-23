@@ -195,13 +195,9 @@ export const layer = Layer.effect(
         const sessionID = input.id ?? SessionSchema.ID.create()
         const recorded = yield* store.get(sessionID)
         if (recorded) return recorded
-        // Enforce Product Mode × Agent policy
-        const mode = input.mode ?? ProductMode.Default
-        if (input.agent) {
-          const verdict = ProductModeAgentPolicy.checkPrimaryAgent(mode, input.agent)
-          if (!verdict.allowed) return yield* Effect.die(verdict.error)
-        }
         const parent = input.parentID ? yield* store.get(input.parentID) : undefined
+        const mode = parent?.mode ?? input.mode ?? ProductMode.Default
+        const agent = yield* ProductModeAgentPolicy.enforcePrimary(mode, input.agent ?? parent?.agent)
         const project = yield* projects.resolve(input.location.directory)
         yield* db
           .insert(ProjectTable)
@@ -216,12 +212,12 @@ export const layer = Layer.effect(
           version: InstallationVersion,
           projectID: project.id,
           parentID: input.parentID,
-          mode: parent?.mode ?? input.mode ?? ProductMode.Default,
+          mode,
           directory: input.location.directory,
           path: path.relative(project.directory, input.location.directory).replaceAll("\\", "/"),
           workspaceID: input.location.workspaceID ? WorkspaceV2.ID.make(input.location.workspaceID) : undefined,
           title: `New session - ${new Date(now).toISOString()}`,
-          agent: input.agent,
+          agent,
           model: input.model
             ? {
                 id: ModelV2.ID.make(input.model.id),
@@ -379,7 +375,10 @@ export const layer = Layer.effect(
       shell: Effect.fn("V2Session.shell")((input) =>
         Effect.uninterruptible(
           Effect.gen(function* () {
-            yield* result.get(input.sessionID)
+            const session = yield* result.get(input.sessionID)
+            // V2 shell policy guard: deny shell in chat mode
+            const commandVerdict = ProductModeAgentPolicy.checkCommandAllowed(session.mode ?? "coding")
+            if (!commandVerdict.allowed) return yield* Effect.die(commandVerdict.error)
             const messageID = input.id ?? SessionMessage.ID.create()
             const delivery: SessionInput.Delivery = "queue"
             const expected = { sessionID: input.sessionID, messageID, command: input.command, delivery }

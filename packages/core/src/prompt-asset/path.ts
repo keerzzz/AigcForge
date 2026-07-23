@@ -1,8 +1,12 @@
+export * as PromptAssetPath from "./path"
+
 import { Effect, Schema } from "effect"
 import path from "path"
 import { FSUtil } from "../fs-util"
+import { LocationMutation } from "../location-mutation"
+import { PROMPTS_DIR } from "../constants"
 
-export const PROMPTS_DIR = ".aigcfroge/prompts"
+export { PROMPTS_DIR }
 
 export const DISALLOWED_CHARS = /[<>:"/\\|?*]/
 export const CONTROL_CHARS = /[\x00-\x1F\x7F]/
@@ -67,26 +71,23 @@ export function resolveOwnerRoot(locationDirectory: string): string {
 }
 
 export function resolveSafeTarget(
-  directory: string,
   relativePath: string,
-  fs: FSUtil.Interface,
-): Effect.Effect<{ canonical: string; lexical: string }, PathValidationError | FSUtil.Error> {
+  mutation: LocationMutation.Interface,
+): Effect.Effect<LocationMutation.Target, PathValidationError | LocationMutation.PathError | FSUtil.Error> {
   return Effect.gen(function* () {
     const validated = yield* Effect.try({
       try: () => validateRelativePath(relativePath),
-      catch: (err) => err instanceof PathValidationError ? err : new PathValidationError({ reason: String(err), path: relativePath }),
+      catch: (error) =>
+        error instanceof PathValidationError
+          ? error
+          : new PathValidationError({ reason: String(error), path: relativePath }),
     })
-    const ownerRoot = resolveOwnerRoot(directory)
-    const lexical = path.resolve(ownerRoot, validated)
-    if (!FSUtil.contains(ownerRoot, lexical)) {
-      return yield* new PathValidationError({ reason: "Lexical path escapes owner root", path: relativePath })
+    const resource = path.posix.join(PROMPTS_DIR, validated)
+    const target = yield* mutation.resolve({ path: resource })
+    const canonicalResource = target.resource.replaceAll("\\", "/")
+    if (target.externalDirectory || canonicalResource !== resource) {
+      return yield* new PathValidationError({ reason: "Canonical path escapes prompt asset root", path: relativePath })
     }
-    const canonical = yield* fs.realPath(lexical).pipe(
-      Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(lexical)),
-    )
-    if (!FSUtil.contains(ownerRoot, canonical)) {
-      return yield* new PathValidationError({ reason: "Canonical path escapes owner root (symlink)", path: relativePath })
-    }
-    return { canonical, lexical }
+    return target
   })
 }

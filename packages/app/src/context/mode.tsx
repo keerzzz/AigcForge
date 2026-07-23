@@ -61,7 +61,7 @@ export function modeHref(mode: Mode) {
 export function modeDraft(mode: Mode) {
   return {
     mode,
-    agent: mode === "chat" ? ProductModeAgentPolicy.CHAT_ORCHESTRATOR : undefined,
+    agent: ProductModeAgentPolicy.resolvePrimaryAgent(mode),
   }
 }
 

@@ -8,21 +8,53 @@ export * as ProductModeAgentPolicy from "./product-mode-agent-policy"
  * - `shell`/`command` prompts are denied in `chat` mode.
  */
 
-export class AgentNotAllowedError extends Error {
-  readonly _tag = "AgentNotAllowedError"
-  constructor(readonly mode: string, readonly agent: string, readonly reason: string) {
-    super(`Agent "${agent}" is not allowed in mode "${mode}": ${reason}`)
+import { Effect, Schema } from "effect"
+
+export class AgentNotAllowedError extends Schema.TaggedErrorClass<AgentNotAllowedError>()(
+  "AgentNotAllowedError",
+  {
+    mode: Schema.String,
+    agent: Schema.optional(Schema.String),
+    reason: Schema.String,
+  },
+) {
+  override get message() {
+    return `Agent "${this.agent ?? "default"}" is not allowed in mode "${this.mode}": ${this.reason}`
   }
 }
 
-export class CommandDeniedError extends Error {
-  readonly _tag = "CommandDeniedError"
-  constructor(readonly mode: string, readonly reason: string) {
-    super(`Command/shell is not allowed in mode "${mode}": ${reason}`)
+export class CommandDeniedError extends Schema.TaggedErrorClass<CommandDeniedError>()(
+  "CommandDeniedError",
+  {
+    mode: Schema.String,
+    reason: Schema.String,
+  },
+) {
+  override get message() {
+    return `Command/shell is not allowed in mode "${this.mode}": ${this.reason}`
   }
 }
 
 export const CHAT_ORCHESTRATOR = "chat-orchestrator"
+
+export function resolvePrimaryAgent(mode: string, agent?: string) {
+  if (agent) return agent
+  if (mode === "chat") return CHAT_ORCHESTRATOR
+  return undefined
+}
+
+/**
+ * Resolve + check + die on failure in one step. Returns the resolved agent
+ * on success; dies with a typed error on any policy violation.
+ * Use this at every session/turn entry-point instead of repeating the pattern.
+ */
+export const enforcePrimary = (mode: string, agent?: string) =>
+  Effect.gen(function* () {
+    const resolved = resolvePrimaryAgent(mode, agent)
+    const verdict = checkPrimaryAgent(mode, resolved)
+    if (!verdict.allowed) return yield* Effect.die(verdict.error)
+    return resolved
+  })
 
 export type PolicyVerdict =
   | { readonly allowed: true }
@@ -32,12 +64,12 @@ export type PolicyVerdict =
  * Check whether the given agent is valid as a root/primary agent for the mode.
  * Returns `{ allowed: false }` with a typed error if the combination is invalid.
  */
-export function checkPrimaryAgent(mode: string, agent: string): PolicyVerdict {
+export function checkPrimaryAgent(mode: string, agent?: string): PolicyVerdict {
   if (mode === "chat") {
     if (agent !== CHAT_ORCHESTRATOR) {
       return {
         allowed: false,
-        error: new AgentNotAllowedError(mode, agent, "Only chat-orchestrator is allowed in chat mode"),
+        error: new AgentNotAllowedError({ mode, agent, reason: "Only chat-orchestrator is allowed in chat mode" }),
       }
     }
     return { allowed: true }
@@ -47,7 +79,7 @@ export function checkPrimaryAgent(mode: string, agent: string): PolicyVerdict {
   if (agent === CHAT_ORCHESTRATOR) {
     return {
       allowed: false,
-      error: new AgentNotAllowedError(mode, agent, "chat-orchestrator is only valid in chat mode"),
+      error: new AgentNotAllowedError({ mode, agent, reason: "chat-orchestrator is only valid in chat mode" }),
     }
   }
   return { allowed: true }
@@ -60,7 +92,7 @@ export function checkCommandAllowed(mode: string): PolicyVerdict {
   if (mode === "chat") {
     return {
       allowed: false,
-      error: new CommandDeniedError(mode, "Shell/command prompts are denied in chat mode"),
+      error: new CommandDeniedError({ mode, reason: "Shell/command prompts are denied in chat mode" }),
     }
   }
   return { allowed: true }
