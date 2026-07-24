@@ -89,7 +89,10 @@ export function ModeProvider(props: ParentProps) {
 
   const [secondaryOpen, setSecondaryOpen] = persisted(
     Persist.global("mode.secondarySidebarOpen"),
-    createStore({ open: true }),
+    // ADR-15 §3 + M2 Step 3：默认次级左侧边栏关闭。Home 内部已承载 ChatSidebar / HomeProjectColumn
+    // 作为主区左列；SecondarySidebar 默认收起，避免与 Home 左栏重复（M1 遗留双渲染）。
+    // persisted 仅影响无存储值的新用户；已持久化偏好的用户不受影响。
+    createStore({ open: false }),
   )
 
   const ctx: ModeContext = {
