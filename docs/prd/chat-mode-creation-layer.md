@@ -3,8 +3,8 @@
 > 状态：**Approved**（2026-07-18，全权 owner 拍板；Gate 1-5 签字见 §15.1）
 > 负责人：产品（范围与指标）/ Core（资产契约与事务）/ App（Chat surface）/ Security（写入边界）
 > 范围：`packages/app` + `packages/core` + `packages/aigcfroge` + `packages/schema`
-> 关联：[ADR-11](../architecture/adr/ADR-11-product-mode-session-classification.md)、[ADR-12](../architecture/adr/ADR-12-product-mode-entry-routing.md)、[ADR-13](../architecture/adr/ADR-13-chat-work-mode-boundary.md)、[ADR-14](../architecture/adr/ADR-14-persistence-and-scope-strategy.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md) §4.10、[CONTEXT.md](../../CONTEXT.md)、[M1 实施计划](../plan/chat-mode-creation-layer-m1.md)、[Assistant PRD](assistant-mode-personal-agent.md)
-> 最后更新：2026-07-18（v4.3：落实 docs review 13 项修订--实施状态同步 S2/A1-A5 已实现、delete 授权措辞修正（与 apply 同构，非动作级 check）、C-2 any/interface 名/错误类计数修正、版本标签升 v4.2、listInvalid 入 plan Phase B、§11.2 baseline 落点；v4.2 Approved 见前版）
+> 关联：[ADR-11](../architecture/adr/ADR-11-product-mode-session-classification.md)、[ADR-12](../architecture/adr/ADR-12-product-mode-entry-routing.md)、[ADR-13](../architecture/adr/ADR-13-chat-work-mode-boundary.md)、[ADR-14](../architecture/adr/ADR-14-persistence-and-scope-strategy.md)、[ADR-15](../architecture/adr/ADR-15-mode-workspace-main-area-slot.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md) §4.10、[CONTEXT.md](../../CONTEXT.md)、[M1 实施计划](../plan/chat-mode-creation-layer-m1.md)、[M2 实施计划](../plan/chat-asset-studio-m2.md)、[Assistant PRD](assistant-mode-personal-agent.md)
+> 最后更新：2026-07-23（v4.5：新增 §16 M2 实施状态；M1 Phase A-F + flag/E2E 全部闭环；M2 新增 listInvalid + ADR-15 slot 合规）
 
 ---
 
@@ -430,3 +430,43 @@ PRD 覆盖全部路径与类型；实施按供给路径先后推进、按消费�
 **v4.4 修订记录（2026-07-19，已签字 Accepted）：** 新增 [ADR-15](../architecture/adr/ADR-15-mode-workspace-main-area-slot.md)（amends ADR-12 §3：ModeWorkspace 主区为 typed slot，调和 ADR-12 §3"主区=Session lists"与 ADR-13"Chat 核心对象=资产"的张力）。据此重写 §9.1：Chat 首页主区=资产工作台（Y 方案），会话降为次级，外壳共享；§9.2 补外壳共享说明；§9.6 对齐 ADR-14 §4。双 owner 三轮 agent 评审通过（Core/App 文档层 ACCEPT，P0/P1 全 RESOLVED：§4 SolidJS 机制 solid-js@1.9.10 实证、plan step 1 createEffect、§4 禁令传导 plan/PRD）。全权 owner 授权 AI 代理 Gate 1+5 签字（见 ADR-15 接受记录）。
 
 **实现状态：** S2 delete 后端 + A1-A5（右栏双区 / 编辑态 / diff / i18n / 窄屏）已实现（工作树，待 commit），typecheck/lint/test 通过，见 plan §13.5/§13.6。
+
+---
+
+## 16. M2 实施状态（2026-07-23，v4.5）
+
+M2 将 M1 的"提示词单类型闭环"整合进 Asset Studio 资产工作室完整 UI。范围以 [M2 实施计划](../plan/chat-asset-studio-m2.md) 为准。
+
+### 16.1 M1 最终状态
+
+| Phase | 状态 | 备注 |
+|-------|------|------|
+| A Schema/Path/writeAtomic | ✅ 已实现 | |
+| B Registry | ⚠️ 已实现（缺 listInvalid） | M1 计划 §280-281 写入但未落地；M2 Step 0 补充 |
+| C PromptAssetService 事务 | ✅ 已实现 | 含 delete 事务 |
+| D Agent/Tool/Policy V1+V2 | ✅ 已实现 | 含 flag gate |
+| E App UI | ✅ 已实现 | 含右栏双区/首页分流 |
+| F Flag/E2E/V2 smoke | ✅ 已实现 | |
+
+### 16.2 M2 范围
+
+| # | 实施项 | 说明 |
+|---|--------|------|
+| 1 | AssetWorkbench 4 列表格 | 主区重写，4 列 + Kind Dropdown + 搜索 |
+| 2 | ChatRightPanel Inspector | 右栏简化为纯详情视图 |
+| 3 | 功能树移除 + ADR-15 slot 合规 | 删 chat-feature.tsx + mode-workspace slot 改 render-all |
+| 4 | Insert 流程 | SessionSelectorPopover + 跳转注入 |
+| 5 | 路由状态保持 | ChatWorkspaceContext 扩展 + Provider 提到 Router 外 |
+| 6 | listInvalid 数据源 | core 补接口 + HTTP API 携带 invalid 标记 |
+| 7 | 文件夹级资产（Path 列展示） | 表格自然支持 |
+
+### 16.3 M2 非目标
+
+| 项 | 原因 |
+|----|------|
+| AssetKind 框架泛化 | 价值在开新类型时才体现 |
+| 外部导入路径 | 低成本供给路径，M2 后可快速启动 |
+| 会话捕获路径 | 依赖消息流架构 |
+| 命令类型开闸 | 提示词复用数据达标后裁决 |
+| 全局资产 | PRD §5.2 非目标 |
+| 窄屏适配 | M1 A5 已做 <768px 抽屉，M2 不做新窄屏改动 |
