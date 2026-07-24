@@ -1174,4 +1174,6 @@ export const dict = {
   "promptAsset.candidate.insert": "Insert to input",
   "promptAsset.error.applyFailed": "Failed to apply prompt asset",
   "promptAsset.asset.deleteConfirm": "Delete this asset?",
+  "promptAsset.workbench.import": "Import",
+  "promptAsset.badge.invalid": "Invalid file",
 }

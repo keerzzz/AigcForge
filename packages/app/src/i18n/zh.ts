@@ -1054,6 +1054,8 @@ export const dict = {
   "promptAsset.list.searchPlaceholder": "搜索提示词...",
   "promptAsset.error.applyFailed": "应用提示词资产失败",
   "promptAsset.asset.deleteConfirm": "删除此资产？",
+  "promptAsset.workbench.import": "导入",
+  "promptAsset.badge.invalid": "无效文件",
   "chat.feature.title": "功能",
   "chat.feature.location": "位置",
   "chat.feature.project": "项目",
