@@ -3,7 +3,9 @@ import {
   batch,
   createEffect,
   createMemo,
+  createResource,
   createRoot,
+  createSignal,
   For,
   on,
   onCleanup,
@@ -11,7 +13,6 @@ import {
   Show,
   startTransition,
 } from "solid-js"
-import { Dynamic } from "solid-js/web"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { createStore } from "solid-js/store"
 import { useQuery } from "@tanstack/solid-query"
@@ -57,8 +58,9 @@ import { Persist, persisted } from "@/utils/persist"
 import { useMarked } from "@aigcfroge/ui/context/marked"
 import { preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"
 import { modeDraft, useMode, type Mode } from "@/context/mode"
-import { ChatFeaturePanel, modeSurface } from "@/components/mode-surfaces"
-import { chatFeature } from "@/context/chat-feature"
+import { modeSurface, useChatDirectory } from "@/components/mode-surfaces"
+import type { DirectorySDK } from "@/context/sdk"
+import { AssetWorkbench } from "@/components/chat/asset-workbench"
 
 const HOME_SESSION_LIMIT = 64
 const HOME_ROW_LAYOUT =
@@ -90,6 +92,10 @@ const HOME_SEARCH_RESULT_META =
   "min-w-0 flex-[1_1_auto] overflow-hidden text-ellipsis whitespace-nowrap text-[13px] leading-4 tracking-[-0.04px] text-v2-text-text-muted [font-weight:440]"
 
 let pendingHomeNavigation: { server: ServerConnection.Key; href: string } | undefined
+
+// ADR-15 §4: chat sidebar slot 经 modeSurface registry 解析（chat sidebar 是 mode surface）。
+// Home 左栏 render-all 时复用此 slot；modeSurface.chat.Sidebar = ChatSidebar（mode-surfaces.tsx）。
+const ChatSidebarSlot = modeSurface("chat").Sidebar
 
 function buildHomeSessionRecords(input: {
   sync: Pick<ServerSync, "child">
@@ -323,6 +329,24 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
     setSelection({ server: ServerConnection.key(conn), directory: dir })
   })
 
+  // Chat 资产列表（ADR-15 §4 方案2: createResource 提升到 Home/slot 之上，slot remount 不重取）。
+  // useChatDirectory 与 ChatSidebar 共用，确保资产列表目录与左栏 Location 展示一致。
+  const { ctx: chatCtx, directory: chatDirectory } = useChatDirectory()
+  const [chatDirSdk, setChatDirSdk] = createSignal<DirectorySDK | undefined>()
+  createEffect(() => {
+    const dir = chatDirectory()
+    const currentCtx = chatCtx()
+    if (!dir || !currentCtx) {
+      setChatDirSdk(undefined)
+      return
+    }
+    setChatDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
+  })
+  const [chatAssetList] = createResource(chatDirSdk, async (sdk) => {
+    const result = await sdk.client.promptAsset.list()
+    return result.data ?? { assets: [], invalid: [] }
+  })
+
   function closeSearch() {
     setState("search", "")
     setState("searchFocused", false)
@@ -456,10 +480,11 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
       <div
         class="mx-auto grid h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-3 pb-3 lg:grid-rows-1 lg:px-6 lg:pb-16 max-w-[1080px] lg:grid-cols-[280px_minmax(0,720px)] lg:gap-8"
       >
-        <Show
-          when={mode.currentMode === "coding"}
-          fallback={<Dynamic component={modeSurface(mode.currentMode).Sidebar} />}
-        >
+        {/* ADR-15 §4 方案1: render-all + display:none。slot 仅 chat/code：chat=ChatSidebar，非 chat=HomeProjectColumn。 */}
+        <div style={{ display: mode.currentMode === "chat" ? "contents" : "none" }}>
+          <ChatSidebarSlot />
+        </div>
+        <div style={{ display: mode.currentMode === "chat" ? "none" : "contents" }}>
           <HomeProjectColumn
             projects={projects()}
             selected={state.selection}
@@ -483,16 +508,20 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
             unseenCount={unseenCount}
             language={language}
           />
-        </Show>
+        </div>
 
         <section
-          class="min-h-0 min-w-0 flex-1 flex flex-col pt-6 lg:pt-12"
+          class="min-h-0 min-w-0 flex-1 flex flex-col"
           aria-label={language.t("sidebar.project.recentSessions")}
         >
-          <Show
-            when={!(mode.currentMode === "chat" && chatFeature() !== "prompt")}
-            fallback={<ChatFeaturePanel />}
-          >
+          {/* ADR-15 §4 方案1: render-all + display:none。chat=AssetWorkbench，非 chat=session list。 */}
+          <div class="flex min-h-0 flex-1 flex-col" style={{ display: mode.currentMode === "chat" ? "flex" : "none" }}>
+            <AssetWorkbench.AssetWorkbenchTable
+              assets={chatAssetList()?.assets ?? []}
+              invalid={chatAssetList()?.invalid ?? []}
+            />
+          </div>
+          <div class="flex min-h-0 flex-1 flex-col pt-6 lg:pt-12" style={{ display: mode.currentMode === "chat" ? "none" : "flex" }}>
           <HomeSessionSearch
             value={state.search}
             placeholder={language.t("home.sessions.search.placeholder")}
@@ -559,7 +588,7 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
               </Show>
             </div>
           </ScrollView>
-          </Show>
+          </div>
         </section>
       </div>
     </div>
