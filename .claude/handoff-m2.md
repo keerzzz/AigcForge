@@ -101,3 +101,49 @@ M1 已全部闭环（commit `e0700c19f`，分支 `chat-m1-closure`），包括 P
 2. `git log --oneline -5` 确认 Step 0-1 commit
 3. 按 Step 3 完整方案 6 项执行（TDD/重构，每项 typecheck + test + lint 验证）
 4. Step 3 完成后继续 Step 4（Insert 流程）、Step 5（路由状态）、Step 6（集成测试）
+
+---
+
+## 会话 2 进展（2026-07-25）：Step 3 已完成
+
+### 已完成并 commit（分支 chat-m1-closure）
+
+| commit | 内容 |
+|---|---|
+| `c95bd1bbb` | refactor(chat-m2): secondarySidebarOpen 默认 true->false（项5）|
+| `4dab40c0f` | refactor(chat-m2): Step 3 功能树移除 + ADR-15 slot 合规（项1+2+3+4+6）|
+
+### Step 3 实施要点（供 Step 4-6 参考）
+
+**render-all 机制（ADR-15 §4 方案1）**：
+- L461 sidebar grid slot：`display: contents`（visible）/ `display: none`（hidden）。visible slot 的组件 root 直接成为 grid item（col 1），无额外 wrapper 改变布局
+- 主区 section：`display: flex`（visible，flex-1 填充）/ `display: none`（hidden）。wrapper div 承载 pt-6（coding slot）/ 无 padding（chat slot）
+- 两个 slot 常驻挂载，display 切换不 remount，createResource 不重取
+
+**数据流**：
+- `useChatDirectory()`（mode-surfaces.tsx 导出）：server.current ?? server.list[0] -> ensureServerCtx -> lastSession.directory(scope) ?? 首个 project worktree。ChatSidebar 与 Home 资产 fetch 共用，确保 Location 展示与资产列表目录一致
+- Home `createResource(chatDirSdk, promptAsset.list)`：提升到 Home（slot 之上，ADR-15 §4 方案2），**非 mode-gated**（避免切换 chat 时重取）；chatAssetList()?.assets/invalid ?? [] 传入 AssetWorkbenchTable
+- `ChatSidebarSlot = modeSurface("chat").Sidebar`（模块级 const，经 registry 解析，保持 modeSurface.chat.Sidebar 非死代码）
+
+**work/assistant 模式处理**：落入 code slot（HomeProjectColumn + session list），对齐 ADR-15 §2「会话列表降为共享能力」。原 PlaceholderSidebar 被替代（项目导航比 placeholder 更有用）。SecondarySidebar 对 work/assistant 为空（仅 coding 有 project list + workspaces，chat 有 ChatSessionList）
+
+**chat 主区左栏（ChatSidebar）**：Location 展示 + New Session + Add Project，内容较短，grid stretch 下空余空间在底部（符合预期：会话降为次级，主区聚焦资产）
+
+### 验证状态
+
+- typecheck ✓（`bun --cwd packages/app typecheck` = tsgo -b，0 errors）
+- test ✓（450 pass / 0 fail，含 asset-workbench.test.ts 13 纯函数测试）
+- lint ✓（0 errors，2472 warnings **全 pre-existing**，0 新增。mode-surfaces 的 consistent-return/unbound-method/no-unnecessary-type-assertion warning 从删除的 useChatFeatureData/ChatFeatureSidebar 迁移而来，实际 -1 warning）
+- ⚠️ **dev server 视觉验证待做**（test strategy A：渲染靠手动）。需验证：chat 主区 AssetWorkbenchTable 填充、左栏 ChatSidebar 布局、render-all display:contents/flex 在 chat<->coding 切换不闪烁、work/assistant 落入 code slot
+
+### 遗留 / 后续
+
+- **i18n 孤立 key 未清理**：`chat.feature.title/skill/mcp/command/agent/workflow/prompt.description/empty/location`（location 改动前已是孤立）。plan §5 改动清单未列 i18n 文件，Step 3 不在范围。后续可统一清理（18 locale × 9 key）
+- **AssetWorkbenchTable onSelect 未接**：Step 3 仅浏览（无行操作）。Step 4 需扩展：行 hover [Insert]/[Edit] 按钮 + SessionSelectorPopover + 跳转注入。当前组件无行操作按钮（仅行点击 -> onSelect），Step 4 需补
+- **home.tsx:60 `type Mode` 未使用**：pre-existing（改动前后均未使用），非 Step 3 引入，不顺手修
+
+### Step 4-6 接续
+
+1. **Step 4（Insert 流程）**：新建 `asset-session-selector.tsx`（SessionSelectorPopover）+ AssetWorkbenchTable 加行操作按钮 + 目标页 `?insert=<path>` 参数检测注入 Composer
+2. **Step 5（路由状态保持）**：新建 `chat-workspace.tsx`（ChatWorkspaceContext）+ Provider 挂 Router 之外 + Dirty Draft 确认 Modal
+3. **Step 6（全链路集成测试）**：表格 -> 选行 -> Insert -> 跳转 -> 注入
