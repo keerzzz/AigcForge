@@ -3364,7 +3364,7 @@ export class PromptAsset extends HeyApiClient {
   /**
    * List prompt assets
    *
-   * List all prompt assets for the current Location.
+   * List all prompt assets for the current Location, including invalid (skipped) entries.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {

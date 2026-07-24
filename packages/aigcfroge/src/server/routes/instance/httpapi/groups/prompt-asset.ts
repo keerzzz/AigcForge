@@ -18,6 +18,11 @@ export const ListQuery = Schema.Struct({
   search: Schema.optional(Schema.String),
 })
 
+export const ListResponse = Schema.Struct({
+  assets: Schema.Array(PromptAsset.Summary),
+  invalid: Schema.Array(PromptAsset.InvalidEntry),
+})
+
 export const ContentQuery = Schema.Struct({
   ...WorkspaceRoutingQueryFields,
   path: Schema.String,
@@ -46,12 +51,12 @@ export const PromptAssetApi = HttpApi.make("prompt-asset").add(
     .add(
       HttpApiEndpoint.get("list", PromptAssetPaths.list, {
         query: ListQuery,
-        success: described(Schema.Array(PromptAsset.Summary), "List of prompt assets"),
+        success: described(ListResponse, "List of prompt assets with invalid entries"),
       }).annotateMerge(
         OpenApi.annotations({
           identifier: "prompt-asset.list",
           summary: "List prompt assets",
-          description: "List all prompt assets for the current Location.",
+          description: "List all prompt assets for the current Location, including invalid (skipped) entries.",
         }),
       ),
       HttpApiEndpoint.get("content", PromptAssetPaths.content, {

@@ -70,15 +70,24 @@ export const promptAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "prompt
       const filtered = ctx.query.search
         ? all.filter((a) => a.name.toLowerCase().includes(ctx.query.search!.toLowerCase()) || a.description.toLowerCase().includes(ctx.query.search!.toLowerCase()))
         : all
-      return filtered.map((a) =>
-        Schema.decodeUnknownSync(SchemaPromptAsset.Summary)({
-          kind: "prompt",
-          name: a.name,
-          description: a.description,
-          relativePath: a.relativePath,
-          revision: a.revision,
-        }),
-      )
+      const invalid = yield* registry.listInvalid()
+      return {
+        assets: filtered.map((a) =>
+          Schema.decodeUnknownSync(SchemaPromptAsset.Summary)({
+            kind: "prompt",
+            name: a.name,
+            description: a.description,
+            relativePath: a.relativePath,
+            revision: a.revision,
+          }),
+        ),
+        invalid: invalid.map((e) =>
+          Schema.decodeUnknownSync(SchemaPromptAsset.InvalidEntry)({
+            relativePath: e.relativePath,
+            errorTag: e.errorTag,
+          }),
+        ),
+      }
     })
 
     const content = Effect.fn("PromptAssetHttpApi.content")(function* (ctx: { query: { path: string } }) {

@@ -61,6 +61,21 @@ export class Frontmatter extends Schema.Class<Frontmatter>("PromptAsset.Frontmat
   description: Description,
 }) {}
 
+// errorTag for files the registry skipped: parse_error = no valid frontmatter
+// could be parsed (gray-matter threw or returned empty data); bad_frontmatter =
+// frontmatter parsed but failed schema validation; name_conflict = duplicate name.
+export const InvalidErrorTag = Schema.Union([
+  Schema.Literal("parse_error"),
+  Schema.Literal("bad_frontmatter"),
+  Schema.Literal("name_conflict"),
+])
+export type InvalidErrorTag = typeof InvalidErrorTag.Type
+
+export class InvalidEntry extends Schema.Class<InvalidEntry>("PromptAsset.InvalidEntry")({
+  relativePath: Schema.String,
+  errorTag: InvalidErrorTag,
+}) {}
+
 export class Candidate extends Schema.Class<Candidate>("PromptAsset.Candidate")({
   name: Name,
   description: Description,

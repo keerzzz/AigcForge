@@ -101,7 +101,7 @@ function ChatFeatureSidebar() {
   const [assetCount] = createResource(dirSdk, async (sdk) => {
     if (!sdk) return 0
     const result = await sdk.client.promptAsset.list()
-    return result.data?.length ?? 0
+    return result.data?.assets?.length ?? 0
   })
   const countFor = (feature: ChatFeatureID) => {
     if (feature === "prompt") {

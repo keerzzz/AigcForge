@@ -4343,6 +4343,11 @@ export type PromptAssetSummary = {
   revision: string
 }
 
+export type PromptAssetInvalidEntry = {
+  relativePath: string
+  errorTag: "parse_error" | "bad_frontmatter" | "name_conflict"
+}
+
 export type PromptAssetInfo = {
   kind: "prompt"
   name: string
@@ -10267,9 +10272,12 @@ export type PromptAssetListError = PromptAssetListErrors[keyof PromptAssetListEr
 
 export type PromptAssetListResponses = {
   /**
-   * List of prompt assets
+   * List of prompt assets with invalid entries
    */
-  200: Array<PromptAssetSummary>
+  200: {
+    assets: Array<PromptAssetSummary>
+    invalid: Array<PromptAssetInvalidEntry>
+  }
 }
 
 export type PromptAssetListResponse = PromptAssetListResponses[keyof PromptAssetListResponses]

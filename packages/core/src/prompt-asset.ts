@@ -28,18 +28,29 @@ export interface Info {
   readonly revision: string
 }
 
+export interface InvalidEntry {
+  readonly relativePath: string
+  readonly errorTag: "parse_error" | "bad_frontmatter" | "name_conflict"
+}
+
 export interface Interface {
   readonly list: () => Effect.Effect<ReadonlyArray<Info>>
   readonly getByPath: (relativePath: string) => Effect.Effect<Info, NotFoundError>
   readonly findByName: (name: string) => Effect.Effect<Info | undefined>
+  readonly listInvalid: () => Effect.Effect<ReadonlyArray<InvalidEntry>>
+  readonly getInvalid: (relativePath: string) => Effect.Effect<InvalidEntry | undefined>
   readonly reload: () => Effect.Effect<void, FSUtil.Error>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/PromptAsset") {}
 
-function loadDir(fs: FSUtil.Interface, ownerRoot: string): Effect.Effect<Map<string, Info>, FSUtil.Error> {
+function loadDir(
+  fs: FSUtil.Interface,
+  ownerRoot: string,
+): Effect.Effect<{ assets: Map<string, Info>; invalid: Map<string, InvalidEntry> }, FSUtil.Error> {
   return Effect.gen(function* () {
-    const next = new Map<string, Info>()
+    const assets = new Map<string, Info>()
+    const invalid = new Map<string, InvalidEntry>()
     const byName = new Map<string, string[]>()
 
     const files = yield* fs.glob("**/*.md", { cwd: ownerRoot, absolute: true, include: "file", dot: true })
@@ -53,7 +64,11 @@ function loadDir(fs: FSUtil.Interface, ownerRoot: string): Effect.Effect<Map<str
 
       const text = new TextDecoder().decode(raw)
       const parsed = ConfigMarkdown.parseOption(text)
-      if (!parsed) {
+      // parse_error: gray-matter threw OR returned empty data (no valid frontmatter
+      // could be extracted - covers plain text and empty/illegal frontmatter that
+      // gray-matter silently normalizes to {}).
+      if (!parsed || Object.keys(parsed.data).length === 0) {
+        invalid.set(relativePath, { relativePath, errorTag: "parse_error" })
         yield* Effect.logWarning("Skipping invalid prompt asset", { relativePath, errorTag: "parse_error" })
         continue
       }
@@ -62,6 +77,7 @@ function loadDir(fs: FSUtil.Interface, ownerRoot: string): Effect.Effect<Map<str
       try {
         frontmatter = Schema.decodeUnknownSync(SchemaPromptAsset.Frontmatter)(parsed.data)
       } catch {
+        invalid.set(relativePath, { relativePath, errorTag: "bad_frontmatter" })
         yield* Effect.logWarning("Skipping invalid prompt asset", { relativePath, errorTag: "bad_frontmatter" })
         continue
       }
@@ -71,13 +87,18 @@ function loadDir(fs: FSUtil.Interface, ownerRoot: string): Effect.Effect<Map<str
       const conflicts = byName.get(frontmatter.name)
       if (conflicts) {
         conflicts.push(relativePath)
-        next.delete(conflicts[0])
+        // PRD §9.4: every file participating in a duplicate-name conflict is
+        // excluded and surfaced as invalid, not just the later one.
+        for (const p of conflicts) {
+          assets.delete(p)
+          invalid.set(p, { relativePath: p, errorTag: "name_conflict" })
+        }
         yield* Effect.logWarning("Prompt asset name conflict", { name: frontmatter.name, paths: [...conflicts] })
         continue
       }
       byName.set(frontmatter.name, [relativePath])
 
-      next.set(relativePath, {
+      assets.set(relativePath, {
         kind: "prompt",
         name: frontmatter.name,
         description: frontmatter.description,
@@ -87,7 +108,7 @@ function loadDir(fs: FSUtil.Interface, ownerRoot: string): Effect.Effect<Map<str
       })
     }
 
-    return next
+    return { assets, invalid }
   })
 }
 
@@ -99,12 +120,15 @@ export const layer = Layer.effect(
 
     const ownerRoot = path.resolve(location.directory, PROMPTS_DIR)
     let assets = new Map<string, Info>()
+    let invalid = new Map<string, InvalidEntry>()
     const reloadLock = KeyedMutex.makeUnsafe<string>()
 
     const reload = Effect.fn("PromptAsset.reload")(function* () {
       yield* reloadLock.withLock("reload")(
         Effect.gen(function* () {
-          assets = yield* loadDir(fs, ownerRoot)
+          const result = yield* loadDir(fs, ownerRoot)
+          assets = result.assets
+          invalid = result.invalid
         }),
       )
     })
@@ -124,6 +148,14 @@ export const layer = Layer.effect(
         if (entry.name === name) return entry
       }
       return undefined
+    })
+
+    const listInvalid = Effect.fn("PromptAsset.listInvalid")(function* () {
+      return Array.from(invalid.values())
+    })
+
+    const getInvalid = Effect.fn("PromptAsset.getInvalid")(function* (relativePath: string) {
+      return invalid.get(relativePath)
     })
 
     // Watch owner root .md files for add/change/unlink (optional; without EventV2
@@ -150,7 +182,7 @@ export const layer = Layer.effect(
 
     yield* reload().pipe(Effect.orDie)
 
-    return Service.of({ list, getByPath, findByName, reload })
+    return Service.of({ list, getByPath, findByName, listInvalid, getInvalid, reload })
   }),
 )
 
