@@ -184,6 +184,16 @@ export function applyDirectoryEvent(input: {
       input.setStore("session_status", props.sessionID, reconcile(props.status))
       break
     }
+    case "session.error": {
+      // 兜底：后端 error 事件到达时若 session 仍 busy（如 enforcePrimary die 在 runLoop 外，
+      // 未走 Runner.onIdle），强制设 idle 清除前端 working/loading，避免 spinner 永转。
+      // sessionID 在 schema 中可选，缺省时跳过避免误清其他会话。
+      const props = event.properties as { sessionID?: string }
+      if (props.sessionID) {
+        input.setStore("session_status", props.sessionID, { type: "idle" })
+      }
+      break
+    }
     case "message.updated": {
       const info = clean((event.properties as { info: Message }).info)
       const messages = input.store.message[info.sessionID]

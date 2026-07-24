@@ -460,6 +460,10 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
               sessionID: ctx.params.sessionID,
               error: new NamedError.Unknown({ message: Cause.pretty(cause) }).toObject(),
             })
+            // prompt 失败（含 enforcePrimary die 等 runLoop 外抛错）时 Runner.onIdle 不会触发，
+            // 需显式设 idle，否则前端 working() 永真、spinner 卡死。
+            // status.set(idle) 会 publish session.status + session.idle 事件，前端据此清 loading。
+            yield* statusSvc.set(ctx.params.sessionID, { type: "idle" })
           }),
         ),
         Effect.forkIn(scope, { startImmediately: true }),

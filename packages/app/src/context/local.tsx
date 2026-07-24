@@ -1,9 +1,11 @@
 import { createSimpleContext } from "@aigcfroge/ui/context"
 import { base64Encode } from "@aigcfroge/core/util/encode"
+import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
 import { useParams } from "@solidjs/router"
 import { batch, createEffect, createMemo } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useModels } from "@/context/models"
+import { useMode } from "@/context/mode"
 import { useProviders } from "@/hooks/use-providers"
 import { Persist, persisted } from "@/utils/persist"
 import { cycleModelVariant, getConfiguredAgentVariant, resolveModelVariant } from "./model-variant"
@@ -64,7 +66,18 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     const models = useModels()
 
     const id = createMemo(() => params.id || undefined)
-    const list = createMemo(() => sync().data.agent.filter((item) => item.mode !== "subagent" && !item.hidden))
+    const mode = useMode()
+    const list = createMemo(() => {
+      const agents = sync().data.agent.filter((item) => item.mode !== "subagent" && !item.hidden)
+      // ADR-13: chat 模式仅允许 chat-orchestrator；其他模式排除 chat-orchestrator 避免误选。
+      // 防止 chat 模式选到 meta 等被 policy 拒绝的 agent 触发 die 卡死。
+      const isChat = mode.currentMode === "chat"
+      return agents.filter((a) =>
+        isChat
+          ? a.name === ProductModeAgentPolicy.CHAT_ORCHESTRATOR
+          : a.name !== ProductModeAgentPolicy.CHAT_ORCHESTRATOR,
+      )
+    })
     const connected = createMemo(() => new Set(providers.connected().map((item) => item.id)))
 
     const [saved, setSaved] = persisted(
