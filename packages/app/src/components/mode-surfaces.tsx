@@ -169,17 +169,28 @@ function ChatFeatureSidebar() {
     }
     setDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
   })
-  const [assetCount] = createResource(dirSdk, async (sdk) => {
-    if (!sdk) return 0
-    const result = await sdk.client.promptAsset.list()
-    return result.data?.assets?.length ?? 0
+  // 全量资产计数：并发取 5 种 kind 的项目级资产数（M3）
+  const [kindCounts] = createResource(dirSdk, async (sdk) => {
+    if (!sdk) return {} as Record<string, number>
+    const [p, s, m, c, a] = await Promise.all([
+      sdk.client.promptAsset.list(),
+      sdk.client.skillAsset.list(),
+      sdk.client.mcpAsset.list(),
+      sdk.client.commandAsset.list(),
+      sdk.client.agentAsset.list(),
+    ])
+    return {
+      prompt: p.data?.assets?.length ?? 0,
+      skill: s.data?.assets?.length ?? 0,
+      mcp: m.data?.assets?.length ?? 0,
+      command: c.data?.assets?.length ?? 0,
+      agent: a.data?.assets?.length ?? 0,
+    } as Record<string, number>
   })
   const countFor = (feature: ChatFeatureID) => {
-    if (feature === "prompt") {
-      const count = assetCount()
-      return count ? count : undefined
-    }
-    return featureCount(feature)
+    const counts = kindCounts()
+    const count = counts?.[feature]
+    return count !== undefined && count > 0 ? count : undefined
   }
 
   function newSession() {
