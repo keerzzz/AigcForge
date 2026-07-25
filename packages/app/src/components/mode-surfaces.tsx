@@ -51,10 +51,9 @@ export function useChatDirectory() {
   return { conn, ctx, directory }
 }
 
-/** Chat 功能树共享数据：左栏导航 count + 右栏能力清单共用，directory 复用 useChatDirectory（B2）。 */
+/** Chat 功能树共享数据：左栏导航 count，directory 复用 useChatDirectory（B2）。 */
 function useChatFeatureData() {
   const sync = useServerSync()
-  const { selected: chatFeature } = useChatFeature()
   const { conn, ctx, directory } = useChatDirectory()
 
   const directoryData = createMemo(() => {
@@ -62,29 +61,11 @@ function useChatFeatureData() {
     if (!current) return
     return sync().child(current)[0]
   })
-  const selectedItems = createMemo(() => {
-    const feature = chatFeature()
-    const data = directoryData()
-    if (!data) return []
-    if (feature === "skill") return data.command.filter((item) => item.source === "skill").map((item) => item.name)
-    if (feature === "mcp") return Object.keys(data.mcp ?? {}).sort((a, b) => a.localeCompare(b))
-    if (feature === "command") return data.command.filter((item) => item.source !== "skill").map((item) => item.name)
-    if (feature === "agent")
-      return data.agent
-        .filter((item) => !item.hidden)
-        .map((item) => item.name)
-        .sort((a, b) => a.localeCompare(b))
-    return []
-  })
-  const featureCount = (feature: ChatFeatureID) => {
-    const data = directoryData()
-    if (!data || feature === "prompt" || feature === "workflow") return undefined
-    if (feature === "skill") return data.command.filter((item) => item.source === "skill").length
-    if (feature === "mcp") return Object.keys(data.mcp ?? {}).length
-    if (feature === "command") return data.command.filter((item) => item.source !== "skill").length
-    return data.agent.filter((item) => !item.hidden).length
-  }
-  return { conn, ctx, directory, directoryData, selectedItems, featureCount }
+
+  // M3：skill/mcp/command/agent 计数后续从 asset registry 异步取（如 prompt 的 assetCount），不再读 server-sync
+  const featureCount = (_feature: ChatFeatureID) => undefined
+
+  return { conn, ctx, directory, featureCount }
 }
 
 /**
