@@ -36,6 +36,14 @@ import { SkillGuidance } from "./skill/guidance"
 import { BuiltInTools } from "./tool/builtins"
 import { PromptAsset } from "./prompt-asset"
 import { PromptAssetService } from "./prompt-asset-service"
+import { SkillAsset } from "./skill-asset"
+import { SkillAssetService } from "./skill-asset-service"
+import { MCPAsset } from "./mcp-asset"
+import { MCPAssetService } from "./mcp-asset-service"
+import { CommandAsset } from "./command-asset"
+import { CommandAssetService } from "./command-asset-service"
+import { AgentAsset } from "./agent-asset"
+import { AgentAssetService } from "./agent-asset-service"
 
 import { Image } from "./image"
 import { ToolRegistry } from "./tool/registry"
@@ -78,6 +86,10 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       Pty.locationLayer,
       SkillV2.locationLayer,
       PromptAsset.locationLayer,
+      SkillAsset.locationLayer,
+      MCPAsset.locationLayer,
+      CommandAsset.locationLayer,
+      AgentAsset.locationLayer,
       systemContext,
       LocationMutation.locationLayer.pipe(Layer.orDie),
       CrossSpawnSpawner.defaultLayer,
@@ -96,6 +108,22 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       Layer.provide(services),
       Layer.provide(mutation),
     )
+    const skillAssetService = SkillAssetService.locationLayer.pipe(
+      Layer.provide(services),
+      Layer.provide(mutation),
+    )
+    const mcpAssetService = MCPAssetService.locationLayer.pipe(
+      Layer.provide(services),
+      Layer.provide(mutation),
+    )
+    const commandAssetService = CommandAssetService.locationLayer.pipe(
+      Layer.provide(services),
+      Layer.provide(mutation),
+    )
+    const agentAssetService = AgentAssetService.locationLayer.pipe(
+      Layer.provide(services),
+      Layer.provide(mutation),
+    )
     const skillGuidance = SkillGuidance.locationLayer.pipe(Layer.provide(services))
     const referenceGuidance = ReferenceGuidance.locationLayer.pipe(Layer.provide(services))
     const todos = SessionTodo.layer.pipe(Layer.provide(services))
@@ -107,6 +135,10 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       Layer.provide(services),
       Layer.provide(mutation),
       Layer.provide(promptAssetService),
+      Layer.provide(skillAssetService),
+      Layer.provide(mcpAssetService),
+      Layer.provide(commandAssetService),
+      Layer.provide(agentAssetService),
       Layer.provide(resources),
       Layer.provide(todos),
       Layer.provide(questions),
@@ -130,6 +162,10 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       image,
       mutation,
       promptAssetService,
+      skillAssetService,
+      mcpAssetService,
+      commandAssetService,
+      agentAssetService,
       resources,
       todos,
       questions,

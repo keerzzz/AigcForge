@@ -11,7 +11,6 @@ import { Location } from "./location"
 import { Hash } from "./util/hash"
 import { Watcher } from "./filesystem/watcher"
 import { MCPS_DIR } from "./constants"
-import { AssetKind } from "./asset-kind"
 
 export { MCPS_DIR }
 
@@ -118,18 +117,12 @@ export const layer = Layer.effect(
   Effect.gen(function* () {
     const fs = yield* FSUtil.Service
     const location = yield* Location.Service
-    const registry = yield* AssetKind.Service
 
     const ownerRoot = path.resolve(location.directory, MCPS_DIR)
     let assets = new Map<string, Info>()
     let invalid = new Map<string, InvalidEntry>()
     const reloadLock = KeyedMutex.makeUnsafe<string>()
 
-    yield* registry.register({
-      id: "mcp",
-      schema: { Summary: SchemaMCPAsset.Summary, Info: SchemaMCPAsset.Info },
-      ownerDir: MCPS_DIR,
-    })
 
     const reload = Effect.fn("MCPAsset.reload")(function* () {
       yield* reloadLock.withLock("reload")(

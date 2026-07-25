@@ -11,7 +11,6 @@ import { Location } from "./location"
 import { Hash } from "./util/hash"
 import { Watcher } from "./filesystem/watcher"
 import { AGENTS_DIR } from "./constants"
-import { AssetKind } from "./asset-kind"
 
 export { AGENTS_DIR }
 
@@ -114,18 +113,12 @@ export const layer = Layer.effect(
   Effect.gen(function* () {
     const fs = yield* FSUtil.Service
     const location = yield* Location.Service
-    const registry = yield* AssetKind.Service
 
     const ownerRoot = path.resolve(location.directory, AGENTS_DIR)
     let assets = new Map<string, Info>()
     let invalid = new Map<string, InvalidEntry>()
     const reloadLock = KeyedMutex.makeUnsafe<string>()
 
-    yield* registry.register({
-      id: "agent",
-      schema: { Summary: SchemaAgentAsset.Summary, Info: SchemaAgentAsset.Info },
-      ownerDir: AGENTS_DIR,
-    })
 
     const reload = Effect.fn("AgentAsset.reload")(function* () {
       yield* reloadLock.withLock("reload")(
