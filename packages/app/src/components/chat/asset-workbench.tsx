@@ -114,22 +114,31 @@ export function AssetWorkbenchTable(props: {
     sortRows(filterBySearch(filterByKind(buildRows(props.assets, props.invalid), store.state.kindFilter), store.state.search)),
   )
 
+  // 功能筛选标签：用于 header 标题/搜索占位/新建按钮（响应式）
+  const kindLabel = createMemo(() =>
+    store.state.kindFilter === "all"
+      ? language.t("asset.panel.all")
+      : language.t(`chat.feature.${store.state.kindFilter}` as const),
+  )
+
   return (
     <div data-component="asset-workbench" class="flex h-full min-h-0 flex-col bg-v2-background-bg-base">
       <div class="flex items-center gap-2 border-b border-v2-border-border-base px-4 py-3">
-        <h2 class="flex-1 text-v2-text-text-base [font-weight:530]">{language.t("promptAsset.panel.title")}</h2>
+        <h2 class="flex-1 text-v2-text-text-base [font-weight:530]">
+          {language.t("asset.panel.title", { kind: kindLabel() })}
+        </h2>
         <label class="relative flex items-center">
           <IconV2 name="magnifying-glass" class="text-v2-icon-icon-muted" />
           <input
             class="ml-1 h-7 w-48 rounded-[6px] bg-v2-background-bg-layer-03 px-2 text-v2-text-text-base outline-0 placeholder:text-v2-text-text-faint"
-            placeholder={language.t("promptAsset.list.searchPlaceholder")}
-            aria-label={language.t("promptAsset.list.searchPlaceholder")}
+            placeholder={language.t("asset.list.searchPlaceholder", { kind: kindLabel() })}
+            aria-label={language.t("asset.list.searchPlaceholder", { kind: kindLabel() })}
             value={store.state.search}
             onInput={(e) => store.setSearch(e.currentTarget.value)}
           />
         </label>
         <ButtonV2 variant="neutral" icon="plus" onClick={() => {}}>
-          {language.t("promptAsset.panel.newPrompt")}
+          {language.t("asset.panel.new", { kind: kindLabel() })}
         </ButtonV2>
         <ButtonV2 variant="ghost" disabled onClick={() => {}}>
           {language.t("promptAsset.workbench.import")}
