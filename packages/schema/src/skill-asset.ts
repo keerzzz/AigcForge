@@ -2,10 +2,11 @@ export * as SkillAsset from "./skill-asset"
 
 import { Schema } from "effect"
 
+// -- Constrained strings (对齐原生 SkillV2 命名空间) --
+
 export const Name = Schema.String.pipe(
   Schema.check(Schema.makeFilter<string>((input) => [...input].length >= 1, { message: "Name must be at least 1 code point" })),
   Schema.check(Schema.makeFilter<string>((input) => [...input].length <= 80, { message: "Name must be at most 80 code points" })),
-  Schema.brand("SkillAsset.Name"),
 )
 export type Name = typeof Name.Type
 
@@ -13,7 +14,6 @@ export const Description = Schema.String.pipe(
   Schema.check(Schema.makeFilter<string>((input) => [...input].length <= 300, {
     message: "Description must be at most 300 code points",
   })),
-  Schema.brand("SkillAsset.Description"),
 )
 export type Description = typeof Description.Type
 
@@ -25,20 +25,7 @@ export const Revision = Schema.String.pipe(
 )
 export type Revision = typeof Revision.Type
 
-export const Trigger = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => [...input].length >= 1, { message: "Trigger must be at least 1 code point" })),
-  Schema.check(Schema.makeFilter<string>((input) => [...input].length <= 200, { message: "Trigger must be at most 200 code points" })),
-  Schema.brand("SkillAsset.Trigger"),
-)
-export type Trigger = typeof Trigger.Type
-
-export const Source = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => new TextEncoder().encode(input).length <= 100_000, {
-    message: "Source must be at most 100,000 UTF-8 bytes",
-  })),
-  Schema.brand("SkillAsset.Source"),
-)
-export type Source = typeof Source.Type
+// -- Schema.Class records --
 
 export class Summary extends Schema.Class<Summary>("SkillAsset.Summary")({
   kind: Schema.Literal("skill"),
@@ -54,17 +41,18 @@ export class Info extends Schema.Class<Info>("SkillAsset.Info")({
   description: Description,
   relativePath: Schema.String,
   revision: Revision,
-  trigger: Trigger,
-  source: Source,
+  slash: Schema.Boolean,
+  content: Schema.String,
 }) {}
 
+// 对齐原生 SkillV2 frontmatter（SkillV2.frontmatter = { name?, description?, slash? }）
 export class Frontmatter extends Schema.Class<Frontmatter>("SkillAsset.Frontmatter")({
-  kind: Schema.Literal("skill"),
-  name: Name,
-  description: Description,
-  trigger: Trigger,
-  source: Source,
+  name: Schema.optional(Name),
+  description: Schema.optional(Description),
+  slash: Schema.optional(Schema.Boolean),
 }) {}
+
+// -- InvalidEntry & errors 沿用 PromptAsset 模式 --
 
 export const InvalidErrorTag = Schema.Literals(["parse_error", "bad_frontmatter", "name_conflict"])
 export type InvalidErrorTag = typeof InvalidErrorTag.Type
@@ -77,8 +65,8 @@ export class InvalidEntry extends Schema.Class<InvalidEntry>("SkillAsset.Invalid
 export class Candidate extends Schema.Class<Candidate>("SkillAsset.Candidate")({
   name: Name,
   description: Description,
-  trigger: Trigger,
-  source: Source,
+  slash: Schema.Boolean,
+  content: Schema.String,
   relativePath: Schema.String,
 }) {}
 

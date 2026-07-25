@@ -225,8 +225,10 @@ export const locationLayer = Layer.effect(
               return yield* new OverwriteRequiredError({ relativePath })
             }
 
-            const frontmatter = `---\nkind: skill\nname: ${yamlEscape(input.candidate.name)}\ndescription: ${yamlEscape(input.candidate.description)}\ntrigger: ${yamlEscape(input.candidate.trigger)}\nsource: ${yamlEscape(input.candidate.source)}\n---\n`
-            const content = frontmatter
+            let frontmatter = `---\nname: ${yamlEscape(input.candidate.name)}\ndescription: ${yamlEscape(input.candidate.description)}`
+            if (input.candidate.slash) frontmatter += `\nslash: true`
+            frontmatter += `\n---\n`
+            const content = frontmatter + input.candidate.content
 
             yield* fileMutation.writeAtomic({ target, content }).pipe(
               Effect.mapError((error) => new WriteFailedError({ relativePath, reason: failureMessage(error) })),

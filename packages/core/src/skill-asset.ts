@@ -23,8 +23,8 @@ export interface Info {
   readonly name: string
   readonly description: string
   readonly relativePath: string
-  readonly trigger: string
-  readonly source: string
+  readonly slash: boolean
+  readonly content: string
   readonly revision: string
 }
 
@@ -79,27 +79,31 @@ function loadDir(
         continue
       }
 
+      // name 可选（对齐原生 SkillV2），无 frontmatter name 时回退文件名
+      const derivedName = frontmatter.name ?? path.basename(relativePath, ".md")
+      const derivedDescription = frontmatter.description ?? ""
+      const derivedSlash = frontmatter.slash ?? false
       const revision = Hash.sha256(Buffer.from(raw))
 
-      const conflicts = byName.get(frontmatter.name)
+      const conflicts = byName.get(derivedName)
       if (conflicts) {
         conflicts.push(relativePath)
         for (const p of conflicts) {
           assets.delete(p)
           invalid.set(p, { relativePath: p, errorTag: "name_conflict" })
         }
-        yield* Effect.logWarning("Skill asset name conflict", { name: frontmatter.name, paths: [...conflicts] })
+        yield* Effect.logWarning("Skill asset name conflict", { name: derivedName, paths: [...conflicts] })
         continue
       }
-      byName.set(frontmatter.name, [relativePath])
+      byName.set(derivedName, [relativePath])
 
       assets.set(relativePath, {
         kind: "skill",
-        name: frontmatter.name,
-        description: frontmatter.description,
+        name: derivedName,
+        description: derivedDescription,
         relativePath,
-        trigger: frontmatter.trigger,
-        source: frontmatter.source,
+        slash: derivedSlash,
+        content: parsed.content,
         revision,
       })
     }
