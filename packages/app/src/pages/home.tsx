@@ -62,6 +62,7 @@ import { ChatSidebar, ChatFeaturePanel, useChatDirectory } from "@/components/mo
 import { useChatFeature } from "@/context/chat-feature"
 import type { DirectorySDK } from "@/context/sdk"
 import { AssetWorkbench } from "@/components/chat/asset-workbench"
+import { AssetSessionSelector } from "@/components/chat/asset-session-selector"
 
 const HOME_SESSION_LIMIT = 64
 const HOME_ROW_LAYOUT =
@@ -518,6 +519,7 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
               <AssetWorkbench.AssetWorkbenchTable
                 assets={chatAssetList()?.assets ?? []}
                 invalid={chatAssetList()?.invalid ?? []}
+                onInsert={(row) => dialog.show(() => <AssetSessionSelector asset={row} />)}
               />
             </Show>
           </div>

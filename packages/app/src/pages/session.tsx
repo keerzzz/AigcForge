@@ -90,7 +90,7 @@ export default function Page() {
   const prompt = usePrompt()
   const comments = useComments()
   const terminal = useTerminal()
-  const [searchParams, setSearchParams] = useSearchParams<{ prompt?: string }>()
+  const [searchParams, setSearchParams] = useSearchParams<{ prompt?: string; insert?: string }>()
   const location = useLocation()
   const navigate = useNavigate()
   const { params, sessionKey, workspaceKey, tabs, view } = useSessionLayout()
@@ -105,6 +105,30 @@ export default function Page() {
       prompt.set([{ type: "text", content: text, start: 0, end: text.length }], text.length)
       setSearchParams({ ...searchParams, prompt: undefined })
     })
+  })
+
+  // Insert 流程（M2 Step 4）：检测 ?insert=<relativePath>，取资产 template 注入 composer。
+  // 与 ?prompt= 不同：?insert= 对已有会话（params.id 存在）生效，注入后清参数（一次性，刷新不重复）。
+  createEffect(() => {
+    if (!prompt.ready()) return
+    if (!params.id) return
+    const path = searchParams.insert
+    if (!path) return
+    void sdk()
+      .client.promptAsset.content({ path })
+      .then((result) => {
+        const template = result.data?.template ?? ""
+        untrack(() => {
+          if (template) {
+            prompt.set([{ type: "text", content: template, start: 0, end: template.length }], template.length)
+          }
+          setSearchParams({ ...searchParams, insert: undefined })
+        })
+      })
+      .catch(() => {
+        // fetch 失败也清参数，避免卡死
+        untrack(() => setSearchParams({ ...searchParams, insert: undefined }))
+      })
   })
 
   const [ui, setUi] = createStore({

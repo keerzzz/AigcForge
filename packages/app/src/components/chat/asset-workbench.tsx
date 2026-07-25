@@ -94,6 +94,7 @@ export function AssetWorkbenchTable(props: {
   assets: readonly PromptAssetSummary[]
   invalid: readonly PromptAssetInvalidEntry[]
   onSelect?: (row: AssetRow) => void
+  onInsert?: (row: AssetRow) => void
 }) {
   const language = useLanguage()
   const store = createAssetWorkbenchStore()
@@ -132,13 +133,20 @@ export function AssetWorkbenchTable(props: {
           <div class="flex flex-col">
             <For each={rows()}>
               {(row) => (
-                <button
-                  type="button"
+                <div
+                  role="button"
+                  tabindex="0"
                   data-component="asset-row"
                   data-invalid={row.invalid ? "" : undefined}
                   data-selected={store.state.selectedPath === row.relativePath ? "" : undefined}
-                  class="group flex items-center gap-2 border-0 px-4 py-2 text-left hover:bg-v2-overlay-simple-overlay-hover data-[selected]:bg-v2-overlay-simple-overlay-hover"
+                  class="group flex cursor-default items-center gap-2 px-4 py-2 text-left hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-v2-border-border-focus data-[selected]:bg-v2-overlay-simple-overlay-hover"
                   onClick={() => {
+                    store.select(row.relativePath)
+                    props.onSelect?.(row)
+                  }}
+                  onKeyDown={(event: KeyboardEvent) => {
+                    if (event.key !== "Enter" && event.key !== " ") return
+                    event.preventDefault()
                     store.select(row.relativePath)
                     props.onSelect?.(row)
                   }}
@@ -161,8 +169,24 @@ export function AssetWorkbenchTable(props: {
                     {row.name || row.relativePath}
                   </span>
                   <span class="min-w-0 flex-[40] truncate text-v2-text-text-muted">{row.description}</span>
-                  <span class="shrink-0 flex-[20] text-v2-text-text-faint">—</span>
-                </button>
+                  <span class="relative flex shrink-0 flex-[20] items-center justify-end">
+                    <span class="text-v2-text-text-faint">—</span>
+                    <Show when={!row.invalid}>
+                      <ButtonV2
+                        type="button"
+                        variant="ghost-muted"
+                        size="small"
+                        class="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                        onClick={(event: MouseEvent) => {
+                          event.stopPropagation()
+                          props.onInsert?.(row)
+                        }}
+                      >
+                        {language.t("promptAsset.workbench.insert")}
+                      </ButtonV2>
+                    </Show>
+                  </span>
+                </div>
               )}
             </For>
           </div>
