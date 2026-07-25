@@ -171,7 +171,7 @@ export function AssetWorkbenchTable(props: {
                     {row.name || row.relativePath}
                   </span>
                   <span class="min-w-0 flex-[40] truncate text-v2-text-text-muted">{row.description}</span>
-                  <span class="relative flex shrink-0 flex-[20] items-center justify-end">
+                  <span class="relative flex shrink-0 flex-[20] items-center justify-end self-stretch">
                     <span class="text-v2-text-text-faint">—</span>
                     <Show when={!row.invalid}>
                       <ButtonV2
