@@ -888,6 +888,7 @@ export const dict = {
   "workspace.reset.archived.many": "将归档 {{count}} 个会话。",
   "workspace.reset.note": "这将把工作区重置为与默认分支一致。",
   "common.open": "打开",
+  "common.new": "新建",
   "dialog.releaseNotes.action.getStarted": "开始",
   "dialog.releaseNotes.action.next": "下一步",
   "dialog.releaseNotes.action.hideFuture": "不再显示",

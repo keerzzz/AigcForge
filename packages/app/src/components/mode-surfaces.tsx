@@ -290,8 +290,9 @@ function ChatFeatureSidebar() {
 }
 
 /**
- * Chat 右栏能力清单（非"提示词"分类时由 Home 主区渲染，只读，m1 §1.4）。
- * 点击功能树非 prompt 分类时，Home 主区显示此面板（该分类的运行时列表）。
+ * Chat 主区能力清单（非 prompt 分类时显示，对齐 AssetWorkbenchTable header，m1 §1.4 + M2 Step 3 视觉对齐）。
+ * header 对齐：标题 + 搜索框（功能化过滤）+ (mcp: Open) + New（禁用占位，AssetKind 未开闸）+ Import（禁用占位）。
+ * 列表为运行时 server 数据（skill/mcp/command/agent），只读；非持久化资产。
  */
 export function ChatFeaturePanel() {
   const language = useLanguage()
@@ -299,6 +300,13 @@ export function ChatFeaturePanel() {
   const { selected: chatFeature } = useChatFeature()
   const { selectedItems } = useChatFeatureData()
   const selectedFeature = createMemo(() => CHAT_FEATURES.find((feature) => feature.id === chatFeature())!)
+  const [search, setSearch] = createSignal("")
+  const filteredItems = createMemo(() => {
+    const query = search().trim().toLowerCase()
+    const items = selectedItems()
+    if (!query) return items
+    return items.filter((item) => item.toLowerCase().includes(query))
+  })
 
   function openMcp() {
     void import("@/components/dialog-select-mcp").then((module) => {
@@ -307,23 +315,39 @@ export function ChatFeaturePanel() {
   }
 
   return (
-    <div class="flex min-h-0 flex-1 flex-col">
-      <div class="flex h-7 items-center justify-between gap-2">
-        <span class="truncate text-v2-text-text-base text-12-semibold">{language.t(selectedFeature().label)}</span>
+    <div class="flex min-h-0 flex-1 flex-col bg-v2-background-bg-base">
+      <div class="flex items-center gap-2 border-b border-v2-border-border-base px-4 py-3">
+        <h2 class="flex-1 text-v2-text-text-base [font-weight:530]">{language.t(selectedFeature().label)}</h2>
+        <label class="relative flex items-center">
+          <Icon name="magnifying-glass" class="text-v2-icon-icon-muted" />
+          <input
+            class="ml-1 h-7 w-48 rounded-[6px] bg-v2-background-bg-layer-03 px-2 text-v2-text-text-base outline-0 placeholder:text-v2-text-text-faint"
+            placeholder={language.t("common.search.placeholder")}
+            aria-label={language.t("common.search.placeholder")}
+            value={search()}
+            onInput={(e) => setSearch(e.currentTarget.value)}
+          />
+        </label>
         <Show when={chatFeature() === "mcp"}>
           <ButtonV2 variant="ghost-muted" size="small" onClick={openMcp}>
             {language.t("common.open")}
           </ButtonV2>
         </Show>
+        <ButtonV2 variant="neutral" icon="plus" disabled onClick={() => {}}>
+          {language.t("common.new")}
+        </ButtonV2>
+        <ButtonV2 variant="ghost" disabled onClick={() => {}}>
+          {language.t("promptAsset.workbench.import")}
+        </ButtonV2>
       </div>
-      <div class="min-h-0 flex-1 overflow-y-auto py-1">
+      <div class="min-h-0 flex-1 overflow-y-auto">
         <Show
-          when={selectedItems().length > 0}
-          fallback={<p class="py-2 text-v2-text-text-muted text-12-regular">{language.t("chat.feature.empty")}</p>}
+          when={filteredItems().length > 0}
+          fallback={<p class="px-4 py-6 text-v2-text-text-muted [font-weight:440]">{language.t("chat.feature.empty")}</p>}
         >
-          <For each={selectedItems()}>
+          <For each={filteredItems()}>
             {(item) => (
-              <div class="truncate rounded-[6px] px-2 py-1.5 text-v2-text-text-muted text-12-regular">{item}</div>
+              <div class="truncate px-4 py-2 text-v2-text-text-muted text-12-regular">{item}</div>
             )}
           </For>
         </Show>

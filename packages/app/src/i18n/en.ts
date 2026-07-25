@@ -223,6 +223,7 @@ export const dict = {
   "common.cancel": "Cancel",
   "common.clear": "Clear",
   "common.open": "Open",
+  "common.new": "New",
   "common.connect": "Connect",
   "common.disconnect": "Disconnect",
   "common.continue": "Continue",
