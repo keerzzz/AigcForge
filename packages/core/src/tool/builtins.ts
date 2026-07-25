@@ -15,6 +15,10 @@ import { TodoWriteTool } from "./todowrite"
 import { WebFetchTool } from "./webfetch"
 import { WebSearchTool } from "./websearch"
 import { ProposePromptAssetTool } from "./propose-prompt-asset"
+import { ProposeSkillAssetTool } from "./propose-skill-asset"
+import { ProposeMCPAssetTool } from "./propose-mcp-asset"
+import { ProposeCommandAssetTool } from "./propose-command-asset"
+import { ProposeAgentAssetTool } from "./propose-agent-asset"
 import { WriteTool } from "./write"
 
 /**
@@ -45,4 +49,8 @@ export const locationLayer = Layer.mergeAll(
   WebSearchTool.layer.pipe(Layer.provide(WebSearchTool.defaultConfigLayer)),
   WriteTool.layer,
   ProposePromptAssetTool.layer,
+  ProposeSkillAssetTool.layer,
+  ProposeMCPAssetTool.layer,
+  ProposeCommandAssetTool.layer,
+  ProposeAgentAssetTool.layer,
 )
