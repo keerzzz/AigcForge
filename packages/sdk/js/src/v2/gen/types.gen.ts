@@ -4383,15 +4383,15 @@ export type SkillAssetInfo = {
   description: string
   relativePath: string
   revision: string
-  trigger: string
-  source: string
+  slash: boolean
+  content: string
 }
 
 export type SkillAssetCandidate = {
   name: string
   description: string
-  trigger: string
-  source: string
+  slash: boolean
+  content: string
   relativePath: string
 }
 
