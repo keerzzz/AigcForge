@@ -12,15 +12,16 @@ import { modeDraft } from "@/context/mode"
 import { useChatDirectory } from "@/components/mode-surfaces"
 import { sortedRootSessions } from "@/pages/layout/helpers"
 import { sessionHref } from "@/utils/session-route"
+import { fetchAssetInsertText } from "./asset-insert"
 import type { AssetRow } from "./asset-workbench"
 
 /**
- * Insert 流程会话选择器：选已有会话或新建会话，将资产 template 注入 Composer（PRD §9.6）。
+ * Insert 流程会话选择器：选已有会话或新建会话，将资产内容注入 Composer（PRD §9.6）。
  * dialog.show 渲染（继承调用方 owner）。
  *
  * 两种路径：
- * - 已有会话 → navigate /server/:key/session/:id?insert=<path>
- * - 新建会话 → navigate /new-session?prompt=<template 内容>
+ * - 已有会话 → navigate /server/:key/session/:id?insert=<path>&insertKind=<kind>
+ * - 新建会话 → tabs.newDraft(draft, 资产内容)
  */
 export function AssetSessionSelector(props: { asset: AssetRow }) {
   const language = useLanguage()
@@ -52,7 +53,8 @@ export function AssetSessionSelector(props: { asset: AssetRow }) {
   function insertInto(session: Session) {
     const key = serverKey()
     if (!key) return
-    navigate(`${sessionHref(key, session.id)}?insert=${encodeURIComponent(props.asset.relativePath)}`)
+    const params = new URLSearchParams({ insert: props.asset.relativePath, insertKind: props.asset.kind })
+    navigate(`${sessionHref(key, session.id)}?${params.toString()}`)
     dialog.close()
   }
 
@@ -63,43 +65,33 @@ export function AssetSessionSelector(props: { asset: AssetRow }) {
     const key = serverKey()
     if (key == null) return
 
-    // 取资产 template 内容（按 kind 分派 content API）
     const sdk = currentCtx.sdk.ensureDirSdkContext(dir)
-    let template = ""
-    try {
-      const path = props.asset.relativePath
-      if (props.asset.kind === "prompt") {
-        const res = await sdk.client.promptAsset.content({ path })
-        template = res.data?.template ?? ""
-      } else if (props.asset.kind === "skill") {
-        const res = await sdk.client.skillAsset.content({ path })
-        template = res.data?.content ?? ""
-      } else if (props.asset.kind === "mcp") {
-        const res = await sdk.client.mcpAsset.content({ path })
-        template = res.data?.content ?? ""
-      } else if (props.asset.kind === "command") {
-        const res = await sdk.client.commandAsset.content({ path })
-        template = res.data?.content ?? ""
-      } else if (props.asset.kind === "agent") {
-        const res = await sdk.client.agentAsset.content({ path })
-        template = res.data?.content ?? ""
-      }
-    } catch {
-      /* 静默失败 */
-    }
+    const template = await fetchAssetInsertText(sdk.client, props.asset.kind, props.asset.relativePath).catch(
+      (error: unknown) => {
+        console.warn("AssetSessionSelector: failed to fetch asset content", error)
+        return ""
+      },
+    )
 
     dialog.close()
 
-    // 创建新 draft + 自动填充 template
-    tabs.newDraft({
-      server: key,
-      directory: dir,
-      ...modeDraft("chat"),
-    }, template)
+    // 创建新 draft + 自动填充资产内容
+    tabs.newDraft(
+      {
+        server: key,
+        directory: dir,
+        ...modeDraft("chat"),
+      },
+      template,
+    )
   }
 
   return (
-    <Dialog title={language.t("promptAsset.insert.title")} description={language.t("promptAsset.insert.description")} fit>
+    <Dialog
+      title={language.t("promptAsset.insert.title")}
+      description={language.t("promptAsset.insert.description")}
+      fit
+    >
       <div class="flex min-h-0 flex-col gap-px p-2" style={{ "max-height": "60vh" }}>
         {/* 新建会话入口 */}
         <button

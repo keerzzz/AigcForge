@@ -67,6 +67,7 @@ import { extractPromptFromParts } from "@/utils/prompt"
 import { formatServerError } from "@/utils/server-errors"
 import { sessionHref, requireServerKey } from "@/utils/session-route"
 import { useChatWorkspace } from "@/context/chat-workspace"
+import { fetchAssetInsertText, parseInsertKind } from "@/components/chat/asset-insert"
 import { useUsageExceededDialogs } from "./session/usage-exceeded-dialogs"
 
 type FollowupItem = FollowupDraft & { id: string }
@@ -92,7 +93,7 @@ export default function Page() {
   const workspace = useChatWorkspace()
   const comments = useComments()
   const terminal = useTerminal()
-  const [searchParams, setSearchParams] = useSearchParams<{ prompt?: string; insert?: string }>()
+  const [searchParams, setSearchParams] = useSearchParams<{ prompt?: string; insert?: string; insertKind?: string }>()
   const location = useLocation()
   const navigate = useNavigate()
   const { params, sessionKey, workspaceKey, tabs, view } = useSessionLayout()
@@ -109,27 +110,34 @@ export default function Page() {
     })
   })
 
-  // Insert 流程（M2 Step 4）：检测 ?insert=<relativePath>，取资产 template 注入 composer。
-  // 与 ?prompt= 不同：?insert= 对已有会话（params.id 存在）生效，注入后清参数（一次性，刷新不重复）。
+  // Insert 流程（M2 Step 4 + M3 §7.2 通用化）：检测 ?insert=<relativePath>&insertKind=<kind>，
+  // 按 kind 取资产内容注入 composer。与 ?prompt= 不同：?insert= 对已有会话（params.id 存在）生效，
+  // 注入后清参数（一次性，刷新不重复）。
   createEffect(() => {
     if (!prompt.ready()) return
     if (!params.id) return
     const path = searchParams.insert
     if (!path) return
-    void sdk()
-      .client.promptAsset.content({ path })
-      .then((result) => {
-        const template = result.data?.template ?? ""
+    const clear = () => untrack(() => setSearchParams({ ...searchParams, insert: undefined, insertKind: undefined }))
+    const kind = parseInsertKind(searchParams.insertKind)
+    if (!kind) {
+      console.warn("session: ?insert= missing or invalid insertKind, skipping injection", searchParams.insertKind)
+      clear()
+      return
+    }
+    void fetchAssetInsertText(sdk().client, kind, path)
+      .then((text) => {
         untrack(() => {
-          if (template) {
-            prompt.set([{ type: "text", content: template, start: 0, end: template.length }], template.length)
+          if (text) {
+            prompt.set([{ type: "text", content: text, start: 0, end: text.length }], text.length)
           }
-          setSearchParams({ ...searchParams, insert: undefined })
         })
+        clear()
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         // fetch 失败也清参数，避免卡死
-        untrack(() => setSearchParams({ ...searchParams, insert: undefined }))
+        console.warn("session: failed to fetch asset content for ?insert=", error)
+        clear()
       })
   })
 
@@ -137,7 +145,8 @@ export default function Page() {
   createEffect(() => {
     if (!prompt.ready()) return
     const current = prompt.current()
-    const hasContent = current.length > 0 && current.some((part: any) => part.type === "text" && part.content?.length > 0)
+    const hasContent =
+      current.length > 0 && current.some((part: any) => part.type === "text" && part.content?.length > 0)
     workspace?.setDirty(hasContent)
   })
 
@@ -1762,9 +1771,7 @@ export default function Page() {
               "shadow-[var(--v2-elevation-raised)]": !!params.id,
             }}
           >
-            <Show when={!isDesktop() && !!params.id && true && !mobileTabsBottom()}>
-              {mobileTabs(true)}
-            </Show>
+            <Show when={!isDesktop() && !!params.id && true && !mobileTabsBottom()}>{mobileTabs(true)}</Show>
             <div class="flex-1 min-h-0 overflow-hidden">
               <Switch>
                 <Match when={params.id && mobileChanges()}>

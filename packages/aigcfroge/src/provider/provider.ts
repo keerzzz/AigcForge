@@ -34,9 +34,10 @@ import { ProviderError } from "./error"
 
 const OPENAI_HEADER_TIMEOUT_DEFAULT = 10_000
 
-// SSE chunk 级超时默认值：两个 chunk 之间的最大等待间隔。防止 provider 在 SSE 阶段 stall
-// 时流永久挂起（前端表现：一直「思考中」无输出）。wrapSSE 仅对 text/event-stream 响应生效，
-// 非 SSE 不受影响。用户可在 provider options 用 chunkTimeout 覆盖，或设 false/0 禁用。
+// Default per-chunk SSE timeout: the maximum wait between two chunks. Prevents the stream from
+// hanging forever when a provider stalls mid-SSE (UI symptom: stuck "thinking" with no output).
+// wrapSSE only applies to text/event-stream responses; non-SSE is unaffected. Users can override
+// via the chunkTimeout provider option, or disable with false/0.
 const PROVIDER_CHUNK_TIMEOUT_DEFAULT = 60_000
 
 function wrapSSE(res: Response, ms: number, ctl: AbortController) {

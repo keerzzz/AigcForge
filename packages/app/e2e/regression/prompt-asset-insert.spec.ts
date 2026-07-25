@@ -26,20 +26,21 @@ test("full insert flow: table row insert -> popover -> session redirect -> compo
   }
 
   // 标准 server mock（sessions / projects / providers）
+  // 会话选择器只列 mode=chat 会话：fixture 会话无 mode 字段（默认 coding），此处覆写为 chat
   await mockAigcfrogeServer(page, {
-    sessions: fixture.sessions,
+    sessions: fixture.sessions.map((session) => ({ ...session, mode: "chat" })),
     provider: fixture.provider,
     directory,
     project: fixture.project,
     pageMessages,
   })
 
-  // Mock promptAsset list API（仅拦截 aigcfroge server 端口）
+  // Mock promptAsset list API（仅拦截 aigcfroge server 端口；SDK 会把 directory 重写为 query，需通配）
   const serverPort = process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"
-  await page.route("**/prompt-asset", async (route, request) => {
+  await page.route("**/prompt-asset*", async (route, request) => {
     const url = new URL(request.url())
     if (url.port !== serverPort) return route.fallback()
-    if (request.method() === "GET") {
+    if (request.method() === "GET" && url.pathname === "/prompt-asset") {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -97,13 +98,14 @@ test("full insert flow: table row insert -> popover -> session redirect -> compo
   await insertButton.click()
   await expectAppVisible(page.getByText("Insert into session").first())
 
-  // 验证 dialog 中包含 chat 会话（来自 fixture）
-  await expect(page.getByText("Uncommitted changes inquiry")).toBeVisible()
-  await expect(page.getByText("Example Game: sample jump movement")).toBeVisible()
+  // 验证 dialog 中包含 chat 会话（来自 fixture）；作用域限定 dialog，避免命中背景会话列表
+  const dialog = page.getByRole("dialog", { name: "Insert into session" })
+  await expect(dialog.getByText("Uncommitted changes inquiry")).toBeVisible()
+  await expect(dialog.getByText("Example Game: sample jump movement")).toBeVisible()
 
   // 点击 source 会话，导航到会话页并带 ?insert=
   const navigateDone = page.waitForURL(/\/server\/.*\/session\/.*/)
-  await page.getByText("Uncommitted changes inquiry").click()
+  await dialog.getByText("Uncommitted changes inquiry").click()
   await navigateDone
 
   // 等待会话页加载 + ?insert= 参数注入

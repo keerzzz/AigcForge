@@ -38,7 +38,7 @@ export const Output = Schema.Struct({
 
 export const layer = Layer.effectDiscard(
   Effect.gen(function* () {
-    if (!Flag.AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET) return
+    if (!Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET) return
 
     const tools = yield* Tools.Service
     const service = yield* AgentAssetService.Service

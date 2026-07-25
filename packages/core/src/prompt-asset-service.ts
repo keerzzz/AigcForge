@@ -29,15 +29,6 @@ export class InvalidCandidateError extends Schema.TaggedErrorClass<InvalidCandid
   }
 }
 
-export class PermissionDeniedError extends Schema.TaggedErrorClass<PermissionDeniedError>()(
-  "PromptAssetService.PermissionDenied",
-  { action: Schema.String, resource: Schema.String },
-) {
-  override get message() {
-    return `Permission denied for ${this.action} on ${this.resource}`
-  }
-}
-
 export class StaleRevisionError extends Schema.TaggedErrorClass<StaleRevisionError>()(
   "PromptAssetService.StaleRevision",
   { relativePath: Schema.String },
@@ -120,10 +111,28 @@ export interface DeleteInput {
   baseRevision: string | null
 }
 
+export type ApplyError =
+  | InvalidCandidateError
+  | StaleRevisionError
+  | OverwriteRequiredError
+  | WriteFailedError
+  | ReadbackMismatchError
+  | RollbackFailedError
+  | ConcurrentModificationError
+  | FSUtil.Error
+
+export type DeleteError =
+  | InvalidCandidateError
+  | StaleRevisionError
+  | WriteFailedError
+  | RollbackFailedError
+  | ConcurrentModificationError
+  | FSUtil.Error
+
 export interface Interface {
   readonly propose: (input: SchemaPromptAsset.Candidate) => Effect.Effect<ProposeResult, InvalidCandidateError | FSUtil.Error>
-  readonly apply: (input: ApplyInput) => Effect.Effect<PromptAsset.Info, unknown>
-  readonly delete: (input: DeleteInput) => Effect.Effect<void, unknown>
+  readonly apply: (input: ApplyInput) => Effect.Effect<PromptAsset.Info, ApplyError>
+  readonly delete: (input: DeleteInput) => Effect.Effect<void, DeleteError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/PromptAssetService") {}

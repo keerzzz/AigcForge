@@ -41,7 +41,7 @@ export class Service extends ConfigService.Service<Service>()("@aigcfroge/Runtim
   enableQuestionTool: bool("AIGCFROGE_ENABLE_QUESTION_TOOL"),
   experimentalReferences: enabledByExperimental("AIGCFROGE_EXPERIMENTAL_REFERENCES"),
   experimentalBackgroundSubagents: enabledByExperimental("AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS"),
-  experimentalChatPromptAsset: enabledByExperimental("AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET"),
+  experimentalChatAsset: enabledByExperimental("AIGCFROGE_EXPERIMENTAL_CHAT_ASSET"),
   experimentalLspTy: bool("AIGCFROGE_EXPERIMENTAL_LSP_TY"),
   experimentalLspTool: enabledByExperimental("AIGCFROGE_EXPERIMENTAL_LSP_TOOL"),
   experimentalOxfmt: enabledByExperimental("AIGCFROGE_EXPERIMENTAL_OXFMT"),

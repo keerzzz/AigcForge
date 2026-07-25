@@ -185,9 +185,10 @@ export function applyDirectoryEvent(input: {
       break
     }
     case "session.error": {
-      // 兜底：后端 error 事件到达时若 session 仍 busy（如 enforcePrimary die 在 runLoop 外，
-      // 未走 Runner.onIdle），强制设 idle 清除前端 working/loading，避免 spinner 永转。
-      // sessionID 在 schema 中可选，缺省时跳过避免误清其他会话。
+      // Fallback: when a backend error event arrives while the session is still busy (e.g.
+      // enforcePrimary died outside runLoop and never hit Runner.onIdle), force idle to clear
+      // frontend working/loading so the spinner does not spin forever. sessionID is optional in
+      // the schema; skip when absent to avoid clearing other sessions.
       const props = event.properties as { sessionID?: string }
       if (props.sessionID) {
         input.setStore("session_status", props.sessionID, { type: "idle" })

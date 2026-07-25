@@ -3,6 +3,8 @@ import { describe, expect, test, beforeAll, afterAll } from "bun:test"
 import { Effect, Layer } from "effect"
 import { PromptAssetService } from "@aigcfroge/core/prompt-asset-service"
 import { PromptAsset } from "@aigcfroge/core/prompt-asset"
+import { ProposePromptAssetTool } from "@aigcfroge/core/tool/propose-prompt-asset"
+import { Tools } from "@aigcfroge/core/tool/tools"
 import { FileMutation } from "@aigcfroge/core/file-mutation"
 import { LocationMutation } from "@aigcfroge/core/location-mutation"
 import { FSUtil } from "@aigcfroge/core/fs-util"
@@ -13,7 +15,7 @@ import { AbsolutePath } from "@aigcfroge/core/schema"
 import { tmpdir } from "../fixture/fixture"
 import fs from "fs/promises"
 
-const FLAG_KEY = "AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET"
+const FLAG_KEY = "AIGCFROGE_EXPERIMENTAL_CHAT_ASSET"
 
 // Assigning undefined to process.env stores the string "undefined"; restore must delete instead.
 function restoreEnv(key: string, saved: string | undefined) {
@@ -61,40 +63,67 @@ async function withTmp<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 
 describe("PromptAsset E2E (aigcfroge)", () => {
   describe("flag gating", () => {
-    test("propose tool registration respects the flag — toggle via env", async () => {
-      // The V2 propose tool checks Flag.AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET
-      // at layer construction time. This test verifies the gate exists.
+    // Behavior assertions: build the propose-tool layer under each flag state and
+    // observe whether it actually registers with Tools.Service.
+    function toolsSpy(captured: string[]) {
+      return Layer.succeed(
+        Tools.Service,
+        Tools.Service.of({
+          register: (tools) =>
+            Effect.sync(() => {
+              captured.push(...Object.keys(tools))
+            }),
+        }),
+      )
+    }
+
+    function toolLayer(dir: string, captured: string[]) {
+      return ProposePromptAssetTool.layer.pipe(
+        Layer.provide(toolsSpy(captured)),
+        Layer.provide(fullLayer(dir)),
+      )
+    }
+
+    async function registration(dir: string): Promise<string[]> {
+      await fs.mkdir(path.join(dir, ".aigcfroge", "prompts"), { recursive: true })
+      const captured: string[] = []
+      await runNow(Effect.void.pipe(Effect.provide(toolLayer(dir, captured)), Effect.scoped))
+      return captured
+    }
+
+    test("flag=false does not register the propose tool", async () => {
       const saved = process.env[FLAG_KEY]
       process.env[FLAG_KEY] = "false"
       try {
-        // Value should already reflect "false"
-        const { Flag } = await import("@aigcfroge/core/flag/flag")
-        expect(Flag.AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET).toBe(false)
+        await withTmp(async (dir) => {
+          expect(await registration(dir)).toEqual([])
+        })
       } finally {
         restoreEnv(FLAG_KEY, saved)
       }
     })
 
-    test("flag=true enables the feature", async () => {
+    test("flag=true registers the propose tool", async () => {
       const saved = process.env[FLAG_KEY]
       process.env[FLAG_KEY] = "true"
       try {
-        // Re-read to clear module-level getter caching
-        const { Flag } = await import("@aigcfroge/core/flag/flag")
-        expect(Flag.AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET).toBe(true)
+        await withTmp(async (dir) => {
+          expect(await registration(dir)).toContain("propose_prompt_asset")
+        })
       } finally {
         restoreEnv(FLAG_KEY, saved)
       }
     })
 
-    test("AIGCFROGE_EXPERIMENTAL=true also enables it", async () => {
+    test("AIGCFROGE_EXPERIMENTAL=true fallback also registers the tool", async () => {
       const savedExp = process.env["AIGCFROGE_EXPERIMENTAL"]
       const savedChat = process.env[FLAG_KEY]
       delete process.env[FLAG_KEY]
       process.env["AIGCFROGE_EXPERIMENTAL"] = "true"
       try {
-        const { Flag } = await import("@aigcfroge/core/flag/flag")
-        expect(Flag.AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET).toBe(true)
+        await withTmp(async (dir) => {
+          expect(await registration(dir)).toContain("propose_prompt_asset")
+        })
       } finally {
         restoreEnv("AIGCFROGE_EXPERIMENTAL", savedExp)
         restoreEnv(FLAG_KEY, savedChat)

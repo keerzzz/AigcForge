@@ -295,7 +295,7 @@ export const Plugin = define({
 
       // chat-orchestrator: Chat mode only, fail-closed permissions
       draft.update(AgentV2.ID.make("chat-orchestrator"), (item) => {
-        item.description = "Chat mode agent for creating reusable prompt assets via conversation."
+        item.description = "Chat mode agent for creating reusable chat assets via conversation."
         item.system = ChatOrchestratorPrompt.SYSTEM_PROMPT
         item.mode = "primary"
         item.hidden = false
@@ -309,6 +309,10 @@ export const Plugin = define({
               { action: "grep", resource: "*", effect: "allow" },
               { action: "question", resource: "*", effect: "allow" },
               { action: "propose_prompt_asset", resource: "*", effect: "allow" },
+              { action: "propose_skill_asset", resource: "*", effect: "allow" },
+              { action: "propose_mcp_asset", resource: "*", effect: "allow" },
+              { action: "propose_command_asset", resource: "*", effect: "allow" },
+              { action: "propose_agent_asset", resource: "*", effect: "allow" },
             ],
             readonlyExternalDirectory,
           ),

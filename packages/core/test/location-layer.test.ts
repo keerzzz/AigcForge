@@ -3,7 +3,7 @@ import path from "path"
 import { beforeAll, afterAll, describe, expect } from "bun:test"
 import { DateTime, Effect, Equal, Hash, Layer, Schema } from "effect"
 
-const FLAG_KEY = "AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET"
+const FLAG_KEY = "AIGCFROGE_EXPERIMENTAL_CHAT_ASSET"
 const _origFlag = process.env[FLAG_KEY]
 beforeAll(() => {
   // The ProposePromptAssetTool flags behind this env var.
@@ -136,7 +136,11 @@ describe("LocationServiceMap", () => {
             "edit",
             "glob",
             "grep",
+            "propose_agent_asset",
+            "propose_command_asset",
+            "propose_mcp_asset",
             "propose_prompt_asset",
+            "propose_skill_asset",
             "question",
             "read",
             "skill",
@@ -155,7 +159,11 @@ describe("LocationServiceMap", () => {
             "edit",
             "glob",
             "grep",
+            "propose_agent_asset",
+            "propose_command_asset",
+            "propose_mcp_asset",
             "propose_prompt_asset",
+            "propose_skill_asset",
             "question",
             "read",
             "skill",

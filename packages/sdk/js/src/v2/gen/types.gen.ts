@@ -2212,7 +2212,7 @@ export type Provider = {
 
 export type ExperimentalCapabilities = {
   backgroundSubagents: boolean
-  chatPromptAsset: boolean
+  chatAsset: boolean
 }
 
 export type ConsoleState = {

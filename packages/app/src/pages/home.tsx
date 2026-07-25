@@ -361,7 +361,13 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
     const agentInvalid = agentsRes.data?.invalid ?? []
     return {
       assets: [...promptAssets, ...skillAssets, ...mcpAssets, ...cmdAssets, ...agentAssets],
-      invalid: [...promptInvalid, ...skillInvalid, ...mcpInvalid, ...cmdInvalid, ...agentInvalid],
+      invalid: [
+        ...promptInvalid.map((i) => ({ ...i, kind: "prompt" as const })),
+        ...skillInvalid.map((i) => ({ ...i, kind: "skill" as const })),
+        ...mcpInvalid.map((i) => ({ ...i, kind: "mcp" as const })),
+        ...cmdInvalid.map((i) => ({ ...i, kind: "command" as const })),
+        ...agentInvalid.map((i) => ({ ...i, kind: "agent" as const })),
+      ],
     }
   })
 

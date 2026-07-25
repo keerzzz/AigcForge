@@ -163,7 +163,7 @@ export const layer = Layer.effect(
         const agents: Record<string, Info> = {
           "chat-orchestrator": {
             name: "chat-orchestrator",
-            description: "Chat mode agent. Orchestrates prompt asset creation in chat mode.",
+            description: "Chat mode agent. Orchestrates chat asset creation in chat mode.",
             options: {},
             permission: Permission.fromConfig({
               "*": "deny",
@@ -172,6 +172,10 @@ export const layer = Layer.effect(
               grep: "allow",
               question: "allow",
               propose_prompt_asset: "allow",
+              propose_skill_asset: "allow",
+              propose_mcp_asset: "allow",
+              propose_command_asset: "allow",
+              propose_agent_asset: "allow",
             }),
             mode: "primary",
             native: true,

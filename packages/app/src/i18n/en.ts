@@ -1181,7 +1181,7 @@ export const dict = {
   "promptAsset.workbench.import": "Import",
   "promptAsset.workbench.insert": "Insert",
   "promptAsset.insert.title": "Insert into session",
-  "promptAsset.insert.description": "Select a chat session to insert the prompt template into its composer.",
+  "promptAsset.insert.description": "Select a chat session to insert this asset into its composer.",
   "promptAsset.insert.noSessions": "No chat sessions in this project",
   "promptAsset.insert.newSession": "New session + Insert",
   "promptAsset.badge.invalid": "Invalid file",

@@ -1,6 +1,7 @@
 import { createRoot } from "solid-js"
 import { describe, expect, test } from "bun:test"
 import type { PromptAssetInvalidEntry, PromptAssetSummary } from "@aigcfroge/sdk/v2/client"
+import type { AssetKindId } from "@aigcfroge/schema/asset"
 import {
   buildRows,
   createAssetWorkbenchStore,
@@ -18,9 +19,12 @@ const asset = (over: Partial<PromptAssetSummary> = {}): PromptAssetSummary => ({
   ...over,
 })
 
-const invalid = (over: Partial<PromptAssetInvalidEntry> = {}): PromptAssetInvalidEntry => ({
+const invalid = (
+  over: Partial<PromptAssetInvalidEntry> & { kind?: AssetKindId } = {},
+): PromptAssetInvalidEntry & { kind: AssetKindId } => ({
   relativePath: "broken.md",
   errorTag: "parse_error",
+  kind: "prompt",
   ...over,
 })
 
@@ -46,6 +50,13 @@ describe("buildRows", () => {
       revision: "",
       name: "",
     })
+  })
+
+  test("invalid rows carry their own kind instead of defaulting to prompt", () => {
+    const rows = buildRows([], [invalid({ kind: "skill" })])
+    expect(rows[0].kind).toBe("skill")
+    expect(filterByKind(rows, "prompt")).toHaveLength(0)
+    expect(filterByKind(rows, "skill")).toHaveLength(1)
   })
 })
 

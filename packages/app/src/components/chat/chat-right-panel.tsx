@@ -7,7 +7,6 @@ import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { ResizeHandle } from "@aigcfroge/ui/resize-handle"
-import { PROMPTS_DIR } from "@aigcfroge/core/constants"
 import { useLayout } from "@/context/layout"
 import { useLanguage } from "@/context/language"
 import { useSettings } from "@/context/settings"
@@ -27,6 +26,8 @@ import { getTabReorderIndex, shouldShowFileTree, createSizing } from "@/pages/se
 import { createFileTabListSync } from "@/pages/session/file-tab-scroll"
 import { clearProposeCandidate, useProposeCandidate, setProposeCandidate, setApplying, setApplied } from "./prompt-asset-store"
 import { findProposeResult } from "./prompt-asset-candidate"
+import { applyAssetCandidate, assetKindDir, fetchAssetInsertText, listAssets } from "./asset-insert"
+import type { AssetKindId } from "@aigcfroge/schema/asset"
 
 type DiffLine = { type: "add" | "del" | "eq"; text: string }
 
@@ -169,21 +170,22 @@ export function ChatRightPanel() {
   })
 
   const [, { refetch }] = createResource(
-    () => sdk().client,
-    (client) => client.promptAsset.list(),
+    () => ({ client: sdk().client, kind: candidate.candidate?.kind ?? ("prompt" as const) }),
+    ({ client, kind }) => listAssets(client, kind),
   )
-  // Existing asset template (overwrite diff when candidate.status === "exists")
-  const [oldTemplate] = createResource(
-    () => (candidate.candidate?.exists ? candidate.candidate?.relativePath : null),
-    async (path: string) => {
-      const r = await sdk().client.promptAsset.content({ path })
-      return r.data?.template ?? ""
+  // Existing asset content (overwrite diff when candidate.status === "exists")
+  const [oldContent] = createResource(
+    () => {
+      const c = candidate.candidate
+      if (!c?.exists) return null
+      return { path: c.relativePath, kind: c.kind }
     },
+    async (source: { path: string; kind: AssetKindId }) => fetchAssetInsertText(sdk().client, source.kind, source.path),
   )
-  // diff 用 createMemo,仅在 oldTemplate/candidate.template 变化时重算(E3)
+  // diff 用 createMemo,仅在 oldContent/candidate.content 变化时重算(E3)
   const diffLinesMemo = createMemo(() => {
     if (candidate.candidate?.status !== "exists") return null
-    return computeDiff(oldTemplate() ?? "", candidate.candidate?.template ?? "")
+    return computeDiff(oldContent() ?? "", candidate.candidate?.content ?? "")
   })
 
   const handleApply = async () => {
@@ -191,15 +193,17 @@ export function ChatRightPanel() {
     if (!c || !candidate.sessionID || candidate.applying) return
     setApplying(true)
     try {
-      await sdk().client.promptAsset.apply({
+      await applyAssetCandidate(sdk().client, {
         sessionID: candidate.sessionID,
-        candidate: { name: c.name, description: c.description, template: c.template, relativePath: c.relativePath },
+        kind: c.kind,
+        candidate: c.candidate,
+        relativePath: c.relativePath,
         baseRevision: c.revision ?? undefined,
         overwrite: false,
       })
       setApplied()
       void refetch()
-      void file.tree.refresh(PROMPTS_DIR)
+      void file.tree.refresh(assetKindDir(c.kind))
     } catch (err) {
       console.error("Apply failed:", err)
       setApplying(false)
@@ -211,15 +215,17 @@ export function ChatRightPanel() {
     if (!c || !candidate.sessionID || candidate.applying) return
     setApplying(true)
     try {
-      await sdk().client.promptAsset.apply({
+      await applyAssetCandidate(sdk().client, {
         sessionID: candidate.sessionID,
-        candidate: { name: c.name, description: c.description, template: c.template, relativePath: c.relativePath },
+        kind: c.kind,
+        candidate: c.candidate,
+        relativePath: c.relativePath,
         baseRevision: c.revision ?? undefined,
         overwrite: true,
       })
       setApplied()
       void refetch()
-      void file.tree.refresh(PROMPTS_DIR)
+      void file.tree.refresh(assetKindDir(c.kind))
     } catch (err) {
       console.error("Apply overwrite failed:", err)
       setApplying(false)
@@ -342,7 +348,7 @@ export function ChatRightPanel() {
                             </span>
                             <div class="min-h-0 flex-1 overflow-y-auto rounded-md border border-v2-border-border-base">
                               <Show
-                                when={!oldTemplate.loading && oldTemplate() !== undefined}
+                                when={!oldContent.loading && oldContent() !== undefined}
                                 fallback={
                                   <div class="p-2 text-v2-text-text-muted text-12-regular">
                                     {language.t("promptAsset.panel.loading")}

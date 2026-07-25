@@ -57,8 +57,8 @@ export const Flag = {
   get AIGCFROGE_EXPERIMENTAL_REFERENCES() {
     return enabledByExperimental("AIGCFROGE_EXPERIMENTAL_REFERENCES")
   },
-  get AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET() {
-    return enabledByExperimental("AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET")
+  get AIGCFROGE_EXPERIMENTAL_CHAT_ASSET() {
+    return enabledByExperimental("AIGCFROGE_EXPERIMENTAL_CHAT_ASSET")
   },
   get AIGCFROGE_TUI_CONFIG() {
     return process.env["AIGCFROGE_TUI_CONFIG"]

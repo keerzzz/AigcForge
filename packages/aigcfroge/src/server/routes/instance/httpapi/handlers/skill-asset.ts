@@ -7,6 +7,7 @@ import { SkillAsset } from "@aigcfroge/core/skill-asset"
 import { SkillAsset as SchemaSkillAsset } from "@aigcfroge/schema/skill-asset"
 import { Location } from "@aigcfroge/core/location"
 import { AbsolutePath } from "@aigcfroge/core/schema"
+import { RuntimeFlags } from "@/effect/runtime-flags"
 import { Effect, Layer, Schema } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
@@ -109,6 +110,8 @@ export const skillAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "skill-a
     const apply = Effect.fn("SkillAssetHttpApi.apply")(function* (ctx: {
       payload: { candidate: SchemaSkillAsset.Candidate; baseRevision?: string; overwrite: boolean }
     }) {
+      const flags = yield* RuntimeFlags.Service
+      if (!flags.experimentalChatAsset) return yield* Effect.fail(new InvalidRequestError({ message: "Skill asset creation is not enabled. Set AIGCFROGE_EXPERIMENTAL_CHAT_ASSET=true to enable." }))
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const service = yield* SkillAssetService.Service.pipe(Effect.provide(layer), Effect.orDie)
@@ -131,6 +134,8 @@ export const skillAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "skill-a
     const deleteAsset = Effect.fn("SkillAssetHttpApi.delete")(function* (ctx: {
       payload: { relativePath: string; baseRevision?: string }
     }) {
+      const flags = yield* RuntimeFlags.Service
+      if (!flags.experimentalChatAsset) return yield* Effect.fail(new InvalidRequestError({ message: "Skill asset deletion is not enabled." }))
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const service = yield* SkillAssetService.Service.pipe(Effect.provide(layer), Effect.orDie)

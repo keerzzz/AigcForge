@@ -146,7 +146,7 @@ export function ChatSidebar() {
 
 /**
  * Chat 次级左侧边栏（SecondarySidebar）：Location + New Session + 功能树（分类+计数）+ Add Project。
- * M1 全貌恢复（M2 Step 3 按产品反馈复活）。功能树点击切换 Home 主区内容（prompt->AssetWorkbench，其他->ChatFeaturePanel）。
+ * M1 全貌恢复（M2 Step 3 按产品反馈复活）。功能树点击切换 KindFilter，AssetWorkbenchTable 按 kind 展示对应资产。
  */
 function ChatFeatureSidebar() {
   const language = useLanguage()

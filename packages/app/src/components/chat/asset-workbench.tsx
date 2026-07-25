@@ -27,7 +27,7 @@ export type AssetRow = {
 
 export function buildRows(
   assets: readonly { relativePath: string; name: string; description: string; revision: string; kind: AssetKindId }[],
-  invalid: readonly { relativePath: string; errorTag?: "parse_error" | "bad_frontmatter" | "name_conflict" }[],
+  invalid: readonly { relativePath: string; kind: AssetKindId; errorTag?: "parse_error" | "bad_frontmatter" | "name_conflict" }[],
 ): AssetRow[] {
   const valid: AssetRow[] = assets.map((a) => ({
     kind: a.kind,
@@ -38,7 +38,7 @@ export function buildRows(
     invalid: false,
   }))
   const invalidRows: AssetRow[] = invalid.map((i) => ({
-    kind: "prompt",
+    kind: i.kind,
     relativePath: i.relativePath,
     name: "",
     description: "",
@@ -92,7 +92,7 @@ export function createAssetWorkbenchStore() {
 
 export function AssetWorkbenchTable(props: {
   assets: readonly { relativePath: string; name: string; description: string; revision: string; kind: AssetKindId }[]
-  invalid: readonly { relativePath: string; errorTag?: "parse_error" | "bad_frontmatter" | "name_conflict" }[]
+  invalid: readonly { relativePath: string; kind: AssetKindId; errorTag?: "parse_error" | "bad_frontmatter" | "name_conflict" }[]
   onSelect?: (row: AssetRow) => void
   onInsert?: (row: AssetRow) => void
   /** 功能树联动：外部控制 kind 筛选（null 或 undefined 时用 store 内部值） */
@@ -137,7 +137,7 @@ export function AssetWorkbenchTable(props: {
             onInput={(e) => store.setSearch(e.currentTarget.value)}
           />
         </label>
-        <ButtonV2 variant="neutral" icon="plus" onClick={() => {}}>
+        <ButtonV2 variant="neutral" icon="plus" disabled onClick={() => {}}>
           {language.t("asset.panel.new", { kind: kindLabel() })}
         </ButtonV2>
         <ButtonV2 variant="ghost" disabled onClick={() => {}}>

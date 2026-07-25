@@ -11,6 +11,7 @@ import { Effect, Layer, Schema } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
 import { ConflictError, InvalidRequestError } from "../errors"
+import { RuntimeFlags } from "@/effect/runtime-flags"
 
 function toApplyError(err: unknown): Effect.Effect<never, ConflictError | InvalidRequestError, never> {
   let error: ConflictError | InvalidRequestError
@@ -112,6 +113,8 @@ export const mcpAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "mcp-asset
       payload: { candidate: SchemaMCPAsset.Candidate; baseRevision?: string; overwrite: boolean }
     }) {
       const ctx2 = yield* InstanceState.context
+      const flags = yield* RuntimeFlags.Service
+      if (!flags.experimentalChatAsset) return yield* Effect.fail(new InvalidRequestError({ message: "MCP asset creation is not enabled. Set AIGCFROGE_EXPERIMENTAL_CHAT_ASSET=true to enable." }))
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const service = yield* MCPAssetService.Service.pipe(Effect.provide(layer), Effect.orDie)
       const info = yield* service.apply({
@@ -135,6 +138,8 @@ export const mcpAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "mcp-asset
     const deleteAsset = Effect.fn("MCPAssetHttpApi.delete")(function* (ctx: {
       payload: { relativePath: string; baseRevision?: string }
     }) {
+      const flags = yield* RuntimeFlags.Service
+      if (!flags.experimentalChatAsset) return yield* Effect.fail(new InvalidRequestError({ message: "MCP asset deletion is not enabled." }))
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const service = yield* MCPAssetService.Service.pipe(Effect.provide(layer), Effect.orDie)

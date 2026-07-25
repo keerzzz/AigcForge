@@ -545,8 +545,9 @@ function ModeRoute() {
   const mode = useMode()
   const selected = createMemo(() => (isMode(params.mode) ? params.mode : undefined))
 
-  // ADR-15：ModeRoute 渲染共享 ModeWorkspace（不 redirect），setCurrentMode 在 createEffect
-  // 响应 params 变化（不靠 redirect 重挂）；/mode/:mode 同路由组件参数变不 remount，治闪烁
+  // ADR-15: ModeRoute renders the shared ModeWorkspace (no redirect); setCurrentMode reacts to
+  // params in createEffect (no redirect-driven remount). Same-route param changes on /mode/:mode
+  // do not remount, which fixes flicker.
   createEffect(() => {
     const current = selected()
     if (current) mode.setCurrentMode(current)
@@ -555,7 +556,7 @@ function ModeRoute() {
   return <Show when={selected()} fallback={<Navigate href="/" />}><Home /></Show>
 }
 
-// ADR-15 §对齐：/ 重定向到 /mode/<persistedMode>（one-time landing，非 authority）
+// ADR-15 alignment: / redirects to /mode/<persistedMode> (one-time landing, not the authority)
 function HomeRedirect() {
   const mode = useMode()
   return <Navigate href={`/mode/${mode.currentMode}`} />

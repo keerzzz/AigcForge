@@ -110,7 +110,7 @@ export const promptAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "prompt
     const apply = Effect.fn("PromptAssetHttpApi.apply")(function* (ctx: {
       payload: { candidate: SchemaPromptAsset.Candidate; baseRevision?: string; overwrite: boolean }
     }) {
-      if (!flags.experimentalChatPromptAsset) {
+      if (!flags.experimentalChatAsset) {
         return yield* Effect.fail(new InvalidRequestError({ message: "Chat prompt asset creation is not enabled" }))
       }
       const ctx2 = yield* InstanceState.context

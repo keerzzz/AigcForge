@@ -11,6 +11,7 @@ import { Effect, Layer, Schema } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
 import { ConflictError, InvalidRequestError } from "../errors"
+import { RuntimeFlags } from "@/effect/runtime-flags"
 
 function toApplyError(err: unknown): Effect.Effect<never, ConflictError | InvalidRequestError, never> {
   let error: ConflictError | InvalidRequestError
@@ -110,6 +111,8 @@ export const commandAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "comma
     const apply = Effect.fn("CommandAssetHttpApi.apply")(function* (ctx: {
       payload: { candidate: SchemaCommandAsset.Candidate; baseRevision?: string; overwrite: boolean }
     }) {
+      const flags = yield* RuntimeFlags.Service
+      if (!flags.experimentalChatAsset) return yield* Effect.fail(new InvalidRequestError({ message: "Command asset creation is not enabled. Set AIGCFROGE_EXPERIMENTAL_CHAT_ASSET=true to enable." }))
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const service = yield* CommandAssetService.Service.pipe(Effect.provide(layer), Effect.orDie)
@@ -135,6 +138,8 @@ export const commandAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "comma
     }) {
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
+      const flags = yield* RuntimeFlags.Service
+      if (!flags.experimentalChatAsset) return yield* Effect.fail(new InvalidRequestError({ message: "Command asset deletion is not enabled." }))
       const service = yield* CommandAssetService.Service.pipe(Effect.provide(layer), Effect.orDie)
       yield* service.delete({
         relativePath: ctx.payload.relativePath,

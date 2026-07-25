@@ -18,7 +18,7 @@ import { tmpdir } from "./fixture/tmpdir"
 import { location } from "./fixture/location"
 import fs from "fs/promises"
 
-const FLAG_KEY = "AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET"
+const FLAG_KEY = "AIGCFROGE_EXPERIMENTAL_CHAT_ASSET"
 
 function locationLayer(dir: string) {
   return Layer.succeed(

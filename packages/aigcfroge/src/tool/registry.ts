@@ -18,6 +18,10 @@ import { InvalidTool } from "./invalid"
 import { SkillTool } from "./skill"
 import { DelegationProtocolTool } from "./delegation-protocol"
 import { ProposePromptAsset } from "./propose-prompt-asset"
+import { ProposeSkillAsset } from "./propose-skill-asset"
+import { ProposeMCPAsset } from "./propose-mcp-asset"
+import { ProposeCommandAsset } from "./propose-command-asset"
+import { ProposeAgentAsset } from "./propose-agent-asset"
 import * as Tool from "./tool"
 import { Config } from "@/config/config"
 import { type ToolContext as PluginToolContext, type ToolDefinition } from "@aigcfroge/plugin"
@@ -110,6 +114,10 @@ export const layer = Layer.effect(
     const skilltool = yield* SkillTool
     const delegationProtocol = yield* DelegationProtocolTool
     const proposePromptAsset = yield* ProposePromptAsset.ProposePromptAssetV1
+    const proposeSkillAsset = yield* ProposeSkillAsset.ProposeSkillAssetV1
+    const proposeMCPAsset = yield* ProposeMCPAsset.ProposeMCPAssetV1
+    const proposeCommandAsset = yield* ProposeCommandAsset.ProposeCommandAssetV1
+    const proposeAgentAsset = yield* ProposeAgentAsset.ProposeAgentAssetV1
     const agent = yield* Agent.Service
 
     const state = yield* InstanceState.make<State>(
@@ -224,6 +232,10 @@ export const layer = Layer.effect(
           plan: Tool.init(plan),
           delegationProtocol: Tool.init(delegationProtocol),
           proposePromptAsset: Tool.init(proposePromptAsset),
+          proposeSkillAsset: Tool.init(proposeSkillAsset),
+          proposeMCPAsset: Tool.init(proposeMCPAsset),
+          proposeCommandAsset: Tool.init(proposeCommandAsset),
+          proposeAgentAsset: Tool.init(proposeAgentAsset),
         })
 
         return {
@@ -244,7 +256,9 @@ export const layer = Layer.effect(
             tool.search,
             tool.skill,
             tool.patch,
-            ...(flags.experimentalChatPromptAsset ? [tool.proposePromptAsset] : []),
+            ...(flags.experimentalChatAsset
+              ? [tool.proposePromptAsset, tool.proposeSkillAsset, tool.proposeMCPAsset, tool.proposeCommandAsset, tool.proposeAgentAsset]
+              : []),
             ...(flags.experimentalLspTool ? [tool.lsp] : []),
             ...(flags.experimentalPlanMode && flags.client === "cli" ? [tool.plan] : []),
           ],

@@ -8,6 +8,8 @@ import { EventV2 } from "./event"
 import { FSUtil } from "./fs-util"
 import { KeyedMutex } from "./effect/keyed-mutex"
 import { Location } from "./location"
+import { AssetMigration } from "./asset-migration"
+import { AgentAssetPath } from "./agent-asset/path"
 import { Hash } from "./util/hash"
 import { Watcher } from "./filesystem/watcher"
 import { AGENTS_DIR } from "./constants"
@@ -175,10 +177,23 @@ export const layer = Layer.effect(
         )
     }
 
+    // First-run legacy import must land before the initial reload so migrated
+    // files are visible in the first list().
+    yield* migrateLegacy(fs, location.directory, ownerRoot)
     yield* reload().pipe(Effect.orDie)
 
     return Service.of({ list, getByPath, findByName, listInvalid, getInvalid, reload })
   }),
 )
+
+/** First-run import of project-local legacy agents (`.claude/agents`). Best-effort: never blocks boot. */
+const migrateLegacy = Effect.fnUntraced(function* (fs: FSUtil.Interface, directory: string, ownerRoot: string) {
+  yield* AssetMigration.importOnce(fs, {
+    ownerRoot,
+    files: yield* AssetMigration.legacyAgentFiles(fs, directory),
+    parse: AssetMigration.agentEntry,
+    isValidName: AgentAssetPath.isValidSegment,
+  }).pipe(Effect.catch((error) => Effect.logWarning("legacy agent migration failed", { error })))
+})
 
 export const locationLayer = layer
