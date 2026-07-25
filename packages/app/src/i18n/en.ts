@@ -1144,7 +1144,6 @@ export const dict = {
   "git.behind": "↓{{count}}",
 
   "chat.feature.title": "Features",
-  "chat.feature.location": "Location",
   "chat.feature.project": "Project",
   "chat.feature.noLocation": "Choose a project first",
   "chat.feature.prompt": "Prompts",
@@ -1153,7 +1152,6 @@ export const dict = {
   "chat.feature.command": "Commands",
   "chat.feature.agent": "Agents",
   "chat.feature.workflow": "Workflows",
-  "chat.feature.prompt.description": "Create reusable prompts through a guided Chat session.",
   "chat.feature.empty": "No items available",
 
   "promptAsset.panel.title": "Prompt Assets",
