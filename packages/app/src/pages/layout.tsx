@@ -8,6 +8,7 @@ import { usePlatform } from "@/context/platform"
 import { setNavigate } from "@/utils/notification-click"
 import { ToastRegion } from "@/utils/toast"
 import { ModeProvider, useMode } from "@/context/mode"
+import { ChatFeatureProvider } from "@/context/chat-feature"
 import { ModeSwitcher } from "@/components/mode-switcher"
 import { SecondarySidebar } from "@/components/secondary-sidebar"
 import { StatusBar } from "@/components/status-bar/status-bar"
@@ -73,7 +74,9 @@ export default function Layout(props: ParentProps) {
 
   return (
     <ModeProvider>
-      <LayoutContent update={update}>{props.children}</LayoutContent>
+      <ChatFeatureProvider>
+        <LayoutContent update={update}>{props.children}</LayoutContent>
+      </ChatFeatureProvider>
     </ModeProvider>
   )
 }

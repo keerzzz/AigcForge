@@ -58,7 +58,8 @@ import { Persist, persisted } from "@/utils/persist"
 import { useMarked } from "@aigcfroge/ui/context/marked"
 import { preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"
 import { modeDraft, useMode, type Mode } from "@/context/mode"
-import { modeSurface, useChatDirectory } from "@/components/mode-surfaces"
+import { ChatSidebar, ChatFeaturePanel, useChatDirectory } from "@/components/mode-surfaces"
+import { useChatFeature } from "@/context/chat-feature"
 import type { DirectorySDK } from "@/context/sdk"
 import { AssetWorkbench } from "@/components/chat/asset-workbench"
 
@@ -92,10 +93,6 @@ const HOME_SEARCH_RESULT_META =
   "min-w-0 flex-[1_1_auto] overflow-hidden text-ellipsis whitespace-nowrap text-[13px] leading-4 tracking-[-0.04px] text-v2-text-text-muted [font-weight:440]"
 
 let pendingHomeNavigation: { server: ServerConnection.Key; href: string } | undefined
-
-// ADR-15 §4: chat sidebar slot 经 modeSurface registry 解析（chat sidebar 是 mode surface）。
-// Home 左栏 render-all 时复用此 slot；modeSurface.chat.Sidebar = ChatSidebar（mode-surfaces.tsx）。
-const ChatSidebarSlot = modeSurface("chat").Sidebar
 
 function buildHomeSessionRecords(input: {
   sync: Pick<ServerSync, "child">
@@ -136,6 +133,7 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
   const layout = useLayout()
   const pickDirectory = useDirectoryPicker()
   const mode = useMode()
+  const { selected: chatFeature } = useChatFeature()
   const dialog = useDialog()
   const navigate = useNavigate()
   const server = useServer()
@@ -482,7 +480,7 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
       >
         {/* ADR-15 §4 方案1: render-all + display:none。slot 仅 chat/code：chat=ChatSidebar，非 chat=HomeProjectColumn。 */}
         <div style={{ display: mode.currentMode === "chat" ? "contents" : "none" }}>
-          <ChatSidebarSlot />
+          <ChatSidebar />
         </div>
         <div style={{ display: mode.currentMode === "chat" ? "none" : "contents" }}>
           <HomeProjectColumn
@@ -514,12 +512,14 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
           class="min-h-0 min-w-0 flex-1 flex flex-col"
           aria-label={language.t("sidebar.project.recentSessions")}
         >
-          {/* ADR-15 §4 方案1: render-all + display:none。chat=AssetWorkbench，非 chat=session list。 */}
+          {/* ADR-15 §4 方案1: render-all + display:none。chat 主区按功能切换：prompt=AssetWorkbench，其他=ChatFeaturePanel。 */}
           <div class="flex min-h-0 flex-1 flex-col" style={{ display: mode.currentMode === "chat" ? "flex" : "none" }}>
-            <AssetWorkbench.AssetWorkbenchTable
-              assets={chatAssetList()?.assets ?? []}
-              invalid={chatAssetList()?.invalid ?? []}
-            />
+            <Show when={chatFeature() === "prompt"} fallback={<ChatFeaturePanel />}>
+              <AssetWorkbench.AssetWorkbenchTable
+                assets={chatAssetList()?.assets ?? []}
+                invalid={chatAssetList()?.invalid ?? []}
+              />
+            </Show>
           </div>
           <div class="flex min-h-0 flex-1 flex-col pt-6 lg:pt-12" style={{ display: mode.currentMode === "chat" ? "none" : "flex" }}>
           <HomeSessionSearch
