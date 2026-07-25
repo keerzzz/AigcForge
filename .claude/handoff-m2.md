@@ -147,3 +147,43 @@ M1 已全部闭环（commit `e0700c19f`，分支 `chat-m1-closure`），包括 P
 1. **Step 4（Insert 流程）**：新建 `asset-session-selector.tsx`（SessionSelectorPopover）+ AssetWorkbenchTable 加行操作按钮 + 目标页 `?insert=<path>` 参数检测注入 Composer
 2. **Step 5（路由状态保持）**：新建 `chat-workspace.tsx`（ChatWorkspaceContext）+ Provider 挂 Router 之外 + Dirty Draft 确认 Modal
 3. **Step 6（全链路集成测试）**：表格 -> 选行 -> Insert -> 跳转 -> 注入
+
+---
+
+## 会话 2 进展（续 - 2026-07-25）：产品反馈驱动重构
+
+**重要**：上面「Step 3 已完成」描述的功能树移除已被产品反馈推翻。功能分类+资产计数导航有价值，按用户决策恢复。当前状态以本节为准。
+
+### 新增 commit
+
+| commit | 内容 |
+|---|---|
+| `5ca4b6b84` | refactor(chat-m2): 按产品反馈恢复功能树导航 + chatFeature 持久化 |
+| `eddfd73f2` | fix(chat-m2): ChatSessionList 标题 i18n 误译 项目列表->会话列表 |
+
+### 当前 chat 首页布局（最终态）
+
+- **Home L461（chat slot，常驻）**：ChatSidebar（瘦版：Location + New Session + Add Project）。render-all display:contents/none
+- **SecondarySidebar（chat，默认关闭，打开后）**：ChatFeatureSidebar（全貌：Location + New Session + 功能树 prompt/skill/mcp/command/agent/workflow + 计数）+ ChatSessionList（下方，标题「会话列表」）
+- **Home 主区（chat slot）**：功能切换 Show--prompt->AssetWorkbenchTable，其他->ChatFeaturePanel（运行时列表，只读）。render-all display:flex/none 包裹
+- **chatFeature 持久化**：ChatFeatureProvider（Layout 内，ModeProvider 下）+ useChatFeature() context。Persist.global `chat.feature.v1`，下次进入恢复上次选择
+- **modeSurface.chat.Sidebar = ChatFeatureSidebar**（SecondarySidebar 用 Dynamic 渲染）；Home L461 直接导入 ChatSidebar（不经 modeSurface）
+
+### 保留的 Step 3 决策
+
+- item 3：Home 主区 chat 用 AssetWorkbenchTable（prompt 功能时）
+- item 5：secondarySidebarOpen 默认 false（对齐 code 首页不显示次级侧栏）
+- item 6：render-all（L461 sidebar slot + 主区 section，display:contents/flex）
+- useChatDirectory hook（ChatSidebar/ChatFeatureSidebar/Home 资产 fetch 共用）
+
+### 验证状态
+
+- typecheck ✓ / test 450 pass ✓ / lint 0 errors（2475 warnings，+3 来自 ChatSidebar/ChatFeatureSidebar 共享 Location+addProject 逻辑的重复 unbound-method/no-unnecessary-type-assertion，M1 既有模式）
+- ⚠️ dev server 视觉验证进行中（用户已确认布局结构正确，发现并修复 ChatSessionList 标题误译）
+
+### 技术债 / 遗留
+
+- **ChatSidebar/ChatFeatureSidebar Location+addProject 重复**：两 sidebar 变体共享 header 逻辑（~50 行 + 2 lint warnings）。可抽取 ChatSidebarHeader 归并（后续重构）
+- **ChatFeaturePanel 非 prompt 功能显示运行时列表**：skill/mcp/command/agent 是 server-sync 数据（非持久化资产）。M2 只有 prompt 是真资产类型。PRD §9.4 资产树按消费路径分组（非按 kind），功能树分类是 M1 设计，后续对齐 PRD
+- **AssetWorkbenchTable onSelect 未接**：Step 4 补行操作 + SessionSelectorPopover
+- **i18n sessionList 仅 en+zh**：其他 16 locale 回退 en「Session list」（与 projectList 现状一致）；全本地化待后续
