@@ -618,6 +618,7 @@ export const dict = {
   "sidebar.secondary.newSession": "New session",
   "sidebar.secondary.search": "Search projects",
   "sidebar.secondary.projectList": "Project list",
+  "sidebar.secondary.sessionList": "Session list",
   "sidebar.secondary.addProject": "Add project",
   "sidebar.secondary.noResults": "No results found",
   "sidebar.secondary.hide": "Hide sidebar",

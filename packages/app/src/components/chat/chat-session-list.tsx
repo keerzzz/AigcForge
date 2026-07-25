@@ -37,7 +37,7 @@ export function ChatSessionList(props: {
   return (
     <div class="flex min-h-0 flex-1 flex-col border-t border-v2-border-border-base">
       <div class="px-3 pb-1 pt-2 text-v2-text-text-muted text-11-regular [font-weight:440]">
-        {language.t("sidebar.secondary.projectList")}
+        {language.t("sidebar.secondary.sessionList")}
       </div>
       <div class="min-h-0 flex-1 overflow-y-auto px-2">
         <Show

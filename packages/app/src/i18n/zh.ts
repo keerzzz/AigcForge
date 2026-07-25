@@ -534,6 +534,7 @@ export const dict = {
   "sidebar.secondary.newSession": "新建会话",
   "sidebar.secondary.search": "搜索项目",
   "sidebar.secondary.projectList": "项目列表",
+  "sidebar.secondary.sessionList": "会话列表",
   "sidebar.secondary.addProject": "添加项目",
   "sidebar.secondary.noResults": "未找到结果",
   "sidebar.secondary.hide": "隐藏侧边栏",
