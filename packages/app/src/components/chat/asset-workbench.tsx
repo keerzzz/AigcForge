@@ -6,6 +6,7 @@ import type { PromptAssetInvalidEntry, PromptAssetSummary } from "@aigcfroge/sdk
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { Icon as IconV2 } from "@aigcfroge/ui/v2/icon"
 import { useLanguage } from "@/context/language"
+import { useChatWorkspace } from "@/context/chat-workspace"
 
 // -- Types --
 
@@ -97,7 +98,8 @@ export function AssetWorkbenchTable(props: {
   onInsert?: (row: AssetRow) => void
 }) {
   const language = useLanguage()
-  const store = createAssetWorkbenchStore()
+  const workspace = useChatWorkspace()
+  const store = workspace ?? createAssetWorkbenchStore()
   const rows = createMemo(() =>
     sortRows(filterBySearch(filterByKind(buildRows(props.assets, props.invalid), store.state.kindFilter), store.state.search)),
   )

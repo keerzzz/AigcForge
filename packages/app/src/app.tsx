@@ -18,6 +18,7 @@ import { CommandProvider } from "@/context/command"
 import { CommentsProvider } from "@/context/comments"
 import { FileProvider } from "@/context/file"
 import { isMode, modeDraft, useMode } from "@/context/mode"
+import { ChatWorkspaceProvider } from "@/context/chat-workspace"
 import { ServerSDKProvider, useServerSDK } from "@/context/server-sdk"
 import { ServerSyncProvider } from "@/context/server-sync"
 import { GlobalProvider, useGlobal } from "@/context/global"
@@ -514,6 +515,7 @@ export function AppInterface(props: {
 	      <GlobalProvider>
 	        <SettingsProvider>
 			<ConnectionGate disableHealthCheck={props.disableHealthCheck}>
+			  <ChatWorkspaceProvider>
 			  <Dynamic
 				component={props.router ?? Router}
 				root={(routerProps) => (
@@ -526,6 +528,7 @@ export function AppInterface(props: {
 			  >
 				<Routes />
 			  </Dynamic>
+			  </ChatWorkspaceProvider>
 			</ConnectionGate>
 	        </SettingsProvider>
 	      </GlobalProvider>
