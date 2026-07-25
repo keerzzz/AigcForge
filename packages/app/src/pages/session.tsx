@@ -66,6 +66,7 @@ import { Persist, persisted } from "@/utils/persist"
 import { extractPromptFromParts } from "@/utils/prompt"
 import { formatServerError } from "@/utils/server-errors"
 import { sessionHref, requireServerKey } from "@/utils/session-route"
+import { useChatWorkspace } from "@/context/chat-workspace"
 import { useUsageExceededDialogs } from "./session/usage-exceeded-dialogs"
 
 type FollowupItem = FollowupDraft & { id: string }
@@ -88,6 +89,7 @@ export default function Page() {
   const serverSDK = useServerSDK()
   const settings = useSettings()
   const prompt = usePrompt()
+  const workspace = useChatWorkspace()
   const comments = useComments()
   const terminal = useTerminal()
   const [searchParams, setSearchParams] = useSearchParams<{ prompt?: string; insert?: string }>()
@@ -129,6 +131,14 @@ export default function Page() {
         // fetch 失败也清参数，避免卡死
         untrack(() => setSearchParams({ ...searchParams, insert: undefined }))
       })
+  })
+
+  // Dirty Draft: Composer 有未发送内容时标记 dirty，触发路由守卫（M2 Step 5）。
+  createEffect(() => {
+    if (!prompt.ready()) return
+    const current = prompt.current()
+    const hasContent = current.length > 0 && current.some((part: any) => part.type === "text" && part.content?.length > 0)
+    workspace?.setDirty(hasContent)
   })
 
   const [ui, setUi] = createStore({

@@ -1186,4 +1186,8 @@ export const dict = {
   "promptAsset.insert.description": "Select a chat session to insert the prompt template into its composer.",
   "promptAsset.insert.noSessions": "No chat sessions in this project",
   "promptAsset.badge.invalid": "Invalid file",
+  "chat.dirtyDraft.title": "Unsaved content",
+  "chat.dirtyDraft.description": "You have unsaved content in the composer. Are you sure you want to leave?",
+  "chat.dirtyDraft.stay": "Stay",
+  "chat.dirtyDraft.leave": "Leave",
 }

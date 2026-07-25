@@ -1078,4 +1078,8 @@ export const dict = {
   "chat.feature.workflow": "工作流",
   "chat.feature.prompt.description": "通过引导式对话创建可复用的提示词。",
   "chat.feature.empty": "暂无可用项目",
+  "chat.dirtyDraft.title": "未保存的内容",
+  "chat.dirtyDraft.description": "Composer 中有未发送的内容，确定要离开吗？",
+  "chat.dirtyDraft.stay": "留下",
+  "chat.dirtyDraft.leave": "离开",
 } satisfies Partial<Record<Keys, string>>

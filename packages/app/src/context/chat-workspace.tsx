@@ -1,5 +1,10 @@
-import { createContext, useContext, type ParentProps } from "solid-js"
+import { createContext, createEffect, useContext, type ParentProps } from "solid-js"
 import { createStore } from "solid-js/store"
+import { useLocation, useNavigate } from "@solidjs/router"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
+import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { useLanguage } from "@/context/language"
 import type { AssetKind } from "@/components/chat/asset-workbench"
 
 /**
@@ -17,6 +22,9 @@ export type ChatWorkspaceContext = {
   setKindFilter: (kind: AssetKind) => void
   setSearch: (value: string) => void
   select: (path: string | undefined) => void
+  /** Composer 是否有未发送内容（Dirty Draft 用） */
+  dirty: boolean
+  setDirty: (value: boolean) => void
 }
 
 const Ctx = createContext<ChatWorkspaceContext>()
@@ -27,12 +35,15 @@ export function ChatWorkspaceProvider(props: ParentProps) {
     search: "",
     selectedPath: undefined,
   })
+  const [dirty, setDirty] = createStore({ value: false })
 
   const ctx: ChatWorkspaceContext = {
     state,
     setKindFilter: (kind) => setState("kindFilter", kind),
     setSearch: (value) => setState("search", value),
     select: (path) => setState("selectedPath", path),
+    get dirty() { return dirty.value },
+    setDirty: (v) => setDirty("value", v),
   }
 
   return <Ctx.Provider value={ctx}>{props.children}</Ctx.Provider>
@@ -40,4 +51,69 @@ export function ChatWorkspaceProvider(props: ParentProps) {
 
 export function useChatWorkspace(): ChatWorkspaceContext | undefined {
   return useContext(Ctx)
+}
+
+/**
+ * Dirty Draft 路由守卫：监听 Composer dirty 状态 + location 变化。
+ * 必须在 Router 内部渲染（需 useLocation）。
+ * 当 dirty=true 且路由变化时，弹确认对话框：
+ *   "Stay" → navigate 回原路由 + 不清 dirty
+ *   "Leave" → 清 dirty + 保持新路由
+ */
+export function DirtyDraftGuard() {
+  const language = useLanguage()
+  const dialog = useDialog()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const workspace = useChatWorkspace()
+
+  let prevPath = location.pathname
+  let pending: "stay" | "leave" | null = null
+
+  createEffect(() => {
+    const path = location.pathname
+    const isDirty = workspace?.dirty ?? false
+    if (pending) {
+      pending = null
+      prevPath = path
+      return
+    }
+    if (!isDirty) {
+      prevPath = path
+      return
+    }
+    if (path === prevPath) return
+
+    const from = prevPath
+    prevPath = path
+
+    dialog.show(() => (
+      <Dialog title={language.t("chat.dirtyDraft.title")} description={language.t("chat.dirtyDraft.description")} fit>
+        <div class="flex justify-end gap-2 p-2">
+          <ButtonV2
+            variant="neutral"
+            onClick={() => {
+              pending = "stay"
+              navigate(from, { replace: true })
+              dialog.close()
+            }}
+          >
+            {language.t("chat.dirtyDraft.stay")}
+          </ButtonV2>
+          <ButtonV2
+            variant="contrast"
+            onClick={() => {
+              pending = "leave"
+              workspace?.setDirty(false)
+              dialog.close()
+            }}
+          >
+            {language.t("chat.dirtyDraft.leave")}
+          </ButtonV2>
+        </div>
+      </Dialog>
+    ))
+  })
+
+  return null
 }
