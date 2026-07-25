@@ -133,6 +133,12 @@ export function AssetWorkbenchTable(props: {
           }
         >
           <div class="flex flex-col">
+            <div class="flex items-center gap-2 px-4 py-1.5 text-v2-text-text-faint text-11-regular">
+              <span class="w-20 shrink-0">{language.t("promptAsset.list.kind")}</span>
+              <span class="flex-[35] truncate">{language.t("promptAsset.list.name")}</span>
+              <span class="flex-[40] truncate">{language.t("promptAsset.list.description")}</span>
+              <span class="flex-[20] text-right">{language.t("promptAsset.list.updated")}</span>
+            </div>
             <For each={rows()}>
               {(row) => (
                 <div
