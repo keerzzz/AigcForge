@@ -1,6 +1,7 @@
 import { For, Show, createEffect, createMemo } from "solid-js"
 import type { Session } from "@aigcfroge/sdk/v2/client"
 import { useNavigate } from "@solidjs/router"
+import { Icon } from "@aigcfroge/ui/v2/icon"
 import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useLanguage } from "@/context/language"
@@ -12,23 +13,26 @@ import { sessionHref } from "@/utils/session-route"
 import type { AssetRow } from "./asset-workbench"
 
 /**
- * Insert 流程会话选择器：选一个 chat 会话，将资产行的 template 注入其 Composer（PRD §9.6）。
- * 经 dialog.show 渲染（继承调用方 owner，可用 useServerSync/useNavigate/useChatDirectory）。
- * 选中后 navigate /server/:key/session/:id?insert=<relativePath>，session.tsx 检测 ?insert= 注入。
+ * Insert 流程会话选择器：选已有会话或新建会话，将资产 template 注入 Composer（PRD §9.6）。
+ * dialog.show 渲染（继承调用方 owner）。
+ *
+ * 两种路径：
+ * - 已有会话 → navigate /server/:key/session/:id?insert=<path>
+ * - 新建会话 → navigate /new-session?prompt=<template 内容>
  */
 export function AssetSessionSelector(props: { asset: AssetRow }) {
   const language = useLanguage()
   const dialog = useDialog()
   const navigate = useNavigate()
   const sync = useServerSync()
-  const { conn, directory } = useChatDirectory()
+  const { conn, ctx, directory } = useChatDirectory()
 
   const serverKey = createMemo(() => {
     const current = conn()
     return current ? ServerConnection.key(current) : undefined
   })
 
-  // bootstrap 当前 Location 的 chat 会话（与 ChatSessionList 同源）
+  // bootstrap 当前 Location 的 chat 会话
   createEffect(() => {
     const dir = directory()
     if (!dir) return
@@ -49,9 +53,57 @@ export function AssetSessionSelector(props: { asset: AssetRow }) {
     dialog.close()
   }
 
+  async function insertNewSession() {
+    const dir = directory()
+    const currentCtx = ctx()
+    if (!dir || !currentCtx) return
+
+    // 取资产 template 内容（按 kind 分派 content API）
+    const sdk = currentCtx.sdk.ensureDirSdkContext(dir)
+    let template = ""
+    try {
+      const path = props.asset.relativePath
+      if (props.asset.kind === "prompt") {
+        const res = await sdk.client.promptAsset.content({ path })
+        template = res.data?.template ?? ""
+      } else if (props.asset.kind === "skill") {
+        const res = await sdk.client.skillAsset.content({ path })
+        template = res.data?.content ?? ""
+      } else if (props.asset.kind === "mcp") {
+        const res = await sdk.client.mcpAsset.content({ path })
+        template = res.data?.content ?? ""
+      } else if (props.asset.kind === "command") {
+        const res = await sdk.client.commandAsset.content({ path })
+        template = res.data?.content ?? ""
+      } else if (props.asset.kind === "agent") {
+        const res = await sdk.client.agentAsset.content({ path })
+        template = res.data?.content ?? ""
+      }
+    } catch {
+      /* 静默失败 */
+    }
+
+    dialog.close()
+    navigate(`/new-session?prompt=${encodeURIComponent(template)}`)
+  }
+
   return (
     <Dialog title={language.t("promptAsset.insert.title")} description={language.t("promptAsset.insert.description")} fit>
       <div class="flex min-h-0 flex-col gap-px p-2" style={{ "max-height": "60vh" }}>
+        {/* 新建会话入口 */}
+        <button
+          type="button"
+          class="flex items-center gap-2 rounded-[6px] px-3 py-2 text-left text-v2-text-text-base hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+          onClick={insertNewSession}
+        >
+          <Icon name="edit" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+          <span class="min-w-0 flex-1 truncate text-13-regular">{language.t("promptAsset.insert.newSession")}</span>
+        </button>
+
+        {/* 分割线 */}
+        <div class="my-1 mx-2 h-px bg-v2-border-border-base" />
+
+        {/* 已有会话列表 */}
         <Show
           when={sessions().length > 0}
           fallback={

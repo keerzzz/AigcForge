@@ -1065,6 +1065,7 @@ export const dict = {
   "promptAsset.insert.title": "插入到会话",
   "promptAsset.insert.description": "选择一个 chat 会话，将提示词模板插入其输入框。",
   "promptAsset.insert.noSessions": "此项目无 chat 会话",
+  "promptAsset.insert.newSession": "新建会话并插入",
   "promptAsset.badge.invalid": "无效文件",
   "asset.panel.title": "{{kind}}资产",
   "asset.panel.all": "全部",
