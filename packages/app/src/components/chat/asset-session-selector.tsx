@@ -63,21 +63,22 @@ export function AssetSessionSelector(props: { asset: AssetRow }) {
     let template = ""
     try {
       const path = props.asset.relativePath
+      // SDK 尚未重新生成（Info types 落后 schema），运行时 content/template 字段存在
       if (props.asset.kind === "prompt") {
         const res = await sdk.client.promptAsset.content({ path })
         template = res.data?.template ?? ""
       } else if (props.asset.kind === "skill") {
         const res = await sdk.client.skillAsset.content({ path })
-        template = res.data?.content ?? ""
+        template = (res.data as { content?: string })?.content ?? ""
       } else if (props.asset.kind === "mcp") {
         const res = await sdk.client.mcpAsset.content({ path })
-        template = res.data?.content ?? ""
+        template = (res.data as { content?: string })?.content ?? ""
       } else if (props.asset.kind === "command") {
         const res = await sdk.client.commandAsset.content({ path })
-        template = res.data?.content ?? ""
+        template = (res.data as { content?: string })?.content ?? ""
       } else if (props.asset.kind === "agent") {
         const res = await sdk.client.agentAsset.content({ path })
-        template = res.data?.content ?? ""
+        template = (res.data as { content?: string })?.content ?? ""
       }
     } catch {
       /* 静默失败 */
