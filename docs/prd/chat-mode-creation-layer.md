@@ -470,3 +470,57 @@ M2 将 M1 的"提示词单类型闭环"整合进 Asset Studio 资产工作室完
 | 命令类型开闸 | 提示词复用数据达标后裁决 |
 | 全局资产 | PRD §5.2 非目标 |
 | 窄屏适配 | M1 A5 已做 <768px 抽屉，M2 不做新窄屏改动 |
+
+### 16.4 M2 最终闭环（2026-07-25，v4.5+）
+
+M2 Step 0-6 全部完成（chat-m1-closure 分支，最终 commit `a1d05bda1`）：
+
+| Step | 内容 | commit |
+|------|------|--------|
+| 0 | listInvalid 数据源 | `80f1f4a09` |
+| 1 | AssetWorkbench 组件 | `e7edeb9e9` |
+| 2 | 跳过（首页 Inspector 对齐 code 模式） | — |
+| 3 | 功能树移除 + 产品反馈重构 + i18n 修复 + ChatFeaturePanel 对齐 | `c95bd1bbb`/`4dab40c0f`/`5ca4b6b84`/`eddfd73f2`/`10dd0c199` |
+| 4 | Insert 流程（[Insert] 按钮 → SessionSelectorPopover → ?insert= → 注入 Composer） | `e61405680` |
+| 5 | 路由状态保持（ChatWorkspaceProvider 跨路由）+ Dirty Draft | `37ac2b66f`/`9030e2fd3` |
+| 6 | 全链路 playwright 集成测试 | `1f014cdf5` |
+
+---
+
+## 17. M3：AssetKind 框架泛化 + 全量开闸（2026-07-25 启动）
+
+> 分支：`chat-m3-asset-kind`（从 M2 最终 commit `a1d05bda1` 切出）
+> 实施计划：[chat-m3-asset-kind-generalization.md](../plan/chat-m3-asset-kind-generalization.md)（Approved，五层代码追溯 + 6 风险修正后）
+> 实施方：外部 agent（本计划为自包含实施手册）
+
+### 17.1 目标
+
+将 skill/mcp/command/agent 从运行时列表（ChatFeaturePanel 展示的 server-sync 数据）升级为**真资产**——与 prompt 同等地位：有文件、有注册表、可创建/遍历/插入。ChatFeaturePanel 在全部 kind 开闸后自然消亡。
+
+### 17.2 范围
+
+| 层 | 工作 |
+|----|------|
+| schema | AssetSummary/AssetError 框架类型 + per-kind Info/Frontmatter（skill/mcp/command/agent） |
+| core | AssetKindRegistry.Service + per-kind loadDir/Service/layer + per-kind 事务服务 + 数据迁移 |
+| aigcfroge | per-kind HttpApiGroup + handlers（/skill-asset, /mcp-asset, etc.） |
+| sdk/js | 重新生成 per-kind client 类（SkillAsset, MCPAsset, etc.） |
+| app | AssetRow 类型泛化 + fetchAllKinds + AssetWorkbench filter 扩类型 + ChatFeaturePanel 删除 |
+
+### 17.3 里程碑
+
+| Phase | 里程碑 | 验收 |
+|-------|--------|------|
+| 1 | 框架定义（schema AssetKindId + core AssetKindRegistry）+ PromptAsset 接入 | AssetKindRegistry.resolve("prompt") 成功 |
+| 2 | SkillAsset 开闸（schema→core→http→sdk→迁移→UI） | 功能树 skill → AssetWorkbench filter |
+| 3 | MCPAsset 开闸 | 同上 |
+| 4 | CommandAsset 开闸 | 同上 |
+| 5 | AgentAsset 开闸 | 同上 |
+| 6 | ChatFeaturePanel 删除 + Insert 通用化 | 编译通过 + 全链路测试通过 |
+
+### 17.4 非目标（M3 也不做）
+
+- workflow 开闸（ADR-13 冻结，工作流引擎归属未决）
+- 外部导入路径（独立工期）
+- 会话捕获路径（依赖消息流架构）
+- 全局资产（PRD §5.2 非目标）
