@@ -87,6 +87,10 @@ import { instanceHandlers } from "./handlers/instance"
 import { mcpHandlers } from "./handlers/mcp"
 import { permissionHandlers } from "./handlers/permission"
 import { PromptAssetHandlers } from "./handlers/prompt-asset"
+import { SkillAssetHandlers } from "./handlers/skill-asset"
+import { MCPAssetHandlers } from "./handlers/mcp-asset"
+import { CommandAssetHandlers } from "./handlers/command-asset"
+import { AgentAssetHandlers } from "./handlers/agent-asset"
 import { projectHandlers } from "./handlers/project"
 import { projectCopyHandlers } from "./handlers/project-copy"
 import { providerHandlers } from "./handlers/provider"
@@ -156,6 +160,10 @@ const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
     questionHandlers,
     permissionHandlers,
     PromptAssetHandlers.promptAssetHandlers,
+    SkillAssetHandlers.skillAssetHandlers,
+    MCPAssetHandlers.mcpAssetHandlers,
+    CommandAssetHandlers.commandAssetHandlers,
+    AgentAssetHandlers.agentAssetHandlers,
     providerHandlers,
     sessionHandlers,
     syncHandlers,

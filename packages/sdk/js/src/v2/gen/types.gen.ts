@@ -4364,6 +4364,140 @@ export type PromptAssetCandidate = {
   relativePath: string
 }
 
+export type SkillAssetSummary = {
+  kind: "skill"
+  name: string
+  description: string
+  relativePath: string
+  revision: string
+}
+
+export type SkillAssetInvalidEntry = {
+  relativePath: string
+  errorTag: "parse_error" | "bad_frontmatter" | "name_conflict"
+}
+
+export type SkillAssetInfo = {
+  kind: "skill"
+  name: string
+  description: string
+  relativePath: string
+  revision: string
+  trigger: string
+  source: string
+}
+
+export type SkillAssetCandidate = {
+  name: string
+  description: string
+  trigger: string
+  source: string
+  relativePath: string
+}
+
+export type McpAssetSummary = {
+  kind: "mcp"
+  name: string
+  description: string
+  relativePath: string
+  revision: string
+}
+
+export type McpAssetInvalidEntry = {
+  relativePath: string
+  errorTag: "parse_error" | "bad_frontmatter" | "name_conflict"
+}
+
+export type McpAssetInfo = {
+  kind: "mcp"
+  name: string
+  description: string
+  relativePath: string
+  revision: string
+  command: string
+  args: Array<string>
+  env: {
+    [key: string]: string
+  }
+  configJson: string
+}
+
+export type McpAssetCandidate = {
+  name: string
+  description: string
+  command: string
+  args: Array<string>
+  env: {
+    [key: string]: string
+  }
+  configJson: string
+  relativePath: string
+}
+
+export type CommandAssetSummary = {
+  kind: "command"
+  name: string
+  description: string
+  relativePath: string
+  revision: string
+}
+
+export type CommandAssetInvalidEntry = {
+  relativePath: string
+  errorTag: "parse_error" | "bad_frontmatter" | "name_conflict"
+}
+
+export type CommandAssetInfo = {
+  kind: "command"
+  name: string
+  description: string
+  relativePath: string
+  revision: string
+  invocation: string
+  args?: string
+  source: string
+}
+
+export type CommandAssetCandidate = {
+  name: string
+  description: string
+  invocation: string
+  args?: string
+  source: string
+  relativePath: string
+}
+
+export type AgentAssetSummary = {
+  kind: "agent"
+  name: string
+  description: string
+  relativePath: string
+  revision: string
+}
+
+export type AgentAssetInvalidEntry = {
+  relativePath: string
+  errorTag: "parse_error" | "bad_frontmatter" | "name_conflict"
+}
+
+export type AgentAssetInfo = {
+  kind: "agent"
+  name: string
+  description: string
+  relativePath: string
+  revision: string
+  config: string
+  source: string
+}
+
+export type AgentAssetCandidate = {
+  name: string
+  description: string
+  config: string
+  source: string
+  relativePath: string
+}
+
 export type ToolSummaryEntry = {
   tool: string
   file?: string
@@ -10378,6 +10512,542 @@ export type PromptAssetDeleteErrors = {
 export type PromptAssetDeleteError = PromptAssetDeleteErrors[keyof PromptAssetDeleteErrors]
 
 export type PromptAssetDeleteResponses = {
+  /**
+   * Deleted
+   */
+  200: unknown
+}
+
+export type SkillAssetListData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+    search?: string
+  }
+  url: "/skill-asset"
+}
+
+export type SkillAssetListErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type SkillAssetListError = SkillAssetListErrors[keyof SkillAssetListErrors]
+
+export type SkillAssetListResponses = {
+  /**
+   * List of skill assets with invalid entries
+   */
+  200: {
+    assets: Array<SkillAssetSummary>
+    invalid: Array<SkillAssetInvalidEntry>
+  }
+}
+
+export type SkillAssetListResponse = SkillAssetListResponses[keyof SkillAssetListResponses]
+
+export type SkillAssetContentData = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    workspace?: string
+    path: string
+  }
+  url: "/skill-asset/content"
+}
+
+export type SkillAssetContentErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type SkillAssetContentError = SkillAssetContentErrors[keyof SkillAssetContentErrors]
+
+export type SkillAssetContentResponses = {
+  /**
+   * Skill asset content
+   */
+  200: SkillAssetInfo
+}
+
+export type SkillAssetContentResponse = SkillAssetContentResponses[keyof SkillAssetContentResponses]
+
+export type SkillAssetApplyData = {
+  body?: {
+    candidate: SkillAssetCandidate
+    baseRevision?: string
+    overwrite: boolean
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/skill-asset/apply"
+}
+
+export type SkillAssetApplyErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type SkillAssetApplyError = SkillAssetApplyErrors[keyof SkillAssetApplyErrors]
+
+export type SkillAssetApplyResponses = {
+  /**
+   * Applied skill asset
+   */
+  200: SkillAssetInfo
+}
+
+export type SkillAssetApplyResponse = SkillAssetApplyResponses[keyof SkillAssetApplyResponses]
+
+export type SkillAssetDeleteData = {
+  body?: {
+    relativePath: string
+    baseRevision?: string
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/skill-asset/delete"
+}
+
+export type SkillAssetDeleteErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type SkillAssetDeleteError = SkillAssetDeleteErrors[keyof SkillAssetDeleteErrors]
+
+export type SkillAssetDeleteResponses = {
+  /**
+   * Deleted
+   */
+  200: unknown
+}
+
+export type McpAssetListData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+    search?: string
+  }
+  url: "/mcp-asset"
+}
+
+export type McpAssetListErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type McpAssetListError = McpAssetListErrors[keyof McpAssetListErrors]
+
+export type McpAssetListResponses = {
+  /**
+   * List of mcp assets with invalid entries
+   */
+  200: {
+    assets: Array<McpAssetSummary>
+    invalid: Array<McpAssetInvalidEntry>
+  }
+}
+
+export type McpAssetListResponse = McpAssetListResponses[keyof McpAssetListResponses]
+
+export type McpAssetContentData = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    workspace?: string
+    path: string
+  }
+  url: "/mcp-asset/content"
+}
+
+export type McpAssetContentErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type McpAssetContentError = McpAssetContentErrors[keyof McpAssetContentErrors]
+
+export type McpAssetContentResponses = {
+  /**
+   * MCP asset content
+   */
+  200: McpAssetInfo
+}
+
+export type McpAssetContentResponse = McpAssetContentResponses[keyof McpAssetContentResponses]
+
+export type McpAssetApplyData = {
+  body?: {
+    candidate: McpAssetCandidate
+    baseRevision?: string
+    overwrite: boolean
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/mcp-asset/apply"
+}
+
+export type McpAssetApplyErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type McpAssetApplyError = McpAssetApplyErrors[keyof McpAssetApplyErrors]
+
+export type McpAssetApplyResponses = {
+  /**
+   * Applied mcp asset
+   */
+  200: McpAssetInfo
+}
+
+export type McpAssetApplyResponse = McpAssetApplyResponses[keyof McpAssetApplyResponses]
+
+export type McpAssetDeleteData = {
+  body?: {
+    relativePath: string
+    baseRevision?: string
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/mcp-asset/delete"
+}
+
+export type McpAssetDeleteErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type McpAssetDeleteError = McpAssetDeleteErrors[keyof McpAssetDeleteErrors]
+
+export type McpAssetDeleteResponses = {
+  /**
+   * Deleted
+   */
+  200: unknown
+}
+
+export type CommandAssetListData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+    search?: string
+  }
+  url: "/command-asset"
+}
+
+export type CommandAssetListErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type CommandAssetListError = CommandAssetListErrors[keyof CommandAssetListErrors]
+
+export type CommandAssetListResponses = {
+  /**
+   * List of command assets with invalid entries
+   */
+  200: {
+    assets: Array<CommandAssetSummary>
+    invalid: Array<CommandAssetInvalidEntry>
+  }
+}
+
+export type CommandAssetListResponse = CommandAssetListResponses[keyof CommandAssetListResponses]
+
+export type CommandAssetContentData = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    workspace?: string
+    path: string
+  }
+  url: "/command-asset/content"
+}
+
+export type CommandAssetContentErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type CommandAssetContentError = CommandAssetContentErrors[keyof CommandAssetContentErrors]
+
+export type CommandAssetContentResponses = {
+  /**
+   * Command asset content
+   */
+  200: CommandAssetInfo
+}
+
+export type CommandAssetContentResponse = CommandAssetContentResponses[keyof CommandAssetContentResponses]
+
+export type CommandAssetApplyData = {
+  body?: {
+    candidate: CommandAssetCandidate
+    baseRevision?: string
+    overwrite: boolean
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/command-asset/apply"
+}
+
+export type CommandAssetApplyErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type CommandAssetApplyError = CommandAssetApplyErrors[keyof CommandAssetApplyErrors]
+
+export type CommandAssetApplyResponses = {
+  /**
+   * Applied command asset
+   */
+  200: CommandAssetInfo
+}
+
+export type CommandAssetApplyResponse = CommandAssetApplyResponses[keyof CommandAssetApplyResponses]
+
+export type CommandAssetDeleteData = {
+  body?: {
+    relativePath: string
+    baseRevision?: string
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/command-asset/delete"
+}
+
+export type CommandAssetDeleteErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type CommandAssetDeleteError = CommandAssetDeleteErrors[keyof CommandAssetDeleteErrors]
+
+export type CommandAssetDeleteResponses = {
+  /**
+   * Deleted
+   */
+  200: unknown
+}
+
+export type AgentAssetListData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+    search?: string
+  }
+  url: "/agent-asset"
+}
+
+export type AgentAssetListErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type AgentAssetListError = AgentAssetListErrors[keyof AgentAssetListErrors]
+
+export type AgentAssetListResponses = {
+  /**
+   * List of agent assets with invalid entries
+   */
+  200: {
+    assets: Array<AgentAssetSummary>
+    invalid: Array<AgentAssetInvalidEntry>
+  }
+}
+
+export type AgentAssetListResponse = AgentAssetListResponses[keyof AgentAssetListResponses]
+
+export type AgentAssetContentData = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    workspace?: string
+    path: string
+  }
+  url: "/agent-asset/content"
+}
+
+export type AgentAssetContentErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type AgentAssetContentError = AgentAssetContentErrors[keyof AgentAssetContentErrors]
+
+export type AgentAssetContentResponses = {
+  /**
+   * Agent asset content
+   */
+  200: AgentAssetInfo
+}
+
+export type AgentAssetContentResponse = AgentAssetContentResponses[keyof AgentAssetContentResponses]
+
+export type AgentAssetApplyData = {
+  body?: {
+    candidate: AgentAssetCandidate
+    baseRevision?: string
+    overwrite: boolean
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/agent-asset/apply"
+}
+
+export type AgentAssetApplyErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type AgentAssetApplyError = AgentAssetApplyErrors[keyof AgentAssetApplyErrors]
+
+export type AgentAssetApplyResponses = {
+  /**
+   * Applied agent asset
+   */
+  200: AgentAssetInfo
+}
+
+export type AgentAssetApplyResponse = AgentAssetApplyResponses[keyof AgentAssetApplyResponses]
+
+export type AgentAssetDeleteData = {
+  body?: {
+    relativePath: string
+    baseRevision?: string
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/agent-asset/delete"
+}
+
+export type AgentAssetDeleteErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type AgentAssetDeleteError = AgentAssetDeleteErrors[keyof AgentAssetDeleteErrors]
+
+export type AgentAssetDeleteResponses = {
   /**
    * Deleted
    */

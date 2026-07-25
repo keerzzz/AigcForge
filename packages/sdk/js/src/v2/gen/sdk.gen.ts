@@ -3,6 +3,15 @@
 import { client } from "./client.gen.js"
 import { buildClientParams, type Client, type Options as Options2, type TDataShape } from "./client/index.js"
 import type {
+  AgentAssetApplyErrors,
+  AgentAssetApplyResponses,
+  AgentAssetCandidate,
+  AgentAssetContentErrors,
+  AgentAssetContentResponses,
+  AgentAssetDeleteErrors,
+  AgentAssetDeleteResponses,
+  AgentAssetListErrors,
+  AgentAssetListResponses,
   AgentPartInput,
   AppAgentsErrors,
   AppAgentsResponses,
@@ -15,6 +24,15 @@ import type {
   AuthRemoveResponses,
   AuthSetErrors,
   AuthSetResponses,
+  CommandAssetApplyErrors,
+  CommandAssetApplyResponses,
+  CommandAssetCandidate,
+  CommandAssetContentErrors,
+  CommandAssetContentResponses,
+  CommandAssetDeleteErrors,
+  CommandAssetDeleteResponses,
+  CommandAssetListErrors,
+  CommandAssetListResponses,
   CommandListErrors,
   CommandListResponses,
   Config as Config3,
@@ -95,6 +113,15 @@ import type {
   LspStatusResponses,
   McpAddErrors,
   McpAddResponses,
+  McpAssetApplyErrors,
+  McpAssetApplyResponses,
+  McpAssetCandidate,
+  McpAssetContentErrors,
+  McpAssetContentResponses,
+  McpAssetDeleteErrors,
+  McpAssetDeleteResponses,
+  McpAssetListErrors,
+  McpAssetListResponses,
   McpAuthAuthenticateErrors,
   McpAuthAuthenticateResponses,
   McpAuthCallbackErrors,
@@ -233,6 +260,15 @@ import type {
   SessionUnshareResponses,
   SessionUpdateErrors,
   SessionUpdateResponses,
+  SkillAssetApplyErrors,
+  SkillAssetApplyResponses,
+  SkillAssetCandidate,
+  SkillAssetContentErrors,
+  SkillAssetContentResponses,
+  SkillAssetDeleteErrors,
+  SkillAssetDeleteResponses,
+  SkillAssetListErrors,
+  SkillAssetListResponses,
   SubtaskPartInput,
   SyncHistoryListErrors,
   SyncHistoryListResponses,
@@ -3499,6 +3535,606 @@ export class PromptAsset extends HeyApiClient {
     )
     return (options?.client ?? this.client).post<PromptAssetDeleteResponses, PromptAssetDeleteErrors, ThrowOnError>({
       url: "/session/{sessionID}/prompt-asset/delete",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
+export class SkillAsset extends HeyApiClient {
+  /**
+   * List skill assets
+   *
+   * List all skill assets for the current Location, including invalid (skipped) entries.
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      search?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "search" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SkillAssetListResponses, SkillAssetListErrors, ThrowOnError>({
+      url: "/skill-asset",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get skill asset content
+   *
+   * Get the full content of a skill asset by path.
+   */
+  public content<ThrowOnError extends boolean = false>(
+    parameters: {
+      directory?: string
+      workspace?: string
+      path: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "path" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SkillAssetContentResponses, SkillAssetContentErrors, ThrowOnError>({
+      url: "/skill-asset/content",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Apply skill asset
+   *
+   * Apply a proposed skill asset candidate, persisting it to disk.
+   */
+  public apply<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      candidate?: SkillAssetCandidate
+      baseRevision?: string
+      overwrite?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "candidate" },
+            { in: "body", key: "baseRevision" },
+            { in: "body", key: "overwrite" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<SkillAssetApplyResponses, SkillAssetApplyErrors, ThrowOnError>({
+      url: "/session/{sessionID}/skill-asset/apply",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete skill asset
+   *
+   * Delete a skill asset by relative path with baseRevision CAS.
+   */
+  public delete<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      relativePath?: string
+      baseRevision?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "relativePath" },
+            { in: "body", key: "baseRevision" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<SkillAssetDeleteResponses, SkillAssetDeleteErrors, ThrowOnError>({
+      url: "/session/{sessionID}/skill-asset/delete",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
+export class McpAsset extends HeyApiClient {
+  /**
+   * List mcp assets
+   *
+   * List all mcp assets for the current Location, including invalid (skipped) entries.
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      search?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "search" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<McpAssetListResponses, McpAssetListErrors, ThrowOnError>({
+      url: "/mcp-asset",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get mcp asset content
+   *
+   * Get the full content of a mcp asset by path.
+   */
+  public content<ThrowOnError extends boolean = false>(
+    parameters: {
+      directory?: string
+      workspace?: string
+      path: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "path" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<McpAssetContentResponses, McpAssetContentErrors, ThrowOnError>({
+      url: "/mcp-asset/content",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Apply mcp asset
+   *
+   * Apply a proposed mcp asset candidate, persisting it to disk.
+   */
+  public apply<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      candidate?: McpAssetCandidate
+      baseRevision?: string
+      overwrite?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "candidate" },
+            { in: "body", key: "baseRevision" },
+            { in: "body", key: "overwrite" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<McpAssetApplyResponses, McpAssetApplyErrors, ThrowOnError>({
+      url: "/session/{sessionID}/mcp-asset/apply",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete mcp asset
+   *
+   * Delete a mcp asset by relative path with baseRevision CAS.
+   */
+  public delete<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      relativePath?: string
+      baseRevision?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "relativePath" },
+            { in: "body", key: "baseRevision" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<McpAssetDeleteResponses, McpAssetDeleteErrors, ThrowOnError>({
+      url: "/session/{sessionID}/mcp-asset/delete",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
+export class CommandAsset extends HeyApiClient {
+  /**
+   * List command assets
+   *
+   * List all command assets for the current Location, including invalid (skipped) entries.
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      search?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "search" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<CommandAssetListResponses, CommandAssetListErrors, ThrowOnError>({
+      url: "/command-asset",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get command asset content
+   *
+   * Get the full content of a command asset by path.
+   */
+  public content<ThrowOnError extends boolean = false>(
+    parameters: {
+      directory?: string
+      workspace?: string
+      path: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "path" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<CommandAssetContentResponses, CommandAssetContentErrors, ThrowOnError>({
+      url: "/command-asset/content",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Apply command asset
+   *
+   * Apply a proposed command asset candidate, persisting it to disk.
+   */
+  public apply<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      candidate?: CommandAssetCandidate
+      baseRevision?: string
+      overwrite?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "candidate" },
+            { in: "body", key: "baseRevision" },
+            { in: "body", key: "overwrite" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<CommandAssetApplyResponses, CommandAssetApplyErrors, ThrowOnError>({
+      url: "/session/{sessionID}/command-asset/apply",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete command asset
+   *
+   * Delete a command asset by relative path with baseRevision CAS.
+   */
+  public delete<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      relativePath?: string
+      baseRevision?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "relativePath" },
+            { in: "body", key: "baseRevision" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<CommandAssetDeleteResponses, CommandAssetDeleteErrors, ThrowOnError>({
+      url: "/session/{sessionID}/command-asset/delete",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
+export class AgentAsset extends HeyApiClient {
+  /**
+   * List agent assets
+   *
+   * List all agent assets for the current Location, including invalid (skipped) entries.
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      search?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "search" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<AgentAssetListResponses, AgentAssetListErrors, ThrowOnError>({
+      url: "/agent-asset",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get agent asset content
+   *
+   * Get the full content of an agent asset by path.
+   */
+  public content<ThrowOnError extends boolean = false>(
+    parameters: {
+      directory?: string
+      workspace?: string
+      path: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "path" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<AgentAssetContentResponses, AgentAssetContentErrors, ThrowOnError>({
+      url: "/agent-asset/content",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Apply agent asset
+   *
+   * Apply a proposed agent asset candidate, persisting it to disk.
+   */
+  public apply<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      candidate?: AgentAssetCandidate
+      baseRevision?: string
+      overwrite?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "candidate" },
+            { in: "body", key: "baseRevision" },
+            { in: "body", key: "overwrite" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<AgentAssetApplyResponses, AgentAssetApplyErrors, ThrowOnError>({
+      url: "/session/{sessionID}/agent-asset/apply",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete agent asset
+   *
+   * Delete an agent asset by relative path with baseRevision CAS.
+   */
+  public delete<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      relativePath?: string
+      baseRevision?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "relativePath" },
+            { in: "body", key: "baseRevision" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<AgentAssetDeleteResponses, AgentAssetDeleteErrors, ThrowOnError>({
+      url: "/session/{sessionID}/agent-asset/delete",
       ...options,
       ...params,
       headers: {
@@ -7480,6 +8116,26 @@ export class AigcfrogeClient extends HeyApiClient {
   private _promptAsset?: PromptAsset
   get promptAsset(): PromptAsset {
     return (this._promptAsset ??= new PromptAsset({ client: this.client }))
+  }
+
+  private _skillAsset?: SkillAsset
+  get skillAsset(): SkillAsset {
+    return (this._skillAsset ??= new SkillAsset({ client: this.client }))
+  }
+
+  private _mcpAsset?: McpAsset
+  get mcpAsset(): McpAsset {
+    return (this._mcpAsset ??= new McpAsset({ client: this.client }))
+  }
+
+  private _commandAsset?: CommandAsset
+  get commandAsset(): CommandAsset {
+    return (this._commandAsset ??= new CommandAsset({ client: this.client }))
+  }
+
+  private _agentAsset?: AgentAsset
+  get agentAsset(): AgentAsset {
+    return (this._agentAsset ??= new AgentAsset({ client: this.client }))
   }
 
   private _provider?: Provider

@@ -5,3 +5,7 @@
  * both server and renderer code can reference them safely.
  */
 export const PROMPTS_DIR = ".aigcfroge/prompts"
+export const SKILLS_DIR = ".aigcfroge/skills"
+export const MCPS_DIR = ".aigcfroge/mcps"
+export const COMMANDS_DIR = ".aigcfroge/commands"
+export const AGENTS_DIR = ".aigcfroge/agents"

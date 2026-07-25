@@ -1,19 +1,20 @@
 export * as AssetWorkbench from "./asset-workbench"
 
-import { For, Show, createMemo } from "solid-js"
+import { For, Show, createEffect, createMemo } from "solid-js"
 import { createStore } from "solid-js/store"
-import type { PromptAssetInvalidEntry, PromptAssetSummary } from "@aigcfroge/sdk/v2/client"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { Icon as IconV2 } from "@aigcfroge/ui/v2/icon"
 import { useLanguage } from "@/context/language"
 import { useChatWorkspace } from "@/context/chat-workspace"
 
+import type { AssetKindId } from "@aigcfroge/schema/asset"
+
 // -- Types --
 
-export type AssetKind = "all" | "prompt"
+export type AssetKind = "all" | AssetKindId
 
 export type AssetRow = {
-  kind: "prompt"
+  kind: AssetKindId
   relativePath: string
   name: string
   description: string
@@ -25,11 +26,11 @@ export type AssetRow = {
 // -- Pure logic (testable without JSX/DOM) --
 
 export function buildRows(
-  assets: readonly PromptAssetSummary[],
-  invalid: readonly PromptAssetInvalidEntry[],
+  assets: readonly { relativePath: string; name: string; description: string; revision: string; kind: AssetKindId }[],
+  invalid: readonly { relativePath: string; errorTag?: "parse_error" | "bad_frontmatter" | "name_conflict" }[],
 ): AssetRow[] {
   const valid: AssetRow[] = assets.map((a) => ({
-    kind: "prompt",
+    kind: a.kind,
     relativePath: a.relativePath,
     name: a.name,
     description: a.description,
@@ -65,8 +66,6 @@ export function filterBySearch(rows: readonly AssetRow[], search: string): Asset
 }
 
 export function sortRows(rows: readonly AssetRow[]): AssetRow[] {
-  // Invalid rows sink to the bottom; valid rows sort by name then path.
-  // TODO(M2+): sort by updatedAt once Summary carries file mtime.
   return [...rows].sort((a, b) => {
     if (a.invalid !== b.invalid) return a.invalid ? 1 : -1
     return a.name.localeCompare(b.name) || a.relativePath.localeCompare(b.relativePath)
@@ -92,14 +91,25 @@ export function createAssetWorkbenchStore() {
 // -- Component (v2 tokens; data injected via props, fetched by parent) --
 
 export function AssetWorkbenchTable(props: {
-  assets: readonly PromptAssetSummary[]
-  invalid: readonly PromptAssetInvalidEntry[]
+  assets: readonly { relativePath: string; name: string; description: string; revision: string; kind: AssetKindId }[]
+  invalid: readonly { relativePath: string; errorTag?: "parse_error" | "bad_frontmatter" | "name_conflict" }[]
   onSelect?: (row: AssetRow) => void
   onInsert?: (row: AssetRow) => void
+  /** 功能树联动：外部控制 kind 筛选（null 或 undefined 时用 store 内部值） */
+  kindFilter?: AssetKind | null
 }) {
   const language = useLanguage()
   const workspace = useChatWorkspace()
   const store = workspace ?? createAssetWorkbenchStore()
+
+  // 功能树点击 → 同步 kind 筛选到 table
+  createEffect(() => {
+    const ext = props.kindFilter
+    if (ext !== undefined && ext !== null && ext !== store.state.kindFilter) {
+      store.setKindFilter(ext)
+    }
+  })
+
   const rows = createMemo(() =>
     sortRows(filterBySearch(filterByKind(buildRows(props.assets, props.invalid), store.state.kindFilter), store.state.search)),
   )

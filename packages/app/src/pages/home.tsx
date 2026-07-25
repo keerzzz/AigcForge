@@ -58,7 +58,7 @@ import { Persist, persisted } from "@/utils/persist"
 import { useMarked } from "@aigcfroge/ui/context/marked"
 import { preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"
 import { modeDraft, useMode, type Mode } from "@/context/mode"
-import { ChatSidebar, ChatFeaturePanel, useChatDirectory } from "@/components/mode-surfaces"
+import { ChatSidebar, useChatDirectory } from "@/components/mode-surfaces"
 import { useChatFeature } from "@/context/chat-feature"
 import type { DirectorySDK } from "@/context/sdk"
 import { AssetWorkbench } from "@/components/chat/asset-workbench"
@@ -342,8 +342,27 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
     setChatDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
   })
   const [chatAssetList] = createResource(chatDirSdk, async (sdk) => {
-    const result = await sdk.client.promptAsset.list()
-    return result.data ?? { assets: [], invalid: [] }
+    const [promptsRes, skillsRes, mcpsRes, cmdsRes, agentsRes] = await Promise.all([
+      sdk.client.promptAsset.list(),
+      sdk.client.skillAsset.list(),
+      sdk.client.mcpAsset.list(),
+      sdk.client.commandAsset.list(),
+      sdk.client.agentAsset.list(),
+    ])
+    const promptAssets = promptsRes.data?.assets ?? []
+    const skillAssets = skillsRes.data?.assets ?? []
+    const mcpAssets = mcpsRes.data?.assets ?? []
+    const cmdAssets = cmdsRes.data?.assets ?? []
+    const agentAssets = agentsRes.data?.assets ?? []
+    const promptInvalid = promptsRes.data?.invalid ?? []
+    const skillInvalid = skillsRes.data?.invalid ?? []
+    const mcpInvalid = mcpsRes.data?.invalid ?? []
+    const cmdInvalid = cmdsRes.data?.invalid ?? []
+    const agentInvalid = agentsRes.data?.invalid ?? []
+    return {
+      assets: [...promptAssets, ...skillAssets, ...mcpAssets, ...cmdAssets, ...agentAssets],
+      invalid: [...promptInvalid, ...skillInvalid, ...mcpInvalid, ...cmdInvalid, ...agentInvalid],
+    }
   })
 
   function closeSearch() {
@@ -513,15 +532,14 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
           class="min-h-0 min-w-0 flex-1 flex flex-col"
           aria-label={language.t("sidebar.project.recentSessions")}
         >
-          {/* ADR-15 §4 方案1: render-all + display:none。chat 主区按功能切换：prompt=AssetWorkbench，其他=ChatFeaturePanel。 */}
+          {/* ADR-15 §4 方案1: render-all + display:none。chat 主区展示 AssetWorkbenchTable */}
           <div class="flex min-h-0 flex-1 flex-col" style={{ display: mode.currentMode === "chat" ? "flex" : "none" }}>
-            <Show when={chatFeature() === "prompt"} fallback={<ChatFeaturePanel />}>
-              <AssetWorkbench.AssetWorkbenchTable
-                assets={chatAssetList()?.assets ?? []}
-                invalid={chatAssetList()?.invalid ?? []}
-                onInsert={(row) => dialog.show(() => <AssetSessionSelector asset={row} />)}
-              />
-            </Show>
+            <AssetWorkbench.AssetWorkbenchTable
+              assets={chatAssetList()?.assets ?? []}
+              invalid={chatAssetList()?.invalid ?? []}
+              kindFilter={chatFeature() as AssetWorkbench.AssetKind}
+              onInsert={(row) => dialog.show(() => <AssetSessionSelector asset={row} />)}
+            />
           </div>
           <div class="flex min-h-0 flex-1 flex-col pt-6 lg:pt-12" style={{ display: mode.currentMode === "chat" ? "none" : "flex" }}>
           <HomeSessionSearch
