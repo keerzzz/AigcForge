@@ -7,6 +7,8 @@ import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useLanguage } from "@/context/language"
 import { useServerSync } from "@/context/server-sync"
 import { ServerConnection } from "@/context/server"
+import { useTabs } from "@/context/tabs"
+import { modeDraft } from "@/context/mode"
 import { useChatDirectory } from "@/components/mode-surfaces"
 import { sortedRootSessions } from "@/pages/layout/helpers"
 import { sessionHref } from "@/utils/session-route"
@@ -24,6 +26,7 @@ export function AssetSessionSelector(props: { asset: AssetRow }) {
   const language = useLanguage()
   const dialog = useDialog()
   const navigate = useNavigate()
+  const tabs = useTabs()
   const sync = useServerSync()
   const { conn, ctx, directory } = useChatDirectory()
 
@@ -57,6 +60,8 @@ export function AssetSessionSelector(props: { asset: AssetRow }) {
     const dir = directory()
     const currentCtx = ctx()
     if (!dir || !currentCtx) return
+    const key = serverKey()
+    if (key == null) return
 
     // 取资产 template 内容（按 kind 分派 content API）
     const sdk = currentCtx.sdk.ensureDirSdkContext(dir)
@@ -85,7 +90,13 @@ export function AssetSessionSelector(props: { asset: AssetRow }) {
     }
 
     dialog.close()
-    navigate(`/new-session?prompt=${encodeURIComponent(template)}`)
+
+    // 创建新 draft + 自动填充 template
+    tabs.newDraft({
+      server: key,
+      directory: dir,
+      ...modeDraft("chat"),
+    }, template)
   }
 
   return (
