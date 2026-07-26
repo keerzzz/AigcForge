@@ -49,6 +49,8 @@ export interface Interface {
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/CommandAsset") {}
 
+const decodeFrontmatter = Schema.decodeUnknownOption(SchemaCommandAsset.Frontmatter)
+
 function loadDir(
   fs: FSUtil.Interface,
   ownerRoot: string,
@@ -75,11 +77,12 @@ function loadDir(
         continue
       }
 
+      const decoded = decodeFrontmatter(parsed.data)
       let frontmatter: SchemaCommandAsset.Frontmatter
       let source = parsed.content
-      try {
-        frontmatter = Schema.decodeUnknownSync(SchemaCommandAsset.Frontmatter)(parsed.data)
-      } catch {
+      if (Option.isSome(decoded)) {
+        frontmatter = decoded.value
+      } else {
         // `.aigcfroge/commands` was a V1 command source before it became the
         // asset owner. Read legacy entries until an explicit migration rewrites them.
         if (parsed.data.kind !== undefined) {
@@ -94,7 +97,13 @@ function loadDir(
           yield* Effect.logWarning("Skipping invalid command asset", { relativePath, errorTag: "bad_frontmatter" })
           continue
         }
-        frontmatter = Schema.decodeUnknownSync(SchemaCommandAsset.Frontmatter)(migrated.data)
+        const migratedFrontmatter = decodeFrontmatter(migrated.data)
+        if (Option.isNone(migratedFrontmatter)) {
+          invalid.set(relativePath, { relativePath, errorTag: "bad_frontmatter" })
+          yield* Effect.logWarning("Skipping invalid command asset", { relativePath, errorTag: "bad_frontmatter" })
+          continue
+        }
+        frontmatter = migratedFrontmatter.value
         source = migrated.content
       }
 

@@ -68,6 +68,29 @@ describe("prompt asset HttpApi", () => {
     expect(body.invalid).toEqual([{ relativePath: "badfm.md", errorTag: "bad_frontmatter" }])
   })
 
+  test("lists prompt assets when a legacy command has invalid frontmatter", async () => {
+    await using tmp = await tmpdir({ git: true })
+    const promptsDir = path.join(tmp.path, ".aigcfroge", "prompts")
+    const commandsDir = path.join(tmp.path, ".aigcfroge", "commands")
+    await fs.mkdir(promptsDir, { recursive: true })
+    await fs.mkdir(commandsDir, { recursive: true })
+    await fs.writeFile(
+      path.join(promptsDir, "good.md"),
+      "---\nkind: prompt\nname: good\ndescription: ok\n---\nbody",
+    )
+    await fs.writeFile(
+      path.join(commandsDir, "oversized.md"),
+      `---\nname: oversized\ndescription: ${"x".repeat(301)}\n---\nbody`,
+    )
+
+    const response = await request(PromptAssetApiGroup.PromptAssetPaths.list, tmp.path)
+
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.assets).toHaveLength(1)
+    expect(body.assets[0].name).toBe("good")
+  })
+
   test("accepts omitted baseRevision for a new asset", () => {
     const payload = Schema.decodeUnknownSync(PromptAssetApiGroup.ApplyPayload)({
       candidate: {

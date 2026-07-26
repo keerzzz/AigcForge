@@ -41,7 +41,6 @@ export const DeletePayload = Schema.Struct({
 
 export const SkillAssetPaths = {
   list: root,
-  listSystem: `${root}/system`,
   content: `${root}/content`,
   apply: `${sessionRoot}/apply`,
   delete: `${sessionRoot}/delete`,
@@ -58,15 +57,6 @@ export const SkillAssetApi = HttpApi.make("skill-asset").add(
           identifier: "skill-asset.list",
           summary: "List skill assets",
           description: "List all skill assets for the current Location, including invalid (skipped) entries.",
-        }),
-      ),
-      HttpApiEndpoint.get("listSystem", SkillAssetPaths.listSystem, {
-        success: described(Schema.Array(SkillAsset.Summary), "System skill assets"),
-      }).annotateMerge(
-        OpenApi.annotations({
-          identifier: "skill-asset.listSystem",
-          summary: "List system skill assets",
-          description: "List skill assets discovered from system directories (.claude/skills, .cc-switch/skills, etc.).",
         }),
       ),
       HttpApiEndpoint.get("content", SkillAssetPaths.content, {

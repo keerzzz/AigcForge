@@ -1074,6 +1074,7 @@ export const dict = {
   "asset.origin.system": "系统",
   "asset.origin.project": "项目",
   "asset.origin.all": "全部",
+  "asset.origin.systemTooltip": "系统级{kind}，来自运行态配置（只读）",
   "chat.feature.title": "功能",
   "chat.feature.project": "项目",
   "chat.feature.noLocation": "请先选择项目",

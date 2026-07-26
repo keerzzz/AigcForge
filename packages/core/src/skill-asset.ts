@@ -28,8 +28,6 @@ export interface Info {
   readonly relativePath: string
   readonly slash: boolean
   readonly content: string
-  readonly triggers: readonly string[]
-  readonly tags: readonly string[]
   readonly revision: string
 }
 
@@ -40,7 +38,6 @@ export interface InvalidEntry {
 
 export interface Interface {
   readonly list: () => Effect.Effect<ReadonlyArray<Info>>
-  readonly listSystem: () => Effect.Effect<ReadonlyArray<Info>>
   readonly getByPath: (relativePath: string) => Effect.Effect<Info, NotFoundError>
   readonly findByName: (name: string) => Effect.Effect<Info | undefined>
   readonly listInvalid: () => Effect.Effect<ReadonlyArray<InvalidEntry>>
@@ -59,7 +56,7 @@ function loadDir(
     const invalid = new Map<string, InvalidEntry>()
     const byName = new Map<string, string[]>()
 
-    const files = yield* fs.glob("{*.md,**/SKILL.md}", { cwd: ownerRoot, absolute: true, include: "file", dot: true })
+    const files = yield* fs.glob("**/*.md", { cwd: ownerRoot, absolute: true, include: "file", dot: true })
 
     for (const file of files) {
       const relativePath = path.relative(ownerRoot, file).replaceAll("\\", "/")
@@ -85,18 +82,10 @@ function loadDir(
         continue
       }
 
-      // name 可选（对齐原生 SkillV2/compat CC Switch）。无 frontmatter name 时：
-      // - `SKILL.md` 文件 → 回退父目录名
-      // - 其他 `.md` → 回退文件名（不含扩展名）
-      const derivedName = frontmatter.name ?? (
-        path.basename(file) === "SKILL.md"
-          ? path.basename(path.dirname(file))
-          : path.basename(relativePath, ".md")
-      )
+      // name 可选（对齐原生 SkillV2），无 frontmatter name 时回退文件名
+      const derivedName = frontmatter.name ?? path.basename(relativePath, ".md")
       const derivedDescription = frontmatter.description ?? ""
       const derivedSlash = frontmatter.slash ?? false
-      const derivedTriggers = frontmatter.triggers ?? []
-      const derivedTags = frontmatter.tags ?? []
       const revision = Hash.sha256(Buffer.from(raw))
 
       const conflicts = byName.get(derivedName)
@@ -118,8 +107,6 @@ function loadDir(
         relativePath,
         slash: derivedSlash,
         content: parsed.content,
-        triggers: derivedTriggers,
-        tags: derivedTags,
         revision,
       })
     }
@@ -128,27 +115,15 @@ function loadDir(
   })
 }
 
-/**
- * 系统级 skill 来源目录（用户级全局 skill，只读）。
- * 按优先级排序：同名 skill 靠前的优先级高（会被 project assets 去重遮蔽）。
- */
-const SYSTEM_SKILL_ROOTS = [
-  ".claude/skills",
-  ".cc-switch/skills",
-  ".agents/skills",
-]
-
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const fs = yield* FSUtil.Service
     const location = yield* Location.Service
-    const userHomeDir = process.env.HOME ?? ""
 
     const ownerRoot = path.resolve(location.directory, SKILLS_DIR)
     let assets = new Map<string, Info>()
     let invalid = new Map<string, InvalidEntry>()
-    let systemAssets: Info[] = []
     const reloadLock = KeyedMutex.makeUnsafe<string>()
 
     const reload = Effect.fn("SkillAsset.reload")(function* () {
@@ -157,28 +132,12 @@ export const layer = Layer.effect(
           const result = yield* loadDir(fs, ownerRoot)
           assets = result.assets
           invalid = result.invalid
-          // 同时刷新系统级 skill（只读，允许加载失败）
-          const allSystem: Info[] = []
-          for (const root of SYSTEM_SKILL_ROOTS) {
-            const dir = path.resolve(userHomeDir, root)
-            try {
-              const sysResult = yield* loadDir(fs, dir).pipe(Effect.catch(() => Effect.succeed({ assets: new Map(), invalid: new Map() })))
-              allSystem.push(...Array.from(sysResult.assets.values()))
-            } catch { /* 目录不存在或不可读，跳过 */ }
-          }
-          // 同名同 kind 项目级优先，系统级被遮蔽
-          const projectNames = new Set(Array.from(assets.values()).map((a) => a.name))
-          systemAssets = allSystem.filter((s) => !projectNames.has(s.name))
         }),
       )
     })
 
     const list = Effect.fn("SkillAsset.list")(function* () {
       return Array.from(assets.values())
-    })
-
-    const listSystem = Effect.fn("SkillAsset.listSystem")(function* () {
-      return systemAssets
     })
 
     const getByPath = Effect.fn("SkillAsset.getByPath")(function* (relativePath: string) {
@@ -227,7 +186,7 @@ export const layer = Layer.effect(
     yield* migrateLegacy(fs, location.directory, ownerRoot)
     yield* reload().pipe(Effect.orDie)
 
-    return Service.of({ list, listSystem, getByPath, findByName, listInvalid, getInvalid, reload })
+    return Service.of({ list, getByPath, findByName, listInvalid, getInvalid, reload })
   }),
 )
 

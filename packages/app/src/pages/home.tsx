@@ -371,6 +371,31 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
     }
   })
 
+  // M4 §3.1：系统级资产（server-sync child store），开 { mcp: true } 门控加载 command/mcp。
+  const chatSystemData = createMemo(() => {
+    const dir = chatDirectory()
+    if (!dir) return undefined
+    return sync().child(dir, { mcp: true })[0]
+  })
+
+  // M4 §3.2：合并项目级 + 系统级资产，按 kind+name 去重，project 优先。
+  const mergedAssetData = createMemo(() => {
+    const project = chatAssetList()
+    const system = chatSystemData()
+    if (!project && !system) return { assets: [] as AssetWorkbench.AssetInput[], invalid: [] }
+    const merged = AssetWorkbench.mergeAssets(
+      project?.assets ?? [],
+      system
+        ? AssetWorkbench.systemAssets({
+            commands: system.command ?? [],
+            agents: system.agent ?? [],
+            mcp: system.mcp ?? {},
+          })
+        : [],
+    )
+    return { assets: merged, invalid: project?.invalid ?? [] }
+  })
+
   function closeSearch() {
     setState("search", "")
     setState("searchFocused", false)
@@ -541,8 +566,8 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
           {/* ADR-15 §4 方案1: render-all + display:none。chat 主区展示 AssetWorkbenchTable */}
           <div class="flex min-h-0 flex-1 flex-col" style={{ display: mode.currentMode === "chat" ? "flex" : "none" }}>
             <AssetWorkbench.AssetWorkbenchTable
-              assets={chatAssetList()?.assets ?? []}
-              invalid={chatAssetList()?.invalid ?? []}
+              assets={mergedAssetData().assets}
+              invalid={mergedAssetData().invalid}
               kindFilter={chatFeature() as AssetWorkbench.AssetKind}
               onInsert={(row) => dialog.show(() => <AssetSessionSelector asset={row} />)}
             />

@@ -1192,6 +1192,7 @@ export const dict = {
   "asset.origin.system": "System",
   "asset.origin.project": "Project",
   "asset.origin.all": "All",
+  "asset.origin.systemTooltip": "System-level {kind}, from runtime configuration (read-only)",
   "chat.dirtyDraft.title": "Unsaved content",
   "chat.dirtyDraft.description": "You have unsaved content in the composer. Are you sure you want to leave?",
   "chat.dirtyDraft.stay": "Stay",
