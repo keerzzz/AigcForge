@@ -90,6 +90,22 @@ export const skillAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "skill-a
       }
     })
 
+    const listSystem = Effect.fn("SkillAssetHttpApi.listSystem")(function* () {
+      const ctx2 = yield* InstanceState.context
+      const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
+      const registry = yield* SkillAsset.Service.pipe(Effect.provide(layer), Effect.orDie)
+      const all = yield* registry.listSystem()
+      return all.map((a) =>
+        Schema.decodeUnknownSync(SchemaSkillAsset.Summary)({
+          kind: "skill",
+          name: a.name,
+          description: a.description,
+          relativePath: a.relativePath,
+          revision: a.revision,
+        }),
+      )
+    })
+
     const content = Effect.fn("SkillAssetHttpApi.content")(function* (ctx: { query: { path: string } }) {
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
@@ -147,6 +163,6 @@ export const skillAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "skill-a
       }).pipe(Effect.catch(toDeleteError))
     })
 
-    return handlers.handle("list", list).handle("content", content).handle("apply", apply).handle("delete", deleteAsset)
+    return handlers.handle("list", list).handle("listSystem", listSystem).handle("content", content).handle("apply", apply).handle("delete", deleteAsset)
   }),
 ).pipe(Layer.provide(LocationServiceMap.layer))

@@ -269,6 +269,7 @@ export function AssetWorkbenchTable(props: {
                   data-component="asset-row"
                   data-invalid={row.invalid ? "" : undefined}
                   data-selected={store.state.selectedPath === row.relativePath ? "" : undefined}
+                  title={row.origin === "system" ? row.relativePath : undefined}
                   class="group flex cursor-default items-center gap-2 px-4 py-2 text-left hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-v2-border-border-focus data-[selected]:bg-v2-overlay-simple-overlay-hover"
                   onClick={() => {
                     store.select(row.relativePath)

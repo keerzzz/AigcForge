@@ -1,4 +1,5 @@
 import type { Session } from "@aigcfroge/sdk/v2/client"
+import type { AssetInput } from "@/components/chat/asset-workbench"
 import {
   batch,
   createEffect,
@@ -342,15 +343,17 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
     setChatDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
   })
   const [chatAssetList] = createResource(chatDirSdk, async (sdk) => {
-    const [promptsRes, skillsRes, mcpsRes, cmdsRes, agentsRes] = await Promise.all([
+    const [promptsRes, skillsRes, mcpsRes, cmdsRes, agentsRes, systemSkillsRes] = await Promise.all([
       sdk.client.promptAsset.list(),
       sdk.client.skillAsset.list(),
       sdk.client.mcpAsset.list(),
       sdk.client.commandAsset.list(),
       sdk.client.agentAsset.list(),
+      sdk.client.skillAsset.listSystem(),
     ])
     const promptAssets = promptsRes.data?.assets ?? []
     const skillAssets = skillsRes.data?.assets ?? []
+    const systemSkillAssets = systemSkillsRes.data ?? []
     const mcpAssets = mcpsRes.data?.assets ?? []
     const cmdAssets = cmdsRes.data?.assets ?? []
     const agentAssets = agentsRes.data?.assets ?? []
@@ -360,7 +363,7 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
     const cmdInvalid = cmdsRes.data?.invalid ?? []
     const agentInvalid = agentsRes.data?.invalid ?? []
     return {
-      assets: [...promptAssets, ...skillAssets, ...mcpAssets, ...cmdAssets, ...agentAssets],
+      assets: [...promptAssets, ...skillAssets, ...systemSkillAssets.map((a: AssetInput) => ({ ...a, origin: "system" as const })), ...mcpAssets, ...cmdAssets, ...agentAssets],
       invalid: [
         ...promptInvalid.map((i) => ({ ...i, kind: "prompt" as const })),
         ...skillInvalid.map((i) => ({ ...i, kind: "skill" as const })),

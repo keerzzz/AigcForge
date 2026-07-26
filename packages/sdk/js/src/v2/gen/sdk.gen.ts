@@ -269,6 +269,7 @@ import type {
   SkillAssetDeleteResponses,
   SkillAssetListErrors,
   SkillAssetListResponses,
+  SkillAssetListSystemResponses,
   SubtaskPartInput,
   SyncHistoryListErrors,
   SyncHistoryListResponses,
@@ -3574,6 +3575,36 @@ export class SkillAsset extends HeyApiClient {
     )
     return (options?.client ?? this.client).get<SkillAssetListResponses, SkillAssetListErrors, ThrowOnError>({
       url: "/skill-asset",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * List system skill assets
+   *
+   * List skill assets discovered from system directories (.claude/skills, .cc-switch/skills, etc.).
+   */
+  public listSystem<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SkillAssetListSystemResponses, never, ThrowOnError>({
+      url: "/skill-asset/system",
       ...options,
       ...params,
     })

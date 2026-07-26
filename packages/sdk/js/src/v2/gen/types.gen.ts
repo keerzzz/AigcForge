@@ -10554,6 +10554,15 @@ export type SkillAssetListResponses = {
 
 export type SkillAssetListResponse = SkillAssetListResponses[keyof SkillAssetListResponses]
 
+export type SkillAssetListSystemResponses = {
+  /**
+   * System skill assets
+   */
+  200: Array<SkillAssetSummary>
+}
+
+export type SkillAssetListSystemResponse = SkillAssetListSystemResponses[keyof SkillAssetListSystemResponses]
+
 export type SkillAssetContentData = {
   body?: never
   path?: never
