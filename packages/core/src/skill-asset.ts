@@ -161,10 +161,8 @@ export const layer = Layer.effect(
           const allSystem: Info[] = []
           for (const root of SYSTEM_SKILL_ROOTS) {
             const dir = path.resolve(userHomeDir, root)
-            try {
-              const sysResult = yield* loadDir(fs, dir).pipe(Effect.catch(() => Effect.succeed({ assets: new Map(), invalid: new Map() })))
-              allSystem.push(...Array.from(sysResult.assets.values()))
-            } catch { /* 目录不存在或不可读，跳过 */ }
+            const sysResult = yield* loadDir(fs, dir).pipe(Effect.catchAllCause(() => Effect.succeed({ assets: new Map<string, Info>(), invalid: new Map<string, InvalidEntry>() })))
+            allSystem.push(...Array.from(sysResult.assets.values()))
           }
           // 同名同 kind 项目级优先，系统级被遮蔽
           const projectNames = new Set(Array.from(assets.values()).map((a) => a.name))
