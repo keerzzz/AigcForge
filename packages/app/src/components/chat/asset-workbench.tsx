@@ -224,7 +224,7 @@ export function AssetWorkbenchTable(props: {
           {language.t("promptAsset.workbench.import")}
         </ButtonV2>
       </div>
-      <div class="min-h-0 flex-1 overflow-auto">
+      <div class="min-h-0 flex-1 overflow-auto no-scrollbar">
         <Show
           when={rows().length > 0}
           fallback={
