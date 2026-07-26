@@ -69,6 +69,11 @@ export function filterByKind(rows: readonly AssetRow[], kind: AssetKind): AssetR
   return rows.filter((r) => r.kind === kind)
 }
 
+export function filterByOrigin(rows: readonly AssetRow[], origin: AssetOrigin | "all"): AssetRow[] {
+  if (origin === "all") return [...rows]
+  return rows.filter((r) => (r.origin ?? "project") === origin)
+}
+
 export function filterBySearch(rows: readonly AssetRow[], search: string): AssetRow[] {
   const q = search.trim().toLowerCase()
   if (!q) return [...rows]
@@ -149,12 +154,14 @@ export function createAssetWorkbenchStore() {
     kindFilter: "all" as AssetKind,
     search: "",
     selectedPath: undefined as string | undefined,
+    originFilter: "all" as AssetOrigin | "all",
   })
   return {
     state,
     setKindFilter: (kind: AssetKind) => setState("kindFilter", kind),
     setSearch: (value: string) => setState("search", value),
     select: (path: string | undefined) => setState("selectedPath", path),
+    setOriginFilter: (origin: AssetOrigin | "all") => setState("originFilter", origin),
   }
 }
 
@@ -180,9 +187,10 @@ export function AssetWorkbenchTable(props: {
     }
   })
 
-  const rows = createMemo(() =>
-    sortRows(filterBySearch(filterByKind(buildRows(props.assets, props.invalid), store.state.kindFilter), store.state.search)),
-  )
+  const rows = createMemo(() => {
+    const byKind = filterByKind(filterBySearch(buildRows(props.assets, props.invalid), store.state.search), store.state.kindFilter)
+    return sortRows(filterByOrigin(byKind, store.state.originFilter))
+  })
 
   // 功能筛选标签：用于 header 标题/搜索占位/新建按钮（响应式）
   const kindLabel = createMemo(() =>
@@ -217,6 +225,21 @@ export function AssetWorkbenchTable(props: {
             </button>
           </Show>
         </label>
+        <div class="flex items-center gap-0.5 shrink-0">
+          {(["all", "project", "system"] as const).map((origin) => (
+            <button
+              type="button"
+              class={`h-6 rounded-[4px] px-2 text-11-regular outline-0 transition-colors focus-visible:ring-2 focus-visible:ring-v2-border-border-focus ${
+                store.state.originFilter === origin
+                  ? "bg-v2-background-bg-layer-04 text-v2-text-text-base"
+                  : "text-v2-text-text-faint hover:bg-v2-overlay-simple-overlay-hover hover:text-v2-text-text-muted"
+              }`}
+              onClick={() => store.setOriginFilter(origin)}
+            >
+              {origin === "all" ? language.t("asset.origin.all") : language.t(`asset.origin.${origin}`)}
+            </button>
+          ))}
+        </div>
         <ButtonV2 variant="neutral" icon="plus" disabled onClick={() => {}}>
           {language.t("asset.panel.new", { kind: kindLabel() })}
         </ButtonV2>

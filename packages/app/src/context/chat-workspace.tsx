@@ -5,7 +5,7 @@ import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useLanguage } from "@/context/language"
-import type { AssetKind } from "@/components/chat/asset-workbench"
+import type { AssetKind, AssetOrigin } from "@/components/chat/asset-workbench"
 
 /**
  * Chat 工作区跨路由状态上下文（M2 Step 5）。
@@ -15,12 +15,14 @@ export type ChatWorkspaceState = {
   kindFilter: AssetKind
   search: string
   selectedPath: string | undefined
+  originFilter: AssetOrigin | "all"
 }
 
 export type ChatWorkspaceContext = {
   state: ChatWorkspaceState
   setKindFilter: (kind: AssetKind) => void
   setSearch: (value: string) => void
+  setOriginFilter: (origin: AssetOrigin | "all") => void
   select: (path: string | undefined) => void
   /** Composer 是否有未发送内容（Dirty Draft 用） */
   dirty: boolean
@@ -34,6 +36,7 @@ export function ChatWorkspaceProvider(props: ParentProps) {
     kindFilter: "all",
     search: "",
     selectedPath: undefined,
+    originFilter: "all",
   })
   const [dirty, setDirty] = createStore({ value: false })
 
@@ -41,6 +44,7 @@ export function ChatWorkspaceProvider(props: ParentProps) {
     state,
     setKindFilter: (kind) => setState("kindFilter", kind),
     setSearch: (value) => setState("search", value),
+    setOriginFilter: (origin) => setState("originFilter", origin),
     select: (path) => setState("selectedPath", path),
     get dirty() { return dirty.value },
     setDirty: (v) => setDirty("value", v),
