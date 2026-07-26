@@ -43,6 +43,8 @@ export class Info extends Schema.Class<Info>("SkillAsset.Info")({
   revision: Revision,
   slash: Schema.Boolean,
   content: Schema.String,
+  triggers: Schema.Array(Schema.String),
+  tags: Schema.Array(Schema.String),
 }) {}
 
 // 对齐原生 SkillV2 frontmatter（SkillV2.frontmatter = { name?, description?, slash? }）
@@ -50,6 +52,8 @@ export class Frontmatter extends Schema.Class<Frontmatter>("SkillAsset.Frontmatt
   name: Schema.optional(Name),
   description: Schema.optional(Description),
   slash: Schema.optional(Schema.Boolean),
+  triggers: Schema.optional(Schema.Array(Schema.String)),
+  tags: Schema.optional(Schema.Array(Schema.String)),
 }) {}
 
 // -- InvalidEntry & errors 沿用 PromptAsset 模式 --
@@ -67,6 +71,8 @@ export class Candidate extends Schema.Class<Candidate>("SkillAsset.Candidate")({
   description: Description,
   slash: Schema.Boolean,
   content: Schema.String,
+  triggers: Schema.Array(Schema.String),
+  tags: Schema.Array(Schema.String),
   relativePath: Schema.String,
 }) {}
 

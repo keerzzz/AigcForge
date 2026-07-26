@@ -28,6 +28,8 @@ export interface Info {
   readonly relativePath: string
   readonly slash: boolean
   readonly content: string
+  readonly triggers: readonly string[]
+  readonly tags: readonly string[]
   readonly revision: string
 }
 
@@ -82,10 +84,12 @@ function loadDir(
         continue
       }
 
-      // name 可选（对齐原生 SkillV2），无 frontmatter name 时回退文件名
+      // name 可选（对齐原生 SkillV2/compat CC Switch），无 frontmatter name 时回退文件名
       const derivedName = frontmatter.name ?? path.basename(relativePath, ".md")
       const derivedDescription = frontmatter.description ?? ""
       const derivedSlash = frontmatter.slash ?? false
+      const derivedTriggers = frontmatter.triggers ?? []
+      const derivedTags = frontmatter.tags ?? []
       const revision = Hash.sha256(Buffer.from(raw))
 
       const conflicts = byName.get(derivedName)
@@ -107,6 +111,8 @@ function loadDir(
         relativePath,
         slash: derivedSlash,
         content: parsed.content,
+        triggers: derivedTriggers,
+        tags: derivedTags,
         revision,
       })
     }

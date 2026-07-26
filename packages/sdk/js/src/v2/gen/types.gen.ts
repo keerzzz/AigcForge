@@ -4385,6 +4385,8 @@ export type SkillAssetInfo = {
   revision: string
   slash: boolean
   content: string
+  triggers: string[]
+  tags: string[]
 }
 
 export type SkillAssetCandidate = {
@@ -4392,6 +4394,8 @@ export type SkillAssetCandidate = {
   description: string
   slash: boolean
   content: string
+  triggers: string[]
+  tags: string[]
   relativePath: string
 }
 

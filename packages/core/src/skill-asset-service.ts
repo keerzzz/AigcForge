@@ -236,6 +236,8 @@ export const locationLayer = Layer.effect(
 
             let frontmatter = `---\nname: ${yamlEscape(input.candidate.name)}\ndescription: ${yamlEscape(input.candidate.description)}`
             if (input.candidate.slash) frontmatter += `\nslash: true`
+            if (input.candidate.triggers?.length) frontmatter += `\ntriggers:\n${input.candidate.triggers.map((t: string) => `- ${yamlEscape(t)}`).join("\n")}`
+            if (input.candidate.tags?.length) frontmatter += `\ntags:\n${input.candidate.tags.map((t: string) => `- ${yamlEscape(t)}`).join("\n")}`
             frontmatter += `\n---\n`
             const content = frontmatter + input.candidate.content
 

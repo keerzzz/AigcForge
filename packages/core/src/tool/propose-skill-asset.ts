@@ -50,7 +50,7 @@ export const layer = Layer.effectDiscard(
       output: Output,
       execute: (input) =>
         Effect.gen(function* () {
-          const candidate = SkillAsset.Candidate.make({ ...input, relativePath: "" })
+          const candidate = SkillAsset.Candidate.make({ ...input, triggers: [], tags: [], relativePath: "" })
           const result = yield* service.propose(candidate)
           return {
             relativePath: result.relativePath,

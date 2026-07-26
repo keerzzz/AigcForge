@@ -36,7 +36,7 @@ export const ProposeSkillAssetV1 = define<typeof Parameters, Metadata, LocationS
           const directory = yield* InstanceState.directory
           const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(directory) }))
           const service = yield* SkillAssetService.Service.pipe(Effect.provide(layer), Effect.orDie)
-          const candidate = SkillAsset.Candidate.make({ ...params, relativePath: "" })
+          const candidate = SkillAsset.Candidate.make({ ...params, triggers: [], tags: [], relativePath: "" })
           const result = yield* service.propose(candidate)
           const lines: string[] = []
           if (result.nameConflict) lines.push("Name conflict: choose a different name.")

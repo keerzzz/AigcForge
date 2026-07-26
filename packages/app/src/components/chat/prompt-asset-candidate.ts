@@ -95,7 +95,14 @@ function candidateFromInput(kind: SupportedAssetKind, raw: UnknownRecord): Candi
       kind,
       name,
       description,
-      candidate: { name, description, slash: booleanField(raw, "slash") ?? false, content },
+      candidate: {
+        name,
+        description,
+        slash: booleanField(raw, "slash") ?? false,
+        content,
+        triggers: stringArrayField(raw, "triggers"),
+        tags: stringArrayField(raw, "tags"),
+      },
       content,
     }
   }
@@ -183,7 +190,11 @@ export function sameCandidateInfo(left: CandidateInfo, right: CandidateInfo) {
   if (left.exists !== right.exists || left.nameConflict !== right.nameConflict || left.pathConflict !== right.pathConflict) return false
 
   if (left.kind === "prompt" && right.kind === "prompt") return left.candidate.template === right.candidate.template
-  if (left.kind === "skill" && right.kind === "skill") return left.candidate.slash === right.candidate.slash
+  if (left.kind === "skill" && right.kind === "skill") {
+    return left.candidate.slash === right.candidate.slash
+      && JSON.stringify(left.candidate.triggers) === JSON.stringify(right.candidate.triggers)
+      && JSON.stringify(left.candidate.tags) === JSON.stringify(right.candidate.tags)
+  }
   if (left.kind === "command" && right.kind === "command") {
     return left.candidate.invocation === right.candidate.invocation && left.candidate.args === right.candidate.args
   }

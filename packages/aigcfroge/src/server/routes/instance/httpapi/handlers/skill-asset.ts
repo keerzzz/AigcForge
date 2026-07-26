@@ -105,6 +105,8 @@ export const skillAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "skill-a
         revision: info.revision,
         slash: info.slash,
         content: info.content,
+        triggers: info.triggers ?? [],
+        tags: info.tags ?? [],
       })
     })
 
@@ -128,6 +130,8 @@ export const skillAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "skill-a
         revision: info.revision,
         slash: info.slash,
         content: info.content,
+        triggers: info.triggers ?? [],
+        tags: info.tags ?? [],
       })
     })
 
