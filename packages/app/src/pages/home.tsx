@@ -1,5 +1,4 @@
 import type { Session } from "@aigcfroge/sdk/v2/client"
-import type { AssetInput } from "@/components/chat/asset-workbench"
 import {
   batch,
   createEffect,
@@ -343,19 +342,15 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
     setChatDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
   })
   const [chatAssetList] = createResource(chatDirSdk, async (sdk) => {
-    const [promptsRes, skillsRes, mcpsRes, cmdsRes, agentsRes, systemSkillsRes, systemMcpsRes] = await Promise.all([
+    const [promptsRes, skillsRes, mcpsRes, cmdsRes, agentsRes] = await Promise.all([
       sdk.client.promptAsset.list(),
       sdk.client.skillAsset.list(),
       sdk.client.mcpAsset.list(),
       sdk.client.commandAsset.list(),
       sdk.client.agentAsset.list(),
-      sdk.client.skillAsset.listSystem(),
-      sdk.client.mcpAsset.listSystem(),
     ])
     const promptAssets = promptsRes.data?.assets ?? []
     const skillAssets = skillsRes.data?.assets ?? []
-    const systemSkillAssets = systemSkillsRes.data ?? []
-    const systemMcpAssets = systemMcpsRes.data ?? []
     const mcpAssets = mcpsRes.data?.assets ?? []
     const cmdAssets = cmdsRes.data?.assets ?? []
     const agentAssets = agentsRes.data?.assets ?? []
@@ -365,7 +360,7 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
     const cmdInvalid = cmdsRes.data?.invalid ?? []
     const agentInvalid = agentsRes.data?.invalid ?? []
     return {
-      assets: [...promptAssets, ...skillAssets, ...systemSkillAssets.map((a: AssetInput) => ({ ...a, origin: "system" as const })), ...systemMcpAssets.map((a: AssetInput) => ({ ...a, origin: "system" as const })), ...mcpAssets, ...cmdAssets, ...agentAssets],
+      assets: [...promptAssets, ...skillAssets, ...mcpAssets, ...cmdAssets, ...agentAssets],
       invalid: [
         ...promptInvalid.map((i) => ({ ...i, kind: "prompt" as const })),
         ...skillInvalid.map((i) => ({ ...i, kind: "skill" as const })),
@@ -374,25 +369,6 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
         ...agentInvalid.map((i) => ({ ...i, kind: "agent" as const })),
       ],
     }
-  })
-
-  // M4：系统级资产（server-sync 运行时数据）。child 必须带 { mcp: true } 才会加载 command/mcp
-  // （bootstrap.ts 门控），agent 随普通 bootstrap。与 chatDirSdk 同 ctx，保证同 server。
-  const chatSyncData = createMemo(() => {
-    const dir = chatDirectory()
-    const currentCtx = chatCtx()
-    if (!dir || !currentCtx) return
-    return currentCtx.sync.child(dir, { mcp: true })[0]
-  })
-  // M4 §3.2：项目级 + 系统级按 kind+name 去重合并，project 优先。
-  const chatAssetsMerged = createMemo(() => {
-    const data = chatSyncData()
-    const system = AssetWorkbench.systemAssets({
-      commands: data?.command ?? [],
-      agents: data?.agent ?? [],
-      mcp: data?.mcp ?? {},
-    })
-    return AssetWorkbench.mergeAssets(chatAssetList()?.assets ?? [], system)
   })
 
   function closeSearch() {
@@ -565,7 +541,7 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
           {/* ADR-15 §4 方案1: render-all + display:none。chat 主区展示 AssetWorkbenchTable */}
           <div class="flex min-h-0 flex-1 flex-col" style={{ display: mode.currentMode === "chat" ? "flex" : "none" }}>
             <AssetWorkbench.AssetWorkbenchTable
-              assets={chatAssetsMerged()}
+              assets={chatAssetList()?.assets ?? []}
               invalid={chatAssetList()?.invalid ?? []}
               kindFilter={chatFeature() as AssetWorkbench.AssetKind}
               onInsert={(row) => dialog.show(() => <AssetSessionSelector asset={row} />)}
