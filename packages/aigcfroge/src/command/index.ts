@@ -186,6 +186,7 @@ export const defaultLayer = layer.pipe(
   Layer.provide(Config.defaultLayer),
   Layer.provide(MCP.defaultLayer),
   Layer.provide(Skill.defaultLayer),
+  Layer.provide(FSUtil.defaultLayer),
 )
 
 export const node = LayerNode.make(layer, [Config.node, MCP.node, Skill.node, FSUtil.node])
