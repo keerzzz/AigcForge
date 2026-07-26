@@ -4,12 +4,14 @@ import { EffectBridge } from "@/effect/bridge"
 import type { InstanceContext } from "@/project/instance-context"
 import { SessionID, MessageID } from "@/session/schema"
 import { Effect, Layer, Context, Schema } from "effect"
+import path from "path"
 import { Config } from "@/config/config"
 import { MCP } from "../mcp"
 import { Skill } from "../skill"
 import { EventV2 } from "@aigcfroge/core/event"
 import { FSUtil } from "@aigcfroge/core/fs-util"
-import { discover } from "./discover"
+import { COMMANDS_DIR } from "@aigcfroge/core/constants"
+import { syncDiscovered } from "./discover"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
 
@@ -155,12 +157,9 @@ export const layer = Layer.effect(
         }
       }
 
-      // Bridge：跨工具命令发现（M4）。扫描 ~/.claude/skills/ 等系统目录，同名项目级优先。
-      const discovered = yield* discover(fs)
-      for (const { commandName, info } of discovered) {
-        if (commands[commandName]) continue
-        commands[commandName] = info
-      }
+      // Bridge：跨工具命令发现（M4 Option C）。系统 skill → .aigcfroge/commands/<source>-<name>.md
+      // 写入幂等（已存在跳过），ConfigCommandPlugin + CommandAsset 自动拾取。
+      yield* syncDiscovered(fs, path.resolve(ctx.directory, COMMANDS_DIR))
 
       return {
         commands,
