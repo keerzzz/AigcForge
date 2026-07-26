@@ -206,6 +206,16 @@ export function AssetWorkbenchTable(props: {
             value={store.state.search}
             onInput={(e) => store.setSearch(e.currentTarget.value)}
           />
+          <Show when={store.state.search.length > 0}>
+            <button
+              type="button"
+              class="ml-0.5 flex size-4 shrink-0 items-center justify-center rounded-[3px] text-v2-icon-icon-muted hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+              onClick={() => store.setSearch("")}
+              aria-label={language.t("common.clear")}
+            >
+              <IconV2 name="close" size="normal" class="text-v2-icon-icon-muted" />
+            </button>
+          </Show>
         </label>
         <ButtonV2 variant="neutral" icon="plus" disabled onClick={() => {}}>
           {language.t("asset.panel.new", { kind: kindLabel() })}
