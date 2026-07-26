@@ -157,9 +157,9 @@ export const layer = Layer.effect(
         }
       }
 
-      // Bridge：跨工具命令发现（M4 Option C）。系统 skill → .aigcfroge/commands/<source>-<name>.md
+      // Bridge：跨工具命令发现（M4 Option C）。系统 skill → .aigcfroge/commands/source-name.md
       // 写入幂等（已存在跳过），ConfigCommandPlugin + CommandAsset 自动拾取。
-      yield* syncDiscovered(fs, path.resolve(ctx.directory, COMMANDS_DIR))
+      yield* syncDiscovered(fs, path.resolve(ctx.directory, COMMANDS_DIR)).pipe(Effect.catch(() => Effect.void))
 
       return {
         commands,
