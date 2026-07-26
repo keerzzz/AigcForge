@@ -19,7 +19,7 @@ import {
 import { createChildStoreManager } from "./global-sync/child-store"
 import { applyDirectoryEvent, applyGlobalEvent, cleanupDroppedSessionCaches } from "./global-sync/event-reducer"
 import { clearSessionPrefetchDirectory } from "./global-sync/session-prefetch"
-import { estimateRootSessionTotal, loadRootSessionsWithFallback } from "./global-sync/session-load"
+import { estimateRootSessionTotal, loadRootSessionsWithFallback, mergeModeSessions } from "./global-sync/session-load"
 import { trimSessions } from "./global-sync/session-trim"
 import type { ProjectMeta } from "./global-sync/types"
 import { SESSION_RECENT_LIMIT } from "./global-sync/types"
@@ -303,9 +303,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
                 const retainedSessions = store.session.filter(
                   (session) => !!session.parentID || (session.mode ?? "coding") !== options.mode,
                 )
-                const sessions = Array.from(
-                  new Map([...retainedSessions, ...nonArchived].map((session) => [session.id, session])).values(),
-                )
+                const sessions = mergeModeSessions(retainedSessions, nonArchived)
                 setStore("session", reconcile(sessions, { key: "id" }))
                 sessionMeta.set(bucket, { limit: retained })
                 return
