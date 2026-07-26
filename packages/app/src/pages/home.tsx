@@ -371,6 +371,25 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
     }
   })
 
+  // M4：系统级资产（server-sync 运行时数据）。child 必须带 { mcp: true } 才会加载 command/mcp
+  // （bootstrap.ts 门控），agent 随普通 bootstrap。与 chatDirSdk 同 ctx，保证同 server。
+  const chatSyncData = createMemo(() => {
+    const dir = chatDirectory()
+    const currentCtx = chatCtx()
+    if (!dir || !currentCtx) return
+    return currentCtx.sync.child(dir, { mcp: true })[0]
+  })
+  // M4 §3.2：项目级 + 系统级按 kind+name 去重合并，project 优先。
+  const chatAssetsMerged = createMemo(() => {
+    const data = chatSyncData()
+    const system = AssetWorkbench.systemAssets({
+      commands: data?.command ?? [],
+      agents: data?.agent ?? [],
+      mcp: data?.mcp ?? {},
+    })
+    return AssetWorkbench.mergeAssets(chatAssetList()?.assets ?? [], system)
+  })
+
   function closeSearch() {
     setState("search", "")
     setState("searchFocused", false)
@@ -541,7 +560,7 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
           {/* ADR-15 §4 方案1: render-all + display:none。chat 主区展示 AssetWorkbenchTable */}
           <div class="flex min-h-0 flex-1 flex-col" style={{ display: mode.currentMode === "chat" ? "flex" : "none" }}>
             <AssetWorkbench.AssetWorkbenchTable
-              assets={chatAssetList()?.assets ?? []}
+              assets={chatAssetsMerged()}
               invalid={chatAssetList()?.invalid ?? []}
               kindFilter={chatFeature() as AssetWorkbench.AssetKind}
               onInsert={(row) => dialog.show(() => <AssetSessionSelector asset={row} />)}

@@ -13,6 +13,18 @@ import type { AssetKindId } from "@aigcfroge/schema/asset"
 
 export type AssetKind = "all" | AssetKindId
 
+export type AssetOrigin = "system" | "project"
+
+/** 表格资产输入：SDK Summary 结构 + 可选来源（缺省 "project"；系统级由 home 合并时标注）。 */
+export type AssetInput = {
+  kind: AssetKindId
+  relativePath: string
+  name: string
+  description: string
+  revision: string
+  origin?: AssetOrigin
+}
+
 export type AssetRow = {
   kind: AssetKindId
   relativePath: string
@@ -20,13 +32,14 @@ export type AssetRow = {
   description: string
   revision: string
   invalid: boolean
+  origin: AssetOrigin
   errorTag?: "parse_error" | "bad_frontmatter" | "name_conflict"
 }
 
 // -- Pure logic (testable without JSX/DOM) --
 
 export function buildRows(
-  assets: readonly { relativePath: string; name: string; description: string; revision: string; kind: AssetKindId }[],
+  assets: readonly AssetInput[],
   invalid: readonly { relativePath: string; kind: AssetKindId; errorTag?: "parse_error" | "bad_frontmatter" | "name_conflict" }[],
 ): AssetRow[] {
   const valid: AssetRow[] = assets.map((a) => ({
@@ -36,6 +49,7 @@ export function buildRows(
     description: a.description,
     revision: a.revision,
     invalid: false,
+    origin: a.origin ?? "project",
   }))
   const invalidRows: AssetRow[] = invalid.map((i) => ({
     kind: i.kind,
@@ -44,6 +58,7 @@ export function buildRows(
     description: "",
     revision: "",
     invalid: true,
+    origin: "project",
     errorTag: i.errorTag,
   }))
   return [...valid, ...invalidRows]
@@ -72,6 +87,61 @@ export function sortRows(rows: readonly AssetRow[]): AssetRow[] {
   })
 }
 
+/** 系统级资产（server-sync 运行时数据）提取结果，kind 语义与项目级 AssetKindId 对齐。 */
+export type SystemAsset = {
+  kind: AssetKindId
+  name: string
+  description?: string
+}
+
+/**
+ * 从 server-sync child store 提取系统级资产（M4 §3.1）：
+ * command 列表二分 skill/command（source 为 optional，非 "skill" 含 "command"/"mcp"/undefined，均归 command），
+ * mcp 为 record keyed by name（取 key，无 description），agent 过滤 hidden（UI 隐藏项不展示）。
+ */
+export function systemAssets(input: {
+  commands: readonly { name: string; description?: string; source?: string }[]
+  agents: readonly { name: string; description?: string; hidden?: boolean }[]
+  mcp: Record<string, unknown>
+}): SystemAsset[] {
+  const skills = input.commands
+    .filter((c) => c.source === "skill")
+    .map((c) => ({ kind: "skill" as const, name: c.name, description: c.description ?? "" }))
+  const commands = input.commands
+    .filter((c) => c.source !== "skill")
+    .map((c) => ({ kind: "command" as const, name: c.name, description: c.description ?? "" }))
+  const mcps = Object.keys(input.mcp).map((name) => ({ kind: "mcp" as const, name, description: "" }))
+  const agents = input.agents
+    .filter((a) => !a.hidden)
+    .map((a) => ({ kind: "agent" as const, name: a.name, description: a.description ?? "" }))
+  return [...skills, ...commands, ...mcps, ...agents]
+}
+
+/**
+ * 合并项目级 + 系统级资产（M4 §3.2）：按 kind+name 去重，project 优先（对齐服务端
+ * command/index.ts 同名遮蔽先例；跨 kind 同名不冲突，故去重键含 kind）。
+ * 输出每行 origin 确定：project 缺省补 "project"，system 恒 "system"。
+ */
+export function mergeAssets(project: readonly AssetInput[], system: readonly SystemAsset[]): AssetInput[] {
+  const projectKeys = new Set(project.map((a) => `${a.kind}\0${a.name}`))
+  const systemRows: AssetInput[] = system
+    .filter((s) => !projectKeys.has(`${s.kind}\0${s.name}`))
+    .map((s) => ({
+      kind: s.kind,
+      name: s.name,
+      description: s.description ?? "",
+      relativePath: s.name,
+      revision: "",
+      origin: "system",
+    }))
+  return [...project.map((a) => ({ ...a, origin: a.origin ?? ("project" as const) })), ...systemRows]
+}
+
+/** 系统级计数（M4 功能树）：与 mergeAssets 同规则剔除被项目级遮蔽的同名项，保证侧栏计数与表格行一致。 */
+export function systemCountFor(system: readonly SystemAsset[], kind: AssetKindId, projectNames: ReadonlySet<string>): number {
+  return system.filter((s) => s.kind === kind && !projectNames.has(s.name)).length
+}
+
 // -- Store (UI state: filter / search / selection) --
 
 export function createAssetWorkbenchStore() {
@@ -91,7 +161,7 @@ export function createAssetWorkbenchStore() {
 // -- Component (v2 tokens; data injected via props, fetched by parent) --
 
 export function AssetWorkbenchTable(props: {
-  assets: readonly { relativePath: string; name: string; description: string; revision: string; kind: AssetKindId }[]
+  assets: readonly AssetInput[]
   invalid: readonly { relativePath: string; kind: AssetKindId; errorTag?: "parse_error" | "bad_frontmatter" | "name_conflict" }[]
   onSelect?: (row: AssetRow) => void
   onInsert?: (row: AssetRow) => void
@@ -193,12 +263,18 @@ export function AssetWorkbenchTable(props: {
                     </Show>
                   </span>
                   <span class="min-w-0 flex-[35] truncate text-v2-text-text-base [font-weight:530]">
+                    <span
+                      class="mr-1 rounded-[3px] bg-v2-background-bg-layer-04 px-1.5 py-0.5 text-[10px] text-v2-text-text-muted"
+                      aria-label={language.t(row.origin === "system" ? "asset.origin.system" : "asset.origin.project")}
+                    >
+                      {language.t(row.origin === "system" ? "asset.origin.system" : "asset.origin.project")}
+                    </span>
                     {row.name || row.relativePath}
                   </span>
                   <span class="min-w-0 flex-[40] truncate text-v2-text-text-muted">{row.description}</span>
                   <span class="relative flex shrink-0 flex-[20] items-center justify-end self-stretch">
                     <span class="text-v2-text-text-faint">—</span>
-                    <Show when={!row.invalid}>
+                    <Show when={!row.invalid && row.origin !== "system"}>
                       <ButtonV2
                         type="button"
                         variant="ghost-muted"

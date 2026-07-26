@@ -8,6 +8,7 @@ import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { useLanguage } from "@/context/language"
 import { ChatRightPanel } from "@/components/chat/chat-right-panel"
+import { AssetWorkbench } from "@/components/chat/asset-workbench"
 import { useGlobal } from "@/context/global"
 import { ServerConnection, useServer } from "@/context/server"
 import { useServerSync } from "@/context/server-sync"
@@ -56,16 +57,14 @@ function useChatFeatureData() {
   const sync = useServerSync()
   const { conn, ctx, directory } = useChatDirectory()
 
+  // M4：child 必须带 { mcp: true } 才会加载 command/mcp（bootstrap.ts 门控），agent 随普通 bootstrap。
   const directoryData = createMemo(() => {
     const current = directory()
     if (!current) return
-    return sync().child(current)[0]
+    return sync().child(current, { mcp: true })[0]
   })
 
-  // M3：skill/mcp/command/agent 计数后续从 asset registry 异步取（如 prompt 的 assetCount），不再读 server-sync
-  const featureCount = (_feature: ChatFeatureID) => undefined
-
-  return { conn, ctx, directory, featureCount }
+  return { conn, ctx, directory, directoryData }
 }
 
 /**
@@ -154,7 +153,7 @@ function ChatFeatureSidebar() {
   const global = useGlobal()
   const pickDirectory = useDirectoryPicker()
   const { selected: chatFeature, set: setChatFeature } = useChatFeature()
-  const { conn, ctx, directory, featureCount } = useChatFeatureData()
+  const { conn, ctx, directory, directoryData } = useChatFeatureData()
 
   // 提示词分类资产数量：查当前 Location 的 prompt asset（m1 §1.4）
   // 用 createEffect 而非 createMemo：ensureDirSdkContext 内部注册 onCleanup/onMount，
@@ -169,9 +168,9 @@ function ChatFeatureSidebar() {
     }
     setDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
   })
-  // 全量资产计数：并发取 5 种 kind 的项目级资产数（M3）
+  // 全量资产计数：并发取 5 种 kind 的项目级资产（M3）；M4 带 name 集合供系统级计数去重。
   const [kindCounts] = createResource(dirSdk, async (sdk) => {
-    if (!sdk) return {} as Record<string, number>
+    if (!sdk) return { counts: {} as Record<string, number>, names: {} as Record<string, Set<string>> }
     const [p, s, m, c, a] = await Promise.all([
       sdk.client.promptAsset.list(),
       sdk.client.skillAsset.list(),
@@ -179,18 +178,29 @@ function ChatFeatureSidebar() {
       sdk.client.commandAsset.list(),
       sdk.client.agentAsset.list(),
     ])
+    const byKind = {
+      prompt: p.data?.assets ?? [],
+      skill: s.data?.assets ?? [],
+      mcp: m.data?.assets ?? [],
+      command: c.data?.assets ?? [],
+      agent: a.data?.assets ?? [],
+    }
     return {
-      prompt: p.data?.assets?.length ?? 0,
-      skill: s.data?.assets?.length ?? 0,
-      mcp: m.data?.assets?.length ?? 0,
-      command: c.data?.assets?.length ?? 0,
-      agent: a.data?.assets?.length ?? 0,
-    } as Record<string, number>
+      counts: Object.fromEntries(Object.entries(byKind).map(([kind, assets]) => [kind, assets.length])),
+      names: Object.fromEntries(Object.entries(byKind).map(([kind, assets]) => [kind, new Set(assets.map((x) => x.name))])),
+    }
   })
+  // M4：计数 = 项目级 + 系统级（server-sync 运行时数据，按 kind+name 去重，与表格 mergeAssets 同规则）。
   const countFor = (feature: ChatFeatureID) => {
-    const counts = kindCounts()
-    const count = counts?.[feature]
-    return count !== undefined && count > 0 ? count : undefined
+    const data = kindCounts()
+    const syncData = directoryData()
+    const system = AssetWorkbench.systemAssets({
+      commands: syncData?.command ?? [],
+      agents: syncData?.agent ?? [],
+      mcp: syncData?.mcp ?? {},
+    })
+    const total = (data?.counts[feature] ?? 0) + AssetWorkbench.systemCountFor(system, feature, data?.names[feature] ?? new Set())
+    return total > 0 ? total : undefined
   }
 
   function newSession() {

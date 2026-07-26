@@ -1071,6 +1071,8 @@ export const dict = {
   "asset.panel.all": "全部",
   "asset.list.searchPlaceholder": "搜索{{kind}}...",
   "asset.panel.new": "新建{{kind}}",
+  "asset.origin.system": "系统",
+  "asset.origin.project": "项目",
   "chat.feature.title": "功能",
   "chat.feature.project": "项目",
   "chat.feature.noLocation": "请先选择项目",

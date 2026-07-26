@@ -1189,6 +1189,8 @@ export const dict = {
   "asset.panel.all": "All",
   "asset.list.searchPlaceholder": "Search {{kind}}...",
   "asset.panel.new": "New {{kind}}",
+  "asset.origin.system": "System",
+  "asset.origin.project": "Project",
   "chat.dirtyDraft.title": "Unsaved content",
   "chat.dirtyDraft.description": "You have unsaved content in the composer. Are you sure you want to leave?",
   "chat.dirtyDraft.stay": "Stay",
