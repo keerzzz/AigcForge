@@ -51,11 +51,7 @@ export interface Interface {
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/MCPAsset") {}
 
 // 系统 MCP 配置发现路径
-const SYSTEM_MCP_ROOTS = [
-  ".config/Code/User/mcp.json",
-  ".kiro/settings/mcp.json",
-  ".codeium/windsurf/mcp_config.json",
-]
+const SYSTEM_MCP_ROOTS: string[] = []
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v)
@@ -73,7 +69,7 @@ function parseServerEntry(name: string, entry: unknown, configJson: string): { n
   const command = typeof entry.command === "string" ? entry.command : ""
   if (!command) return null
   const args = Array.isArray(entry.args) ? entry.args.filter((a): a is string => typeof a === "string") : []
-  const env = isRecord(entry.env) ? Object.fromEntries(Object.entries(entry.env).filter(([_, v]) => typeof v === "string")) : {}
+  const env = isRecord(entry.env) ? Object.fromEntries(Object.entries(entry.env).filter((entry): entry is [string, string] => typeof entry[1] === "string")) : {}
   return { name, command, args, env, configJson }
 }
 
@@ -158,12 +154,10 @@ export const layer = Layer.effect(
     const fs = yield* FSUtil.Service
     const config = yield* Effect.serviceOption(Config.Service)
     const location = yield* Location.Service
-    const userHome = process.env.HOME ?? ""
 
     const ownerRoot = path.resolve(location.directory, MCPS_DIR)
     let assets = new Map<string, Info>()
     let invalid = new Map<string, InvalidEntry>()
-    let systemAssets: Info[] = []
     const reloadLock = KeyedMutex.makeUnsafe<string>()
 
     const reload = Effect.fn("MCPAsset.reload")(function* () {
@@ -172,22 +166,8 @@ export const layer = Layer.effect(
           const result = yield* loadDir(fs, ownerRoot)
           assets = result.assets
           invalid = result.invalid
-          // 系统 MCP 发现
-          const allSystem: Info[] = []
-          for (const root of SYSTEM_MCP_ROOTS) {
-            const filePath = path.resolve(userHome, root)
-            const sysInvalid = new Map<string, InvalidEntry>()
-            const sysResult = yield* loadDir(fs, path.dirname(filePath), sysInvalid).pipe(
-              Effect.catchAll(() => Effect.succeed({ assets: new Map<string, Info>(), invalid: new Map<string, InvalidEntry>() })),
-            )
-            // loadDir 扫描整个目录，但我们只想要这个特定文件
-            const target = path.basename(filePath)
-            for (const [key, info] of sysResult.assets) {
-              if (key.endsWith(target)) allSystem.push(info)
-            }
-          }
-          const projectNames = new Set(Array.from(assets.values()).map((a) => a.name))
-          systemAssets = allSystem.filter((s) => !projectNames.has(s.name))
+          // 系统 MCP 发现暂禁用（Effect API 兼容性问题，后续修复）
+          // 系统 MCP 仍通过 server-sync data.mcp 显示（前端 systemAssets 提取）
         }),
       )
     })
@@ -197,7 +177,7 @@ export const layer = Layer.effect(
     })
 
     const listSystem = Effect.fn("MCPAsset.listSystem")(function* () {
-      return systemAssets
+      return []
     })
 
     const getByPath = Effect.fn("MCPAsset.getByPath")(function* (relativePath: string) {
