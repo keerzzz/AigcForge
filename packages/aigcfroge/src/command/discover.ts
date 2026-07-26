@@ -20,7 +20,8 @@ type SourceDef = {
 }
 
 const SOURCES: SourceDef[] = [
-  { name: "claude", dir: ".claude/skills", pattern: "**/*.md", directoryFormat: false },
+  { name: "agents", dir: ".agents/skills", pattern: "{*.md,**/SKILL.md}", directoryFormat: true },
+  { name: "claude", dir: ".claude/skills", pattern: "{*.md,**/SKILL.md}", directoryFormat: true },
   { name: "codex", dir: ".codex/.tmp/plugins", pattern: "*/skills/**/SKILL.md", directoryFormat: true },
   { name: "zcode", dir: ".zcode/skills", pattern: "**/*.md", directoryFormat: false },
   { name: "opencode", dir: ".opencode/skills", pattern: "**/*.md", directoryFormat: false },
@@ -60,7 +61,7 @@ export function syncDiscovered(
 
     for (const source of SOURCES) {
       const root = expand(source.dir)
-      const files = yield* fs.glob(source.pattern, { cwd: root, absolute: true, include: "file", dot: true }).pipe(
+      const files = yield* fs.glob(source.pattern, { cwd: root, absolute: true, include: "file", dot: true, symlink: true }).pipe(
         Effect.catch(() => Effect.succeed([] as string[])),
       )
 
