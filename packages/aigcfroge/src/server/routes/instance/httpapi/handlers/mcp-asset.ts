@@ -90,6 +90,14 @@ export const mcpAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "mcp-asset
       }
     })
 
+    const listSystem = Effect.fn("MCPAssetHttpApi.listSystem")(function* () {
+      const ctx2 = yield* InstanceState.context
+      const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
+      const registry = yield* MCPAsset.Service.pipe(Effect.provide(layer), Effect.orDie)
+      const all = yield* registry.listSystem()
+      return all.map((a) => Schema.decodeUnknownSync(SchemaMCPAsset.Summary)({ kind: "mcp", name: a.name, description: a.description, relativePath: a.relativePath, revision: a.revision }))
+    })
+
     const content = Effect.fn("MCPAssetHttpApi.content")(function* (ctx: { query: { path: string } }) {
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
@@ -147,6 +155,6 @@ export const mcpAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "mcp-asset
       }).pipe(Effect.catch(toDeleteError))
     })
 
-    return handlers.handle("list", list).handle("content", content).handle("apply", apply).handle("delete", deleteAsset)
+    return handlers.handle("list", list).handle("listSystem", listSystem).handle("content", content).handle("apply", apply).handle("delete", deleteAsset)
   }),
 ).pipe(Layer.provide(LocationServiceMap.layer))

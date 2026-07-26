@@ -122,6 +122,7 @@ import type {
   McpAssetDeleteResponses,
   McpAssetListErrors,
   McpAssetListResponses,
+  McpAssetListSystemResponses,
   McpAuthAuthenticateErrors,
   McpAuthAuthenticateResponses,
   McpAuthCallbackErrors,
@@ -3755,6 +3756,36 @@ export class McpAsset extends HeyApiClient {
     )
     return (options?.client ?? this.client).get<McpAssetListResponses, McpAssetListErrors, ThrowOnError>({
       url: "/mcp-asset",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * List system MCP assets
+   *
+   * List MCP assets discovered from system config files.
+   */
+  public listSystem<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<McpAssetListSystemResponses, never, ThrowOnError>({
+      url: "/mcp-asset/system",
       ...options,
       ...params,
     })

@@ -10697,6 +10697,15 @@ export type McpAssetListResponses = {
 
 export type McpAssetListResponse = McpAssetListResponses[keyof McpAssetListResponses]
 
+export type McpAssetListSystemResponses = {
+  /**
+   * System MCP assets
+   */
+  200: Array<McpAssetSummary>
+}
+
+export type McpAssetListSystemResponse = McpAssetListSystemResponses[keyof McpAssetListSystemResponses]
+
 export type McpAssetContentData = {
   body?: never
   path?: never
