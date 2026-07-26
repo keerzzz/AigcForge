@@ -6,6 +6,7 @@ import { SkillAsset as SchemaSkillAsset } from "@aigcfroge/schema/skill-asset"
 import { ConfigMarkdown } from "./config/markdown"
 import { EventV2 } from "./event"
 import { FSUtil } from "./fs-util"
+import { Flag } from "./flag/flag"
 import { KeyedMutex } from "./effect/keyed-mutex"
 import { Location } from "./location"
 import { AssetMigration } from "./asset-migration"
@@ -191,6 +192,7 @@ export const layer = Layer.effect(
 
 /** First-run import of project-local legacy skills (`.claude/skills`, `.agents/skills`). Best-effort: never blocks boot. */
 const migrateLegacy = Effect.fnUntraced(function* (fs: FSUtil.Interface, directory: string, ownerRoot: string) {
+  if (!Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET) return
   yield* AssetMigration.importOnce(fs, {
     ownerRoot,
     files: yield* AssetMigration.legacySkillFiles(fs, directory),

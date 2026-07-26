@@ -1,6 +1,7 @@
 import type { DirectorySDK } from "@/context/sdk"
 import type { AssetKindId } from "@aigcfroge/schema/asset"
 import { AGENTS_DIR, COMMANDS_DIR, MCPS_DIR, PROMPTS_DIR, SKILLS_DIR } from "@aigcfroge/core/constants"
+import type { CandidateInfo } from "./prompt-asset-candidate"
 
 /** kind → owner 目录（apply 后刷新文件树用）。workflow 未开闸，兜底到 PROMPTS_DIR。 */
 export function assetKindDir(kind: AssetKindId) {
@@ -11,17 +12,13 @@ export function assetKindDir(kind: AssetKindId) {
   return PROMPTS_DIR
 }
 
-/**
- * Insert 流程共用：按 kind 调对应 content() API，返回注入 Composer 的文本。
- * 各 kind 的可注入字段不同（prompt=template、skill=content、mcp=configJson、
- * command/agent=markdown source），统一在此分派（M3 计划 §7.2）。
- */
+/** 按 kind 调对应 content API，返回注入 Composer 的文本。 */
 export async function fetchAssetInsertText(client: DirectorySDK["client"], kind: AssetKindId, path: string) {
-  if (kind === "prompt") return (await client.promptAsset.content({ path })).data?.template ?? ""
-  if (kind === "skill") return (await client.skillAsset.content({ path })).data?.content ?? ""
-  if (kind === "mcp") return (await client.mcpAsset.content({ path })).data?.configJson ?? ""
-  if (kind === "command") return (await client.commandAsset.content({ path })).data?.source ?? ""
-  if (kind === "agent") return (await client.agentAsset.content({ path })).data?.source ?? ""
+  if (kind === "prompt") return (await client.promptAsset.content({ path }, { throwOnError: true })).data?.template ?? ""
+  if (kind === "skill") return (await client.skillAsset.content({ path }, { throwOnError: true })).data?.content ?? ""
+  if (kind === "mcp") return (await client.mcpAsset.content({ path }, { throwOnError: true })).data?.configJson ?? ""
+  if (kind === "command") return (await client.commandAsset.content({ path }, { throwOnError: true })).data?.source ?? ""
+  if (kind === "agent") return (await client.agentAsset.content({ path }, { throwOnError: true })).data?.source ?? ""
   return ""
 }
 
@@ -35,44 +32,53 @@ export function parseInsertKind(value: string | undefined): AssetKindId | undefi
   return undefined
 }
 
-/**
- * 右栏候选 apply：按 kind 分派到对应 apply 端点。candidate 字段在
- * normalizeProposeCandidate 阶段已按 kind 校验，此处补 relativePath 统一透传；
- * 5 个端点的 candidate 形状各异，类型边界由 normalize 保证（故 as never 单点收窄）。
- */
+/** 右栏候选 apply：保持 kind 与 candidate 的判别联合，不绕过生成 SDK 类型。 */
 export async function applyAssetCandidate(
   client: DirectorySDK["client"],
-  input: {
-    sessionID: string
-    kind: AssetKindId
-    candidate: Record<string, unknown>
-    relativePath: string
-    baseRevision: string | undefined
-    overwrite: boolean
-  },
+  input: { sessionID: string; candidate: CandidateInfo; overwrite: boolean },
 ) {
-  const body = {
+  const shared = {
     sessionID: input.sessionID,
-    candidate: { ...input.candidate, relativePath: input.relativePath },
-    baseRevision: input.baseRevision,
+    baseRevision: input.candidate.revision ?? undefined,
     overwrite: input.overwrite,
   }
-  const result: { data?: unknown; error?: unknown } = await (() => {
-    if (input.kind === "skill") return client.skillAsset.apply(body as never)
-    if (input.kind === "mcp") return client.mcpAsset.apply(body as never)
-    if (input.kind === "command") return client.commandAsset.apply(body as never)
-    if (input.kind === "agent") return client.agentAsset.apply(body as never)
-    return client.promptAsset.apply(body as never)
-  })()
-  if (result.error) throw new Error(typeof result.error === "string" ? result.error : (result.error as any).message ?? "Apply failed")
-  return result
+  const candidate = input.candidate
+
+  if (candidate.kind === "skill") {
+    return client.skillAsset.apply(
+      { ...shared, candidate: { ...candidate.candidate, relativePath: candidate.relativePath } },
+      { throwOnError: true },
+    )
+  }
+  if (candidate.kind === "mcp") {
+    return client.mcpAsset.apply(
+      { ...shared, candidate: { ...candidate.candidate, relativePath: candidate.relativePath } },
+      { throwOnError: true },
+    )
+  }
+  if (candidate.kind === "command") {
+    return client.commandAsset.apply(
+      { ...shared, candidate: { ...candidate.candidate, relativePath: candidate.relativePath } },
+      { throwOnError: true },
+    )
+  }
+  if (candidate.kind === "agent") {
+    return client.agentAsset.apply(
+      { ...shared, candidate: { ...candidate.candidate, relativePath: candidate.relativePath } },
+      { throwOnError: true },
+    )
+  }
+  return client.promptAsset.apply(
+    { ...shared, candidate: { ...candidate.candidate, relativePath: candidate.relativePath } },
+    { throwOnError: true },
+  )
 }
 
 /** 按 kind 分派 list（右栏 apply 后 refetch 用）。 */
 export async function listAssets(client: DirectorySDK["client"], kind: AssetKindId) {
-  if (kind === "skill") return client.skillAsset.list()
-  if (kind === "mcp") return client.mcpAsset.list()
-  if (kind === "command") return client.commandAsset.list()
-  if (kind === "agent") return client.agentAsset.list()
-  return client.promptAsset.list()
+  if (kind === "skill") return client.skillAsset.list(undefined, { throwOnError: true })
+  if (kind === "mcp") return client.mcpAsset.list(undefined, { throwOnError: true })
+  if (kind === "command") return client.commandAsset.list(undefined, { throwOnError: true })
+  if (kind === "agent") return client.agentAsset.list(undefined, { throwOnError: true })
+  return client.promptAsset.list(undefined, { throwOnError: true })
 }

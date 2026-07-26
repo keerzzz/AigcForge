@@ -195,10 +195,7 @@ export function ChatRightPanel() {
     try {
       await applyAssetCandidate(sdk().client, {
         sessionID: candidate.sessionID,
-        kind: c.kind,
-        candidate: c.candidate,
-        relativePath: c.relativePath,
-        baseRevision: c.revision ?? undefined,
+        candidate: c,
         overwrite: false,
       })
       setApplied()
@@ -217,10 +214,7 @@ export function ChatRightPanel() {
     try {
       await applyAssetCandidate(sdk().client, {
         sessionID: candidate.sessionID,
-        kind: c.kind,
-        candidate: c.candidate,
-        relativePath: c.relativePath,
-        baseRevision: c.revision ?? undefined,
+        candidate: c,
         overwrite: true,
       })
       setApplied()

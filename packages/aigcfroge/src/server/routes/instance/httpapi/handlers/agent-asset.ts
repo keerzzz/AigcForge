@@ -60,6 +60,7 @@ function toDeleteError(err: unknown): Effect.Effect<never, ConflictError | Inval
 export const agentAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "agent-asset", (handlers) =>
   Effect.gen(function* () {
     const locations = yield* LocationServiceMap
+    const flags = yield* RuntimeFlags.Service
 
     const list = Effect.fn("AgentAssetHttpApi.list")(function* (ctx: { query: { search?: string } }) {
       const ctx2 = yield* InstanceState.context
@@ -110,7 +111,6 @@ export const agentAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "agent-a
     const apply = Effect.fn("AgentAssetHttpApi.apply")(function* (ctx: {
       payload: { candidate: SchemaAgentAsset.Candidate; baseRevision?: string; overwrite: boolean }
     }) {
-      const flags = yield* RuntimeFlags.Service
       if (!flags.experimentalChatAsset) return yield* Effect.fail(new InvalidRequestError({ message: "Agent asset creation is not enabled. Set AIGCFROGE_EXPERIMENTAL_CHAT_ASSET=true to enable." }))
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
@@ -136,8 +136,6 @@ export const agentAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "agent-a
     }) {
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
-      const flags = yield* RuntimeFlags.Service
-      if (!flags.experimentalChatAsset) return yield* Effect.fail(new InvalidRequestError({ message: "Agent asset deletion is not enabled." }))
       const service = yield* AgentAssetService.Service.pipe(Effect.provide(layer), Effect.orDie)
       yield* service.delete({
         relativePath: ctx.payload.relativePath,

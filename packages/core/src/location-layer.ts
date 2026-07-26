@@ -68,11 +68,12 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
     )
     const location = Location.layer(ref)
     const systemContext = SystemContextBuiltIns.locationLayer
+    const config = Config.locationLayer
     const agentV2Layer = AgentV2.fileLayer.pipe(Layer.provide(AgentFileLoader.layer))
     const base = Layer.mergeAll(
       location,
       Policy.locationLayer,
-      Config.locationLayer,
+      config,
       Reference.locationLayer,
       PluginV2.locationLayer,
       Catalog.locationLayer,
@@ -87,8 +88,8 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       SkillV2.locationLayer,
       PromptAsset.locationLayer,
       SkillAsset.locationLayer,
-      MCPAsset.locationLayer,
-      CommandAsset.locationLayer,
+      MCPAsset.locationLayer.pipe(Layer.provide(config)),
+      CommandAsset.locationLayer.pipe(Layer.provide(config)),
       AgentAsset.locationLayer,
       systemContext,
       LocationMutation.locationLayer.pipe(Layer.orDie),

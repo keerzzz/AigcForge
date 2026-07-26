@@ -60,6 +60,7 @@ function toDeleteError(err: unknown): Effect.Effect<never, ConflictError | Inval
 export const mcpAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "mcp-asset", (handlers) =>
   Effect.gen(function* () {
     const locations = yield* LocationServiceMap
+    const flags = yield* RuntimeFlags.Service
 
     const list = Effect.fn("MCPAssetHttpApi.list")(function* (ctx: { query: { search?: string } }) {
       const ctx2 = yield* InstanceState.context
@@ -113,7 +114,6 @@ export const mcpAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "mcp-asset
       payload: { candidate: SchemaMCPAsset.Candidate; baseRevision?: string; overwrite: boolean }
     }) {
       const ctx2 = yield* InstanceState.context
-      const flags = yield* RuntimeFlags.Service
       if (!flags.experimentalChatAsset) return yield* Effect.fail(new InvalidRequestError({ message: "MCP asset creation is not enabled. Set AIGCFROGE_EXPERIMENTAL_CHAT_ASSET=true to enable." }))
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const service = yield* MCPAssetService.Service.pipe(Effect.provide(layer), Effect.orDie)
@@ -138,8 +138,6 @@ export const mcpAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "mcp-asset
     const deleteAsset = Effect.fn("MCPAssetHttpApi.delete")(function* (ctx: {
       payload: { relativePath: string; baseRevision?: string }
     }) {
-      const flags = yield* RuntimeFlags.Service
-      if (!flags.experimentalChatAsset) return yield* Effect.fail(new InvalidRequestError({ message: "MCP asset deletion is not enabled." }))
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const service = yield* MCPAssetService.Service.pipe(Effect.provide(layer), Effect.orDie)

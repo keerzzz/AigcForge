@@ -1,15 +1,21 @@
 /** Normalize V1/V2 propose_*_asset tool results into one UI shape. */
 
+import type {
+  AgentAssetCandidate,
+  CommandAssetCandidate,
+  McpAssetCandidate,
+  PromptAssetCandidate,
+  SkillAssetCandidate,
+} from "@aigcfroge/sdk/v2/client"
 import type { AssetKindId } from "@aigcfroge/schema/asset"
 
-export type CandidateInfo = {
-  kind: AssetKindId
+export type SupportedAssetKind = Exclude<AssetKindId, "workflow">
+
+type CandidateBase = {
   name: string
   description: string
   /** 展示/diff 用统一文本（prompt=template、skill=content、mcp=configJson、command/agent=source）。 */
   content: string
-  /** Per-kind apply candidate；字段在此已按 kind 校验，apply 时补 relativePath 透传给对应端点。 */
-  candidate: UnknownRecord
   relativePath: string
   exists: boolean
   revision: string | null
@@ -18,15 +24,25 @@ export type CandidateInfo = {
   status: "valid" | "conflict" | "exists"
 }
 
-const PROPOSE_TOOL_KINDS: Record<string, AssetKindId> = {
+type CandidateByKind =
+  | { kind: "prompt"; candidate: Omit<PromptAssetCandidate, "relativePath"> }
+  | { kind: "skill"; candidate: Omit<SkillAssetCandidate, "relativePath"> }
+  | { kind: "mcp"; candidate: Omit<McpAssetCandidate, "relativePath"> }
+  | { kind: "command"; candidate: Omit<CommandAssetCandidate, "relativePath"> }
+  | { kind: "agent"; candidate: Omit<AgentAssetCandidate, "relativePath"> }
+
+export type CandidateInfo = CandidateBase & CandidateByKind
+
+type UnknownRecord = Record<string, unknown>
+type CandidateDraft = CandidateByKind & Pick<CandidateBase, "name" | "description" | "content">
+
+const PROPOSE_TOOL_KINDS: Record<string, SupportedAssetKind> = {
   propose_prompt_asset: "prompt",
   propose_skill_asset: "skill",
   propose_mcp_asset: "mcp",
   propose_command_asset: "command",
   propose_agent_asset: "agent",
 }
-
-type UnknownRecord = Record<string, unknown>
 
 function isRecord(value: unknown): value is UnknownRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -45,17 +61,13 @@ function booleanField(record: UnknownRecord | undefined, key: string) {
 function stringArrayField(record: UnknownRecord, key: string) {
   const value = record[key]
   if (!Array.isArray(value)) return []
-  return value.filter((v): v is string => typeof v === "string")
+  return value.filter((item): item is string => typeof item === "string")
 }
 
 function stringMapField(record: UnknownRecord, key: string) {
   const value = record[key]
   if (!isRecord(value)) return {}
-  const out: Record<string, string> = {}
-  for (const [k, v] of Object.entries(value)) {
-    if (typeof v === "string") out[k] = v
-  }
-  return out
+  return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"))
 }
 
 function statusFrom(exists: boolean, nameConflict: boolean, pathConflict: boolean): CandidateInfo["status"] {
@@ -64,11 +76,8 @@ function statusFrom(exists: boolean, nameConflict: boolean, pathConflict: boolea
   return "valid"
 }
 
-/** 按 kind 提取 apply candidate + 展示文本；必需字段缺失返回 null（与原 template 缺失行为一致）。 */
-function candidateFromInput(
-  kind: AssetKindId,
-  raw: UnknownRecord,
-): { name: string; description: string; candidate: UnknownRecord; content: string } | null {
+/** 按 kind 提取 apply candidate + 展示文本；必需字段缺失返回 null。 */
+function candidateFromInput(kind: SupportedAssetKind, raw: UnknownRecord): CandidateDraft | null {
   const name = stringField(raw, "name") ?? ""
   const description = stringField(raw, "description") ?? ""
   if (!name) return null
@@ -76,28 +85,33 @@ function candidateFromInput(
   if (kind === "prompt") {
     const template = stringField(raw, "template") ?? ""
     if (!template) return null
-    return { name, description, candidate: { name, description, template }, content: template }
+    return { kind, name, description, candidate: { name, description, template }, content: template }
   }
+
   if (kind === "skill") {
     const content = stringField(raw, "content") ?? ""
     if (!content) return null
     return {
+      kind,
       name,
       description,
       candidate: { name, description, slash: booleanField(raw, "slash") ?? false, content },
       content,
     }
   }
+
   if (kind === "mcp") {
+    const command = stringField(raw, "command") ?? ""
     const configJson = stringField(raw, "configJson") ?? ""
-    if (!configJson) return null
+    if (!command || !configJson) return null
     return {
+      kind,
       name,
       description,
       candidate: {
         name,
         description,
-        command: stringField(raw, "command") ?? "",
+        command,
         args: stringArrayField(raw, "args"),
         env: stringMapField(raw, "env"),
         configJson,
@@ -105,28 +119,25 @@ function candidateFromInput(
       content: configJson,
     }
   }
+
   if (kind === "command") {
+    const invocation = stringField(raw, "invocation") ?? ""
     const source = stringField(raw, "source") ?? ""
-    if (!source) return null
+    if (!invocation || !source) return null
     const args = stringField(raw, "args")
     return {
+      kind,
       name,
       description,
-      candidate: { name, description, invocation: stringField(raw, "invocation") ?? "", ...(args ? { args } : {}), source },
+      candidate: { name, description, invocation, ...(args ? { args } : {}), source },
       content: source,
     }
   }
-  if (kind === "agent") {
-    const source = stringField(raw, "source") ?? ""
-    if (!source) return null
-    return {
-      name,
-      description,
-      candidate: { name, description, config: stringField(raw, "config") ?? "", source },
-      content: source,
-    }
-  }
-  return null
+
+  const config = stringField(raw, "config") ?? ""
+  const source = stringField(raw, "source") ?? ""
+  if (!source) return null
+  return { kind, name, description, candidate: { name, description, config, source }, content: source }
 }
 
 export function normalizeProposeCandidate(input: { tool: string; state: unknown }): CandidateInfo | null {
@@ -149,12 +160,7 @@ export function normalizeProposeCandidate(input: { tool: string; state: unknown 
   const pathConflict = booleanField(result, "pathConflict") ?? output.includes("Path conflict")
   const revision = result?.revision
 
-  return {
-    kind,
-    name: extracted.name,
-    description: extracted.description,
-    content: extracted.content,
-    candidate: extracted.candidate,
+  const common = {
     relativePath: stringField(result ?? rawInput, "relativePath") ?? stringField(rawInput, "relativePath") ?? "",
     exists,
     revision: typeof revision === "string" ? revision : null,
@@ -162,6 +168,34 @@ export function normalizeProposeCandidate(input: { tool: string; state: unknown 
     pathConflict,
     status: statusFrom(exists, nameConflict, pathConflict),
   }
+
+  if (extracted.kind === "prompt") return { ...extracted, ...common }
+  if (extracted.kind === "skill") return { ...extracted, ...common }
+  if (extracted.kind === "mcp") return { ...extracted, ...common }
+  if (extracted.kind === "command") return { ...extracted, ...common }
+  return { ...extracted, ...common }
+}
+
+export function sameCandidateInfo(left: CandidateInfo, right: CandidateInfo) {
+  if (left.kind !== right.kind) return false
+  if (left.name !== right.name || left.description !== right.description || left.content !== right.content) return false
+  if (left.relativePath !== right.relativePath || left.revision !== right.revision || left.status !== right.status) return false
+  if (left.exists !== right.exists || left.nameConflict !== right.nameConflict || left.pathConflict !== right.pathConflict) return false
+
+  if (left.kind === "prompt" && right.kind === "prompt") return left.candidate.template === right.candidate.template
+  if (left.kind === "skill" && right.kind === "skill") return left.candidate.slash === right.candidate.slash
+  if (left.kind === "command" && right.kind === "command") {
+    return left.candidate.invocation === right.candidate.invocation && left.candidate.args === right.candidate.args
+  }
+  if (left.kind === "agent" && right.kind === "agent") return left.candidate.config === right.candidate.config
+  if (left.kind !== "mcp" || right.kind !== "mcp") return false
+  if (left.candidate.command !== right.candidate.command) return false
+  if (left.candidate.args.length !== right.candidate.args.length) return false
+  if (left.candidate.args.some((value, index) => value !== right.candidate.args[index])) return false
+  const leftEnv = Object.entries(left.candidate.env).toSorted(([a], [b]) => a.localeCompare(b))
+  const rightEnv = Object.entries(right.candidate.env).toSorted(([a], [b]) => a.localeCompare(b))
+  if (leftEnv.length !== rightEnv.length) return false
+  return leftEnv.every(([key, value], index) => key === rightEnv[index]?.[0] && value === rightEnv[index]?.[1])
 }
 
 export function findProposeResult(

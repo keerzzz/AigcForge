@@ -13,6 +13,8 @@ export const Parameters = Schema.Struct({
   name: MCPAsset.Name,
   description: MCPAsset.Description,
   command: MCPAsset.Command,
+  args: Schema.Array(Schema.String),
+  env: Schema.Record(Schema.String, Schema.String),
   configJson: MCPAsset.ConfigJson,
 })
 
@@ -36,7 +38,7 @@ export const ProposeMCPAssetV1 = define<typeof Parameters, Metadata, LocationSer
           const directory = yield* InstanceState.directory
           const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(directory) }))
           const service = yield* MCPAssetService.Service.pipe(Effect.provide(layer), Effect.orDie)
-          const candidate = MCPAsset.Candidate.make({ ...params, args: [], env: {}, relativePath: "" })
+          const candidate = MCPAsset.Candidate.make({ ...params, relativePath: "" })
           const result = yield* service.propose(candidate)
           const lines: string[] = []
           if (result.nameConflict) lines.push("Name conflict: choose a different name.")

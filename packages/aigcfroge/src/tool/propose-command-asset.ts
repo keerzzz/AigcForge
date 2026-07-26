@@ -13,6 +13,7 @@ export const Parameters = Schema.Struct({
   name: CommandAsset.Name,
   description: CommandAsset.Description,
   invocation: CommandAsset.Invocation,
+  args: Schema.optional(Schema.String),
   source: CommandAsset.Source,
 })
 
@@ -29,7 +30,7 @@ export const ProposeCommandAssetV1 = define<typeof Parameters, Metadata, Locatio
   Effect.gen(function* () {
     const locations = yield* LocationServiceMap
     return {
-      description: `Propose a new command asset. Validates the candidate and checks for conflicts. Does not write to disk. Parameters: name, description, invocation, source.`,
+      description: `Propose a new command asset. Validates the candidate and checks for conflicts. Does not write to disk. Parameters: name, description, invocation, optional args, source.`,
       parameters: Parameters,
       execute: (params) =>
         Effect.gen(function* () {

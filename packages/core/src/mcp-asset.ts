@@ -3,11 +3,15 @@ export * as MCPAsset from "./mcp-asset"
 import { Context, Effect, Layer, Option, Schema, Scope, Stream } from "effect"
 import path from "path"
 import { MCPAsset as SchemaMCPAsset } from "@aigcfroge/schema/mcp-asset"
+import { AssetMigration } from "./asset-migration"
+import { Config } from "./config"
 import { ConfigMarkdown } from "./config/markdown"
 import { EventV2 } from "./event"
 import { FSUtil } from "./fs-util"
+import { Flag } from "./flag/flag"
 import { KeyedMutex } from "./effect/keyed-mutex"
 import { Location } from "./location"
+import { MCPAssetPath } from "./mcp-asset/path"
 import { Hash } from "./util/hash"
 import { Watcher } from "./filesystem/watcher"
 import { MCPS_DIR } from "./constants"
@@ -116,6 +120,7 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const fs = yield* FSUtil.Service
+    const config = yield* Effect.serviceOption(Config.Service)
     const location = yield* Location.Service
 
     const ownerRoot = path.resolve(location.directory, MCPS_DIR)
@@ -179,6 +184,13 @@ export const layer = Layer.effect(
         )
     }
 
+    if (Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET && Option.isSome(config)) {
+      yield* AssetMigration.importEntriesOnce(fs, {
+        ownerRoot,
+        entries: AssetMigration.mcpConfigEntries(yield* config.value.entries(), location.project.directory),
+        isValidName: MCPAssetPath.isValidSegment,
+      }).pipe(Effect.catch((error) => Effect.logWarning("legacy mcp migration failed", { error })))
+    }
     yield* reload().pipe(Effect.orDie)
 
     return Service.of({ list, getByPath, findByName, listInvalid, getInvalid, reload })

@@ -3,11 +3,15 @@ export * as CommandAsset from "./command-asset"
 import { Context, Effect, Layer, Option, Schema, Scope, Stream } from "effect"
 import path from "path"
 import { CommandAsset as SchemaCommandAsset } from "@aigcfroge/schema/command-asset"
+import { AssetMigration } from "./asset-migration"
+import { Config } from "./config"
 import { ConfigMarkdown } from "./config/markdown"
 import { EventV2 } from "./event"
 import { FSUtil } from "./fs-util"
+import { Flag } from "./flag/flag"
 import { KeyedMutex } from "./effect/keyed-mutex"
 import { Location } from "./location"
+import { CommandAssetPath } from "./command-asset/path"
 import { Hash } from "./util/hash"
 import { Watcher } from "./filesystem/watcher"
 import { COMMANDS_DIR } from "./constants"
@@ -72,12 +76,26 @@ function loadDir(
       }
 
       let frontmatter: SchemaCommandAsset.Frontmatter
+      let source = parsed.content
       try {
         frontmatter = Schema.decodeUnknownSync(SchemaCommandAsset.Frontmatter)(parsed.data)
       } catch {
-        invalid.set(relativePath, { relativePath, errorTag: "bad_frontmatter" })
-        yield* Effect.logWarning("Skipping invalid command asset", { relativePath, errorTag: "bad_frontmatter" })
-        continue
+        // `.aigcfroge/commands` was a V1 command source before it became the
+        // asset owner. Read legacy entries until an explicit migration rewrites them.
+        if (parsed.data.kind !== undefined) {
+          invalid.set(relativePath, { relativePath, errorTag: "bad_frontmatter" })
+          yield* Effect.logWarning("Skipping invalid command asset", { relativePath, errorTag: "bad_frontmatter" })
+          continue
+        }
+        const legacy = AssetMigration.commandEntry(text, relativePath.replace(/\.md$/, ""))
+        const migrated = legacy && ConfigMarkdown.parseOption(legacy.file)
+        if (!migrated) {
+          invalid.set(relativePath, { relativePath, errorTag: "bad_frontmatter" })
+          yield* Effect.logWarning("Skipping invalid command asset", { relativePath, errorTag: "bad_frontmatter" })
+          continue
+        }
+        frontmatter = Schema.decodeUnknownSync(SchemaCommandAsset.Frontmatter)(migrated.data)
+        source = migrated.content
       }
 
       const revision = Hash.sha256(Buffer.from(raw))
@@ -101,7 +119,7 @@ function loadDir(
         relativePath,
         invocation: frontmatter.invocation,
         args: frontmatter.args,
-        source: frontmatter.source || parsed.content,
+        source: frontmatter.source || source,
         revision,
       })
     }
@@ -114,6 +132,7 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const fs = yield* FSUtil.Service
+    const config = yield* Effect.serviceOption(Config.Service)
     const location = yield* Location.Service
 
     const ownerRoot = path.resolve(location.directory, COMMANDS_DIR)
@@ -177,6 +196,20 @@ export const layer = Layer.effect(
         )
     }
 
+    if (Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET && Option.isSome(config)) {
+      yield* Effect.gen(function* () {
+        const files = yield* AssetMigration.legacyCommandFiles(fs, location.directory)
+        yield* AssetMigration.importEntriesOnce(fs, {
+          ownerRoot,
+          marker: path.resolve(location.directory, ".aigcfroge/.command-asset-migration-v1"),
+          entries: [
+            ...AssetMigration.commandConfigEntries(yield* config.value.entries(), location.project.directory),
+            ...(yield* AssetMigration.entriesFromFiles(fs, files, AssetMigration.commandEntry)),
+          ],
+          isValidName: (name) => name.split("/").every(CommandAssetPath.isValidSegment),
+        })
+      }).pipe(Effect.catch((error) => Effect.logWarning("legacy command migration failed", { error })))
+    }
     yield* reload().pipe(Effect.orDie)
 
     return Service.of({ list, getByPath, findByName, listInvalid, getInvalid, reload })
