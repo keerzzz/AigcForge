@@ -8,6 +8,8 @@ import { Config } from "@/config/config"
 import { MCP } from "../mcp"
 import { Skill } from "../skill"
 import { EventV2 } from "@aigcfroge/core/event"
+import { FSUtil } from "@aigcfroge/core/fs-util"
+import { discover } from "./discover"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
 
@@ -69,6 +71,7 @@ export const layer = Layer.effect(
     const config = yield* Config.Service
     const mcp = yield* MCP.Service
     const skill = yield* Skill.Service
+    const fs = yield* FSUtil.Service
 
     const init = Effect.fn("Command.state")(function* (ctx: InstanceContext) {
       const cfg = yield* config.get()
@@ -152,6 +155,13 @@ export const layer = Layer.effect(
         }
       }
 
+      // Bridge：跨工具命令发现（M4）。扫描 ~/.claude/skills/ 等系统目录，同名项目级优先。
+      const discovered = yield* discover(fs)
+      for (const { commandName, info } of discovered) {
+        if (commands[commandName]) continue
+        commands[commandName] = info
+      }
+
       return {
         commands,
       }
@@ -179,6 +189,6 @@ export const defaultLayer = layer.pipe(
   Layer.provide(Skill.defaultLayer),
 )
 
-export const node = LayerNode.make(layer, [Config.node, MCP.node, Skill.node])
+export const node = LayerNode.make(layer, [Config.node, MCP.node, Skill.node, FSUtil.node])
 
 export * as Command from "."
