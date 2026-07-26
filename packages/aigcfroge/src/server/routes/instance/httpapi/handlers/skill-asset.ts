@@ -94,7 +94,7 @@ export const skillAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "skill-a
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const registry = yield* SkillAsset.Service.pipe(Effect.provide(layer), Effect.orDie)
-      const all = yield* registry.listSystem()
+      const all = yield* registry.listSystem().pipe(Effect.catchAll(() => Effect.succeed([])))
       return all.map((a) =>
         Schema.decodeUnknownSync(SchemaSkillAsset.Summary)({
           kind: "skill",
