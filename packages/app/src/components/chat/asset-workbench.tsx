@@ -200,7 +200,7 @@ export function AssetWorkbenchTable(props: {
         <label class="relative flex items-center">
           <IconV2 name="magnifying-glass" class="text-v2-icon-icon-muted" />
           <input
-            class="ml-1 h-7 w-48 rounded-[6px] bg-v2-background-bg-layer-03 px-2 text-v2-text-text-base outline-0 placeholder:text-v2-text-text-faint"
+            class="ml-1 h-7 w-48 rounded-[6px] bg-v2-background-bg-layer-03 pr-6 pl-2 text-v2-text-text-base outline-0 placeholder:text-v2-text-text-faint"
             placeholder={language.t("asset.list.searchPlaceholder", { kind: kindLabel() })}
             aria-label={language.t("asset.list.searchPlaceholder", { kind: kindLabel() })}
             value={store.state.search}
@@ -209,7 +209,7 @@ export function AssetWorkbenchTable(props: {
           <Show when={store.state.search.length > 0}>
             <button
               type="button"
-              class="ml-0.5 flex size-4 shrink-0 items-center justify-center rounded-[3px] text-v2-icon-icon-muted hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+              class="absolute right-1 top-1/2 -translate-y-1/2 flex size-4 items-center justify-center rounded-[3px] text-v2-icon-icon-muted hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
               onClick={() => store.setSearch("")}
               aria-label={language.t("common.clear")}
             >
