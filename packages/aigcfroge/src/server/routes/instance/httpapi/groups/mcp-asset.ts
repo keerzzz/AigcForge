@@ -41,7 +41,6 @@ export const DeletePayload = Schema.Struct({
 
 export const MCPAssetPaths = {
   list: root,
-  listSystem: `${root}/system`,
   content: `${root}/content`,
   apply: `${sessionRoot}/apply`,
   delete: `${sessionRoot}/delete`,
@@ -58,15 +57,6 @@ export const MCPAssetApi = HttpApi.make("mcp-asset").add(
           identifier: "mcp-asset.list",
           summary: "List mcp assets",
           description: "List all mcp assets for the current Location, including invalid (skipped) entries.",
-        }),
-      ),
-      HttpApiEndpoint.get("listSystem", MCPAssetPaths.listSystem, {
-        success: described(Schema.Array(MCPAsset.Summary), "System MCP assets"),
-      }).annotateMerge(
-        OpenApi.annotations({
-          identifier: "mcp-asset.listSystem",
-          summary: "List system MCP assets",
-          description: "List MCP assets discovered from system config files (.config/Code/User/mcp.json, etc.).",
         }),
       ),
       HttpApiEndpoint.get("content", MCPAssetPaths.content, {
