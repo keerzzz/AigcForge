@@ -84,9 +84,39 @@ describe("normalizeProposeCandidate", () => {
   })
 
   test("rejects unknown tools and missing per-kind content", () => {
+    expect(normalizeProposeCandidate({ tool: "propose_workflow_asset", state: { input: { name: "w", description: "d", content: "steps: []" }, structured: { relativePath: "w.yaml", exists: false } } })).toMatchObject({
+      kind: "workflow", name: "w", content: "steps: []",
+    })
+    // Missing content still returns null
     expect(normalizeProposeCandidate({ tool: "propose_workflow_asset", state: { input: { name: "w" } } })).toBeNull()
+    // Unknown tool returns null
     expect(normalizeProposeCandidate({ tool: "propose_skill_asset", state: { input: { name: "s" } } })).toBeNull()
     expect(normalizeProposeCandidate({ tool: "propose_mcp_asset", state: { input: { name: "m" } } })).toBeNull()
+  })
+
+  test("normalizes workflow and plugin propose candidates", () => {
+    const wf = normalizeProposeCandidate({
+      tool: "propose_workflow_asset",
+      state: {
+        input: { name: "wf1", description: "test wf", content: "name: wf1\ntriggers: []\nsteps:\n  - run: echo" },
+        structured: { relativePath: ".aigcfroge/workflows/wf1.yaml", exists: false },
+      },
+    })
+    expect(wf).not.toBeNull()
+    expect(wf!.kind).toBe("workflow")
+    expect(wf!.name).toBe("wf1")
+    expect(wf!.content).toContain("triggers")
+
+    const pl = normalizeProposeCandidate({
+      tool: "propose_plugin_asset",
+      state: {
+        input: { name: "pl1", description: "test pl", content: "name: pl1\nversion: 1.0.0\nhooks: []" },
+        structured: { relativePath: ".aigcfroge/plugins/pl1.plugin.yaml", exists: false },
+      },
+    })
+    expect(pl).not.toBeNull()
+    expect(pl!.kind).toBe("plugin")
+    expect(pl!.name).toBe("pl1")
   })
 
   test("rejects malformed tool state", () => {

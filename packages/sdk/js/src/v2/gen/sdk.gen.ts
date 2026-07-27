@@ -155,8 +155,12 @@ import type {
   PermissionRespondResponses,
   PermissionRuleset,
   PermissionV2Reply,
+  PluginAssetApplyErrors,
+  PluginAssetApplyResponses,
   PluginAssetContentErrors,
   PluginAssetContentResponses,
+  PluginAssetDeleteErrors,
+  PluginAssetDeleteResponses,
   PluginAssetListErrors,
   PluginAssetListResponses,
   ProductMode,
@@ -445,8 +449,12 @@ import type {
   VcsStatusResponses,
   VcsUnstageErrors,
   VcsUnstageResponses,
+  WorkflowAssetApplyErrors,
+  WorkflowAssetApplyResponses,
   WorkflowAssetContentErrors,
   WorkflowAssetContentResponses,
+  WorkflowAssetDeleteErrors,
+  WorkflowAssetDeleteResponses,
   WorkflowAssetListErrors,
   WorkflowAssetListResponses,
   WorktreeCreateErrors,
@@ -4222,6 +4230,96 @@ export class WorkflowAsset extends HeyApiClient {
       ...params,
     })
   }
+
+  /**
+   * Apply workflow asset
+   *
+   * Apply a proposed workflow asset candidate, persisting it to disk.
+   */
+  public apply<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      candidate?: {
+        name: string
+        description: string
+        content: string
+      }
+      baseRevision?: string
+      overwrite?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "candidate" },
+            { in: "body", key: "baseRevision" },
+            { in: "body", key: "overwrite" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WorkflowAssetApplyResponses, WorkflowAssetApplyErrors, ThrowOnError>({
+      url: "/session/{sessionID}/workflow-asset/apply",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete workflow asset
+   *
+   * Delete a workflow asset by relative path with baseRevision CAS.
+   */
+  public delete<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      relativePath?: string
+      baseRevision?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "relativePath" },
+            { in: "body", key: "baseRevision" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WorkflowAssetDeleteResponses, WorkflowAssetDeleteErrors, ThrowOnError>(
+      {
+        url: "/session/{sessionID}/workflow-asset/delete",
+        ...options,
+        ...params,
+        headers: {
+          "Content-Type": "application/json",
+          ...options?.headers,
+          ...params.headers,
+        },
+      },
+    )
+  }
 }
 
 export class PluginAsset extends HeyApiClient {
@@ -4286,6 +4384,94 @@ export class PluginAsset extends HeyApiClient {
       url: "/plugin-asset/content",
       ...options,
       ...params,
+    })
+  }
+
+  /**
+   * Apply plugin asset
+   *
+   * Apply a proposed plugin asset candidate, persisting it to disk.
+   */
+  public apply<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      candidate?: {
+        name: string
+        description: string
+        content: string
+      }
+      baseRevision?: string
+      overwrite?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "candidate" },
+            { in: "body", key: "baseRevision" },
+            { in: "body", key: "overwrite" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<PluginAssetApplyResponses, PluginAssetApplyErrors, ThrowOnError>({
+      url: "/session/{sessionID}/plugin-asset/apply",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete plugin asset
+   *
+   * Delete a plugin asset by relative path with baseRevision CAS.
+   */
+  public delete<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      relativePath?: string
+      baseRevision?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "relativePath" },
+            { in: "body", key: "baseRevision" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<PluginAssetDeleteResponses, PluginAssetDeleteErrors, ThrowOnError>({
+      url: "/session/{sessionID}/plugin-asset/delete",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
     })
   }
 }

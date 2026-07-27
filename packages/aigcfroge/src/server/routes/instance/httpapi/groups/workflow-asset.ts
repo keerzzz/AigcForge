@@ -5,11 +5,13 @@ import { HttpApi, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable
 import { WorkspaceRoutingMiddleware, WorkspaceRoutingQueryFields } from "../middleware/workspace-routing"
 import { described } from "./metadata"
 import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
-import { InvalidRequestError } from "../errors"
+import { ConflictError, InvalidRequestError } from "../errors"
 import { Authorization } from "../middleware/authorization"
 import { InstanceContextMiddleware } from "../middleware/instance-context"
+import { SessionID } from "@/session/schema"
 
 const root = "/workflow-asset"
+const sessionRoot = "/session/:sessionID/workflow-asset"
 
 export const ListQuery = Schema.Struct({
   ...WorkspaceRoutingQueryFields,
@@ -26,9 +28,26 @@ export const ContentQuery = Schema.Struct({
   path: Schema.String,
 })
 
+export const ApplyPayload = Schema.Struct({
+  candidate: Schema.Struct({
+    name: Schema.String,
+    description: Schema.String,
+    content: Schema.String,
+  }),
+  baseRevision: Schema.optional(Schema.String),
+  overwrite: Schema.Boolean,
+})
+
+export const DeletePayload = Schema.Struct({
+  relativePath: Schema.String,
+  baseRevision: Schema.optional(Schema.String),
+})
+
 export const WorkflowAssetPaths = {
   list: root,
   content: `${root}/content`,
+  apply: `${sessionRoot}/apply`,
+  delete: `${sessionRoot}/delete`,
 } as const
 
 export const WorkflowAssetApi = HttpApi.make("workflow-asset").add(
@@ -53,6 +72,32 @@ export const WorkflowAssetApi = HttpApi.make("workflow-asset").add(
           identifier: "workflow-asset.content",
           summary: "Get workflow asset content",
           description: "Get the full content of a workflow asset by path.",
+        }),
+      ),
+      HttpApiEndpoint.post("apply", WorkflowAssetPaths.apply, {
+        params: { sessionID: SessionID },
+        query: Schema.Struct(WorkspaceRoutingQueryFields),
+        payload: ApplyPayload,
+        success: described(WorkflowAsset.Info, "Applied workflow asset"),
+        error: [InvalidRequestError, ConflictError],
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "workflow-asset.apply",
+          summary: "Apply workflow asset",
+          description: "Apply a proposed workflow asset candidate, persisting it to disk.",
+        }),
+      ),
+      HttpApiEndpoint.post("delete", WorkflowAssetPaths.delete, {
+        params: { sessionID: SessionID },
+        query: Schema.Struct(WorkspaceRoutingQueryFields),
+        payload: DeletePayload,
+        success: described(Schema.Void, "Deleted"),
+        error: [InvalidRequestError, ConflictError],
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "workflow-asset.delete",
+          summary: "Delete workflow asset",
+          description: "Delete a workflow asset by relative path with baseRevision CAS.",
         }),
       ),
     )

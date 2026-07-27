@@ -19,6 +19,8 @@ import { ProposeSkillAssetTool } from "./propose-skill-asset"
 import { ProposeMCPAssetTool } from "./propose-mcp-asset"
 import { ProposeCommandAssetTool } from "./propose-command-asset"
 import { ProposeAgentAssetTool } from "./propose-agent-asset"
+import { ProposeWorkflowAssetTool } from "./propose-workflow-asset"
+import { ProposePluginAssetTool } from "./propose-plugin-asset"
 import { WriteTool } from "./write"
 
 /**
@@ -53,4 +55,6 @@ export const locationLayer = Layer.mergeAll(
   ProposeMCPAssetTool.layer,
   ProposeCommandAssetTool.layer,
   ProposeAgentAssetTool.layer,
+  ProposeWorkflowAssetTool.layer,
+  ProposePluginAssetTool.layer,
 )

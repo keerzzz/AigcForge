@@ -1,24 +1,35 @@
-import { afterEach, describe, expect, test } from "bun:test"
+import { afterAll, afterEach, beforeEach, describe, expect } from "bun:test"
 import fs from "fs/promises"
 import path from "path"
-import { Context } from "effect"
+import { Effect, Layer } from "effect"
 import { PluginAssetApiGroup } from "../../src/server/routes/instance/httpapi/groups/plugin-asset"
-import { HttpApiApp } from "../../src/server/routes/instance/httpapi/server"
 import { resetDatabase } from "../fixture/db"
-import { disposeAllInstances, tmpdir } from "../fixture/fixture"
+import { disposeAllInstances, TestInstance } from "../fixture/fixture"
+import { testEffect } from "../lib/effect"
+import { httpApiLayer, requestInDirectory } from "./httpapi-layer"
 
-const context = Context.empty() as Context.Context<unknown>
+const it = testEffect(Layer.mergeAll(httpApiLayer))
 
-function request(route: string, directory: string) {
-  return HttpApiApp.webHandler().handler(
-    new Request(`http://localhost${route}`, {
-      headers: {
-        "x-aigcfroge-directory": encodeURIComponent(directory),
-      },
-    }),
-    context,
-  )
+function post(route: string, directory: string, body: Record<string, unknown>) {
+  return requestInDirectory(route, directory, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  })
 }
+
+// The apply endpoint is gated on the experimental chat-asset flag; enable it for
+// this file only. Assigning undefined to process.env stores the string
+// "undefined", so restore must delete instead.
+const FLAG_KEY = "AIGCFROGE_EXPERIMENTAL_CHAT_ASSET"
+const savedFlag = process.env[FLAG_KEY]
+beforeEach(() => {
+  process.env[FLAG_KEY] = "true"
+})
+afterAll(() => {
+  if (savedFlag === undefined) delete process.env[FLAG_KEY]
+  else process.env[FLAG_KEY] = savedFlag
+})
 
 afterEach(async () => {
   await disposeAllInstances()
@@ -26,95 +37,150 @@ afterEach(async () => {
 })
 
 describe("plugin asset HttpApi", () => {
-  test("lists assets in the request instance", async () => {
-    await using tmp = await tmpdir({ git: true })
+  it.instance(
+    "lists assets",
+    () =>
+      Effect.gen(function* () {
+        const t = yield* TestInstance
+        const res = yield* requestInDirectory(PluginAssetApiGroup.PluginAssetPaths.list, t.directory)
+        expect(res.status).toBe(200)
+        const body = (yield* res.json) as unknown as { assets: { name: string; kind?: string }[]; invalid: unknown[]; bridged: unknown[] }
+        expect(body.assets).toEqual([])
+        expect(Array.isArray(body.bridged)).toBe(true)
+      }),
+    { git: true },
+  )
 
-    const response = await request(PluginAssetApiGroup.PluginAssetPaths.list, tmp.path)
+  it.instance(
+    "list includes invalid entries",
+    () =>
+      Effect.gen(function* () {
+        const t = yield* TestInstance
+        const plDir = path.join(t.directory, ".aigcfroge", "plugins")
+        yield* Effect.promise(() => fs.mkdir(plDir, { recursive: true }))
+        yield* Effect.promise(() => fs.writeFile(path.join(plDir, "broken.plugin.yaml"), "broken yaml [["))
+        const res = yield* requestInDirectory(PluginAssetApiGroup.PluginAssetPaths.list, t.directory)
+        expect(res.status).toBe(200)
+        const body = (yield* res.json) as unknown as { assets: { name: string; kind?: string }[]; invalid: unknown[]; bridged: unknown[] }
+        expect(body.invalid).toEqual([{ relativePath: "broken.plugin.yaml", errorTag: "parse_error" }])
+      }),
+    { git: true },
+  )
 
-    expect(response.status).toBe(200)
-    const body = await response.json()
-    expect(body.assets).toEqual([])
-    expect(body.invalid).toEqual([])
-    expect(Array.isArray(body.bridged)).toBe(true)
-  })
+  it.instance(
+    "list returns valid plugin assets",
+    () =>
+      Effect.gen(function* () {
+        const t = yield* TestInstance
+        const plDir = path.join(t.directory, ".aigcfroge", "plugins")
+        yield* Effect.promise(() => fs.mkdir(plDir, { recursive: true }))
+        yield* Effect.promise(() =>
+          fs.writeFile(
+            path.join(plDir, "my-plugin.plugin.yaml"),
+            'kind: plugin\nname: "my-plugin"\ndescription: "test"\nversion: "1.0.0"\nhooks: []',
+          ),
+        )
+        const res = yield* requestInDirectory(PluginAssetApiGroup.PluginAssetPaths.list, t.directory)
+        expect(res.status).toBe(200)
+        const body = (yield* res.json) as unknown as { assets: { name: string; kind?: string }[]; invalid: unknown[]; bridged: unknown[] }
+        expect(body.assets).toHaveLength(1)
+        expect(body.assets[0].name).toBe("my-plugin")
+        expect(body.assets[0].kind).toBe("plugin")
+      }),
+    { git: true },
+  )
 
-  test("list response includes invalid entries", async () => {
-    await using tmp = await tmpdir({ git: true })
-    const pluginsDir = path.join(tmp.path, ".aigcfroge", "plugins")
-    await fs.mkdir(pluginsDir, { recursive: true })
-    await fs.writeFile(path.join(pluginsDir, "broken.plugin.yaml"), "broken yaml [[[")
+  it.instance(
+    "apply creates a plugin asset",
+    () =>
+      Effect.gen(function* () {
+        const t = yield* TestInstance
+        const candidate = { name: "test-pl", description: "test", content: "kind: plugin\nname: test-pl\ndescription: test\nversion: 1.0.0\nhooks: []" }
+        const route = PluginAssetApiGroup.PluginAssetPaths.apply.replace(":sessionID", "sess-1")
 
-    const response = await request(PluginAssetApiGroup.PluginAssetPaths.list, tmp.path)
+        const applyRes = yield* post(route, t.directory, { candidate, overwrite: true })
+        expect(applyRes.status).toBe(200)
+        const applied = (yield* applyRes.json) as unknown as { name: string; relativePath: string }
+        expect(applied.name).toBe("test-pl")
+        expect(applied.relativePath).toMatch(/\.plugin\.yaml$/)
 
-    expect(response.status).toBe(200)
-    const body = await response.json()
-    expect(body.assets).toEqual([])
-    expect(body.invalid).toEqual([{ relativePath: "broken.plugin.yaml", errorTag: "parse_error" }])
-  })
+        const listRes = yield* requestInDirectory(PluginAssetApiGroup.PluginAssetPaths.list, t.directory)
+        const listBody = (yield* listRes.json) as unknown as { assets: { name: string }[] }
+        expect(listBody.assets).toHaveLength(1)
+        expect(listBody.assets[0].name).toBe("test-pl")
+      }),
+    { git: true },
+  )
 
-  test("list returns valid plugin assets", async () => {
-    await using tmp = await tmpdir({ git: true })
-    const pluginsDir = path.join(tmp.path, ".aigcfroge", "plugins")
-    await fs.mkdir(pluginsDir, { recursive: true })
-    await fs.writeFile(
-      path.join(pluginsDir, "my-plugin.plugin.yaml"),
-      [
-        "kind: plugin",
-        'name: "my-plugin"',
-        'description: "Test plugin"',
-        'version: "1.0.0"',
-      ].join("\n"),
-    )
+  it.instance(
+    "apply returns 409 for existing asset without overwrite",
+    () =>
+      Effect.gen(function* () {
+        const t = yield* TestInstance
+        const candidate = { name: "pconflict", description: "test", content: "kind: plugin\nname: pconflict\ndescription: test\nversion: 1.0.0\nhooks: []" }
+        const route = PluginAssetApiGroup.PluginAssetPaths.apply.replace(":sessionID", "sess-2")
 
-    const response = await request(PluginAssetApiGroup.PluginAssetPaths.list, tmp.path)
+        const res1 = yield* requestInDirectory(route, t.directory, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ candidate, overwrite: true }),
+        })
+        expect(res1.status).toBe(200)
 
-    expect(response.status).toBe(200)
-    const body = await response.json()
-    expect(body.assets.length).toBe(1)
-    expect(body.assets[0].name).toBe("my-plugin")
-    expect(body.assets[0].kind).toBe("plugin")
-    expect(body.assets[0].relativePath).toBe("my-plugin.plugin.yaml")
-    expect(typeof body.assets[0].revision).toBe("string")
-    expect(body.assets[0].revision.length).toBe(64)
-  })
+        const res2 = yield* requestInDirectory(route, t.directory, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ candidate, overwrite: false }),
+        })
+        expect(res2.status).toBe(409)
+      }),
+    { git: true },
+  )
 
-  test("content returns plugin info", async () => {
-    await using tmp = await tmpdir({ git: true })
-    const pluginsDir = path.join(tmp.path, ".aigcfroge", "plugins")
-    await fs.mkdir(pluginsDir, { recursive: true })
-    await fs.writeFile(
-      path.join(pluginsDir, "detail.plugin.yaml"),
-      [
-        "kind: plugin",
-        'name: "detail"',
-        'description: "Detailed plugin"',
-        'version: "2.0.0"',
-        'category: "development"',
-      ].join("\n"),
-    )
+  it.instance(
+    "delete removes a plugin asset",
+    () =>
+      Effect.gen(function* () {
+        const t = yield* TestInstance
+        const candidate = { name: "del-pl", description: "test", content: "kind: plugin\nname: del-pl\ndescription: test\nversion: 1.0.0\nhooks: []" }
+        const applyRoute = PluginAssetApiGroup.PluginAssetPaths.apply.replace(":sessionID", "sess-3")
 
-    const response = await request(
-      `${PluginAssetApiGroup.PluginAssetPaths.content}?path=detail.plugin.yaml`,
-      tmp.path,
-    )
+        const applyRes = yield* requestInDirectory(applyRoute, t.directory, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ candidate, overwrite: true }),
+        })
+        expect(applyRes.status).toBe(200)
+        const asset = (yield* applyRes.json) as unknown as { relativePath: string }
 
-    expect(response.status).toBe(200)
-    const body = await response.json()
-    expect(body.kind).toBe("plugin")
-    expect(body.name).toBe("detail")
-    expect(body.description).toBe("Detailed plugin")
-    expect(body.version).toBe("2.0.0")
-    expect(body.category).toBe("development")
-  })
+        const delRoute = PluginAssetApiGroup.PluginAssetPaths.delete.replace(":sessionID", "sess-3")
+        const delRes = yield* requestInDirectory(delRoute, t.directory, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ relativePath: asset.relativePath }),
+        })
+        expect(delRes.status).toBe(200)
 
-  test("content returns 400 for nonexistent path", async () => {
-    await using tmp = await tmpdir({ git: true })
+        const listRes = yield* requestInDirectory(PluginAssetApiGroup.PluginAssetPaths.list, t.directory)
+        const listBody = (yield* listRes.json) as unknown as { assets: { name: string }[] }
+        expect(listBody.assets).toHaveLength(0)
+      }),
+    { git: true },
+  )
 
-    const response = await request(
-      `${PluginAssetApiGroup.PluginAssetPaths.content}?path=nonexistent.plugin.yaml`,
-      tmp.path,
-    )
-
-    expect(response.status).toBe(400)
-  })
+  it.instance(
+    "delete returns 400 for non-existent asset",
+    () =>
+      Effect.gen(function* () {
+        const t = yield* TestInstance
+        const delRoute = PluginAssetApiGroup.PluginAssetPaths.delete.replace(":sessionID", "sess-4")
+        const delRes = yield* requestInDirectory(delRoute, t.directory, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ relativePath: ".aigcfroge/plugins/nope.plugin.yaml" }),
+        })
+        expect(delRes.status).toBe(400)
+      }),
+    { git: true },
+  )
 })

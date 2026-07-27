@@ -30,6 +30,8 @@ type CandidateByKind =
   | { kind: "mcp"; candidate: Omit<McpAssetCandidate, "relativePath"> }
   | { kind: "command"; candidate: Omit<CommandAssetCandidate, "relativePath"> }
   | { kind: "agent"; candidate: Omit<AgentAssetCandidate, "relativePath"> }
+  | { kind: "workflow"; candidate: { name: string; description: string; content: string } }
+  | { kind: "plugin"; candidate: { name: string; description: string; content: string } }
 
 export type CandidateInfo = CandidateBase & CandidateByKind
 
@@ -42,6 +44,8 @@ const PROPOSE_TOOL_KINDS: Record<string, SupportedAssetKind> = {
   propose_mcp_asset: "mcp",
   propose_command_asset: "command",
   propose_agent_asset: "agent",
+  propose_workflow_asset: "workflow",
+  propose_plugin_asset: "plugin",
 }
 
 function isRecord(value: unknown): value is UnknownRecord {
@@ -82,7 +86,17 @@ function candidateFromInput(kind: SupportedAssetKind, raw: UnknownRecord): Candi
   const description = stringField(raw, "description") ?? ""
   if (!name) return null
 
-  if (kind === "workflow") return null
+  if (kind === "workflow") {
+    const content = stringField(raw, "content") ?? ""
+    if (!content) return null
+    return { kind, name, description, candidate: { name, description, content }, content }
+  }
+
+  if (kind === "plugin") {
+    const content = stringField(raw, "content") ?? ""
+    if (!content) return null
+    return { kind, name, description, candidate: { name, description, content }, content }
+  }
 
   if (kind === "prompt") {
     const template = stringField(raw, "template") ?? ""
@@ -143,8 +157,6 @@ function candidateFromInput(kind: SupportedAssetKind, raw: UnknownRecord): Candi
     }
   }
 
-  if (kind === "plugin") return null
-
   const config = stringField(raw, "config") ?? ""
   const source = stringField(raw, "source") ?? ""
   if (!source) return null
@@ -203,6 +215,8 @@ export function sameCandidateInfo(left: CandidateInfo, right: CandidateInfo) {
     return left.candidate.invocation === right.candidate.invocation && left.candidate.args === right.candidate.args
   }
   if (left.kind === "agent" && right.kind === "agent") return left.candidate.config === right.candidate.config
+  if (left.kind === "workflow" && right.kind === "workflow") return left.content === right.content
+  if (left.kind === "plugin" && right.kind === "plugin") return left.content === right.content
   if (left.kind !== "mcp" || right.kind !== "mcp") return false
   if (left.candidate.command !== right.candidate.command) return false
   if (left.candidate.args.length !== right.candidate.args.length) return false

@@ -63,6 +63,8 @@ import { useChatFeature } from "@/context/chat-feature"
 import type { DirectorySDK } from "@/context/sdk"
 import { AssetWorkbench } from "@/components/chat/asset-workbench"
 import { AssetSessionSelector } from "@/components/chat/asset-session-selector"
+import { ChatImportDialog } from "@/components/chat/chat-import-dialog"
+import { AssetDeleteDialog } from "@/components/chat/asset-delete-dialog"
 
 const HOME_SESSION_LIMIT = 64
 const HOME_ROW_LAYOUT =
@@ -341,7 +343,7 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
     }
     setChatDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
   })
-  const [chatAssetList] = createResource(chatDirSdk, async (sdk) => {
+  const [chatAssetList, { refetch: refetchAssets }] = createResource(chatDirSdk, async (sdk) => {
     const [promptsRes, skillsRes, mcpsRes, cmdsRes, agentsRes, workflowsRes, pluginsRes] = await Promise.all([
       sdk.client.promptAsset.list(),
       sdk.client.skillAsset.list(),
@@ -482,6 +484,87 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
     openProjectNewSessionFn(conn, directory)
   }
 
+  /** AssetWorkbenchTable "新建"按钮回调：创建 chat Draft + 种子提示词。 */
+  function onNewAsset() {
+    const conn = focusedServer()
+    const directory = newSessionDirectory()
+    if (!conn || !directory) return
+    const ctx = global.ensureServerCtx(conn)
+    const seedPrompt = language.t("asset.panel.newSeed", { kind: chatFeature() })
+    openProjectNewSession(
+      ctx.projects,
+      (server, draftDirectory) => tabs.newDraft({ server, directory: draftDirectory, ...modeDraft("chat") }, seedPrompt),
+      ServerConnection.key(conn),
+      directory,
+    )
+  }
+
+  /** AssetWorkbenchTable "导入"按钮回调：弹出导入对话框，收到内容后创建 chat Draft。 */
+  function onImportAsset() {
+    dialog.show(() => (
+      <ChatImportDialog
+        onImport={(wrappedContent) => {
+          const conn = focusedServer()
+          const directory = newSessionDirectory()
+          if (!conn || !directory) return
+          const ctx = global.ensureServerCtx(conn)
+          openProjectNewSession(
+            ctx.projects,
+            (server, draftDirectory) => tabs.newDraft({ server, directory: draftDirectory, ...modeDraft("chat") }, wrappedContent),
+            ServerConnection.key(conn),
+            directory,
+          )
+        }}
+      />
+    ))
+  }
+
+  /** AssetWorkbenchTable 行 Delete 按钮回调：弹出确认对话框，删除后刷新列表。 */
+  function onDeleteAsset(row: AssetWorkbench.AssetRow) {
+    dialog.show(() => (
+      <AssetDeleteDialog
+        asset={row}
+        onDelete={async () => {
+          const sdk = chatDirSdk()
+          if (!sdk) return
+          const shared = {
+            // sessionID 仅路由形状，服务端 handler 按 InstanceState.context 解析 Location、不消费 sessionID
+            sessionID: "ses-home-delete",
+            relativePath: row.relativePath,
+          }
+          try {
+            switch (row.kind) {
+              case "prompt":
+                await sdk.client.promptAsset.delete(shared, { throwOnError: true })
+                break
+              case "skill":
+                await sdk.client.skillAsset.delete(shared, { throwOnError: true })
+                break
+              case "mcp":
+                await sdk.client.mcpAsset.delete(shared, { throwOnError: true })
+                break
+              case "command":
+                await sdk.client.commandAsset.delete(shared, { throwOnError: true })
+                break
+              case "agent":
+                await sdk.client.agentAsset.delete(shared, { throwOnError: true })
+                break
+              case "workflow":
+                await sdk.client.workflowAsset.delete(shared, { throwOnError: true })
+                break
+              case "plugin":
+                await sdk.client.pluginAsset.delete(shared, { throwOnError: true })
+                break
+            }
+          } catch {
+            return
+          }
+          refetchAssets()
+        }}
+      />
+    ))
+  }
+
   function openProjectNewSessionFn(conn: ServerConnection.Any, directory: string) {
     const ctx = global.ensureServerCtx(conn)
     openProjectNewSession(
@@ -588,6 +671,9 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
               assets={mergedAssetData().assets}
               invalid={mergedAssetData().invalid}
               kindFilter={chatFeature() as AssetWorkbench.AssetKind}
+              onNew={onNewAsset}
+              onImport={onImportAsset}
+              onDelete={onDeleteAsset}
               onInsert={(row) => dialog.show(() => <AssetSessionSelector asset={row} />)}
             />
           </div>

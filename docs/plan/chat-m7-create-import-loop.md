@@ -441,3 +441,87 @@ bun --cwd packages/app test --timeout 30000
 - **P1-4**：Step 1.2 伪代码修正——`ChatFeatureID` 无 `"all"` 取值（死分支删除）；`ctx.projects` 经 `global.ensureServerCtx(conn)` 获取（先例 home.tsx:485-493）。
 - **P1-5/6**：§0"API 已实现"限定为 5 类已有资产；delete 调用修正为真实签名 `{ sessionID, relativePath, baseRevision? }`（`sdk.gen.ts:3520-3528`），并写明 home 工作室 sessionID 来源（handler 按 Location 解析、不消费 sessionID）。
 - **P2 观察项（不阻塞，不在本 MR 处理）**：PRD §10 未增订 plugin 第 7 类资产（M6 计划引入），建议 PRD 下次修订补齐追溯链；ARCHITECTURE.md §7 引用 "Chat PRD v4.3" 滞后于实际 v4.5；M2 计划头部状态字段停留在 Draft 未回写。
+
+---
+
+## 9. 实施完成记录（2026-07-27）
+
+实施日期：2026-07-27，模型 Claude Sonnet 4.6 + Haiku 4.5。
+
+### 9.1 变更摘要（32 files，~1500+ LOC）
+
+| Phase | 新建 | 修改 | 说明 |
+|-------|------|------|------|
+| P1 | — | asset-workbench.tsx/.test.ts, home.tsx, en.ts, zh.ts | 新建按钮闭环 |
+| P2 | chat-import-dialog.tsx/.test.ts | asset-workbench.tsx, home.tsx | 导入按钮闭环 |
+| P3A | propose-{workflow,plugin}-asset.ts(×4 core+aigcfroge), test×2 | builtins.ts, registry.ts, agent.ts×2, chat-orchestrator.ts | propose 工具 + 注册 + 权限 + prompt |
+| P3B | — | groups/{wf,pl}-asset.ts, handlers/{wf,pl}-asset.ts, test×2, sdk.gen.ts, types.gen.ts | apply/delete 端点 + SDK 重生成 |
+| P3C | — | prompt-asset-candidate.ts/.test.ts, asset-insert.ts | 前端候选归一化 + apply/insert 分派 |
+| P4 | asset-delete-dialog.tsx | asset-workbench.tsx, home.tsx, en.ts, zh.ts | Delete UI 闭环（7 类全覆盖）|
+
+### 9.2 验收标准达成
+
+- [x] 新建按钮激活，点击→创建 chat Draft→跳转→composer 预填种子提示词
+- [x] 导入按钮激活，点→ImportDialog→文本粘贴/文件选择→创建 Draft→不信任内容注入
+- [x] chat-orchestrator 支持 7 类 propose 工具引导创建
+- [x] workflow/plugin candidate 在 ChatRightPanel 预览 tab 正常展示
+- [x] workflow/plugin apply→新端点落盘→SDK 方法可用
+- [x] 资产 Delete（7 类全覆盖）：hover [Delete]→确认→删除成功→列表刷新
+- [x] system origin 资产不显示 [Delete] 按钮
+- [x] 全部现有测试通过（core + app + aigcfroge）
+- [x] typecheck 全部通过（core + aigcfroge + app）
+- [x] lint 通过
+- [x] SDK 重生成后 client.workflowAsset.apply/delete、client.pluginAsset.apply/delete 可用，gen diff 无无关漂移
+- [x] POST 端点自动化测试（apply/delete）— 已迁移 testEffect+httpApiLayer 模式；复审修复 Frontmatter 契约校验、delete registry path 对齐与 flag 测试基建后，workflow 7/7、plugin 7/7 全绿（含 apply 200/409、delete 200/400）
+- [x] Insert 流程回归正常
+
+### 9.3 实施中纠正的缺陷
+
+| # | 严重度 | 描述 | 位置 |
+|---|--------|------|------|
+| 1 | MED | baseRevision CAS 缺失—apply/delete 无 stale 写保护 | handlers/{wf,pl}-asset.ts |
+| 2 | LOW | Effect.tryPromise catch 吞错误—改为单参数形式 | handlers/{wf,pl}-asset.ts |
+| 3 | LOW | propose Input 使用 Schema.String→改为 branded Name/Description | core propose-*-asset.ts |
+| 4 | LOW | 未使用的 js-yaml 导入 | handlers/{wf,pl}-asset.ts |
+| 5 | LOW | POST 端点测试模式—从 webHandler 迁移到 testEffect+httpApiLayer | test/httpapi-*.test.ts |
+
+### 9.4 技术债（记录在案，不在 M7 范围）
+
+| 项 | 状态 |
+|----|------|
+| WorkflowAssetService / PluginAssetService typed Effect 事务层 | 延后（§1.2） |
+| Core 侧 import-parser service | 延后独立一期（§1.2） |
+| 会话捕获"存为资产" | 延后独立一期（§1.2） |
+| 资产 Edit UI | 延后（代码编辑器替代） |
+
+---
+
+## 10. 复审修复记录（2026-07-27 第二轮，审批后返修）
+
+高级全栈顾问按 CLAUDE.md「改完即审」对未暂存改动做五层数据流审批，发现 P0×2 / P1×2 并已修复：
+
+### 10.1 P0 修复
+
+| # | 问题 | 根因 | 修复 |
+|---|------|------|------|
+| 1 | home 工作室 Delete 全链路 400 | 假 sessionID `"home-workbench"` 不过路由 `SessionID`（`isStartsWith("ses")`）decode | 改 `ses-home-delete`（路由形状占位，handler 按 directory header 解析 Location），删除调用加 try/catch |
+| 2 | propose 说"有效"→ apply 400 且脏文件落盘 | propose 只验 YAML 可解析，apply 先写盘后由 registry 判 `bad_frontmatter` | core 新增 `validateContent`（YAML + Frontmatter schema 同一契约），propose 与 HTTP apply 共享；apply 先校验再写盘（写前失败，不再留脏文件）；chat-orchestrator prompt 补 workflow/plugin 必填字段指引 |
+
+### 10.2 P1 修复
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 3 | delete 按项目根解析短键（ENOENT）且未校验穿越 | delete 统一走 `validateRelativePath`（拒 `..`/绝对路径/非法段），按 ownerRoot（WORKFLOWS_DIR/PLUGINS_DIR）解析，嵌套键可用 |
+| 4 | 新 httpapi 测试 7 红 + 10 个 TS 错误 | 夹具/候选 YAML 合规化（`kind`/`version`/steps 形状）；POST 测试按 e2e.test.ts 先例加 flag save/restore 基建（beforeEach 设 `AIGCFROGE_EXPERIMENTAL_CHAT_ASSET=true`，afterAll 恢复）；类型断言修正 |
+
+### 10.3 P2 修复
+
+- 种子提示词启用 `asset.panel.newSeed`（原硬编码英文 + 死 key）；`wrapImportContent` 指令改 i18n（`chatImport.untrustedInstruction`，en/zh 同步）
+- `sameCandidateInfo` workflow/plugin 比较 content（原恒 true 不刷新预览）；删除对话框 `updated` 标签误用改 `promptAsset.list.path`（新增 key）
+- V1 adapter 未使用 import 清理；delete 函数 consistent-return 告警清零（getByPath mapError 化 + 统一带值 return）
+
+### 10.4 复审验证（实测）
+
+- `bun run lint`：0 errors（warnings 2603，与 main 基线持平）
+- typecheck：core / aigcfroge / app 全绿（原 aigcfroge 10 个 TS 错误清零）
+- core propose 8/8（含新增 2 个 schema 负测试）· app 43/43 · httpapi workflow 7/7 · plugin 7/7 · prompt 回归 5/5

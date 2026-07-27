@@ -4,7 +4,7 @@
 > 负责人：产品（范围与指标）/ Core（资产契约与事务）/ App（Chat surface）/ Security（写入边界）
 > 范围：`packages/app` + `packages/core` + `packages/aigcfroge` + `packages/schema`
 > 关联：[ADR-11](../architecture/adr/ADR-11-product-mode-session-classification.md)、[ADR-12](../architecture/adr/ADR-12-product-mode-entry-routing.md)、[ADR-13](../architecture/adr/ADR-13-chat-work-mode-boundary.md)、[ADR-14](../architecture/adr/ADR-14-persistence-and-scope-strategy.md)、[ADR-15](../architecture/adr/ADR-15-mode-workspace-main-area-slot.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md) §4.10、[CONTEXT.md](../../CONTEXT.md)、[M1 实施计划](../plan/chat-mode-creation-layer-m1.md)、[M2 实施计划](../plan/chat-asset-studio-m2.md)、[Assistant PRD](assistant-mode-personal-agent.md)
-> 最后更新：2026-07-23（v4.5：新增 §16 M2 实施状态；M1 Phase A-F + flag/E2E 全部闭环；M2 新增 listInvalid + ADR-15 slot 合规）
+> 最后更新：2026-07-27（v4.6：新增 §19 M6 实施状态 + §20 M7 实施状态；§10 开闸表更新至 M7 全部完成）
 
 ---
 
@@ -304,21 +304,23 @@ PRD 覆盖全部路径与类型；实施按供给路径先后推进、按消费�
 
 | 顺序 | 供给路径 | 状态 | 说明 |
 |---|---|---|---|
-| 1 | 引导创建（提示词） | 实现中收尾 | M1 计划已铺开，完成首个类型闭环 |
-| 2 | 外部导入 | 待启动 | 成本最低，最早给出"用户是否愿意沉淀资产"的信号 |
+| 1 | 引导创建（7 类全部） | ✅ 已实现（M1-M7） | 全类型 propose_*_asset 工具族 + apply/delete 端点 |
+| 2 | 外部导入 | ✅ 已实现（M7） | ChatImportDialog + untrusted 包裹；Core import-parser 延后独立一期 |
 | 3 | 会话捕获 | 待启动 | 跨模式消息动作 + 会话内重复启发式 |
-| 4 | 命令类型开闸 | 待开闸 | 提示词复用数据达标后裁决（§14） |
+| 4 | 命令类型开闸 | ✅ 已开闸（M3） | — |
 
 **资产类型开闸：**
 
 | 顺序 | 资产类型 | 消费路径 | 状态 | 开闸条件 |
 |---|---|---|---|---|
-| 1 | 提示词 | Composer 插入 | 实现中 | 契约已评审（M1 计划） |
-| 2 | 命令 | 斜杠调用 | 待开闸 | 提示词复用数据达标 + typed 契约过审 |
-| 3 | Skill | Skill 激活 | 待开闸 | 同上 + 安全评审 |
-| 4 | Agent 配置 | Agent 选择器 | 待开闸 | 权限信封设计过审；自建创建型 Agent 继承 fail-closed |
-| 5 | MCP 配置 | 工具集扩展 | 最后 | 凭证不经对话/日志的方案过审；表单为主、对话为辅 |
-| 冻结 | 工作流 | 编排引擎 | ADR 未决 | 独立 ADR |
+| 1 | 提示词 | Composer 插入 | ✅ 已开闸（M1） | 契约已评审 |
+| 2 | 命令 | 斜杠调用 | ✅ 已开闸（M3） | typed 契约过审 |
+| 3 | Skill | Skill 激活 | ✅ 已开闸（M3） | typed 契约过审 |
+| 4 | Agent 配置 | Agent 选择器 | ✅ 已开闸（M3） | 权限信封过审 |
+| 5 | MCP 配置 | 工具集扩展 | ✅ 已开闸（M3） | typed 契约过审 |
+| 6 | Workflow | 编排引擎 | ✅ 已开闸（M5-M7） | YAML schema + only-read(M5) → apply/delete(M7) |
+| 7 | Plugin | 工具集扩展 | ✅ 已开闸（M6-M7） | .plugin.yaml schema + bridged scan(M6) → apply/delete(M7) |
+| 冻结 | 工作流执行 | 编排引擎 | ADR 未决 | 独立 ADR |
 | 归口 | 个人记忆/偏好 | System Context（个人） | Assistant 模式 | Assistant PRD 后续里程碑 |
 | 后期 | 项目规范（AGENTS.md 类） | System Context（项目） | 待评估 | 单独安全评审（注入边界） |
 
@@ -560,3 +562,87 @@ Workflow 作为第 6 类资产（`AssetKindId`）开闸：定义归 Chat 管理�
 - schema test 7/7 ✅
 - core test（60 path/registry + 1221 存量）✅
 - app test 470/470 ✅
+
+---
+
+## 19. M6：PluginAsset 开闸（2026-07-27 完成）
+
+> 分支：`m6-plugin-asset`（已合并 main）
+> 实施计划：`docs/plan/chat-m6-create-import-loop.md`（无独立 plan，合并到 M7 范围矩阵中）
+> 提交：`6340844e4`
+
+### 19.1 目标
+
+Plugin 作为第 7 类资产（`AssetKindId`）开闸：`.plugin.yaml` 格式，支持 bridged scan（系统级插件桥接发现），与 workflow 对称设计。
+
+### 19.2 完成清单
+
+| 层 | 工作 | 状态 |
+|----|------|------|
+| schema | `PluginAsset` Summary/Info/Frontmatter（name/description/version/category/author/source/hooks） | ✅ |
+| core | `plugin-asset.ts` loadDir/layer/watcher + `plugin-asset/path.ts`（`.plugin.yaml` 扩展名）+ `plugin-asset/bridge.ts`（系统级桥接扫描） | ✅ |
+| aigcfroge | HTTP API `GET /plugin-asset` + `GET /plugin-asset/content`（只读，含 bridged 列表） | ✅ |
+| sdk/js | `PluginAsset` client 类自动生成 | ✅ |
+| app | home.tsx 第 7 路 fetch + asset-insert.ts 路径映射 | ✅ |
+
+### 19.3 验收
+
+- typecheck（schema/core/aigcfroge/app）✅
+- lint ✅
+- core test ✅
+- app test ✅
+
+---
+
+## 20. M7：新建+导入闭环 & 全功能审计修复（2026-07-27 完成，uncommitted）
+
+> 分支：`m7-create-import-loop`（working tree，未合并）
+> 实施计划：[chat-m7-create-import-loop.md](../plan/chat-m7-create-import-loop.md)（Approved → Implemented，含 §9 实施完成记录）
+> 实施日期：2026-07-27
+
+### 20.1 目标
+
+补齐 M1-M6 剩余的 3 条供给路径（新建/导入/Delete UI 闭环），并给 workflow/plugin 补齐 apply/delete 写端点。
+
+### 20.2 交付物
+
+| Phase | 内容 | 文件 |
+|-------|------|------|
+| P1 | 新建按钮闭环 | asset-workbench.tsx, home.tsx, en/zh.ts |
+| P2 | 导入按钮闭环（Untrusted 内容注入） | chat-import-dialog.tsx(new), asset-workbench.tsx, home.tsx |
+| P3A | propose_workflow_asset / propose_plugin_asset 双工具 | core propose(×2 new) + aigcfroge V1 adapter(×2 new) + registration + permissions + prompt |
+| P3B | workflow/plugin apply/delete HTTP 端点 + SDK 重生成 | groups/{wf,pl}-asset.ts, handlers/{wf,pl}-asset.ts, sdk.gen.ts |
+| P3C | 前端候选归一化 + apply/insert 分派 | prompt-asset-candidate.ts/.test.ts, asset-insert.ts |
+| P4 | 资产 Delete UI 闭环（7 类全覆盖） | asset-delete-dialog.tsx(new), asset-workbench.tsx, home.tsx |
+
+### 20.3 关键设计决策
+
+- **import 路径**：导入内容通过 `<untrusted_import>` 标记包裹 + 系统约束，只作为待整理素材不执行。Core import-parser service 延后独立一期（M7 以 Agent 解析替代）。
+- **apply/delete 端点**：handler 层内联实现，不建 typed Effect service（§1.2 技术债）。包含格式校验、路径安全解析（nameToRelativePath → NFKC + segment 校验）、baseRevision CAS（sha256 对比）、write/delete/reload。
+- **Delete UI**：7 类全覆盖，system origin 资产前后端双重拒绝，二次确认含不可撤销警告。
+- **权限双写**：V1（agent/agent.ts）+ V2（plugin/agent.ts）同步添加 propose_workflow/plugin_asset allow。
+- **prompt 更新**：chat-orchestrator 系统提示词添加 workflow/plugin 类型引导说明。
+
+### 20.4 验收
+
+- [x] 新建按钮 → chat Draft + "Help me create a new {kind} asset." 种子提示词
+- [x] 导入按钮 → ImportDialog → `<untrusted_import>` 包裹 → chat Draft
+- [x] propose_workflow/plugin_asset 在 Core V2 + V1 adapter + 权限 + prompt 全部完成
+- [x] workflow/plugin HTTP apply/delete 端点 + SDK 重生成
+- [x] 前端 candidate 归一化 + apply/insert 分派完整
+- [x] Delete UI 全部 7 类 + system origin 拒绝 + 二次确认
+- [x] typecheck (core + aigcfroge + app) PASS
+- [x] lint (0 errors)
+- [x] 受影响测试文件全绿：core propose 8/8 · app 43/43 · aigcfroge httpapi workflow 7/7 · plugin 7/7 · prompt 回归 5/5（复审后实测）
+- [x] SDK gen diff 仅含 workflow/plugin 端点相关变更
+
+### 20.5 技术债（延期，有意）
+
+| 项 | 原因 |
+|----|------|
+| WorkflowAssetService / PluginAssetService typed Effect 事务层 | M5/M6 已明确延后（§1.2），apply/delete 在 handler 内联实现 |
+| Core import-parser Effect service | M7 阶段以 Agent 解析代替，Core parser 延后独立一期 |
+| 会话捕获"存为资产" | PRD §7.2，延后独立一期 |
+| 资产 Edit UI | 编辑 = 文件编辑，走 code 模式已可用 |
+| 资产全局导入导出 | PRD §5.2 非目标 |
+

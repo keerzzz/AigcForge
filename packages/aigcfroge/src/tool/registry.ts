@@ -22,6 +22,8 @@ import { ProposeSkillAsset } from "./propose-skill-asset"
 import { ProposeMCPAsset } from "./propose-mcp-asset"
 import { ProposeCommandAsset } from "./propose-command-asset"
 import { ProposeAgentAsset } from "./propose-agent-asset"
+import { ProposeWorkflowAsset } from "./propose-workflow-asset"
+import { ProposePluginAsset } from "./propose-plugin-asset"
 import * as Tool from "./tool"
 import { Config } from "@/config/config"
 import { type ToolContext as PluginToolContext, type ToolDefinition } from "@aigcfroge/plugin"
@@ -118,6 +120,8 @@ export const layer = Layer.effect(
     const proposeMCPAsset = yield* ProposeMCPAsset.ProposeMCPAssetV1
     const proposeCommandAsset = yield* ProposeCommandAsset.ProposeCommandAssetV1
     const proposeAgentAsset = yield* ProposeAgentAsset.ProposeAgentAssetV1
+    const proposeWorkflowAsset = yield* ProposeWorkflowAsset.ProposeWorkflowAssetV1
+    const proposePluginAsset = yield* ProposePluginAsset.ProposePluginAssetV1
     const agent = yield* Agent.Service
 
     const state = yield* InstanceState.make<State>(
@@ -236,6 +240,8 @@ export const layer = Layer.effect(
           proposeMCPAsset: Tool.init(proposeMCPAsset),
           proposeCommandAsset: Tool.init(proposeCommandAsset),
           proposeAgentAsset: Tool.init(proposeAgentAsset),
+          proposeWorkflowAsset: Tool.init(proposeWorkflowAsset),
+          proposePluginAsset: Tool.init(proposePluginAsset),
         })
 
         return {
@@ -257,7 +263,7 @@ export const layer = Layer.effect(
             tool.skill,
             tool.patch,
             ...(flags.experimentalChatAsset
-              ? [tool.proposePromptAsset, tool.proposeSkillAsset, tool.proposeMCPAsset, tool.proposeCommandAsset, tool.proposeAgentAsset]
+              ? [tool.proposePromptAsset, tool.proposeSkillAsset, tool.proposeMCPAsset, tool.proposeCommandAsset, tool.proposeAgentAsset, tool.proposeWorkflowAsset, tool.proposePluginAsset]
               : []),
             ...(flags.experimentalLspTool ? [tool.lsp] : []),
             ...(flags.experimentalPlanMode && flags.client === "cli" ? [tool.plan] : []),

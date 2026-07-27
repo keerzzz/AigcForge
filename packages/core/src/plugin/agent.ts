@@ -313,6 +313,8 @@ export const Plugin = define({
               { action: "propose_mcp_asset", resource: "*", effect: "allow" },
               { action: "propose_command_asset", resource: "*", effect: "allow" },
               { action: "propose_agent_asset", resource: "*", effect: "allow" },
+              { action: "propose_workflow_asset", resource: "*", effect: "allow" },
+              { action: "propose_plugin_asset", resource: "*", effect: "allow" },
             ],
             readonlyExternalDirectory,
           ),

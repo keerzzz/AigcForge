@@ -22,6 +22,7 @@ export async function fetchAssetInsertText(client: DirectorySDK["client"], kind:
   if (kind === "command") return (await client.commandAsset.content({ path }, { throwOnError: true })).data?.source ?? ""
   if (kind === "agent") return (await client.agentAsset.content({ path }, { throwOnError: true })).data?.source ?? ""
   if (kind === "workflow") return JSON.stringify((await client.workflowAsset.content({ path }, { throwOnError: true })).data, null, 2) ?? ""
+  if (kind === "plugin") return JSON.stringify((await client.pluginAsset.content({ path }, { throwOnError: true })).data, null, 2) ?? ""
   return ""
 }
 
@@ -70,6 +71,18 @@ export async function applyAssetCandidate(
   if (candidate.kind === "agent") {
     return client.agentAsset.apply(
       { ...shared, candidate: { ...candidate.candidate, relativePath: candidate.relativePath } },
+      { throwOnError: true },
+    )
+  }
+  if (candidate.kind === "workflow") {
+    return client.workflowAsset.apply(
+      { ...shared, candidate: candidate.candidate },
+      { throwOnError: true },
+    )
+  }
+  if (candidate.kind === "plugin") {
+    return client.pluginAsset.apply(
+      { ...shared, candidate: candidate.candidate },
       { throwOnError: true },
     )
   }

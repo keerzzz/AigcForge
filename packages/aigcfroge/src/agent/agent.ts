@@ -176,6 +176,8 @@ export const layer = Layer.effect(
               propose_mcp_asset: "allow",
               propose_command_asset: "allow",
               propose_agent_asset: "allow",
+              propose_workflow_asset: "allow",
+              propose_plugin_asset: "allow",
             }),
             mode: "primary",
             native: true,

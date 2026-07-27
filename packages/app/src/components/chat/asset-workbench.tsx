@@ -91,6 +91,11 @@ export function filterBySearch(rows: readonly AssetRow[], search: string): Asset
   )
 }
 
+/** 新建按钮 disabled 判定：未传入 onNew callback 时保持 disabled（向后兼容）。 */
+export function isNewButtonDisabled(onNew: (() => void) | undefined): boolean {
+  return onNew === undefined
+}
+
 export function sortRows(rows: readonly AssetRow[]): AssetRow[] {
   return [...rows].sort((a, b) => {
     if (a.invalid !== b.invalid) return a.invalid ? 1 : -1
@@ -178,6 +183,12 @@ export function AssetWorkbenchTable(props: {
   invalid: readonly { relativePath: string; kind: AssetKindId; errorTag?: "parse_error" | "bad_frontmatter" | "name_conflict" }[]
   onSelect?: (row: AssetRow) => void
   onInsert?: (row: AssetRow) => void
+  /** 新建按钮回调：传入时按钮非 disabled，点击触发新建流程。 */
+  onNew?: () => void
+  /** 导入按钮回调：传入时按钮非 disabled，点击触发导入对话框。 */
+  onImport?: () => void
+  /** Delete 按钮回调：传入时行 hover 显示 Delete 按钮。 */
+  onDelete?: (row: AssetRow) => void
   /** 功能树联动：外部控制 kind 筛选（null 或 undefined 时用 store 内部值） */
   kindFilter?: AssetKind | null
 }) {
@@ -246,10 +257,10 @@ export function AssetWorkbenchTable(props: {
             </button>
           ))}
         </div>
-        <ButtonV2 variant="neutral" icon="plus" disabled onClick={() => {}}>
+        <ButtonV2 variant="neutral" icon="plus" disabled={isNewButtonDisabled(props.onNew)} onClick={() => props.onNew?.()}>
           {language.t("asset.panel.new", { kind: kindLabel() })}
         </ButtonV2>
-        <ButtonV2 variant="ghost" disabled onClick={() => {}}>
+        <ButtonV2 variant="ghost" disabled={!props.onImport} onClick={() => props.onImport?.()}>
           {language.t("promptAsset.workbench.import")}
         </ButtonV2>
       </div>
@@ -323,20 +334,31 @@ export function AssetWorkbenchTable(props: {
                       {row.name || row.relativePath}
                     </span>
                     <span class="min-w-0 flex-[40] truncate text-v2-text-text-muted">{row.description}</span>
-                    <span class="relative flex shrink-0 flex-[20] items-center justify-end self-stretch">
-                      <span class="text-v2-text-text-faint">—</span>
+                    <span class="relative flex shrink-0 flex-[20] items-center justify-end gap-1 self-stretch">
                       <Show when={!row.invalid && row.origin !== "system"}>
                         <ButtonV2
                           type="button"
                           variant="ghost-muted"
                           size="small"
-                          class="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                          class="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
                           onClick={(event: MouseEvent) => {
                             event.stopPropagation()
                             props.onInsert?.(row)
                           }}
                         >
                           {language.t("promptAsset.workbench.insert")}
+                        </ButtonV2>
+                        <ButtonV2
+                          type="button"
+                          variant="ghost-muted"
+                          size="small"
+                          class="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                          onClick={(event: MouseEvent) => {
+                            event.stopPropagation()
+                            props.onDelete?.(row)
+                          }}
+                        >
+                          {language.t("promptAsset.workbench.delete")}
                         </ButtonV2>
                       </Show>
                     </span>

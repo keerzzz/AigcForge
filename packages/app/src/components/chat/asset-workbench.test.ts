@@ -7,6 +7,7 @@ import {
   createAssetWorkbenchStore,
   filterByKind,
   filterBySearch,
+  isNewButtonDisabled,
   mergeAssets,
   sortRows,
   systemAssets,
@@ -250,5 +251,15 @@ describe("createAssetWorkbenchStore", () => {
       expect(store.state.search).toBe("hello")
       dispose()
     })
+  })
+})
+
+describe("isNewButtonDisabled", () => {
+  test("returns true when onNew is undefined (backward compat)", () => {
+    expect(isNewButtonDisabled(undefined)).toBe(true)
+  })
+
+  test("returns false when onNew callback is provided", () => {
+    expect(isNewButtonDisabled(() => {})).toBe(false)
   })
 })

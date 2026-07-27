@@ -11230,6 +11230,83 @@ export type WorkflowAssetContentResponses = {
 
 export type WorkflowAssetContentResponse = WorkflowAssetContentResponses[keyof WorkflowAssetContentResponses]
 
+export type WorkflowAssetApplyData = {
+  body?: {
+    candidate: {
+      name: string
+      description: string
+      content: string
+    }
+    baseRevision?: string
+    overwrite: boolean
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/workflow-asset/apply"
+}
+
+export type WorkflowAssetApplyErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type WorkflowAssetApplyError = WorkflowAssetApplyErrors[keyof WorkflowAssetApplyErrors]
+
+export type WorkflowAssetApplyResponses = {
+  /**
+   * Applied workflow asset
+   */
+  200: WorkflowAssetInfo
+}
+
+export type WorkflowAssetApplyResponse = WorkflowAssetApplyResponses[keyof WorkflowAssetApplyResponses]
+
+export type WorkflowAssetDeleteData = {
+  body?: {
+    relativePath: string
+    baseRevision?: string
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/workflow-asset/delete"
+}
+
+export type WorkflowAssetDeleteErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type WorkflowAssetDeleteError = WorkflowAssetDeleteErrors[keyof WorkflowAssetDeleteErrors]
+
+export type WorkflowAssetDeleteResponses = {
+  /**
+   * Deleted
+   */
+  200: unknown
+}
+
 export type PluginAssetListData = {
   body?: never
   path?: never
@@ -11291,6 +11368,83 @@ export type PluginAssetContentResponses = {
 }
 
 export type PluginAssetContentResponse = PluginAssetContentResponses[keyof PluginAssetContentResponses]
+
+export type PluginAssetApplyData = {
+  body?: {
+    candidate: {
+      name: string
+      description: string
+      content: string
+    }
+    baseRevision?: string
+    overwrite: boolean
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/plugin-asset/apply"
+}
+
+export type PluginAssetApplyErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type PluginAssetApplyError = PluginAssetApplyErrors[keyof PluginAssetApplyErrors]
+
+export type PluginAssetApplyResponses = {
+  /**
+   * Applied plugin asset
+   */
+  200: PluginAssetInfo
+}
+
+export type PluginAssetApplyResponse = PluginAssetApplyResponses[keyof PluginAssetApplyResponses]
+
+export type PluginAssetDeleteData = {
+  body?: {
+    relativePath: string
+    baseRevision?: string
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/plugin-asset/delete"
+}
+
+export type PluginAssetDeleteErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type PluginAssetDeleteError = PluginAssetDeleteErrors[keyof PluginAssetDeleteErrors]
+
+export type PluginAssetDeleteResponses = {
+  /**
+   * Deleted
+   */
+  200: unknown
+}
 
 export type ProviderListData = {
   body?: never
