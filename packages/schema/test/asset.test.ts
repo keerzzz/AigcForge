@@ -30,15 +30,15 @@ describe("AssetSummary", () => {
 
 describe("WorkflowAsset", () => {
   test("Summary accepts kind workflow", () => {
-    const s = Schema.decodeUnknownSync(WorkflowAsset.Summary)({
-      kind: "workflow",
+    const s: WorkflowAsset.Summary = Schema.decodeUnknownSync(WorkflowAsset.Summary)({
+      kind: "workflow" as const,
       name: "code-review",
       description: "Automated review pipeline",
       relativePath: "code-review.yaml",
       revision: "a".repeat(64),
-    })
+    } as any)
     expect(s.kind).toBe("workflow")
-    expect(s.name).toBe("code-review")
+    expect(s.name as string).toBe("code-review")
   })
 
   test("Frontmatter accepts steps and triggers", () => {
@@ -80,7 +80,7 @@ describe("WorkflowAsset", () => {
 
   test("Info decodes full workflow", () => {
     const i = Schema.decodeUnknownSync(WorkflowAsset.Info)({
-      kind: "workflow",
+      kind: "workflow" as const,
       name: "release",
       description: "Release pipeline",
       relativePath: "release.yaml",
@@ -88,7 +88,7 @@ describe("WorkflowAsset", () => {
       version: "2.0.0",
       triggers: ["/release"],
       steps: [{ id: "s1", name: "Build", agent: "builtin", input: {} }],
-    })
+    } as any)
     expect(i.kind).toBe("workflow")
     expect(i.version).toBe("2.0.0")
     expect(i.triggers).toEqual(["/release"])
@@ -98,12 +98,12 @@ describe("WorkflowAsset", () => {
   test("rejects missing name", () => {
     expect(() =>
       Schema.decodeUnknownSync(WorkflowAsset.Summary)({
-        kind: "workflow",
+        kind: "workflow" as const,
         name: "",
         description: "",
         relativePath: "x.yaml",
         revision: "a".repeat(64),
-      })
+      } as any)
     ).toThrow()
   })
 })
