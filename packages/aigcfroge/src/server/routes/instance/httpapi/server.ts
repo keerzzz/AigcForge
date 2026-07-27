@@ -92,6 +92,7 @@ import { MCPAssetHandlers } from "./handlers/mcp-asset"
 import { CommandAssetHandlers } from "./handlers/command-asset"
 import { AgentAssetHandlers } from "./handlers/agent-asset"
 import { WorkflowAssetHandlers } from "./handlers/workflow-asset"
+import { PluginAssetHandlers } from "./handlers/plugin-asset"
 import { projectHandlers } from "./handlers/project"
 import { projectCopyHandlers } from "./handlers/project-copy"
 import { providerHandlers } from "./handlers/provider"
@@ -166,6 +167,7 @@ const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
     CommandAssetHandlers.commandAssetHandlers,
     AgentAssetHandlers.agentAssetHandlers,
     WorkflowAssetHandlers.workflowAssetHandlers,
+    PluginAssetHandlers.pluginAssetHandlers,
     providerHandlers,
     sessionHandlers,
     syncHandlers,

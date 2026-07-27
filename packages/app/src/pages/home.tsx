@@ -342,13 +342,14 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
     setChatDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
   })
   const [chatAssetList] = createResource(chatDirSdk, async (sdk) => {
-    const [promptsRes, skillsRes, mcpsRes, cmdsRes, agentsRes, workflowsRes] = await Promise.all([
+    const [promptsRes, skillsRes, mcpsRes, cmdsRes, agentsRes, workflowsRes, pluginsRes] = await Promise.all([
       sdk.client.promptAsset.list(),
       sdk.client.skillAsset.list(),
       sdk.client.mcpAsset.list(),
       sdk.client.commandAsset.list(),
       sdk.client.agentAsset.list(),
       sdk.client.workflowAsset.list(),
+      sdk.client.pluginAsset.list(),       // ← 第 7 路
     ])
     const promptAssets = promptsRes.data?.assets ?? []
     const skillAssets = skillsRes.data?.assets ?? []
@@ -356,14 +357,27 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
     const cmdAssets = cmdsRes.data?.assets ?? []
     const agentAssets = agentsRes.data?.assets ?? []
     const workflowAssets = workflowsRes.data?.assets ?? []
+    const pluginAssets = pluginsRes.data?.assets ?? []
+    const pluginInvalid = pluginsRes.data?.invalid ?? []
+    const bridgedPlugins = pluginsRes.data?.bridged ?? []  // ← 系统级桥接
     const promptInvalid = promptsRes.data?.invalid ?? []
     const skillInvalid = skillsRes.data?.invalid ?? []
     const mcpInvalid = mcpsRes.data?.invalid ?? []
     const cmdInvalid = cmdsRes.data?.invalid ?? []
     const agentInvalid = agentsRes.data?.invalid ?? []
     const workflowInvalid = workflowsRes.data?.invalid ?? []
+
+    const bridgedPluginInputs: { kind: "plugin"; name: string; description: string; relativePath: string; revision: string; origin: "system" }[] = bridgedPlugins.map((b) => ({
+      kind: "plugin" as const,
+      name: b.name,
+      description: b.description,
+      relativePath: b.originPath,
+      revision: "",
+      origin: "system" as const,
+    }))
+
     return {
-      assets: [...promptAssets, ...skillAssets, ...mcpAssets, ...cmdAssets, ...agentAssets, ...workflowAssets],
+      assets: [...promptAssets, ...skillAssets, ...mcpAssets, ...cmdAssets, ...agentAssets, ...workflowAssets, ...pluginAssets, ...bridgedPluginInputs],
       invalid: [
         ...promptInvalid.map((i) => ({ ...i, kind: "prompt" as const })),
         ...skillInvalid.map((i) => ({ ...i, kind: "skill" as const })),
@@ -371,6 +385,7 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
         ...cmdInvalid.map((i) => ({ ...i, kind: "command" as const })),
         ...agentInvalid.map((i) => ({ ...i, kind: "agent" as const })),
         ...workflowInvalid.map((i) => ({ ...i, kind: "workflow" as const })),
+        ...pluginInvalid.map((i) => ({ ...i, kind: "plugin" as const })),
       ],
     }
   })

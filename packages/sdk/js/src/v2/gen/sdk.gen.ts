@@ -155,6 +155,10 @@ import type {
   PermissionRespondResponses,
   PermissionRuleset,
   PermissionV2Reply,
+  PluginAssetContentErrors,
+  PluginAssetContentResponses,
+  PluginAssetListErrors,
+  PluginAssetListResponses,
   ProductMode,
   ProjectCurrentErrors,
   ProjectCurrentResponses,
@@ -4220,6 +4224,72 @@ export class WorkflowAsset extends HeyApiClient {
   }
 }
 
+export class PluginAsset extends HeyApiClient {
+  /**
+   * List plugin assets
+   *
+   * List all plugin assets for the current Location, including invalid entries and system-bridged plugins.
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      search?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "search" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<PluginAssetListResponses, PluginAssetListErrors, ThrowOnError>({
+      url: "/plugin-asset",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get plugin asset content
+   *
+   * Get the full content of a plugin asset by path.
+   */
+  public content<ThrowOnError extends boolean = false>(
+    parameters: {
+      directory?: string
+      workspace?: string
+      path: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "path" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<PluginAssetContentResponses, PluginAssetContentErrors, ThrowOnError>({
+      url: "/plugin-asset/content",
+      ...options,
+      ...params,
+    })
+  }
+}
+
 export class Oauth extends HeyApiClient {
   /**
    * Start OAuth authorization
@@ -8215,6 +8285,11 @@ export class AigcfrogeClient extends HeyApiClient {
   private _workflowAsset?: WorkflowAsset
   get workflowAsset(): WorkflowAsset {
     return (this._workflowAsset ??= new WorkflowAsset({ client: this.client }))
+  }
+
+  private _pluginAsset?: PluginAsset
+  get pluginAsset(): PluginAsset {
+    return (this._pluginAsset ??= new PluginAsset({ client: this.client }))
   }
 
   private _provider?: Provider

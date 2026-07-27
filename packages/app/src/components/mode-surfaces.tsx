@@ -25,10 +25,11 @@ export type ModeSurface = {
 const CHAT_FEATURES = [
   { id: "prompt", icon: "mode-chat", label: "chat.feature.prompt" },
   { id: "skill", icon: "mode-work", label: "chat.feature.skill" },
-  { id: "mcp", icon: "terminal", label: "chat.feature.mcp" },
+  { id: "mcp", icon: "grid-plus", label: "chat.feature.mcp" },
   { id: "command", icon: "mode-coding", label: "chat.feature.command" },
   { id: "agent", icon: "mode-assistant", label: "chat.feature.agent" },
-  { id: "workflow", icon: "mode-coding", label: "chat.feature.workflow" },
+  { id: "workflow", icon: "settings-gear", label: "chat.feature.workflow" },
+  { id: "plugin", icon: "outline-dots", label: "chat.feature.plugin" },
 ] as const satisfies ReadonlyArray<{ id: ChatFeatureID; icon: string; label: string }>
 
 /**
@@ -168,15 +169,17 @@ function ChatFeatureSidebar() {
     }
     setDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
   })
-  // 全量资产计数：并发取 5 种 kind 的项目级资产（M3）；M4 带 name 集合供系统级计数去重。
+  // 全量资产计数：并发取 7 种 kind 的项目级资产（M3 取 5，M5/M6 增加 workflow/plugin）；带 name 集合供系统级计数去重。
   const [kindCounts] = createResource(dirSdk, async (sdk) => {
     if (!sdk) return { counts: {} as Record<string, number>, names: {} as Record<string, Set<string>> }
-    const [p, s, m, c, a] = await Promise.all([
+    const [p, s, m, c, a, w, pl] = await Promise.all([
       sdk.client.promptAsset.list(),
       sdk.client.skillAsset.list(),
       sdk.client.mcpAsset.list(),
       sdk.client.commandAsset.list(),
       sdk.client.agentAsset.list(),
+      sdk.client.workflowAsset.list(),
+      sdk.client.pluginAsset.list(),
     ])
     const byKind = {
       prompt: p.data?.assets ?? [],
@@ -184,6 +187,8 @@ function ChatFeatureSidebar() {
       mcp: m.data?.assets ?? [],
       command: c.data?.assets ?? [],
       agent: a.data?.assets ?? [],
+      workflow: w.data?.assets ?? [],
+      plugin: [...(pl.data?.assets ?? []), ...(pl.data?.bridged?.map((b) => ({ name: b.name, description: b.description, relativePath: b.originPath, revision: "" })) ?? [])],
     }
     return {
       counts: Object.fromEntries(Object.entries(byKind).map(([kind, assets]) => [kind, assets.length])),

@@ -4538,6 +4538,81 @@ export type WorkflowAssetInfo = {
   steps: Array<WorkflowAssetStepDef>
 }
 
+export type PluginAssetSummary = {
+  kind: "plugin"
+  name: string
+  description: string
+  relativePath: string
+  revision: string
+  source?: string
+  toolCount?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+}
+
+export type PluginAssetInvalidEntry = {
+  relativePath: string
+  errorTag: "parse_error" | "bad_frontmatter" | "name_conflict"
+}
+
+export type PluginAssetBundledCounts = {
+  commands: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  skills: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  agents: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  hooks: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  mcpServers: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+}
+
+export type PluginAssetBridgeEntry = {
+  name: string
+  description: string
+  source: "claude-code" | "codex" | "cursor" | "zcode" | "kimi-code"
+  category?: string
+  originPath: string
+  format: string
+  bundled: PluginAssetBundledCounts
+}
+
+export type PluginAssetAuthor = {
+  name: string
+  email?: string
+}
+
+export type PluginAssetSourceDef = {
+  type: "mcp" | "openapi" | "bundled"
+  mcp?: {
+    name: string
+  }
+  openapi?: {
+    url: string
+  }
+}
+
+export type PluginAssetHookDef = {
+  event:
+    | "PreToolUse"
+    | "PostToolUse"
+    | "Stop"
+    | "UserPromptSubmit"
+    | "Notification"
+    | "PermissionRequest"
+    | "SessionStart"
+    | "SessionEnd"
+  command: string
+  timeout?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+}
+
+export type PluginAssetInfo = {
+  kind: "plugin"
+  name: string
+  description: string
+  relativePath: string
+  revision: string
+  version: string
+  category?: string
+  author?: PluginAssetAuthor
+  source?: PluginAssetSourceDef
+  hooks?: Array<PluginAssetHookDef>
+}
+
 export type ToolSummaryEntry = {
   tool: string
   file?: string
@@ -11154,6 +11229,68 @@ export type WorkflowAssetContentResponses = {
 }
 
 export type WorkflowAssetContentResponse = WorkflowAssetContentResponses[keyof WorkflowAssetContentResponses]
+
+export type PluginAssetListData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+    search?: string
+  }
+  url: "/plugin-asset"
+}
+
+export type PluginAssetListErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type PluginAssetListError = PluginAssetListErrors[keyof PluginAssetListErrors]
+
+export type PluginAssetListResponses = {
+  /**
+   * List of plugin assets with invalid entries and bridged plugins
+   */
+  200: {
+    assets: Array<PluginAssetSummary>
+    invalid: Array<PluginAssetInvalidEntry>
+    bridged: Array<PluginAssetBridgeEntry>
+  }
+}
+
+export type PluginAssetListResponse = PluginAssetListResponses[keyof PluginAssetListResponses]
+
+export type PluginAssetContentData = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    workspace?: string
+    path: string
+  }
+  url: "/plugin-asset/content"
+}
+
+export type PluginAssetContentErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type PluginAssetContentError = PluginAssetContentErrors[keyof PluginAssetContentErrors]
+
+export type PluginAssetContentResponses = {
+  /**
+   * Plugin asset content
+   */
+  200: PluginAssetInfo
+}
+
+export type PluginAssetContentResponse = PluginAssetContentResponses[keyof PluginAssetContentResponses]
 
 export type ProviderListData = {
   body?: never

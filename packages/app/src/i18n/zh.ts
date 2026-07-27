@@ -1084,6 +1084,7 @@ export const dict = {
   "chat.feature.command": "命令",
   "chat.feature.agent": "智能体",
   "chat.feature.workflow": "工作流",
+  "chat.feature.plugin": "插件",
   "chat.feature.empty": "暂无可用项目",
   "chat.dirtyDraft.title": "未保存的内容",
   "chat.dirtyDraft.description": "Composer 中有未发送的内容，确定要离开吗？",

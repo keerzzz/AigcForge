@@ -1,6 +1,6 @@
 import type { DirectorySDK } from "@/context/sdk"
 import type { AssetKindId } from "@aigcfroge/schema/asset"
-import { AGENTS_DIR, COMMANDS_DIR, MCPS_DIR, PROMPTS_DIR, SKILLS_DIR, WORKFLOWS_DIR } from "@aigcfroge/core/constants"
+import { AGENTS_DIR, COMMANDS_DIR, MCPS_DIR, PLUGINS_DIR, PROMPTS_DIR, SKILLS_DIR, WORKFLOWS_DIR } from "@aigcfroge/core/constants"
 import type { CandidateInfo } from "./prompt-asset-candidate"
 
 /** kind → owner 目录（apply 后刷新文件树用）。 */
@@ -10,6 +10,7 @@ export function assetKindDir(kind: AssetKindId) {
   if (kind === "command") return COMMANDS_DIR
   if (kind === "agent") return AGENTS_DIR
   if (kind === "workflow") return WORKFLOWS_DIR
+  if (kind === "plugin") return PLUGINS_DIR
   return PROMPTS_DIR
 }
 
@@ -24,7 +25,7 @@ export async function fetchAssetInsertText(client: DirectorySDK["client"], kind:
   return ""
 }
 
-/** URL search param 是外部输入：收窄到已实现 content() 的 6 种 kind。 */
+/** URL search param 是外部输入：收窄到已实现 content() 的 7 种 kind。 */
 export function parseInsertKind(value: string | undefined): AssetKindId | undefined {
   if (value === "prompt") return value
   if (value === "skill") return value
@@ -32,6 +33,7 @@ export function parseInsertKind(value: string | undefined): AssetKindId | undefi
   if (value === "command") return value
   if (value === "agent") return value
   if (value === "workflow") return value
+  if (value === "plugin") return value
   return undefined
 }
 
@@ -84,5 +86,6 @@ export async function listAssets(client: DirectorySDK["client"], kind: AssetKind
   if (kind === "command") return client.commandAsset.list(undefined, { throwOnError: true })
   if (kind === "agent") return client.agentAsset.list(undefined, { throwOnError: true })
   if (kind === "workflow") return client.workflowAsset.list(undefined, { throwOnError: true })
+  if (kind === "plugin") return client.pluginAsset.list(undefined, { throwOnError: true })
   return client.promptAsset.list(undefined, { throwOnError: true })
 }

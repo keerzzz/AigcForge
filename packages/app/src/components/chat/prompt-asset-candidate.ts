@@ -143,6 +143,8 @@ function candidateFromInput(kind: SupportedAssetKind, raw: UnknownRecord): Candi
     }
   }
 
+  if (kind === "plugin") return null
+
   const config = stringField(raw, "config") ?? ""
   const source = stringField(raw, "source") ?? ""
   if (!source) return null

@@ -1152,6 +1152,7 @@ export const dict = {
   "chat.feature.command": "Commands",
   "chat.feature.agent": "Agents",
   "chat.feature.workflow": "Workflows",
+  "chat.feature.plugin": "Plugins",
   "chat.feature.empty": "No items available",
 
   "promptAsset.panel.title": "Prompt Assets",

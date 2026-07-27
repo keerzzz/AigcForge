@@ -9,9 +9,9 @@ import { Persist, persisted } from "@/utils/persist"
  * 经 ChatFeatureProvider 提供（persisted 需 usePlatform，须在组件树内）。
  * 默认 "prompt"；未识别的持久化值回退 "prompt"。
  */
-export type ChatFeatureID = "prompt" | "skill" | "mcp" | "command" | "agent" | "workflow"
+export type ChatFeatureID = "prompt" | "skill" | "mcp" | "command" | "agent" | "workflow" | "plugin"
 
-const FEATURE_IDS: readonly ChatFeatureID[] = ["prompt", "skill", "mcp", "command", "agent", "workflow"]
+const FEATURE_IDS: readonly ChatFeatureID[] = ["prompt", "skill", "mcp", "command", "agent", "workflow", "plugin"]
 
 function isChatFeatureID(value: unknown): value is ChatFeatureID {
   return typeof value === "string" && (FEATURE_IDS as readonly string[]).includes(value)
