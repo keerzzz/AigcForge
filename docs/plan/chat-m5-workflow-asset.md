@@ -294,17 +294,17 @@ bun run lint
 
 ## 5. 验收标准
 
-- [ ] ADR-13 Amendment 完成（定义归 Chat，执行归 Work）
-- [ ] WorkflowAsset Summary 接受 `kind: "workflow"`
-- [ ] WorkflowAsset Frontmatter 支持 `steps` + `triggers`
-- [ ] `loadDir` 正确扫描 `.aigcfroge/workflows/*.yaml`
-- [ ] 无效 YAML 标记为 `parse_error`，无效 frontmatter 标记为 `bad_frontmatter`
-- [ ] HTTP GET `/workflow-asset` 返回 assets 列表
-- [ ] HTTP GET `/workflow-asset/content` 返回单个 Info
-- [ ] SDK 重新生成，WorkflowAsset client 可用
-- [ ] home.tsx 表格显示 workflow 资产（6 种 kind 并发 fetch）
-- [ ] asset-insert.ts 支持 `workflow` kind 路径映射
-- [ ] typecheck + 全量测试 + lint 通过
+- [x] ADR-13 Amendment 完成（定义归 Chat，执行归 Work）
+- [x] WorkflowAsset Summary 接受 `kind: "workflow"`
+- [x] WorkflowAsset Frontmatter 支持 `steps` + `triggers`
+- [x] `loadDir` 正确扫描 `.aigcfroge/workflows/*.yaml`
+- [x] 无效 YAML 标记为 `parse_error`，无效 frontmatter 标记为 `bad_frontmatter`
+- [x] HTTP GET `/workflow-asset` 返回 assets 列表
+- [x] HTTP GET `/workflow-asset/content` 返回单个 Info
+- [x] SDK 重新生成，WorkflowAsset client 可用
+- [x] home.tsx 表格显示 workflow 资产（6 种 kind 并发 fetch）
+- [x] asset-insert.ts 支持 `workflow` kind 路径映射
+- [x] typecheck + 全量测试 + lint 通过
 
 ---
 

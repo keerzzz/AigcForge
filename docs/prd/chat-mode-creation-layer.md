@@ -520,7 +520,43 @@ M2 Step 0-6 全部完成（chat-m1-closure 分支，最终 commit `a1d05bda1`）
 
 ### 17.4 非目标（M3 也不做）
 
-- workflow 开闸（ADR-13 冻结，工作流引擎归属未决）
+- ~~workflow 开闸（ADR-13 冻结，工作流引擎归属未决）~~ → **M5 已完成**
 - 外部导入路径（独立工期）
 - 会话捕获路径（依赖消息流架构）
 - 全局资产（PRD §5.2 非目标）
+
+---
+
+## 18. M5：WorkflowAsset 开闸（2026-07-27 完成）
+
+> 分支：`m5-workflow-asset`（从 main 切出，基于 M4）
+> 实施计划：[chat-m5-workflow-asset.md](../plan/chat-m5-workflow-asset.md)（Approved，9 Phase 全部完成）
+> 提交：`23e41afeb`
+
+### 18.1 目标
+
+Workflow 作为第 6 类资产（`AssetKindId`）开闸：定义归 Chat 管理，执行归 Work 模式（延后）。文件格式为 YAML DSL（结构化 DAG），非 Markdown prose。
+
+### 18.2 完成清单
+
+| 层 | 工作 | 状态 |
+|----|------|------|
+| docs | ADR-13 Amendment 1（定义归 Chat，执行归 Work） | ✅ |
+| schema | `WorkflowAsset` Summary/Info/Frontmatter/StepDef + `StepDef` 子类型 | ✅ |
+| core | `workflow-asset.ts` loadDir/layer/watcher + `workflow-asset/path.ts`（`.yaml` 扩展名） | ✅ |
+| aigcfroge | HTTP API `GET /workflow-asset` + `GET /workflow-asset/content`（只读，无 apply/delete） | ✅ |
+| sdk/js | `WorkflowAsset` client 类自动生成（`bun build.ts`） | ✅ |
+| app | home.tsx 第 6 路 fetch + asset-insert.ts 路径映射 + `Exclude<"workflow">` 解除 | ✅ |
+
+### 18.3 M5 附带修复
+
+- `discover.ts`：写入端 yamlQuote 安全截断 + YAML 引号包裹，防止 `bad_frontmatter`
+- `skill-asset.ts`：loadDir 对 `description>`300 码点做边界截断再 decode，而非判 invalid
+
+### 18.4 验收
+
+- typecheck（schema/core/aigcfroge/app）✅
+- lint（0 errors）✅
+- schema test 7/7 ✅
+- core test（60 path/registry + 1221 存量）✅
+- app test 470/470 ✅
