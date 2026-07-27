@@ -342,31 +342,35 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
     setChatDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
   })
   const [chatAssetList] = createResource(chatDirSdk, async (sdk) => {
-    const [promptsRes, skillsRes, mcpsRes, cmdsRes, agentsRes] = await Promise.all([
+    const [promptsRes, skillsRes, mcpsRes, cmdsRes, agentsRes, workflowsRes] = await Promise.all([
       sdk.client.promptAsset.list(),
       sdk.client.skillAsset.list(),
       sdk.client.mcpAsset.list(),
       sdk.client.commandAsset.list(),
       sdk.client.agentAsset.list(),
+      sdk.client.workflowAsset.list(),
     ])
     const promptAssets = promptsRes.data?.assets ?? []
     const skillAssets = skillsRes.data?.assets ?? []
     const mcpAssets = mcpsRes.data?.assets ?? []
     const cmdAssets = cmdsRes.data?.assets ?? []
     const agentAssets = agentsRes.data?.assets ?? []
+    const workflowAssets = workflowsRes.data?.assets ?? []
     const promptInvalid = promptsRes.data?.invalid ?? []
     const skillInvalid = skillsRes.data?.invalid ?? []
     const mcpInvalid = mcpsRes.data?.invalid ?? []
     const cmdInvalid = cmdsRes.data?.invalid ?? []
     const agentInvalid = agentsRes.data?.invalid ?? []
+    const workflowInvalid = workflowsRes.data?.invalid ?? []
     return {
-      assets: [...promptAssets, ...skillAssets, ...mcpAssets, ...cmdAssets, ...agentAssets],
+      assets: [...promptAssets, ...skillAssets, ...mcpAssets, ...cmdAssets, ...agentAssets, ...workflowAssets],
       invalid: [
         ...promptInvalid.map((i) => ({ ...i, kind: "prompt" as const })),
         ...skillInvalid.map((i) => ({ ...i, kind: "skill" as const })),
         ...mcpInvalid.map((i) => ({ ...i, kind: "mcp" as const })),
         ...cmdInvalid.map((i) => ({ ...i, kind: "command" as const })),
         ...agentInvalid.map((i) => ({ ...i, kind: "agent" as const })),
+        ...workflowInvalid.map((i) => ({ ...i, kind: "workflow" as const })),
       ],
     }
   })

@@ -9,7 +9,7 @@ import type {
 } from "@aigcfroge/sdk/v2/client"
 import type { AssetKindId } from "@aigcfroge/schema/asset"
 
-export type SupportedAssetKind = Exclude<AssetKindId, "workflow">
+export type SupportedAssetKind = AssetKindId
 
 type CandidateBase = {
   name: string
@@ -81,6 +81,8 @@ function candidateFromInput(kind: SupportedAssetKind, raw: UnknownRecord): Candi
   const name = stringField(raw, "name") ?? ""
   const description = stringField(raw, "description") ?? ""
   if (!name) return null
+
+  if (kind === "workflow") return null
 
   if (kind === "prompt") {
     const template = stringField(raw, "template") ?? ""

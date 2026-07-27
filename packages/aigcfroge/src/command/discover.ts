@@ -51,6 +51,25 @@ function parseSkillContent(text: string, fullPath: string): { name: string; desc
   return { name, description: name, content: text.trim() }
 }
 
+/** Strip surrounding YAML quotes and escape for YAML double-quoted output. */
+function yamlQuote(value: string): string {
+  // Strip surrounding single or double quotes if present
+  let clean = value
+  if ((clean.startsWith('"') && clean.endsWith('"')) || (clean.startsWith("'") && clean.endsWith("'"))) {
+    clean = clean.slice(1, -1)
+  }
+  // Escape backslash, double-quote, and control chars for YAML double-quoted scalar
+  const escaped = clean
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/\r/g, "\\r")
+    .replace(/\n/g, "\\n")
+    .replace(/\t/g, "\\t")
+  // Truncate to 300 code points to pass CommandAsset.Frontmatter schema's Description ≤300 constraint
+  const truncated = [...escaped].slice(0, 300).join("")
+  return `"${truncated}"`
+}
+
 /** 将发现的命令以 .md 文件写入 COMMANDS_DIR，幂等（已存在且一致则跳过）。 */
 export function syncDiscovered(
   fs: FSUtil.Interface,
@@ -90,7 +109,7 @@ export function syncDiscovered(
         if (existing !== undefined) continue
 
         // 写文件（create dirs if needed）
-        const content = `---\nname: ${source.name}-${parsed.name}\ndescription: ${parsed.description}\ninvocation: /${source.name}-${parsed.name}\nsource: ${source.name}\n---\n\n${parsed.content}\n`
+        const content = `---\nname: ${source.name}-${parsed.name}\ndescription: ${yamlQuote(parsed.description)}\ninvocation: /${source.name}-${parsed.name}\nsource: ${source.name}\n---\n\n${parsed.content}\n`
         yield* fs.writeWithDirs(targetPath, content)
       }
     }

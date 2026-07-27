@@ -1,14 +1,15 @@
 import type { DirectorySDK } from "@/context/sdk"
 import type { AssetKindId } from "@aigcfroge/schema/asset"
-import { AGENTS_DIR, COMMANDS_DIR, MCPS_DIR, PROMPTS_DIR, SKILLS_DIR } from "@aigcfroge/core/constants"
+import { AGENTS_DIR, COMMANDS_DIR, MCPS_DIR, PROMPTS_DIR, SKILLS_DIR, WORKFLOWS_DIR } from "@aigcfroge/core/constants"
 import type { CandidateInfo } from "./prompt-asset-candidate"
 
-/** kind → owner 目录（apply 后刷新文件树用）。workflow 未开闸，兜底到 PROMPTS_DIR。 */
+/** kind → owner 目录（apply 后刷新文件树用）。 */
 export function assetKindDir(kind: AssetKindId) {
   if (kind === "skill") return SKILLS_DIR
   if (kind === "mcp") return MCPS_DIR
   if (kind === "command") return COMMANDS_DIR
   if (kind === "agent") return AGENTS_DIR
+  if (kind === "workflow") return WORKFLOWS_DIR
   return PROMPTS_DIR
 }
 
@@ -19,16 +20,18 @@ export async function fetchAssetInsertText(client: DirectorySDK["client"], kind:
   if (kind === "mcp") return (await client.mcpAsset.content({ path }, { throwOnError: true })).data?.configJson ?? ""
   if (kind === "command") return (await client.commandAsset.content({ path }, { throwOnError: true })).data?.source ?? ""
   if (kind === "agent") return (await client.agentAsset.content({ path }, { throwOnError: true })).data?.source ?? ""
+  if (kind === "workflow") return JSON.stringify((await client.workflowAsset.content({ path }, { throwOnError: true })).data, null, 2) ?? ""
   return ""
 }
 
-/** URL search param 是外部输入：收窄到已实现 content() 的 5 种 kind（workflow 未开闸）。 */
+/** URL search param 是外部输入：收窄到已实现 content() 的 6 种 kind。 */
 export function parseInsertKind(value: string | undefined): AssetKindId | undefined {
   if (value === "prompt") return value
   if (value === "skill") return value
   if (value === "mcp") return value
   if (value === "command") return value
   if (value === "agent") return value
+  if (value === "workflow") return value
   return undefined
 }
 
@@ -80,5 +83,6 @@ export async function listAssets(client: DirectorySDK["client"], kind: AssetKind
   if (kind === "mcp") return client.mcpAsset.list(undefined, { throwOnError: true })
   if (kind === "command") return client.commandAsset.list(undefined, { throwOnError: true })
   if (kind === "agent") return client.agentAsset.list(undefined, { throwOnError: true })
+  if (kind === "workflow") return client.workflowAsset.list(undefined, { throwOnError: true })
   return client.promptAsset.list(undefined, { throwOnError: true })
 }

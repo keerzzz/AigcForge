@@ -1,0 +1,39 @@
+kind: workflow
+name: code-review
+description: "Automated code review pipeline"
+version: "1.0.0"
+triggers:
+  - "/review"
+steps:
+  - id: fetch_diff
+    name: "Fetch Git Diff"
+    agent: "builtin"
+    input:
+      command: "git diff HEAD~1"
+    next: lint_scan
+  - id: lint_scan
+    name: "Lint Scan"
+    agent: "builtin"
+    input:
+      command: "bun run lint"
+    next: security_check
+  - id: security_check
+    name: "Security Check"
+    agent: "builtin"
+    input:
+      command: "bun run audit"
+    branches:
+      success: report_good
+      failure: report_issues
+  - id: report_good
+    name: "Report Clean"
+    agent: "builtin"
+    input:
+      template: "Code review passed"
+    next: END
+  - id: report_issues
+    name: "Report Issues"
+    agent: "builtin"
+    input:
+      template: "Issues found: {{steps.security_check.output}}"
+    next: END

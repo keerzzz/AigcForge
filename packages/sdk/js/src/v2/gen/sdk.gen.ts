@@ -122,7 +122,6 @@ import type {
   McpAssetDeleteResponses,
   McpAssetListErrors,
   McpAssetListResponses,
-  McpAssetListSystemResponses,
   McpAuthAuthenticateErrors,
   McpAuthAuthenticateResponses,
   McpAuthCallbackErrors,
@@ -270,7 +269,6 @@ import type {
   SkillAssetDeleteResponses,
   SkillAssetListErrors,
   SkillAssetListResponses,
-  SkillAssetListSystemResponses,
   SubtaskPartInput,
   SyncHistoryListErrors,
   SyncHistoryListResponses,
@@ -443,6 +441,10 @@ import type {
   VcsStatusResponses,
   VcsUnstageErrors,
   VcsUnstageResponses,
+  WorkflowAssetContentErrors,
+  WorkflowAssetContentResponses,
+  WorkflowAssetListErrors,
+  WorkflowAssetListResponses,
   WorktreeCreateErrors,
   WorktreeCreateInput,
   WorktreeCreateResponses,
@@ -3582,36 +3584,6 @@ export class SkillAsset extends HeyApiClient {
   }
 
   /**
-   * List system skill assets
-   *
-   * List skill assets discovered from system directories (.claude/skills, .cc-switch/skills, etc.).
-   */
-  public listSystem<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-      workspace?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "directory" },
-            { in: "query", key: "workspace" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).get<SkillAssetListSystemResponses, never, ThrowOnError>({
-      url: "/skill-asset/system",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
    * Get skill asset content
    *
    * Get the full content of a skill asset by path.
@@ -3756,36 +3728,6 @@ export class McpAsset extends HeyApiClient {
     )
     return (options?.client ?? this.client).get<McpAssetListResponses, McpAssetListErrors, ThrowOnError>({
       url: "/mcp-asset",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * List system MCP assets
-   *
-   * List MCP assets discovered from system config files.
-   */
-  public listSystem<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-      workspace?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "directory" },
-            { in: "query", key: "workspace" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).get<McpAssetListSystemResponses, never, ThrowOnError>({
-      url: "/mcp-asset/system",
       ...options,
       ...params,
     })
@@ -4204,6 +4146,76 @@ export class AgentAsset extends HeyApiClient {
         ...options?.headers,
         ...params.headers,
       },
+    })
+  }
+}
+
+export class WorkflowAsset extends HeyApiClient {
+  /**
+   * List workflow assets
+   *
+   * List all workflow assets for the current Location, including invalid (skipped) entries.
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      search?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "search" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<WorkflowAssetListResponses, WorkflowAssetListErrors, ThrowOnError>({
+      url: "/workflow-asset",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get workflow asset content
+   *
+   * Get the full content of a workflow asset by path.
+   */
+  public content<ThrowOnError extends boolean = false>(
+    parameters: {
+      directory?: string
+      workspace?: string
+      path: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "path" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<
+      WorkflowAssetContentResponses,
+      WorkflowAssetContentErrors,
+      ThrowOnError
+    >({
+      url: "/workflow-asset/content",
+      ...options,
+      ...params,
     })
   }
 }
@@ -8198,6 +8210,11 @@ export class AigcfrogeClient extends HeyApiClient {
   private _agentAsset?: AgentAsset
   get agentAsset(): AgentAsset {
     return (this._agentAsset ??= new AgentAsset({ client: this.client }))
+  }
+
+  private _workflowAsset?: WorkflowAsset
+  get workflowAsset(): WorkflowAsset {
+    return (this._workflowAsset ??= new WorkflowAsset({ client: this.client }))
   }
 
   private _provider?: Provider

@@ -4385,8 +4385,8 @@ export type SkillAssetInfo = {
   revision: string
   slash: boolean
   content: string
-  triggers: string[]
-  tags: string[]
+  triggers: Array<string>
+  tags: Array<string>
 }
 
 export type SkillAssetCandidate = {
@@ -4394,8 +4394,8 @@ export type SkillAssetCandidate = {
   description: string
   slash: boolean
   content: string
-  triggers: string[]
-  tags: string[]
+  triggers: Array<string>
+  tags: Array<string>
   relativePath: string
 }
 
@@ -4500,6 +4500,42 @@ export type AgentAssetCandidate = {
   config: string
   source: string
   relativePath: string
+}
+
+export type WorkflowAssetSummary = {
+  kind: "workflow"
+  name: string
+  description: string
+  relativePath: string
+  revision: string
+}
+
+export type WorkflowAssetInvalidEntry = {
+  relativePath: string
+  errorTag: "parse_error" | "bad_frontmatter" | "name_conflict"
+}
+
+export type WorkflowAssetStepDef = {
+  id: string
+  name: string
+  agent: string
+  input: unknown
+  next?: string
+  branches?: {
+    [key: string]: string
+  }
+  parallel?: Array<string>
+}
+
+export type WorkflowAssetInfo = {
+  kind: "workflow"
+  name: string
+  description: string
+  relativePath: string
+  revision: string
+  version: string
+  triggers: Array<string>
+  steps: Array<WorkflowAssetStepDef>
 }
 
 export type ToolSummaryEntry = {
@@ -10554,15 +10590,6 @@ export type SkillAssetListResponses = {
 
 export type SkillAssetListResponse = SkillAssetListResponses[keyof SkillAssetListResponses]
 
-export type SkillAssetListSystemResponses = {
-  /**
-   * System skill assets
-   */
-  200: Array<SkillAssetSummary>
-}
-
-export type SkillAssetListSystemResponse = SkillAssetListSystemResponses[keyof SkillAssetListSystemResponses]
-
 export type SkillAssetContentData = {
   body?: never
   path?: never
@@ -10696,15 +10723,6 @@ export type McpAssetListResponses = {
 }
 
 export type McpAssetListResponse = McpAssetListResponses[keyof McpAssetListResponses]
-
-export type McpAssetListSystemResponses = {
-  /**
-   * System MCP assets
-   */
-  200: Array<McpAssetSummary>
-}
-
-export type McpAssetListSystemResponse = McpAssetListSystemResponses[keyof McpAssetListSystemResponses]
 
 export type McpAssetContentData = {
   body?: never
@@ -11075,6 +11093,67 @@ export type AgentAssetDeleteResponses = {
    */
   200: unknown
 }
+
+export type WorkflowAssetListData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+    search?: string
+  }
+  url: "/workflow-asset"
+}
+
+export type WorkflowAssetListErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type WorkflowAssetListError = WorkflowAssetListErrors[keyof WorkflowAssetListErrors]
+
+export type WorkflowAssetListResponses = {
+  /**
+   * List of workflow assets with invalid entries
+   */
+  200: {
+    assets: Array<WorkflowAssetSummary>
+    invalid: Array<WorkflowAssetInvalidEntry>
+  }
+}
+
+export type WorkflowAssetListResponse = WorkflowAssetListResponses[keyof WorkflowAssetListResponses]
+
+export type WorkflowAssetContentData = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    workspace?: string
+    path: string
+  }
+  url: "/workflow-asset/content"
+}
+
+export type WorkflowAssetContentErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type WorkflowAssetContentError = WorkflowAssetContentErrors[keyof WorkflowAssetContentErrors]
+
+export type WorkflowAssetContentResponses = {
+  /**
+   * Workflow asset content
+   */
+  200: WorkflowAssetInfo
+}
+
+export type WorkflowAssetContentResponse = WorkflowAssetContentResponses[keyof WorkflowAssetContentResponses]
 
 export type ProviderListData = {
   body?: never

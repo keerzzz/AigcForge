@@ -44,6 +44,7 @@ import { CommandAsset } from "./command-asset"
 import { CommandAssetService } from "./command-asset-service"
 import { AgentAsset } from "./agent-asset"
 import { AgentAssetService } from "./agent-asset-service"
+import { WorkflowAsset } from "./workflow-asset"
 
 import { Image } from "./image"
 import { ToolRegistry } from "./tool/registry"
@@ -91,6 +92,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       MCPAsset.locationLayer.pipe(Layer.provide(config)),
       CommandAsset.locationLayer.pipe(Layer.provide(config)),
       AgentAsset.locationLayer,
+      WorkflowAsset.locationLayer,
       systemContext,
       LocationMutation.locationLayer.pipe(Layer.orDie),
       CrossSpawnSpawner.defaultLayer,
