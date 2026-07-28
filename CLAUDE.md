@@ -127,3 +127,10 @@
 > **设计协议**: [DESIGN.md](DESIGN.md)（产品 UI 性格、技术栈、Token、组件、i18n、无障碍、验证）
 > **架构协议**: [ARCHITECTURE.md](ARCHITECTURE.md)（系统结构、包拓扑、子系统边界、数据流）
 > **技能文件**: `.aigcfroge/skills/`（`frontend-theming` 主题引擎、`effect` 编码、`database` 数据库）
+
+## 已知技术负债
+
+| 负债 | 包 | 风险 | Owner | 到期日 |
+|---|---|---|---|---|
+| nitro@3.0.1-alpha.1 预发布版本 | enterprise | alpha 不应直接用于生产 | TBD | 2026-08-04 |
+| @ai-sdk/google patch 未上游化 | root patches/ | 功能补丁可能滞后 | TBD | 上游监控 |

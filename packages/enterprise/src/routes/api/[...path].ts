@@ -8,11 +8,15 @@ import { Share } from "~/core/share"
 import { Resource } from "sst"
 import { timingSafeEqual } from "node:crypto"
 
+const allowedOrigins = process.env.AIGCFROGE_ALLOWED_ORIGINS
+
 const app = new Hono()
 
 app
   .basePath("/api")
-  .use(cors())
+  .use(cors({
+    origin: allowedOrigins ? allowedOrigins.split(",") : [],
+  }))
   .get(
     "/doc",
     openAPIRouteHandler(app, {
