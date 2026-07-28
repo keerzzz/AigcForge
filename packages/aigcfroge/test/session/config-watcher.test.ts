@@ -6,7 +6,7 @@ beforeEach(() => {
   process.env.AIGCFROGE_ENABLE_HOT_RELOAD = "true"
 })
 
-const run = <A, E>(effect: Effect.Effect<A, E, never>) => Effect.runPromise(effect)
+const run = <A, E>(effect: Effect.Effect<A, E>) => Effect.runPromise(effect)
 
 describe("ConfigWatcher", () => {
   test("should init with standard paths", () =>

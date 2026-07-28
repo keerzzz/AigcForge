@@ -91,7 +91,7 @@ export function DirtyDraftGuard() {
     const from = prevPath
     prevPath = path
 
-    dialog.show(() => (
+    void dialog.show(() => (
       <Dialog title={language.t("chat.dirtyDraft.title")} description={language.t("chat.dirtyDraft.description")} fit>
         <div class="flex justify-end gap-2 p-2">
           <ButtonV2

@@ -55,6 +55,7 @@ const editorService: EditorIntegration = {
 function createWebSocketImpl(...sockets: FakeWebSocket[]) {
   let index = 0
 
+  // oxlint-disable-next-line typescript/no-extraneous-class -- constructor-only stub standing in for the WebSocket constructor API
   return class {
     constructor(url: string, options?: { headers?: Record<string, string> }) {
       const socket = sockets[index]

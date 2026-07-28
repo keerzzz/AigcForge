@@ -133,12 +133,14 @@ export const SettingsGeneral: Component = () => {
   )
 
   const [displayBackend, { refetch: refetchDisplayBackend }] = createResource(
+    // oxlint-disable-next-line no-unneeded-ternary -- preserve the optional method as a capability check without invoking it
     () => (linux() && platform.getDisplayBackend ? true : false),
     () => Promise.resolve(platform.getDisplayBackend?.() ?? null).catch(() => null as DisplayBackend | null),
     { initialValue: null as DisplayBackend | null },
   )
 
   const [pinchZoom, { mutate: setPinchZoom }] = createResource(
+    // oxlint-disable-next-line no-unneeded-ternary -- preserve the optional method as a capability check without invoking it
     () => (desktop() && platform.getPinchZoomEnabled ? true : false),
     () => Promise.resolve(platform.getPinchZoomEnabled?.() ?? false).catch(() => false),
     { initialValue: false },

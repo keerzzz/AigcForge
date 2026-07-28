@@ -26,6 +26,7 @@ describe("util.error", () => {
     expect(errorFormat({})).not.toBe("{}")
     expect(errorFormat({})).toContain("no message")
 
+    // oxlint-disable-next-line typescript/no-extraneous-class -- deliberately member-less to exercise the opaque-object formatting path
     class OpaqueError {}
     const opaque = new OpaqueError()
     Object.defineProperty(opaque, "secret", { value: "hidden", enumerable: false })

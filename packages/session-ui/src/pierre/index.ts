@@ -150,6 +150,7 @@ ${lineCommentStyles}
 
 `
 
+// oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- T constrains the caller-facing diff style
 export function createDefaultOptions<T>(style: FileDiffOptions<T>["diffStyle"]) {
   return {
     theme: "Aigcfroge",

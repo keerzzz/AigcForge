@@ -243,7 +243,7 @@ export default new Hono<{ Bindings: Env }>()
           Authorization: `Bot ${Resource.DISCORD_SUPPORT_BOT_TOKEN.value}`,
         },
         body: JSON.stringify({
-          content: `${message}`,
+          content: message,
         }),
       },
     )

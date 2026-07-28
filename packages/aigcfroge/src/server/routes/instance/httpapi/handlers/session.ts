@@ -106,7 +106,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       yield* requireSession(ctx.params.sessionID)
       if (AIGCFROGE_V2_RUNTIME) {
         const v2session = yield* SessionV2.Service
-        const result = yield* v2session.children(ctx.params.sessionID as SessionV2.ID).pipe(
+        const result = yield* v2session.children(ctx.params.sessionID).pipe(
           Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))),
         )
         return result.map(v2InfoToV1) as Session.Info[] // brand escape: V1→V2 type bridge, same shape at runtime
@@ -118,7 +118,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       yield* requireSession(ctx.params.sessionID)
       if (AIGCFROGE_V2_RUNTIME) {
         const v2todo = yield* SessionTodo.Service
-        return yield* v2todo.get(ctx.params.sessionID as SessionV2.ID)
+        return yield* v2todo.get(ctx.params.sessionID)
       }
       return yield* todoSvc.get(ctx.params.sessionID)
     })
@@ -130,7 +130,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       if (AIGCFROGE_V2_RUNTIME) {
         const v2summary = yield* V2SessionSummary.Service
         return yield* v2summary.diff({
-          sessionID: ctx.params.sessionID as SessionV2.ID,
+          sessionID: ctx.params.sessionID,
           ...(ctx.query.messageID ? { messageID: SessionMessage.ID.make(ctx.query.messageID) } : {}),
         })
       }
@@ -230,7 +230,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const remove = Effect.fn("SessionHttpApi.remove")(function* (ctx: { params: { sessionID: SessionID } }) {
       if (AIGCFROGE_V2_RUNTIME) {
         const v2s = yield* SessionV2.Service
-        yield* v2s.remove(ctx.params.sessionID as SessionV2.ID).pipe(
+        yield* v2s.remove(ctx.params.sessionID).pipe(
           Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))),
         )
         return true
@@ -247,7 +247,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       if (ctx.payload.title !== undefined) {
         if (AIGCFROGE_V2_RUNTIME) {
           const v2s = yield* SessionV2.Service
-          yield* v2s.setTitle({ sessionID: ctx.params.sessionID as SessionV2.ID, title: ctx.payload.title }).pipe(
+          yield* v2s.setTitle({ sessionID: ctx.params.sessionID, title: ctx.payload.title }).pipe(
             Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))),
           )
         } else {
@@ -280,7 +280,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
         const shareSvc = yield* SessionShareV2.Service
         yield* shareSvc
           .share({
-            sourceSessionID: ctx.params.sessionID as SessionV2.ID,
+            sourceSessionID: ctx.params.sessionID,
             targetSessionID: child.id,
             scope: "full",
             trigger: true,
@@ -313,7 +313,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const abort = Effect.fn("SessionHttpApi.abort")(function* (ctx: { params: { sessionID: SessionID } }) {
       if (AIGCFROGE_V2_RUNTIME) {
         const v2session = yield* SessionV2.Service
-        yield* v2session.interrupt(ctx.params.sessionID as SessionV2.ID)
+        yield* v2session.interrupt(ctx.params.sessionID)
         return true
       }
       yield* promptSvc.cancel(ctx.params.sessionID)
@@ -327,7 +327,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       yield* requireSession(ctx.params.sessionID)
       if (AIGCFROGE_V2_RUNTIME) {
         const v2s = yield* SessionV2.Service
-        yield* v2s.skill({ sessionID: ctx.params.sessionID as SessionV2.ID, skill: Command.Default.INIT, resume: false }).pipe(
+        yield* v2s.skill({ sessionID: ctx.params.sessionID, skill: Command.Default.INIT, resume: false }).pipe(
           Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))),
           Effect.catchTag("Session.PromptConflictError", () => Effect.fail(new HttpApiError.BadRequest({}))),
         )
@@ -356,8 +356,8 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
         const shareSvc2 = yield* SessionShareV2.Service
         yield* shareSvc2
           .share({
-            sourceSessionID: ctx.params.sessionID as SessionV2.ID,
-            targetSessionID: ctx.params.sessionID as SessionV2.ID,
+            sourceSessionID: ctx.params.sessionID,
+            targetSessionID: ctx.params.sessionID,
             scope: "full",
             trigger: false,
           })
@@ -383,7 +383,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       yield* revertSvc.cleanup(yield* requireSession(ctx.params.sessionID))
       if (AIGCFROGE_V2_RUNTIME) {
         const v2s = yield* SessionV2.Service
-        yield* v2s.compact({ sessionID: ctx.params.sessionID as SessionV2.ID }).pipe(
+        yield* v2s.compact({ sessionID: ctx.params.sessionID }).pipe(
           Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))),
           Effect.catchTag("Session.OperationUnavailableError", () => Effect.fail(v2OperationUnavailable())),
         )
@@ -443,7 +443,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
         if (promptText) {
           yield* v2session
             .prompt({
-              sessionID: ctx.params.sessionID as SessionV2.ID,
+              sessionID: ctx.params.sessionID,
               prompt: { text: promptText },
               delivery: "steer",
               resume: true,
@@ -500,7 +500,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       if (AIGCFROGE_V2_RUNTIME) {
         const v2revert = yield* V2SessionRevert.Service
         const info = yield* v2revert.revert({
-          sessionID: ctx.params.sessionID as SessionV2.ID,
+          sessionID: ctx.params.sessionID,
           messageID: ctx.payload.messageID as unknown as SessionMessage.ID,
         })
         return v2InfoToV1(info) as Session.Info // brand escape: V1→V2 type bridge
@@ -512,7 +512,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       yield* requireSession(ctx.params.sessionID)
       if (AIGCFROGE_V2_RUNTIME) {
         const v2revert = yield* V2SessionRevert.Service
-        const info = yield* v2revert.unrevert({ sessionID: ctx.params.sessionID as SessionV2.ID })
+        const info = yield* v2revert.unrevert({ sessionID: ctx.params.sessionID })
         return v2InfoToV1(info) as Session.Info // brand escape: V1→V2 type bridge
       }
       return yield* SessionError.mapBusy(revertSvc.unrevert({ sessionID: ctx.params.sessionID }))
@@ -561,7 +561,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       if (AIGCFROGE_V2_RUNTIME) {
         const v2s = yield* SessionV2.Service
         yield* v2s.removeMessage({
-          sessionID: ctx.params.sessionID as SessionV2.ID,
+          sessionID: ctx.params.sessionID,
           messageID: SessionMessage.ID.make(ctx.params.messageID),
         }).pipe(
           Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))),
@@ -610,7 +610,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     }) {
       if (AIGCFROGE_V2_RUNTIME) {
         const v2s = yield* SessionV2.Service
-        return yield* v2s.toolSummary(ctx.params.sessionID as SessionV2.ID).pipe(
+        return yield* v2s.toolSummary(ctx.params.sessionID).pipe(
           Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))),
           Effect.catchTag("Session.MessageDecodeError", () => Effect.fail(new HttpApiError.BadRequest({}))),
         )

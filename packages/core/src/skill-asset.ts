@@ -76,8 +76,8 @@ function loadDir(
       // description 超 300 码点上限时按边界截断，而非整条判 bad_frontmatter
       //（上限即 SchemaSkillAsset.Description 约束；与 command/discover.ts 写入端截断策略对齐）
       const data =
-        typeof parsed.data.description === "string" && [...parsed.data.description].length > 300
-          ? { ...parsed.data, description: [...parsed.data.description].slice(0, 300).join("") }
+        typeof parsed.data.description === "string" && Array.from(parsed.data.description).length > 300
+          ? { ...parsed.data, description: Array.from(parsed.data.description).slice(0, 300).join("") }
           : parsed.data
 
       let frontmatter: SchemaSkillAsset.Frontmatter
@@ -179,7 +179,7 @@ export const layer = Layer.effect(
             reload().pipe(
               Effect.catch((error) =>
                 Effect.logWarning("Failed to reload skill assets", {
-                  errorTag: "_tag" in error ? String(error._tag) : "filesystem_error",
+                  errorTag: "_tag" in error ? error._tag : "filesystem_error",
                 }),
               ),
             ),

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { AssetError, AssetKindId, AssetSummary } from "../src/asset"
+import { AssetError, AssetSummary } from "../src/asset"
 import { WorkflowAsset } from "../src/workflow-asset"
 
 describe("AssetSummary", () => {

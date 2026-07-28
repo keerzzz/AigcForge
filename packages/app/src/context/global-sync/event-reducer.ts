@@ -127,7 +127,7 @@ export function applyDirectoryEvent(input: {
       const info = (event.properties as { info: Session }).info
       const result = Binary.search(input.store.session, info.id, (s) => s.id)
       if (info.time.archived) {
-        if (input.store.session[result.index]!.time.archived === info.time.archived) break
+        if (input.store.session[result.index].time.archived === info.time.archived) break
         if (result.found) {
           input.setStore(
             "session",
@@ -307,6 +307,7 @@ export function applyDirectoryEvent(input: {
           const part = draft[result.index]
           const field = props.field as keyof typeof part
           const existing = part[field] as string | undefined
+          // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- part[field] is a union of literal-typed fields; the assertion is required for the string concatenation write
           ;(part[field] as string) = (existing ?? "") + props.delta
         }),
       )

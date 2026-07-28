@@ -166,6 +166,7 @@ const jsonPayloads = (body: string) =>
     })
 
 const usageFromResponseBody = (body: string) =>
+  // oxlint-disable-next-line typescript/no-unnecessary-type-arguments -- removing <Usage> widens the accumulator to unknown and breaks typecheck
   jsonPayloads(body).reduce<Usage>((usage, payload) => {
     if (!isRecord(payload)) return usage
     return addUsage(
@@ -196,6 +197,7 @@ const rowFor = (models: JsonRecord, file: string, cassette: unknown): Row | unde
   if (!first || !isRecord(first.request)) return undefined
   const provider = providerFromUrl(asString(first.request.url) ?? "")
   const model = modelFromRequest(first.request)
+  // oxlint-disable-next-line typescript/no-unnecessary-type-arguments -- removing <Usage> widens the accumulator to unknown and breaks typecheck
   const usage = cassette.interactions.filter(isRecord).reduce<Usage>((total, interaction) => {
     if (!isRecord(interaction.response)) return total
     const responseBody = asString(interaction.response.body)

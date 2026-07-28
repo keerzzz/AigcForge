@@ -134,6 +134,7 @@ export const SettingsGeneralV2: Component = () => {
   )
 
   const [pinchZoom, { mutate: setPinchZoom }] = createResource(
+    // oxlint-disable-next-line no-unneeded-ternary -- preserve the optional method as a capability check without invoking it
     () => (desktop() && platform.getPinchZoomEnabled ? true : false),
     () => Promise.resolve(platform.getPinchZoomEnabled?.() ?? false).catch(() => false),
     { initialValue: false },

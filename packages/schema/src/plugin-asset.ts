@@ -4,14 +4,14 @@ import { Effect, Schema } from "effect"
 
 // -- Branded scalars --
 export const Name = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((s) => [...s].length >= 1, { message: "Min 1 code point" })),
-  Schema.check(Schema.makeFilter<string>((s) => [...s].length <= 80, { message: "Max 80 code points" })),
+  Schema.check(Schema.makeFilter<string>((s) => Array.from(s).length >= 1, { message: "Min 1 code point" })),
+  Schema.check(Schema.makeFilter<string>((s) => Array.from(s).length <= 80, { message: "Max 80 code points" })),
   Schema.brand("PluginAsset.Name"),
 )
 export type Name = typeof Name.Type
 
 export const Description = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((s) => [...s].length <= 300, { message: "Max 300 code points" })),
+  Schema.check(Schema.makeFilter<string>((s) => Array.from(s).length <= 300, { message: "Max 300 code points" })),
   Schema.brand("PluginAsset.Description"),
 )
 export type Description = typeof Description.Type

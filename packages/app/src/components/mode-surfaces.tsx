@@ -118,7 +118,7 @@ export function ChatSidebar() {
         <Icon name="folder" size="small" class="shrink-0 text-v2-icon-icon-muted" />
         <span class="shrink-0 text-v2-text-text-muted text-11-regular">{language.t("chat.feature.project")}</span>
         <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-11-regular">
-          {directory() ? getFilename(directory()!) || directory() : language.t("chat.feature.noLocation")}
+          {directory() ? getFilename(directory()) || directory() : language.t("chat.feature.noLocation")}
         </span>
         <IconButtonV2
           variant="ghost-muted"
@@ -246,7 +246,7 @@ function ChatFeatureSidebar() {
         <Icon name="folder" size="small" class="shrink-0 text-v2-icon-icon-muted" />
         <span class="shrink-0 text-v2-text-text-muted text-11-regular">{language.t("chat.feature.project")}</span>
         <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-11-regular">
-          {directory() ? getFilename(directory()!) || directory() : language.t("chat.feature.noLocation")}
+          {directory() ? getFilename(directory()) || directory() : language.t("chat.feature.noLocation")}
         </span>
         <IconButtonV2
           variant="ghost-muted"

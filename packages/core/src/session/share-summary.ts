@@ -106,7 +106,7 @@ const findCheapModel = Effect.fn("SessionShare.findCheapModel")(function* (catal
 
 function simpleTruncate(messages: ReadonlyArray<SessionMessage.Message>, n: number): string {
   const tail = messages.slice(-n)
-  const formatted = formatMessages(tail as SessionMessage.Message[])
+  const formatted = formatMessages(tail)
   return [
     "<session_summary>",
     `Recent context (last ${n} messages, no compression available):`,

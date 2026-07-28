@@ -18,6 +18,7 @@ const GLOB_LIMIT = 50
 const run = <A, R>(effect: Effect.Effect<A, unknown, R>) =>
   AppRuntime.runPromise(
     InstanceStore.Service.use((store) => store.provide({ directory: dir }, effect as never)),
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- `effect as never` erases A, so the result must be re-asserted
   ) as Promise<A>
 
 // --- raw Fff picker ---

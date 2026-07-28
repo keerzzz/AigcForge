@@ -396,7 +396,7 @@ describe("task tool — child Session delegation", () => {
       // its drain is still scheduled on the BackgroundJob fiber.
       const children = yield* session.children(parentID)
       expect(children.length).toBe(1)
-      const childID = children[0]!.id
+      const childID = children[0].id
 
       // Awaiting the job is the readiness signal (never a sleep): when it completes,
       // the seam has driven the child and injected the synthetic result into the
@@ -422,7 +422,7 @@ describe("task tool — child Session delegation", () => {
       yield* session.resume(parentID)
       const childrenAfterFirst = yield* session.children(parentID)
       expect(childrenAfterFirst.length).toBe(1)
-      const childID = childrenAfterFirst[0]!.id
+      const childID = childrenAfterFirst[0].id
 
       // Second delegation: task_id = childA → resumes child A, no new child.
       taskCallsEmitted = 0
@@ -431,7 +431,7 @@ describe("task tool — child Session delegation", () => {
       yield* session.resume(parentID)
       const childrenAfterSecond = yield* session.children(parentID)
       expect(childrenAfterSecond.length).toBe(1)
-      expect(childrenAfterSecond[0]!.id).toBe(childID)
+      expect(childrenAfterSecond[0].id).toBe(childID)
     }),
   )
 
@@ -452,9 +452,9 @@ describe("task tool — child Session delegation", () => {
       // The orphan's job settled as "error" (drain crashed); the retry's job
       // completed. cancel on an already-settled job is a no-op, so the orphan's
       // status reflects the crash, not the cleanup.
-      const orphanJob = yield* background.get(children[0]!.id)
+      const orphanJob = yield* background.get(children[0].id)
       expect(orphanJob?.status).toBe("error")
-      const retryJob = yield* background.get(children[1]!.id)
+      const retryJob = yield* background.get(children[1].id)
       expect(retryJob?.status).toBe("completed")
     }),
   )
@@ -486,7 +486,7 @@ describe("task tool — child Session delegation", () => {
       // The child was interrupted; no completed assistant text.
       const children = yield* session.children(parentID)
       expect(children.length).toBe(1)
-      const childMessages = yield* session.context(children[0]!.id)
+      const childMessages = yield* session.context(children[0].id)
       const childAssistant = childMessages.find((message) => message.type === "assistant")
       const childText =
         childAssistant?.type === "assistant"
@@ -526,7 +526,7 @@ describe("task tool — child Session delegation", () => {
       // The child's background job was cancelled by the cascade.
       const children = yield* session.children(parentID)
       expect(children.length).toBe(1)
-      const childID = children[0]!.id
+      const childID = children[0].id
       const job = yield* background.get(childID)
       // "error" or "cancelled" — either is valid depending on timing.
       expect(job?.status === "error" || job?.status === "cancelled").toBe(true)
@@ -552,7 +552,7 @@ describe("task tool — child Session delegation", () => {
       yield* session.resume(parentID)
       const children = yield* session.children(parentID)
       expect(children.length).toBe(1)
-      const childID = children[0]!.id
+      const childID = children[0].id
 
       // The background job must still be running (blocked on gate).
       const jobBefore = yield* background.get(childID)
@@ -568,7 +568,7 @@ describe("task tool — child Session delegation", () => {
       // Still one child (reused, not new).
       const childrenAfter = yield* session.children(parentID)
       expect(childrenAfter.length).toBe(1)
-      expect(childrenAfter[0]!.id).toBe(childID)
+      expect(childrenAfter[0].id).toBe(childID)
 
       // Release the gate: first drain completes, then the extend's queued work
       // runs (admit second prompt, drain, inject). Awaiting the job is the
@@ -628,7 +628,7 @@ describe("task tool — child Session delegation", () => {
 
       const children = yield* session.children(parentID)
       expect(children.length).toBe(1)
-      const childID = children[0]!.id
+      const childID = children[0].id
 
       // Parent (root) is not a child session.
       expect(yield* TaskDriver.isChildSession(parentID)).toBe(false)

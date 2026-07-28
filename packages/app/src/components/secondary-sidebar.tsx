@@ -120,7 +120,7 @@ function SecondarySidebar() {
     untrack(() => {
       for (const { worktree, collapsed: wantCollapsed, expandWorktree } of computeAutoSync(dir, list)) {
         if (collapsed[worktree] !== wantCollapsed) setCollapsed(worktree, wantCollapsed)
-        if (expandWorktree !== undefined && expanded[expandWorktree] !== true) setExpanded(expandWorktree, true)
+        if (expandWorktree !== undefined && !expanded[expandWorktree]) setExpanded(expandWorktree, true)
       }
     })
   })

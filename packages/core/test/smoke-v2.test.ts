@@ -61,7 +61,7 @@ const client = Layer.succeed(
     stream: ((request: LLMRequest) => {
       requests.push(request)
       return Stream.fromIterable(response)
-    }) as unknown as (request: LLMRequest) => Stream.Stream<LLMEvent, never>,
+    }) as unknown as (request: LLMRequest) => Stream.Stream<LLMEvent>,
     generate: () => Effect.die("unused"),
   }),
 )

@@ -201,7 +201,7 @@ export function DialogProvider(props: ParentProps) {
         zIndex={3000}
         onMouseDown={(evt: { button: number; preventDefault(): void; stopPropagation(): void }) => {
           if (!Flag.AIGCFROGE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT) return
-          if (evt.button !== MouseButton.RIGHT) return
+          if (evt.button !== (MouseButton.RIGHT as number)) return
 
           if (!copySelection()) return
           evt.preventDefault()

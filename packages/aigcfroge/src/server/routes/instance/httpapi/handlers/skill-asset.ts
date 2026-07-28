@@ -13,7 +13,7 @@ import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
 import { ConflictError, InvalidRequestError } from "../errors"
 
-function toApplyError(err: unknown): Effect.Effect<never, ConflictError | InvalidRequestError, never> {
+function toApplyError(err: unknown): Effect.Effect<never, ConflictError | InvalidRequestError> {
   let error: ConflictError | InvalidRequestError
   if (err instanceof SkillAssetService.InvalidCandidateError) {
     error = new InvalidRequestError({ message: err.reason })
@@ -35,7 +35,7 @@ function toApplyError(err: unknown): Effect.Effect<never, ConflictError | Invali
   return Effect.fail(error)
 }
 
-function toDeleteError(err: unknown): Effect.Effect<never, ConflictError | InvalidRequestError, never> {
+function toDeleteError(err: unknown): Effect.Effect<never, ConflictError | InvalidRequestError> {
   let error: ConflictError | InvalidRequestError
   if (err instanceof SkillAssetService.NotFoundError) {
     error = new InvalidRequestError({ message: `Not found: ${err.relativePath}` })

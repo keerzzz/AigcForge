@@ -172,7 +172,7 @@ export const layer = Layer.effect(
       return {
         totalSessions: sessionRows.length,
         totalTokens: sessionRows.reduce((sum, r) => sum + (r.tokens_used ?? 0), 0),
-        stepCount: Number(stepCount?.count ?? 0),
+        stepCount: stepCount?.count ?? 0,
       }
     })
 

@@ -297,6 +297,7 @@ export class RunFooter implements FooterApi {
     this.renderer.prependInputHandler(this.handleThemeNotification)
     process.on("SIGUSR2", this.handleThemeSignal)
 
+    // oxlint-disable-next-line typescript/no-this-alias -- Effect rendering requires a function* closure, so capture the class instance explicitly
     const footer = this
     void render(
       () =>

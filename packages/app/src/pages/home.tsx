@@ -24,7 +24,7 @@ import { Icon as IconV2 } from "@aigcfroge/ui/v2/icon"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { MenuV2 } from "@aigcfroge/ui/v2/menu-v2"
 import { getProjectAvatarVariant, useLayout, type LocalProject } from "@/context/layout"
-import { useNavigate, type RouteSectionProps } from "@solidjs/router"
+import { useNavigate } from "@solidjs/router"
 import { DateTime } from "luxon"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useDirectoryPicker } from "@/components/directory-picker"
@@ -57,7 +57,7 @@ import { type ServerHealth } from "@/utils/server-health"
 import { Persist, persisted } from "@/utils/persist"
 import { useMarked } from "@aigcfroge/ui/context/marked"
 import { preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"
-import { modeDraft, useMode, type Mode } from "@/context/mode"
+import { modeDraft, useMode } from "@/context/mode"
 import { ChatSidebar, useChatDirectory } from "@/components/mode-surfaces"
 import { useChatFeature } from "@/context/chat-feature"
 import type { DirectorySDK } from "@/context/sdk"
@@ -131,7 +131,7 @@ function homeSessionSearchKey(record: HomeSessionRecord) {
   return `${pathKey(record.session.directory)}:${record.session.id}`
 }
 
-export function Home(props: Partial<RouteSectionProps> = {}) {
+export function Home() {
   const sync = useServerSync()
   const layout = useLayout()
   const pickDirectory = useDirectoryPicker()
@@ -501,7 +501,7 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
 
   /** AssetWorkbenchTable "导入"按钮回调：弹出导入对话框，收到内容后创建 chat Draft。 */
   function onImportAsset() {
-    dialog.show(() => (
+    void dialog.show(() => (
       <ChatImportDialog
         onImport={(wrappedContent) => {
           const conn = focusedServer()
@@ -521,7 +521,7 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
 
   /** AssetWorkbenchTable 行 Delete 按钮回调：弹出确认对话框，删除后刷新列表。 */
   function onDeleteAsset(row: AssetWorkbench.AssetRow) {
-    dialog.show(() => (
+    void dialog.show(() => (
       <AssetDeleteDialog
         asset={row}
         onDelete={async () => {
@@ -559,7 +559,7 @@ export function Home(props: Partial<RouteSectionProps> = {}) {
           } catch {
             return
           }
-          refetchAssets()
+          void refetchAssets()
         }}
       />
     ))

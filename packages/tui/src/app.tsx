@@ -1063,7 +1063,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       backgroundColor={theme.background}
       onMouseDown={(evt) => {
         if (!Flag.AIGCFROGE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT) return
-        if (evt.button !== MouseButton.RIGHT) return
+        if (evt.button !== (MouseButton.RIGHT as number)) return
 
         if (!Selection.copy(renderer, toast, clipboard)) return
         evt.preventDefault()

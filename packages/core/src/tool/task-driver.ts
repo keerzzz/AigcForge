@@ -314,7 +314,7 @@ export const install = (
   const composeParentSummary = (parentID: SessionSchema.ID) =>
     sessions.messages({ sessionID: parentID }).pipe(
       Effect.flatMap((messages) =>
-        generateSummary(messages as SessionMessage.Message[]).pipe(
+        generateSummary(messages).pipe(
           Effect.catchDefect(() => Effect.succeed("")),
           Effect.catch(() => Effect.succeed("")),
         ),

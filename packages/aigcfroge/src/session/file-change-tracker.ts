@@ -34,6 +34,7 @@ export class FileChangeTracker {
 
   /** Register all files in a directory matching an extension pattern. */
   registerDirectory(dir: string, extension: string): Effect.Effect<void> {
+    // oxlint-disable-next-line typescript/no-this-alias -- Effect.gen requires function*, so capture the class instance explicitly
     const self = this
     return Effect.gen(function* () {
       // Collect matching files via glob
@@ -58,6 +59,7 @@ export class FileChangeTracker {
 
   /** Check if any registered file has changed. Snapshot is refreshed on detection. */
   hasChanges(): Effect.Effect<boolean> {
+    // oxlint-disable-next-line typescript/no-this-alias -- Effect.gen requires function*, so capture the class instance explicitly
     const self = this
     return Effect.gen(function* () {
       const now = yield* Clock.currentTimeMillis
@@ -99,6 +101,7 @@ export class FileChangeTracker {
 
   /** Refresh all snapshots without reporting changes. */
   refresh(): Effect.Effect<void> {
+    // oxlint-disable-next-line typescript/no-this-alias -- Effect.gen requires function*, so capture the class instance explicitly
     const self = this
     return Effect.gen(function* () {
       for (const [filePath] of self.snapshots) {

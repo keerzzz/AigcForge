@@ -822,7 +822,7 @@ export function Logo(props: { shape?: LogoShape; ink?: RGBA; idle?: boolean } = 
 
   const mouse = (evt: MouseEvent) => {
     if (!box) return
-    if ((evt.type === "down" || evt.type === "drag") && evt.button === MouseButton.LEFT) {
+    if ((evt.type === "down" || evt.type === "drag") && evt.button === (MouseButton.LEFT as number)) {
       const x = evt.x - box.x
       const y = evt.y - box.y
       if (!hit(x, y)) return

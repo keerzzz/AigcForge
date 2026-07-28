@@ -36,11 +36,33 @@
     // Side-effectful constructors are intentional in some places
     "no-new": "off",
 
+    // These type-aware rules are valuable for new code but too noisy on the legacy tree.
+    // `script/lint-changed.ts` re-enables them for added lines so regressions still fail lint.
+    "typescript/consistent-return": "off",
+    "typescript/no-unsafe-type-assertion": "off",
+    "typescript/unbound-method": "off",
+    // Effect.gen requires function* captures; the five existing sites are documented inline.
+    "typescript/no-this-alias": "warn",
+    // Caller-side typing helpers are retained with documented per-site exemptions.
+    "typescript/no-unnecessary-type-parameters": "warn",
+    // Default lexicographic sort on string[] is intentional and deterministic.
+    "typescript/require-array-sort-compare": ["warn", { "ignoreStringArrays": true }],
+
     // Type-aware: catch unhandled promises
     "typescript/no-floating-promises": "warn",
     // Warn when spreading non-plain objects (Headers, class instances, etc.)
     "typescript/no-misused-spread": "warn"
   },
+  "overrides": [
+    {
+      "files": ["**/test/**", "**/*.test.*", "**/e2e/**"],
+      "rules": {
+        // Bun matchers are typed as void even though rejects/resolves are awaitable at runtime.
+        // The incremental lint gate ignores only those matcher diagnostics and catches other new sync awaits.
+        "typescript/await-thenable": "off"
+      }
+    }
+  ],
   "ignorePatterns": [
     "**/node_modules",
     "**/dist",

@@ -6,6 +6,7 @@ export function stripPromptPartIDs<Part extends { id: string; messageID: string;
 }
 
 export function expandPastedTextPlaceholders(text: string, parts: readonly unknown[]) {
+  // oxlint-disable-next-line typescript/no-unnecessary-type-arguments -- removing <string> widens the accumulator to unknown and breaks typecheck
   return parts.reduce<string>((result, part) => {
     if (!isPastedTextPart(part)) return result
     return result.replace(part.source.text.value, part.text)

@@ -206,7 +206,7 @@ export const EditTool = Tool.define(
               diff,
               filediff,
             },
-            title: `${path.relative(instance.worktree, filePath)}`,
+            title: path.relative(instance.worktree, filePath),
             output,
           }
         }),

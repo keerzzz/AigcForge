@@ -48,7 +48,7 @@ export const layer = Layer.effect(
       const allServers = { ...contributorServers, ...mergedMcp.servers }
 
       for (const [name, raw] of Object.entries(allServers)) {
-        const cfg = raw as any
+        const cfg = raw
         if (cfg.disabled) continue
         const timeout = cfg.timeout ?? DEFAULT_TIMEOUT
 

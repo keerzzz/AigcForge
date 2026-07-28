@@ -152,7 +152,7 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
         presence_penalty: presencePenalty,
         response_format:
           responseFormat?.type === "json"
-            ? this.supportsStructuredOutputs === true && responseFormat.schema != null
+            ? this.supportsStructuredOutputs && responseFormat.schema != null
               ? {
                   type: "json_schema",
                   json_schema: {

@@ -196,7 +196,7 @@ export const layer = Layer.effect(
             reload().pipe(
               Effect.catch((error) =>
                 Effect.logWarning("Failed to reload command assets", {
-                  errorTag: "_tag" in error ? String(error._tag) : "filesystem_error",
+                  errorTag: "_tag" in error ? error._tag : "filesystem_error",
                 }),
               ),
             ),

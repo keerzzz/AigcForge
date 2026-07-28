@@ -54,6 +54,7 @@ export interface Interface {
   readonly remove: (key: string[]) => Effect.Effect<void, FSUtil.Error>
   readonly read: <T>(key: string[]) => Effect.Effect<T, Error>
   readonly update: <T>(key: string[], fn: (draft: T) => void) => Effect.Effect<T, Error>
+  // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- callers constrain the serialized content type
   readonly write: <T>(key: string[], content: T) => Effect.Effect<void, FSUtil.Error>
   readonly list: (prefix: string[]) => Effect.Effect<string[][], FSUtil.Error>
 }

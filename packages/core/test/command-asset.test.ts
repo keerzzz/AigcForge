@@ -98,20 +98,20 @@ describe("CommandAsset", () => {
         const prompts = yield* promptService.list()
 
         expect(cmds.length).toBe(1)
-        expect(cmds[0]!.name).toBe("my-tool")
-        expect(cmds[0]!.kind).toBe("command")
+        expect(cmds[0].name).toBe("my-tool")
+        expect(cmds[0].kind).toBe("command")
 
         expect(mcps.length).toBe(1)
-        expect(mcps[0]!.name).toBe("my-tool")
-        expect(mcps[0]!.kind).toBe("mcp")
+        expect(mcps[0].name).toBe("my-tool")
+        expect(mcps[0].kind).toBe("mcp")
 
         expect(skills.length).toBe(1)
-        expect(skills[0]!.name).toBe("my-tool")
-        expect(skills[0]!.kind).toBe("skill")
+        expect(skills[0].name).toBe("my-tool")
+        expect(skills[0].kind).toBe("skill")
 
         expect(prompts.length).toBe(1)
-        expect(prompts[0]!.name).toBe("my-tool")
-        expect(prompts[0]!.kind).toBe("prompt")
+        expect(prompts[0].name).toBe("my-tool")
+        expect(prompts[0].kind).toBe("prompt")
       }).pipe(Effect.provide(testAppLayer))
     }).pipe(Effect.provide(FSUtil.defaultLayer)),
   )

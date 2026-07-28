@@ -357,7 +357,7 @@ function taskAgent(
   const key = raw.toLowerCase()
   const item = list?.find((entry) => entry.name === raw || entry.name.toLowerCase() === key)
   return {
-    name: item?.name ?? `${raw[0]!.toUpperCase()}${raw.slice(1)}`,
+    name: item?.name ?? `${raw[0].toUpperCase()}${raw.slice(1)}`,
     color: item?.color ?? agentTones[key] ?? tone(key),
   }
 }
@@ -561,7 +561,7 @@ function sameGroup(a: PartGroup, b: PartGroup) {
   }
   if (b.type !== "context") return false
   if (a.refs.length !== b.refs.length) return false
-  return a.refs.every((ref, i) => sameRef(ref, b.refs[i]!))
+  return a.refs.every((ref, i) => sameRef(ref, b.refs[i]))
 }
 
 export function sameGroups(a: readonly PartGroup[] | undefined, b: readonly PartGroup[] | undefined) {
@@ -1079,13 +1079,13 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
   const copied = () => state.copied
   const busy = () => state.busy
 
-  const textPart = createMemo(
-    () => props.parts?.find((p) => p.type === "text" && !(p as TextPart).synthetic) as TextPart | undefined,
+  const textPart = createMemo(() =>
+    props.parts?.find((part): part is TextPart => part.type === "text" && !part.synthetic),
   )
 
   const text = createMemo(() => textPart()?.text || "")
 
-  const files = createMemo(() => (props.parts?.filter((p) => p.type === "file") as FilePart[]) ?? [])
+  const files = createMemo(() => (props.parts?.filter((p) => p.type === "file")) ?? [])
 
   const attachments = createMemo(() => files().filter(attached))
 

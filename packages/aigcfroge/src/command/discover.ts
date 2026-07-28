@@ -66,7 +66,7 @@ function yamlQuote(value: string): string {
     .replace(/\n/g, "\\n")
     .replace(/\t/g, "\\t")
   // Truncate to 300 code points to pass CommandAsset.Frontmatter schema's Description ≤300 constraint
-  const truncated = [...escaped].slice(0, 300).join("")
+  const truncated = Array.from(escaped).slice(0, 300).join("")
   return `"${truncated}"`
 }
 

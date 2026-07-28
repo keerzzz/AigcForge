@@ -71,6 +71,7 @@ export function client<T extends Definition>(target: {
         target.postMessage(JSON.stringify({ type: "rpc.request", method, input, id: requestId }))
       })
     },
+    // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- callers type event payloads without assertions
     on<E = unknown>(event: string, handler: (data: E) => void) {
       let handlers = listeners.get(event)
       if (!handlers) {

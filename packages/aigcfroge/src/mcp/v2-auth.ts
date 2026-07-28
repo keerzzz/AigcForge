@@ -106,7 +106,7 @@ export const layer = Layer.effect(
     })
 
     const updateField = <K extends keyof Entry>(field: K) =>
-      Effect.fn(`McpAuthV2.${String(field)}`)(function* (mcpName: string, value: NonNullable<Entry[K]>, serverUrl?: string) {
+      Effect.fn(`McpAuthV2.${field}`)(function* (mcpName: string, value: NonNullable<Entry[K]>, serverUrl?: string) {
         yield* mutate((data) => {
           const existing = data[mcpName]
           return { ...data, [mcpName]: { ...existing, [field]: value, ...(serverUrl ? { serverUrl } : {}) } as Entry }
@@ -114,7 +114,7 @@ export const layer = Layer.effect(
       })
 
     const clearField = (field: keyof Entry) =>
-      Effect.fn(`McpAuthV2.clear.${String(field)}`)(function* (mcpName: string) {
+      Effect.fn(`McpAuthV2.clear.${field}`)(function* (mcpName: string) {
         yield* mutate((data) => {
           const entry = data[mcpName]
           if (!entry) return undefined

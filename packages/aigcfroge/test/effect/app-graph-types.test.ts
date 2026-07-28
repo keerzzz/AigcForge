@@ -40,6 +40,7 @@ const diskAImplementation = Layer.effect(A, Effect.fail(new DiskError()))
 const networkAImplementation = Layer.effect(A, Effect.fail(new NetworkError()))
 const notFoundOrDiskAImplementation = Layer.effect(A, Effect.fail(new NotFoundError() as NotFoundError | DiskError))
 
+// oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- Equal<A, B> is a compile-time assertion helper
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false
 type Assert<T extends true> = T
 

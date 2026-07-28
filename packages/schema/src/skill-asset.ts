@@ -5,13 +5,13 @@ import { Schema } from "effect"
 // -- Constrained strings (对齐原生 SkillV2 命名空间) --
 
 export const Name = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => [...input].length >= 1, { message: "Name must be at least 1 code point" })),
-  Schema.check(Schema.makeFilter<string>((input) => [...input].length <= 80, { message: "Name must be at most 80 code points" })),
+  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length >= 1, { message: "Name must be at least 1 code point" })),
+  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length <= 80, { message: "Name must be at most 80 code points" })),
 )
 export type Name = typeof Name.Type
 
 export const Description = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => [...input].length <= 300, {
+  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length <= 300, {
     message: "Description must be at most 300 code points",
   })),
 )

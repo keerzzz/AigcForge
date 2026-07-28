@@ -48,6 +48,7 @@ export const Service =
       }
 
       static get defaultLayer() {
+        // oxlint-disable-next-line typescript/no-this-alias -- Effect.gen requires function*, so capture the static service tag explicitly
         const tag = this
         return Layer.effect(
           tag,

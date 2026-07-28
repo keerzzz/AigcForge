@@ -391,6 +391,7 @@ export const {
               const part = draft[result.index]
               const field = event.properties.field as keyof typeof part
               const existing = part[field] as string | undefined
+              // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- part[field] is a union of literal-typed fields; the assertion is required for the string concatenation write
               ;(part[field] as string) = (existing ?? "") + event.properties.delta
             }),
           )

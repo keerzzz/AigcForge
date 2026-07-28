@@ -64,7 +64,7 @@ export const Plugin = define({
               dot: true,
               symlink: true,
             })
-            .pipe(Effect.orElseSucceed(() => []))
+            .pipe(Effect.orElseSucceed((): string[] => []))
           files.sort()
           for (const file of files) configured.push({ package: file })
         }

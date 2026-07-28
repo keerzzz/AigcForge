@@ -137,6 +137,7 @@ function subagent(input: {
 }
 
 function footerState(input: Partial<FooterState> = {}) {
+  // oxlint-disable-next-line typescript/no-unnecessary-type-arguments -- widens literal fields (phase: "idle" etc.) to FooterState so the signal accepts later updates
   return createSignal<FooterState>({
     phase: "idle",
     status: "",

@@ -145,8 +145,7 @@ export default function Page() {
   createEffect(() => {
     if (!prompt.ready()) return
     const current = prompt.current()
-    const hasContent =
-      current.length > 0 && current.some((part: any) => part.type === "text" && part.content?.length > 0)
+    const hasContent = current.some((part: any) => part.type === "text" && part.content?.length > 0)
     workspace?.setDirty(hasContent)
   })
 

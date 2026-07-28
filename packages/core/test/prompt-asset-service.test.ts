@@ -1,6 +1,6 @@
 import path from "path"
 import { describe, expect, test } from "bun:test"
-import { Effect, Fiber, Layer, Schema } from "effect"
+import { Effect, Layer, Schema } from "effect"
 import { PromptAsset as SchemaPromptAsset } from "@aigcfroge/schema/prompt-asset"
 import { PromptAssetService } from "@aigcfroge/core/prompt-asset-service"
 import { PromptAsset } from "@aigcfroge/core/prompt-asset"

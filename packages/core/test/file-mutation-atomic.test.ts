@@ -1,7 +1,7 @@
 import fs from "fs/promises"
 import path from "path"
 import { describe, expect, test } from "bun:test"
-import { Effect, Fiber, Layer } from "effect"
+import { Effect, Layer } from "effect"
 import { FileMutation } from "@aigcfroge/core/file-mutation"
 import { FSUtil } from "@aigcfroge/core/fs-util"
 import { Location } from "@aigcfroge/core/location"
@@ -26,10 +26,6 @@ function withTmp<A, E>(f: (directory: string) => Effect.Effect<A, E>) {
     Effect.promise(() => tmpdir()),
     (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
   ).pipe(Effect.flatMap((tmp) => f(tmp.path)))
-}
-
-function run<A, E>(effect: Effect.Effect<A, E>) {
-  return Effect.runPromise(effect.pipe(Effect.scoped, Effect.provide(FSUtil.defaultLayer)))
 }
 
 describe("FileMutation.writeAtomic", () => {
@@ -59,7 +55,7 @@ describe("FileMutation.writeAtomic", () => {
 
         expect(result.operation).toBe("atomic_write")
         expect(result.existed).toBe(true)
-        expect(new TextDecoder().decode(result.priorBytes!)).toBe("before")
+        expect(new TextDecoder().decode(result.priorBytes)).toBe("before")
 
         const content = yield* Effect.promise(() => fs.readFile(targetPath, "utf8"))
         expect(content).toBe("after")
