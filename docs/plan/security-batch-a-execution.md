@@ -609,3 +609,41 @@ git log opencode/dev -- packages/core/package.json packages/enterprise/package.j
             xai patch 处置依赖上游版本确认;
             happy-dom 安装后 session-ui 测试环境首次引入 DOM，可能暴露既有测试的 DOM 依赖问题
 ```
+
+---
+
+## 执行结果 (v3 — 2026-07-28 完成，合并 `d2e156abf`)
+
+全部 6 步 + 收尾修订完成，批次 A 目标（直接运行时依赖 0 critical，公开请求入口 0 high）达成。
+
+### 实际执行与计划偏差
+
+| 步骤 | 结果 | 偏差 |
+|---|---|---|
+| Step 1 js-yaml | ✅ 4.3.0 + @types/js-yaml 4.0.9 + 4 处字节上限 + 5 探针 | 探针精简为 5 条（merge key 并入 anchor 用例）；TEST-3 改真嵌套 |
+| Step 2 tar | ✅ overrides 合并至现有块，最终 **7.5.22** | 计划值 7.5.18 仍命中新 advisory GHSA-23hp-3jrh-7fpw（≤7.5.18），收尾时二次提升至 7.5.22 |
+| Step 3 DOMPurify | ✅ 3.3.1→**3.4.6** + happy-dom preload + 7 条 XSS 探针；ui 死依赖已删 | 收尾时尝试 3.4.12 实证与 happy-dom 不兼容（p/a 误剥、foreignObject 误放），回退 3.4.6 并登记 CLAUDE.md 负债（到期 2026-08-27） |
+| Step 4 Hono/CORS | ✅ catalog 最终 **4.12.32** + `"hono": "catalog:"` override 去重；enterprise CORS fail-closed | function Worker 决议不加 CORS（内部服务，反射 origin 扩大攻击面） |
+| Step 5 minimatch | ✅ 仅 aigcfroge 10.0.3→10.2.5（core 已是 10.2.5） | 无 |
+| Step 6 AI SDK | ✅ core+aigcfroge 同步上游 dependencies；xai patch 删除（3.0.102 已内含 PDF 支持，实证） | google patch 保留（上游仍 3.0.73），登记负债 |
+| A4b nitro | ✅ 登记 CLAUDE.md 已知技术负债（到期 2026-08-04） | Owner 待指派 |
+
+### 最终验证数字（2026-07-28 实测）
+
+```
+bun audit:        142 → 90（2 critical = seroval[B] + fast-xml-parser[C]，批次 A 项全清）
+lint:             0 warnings / 0 errors
+typecheck:        18/18 (turbo --force)
+core:             1309 pass / 5 fail（5 个失败已全部定性，见 roadmap D1）
+session-ui:       61/61（含 7 条新 XSS 探针）
+app:              475/475
+aigcfroge:        3118 pass / 7 fail（6 个 asset HttpApi = 并行负载 flake，隔离复跑全过；1 个 tool.write 环境性）
+tui:              178 pass / 1 skip / 8 fail（与既定基线一致）
+build:            web PASS；enterprise FAIL = main 基线预存（solid-start:get-manifest），非本批次回归
+```
+
+### 待办（不阻断合并）
+
+- 部署：enterprise 环境必须配置 `AIGCFROGE_ALLOWED_ORIGINS`（fail-closed 默认拒跨域）
+- CLAUDE.md 三条技术负债（nitro / google patch / dompurify）指派 Owner
+- 批次 D 开工时按 roadmap D1 表修复 5 个 core 失败 + 1 个 aigcfroge 环境性失败

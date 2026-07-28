@@ -1,6 +1,7 @@
 # AigcForge 安全依赖治理 — 完整执行手册
 
 > **审计基线**: 2026-07-28 `bun audit`（142 漏洞：3 critical / 40 high / 77 moderate / 22 low）
+> **批次 A 完成后**: 2026-07-28 `bun audit`（90 漏洞：2 critical / 32 high / 36 moderate / 20 low），剩余 critical 为 seroval（批次 B）与 fast-xml-parser（批次 C）
 > **关联协议**: [CLAUDE.md](../../CLAUDE.md) · [ARCHITECTURE.md](../../ARCHITECTURE.md) · [DESIGN.md](../../DESIGN.md) · [AGENTS.md](../../AGENTS.md)
 > **架构**: 22 workspace 包 + 4 部署单元，Effect Layer 组合，Drizzle + SQLite
 > **上游**: anomalyo/opencode (dev 分支, fork 基线 v1.17.9, 362 提交差距, 无 git 血缘)
@@ -106,10 +107,17 @@ L1 来源层  LLM输出(propose_*_asset工具参数content字段)
 
 ---
 
-## 批次 A: `security-deps` — 7月28-30日
+## 批次 A: `security-deps` — 7月28-30日 ✅ 已完成（2026-07-28，合并 `d2e156abf`）
 
-> 目标: 直接运行时依赖 0 critical，公开请求入口 0 high
+> 目标: 直接运行时依赖 0 critical，公开请求入口 0 high — **已达成**
 > 修复项: A1 js-yaml → A2 tar → A3 DOMPurify → A4 Hono/Nitro → A5 minimatch → A6 AI SDK 同步
+>
+> **执行偏差记录**:
+> - A2 tar 实际升至 **7.5.22**（roadmap 编写后出现新 critical advisory GHSA-23hp-3jrh-7fpw，影响 ≤7.5.18）
+> - A3 dompurify **锁定 3.4.6**：≥3.4.7 与 happy-dom 探针环境不兼容（实证 `<p>`/`<a>` 误剥、`<foreignObject>` 误放），残留 2 moderate 利用前提（IN_PLACE/setConfig/hook 污染）与本仓静态配置用法不匹配，已登记 CLAUDE.md 已知技术负债（到期 2026-08-27）
+> - A4 hono 实际 **4.12.32** 并新增 `"hono": "catalog:"` override 消除传递依赖旧副本；CORS 改为 fail-closed（未配置 `AIGCFROGE_ALLOWED_ORIGINS` 时 `origin: []`）；function Worker 决议**不添加** CORS（内部服务，反射 origin 反而扩大攻击面）
+> - A6 同步后 `@ai-sdk/xai` patch 已删除（3.0.102 已内含 PDF 支持，实证 dist 含 `application/pdf` 处理）；`@ai-sdk/google` patch 保留（上游仍为 3.0.73）
+> - A4b nitro alpha 已登记 CLAUDE.md 已知技术负债（到期 2026-08-04，Owner 待指派）
 
 ### A1. js-yaml 3.14.2 → 4.2.0 ⚠️ 最高优先级 — Fork 引入
 
@@ -499,11 +507,19 @@ stats/server/src/ingest.ts → @aws-sdk/client-firehose
 
 ## 批次 D: `baseline-tests` — 8月4-7日
 
-### D1. Core 4个失败
+### D1. Core 失败（原估 4 个，实测 5 个 — 2026-07-28 已逐一定性）
 
-**根因分析**: AssetMigration首次导入 + LocationServiceMap工具目录预期。与最近的Asset/Plugin/Workflow工作直接相关。
+**根因分析（已实证）**: 均非批次 A 引入，分三类：
 
-**TDD**: 逐个诊断→修复→验证→全量。目标: 4/4修复。
+| 失败用例 | 根因 | 修复方向 | 验证 |
+|---|---|---|---|
+| AssetMigration ×3（imports project-local legacy skills / .claude wins / imports legacy agents） | 测试文件未设置 `AIGCFROGE_EXPERIMENTAL_CHAT_ASSET=true`，而实现 `skill-asset.ts:202`/`agent-asset.ts:192` 将迁移 gate 在该 flag 之后；同包 `location-layer.test.ts:6-16` 已有 save/set/restore 范式 | 测试补 flag 设置（照抄 location-layer 范式） | 设置 flag 后 5/5 PASS |
+| LocationServiceMap > isolates location state... | 期望工具清单过时：缺 M7 新增的 `propose_plugin_asset`、`propose_workflow_asset`（diff 精确 +2） | 更新 `location-layer.test.ts:132` 期望清单 | 实际清单仅多这 2 项 |
+| ProjectCopy > requires force to remove a dirty git worktree | 环境 locale 问题：`git.ts:349` 用英文正则 `/contains modified or untracked files|is dirty/i` 解析 git stderr，本机 `LANG=zh_CN.UTF-8` 下 git 2.43 输出中文（"包含修改或未跟踪的文件"）致 `forceRequired=false`；代码层缺陷：git 调用（`git.ts:337`）未固定 `LC_ALL=C` | 代码修复：git spawn 注入 `LC_ALL=C`（优于改测试，根治 locale 依赖） | `LC_ALL=C` 下 PASS |
+
+另：aigcfroge 包 `tool.write > file permissions > sets file permissions when writing sensitive data` 同为环境性失败（main 基线复现），归入 D1 一并处理。
+
+**TDD**: 按上表修复→验证→全量。目标: 1314/1314（环境修复后）。
 
 ### D2. TUI 8个失败
 
@@ -512,8 +528,8 @@ stats/server/src/ingest.ts → @aws-sdk/client-firehose
 **TDD**: 按类型分组修复，目标至少 4/8。剩余记录为known issue，新增任何第9个失败阻断合并。
 
 ```bash
-bun --cwd packages/core test --timeout 30000  # 目标: 1305/1305
-bun --cwd packages/tui test --timeout 30000   # 目标: ≥174/178
+bun --cwd packages/core test --timeout 30000  # 目标: 1314/1314（2026-07-28 实测总量 1314，原 1305 已过时）
+bun --cwd packages/tui test --timeout 30000   # 目标: ≥182/187（实测总量 187：178 pass / 1 skip / 8 fail）
 ```
 
 ---
@@ -532,6 +548,10 @@ bun --cwd packages/tui test --timeout 30000   # 目标: ≥174/178
 ---
 
 ## 全局验证矩阵
+
+> **2026-07-28 实测基线校正**（原 roadmap 数字已过时）：core 1314 总量（5 fail 见 D1）· session-ui 61 · app 475 · aigcfroge 3150 总量（1 环境性 fail 见 D1，另 6 个 asset HttpApi 为并行负载 flake，隔离复跑全过）· tui 187 总量（8 fail 基线）。
+> 注意：core/session-ui 的 `bun --cwd <pkg> test` 脚本带 `--only-failures`，二次执行只跑上次失败项；全量验证须 `cd packages/<pkg> && bun test`。
+> 已知预存问题：enterprise 构建在 main 上即失败（`solid-start:get-manifest` 解析失败，与批次 A 无关），归入 B3/nitro 负债一并处理。
 
 每批完成后必须通过:
 
