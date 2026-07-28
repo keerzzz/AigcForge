@@ -178,7 +178,8 @@ describe("tool.write", () => {
 
         if (process.platform !== "win32") {
           const stats = yield* Effect.promise(() => fs.stat(filepath))
-          expect(stats.mode & 0o777).toBe(0o644)
+          // Default file mode is 0666 & ~umask; don't hardcode 0644 (breaks under umask 002).
+          expect(stats.mode & 0o777).toBe(0o666 & ~process.umask())
         }
       }),
     )
