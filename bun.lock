@@ -108,7 +108,7 @@
         "immer": "11.1.4",
         "jsonc-parser": "3.3.1",
         "mime-types": "3.0.2",
-        "minimatch": "^10.2.5",
+        "minimatch": "10.2.5",
         "npm-package-arg": "13.0.2",
         "open": "10.1.2",
         "opencode-gitlab-auth": "2.1.0",
@@ -793,6 +793,7 @@
     "@opentui/solid": "catalog:",
     "@types/bun": "catalog:",
     "@types/node": "catalog:",
+    "tar": "7.5.18",
   },
   "catalog": {
     "@cloudflare/workers-types": "4.20251008.0",
@@ -4481,7 +4482,7 @@
 
     "tapable": ["tapable@2.3.3", "", {}, "sha512-uxc/zpqFg6x7C8vOE7lh6Lbda8eEL9zmVm/PLeTPBRhh1xCgdWaQ+J1CUieGpIfm2HdtsUpRv+HshiasBMcc6A=="],
 
-    "tar": ["tar@7.5.16", "", { "dependencies": { "@isaacs/fs-minipass": "^4.0.0", "chownr": "^3.0.0", "minipass": "^7.1.2", "minizlib": "^3.1.0", "yallist": "^5.0.0" } }, "sha512-56adEpPMouktRlBLXiaYFFzZ/3+JXa8P9n7WbR+ibIjtviN55mEaOkiysCnPnWm+7kkui1Dn8J9l+g6zV8731w=="],
+    "tar": ["tar@7.5.18", "", { "dependencies": { "@isaacs/fs-minipass": "^4.0.0", "chownr": "^3.0.0", "minipass": "^7.1.2", "minizlib": "^3.1.0", "yallist": "^5.0.0" } }, "sha512-PwA+nJl+AzsS9hRqtNRRq8/kTdNPoOLEPXpz9WBaErNm4+TFedJyQFJLITWdsmIBnwNS/TwXf1NV5Ak1KITc8g=="],
 
     "tar-stream": ["tar-stream@3.2.0", "", { "dependencies": { "b4a": "^1.6.4", "bare-fs": "^4.5.5", "fast-fifo": "^1.2.0", "streamx": "^2.15.0" } }, "sha512-ojzvCvVaNp6aOTFmG7jaRD0meowIAuPc3cMMhSgKiVWws1GyHbGd/xvnyuRKcKlMpt3qvxx6r0hreCNITP9hIg=="],
 

@@ -135,7 +135,8 @@
     "@opentui/keymap": "catalog:",
     "@opentui/solid": "catalog:",
     "@types/bun": "catalog:",
-    "@types/node": "catalog:"
+    "@types/node": "catalog:",
+    "tar": "7.5.18"
   },
   "patchedDependencies": {
     "@ff-labs/fff-bun@0.9.3": "patches/@ff-labs%2Ffff-bun@0.9.3.patch",
