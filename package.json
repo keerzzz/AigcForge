@@ -137,6 +137,7 @@
     "@types/bun": "catalog:",
     "@types/node": "catalog:",
     "hono": "catalog:",
+    "seroval": "1.4.1",
     "tar": "7.5.22"
   },
   "patchedDependencies": {
