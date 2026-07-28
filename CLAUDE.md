@@ -134,3 +134,4 @@
 |---|---|---|---|---|
 | nitro@3.0.1-alpha.1 预发布版本 | enterprise | alpha 不应直接用于生产 | TBD | 2026-08-04 |
 | @ai-sdk/google patch 未上游化 | root patches/ | 功能补丁可能滞后 | TBD | 上游监控 |
+| dompurify 锁定 3.4.6 | session-ui | 残留 moderate advisory（IN_PLACE/setConfig/hook 污染类，本仓静态配置+单 hook 用法不可达）；≥3.4.7 与 happy-dom 探针环境不兼容（p/a/svg 被误剥、foreignObject 误放），升级前须先迁移探针到真实浏览器环境 | TBD | 2026-08-27 |

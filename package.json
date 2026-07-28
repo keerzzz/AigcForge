@@ -61,7 +61,7 @@
       "effect": "4.0.0-beta.83",
       "ai": "6.0.168",
       "cross-spawn": "7.0.6",
-      "hono": "4.12.18",
+      "hono": "4.12.32",
       "hono-openapi": "1.1.2",
       "fuzzysort": "3.1.0",
       "luxon": "3.6.1",
@@ -136,7 +136,8 @@
     "@opentui/solid": "catalog:",
     "@types/bun": "catalog:",
     "@types/node": "catalog:",
-    "tar": "7.5.18"
+    "hono": "catalog:",
+    "tar": "7.5.22"
   },
   "patchedDependencies": {
     "@ff-labs/fff-bun@0.9.3": "patches/@ff-labs%2Ffff-bun@0.9.3.patch",
