@@ -78,7 +78,7 @@
       "shiki": "4.2.0",
       "solid-list": "0.3.0",
       "tailwindcss": "4.1.11",
-      "vite": "7.1.4",
+      "vite": "7.3.5",
       "@solidjs/meta": "0.29.4",
       "@solidjs/router": "0.15.4",
       "@solidjs/start": "https://pkg.pr.new/@solidjs/start@dfb2020",
@@ -101,7 +101,7 @@
     "prettier": "3.6.2",
     "semver": "^7.6.0",
     "sst": "catalog:",
-    "turbo": "2.8.13"
+    "turbo": "2.9.14"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.933.0",
@@ -138,6 +138,7 @@
     "@types/node": "catalog:",
     "hono": "catalog:",
     "seroval": "1.4.1",
+    "fast-xml-parser": "5.9.3",
     "tar": "7.5.22"
   },
   "patchedDependencies": {
