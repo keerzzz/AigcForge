@@ -65,6 +65,14 @@ function loadDir(
 
       const text = new TextDecoder().decode(raw)
 
+      // Workflow YAML must not exceed 5MB
+      const MAX_YAML_BYTES = 5_000_000
+      if (text.length > MAX_YAML_BYTES) {
+        invalid.set(relativePath, { relativePath, errorTag: "parse_error" })
+        yield* Effect.logWarning("Workflow asset exceeds max size", { relativePath, size: text.length })
+        continue
+      }
+
       let doc: unknown
       try {
         doc = yaml.load(text)

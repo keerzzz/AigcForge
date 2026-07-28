@@ -111,6 +111,10 @@ export function propose(
  * and the HTTP apply handler so both layers enforce one contract.
  */
 export function validateContent(content: string): string | null {
+  const MAX_PROPOSE_YAML = 1_000_000
+  if (content.length > MAX_PROPOSE_YAML) {
+    return `Plugin content exceeds maximum ${MAX_PROPOSE_YAML} bytes.`
+  }
   let parsed: unknown
   try {
     parsed = yaml.load(content)
