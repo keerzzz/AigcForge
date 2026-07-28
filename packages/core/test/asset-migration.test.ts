@@ -1,6 +1,17 @@
 import path from "path"
-import { describe, expect, test } from "bun:test"
+import { beforeAll, afterAll, describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
+
+const FLAG_KEY = "AIGCFROGE_EXPERIMENTAL_CHAT_ASSET"
+const _origFlag = process.env[FLAG_KEY]
+beforeAll(() => {
+  // Legacy asset migration is gated behind this flag in skill-asset/agent-asset.
+  process.env[FLAG_KEY] = "true"
+})
+afterAll(() => {
+  if (_origFlag === undefined) delete process.env[FLAG_KEY]
+  else process.env[FLAG_KEY] = _origFlag
+})
 import { SkillAsset } from "@aigcfroge/core/skill-asset"
 import { AgentAsset } from "@aigcfroge/core/agent-asset"
 import { FSUtil } from "@aigcfroge/core/fs-util"
