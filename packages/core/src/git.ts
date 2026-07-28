@@ -334,7 +334,8 @@ export const layer = Layer.effect(
       cwd = repo.directory,
     ) {
       const result = yield* proc
-        .run(ChildProcess.make("git", args, { cwd, extendEnv: true, stdin: "ignore" }))
+        // Pin LC_ALL so stderr parsing (forceRequired below) is locale-stable.
+        .run(ChildProcess.make("git", args, { cwd, extendEnv: true, env: { LC_ALL: "C" }, stdin: "ignore" }))
         .pipe(
           Effect.mapError(
             (cause) => new WorktreeError({ operation, directory: worktreeDirectory, message: cause.message, cause }),

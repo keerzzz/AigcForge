@@ -519,7 +519,7 @@ stats/server/src/ingest.ts → @aws-sdk/client-firehose
 
 另：aigcfroge 包 `tool.write > file permissions > sets file permissions when writing sensitive data` 同为环境性失败（main 基线复现），归入 D1 一并处理。
 
-**TDD**: 按上表修复→验证→全量。目标: 1314/1314（环境修复后）。
+**修复状态（2026-07-28，分支 `baseline-tests`）**: 已按上表全部修复 — `git.ts` spawn 注入 `LC_ALL=C`；`asset-migration.test.ts` 补 flag save/set/restore；`location-layer.test.ts` 期望清单 +2；`write.test.ts` 权限断言改 `0o666 & ~process.umask()`。core 全量 **1314/1314 全绿**，lint 0 错，typecheck 18/18。
 
 ### D2. TUI 8个失败
 
