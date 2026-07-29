@@ -503,6 +503,7 @@ export function Home() {
   function onImportAsset() {
     void dialog.show(() => (
       <ChatImportDialog
+        client={chatDirSdk()?.client}
         onImport={(result) => {
           const conn = focusedServer()
           const directory = newSessionDirectory()
