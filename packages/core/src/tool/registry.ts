@@ -17,8 +17,9 @@ import { Tools } from "./tools"
 // Keyed by the IntentCategory string from the meta-agent prerouter.
 const INTENT_TOOL_FILTERS: Record<string, (name: string) => boolean> = {
   code_understanding: (name) => READONLY_TOOL_NAMES.has(name),
-  content_creation: (name) => WRITE_TOOL_NAMES.has(name) || READONLY_TOOL_NAMES.has(name),
-  configuration: (name) => CONFIG_TOOL_NAMES.has(name),
+  content_creation: (name) =>
+    WRITE_TOOL_NAMES.has(name) || READONLY_TOOL_NAMES.has(name) || name.startsWith("propose_"),
+  configuration: (name) => CONFIG_TOOL_NAMES.has(name) || name.startsWith("propose_"),
   code_modification: () => true,
   workflow: () => true,
   mention: () => true,

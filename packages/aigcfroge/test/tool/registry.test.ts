@@ -55,6 +55,14 @@ const replacements = [
 ]
 
 const it = testEffect(LayerNode.buildLayer(root, { replacements }))
+const withChatAssets = testEffect(
+  LayerNode.buildLayer(root, {
+    replacements: [
+      LayerNode.replace(Config.node, configLayer),
+      LayerNode.replace(RuntimeFlags.node, RuntimeFlags.layer({ experimentalChatAsset: true })),
+    ],
+  }),
+)
 const withBrokenPlugin = testEffect(
   LayerNode.buildLayer(root, {
     replacements: [...replacements, LayerNode.replace(Plugin.node, brokenPluginLayer)],
@@ -66,6 +74,23 @@ afterEach(async () => {
 })
 
 describe("tool.registry", () => {
+  withChatAssets.instance("registers every propose asset tool when Chat assets are enabled", () =>
+    Effect.gen(function* () {
+      const registry = yield* ToolRegistry.Service
+      const ids = yield* registry.ids()
+
+      expect(ids.filter((id) => id.startsWith("propose_")).sort()).toEqual([
+        "propose_agent_asset",
+        "propose_command_asset",
+        "propose_mcp_asset",
+        "propose_plugin_asset",
+        "propose_prompt_asset",
+        "propose_skill_asset",
+        "propose_workflow_asset",
+      ])
+    }),
+  )
+
   it.instance("does not expose task_status", () =>
     Effect.gen(function* () {
       const registry = yield* ToolRegistry.Service

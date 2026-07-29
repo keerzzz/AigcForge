@@ -12,12 +12,6 @@ function enabledByExperimental(key: string) {
   return process.env[key] === undefined ? truthy("AIGCFROGE_EXPERIMENTAL") : truthy(key)
 }
 
-function enabledByExperimentalWithLegacy(key: string, legacy: string) {
-  if (process.env[key] !== undefined) return truthy(key)
-  if (process.env[legacy] !== undefined) return truthy(legacy)
-  return truthy("AIGCFROGE_EXPERIMENTAL")
-}
-
 export const Flag = {
   OTEL_EXPORTER_OTLP_ENDPOINT: process.env["OTEL_EXPORTER_OTLP_ENDPOINT"],
   OTEL_EXPORTER_OTLP_HEADERS: process.env["OTEL_EXPORTER_OTLP_HEADERS"],
@@ -64,7 +58,9 @@ export const Flag = {
     return enabledByExperimental("AIGCFROGE_EXPERIMENTAL_REFERENCES")
   },
   get AIGCFROGE_EXPERIMENTAL_CHAT_ASSET() {
-    return enabledByExperimentalWithLegacy("AIGCFROGE_EXPERIMENTAL_CHAT_ASSET", "AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET")
+    if (process.env["AIGCFROGE_EXPERIMENTAL_CHAT_ASSET"] !== undefined) return truthy("AIGCFROGE_EXPERIMENTAL_CHAT_ASSET")
+    if (process.env["AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET"] !== undefined) return truthy("AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET")
+    return true
   },
   get AIGCFROGE_TUI_CONFIG() {
     return process.env["AIGCFROGE_TUI_CONFIG"]

@@ -12,16 +12,6 @@ const enabledByExperimental = (name: string) =>
   Config.all({ experimental, enabled: Config.boolean(name).pipe(Config.option) }).pipe(
     Config.map((flags) => Option.getOrElse(flags.enabled, () => flags.experimental)),
   )
-const enabledByExperimentalWithLegacy = (name: string, legacy: string) =>
-  Config.all({
-    experimental,
-    enabled: Config.boolean(name).pipe(Config.option),
-    legacy: Config.boolean(legacy).pipe(Config.option),
-  }).pipe(
-    Config.map((flags) =>
-      Option.getOrElse(flags.enabled, () => Option.getOrElse(flags.legacy, () => flags.experimental)),
-    ),
-  )
 
 export class Service extends ConfigService.Service<Service>()("@aigcfroge/RuntimeFlags", {
   autoShare: bool("AIGCFROGE_AUTO_SHARE"),
@@ -51,9 +41,14 @@ export class Service extends ConfigService.Service<Service>()("@aigcfroge/Runtim
   enableQuestionTool: bool("AIGCFROGE_ENABLE_QUESTION_TOOL"),
   experimentalReferences: enabledByExperimental("AIGCFROGE_EXPERIMENTAL_REFERENCES"),
   experimentalBackgroundSubagents: enabledByExperimental("AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS"),
-  experimentalChatAsset: enabledByExperimentalWithLegacy(
-    "AIGCFROGE_EXPERIMENTAL_CHAT_ASSET",
-    "AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET",
+  experimentalChatAsset: Config.all({
+    experimental,
+    enabled: Config.boolean("AIGCFROGE_EXPERIMENTAL_CHAT_ASSET").pipe(Config.option),
+    legacy: Config.boolean("AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET").pipe(Config.option),
+  }).pipe(
+    Config.map((flags) =>
+      Option.getOrElse(flags.enabled, () => Option.getOrElse(flags.legacy, () => flags.experimental || true)),
+    ),
   ),
   experimentalLspTy: bool("AIGCFROGE_EXPERIMENTAL_LSP_TY"),
   experimentalLspTool: enabledByExperimental("AIGCFROGE_EXPERIMENTAL_LSP_TOOL"),

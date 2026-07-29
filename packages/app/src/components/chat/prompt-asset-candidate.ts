@@ -236,9 +236,12 @@ export function findProposeResult(
     if (!parts) continue
     for (const part of parts.toReversed()) {
       if (!isRecord(part)) continue
-      if (part.type !== "tool" || typeof part.tool !== "string" || !(part.tool in PROPOSE_TOOL_KINDS)) continue
+      if (part.type !== "tool") continue
+      const toolName =
+        typeof part.tool === "string" ? part.tool : typeof part.name === "string" ? part.name : undefined
+      if (!toolName || !(toolName in PROPOSE_TOOL_KINDS)) continue
       if (!isRecord(part.state) || part.state.status !== "completed") continue
-      const candidate = normalizeProposeCandidate({ tool: part.tool, state: part.state })
+      const candidate = normalizeProposeCandidate({ tool: toolName, state: part.state })
       if (candidate) return candidate
     }
   }

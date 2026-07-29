@@ -103,9 +103,10 @@ describe("normalizeProposeCandidate", () => {
       },
     })
     expect(wf).not.toBeNull()
-    expect(wf!.kind).toBe("workflow")
-    expect(wf!.name).toBe("wf1")
-    expect(wf!.content).toContain("triggers")
+    if (wf?.kind !== "workflow") throw new Error("workflow candidate not normalized")
+    expect(wf.name).toBe("wf1")
+    expect(wf.content).toContain("triggers")
+    expect(wf.candidate.content).toContain("steps")
 
     const pl = normalizeProposeCandidate({
       tool: "propose_plugin_asset",
@@ -115,8 +116,10 @@ describe("normalizeProposeCandidate", () => {
       },
     })
     expect(pl).not.toBeNull()
-    expect(pl!.kind).toBe("plugin")
-    expect(pl!.name).toBe("pl1")
+    if (pl?.kind !== "plugin") throw new Error("plugin candidate not normalized")
+    expect(pl.name).toBe("pl1")
+    expect(pl.content).toContain("hooks")
+    expect(pl.candidate.content).toContain("version")
   })
 
   test("rejects malformed tool state", () => {
@@ -176,5 +179,30 @@ describe("findProposeResult", () => {
     expect(result?.kind).toBe("skill")
     expect(result?.name).toBe("sk")
     expect(result?.content).toBe("BODY")
+  })
+
+  test("detects V2-style parts using `name` field", () => {
+    const result = findProposeResult(
+      [{ id: "msg" }],
+      {
+        msg: [
+          {
+            type: "tool",
+            name: "propose_workflow_asset",
+            state: {
+              status: "completed",
+              input: { name: "wf_v2", description: "v2 wf", content: "name: wf\nsteps: []" },
+              structured: { relativePath: ".aigcfroge/workflows/wf.yaml", exists: false },
+              content: [{ type: "text", text: "Candidate is valid." }],
+            },
+          },
+        ],
+      },
+    )
+
+    expect(result).not.toBeNull()
+    expect(result?.kind).toBe("workflow")
+    expect(result?.name).toBe("wf_v2")
+    expect(result?.content).toContain("steps")
   })
 })

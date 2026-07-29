@@ -331,9 +331,19 @@ export function ChatRightPanel() {
                           <Show
                             when={candidate.candidate?.status === "exists"}
                             fallback={
-                              <span class="mb-2 block shrink-0 text-v2-state-fg-warning text-12-regular">
-                                {language.t("promptAsset.candidate.conflict")}
-                              </span>
+                              <>
+                                <span class="mb-2 block shrink-0 text-v2-state-fg-warning text-12-regular">
+                                  {language.t("promptAsset.candidate.conflict")}
+                                </span>
+                                <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-v2-border-border-base">
+                                  <div class="shrink-0 border-b border-v2-border-border-base px-2 py-1.5 text-v2-text-text-muted text-11-semibold">
+                                    {language.t("promptAsset.tab.preview")}
+                                  </div>
+                                  <pre class="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-2 font-mono text-v2-text-text-base text-12-regular">
+                                    {candidate.candidate?.content}
+                                  </pre>
+                                </div>
+                              </>
                             }
                           >
                             {/* exists: 旧↔新 diff + 显式覆盖确认(PRD §9.3) */}
@@ -384,11 +394,19 @@ export function ChatRightPanel() {
                           </Show>
                         }
                       >
-                        {/* valid: 直接应用(overwrite=false) */}
+                        {/* valid: 内容预览 + 直接应用(overwrite=false) */}
                         <span class="mb-2 block shrink-0 text-v2-state-fg-success text-12-regular">
                           {language.t("promptAsset.candidate.valid")}
                         </span>
-                        <div class="mt-auto shrink-0">
+                        <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-v2-border-border-base">
+                          <div class="shrink-0 border-b border-v2-border-border-base px-2 py-1.5 text-v2-text-text-muted text-11-semibold">
+                            {language.t("promptAsset.tab.preview")}
+                          </div>
+                          <pre class="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-2 font-mono text-v2-text-text-base text-12-regular">
+                            {candidate.candidate?.content}
+                          </pre>
+                        </div>
+                        <div class="mt-2 shrink-0">
                           <ButtonV2
                             variant="contrast"
                             size="small"

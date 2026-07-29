@@ -16,7 +16,8 @@ const make = () =>
   })
 
 const outputStore = Layer.mock(ToolOutputStore.Service, {
-  bound: () => Effect.succeed({ output: { structured: {}, content: [{ type: "text" as const, text: "" }] }, outputPaths: [] }),
+  bound: () =>
+    Effect.succeed({ output: { structured: {}, content: [{ type: "text" as const, text: "" }] }, outputPaths: [] }),
 })
 const registry = ToolRegistry.layer.pipe(Layer.provide(ApplicationTools.layer), Layer.provide(outputStore))
 const it = testEffect(registry)
@@ -52,18 +53,48 @@ describe("ToolRegistry INTENT_TOOL_FILTERS", () => {
   it.effect("content_creation returns write + readonly", () =>
     Effect.gen(function* () {
       const service = yield* ToolRegistry.Service
-      yield* service.register({ read: make(), write: make(), edit: make(), config: make(), grep: make(), bash: make() })
+      yield* service.register({
+        read: make(),
+        write: make(),
+        edit: make(),
+        config: make(),
+        grep: make(),
+        bash: make(),
+        propose_prompt_asset: make(),
+      })
       const names = (yield* service.materialize([], "content_creation")).definitions.map((d) => d.name).sort()
-      expect(names).toEqual(["bash", "edit", "grep", "read", "write"])
+      expect(names).toEqual(["bash", "edit", "grep", "propose_prompt_asset", "read", "write"])
     }),
   )
 
   it.effect("configuration returns only config tools", () =>
     Effect.gen(function* () {
       const service = yield* ToolRegistry.Service
-      yield* service.register({ read: make(), edit: make(), config: make(), agent: make(), bash: make(), skill: make() })
+      yield* service.register({
+        read: make(),
+        edit: make(),
+        config: make(),
+        agent: make(),
+        bash: make(),
+        skill: make(),
+        propose_workflow_asset: make(),
+      })
       const names = (yield* service.materialize([], "configuration")).definitions.map((d) => d.name).sort()
-      expect(names).toEqual(["agent", "config", "skill"])
+      expect(names).toEqual(["agent", "config", "propose_workflow_asset", "skill"])
+    }),
+  )
+
+  it.effect("chat-orchestrator permissions retain propose tools after intent filtering", () =>
+    Effect.gen(function* () {
+      const service = yield* ToolRegistry.Service
+      yield* service.register({ read: make(), bash: make(), propose_workflow_asset: make() })
+      const permissions = [
+        { action: "*", resource: "*", effect: "deny" as const },
+        { action: "read", resource: "*", effect: "allow" as const },
+        { action: "propose_workflow_asset", resource: "*", effect: "allow" as const },
+      ]
+      const names = (yield* service.materialize(permissions, "configuration")).definitions.map((d) => d.name).sort()
+      expect(names).toEqual(["propose_workflow_asset"])
     }),
   )
 
@@ -71,10 +102,11 @@ describe("ToolRegistry INTENT_TOOL_FILTERS", () => {
     Effect.gen(function* () {
       const service = yield* ToolRegistry.Service
       yield* service.register({ read: make(), grep: make(), edit: make(), bash: make() })
-      const names = (
-        yield* service.materialize([{ action: "grep", resource: "*", effect: "deny" }], "code_understanding")
-      )
-        .definitions.map((d) => d.name)
+      const names = (yield* service.materialize(
+        [{ action: "grep", resource: "*", effect: "deny" }],
+        "code_understanding",
+      )).definitions
+        .map((d) => d.name)
         .sort()
       expect(names).toEqual(["read"])
     }),

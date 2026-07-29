@@ -19,6 +19,15 @@ export const QuestionTool = Tool.define<typeof Parameters, Metadata, Question.Se
     return {
       description: DESCRIPTION,
       parameters: Parameters,
+      formatValidationError: () =>
+        [
+          `Each question in the "questions" array must be an object with these fields:`,
+          `- question (string, required): The question text`,
+          `- header (string, required): A short label`,
+          `- options (array, required): Choices shaped as { label: string, description: string }`,
+          `- multiple (boolean, optional): Whether multiple selections are allowed`,
+          `Please rebuild the entire "questions" array with valid objects.`,
+        ].join("\n"),
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context<Metadata>) =>
         Effect.gen(function* () {
           const answers = yield* question.ask({

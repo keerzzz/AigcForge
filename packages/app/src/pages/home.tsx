@@ -63,7 +63,7 @@ import { useChatFeature } from "@/context/chat-feature"
 import type { DirectorySDK } from "@/context/sdk"
 import { AssetWorkbench } from "@/components/chat/asset-workbench"
 import { AssetSessionSelector } from "@/components/chat/asset-session-selector"
-import { ChatImportDialog } from "@/components/chat/chat-import-dialog"
+import { ChatImportDialog, serializeImport, wrapImportContent } from "@/components/chat/chat-import-dialog"
 import { AssetDeleteDialog } from "@/components/chat/asset-delete-dialog"
 
 const HOME_SESSION_LIMIT = 64
@@ -503,14 +503,17 @@ export function Home() {
   function onImportAsset() {
     void dialog.show(() => (
       <ChatImportDialog
-        onImport={(wrappedContent) => {
+        onImport={(result) => {
           const conn = focusedServer()
           const directory = newSessionDirectory()
           if (!conn || !directory) return
+          const content = serializeImport(result)
+          if (!content) return
           const ctx = global.ensureServerCtx(conn)
+          const prompt = wrapImportContent(content, language.t("chatImport.untrustedInstruction"))
           openProjectNewSession(
             ctx.projects,
-            (server, draftDirectory) => tabs.newDraft({ server, directory: draftDirectory, ...modeDraft("chat") }, wrappedContent),
+            (server, draftDirectory) => tabs.newDraft({ server, directory: draftDirectory, ...modeDraft("chat") }, prompt),
             ServerConnection.key(conn),
             directory,
           )

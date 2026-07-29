@@ -127,10 +127,9 @@ function listenerLayer(opts: ListenOptions, port: number) {
 }
 
 function startWithPortFallback(opts: ListenOptions) {
-  if (opts.port !== 0) return startListener(opts, opts.port)
-  // Match the legacy listener port-resolution behavior: explicit `0` prefers
-  // 4096 first, then any free port.
-  return startListener(opts, 4096).pipe(Effect.catch(() => startListener(opts, 0)))
+  return startListener(opts, opts.port || 4096).pipe(
+    Effect.catch(() => startListener(opts, 0)),
+  )
 }
 
 function startListener(opts: ListenOptions, port: number) {
