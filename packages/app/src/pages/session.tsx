@@ -67,6 +67,14 @@ import { extractPromptFromParts } from "@/utils/prompt"
 import { formatServerError } from "@/utils/server-errors"
 import { sessionHref, requireServerKey } from "@/utils/session-route"
 import { useChatWorkspace } from "@/context/chat-workspace"
+import { useGlobal } from "@/context/global"
+import { useServer, ServerConnection } from "@/context/server"
+import { useTabs } from "@/context/tabs"
+import { modeDraft } from "@/context/mode"
+import { openProjectNewSession } from "@/pages/layout/helpers"
+import { extractMessageContent, captureSeedPrompt } from "@/components/chat/capture-helpers"
+import { createPromptHistory } from "@/components/chat/repeat-detection"
+import { SuggestionBar } from "@/components/chat/suggestion-bar"
 import { fetchAssetInsertText, parseInsertKind } from "@/components/chat/asset-insert"
 import { useUsageExceededDialogs } from "./session/usage-exceeded-dialogs"
 
@@ -89,11 +97,16 @@ export default function Page() {
   const sdk = useSDK()
   const serverSDK = useServerSDK()
   const settings = useSettings()
+  const global = useGlobal()
+  const server = useServer()
+  const appTabs = useTabs()
   const prompt = usePrompt()
   const workspace = useChatWorkspace()
   const comments = useComments()
   const terminal = useTerminal()
   const [searchParams, setSearchParams] = useSearchParams<{ prompt?: string; insert?: string; insertKind?: string }>()
+  const [suggestion, setSuggestion] = createStore({ show: false, message: "" })
+  const promptHistory = createPromptHistory()
   const location = useLocation()
   const navigate = useNavigate()
   const { params, sessionKey, workspaceKey, tabs, view } = useSessionLayout()
@@ -1354,6 +1367,21 @@ export default function Page() {
 
       setFollowup("items", input.sessionID, (items) => (items ?? []).filter((entry) => entry.id !== input.id))
       if (input.manual) resumeScroll()
+
+      // Repeat detection: check if this prompt is similar to a previous one
+      const promptText = item.prompt
+        .filter((p): p is { type: "text"; content: string } & typeof p => "content" in p && p.type === "text")
+        .map((p) => p.content)
+        .join(" ")
+        .trim()
+      if (promptText) {
+        const repeat = promptHistory.findSimilar(promptText)
+        promptHistory.push(promptText)
+        if (repeat && !suggestion.show) {
+          setSuggestion("show", true)
+          setSuggestion("message", language.t("chatCapture.repeatSuggestion"))
+        }
+      }
     },
   }))
 
@@ -1558,7 +1586,38 @@ export default function Page() {
     }
   }
 
-  const actions = { revert, handoff }
+  const capture = () => {
+    const sessionInfo = info()
+    if (sessionInfo?.mode === "chat") return
+
+    const conn = server.current
+    if (!conn) return
+    const directory = sessionInfo?.directory
+    if (!directory) return
+
+    const msgs = timeline.messages()
+    const lastAssistant = [...msgs].reverse().find((m) => m.role === "assistant")
+    if (!lastAssistant) return
+
+    const parts = sync().data.part[lastAssistant.id] ?? []
+    const content = extractMessageContent(parts)
+    if (!content.trim()) return
+
+    const seedPrompt = captureSeedPrompt(content, { sessionID: params.id!, messageID: lastAssistant.id }, language.t)
+
+    openProjectNewSession(
+      global.ensureServerCtx(conn).projects,
+      (_server, draftDirectory) => appTabs.newDraft(
+        { server: _server, directory: draftDirectory, ...modeDraft("chat") },
+        seedPrompt,
+      ),
+      ServerConnection.key(conn),
+      directory,
+    )
+  }
+
+  const sessionMode = () => info()?.mode
+  const actions = { revert, handoff, capture: sessionMode() !== "chat" ? capture : undefined }
 
   createEffect(() => {
     const sessionID = params.id
@@ -1846,6 +1905,15 @@ export default function Page() {
               </Switch>
             </div>
 
+            <SuggestionBar
+              show={suggestion.show}
+              message={suggestion.message}
+              onAccept={() => {
+                setSuggestion("show", false)
+                capture()
+              }}
+              onDismiss={() => setSuggestion("show", false)}
+            />
             <Show when={(params.id || !newSessionDesign()) && !mobileChanges()}>{composerRegion("dock")}</Show>
             <Show when={!!params.id && mobileTabsBottom()}>{mobileTabs(true, true)}</Show>
           </div>

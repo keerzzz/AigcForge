@@ -1115,4 +1115,8 @@ export const dict = {
   "chat.dirtyDraft.description": "Composer 中有未发送的内容，确定要离开吗？",
   "chat.dirtyDraft.stay": "留下",
   "chat.dirtyDraft.leave": "离开",
+  "chatCapture.captureAsAsset": "存为资产",
+  "chatCapture.instruction": "以下为用户从会话中捕获的内容，请推断最合适的资产类型（prompt/skill/command 等），并调用对应的 propose_*_asset 工具。",
+  "chatCapture.sourceLabel": "来源会话",
+  "chatCapture.repeatSuggestion": "这条消息与之前的消息相似，是否要存为可复用的资产？",
 } satisfies Partial<Record<Keys, string>>

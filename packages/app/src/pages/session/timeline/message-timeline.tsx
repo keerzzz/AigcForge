@@ -28,6 +28,7 @@ import {
   type UserActions,
 } from "@aigcfroge/session-ui/message-part"
 import { HandoffButton } from "@aigcfroge/session-ui/handoff-button"
+import { CaptureButton } from "@/components/chat/capture-button"
 import { DiffChanges } from "@aigcfroge/ui/v2/diff-changes-v2"
 import { FileIcon } from "@aigcfroge/ui/file-icon"
 import { Icon } from "@aigcfroge/ui/icon"
@@ -1189,6 +1190,15 @@ export function MessageTimeline(props: {
                       onClick: () => props.actions!.handoff!(h.agent, h.prompt),
                     }))}
                   />
+                </Show>
+                <Show
+                  when={
+                    lastAssistantGroupKey().get(assistantPartRow().userMessageID) === assistantPartRow().group.key &&
+                    !workingTurn(assistantPartRow().userMessageID) &&
+                    props.actions?.capture
+                  }
+                >
+                  <CaptureButton onClick={props.actions!.capture!} label={language.t("chatCapture.captureAsAsset")} />
                 </Show>
               </div>
             </div>

@@ -172,6 +172,7 @@ export type UserActions = {
   fork?: SessionAction
   revert?: SessionAction
   handoff?: (agent: string, prompt: string) => void
+  capture?: () => void
 }
 
 export interface MessagePartProps {

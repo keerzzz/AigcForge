@@ -1223,4 +1223,8 @@ export const dict = {
   "chat.dirtyDraft.description": "You have unsaved content in the composer. Are you sure you want to leave?",
   "chat.dirtyDraft.stay": "Stay",
   "chat.dirtyDraft.leave": "Leave",
+  "chatCapture.captureAsAsset": "Save as asset",
+  "chatCapture.instruction": "The following content was captured from a conversation. Infer the most suitable asset type (prompt, skill, command, etc.) and call the corresponding propose_*_asset tool.",
+  "chatCapture.sourceLabel": "Source session",
+  "chatCapture.repeatSuggestion": "This looks similar to an earlier message. Would you like to save it as a reusable asset?",
 }
