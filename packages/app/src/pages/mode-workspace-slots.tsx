@@ -316,6 +316,7 @@ export function ChatAssetWorkbenchMain() {
     if (!c || !dir) return
     void dialog.show(() => (
       <ChatImportDialog
+        client={assets?.chatDirSdk()?.client}
         onImport={(result) => {
           const content = serializeImport(result)
           if (!content) return

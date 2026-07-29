@@ -4613,6 +4613,24 @@ export type PluginAssetInfo = {
   hooks?: Array<PluginAssetHookDef>
 }
 
+export type ImportParserCandidate = {
+  kind: string
+  name: string
+  description: string
+  template: string
+}
+
+export type ImportParserParseError = {
+  section: string
+  reason: string
+}
+
+export type ImportParserResult = {
+  candidates: Array<ImportParserCandidate>
+  warnings: Array<string>
+  errors: Array<ImportParserParseError>
+}
+
 export type ToolSummaryEntry = {
   tool: string
   file?: string
@@ -11445,6 +11463,33 @@ export type PluginAssetDeleteResponses = {
    */
   200: unknown
 }
+
+export type ImportParserParseData = {
+  body?: {
+    content: string
+  }
+  path?: never
+  query?: never
+  url: "/import-asset/parse"
+}
+
+export type ImportParserParseErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type ImportParserParseError2 = ImportParserParseErrors[keyof ImportParserParseErrors]
+
+export type ImportParserParseResponses = {
+  /**
+   * Parsed import candidates
+   */
+  200: ImportParserResult
+}
+
+export type ImportParserParseResponse = ImportParserParseResponses[keyof ImportParserParseResponses]
 
 export type ProviderListData = {
   body?: never

@@ -106,6 +106,8 @@ import type {
   GlobalHealthResponses,
   GlobalUpgradeErrors,
   GlobalUpgradeResponses,
+  ImportParserParseErrors,
+  ImportParserParseResponses,
   InstanceDisposeErrors,
   InstanceDisposeResponses,
   LocationRef,
@@ -4476,6 +4478,32 @@ export class PluginAsset extends HeyApiClient {
   }
 }
 
+export class ImportParser extends HeyApiClient {
+  /**
+   * Parse raw text into asset candidates
+   *
+   * Parse raw import text using the deterministic Core ImportParser service.
+   */
+  public parse<ThrowOnError extends boolean = false>(
+    parameters?: {
+      content?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "body", key: "content" }] }])
+    return (options?.client ?? this.client).post<ImportParserParseResponses, ImportParserParseErrors, ThrowOnError>({
+      url: "/import-asset/parse",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class Oauth extends HeyApiClient {
   /**
    * Start OAuth authorization
@@ -8476,6 +8504,11 @@ export class AigcfrogeClient extends HeyApiClient {
   private _pluginAsset?: PluginAsset
   get pluginAsset(): PluginAsset {
     return (this._pluginAsset ??= new PluginAsset({ client: this.client }))
+  }
+
+  private _importParser?: ImportParser
+  get importParser(): ImportParser {
+    return (this._importParser ??= new ImportParser({ client: this.client }))
   }
 
   private _provider?: Provider

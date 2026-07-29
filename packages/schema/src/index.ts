@@ -1,5 +1,6 @@
 export { ProductMode } from "./product-mode"
 export { PromptAsset } from "./prompt-asset"
+export { ImportParser } from "./import-parser"
 export { Handoff } from "./handoff"
 export { Agent } from "./agent"
 export { Command } from "./command"

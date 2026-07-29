@@ -5,9 +5,17 @@ import { Dialog, DialogFooter } from "@aigcfroge/ui/v2/dialog-v2"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useLanguage } from "@/context/language"
+import type { ImportParserClient } from "@/context/sdk-types"
 
 type FileType = "code" | "config" | "document"
 type ImportMode = "paste" | "file" | "folder"
+type DialogPhase = "input" | "result"
+
+interface ParseResult {
+  candidates: Array<{ kind: string; name: string; description: string; template: string }>
+  warnings: string[]
+  errors: Array<{ section: string; reason: string }>
+}
 
 const CODE_EXTENSIONS = new Set([
   "c",
@@ -43,6 +51,11 @@ export type ImportResult =
   | { type: "paste"; content: string }
   | { type: "file"; entries: FileEntry[] }
   | { type: "folder"; entries: FileEntry[] }
+
+export interface ChatImportDialogProps {
+  onImport: (result: ImportResult) => void
+  client?: ImportParserClient
+}
 
 function detectFileType(name: string, mime: string): FileType | undefined {
   const extension = name.split(".").pop()?.toLowerCase() ?? ""
@@ -126,7 +139,7 @@ async function readEntry(file: File): Promise<FileEntry | undefined> {
   }
 }
 
-export function ChatImportDialog(props: { onImport: (result: ImportResult) => void }) {
+export function ChatImportDialog(props: ChatImportDialogProps) {
   const language = useLanguage()
   const dialog = useDialog()
   const [state, setState] = createStore({
@@ -136,6 +149,10 @@ export function ChatImportDialog(props: { onImport: (result: ImportResult) => vo
     selectedPath: "",
     skippedFiles: 0,
     loading: false,
+    phase: "input" as DialogPhase,
+    parseResult: undefined as ParseResult | undefined,
+    parsing: false,
+    parseError: undefined as string | undefined,
   })
 
   let fileInput: HTMLInputElement | undefined
@@ -145,6 +162,7 @@ export function ChatImportDialog(props: { onImport: (result: ImportResult) => vo
     state.entries.find((entry) => entry.relativePath === state.selectedPath) ?? state.entries[0]
   const totalSize = () => state.entries.reduce((sum, entry) => sum + entry.size, 0)
   const canImport = () => (state.mode === "paste" ? state.text.trim().length > 0 : state.entries.length > 0)
+  const hasFatalErrors = () => state.parseResult && state.parseResult.candidates.length === 0 && state.parseResult.errors.length > 0
 
   function openFilePicker() {
     if (!fileInput) return
@@ -197,15 +215,126 @@ export function ChatImportDialog(props: { onImport: (result: ImportResult) => vo
     }
   }
 
+  function buildResult(): ImportResult {
+    return state.mode === "paste"
+      ? { type: "paste", content: state.text.trim() }
+      : { type: state.mode, entries: state.entries }
+  }
+
+  async function handleParse() {
+    const result = buildResult()
+    const content = serializeImport(result)
+    if (!content.trim() || !props.client) return
+
+    setState({ parsing: true, parseError: undefined, parseResult: undefined })
+    try {
+      const response = await props.client.importParser.parse({ content }, { throwOnError: true })
+      setState({
+        parsing: false,
+        phase: "result",
+        parseResult: {
+          candidates: response.data.candidates ?? [],
+          warnings: response.data.warnings ?? [],
+          errors: response.data.errors ?? [],
+        },
+      })
+    } catch {
+      setState({ parsing: false, parseError: "Parse failed" })
+    }
+  }
+
+  /** Fallback to AI-assisted import (old flow). */
+  function handleAiFallback() {
+    props.onImport(buildResult())
+    dialog.close()
+  }
+
+  /** Go back to input mode. */
+  function handleBack() {
+    setState({ phase: "input", parseResult: undefined, parseError: undefined })
+  }
+
   function handleImport() {
-    const result: ImportResult =
-      state.mode === "paste"
-        ? { type: "paste", content: state.text.trim() }
-        : { type: state.mode, entries: state.entries }
+    const result = buildResult()
     if (!serializeImport(result).trim()) return
     props.onImport(result)
     dialog.close()
   }
+
+  // -- Result view --
+
+  function ResultView() {
+    const pr = state.parseResult
+    if (!pr) return null
+
+    return (
+      <div class="flex min-h-[280px] flex-1 flex-col gap-3">
+        <div class="flex items-center gap-2">
+          <button type="button" onClick={handleBack} class="text-v2-text-text-muted hover:text-v2-text-text-base">
+            <Icon name="chevron-left" size="small" />
+          </button>
+          <span class="text-v2-text-text-base text-13-semibold">{language.t("chatImport.parseResult")}</span>
+        </div>
+
+        <Show when={pr.warnings.length > 0}>
+          <div class="rounded-[6px] border border-v2-state-border-warning bg-v2-state-bg-warning px-3 py-2">
+            <For each={pr.warnings}>{(w) => <div class="text-v2-state-fg-warning text-11-regular">{w}</div>}</For>
+          </div>
+        </Show>
+
+        <Show when={pr.candidates.length > 0}>
+          <div class="flex flex-col gap-2">
+            <For each={pr.candidates}>
+              {(c, i) => (
+                <div class="rounded-[6px] border border-v2-border-border-base p-3">
+                  <div class="flex items-center gap-2">
+                    <span class="rounded-[4px] bg-v2-background-bg-layer-03 px-1.5 py-0.5 text-v2-text-text-muted text-10-regular">
+                      {c.kind}
+                    </span>
+                    <span class="text-v2-text-text-base text-12-semibold">{c.name || `Candidate ${i() + 1}`}</span>
+                  </div>
+                  <Show when={c.description}>
+                    <div class="mt-1 text-v2-text-text-muted text-11-regular">{c.description}</div>
+                  </Show>
+                  <pre class="mt-2 max-h-[120px] overflow-auto whitespace-pre-wrap break-words rounded-[4px] bg-v2-background-bg-layer-02 p-2 font-mono text-v2-text-text-base text-11-regular">
+                    {c.template}
+                  </pre>
+                </div>
+              )}
+            </For>
+          </div>
+        </Show>
+
+        <Show when={pr.errors.length > 0}>
+          <div class="rounded-[6px] border border-v2-state-border-error bg-v2-state-bg-error px-3 py-2">
+            <For each={pr.errors}>
+              {(e) => (
+                <div class="text-v2-state-fg-error text-11-regular">
+                  [{e.section}] {e.reason}
+                </div>
+              )}
+            </For>
+          </div>
+        </Show>
+
+        <DialogFooter>
+          <ButtonV2 variant="ghost" onClick={handleBack}>
+            {language.t("common.goBack")}
+          </ButtonV2>
+          <ButtonV2 variant="ghost" onClick={handleAiFallback}>
+            {language.t("chatImport.aiAssisted")}
+          </ButtonV2>
+          <ButtonV2 variant="contrast" disabled={hasFatalErrors()} onClick={handleImport}>
+            {language.t("chatImport.applyImport")}
+          </ButtonV2>
+        </DialogFooter>
+      </div>
+    )
+  }
+
+  // -- Input view (original) --
+
+  if (state.phase === "result") return <ResultView />
 
   return (
     <Dialog title={language.t("chatImport.title")} description={language.t("chatImport.description")} size="large" fit>
@@ -386,14 +515,20 @@ export function ChatImportDialog(props: { onImport: (result: ImportResult) => vo
             </Show>
           </Show>
         </Show>
+
+        <Show when={state.parseError}>
+          <div class="rounded-[6px] border border-v2-state-border-error bg-v2-state-bg-error px-3 py-2 text-v2-state-fg-error text-11-regular">
+            {state.parseError}
+          </div>
+        </Show>
       </div>
 
       <DialogFooter>
         <ButtonV2 variant="ghost" onClick={() => dialog.close()}>
           {language.t("common.cancel")}
         </ButtonV2>
-        <ButtonV2 variant="contrast" disabled={!canImport() || state.loading} onClick={handleImport}>
-          {language.t("chatImport.review")}
+        <ButtonV2 variant="contrast" disabled={!canImport() || state.parsing || state.loading} onClick={handleParse}>
+          {state.parsing ? language.t("common.loading") : language.t("chatImport.review")}
         </ButtonV2>
       </DialogFooter>
     </Dialog>
