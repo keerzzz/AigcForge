@@ -42,7 +42,7 @@ import { useCheckServerHealth } from "./utils/server-health"
 import { requireServerKey, rootSession, sessionHref } from "./utils/session-route"
 
 import Session from "@/pages/session"
-import { Home } from "@/pages/home"
+import { ModeWorkspace } from "@/pages/mode-workspace"
 
 const NewSession = lazy(() => import("@/pages/new-session"))
 
@@ -540,7 +540,7 @@ export function AppInterface(props: {
 	}
 
 
-function ModeRoute() {
+export function ModeRoute() {
   const params = useParams<{ mode: string }>()
   const mode = useMode()
   const selected = createMemo(() => (isMode(params.mode) ? params.mode : undefined))
@@ -553,7 +553,7 @@ function ModeRoute() {
     if (current) mode.setCurrentMode(current)
   })
 
-  return <Show when={selected()} fallback={<Navigate href="/" />}><Home /></Show>
+  return <Show when={selected()} fallback={<Navigate href="/" />}><ModeWorkspace /></Show>
 }
 
 // ADR-15 alignment: / redirects to /mode/<persistedMode> (one-time landing, not the authority)

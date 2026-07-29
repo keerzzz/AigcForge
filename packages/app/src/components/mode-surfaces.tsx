@@ -8,17 +8,21 @@ import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { useLanguage } from "@/context/language"
 import { ChatRightPanel } from "@/components/chat/chat-right-panel"
+export { ChatRightPanel }
+import { useChatDirectory } from "@/pages/mode-workspace-context"
 import { AssetWorkbench } from "@/components/chat/asset-workbench"
 import { useGlobal } from "@/context/global"
-import { ServerConnection, useServer } from "@/context/server"
+import { ServerConnection } from "@/context/server"
 import { useServerSync } from "@/context/server-sync"
 import { useTabs } from "@/context/tabs"
 import { useDirectoryPicker } from "@/components/directory-picker"
 import { homeProjectDirectories, openProjectNewSession } from "@/pages/layout/helpers"
 import { getFilename } from "@aigcfroge/core/util/path"
+import { ChatAssetWorkbenchMain, CodingSessionListMain, PlaceholderMain } from "@/pages/mode-workspace-slots"
 
 export type ModeSurface = {
   Sidebar: Component
+  Main: Component
   RightPanel: Component
 }
 
@@ -31,27 +35,6 @@ const CHAT_FEATURES = [
   { id: "workflow", icon: "settings-gear", label: "chat.feature.workflow" },
   { id: "plugin", icon: "outline-dots", label: "chat.feature.plugin" },
 ] as const satisfies ReadonlyArray<{ id: ChatFeatureID; icon: string; label: string }>
-
-/**
- * Chat 首页 Location 解析：当前 server 的 lastSession 目录，回退首个 project worktree。
- * ChatSidebar / ChatFeatureSidebar / Home 资产 fetch 共用，确保 Location 展示与资产列表目录一致。
- */
-export function useChatDirectory() {
-  const global = useGlobal()
-  const server = useServer()
-  const conn = createMemo(() => server.current ?? server.list[0])
-  const ctx = createMemo(() => {
-    const current = conn()
-    if (!current) return
-    return global.ensureServerCtx(current)
-  })
-  const directory = createMemo(() => {
-    const current = ctx()
-    if (!current) return
-    return global.lastSession.directory(current.sdk.scope) ?? current.projects.list()[0]?.worktree
-  })
-  return { conn, ctx, directory }
-}
 
 /** Chat 功能树共享数据：左栏导航 count，directory 复用 useChatDirectory（B2）。 */
 function useChatFeatureData() {
@@ -148,7 +131,7 @@ export function ChatSidebar() {
  * Chat 次级左侧边栏（SecondarySidebar）：Location + New Session + 功能树（分类+计数）+ Add Project。
  * M1 全貌恢复（M2 Step 3 按产品反馈复活）。功能树点击切换 KindFilter，AssetWorkbenchTable 按 kind 展示对应资产。
  */
-function ChatFeatureSidebar() {
+export function ChatFeatureSidebar() {
   const language = useLanguage()
   const tabs = useTabs()
   const global = useGlobal()
@@ -297,7 +280,7 @@ function ChatFeatureSidebar() {
 
 
 
-function PlaceholderSidebar(props: { mode: Mode }) {
+export function PlaceholderSidebar(props: { mode: Mode }) {
   const language = useLanguage()
   return (
     <div class="min-h-0 flex-1 overflow-y-auto px-2">
@@ -309,7 +292,7 @@ function PlaceholderSidebar(props: { mode: Mode }) {
   )
 }
 
-function PlaceholderPanel() {
+export function PlaceholderPanel() {
   const language = useLanguage()
   return (
     <aside class="flex w-64 shrink-0 flex-col items-center justify-center gap-3 border-l border-v2-border-border-base bg-v2-background-bg-base p-6 text-center">
@@ -321,18 +304,22 @@ function PlaceholderPanel() {
 const MODE_SURFACES: Record<ModeSurfaceSlot, ModeSurface> = {
   coding: {
     Sidebar: () => null,
+    Main: CodingSessionListMain,
     RightPanel: () => null,
   },
   chat: {
     Sidebar: ChatFeatureSidebar,
+    Main: ChatAssetWorkbenchMain,
     RightPanel: ChatRightPanel,
   },
   work: {
     Sidebar: () => <PlaceholderSidebar mode="work" />,
+    Main: () => <PlaceholderMain mode="work" />,
     RightPanel: PlaceholderPanel,
   },
   assistant: {
     Sidebar: () => <PlaceholderSidebar mode="assistant" />,
+    Main: () => <PlaceholderMain mode="assistant" />,
     RightPanel: PlaceholderPanel,
   },
 }

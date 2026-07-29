@@ -1,5 +1,4 @@
 import { Show, createEffect, createMemo, createSignal, For, onCleanup, onMount, untrack, type Accessor } from "solid-js"
-import { Dynamic } from "solid-js/web"
 import { createStore, produce } from "solid-js/store"
 import { useParams } from "@solidjs/router"
 import { getFilename } from "@aigcfroge/core/util/path"
@@ -13,7 +12,7 @@ import { DragDropProvider, DragDropSensors, DragOverlay, SortableProvider, close
 import { ConstrainDragXAxis } from "@/utils/solid-dnd"
 import { useLanguage } from "@/context/language"
 import { modeDraft, useMode, type Mode } from "@/context/mode"
-import { modeSurface } from "@/components/mode-surfaces"
+import { ChatFeatureSidebar, PlaceholderSidebar } from "@/components/mode-surfaces"
 import { ChatSessionList } from "@/components/chat/chat-session-list"
 import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
@@ -660,17 +659,24 @@ function SecondarySidebar() {
           </For>
         </div>
       </Show>
-      <Show when={mode.currentMode !== "coding"}>
-        <Dynamic component={modeSurface(mode.currentMode).Sidebar} />
-        {/* Chat 对话列表：当前 Location 的 chat sessions，mode=chat 过滤（功能树下方） */}
-        <Show when={mode.currentMode === "chat" && chatDirectory()}>
-          <ChatSessionList
-            directory={chatDirectory}
-            sortNow={sortNow}
-            ctx={sidebarCtx}
-            serverKey={serverKey() ?? undefined}
-          />
-        </Show>
+      {/* ADR-15 §4 方案1: render-all + display:none 替换 Dynamic — slot 组件常驻不 remount */}
+      <div style={{ display: mode.currentMode === "chat" ? "" : "none" }}>
+        <ChatFeatureSidebar />
+      </div>
+      <div style={{ display: mode.currentMode === "work" ? "" : "none" }}>
+        <PlaceholderSidebar mode="work" />
+      </div>
+      <div style={{ display: mode.currentMode === "assistant" ? "" : "none" }}>
+        <PlaceholderSidebar mode="assistant" />
+      </div>
+      {/* Chat 对话列表：当前 Location 的 chat sessions，mode=chat 过滤（功能树下方） */}
+      <Show when={mode.currentMode === "chat" && chatDirectory()}>
+        <ChatSessionList
+          directory={chatDirectory}
+          sortNow={sortNow}
+          ctx={sidebarCtx}
+          serverKey={serverKey() ?? undefined}
+        />
       </Show>
     </aside>
   )

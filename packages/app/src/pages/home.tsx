@@ -58,7 +58,6 @@ import { Persist, persisted } from "@/utils/persist"
 import { useMarked } from "@aigcfroge/ui/context/marked"
 import { preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"
 import { modeDraft, useMode } from "@/context/mode"
-import { ChatSidebar, useChatDirectory } from "@/components/mode-surfaces"
 import { useChatFeature } from "@/context/chat-feature"
 import type { DirectorySDK } from "@/context/sdk"
 import { AssetWorkbench } from "@/components/chat/asset-workbench"
@@ -66,38 +65,38 @@ import { AssetSessionSelector } from "@/components/chat/asset-session-selector"
 import { ChatImportDialog, serializeImport, wrapImportContent } from "@/components/chat/chat-import-dialog"
 import { AssetDeleteDialog } from "@/components/chat/asset-delete-dialog"
 
-const HOME_SESSION_LIMIT = 64
+export const HOME_SESSION_LIMIT = 64
 const HOME_ROW_LAYOUT =
   "flex min-w-0 w-full shrink-0 cursor-default items-center rounded-[6px] bg-transparent text-left transition-[background-color,color,box-shadow] duration-[120ms] ease-in-out focus-visible:outline-none"
 const HOME_ROW_BASE = `${HOME_ROW_LAYOUT} border-0`
-const HOME_ROW = `${HOME_ROW_BASE} [font-weight:530] text-v2-text-text-muted hover:bg-v2-overlay-simple-overlay-hover focus-visible:bg-v2-overlay-simple-overlay-hover`
+export const HOME_ROW = `${HOME_ROW_BASE} [font-weight:530] text-v2-text-text-muted hover:bg-v2-overlay-simple-overlay-hover focus-visible:bg-v2-overlay-simple-overlay-hover`
 const HOME_PROJECT_NAV_LABEL = "min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
 const HOME_PROJECT_NAV_ROW = `${HOME_ROW_LAYOUT} h-7 gap-2 px-1.5 [font-weight:440] text-v2-text-text-muted hover:bg-v2-background-bg-layer-01 hover:text-v2-text-text-base hover:[box-shadow:inset_0_0_0_0.5px_var(--v2-border-border-muted)] data-[selected]:bg-v2-background-bg-layer-03 data-[selected]:text-v2-text-text-base data-[selected]:[box-shadow:inset_0_0_0_0.5px_var(--v2-border-border-muted)] data-[selected]:hover:bg-v2-background-bg-layer-03 focus-visible:bg-v2-background-bg-layer-01 focus-visible:text-v2-text-text-base focus-visible:[box-shadow:inset_0_0_0_0.5px_var(--v2-border-border-muted)]`
-const HOME_SECTION_LABEL = "text-v2-text-text-muted [font-weight:440]"
+export const HOME_SECTION_LABEL = "text-v2-text-text-muted [font-weight:440]"
 
-type HomeSessionRecord = {
+export type HomeSessionRecord = {
   session: Session
   project: LocalProject
   projectName: string
 }
 
-type HomeSessionGroup = {
+export type HomeSessionGroup = {
   id: "today" | "yesterday" | "older"
   title: string
   sessions: HomeSessionRecord[]
 }
 
-const HOME_SESSION_SEARCH_RESULTS_ID = "home-session-search-results"
-const HOME_SEARCH_RESULT_ROW =
+export const HOME_SESSION_SEARCH_RESULTS_ID = "home-session-search-results"
+export const HOME_SEARCH_RESULT_ROW =
   "flex h-10 w-full shrink-0 cursor-default items-center gap-2 border-0 py-3 pl-4 pr-6 text-left transition-[background-color] duration-[120ms] ease-in-out hover:bg-v2-overlay-simple-overlay-hover focus-visible:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none"
-const HOME_SEARCH_RESULT_TITLE =
+export const HOME_SEARCH_RESULT_TITLE =
   "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] leading-4 tracking-[-0.04px] text-v2-text-text-base [font-weight:530]"
-const HOME_SEARCH_RESULT_META =
+export const HOME_SEARCH_RESULT_META =
   "min-w-0 flex-[1_1_auto] overflow-hidden text-ellipsis whitespace-nowrap text-[13px] leading-4 tracking-[-0.04px] text-v2-text-text-muted [font-weight:440]"
 
 let pendingHomeNavigation: { server: ServerConnection.Key; href: string } | undefined
 
-function buildHomeSessionRecords(input: {
+export function buildHomeSessionRecords(input: {
   sync: Pick<ServerSync, "child">
   projectDirectories: () => string[]
   projects: () => LocalProject[]
@@ -123,636 +122,17 @@ function buildHomeSessionRecords(input: {
     })
 }
 
-function matchesHomeSessionSearch(record: HomeSessionRecord, query: string) {
+export function matchesHomeSessionSearch(record: HomeSessionRecord, query: string) {
   return `${record.session.title} ${record.projectName}`.toLowerCase().includes(query)
 }
 
-function homeSessionSearchKey(record: HomeSessionRecord) {
+export function homeSessionSearchKey(record: HomeSessionRecord) {
   return `${pathKey(record.session.directory)}:${record.session.id}`
 }
 
-export function Home() {
-  const sync = useServerSync()
-  const layout = useLayout()
-  const pickDirectory = useDirectoryPicker()
-  const mode = useMode()
-  const { selected: chatFeature } = useChatFeature()
-  const dialog = useDialog()
-  const navigate = useNavigate()
-  const server = useServer()
-  const language = useLanguage()
-  const global = useGlobal()
-  const tabs = useTabs()
-  const command = useCommand()
-  const notification = useNotification()
-  const marked = useMarked()
-  let focusSessionSearch: (() => void) | undefined
-  const [state, setState] = createStore({
-    search: "",
-    selection: { server: server.key } as HomeProjectSelection,
-    searchFocused: false,
-  })
+// Home component was migrated to ModeWorkspace (ADR-15).
+// Session-related exported components below remain for CodingSessionListMain.
 
-  const focusedServer = createMemo(
-    () => global.servers.list().find((conn) => ServerConnection.key(conn) === state.selection.server) ?? server.current,
-  )
-  const focusedServerCtx = createMemo(() => {
-    const conn = focusedServer()
-    if (!conn) return
-    return global.ensureServerCtx(conn)
-  })
-  const focusedSync = () => focusedServerCtx()?.sync ?? sync()
-  const projects = createMemo(() => focusedServerCtx()?.projects.list() ?? layout.projects.list())
-  const selectedProject = createMemo(() => projects().find((project) => project.worktree === state.selection.directory))
-  const focusedScope = createMemo(() => focusedServerCtx()?.sdk.scope)
-  // Directory for global "new session" entry points (mode cards, session-group header "+").
-  // Priority: if the selected project contains the last session's directory, continue there
-  // (preserves the workspace the user was last working in); otherwise fall back to the
-  // selected project root, then the last session directory, then the first project.
-  const newSessionDirectory = createMemo(() => {
-    const selected = selectedProject()
-    const last = focusedScope() ? global.lastSession.directory(focusedScope()!) : undefined
-    if (selected && last) {
-      const lastKey = pathKey(last)
-      const containsLast =
-        pathKey(selected.worktree) === lastKey || (selected.sandboxes ?? []).some((s) => pathKey(s) === lastKey)
-      if (containsLast) return last
-    }
-    if (selected) return selected.worktree
-    if (last) return last
-    return projects()[0]?.worktree
-  })
-  const directories = (project: LocalProject) => [project.worktree, ...(project.sandboxes ?? [])]
-  const projectDirectories = createMemo(() => {
-    const project = selectedProject()
-    if (!project) return projects().flatMap(directories)
-    return directories(project)
-  })
-  const search = createMemo(() => state.search.trim())
-  const sessionLoad = useQuery(() => ({
-    queryKey: ["home", "sessions", mode.currentMode, state.selection.server, ...projectDirectories()] as const,
-    queryFn: async () => {
-      await Promise.all(
-        projectDirectories().map((directory) =>
-          focusedSync().project.loadSessions(directory, { limit: HOME_SESSION_LIMIT, mode: mode.currentMode }),
-        ),
-      )
-      return null
-    },
-  }))
-
-  const projectByID = createMemo(
-    () => new Map(projects().flatMap((project) => (project.id ? [[project.id, project] as const] : []))),
-  )
-  const allRecords = createMemo(() => {
-    const sync = focusedSync()
-    if (!sync) return []
-    return buildHomeSessionRecords({
-      sync,
-      projectDirectories,
-      projects,
-      projectByID,
-    })
-  })
-  const records = createMemo(() => {
-    const current = mode.currentMode
-    const all = allRecords()
-    if (!all) return []
-    return all
-      .filter((r) => {
-        // Include sessions that match currentMode, or have no mode (backward compat → treat as "coding")
-        if (r.session.mode === undefined) return current === "coding"
-        return r.session.mode === current
-      })
-      .slice(0, HOME_SESSION_LIMIT)
-  })
-  const searchResults = createMemo(() => {
-    const query = search().toLowerCase()
-    if (!query) return []
-    const current = mode.currentMode
-    const all = allRecords()
-    if (!all) return []
-    return all
-      .filter((r) => {
-        if (r.session.mode === undefined) return current === "coding"
-        return r.session.mode === current
-      })
-      .filter((record) => matchesHomeSessionSearch(record, query))
-  })
-  const searchOpen = createMemo(() => state.searchFocused && search().length > 0)
-  const groups = createMemo(() => groupSessions(records(), language))
-  const prefetched = new Set<string>()
-  const disposeRoots = new Set<() => void>()
-
-  onCleanup(() => {
-    for (const dispose of disposeRoots) dispose()
-    disposeRoots.clear()
-  })
-
-  createEffect(() => {
-    const ctx = focusedServerCtx()
-    if (!ctx) return
-    // Clear prefetch state on server switch
-    prefetched.clear()
-    for (const dispose of disposeRoots) dispose()
-    disposeRoots.clear()
-    records()
-      .slice(0, 2)
-      .forEach((record) => {
-        const key = `${ServerConnection.key(focusedServer()!)}\0${record.session.id}`
-        if (prefetched.has(key)) return
-        prefetched.add(key)
-        createRoot((dispose) => {
-          disposeRoots.add(dispose)
-          try {
-            const directory = ctx.sync.ensureDirSyncContext(record.session.directory)
-            void directory.session
-              .sync(record.session.id)
-              .then(() => {
-                const store = ctx.sync.child(record.session.directory)[0]
-                return Promise.all(
-                  (store.message[record.session.id] ?? []).flatMap((message) =>
-                    (store.part[message.id] ?? []).flatMap((part) => {
-                      if (part.type !== "text" || !part.text) return []
-                      return preloadMarkdown(part.text, part.id, marked)
-                    }),
-                  ),
-                )
-              })
-              .catch(() => {})
-              .finally(dispose)
-          } catch {
-            dispose()
-          }
-        })
-      })
-  })
-
-  function setSelection(next: HomeProjectSelection) {
-    batch(() => {
-      if (state.selection.server !== next.server) setState("selection", "server", next.server)
-      if (state.selection.directory !== next.directory) setState("selection", "directory", next.directory)
-    })
-  }
-
-  // On first load (no project selected yet), default-select the project that
-  // contains the last session's directory, so the project list highlights where
-  // the user last worked. Runs once; later user selections are respected.
-  let defaultSelectionApplied = false
-  createEffect(() => {
-    if (defaultSelectionApplied) return
-    if (state.selection.directory) {
-      defaultSelectionApplied = true
-      return
-    }
-    const scope = focusedScope()
-    if (!scope) return
-    const last = global.lastSession.directory(scope)
-    if (!last) return
-    const lastKey = pathKey(last)
-    const project = projects().find(
-      (p) => pathKey(p.worktree) === lastKey || (p.sandboxes ?? []).some((s) => pathKey(s) === lastKey),
-    )
-    defaultSelectionApplied = true
-    if (project) setSelection({ server: state.selection.server, directory: project.worktree })
-  })
-
-  // chat 模式：功能树 Location 切换（lastSession.directory 变化）联动右侧会话列表（m1 §1.4）
-  createEffect(() => {
-    if (mode.currentMode !== "chat") return
-    const scope = focusedScope()
-    if (!scope) return
-    const dir = global.lastSession.directory(scope)
-    if (!dir) return
-    const conn = focusedServer()
-    if (!conn) return
-    if (state.selection.directory === dir) return
-    setSelection({ server: ServerConnection.key(conn), directory: dir })
-  })
-
-  // Chat 资产列表（ADR-15 §4 方案2: createResource 提升到 Home/slot 之上，slot remount 不重取）。
-  // useChatDirectory 与 ChatSidebar 共用，确保资产列表目录与左栏 Location 展示一致。
-  const { ctx: chatCtx, directory: chatDirectory } = useChatDirectory()
-  const [chatDirSdk, setChatDirSdk] = createSignal<DirectorySDK | undefined>()
-  createEffect(() => {
-    const dir = chatDirectory()
-    const currentCtx = chatCtx()
-    if (!dir || !currentCtx) {
-      setChatDirSdk(undefined)
-      return
-    }
-    setChatDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
-  })
-  const [chatAssetList, { refetch: refetchAssets }] = createResource(chatDirSdk, async (sdk) => {
-    const [promptsRes, skillsRes, mcpsRes, cmdsRes, agentsRes, workflowsRes, pluginsRes] = await Promise.all([
-      sdk.client.promptAsset.list(),
-      sdk.client.skillAsset.list(),
-      sdk.client.mcpAsset.list(),
-      sdk.client.commandAsset.list(),
-      sdk.client.agentAsset.list(),
-      sdk.client.workflowAsset.list(),
-      sdk.client.pluginAsset.list(),       // ← 第 7 路
-    ])
-    const promptAssets = promptsRes.data?.assets ?? []
-    const skillAssets = skillsRes.data?.assets ?? []
-    const mcpAssets = mcpsRes.data?.assets ?? []
-    const cmdAssets = cmdsRes.data?.assets ?? []
-    const agentAssets = agentsRes.data?.assets ?? []
-    const workflowAssets = workflowsRes.data?.assets ?? []
-    const pluginAssets = pluginsRes.data?.assets ?? []
-    const pluginInvalid = pluginsRes.data?.invalid ?? []
-    const bridgedPlugins = pluginsRes.data?.bridged ?? []  // ← 系统级桥接
-    const promptInvalid = promptsRes.data?.invalid ?? []
-    const skillInvalid = skillsRes.data?.invalid ?? []
-    const mcpInvalid = mcpsRes.data?.invalid ?? []
-    const cmdInvalid = cmdsRes.data?.invalid ?? []
-    const agentInvalid = agentsRes.data?.invalid ?? []
-    const workflowInvalid = workflowsRes.data?.invalid ?? []
-
-    const bridgedPluginInputs: { kind: "plugin"; name: string; description: string; relativePath: string; revision: string; origin: "system" }[] = bridgedPlugins.map((b) => ({
-      kind: "plugin" as const,
-      name: b.name,
-      description: b.description,
-      relativePath: b.originPath,
-      revision: "",
-      origin: "system" as const,
-    }))
-
-    return {
-      assets: [...promptAssets, ...skillAssets, ...mcpAssets, ...cmdAssets, ...agentAssets, ...workflowAssets, ...pluginAssets, ...bridgedPluginInputs],
-      invalid: [
-        ...promptInvalid.map((i) => ({ ...i, kind: "prompt" as const })),
-        ...skillInvalid.map((i) => ({ ...i, kind: "skill" as const })),
-        ...mcpInvalid.map((i) => ({ ...i, kind: "mcp" as const })),
-        ...cmdInvalid.map((i) => ({ ...i, kind: "command" as const })),
-        ...agentInvalid.map((i) => ({ ...i, kind: "agent" as const })),
-        ...workflowInvalid.map((i) => ({ ...i, kind: "workflow" as const })),
-        ...pluginInvalid.map((i) => ({ ...i, kind: "plugin" as const })),
-      ],
-    }
-  })
-
-  // M4 §3.1：系统级资产（server-sync child store），开 { mcp: true } 门控加载 command/mcp。
-  const chatSystemData = createMemo(() => {
-    const dir = chatDirectory()
-    if (!dir) return undefined
-    return sync().child(dir, { mcp: true })[0]
-  })
-
-  // M4 §3.2：合并项目级 + 系统级资产，按 kind+name 去重，project 优先。
-  const mergedAssetData = createMemo(() => {
-    const project = chatAssetList()
-    const system = chatSystemData()
-    if (!project && !system) return { assets: [] as AssetWorkbench.AssetInput[], invalid: [] }
-    const merged = AssetWorkbench.mergeAssets(
-      project?.assets ?? [],
-      system
-        ? AssetWorkbench.systemAssets({
-            commands: system.command ?? [],
-            agents: system.agent ?? [],
-            mcp: system.mcp ?? {},
-          })
-        : [],
-    )
-    return { assets: merged, invalid: project?.invalid ?? [] }
-  })
-
-  function closeSearch() {
-    setState("search", "")
-    setState("searchFocused", false)
-  }
-
-  function selectSearchSession(session: Session) {
-    openSession(session)
-    closeSearch()
-  }
-
-  command.register("home", () => [
-    {
-      id: "home.sessions.search.focus",
-      title: language.t("home.sessions.search.placeholder"),
-      keybind: "mod+f",
-      hidden: true,
-      onSelect: () => focusSessionSearch?.(),
-    },
-  ])
-
-  createEffect(() => {
-    const list = global.servers.list()
-    if (list.some((conn) => ServerConnection.key(conn) === state.selection.server)) return
-    const conn = list.find((conn) => ServerConnection.key(conn) === server.key) ?? list[0]
-    if (conn) setSelection({ server: ServerConnection.key(conn) })
-  })
-
-  createEffect(() => {
-    const pending = pendingHomeNavigation
-    if (!pending || pending.server !== server.key) return
-    pendingHomeNavigation = undefined
-    navigate(pending.href)
-  })
-
-  function focusServer(conn: ServerConnection.Any) {
-    setSelection({ server: ServerConnection.key(conn) })
-  }
-
-  function selectProject(conn: ServerConnection.Any, directory: string) {
-    const key = ServerConnection.key(conn)
-    if (
-      !global
-        .ensureServerCtx(conn)
-        .projects.list()
-        .some((project) => project.worktree === directory)
-    )
-      return
-    setSelection(toggleHomeProjectSelection(state.selection, key, directory))
-  }
-
-  function addProjects(conn: ServerConnection.Any, directories: string[]) {
-    const directory = directories[0]
-    if (!directory) return
-    const ctx = global.ensureServerCtx(conn)
-    directories.forEach(ctx.projects.open)
-    ctx.projects.touch(directory)
-    setSelection({ server: ServerConnection.key(conn), directory })
-  }
-
-  function openNewSession() {
-    const conn = focusedServer()
-    if (!conn) return console.warn("openNewSession: no server available")
-    const directory = newSessionDirectory() || projects().find((p) => p.worktree)?.worktree
-    if (!directory) return console.warn("openNewSession: no directory available")
-    openProjectNewSessionFn(conn, directory)
-  }
-
-  /** AssetWorkbenchTable "新建"按钮回调：创建 chat Draft + 种子提示词。 */
-  function onNewAsset() {
-    const conn = focusedServer()
-    const directory = newSessionDirectory()
-    if (!conn || !directory) return
-    const ctx = global.ensureServerCtx(conn)
-    const seedPrompt = language.t("asset.panel.newSeed", { kind: chatFeature() })
-    openProjectNewSession(
-      ctx.projects,
-      (server, draftDirectory) => tabs.newDraft({ server, directory: draftDirectory, ...modeDraft("chat") }, seedPrompt),
-      ServerConnection.key(conn),
-      directory,
-    )
-  }
-
-  /** AssetWorkbenchTable "导入"按钮回调：弹出导入对话框，收到内容后创建 chat Draft。 */
-  function onImportAsset() {
-    void dialog.show(() => (
-      <ChatImportDialog
-        onImport={(result) => {
-          const conn = focusedServer()
-          const directory = newSessionDirectory()
-          if (!conn || !directory) return
-          const content = serializeImport(result)
-          if (!content) return
-          const ctx = global.ensureServerCtx(conn)
-          const prompt = wrapImportContent(content, language.t("chatImport.untrustedInstruction"))
-          openProjectNewSession(
-            ctx.projects,
-            (server, draftDirectory) => tabs.newDraft({ server, directory: draftDirectory, ...modeDraft("chat") }, prompt),
-            ServerConnection.key(conn),
-            directory,
-          )
-        }}
-      />
-    ))
-  }
-
-  /** AssetWorkbenchTable 行 Delete 按钮回调：弹出确认对话框，删除后刷新列表。 */
-  function onDeleteAsset(row: AssetWorkbench.AssetRow) {
-    void dialog.show(() => (
-      <AssetDeleteDialog
-        asset={row}
-        onDelete={async () => {
-          const sdk = chatDirSdk()
-          if (!sdk) return
-          const shared = {
-            // sessionID 仅路由形状，服务端 handler 按 InstanceState.context 解析 Location、不消费 sessionID
-            sessionID: "ses-home-delete",
-            relativePath: row.relativePath,
-          }
-          try {
-            switch (row.kind) {
-              case "prompt":
-                await sdk.client.promptAsset.delete(shared, { throwOnError: true })
-                break
-              case "skill":
-                await sdk.client.skillAsset.delete(shared, { throwOnError: true })
-                break
-              case "mcp":
-                await sdk.client.mcpAsset.delete(shared, { throwOnError: true })
-                break
-              case "command":
-                await sdk.client.commandAsset.delete(shared, { throwOnError: true })
-                break
-              case "agent":
-                await sdk.client.agentAsset.delete(shared, { throwOnError: true })
-                break
-              case "workflow":
-                await sdk.client.workflowAsset.delete(shared, { throwOnError: true })
-                break
-              case "plugin":
-                await sdk.client.pluginAsset.delete(shared, { throwOnError: true })
-                break
-            }
-          } catch {
-            return
-          }
-          void refetchAssets()
-        }}
-      />
-    ))
-  }
-
-  function openProjectNewSessionFn(conn: ServerConnection.Any, directory: string) {
-    const ctx = global.ensureServerCtx(conn)
-    openProjectNewSession(
-      ctx.projects,
-      (server, draftDirectory) => tabs.newDraft({ server, directory: draftDirectory, ...modeDraft(mode.currentMode) }),
-      ServerConnection.key(conn),
-      directory,
-    )
-  }
-
-  function editProject(conn: ServerConnection.Any, project: LocalProject) {
-    void import("@/components/dialog-edit-project").then((x) => {
-      void dialog.show(() => <x.DialogEditProject server={conn} project={project} />)
-    })
-  }
-
-  function unseenCount(conn: ServerConnection.Any, project: LocalProject) {
-    if (ServerConnection.key(conn) !== server.key) return 0
-    return directories(project).reduce((total, directory) => total + notification.project.unseenCount(directory), 0)
-  }
-
-  function clearNotifications(conn: ServerConnection.Any, project: LocalProject) {
-    if (ServerConnection.key(conn) !== server.key) return
-    directories(project)
-      .filter((directory) => notification.project.unseenCount(directory) > 0)
-      .forEach((directory) => notification.project.markViewed(directory))
-  }
-
-  function openSession(session: Session) {
-    const project = projectForSession(session, projects(), projectByID())
-    const conn = focusedServer()
-    if (!conn) return
-    const directory = project?.worktree ?? session.directory
-    const ctx = global.ensureServerCtx(conn)
-    global.sessionPlacement.set({
-      server: ServerConnection.key(conn),
-      leafID: session.id,
-      rootID: session.id,
-      directory: session.directory,
-    })
-    ctx.projects.open(directory)
-    ctx.projects.touch(directory)
-    void startTransition(() => {
-      const tab = tabs.addSessionTab({ server: ServerConnection.key(conn), sessionId: session.id })
-      tabs.select(tab)
-    })
-  }
-
-  function chooseProject(conn: ServerConnection.Any) {
-    function resolve(result: string | string[] | null) {
-      addProjects(conn, homeProjectDirectories(result))
-    }
-
-    pickDirectory({
-      server: conn,
-      title: language.t("command.project.open"),
-      multiple: true,
-      onSelect: resolve,
-    })
-  }
-
-  return (
-    <div class="rounded-[10px] shadow-[var(--v2-elevation-raised)] m-2 min-h-0 lg:overflow-hidden bg-v2-background-bg-base self-stretch flex-1 flex flex-col">
-      <div
-        class="mx-auto grid h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-3 pb-3 lg:grid-rows-1 lg:px-6 lg:pb-16 max-w-[1080px] lg:grid-cols-[280px_minmax(0,720px)] lg:gap-8"
-      >
-        {/* ADR-15 §4 方案1: render-all + display:none。slot 仅 chat/code：chat=ChatSidebar，非 chat=HomeProjectColumn。 */}
-        <div style={{ display: mode.currentMode === "chat" ? "contents" : "none" }}>
-          <ChatSidebar />
-        </div>
-        <div style={{ display: mode.currentMode === "chat" ? "none" : "contents" }}>
-          <HomeProjectColumn
-            projects={projects()}
-            selected={state.selection}
-            focusServer={focusServer}
-            selectProject={selectProject}
-            openNewSession={openProjectNewSessionFn}
-            chooseProject={(conn) => {
-              chooseProject(conn)
-            }}
-            editProject={editProject}
-            closeProject={(conn, directory) => {
-              const next = closeHomeProject(
-                state.selection,
-                ServerConnection.key(conn),
-                global.ensureServerCtx(conn).projects,
-                directory,
-              )
-              if (next) setSelection(next)
-            }}
-            clearNotifications={clearNotifications}
-            unseenCount={unseenCount}
-            language={language}
-          />
-        </div>
-
-        <section
-          class="min-h-0 min-w-0 flex-1 flex flex-col"
-          aria-label={language.t("sidebar.project.recentSessions")}
-        >
-          {/* ADR-15 §4 方案1: render-all + display:none。chat 主区展示 AssetWorkbenchTable */}
-          <div class="flex min-h-0 flex-1 flex-col" style={{ display: mode.currentMode === "chat" ? "flex" : "none" }}>
-            <AssetWorkbench.AssetWorkbenchTable
-              assets={mergedAssetData().assets}
-              invalid={mergedAssetData().invalid}
-              kindFilter={chatFeature() as AssetWorkbench.AssetKind}
-              onNew={onNewAsset}
-              onImport={onImportAsset}
-              onDelete={onDeleteAsset}
-              onInsert={(row) => dialog.show(() => <AssetSessionSelector asset={row} />)}
-            />
-          </div>
-          <div class="flex min-h-0 flex-1 flex-col pt-6 lg:pt-12" style={{ display: mode.currentMode === "chat" ? "none" : "flex" }}>
-          <HomeSessionSearch
-            value={state.search}
-            placeholder={language.t("home.sessions.search.placeholder")}
-            open={searchOpen()}
-            loading={sessionLoad.isLoading}
-            results={searchResults()}
-            server={state.selection.server}
-            activeServer={state.selection.server === server.key}
-            noResultsLabel={language.t("home.sessions.search.noResults", { query: search() })}
-            bindFocus={(focus) => {
-              focusSessionSearch = focus
-            }}
-            onInput={(value) => setState("search", value)}
-            onFocus={() => setState("searchFocused", true)}
-            onClose={closeSearch}
-            onSelect={selectSearchSession}
-          />
-          <ScrollView class="mt-3 min-h-0 flex-1">
-            <div class="pt-3 flex flex-col gap-6">
-              <Show
-                when={!sessionLoad.isLoading}
-                fallback={<HomeSessionSkeleton label={language.t("common.loading")} />}
-              >
-                <Show
-                  when={groups().length > 0}
-                  fallback={
-                    <div class="flex min-w-0 flex-col gap-4">
-                      <HomeSessionGroupHeader
-                        title={language.t("home.sessions.empty")}
-                        onNewSession={openNewSession}
-                        actionLabel={
-                          mode.currentMode === "chat" ? language.t("promptAsset.panel.newPrompt") : undefined
-                        }
-                      />
-                    </div>
-                  }
-                >
-                  <For each={groups()}>
-                    {(group, index) => (
-                      <div class="flex min-w-0 flex-col gap-4">
-                        <HomeSessionGroupHeader
-                          title={group.title}
-                          onNewSession={index() === 0 ? openNewSession : undefined}
-                          actionLabel={
-                            mode.currentMode === "chat" ? language.t("promptAsset.panel.newPrompt") : undefined
-                          }
-                        />
-                        <div class="flex min-w-0 flex-col gap-px">
-                          <For each={group.sessions}>
-                            {(record) => (
-                              <HomeSessionRow
-                                record={record}
-                                server={state.selection.server}
-                                activeServer={state.selection.server === server.key}
-                                onClick={() => openSession(record.session)}
-                              />
-                            )}
-                          </For>
-                        </div>
-                      </div>
-                    )}
-                  </For>
-                </Show>
-              </Show>
-            </div>
-          </ScrollView>
-          </div>
-        </section>
-      </div>
-    </div>
-  )
-}
 
 function HomeProjectColumn(props: {
   projects: LocalProject[]
@@ -1045,7 +425,7 @@ function HomeProjectAvatar(props: { project: LocalProject }) {
   )
 }
 
-function HomeSessionLeading(props: {
+export function HomeSessionLeading(props: {
   project: LocalProject
   session: Session
   server: ServerConnection.Key
@@ -1072,7 +452,7 @@ function HomeSessionLeading(props: {
   )
 }
 
-function HomeSessionSearch(props: {
+export function HomeSessionSearch(props: {
   value: string
   placeholder: string
   open: boolean
@@ -1278,7 +658,7 @@ function HomeSessionSearch(props: {
   )
 }
 
-function HomeSessionSearchResultRow(props: {
+export function HomeSessionSearchResultRow(props: {
   record: HomeSessionRecord
   server: ServerConnection.Key
   activeServer: boolean
@@ -1325,7 +705,7 @@ function HomeSessionSearchResultRow(props: {
   )
 }
 
-function HomeSessionGroupHeader(props: { title: string; onNewSession?: () => void; actionLabel?: string }) {
+export function HomeSessionGroupHeader(props: { title: string; onNewSession?: () => void; actionLabel?: string }) {
   const language = useLanguage()
   return (
     <div class="flex h-7 min-w-0 items-center gap-3 pl-4 pr-2">
@@ -1347,7 +727,7 @@ function HomeSessionGroupHeader(props: { title: string; onNewSession?: () => voi
   )
 }
 
-function HomeSessionRow(props: {
+export function HomeSessionRow(props: {
   record: HomeSessionRecord
   server: ServerConnection.Key
   activeServer: boolean
@@ -1390,7 +770,7 @@ function HomeSessionRow(props: {
   )
 }
 
-function HomeSessionSkeleton(props: { label: string }) {
+export function HomeSessionSkeleton(props: { label: string }) {
   return (
     <div class="flex min-w-0 flex-col gap-4">
       <div class="flex h-7 min-w-0 items-center justify-between px-4">
@@ -1403,7 +783,7 @@ function HomeSessionSkeleton(props: { label: string }) {
   )
 }
 
-function groupSessions(records: HomeSessionRecord[], language: ReturnType<typeof useLanguage>): HomeSessionGroup[] {
+export function groupSessions(records: HomeSessionRecord[], language: ReturnType<typeof useLanguage>): HomeSessionGroup[] {
   records = records ?? []
   const now = DateTime.local()
   const yesterday = now.minus({ days: 1 })

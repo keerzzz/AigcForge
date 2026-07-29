@@ -1,4 +1,3 @@
-import { Dynamic } from "solid-js/web"
 import { For, Match, Show, Switch, createEffect, createMemo, onCleanup, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createMediaQuery } from "@solid-primitives/media"
@@ -21,7 +20,7 @@ import { useFile, type SelectedLineRange } from "@/context/file"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { useMode } from "@/context/mode"
-import { modeSurface } from "@/components/mode-surfaces"
+import { ChatRightPanel, PlaceholderPanel } from "@/components/mode-surfaces"
 import { useSettings } from "@/context/settings"
 import { createFileTabListSync } from "@/pages/session/file-tab-scroll"
 import { FileTabContent } from "@/pages/session/file-tabs"
@@ -476,9 +475,16 @@ export function SessionSidePanel(props: {
         </Show>
       </aside>
     </Show>
-    <Show when={mode.currentMode !== "coding"}>
-      <Dynamic component={modeSurface(mode.currentMode).RightPanel} />
-    </Show>
+    {/* ADR-15 §4 方案1: render-all + display:none 替换 Dynamic — slot 组件常驻不 remount */}
+    <div style={{ display: mode.currentMode === "chat" ? "" : "none" }}>
+      <ChatRightPanel />
+    </div>
+    <div style={{ display: mode.currentMode === "work" ? "" : "none" }}>
+      <PlaceholderPanel />
+    </div>
+    <div style={{ display: mode.currentMode === "assistant" ? "" : "none" }}>
+      <PlaceholderPanel />
+    </div>
     </Show>
   )
 }
