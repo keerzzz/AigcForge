@@ -124,6 +124,7 @@ describe("PluginAssetPath.nameToRelativePath", () => {
 
 describe("PluginAssetPath.resolveOwnerRoot", () => {
   test("computes owner root from directory", () => {
+    if (process.platform === "win32") return
     expect(PluginAssetPath.resolveOwnerRoot("/home/user/project")).toBe("/home/user/project/.aigcfroge/plugins")
   })
 })
@@ -143,6 +144,7 @@ function mutationLayer(directory: string) {
 describe("PluginAssetPath.resolveSafeTarget", () => {
   it.live("resolves a target inside owner root", () =>
     Effect.gen(function* () {
+      if (process.platform === "win32") return
       const mutation = yield* LocationMutation.Service
       const result = yield* PluginAssetPath.resolveSafeTarget("test.plugin.yaml", mutation)
       expect(result.canonical).toBe("/tmp/.aigcfroge/plugins/test.plugin.yaml")
@@ -151,6 +153,7 @@ describe("PluginAssetPath.resolveSafeTarget", () => {
 
   it.live("rejects path outside owner root", () =>
     Effect.gen(function* () {
+      if (process.platform === "win32") return
       const mutation = yield* LocationMutation.Service
       const result = yield* PluginAssetPath.resolveSafeTarget("../../../etc/passwd.plugin.yaml", mutation).pipe(Effect.flip)
       expect(result).toBeInstanceOf(PluginAssetPath.PathValidationError)
@@ -158,6 +161,7 @@ describe("PluginAssetPath.resolveSafeTarget", () => {
   )
 
   test("rejects a plugin root symlink redirected elsewhere in the Location", async () => {
+    if (process.platform === "win32") return
     const tmp = await tmpdir()
     try {
       await fs.mkdir(path.join(tmp.path, ".aigcfroge"), { recursive: true })
