@@ -18,8 +18,18 @@
  * - `.mutating()` tells the runner to reset isolated state after destructive routes.
  */
 import { $ } from "bun"
+import {
+  AGENTS_DIR,
+  COMMANDS_DIR,
+  MCPS_DIR,
+  PLUGINS_DIR,
+  PROMPTS_DIR,
+  SKILLS_DIR,
+  WORKFLOWS_DIR,
+} from "@aigcfroge/core/constants"
 import { Effect } from "effect"
 import { OpenApi } from "effect/unstable/httpapi"
+import fs from "fs/promises"
 import { TestLLMServer } from "../../lib/llm-server"
 import path from "path"
 import { array, boolean, check, isRecord, message, object, stable } from "./assertions"
@@ -36,7 +46,7 @@ import { coverageResult, parseOptions, routeKey, routeKeys, selectedScenarios } 
 import { runScenario } from "./runner"
 import { disposeApps } from "./backend"
 import { runtime } from "./runtime"
-import { type Scenario } from "./types"
+import { type Scenario, type ScenarioContext } from "./types"
 
 function cursor(input: Record<string, unknown>) {
   return Buffer.from(JSON.stringify(input)).toString("base64url")
@@ -56,6 +66,214 @@ function locationData(validate: (value: any) => void) {
     object(body.location.project)
     validate(body.data)
   }
+}
+
+type AssetFixture = {
+  readonly kind: string
+  readonly name: string
+  readonly directory: string
+  readonly relativePath: string
+  readonly content: string
+  readonly candidate: Readonly<Record<string, unknown>>
+}
+
+const assetFixtures: readonly AssetFixture[] = [
+  {
+    kind: "prompt",
+    name: "httpapi-prompt",
+    directory: PROMPTS_DIR,
+    relativePath: "httpapi-prompt.md",
+    content: "---\nkind: prompt\nname: httpapi-prompt\ndescription: exerciser\n---\nPrompt body",
+    candidate: {
+      name: "httpapi-prompt",
+      description: "exerciser",
+      template: "Prompt body",
+      relativePath: "",
+    },
+  },
+  {
+    kind: "skill",
+    name: "httpapi-skill",
+    directory: SKILLS_DIR,
+    relativePath: "httpapi-skill.md",
+    content:
+      "---\nname: httpapi-skill\ndescription: exerciser\nslash: true\ntriggers:\n  - review\ntags:\n  - test\n---\nSkill body",
+    candidate: {
+      name: "httpapi-skill",
+      description: "exerciser",
+      slash: true,
+      content: "Skill body",
+      triggers: ["review"],
+      tags: ["test"],
+      relativePath: "",
+    },
+  },
+  {
+    kind: "mcp",
+    name: "httpapi-mcp",
+    directory: MCPS_DIR,
+    relativePath: "httpapi-mcp.md",
+    content: '---\nkind: mcp\nname: httpapi-mcp\ndescription: exerciser\ncommand: bun\nargs: ["--version"]\n---\n{}',
+    candidate: {
+      name: "httpapi-mcp",
+      description: "exerciser",
+      command: "bun",
+      args: ["--version"],
+      env: {},
+      configJson: "{}",
+      relativePath: "",
+    },
+  },
+  {
+    kind: "command",
+    name: "httpapi-command",
+    directory: COMMANDS_DIR,
+    relativePath: "httpapi-command.md",
+    content:
+      "---\nkind: command\nname: httpapi-command\ndescription: exerciser\ninvocation: /httpapi-command\n---\nprintf command",
+    candidate: {
+      name: "httpapi-command",
+      description: "exerciser",
+      invocation: "/httpapi-command",
+      source: "printf command",
+      relativePath: "",
+    },
+  },
+  {
+    kind: "agent",
+    name: "httpapi-agent",
+    directory: AGENTS_DIR,
+    relativePath: "httpapi-agent.md",
+    content: '---\nkind: agent\nname: httpapi-agent\ndescription: exerciser\nconfig: "{}"\n---\nAgent instructions',
+    candidate: {
+      name: "httpapi-agent",
+      description: "exerciser",
+      config: "{}",
+      source: "Agent instructions",
+      relativePath: "",
+    },
+  },
+  {
+    kind: "workflow",
+    name: "httpapi-workflow",
+    directory: WORKFLOWS_DIR,
+    relativePath: "httpapi-workflow.yaml",
+    content:
+      "kind: workflow\nname: httpapi-workflow\ndescription: exerciser\nversion: 1.0.0\ntriggers: []\nsteps:\n  - id: review\n    name: Review\n    agent: builtin\n    input: {}",
+    candidate: {
+      name: "httpapi-workflow",
+      description: "exerciser",
+      content:
+        "kind: workflow\nname: httpapi-workflow\ndescription: exerciser\nversion: 1.0.0\ntriggers: []\nsteps:\n  - id: review\n    name: Review\n    agent: builtin\n    input: {}",
+    },
+  },
+  {
+    kind: "plugin",
+    name: "httpapi-plugin",
+    directory: PLUGINS_DIR,
+    relativePath: "httpapi-plugin.plugin.yaml",
+    content: "kind: plugin\nname: httpapi-plugin\ndescription: exerciser\nversion: 1.0.0\nhooks: []",
+    candidate: {
+      name: "httpapi-plugin",
+      description: "exerciser",
+      content: "kind: plugin\nname: httpapi-plugin\ndescription: exerciser\nversion: 1.0.0\nhooks: []",
+    },
+  },
+]
+
+function seedAsset(ctx: ScenarioContext, fixture: AssetFixture) {
+  if (!ctx.directory) return Effect.die(new Error(`${fixture.kind} asset scenario needs a project directory`))
+  const target = path.join(ctx.directory, fixture.directory, fixture.relativePath)
+  return Effect.promise(async () => {
+    await fs.mkdir(path.dirname(target), { recursive: true })
+    await Bun.write(target, fixture.content)
+    return target
+  })
+}
+
+function assetScenarios(fixture: AssetFixture): Scenario[] {
+  const root = `/${fixture.kind}-asset`
+  const sessionRoot = `/session/{sessionID}${root}`
+  return [
+    http.protected
+      .get(root, `${fixture.kind}-asset.list`)
+      .seeded((ctx) => seedAsset(ctx, fixture))
+      .json(200, (body) => {
+        object(body)
+        array(body.assets)
+        check(
+          body.assets.some((asset) => isRecord(asset) && asset.kind === fixture.kind && asset.name === fixture.name),
+          `${fixture.kind} asset list should include the seeded asset`,
+        )
+        array(body.invalid)
+      }),
+    http.protected
+      .get(`${root}/content`, `${fixture.kind}-asset.content`)
+      .seeded((ctx) => seedAsset(ctx, fixture))
+      .at((ctx) => ({
+        path: `${root}/content?${new URLSearchParams({ path: fixture.relativePath })}`,
+        headers: ctx.headers(),
+      }))
+      .json(200, (body) => {
+        object(body)
+        check(body.kind === fixture.kind, `${fixture.kind} asset content should preserve kind`)
+        check(body.name === fixture.name, `${fixture.kind} asset content should preserve name`)
+        check(body.relativePath === fixture.relativePath, `${fixture.kind} asset content should preserve path`)
+      }),
+    http.protected
+      .post(`${sessionRoot}/apply`, `${fixture.kind}-asset.apply`)
+      .mutating()
+      .seeded((ctx) => ctx.session({ title: `${fixture.kind} asset apply` }))
+      .at((ctx) => ({
+        path: route(`${sessionRoot}/apply`, { sessionID: ctx.state.id }),
+        headers: ctx.headers(),
+        body: { candidate: fixture.candidate, overwrite: false },
+      }))
+      .jsonEffect(
+        200,
+        (body, ctx) =>
+          Effect.gen(function* () {
+            object(body)
+            check(body.kind === fixture.kind, `${fixture.kind} asset apply should preserve kind`)
+            check(body.name === fixture.name, `${fixture.kind} asset apply should preserve name`)
+            if (typeof body.relativePath !== "string") {
+              throw new Error(`${fixture.kind} asset apply should return a path`)
+            }
+            if (!ctx.directory) throw new Error(`${fixture.kind} asset apply needs a project directory`)
+            const directory = ctx.directory
+            const relativePath = body.relativePath
+            const exists = yield* Effect.promise(() =>
+              Bun.file(path.join(directory, fixture.directory, relativePath)).exists(),
+            )
+            check(exists, `${fixture.kind} asset apply should persist the file`)
+          }),
+        "status",
+      ),
+    http.protected
+      .post(`${sessionRoot}/delete`, `${fixture.kind}-asset.delete`)
+      .mutating()
+      .seeded((ctx) =>
+        Effect.gen(function* () {
+          const target = yield* seedAsset(ctx, fixture)
+          const session = yield* ctx.session({ title: `${fixture.kind} asset delete` })
+          return { session, target }
+        }),
+      )
+      .at((ctx) => ({
+        path: route(`${sessionRoot}/delete`, { sessionID: ctx.state.session.id }),
+        headers: ctx.headers(),
+        body: { relativePath: fixture.relativePath },
+      }))
+      .status(
+        200,
+        (ctx) =>
+          Effect.gen(function* () {
+            const exists = yield* Effect.promise(() => Bun.file(ctx.state.target).exists())
+            check(!exists, `${fixture.kind} asset delete should remove the file`)
+          }),
+        "status",
+      ),
+  ]
 }
 
 const scenarios: Scenario[] = [
@@ -225,6 +443,22 @@ const scenarios: Scenario[] = [
   http.protected.get("/command", "command.list").json(200, array, "status"),
   http.protected.get("/agent", "app.agents").json(200, array, "status"),
   http.protected.get("/skill", "app.skills").json(200, array, "status"),
+  ...assetFixtures.flatMap(assetScenarios),
+  http.protected
+    .post("/import-asset/parse", "import-parser.parse")
+    .global()
+    .at(() => ({ path: "/import-asset/parse", body: { content: "# HTTP API Import\n\nPrompt body" } }))
+    .json(200, (body) => {
+      object(body)
+      array(body.candidates)
+      check(body.candidates.length === 1, "import parser should return one candidate")
+      const candidate = body.candidates[0]
+      object(candidate)
+      check(candidate.kind === "prompt", "import parser should infer a prompt")
+      check(candidate.name === "HTTP API Import", "import parser should infer the heading as name")
+      array(body.warnings)
+      array(body.errors)
+    }),
   http.protected.get("/lsp", "lsp.status").json(200, array),
   http.protected.get("/formatter", "formatter.status").json(200, array),
   http.protected.get("/config", "config.get").json(200, undefined, "status"),

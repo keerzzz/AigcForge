@@ -11,6 +11,9 @@ import path from "path"
 import { PluginAssetPath } from "../src/plugin-asset/path"
 import { it } from "./lib/effect"
 
+const nonWindowsIt = process.platform === "win32" ? it.live.skip : it.live
+const nonWindowsTest = process.platform === "win32" ? test.skip : test
+
 describe("PluginAssetPath.isValidSegment", () => {
   test("accepts valid names", () => {
     expect(PluginAssetPath.isValidSegment("hello")).toBe(true)
@@ -79,13 +82,21 @@ describe("PluginAssetPath.validateRelativePath", () => {
   })
 
   test("rejects absolute path", () => {
-    expect(() => PluginAssetPath.validateRelativePath("/etc/test.plugin.yaml")).toThrow(PluginAssetPath.PathValidationError)
+    expect(() => PluginAssetPath.validateRelativePath("/etc/test.plugin.yaml")).toThrow(
+      PluginAssetPath.PathValidationError,
+    )
   })
 
   test("rejects path with invalid segments", () => {
-    expect(() => PluginAssetPath.validateRelativePath("../escape.plugin.yaml")).toThrow(PluginAssetPath.PathValidationError)
-    expect(() => PluginAssetPath.validateRelativePath("a/../b.plugin.yaml")).toThrow(PluginAssetPath.PathValidationError)
-    expect(() => PluginAssetPath.validateRelativePath("a/<bad>.plugin.yaml")).toThrow(PluginAssetPath.PathValidationError)
+    expect(() => PluginAssetPath.validateRelativePath("../escape.plugin.yaml")).toThrow(
+      PluginAssetPath.PathValidationError,
+    )
+    expect(() => PluginAssetPath.validateRelativePath("a/../b.plugin.yaml")).toThrow(
+      PluginAssetPath.PathValidationError,
+    )
+    expect(() => PluginAssetPath.validateRelativePath("a/<bad>.plugin.yaml")).toThrow(
+      PluginAssetPath.PathValidationError,
+    )
   })
 
   test("normalizes backslashes", () => {
@@ -123,7 +134,7 @@ describe("PluginAssetPath.nameToRelativePath", () => {
 })
 
 describe("PluginAssetPath.resolveOwnerRoot", () => {
-  test("computes owner root from directory", () => {
+  nonWindowsTest("computes owner root from directory", () => {
     expect(PluginAssetPath.resolveOwnerRoot("/home/user/project")).toBe("/home/user/project/.aigcfroge/plugins")
   })
 })
@@ -131,17 +142,14 @@ describe("PluginAssetPath.resolveOwnerRoot", () => {
 function mutationLayer(directory: string) {
   return LocationMutation.locationLayer.pipe(
     Layer.provide(
-      Layer.succeed(
-        Location.Service,
-        Location.Service.of(location({ directory: AbsolutePath.make(directory) })),
-      ),
+      Layer.succeed(Location.Service, Location.Service.of(location({ directory: AbsolutePath.make(directory) }))),
     ),
     Layer.provide(FSUtil.defaultLayer),
   )
 }
 
 describe("PluginAssetPath.resolveSafeTarget", () => {
-  it.live("resolves a target inside owner root", () =>
+  nonWindowsIt("resolves a target inside owner root", () =>
     Effect.gen(function* () {
       const mutation = yield* LocationMutation.Service
       const result = yield* PluginAssetPath.resolveSafeTarget("test.plugin.yaml", mutation)
@@ -149,15 +157,17 @@ describe("PluginAssetPath.resolveSafeTarget", () => {
     }).pipe(Effect.provide(mutationLayer("/tmp"))),
   )
 
-  it.live("rejects path outside owner root", () =>
+  nonWindowsIt("rejects path outside owner root", () =>
     Effect.gen(function* () {
       const mutation = yield* LocationMutation.Service
-      const result = yield* PluginAssetPath.resolveSafeTarget("../../../etc/passwd.plugin.yaml", mutation).pipe(Effect.flip)
+      const result = yield* PluginAssetPath.resolveSafeTarget("../../../etc/passwd.plugin.yaml", mutation).pipe(
+        Effect.flip,
+      )
       expect(result).toBeInstanceOf(PluginAssetPath.PathValidationError)
     }).pipe(Effect.provide(mutationLayer("/tmp"))),
   )
 
-  test("rejects a plugin root symlink redirected elsewhere in the Location", async () => {
+  nonWindowsTest("rejects a plugin root symlink redirected elsewhere in the Location", async () => {
     const tmp = await tmpdir()
     try {
       await fs.mkdir(path.join(tmp.path, ".aigcfroge"), { recursive: true })

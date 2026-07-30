@@ -26,7 +26,10 @@ function toApplyError(err: unknown): Effect.Effect<never, ConflictError | Invali
   } else if (err instanceof SkillAssetService.ConcurrentModificationError) {
     error = new ConflictError({ message: `Concurrent modification: ${err.relativePath}`, resource: err.relativePath })
   } else if (err instanceof SkillAssetService.ReadbackMismatchError) {
-    error = new ConflictError({ message: `Readback mismatch at ${err.relativePath} — possible name conflict with another asset`, resource: err.relativePath })
+    error = new ConflictError({
+      message: `Readback mismatch at ${err.relativePath} — possible name conflict with another asset`,
+      resource: err.relativePath,
+    })
   } else if (err instanceof SkillAssetService.RollbackFailedError) {
     error = new InvalidRequestError({ message: err.reason })
   } else {
@@ -48,7 +51,10 @@ function toDeleteError(err: unknown): Effect.Effect<never, ConflictError | Inval
   } else if (err instanceof SkillAssetService.ConcurrentModificationError) {
     error = new ConflictError({ message: `Concurrent modification: ${err.relativePath}`, resource: err.relativePath })
   } else if (err instanceof SkillAssetService.ReadbackMismatchError) {
-    error = new ConflictError({ message: `Readback mismatch at ${err.relativePath} — possible name conflict with another asset`, resource: err.relativePath })
+    error = new ConflictError({
+      message: `Readback mismatch at ${err.relativePath} — possible name conflict with another asset`,
+      resource: err.relativePath,
+    })
   } else if (err instanceof SkillAssetService.RollbackFailedError) {
     error = new InvalidRequestError({ message: err.reason })
   } else {
@@ -68,7 +74,11 @@ export const skillAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "skill-a
       const registry = yield* SkillAsset.Service.pipe(Effect.provide(layer), Effect.orDie)
       const all = yield* registry.list()
       const filtered = ctx.query.search
-        ? all.filter((a) => a.name.toLowerCase().includes(ctx.query.search!.toLowerCase()) || a.description.toLowerCase().includes(ctx.query.search!.toLowerCase()))
+        ? all.filter(
+            (a) =>
+              a.name.toLowerCase().includes(ctx.query.search!.toLowerCase()) ||
+              a.description.toLowerCase().includes(ctx.query.search!.toLowerCase()),
+          )
         : all
       const invalid = yield* registry.listInvalid()
       return {
@@ -94,9 +104,9 @@ export const skillAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "skill-a
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const registry = yield* SkillAsset.Service.pipe(Effect.provide(layer), Effect.orDie)
-      const info = yield* registry.getByPath(ctx.query.path).pipe(
-        Effect.catch(() => Effect.fail(new InvalidRequestError({ message: `Not found: ${ctx.query.path}` }))),
-      )
+      const info = yield* registry
+        .getByPath(ctx.query.path)
+        .pipe(Effect.catch(() => Effect.fail(new InvalidRequestError({ message: `Not found: ${ctx.query.path}` }))))
       return Schema.decodeUnknownSync(SchemaSkillAsset.Info)({
         kind: info.kind,
         name: info.name,
@@ -105,21 +115,30 @@ export const skillAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "skill-a
         revision: info.revision,
         slash: info.slash,
         content: info.content,
+        triggers: info.triggers,
+        tags: info.tags,
       })
     })
 
     const apply = Effect.fn("SkillAssetHttpApi.apply")(function* (ctx: {
       payload: { candidate: SchemaSkillAsset.Candidate; baseRevision?: string; overwrite: boolean }
     }) {
-      if (!flags.experimentalChatAsset) return yield* Effect.fail(new InvalidRequestError({ message: "Skill asset creation is not enabled. Set AIGCFROGE_EXPERIMENTAL_CHAT_ASSET=true to enable." }))
+      if (!flags.experimentalChatAsset)
+        return yield* Effect.fail(
+          new InvalidRequestError({
+            message: "Skill asset creation is not enabled. Set AIGCFROGE_EXPERIMENTAL_CHAT_ASSET=true to enable.",
+          }),
+        )
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const service = yield* SkillAssetService.Service.pipe(Effect.provide(layer), Effect.orDie)
-      const info = yield* service.apply({
-        candidate: ctx.payload.candidate,
-        baseRevision: ctx.payload.baseRevision ?? null,
-        overwrite: ctx.payload.overwrite,
-      }).pipe(Effect.catch(toApplyError))
+      const info = yield* service
+        .apply({
+          candidate: ctx.payload.candidate,
+          baseRevision: ctx.payload.baseRevision ?? null,
+          overwrite: ctx.payload.overwrite,
+        })
+        .pipe(Effect.catch(toApplyError))
       return Schema.decodeUnknownSync(SchemaSkillAsset.Info)({
         kind: info.kind,
         name: info.name,
@@ -128,6 +147,8 @@ export const skillAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "skill-a
         revision: info.revision,
         slash: info.slash,
         content: info.content,
+        triggers: info.triggers,
+        tags: info.tags,
       })
     })
 
@@ -137,10 +158,12 @@ export const skillAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "skill-a
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const service = yield* SkillAssetService.Service.pipe(Effect.provide(layer), Effect.orDie)
-      yield* service.delete({
-        relativePath: ctx.payload.relativePath,
-        baseRevision: ctx.payload.baseRevision ?? null,
-      }).pipe(Effect.catch(toDeleteError))
+      yield* service
+        .delete({
+          relativePath: ctx.payload.relativePath,
+          baseRevision: ctx.payload.baseRevision ?? null,
+        })
+        .pipe(Effect.catch(toDeleteError))
     })
 
     return handlers.handle("list", list).handle("content", content).handle("apply", apply).handle("delete", deleteAsset)
