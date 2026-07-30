@@ -187,6 +187,9 @@ export interface MessagePartProps {
   onContentRendered?: () => void
   showAssistantCopyPartID?: string | null
   turnDurationMs?: number
+  onCapture?: () => void
+  captureLabel?: string
+  capturePulse?: boolean
 }
 
 export type PartComponent = Component<MessagePartProps>
@@ -1303,6 +1306,9 @@ export function Part(props: MessagePartProps) {
         onContentRendered={props.onContentRendered}
         showAssistantCopyPartID={props.showAssistantCopyPartID}
         turnDurationMs={props.turnDurationMs}
+        onCapture={props.onCapture}
+        captureLabel={props.captureLabel}
+        capturePulse={props.capturePulse}
       />
     </Show>
   )
@@ -1597,6 +1603,19 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
                 aria-label={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copyResponse")}
               />
             </TooltipV2>
+            <Show when={props.onCapture}>
+              <TooltipV2 value={props.captureLabel ?? ""} placement="top" gutter={4}>
+                <IconButton
+                  icon="folder-add-left"
+                  size="normal"
+                  variant="ghost"
+                  data-capture-pulse={props.capturePulse ? "" : undefined}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={props.onCapture}
+                  aria-label={props.captureLabel ?? ""}
+                />
+              </TooltipV2>
+            </Show>
             <Show when={meta()}>
               <span data-slot="text-part-meta" class="text-12-regular text-text-weak cursor-default">
                 {meta()}

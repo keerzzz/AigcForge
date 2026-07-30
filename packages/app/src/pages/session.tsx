@@ -10,6 +10,7 @@ import {
   createMemo,
   createEffect,
   createComputed,
+  createSignal,
   on,
   onMount,
   untrack,
@@ -73,7 +74,7 @@ import { useTabs } from "@/context/tabs"
 import { modeDraft } from "@/context/mode"
 import { openProjectNewSession } from "@/pages/layout/helpers"
 import { extractMessageContent, captureSeedPrompt } from "@/components/chat/capture-helpers"
-import { createPromptHistory } from "@/components/chat/repeat-detection"
+import { countSimilarPrompts, extractUserPrompts, freshRepeatState } from "@/components/chat/repeat-detection"
 import { SuggestionBar } from "@/components/chat/suggestion-bar"
 import { fetchAssetInsertText, parseInsertKind } from "@/components/chat/asset-insert"
 import { useUsageExceededDialogs } from "./session/usage-exceeded-dialogs"
@@ -105,8 +106,8 @@ export default function Page() {
   const comments = useComments()
   const terminal = useTerminal()
   const [searchParams, setSearchParams] = useSearchParams<{ prompt?: string; insert?: string; insertKind?: string }>()
-  const [suggestion, setSuggestion] = createStore({ show: false, message: "" })
-  const promptHistory = createPromptHistory()
+  const [suggestion, setSuggestion] = createStore(freshRepeatState())
+  const [capturePulse, setCapturePulse] = createSignal(false)
   const location = useLocation()
   const navigate = useNavigate()
   const { params, sessionKey, workspaceKey, tabs, view } = useSessionLayout()
@@ -1368,18 +1369,26 @@ export default function Page() {
       setFollowup("items", input.sessionID, (items) => (items ?? []).filter((entry) => entry.id !== input.id))
       if (input.manual) resumeScroll()
 
-      // Repeat detection: check if this prompt is similar to a previous one
+      // Repeat detection: check if this prompt is similar to previous ones in session
       const promptText = item.prompt
         .filter((p): p is { type: "text"; content: string } & typeof p => "content" in p && p.type === "text")
         .map((p) => p.content)
         .join(" ")
         .trim()
       if (promptText) {
-        const repeat = promptHistory.findSimilar(promptText)
-        promptHistory.push(promptText)
-        if (repeat && !suggestion.show) {
-          setSuggestion("show", true)
-          setSuggestion("message", language.t("chatCapture.repeatSuggestion"))
+        const messages = timeline.messages()
+        const getParts = (messageID: string) => sync().data.part[messageID] ?? []
+        const userPrompts = extractUserPrompts(messages, getParts)
+        // History = prompts before the current one (which is already in messages at this point)
+        const history = userPrompts.slice(0, -1)
+        const match = countSimilarPrompts(promptText, history)
+        if (match && !suggestion.show) {
+          if (suggestion.dismissCount === 0 || match.count > suggestion.dismissCount) {
+            setSuggestion("show", true)
+            setSuggestion("message", language.t("chatCapture.repeatSuggestion"))
+            setCapturePulse(true)
+            setTimeout(() => setCapturePulse(false), 1500)
+          }
         }
       }
     },
@@ -1851,6 +1860,7 @@ export default function Page() {
                     {(_id) => (
                       <MessageTimeline
                         actions={actions}
+                        capturePulse={capturePulse()}
                         scroll={ui.scroll}
                         onResumeScroll={resumeScroll}
                         setScrollRef={setScrollRef}
@@ -1909,10 +1919,18 @@ export default function Page() {
               show={suggestion.show}
               message={suggestion.message}
               onAccept={() => {
-                setSuggestion("show", false)
+                setSuggestion(freshRepeatState())
                 capture()
               }}
-              onDismiss={() => setSuggestion("show", false)}
+              onDismiss={() => {
+                const messages = timeline.messages()
+                const getParts = (messageID: string) => sync().data.part[messageID] ?? []
+                const userPrompts = extractUserPrompts(messages, getParts)
+                const lastPrompt = userPrompts[userPrompts.length - 1] ?? ""
+                const match = countSimilarPrompts(lastPrompt, userPrompts.slice(0, -1))
+                setSuggestion("show", false)
+                setSuggestion("dismissCount", match?.count ?? 0)
+              }}
             />
             <Show when={(params.id || !newSessionDesign()) && !mobileChanges()}>{composerRegion("dock")}</Show>
             <Show when={!!params.id && mobileTabsBottom()}>{mobileTabs(true, true)}</Show>

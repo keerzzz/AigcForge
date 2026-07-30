@@ -250,6 +250,28 @@
   }
 }
 
+/* Capture icon pulse: temporarily reveal the copy-wrapper and draw attention */
+[data-slot="text-part-copy-wrapper"]:has([data-capture-pulse]) {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@keyframes capture-pulse-attention {
+  0%, 100% {
+    outline-color: transparent;
+  }
+  40% {
+    outline-color: var(--v2-border-border-accent, #6366f1);
+  }
+}
+
+[data-capture-pulse] {
+  outline: 2px solid transparent;
+  outline-offset: 1px;
+  border-radius: 6px;
+  animation: capture-pulse-attention 1.5s ease-out;
+}
+
 [data-component="compaction-part"] {
   width: 100%;
   display: flex;

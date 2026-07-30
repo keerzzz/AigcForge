@@ -28,7 +28,6 @@ import {
   type UserActions,
 } from "@aigcfroge/session-ui/message-part"
 import { HandoffButton } from "@aigcfroge/session-ui/handoff-button"
-import { CaptureButton } from "@/components/chat/capture-button"
 import { DiffChanges } from "@aigcfroge/ui/v2/diff-changes-v2"
 import { FileIcon } from "@aigcfroge/ui/file-icon"
 import { Icon } from "@aigcfroge/ui/icon"
@@ -261,6 +260,7 @@ export function MessageTimeline(props: {
     handlers: { capture: () => void; restore: (done: boolean) => void } | undefined,
     owner: HTMLDivElement,
   ) => void
+  capturePulse?: boolean
 }) {
   let touchGesture: number | undefined
 
@@ -378,7 +378,8 @@ export function MessageTimeline(props: {
   })
   const activeMessageID = projection.activeMessageID
   const assistantMessagesByParent = projection.assistantMessagesByParent
-  const lastAssistantGroupKey = projection.lastAssistantGroupKey
+  const lastAssistantMessageID = projection.lastAssistantMessageID
+  const lastAssistantMessageGroupKey = projection.lastAssistantMessageGroupKey
   const messageByID = projection.messageByID
   const messageLastRowIndex = projection.messageLastRowIndex
   const messageRowIndex = projection.messageRowIndex
@@ -993,6 +994,11 @@ export function MessageTimeline(props: {
   }
 
   const renderAssistantPartGroup = (row: Accessor<TimelineRowMap["AssistantPart"]>, onSizeChange?: () => void) => {
+    const idle = () =>
+      row().userMessageID === lastAssistantMessageID() &&
+      row().group.key === lastAssistantMessageGroupKey() &&
+      !workingTurn(row().userMessageID)
+
     if (row().group.type === "context") {
       const parts = createMemo(() => {
         const group = row().group
@@ -1006,7 +1012,9 @@ export function MessageTimeline(props: {
         <ContextToolGroup
           parts={parts()}
           busy={
-            workingTurn(row().userMessageID) && lastAssistantGroupKey().get(row().userMessageID) === row().group.key
+            workingTurn(row().userMessageID) &&
+            row().userMessageID === lastAssistantMessageID() &&
+            row().group.key === lastAssistantMessageGroupKey()
           }
           onSizeChange={onSizeChange}
         />
@@ -1045,6 +1053,9 @@ export function MessageTimeline(props: {
                 deferToolContent
                 virtualizeDiff={false}
                 onContentRendered={onSizeChange}
+                onCapture={idle() && props.actions?.capture ? props.actions!.capture! : undefined}
+                captureLabel={language.t("chatCapture.captureAsAsset")}
+                capturePulse={idle() && props.actions?.capture ? props.capturePulse : undefined}
               />
             )}
           </Show>
@@ -1166,39 +1177,33 @@ export function MessageTimeline(props: {
       }
       case "AssistantPart": {
         const assistantPartRow = row as Accessor<TimelineRowByTag<"AssistantPart">>
+        const isLastAssistant = () =>
+          assistantPartRow().userMessageID === lastAssistantMessageID() &&
+          assistantPartRow().group.key === lastAssistantMessageGroupKey()
+        const isWorking = () => workingTurn(assistantPartRow().userMessageID)
         return (
           <TimelineRowFrame row={assistantPartRow}>
             <div data-slot="session-turn-message-container" class="w-full px-4 md:px-5">
               <div
                 data-slot="session-turn-assistant-content"
-                aria-hidden={workingTurn(assistantPartRow().userMessageID)}
+                aria-hidden={isWorking()}
               >
                 {renderAssistantPartGroup(assistantPartRow, onSizeChange)}
                 <Show
                   when={
-                    lastAssistantGroupKey().get(assistantPartRow().userMessageID) === assistantPartRow().group.key &&
-                    !workingTurn(assistantPartRow().userMessageID) &&
-                    handoffs().length > 0 &&
-                    props.actions?.handoff
+                    isLastAssistant() && !isWorking() && handoffs().length > 0 && props.actions?.handoff
                   }
                 >
-                  <HandoffButton
-                    actions={handoffs().map((h) => ({
-                      label: h.label,
-                      agent: h.agent,
-                      prompt: h.prompt,
-                      onClick: () => props.actions!.handoff!(h.agent, h.prompt),
-                    }))}
-                  />
-                </Show>
-                <Show
-                  when={
-                    lastAssistantGroupKey().get(assistantPartRow().userMessageID) === assistantPartRow().group.key &&
-                    !workingTurn(assistantPartRow().userMessageID) &&
-                    props.actions?.capture
-                  }
-                >
-                  <CaptureButton onClick={props.actions!.capture!} label={language.t("chatCapture.captureAsAsset")} />
+                  <div class="flex items-center justify-end pt-0.5">
+                    <HandoffButton
+                      actions={handoffs().map((h) => ({
+                        label: h.label,
+                        agent: h.agent,
+                        prompt: h.prompt,
+                        onClick: () => props.actions!.handoff!(h.agent, h.prompt),
+                      }))}
+                    />
+                  </div>
                 </Show>
               </div>
             </div>

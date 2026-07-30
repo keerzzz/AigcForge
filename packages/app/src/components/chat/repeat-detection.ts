@@ -1,29 +1,56 @@
 /**
- * Simple text similarity for detecting repeated instructions within a session.
- * Uses Jaccard similarity on normalized word tokens with a configurable threshold.
+ * Repeat detection for session capture.
+ * Pure functions — no internal state. Caller scopes prompts to a single session.
+ *
+ * Uses Jaccard similarity on normalized word tokens (CJK: character bigrams).
  */
 
 const DEFAULT_THRESHOLD = 0.7
+const MIN_SIMILAR_COUNT = 3
 
-function normalize(text: string): string {
+const CJK_RE = /[一-鿿㐀-䶿豈-﫿]/
+
+export function normalize(text: string): string {
   return text
     .toLowerCase()
-    .replace(/[^\w\s]/g, "")
+    .replace(/[^\w\s\p{L}]/gu, "")
     .replace(/\s+/g, " ")
     .trim()
 }
 
-function tokenize(text: string): Set<string> {
-  return new Set(normalize(text).split(/\s+/).filter(Boolean))
+function hasCJK(text: string): boolean {
+  return CJK_RE.test(text)
 }
 
-function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
-  if (a.size === 0 && b.size === 0) return 0
-  let intersection = 0
-  for (const item of a) {
-    if (b.has(item)) intersection++
+/**
+ * Tokenize text for Jaccard comparison.
+ * For CJK text: character bigrams (overlapping 2-char windows).
+ * For non-CJK text: whitespace-separated words.
+ */
+function tokenize(text: string): string[] {
+  const normalized = normalize(text)
+  if (!normalized) return []
+  if (hasCJK(normalized)) {
+    const chars = Array.from(normalized.replace(/\s+/g, ""))
+    if (chars.length <= 1) return chars
+    const bigrams: string[] = []
+    for (let i = 0; i < chars.length - 1; i++) {
+      bigrams.push(chars[i] + chars[i + 1])
+    }
+    return bigrams
   }
-  const union = a.size + b.size - intersection
+  return normalized.split(/\s+/).filter(Boolean)
+}
+
+function jaccardSimilarity(a: string[], b: string[]): number {
+  const setA = new Set(a)
+  const setB = new Set(b)
+  if (setA.size === 0 && setB.size === 0) return 0
+  let intersection = 0
+  for (const item of setA) {
+    if (setB.has(item)) intersection++
+  }
+  const union = setA.size + setB.size - intersection
   return union === 0 ? 0 : intersection / union
 }
 
@@ -32,42 +59,55 @@ export function textSimilarity(a: string, b: string): number {
 }
 
 export interface RepeatMatch {
-  readonly index: number
-  readonly similarity: number
-  readonly text: string
+  readonly count: number
+  readonly lastSimilarity: number
 }
 
-export function findSimilarPrompt(
+/**
+ * Count how many prompts in the history are similar to `current` (≥ threshold).
+ * Returns undefined if count < MIN_SIMILAR_COUNT.
+ */
+export function countSimilarPrompts(
   current: string,
   history: string[],
   threshold: number = DEFAULT_THRESHOLD,
 ): RepeatMatch | undefined {
-  let best: RepeatMatch | undefined
-  for (let i = 0; i < history.length; i++) {
-    const sim = textSimilarity(current, history[i]!)
-    if (sim >= threshold && (!best || sim > best.similarity)) {
-      best = { index: i, similarity: sim, text: history[i]! }
+  const tokens = tokenize(current)
+  let count = 0
+  let best = 0
+  for (const entry of history) {
+    const sim = jaccardSimilarity(tokens, tokenize(entry))
+    if (sim >= threshold) {
+      count++
+      if (sim > best) best = sim
     }
   }
-  return best
+  return count >= MIN_SIMILAR_COUNT ? { count, lastSimilarity: best } : undefined
 }
 
-export function createPromptHistory(): {
-  readonly push: (text: string) => void
-  readonly findSimilar: (text: string, threshold?: number) => RepeatMatch | undefined
-  readonly all: () => readonly string[]
-} {
-  const entries: string[] = []
-  return {
-    push: (text: string) => {
-      const normalized = normalize(text)
-      if (normalized && normalized !== entries[entries.length - 1]) {
-        entries.push(normalized)
-      }
-    },
-    findSimilar: (text: string, threshold?: number) => {
-      return findSimilarPrompt(normalize(text), entries, threshold)
-    },
-    all: () => entries,
-  }
+/**
+ * Extract user prompts from session messages in chronological order.
+ * Each prompt is normalized text from the message's text parts.
+ * Parts are accessed via the provided getParts function (not from message.parts,
+ * since Message types don't carry inline parts).
+ */
+export function extractUserPrompts(
+  messages: Array<{ role: string; id: string }>,
+  getParts: (messageID: string) => Array<{ type: string; text?: string }>,
+): string[] {
+  return messages
+    .filter((m) => m.role === "user")
+    .map((m) =>
+      getParts(m.id)
+        .filter((p) => p.type === "text")
+        .map((p) => p.text ?? "")
+        .join(" "),
+    )
+    .map(normalize)
+    .filter((text) => text.length > 0)
+}
+
+/** Reset helper — returns a clean state object for createStore */
+export function freshRepeatState() {
+  return { show: false, message: "", dismissCount: 0 }
 }

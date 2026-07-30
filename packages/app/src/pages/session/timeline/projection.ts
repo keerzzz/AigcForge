@@ -90,11 +90,27 @@ export function createTimelineProjection(input: {
     })
     return result
   })
+  const lastAssistantMessageID = createMemo(() => {
+    let lastID = ""
+    rows().forEach((row) => {
+      if (row._tag === "AssistantPart") lastID = row.userMessageID
+    })
+    return lastID
+  })
+  const lastAssistantMessageGroupKey = createMemo(() => {
+    let lastKey = ""
+    rows().forEach((row) => {
+      if (row._tag === "AssistantPart") lastKey = row.group.key
+    })
+    return lastKey
+  })
 
   return {
     activeMessageID,
     assistantMessagesByParent,
     lastAssistantGroupKey,
+    lastAssistantMessageID,
+    lastAssistantMessageGroupKey,
     messageByID,
     messageRowIndex,
     messageLastRowIndex,
