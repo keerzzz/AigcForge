@@ -38,6 +38,44 @@ export function fillCliList(prompt: string, clis: string[]): string {
 }
 
 /**
+ * Fills {{ASSETS_LIST}} with a list of available chat mode assets grouped by kind.
+ * Accepts an array of { kind, name } objects; kinds and names are sorted alphabetically.
+ * Shows "(no assets available)" when the list is empty.
+ */
+export function fillAssetsList(
+  prompt: string,
+  assets: ReadonlyArray<{ kind: string; name: string }>,
+): string {
+  if (assets.length === 0) {
+    return prompt.replace("{{ASSETS_LIST}}", "(no assets available)")
+  }
+
+  const byKind = new Map<string, string[]>()
+  for (const asset of assets) {
+    let list = byKind.get(asset.kind)
+    if (!list) {
+      list = []
+      byKind.set(asset.kind, list)
+    }
+    list.push(asset.name)
+  }
+
+  // Sort names within each kind
+  for (const names of byKind.values()) {
+    names.sort()
+  }
+
+  // Sort kinds alphabetically, pluralize for display
+  const sortedKinds = Array.from(byKind.keys()).sort()
+  const lines = sortedKinds.map((kind) => {
+    const plural = kind.endsWith("s") ? kind : `${kind}s`
+    return `- **${plural}**: ${byKind.get(kind)!.join(", ")}`
+  })
+
+  return prompt.replace("{{ASSETS_LIST}}", lines.join("\n"))
+}
+
+/**
  * Renders the full prompt with all known fillers.
  * CLI_LIST requires the service to be present (aigcfroge layer provides it).
  */

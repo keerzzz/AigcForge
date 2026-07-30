@@ -9,6 +9,7 @@ import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { useLanguage } from "@/context/language"
 import { ChatRightPanel } from "@/components/chat/chat-right-panel"
 export { ChatRightPanel }
+import { assetVersion } from "@/components/chat/prompt-asset-store"
 import { useChatDirectory } from "@/pages/mode-workspace-context"
 import { AssetWorkbench } from "@/components/chat/asset-workbench"
 import { useGlobal } from "@/context/global"
@@ -18,7 +19,7 @@ import { useTabs } from "@/context/tabs"
 import { useDirectoryPicker } from "@/components/directory-picker"
 import { homeProjectDirectories, openProjectNewSession } from "@/pages/layout/helpers"
 import { getFilename } from "@aigcfroge/core/util/path"
-import { ChatAssetWorkbenchMain, CodingSessionListMain, PlaceholderMain } from "@/pages/mode-workspace-slots"
+import { ChatAssetWorkbenchMain, CodingProjectColumnSidebar, CodingSessionListMain, PlaceholderMain } from "@/pages/mode-workspace-slots"
 
 export type ModeSurface = {
   Sidebar: Component
@@ -153,16 +154,16 @@ export function ChatFeatureSidebar() {
     setDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
   })
   // 全量资产计数：并发取 7 种 kind 的项目级资产（M3 取 5，M5/M6 增加 workflow/plugin）；带 name 集合供系统级计数去重。
-  const [kindCounts] = createResource(dirSdk, async (sdk) => {
-    if (!sdk) return { counts: {} as Record<string, number>, names: {} as Record<string, Set<string>> }
+  const [kindCounts] = createResource(() => ({ sdk: dirSdk(), version: assetVersion() }), async (source) => {
+    if (!source.sdk) return { counts: {} as Record<string, number>, names: {} as Record<string, Set<string>> }
     const [p, s, m, c, a, w, pl] = await Promise.all([
-      sdk.client.promptAsset.list(),
-      sdk.client.skillAsset.list(),
-      sdk.client.mcpAsset.list(),
-      sdk.client.commandAsset.list(),
-      sdk.client.agentAsset.list(),
-      sdk.client.workflowAsset.list(),
-      sdk.client.pluginAsset.list(),
+      source.sdk.client.promptAsset.list(),
+      source.sdk.client.skillAsset.list(),
+      source.sdk.client.mcpAsset.list(),
+      source.sdk.client.commandAsset.list(),
+      source.sdk.client.agentAsset.list(),
+      source.sdk.client.workflowAsset.list(),
+      source.sdk.client.pluginAsset.list(),
     ])
     const byKind = {
       prompt: p.data?.assets ?? [],
@@ -303,7 +304,7 @@ export function PlaceholderPanel() {
 
 const MODE_SURFACES: Record<ModeSurfaceSlot, ModeSurface> = {
   coding: {
-    Sidebar: () => null,
+    Sidebar: CodingProjectColumnSidebar,
     Main: CodingSessionListMain,
     RightPanel: () => null,
   },

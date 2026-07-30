@@ -36,6 +36,7 @@ import { PluginV2 } from "@aigcfroge/core/plugin"
 import { MetaPrompt } from "@aigcfroge/core/agent/meta/meta-prompt"
 import { Handoff } from "@aigcfroge/schema/handoff"
 import { ChatOrchestratorPrompt } from "@aigcfroge/core/agent/prompt/chat-orchestrator"
+import { scanAssets } from "./meta/assets-loader"
 
 export const Info = Schema.Struct({
   name: Schema.String,
@@ -153,12 +154,21 @@ export const layer = Layer.effect(
           }),
         )
 
-        // Fill {{CLI_LIST}} in the meta agent prompt with actually available CLI tools
+        // Fill {{CLI_LIST}} and {{ASSETS_LIST}} in the meta agent prompt
         const cliAdapters = yield* cliAdapterRegistry.available()
         const cliNames = cliAdapters.map((a) => a.name)
-        const metaPrompt = MetaAgent.prompt.includes("{{CLI_LIST}}")
-          ? MetaPrompt.fillCliList(MetaAgent.prompt, cliNames)
-          : MetaAgent.prompt
+        let assets: readonly { kind: string; name: string }[] = []
+        try {
+          assets = yield* Effect.promise(() => scanAssets(ctx.directory))
+        } catch {
+          // Silently fall back to empty list
+        }
+        const metaPrompt = MetaAgent.prompt.includes("{{ASSETS_LIST}}")
+          ? MetaPrompt.fillAssetsList(
+              MetaPrompt.fillCliList(MetaAgent.prompt, cliNames),
+              assets,
+            )
+          : MetaPrompt.fillCliList(MetaAgent.prompt, cliNames)
 
         const agents: Record<string, Info> = {
           "chat-orchestrator": {

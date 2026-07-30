@@ -1,18 +1,33 @@
 import { createEffect, createMemo, createResource, createSignal, For } from "solid-js"
+import { createStore } from "solid-js/store"
 import { modeSurface } from "@/components/mode-surfaces"
 import { useServerSync } from "@/context/server-sync"
 import { type DirectorySDK } from "@/context/sdk"
 import { AssetWorkbench } from "@/components/chat/asset-workbench"
 import { useMode } from "@/context/mode"
-import { ModeWorkspaceAssetCtx } from "@/pages/mode-workspace-context"
+import { useServer } from "@/context/server"
+import { ServerConnection } from "@/context/server"
+import { ModeWorkspaceAssetCtx, CodingSelectionCtx } from "@/pages/mode-workspace-context"
 import { useChatDirectory } from "@/pages/mode-workspace-context"
+import type { HomeProjectSelection } from "@/pages/layout/helpers"
 
 const ALL_SLOTS = ["chat", "coding", "work", "assistant"] as const
 
 export function ModeWorkspace() {
   const mode = useMode()
   const sync = useServerSync()
+  const server = useServer()
   const { ctx: chatCtx, directory: chatDirectory } = useChatDirectory()
+
+  // ---- Shared Coding Selection (sidebar ↔ main linkage) ----
+  const [codingSel, setCodingSel] = createStore({
+    selection: { server: server.key } as HomeProjectSelection,
+  })
+  const codingValue = {
+    get selection() { return codingSel.selection },
+    selectServer: (key: ServerConnection.Key) => setCodingSel("selection", { server: key }),
+    selectProject: (key: ServerConnection.Key, directory: string) => setCodingSel("selection", { server: key, directory }),
+  }
 
   // ---- Asset Resource ----
   const [chatDirSdk, setChatDirSdk] = createSignal<DirectorySDK | undefined>()
@@ -118,8 +133,16 @@ export function ModeWorkspace() {
 
   return (
     <ModeWorkspaceAssetCtx.Provider value={assetCtx}>
+      <CodingSelectionCtx.Provider value={codingValue}>
       <div data-mode-workspace class="rounded-[10px] shadow-[var(--v2-elevation-raised)] m-2 min-h-0 lg:overflow-hidden bg-v2-background-bg-base self-stretch flex-1 flex flex-col">
-        <div class="mx-auto grid h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-3 pb-3 lg:grid-rows-1 lg:px-6 lg:pb-16 max-w-[1080px] lg:grid-cols-[280px_minmax(0,720px)] lg:gap-8">
+        <div
+          class={
+            "mx-auto grid h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-3 pb-3 lg:grid-rows-1 lg:px-6 lg:pb-16 lg:gap-8" +
+            (mode.currentMode !== "chat"
+              ? " max-w-[1080px] lg:grid-cols-[280px_minmax(0,720px)]"
+              : " lg:grid-cols-[280px_minmax(0,1fr)]")
+          }
+        >
           {/* Sidebar slot: render-all + display:none */}
           <div>
             <For each={ALL_SLOTS}>
@@ -138,11 +161,8 @@ export function ModeWorkspace() {
             <For each={ALL_SLOTS}>
               {(slot) => {
                 const surf = modeSurface(slot)
-                const isChat = slot === "chat"
                 return (
-                  <div class="flex min-h-0 flex-1 flex-col" classList={{
-                    "pt-6 lg:pt-12": !isChat,
-                  }} style={{ display: mode.currentMode === slot ? "flex" : "none" }}>
+                  <div class="flex min-h-0 flex-1 flex-col pt-6 lg:pt-12" style={{ display: mode.currentMode === slot ? "flex" : "none" }}>
                     <surf.Main />
                   </div>
                 )
@@ -151,6 +171,7 @@ export function ModeWorkspace() {
           </section>
         </div>
       </div>
+      </CodingSelectionCtx.Provider>
     </ModeWorkspaceAssetCtx.Provider>
   )
 }

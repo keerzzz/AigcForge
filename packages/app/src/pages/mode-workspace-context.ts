@@ -1,4 +1,6 @@
 import { type Accessor, createContext, createMemo, useContext } from "solid-js"
+import type { HomeProjectSelection } from "@/pages/layout/helpers"
+import type { ServerConnection } from "@/context/server"
 import { type DirectorySDK } from "@/context/sdk"
 import { AssetWorkbench } from "@/components/chat/asset-workbench"
 import { useGlobal } from "@/context/global"
@@ -20,11 +22,20 @@ export function useModeWorkspaceAssets() {
 
 export { ModeWorkspaceAssetCtx }
 
-/**
- * Chat 首页 Location 解析：当前 server 的 lastSession 目录，回退首个 project worktree。
- * ChatSidebar / ChatFeatureSidebar / Home 资产 fetch 共用，确保 Location 展示与资产列表目录一致。
- * 定义在此处避免 mode-surfaces ↔ mode-workspace-slots 的循环依赖。
- */
+/** Coding 模式左侧栏 ↔ 主区共享的 project selection（联动联动） */
+export type CodingSelectionValue = {
+  selection: HomeProjectSelection
+  selectServer: (key: ServerConnection.Key) => void
+  selectProject: (key: ServerConnection.Key, directory: string) => void
+}
+
+export const CodingSelectionCtx = createContext<CodingSelectionValue>()
+
+export function useCodingSelection() {
+  return useContext(CodingSelectionCtx)!
+}
+
+/** Chat 首页 Location 解析：当前 server 的 lastSession 目录，回退首个 project worktree。 */
 export function useChatDirectory() {
   const global = useGlobal()
   const server = useServer()

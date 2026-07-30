@@ -21,6 +21,7 @@ import { ProposeCommandAssetTool } from "./propose-command-asset"
 import { ProposeAgentAssetTool } from "./propose-agent-asset"
 import { ProposeWorkflowAssetTool } from "./propose-workflow-asset"
 import { ProposePluginAssetTool } from "./propose-plugin-asset"
+import { ListAssetsTool } from "./list-assets"
 import { WriteTool } from "./write"
 
 /**
@@ -42,6 +43,7 @@ export const locationLayer = Layer.mergeAll(
   EditTool.layer,
   GlobTool.layer,
   GrepTool.layer,
+  ListAssetsTool.layer,
   QuestionTool.layer,
   ReadTool.layer.pipe(Layer.provide(ReadToolFileSystem.layer)),
   SkillTool.layer,

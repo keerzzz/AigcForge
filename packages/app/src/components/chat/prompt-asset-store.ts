@@ -1,3 +1,4 @@
+import { createSignal } from "solid-js"
 import { createStore } from "solid-js/store"
 import { sameCandidateInfo, type CandidateInfo } from "./prompt-asset-candidate"
 
@@ -36,3 +37,10 @@ export function setApplied() {
 export function useProposeCandidate() {
   return state
 }
+
+/** Module-level version counter bumped after each asset apply. Allows remote consumers (ChatFeatureSidebar counts) to refetch. */
+const [assetVersion, setAssetVersion] = createSignal(0)
+export function bumpAssetVersion() {
+  setAssetVersion((v) => v + 1)
+}
+export { assetVersion }

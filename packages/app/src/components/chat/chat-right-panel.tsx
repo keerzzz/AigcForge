@@ -24,7 +24,7 @@ import { useCommand } from "@/context/command"
 import { ConstrainDragYAxis, getDraggableId } from "@/utils/solid-dnd"
 import { getTabReorderIndex, shouldShowFileTree, createSizing } from "@/pages/session/helpers"
 import { createFileTabListSync } from "@/pages/session/file-tab-scroll"
-import { clearProposeCandidate, useProposeCandidate, setProposeCandidate, setApplying, setApplied } from "./prompt-asset-store"
+import { bumpAssetVersion, clearProposeCandidate, useProposeCandidate, setProposeCandidate, setApplying, setApplied } from "./prompt-asset-store"
 import { findProposeResult } from "./prompt-asset-candidate"
 import { applyAssetCandidate, assetKindDir, fetchAssetInsertText, listAssets } from "./asset-insert"
 import type { AssetKindId } from "@aigcfroge/schema/asset"
@@ -200,7 +200,11 @@ export function ChatRightPanel() {
       })
       setApplied()
       void refetch()
-      void file.tree.refresh(assetKindDir(c.kind))
+      const kindDir = assetKindDir(c.kind)
+      void file.tree.refresh(kindDir)
+      file.tree.expand(kindDir)
+      void file.tree.refresh(".aigcfroge")
+      bumpAssetVersion()
     } catch (err) {
       console.error("Apply failed:", err)
       setApplying(false)
@@ -219,7 +223,11 @@ export function ChatRightPanel() {
       })
       setApplied()
       void refetch()
-      void file.tree.refresh(assetKindDir(c.kind))
+      const kindDir = assetKindDir(c.kind)
+      void file.tree.refresh(kindDir)
+      file.tree.expand(kindDir)
+      void file.tree.refresh(".aigcfroge")
+      bumpAssetVersion()
     } catch (err) {
       console.error("Apply overwrite failed:", err)
       setApplying(false)

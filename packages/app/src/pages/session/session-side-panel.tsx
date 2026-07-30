@@ -476,7 +476,7 @@ export function SessionSidePanel(props: {
       </aside>
     </Show>
     {/* ADR-15 §4 方案1: render-all + display:none 替换 Dynamic — slot 组件常驻不 remount */}
-    <div style={{ display: mode.currentMode === "chat" ? "" : "none" }}>
+    <div class="flex-1 min-w-0" style={{ display: mode.currentMode === "chat" ? "" : "none" }}>
       <ChatRightPanel />
     </div>
     <div style={{ display: mode.currentMode === "work" ? "" : "none" }}>

@@ -134,7 +134,7 @@ export function homeSessionSearchKey(record: HomeSessionRecord) {
 // Session-related exported components below remain for CodingSessionListMain.
 
 
-function HomeProjectColumn(props: {
+export function HomeProjectColumn(props: {
   projects: LocalProject[]
   selected: HomeProjectSelection
   focusServer: (server: ServerConnection.Any) => void

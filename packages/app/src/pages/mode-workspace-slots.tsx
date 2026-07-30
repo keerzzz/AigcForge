@@ -6,14 +6,13 @@ import { useLanguage } from "@/context/language"
 import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
 import { useServer, ServerConnection } from "@/context/server"
-import { useChatDirectory } from "@/pages/mode-workspace-context"
-import { useModeWorkspaceAssets } from "@/pages/mode-workspace-context"
+import { useChatDirectory, useModeWorkspaceAssets, useCodingSelection } from "@/pages/mode-workspace-context"
 import { AssetWorkbench } from "@/components/chat/asset-workbench"
 import { AssetSessionSelector } from "@/components/chat/asset-session-selector"
 import { ChatImportDialog, serializeImport, wrapImportContent } from "@/components/chat/chat-import-dialog"
 import { AssetDeleteDialog } from "@/components/chat/asset-delete-dialog"
 import { modeDraft, useMode } from "@/context/mode"
-import { openProjectNewSession, projectForSession, sortedRootSessions, displayName, type HomeProjectSelection } from "@/pages/layout/helpers"
+import { openProjectNewSession, projectForSession, sortedRootSessions, displayName, type HomeProjectSelection, closeHomeProject, toggleHomeProjectSelection, homeProjectDirectories } from "@/pages/layout/helpers"
 import { useServerSync, type ServerSync } from "@/context/server-sync"
 import { useLayout, type LocalProject } from "@/context/layout"
 import { useQuery } from "@tanstack/solid-query"
@@ -23,17 +22,134 @@ import { useNavigate } from "@solidjs/router"
 import { sessionTitle } from "@/utils/session-title"
 import { SessionTabAvatar } from "@/pages/layout/session-tab-avatar"
 import { Spinner } from "@aigcfroge/ui/spinner"
-import {
-  HOME_SESSION_LIMIT, HOME_ROW, HOME_SESSION_SEARCH_RESULTS_ID, HOME_SEARCH_RESULT_ROW,
+import { useDirectoryPicker } from "@/components/directory-picker"
+import { HomeProjectColumn, HOME_SESSION_LIMIT, HOME_ROW, HOME_SESSION_SEARCH_RESULTS_ID, HOME_SEARCH_RESULT_ROW,
   HOME_SEARCH_RESULT_TITLE, HOME_SEARCH_RESULT_META, HOME_SECTION_LABEL,
   HomeSessionSearch, HomeSessionRow, HomeSessionGroupHeader, HomeSessionSkeleton,
-  HomeSessionRecord, HomeSessionGroup, buildHomeSessionRecords, groupSessions,
+  HomeSessionRecord, HomeSessionGroup, buildHomeSessionRecords, groupSessions, matchesHomeSessionSearch,
 } from "@/pages/home"
 import { useNotification } from "@/context/notification"
 import { useMarked } from "@aigcfroge/ui/context/marked"
 import { preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { DateTime } from "luxon"
+
+/** Coding 左侧栏：项目列 + 服务器管理（复用 HomeProjectColumn，hooks 对齐旧 Home 组件） */
+export function CodingProjectColumnSidebar() {
+  const sync = useServerSync()
+  const layout = useLayout()
+  const mode = useMode()
+  const dialog = useDialog()
+  const server = useServer()
+  const language = useLanguage()
+  const global = useGlobal()
+  const tabs = useTabs()
+  const notification = useNotification()
+  const pickDirectory = useDirectoryPicker()
+  const codingSel = useCodingSelection()
+
+  const focusedServer = createMemo(
+    () => global.servers.list().find((conn) => ServerConnection.key(conn) === codingSel.selection.server) ?? server.current,
+  )
+  const focusedServerCtx = createMemo(() => {
+    const conn = focusedServer()
+    if (!conn) return undefined
+    return global.ensureServerCtx(conn)
+  })
+  const projects = createMemo(() => focusedServerCtx()?.projects.list() ?? layout.projects.list())
+
+  function focusServer(conn: ServerConnection.Any) {
+    codingSel.selectServer(ServerConnection.key(conn))
+  }
+  function selectProject(conn: ServerConnection.Any, directory: string) {
+    const key = ServerConnection.key(conn)
+    if (!global.ensureServerCtx(conn).projects.list().some((p) => p.worktree === directory)) return
+    codingSel.selectProject(key, directory)
+  }
+  function openNewSession(conn: ServerConnection.Any, dir: string) {
+    const ctx = global.ensureServerCtx(conn)
+    openProjectNewSession(
+      ctx.projects,
+      (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(mode.currentMode) }),
+      ServerConnection.key(conn),
+      dir,
+    )
+  }
+  function chooseProject(conn: ServerConnection.Any) {
+    pickDirectory({
+      server: conn,
+      title: language.t("command.project.open"),
+      multiple: true,
+      onSelect: (result) => {
+        const dirs = homeProjectDirectories(result)
+        if (!dirs[0]) return
+        const ctx = global.ensureServerCtx(conn)
+        dirs.forEach((d: string) => ctx.projects.open(d))
+        ctx.projects.touch(dirs[0])
+        codingSel.selectProject(ServerConnection.key(conn), dirs[0])
+      },
+    })
+  }
+  function editProject(conn: ServerConnection.Any, project: LocalProject) {
+    void import("@/components/dialog-edit-project").then((x) => {
+      void dialog.show(() => <x.DialogEditProject server={conn} project={project} />)
+    })
+  }
+  function closeProject(conn: ServerConnection.Any, directory: string) {
+    const next = closeHomeProject(codingSel.selection, ServerConnection.key(conn), global.ensureServerCtx(conn).projects, directory)
+    if (next) codingSel.selectProject(next.server, next.directory ?? "")
+  }
+  function clearNotifications(conn: ServerConnection.Any, project: LocalProject) {
+    if (ServerConnection.key(conn) !== server.key) return
+    const dirs: string[] = [project.worktree, ...(project.sandboxes ?? [])]
+    dirs.filter((d) => notification.project.unseenCount(d) > 0).forEach((d) => notification.project.markViewed(d))
+  }
+  function unseenCount(conn: ServerConnection.Any, project: LocalProject): number {
+    if (ServerConnection.key(conn) !== server.key) return 0
+    const dirs: string[] = [project.worktree, ...(project.sandboxes ?? [])]
+    return dirs.reduce((t, d) => t + notification.project.unseenCount(d), 0)
+  }
+
+  // On first load (no project selected yet), default-select the project that
+  // contains the last session's directory, so the project list highlights where
+  // the user last worked. Runs once; later user selections are respected.
+  let defaultSelectionApplied = false
+  createEffect(() => {
+    if (defaultSelectionApplied) return
+    if (codingSel.selection.directory) {
+      defaultSelectionApplied = true
+      return
+    }
+    const conn = focusedServer()
+    if (!conn) return
+    const scope = focusedServerCtx()?.sdk.scope
+    if (!scope) return
+    const last = global.lastSession.directory(scope)
+    if (!last) return
+    const lastKey = pathKey(last)
+    const project = projects().find(
+      (p) => pathKey(p.worktree) === lastKey || (p.sandboxes ?? []).some((s) => pathKey(s) === lastKey),
+    )
+    defaultSelectionApplied = true
+    if (project) codingSel.selectProject(ServerConnection.key(conn), project.worktree)
+  })
+
+  return (
+    <HomeProjectColumn
+      projects={projects()}
+      selected={codingSel.selection}
+      focusServer={focusServer}
+      selectProject={selectProject}
+      openNewSession={openNewSession}
+      chooseProject={chooseProject}
+      editProject={editProject}
+      closeProject={closeProject}
+      clearNotifications={clearNotifications}
+      unseenCount={unseenCount}
+      language={language}
+    />
+  )
+}
 
 /** Coding 主区：全功能会话列表（queryKey 已去 mode，records memo 按 mode 过滤） */
 export function CodingSessionListMain() {
@@ -48,16 +164,16 @@ export function CodingSessionListMain() {
   const tabs = useTabs()
   const notification = useNotification()
   const marked = useMarked()
+  const codingSel = useCodingSelection()
 
   let focusSessionSearch: (() => void) | undefined
   const [state, setState] = createStore({
     search: "",
-    selection: { server: server.key } as HomeProjectSelection,
     searchFocused: false,
   })
 
   const focusedServer = createMemo(
-    () => global.servers.list().find((conn) => ServerConnection.key(conn) === state.selection.server) ?? server.current,
+    () => global.servers.list().find((conn) => ServerConnection.key(conn) === codingSel.selection.server) ?? server.current,
   )
   const focusedServerCtx = createMemo(() => {
     const conn = focusedServer()
@@ -65,19 +181,25 @@ export function CodingSessionListMain() {
     return global.ensureServerCtx(conn)
   })
   const focusedSync = () => focusedServerCtx()?.sync ?? sync()
+  const focusedScope = createMemo(() => focusedServerCtx()?.sdk.scope)
   const projects = createMemo(() => focusedServerCtx()?.projects.list() ?? layout.projects.list())
+  const selectedProject = createMemo(() =>
+    projects().find((project) => project.worktree === codingSel.selection.directory),
+  )
   const projectByID = createMemo(
     () => new Map(projects().flatMap((project) => (project.id ? [[project.id, project] as const] : []))),
   )
-  const projectDirectories = createMemo(() =>
-    projects().flatMap((p) => [p.worktree, ...(p.sandboxes ?? [])]),
-  )
+  const projectDirectories = createMemo(() => {
+    const selected = selectedProject()
+    if (!selected) return projects().flatMap((p) => [p.worktree, ...(p.sandboxes ?? [])])
+    return [selected.worktree, ...(selected.sandboxes ?? [])]
+  })
 
   const search = createMemo(() => state.search.trim())
 
   // queryKey 已去 mode.currentMode（ADR-15 Step 7）
   const sessionLoad = useQuery(() => ({
-    queryKey: ["home", "sessions", state.selection.server, ...projectDirectories()] as const,
+    queryKey: ["home", "sessions", codingSel.selection.server, ...projectDirectories()] as const,
     queryFn: async () => {
       await Promise.all(
         projectDirectories().map((directory) =>
@@ -122,7 +244,7 @@ export function CodingSessionListMain() {
         if (r.session.mode === undefined) return current === "coding"
         return r.session.mode === current
       })
-      .filter((record) => record.session.title?.toLowerCase().includes(query) ?? false)
+      .filter((record) => matchesHomeSessionSearch(record, query))
   })
 
   const searchOpen = createMemo(() => state.searchFocused && search().length > 0)
@@ -203,10 +325,24 @@ export function CodingSessionListMain() {
     closeSearch()
   }
 
+  const newSessionDirectory = createMemo(() => {
+    const selected = selectedProject()
+    const last = focusedScope() ? global.lastSession.directory(focusedScope()!) : undefined
+    if (selected && last) {
+      const lastKey = pathKey(last)
+      const containsLast =
+        pathKey(selected.worktree) === lastKey || (selected.sandboxes ?? []).some((s) => pathKey(s) === lastKey)
+      if (containsLast) return last
+    }
+    if (selected) return selected.worktree
+    if (last) return last
+    return projects()[0]?.worktree
+  })
+
   function openNewSession() {
     const conn = focusedServer()
     if (!conn) return
-    const directory = projects().find((p) => p.worktree)?.worktree
+    const directory = newSessionDirectory()
     if (!directory) return
     const ctx = global.ensureServerCtx(conn)
     openProjectNewSession(
@@ -225,8 +361,8 @@ export function CodingSessionListMain() {
         open={searchOpen()}
         loading={sessionLoad.isLoading}
         results={searchResults()}
-        server={state.selection.server}
-        activeServer={state.selection.server === server.key}
+        server={codingSel.selection.server}
+        activeServer={codingSel.selection.server === server.key}
         noResultsLabel={language.t("home.sessions.search.noResults", { query: search() })}
         bindFocus={(focus) => { focusSessionSearch = focus }}
         onInput={(value) => setState("search", value)}
@@ -263,8 +399,8 @@ export function CodingSessionListMain() {
                         {(record) => (
                           <HomeSessionRow
                             record={record}
-                            server={state.selection.server}
-                            activeServer={state.selection.server === server.key}
+                            server={codingSel.selection.server}
+                            activeServer={codingSel.selection.server === server.key}
                             onClick={() => openSession(record.session)}
                           />
                         )}

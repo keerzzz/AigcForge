@@ -183,6 +183,9 @@ Verify: <how to validate the result>
 ## Available CLI Tools
 {{CLI_LIST}}
 
+## Available Assets
+{{ASSETS_LIST}}
+
 ## Protocol Documents
 
 Your system instructions include the TEXT CONTENT of protocol documents loaded at three levels:
@@ -358,6 +361,7 @@ export const Plugin = define({
         item.mode = "primary"
         item.permissions.push(
           ...PermissionV2.merge(defaults, [
+            { action: "list_assets", resource: "*", effect: "allow" },
             { action: "question", resource: "*", effect: "allow" },
             { action: "task", resource: "*", effect: "allow" },
             { action: "plan_enter", resource: "*", effect: "allow" },
