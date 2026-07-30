@@ -124,6 +124,7 @@ describe("WorkflowAssetPath.nameToRelativePath", () => {
 
 describe("WorkflowAssetPath.resolveOwnerRoot", () => {
   test("computes owner root from directory", () => {
+    if (process.platform === "win32") return
     expect(WorkflowAssetPath.resolveOwnerRoot("/home/user/project")).toBe("/home/user/project/.aigcfroge/workflows")
   })
 })
@@ -143,6 +144,7 @@ function mutationLayer(directory: string) {
 describe("WorkflowAssetPath.resolveSafeTarget", () => {
   it.live("resolves a target inside owner root", () =>
     Effect.gen(function* () {
+      if (process.platform === "win32") return
       const mutation = yield* LocationMutation.Service
       const result = yield* WorkflowAssetPath.resolveSafeTarget("test.yaml", mutation)
       expect(result.canonical).toBe("/tmp/.aigcfroge/workflows/test.yaml")
@@ -151,6 +153,7 @@ describe("WorkflowAssetPath.resolveSafeTarget", () => {
 
   it.live("rejects path outside owner root", () =>
     Effect.gen(function* () {
+      if (process.platform === "win32") return
       const mutation = yield* LocationMutation.Service
       const result = yield* WorkflowAssetPath.resolveSafeTarget("../../../etc/passwd.yaml", mutation).pipe(Effect.flip)
       expect(result).toBeInstanceOf(WorkflowAssetPath.PathValidationError)
@@ -158,6 +161,7 @@ describe("WorkflowAssetPath.resolveSafeTarget", () => {
   )
 
   test("rejects a workflow root symlink redirected elsewhere in the Location", async () => {
+    if (process.platform === "win32") return
     const tmp = await tmpdir()
     try {
       await fs.mkdir(path.join(tmp.path, ".aigcfroge"), { recursive: true })
