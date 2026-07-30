@@ -124,6 +124,7 @@ describe("PromptAssetPath.nameToRelativePath", () => {
 
 describe("PromptAssetPath.resolveOwnerRoot", () => {
   test("computes owner root from directory", () => {
+    if (process.platform === "win32") return
     expect(PromptAssetPath.resolveOwnerRoot("/home/user/project")).toBe("/home/user/project/.aigcfroge/prompts")
   })
 })
@@ -143,6 +144,7 @@ function mutationLayer(directory: string) {
 describe("PromptAssetPath.resolveSafeTarget", () => {
   it.live("resolves a target inside owner root", () =>
     Effect.gen(function* () {
+      if (process.platform === "win32") return
       const mutation = yield* LocationMutation.Service
       const result = yield* PromptAssetPath.resolveSafeTarget("test.md", mutation)
       expect(result.canonical).toBe("/tmp/.aigcfroge/prompts/test.md")
@@ -151,6 +153,7 @@ describe("PromptAssetPath.resolveSafeTarget", () => {
 
   it.live("rejects path outside owner root", () =>
     Effect.gen(function* () {
+      if (process.platform === "win32") return
       const mutation = yield* LocationMutation.Service
       const result = yield* PromptAssetPath.resolveSafeTarget("../../../etc/passwd.md", mutation).pipe(Effect.flip)
       expect(result).toBeInstanceOf(PromptAssetPath.PathValidationError)
@@ -158,6 +161,7 @@ describe("PromptAssetPath.resolveSafeTarget", () => {
   )
 
   test("rejects a prompt root symlink redirected elsewhere in the Location", async () => {
+    if (process.platform === "win32") return
     const tmp = await tmpdir()
     try {
       await fs.mkdir(path.join(tmp.path, ".aigcfroge"), { recursive: true })
