@@ -142,41 +142,44 @@ function mutationLayer(directory: string) {
 }
 
 describe("WorkflowAssetPath.resolveSafeTarget", () => {
-  it.live("resolves a target inside owner root", () =>
-    Effect.gen(function* () {
-      if (process.platform === "win32") return
-      const mutation = yield* LocationMutation.Service
-      const result = yield* WorkflowAssetPath.resolveSafeTarget("test.yaml", mutation)
-      expect(result.canonical).toBe("/tmp/.aigcfroge/workflows/test.yaml")
-    }).pipe(Effect.provide(mutationLayer("/tmp"))),
-  )
+  if (process.platform === "win32") {
+    it.live.skip("resolves a target inside owner root", Effect.void)
+    it.live.skip("rejects path outside owner root", Effect.void)
+    test.skip("rejects a workflow root symlink redirected elsewhere in the Location", () => {})
+  } else {
+    it.live("resolves a target inside owner root", () =>
+      Effect.gen(function* () {
+        const mutation = yield* LocationMutation.Service
+        const result = yield* WorkflowAssetPath.resolveSafeTarget("test.yaml", mutation)
+        expect(result.canonical).toBe("/tmp/.aigcfroge/workflows/test.yaml")
+      }).pipe(Effect.provide(mutationLayer("/tmp"))),
+    )
 
-  it.live("rejects path outside owner root", () =>
-    Effect.gen(function* () {
-      if (process.platform === "win32") return
-      const mutation = yield* LocationMutation.Service
-      const result = yield* WorkflowAssetPath.resolveSafeTarget("../../../etc/passwd.yaml", mutation).pipe(Effect.flip)
-      expect(result).toBeInstanceOf(WorkflowAssetPath.PathValidationError)
-    }).pipe(Effect.provide(mutationLayer("/tmp"))),
-  )
+    it.live("rejects path outside owner root", () =>
+      Effect.gen(function* () {
+        const mutation = yield* LocationMutation.Service
+        const result = yield* WorkflowAssetPath.resolveSafeTarget("../../../etc/passwd.yaml", mutation).pipe(Effect.flip)
+        expect(result).toBeInstanceOf(WorkflowAssetPath.PathValidationError)
+      }).pipe(Effect.provide(mutationLayer("/tmp"))),
+    )
 
-  test("rejects a workflow root symlink redirected elsewhere in the Location", async () => {
-    if (process.platform === "win32") return
-    const tmp = await tmpdir()
-    try {
-      await fs.mkdir(path.join(tmp.path, ".aigcfroge"), { recursive: true })
-      await fs.mkdir(path.join(tmp.path, "elsewhere"), { recursive: true })
-      await fs.symlink(path.join(tmp.path, "elsewhere"), path.join(tmp.path, ".aigcfroge", "workflows"))
+    test("rejects a workflow root symlink redirected elsewhere in the Location", async () => {
+      const tmp = await tmpdir()
+      try {
+        await fs.mkdir(path.join(tmp.path, ".aigcfroge"), { recursive: true })
+        await fs.mkdir(path.join(tmp.path, "elsewhere"), { recursive: true })
+        await fs.symlink(path.join(tmp.path, "elsewhere"), path.join(tmp.path, ".aigcfroge", "workflows"))
 
-      const result = await Effect.runPromise(
-        Effect.gen(function* () {
-          const mutation = yield* LocationMutation.Service
-          return yield* WorkflowAssetPath.resolveSafeTarget("test.yaml", mutation).pipe(Effect.flip)
-        }).pipe(Effect.provide(mutationLayer(tmp.path))),
-      )
-      expect(result).toBeInstanceOf(WorkflowAssetPath.PathValidationError)
-    } finally {
-      await tmp[Symbol.asyncDispose]()
-    }
-  })
+        const result = await Effect.runPromise(
+          Effect.gen(function* () {
+            const mutation = yield* LocationMutation.Service
+            return yield* WorkflowAssetPath.resolveSafeTarget("test.yaml", mutation).pipe(Effect.flip)
+          }).pipe(Effect.provide(mutationLayer(tmp.path))),
+        )
+        expect(result).toBeInstanceOf(WorkflowAssetPath.PathValidationError)
+      } finally {
+        await tmp[Symbol.asyncDispose]()
+      }
+    })
+  }
 })
