@@ -181,7 +181,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       builtInTools,
       referenceGuidance,
       projectCopyRefresh,
-    ).pipe(Layer.fresh)
+    ).pipe(Layer.fresh, Layer.orDie)
   },
   idleTimeToLive: "60 minutes",
   dependencies: [
