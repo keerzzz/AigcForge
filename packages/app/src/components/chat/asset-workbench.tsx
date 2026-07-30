@@ -218,14 +218,14 @@ export function AssetWorkbenchTable(props: {
 
   return (
     <div data-component="asset-workbench" class="flex h-full min-h-0 flex-col bg-v2-background-bg-base">
-      <div class="flex items-center gap-2 border-b border-v2-border-border-base px-4 py-3">
-        <h2 class="flex-1 text-v2-text-text-base [font-weight:530]">
+      <div class="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-v2-border-border-base px-3 py-2.5 lg:px-4 lg:py-3">
+        <h2 class="flex-1 text-v2-text-text-base [font-weight:530] min-w-[120px]">
           {language.t("asset.panel.title", { kind: kindLabel() })}
         </h2>
         <label class="relative flex items-center">
-          <IconV2 name="magnifying-glass" class="text-v2-icon-icon-muted" />
+          <IconV2 name="magnifying-glass" class="text-v2-icon-icon-muted shrink-0" />
           <input
-            class="ml-1 h-7 w-48 rounded-[6px] bg-v2-background-bg-layer-03 pr-6 pl-2 text-v2-text-text-base outline-0 placeholder:text-v2-text-text-faint"
+            class="ml-1 h-7 w-36 lg:w-48 rounded-[6px] bg-v2-background-bg-layer-03 pr-6 pl-2 text-v2-text-text-base outline-0 placeholder:text-v2-text-text-faint text-12-regular lg:text-13-regular"
             placeholder={language.t("asset.list.searchPlaceholder", { kind: kindLabel() })}
             aria-label={language.t("asset.list.searchPlaceholder", { kind: kindLabel() })}
             value={store.state.search}
@@ -242,7 +242,7 @@ export function AssetWorkbenchTable(props: {
             </button>
           </Show>
         </label>
-        <div class="flex items-center gap-0.5 shrink-0">
+        <div class="flex items-center gap-0.5 shrink-0 order-last lg:order-none">
           {(["all", "project", "system"] as const).map((origin) => (
             <button
               type="button"
@@ -273,11 +273,11 @@ export function AssetWorkbenchTable(props: {
         >
           <Suspense>
           <div class="flex flex-col">
-            <div class="flex items-center gap-2 px-4 py-1.5 text-v2-text-text-faint text-11-regular">
-              <span class="w-20 shrink-0">{language.t("promptAsset.list.kind")}</span>
+            <div class="flex items-center gap-2 px-3 py-1.5 lg:px-4 text-v2-text-text-faint text-11-regular">
+              <span class="w-16 lg:w-20 shrink-0">{language.t("promptAsset.list.kind")}</span>
               <span class="flex-[35] truncate">{language.t("promptAsset.list.name")}</span>
-              <span class="flex-[40] truncate">{language.t("promptAsset.list.description")}</span>
-              <span class="flex-[20] text-right">{language.t("promptAsset.list.updated")}</span>
+              <span class="hidden sm:flex sm:flex-[40] truncate">{language.t("promptAsset.list.description")}</span>
+              <span class="hidden sm:flex sm:flex-[20] sm:justify-end">{language.t("promptAsset.list.updated")}</span>
             </div>
             <For each={rows()}>
               {(row) => (
@@ -299,7 +299,7 @@ export function AssetWorkbenchTable(props: {
                       props.onSelect?.(row)
                     }}
                   >
-                    <span class="flex w-20 shrink-0 items-center gap-1">
+                    <span class="flex w-16 lg:w-20 shrink-0 items-center gap-1">
                       <span class="rounded-[3px] bg-v2-background-bg-layer-04 px-1.5 py-0.5 text-[10px] text-v2-text-text-muted">
                         {row.kind}
                       </span>
@@ -309,7 +309,7 @@ export function AssetWorkbenchTable(props: {
                         </TooltipV2>
                       </Show>
                     </span>
-                    <span class="min-w-0 flex-[35] truncate text-v2-text-text-base [font-weight:530]">
+                    <span class="min-w-0 flex-1 truncate sm:flex-[35] text-v2-text-text-base [font-weight:530]">
                       <Show when={row.origin === "system"}
                         fallback={
                           <span
@@ -333,8 +333,8 @@ export function AssetWorkbenchTable(props: {
                       </Show>
                       {row.name || row.relativePath}
                     </span>
-                    <span class="min-w-0 flex-[40] truncate text-v2-text-text-muted">{row.description}</span>
-                    <span class="relative flex shrink-0 flex-[20] items-center justify-end gap-1 self-stretch">
+                    <span class="min-w-0 hidden sm:block sm:flex-[40] truncate text-v2-text-text-muted">{row.description}</span>
+                    <span class="relative hidden sm:flex shrink-0 sm:flex-[20] items-center justify-end gap-1 self-stretch">
                       <Show when={!row.invalid && row.origin !== "system"}>
                         <ButtonV2
                           type="button"
