@@ -1,6 +1,6 @@
 import type { Part, ToolPart } from "@aigcfroge/sdk/v2/client"
 
-export type ToolCategory = "read" | "write" | "command" | "mcp" | "skill" | "web" | "other"
+export type ToolCategory = "general" | "command" | "skill" | "mcp" | "agent" | "asset"
 
 export type ToolActivityItem = {
   name: string
@@ -15,24 +15,22 @@ export type ToolActivity = {
 }
 
 const classifyTool = (tool: string): ToolCategory => {
-  if (tool.startsWith("read")) return "read"
-  if (tool.startsWith("edit") || tool.startsWith("write") || tool.startsWith("apply")) return "write"
-  if (tool.startsWith("bash") || tool.startsWith("shell") || tool.startsWith("command")) return "command"
-  if (tool.startsWith("mcp")) return "mcp"
-  if (tool.startsWith("skill")) return "skill"
-  if (tool.startsWith("web")) return "web"
-  return "other"
+  if (tool === "skill") return "skill"
+  if (tool === "task") return "agent"
+  if (tool === "bash") return "command"
+  if (tool === "list_assets" || (tool.startsWith("propose_") && tool.endsWith("_asset"))) return "asset"
+  if (tool.startsWith("mcp_") || tool === "list_mcp_resources" || tool === "list_mcp_resource_templates" || tool === "read_mcp_resource") return "mcp"
+  return "general"
 }
 
-const CATEGORY_ORDER: ToolCategory[] = ["read", "write", "command", "mcp", "skill", "web", "other"]
+const CATEGORY_ORDER: ToolCategory[] = ["general", "command", "skill", "mcp", "agent", "asset"]
 const CATEGORY_LABEL: Record<ToolCategory, string> = {
-  read: "toolActivity.category.read",
-  write: "toolActivity.category.write",
+  general: "toolActivity.category.general",
   command: "toolActivity.category.command",
-  mcp: "toolActivity.category.mcp",
   skill: "toolActivity.category.skill",
-  web: "toolActivity.category.web",
-  other: "toolActivity.category.other",
+  mcp: "toolActivity.category.mcp",
+  agent: "toolActivity.category.agent",
+  asset: "toolActivity.category.asset",
 }
 
 export function aggregateToolActivity(

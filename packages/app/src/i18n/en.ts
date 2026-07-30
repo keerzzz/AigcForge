@@ -1106,13 +1106,12 @@ export const dict = {
 
   "toolActivity.title": "Tool Calls",
   "toolActivity.summary": "Tool Calls ({{total}} total, {{count}} tools)",
-  "toolActivity.category.read": "Read files",
-  "toolActivity.category.write": "Write files",
+  "toolActivity.category.general": "General",
   "toolActivity.category.command": "Commands",
-  "toolActivity.category.mcp": "MCP calls",
   "toolActivity.category.skill": "Skills",
-  "toolActivity.category.web": "Web searches",
-  "toolActivity.category.other": "Other",
+  "toolActivity.category.mcp": "MCP calls",
+  "toolActivity.category.agent": "Subagents",
+  "toolActivity.category.asset": "Assets",
 
   "cacheDiagnostics.title": "Cache Diagnostics",
   "cacheDiagnostics.sessionHitRate": "Session hit rate",

@@ -3,7 +3,6 @@ import { useSync } from "@/context/sync"
 import { checksum } from "@aigcfroge/core/util/encode"
 import { findLast } from "@aigcfroge/core/util/array"
 import { same } from "@/utils/same"
-import { Icon } from "@aigcfroge/ui/icon"
 import { AccordionV2 } from "@aigcfroge/ui/v2/accordion-v2"
 import { StickyAccordionHeader } from "@aigcfroge/ui/sticky-accordion-header"
 import { File } from "@aigcfroge/session-ui/file"
@@ -66,7 +65,6 @@ function RawMessage(props: {
             </div>
             <div class="flex items-center gap-3">
               <div class="shrink-0 text-12-regular text-text-weak">{props.time(props.message.time.created)}</div>
-              <Icon name="chevron-grabber-vertical" size="small" class="shrink-0 text-text-weak" />
             </div>
           </div>
         </AccordionV2.Trigger>

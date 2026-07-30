@@ -1000,13 +1000,12 @@ export const dict = {
 
   "toolActivity.title": "工具调用",
   "toolActivity.summary": "工具调用 (共 {{total}} 次，包含 {{count}} 种工具)",
-  "toolActivity.category.read": "读取文件",
-  "toolActivity.category.write": "写入文件",
+  "toolActivity.category.general": "通用工具",
   "toolActivity.category.command": "命令执行",
-  "toolActivity.category.mcp": "MCP 调用",
   "toolActivity.category.skill": "技能调用",
-  "toolActivity.category.web": "网络搜索",
-  "toolActivity.category.other": "其他",
+  "toolActivity.category.mcp": "MCP 调用",
+  "toolActivity.category.agent": "子智能体",
+  "toolActivity.category.asset": "资产操作",
 
   "cacheDiagnostics.title": "缓存诊断",
   "cacheDiagnostics.sessionHitRate": "会话命中率",
