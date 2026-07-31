@@ -1563,9 +1563,7 @@ unixNoLLMServer(
   30_000,
 )
 
-// TODO(windows): hangs (>10s) on Windows CI; a near-identical test below passes, so
-// this is a subtle Windows-specific race under liveLayer. Diagnose with Windows access.
-it.instance.skip(
+it.instance(
   "loop waits while shell runs and starts after shell exits",
   () =>
     Effect.gen(function* () {
@@ -1599,12 +1597,10 @@ it.instance.skip(
       expect(yield* llm.calls).toBe(1)
     }),
   { git: true },
-  10_000,
+  30_000,
 )
 
-// TODO(windows): flakes (>10s hang/deadlock) on Windows CI when forking shell+loop
-// concurrently. Sister test above is also skipped. Diagnose with Windows access.
-it.instance.skip(
+it.instance(
   "shell completion resumes queued loop callers",
   () =>
     Effect.gen(function* () {
@@ -1640,7 +1636,7 @@ it.instance.skip(
       expect(yield* llm.calls).toBe(1)
     }),
   { git: true },
-  10_000,
+  30_000,
 )
 
 unix(
