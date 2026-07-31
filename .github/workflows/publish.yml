@@ -49,10 +49,6 @@ jobs:
           aigcfroge-app-id: ${{ vars.AIGCFROGE_APP_ID }}
           aigcfroge-app-secret: ${{ secrets.AIGCFROGE_APP_SECRET }}
 
-      - name: Install Aigcfroge
-        if: inputs.bump || inputs.version
-        run: bun i -g aigcfroge
-
       - id: version
         run: |
           ./script/version.ts
