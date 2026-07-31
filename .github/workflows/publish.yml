@@ -141,7 +141,19 @@ jobs:
           aigcfroge-app-id: ${{ vars.AIGCFROGE_APP_ID }}
           aigcfroge-app-secret: ${{ secrets.AIGCFROGE_APP_SECRET }}
 
+      - name: Check Azure signing secrets
+        id: azure-signing
+        shell: bash
+        run: |
+          if [ -n "$AZURE_CLIENT_ID" ] && [ -n "$AZURE_TENANT_ID" ] && [ -n "$AZURE_SUBSCRIPTION_ID" ] && [ -n "$AZURE_TRUSTED_SIGNING_ACCOUNT_NAME" ] && [ -n "$AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE" ] && [ -n "$AZURE_TRUSTED_SIGNING_ENDPOINT" ]; then
+            echo "available=true"
+          else
+            echo "available=false"
+            echo "::warning::Azure signing secrets not configured; Windows CLI ships unsigned. Add AZURE_* secrets to enable signing."
+          fi
+
       - name: Azure login
+        if: steps.azure-signing.outputs.available == 'true'
         uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
         with:
           client-id: ${{ env.AZURE_CLIENT_ID }}
@@ -149,6 +161,7 @@ jobs:
           subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
 
       - uses: azure/artifact-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1.2.0
+        if: steps.azure-signing.outputs.available == 'true'
         with:
           endpoint: ${{ env.AZURE_TRUSTED_SIGNING_ENDPOINT }}
           signing-account-name: ${{ env.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
@@ -169,6 +182,7 @@ jobs:
           exclude-interactive-browser-credential: true
 
       - name: Verify Windows CLI signatures
+        if: steps.azure-signing.outputs.available == 'true'
         shell: pwsh
         run: |
           $files = @(
