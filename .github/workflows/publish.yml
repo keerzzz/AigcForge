@@ -240,6 +240,12 @@ jobs:
       AZURE_TRUSTED_SIGNING_ACCOUNT_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
       AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE }}
       AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      APPLE_API_KEY_PATH: ${{ secrets.APPLE_API_KEY_PATH }}
     strategy:
       fail-fast: false
       matrix:
@@ -269,15 +275,32 @@ jobs:
     steps:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
 
+      - name: Check signing secrets
+        id: signing
+        shell: bash
+        run: |
+          if [ -n "$APPLE_CERTIFICATE" ] && [ -n "$APPLE_CERTIFICATE_PASSWORD" ]; then
+            echo "macos-available=true"
+          else
+            echo "macos-available=false"
+            echo "::warning::Apple signing secrets not configured; macOS app ships unsigned."
+          fi
+          if [ -n "$AZURE_CLIENT_ID" ] && [ -n "$AZURE_TENANT_ID" ] && [ -n "$AZURE_TRUSTED_SIGNING_ACCOUNT_NAME" ]; then
+            echo "windows-available=true"
+          else
+            echo "windows-available=false"
+            echo "::warning::Azure signing secrets not configured; Windows app ships unsigned."
+          fi
+
       - uses: apple-actions/import-codesign-certs@8f3fb608891dd2244cdab3d69cd68c0d37a7fe93 # v2.0.0
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && steps.signing.outputs.macos-available == 'true'
         with:
           keychain: build
           p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
           p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
 
       - name: Setup Apple API Key
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && steps.signing.outputs.macos-available == 'true'
         run: echo "${{ secrets.APPLE_API_KEY_PATH }}" > $RUNNER_TEMP/apple-api-key.p8
 
       - uses: ./.github/actions/setup-bun
@@ -285,7 +308,7 @@ jobs:
           install-flags: ${{ matrix.settings.bun_install_flags }}
 
       - name: Azure login
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && steps.signing.outputs.windows-available == 'true'
         uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
         with:
           client-id: ${{ env.AZURE_CLIENT_ID }}
@@ -354,6 +377,7 @@ jobs:
           GH_TOKEN: ${{ steps.committer.outputs.token }}
           CSC_LINK: ${{ secrets.APPLE_CERTIFICATE }}
           CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           APPLE_API_KEY: ${{ runner.temp }}/apple-api-key.p8
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
@@ -365,6 +389,7 @@ jobs:
         timeout-minutes: 60
         env:
           AIGCFROGE_CHANNEL: ${{ (github.ref_name == 'beta' && 'beta') || 'prod' }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
       - name: Create macOS .app.tar.gz
         if: runner.os == 'macOS' && needs.version.outputs.release
@@ -388,7 +413,7 @@ jobs:
           tar -czf "$OUT_NAME" -C "$(dirname "$APP_PATH")" "$(basename "$APP_PATH")"
 
       - name: Verify signed Windows Electron artifacts
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && steps.signing.outputs.windows-available == 'true'
         shell: pwsh
         run: |
           $files = @()
