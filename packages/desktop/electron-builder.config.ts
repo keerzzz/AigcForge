@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process"
+import { existsSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { promisify } from "node:util"
@@ -53,13 +54,15 @@ const getBase = (appId: string): Configuration => ({
     desktopName: `${appId}.desktop`,
   },
   files: ["out/**/*", "resources/**/*"],
-  extraResources: [
-    {
-      from: "native/",
-      to: "native/",
-      filter: ["index.js", "index.d.ts", "build/Release/mac_window.node", "swift-build/**"],
-    },
-  ],
+  extraResources: existsSync(path.join(packageDir, "native"))
+    ? [
+        {
+          from: "native/",
+          to: "native/",
+          filter: ["index.js", "index.d.ts", "build/Release/mac_window.node", "swift-build/**"],
+        },
+      ]
+    : [],
   mac: {
     category: "public.app-category.developer-tools",
     icon: `resources/icons/icon.icns`,
