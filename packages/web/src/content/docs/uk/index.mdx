@@ -1,0 +1,363 @@
+---
+title: Вступ
+description: Почніть роботу з Aigcfroge.
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components"
+import config from "../../../config.mjs"
+export const console = config.console
+
+[**Aigcfroge**](/) — це AI-агент для програмування з відкритим вихідним кодом. Він доступний як інтерфейс на основі термінала, десктопний застосунок або розширення для IDE.
+
+![TUI Aigcfroge з темою aigcfroge](../../../assets/lander/screenshot.png)
+
+Почнімо.
+
+---
+
+#### Передумови
+
+Щоб використовувати Aigcfroge у вашому терміналі, вам знадобиться:
+
+1. Сучасний емулятор термінала, наприклад:
+   - [WezTerm](https://wezterm.org), кросплатформовий
+   - [Alacritty](https://alacritty.org), кросплатформовий
+   - [Ghostty](https://ghostty.org), Linux і macOS
+   - [Kitty](https://sw.kovidgoyal.net/kitty/), Linux і macOS
+
+2. API-ключі для провайдерів LLM, які ви хочете використовувати.
+
+---
+
+## Встановлення
+
+Найпростіший спосіб встановити Aigcfroge — через скрипт встановлення.
+
+```bash
+curl -fsSL https://aigcfroge.ai/install | bash
+```
+
+Ви також можете встановити його за допомогою таких команд:
+
+- **За допомогою Node.js**
+
+        <Tabs>
+
+      <TabItem label="npm">
+      ```bash
+      npm install -g aigcfroge
+      ```
+
+          </TabItem>
+
+        <TabItem label="Bun">
+        ```bash
+        bun install -g aigcfroge
+        ```
+
+          </TabItem>
+
+        <TabItem label="pnpm">
+        ```bash
+        pnpm install -g aigcfroge
+        ```
+
+          </TabItem>
+
+        <TabItem label="Yarn">
+        ```bash
+        yarn global add aigcfroge
+        ```
+
+      </TabItem>
+
+  </Tabs>
+
+- **За допомогою Homebrew на macOS і Linux**
+
+  ```bash
+  brew install anomalyco/tap/aigcfroge
+  ```
+
+  > Ми рекомендуємо використовувати тап Aigcfroge, щоб отримувати найсвіжіші релізи. Офіційна формула `brew install aigcfroge` підтримується командою Homebrew і оновлюється рідше.
+
+- **Встановлення на Arch Linux**
+
+  ```bash
+  sudo pacman -S aigcfroge           # Arch Linux (Stable)
+  paru -S aigcfroge-bin              # Arch Linux (Latest from AUR)
+  ```
+
+#### Windows
+
+:::tip[Рекомендовано: використовуйте WSL]
+Для найкращого досвіду на Windows ми рекомендуємо використовувати [Підсистему Windows для Linux (WSL)](/docs/windows-wsl). Вона забезпечує кращу продуктивність і повну сумісність із функціями Aigcfroge.
+:::
+
+- **За допомогою Chocolatey**
+
+  ```bash
+  choco install aigcfroge
+  ```
+
+- **За допомогою Scoop**
+
+  ```bash
+  scoop install aigcfroge
+  ```
+
+- **За допомогою NPM**
+
+  ```bash
+  npm install -g aigcfroge
+  ```
+
+- **За допомогою Mise**
+
+  ```bash
+  mise use -g github:keerzzz/AigcForge
+  ```
+
+- **За допомогою Docker**
+
+  ```bash
+  docker run -it --rm ghcr.io/keerzzz/AigcForge
+  ```
+
+Підтримка встановлення Aigcfroge на Windows за допомогою Bun зараз у розробці.
+
+Ви також можете завантажити двійковий файл зі сторінки [Релізи](https://github.com/keerzzz/AigcForge/releases).
+
+---
+
+## Конфігурація
+
+За допомогою Aigcfroge ви можете використовувати будь-якого провайдера LLM, налаштувавши їхні API-ключі.
+
+Якщо ви новачок у використанні провайдерів LLM, ми рекомендуємо скористатися [Aigcfroge Zen](/docs/zen).
+Це курований список моделей, які були протестовані та перевірені командою Aigcfroge.
+
+1. Виконайте команду `/connect` у TUI, виберіть aigcfroge та перейдіть на [aigcfroge.ai/auth](https://aigcfroge.ai/auth).
+
+   ```txt
+   /connect
+   ```
+
+2. Увійдіть, додайте платіжні дані та скопіюйте ваш API-ключ.
+
+3. Вставте ваш API-ключ.
+
+   ```txt
+   ┌ API key
+   │
+   │
+   └ enter
+   ```
+
+Крім того, ви можете вибрати одного з інших провайдерів. [Дізнатися більше](/docs/providers#directory).
+
+---
+
+## Ініціалізація
+
+Тепер, коли ви налаштували провайдера, ви можете перейти до проєкту,
+над яким хочете працювати.
+
+```bash
+cd /path/to/project
+```
+
+І запустити Aigcfroge.
+
+```bash
+aigcfroge
+```
+
+Далі ініціалізуйте Aigcfroge для проєкту, виконавши таку команду.
+
+```bash frame="none"
+/init
+```
+
+Це спонукає Aigcfroge проаналізувати ваш проєкт і створити файл `AGENTS.md`
+у корені проєкту.
+
+:::tip
+Ви повинні закомітити файл `AGENTS.md` вашого проєкту в Git.
+:::
+
+Це допомагає Aigcfroge зрозуміти структуру проєкту та патерни коду,
+що використовуються.
+
+---
+
+## Використання
+
+Тепер ви готові використовувати Aigcfroge для роботи над вашим проєктом.
+Не соромтеся питати його про що завгодно!
+
+Якщо ви новачок у використанні AI-агента для програмування, ось кілька
+прикладів, які можуть стати в пригоді.
+
+---
+
+### Ставте запитання
+
+Ви можете попросити Aigcfroge пояснити вам кодову базу.
+
+:::tip
+Використовуйте клавішу `@`, щоб шукати файли в проєкті за нечітким збігом.
+:::
+
+```txt frame="none" "@packages/functions/src/api/index.ts"
+How is authentication handled in @packages/functions/src/api/index.ts
+```
+
+Це корисно, якщо є частина кодової бази, над якою ви не працювали.
+
+---
+
+### Додавання функцій
+
+Ви можете попросити Aigcfroge додати нові функції до вашого проєкту. Проте ми спочатку рекомендуємо попросити його створити план.
+
+1. **Створіть план**
+
+   Aigcfroge має _режим плану_, який вимикає його здатність вносити зміни
+   й натомість пропонує, _як_ він реалізує функцію.
+
+   Перемкніться на нього за допомогою клавіші **Tab**. У правому нижньому куті
+   ви побачите індикатор цього режиму.
+
+   ```bash frame="none" title="Перемкнутися в режим плану"
+   <TAB>
+   ```
+
+   Тепер опишімо, що ми хочемо, щоб він зробив.
+
+   ```txt frame="none"
+   When a user deletes a note, we'd like to flag it as deleted in the database.
+   Then create a screen that shows all the recently deleted notes.
+   From this screen, the user can undelete a note or permanently delete it.
+   ```
+
+   Ви хочете надати Aigcfroge достатньо деталей, щоб він зрозумів, чого ви хочете.
+   Корисно спілкуватися з ним так, ніби ви говорите з початківцем-розробником
+   у вашій команді.
+
+   :::tip
+   Надайте Aigcfroge достатньо контексту та прикладів, щоб допомогти йому
+   зрозуміти, чого ви хочете.
+   :::
+
+2. **Доопрацюйте план**
+
+   Щойно він надасть вам план, ви можете дати йому відгук або додати більше
+   деталей.
+
+   ```txt frame="none"
+   We'd like to design this new screen using a design I've used before.
+   [Image #1] Take a look at this image and use it as a reference.
+   ```
+
+   :::tip
+   Перетягніть зображення в термінал, щоб додати їх до підказки.
+   :::
+
+   Aigcfroge може сканувати будь-які зображення, які ви йому даєте, і додавати їх
+   до підказки. Ви можете зробити це, перетягнувши зображення в термінал.
+
+3. **Створіть функцію**
+
+   Щойно ви будете задоволені планом, поверніться в _режим розробки_, натиснувши
+   клавішу **Tab** знову.
+
+   ```bash frame="none"
+   <TAB>
+   ```
+
+   І попросіть його внести зміни.
+
+   ```bash frame="none"
+   Sounds good! Go ahead and make the changes.
+   ```
+
+---
+
+### Внесення змін
+
+Для простіших змін ви можете попросити Aigcfroge одразу реалізувати їх,
+без попереднього перегляду плану.
+
+```txt frame="none" "@packages/functions/src/settings.ts" "@packages/functions/src/notes.ts"
+We need to add authentication to the /settings route. Take a look at how this is
+handled in the /notes route in @packages/functions/src/notes.ts and implement
+the same logic in @packages/functions/src/settings.ts
+```
+
+Переконайтеся, що ви надаєте достатню кількість деталей, щоб Aigcfroge
+вніс правильні зміни.
+
+---
+
+### Скасування змін
+
+Припустімо, ви попросили Aigcfroge внести деякі зміни.
+
+```txt frame="none" "@packages/functions/src/api/index.ts"
+Can you refactor the function in @packages/functions/src/api/index.ts?
+```
+
+Але ви розумієте, що це не те, чого ви хотіли. Ви **можете скасувати** зміни
+за допомогою команди `/undo`.
+
+```bash frame="none"
+/undo
+```
+
+Тепер Aigcfroge скасує внесені вами зміни та знову покаже ваше
+оригінальне повідомлення.
+
+```txt frame="none" "@packages/functions/src/api/index.ts"
+Can you refactor the function in @packages/functions/src/api/index.ts?
+```
+
+Звідси ви можете підкоригувати підказку та попросити Aigcfroge спробувати
+ще раз.
+
+:::tip
+Ви можете виконати `/undo` кілька разів, щоб скасувати кілька змін.
+:::
+
+Або ви **можете повторити** зміни за допомогою команди `/redo`.
+
+```bash frame="none"
+/redo
+```
+
+---
+
+## Обмін
+
+Розмови, які ви ведете з Aigcfroge, можна [поширювати з вашою
+командою](/docs/share).
+
+```bash frame="none"
+/share
+```
+
+Це створить посилання на поточну розмову та скопіює його у ваш буфер обміну.
+
+:::note
+Розмови не поширюються за замовчуванням.
+:::
+
+Ось [приклад розмови](https://aigcfroge.ai/s/4XP1fce5) з Aigcfroge.
+
+---
+
+## Налаштування під себе
+
+І ось і все! Тепер ви професіонал у використанні Aigcfroge.
+
+Щоб налаштувати його під себе, ми рекомендуємо [обрати тему](/docs/themes), [налаштувати гарячі клавіші](/docs/keybinds), [налаштувати форматери коду](/docs/formatters), [створити власні команди](/docs/commands) або поекспериментувати з [конфігурацією Aigcfroge](/docs/config).

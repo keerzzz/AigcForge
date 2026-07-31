@@ -1,0 +1,137 @@
+---
+title: Policyer
+description: Kontroller hvilke konfigurerte ressurser Aigcfroge kan bruke.
+---
+
+Policyer styrer om Aigcfroge kan utføre en handling på en navngitt ressurs. Denne funksjonen er eksperimentell og konfigureres med `experimental.policies`-matrisen i `aigcfroge.json`.
+
+Policyer er atskilt fra [tillatelser](/docs/permissions). Tillatelser styrer hva verktøy kan gjøre i løpet av en økt, mens policyer styrer om Aigcfroge kan bruke en ressurs som en LLM-leverandør.
+
+---
+
+## Konfigurasjon
+
+Hver policysetning har tre felt:
+
+- `effect` — Enten `"allow"` eller `"deny"`.
+- `action` — Operasjonen som styres.
+- `resource` — Ressurs-ID-en eller jokertegnmønsteret utsagnet gjelder for.
+
+For eksempel, nekt bruk av `openai`-leverandøren:
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "experimental": {
+    "policies": [
+      {
+        "effect": "deny",
+        "action": "provider.use",
+        "resource": "openai"
+      }
+    ]
+  }
+}
+```
+
+En leverandør som er nektet av en policy, er ikke tilgjengelig for modellvalg eller modellbruk, selv om den har legitimasjon eller ellers er korrekt konfigurert.
+
+---
+
+## Tilgjengelige policyer
+
+Aigcfroge støtter for øyeblikket én policyhandling:
+
+| Handling         | Ressurs                      | Beskrivelse                           |
+| -------------- | ----------------------------- | ------------------------------------- |
+| `provider.use` | Leverandør-ID, for eksempel `openai` | Tillat eller nekt bruk av en LLM-leverandør. |
+
+Flere policyhandlinger kan legges til i fremtiden.
+
+---
+
+## Samsvar
+
+`resource`-feltet støtter jokertegnsamsvar. Bruk `*` til å samsvare med null eller flere tegn og `?` til å samsvare med nøyaktig ett tegn.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "experimental": {
+    "policies": [
+      {
+        "effect": "deny",
+        "action": "provider.use",
+        "resource": "company-*"
+      }
+    ]
+  }
+}
+```
+
+Dette nekter leverandører som `company-us` og `company-eu`.
+
+---
+
+## Regelrekkefølge
+
+Når flere utsagn samsvarer, er det det siste samsvarende utsagnet som vinner. Sett brede regler først, og mer spesifikke unntak etter dem.
+
+For eksempel, tillat kun Anthropic:
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "experimental": {
+    "policies": [
+      {
+        "effect": "deny",
+        "action": "provider.use",
+        "resource": "*"
+      },
+      {
+        "effect": "allow",
+        "action": "provider.use",
+        "resource": "anthropic"
+      }
+    ]
+  }
+}
+```
+
+Hvis ingen policy samsvarer med en leverandør, er leverandørbruk tillatt som standard.
+
+Policyer kan settes i både den globale konfigurasjonen og prosjektkonfigurasjonen. Hvis policyer fra begge stedene samsvarer med samme leverandør, har den globale policyen forrang over prosjektpolicyen. Dette forhindrer at et repo kan gjenaktivere en leverandør som du nekter globalt.
+
+---
+
+## Leverandørlister
+
+Bruk policyer i stedet for de eldre `disabled_providers`- og `enabled_providers`-innstillingene når du styrer leverandørtilgang.
+
+For å erstatte `disabled_providers`:
+
+```json title="aigcfroge.json"
+{
+  "experimental": {
+    "policies": [
+      { "effect": "deny", "action": "provider.use", "resource": "openai" },
+      { "effect": "deny", "action": "provider.use", "resource": "google" }
+    ]
+  }
+}
+```
+
+For å erstatte `enabled_providers`, nekt alle leverandører først og tillat de valgte leverandørene etter det:
+
+```json title="aigcfroge.json"
+{
+  "experimental": {
+    "policies": [
+      { "effect": "deny", "action": "provider.use", "resource": "*" },
+      { "effect": "allow", "action": "provider.use", "resource": "anthropic" },
+      { "effect": "allow", "action": "provider.use", "resource": "openai" }
+    ]
+  }
+}
+```

@@ -1,0 +1,137 @@
+---
+title: Politiques
+description: Contrôlez quelles ressources configurées Aigcfroge peut utiliser.
+---
+
+Les politiques contrôlent si Aigcfroge peut effectuer une action sur une ressource nommée. Cette fonctionnalité est expérimentale et se configure avec le tableau `experimental.policies` dans `aigcfroge.json`.
+
+Les politiques sont distinctes des [autorisations](/docs/permissions). Les autorisations contrôlent ce que les outils peuvent faire pendant une session, tandis que les politiques contrôlent si Aigcfroge peut utiliser une ressource telle qu'un fournisseur de LLM.
+
+---
+
+## Configuration
+
+Chaque règle de politique comporte trois champs :
+
+- `effect` - Soit `"allow"` soit `"deny"`.
+- `action` - L'opération contrôlée.
+- `resource` - L'identifiant de la ressource ou le modèle de caractères génériques auquel la règle s'applique.
+
+Par exemple, refusez l'utilisation du fournisseur `openai` :
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "experimental": {
+    "policies": [
+      {
+        "effect": "deny",
+        "action": "provider.use",
+        "resource": "openai"
+      }
+    ]
+  }
+}
+```
+
+Un fournisseur refusé par une politique n'est disponible ni pour la sélection de modèles ni pour leur utilisation, même s'il dispose d'informations d'identification ou qu'il est par ailleurs correctement configuré.
+
+---
+
+## Politiques disponibles
+
+Aigcfroge prend actuellement en charge une seule action de politique :
+
+| Action         | Ressource                      | Description                           |
+| -------------- | ----------------------------- | ------------------------------------- |
+| `provider.use` | ID de fournisseur, tel que `openai` | Autorise ou refuse l'utilisation d'un fournisseur de LLM. |
+
+D'autres actions de politique pourraient être ajoutées à l'avenir.
+
+---
+
+## Correspondance
+
+Le champ `resource` prend en charge la correspondance par caractères génériques. Utilisez `*` pour correspondre à zéro ou plusieurs caractères et `?` pour correspondre à un caractère.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "experimental": {
+    "policies": [
+      {
+        "effect": "deny",
+        "action": "provider.use",
+        "resource": "company-*"
+      }
+    ]
+  }
+}
+```
+
+Cela refuse des fournisseurs tels que `company-us` et `company-eu`.
+
+---
+
+## Ordre des règles
+
+Lorsque plusieurs règles correspondent, la dernière règle correspondante l'emporte. Placez d'abord les règles générales, puis les exceptions plus spécifiques après elles.
+
+Par exemple, n'autorisez que Anthropic :
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "experimental": {
+    "policies": [
+      {
+        "effect": "deny",
+        "action": "provider.use",
+        "resource": "*"
+      },
+      {
+        "effect": "allow",
+        "action": "provider.use",
+        "resource": "anthropic"
+      }
+    ]
+  }
+}
+```
+
+Si aucune politique ne correspond à un fournisseur, l'utilisation du fournisseur est autorisée par défaut.
+
+Les politiques peuvent être définies à la fois dans votre configuration globale et dans la configuration du projet. Si des politiques des deux emplacements correspondent au même fournisseur, votre politique globale a priorité sur la politique du projet. Cela empêche un dépôt de réactiver un fournisseur que vous refusez globalement.
+
+---
+
+## Listes de fournisseurs
+
+Utilisez les politiques au lieu des anciens paramètres `disabled_providers` et `enabled_providers` lors du contrôle de l'accès aux fournisseurs.
+
+Pour remplacer `disabled_providers` :
+
+```json title="aigcfroge.json"
+{
+  "experimental": {
+    "policies": [
+      { "effect": "deny", "action": "provider.use", "resource": "openai" },
+      { "effect": "deny", "action": "provider.use", "resource": "google" }
+    ]
+  }
+}
+```
+
+Pour remplacer `enabled_providers`, refusez d'abord tous les fournisseurs puis autorisez les fournisseurs sélectionnés ensuite :
+
+```json title="aigcfroge.json"
+{
+  "experimental": {
+    "policies": [
+      { "effect": "deny", "action": "provider.use", "resource": "*" },
+      { "effect": "allow", "action": "provider.use", "resource": "anthropic" },
+      { "effect": "allow", "action": "provider.use", "resource": "openai" }
+    ]
+  }
+}
+```

@@ -1,0 +1,389 @@
+---
+title: Плагіни
+description: Створюйте власні плагіни для розширення можливостей Aigcfroge.
+---
+
+Плагіни дозволяють розширювати Aigcfroge, підключаючись до різних подій і налаштовуючи поведінку. Ви можете створювати плагіни, щоб додавати нові функції, інтегруватися із зовнішніми сервісами або змінювати поведінку Aigcfroge за замовчуванням.
+
+Приклади дивіться серед [плагінів](/docs/ecosystem#plugins), створених спільнотою.
+
+---
+
+## Використання плагіна
+
+Є два способи завантаження плагінів.
+
+---
+
+### Із локальних файлів
+
+Помістіть файли JavaScript або TypeScript у каталог плагінів.
+
+- `.aigcfroge/plugins/` — плагіни рівня проєкту
+- `~/.config/aigcfroge/plugins/` — глобальні плагіни
+
+Файли в цих каталогах автоматично завантажуються під час запуску.
+
+---
+
+### Із npm
+
+Вкажіть npm-пакети у файлі конфігурації.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "plugin": ["aigcfroge-helicone-session", "aigcfroge-wakatime", "@my-org/custom-plugin"]
+}
+```
+
+Підтримуються як звичайні, так і scoped npm-пакети.
+
+Перегляньте доступні плагіни в [екосистемі](/docs/ecosystem#plugins).
+
+---
+
+### Як встановлюються плагіни
+
+**npm-плагіни** автоматично встановлюються за допомогою Bun під час запуску. Пакети та їхні залежності кешуються в `~/.cache/aigcfroge/node_modules/`.
+
+**Локальні плагіни** завантажуються безпосередньо з каталогу плагінів. Щоб використовувати зовнішні пакети, потрібно створити `package.json` у каталозі конфігурації (див. [Залежності](#dependencies)) або опублікувати плагін у npm і [додати його до своєї конфігурації](/docs/config#plugins).
+
+---
+
+### Порядок завантаження
+
+Плагіни завантажуються з усіх джерел, а всі хуки виконуються послідовно. Порядок завантаження:
+
+1. Глобальна конфігурація (`~/.config/aigcfroge/aigcfroge.json`)
+2. Конфігурація проєкту (`aigcfroge.json`)
+3. Глобальний каталог плагінів (`~/.config/aigcfroge/plugins/`)
+4. Каталог плагінів проєкту (`.aigcfroge/plugins/`)
+
+Дубльовані npm-пакети з однаковою назвою та версією завантажуються один раз. Однак локальний плагін і npm-плагін зі схожими назвами завантажуються окремо.
+
+---
+
+## Створення плагіна
+
+Плагін — це **модуль JavaScript/TypeScript**, який експортує одну або більше
+функцій плагіна. Кожна функція отримує об'єкт контексту та повертає об'єкт хуків.
+
+---
+
+### Залежності
+
+Локальні плагіни та власні інструменти можуть використовувати зовнішні npm-пакети. Додайте `package.json` із потрібними залежностями до каталогу конфігурації.
+
+```json title=".aigcfroge/package.json"
+{
+  "dependencies": {
+    "shescape": "^2.1.0"
+  }
+}
+```
+
+Під час запуску Aigcfroge виконує `bun install`, щоб встановити їх. Після цього ваші плагіни та інструменти можуть їх імпортувати.
+
+```ts title=".aigcfroge/plugins/my-plugin.ts"
+import { escape } from "shescape"
+
+export const MyPlugin = async (ctx) => {
+  return {
+    "tool.execute.before": async (input, output) => {
+      if (input.tool === "bash") {
+        output.args.command = escape(output.args.command)
+      }
+    },
+  }
+}
+```
+
+---
+
+### Базова структура
+
+```js title=".aigcfroge/plugins/example.js"
+export const MyPlugin = async ({ project, client, $, directory, worktree }) => {
+  console.log("Plugin initialized!")
+
+  return {
+    // Hook implementations go here
+  }
+}
+```
+
+Функція плагіна отримує:
+
+- `project`: інформація про поточний проєкт.
+- `directory`: поточний робочий каталог.
+- `worktree`: шлях до Git-worktree.
+- `client`: клієнт aigcfroge SDK для взаємодії зі штучним інтелектом.
+- `$`: [shell API](https://bun.com/docs/runtime/shell) від Bun для виконання команд.
+
+---
+
+### Підтримка TypeScript
+
+Для TypeScript-плагінів ви можете імпортувати типи з пакета плагіна:
+
+```ts title="my-plugin.ts" {1}
+import type { Plugin } from "@aigcfroge/plugin"
+
+export const MyPlugin: Plugin = async ({ project, client, $, directory, worktree }) => {
+  return {
+    // Type-safe hook implementations
+  }
+}
+```
+
+---
+
+### Події
+
+Плагіни можуть підписуватися на події, як показано нижче в розділі «Приклади». Ось перелік доступних подій.
+
+#### Події команд
+
+- `command.executed`
+
+#### Події файлів
+
+- `file.edited`
+- `file.watcher.updated`
+
+#### Події встановлення
+
+- `installation.updated`
+
+#### Події LSP
+
+- `lsp.client.diagnostics`
+- `lsp.updated`
+
+#### Події повідомлень
+
+- `message.part.removed`
+- `message.part.updated`
+- `message.removed`
+- `message.updated`
+
+#### Події дозволів
+
+- `permission.asked`
+- `permission.replied`
+
+#### Події сервера
+
+- `server.connected`
+
+#### Події сесій
+
+- `session.created`
+- `session.compacted`
+- `session.deleted`
+- `session.diff`
+- `session.error`
+- `session.idle`
+- `session.status`
+- `session.updated`
+
+#### Події Todo
+
+- `todo.updated`
+
+#### Події оболонки
+
+- `shell.env`
+
+#### Події інструментів
+
+- `tool.execute.after`
+- `tool.execute.before`
+
+#### Події TUI
+
+- `tui.prompt.append`
+- `tui.command.execute`
+- `tui.toast.show`
+
+---
+
+## Приклади
+
+Ось кілька прикладів плагінів, які ви можете використовувати для розширення можливостей aigcfroge.
+
+---
+
+### Надсилання сповіщень
+
+Надсилайте сповіщення, коли відбуваються певні події:
+
+```js title=".aigcfroge/plugins/notification.js"
+export const NotificationPlugin = async ({ project, client, $, directory, worktree }) => {
+  return {
+    event: async ({ event }) => {
+      // Send notification on session completion
+      if (event.type === "session.idle") {
+        await $`osascript -e 'display notification "Session completed!" with title "aigcfroge"'`
+      }
+    },
+  }
+}
+```
+
+Ми використовуємо `osascript`, щоб запускати AppleScript у macOS. Тут ми використовуємо його для надсилання сповіщень.
+
+:::note
+Якщо ви використовуєте десктопний застосунок Aigcfroge, він може автоматично надсилати системні сповіщення, коли відповідь готова або коли в сесії сталася помилка.
+:::
+
+---
+
+### Захист `.env`
+
+Забороніть aigcfroge читати файли `.env`:
+
+```javascript title=".aigcfroge/plugins/env-protection.js"
+export const EnvProtection = async ({ project, client, $, directory, worktree }) => {
+  return {
+    "tool.execute.before": async (input, output) => {
+      if (input.tool === "read" && output.args.filePath.includes(".env")) {
+        throw new Error("Do not read .env files")
+      }
+    },
+  }
+}
+```
+
+---
+
+### Впровадження змінних середовища
+
+Впроваджуйте змінні середовища в усі виконання команд оболонки (інструменти штучного інтелекту та термінали користувача):
+
+```javascript title=".aigcfroge/plugins/inject-env.js"
+export const InjectEnvPlugin = async () => {
+  return {
+    "shell.env": async (input, output) => {
+      output.env.MY_API_KEY = "secret"
+      output.env.PROJECT_ROOT = input.cwd
+    },
+  }
+}
+```
+
+---
+
+### Власні інструменти
+
+Плагіни також можуть додавати власні інструменти до aigcfroge:
+
+```ts title=".aigcfroge/plugins/custom-tools.ts"
+import { type Plugin, tool } from "@aigcfroge/plugin"
+
+export const CustomToolsPlugin: Plugin = async (ctx) => {
+  return {
+    tool: {
+      mytool: tool({
+        description: "This is a custom tool",
+        args: {
+          foo: tool.schema.string(),
+        },
+        async execute(args, context) {
+          const { directory, worktree } = context
+          return `Hello ${args.foo} from ${directory} (worktree: ${worktree})`
+        },
+      }),
+    },
+  }
+}
+```
+
+Допоміжна функція `tool` створює власний інструмент, який може викликати aigcfroge. Вона приймає функцію схеми Zod і повертає визначення інструмента з:
+
+- `description`: що робить інструмент
+- `args`: схема Zod для аргументів інструмента
+- `execute`: функція, яка виконується, коли інструмент викликають
+
+Ваші власні інструменти будуть доступні для aigcfroge разом із вбудованими інструментами.
+
+:::note
+Якщо інструмент плагіна використовує ту саму назву, що й вбудований інструмент, інструмент плагіна має перевагу.
+:::
+
+---
+
+### Журналювання
+
+Використовуйте `client.app.log()` замість `console.log` для структурованого журналювання:
+
+```ts title=".aigcfroge/plugins/my-plugin.ts"
+export const MyPlugin = async ({ client }) => {
+  await client.app.log({
+    body: {
+      service: "my-plugin",
+      level: "info",
+      message: "Plugin initialized",
+      extra: { foo: "bar" },
+    },
+  })
+}
+```
+
+Рівні: `debug`, `info`, `warn`, `error`. Детальніше див. [документацію SDK](https://aigcfroge.ai/docs/sdk).
+
+---
+
+### Хуки ущільнення
+
+Налаштуйте контекст, який включається під час ущільнення сесії:
+
+```ts title=".aigcfroge/plugins/compaction.ts"
+import type { Plugin } from "@aigcfroge/plugin"
+
+export const CompactionPlugin: Plugin = async (ctx) => {
+  return {
+    "experimental.session.compacting": async (input, output) => {
+      // Inject additional context into the compaction prompt
+      output.context.push(`
+## Custom Context
+
+Include any state that should persist across compaction:
+- Current task status
+- Important decisions made
+- Files being actively worked on
+`)
+    },
+  }
+}
+```
+
+Хук `experimental.session.compacting` спрацьовує перед тим, як LLM створить резюме продовження. Використовуйте його, щоб впровадити контекст, специфічний для вашої предметної області, який був би пропущений стандартним запитом ущільнення.
+
+Ви також можете повністю замінити запит ущільнення, встановивши `output.prompt`:
+
+```ts title=".aigcfroge/plugins/custom-compaction.ts"
+import type { Plugin } from "@aigcfroge/plugin"
+
+export const CustomCompactionPlugin: Plugin = async (ctx) => {
+  return {
+    "experimental.session.compacting": async (input, output) => {
+      // Replace the entire compaction prompt
+      output.prompt = `
+You are generating a continuation prompt for a multi-agent swarm session.
+
+Summarize:
+1. The current task and its status
+2. Which files are being modified and by whom
+3. Any blockers or dependencies between agents
+4. The next steps to complete the work
+
+Format as a structured prompt that a new agent can use to resume work.
+`
+    },
+  }
+}
+```
+
+Коли встановлено `output.prompt`, він повністю замінює стандартний запит ущільнення. У цьому разі масив `output.context` ігнорується.

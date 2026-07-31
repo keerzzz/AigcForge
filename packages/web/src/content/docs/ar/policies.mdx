@@ -1,0 +1,137 @@
+---
+title: السياسات
+description: تحكّم في الموارد المُهيأة التي قد يستخدمها Aigcfroge.
+---
+
+تتحكم السياسات فيما إذا كان بإمكان Aigcfroge تنفيذ إجراء على مورد مُسمّى. هذه الميزة تجريبية ويتم إعدادها عبر مصفوفة `experimental.policies` في `aigcfroge.json`.
+
+السياسات منفصلة عن [الأذونات](/docs/permissions). تتحكم الأذونات فيما يمكن للأدوات فعله أثناء الجلسة، بينما تتحكم السياسات فيما إذا كان بإمكان Aigcfroge استخدام مورد مثل مزوّد LLM.
+
+---
+
+## الإعداد
+
+تتكون كل سياسة من ثلاثة حقول:
+
+- `effect` — إما `"allow"` أو `"deny"`.
+- `action` — العملية الخاضعة للتحكم.
+- `resource` — معرف المورد أو نمط أحرف البدل الذي تنطبق عليه السياسة.
+
+على سبيل المثال، منع استخدام مزوّد `openai`:
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "experimental": {
+    "policies": [
+      {
+        "effect": "deny",
+        "action": "provider.use",
+        "resource": "openai"
+      }
+    ]
+  }
+}
+```
+
+لا يتوفر مزوّد ممنوع بموجب سياسة لاختيار النموذج أو استخدامه، حتى لو كانت لديه بيانات اعتماد أو كان مُهيأ بشكل صحيح من ناحية أخرى.
+
+---
+
+## السياسات المتاحة
+
+يدعم Aigcfroge حاليًا إجراء سياسة واحدًا:
+
+| الإجراء        | المورد                        | الوصف                                    |
+| -------------- | ----------------------------- | ---------------------------------------- |
+| `provider.use` | معرف المزوّد، مثل `openai`    | السماح أو منع استخدام مزوّد LLM.         |
+
+قد تُضاف المزيد من إجراءات السياسة في المستقبل.
+
+---
+
+## المطابقة
+
+يدعم حقل `resource` المطابقة بأحرف البدل. استخدم `*` لمطابقة صفر أو أكثر من الأحرف و`?` لمطابقة حرف واحد.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "experimental": {
+    "policies": [
+      {
+        "effect": "deny",
+        "action": "provider.use",
+        "resource": "company-*"
+      }
+    ]
+  }
+}
+```
+
+يمنع هذا مزوّدين مثل `company-us` و`company-eu`.
+
+---
+
+## ترتيب القواعد
+
+عند تطابق عدة قواعد، تكون آخر قاعدة مطابقة هي المعمول بها. ضع القواعد العامة أولًا، ثم الاستثناءات الأكثر تحديدًا بعدها.
+
+على سبيل المثال، السماح بـ Anthropic فقط:
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "experimental": {
+    "policies": [
+      {
+        "effect": "deny",
+        "action": "provider.use",
+        "resource": "*"
+      },
+      {
+        "effect": "allow",
+        "action": "provider.use",
+        "resource": "anthropic"
+      }
+    ]
+  }
+}
+```
+
+إذا لم تطابق أي سياسة مزوّدًا، يُسمح باستخدام المزوّد افتراضيًا.
+
+يمكن تعيين السياسات في كل من إعداداتك العامة وإعدادات المشروع. إذا طابقت السياسات من الموقعين نفس المزوّد، فإن سياستك العامة تحظى بالأولوية على سياسة المشروع. يمنع هذا المستودع من إعادة تفعيل مزوّد تمنعه عالميًا.
+
+---
+
+## قوائم المزوّدين
+
+استخدم السياسات بدلًا من إعدادي `disabled_providers` و`enabled_providers` الأقدم عند التحكم في الوصول إلى المزوّدين.
+
+لاستبدال `disabled_providers`:
+
+```json title="aigcfroge.json"
+{
+  "experimental": {
+    "policies": [
+      { "effect": "deny", "action": "provider.use", "resource": "openai" },
+      { "effect": "deny", "action": "provider.use", "resource": "google" }
+    ]
+  }
+}
+```
+
+لاستبدال `enabled_providers`، امنع جميع المزوّدين أولًا ثم اسمح بالمزوّدين المحددين بعد ذلك:
+
+```json title="aigcfroge.json"
+{
+  "experimental": {
+    "policies": [
+      { "effect": "deny", "action": "provider.use", "resource": "*" },
+      { "effect": "allow", "action": "provider.use", "resource": "anthropic" },
+      { "effect": "allow", "action": "provider.use", "resource": "openai" }
+    ]
+  }
+}
+```

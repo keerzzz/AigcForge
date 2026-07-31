@@ -1,0 +1,156 @@
+---
+title: Підтримка ACP
+description: Використовуйте Aigcfroge в будь-якому редакторі, сумісному з ACP.
+---
+
+Aigcfroge підтримує [Agent Client Protocol](https://agentclientprotocol.com), або ACP, що дозволяє використовувати його безпосередньо в сумісних редакторах та IDE.
+
+:::tip
+Список редакторів та інструментів, що підтримують ACP, дивіться в [звіті про прогрес ACP](https://zed.dev/blog/acp-progress-report#available-now).
+:::
+
+ACP — це відкритий протокол, який стандартизує зв'язок між редакторами коду та AI-агентами для програмування.
+
+---
+
+## Налаштування
+
+Щоб використовувати Aigcfroge через ACP, налаштуйте свій редактор на виконання команди `aigcfroge acp`.
+
+Команда запускає Aigcfroge як сумісний із ACP підпроцес, який спілкується з вашим редактором через JSON-RPC за допомогою stdio.
+
+Нижче наведено приклади для популярних редакторів, що підтримують ACP.
+
+---
+
+### Zed
+
+Додайте у свою конфігурацію [Zed](https://zed.dev) (`~/.config/zed/settings.json`):
+
+```json title="~/.config/zed/settings.json"
+{
+  "agent_servers": {
+    "Aigcfroge": {
+      "command": "aigcfroge",
+      "args": ["acp"]
+    }
+  }
+}
+```
+
+Щоб відкрити його, використайте дію `agent: new thread` у **Палітрі команд**.
+
+Ви також можете призначити клавіатурне скорочення, відредагувавши свій `keymap.json`:
+
+```json title="keymap.json"
+[
+  {
+    "bindings": {
+      "cmd-alt-o": [
+        "agent::NewExternalAgentThread",
+        {
+          "agent": {
+            "custom": {
+              "name": "Aigcfroge",
+              "command": {
+                "command": "aigcfroge",
+                "args": ["acp"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+]
+```
+
+---
+
+### IDE JetBrains
+
+Додайте acp.json до свого [IDE JetBrains](https://www.jetbrains.com/) відповідно до [документації](https://www.jetbrains.com/help/ai-assistant/acp.html):
+
+```json title="acp.json"
+{
+  "agent_servers": {
+    "Aigcfroge": {
+      "command": "/absolute/path/bin/aigcfroge",
+      "args": ["acp"]
+    }
+  }
+}
+```
+
+Щоб відкрити його, скористайтеся новим агентом 'Aigcfroge' у селекторі агента AI Chat.
+
+---
+
+### Avante.nvim
+
+Додайте у свою конфігурацію [Avante.nvim](https://github.com/yetone/avante.nvim):
+
+```lua
+{
+  acp_providers = {
+    ["aigcfroge"] = {
+      command = "aigcfroge",
+      args = { "acp" }
+    }
+  }
+}
+```
+
+Якщо потрібно передати змінні середовища:
+
+```lua {6-8}
+{
+  acp_providers = {
+    ["aigcfroge"] = {
+      command = "aigcfroge",
+      args = { "acp" },
+      env = {
+        AIGCFROGE_API_KEY = os.getenv("AIGCFROGE_API_KEY")
+      }
+    }
+  }
+}
+```
+
+---
+
+### CodeCompanion.nvim
+
+Щоб використовувати Aigcfroge як агента ACP у [CodeCompanion.nvim](https://github.com/olimorris/codecompanion.nvim), додайте наступне до конфігурації Neovim:
+
+```lua
+require("codecompanion").setup({
+  interactions = {
+    chat = {
+      adapter = {
+        name = "aigcfroge",
+        model = "claude-sonnet-4",
+      },
+    },
+  },
+})
+```
+
+Ця конфігурація налаштовує CodeCompanion використовувати Aigcfroge як агента ACP для чату.
+
+Якщо потрібно передати змінні середовища (наприклад, `AIGCFROGE_API_KEY`), зверніться до розділу [Configuring Adapters: Environment Variables](https://codecompanion.olimorris.dev/getting-started#setting-an-api-key) у документації CodeCompanion.nvim за повними деталями.
+
+## Підтримка
+
+Aigcfroge через ACP працює так само, як у терміналі. Підтримуються всі функції:
+
+:::note
+Деякі вбудовані слеш-команди, як-от `/undo` та `/redo`, наразі не підтримуються.
+:::
+
+- Вбудовані інструменти (операції з файлами, команди термінала тощо)
+- Власні інструменти та слеш-команди
+- MCP-сервери, налаштовані у вашій конфігурації Aigcfroge
+- Правила, специфічні для проєкту, з `AGENTS.md`
+- Власні форматери та лінтери
+- Агенти та система дозволів

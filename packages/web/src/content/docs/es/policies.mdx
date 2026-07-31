@@ -1,0 +1,137 @@
+---
+title: Políticas
+description: Controle qué recursos configurados puede usar Aigcfroge.
+---
+
+Las políticas controlan si Aigcfroge puede realizar una acción sobre un recurso nombrado. Esta función es experimental y se configura con la matriz `experimental.policies` en `aigcfroge.json`.
+
+Las políticas son independientes de los [permisos](/docs/permissions). Los permisos controlan lo que las herramientas pueden hacer durante una sesión, mientras que las políticas controlan si Aigcfroge puede usar un recurso como un proveedor de LLM.
+
+---
+
+## Configuración
+
+Cada declaración de política tiene tres campos:
+
+- `effect` - Ya sea `"allow"` o `"deny"`.
+- `action` - La operación que se está controlando.
+- `resource` - El ID del recurso o el patrón de comodines al que se aplica la declaración.
+
+Por ejemplo, denegar el uso del proveedor `openai`:
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "experimental": {
+    "policies": [
+      {
+        "effect": "deny",
+        "action": "provider.use",
+        "resource": "openai"
+      }
+    ]
+  }
+}
+```
+
+Un proveedor denegado por política no está disponible para la selección de modelos ni para su uso, incluso si tiene credenciales o está configurado correctamente de cualquier otra forma.
+
+---
+
+## Políticas disponibles
+
+Aigcfroge actualmente admite una acción de política:
+
+| Acción         | Recurso                       | Descripción                           |
+| -------------- | ----------------------------- | ------------------------------------- |
+| `provider.use` | ID de proveedor, como `openai` | Permite o deniega el uso de un proveedor de LLM. |
+
+Puede que se añadan más acciones de política en el futuro.
+
+---
+
+## Coincidencia
+
+El campo `resource` admite coincidencia de comodines. Use `*` para coincidir con cero o más caracteres y `?` para coincidir con un carácter.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "experimental": {
+    "policies": [
+      {
+        "effect": "deny",
+        "action": "provider.use",
+        "resource": "company-*"
+      }
+    ]
+  }
+}
+```
+
+Esto deniega proveedores como `company-us` y `company-eu`.
+
+---
+
+## Orden de las reglas
+
+Cuando varias declaraciones coinciden, la última declaración coincidente gana. Coloque primero las reglas amplias y, después, las excepciones más específicas.
+
+Por ejemplo, permita solo Anthropic:
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "experimental": {
+    "policies": [
+      {
+        "effect": "deny",
+        "action": "provider.use",
+        "resource": "*"
+      },
+      {
+        "effect": "allow",
+        "action": "provider.use",
+        "resource": "anthropic"
+      }
+    ]
+  }
+}
+```
+
+Si ninguna política coincide con un proveedor, el uso del proveedor está permitido de forma predeterminada.
+
+Las políticas pueden establecerse tanto en su configuración global como en la configuración del proyecto. Si las políticas de ambas ubicaciones coinciden con el mismo proveedor, su política global tiene prioridad sobre la política del proyecto. Esto evita que un repositorio vuelva a habilitar un proveedor que usted deniega globalmente.
+
+---
+
+## Listas de proveedores
+
+Use políticas en lugar de los ajustes más antiguos `disabled_providers` y `enabled_providers` al controlar el acceso a los proveedores.
+
+Para reemplazar `disabled_providers`:
+
+```json title="aigcfroge.json"
+{
+  "experimental": {
+    "policies": [
+      { "effect": "deny", "action": "provider.use", "resource": "openai" },
+      { "effect": "deny", "action": "provider.use", "resource": "google" }
+    ]
+  }
+}
+```
+
+Para reemplazar `enabled_providers`, deniegue primero todos los proveedores y permita después los proveedores seleccionados:
+
+```json title="aigcfroge.json"
+{
+  "experimental": {
+    "policies": [
+      { "effect": "deny", "action": "provider.use", "resource": "*" },
+      { "effect": "allow", "action": "provider.use", "resource": "anthropic" },
+      { "effect": "allow", "action": "provider.use", "resource": "openai" }
+    ]
+  }
+}
+```

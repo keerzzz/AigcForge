@@ -1,0 +1,137 @@
+---
+title: 정책
+description: 구성된 리소스를 Aigcfroge가 사용할 수 있는지 제어합니다.
+---
+
+정책은 Aigcfroge가 지정된 리소스에 대해 작업을 수행할 수 있는지 제어합니다. 이 기능은 실험적이며 `aigcfroge.json`의 `experimental.policies` 배열로 구성합니다.
+
+정책은 [권한](/docs/permissions)과 별개입니다. 권한은 세션 중 tool이 무엇을 할 수 있는지 제어하고, 정책은 LLM provider 같은 리소스를 Aigcfroge가 사용할 수 있는지 제어합니다.
+
+---
+
+## 구성
+
+각 정책 문은 세 가지 필드로 구성됩니다:
+
+- `effect` - `"allow"` 또는 `"deny"` 중 하나입니다.
+- `action` - 제어되는 작업입니다.
+- `resource` - 문이 적용되는 리소스 ID 또는 와일드카드 패턴입니다.
+
+예를 들어, `openai` provider 사용을 거부하려면:
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "experimental": {
+    "policies": [
+      {
+        "effect": "deny",
+        "action": "provider.use",
+        "resource": "openai"
+      }
+    ]
+  }
+}
+```
+
+정책으로 거부된 provider는 credential이 있거나 올바르게 구성되었더라도 model 선택이나 사용에 이용할 수 없습니다.
+
+---
+
+## 사용 가능한 정책
+
+Aigcfroge는 현재 하나의 정책 action을 지원합니다:
+
+| 작업 | 리소스 | 설명 |
+| -------------- | ----------------------------- | ------------------------------------- |
+| `provider.use` | Provider ID (예: `openai`) | LLM provider 사용 허용 또는 거부. |
+
+향후 더 많은 정책 action이 추가될 수 있습니다.
+
+---
+
+## 일치
+
+`resource` 필드는 와일드카드 일치를 지원합니다. `*`는 0개 이상의 문자를 일치시키고, `?`는 정확히 하나의 문자를 일치시킵니다.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "experimental": {
+    "policies": [
+      {
+        "effect": "deny",
+        "action": "provider.use",
+        "resource": "company-*"
+      }
+    ]
+  }
+}
+```
+
+이렇게 하면 `company-us`, `company-eu` 같은 provider가 거부됩니다.
+
+---
+
+## 규칙 순서
+
+여러 문이 일치하면 마지막으로 일치한 문이 적용됩니다. 광범위한 규칙을 먼저 두고, 그 뒤에 더 구체적인 예외를 배치하세요.
+
+예를 들어, Anthropic만 허용하려면:
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "experimental": {
+    "policies": [
+      {
+        "effect": "deny",
+        "action": "provider.use",
+        "resource": "*"
+      },
+      {
+        "effect": "allow",
+        "action": "provider.use",
+        "resource": "anthropic"
+      }
+    ]
+  }
+}
+```
+
+어떤 정책도 provider와 일치하지 않으면 기본적으로 provider 사용이 허용됩니다.
+
+정책은 전역 config와 프로젝트 config 양쪽 모두에 설정할 수 있습니다. 두 위치의 정책이 같은 provider와 일치하면 전역 정책이 프로젝트 정책보다 우선합니다. 이는 repository가 전역에서 거부한 provider를 다시 활성화하지 못하게 방지합니다.
+
+---
+
+## Provider 목록
+
+provider 액세스를 제어할 때는 이전 `disabled_providers`, `enabled_providers` 설정 대신 정책을 사용하세요.
+
+`disabled_providers`를 대체하려면:
+
+```json title="aigcfroge.json"
+{
+  "experimental": {
+    "policies": [
+      { "effect": "deny", "action": "provider.use", "resource": "openai" },
+      { "effect": "deny", "action": "provider.use", "resource": "google" }
+    ]
+  }
+}
+```
+
+`enabled_providers`를 대체하려면, 먼저 모든 provider를 거부하고 그 뒤에 선택한 provider를 허용하세요:
+
+```json title="aigcfroge.json"
+{
+  "experimental": {
+    "policies": [
+      { "effect": "deny", "action": "provider.use", "resource": "*" },
+      { "effect": "allow", "action": "provider.use", "resource": "anthropic" },
+      { "effect": "allow", "action": "provider.use", "resource": "openai" }
+    ]
+  }
+}
+```

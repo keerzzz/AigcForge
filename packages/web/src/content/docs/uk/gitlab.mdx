@@ -1,0 +1,195 @@
+---
+title: GitLab
+description: Використовуйте Aigcfroge у завданнях і merge-запитах GitLab.
+---
+
+Aigcfroge інтегрується з вашим робочим процесом GitLab через конвеєр GitLab CI/CD або за допомогою GitLab Duo.
+
+В обох випадках Aigcfroge запускатиметься на ваших виконувачах GitLab.
+
+---
+
+## GitLab CI
+
+Aigcfroge працює у звичайному конвеєрі GitLab. Ви можете вбудувати його в конвеєр як [CI-компонент](https://docs.gitlab.com/ee/ci/components/)
+
+Тут ми використовуємо створений спільнотою CI/CD-компонент для Aigcfroge — [nagyv/gitlab-aigcfroge](https://gitlab.com/nagyv/gitlab-aigcfroge).
+
+---
+
+### Можливості
+
+- **Спеціальна конфігурація для кожного завдання**: Налаштуйте Aigcfroge зі спеціальним каталогом конфігурації, наприклад `./config/#custom-directory`, щоб увімкнути або вимкнути функціональність для кожного виклику Aigcfroge.
+- **Мінімальне налаштування**: CI-компонент налаштовує Aigcfroge у фоновому режимі; вам потрібно лише створити конфігурацію Aigcfroge та початковий запит.
+- **Гнучкість**: CI-компонент підтримує кілька вхідних параметрів для налаштування своєї поведінки
+
+---
+
+### Налаштування
+
+1. Збережіть JSON-файл автентифікації Aigcfroge як змінну середовища CI типу File у розділі **Налаштування** > **CI/CD** > **Змінні**. Обов'язково позначте їх як "Приховані та замасковані".
+2. Додайте наступне до вашого файлу `.gitlab-ci.yml`.
+
+   ```yaml title=".gitlab-ci.yml"
+   include:
+     - component: $CI_SERVER_FQDN/nagyv/gitlab-aigcfroge/aigcfroge@2
+       inputs:
+         config_dir: ${CI_PROJECT_DIR}/aigcfroge-config
+         auth_json: $AIGCFROGE_AUTH_JSON # The variable name for your Aigcfroge authentication JSON
+         command: optional-custom-command
+         message: "Your prompt here"
+   ```
+
+Для додаткових вхідних параметрів і варіантів використання [перегляньте документацію](https://gitlab.com/explore/catalog/nagyv/gitlab-aigcfroge) цього компонента.
+
+---
+
+## GitLab Duo
+
+Aigcfroge інтегрується з вашим робочим процесом GitLab.
+Згадайте `@aigcfroge` у коментарі, і Aigcfroge виконає завдання у вашому конвеєрі GitLab CI.
+
+---
+
+### Можливості
+
+- **Тріажування завдань**: Попросіть Aigcfroge розглянути завдання та пояснити його вам.
+- **Виправлення та впровадження**: Попросіть Aigcfroge виправити завдання або впровадити функцію.
+  Він створить нову гілку та підніме merge-запит із цими змінами.
+- **Безпека**: Aigcfroge працює на ваших виконувачах GitLab.
+
+---
+
+### Налаштування
+
+Aigcfroge працює у вашому конвеєрі GitLab CI/CD; ось що вам знадобиться для його налаштування:
+
+:::tip
+Перегляньте [**документацію GitLab**](https://docs.gitlab.com/user/duo_agent_platform/agent_assistant/) для актуальних інструкцій.
+:::
+
+1.  Налаштуйте своє середовище GitLab
+2.  Налаштуйте CI/CD
+3.  Отримайте API-ключ провайдера AI-моделі
+4.  Створіть службовий обліковий запис
+5.  Налаштуйте змінні CI/CD
+6.  Створіть файл конфігурації потоку, ось приклад:
+
+        <details>
+
+    <summary>Конфігурація потоку</summary>
+
+    ```yaml
+    image: node:22-slim
+    commands:
+      - echo "Installing aigcfroge"
+      - npm install --global aigcfroge
+      - echo "Installing glab"
+      - export GITLAB_TOKEN=$GITLAB_TOKEN_AIGCFROGE
+      - apt-get update --quiet && apt-get install --yes curl wget gpg git && rm --recursive --force /var/lib/apt/lists/*
+      - curl --silent --show-error --location "https://raw.githubusercontent.com/upciti/wakemeops/main/assets/install_repository" | bash
+      - apt-get install --yes glab
+      - echo "Configuring glab"
+      - echo $GITLAB_HOST
+      - echo "Creating Aigcfroge auth configuration"
+      - mkdir --parents ~/.local/share/aigcfroge
+      - |
+        cat > ~/.local/share/aigcfroge/auth.json << EOF
+        {
+          "anthropic": {
+            "type": "api",
+            "key": "$ANTHROPIC_API_KEY"
+          }
+        }
+        EOF
+      - echo "Configuring git"
+      - git config --global user.email "aigcfroge@gitlab.com"
+      - git config --global user.name "Aigcfroge"
+      - echo "Testing glab"
+      - glab issue list
+      - echo "Running Aigcfroge"
+      - |
+        aigcfroge run "
+        You are an AI assistant helping with GitLab operations.
+
+        Context: $AI_FLOW_CONTEXT
+        Task: $AI_FLOW_INPUT
+        Event: $AI_FLOW_EVENT
+
+        Please execute the requested task using the available GitLab tools.
+        Be thorough in your analysis and provide clear explanations.
+
+        <important>
+        Please use the glab CLI to access data from GitLab. The glab CLI has already been authenticated. You can run the corresponding commands.
+
+        If you are asked to summarize an MR or issue or asked to provide more information then please post back a note to the MR/Issue so that the user can see it.
+        You don't need to commit or push up changes, those will be done automatically based on the file changes you make.
+        </important>
+        "
+      - git checkout --branch $CI_WORKLOAD_REF origin/$CI_WORKLOAD_REF
+      - echo "Checking for git changes and pushing if any exist"
+      - |
+        if ! git diff --quiet || ! git diff --cached --quiet || [ --not --zero "$(git ls-files --others --exclude-standard)" ]; then
+          echo "Git changes detected, adding and pushing..."
+          git add .
+          if git diff --cached --quiet; then
+            echo "No staged changes to commit"
+          else
+            echo "Committing changes to branch: $CI_WORKLOAD_REF"
+            git commit --message "Codex changes"
+            echo "Pushing changes up to $CI_WORKLOAD_REF"
+            git push https://gitlab-ci-token:$GITLAB_TOKEN@$GITLAB_HOST/gl-demo-ultimate-dev-ai-epic-17570/test-java-project.git $CI_WORKLOAD_REF
+            echo "Changes successfully pushed"
+          fi
+        else
+          echo "No git changes detected, skipping push"
+        fi
+    variables:
+      - ANTHROPIC_API_KEY
+      - GITLAB_TOKEN_AIGCFROGE
+      - GITLAB_HOST
+    ```
+
+        </details>
+
+Ви можете звернутися до [документації GitLab CLI-агентів](https://docs.gitlab.com/user/duo_agent_platform/agent_assistant/) за детальними інструкціями.
+
+---
+
+### Приклади
+
+Ось кілька прикладів того, як ви можете використовувати Aigcfroge у GitLab.
+
+:::tip
+Ви можете налаштувати використання іншої фрази-тригера, ніж `@aigcfroge`.
+:::
+
+- **Пояснення завдання**
+
+  Додайте цей коментар у завдання GitLab.
+
+  ```
+  @aigcfroge explain this issue
+  ```
+
+  Aigcfroge прочитає завдання та відповість зі зрозумілим поясненням.
+
+- **Виправлення завдання**
+
+  У завданні GitLab напишіть:
+
+  ```
+  @aigcfroge fix this
+  ```
+
+  Aigcfroge створить нову гілку, впровадить зміни та відкриє merge-запит із цими змінами.
+
+- **Перевірка merge-запитів**
+
+  Залиште наступний коментар на merge-запиті GitLab.
+
+  ```
+  @aigcfroge review this merge request
+  ```
+
+  Aigcfroge перевірить merge-запит і надасть відгук.
