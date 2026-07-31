@@ -44,7 +44,6 @@ import { Session } from "@aigcfroge/sdk/v2"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { createTabPromptState } from "@/context/prompt"
 import { modeDraft, useMode } from "@/context/mode"
-import { secondarySidebarAvailable } from "@/utils/secondary-sidebar-route"
 
 type TauriDesktopWindow = {
   startDragging?: () => Promise<void>
@@ -861,13 +860,13 @@ function TitlebarV2Right(props: { state: TitlebarV2RightState }) {
   const mode = useMode()
   const language = useLanguage()
   const settings = useSettings()
-  const location = useLocation()
+  const layout = useLayout()
   return (
     <div class="relative z-20 flex shrink-0 items-center justify-end gap-0 overflow-visible">
       <Show when={props.state.update.visible}>
         <TitlebarUpdateIconButton state={props.state.update} />
       </Show>
-      <Show when={settings.visibility.secondarySidebarToggle() && secondarySidebarAvailable(location.pathname)}>
+      <Show when={settings.visibility.secondarySidebarToggle() && layout.route().type === "session"}>
         <TooltipV2
           value={language.t(mode.secondarySidebarOpen ? "sidebar.secondary.hide" : "sidebar.secondary.show")}
           placement="bottom"

@@ -1,5 +1,5 @@
 import { createEffect, Suspense, type ParentProps, Show } from "solid-js"
-import { useLocation, useNavigate, useParams } from "@solidjs/router"
+import { useNavigate, useParams } from "@solidjs/router"
 import { DebugBar } from "@/components/debug-bar"
 import { HelpButton } from "@/components/help-button"
 import { Titlebar, type TitlebarUpdate } from "@/components/titlebar"
@@ -13,14 +13,14 @@ import { ModeSwitcher } from "@/components/mode-switcher"
 import { SecondarySidebar } from "@/components/secondary-sidebar"
 import { StatusBar } from "@/components/status-bar/status-bar"
 import { createCurrentSessionSource } from "@/components/status-bar/current-session-source"
-import { secondarySidebarAvailable } from "@/utils/secondary-sidebar-route"
+import { useLayout } from "@/context/layout"
 
 function LayoutContent(props: ParentProps & { update: TitlebarUpdate }) {
-  const location = useLocation()
   const mode = useMode()
+  const layout = useLayout()
   const statusSource = createCurrentSessionSource()
 
-  const showSecondarySidebar = () => mode.secondarySidebarOpen && secondarySidebarAvailable(location.pathname)
+  const showSecondarySidebar = () => mode.secondarySidebarOpen && layout.route().type === "session"
 
   return (
     <div
