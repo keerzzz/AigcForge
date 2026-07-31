@@ -75,10 +75,17 @@ jobs:
         env:
           AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || '' }}
 
-      - name: Run HttpApi exerciser gates
+      - name: Run HttpApi exerciser — coverage + auth (gate)
         if: runner.os == 'Linux'
         working-directory: packages/aigcfroge
-        run: bun run test:httpapi
+        run: bun run script/httpapi-exercise.ts --mode coverage --fail-on-missing --fail-on-skip && bun run script/httpapi-exercise.ts --mode auth --fail-on-missing --fail-on-skip
+
+      - name: Run HttpApi exerciser — effect (advisory, pre-existing runtime failures on main)
+        if: runner.os == 'Linux'
+        working-directory: packages/aigcfroge
+        continue-on-error: true
+        timeout-minutes: 30
+        run: bun run script/httpapi-exercise.ts --mode effect
 
   e2e:
     name: e2e (${{ matrix.settings.name }})

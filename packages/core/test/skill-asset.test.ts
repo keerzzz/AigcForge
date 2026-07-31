@@ -36,11 +36,9 @@ describe("SkillAsset", () => {
       const locationLayer = Location.layer(ref).pipe(Layer.provide(projectLayer))
 
       const baseLayer = Layer.mergeAll(locationLayer, FSUtil.defaultLayer, AssetKind.layer)
-      const testAppLayer = Layer.mergeAll(
-        SkillAsset.layer,
-        PromptAsset.layer,
-        LocationMutation.layer,
-      ).pipe(Layer.provide(baseLayer))
+      const testAppLayer = Layer.mergeAll(SkillAsset.layer, PromptAsset.layer, LocationMutation.layer).pipe(
+        Layer.provide(baseLayer),
+      )
 
       return yield* Effect.gen(function* () {
         const skillService = yield* SkillAsset.Service
@@ -57,12 +55,12 @@ describe("SkillAsset", () => {
 
         yield* fs.writeFileString(
           skillFile,
-          "---\nkind: skill\nname: \"my-tool\"\ndescription: \"skill desc\"\ntrigger: \"my-tool\"\nsource: \"echo hi\"\n---\n",
+          '---\nname: "my-tool"\ndescription: "skill desc"\nslash: true\ntriggers:\n  - review\ntags:\n  - test\n---\nSkill body',
         )
 
         yield* fs.writeFileString(
           promptFile,
-          "---\nkind: prompt\nname: \"my-tool\"\ndescription: \"prompt desc\"\n---\nHello Prompt",
+          '---\nkind: prompt\nname: "my-tool"\ndescription: "prompt desc"\n---\nHello Prompt',
         )
 
         yield* skillService.reload()
@@ -74,6 +72,10 @@ describe("SkillAsset", () => {
         expect(skills.length).toBe(1)
         expect(skills[0].name).toBe("my-tool")
         expect(skills[0].kind).toBe("skill")
+        expect(skills[0].slash).toBe(true)
+        expect(skills[0].content).toBe("Skill body")
+        expect(skills[0].triggers).toEqual(["review"])
+        expect(skills[0].tags).toEqual(["test"])
 
         expect(prompts.length).toBe(1)
         expect(prompts[0].name).toBe("my-tool")

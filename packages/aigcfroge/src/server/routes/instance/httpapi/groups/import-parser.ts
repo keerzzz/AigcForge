@@ -4,6 +4,7 @@ import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { ImportParser as SchemaImportParser } from "@aigcfroge/schema/import-parser"
 import { described } from "./metadata"
+import { Authorization } from "../middleware/authorization"
 
 export const ImportParserApi = HttpApi.make("import-parser").add(
   HttpApiGroup.make("import-parser")
@@ -19,6 +20,7 @@ export const ImportParserApi = HttpApi.make("import-parser").add(
         }),
       ),
     )
+    .middleware(Authorization)
     .annotateMerge(
       OpenApi.annotations({
         title: "import-parser",

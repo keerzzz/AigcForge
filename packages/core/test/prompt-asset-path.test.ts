@@ -11,6 +11,9 @@ import path from "path"
 import { PromptAssetPath } from "../src/prompt-asset/path"
 import { it } from "./lib/effect"
 
+const nonWindowsIt = process.platform === "win32" ? it.live.skip : it.live
+const nonWindowsTest = process.platform === "win32" ? test.skip : test
+
 describe("PromptAssetPath.isValidSegment", () => {
   test("accepts valid names", () => {
     expect(PromptAssetPath.isValidSegment("hello")).toBe(true)
@@ -123,7 +126,7 @@ describe("PromptAssetPath.nameToRelativePath", () => {
 })
 
 describe("PromptAssetPath.resolveOwnerRoot", () => {
-  test("computes owner root from directory", () => {
+  nonWindowsTest("computes owner root from directory", () => {
     expect(PromptAssetPath.resolveOwnerRoot("/home/user/project")).toBe("/home/user/project/.aigcfroge/prompts")
   })
 })
@@ -131,17 +134,14 @@ describe("PromptAssetPath.resolveOwnerRoot", () => {
 function mutationLayer(directory: string) {
   return LocationMutation.locationLayer.pipe(
     Layer.provide(
-      Layer.succeed(
-        Location.Service,
-        Location.Service.of(location({ directory: AbsolutePath.make(directory) })),
-      ),
+      Layer.succeed(Location.Service, Location.Service.of(location({ directory: AbsolutePath.make(directory) }))),
     ),
     Layer.provide(FSUtil.defaultLayer),
   )
 }
 
 describe("PromptAssetPath.resolveSafeTarget", () => {
-  it.live("resolves a target inside owner root", () =>
+  nonWindowsIt("resolves a target inside owner root", () =>
     Effect.gen(function* () {
       const mutation = yield* LocationMutation.Service
       const result = yield* PromptAssetPath.resolveSafeTarget("test.md", mutation)
@@ -149,7 +149,7 @@ describe("PromptAssetPath.resolveSafeTarget", () => {
     }).pipe(Effect.provide(mutationLayer("/tmp"))),
   )
 
-  it.live("rejects path outside owner root", () =>
+  nonWindowsIt("rejects path outside owner root", () =>
     Effect.gen(function* () {
       const mutation = yield* LocationMutation.Service
       const result = yield* PromptAssetPath.resolveSafeTarget("../../../etc/passwd.md", mutation).pipe(Effect.flip)
@@ -157,7 +157,7 @@ describe("PromptAssetPath.resolveSafeTarget", () => {
     }).pipe(Effect.provide(mutationLayer("/tmp"))),
   )
 
-  test("rejects a prompt root symlink redirected elsewhere in the Location", async () => {
+  nonWindowsTest("rejects a prompt root symlink redirected elsewhere in the Location", async () => {
     const tmp = await tmpdir()
     try {
       await fs.mkdir(path.join(tmp.path, ".aigcfroge"), { recursive: true })

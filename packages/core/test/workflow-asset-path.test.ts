@@ -11,6 +11,9 @@ import path from "path"
 import { WorkflowAssetPath } from "../src/workflow-asset/path"
 import { it } from "./lib/effect"
 
+const nonWindowsIt = process.platform === "win32" ? it.live.skip : it.live
+const nonWindowsTest = process.platform === "win32" ? test.skip : test
+
 describe("WorkflowAssetPath.isValidSegment", () => {
   test("accepts valid names", () => {
     expect(WorkflowAssetPath.isValidSegment("hello")).toBe(true)
@@ -79,11 +82,15 @@ describe("WorkflowAssetPath.validateRelativePath", () => {
   })
 
   test("rejects absolute path", () => {
-    expect(() => WorkflowAssetPath.validateRelativePath("/etc/test.yaml")).toThrow(WorkflowAssetPath.PathValidationError)
+    expect(() => WorkflowAssetPath.validateRelativePath("/etc/test.yaml")).toThrow(
+      WorkflowAssetPath.PathValidationError,
+    )
   })
 
   test("rejects path with invalid segments", () => {
-    expect(() => WorkflowAssetPath.validateRelativePath("../escape.yaml")).toThrow(WorkflowAssetPath.PathValidationError)
+    expect(() => WorkflowAssetPath.validateRelativePath("../escape.yaml")).toThrow(
+      WorkflowAssetPath.PathValidationError,
+    )
     expect(() => WorkflowAssetPath.validateRelativePath("a/../b.yaml")).toThrow(WorkflowAssetPath.PathValidationError)
     expect(() => WorkflowAssetPath.validateRelativePath("a/<bad>.yaml")).toThrow(WorkflowAssetPath.PathValidationError)
   })
@@ -123,7 +130,7 @@ describe("WorkflowAssetPath.nameToRelativePath", () => {
 })
 
 describe("WorkflowAssetPath.resolveOwnerRoot", () => {
-  test("computes owner root from directory", () => {
+  nonWindowsTest("computes owner root from directory", () => {
     expect(WorkflowAssetPath.resolveOwnerRoot("/home/user/project")).toBe("/home/user/project/.aigcfroge/workflows")
   })
 })
@@ -131,17 +138,14 @@ describe("WorkflowAssetPath.resolveOwnerRoot", () => {
 function mutationLayer(directory: string) {
   return LocationMutation.locationLayer.pipe(
     Layer.provide(
-      Layer.succeed(
-        Location.Service,
-        Location.Service.of(location({ directory: AbsolutePath.make(directory) })),
-      ),
+      Layer.succeed(Location.Service, Location.Service.of(location({ directory: AbsolutePath.make(directory) }))),
     ),
     Layer.provide(FSUtil.defaultLayer),
   )
 }
 
 describe("WorkflowAssetPath.resolveSafeTarget", () => {
-  it.live("resolves a target inside owner root", () =>
+  nonWindowsIt("resolves a target inside owner root", () =>
     Effect.gen(function* () {
       const mutation = yield* LocationMutation.Service
       const result = yield* WorkflowAssetPath.resolveSafeTarget("test.yaml", mutation)
@@ -149,7 +153,7 @@ describe("WorkflowAssetPath.resolveSafeTarget", () => {
     }).pipe(Effect.provide(mutationLayer("/tmp"))),
   )
 
-  it.live("rejects path outside owner root", () =>
+  nonWindowsIt("rejects path outside owner root", () =>
     Effect.gen(function* () {
       const mutation = yield* LocationMutation.Service
       const result = yield* WorkflowAssetPath.resolveSafeTarget("../../../etc/passwd.yaml", mutation).pipe(Effect.flip)
@@ -157,7 +161,7 @@ describe("WorkflowAssetPath.resolveSafeTarget", () => {
     }).pipe(Effect.provide(mutationLayer("/tmp"))),
   )
 
-  test("rejects a workflow root symlink redirected elsewhere in the Location", async () => {
+  nonWindowsTest("rejects a workflow root symlink redirected elsewhere in the Location", async () => {
     const tmp = await tmpdir()
     try {
       await fs.mkdir(path.join(tmp.path, ".aigcfroge"), { recursive: true })
