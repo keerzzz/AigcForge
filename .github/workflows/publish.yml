@@ -439,6 +439,20 @@ jobs:
           name: latest-yml-${{ matrix.settings.target }}
           path: packages/desktop/dist/latest*.yml
 
+      - name: Upload desktop assets to release
+        if: needs.version.outputs.release
+        env:
+          GH_TOKEN: ${{ steps.committer.outputs.token }}
+        working-directory: packages/desktop
+        run: |
+          shopt -s nullglob
+          files=(dist/*.{exe,blockmap,dmg,zip,AppImage,deb,rpm} dist/*.app.tar.gz)
+          if (( ${#files[@]} == 0 )); then
+            echo "No desktop release assets to upload for this platform"
+            exit 0
+          fi
+          gh release upload "v${{ needs.version.outputs.version }}" "${files[@]}" --clobber --repo "${{ needs.version.outputs.repo }}"
+
   publish:
     needs:
       - version
