@@ -33,6 +33,13 @@ import { useMarked } from "@aigcfroge/ui/context/marked"
 import { preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { DateTime } from "luxon"
+import { Icon } from "@aigcfroge/ui/v2/icon"
+import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
+import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
+import { getFilename } from "@aigcfroge/core/util/path"
+import { WorkPreset } from "@aigcfroge/schema/work-preset"
+import { buildWorkPresetCatalog } from "@/pages/work-preset-catalog"
+import { presetLaunch } from "@/pages/work-preset-launch"
 
 /** Coding 左侧栏：项目列 + 服务器管理（复用 HomeProjectColumn，hooks 对齐旧 Home 组件） */
 export function CodingProjectColumnSidebar() {
@@ -527,5 +534,148 @@ export function PlaceholderMain(props: { mode: string }) {
     <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-v2-text-text-muted text-13-regular">
       <span>{language.t("sidebar.secondary.noResults")}</span>
     </div>
+  )
+}
+
+/** Work 侧栏：项目 Location 选择器 + 新建会话 */
+export function WorkProjectColumnSidebar() {
+  const language = useLanguage()
+  const global = useGlobal()
+  const tabs = useTabs()
+  const pickDirectory = useDirectoryPicker()
+  const { conn, ctx, directory } = useChatDirectory()
+
+  function newSession() {
+    const c = conn()
+    const currentCtx = ctx()
+    const dir = directory()
+    if (!c || !currentCtx || !dir) return
+    openProjectNewSession(
+      currentCtx.projects,
+      (serverKey, draftDirectory) =>
+        tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft("work") }),
+      ServerConnection.key(c),
+      dir,
+    )
+  }
+
+  function addProject() {
+    const c = conn()
+    const currentCtx = ctx()
+    if (!c || !currentCtx) return
+    pickDirectory({
+      server: c,
+      title: language.t("command.project.open"),
+      multiple: true,
+      onSelect: (result) => {
+        const dirs = homeProjectDirectories(result)
+        if (!dirs[0]) return
+        dirs.forEach((dir) => currentCtx.projects.open(dir))
+        currentCtx.projects.touch(dirs[0])
+        global.lastSession.set(currentCtx.sdk.scope, dirs[0])
+      },
+    })
+  }
+
+  return (
+    <div class="flex min-h-0 shrink-0 flex-col">
+      <div class="flex items-center gap-1.5 border-b border-v2-border-border-base px-3 pb-3 pt-3">
+        <Icon name="mode-work" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+        <span class="shrink-0 text-v2-text-text-muted text-11-regular">{language.t("chat.feature.project")}</span>
+        <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-11-regular">
+          {directory() ? getFilename(directory()) || directory() : language.t("work.preset.noLocation")}
+        </span>
+        <IconButtonV2
+          variant="ghost-muted"
+          size="small"
+          icon={<Icon name="folder-add-left" />}
+          aria-label={language.t("sidebar.secondary.addProject")}
+          onClick={addProject}
+        />
+      </div>
+      <div class="px-3 pb-2 pt-3">
+        <ButtonV2
+          variant="neutral"
+          size="normal"
+          icon="edit"
+          class="w-full"
+          disabled={!directory()}
+          onClick={newSession}
+        >
+          {language.t("command.session.new")}
+        </ButtonV2>
+      </div>
+    </div>
+  )
+}
+
+/** Work 主区：预设卡片库（4 分类 + 预留预设无创建入口） */
+export function WorkPresetCatalogMain() {
+  const language = useLanguage()
+  const global = useGlobal()
+  const tabs = useTabs()
+  const { conn, ctx, directory } = useChatDirectory()
+  const { categories } = buildWorkPresetCatalog()
+
+  function startPreset(preset: WorkPreset.Preset) {
+    const c = conn()
+    const currentCtx = ctx()
+    const dir = directory()
+    if (!c || !currentCtx || !dir) return
+    const launch = presetLaunch(preset)
+    openProjectNewSession(
+      currentCtx.projects,
+      (serverKey, draftDirectory) =>
+        tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft("work") }, launch.seedPrompt),
+      ServerConnection.key(c),
+      dir,
+    )
+  }
+
+  return (
+    <ScrollView class="min-h-0 flex-1">
+      <div class="flex min-h-0 flex-col gap-6 px-6 py-5">
+        <div class="flex flex-col gap-1">
+          <h1 class="text-v2-text-text-base text-16-medium">{language.t("work.preset.title")}</h1>
+          <p class="text-v2-text-text-muted text-13-regular">{language.t("work.preset.subtitle")}</p>
+        </div>
+        <For each={categories}>
+          {(category) => (
+            <section class="flex min-w-0 flex-col gap-3">
+              <h2 class="text-v2-text-text-base text-13-medium">{language.t(category.labelKey)}</h2>
+              <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <For each={category.presets}>
+                  {(preset) => (
+                    <button
+                      type="button"
+                      class="group flex min-w-0 flex-col gap-2 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-4 text-left transition-colors hover:border-v2-border-border-hover hover:bg-v2-background-bg-layer-03 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+                      disabled={!directory()}
+                      onClick={() => startPreset(preset)}
+                    >
+                      <span class="text-v2-text-text-base text-13-medium">{preset.title}</span>
+                      <span class="text-v2-text-text-muted text-12-regular">{preset.description}</span>
+                      <span class="text-v2-text-text-faint text-11-regular">
+                        {language.t("work.preset.questions", { count: preset.questions.length })}
+                      </span>
+                    </button>
+                  )}
+                </For>
+                <For each={category.reserved}>
+                  {(title) => (
+                    <div
+                      aria-disabled="true"
+                      class="flex min-w-0 flex-col gap-2 rounded-lg border border-dashed border-v2-border-border-base bg-v2-background-bg-base p-4 opacity-60"
+                    >
+                      <span class="text-v2-text-text-muted text-13-medium">{title}</span>
+                      <span class="text-v2-text-text-faint text-11-regular">{language.t("work.preset.comingSoon")}</span>
+                    </div>
+                  )}
+                </For>
+              </div>
+            </section>
+          )}
+        </For>
+      </div>
+    </ScrollView>
   )
 }
