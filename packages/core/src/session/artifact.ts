@@ -1,11 +1,12 @@
 export * as WorkArtifact from "./artifact"
 
-import { Context, Effect, Layer, Schema } from "effect"
+import { Context, DateTime, Effect, Layer, Schema } from "effect"
 import path from "path"
 import { EventV2 } from "../event"
 import { FileMutation } from "../file-mutation"
 import { LocationMutation } from "../location-mutation"
 import { FSUtil } from "../fs-util"
+import { Identifier } from "../id/id"
 import { SessionSchema } from "./schema"
 
 /**
@@ -101,8 +102,8 @@ export const layer = Layer.effect(
         return yield* new ConflictError({ relativePath: input.relativePath })
       }
       yield* fileMutation.writeAtomic({ target, content: input.content })
-      const now = Date.now()
-      const artifactID = `art_${now}`
+      const now = yield* DateTime.nowAsDate
+      const artifactID = Identifier.create("art", "ascending")
       const artifact: ArtifactRecord = {
         id: artifactID,
         sessionID: input.sessionID,
@@ -111,8 +112,8 @@ export const layer = Layer.effect(
         mediaType: "text/markdown",
         relativePath: target.resource,
         status: "available",
-        createdAt: now,
-        updatedAt: now,
+        createdAt: now.getTime(),
+        updatedAt: now.getTime(),
       }
       yield* events.publish(Event.ArtifactApplied, { sessionID: input.sessionID, artifactID })
       return { artifact, existed }

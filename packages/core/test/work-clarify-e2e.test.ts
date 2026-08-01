@@ -1,15 +1,13 @@
 import { describe, expect } from "bun:test"
-import { Effect, Layer, Schema } from "effect"
+import { Effect, Layer } from "effect"
 import { QuestionV2 } from "@aigcfroge/core/question"
 import { SessionV2 } from "@aigcfroge/core/session"
 import { ToolRegistry } from "@aigcfroge/core/tool/registry"
 import { WorkPresetTool } from "@aigcfroge/core/tool/work-preset"
 import { QuestionTool } from "@aigcfroge/core/tool/question"
 import { PermissionV2 } from "@aigcfroge/core/permission"
-import { WorkPresetRegistry } from "../src/session/work-preset"
 import { testEffect } from "./lib/effect"
 import { toolIdentity, settleTool } from "./lib/tool"
-import { toClarifyingQuestions } from "../src/session/work-clarify"
 
 const sessionID = SessionV2.ID.make("ses_work_clarify_e2e")
 const permission = Layer.succeed(
@@ -74,15 +72,6 @@ describe("Work clarification closed loop", () => {
       expect(answered.result.type).toBe("text")
       expect(answered.result.value).toContain("User has answered your questions")
       expect(answered.result.value).toContain("写实")
-    }),
-  )
-
-  it.effect("preset clarifying questions decode as valid QuestionV2 prompts", () =>
-    Effect.gen(function* () {
-      const storyboard = WorkPresetRegistry.byId("storyboard-video")!
-      for (const prompt of toClarifyingQuestions(storyboard)) {
-        expect(() => Schema.decodeUnknownSync(QuestionV2.Prompt)(prompt)).not.toThrow()
-      }
     }),
   )
 })

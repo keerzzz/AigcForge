@@ -648,7 +648,7 @@ export function WorkPresetCatalogMain() {
                   {(preset) => (
                     <button
                       type="button"
-                      class="group flex min-w-0 flex-col gap-2 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-4 text-left transition-colors hover:border-v2-border-border-hover hover:bg-v2-background-bg-layer-03 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+                      class="group flex min-w-0 flex-col gap-2 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-4 text-left transition-colors hover:border-v2-border-border-strong hover:bg-v2-background-bg-layer-03 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
                       disabled={!directory()}
                       onClick={() => startPreset(preset)}
                     >

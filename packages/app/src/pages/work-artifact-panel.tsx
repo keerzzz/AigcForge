@@ -11,6 +11,7 @@ import { Markdown } from "@aigcfroge/session-ui/markdown"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { draftFilename, findLatestAssistantMarkdown } from "@/pages/work-artifact-extract"
 import { computeWorkDiff } from "@/pages/work-artifact-diff"
+import { isConflictError } from "@/pages/work-artifact-error"
 import type { Message } from "@aigcfroge/sdk/v2/client"
 
 /** 覆盖确认时的只读 diff 展示（新旧内容对比）。 */
@@ -48,7 +49,7 @@ export function WorkArtifactPanel() {
   const sdk = useSDK()
   const dialog = useDialog()
   const [applying, setApplying] = createSignal(false)
-  const [appliedPath, setAppliedPath] = createSignal<string | undefined>()
+  const [applied, setApplied] = createSignal<{ path: string; content: string } | undefined>()
   let sessionLayout: ReturnType<typeof useSessionLayout> | undefined
   try {
     sessionLayout = useSessionLayout()
@@ -63,6 +64,13 @@ export function WorkArtifactPanel() {
     const data = sync().data
     const messages = (data.message?.[id] ?? []) as readonly Message[]
     return findLatestAssistantMarkdown(messages, data.part)
+  })
+
+  // 仅当当前候选稿与已应用内容一致时才显示"已应用"；修订/切会话后回到可应用状态。
+  const appliedCurrent = createMemo(() => {
+    const a = applied()
+    const content = candidate()
+    return a !== undefined && content !== null && a.content === content ? a : undefined
   })
 
   async function apply(overwrite = false) {
@@ -80,12 +88,9 @@ export function WorkArtifactPanel() {
         content,
         overwrite,
       })
-      setAppliedPath(relativePath)
+      setApplied({ path: relativePath, content })
     } catch (error) {
-      const status = typeof error === "object" && error !== null && "status" in error
-        ? (error as { status: unknown }).status
-        : undefined
-      if (status === 409) {
+      if (isConflictError(error)) {
         const relativePath = draftFilename(content)
         const oldContent = await sdk().client.file
           .read({ path: relativePath })
@@ -130,7 +135,7 @@ export function WorkArtifactPanel() {
         <span class="text-v2-text-text-base text-13-medium">{language.t("work.artifact.tab")}</span>
       </div>
       <Show
-        when={appliedPath()}
+        when={appliedCurrent()}
         fallback={
           <Show
             when={candidate()}
