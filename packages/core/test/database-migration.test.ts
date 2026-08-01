@@ -16,6 +16,7 @@ import contextEpochAgentMigration from "@aigcfroge/core/database/migration/20260
 import simplifyIntegrationCredentialsMigration from "@aigcfroge/core/database/migration/20260611192811_lush_chimera"
 import simplifySessionInputMigration from "@aigcfroge/core/database/migration/20260622202450_simplify_session_input"
 import sessionInputKindMigration from "@aigcfroge/core/database/migration/20260705170359_session_input_kind"
+import backfillTaskTableMigration from "@aigcfroge/core/database/migration/20260802220000_backfill_task_table"
 import { EventV2 } from "@aigcfroge/core/event"
 import { ProjectV2 } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
@@ -724,6 +725,84 @@ describe("DatabaseMigration", () => {
         // New column is writable.
         yield* db.run(sql`UPDATE session SET summary = 'Updated' WHERE id = 'ses_1'`)
         expect(yield* db.get(sql`SELECT summary FROM session WHERE id = 'ses_1'`)).toEqual({ summary: "Updated" })
+      }),
+    )
+  })
+
+  test("backfills legacy todo rows into the task table with tsk_ ids and preserved positions", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        // Pre-migration shape: legacy todo table + empty task table.
+        yield* db.run(sql`
+          CREATE TABLE todo (
+            session_id text NOT NULL,
+            content text NOT NULL,
+            status text NOT NULL,
+            priority text NOT NULL,
+            position integer NOT NULL,
+            time_created integer NOT NULL,
+            time_updated integer NOT NULL,
+            PRIMARY KEY (session_id, position)
+          )
+        `)
+        yield* db.run(sql`
+          CREATE TABLE task (
+            id text PRIMARY KEY,
+            session_id text NOT NULL,
+            content text NOT NULL,
+            status text NOT NULL,
+            priority text NOT NULL,
+            parent_id text,
+            position integer NOT NULL,
+            time_created integer NOT NULL,
+            time_updated integer NOT NULL
+          )
+        `)
+        yield* db.run(
+          sql`INSERT INTO todo (session_id, content, status, priority, position, time_created, time_updated) VALUES ('ses_1', 'first', 'in_progress', 'high', 0, 111, 222)`,
+        )
+        yield* db.run(
+          sql`INSERT INTO todo (session_id, content, status, priority, position, time_created, time_updated) VALUES ('ses_1', 'second', 'pending', 'low', 1, 333, 444)`,
+        )
+
+        yield* DatabaseMigration.applyOnly(db, [backfillTaskTableMigration])
+
+        const migrated = yield* db.all<{
+          id: string
+          session_id: string
+          content: string
+          status: string
+          priority: string
+          position: number
+          time_created: number
+          time_updated: number
+        }>(sql`SELECT id, session_id, content, status, priority, position, time_created, time_updated FROM task ORDER BY position`)
+        expect(migrated).toHaveLength(2)
+        expect(migrated[0]).toMatchObject({
+          session_id: "ses_1",
+          content: "first",
+          status: "in_progress",
+          priority: "high",
+          position: 0,
+          time_created: 111,
+          time_updated: 222,
+        })
+        expect(migrated[1]).toMatchObject({
+          session_id: "ses_1",
+          content: "second",
+          status: "pending",
+          priority: "low",
+          position: 1,
+          time_created: 333,
+          time_updated: 444,
+        })
+        expect(migrated.every((row) => row.id.startsWith("tsk_"))).toBe(true)
+        expect(new Set(migrated.map((row) => row.id)).size).toBe(2)
+
+        // Legacy table retained for backward-compatible reads.
+        const remaining = yield* db.all<{ content: string }>(sql`SELECT content FROM todo ORDER BY position`)
+        expect(remaining.map((row) => row.content)).toEqual(["first", "second"])
       }),
     )
   })
