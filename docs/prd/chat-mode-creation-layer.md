@@ -30,7 +30,7 @@ Chat 是**资产生命周期层**：负责创建、校验、应用、管理资�
 | Chat/Work/Assistant 职责边界 | ADR-13 已接受 | 直接遵循；个人记忆归 Assistant |
 | 项目/全局落盘策略与 typed owner service | ADR-14 已接受 | 每类资产独立 typed 契约与事务 |
 | 提示词资产闭环（schema/registry/事务/双运行时） | 实现中，见 M1 计划 | 作为框架首个类型复用，不重写 |
-| 工作流引擎归属 | ADR-13 冻结 | 任何资产类型不得预埋工作流能力 |
+| 工作流引擎归属 | 定义归 Chat / 执行归 Work（[ADR-13 Amendment-1](../architecture/adr/ADR-13-amendment-1-workflow-asset.md)） | Chat 负责定义（第 6 类资产），不预埋执行能力 |
 | 外部对话持续同步（官方 API/浏览器扩展） | 未立项 | 另立 ADR/PRD，本 PRD 只做一次性导入 |
 
 禁止将目标能力写成"已就绪"。实现以代码和已接受 ADR 为准。
@@ -63,7 +63,7 @@ Chat 是**资产生命周期层**：负责创建、校验、应用、管理资�
 
 - 不做个人记忆/偏好的创建与注入（归 Assistant 模式及其后续里程碑）。
 - 不做外部对话流的持续同步、官方 API 接入或浏览器扩展（另立 ADR/PRD）。
-- 不做工作流定义/执行/恢复（ADR-13 冻结）。
+- 不做工作流**执行/恢复**（执行归 Work 模式，见 [ADR-13 Amendment-1](../architecture/adr/ADR-13-amendment-1-workflow-asset.md)）；工作流**定义**归 Chat（第 6 类资产，M5 Workflow Asset 已开闸）。
 - 不做 System Context 注入、不修改 AGENTS.md/CLAUDE.md（项目规范类资产后期单独安全评审后再评估）。
 - 不做用户自建 Agent 的 meta 调度（属执行编排层，另立设计）；用户自建 Agent 作为资产类型开闸时，继承同等 fail-closed 权限信封。
 - 不新增数据库 migration、不修改 `DraftTab.type`、不新增 EventV2 领域事件。
@@ -320,7 +320,7 @@ PRD 覆盖全部路径与类型；实施按供给路径先后推进、按消费�
 | 5 | MCP 配置 | 工具集扩展 | ✅ 已开闸（M3） | typed 契约过审 |
 | 6 | Workflow | 编排引擎 | ✅ 已开闸（M5-M7） | YAML schema + only-read(M5) → apply/delete(M7) |
 | 7 | Plugin | 工具集扩展 | ✅ 已开闸（M6-M7） | .plugin.yaml schema + bridged scan(M6) → apply/delete(M7) |
-| 冻结 | 工作流执行 | 编排引擎 | ADR 未决 | 独立 ADR |
+| 归口 Work | 工作流执行 | 编排引擎 | Work 模式（[ADR-13 Amendment-1](../architecture/adr/ADR-13-amendment-1-workflow-asset.md) + Work PRD v4.1） | Work 里程碑（M3 扩展产出） |
 | 归口 | 个人记忆/偏好 | System Context（个人） | Assistant 模式 | Assistant PRD 后续里程碑 |
 | 后期 | 项目规范（AGENTS.md 类） | System Context（项目） | 待评估 | 单独安全评审（注入边界） |
 
