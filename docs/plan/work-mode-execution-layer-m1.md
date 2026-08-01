@@ -1,6 +1,6 @@
 # Work 模式 M1 实施计划：预设驱动文档闭环
 
-> 状态：**Draft v1.1 — 审批修订已应用**（2026-08-01 审批 D1/D2 定案 + M1-M3 修订：候选稿=消息正文、work.artifact_applied 事件、product-mode-agent-policy 强制绑定、路径/LCS/i18n 事实修正、右栏集成点钉死）
+> 状态：**Draft v1.2 — 审批修订已应用**（2026-08-01 审批 D1/D2 定案 + M1-M3 修订：候选稿=消息正文、work.artifact_applied 事件、product-mode-agent-policy 强制绑定、路径/LCS/i18n 事实修正、右栏集成点钉死；v1.2 补 D3-D5 首页收尾：工作流资产引导降级、资产范围只上 workflow、会话历史用 session 元数据）
 > 范围：`packages/schema` + `packages/core` + `packages/aigcfroge` + `packages/app`
 > 关联：[Work PRD v4.1](../prd/work-mode-execution-layer.md)（范围真源）、[Work 模式路线图](work-mode-roadmap.md)（本计划的上级）、[ADR-13](../architecture/adr/ADR-13-chat-work-mode-boundary.md)、[ADR-14](../architecture/adr/ADR-14-persistence-and-scope-strategy.md)、[ADR-15](../architecture/adr/ADR-15-mode-workspace-main-area-slot.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md) §4.10、[Chat M1 实施计划](chat-mode-creation-layer-m1.md)（范式参考）
 > 依据：`CLAUDE.md`、根/包级 `AGENTS.md`、`effect`/`frontend-theming` skills、实际 V1/V2 Session/Agent/Tool/API/App 代码
@@ -13,7 +13,7 @@
 
 | Gate | 条件 | 状态 | 阻塞范围 |
 |---|---|---|---|
-| **G0 范围真源** | Work PRD v4.1 已 Approved；ARCHITECTURE.md 同步（PRD §15.1 W1 三项）已提交 | 待定 | 全部 Phase |
+| **G0 范围真源** | Work PRD v4.1 已 Approved；ARCHITECTURE.md 同步（PRD §15.1 W1 三项）已提交 | ✅ 已满足（W1 三项 :210/:258/:261 已随 2026-08-01 批准链提交，见路线图 §7） | 全部 Phase |
 | **G1 预设契约** | 产品确认 M1 预设清单（§3.1）、澄清问题模板、落盘默认路径 | 待定 | Phase A-E |
 | **G2 安全边界** | Core/Security owner 接受：候选稿=消息正文（D1 已定案 §3.4）+ 只读预览 + 同名冲突 Diff 确认 + 原子写入模型（§4.3）+ work-orchestrator 无 edit/shell 工具（§4.2） | 待定（D1 已定案，可评） | Phase D-E |
 | **G3 灰度/分析** | M1 埋点事件（PRD §12 六个 work_* 事件）owner 确认 | 待定 | 不阻塞内部闭环 |
@@ -159,6 +159,30 @@ export const ArtifactRecord = Schema.Struct({
 
 **Artifact 状态流（D2，Phase A 定案）**：采用**内存态事件**，参照 `SessionTodo` 发 `todo.updated` 的 EventV2 bridge 模式（`packages/core/src/session/todo.ts:20-27`）。新增轻量事件 `work.artifact_applied`（sessionID + artifactID），App 侧监听后更新 Artifact Tab。ADR-15 §5 允许不落库——事件仅内存态，跨刷新丢失可接受（M1 接受，M2 存为资产时转 Chat 资产持久化）。
 
+### 3.5 Work 首页收尾（D3-D5 定案，2026-08-01）
+
+在 Phase A-F 基础上补齐首页三区块。背景：现网首页只有预设网格（`WorkPresetCatalogMain`），缺 PRD §10.1 要求的 mode=work 历史会话列表；Chat 工作流资产（第 6 类资产，M5 已开闸）尚无 Work 消费入口。
+
+**决策**：
+
+- **D3（工作流资产执行 = 引导降级）**：Chat 的 `WorkflowAsset`（`steps[]` 多 agent DAG）**无执行引擎**——ADR-13 Amendment-1 §5b 延期至 Work PRD 阶段；`core/src/workflow-asset.ts` 仅注册表，`steps` 以 `unknown` 存储、从不解释。M1 不建引擎，采用**引导降级**：点卡片 → 建 `mode=work` 会话，workflow 的 name/description/steps 摘要内嵌 seed（新增 `workflowLaunch`，类比 `presetLaunch`）→ work-orchestrator 按其执行。orchestrator SYSTEM_PROMPT 需增加兜底分支："用户消息已给出任务规格（工作流名+步骤）则跳过 `work-preset` 加载，直接按其执行"（现 `:19` 强制先加载预设指引）。卡片角标**显式标注"由你的工作流驱动（引导模式）"**，杜绝假执行（No Cheating）。真执行引擎（StepDef 解释器 + 分支/并行调度 + 状态持久化，可搭 TaskDriver 的 `createChild`/`delegate` 积木）M2 立项后无缝升级。
+- **D4（资产范围 = 只上 workflow）**：prompt 资产仅 `template`，无 questions/artifact 契约（`schema/src/prompt-asset.ts`），启动 = 重复 Chat"插入 Composer"路径（Chat M1 已实现），不提供任务契约。Work 首页资产区**只收 workflow 类**，保持"任务启动"心智。
+- **D5（继续工作 = M1 会话元数据）**：复用 `buildHomeSessionRecords` + `HomeSessionRow` + `session.mode === "work"` 过滤（对齐 `CodingSessionListMain`，`mode-workspace-slots.tsx:218-228`），点击重开会话续接。状态徽章（completed/in_progress）与断点恢复依赖 Task 模型（M1.5，todo 分支），M1 不伪造。
+  - **位置修正**：会话历史置于**主区顶部（区块①，回归路径最强）**而非初拟的侧栏（覆盖 §4.4 "侧栏 work 会话列表"）——侧栏保持 Location + 新建任务最小形态。
+
+**改动清单**（全复用，无新引擎）：
+
+| 项 | 位置 |
+|---|---|
+| 继续工作区块 | `mode-workspace-slots.tsx`（复用 home.tsx 管道 + `focusedSync().project.loadSessions`） |
+| 工作流资产卡片 | `mode-workspace-slots.tsx`（`useChatDirectory` → `workflowAsset.list()`） |
+| `workflowLaunch` | `work-preset-launch.ts` 新增纯函数（导出与渲染分离，可测） |
+| orchestrator 兜底 | `core/src/agent/prompt/work-orchestrator.ts` SYSTEM_PROMPT 增加无 preset 分支 |
+| 主区宽度 | `mode-workspace.tsx:142` work 分支 720px → ~960px/1fr |
+| i18n | `en.ts` + `zht.ts`（`work.home.*` / `work.asset.*`，parity 约束） |
+
+**估时**：继续工作 ~0.5d · 工作流资产 ~1.5d · i18n/文档 ~0.5d ≈ **2.5d**（并入 §9 G）。
+
 ---
 
 ## 4. 关键设计
@@ -259,7 +283,7 @@ work: {
 - 复用 `session-side-panel.tsx` 双 Tab 结构，新增 Artifact Tab
 - Context Tab 直接复用 `packages/app/src/components/session/session-context-tab.tsx`（mode-agnostic，零改动）
 - Artifact Tab：**渲染候选 assistant 消息**（D1 方案 a，非文件）+ "应用到当前项目" 按钮 + 目标相对路径展示
-- 落盘成功后监听 `work.artifact_applied` 事件（D2）→ 更新 Tab 为已应用状态 + Artifact 引用
+- 落盘成功后 Core 发 `work.artifact_applied` 事件（D2）；M1 面板以本地内容比对判定已应用（绑定 sessionID，支持修订回退），事件保留供 M2/外部消费
 
 ---
 
@@ -273,6 +297,7 @@ work: {
 | **D 澄清闭环** | question tool 问卷接入 + 生成候选稿（消息正文）→ 右栏预览 | 端到端：选预设→答问卷→出预览 |
 | **E 落盘** | 同名冲突询问 + Diff 确认 + 原子写入（从消息正文）+ Artifact 投影 + `work.artifact_applied` 事件 | 内部 50 次测试达标 |
 | **F 打磨** | i18n 补齐（含 zht + parity 约束）、埋点事件、E2E | typecheck/lint/test 通过 |
+| **G 首页收尾** | 继续工作区块（复用 HomeSession 管道）+ 工作流资产卡片（引导降级）+ orchestrator 无 preset 兜底（D3-D5） | /mode/work 首页三段式可见；卡片角标标注引导模式 |
 
 ---
 
@@ -292,6 +317,9 @@ work: {
 | `packages/app/src/components/mode-surfaces.tsx` | 修改 (:316-319 替换 Placeholder) |
 | `packages/app/src/pages/session/session-side-panel.tsx` | 修改 (新增 Artifact Tab; :482-487 PlaceholderPanel → WorkArtifactPanel) |
 | `packages/app/src/i18n/en.ts` + `zht.ts` | 修改 (work.* 文案; 注意 18 locale 受 `parity.test.ts` 键值 parity 约束) |
+| `packages/app/src/pages/work-preset-launch.ts` | 修改（新增 `workflowLaunch`，类比 `presetLaunch`，见 §3.5） |
+| `packages/core/src/agent/prompt/work-orchestrator.ts` | 修改（SYSTEM_PROMPT 增加"用户消息已给出任务规格则跳过 work-preset 加载"兜底，见 §3.5） |
+| `packages/app/src/pages/mode-workspace.tsx` | 修改（work 主区 720px → ~960px/1fr，支撑首页三段式，见 §3.5） |
 
 ---
 
@@ -340,7 +368,8 @@ bun run lint
 | D 澄清闭环 | 2d |
 | E 落盘 | 2d |
 | F 打磨 | 1d |
-| **总计** | **10d** |
+| G 首页收尾 | 2.5d |
+| **总计** | **12.5d** |
 
 ---
 

@@ -33,4 +33,8 @@ describe("product mode", () => {
     expect(modeDraft("chat")).toEqual({ mode: "chat", agent: "chat-orchestrator" })
     expect(modeDraft("coding")).toEqual({ mode: "coding", agent: undefined })
   })
+
+  test("binds work drafts to the work orchestrator", () => {
+    expect(modeDraft("work")).toEqual({ mode: "work", agent: "work-orchestrator" })
+  })
 })

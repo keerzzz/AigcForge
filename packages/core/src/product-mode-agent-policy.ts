@@ -36,10 +36,12 @@ export class CommandDeniedError extends Schema.TaggedErrorClass<CommandDeniedErr
 }
 
 export const CHAT_ORCHESTRATOR = "chat-orchestrator"
+export const WORK_ORCHESTRATOR = "work-orchestrator"
 
 export function resolvePrimaryAgent(mode: string, agent?: string) {
   if (agent) return agent
   if (mode === "chat") return CHAT_ORCHESTRATOR
+  if (mode === "work") return WORK_ORCHESTRATOR
   return undefined
 }
 
@@ -75,11 +77,27 @@ export function checkPrimaryAgent(mode: string, agent?: string): PolicyVerdict {
     return { allowed: true }
   }
 
-  // Other modes: chat-orchestrator is not allowed as primary
+  if (mode === "work") {
+    if (agent !== WORK_ORCHESTRATOR) {
+      return {
+        allowed: false,
+        error: new AgentNotAllowedError({ mode, agent, reason: "Only work-orchestrator is allowed in work mode" }),
+      }
+    }
+    return { allowed: true }
+  }
+
+  // Other modes: mode-bound orchestrators are not allowed as primary
   if (agent === CHAT_ORCHESTRATOR) {
     return {
       allowed: false,
       error: new AgentNotAllowedError({ mode, agent, reason: "chat-orchestrator is only valid in chat mode" }),
+    }
+  }
+  if (agent === WORK_ORCHESTRATOR) {
+    return {
+      allowed: false,
+      error: new AgentNotAllowedError({ mode, agent, reason: "work-orchestrator is only valid in work mode" }),
     }
   }
   return { allowed: true }
@@ -93,6 +111,12 @@ export function checkCommandAllowed(mode: string): PolicyVerdict {
     return {
       allowed: false,
       error: new CommandDeniedError({ mode, reason: "Shell/command prompts are denied in chat mode" }),
+    }
+  }
+  if (mode === "work") {
+    return {
+      allowed: false,
+      error: new CommandDeniedError({ mode, reason: "Shell/command prompts are denied in work mode" }),
     }
   }
   return { allowed: true }

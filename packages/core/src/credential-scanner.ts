@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Schema } from "effect"
+import { Context, Effect, Layer } from "effect"
 import { CredentialScan } from "@aigcfroge/schema/credential-scan"
 
 type Hit = {
@@ -8,10 +8,10 @@ type Hit = {
 }
 
 const API_KEY_RE =
-  /(?:(?:api[_-]?key|apikey)\s*[=:]\s*['"]?(?:sk-[a-zA-Z0-9]{20,}|[a-zA-Z0-9_\-]{16,})['"]?)/gi
+  /(?:(?:api[_-]?key|apikey)\s*[=:]\s*['"]?(?:sk-[a-zA-Z0-9]{20,}|[a-zA-Z0-9_-]{16,})['"]?)/gi
 
 const BEARER_TOKEN_RE =
-  /(?:Authorization\s*[=:]\s*)?Bearer\s+(eyJ[a-zA-Z0-9_\-]{10,}\.[a-zA-Z0-9_\-]{10,}\.[a-zA-Z0-9_\-]+|[a-zA-Z0-9_\-]{20,})/gi
+  /(?:Authorization\s*[=:]\s*)?Bearer\s+(eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]+|[a-zA-Z0-9_-]{20,})/gi
 
 const PRIVATE_KEY_RE = /-----BEGIN\s+(?:RSA|EC|DSA|OPENSSH|PGP)\s+PRIVATE\s+KEY-----[\s\S]*?-----END\s+(?:RSA|EC|DSA|OPENSSH|PGP)\s+PRIVATE\s+KEY-----/g
 
@@ -49,7 +49,7 @@ function scanText(text: string): Hit[] {
   // Phase 2: single-line patterns — scan each line
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
     if (lineHitSet.has(lineIndex)) continue // already flagged by multiline pattern
-    const line = lines[lineIndex]!
+    const line = lines[lineIndex]
     const lineHits: { type: Hit["type"]; start: number }[] = []
 
     for (const pattern of PATTERNS) {
@@ -97,7 +97,7 @@ function stripText(text: string): string {
 }
 
 export interface Interface {
-  readonly scan: (text: string) => Effect.Effect<CredentialScan.ScanResult, never>
+  readonly scan: (text: string) => Effect.Effect<CredentialScan.ScanResult>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/CredentialScanner") {}

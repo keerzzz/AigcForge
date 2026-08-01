@@ -87,6 +87,7 @@ import { instanceHandlers } from "./handlers/instance"
 import { mcpHandlers } from "./handlers/mcp"
 import { permissionHandlers } from "./handlers/permission"
 import { PromptAssetHandlers } from "./handlers/prompt-asset"
+import { WorkArtifactHandlers } from "./handlers/work-artifact"
 import { SkillAssetHandlers } from "./handlers/skill-asset"
 import { MCPAssetHandlers } from "./handlers/mcp-asset"
 import { CommandAssetHandlers } from "./handlers/command-asset"
@@ -163,6 +164,7 @@ const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
     questionHandlers,
     permissionHandlers,
     PromptAssetHandlers.promptAssetHandlers,
+    WorkArtifactHandlers.workArtifactHandlers,
     SkillAssetHandlers.skillAssetHandlers,
     MCPAssetHandlers.mcpAssetHandlers,
     CommandAssetHandlers.commandAssetHandlers,

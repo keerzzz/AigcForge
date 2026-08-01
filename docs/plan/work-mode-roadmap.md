@@ -99,7 +99,7 @@
 | 官方 Preset Catalog | 硬编码预设库（12 工种 + 5 泛人群），按分类检索 | 无 |
 | work-orchestrator agent | Work 专属执行 agent，澄清 + 生成 | 无 |
 | question tool 接入 | 小白问卷式引导 | 已有（`packages/aigcfroge/src/question/`） |
-| Work Surface UI | ModeWorkspace slot：Preset 卡片 + 会话列表 | 已有 slot 骨架 |
+| Work Surface UI | ModeWorkspace slot：Preset 卡片（M1）+ 会话历史（M1 收尾 §3.5） | 已有 slot 骨架 |
 | 右栏双 Tab | Context Tab（对齐 Code）+ Artifact Tab（只读预览 + 应用按钮） | 已有 `session-context-tab.tsx` |
 | 同名冲突询问 | LLM 自动询问重命名/覆盖 + Diff 确认 | 无 |
 | 安全落盘 | 原子写入当前 Location + Artifact 投影 | M0 |
@@ -208,11 +208,11 @@
 
 ## 7. 下一步
 
-0. **提交批准链落库**（W1 ARCHITECTURE.md 同步三处 + Work PRD v4.1 + Todo v2.1 + 本路线图 + M1 计划 + Accio 报告——目前全部仅在工作树）
-1. **批准本路线图**
-2. **执行 [M1 实施计划](work-mode-execution-layer-m1.md)**（work 分支，D1/D2 已定案）
-3. 与 [Todo/Task 升级计划](todo-task-system-upgrade.md) 并行推进 todo 分支
-4. M1 落地后启动 M1.5（依赖 Todo M1 合并）
+0. ✅ **批准链已落库**：W1 ARCHITECTURE.md 同步三处（:210/:258/:261）+ Work PRD v4.1 + Todo v2.1 + 本路线图 + M1 计划 + Accio 报告（2026-08-01，工作树已清）
+1. ✅ **M1 已实现**（work-m1 分支，Phase A-F）：Preset Catalog / work-orchestrator / Artifact 右栏预览 / 同名冲突 Diff / 原子落盘
+2. **M1 收尾**：首页三区块（继续工作 + 用户工作流资产引导降级）——[M1 计划 §3.5](work-mode-execution-layer-m1.md)（D3-D5 已定案，估 2.5d）
+3. M1.5 启动（ProgressLedger / Resume，依赖 Todo M1 合并 main）
+4. M2 资产沉淀 → M3 扩展产出（远期）
 
 ## 8. 关联文档
 

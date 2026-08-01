@@ -1053,7 +1053,7 @@ export function MessageTimeline(props: {
                 deferToolContent
                 virtualizeDiff={false}
                 onContentRendered={onSizeChange}
-                onCapture={idle() && props.actions?.capture ? props.actions!.capture! : undefined}
+                onCapture={idle() && props.actions?.capture ? props.actions.capture : undefined}
                 captureLabel={language.t("chatCapture.captureAsAsset")}
                 capturePulse={idle() && props.actions?.capture ? props.capturePulse : undefined}
               />
