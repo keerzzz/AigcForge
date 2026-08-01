@@ -8,7 +8,6 @@ import { useLanguage } from "@/context/language"
 import { usePrompt } from "@/context/prompt"
 import { useSync } from "@/context/sync"
 import { Icon } from "@aigcfroge/ui/icon"
-import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
 import { getSessionHandoff, setSessionHandoff } from "@/pages/session/handoff"
 import { useSessionKey } from "@/pages/session/session-layout"
 import { SessionPermissionDock } from "@/pages/session/composer/session-permission-dock"
@@ -33,7 +32,6 @@ import { useDirectoryPicker } from "@/components/directory-picker"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { requireServerKey, sessionHref } from "@/utils/session-route"
 import { useGlobal } from "@/context/global"
-import { useMode } from "@/context/mode"
 
 export function SessionComposerRegion(props: {
   state: SessionComposerState
@@ -78,7 +76,6 @@ export function SessionComposerRegion(props: {
   const server = useServer()
   const tabs = useTabs()
   const global = useGlobal()
-  const modeCtx = useMode()
   const pickDirectory = useDirectoryPicker()
   const [search] = useSearchParams<{ draftId?: string }>()
   const view = layout.view(route.sessionKey)
@@ -132,9 +129,8 @@ export function SessionComposerRegion(props: {
     })
   }
   const controls = createMemo(() => {
-    const allAgents = local.agent.list().map((agent) => agent.name)
-    const agentOptions =
-      modeCtx.currentMode === "chat" ? allAgents.filter((name) => name === ProductModeAgentPolicy.CHAT_ORCHESTRATOR) : allAgents
+    // local.agent.list() 已按 ADR-13 锁定当前模式的 orchestrator，无需再过滤。
+    const agentOptions = local.agent.list().map((agent) => agent.name)
     return {
       agents: {
         available: sync().data.agent,

@@ -1,5 +1,5 @@
 import { getFilename } from "@aigcfroge/core/util/path"
-import { type Session } from "@aigcfroge/sdk/v2/client"
+import { type ProductMode, type Session } from "@aigcfroge/sdk/v2/client"
 import { pathKey } from "@/utils/path-key"
 import type { ServerConnection } from "@/context/server"
 
@@ -29,6 +29,19 @@ export const roots = (store: SessionStore) =>
   (store.session ?? []).filter((session) => isRootVisibleSession(session, store.path.directory))
 
 export const sortedRootSessions = (store: SessionStore, now: number) => roots(store).sort(sortSessions(now))
+
+/**
+ * 会话记录按 mode 过滤。undefined-mode（历史无分类）会话只在 coding 模式展示，
+ * 与 CodingSessionListMain 原内联逻辑一致；Work/Chat 首页复用同一规则（M1 §3.5 D5）。
+ */
+export function filterSessionsByMode<T extends { session: { mode?: ProductMode } }>(
+  records: ReadonlyArray<T>,
+  mode: ProductMode,
+): T[] {
+  return records.filter((record) =>
+    record.session.mode === undefined ? mode === "coding" : record.session.mode === mode,
+  )
+}
 
 export const latestRootSession = (stores: SessionStore[], now: number) =>
   stores.flatMap(roots).sort(sortSessions(now))[0]

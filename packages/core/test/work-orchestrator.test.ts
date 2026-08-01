@@ -27,4 +27,9 @@ describe("WorkOrchestratorPrompt", () => {
   test("covers conflict rename-or-overwrite guidance", () => {
     expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("rename or overwrite")
   })
+
+  test("handles an inline task spec (user workflow) by skipping the work-preset load", () => {
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("inline task specification")
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("skip the `work-preset` tool")
+  })
 })

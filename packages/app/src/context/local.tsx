@@ -69,13 +69,13 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     const mode = useMode()
     const list = createMemo(() => {
       const agents = sync().data.agent.filter((item) => item.mode !== "subagent" && !item.hidden)
-      // ADR-13: chat 模式仅允许 chat-orchestrator；其他模式排除 chat-orchestrator 避免误选。
-      // 防止 chat 模式选到 meta 等被 policy 拒绝的 agent 触发 die 卡死。
-      const isChat = mode.currentMode === "chat"
-      return agents.filter((a) =>
-        isChat
-          ? a.name === ProductModeAgentPolicy.CHAT_ORCHESTRATOR
-          : a.name !== ProductModeAgentPolicy.CHAT_ORCHESTRATOR,
+      // ADR-13: chat/work 模式锁定各自的 orchestrator；其他模式排除两个 orchestrator 避免误选。
+      // 防止 chat/work 模式选到 meta 等被 policy 拒绝的 agent 触发 die 卡死。
+      const required = ProductModeAgentPolicy.resolvePrimaryAgent(mode.currentMode)
+      if (required) return agents.filter((a) => a.name === required)
+      return agents.filter(
+        (a) =>
+          a.name !== ProductModeAgentPolicy.CHAT_ORCHESTRATOR && a.name !== ProductModeAgentPolicy.WORK_ORCHESTRATOR,
       )
     })
     const connected = createMemo(() => new Set(providers.connected().map((item) => item.id)))

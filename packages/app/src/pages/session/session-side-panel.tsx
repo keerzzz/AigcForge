@@ -21,7 +21,7 @@ import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { useMode } from "@/context/mode"
 import { ChatRightPanel, PlaceholderPanel } from "@/components/mode-surfaces"
-import { WorkArtifactPanel } from "@/pages/work-artifact-panel"
+import { WorkSessionPanel } from "@/pages/work-artifact-panel"
 import { useSettings } from "@/context/settings"
 import { createFileTabListSync } from "@/pages/session/file-tab-scroll"
 import { FileTabContent } from "@/pages/session/file-tabs"
@@ -481,7 +481,7 @@ export function SessionSidePanel(props: {
       <ChatRightPanel />
     </div>
     <div style={{ display: mode.currentMode === "work" ? "" : "none" }}>
-      <WorkArtifactPanel />
+      <WorkSessionPanel />
     </div>
     <div style={{ display: mode.currentMode === "assistant" ? "" : "none" }}>
       <PlaceholderPanel />

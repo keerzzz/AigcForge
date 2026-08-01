@@ -36,6 +36,7 @@ import { PluginV2 } from "@aigcfroge/core/plugin"
 import { MetaPrompt } from "@aigcfroge/core/agent/meta/meta-prompt"
 import { Handoff } from "@aigcfroge/schema/handoff"
 import { ChatOrchestratorPrompt } from "@aigcfroge/core/agent/prompt/chat-orchestrator"
+import { WorkOrchestratorPrompt } from "@aigcfroge/core/agent/prompt/work-orchestrator"
 import { scanAssets } from "./meta/assets-loader"
 
 export const Info = Schema.Struct({
@@ -192,6 +193,28 @@ export const layer = Layer.effect(
             mode: "primary",
             native: true,
             prompt: ChatOrchestratorPrompt.SYSTEM_PROMPT,
+          },
+          "work-orchestrator": {
+            name: "work-orchestrator",
+            description: "Work mode agent. Orchestrates preset-driven document drafting in work mode.",
+            options: {},
+            permission: Permission.fromConfig({
+              "*": "deny",
+              read: {
+                "*": "allow",
+                // read * allow 会覆盖 defaults 的 .env ask，须以后序规则恢复（last-match-wins）
+                "*.env": "ask",
+                "*.env.*": "ask",
+                "*.env.example": "allow",
+              },
+              glob: "allow",
+              grep: "allow",
+              question: "allow",
+              "work-preset": "allow",
+            }),
+            mode: "primary",
+            native: true,
+            prompt: WorkOrchestratorPrompt.SYSTEM_PROMPT,
           },
           build: {
             name: "build",
