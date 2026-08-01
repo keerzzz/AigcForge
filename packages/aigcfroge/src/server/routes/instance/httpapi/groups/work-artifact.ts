@@ -10,7 +10,6 @@ import { ConflictError, InvalidRequestError } from "../errors"
 import { Authorization } from "../middleware/authorization"
 import { InstanceContextMiddleware } from "../middleware/instance-context"
 
-const root = "/work-artifact"
 const sessionRoot = "/session/:sessionID/work-artifact"
 
 export const ApplyPayload = Schema.Struct({

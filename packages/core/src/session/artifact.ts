@@ -11,7 +11,9 @@ import { SessionSchema } from "./schema"
 
 /**
  * M1 Artifact 契约（D2 定案：内存态事件，不落库，对齐 ADR-15 §5）。
- * 落盘成功后发 `work.artifact_applied` 事件，App 侧监听更新 Artifact Tab。
+ * 落盘成功后发 `work.artifact_applied` 事件（本 Service 的 apply 内 emit）。
+ * M1 App 右栏面板以本地内容比对判定"已应用"（绑定 sessionID，支持修订后回退，比一次性事件更贴合 UX），
+ * 不监听该事件；事件保留供 M2 存为资产及外部消费者订阅。
  * 跨刷新丢失可接受（M1），M2 存为资产时转 Chat 资产持久化。
  */
 export const ArtifactRecord = Schema.Struct({

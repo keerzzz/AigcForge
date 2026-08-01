@@ -3,19 +3,12 @@ import { WorkPresetRegistry } from "@aigcfroge/core/session/work-preset"
 import { presetLaunch } from "./work-preset-launch"
 
 describe("presetLaunch", () => {
-  test("binds every preset to a mode=work draft with work-orchestrator", () => {
-    for (const preset of WorkPresetRegistry.list()) {
-      const launch = presetLaunch(preset)
-      expect(launch.mode).toBe("work")
-      expect(launch.agent).toBe("work-orchestrator")
-    }
-  })
-
+  // mode=work / agent 绑定由 modeDraft + policy 保证，覆盖见 context/mode.test.ts
   test("seed prompt names the preset id and requests guidance + clarification", () => {
     const storyboard = WorkPresetRegistry.byId("storyboard-video")!
-    const launch = presetLaunch(storyboard)
-    expect(launch.seedPrompt).toContain("storyboard-video")
-    expect(launch.seedPrompt).toContain("加载预设指引")
-    expect(launch.seedPrompt).toContain("视频主题")
+    const prompt = presetLaunch(storyboard)
+    expect(prompt).toContain("storyboard-video")
+    expect(prompt).toContain("加载预设指引")
+    expect(prompt).toContain("视频主题")
   })
 })

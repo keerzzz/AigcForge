@@ -622,11 +622,10 @@ export function WorkPresetCatalogMain() {
     const currentCtx = ctx()
     const dir = directory()
     if (!c || !currentCtx || !dir) return
-    const launch = presetLaunch(preset)
     openProjectNewSession(
       currentCtx.projects,
       (serverKey, draftDirectory) =>
-        tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft("work") }, launch.seedPrompt),
+        tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft("work") }, presetLaunch(preset)),
       ServerConnection.key(c),
       dir,
     )

@@ -7,3 +7,13 @@ export function isConflictError(error: unknown): boolean {
     ? (error as { _tag: unknown })._tag === "ConflictError"
     : false
 }
+
+/** 提取可安全打印的失败原因：仅取 message 字符串，不打印整个错误对象，避免 Clean Logs 泄漏请求 payload。 */
+export function describeApplyError(error: unknown): string {
+  if (error instanceof Error) return error.message
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const message = (error as { message: unknown }).message
+    if (typeof message === "string") return message
+  }
+  return typeof error === "string" ? error : "unknown error"
+}

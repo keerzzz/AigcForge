@@ -10,13 +10,13 @@ import { useSessionLayout } from "@/pages/session/session-layout"
 import { Markdown } from "@aigcfroge/session-ui/markdown"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { draftFilename, findLatestAssistantMarkdown } from "@/pages/work-artifact-extract"
-import { computeWorkDiff } from "@/pages/work-artifact-diff"
-import { isConflictError } from "@/pages/work-artifact-error"
+import { diffTextLines } from "@/utils/text-diff"
+import { describeApplyError, isConflictError } from "@/pages/work-artifact-error"
 import type { Message } from "@aigcfroge/sdk/v2/client"
 
 /** 覆盖确认时的只读 diff 展示（新旧内容对比）。 */
 function WorkDiffView(props: { oldText: string; newText: string }) {
-  const lines = createMemo(() => computeWorkDiff(props.oldText, props.newText))
+  const lines = createMemo(() => diffTextLines(props.oldText, props.newText))
   return (
     <div class="flex max-h-48 min-h-0 flex-col overflow-y-auto rounded-lg border border-v2-border-border-base">
       <For each={lines()}>
@@ -49,7 +49,7 @@ export function WorkArtifactPanel() {
   const sdk = useSDK()
   const dialog = useDialog()
   const [applying, setApplying] = createSignal(false)
-  const [applied, setApplied] = createSignal<{ path: string; content: string } | undefined>()
+  const [applied, setApplied] = createSignal<{ sessionID: string; content: string }>()
   let sessionLayout: ReturnType<typeof useSessionLayout> | undefined
   try {
     sessionLayout = useSessionLayout()
@@ -66,11 +66,13 @@ export function WorkArtifactPanel() {
     return findLatestAssistantMarkdown(messages, data.part)
   })
 
-  // 仅当当前候选稿与已应用内容一致时才显示"已应用"；修订/切会话后回到可应用状态。
+  // 仅当当前会话的候选稿与已应用内容一致时才显示"已应用"（绑定 sessionID，跨会话不串）；
+  // 修订候选稿或切换会话后回到可应用状态。
   const appliedCurrent = createMemo(() => {
     const a = applied()
+    const id = sessionID()
     const content = candidate()
-    return a !== undefined && content !== null && a.content === content ? a : undefined
+    return a !== undefined && id !== undefined && content !== null && a.sessionID === id && a.content === content
   })
 
   async function apply(overwrite = false) {
@@ -88,41 +90,43 @@ export function WorkArtifactPanel() {
         content,
         overwrite,
       })
-      setApplied({ path: relativePath, content })
+      setApplied({ sessionID: id, content })
     } catch (error) {
-      if (isConflictError(error)) {
-        const relativePath = draftFilename(content)
-        const oldContent = await sdk().client.file
-          .read({ path: relativePath })
-          .then((r) => (r.data?.type === "text" ? r.data.content : undefined))
-          .catch(() => undefined)
-        void dialog.show(() => (
-          <Dialog title={language.t("work.artifact.conflict.title")} fit>
-            <div class="flex min-h-0 flex-col gap-4 p-4" style={{ width: "520px" }}>
-              <p class="text-v2-text-text-muted text-13-regular">
-                {language.t("work.artifact.conflict.body", { path: relativePath })}
-              </p>
-              <Show when={oldContent !== undefined}>
-                <WorkDiffView oldText={oldContent ?? ""} newText={content} />
-              </Show>
-              <div class="flex justify-end gap-2">
-                <ButtonV2 variant="ghost" onClick={() => dialog.close()}>
-                  {language.t("work.artifact.cancel")}
-                </ButtonV2>
-                <ButtonV2
-                  variant="contrast"
-                  onClick={() => {
-                    dialog.close()
-                    void apply(true)
-                  }}
-                >
-                  {language.t("work.artifact.overwrite")}
-                </ButtonV2>
-              </div>
-            </div>
-          </Dialog>
-        ))
+      if (!isConflictError(error)) {
+        console.error("[work-artifact] apply failed:", describeApplyError(error))
+        return
       }
+      const relativePath = draftFilename(content)
+      const oldContent = await sdk().client.file
+        .read({ path: relativePath })
+        .then((r) => (r.data?.type === "text" ? r.data.content : undefined))
+        .catch(() => undefined)
+      void dialog.show(() => (
+        <Dialog title={language.t("work.artifact.conflict.title")} fit>
+          <div class="flex min-h-0 flex-col gap-4 p-4" style={{ width: "520px" }}>
+            <p class="text-v2-text-text-muted text-13-regular">
+              {language.t("work.artifact.conflict.body", { path: relativePath })}
+            </p>
+            <Show when={oldContent !== undefined}>
+              <WorkDiffView oldText={oldContent ?? ""} newText={content} />
+            </Show>
+            <div class="flex justify-end gap-2">
+              <ButtonV2 variant="ghost" onClick={() => dialog.close()}>
+                {language.t("work.artifact.cancel")}
+              </ButtonV2>
+              <ButtonV2
+                variant="contrast"
+                onClick={() => {
+                  dialog.close()
+                  void apply(true)
+                }}
+              >
+                {language.t("work.artifact.overwrite")}
+              </ButtonV2>
+            </div>
+          </div>
+        </Dialog>
+      ))
     } finally {
       setApplying(false)
     }
@@ -151,7 +155,7 @@ export function WorkArtifactPanel() {
                 <ButtonV2
                   variant="contrast"
                   size="normal"
-                  icon="check"
+                  icon="folder-add-left"
                   class="w-full"
                   disabled={applying()}
                   onClick={() => void apply()}

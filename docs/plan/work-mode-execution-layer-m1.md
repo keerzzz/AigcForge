@@ -259,7 +259,7 @@ work: {
 - 复用 `session-side-panel.tsx` 双 Tab 结构，新增 Artifact Tab
 - Context Tab 直接复用 `packages/app/src/components/session/session-context-tab.tsx`（mode-agnostic，零改动）
 - Artifact Tab：**渲染候选 assistant 消息**（D1 方案 a，非文件）+ "应用到当前项目" 按钮 + 目标相对路径展示
-- 落盘成功后监听 `work.artifact_applied` 事件（D2）→ 更新 Tab 为已应用状态 + Artifact 引用
+- 落盘成功后 Core 发 `work.artifact_applied` 事件（D2）；M1 面板以本地内容比对判定已应用（绑定 sessionID，支持修订回退），事件保留供 M2/外部消费
 
 ---
 

@@ -1,6 +1,5 @@
 import { For, Show, createEffect, createMemo, createResource, createSignal, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
-import { diffLines } from "diff"
 import { DragDropProvider, DragDropSensors, DragOverlay, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd"
 import type { DragEvent } from "@thisbeyond/solid-dnd"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
@@ -22,27 +21,13 @@ import { TooltipKeybind } from "@/components/tooltip-keybind"
 import { IconButton } from "@aigcfroge/ui/icon-button"
 import { useCommand } from "@/context/command"
 import { ConstrainDragYAxis, getDraggableId } from "@/utils/solid-dnd"
+import { diffTextLines } from "@/utils/text-diff"
 import { getTabReorderIndex, shouldShowFileTree, createSizing } from "@/pages/session/helpers"
 import { createFileTabListSync } from "@/pages/session/file-tab-scroll"
 import { bumpAssetVersion, clearProposeCandidate, useProposeCandidate, setProposeCandidate, setApplying, setApplied } from "./prompt-asset-store"
 import { findProposeResult } from "./prompt-asset-candidate"
 import { applyAssetCandidate, assetKindDir, fetchAssetInsertText, listAssets } from "./asset-insert"
 import type { AssetKindId } from "@aigcfroge/schema/asset"
-
-type DiffLine = { type: "add" | "del" | "eq"; text: string }
-
-/** 用 diff 库 diffLines(Myers O(ND),无稠密矩阵)做行级 diff。复用已有依赖(E1)。 */
-function computeDiff(oldText: string, newText: string): DiffLine[] {
-  const out: DiffLine[] = []
-  for (const change of diffLines(oldText, newText)) {
-    const lines = change.value.split("\n")
-    // diffLines 的 value 末尾常含 \n,split 产生空尾,去掉
-    if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop()
-    const type: DiffLine["type"] = change.added ? "add" : change.removed ? "del" : "eq"
-    for (const text of lines) out.push({ type, text })
-  }
-  return out
-}
 
 export function ChatRightPanel() {
   const language = useLanguage()
@@ -185,7 +170,7 @@ export function ChatRightPanel() {
   // diff 用 createMemo,仅在 oldContent/candidate.content 变化时重算(E3)
   const diffLinesMemo = createMemo(() => {
     if (candidate.candidate?.status !== "exists") return null
-    return computeDiff(oldContent() ?? "", candidate.candidate?.content ?? "")
+    return diffTextLines(oldContent() ?? "", candidate.candidate?.content ?? "")
   })
 
   const handleApply = async () => {

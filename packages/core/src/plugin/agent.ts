@@ -341,6 +341,10 @@ export const Plugin = define({
               { action: "grep", resource: "*", effect: "allow" },
               { action: "question", resource: "*", effect: "allow" },
               { action: "work-preset", resource: "*", effect: "allow" },
+              // evaluate 取 findLast：上方 read * allow 会覆盖 defaults 的 .env ask，须以最后顺序恢复
+              { action: "read", resource: "*.env", effect: "ask" },
+              { action: "read", resource: "*.env.*", effect: "ask" },
+              { action: "read", resource: "*.env.example", effect: "allow" },
             ],
             readonlyExternalDirectory,
           ),

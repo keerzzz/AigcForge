@@ -2,6 +2,7 @@ import { describe, expect } from "bun:test"
 import { Effect, Exit, Scope } from "effect"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { Location } from "@aigcfroge/core/location"
+import { PermissionV2 } from "@aigcfroge/core/permission"
 import { AgentPlugin } from "@aigcfroge/core/plugin/agent"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { location } from "./fixture/location"
@@ -128,6 +129,34 @@ describe("AgentV2", () => {
       for (const item of agents) {
         expect(item.permissions.some((rule) => rule.action === "bash" && rule.effect !== "deny")).toBe(false)
       }
+    }),
+  )
+
+  it.effect("work-orchestrator is fail-closed and gates .env reads to ask", () =>
+    Effect.gen(function* () {
+      const agent = yield* AgentV2.Service
+      yield* AgentPlugin.Plugin.effect(
+        host({
+          agent: agentHost(agent),
+        }),
+      ).pipe(
+        Effect.provideService(
+          Location.Service,
+          Location.Service.of(location({ directory: AbsolutePath.make("/project") })),
+        ),
+      )
+
+      const work = yield* agent.get(AgentV2.ID.make("work-orchestrator"))
+      const permissions = work!.permissions
+      for (const action of ["bash", "edit", "write", "task", "webfetch", "skill"]) {
+        expect(PermissionV2.evaluate(action, "src/index.ts", permissions).effect).toBe("deny")
+      }
+      for (const action of ["read", "glob", "grep", "question", "work-preset"]) {
+        expect(PermissionV2.evaluate(action, "src/index.ts", permissions).effect).toBe("allow")
+      }
+      expect(PermissionV2.evaluate("read", ".env", permissions).effect).toBe("ask")
+      expect(PermissionV2.evaluate("read", ".env.local", permissions).effect).toBe("ask")
+      expect(PermissionV2.evaluate("read", ".env.example", permissions).effect).toBe("allow")
     }),
   )
 

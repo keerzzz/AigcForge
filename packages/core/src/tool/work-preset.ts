@@ -50,7 +50,7 @@ export const layer = Layer.effectDiscard(
           execute: (input) =>
             Effect.gen(function* () {
               const preset = WorkPresetRegistry.byId(input.presetID)
-              if (!preset) return yield* Effect.fail(new ToolFailure({ message: `Unknown work preset: ${input.presetID}` }))
+              if (!preset) return yield* new ToolFailure({ message: `Unknown work preset: ${input.presetID}` })
               return { preset }
             }),
         }),
