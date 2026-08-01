@@ -2,20 +2,26 @@ import { createMemo, createSignal, Show } from "solid-js"
 import { useLanguage } from "@/context/language"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
+import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { Markdown } from "@aigcfroge/session-ui/markdown"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
-import { findLatestAssistantMarkdown } from "@/pages/work-artifact-extract"
+import { draftFilename, findLatestAssistantMarkdown } from "@/pages/work-artifact-extract"
 import type { Message } from "@aigcfroge/sdk/v2/client"
 
 /**
- * Work 右栏 Artifact 面板：只读预览候选稿（assistant 消息正文）+ 应用入口。
- * 内容随会话消息实时更新；Phase E 填充同名冲突与落盘动作。
+ * Work 右栏 Artifact 面板：只读预览候选稿（assistant 消息正文）+ 应用到当前项目。
+ * 点击应用 → 原子落盘到当前 Location；目标同名时弹覆盖确认。
  */
 export function WorkArtifactPanel() {
   const language = useLanguage()
   const sync = useSync()
+  const sdk = useSDK()
+  const dialog = useDialog()
+  const [applying, setApplying] = createSignal(false)
   const [appliedPath, setAppliedPath] = createSignal<string | undefined>()
   let sessionLayout: ReturnType<typeof useSessionLayout> | undefined
   try {
@@ -32,6 +38,56 @@ export function WorkArtifactPanel() {
     const messages = (data.message?.[id] ?? []) as readonly Message[]
     return findLatestAssistantMarkdown(messages, data.part)
   })
+
+  async function apply(overwrite = false) {
+    const id = sessionID()
+    const content = candidate()
+    if (!id || !content || applying()) return
+    setApplying(true)
+    try {
+      const relativePath = draftFilename(content)
+      await sdk().client.workArtifact.apply({
+        sessionID: id,
+        directory: sdk().directory,
+        title: relativePath,
+        relativePath,
+        content,
+        overwrite,
+      })
+      setAppliedPath(relativePath)
+    } catch (error) {
+      const status = typeof error === "object" && error !== null && "status" in error
+        ? (error as { status: unknown }).status
+        : undefined
+      if (status === 409) {
+        void dialog.show(() => (
+          <Dialog title={language.t("work.artifact.conflict.title")} fit>
+            <div class="flex min-h-0 flex-col gap-4 p-4" style={{ width: "400px" }}>
+              <p class="text-v2-text-text-muted text-13-regular">
+                {language.t("work.artifact.conflict.body", { path: draftFilename(content) })}
+              </p>
+              <div class="flex justify-end gap-2">
+                <ButtonV2 variant="ghost" onClick={() => dialog.close()}>
+                  {language.t("work.artifact.cancel")}
+                </ButtonV2>
+                <ButtonV2
+                  variant="contrast"
+                  onClick={() => {
+                    dialog.close()
+                    void apply(true)
+                  }}
+                >
+                  {language.t("work.artifact.overwrite")}
+                </ButtonV2>
+              </div>
+            </div>
+          </Dialog>
+        ))
+      }
+    } finally {
+      setApplying(false)
+    }
+  }
 
   return (
     <div class="flex h-full min-h-0 w-72 shrink-0 flex-col border-l border-v2-border-border-base bg-v2-background-bg-base">
@@ -58,7 +114,8 @@ export function WorkArtifactPanel() {
                   size="normal"
                   icon="check"
                   class="w-full"
-                  onClick={() => setAppliedPath("pending")}
+                  disabled={applying()}
+                  onClick={() => void apply()}
                 >
                   {language.t("work.artifact.apply")}
                 </ButtonV2>

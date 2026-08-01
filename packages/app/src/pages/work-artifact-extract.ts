@@ -20,3 +20,15 @@ export function findLatestAssistantMarkdown(
   }
   return null
 }
+
+/** 从候选稿首行标题派生默认文件名；无标题时用通用名。 */
+export function draftFilename(markdown: string): string {
+  const firstLine = markdown
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => line.startsWith("# "))
+  const title = firstLine?.replace(/^#\s+/, "").trim()
+  if (!title) return "work-draft.md"
+  const safe = title.replace(/[\\/:*?"<>|]/g, "-").slice(0, 80)
+  return safe.endsWith(".md") ? safe : `${safe}.md`
+}

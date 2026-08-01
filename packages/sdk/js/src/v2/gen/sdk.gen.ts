@@ -451,6 +451,8 @@ import type {
   VcsStatusResponses,
   VcsUnstageErrors,
   VcsUnstageResponses,
+  WorkArtifactApplyErrors,
+  WorkArtifactApplyResponses,
   WorkflowAssetApplyErrors,
   WorkflowAssetApplyResponses,
   WorkflowAssetContentErrors,
@@ -3553,6 +3555,53 @@ export class PromptAsset extends HeyApiClient {
     )
     return (options?.client ?? this.client).post<PromptAssetDeleteResponses, PromptAssetDeleteErrors, ThrowOnError>({
       url: "/session/{sessionID}/prompt-asset/delete",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
+export class WorkArtifact extends HeyApiClient {
+  /**
+   * Apply work artifact
+   *
+   * Persist a drafted work artifact (candidate message) to the current Location atomically.
+   */
+  public apply<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      title?: string
+      relativePath?: string
+      content?: string
+      overwrite?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "title" },
+            { in: "body", key: "relativePath" },
+            { in: "body", key: "content" },
+            { in: "body", key: "overwrite" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WorkArtifactApplyResponses, WorkArtifactApplyErrors, ThrowOnError>({
+      url: "/session/{sessionID}/work-artifact/apply",
       ...options,
       ...params,
       headers: {
@@ -8474,6 +8523,11 @@ export class AigcfrogeClient extends HeyApiClient {
   private _promptAsset?: PromptAsset
   get promptAsset(): PromptAsset {
     return (this._promptAsset ??= new PromptAsset({ client: this.client }))
+  }
+
+  private _workArtifact?: WorkArtifact
+  get workArtifact(): WorkArtifact {
+    return (this._workArtifact ??= new WorkArtifact({ client: this.client }))
   }
 
   private _skillAsset?: SkillAsset

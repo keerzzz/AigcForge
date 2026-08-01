@@ -16,6 +16,7 @@ import { InstanceApi } from "./groups/instance"
 import { McpApi } from "./groups/mcp"
 import { PermissionApi } from "./groups/permission"
 import { PromptAssetApiGroup } from "./groups/prompt-asset"
+import { WorkArtifactApiGroup } from "./groups/work-artifact"
 import { SkillAssetApiGroup } from "./groups/skill-asset"
 import { MCPAssetApiGroup } from "./groups/mcp-asset"
 import { CommandAssetApiGroup } from "./groups/command-asset"
@@ -71,6 +72,7 @@ export const InstanceHttpApi = HttpApi.make("aigcfroge-instance")
   .addHttpApi(QuestionApi)
   .addHttpApi(PermissionApi)
   .addHttpApi(PromptAssetApiGroup.PromptAssetApi)
+  .addHttpApi(WorkArtifactApiGroup.WorkArtifactApi)
   .addHttpApi(SkillAssetApiGroup.SkillAssetApi)
   .addHttpApi(MCPAssetApiGroup.MCPAssetApi)
   .addHttpApi(CommandAssetApiGroup.CommandAssetApi)

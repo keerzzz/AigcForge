@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { findLatestAssistantMarkdown } from "./work-artifact-extract"
+import { draftFilename, findLatestAssistantMarkdown } from "./work-artifact-extract"
 
 const message = (over: Partial<{ id: string; agent: string; mode: string }> = {}) => ({
   id: over.id ?? "msg_1",
@@ -45,5 +45,19 @@ describe("findLatestAssistantMarkdown", () => {
       msg_2: [{ type: "tool" as const, id: "t", name: "work-preset", state: { status: "completed" } }],
     }
     expect(findLatestAssistantMarkdown(messages, parts)).toBe("# 第一版")
+  })
+})
+
+describe("draftFilename", () => {
+  test("derives a markdown filename from the first heading", () => {
+    expect(draftFilename("# 视频分镜脚本\n\n正文")).toBe("视频分镜脚本.md")
+  })
+
+  test("falls back to a generic name when there is no heading", () => {
+    expect(draftFilename("纯文本正文")).toBe("work-draft.md")
+  })
+
+  test("sanitizes invalid filename characters", () => {
+    expect(draftFilename("# 分镜: 脚本/测试?")).toBe("分镜- 脚本-测试-.md")
   })
 })

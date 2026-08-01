@@ -71,6 +71,7 @@ export type Event =
   | EventQuestionV2Replied
   | EventQuestionV2Rejected
   | EventTodoUpdated
+  | EventWorkArtifactApplied
   | EventLspUpdated
   | EventPermissionAsked
   | EventPermissionReplied
@@ -1439,6 +1440,14 @@ export type GlobalEvent = {
         properties: {
           sessionID: string
           todos: Array<Todo>
+        }
+      }
+    | {
+        id: string
+        type: "work.artifact_applied"
+        properties: {
+          sessionID: string
+          artifactID: string
         }
       }
     | {
@@ -3422,6 +3431,7 @@ export type V2Event =
   | V2EventQuestionV2Replied
   | V2EventQuestionV2Rejected
   | V2EventTodoUpdated
+  | V2EventWorkArtifactApplied
   | V2EventLspUpdated
   | V2EventPermissionAsked
   | V2EventPermissionReplied
@@ -4362,6 +4372,27 @@ export type PromptAssetCandidate = {
   description: string
   template: string
   relativePath: string
+}
+
+export type WorkArtifactArtifactRecord = {
+  /**
+   * 稳定 Artifact ID
+   */
+  id: string
+  sessionID: string
+  /**
+   * M1 固定
+   */
+  kind: "document"
+  title: string
+  mediaType: "text/markdown"
+  /**
+   * 相对 Session Location，规范化后不得越界
+   */
+  relativePath: string
+  status: "available" | "missing"
+  createdAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
 }
 
 export type SkillAssetSummary = {
@@ -6614,6 +6645,24 @@ export type V2EventTodoUpdated = {
   }
 }
 
+export type V2EventWorkArtifactApplied = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "work.artifact_applied"
+  data: {
+    sessionID: string
+    artifactID: string
+  }
+}
+
 export type V2EventLspUpdated = {
   id: string
   metadata?: {
@@ -7920,6 +7969,15 @@ export type EventTodoUpdated = {
   properties: {
     sessionID: string
     todos: Array<Todo>
+  }
+}
+
+export type EventWorkArtifactApplied = {
+  id: string
+  type: "work.artifact_applied"
+  properties: {
+    sessionID: string
+    artifactID: string
   }
 }
 
@@ -10650,6 +10708,45 @@ export type PromptAssetDeleteResponses = {
    */
   200: unknown
 }
+
+export type WorkArtifactApplyData = {
+  body?: {
+    title: string
+    relativePath: string
+    content: string
+    overwrite: boolean
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/work-artifact/apply"
+}
+
+export type WorkArtifactApplyErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type WorkArtifactApplyError = WorkArtifactApplyErrors[keyof WorkArtifactApplyErrors]
+
+export type WorkArtifactApplyResponses = {
+  /**
+   * Applied work artifact
+   */
+  200: WorkArtifactArtifactRecord
+}
+
+export type WorkArtifactApplyResponse = WorkArtifactApplyResponses[keyof WorkArtifactApplyResponses]
 
 export type SkillAssetListData = {
   body?: never
