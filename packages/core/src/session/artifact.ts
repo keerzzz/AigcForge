@@ -1,7 +1,11 @@
 export * as WorkArtifact from "./artifact"
 
-import { Schema } from "effect"
+import { Context, Effect, Layer, Schema } from "effect"
+import path from "path"
 import { EventV2 } from "../event"
+import { FileMutation } from "../file-mutation"
+import { LocationMutation } from "../location-mutation"
+import { FSUtil } from "../fs-util"
 import { SessionSchema } from "./schema"
 
 /**
@@ -31,3 +35,96 @@ export const Event = {
     },
   }),
 }
+
+export class PathValidationError extends Schema.TaggedErrorClass<PathValidationError>()(
+  "WorkArtifact.PathValidation",
+  {
+    relativePath: Schema.String,
+    reason: Schema.String,
+  },
+) {}
+
+export class ConflictError extends Schema.TaggedErrorClass<ConflictError>()("WorkArtifact.Conflict", {
+  relativePath: Schema.String,
+}) {}
+
+export interface ApplyInput {
+  readonly sessionID: SessionSchema.ID
+  readonly title: string
+  readonly relativePath: string
+  readonly content: string
+  readonly overwrite?: boolean
+}
+
+export interface ApplyResult {
+  readonly artifact: ArtifactRecord
+  readonly existed: boolean
+}
+
+export interface Interface {
+  readonly apply: (input: ApplyInput) => Effect.Effect<ApplyResult, PathValidationError | ConflictError | FSUtil.Error>
+}
+
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/WorkArtifact") {}
+
+export const layer = Layer.effect(
+  Service,
+  Effect.gen(function* () {
+    const locationMutation = yield* LocationMutation.Service
+    const fileMutation = yield* FileMutation.Service
+    const fs = yield* FSUtil.Service
+    const events = yield* EventV2.Service
+
+    const validate = Effect.fnUntraced(function* (relativePath: string) {
+      if (relativePath.trim() === "") {
+        return yield* new PathValidationError({ relativePath, reason: "Path must not be empty" })
+      }
+      if (path.isAbsolute(relativePath)) {
+        return yield* new PathValidationError({ relativePath, reason: "Path must be relative to the location" })
+      }
+      if (relativePath.split(/[\\/]/).includes("..")) {
+        return yield* new PathValidationError({ relativePath, reason: "Path must not escape the location" })
+      }
+      return relativePath
+    })
+
+    const apply = Effect.fn("WorkArtifact.apply")(function* (input: ApplyInput) {
+      yield* validate(input.relativePath)
+      // LocationMutation.resolve 做真实路径规范化 + 符号链接越界拦截。
+      const target = yield* locationMutation.resolve({ path: input.relativePath }).pipe(
+        Effect.mapError(
+          (error) => new PathValidationError({ relativePath: input.relativePath, reason: String(error) }),
+        ),
+      )
+      const existed = yield* fs.exists(target.canonical)
+      if (existed && !input.overwrite) {
+        return yield* new ConflictError({ relativePath: input.relativePath })
+      }
+      yield* fileMutation.writeAtomic({ target, content: input.content })
+      const now = Date.now()
+      const artifactID = `art_${now}`
+      const artifact: ArtifactRecord = {
+        id: artifactID,
+        sessionID: input.sessionID,
+        kind: "document",
+        title: input.title,
+        mediaType: "text/markdown",
+        relativePath: target.resource,
+        status: "available",
+        createdAt: now,
+        updatedAt: now,
+      }
+      yield* events.publish(Event.ArtifactApplied, { sessionID: input.sessionID, artifactID })
+      return { artifact, existed }
+    })
+
+    return Service.of({ apply })
+  }),
+)
+
+export const locationLayer = layer.pipe(
+  Layer.provide(LocationMutation.locationLayer),
+  Layer.provide(FileMutation.locationLayer),
+  Layer.provide(FSUtil.defaultLayer),
+  Layer.provide(EventV2.defaultLayer),
+)
