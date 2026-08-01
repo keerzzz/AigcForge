@@ -1,6 +1,6 @@
 export * as SessionTask from "./task"
 
-import { asc, eq } from "drizzle-orm"
+import { and, asc, eq } from "drizzle-orm"
 import { Context, Effect, Layer, Schema } from "effect"
 import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task"
 import { Database } from "../database/database"
@@ -18,14 +18,14 @@ export type Info = typeof Info.Type
  * priority/parentID/sessionID fields; `outputDigest` rides the returned list and
  * the `task.updated` event but is not stored until M1.5.
  */
-export interface WriteInfo {
-  readonly id?: string
-  readonly content: string
-  readonly status: SessionTaskSchema.TaskStatus
-  readonly priority: SessionTaskSchema.TaskPriority
-  readonly parentID?: string
-  readonly outputDigest?: string
-}
+export const WriteInfo = Schema.Struct({
+  id: Schema.optional(Schema.String),
+  content: Schema.String,
+  status: SessionTaskSchema.TaskStatus,
+  priority: SessionTaskSchema.TaskPriority,
+  parentID: Schema.optional(Schema.String),
+}).annotate({ identifier: "SessionTask.WriteInfo" })
+export type WriteInfo = typeof WriteInfo.Type
 
 export const Event = {
   Updated: EventV2.define({
@@ -43,6 +43,17 @@ export interface Interface {
     readonly sessionID: SessionSchema.ID
     readonly tasks: ReadonlyArray<WriteInfo>
   }) => Effect.Effect<ReadonlyArray<Info>>
+  /**
+   * Target a single task by id and update its status (delegation writeback).
+   * Other rows are untouched; `outputDigest` rides the returned Info and the
+   * republished `task.updated` event but is not stored in M0.
+   */
+  readonly patch: (input: {
+    readonly sessionID: SessionSchema.ID
+    readonly id: string
+    readonly status: SessionTaskSchema.TaskStatus
+    readonly outputDigest?: string
+  }) => Effect.Effect<Info | undefined>
   readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<ReadonlyArray<Info>>
   /** Remove every task owned by the session. */
   readonly delete: (sessionID: SessionSchema.ID) => Effect.Effect<void>
@@ -136,7 +147,6 @@ export const layer = Layer.effect(
         priority: task.priority,
         sessionID: input.sessionID,
         ...(task.parentID ? { parentID: task.parentID } : {}),
-        ...(task.outputDigest ? { outputDigest: task.outputDigest } : {}),
         createdAt: now,
         updatedAt: now,
       }))
@@ -149,12 +159,48 @@ export const layer = Layer.effect(
       return rows.map(toInfo)
     })
 
+    const patch = Effect.fn("SessionTask.patch")(function* (input: {
+      readonly sessionID: SessionSchema.ID
+      readonly id: string
+      readonly status: SessionTaskSchema.TaskStatus
+      readonly outputDigest?: string
+    }) {
+      const now = yield* Effect.sync(() => Date.now())
+      yield* db
+        .update(TaskTable)
+        .set({ status: input.status, time_updated: now })
+        .where(and(eq(TaskTable.id, input.id), eq(TaskTable.session_id, input.sessionID)))
+        .run()
+        .pipe(Effect.orDie)
+      const row = yield* db.select().from(TaskTable).where(eq(TaskTable.id, input.id)).get().pipe(Effect.orDie)
+      if (!row) return undefined
+      const info: Info = {
+        ...toInfo(row),
+        updatedAt: now,
+        ...(input.outputDigest ? { outputDigest: input.outputDigest } : {}),
+      }
+      // The event carries the digest for the patched task even though M0 does not
+      // store it, so consumers can jump to the child Session from the payload.
+      const full = yield* read(input.sessionID).pipe(
+        Effect.map((rows) =>
+          rows.map((r) => {
+            const current = toInfo(r)
+            return current.id === input.id && input.outputDigest
+              ? { ...current, updatedAt: now, outputDigest: input.outputDigest }
+              : current
+          }),
+        ),
+      )
+      yield* events.publish(Event.Updated, { sessionID: input.sessionID, tasks: full })
+      return info
+    })
+
     const remove = Effect.fn("SessionTask.delete")(function* (sessionID: SessionSchema.ID) {
       yield* db.delete(TaskTable).where(eq(TaskTable.session_id, sessionID)).run().pipe(Effect.orDie)
       yield* events.publish(Event.Updated, { sessionID, tasks: [] })
     })
 
-    return Service.of({ update, get, delete: remove })
+    return Service.of({ update, patch, get, delete: remove })
   }),
 )
 

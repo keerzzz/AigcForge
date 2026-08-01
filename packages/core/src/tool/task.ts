@@ -6,6 +6,7 @@ import { AgentV2 } from "../agent"
 import { Config } from "../config"
 import { PermissionV2 } from "../permission"
 import { SessionSchema } from "../session/schema"
+import { SessionTask } from "../session/task"
 import { Tool } from "./tool"
 import { TaskDriver } from "./task-driver"
 import { Tools } from "./tools"
@@ -26,6 +27,10 @@ export const Input = Schema.Struct({
   task_id: Schema.optional(Schema.String).annotate({
     description:
       "Set only to resume a previous task: pass a prior task_id to continue that same subagent session instead of creating a fresh one.",
+  }),
+  parent_task_id: Schema.optional(Schema.String).annotate({
+    description:
+      "Link this delegation to an existing task created with taskwrite (track A). When omitted, an in_progress task is created automatically (track B) and written back when the subagent settles.",
   }),
   background: Schema.optional(Schema.Boolean).annotate({
     description:
@@ -116,6 +121,7 @@ export const layer = Layer.effectDiscard(
     const agents = yield* AgentV2.Service
     const permission = yield* PermissionV2.Service
     const config = yield* Config.Service
+    const tasks = yield* SessionTask.Service
     const configEntries = yield* config.entries()
     const configAttendedDefault = Config.latest(configEntries, "subagent_attended_default")
 
@@ -207,6 +213,38 @@ export const layer = Layer.effectDiscard(
                 ? Option.getOrUndefined(Schema.decodeUnknownOption(SessionSchema.ID)(input.task_id))
                 : undefined
 
+              // ── Dual-track todo linkage ──
+              // Track A: an explicit parent_task_id links to an existing task
+              // minted by taskwrite. Track B: a fresh delegation auto-creates an
+              // in_progress task (content = description) so the todo dashboard
+              // mirrors the delegation tree; resuming a child reuses the todo the
+              // original delegation created.
+              let taskID: string | undefined = input.parent_task_id
+              if (taskID === undefined && resumeID === undefined) {
+                const current = yield* tasks.get(context.sessionID)
+                const created = yield* tasks.update({
+                  sessionID: context.sessionID,
+                  tasks: [
+                    ...current,
+                    { content: input.description, status: "in_progress", priority: "medium" },
+                  ],
+                })
+                taskID = created.at(-1)?.id
+              }
+              let onSettle: ((outcome: TaskDriver.SettleOutcome) => Effect.Effect<void>) | undefined
+              if (taskID !== undefined) {
+                const linkedTaskID = taskID
+                onSettle = (outcome) =>
+                  tasks
+                    .patch({
+                      sessionID: context.sessionID,
+                      id: linkedTaskID,
+                      status: outcome.status,
+                      outputDigest: outcome.outputDigest,
+                    })
+                    .pipe(Effect.asVoid)
+              }
+
               // Tracks the current attempt's child so an abort can stop it and a
               // retry can cancel the orphan a failed prior attempt left behind.
               const activeChild = yield* Ref.make(Option.none<SessionSchema.ID>())
@@ -267,6 +305,8 @@ export const layer = Layer.effectDiscard(
                     sessionID: child.id,
                     prompt: input.prompt,
                     description: input.description,
+                    taskID,
+                    onSettle,
                   })
                   return {
                     sessionID: child.id,
@@ -278,6 +318,8 @@ export const layer = Layer.effectDiscard(
                   sessionID: child.id,
                   parentID: context.sessionID,
                   prompt: input.prompt,
+                  taskID,
+                  onSettle,
                 })
                 return {
                   sessionID: child.id,

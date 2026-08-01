@@ -11,6 +11,7 @@ import { ReadTool } from "./read"
 import { ReadToolFileSystem } from "./read-filesystem"
 import { SkillTool } from "./skill"
 import { TaskTool } from "./task"
+import { TaskWriteTool } from "./taskwrite"
 import { TodoWriteTool } from "./todowrite"
 import { WebFetchTool } from "./webfetch"
 import { WebSearchTool } from "./websearch"
@@ -49,6 +50,7 @@ export const locationLayer = Layer.mergeAll(
   ReadTool.layer.pipe(Layer.provide(ReadToolFileSystem.layer)),
   SkillTool.layer,
   TaskTool.layer,
+  TaskWriteTool.layer,
   TodoWriteTool.layer,
   WebFetchTool.layer,
   WebSearchTool.layer.pipe(Layer.provide(WebSearchTool.defaultConfigLayer)),
