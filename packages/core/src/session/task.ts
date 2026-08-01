@@ -6,6 +6,7 @@ import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task
 import { Database } from "../database/database"
 import { EventV2 } from "../event"
 import { Identifier } from "../id/id"
+import { LayerNode } from "../effect/layer-node"
 import { SessionSchema } from "./schema"
 import { TaskTable } from "./sql"
 
@@ -205,3 +206,4 @@ export const layer = Layer.effect(
 )
 
 export const defaultLayer = layer.pipe(Layer.provide(EventV2.defaultLayer), Layer.provide(Database.defaultLayer))
+export const node = LayerNode.make(layer, [Database.node, EventV2.node])

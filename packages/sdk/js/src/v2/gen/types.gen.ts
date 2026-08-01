@@ -70,6 +70,7 @@ export type Event =
   | EventQuestionV2Asked
   | EventQuestionV2Replied
   | EventQuestionV2Rejected
+  | EventTaskUpdated
   | EventTodoUpdated
   | EventWorkArtifactApplied
   | EventLspUpdated
@@ -661,6 +662,16 @@ export type Pty = {
   status: "running" | "exited"
   pid: number
   exitCode?: number
+}
+
+export type TaskStatus = "pending" | "in_progress" | "completed" | "cancelled" | "scheduled" | "failed"
+
+export type TaskPriority = "high" | "medium" | "low"
+
+export type TaskRecurrence = {
+  cron: string
+  timezone?: string
+  enabled: boolean
 }
 
 export type Todo = {
@@ -1432,6 +1443,14 @@ export type GlobalEvent = {
         properties: {
           sessionID: string
           requestID: string
+        }
+      }
+    | {
+        id: string
+        type: "task.updated"
+        properties: {
+          sessionID: string
+          tasks: Array<SessionTaskInfo>
         }
       }
     | {
@@ -3430,6 +3449,7 @@ export type V2Event =
   | V2EventQuestionV2Asked
   | V2EventQuestionV2Replied
   | V2EventQuestionV2Rejected
+  | V2EventTaskUpdated
   | V2EventTodoUpdated
   | V2EventWorkArtifactApplied
   | V2EventLspUpdated
@@ -3645,6 +3665,35 @@ export type QuestionV2Tool = {
 }
 
 export type QuestionV2Answer = Array<string>
+
+export type SessionTaskInfo = {
+  /**
+   * Stable task ID (tsk_ prefixed, time-ordered)
+   */
+  id: string
+  /**
+   * Brief description of the task
+   */
+  content: string
+  status: TaskStatus
+  priority: TaskPriority
+  /**
+   * Owning session scope
+   */
+  sessionID: string
+  parentID?: string
+  outputDigest?: string
+  agentID?: string
+  /**
+   * Scheduled trigger timestamp (ms)
+   */
+  scheduledAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  recurrence?: TaskRecurrence
+  spawnedFrom?: string
+  dependsOn?: Array<string>
+  createdAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+}
 
 export type EventServerInstanceDisposed = {
   id: string
@@ -6627,6 +6676,24 @@ export type V2EventQuestionV2Rejected = {
   }
 }
 
+export type V2EventTaskUpdated = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "task.updated"
+  data: {
+    sessionID: string
+    tasks: Array<SessionTaskInfo>
+  }
+}
+
 export type V2EventTodoUpdated = {
   id: string
   metadata?: {
@@ -7960,6 +8027,44 @@ export type EventQuestionV2Rejected = {
   properties: {
     sessionID: string
     requestID: string
+  }
+}
+
+export type SessionTaskInfo1 = {
+  /**
+   * Stable task ID (tsk_ prefixed, time-ordered)
+   */
+  id: string
+  /**
+   * Brief description of the task
+   */
+  content: string
+  status: TaskStatus
+  priority: TaskPriority
+  /**
+   * Owning session scope
+   */
+  sessionID: string
+  parentID?: string
+  outputDigest?: string
+  agentID?: string
+  /**
+   * Scheduled trigger timestamp (ms)
+   */
+  scheduledAt?: number | "NaN" | "Infinity" | "-Infinity"
+  recurrence?: TaskRecurrence
+  spawnedFrom?: string
+  dependsOn?: Array<string>
+  createdAt: number | "NaN" | "Infinity" | "-Infinity"
+  updatedAt: number | "NaN" | "Infinity" | "-Infinity"
+}
+
+export type EventTaskUpdated = {
+  id: string
+  type: "task.updated"
+  properties: {
+    sessionID: string
+    tasks: Array<SessionTaskInfo1>
   }
 }
 
@@ -12012,6 +12117,40 @@ export type SessionTodoResponses = {
 }
 
 export type SessionTodoResponse = SessionTodoResponses[keyof SessionTodoResponses]
+
+export type SessionTaskUpdateData = {
+  body?: Array<SessionTaskInfo>
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/task"
+}
+
+export type SessionTaskUpdateErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionTaskUpdateError = SessionTaskUpdateErrors[keyof SessionTaskUpdateErrors]
+
+export type SessionTaskUpdateResponses = {
+  /**
+   * Updated task list
+   */
+  200: Array<SessionTaskInfo>
+}
+
+export type SessionTaskUpdateResponse = SessionTaskUpdateResponses[keyof SessionTaskUpdateResponses]
 
 export type SessionDiffData = {
   body?: never

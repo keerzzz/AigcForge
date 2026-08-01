@@ -25,6 +25,7 @@ import { described } from "./metadata"
 import { QueryBoolean } from "./query"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
+import { SessionTask } from "@aigcfroge/core/session/task"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
 
 const root = "/session"
@@ -83,6 +84,7 @@ export const SessionPaths = {
   get: `${root}/:sessionID`,
   children: `${root}/:sessionID/children`,
   todo: `${root}/:sessionID/todo`,
+  task: `${root}/:sessionID/task`,
   diff: `${root}/:sessionID/diff`,
   messages: `${root}/:sessionID/message`,
   message: `${root}/:sessionID/message/:messageID`,
@@ -167,6 +169,20 @@ export const SessionApi = HttpApi.make("session")
             identifier: "session.todo",
             summary: "Get session todos",
             description: "Retrieve the todo list associated with a specific session, showing tasks and action items.",
+          }),
+        ),
+        HttpApiEndpoint.patch("task", SessionPaths.task, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          payload: Schema.Array(SessionTask.Info),
+          success: described(Schema.Array(SessionTask.Info), "Updated task list"),
+          error: [HttpApiError.BadRequest, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.task.update",
+            summary: "Replace session tasks",
+            description:
+              "Reconcile a session's task list: entries with an existing id are updated in place, entries without a persisted row are minted a stable tsk_ id, and omitted entries are removed.",
           }),
         ),
         HttpApiEndpoint.get("diff", SessionPaths.diff, {

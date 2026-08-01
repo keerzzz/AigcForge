@@ -4,6 +4,7 @@ import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { SessionV2 } from "@aigcfroge/core/session"
 import { SessionMessage } from "@aigcfroge/core/session/message"
 import { SessionTodo } from "@aigcfroge/core/session/todo"
+import { SessionTask } from "@aigcfroge/core/session/task"
 import { PermissionV2 } from "@aigcfroge/core/permission"
 import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
 import { SessionRevert as V2SessionRevert } from "@aigcfroge/core/session/revert"
@@ -121,6 +122,15 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
         return yield* v2todo.get(ctx.params.sessionID)
       }
       return yield* todoSvc.get(ctx.params.sessionID)
+    })
+
+    const task = Effect.fn("SessionHttpApi.task")(function* (ctx: {
+      params: { sessionID: SessionID }
+      payload: ReadonlyArray<SessionTask.Info>
+    }) {
+      yield* requireSession(ctx.params.sessionID)
+      const v2task = yield* SessionTask.Service
+      return yield* v2task.update({ sessionID: ctx.params.sessionID, tasks: ctx.payload })
     })
 
     const diff = Effect.fn("SessionHttpApi.diff")(function* (ctx: {
@@ -624,6 +634,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       .handle("get", get)
       .handle("children", children)
       .handle("todo", todo)
+      .handle("task", task)
       .handle("diff", diff)
       .handle("messages", messages)
       .handle("message", message)

@@ -260,6 +260,9 @@ import type {
   SessionStatusResponses,
   SessionSummarizeErrors,
   SessionSummarizeResponses,
+  SessionTaskInfo,
+  SessionTaskUpdateErrors,
+  SessionTaskUpdateResponses,
   SessionTodoErrors,
   SessionTodoResponses,
   SessionToolSummaryErrors,
@@ -4714,6 +4717,47 @@ export class Provider extends HeyApiClient {
   }
 }
 
+export class Task extends HeyApiClient {
+  /**
+   * Replace session tasks
+   *
+   * Reconcile a session's task list: entries with an existing id are updated in place, entries without a persisted row are minted a stable tsk_ id, and omitted entries are removed.
+   */
+  public update<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      body?: Array<SessionTaskInfo>
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { key: "body", map: "body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).patch<SessionTaskUpdateResponses, SessionTaskUpdateErrors, ThrowOnError>({
+      url: "/session/{sessionID}/task",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class Session2 extends HeyApiClient {
   /**
    * List sessions
@@ -5751,6 +5795,11 @@ export class Session2 extends HeyApiClient {
       ...options,
       ...params,
     })
+  }
+
+  private _task?: Task
+  get task(): Task {
+    return (this._task ??= new Task({ client: this.client }))
   }
 }
 

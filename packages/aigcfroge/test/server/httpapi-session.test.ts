@@ -26,6 +26,7 @@ import { MessageID, PartID, SessionID, type SessionID as SessionIDType } from ".
 import { Database } from "@aigcfroge/core/database/database"
 import { SessionInputTable, SessionMessageTable, SessionTable } from "@aigcfroge/core/session/sql"
 import { SessionMessage } from "@aigcfroge/core/session/message"
+import { SessionTask } from "@aigcfroge/core/session/task"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import * as DateTime from "effect/DateTime"
@@ -65,6 +66,7 @@ const it = testEffect(
     instanceStoreLayer,
     Project.defaultLayer,
     Session.defaultLayer,
+    SessionTask.defaultLayer,
     workspaceLayer,
     Database.defaultLayer,
     httpApiLayer,
@@ -1008,5 +1010,77 @@ describe("session HttpApi", () => {
         })
       }),
     { git: true, config: { formatter: false, lsp: false } },
+  )
+})
+
+describe("session task HttpApi", () => {
+  it.instance(
+    "PATCH /session/:id/task replaces the task list and reads back consistently",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = {
+          "x-aigcfroge-directory": encodeURIComponent(test.directory),
+          "content-type": "application/json",
+        }
+        const session = yield* createSession({ title: "task list" })
+
+        // Seed two tasks via the service (shares the same DB the handler reads).
+        const tasks = yield* SessionTask.Service
+        const seeded = yield* tasks.update({
+          sessionID: session.id,
+          tasks: [
+            { content: "first", status: "pending", priority: "low" },
+            { content: "second", status: "in_progress", priority: "high" },
+          ],
+        })
+        expect(seeded.every((task) => task.id.startsWith("tsk_"))).toBe(true)
+        const [first] = seeded
+
+        // PATCH with one status flipped and the other omitted (removed by reconcile).
+        const body = yield* requestJson<SessionTask.Info[]>(pathFor(SessionPaths.task, { sessionID: session.id }), {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify([{ ...first, status: "completed" }]),
+        })
+        expect(body).toHaveLength(1)
+        expect(body[0]?.status).toBe("completed")
+        expect(body[0]?.id).toBe(first.id)
+
+        // Reads back consistently through the service.
+        const got = yield* tasks.get(session.id)
+        expect(got.map((task) => task.id)).toEqual([first.id])
+        expect(got[0]?.status).toBe("completed")
+      }),
+  )
+
+  it.instance(
+    "PATCH /session/:id/task rejects an invalid status body with 400",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = {
+          "x-aigcfroge-directory": encodeURIComponent(test.directory),
+          "content-type": "application/json",
+        }
+        const session = yield* createSession({ title: "task bad body" })
+
+        const response = yield* request(pathFor(SessionPaths.task, { sessionID: session.id }), {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify([
+            {
+              id: "tsk_1",
+              content: "x",
+              status: "bogus",
+              priority: "low",
+              sessionID: session.id,
+              createdAt: 1,
+              updatedAt: 1,
+            },
+          ]),
+        })
+        expect(response.status).toBe(400)
+      }),
   )
 })
