@@ -1,4 +1,4 @@
-import { createMemo, createSignal, Show } from "solid-js"
+import { For, Show, createMemo, createSignal } from "solid-js"
 import { useLanguage } from "@/context/language"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
@@ -10,7 +10,33 @@ import { useSessionLayout } from "@/pages/session/session-layout"
 import { Markdown } from "@aigcfroge/session-ui/markdown"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { draftFilename, findLatestAssistantMarkdown } from "@/pages/work-artifact-extract"
+import { computeWorkDiff } from "@/pages/work-artifact-diff"
 import type { Message } from "@aigcfroge/sdk/v2/client"
+
+/** 覆盖确认时的只读 diff 展示（新旧内容对比）。 */
+function WorkDiffView(props: { oldText: string; newText: string }) {
+  const lines = createMemo(() => computeWorkDiff(props.oldText, props.newText))
+  return (
+    <div class="flex max-h-48 min-h-0 flex-col overflow-y-auto rounded-lg border border-v2-border-border-base">
+      <For each={lines()}>
+        {(line) => (
+          <div
+            class={[
+              "bg-v2-background-bg-base text-v2-text-text-muted text-12-regular",
+              line.type === "add" && "bg-v2-state-fg-success/10 text-v2-state-fg-success",
+              line.type === "del" && "bg-v2-state-fg-danger/10 text-v2-state-fg-danger",
+            ].join(" ")}
+          >
+            <span class="mr-2 inline-block w-6 select-none text-right opacity-50">
+              {line.type === "add" ? "+" : line.type === "del" ? "-" : " "}
+            </span>
+            <span class="whitespace-pre-wrap break-all">{line.text}</span>
+          </div>
+        )}
+      </For>
+    </div>
+  )
+}
 
 /**
  * Work 右栏 Artifact 面板：只读预览候选稿（assistant 消息正文）+ 应用到当前项目。
@@ -60,12 +86,20 @@ export function WorkArtifactPanel() {
         ? (error as { status: unknown }).status
         : undefined
       if (status === 409) {
+        const relativePath = draftFilename(content)
+        const oldContent = await sdk().client.file
+          .read({ path: relativePath })
+          .then((r) => (r.data?.type === "text" ? r.data.content : undefined))
+          .catch(() => undefined)
         void dialog.show(() => (
           <Dialog title={language.t("work.artifact.conflict.title")} fit>
-            <div class="flex min-h-0 flex-col gap-4 p-4" style={{ width: "400px" }}>
+            <div class="flex min-h-0 flex-col gap-4 p-4" style={{ width: "520px" }}>
               <p class="text-v2-text-text-muted text-13-regular">
-                {language.t("work.artifact.conflict.body", { path: draftFilename(content) })}
+                {language.t("work.artifact.conflict.body", { path: relativePath })}
               </p>
+              <Show when={oldContent !== undefined}>
+                <WorkDiffView oldText={oldContent ?? ""} newText={content} />
+              </Show>
               <div class="flex justify-end gap-2">
                 <ButtonV2 variant="ghost" onClick={() => dialog.close()}>
                   {language.t("work.artifact.cancel")}

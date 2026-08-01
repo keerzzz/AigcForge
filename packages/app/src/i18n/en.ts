@@ -628,6 +628,8 @@ export const dict = {
   "work.artifact.target": "Target: {{path}}",
   "work.artifact.conflict.title": "File already exists",
   "work.artifact.conflict.body": "{{path}} already exists. Overwrite it with the drafted content?",
+  "work.artifact.diff.old": "Existing",
+  "work.artifact.diff.new": "Draft",
   "work.artifact.overwrite": "Overwrite",
   "work.artifact.cancel": "Cancel",
   "mode.assistant": "Assistant",

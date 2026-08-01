@@ -544,6 +544,8 @@ export const dict = {
   "work.artifact.target": "目标: {{path}}",
   "work.artifact.conflict.title": "文件已存在",
   "work.artifact.conflict.body": "{{path}} 已存在。是否用候选稿内容覆盖？",
+  "work.artifact.diff.old": "现有内容",
+  "work.artifact.diff.new": "候选稿",
   "work.artifact.overwrite": "覆盖",
   "work.artifact.cancel": "取消",
   "mode.assistant": "助手",
