@@ -1,4 +1,4 @@
-import { batch, createEffect, createMemo, createRoot, createSignal, For, onCleanup, Show, startTransition } from "solid-js"
+import { createEffect, createMemo, createRoot, For, onCleanup, Show, startTransition } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useChatFeature } from "@/context/chat-feature"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
@@ -12,27 +12,19 @@ import { AssetSessionSelector } from "@/components/chat/asset-session-selector"
 import { ChatImportDialog, serializeImport, wrapImportContent } from "@/components/chat/chat-import-dialog"
 import { AssetDeleteDialog } from "@/components/chat/asset-delete-dialog"
 import { modeDraft, useMode } from "@/context/mode"
-import { openProjectNewSession, projectForSession, sortedRootSessions, displayName, type HomeProjectSelection, closeHomeProject, toggleHomeProjectSelection, homeProjectDirectories } from "@/pages/layout/helpers"
-import { useServerSync, type ServerSync } from "@/context/server-sync"
+import { openProjectNewSession, projectForSession, closeHomeProject, homeProjectDirectories } from "@/pages/layout/helpers"
+import { useServerSync } from "@/context/server-sync"
 import { useLayout, type LocalProject } from "@/context/layout"
 import { useQuery } from "@tanstack/solid-query"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { pathKey } from "@/utils/path-key"
-import { useNavigate } from "@solidjs/router"
-import { sessionTitle } from "@/utils/session-title"
-import { SessionTabAvatar } from "@/pages/layout/session-tab-avatar"
-import { Spinner } from "@aigcfroge/ui/spinner"
 import { useDirectoryPicker } from "@/components/directory-picker"
-import { HomeProjectColumn, HOME_SESSION_LIMIT, HOME_ROW, HOME_SESSION_SEARCH_RESULTS_ID, HOME_SEARCH_RESULT_ROW,
-  HOME_SEARCH_RESULT_TITLE, HOME_SEARCH_RESULT_META, HOME_SECTION_LABEL,
-  HomeSessionSearch, HomeSessionRow, HomeSessionGroupHeader, HomeSessionSkeleton,
-  HomeSessionRecord, HomeSessionGroup, buildHomeSessionRecords, groupSessions, matchesHomeSessionSearch,
+import { HomeProjectColumn, HOME_SESSION_LIMIT, HomeSessionSearch, HomeSessionRow, HomeSessionGroupHeader, HomeSessionSkeleton,
+  buildHomeSessionRecords, groupSessions, matchesHomeSessionSearch,
 } from "@/pages/home"
 import { useNotification } from "@/context/notification"
 import { useMarked } from "@aigcfroge/ui/context/marked"
 import { preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"
-import { makeEventListener } from "@solid-primitives/event-listener"
-import { DateTime } from "luxon"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
@@ -43,7 +35,6 @@ import { presetLaunch } from "@/pages/work-preset-launch"
 
 /** Coding 左侧栏：项目列 + 服务器管理（复用 HomeProjectColumn，hooks 对齐旧 Home 组件） */
 export function CodingProjectColumnSidebar() {
-  const sync = useServerSync()
   const layout = useLayout()
   const mode = useMode()
   const dialog = useDialog()
@@ -163,17 +154,13 @@ export function CodingSessionListMain() {
   const sync = useServerSync()
   const layout = useLayout()
   const mode = useMode()
-  const dialog = useDialog()
-  const navigate = useNavigate()
   const server = useServer()
   const language = useLanguage()
   const global = useGlobal()
   const tabs = useTabs()
-  const notification = useNotification()
   const marked = useMarked()
   const codingSel = useCodingSelection()
 
-  let focusSessionSearch: (() => void) | undefined
   const [state, setState] = createStore({
     search: "",
     searchFocused: false,
@@ -371,7 +358,7 @@ export function CodingSessionListMain() {
         server={codingSel.selection.server}
         activeServer={codingSel.selection.server === server.key}
         noResultsLabel={language.t("home.sessions.search.noResults", { query: search() })}
-        bindFocus={(focus) => { focusSessionSearch = focus }}
+        bindFocus={() => {}}
         onInput={(value) => setState("search", value)}
         onFocus={() => setState("searchFocused", true)}
         onClose={closeSearch}
@@ -433,7 +420,7 @@ export function ChatAssetWorkbenchMain() {
   const global = useGlobal()
   const tabs = useTabs()
   const server = useServer()
-  const { ctx: chatCtx, directory: chatDirectory } = useChatDirectory()
+  const { directory: chatDirectory } = useChatDirectory()
 
   const conn = createMemo(() => server.current ?? global.servers.list()[0])
   const chatDir = () => chatDirectory() ?? ""
@@ -528,7 +515,7 @@ export function ChatAssetWorkbenchMain() {
 }
 
 /** Work 主区占位 */
-export function PlaceholderMain(props: { mode: string }) {
+export function PlaceholderMain(_props: { mode: string }) {
   const language = useLanguage()
   return (
     <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-v2-text-text-muted text-13-regular">
@@ -612,7 +599,6 @@ export function WorkProjectColumnSidebar() {
 /** Work 主区：预设卡片库（4 分类 + 预留预设无创建入口） */
 export function WorkPresetCatalogMain() {
   const language = useLanguage()
-  const global = useGlobal()
   const tabs = useTabs()
   const { conn, ctx, directory } = useChatDirectory()
   const { categories } = buildWorkPresetCatalog()
