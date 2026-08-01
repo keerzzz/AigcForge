@@ -14,6 +14,7 @@ import { TaskTool } from "./task"
 import { TodoWriteTool } from "./todowrite"
 import { WebFetchTool } from "./webfetch"
 import { WebSearchTool } from "./websearch"
+import { WorkPresetTool } from "./work-preset"
 import { ProposePromptAssetTool } from "./propose-prompt-asset"
 import { ProposeSkillAssetTool } from "./propose-skill-asset"
 import { ProposeMCPAssetTool } from "./propose-mcp-asset"
@@ -59,4 +60,5 @@ export const locationLayer = Layer.mergeAll(
   ProposeAgentAssetTool.layer,
   ProposeWorkflowAssetTool.layer,
   ProposePluginAssetTool.layer,
+  WorkPresetTool.layer,
 )

@@ -5,6 +5,7 @@ import { define } from "./internal"
 import { Effect } from "effect"
 import { AgentV2 } from "../agent"
 import { ChatOrchestratorPrompt } from "../agent/prompt/chat-orchestrator"
+import { WorkOrchestratorPrompt } from "../agent/prompt/work-orchestrator"
 import { Global } from "../global"
 import { Location } from "../location"
 import { PermissionV2 } from "../permission"
@@ -318,6 +319,28 @@ export const Plugin = define({
               { action: "propose_agent_asset", resource: "*", effect: "allow" },
               { action: "propose_workflow_asset", resource: "*", effect: "allow" },
               { action: "propose_plugin_asset", resource: "*", effect: "allow" },
+            ],
+            readonlyExternalDirectory,
+          ),
+        )
+      })
+
+      // work-orchestrator: Work mode only, fail-closed permissions (no edit/shell/task)
+      draft.update(AgentV2.ID.make("work-orchestrator"), (item) => {
+        item.description = "Work mode agent for drafting documents from official presets via conversation."
+        item.system = WorkOrchestratorPrompt.SYSTEM_PROMPT
+        item.mode = "primary"
+        item.hidden = false
+        item.permissions.push(
+          ...PermissionV2.merge(
+            defaults,
+            [
+              { action: "*", resource: "*", effect: "deny" },
+              { action: "read", resource: "*", effect: "allow" },
+              { action: "glob", resource: "*", effect: "allow" },
+              { action: "grep", resource: "*", effect: "allow" },
+              { action: "question", resource: "*", effect: "allow" },
+              { action: "work-preset", resource: "*", effect: "allow" },
             ],
             readonlyExternalDirectory,
           ),
