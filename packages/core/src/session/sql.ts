@@ -13,6 +13,7 @@ import { WorkspaceV2 } from "../workspace"
 import { Timestamps } from "../database/schema.sql"
 import type { SystemContext } from "../system-context/index"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task"
 
 
 type SessionMessageData = Omit<(typeof SessionMessage.Message)["Encoded"], "type" | "id">
@@ -118,6 +119,24 @@ export const TodoTable = sqliteTable(
     primaryKey({ columns: [table.session_id, table.position] }),
     index("todo_session_idx").on(table.session_id),
   ],
+)
+
+export const TaskTable = sqliteTable(
+  "task",
+  {
+    id: text().primaryKey(),
+    session_id: text()
+      .$type<SessionSchema.ID>()
+      .notNull()
+      .references(() => SessionTable.id, { onDelete: "cascade" }),
+    content: text().notNull(),
+    status: text().$type<SessionTaskSchema.TaskStatus>().notNull(),
+    priority: text().$type<SessionTaskSchema.TaskPriority>().notNull(),
+    parent_id: text(),
+    position: integer().notNull(),
+    ...Timestamps,
+  },
+  (table) => [index("task_session_idx").on(table.session_id)],
 )
 
 export const SessionMessageTable = sqliteTable(
