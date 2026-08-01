@@ -1,6 +1,6 @@
 # Todo/Task 系统全面升级实施方案
 
-> 状态：**Draft v2.1 — 审批修订已应用**（2026-07-31 审批意见 E1-E6 + G1-G3 + P1-P2 全部处理）
+> 状态：**执行中 — M0/M1 启动**（2026-08-01，Work M1 已合入 main `a041ca617` 后开始执行；分支切自最新 main；审批修订 E1-E6 + G1-G3 + P1-P2 已应用；2026-08-02 M2 修订方案 B：SessionTodoProgress 脉冲线内嵌节点，移除底部 dock，见 §5.3 Layer 4 + §5.5 边界）
 > 日期：2026-07-31
 > Owner：产品 + Core + App
 > 范围：`packages/schema` + `packages/core` + `packages/aigcfroge` + `packages/app` + `packages/tui`
@@ -215,7 +215,10 @@ Layer 1: Schema (packages/schema/src/session-task.ts)
 Layer 2: Core (packages/core/src/session/task.ts)
   ✅ 新建 SessionTask Service (替代 SessionTodo)
   ✅ 增量 CRUD (不再全量 DELETE+INSERT)
-  ✅ TaskDriver ↔ Task 联动: 子会话完成自动回写父 Task status
+  ✅ TaskDriver ↔ Task 联动 (双轨 §5.4):
+      ├─ 轨 A: task tool 新增 parent_task_id (显式关联)
+      ├─ 轨 B: 委派自动建 in_progress todo (content=description), 子会话 settle 自动回写
+      └─ 回写状态机: completed/failed(摘要入 outputDigest)/cancelled + childSessionID 可跳转
   ✅ Agent-specific tool denies 回灌 (子 Agent 权限继承 + deny list, 借鉴 V1 构建流 childToolDenies)
   ✅ 嵌套防护保持现状 (core/src/tool/task.ts:131-137 已全禁嵌套; 仅当 M5 编排需放开时改为 depth limit + deny 继承)
   ✅ 保留旧 TodoWrite (内部转发到 Task)
@@ -224,19 +227,26 @@ Layer 2: Core (packages/core/src/session/task.ts)
 
 Layer 3: Core 工具 (packages/core/src/tool/)
   ✅ 新建 TaskWrite Tool (LLM-facing, 注册进 builtins.ts 与 TodoWriteTool.layer 并列)
+  ✅ task tool (core/src/tool/task.ts) 新增可选 parent_task_id 参数 + 轨 B 自动建 todo 逻辑 (M1 双轨 §5.4)
   ✅ 新建 task_schedule Tool (定时注册, M3)
   ✅ 新建 task_spawn Tool (Agent 衍生, M5)
   ✅ 保留旧 V1 TodoWrite (packages/aigcfroge/src/tool/, 兼容, 退役区)
   ⚠️ 工具不得写入 packages/aigcfroge/src/tool/ — 那是 V1 退役区注册表
 
-Layer 4: App (packages/app/src/pages/session/composer/)
-  ✅ SessionTodoDock → SessionTaskPanel
-      ├─ 可交互 Checkbox (点击切换状态)     ← Work 模式非编程用户的核心缺口
-      ├─ 行内添加入口 (+ 按钮)
-      ├─ 子任务折叠展开 (parentID)
-      ├─ dot() animated SVG (借鉴 U2)
-      ├─ 定时标记 (时钟 icon, M3)
-      └─ 依赖线可视化 (M5)
+Layer 4: App (M2 修订 — 方案 B：脉冲线内嵌节点，移除底部 dock)
+  ✅ 移除 SessionTodoDock (composer region 删导入+挂载+dock() 折叠逻辑, 保留 rolled/lift 给 revert)
+  ✅ layout.tsx 删 todoCollapsed 状态 (:66, :811-819)
+  ✅ stories: todo-panel-motion.stories.tsx 更新/删除 (引用 SessionTodoDock 失效)
+  ✅ 新增 SessionTodoProgress (timeline session-progress 容器内, 复用现有 progress 不新增面板):
+      ├─ 节点 icon 按 i/total 绝对定位, data-state={todo.status}
+      ├─ hover tooltip 显示 todo.content (键盘用 title 属性)
+      ├─ 完成度推进: 有 todo 时 clip-path inset 按 doneRatio, in_progress 节点局部 whip
+      │               无 todo 时保持现有 session-progress-whip infinite (零改动)
+      ├─ 右侧统计 done/total (如 3/5)
+      ├─ timeline 挂载时 directorySync.todo(sessionID) 拉取 (中途退出/重载恢复)
+      └─ SSE todo.updated → reconcile 更新节点 (全量替换模型, 中途添加节点自动出现)
+  ✅ 边界兜底 (详见 §5.5): undefined/空数组/非法 status/除零/单节点/过多节点降采样/aria
+  ✅ 可交互 Checkbox → 折叠浮层列表 (hover 节点 or 点击统计展开, M2 交互范围)
   ✅ E2E tests (借鉴 U3)
   ✅ AgentTaskHub 面板 (M4)
 
@@ -244,23 +254,120 @@ Layer 5: TUI (packages/tui/src/component/task-item.tsx)
   ✅ TodoItem → TaskItem (定时/子任务标记)
 ```
 
-### 5.4 核心断裂修复：TaskDriver ↔ Task 联动
+### 5.4 核心断裂修复：TaskDriver ↔ Task 联动（双轨）
+
+> 现状调研（2026-08-02）：我们代码与上游 dev V2 **均无 task↔todo 联动**——task tool 参数无 `parent_task_id`，上游 V2 甚至没有 task tool（委派在 V1 构建流）。本设计为**全球空白区的差异化创新**，不照搬任何上游。
+>
+> **元智能体场景**：meta-agent 编排层委派多子任务（跨模式），联动后 todo list 成为编排进度仪表盘——用户看到编排树每个子任务状态，而非"后台在跑看不到"。
+
+**双轨设计**（两种触发方式，互为补充）：
 
 ```
-当前 (断裂):
-  LLM: todowrite([{content:"安全审查", status:"in_progress"}])
-  LLM: task("审查 src/auth 的安全性")
-       └─ TaskDriver.delegate() → 子会话完成
-          (todo list 无变化 — "安全审查" 仍为 in_progress)
-
-升级 (联动):
-  LLM: task_write([{content:"安全审查", status:"in_progress", agentID:"security-bot"}])
+轨 A — 显式关联（LLM 先规划再执行）:
+  LLM: task_write([{content:"安全审查", status:"in_progress"}])   → 建 todo 拿 id t-1
   LLM: task("审查 src/auth", parent_task_id:"t-1")
        ├─ TaskDriver.delegate() → 子会话完成
        └─ 自动回写: task_update({id:"t-1", status:"completed", childSessionID:"ses-xxx"})
+  适用: 需要先规划 todo 清单、按清单逐项执行的场景
 
-  用户看到: ✓ 安全审查 (42s, ses-xxx 可点击跳转子会话)
+轨 B — 委派自动建 todo（LLM 直接委派，todo 是副产品）:
+  LLM: task("审查 src/auth 的安全性")
+       ├─ TaskDriver.delegate() → 子会话
+       └─ [系统] 自动在父会话 todo 创建 in_progress 条目
+              (content = description "审查 src/auth", 关联 childSessionID)
+           → 子会话完成自动回写 completed
+  适用: 元智能体编排（LLM 只关心委派，todo 被动生成）、直接委派场景
 ```
+
+**关键点**：
+| 维度 | 轨 A（显式） | 轨 B（自动） |
+|---|---|---|
+| LLM 调用次数 | 2 次（task_write + task） | 1 次（task） |
+| 顺序约束 | 先建 todo 再委派（鸡生蛋） | 无 |
+| todo 规划性 | 用户可预见 todo 清单 | todo 是副产品（委派后出现） |
+| 元智能体编排 | 可选 | **主要路径**（编排进度自动映射 todo） |
+| task tool 参数 | 需新增 `parent_task_id` | 无需新参数 |
+
+**实现要点**：
+- task tool（`core/src/tool/task.ts`）新增可选 `parent_task_id`（轨 A）；同时委派入口检测——未提供 parent_task_id 时走轨 B 自动建 todo（`content=description`，`status=in_progress`，`childSessionID` 存 `outputDigest`）
+- 回写时机：子会话 settle（成功/失败/取消）时经 `SessionTask.update` 自动回写对应 todo 条目
+- 回写状态机：成功→`completed`、失败→`failed`（错误摘要入 outputDigest）、取消→`cancelled`
+- 子会话跳转：`childSessionID` 使 todo 条目可点击跳转子会话（hover/详情）
+- 与现有 todowrite 兼容：轨 B 自动建的条目 LLM 后续 task_write 仍可覆盖（全量替换模型天然支持）
+
+### 5.5 SessionTodoProgress 边界与兜底（M2）
+
+> CLAUDE.md 边界原则：只兜底"外部输入 + 计算除零"真实边界，不为不可能场景加防御。
+
+**数据源边界（todo 来自 LLM = 外部输入，必须验）**：
+| 边界 | 兜底 |
+|---|---|
+| `serverSync.todo[sessionID]` undefined（未同步/会话刚开） | 视为 `[]`，走"无 todo 原样"分支 |
+| 空数组 | 保持 `session-progress-whip infinite`（现状原样） |
+| 全 completed | 推进 100%，显示 `5/5` |
+| 全 pending | 推进 0%，显示 `0/5` |
+
+**状态异常（现状 `Schema.String` 无字面量约束，LLM 可写任意字符串）**：
+| 边界 | 兜底 |
+|---|---|
+| 非法 status（非 4 合法值） | 归入 `pending` 显示不崩（M0 `TaskStatus Literal` 根治） |
+| 多个 in_progress | 取第一个做推进锚点，高亮首个 |
+| cancelled 节点 | 不计完成度，灰色/划掉 |
+
+**计算边界**：
+| 边界 | 兜底 |
+|---|---|
+| `total = 0` 除零 | `doneRatio = total === 0 ? 0 : done/total` |
+| 单节点（`i/(total-1)` 除零） | `total <= 1 ? 50% : i/(total-1)*100%` |
+| 节点过多（>20） | 降采样：只渲染首尾 + 中间省略点，hover 仍可看完整列表 |
+| content 为空 | hover 不弹 tooltip |
+
+**交互/无障碍**：
+| 边界 | 兜底 |
+|---|---|
+| tooltip 溢出视口 | 左右翻转定位（复用现有 tooltip 组件） |
+| 键盘不可达（hover 仅鼠标） | 节点加 `title` 原生气泡 + 语义正确 |
+| 读屏器 | 加 todo 后 `aria-hidden` 移除，`role="progressbar"` + `aria-valuenow={done}` |
+
+**恢复（中途退出/重载）**：数据持久化在 SQLite `TodoTable`（服务端），UI 重载后 timeline 挂载时调用 `directorySync.todo(sessionID)` 拉取一次（[directory-sync.ts:524](packages/app/src/context/directory-sync.ts#L524)，内置 retry），后续靠 SSE `todo.updated` 增量更新。
+
+**明确不做**：连续动画插值（LLM 离散全量更新）、100+ 虚拟滚动（常态 <20，超限降采样）、拖拽排序（M5）、todo 拉取重试（`retry()` 已内置）。
+
+**影响面确认（底部 dock 移除安全）**：Question/Permission/Revert dock 均 `request`/`rolled()` 独立触发，不受影响；composer `dock()` 折叠逻辑已确认**纯服务 todo**（`session-composer-state.ts:62` `dock: todos().length > 0 && live()`），移走 todo 后可删（保留 `rolled/lift` 给 revert）；`todoCollapsed` 仅 composer 使用可删；stories 需同步。
+
+### 5.6 定时任务 (ScheduledJob) UI 位置（M3 决策）
+
+> 概念区分：**定时任务**（ScheduledJob，cron 周期执行，带 nextRun 时间戳）≠ **目标任务**（TaskSpawn，一次性委派）。Accio 报告的 ScheduledJobs 是**定时功能**（§4.2：cron + lastRun/nextRun + status），不是目标任务。本小节只定定时任务的 UI 位置。
+
+**Accio 位置**：per-Agent 视角，管理入口在 Agent 详情/面板（`agent-detail-modal` / `agent-panel` / `agent-hub-page`），无 session 级定时 UI。定时任务运行状态可能进 `agent-activity-island`（活动岛 running）。
+
+**AigcForge 决策（2026-08-02，双位置分工）**：
+
+```
+标题行 (message-timeline.tsx:1373 sticky)
+┌────────────────────────────────────────────────────────┐
+│ (spinner) [⚡ 周一 9:00] 会话标题      SessionContextUsage [dot-grid] │
+│            ↑定时icon+nextRun时间戳(常显)   ↑更多下拉含"定时任务"
+└────────────────────────────────────────────────────────┘
+```
+
+| 位置 | 内容 | 角色 |
+|---|---|---|
+| **标题左侧**（spinner 之后/标题前） | 定时 icon + nextRun 时间戳（`⚡ 9:00` / `⚡ 周一 9:00`） | **状态常显**——周期性任务的下次触发时间持续可见 |
+| **标题右侧更多下拉**（[dot-grid, message-timeline.tsx:1478](packages/app/src/pages/session/timeline/message-timeline.tsx#L1478)） | "定时任务"菜单项 | **管理入口**——弹层列表/新建/启停 |
+| 上下文按钮区（SessionContextUsage） | 不动 | 保持纯净，不混入任务状态 |
+
+**不采纳**：上下文按钮左侧加常显 icon 开关——上下文区是紧凑操作区，常显状态会拥挤；定时任务的时间戳应常显在标题（类日历提醒），管理入口走已存在的更多下拉（零新 UI）。
+
+**归属**：`agentID` 字段（M3）——定时任务 per-Agent；标题左侧时间戳显示**当前 session 绑定 Agent** 的 nextRun。
+
+**影响面**：
+| 组件 | 影响 |
+|---|---|
+| 标题行左侧 | 加条件渲染的定时 icon + 时间戳 |
+| dot-grid 下拉 | 加"定时任务"菜单项（[message-timeline.tsx:1501](packages/app/src/pages/session/timeline/message-timeline.tsx#L1501) DropdownMenu.Content） |
+| 定时任务弹层 | 新弹层（列表/新建/启停，M3） |
+| 上下文按钮区 | 零影响 |
 
 ---
 
@@ -349,10 +456,10 @@ Agent: 合规审查 Agent
 | 阶段 | 范围 | 准入 | 退出 | 估时 |
 |---|---|---|---|---|
 | **M0 契约** | Schema 新增 `session-task.ts`（文件，包已存在）、TaskDriver↔Task 联动接口定义 | **前置①**: rebase `task-driver` 活跃改动区审计快照（`bff51d690` judge、`50599e86e` CLI persistence、`98762aa47` summaries 均为近期 commit）；**前置②**: 先读 `delegation-parser.ts`/`delegation-protocol.ts`，排查与任务追踪的概念重叠 | Task 契约 + 事件定义 + Schema 评审通过 | 2d |
-| **M1 核心** | SessionTask Service (替代 SessionTodo)、增量 CRUD、TaskDriver↔Task 自动回写、tool denies 回灌、`PATCH /session/{id}/task` 写 API + SDK gen | M0 | `session-task.test.ts` + `tool-taskwrite.test.ts` + 写 API 测试通过；同步 `specs/v2/todo.md` + `specs/v2/schema-changelog.md` | 5d |
-| **M2 UI** | SessionTaskPanel (可交互 Checkbox + 行内添加 + 子任务折叠 + dot 动画)、E2E tests；**顺手清理** dock 死 prop `sessionID`（`:19` 声明、`:334` 传递、从未读取） | M1 | UI 回放 + E2E 全生命周期 + 写 API 联调 | 5d |
-| **M3 定时任务** | ScheduledJobRunner（含启动 re-arm + unattended 权限策略）、task_schedule Tool、agentID 归属 | M1 | 定时端到端（含重启后 re-arm） | 7d |
-| **M4 AgentHub** | AgentTaskHub 面板、Agent 视角聚合、定时任务管理 UI | M2+M3 | Agent Hub 可用 | 3d |
+| **M1 核心** | SessionTask Service (替代 SessionTodo)、增量 CRUD、TaskDriver↔Task 双轨联动（轨 A `parent_task_id` + 轨 B 自动建 todo + 回写状态机）、tool denies 回灌、`PATCH /session/{id}/task` 写 API + SDK gen | M0 | `session-task.test.ts` + `tool-taskwrite.test.ts` + 写 API + 双轨联动测试通过；同步 `specs/v2/todo.md` + `specs/v2/schema-changelog.md` | 5d |
+| **M2 UI** | SessionTodoProgress（脉冲线内嵌节点 + hover tooltip + 完成度推进 + 统计 3/5 + 重载恢复 + 边界兜底）、移除底部 SessionTodoDock（composer dock() 折叠逻辑/layout todoCollapsed/stories 同步清理）、折叠浮层交互（可交互 checkbox）、E2E tests | M1 | UI 回放 + E2E 全生命周期 + 写 API 联调 + 重载恢复测试 | 5d |
+| **M3 定时任务** | ScheduledJobRunner（含启动 re-arm + unattended 权限策略）、task_schedule Tool、agentID 归属、**定时任务 UI（标题左侧 icon + nextRun 时间戳 + 更多下拉入口 + 弹层，§5.6）** | M1 | 定时端到端（含重启后 re-arm）+ 标题时间戳渲染 | 7d |
+| **M4 AgentHub** | AgentTaskHub 面板、Agent 视角聚合、定时任务完整管理 UI（对齐 Accio agent-panel） | M2+M3 | Agent Hub 可用 | 3d |
 | **M5 跨模式集成** | Work Preset→Task 展开、Assistant 定时提醒→ScheduledJob、task_spawn Tool、DAG 依赖、电商验证 | M4 | 每条电商 use case 通过 | 3d |
 
 **总估时：25d**

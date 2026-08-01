@@ -1,6 +1,6 @@
 # Work Mode
 
-> 状态：**M1 已实现**（2026-08-01，work-m1 分支，Phase A-F）— 预设卡片库、work-orchestrator 澄清、右栏 Artifact 只读预览 + 同名冲突 Diff + 原子落盘闭环
+> 状态：**M1 已实现**（2026-08-01，已合入 main `a041ca617`，Phase A-F + D3-D5 首页收尾）— 预设卡片库、work-orchestrator 澄清、右栏 Artifact 只读预览 + 同名冲突 Diff + 原子落盘闭环
 > 权威 PRD：[Work 模式 - 非编程执行层](../../prd/work-mode-execution-layer.md)（v4.1，2026-07-31 Approved）
 > 实施计划：[M1 计划](../../plan/work-mode-execution-layer-m1.md)（D1-D5 定案）· [路线图](../../plan/work-mode-roadmap.md)
 

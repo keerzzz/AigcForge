@@ -1,6 +1,6 @@
 # Work 模式 M1 实施计划：预设驱动文档闭环
 
-> 状态：**Draft v1.2 — 审批修订已应用**（2026-08-01 审批 D1/D2 定案 + M1-M3 修订：候选稿=消息正文、work.artifact_applied 事件、product-mode-agent-policy 强制绑定、路径/LCS/i18n 事实修正、右栏集成点钉死；v1.2 补 D3-D5 首页收尾：工作流资产引导降级、资产范围只上 workflow、会话历史用 session 元数据）
+> 状态：**Implemented + merged**（2026-08-01，Phase A-F + D3-D5 首页收尾已实现，merge `a041ca617` 合入 main；本文转为实施记录。审批修订历史：D1/D2 定案 + M1-M3、v1.2 补 D3-D5）
 > 范围：`packages/schema` + `packages/core` + `packages/aigcfroge` + `packages/app`
 > 关联：[Work PRD v4.1](../prd/work-mode-execution-layer.md)（范围真源）、[Work 模式路线图](work-mode-roadmap.md)（本计划的上级）、[ADR-13](../architecture/adr/ADR-13-chat-work-mode-boundary.md)、[ADR-14](../architecture/adr/ADR-14-persistence-and-scope-strategy.md)、[ADR-15](../architecture/adr/ADR-15-mode-workspace-main-area-slot.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md) §4.10、[Chat M1 实施计划](chat-mode-creation-layer-m1.md)（范式参考）
 > 依据：`CLAUDE.md`、根/包级 `AGENTS.md`、`effect`/`frontend-theming` skills、实际 V1/V2 Session/Agent/Tool/API/App 代码

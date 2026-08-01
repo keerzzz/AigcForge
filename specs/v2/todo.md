@@ -81,6 +81,12 @@
 
 ## 📋 Planned
 
+### Todo/Task 升级（Todo 计划 M0-M5，见 [docs/plan/todo-task-system-upgrade.md](../../docs/plan/todo-task-system-upgrade.md)）
+- M0: SessionTask Schema（`packages/schema/src/session-task.ts`，TaskStatus/TaskPriority Literal）
+- M1: SessionTask Service 替代 SessionTodo + `PATCH /session/{id}/task` 写 API + **TaskDriver↔Task 双轨联动**（轨 A `parent_task_id` 显式关联 / 轨 B 委派自动建 todo，元智能体编排可观测性）
+- M2: SessionTodoProgress 脉冲线内嵌节点（移除底部 dock）+ 重载恢复
+- M3: ScheduledJobRunner（含 re-arm + unattended 权限策略）+ 定时任务 UI（标题左侧 nextRun 时间戳 + dot-grid 下拉入口）
+
 ### Phase 5 — V1 Retirement
 - Flip AIGCFROGE_V2_RUNTIME to default true after V2 path coverage validation
 - Physical V1 file deletion (prompt.ts, agent.ts, processor.ts, plugin/, mcp/, etc.)
