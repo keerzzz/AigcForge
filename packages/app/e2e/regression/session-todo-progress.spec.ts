@@ -92,8 +92,11 @@ test.describe("regression: session todo progress pulse line", () => {
     const node = page.locator('[data-component="session-todo-progress-node"]')
     await expect(node).toHaveCount(2, { timeout: 15_000 })
     await expect(page.locator('[data-component="session-todo-progress-stats"]')).toHaveText("1/2")
-    // Id-bearing keys survive (the child-session digest link rides outputDigest).
+    // Id-bearing keys survive, and each node exposes its content via title
+    // (the keyboard-accessible tooltip per plan §5.5).
     await expect(node.first()).toHaveAttribute("data-key", "tsk_mock_a")
+    await expect(node.first()).toHaveAttribute("title", "audit")
+    await expect(node.nth(1)).toHaveAttribute("title", "review")
 
     // Click stats → interactive checkbox fold-over.
     await page.locator('[data-component="session-todo-progress-stats"]').click()
@@ -128,7 +131,7 @@ test.describe("regression: session todo progress pulse line", () => {
     })
   })
 
-  test("restores nodes and stats after a reload via the todo pull", async ({ page }) => {
+  test("restores nodes and stats after a reload via the task pull", async ({ page }) => {
     const events: EventPayload[] = []
     await mockServer(page, events, { todoList: todoProjection })
     await configurePage(page)
@@ -142,12 +145,68 @@ test.describe("regression: session todo progress pulse line", () => {
     await expect(node).toHaveCount(2, { timeout: 15_000 })
     await expect(page.locator('[data-component="session-todo-progress-stats"]')).toHaveText("1/2")
 
-    // Reload: the busy status is re-served and the mock re-serves the todo
-    // projection, so the pulse line recovers without re-delivering task.updated.
+    // Reload: the busy status is re-served and the mount effect reseeds the
+    // id-bearing store from GET /session/:id/task (task.updated is NOT
+    // re-delivered), so the pulse line recovers with stable ids.
     await page.reload()
     await expectSessionTitle(page, title)
     await expect(page.locator('[data-component="session-todo-progress-node"]')).toHaveCount(2, { timeout: 15_000 })
     await expect(page.locator('[data-component="session-todo-progress-stats"]')).toHaveText("1/2")
+  })
+
+  test("keeps stable task ids through a reload-to-toggle round trip", async ({ page }) => {
+    const events: EventPayload[] = []
+    await mockServer(page, events)
+    await configurePage(page)
+
+    // Only the initial GET /session/:id/task seeds the store; no task.updated
+    // event is delivered in this test at all.
+    await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+    await expectSessionTitle(page, title)
+    await expect(page.locator('[data-component="session-todo-progress-node"]')).toHaveCount(2, { timeout: 15_000 })
+
+    // Reload and toggle without any SSE re-delivery: the writeback must PATCH
+    // with the ORIGINAL ids (re-minting ids would delete the stored rows and
+    // wipe their persisted outputDigest).
+    await page.reload()
+    await expectSessionTitle(page, title)
+    await page.locator('[data-component="session-todo-progress-stats"]').click()
+    const panel = page.locator('[data-component="session-todo-progress-panel"]')
+    await expect(panel).toBeVisible()
+
+    const patch = page.waitForResponse(
+      (response) =>
+        response.url().includes(`/session/${sessionID}/task`) && response.request().method() === "PATCH",
+    )
+    await panel.locator('[data-slot="checkbox-v2-control"]').nth(1).click()
+    const response = await patch
+    expect(response.status()).toBe(200)
+    const body = await response.json()
+    expect(body).toHaveLength(2)
+    expect(body[0]?.id).toBe("tsk_mock_a")
+    expect(body[1]?.id).toBe("tsk_mock_b")
+    expect(body[1]?.status).toBe("completed")
+  })
+
+  test("renders the id-less V1 todo projection read-only", async ({ page }) => {
+    const events: EventPayload[] = []
+    // No tasks served by GET /session/:id/task and no task.updated event:
+    // the component falls back to the three-field todo projection (V1 runtime).
+    await mockServer(page, events, { tasks: [], todoList: todoProjection })
+    await configurePage(page)
+
+    await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+    await expectSessionTitle(page, title)
+
+    await expect(page.locator('[data-component="session-todo-progress-node"]')).toHaveCount(2, { timeout: 15_000 })
+    await page.locator('[data-component="session-todo-progress-stats"]').click()
+    const panel = page.locator('[data-component="session-todo-progress-panel"]')
+    await expect(panel).toBeVisible()
+    // Id-less entries are read-only: PATCHing them would re-mint ids and wipe
+    // the persisted outputDigest, so every checkbox is disabled. Kobalte marks
+    // disabled state with the data-disabled attribute on the control element.
+    await expect(panel.locator('[data-slot="checkbox-v2-control"]').first()).toHaveAttribute("data-disabled", "")
+    await expect(panel.locator('[data-slot="checkbox-v2-control"]').nth(1)).toHaveAttribute("data-disabled", "")
   })
 })
 

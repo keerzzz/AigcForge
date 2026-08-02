@@ -3,6 +3,8 @@ import { CheckboxV2 } from "@aigcfroge/ui/v2/checkbox-v2"
 import { useServerSync } from "@/context/server-sync"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
+import { useLanguage } from "@/context/language"
+import { showToast } from "@/utils/toast"
 import {
   computeTodoProgress,
   flipTaskStatus,
@@ -18,18 +20,22 @@ import {
  *
  * Data source prefers id-bearing tasks from `task.updated` (stable ids so the
  * fold-over can PATCH by id and keep `outputDigest` through reconcile), falling
- * back to the three-field `todo.updated` projection for the V1 runtime. The
- * container pulls once on mount for reload recovery.
+ * back to the three-field `todo.updated` projection for the V1 runtime. On
+ * mount the container seeds the id-bearing store from `GET /session/:id/task`
+ * and pulls the legacy projection via directory-sync for reload recovery.
  *
  * Interactivity (M2c): hovering a node shows its content via `title`; clicking
  * a node or the done/total stat expands a checkbox fold-over. Toggling a box
  * PATCHes the whole list back over `PATCH /session/:id/task` (reconcile), which
- * republishes `task.updated` and reconciles the local store.
+ * republishes `task.updated` and reconciles the local store. Entries without a
+ * stable id (V1 projection) are read-only: reconciling them would mint fresh
+ * ids and wipe the persisted `outputDigest`.
  */
 export function SessionTodoProgress(props: { sessionID: () => string | undefined }) {
   const sync = useSync()
   const serverSync = useServerSync()
   const sdk = useSDK()
+  const language = useLanguage()
   const [open, setOpen] = createSignal(false)
 
   const tasks = createMemo<TodoProgressInput[]>(() => {
@@ -47,15 +53,38 @@ export function SessionTodoProgress(props: { sessionID: () => string | undefined
 
   // Reload recovery: pull once when the session mounts (directory-sync has
   // built-in retry; subsequent updates arrive via SSE task.updated/todo.updated).
+  // The id-bearing task list comes from GET /session/:id/task (M2a); the legacy
+  // three-field projection stays as the V1-runtime read-only fallback.
   createEffect(() => {
     const id = props.sessionID()
-    if (id) sync().session.todo(id)
+    if (!id) return
+    sync().session.todo(id)
+    // Only seed when the SSE channel has not already delivered fresher
+    // task.updated data, and re-check at resolve time so a late response
+    // never clobbers a newer event.
+    if (serverSync().data.session_task[id] !== undefined) return
+    void sdk()
+      .client.session.task.get({ sessionID: id, directory: sdk().directory })
+      .then((response) => {
+        if (serverSync().data.session_task[id] !== undefined) return
+        serverSync().task.set(id, response.data ?? [])
+      })
+      .catch((err: unknown) => {
+        // Degrades to the read-only todo projection; the next task.updated or
+        // writeback round-trip reseeds the store.
+        const description = err instanceof Error ? err.message : String(err)
+        console.warn("SessionTodoProgress task recovery pull failed", description)
+      })
   })
 
   // Fold-over writeback: flip one task's status and PATCH the whole list back.
   const writeback = (target: TodoProgressInput) => {
     const id = props.sessionID()
     if (!id) return
+    // Never PATCH id-less entries (V1 three-field projection): the reconcile
+    // would mint fresh ids and delete the stored rows, wiping outputDigest.
+    // The fold-over renders such entries read-only instead (see disabled below).
+    if (tasks().some((task) => task.id === undefined)) return
     const next = tasks().map((task) =>
       task.id === target.id ? { ...task, status: flipTaskStatus(normalizeStatus(task.status)) } : task,
     )
@@ -72,7 +101,7 @@ export function SessionTodoProgress(props: { sessionID: () => string | undefined
       })
       .catch((err: unknown) => {
         const description = err instanceof Error ? err.message : String(err)
-        console.error("SessionTodoProgress writeback failed", description)
+        showToast({ title: language.t("session.todo.writeback.failed.title"), description })
       })
   }
 
@@ -83,7 +112,7 @@ export function SessionTodoProgress(props: { sessionID: () => string | undefined
       <div
         data-component="session-todo-progress"
         role="progressbar"
-        aria-label={`${progress().done} of ${progress().total}`}
+        aria-label={language.t("session.todo.progress", { done: progress().done, total: progress().total })}
         aria-valuemin={0}
         aria-valuemax={progress().total}
         aria-valuenow={progress().done}
@@ -128,7 +157,7 @@ export function SessionTodoProgress(props: { sessionID: () => string | undefined
                 data-slot="session-todo-progress-checkbox"
                 checked={task().status === "completed"}
                 indeterminate={task().status === "in_progress"}
-                disabled={task().status === "cancelled"}
+                disabled={task().status === "cancelled" || task().id === undefined}
                 onChange={() => writeback(task())}
                 label={
                   <span data-slot="session-todo-progress-checkbox-label" data-status={task().status}>

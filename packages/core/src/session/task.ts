@@ -177,6 +177,7 @@ export const layer = Layer.effect(
       const now = (yield* DateTime.nowAsDate).getTime()
       const createdAt = new Map<string, number>()
       const parentIdById = new Map<string, string | null>()
+      const digestById = new Map<string, string | null>()
 
       // Run validation + reconcile in one transaction. The transaction always
       // succeeds: it reports a rejected client id via the tagged result instead
@@ -225,6 +226,10 @@ export const layer = Layer.effect(
               // Capture the effective parent_id (resolved from the input or the
               // existing row) so the returned Info matches what was persisted.
               parentIdById.set(task.id, columns.parent_id)
+              // WriteInfo carries no outputDigest (only patch sets it), so the
+              // digest always survives reconcile via the existing row; mirror it
+              // into the resolved Info to keep the event payload in sync with the DB.
+              digestById.set(task.id, prior?.output_digest ?? null)
               if (existingById.has(task.id)) {
                 yield* tx.update(TaskTable).set(columns).where(eq(TaskTable.id, task.id)).run().pipe(Effect.orDie)
               } else {
@@ -251,6 +256,7 @@ export const layer = Layer.effect(
 
       const resolved: Info[] = planned.map((task) => {
         const parentID = parentIdById.get(task.id)
+        const outputDigest = digestById.get(task.id)
         return new Info({
           id: task.id,
           content: task.content,
@@ -258,6 +264,7 @@ export const layer = Layer.effect(
           priority: task.priority,
           sessionID: input.sessionID,
           ...(parentID ? { parentID } : {}),
+          ...(outputDigest ? { outputDigest } : {}),
           createdAt: createdAt.get(task.id) ?? now,
           updatedAt: now,
         })

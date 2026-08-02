@@ -189,7 +189,7 @@ describe("SessionTask", () => {
       })
       yield* tasks.update({
         sessionID,
-        tasks: [{ ...created, status: "completed" }],
+        tasks: [{ id: created.id, content: "x", status: "completed", priority: "low" }],
       })
       const got = yield* tasks.get(sessionID)
       expect(got[0]?.status).toBe("completed")
@@ -314,6 +314,39 @@ describe("SessionTask", () => {
       })
       expect(resolved[1]?.parentID).toBe(parent.id)
       expect((yield* tasks.get(sessionID))[1]?.parentID).toBe(parent.id)
+    }),
+  )
+
+  it.effect("update reconcile preserves outputDigest in the resolved payload and the event", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const events = yield* EventV2.Service
+      const tasks = yield* SessionTask.Service
+      const published = new Array<EventV2.Payload>()
+      const unsubscribe = yield* events.listen((event) =>
+        Effect.sync(() => {
+          if (event.type === SessionTask.Event.Updated.type) published.push(event)
+        }),
+      )
+      yield* Effect.addFinalizer(() => unsubscribe)
+
+      // A delegation settle writeback lands the child-session digest.
+      const [created] = yield* tasks.update({
+        sessionID,
+        tasks: [{ content: "audit", status: "in_progress", priority: "medium" }],
+      })
+      yield* tasks.patch({ sessionID, id: created.id, status: "completed", outputDigest: "ses_child" })
+
+      // A full-list reconcile (taskwrite / PATCH) must keep the digest in the DB,
+      // the resolved Info, and the republished task.updated payload alike.
+      const resolved = yield* tasks.update({
+        sessionID,
+        tasks: [{ id: created.id, content: "audit", status: "in_progress", priority: "medium" }],
+      })
+      expect(resolved[0]?.outputDigest).toBe("ses_child")
+      expect((yield* tasks.get(sessionID))[0]?.outputDigest).toBe("ses_child")
+      const data = Schema.decodeUnknownSync(SessionTask.Event.Updated.data)(published.at(-1)?.data)
+      expect(data.tasks[0]?.outputDigest).toBe("ses_child")
     }),
   )
 })

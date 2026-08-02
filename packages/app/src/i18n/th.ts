@@ -528,9 +528,6 @@ export const dict = {
   "session.messages.jumpToLatest": "ไปที่ล่าสุด",
 
   "session.context.addToContext": "เพิ่ม {{selection}} ไปยังบริบท",
-  "session.todo.title": "สิ่งที่ต้องทำ",
-  "session.todo.collapse": "ย่อ",
-  "session.todo.expand": "ขยาย",
   "session.followupDock.summary.one": "{{count}} ข้อความในคิว",
   "session.followupDock.summary.other": "{{count}} ข้อความในคิว",
   "session.followupDock.sendNow": "ส่งทันที",

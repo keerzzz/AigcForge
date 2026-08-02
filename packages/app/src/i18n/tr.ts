@@ -538,9 +538,6 @@ export const dict = {
   "session.messages.jumpToLatest": "En sona atla",
 
   "session.context.addToContext": "{{selection}} bağlama ekle",
-  "session.todo.title": "Görevler",
-  "session.todo.collapse": "Daralt",
-  "session.todo.expand": "Genişlet",
   "session.followupDock.summary.one": "{{count}} sıradaki mesaj",
   "session.followupDock.summary.other": "{{count}} sıradaki mesaj",
   "session.followupDock.sendNow": "Şimdi gönder",

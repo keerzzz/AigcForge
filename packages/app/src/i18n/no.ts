@@ -534,9 +534,6 @@ export const dict = {
   "session.messages.jumpToLatest": "Hopp til nyeste",
 
   "session.context.addToContext": "Legg til {{selection}} i kontekst",
-  "session.todo.title": "Oppgaver",
-  "session.todo.collapse": "Skjul",
-  "session.todo.expand": "Utvid",
   "session.followupDock.summary.one": "{{count}} melding i kø",
   "session.followupDock.summary.other": "{{count}} meldinger i kø",
   "session.followupDock.sendNow": "Send nå",

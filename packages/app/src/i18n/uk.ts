@@ -565,9 +565,6 @@ export const dict = {
   "session.messages.jumpToLatest": "Перейти до останніх",
 
   "session.context.addToContext": "Додати {{selection}} до контексту",
-  "session.todo.title": "Завдання",
-  "session.todo.collapse": "Згорнути",
-  "session.todo.expand": "Розгорнути",
   "session.todo.progress": "Виконано {{done}} з {{total}} завдань",
   "session.question.progress": "{{current}} з {{total}} запитань",
   "session.followupDock.summary.one": "{{count}} повідомлення в черзі",

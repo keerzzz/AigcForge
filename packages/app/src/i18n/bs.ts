@@ -533,9 +533,6 @@ export const dict = {
   "session.messages.jumpToLatest": "Idi na najnovije",
 
   "session.context.addToContext": "Dodaj {{selection}} u kontekst",
-  "session.todo.title": "Zadaci",
-  "session.todo.collapse": "Sažmi",
-  "session.todo.expand": "Proširi",
   "session.followupDock.summary.one": "{{count}} poruka na čekanju",
   "session.followupDock.summary.other": "{{count}} poruka na čekanju",
   "session.followupDock.sendNow": "Pošalji sada",

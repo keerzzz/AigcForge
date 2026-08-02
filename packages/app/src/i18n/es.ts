@@ -534,9 +534,6 @@ export const dict = {
   "session.messages.jumpToLatest": "Ir al último",
 
   "session.context.addToContext": "Añadir {{selection}} al contexto",
-  "session.todo.title": "Tareas",
-  "session.todo.collapse": "Contraer",
-  "session.todo.expand": "Expandir",
   "session.followupDock.summary.one": "{{count}} mensaje en cola",
   "session.followupDock.summary.other": "{{count}} mensajes en cola",
   "session.followupDock.sendNow": "Enviar ahora",
