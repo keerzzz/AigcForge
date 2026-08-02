@@ -2,11 +2,7 @@
 
 ## 2026-08-02: Task Spawn and DAG Fields (Todo/Task M5)
 
-- Persist M5 fields on the `task` table via the drizzle-kit pipeline (`20260802140709_add_task_spawn_fields`): nullable `spawned_from` (originating message id) and `depends_on` (JSON array of predecessor task ids); existing rows backfill null.
-- `SessionTask.WriteInfo`/`Info` carry `spawnedFrom`/`dependsOn`; write paths persist them and preserve them through an omitting reconcile (same rule as `parentID`/`outputDigest`/schedule fields).
-- New `task_spawn` built-in tool creates a pending task tagged with the originating message (`spawnedFrom`), optional DAG predecessors (`dependsOn`), and owning agent; registered in the built-in tool set, permission-gated like `taskwrite`.
-- New pure DAG dependency module (`packages/core/src/session/dag.ts`): `blockedBy` returns non-terminal/missing predecessors that gate a task's trigger; `findCycle` rejects a cyclic graph (no task in a cycle can ever run).
-- V1 Todo (`packages/aigcfroge/src/session/todo.ts` + `tool/todo.ts`) marked `@deprecated` in comments; files retained for V1-runtime backward compatibility (physical deletion is a Phase 5 decision).
+（未落地——M5 变更已移出本分支，完整保留在 wip 分支 `todo-task-m4m5`，待 M5 里程碑合入。移出的内容：`spawned_from`/`depends_on` 落列（迁移 `20260802140709_add_task_spawn_fields`）、`SessionTask.WriteInfo`/`Info` 写路径持久化、`task_spawn` 内建工具、`session/dag.ts` DAG 纯逻辑。注：V1 Todo（`packages/aigcfroge/src/session/todo.ts` + `tool/todo.ts`）的 `@deprecated` 注释已随本分支 M3b-2 落地，文件保留。）
 
 ## 2026-08-02: SessionTask.Info nextRun Derived Field and Scheduler Production Wiring (Todo/Task M3a/M3b-1)
 
