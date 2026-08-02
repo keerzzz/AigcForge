@@ -15,6 +15,15 @@ import { PermissionSaved } from "./permission/saved"
 export { Effect, Rule, Ruleset } from "@aigcfroge/schema/permission"
 const missingAgentPermissions: Permission.Ruleset = [{ action: "*", resource: "*", effect: "deny" }]
 
+// Catch-all deny inserted at the head of an unattended child session's
+// ruleset. evaluate falls back to ask when no rule matches, but an
+// unattended session has nobody to answer the prompt — assert would park on
+// a Deferred until teardown (a hung task). evaluate uses findLast (later
+// rules win), so the head position keeps every configured rule — and every
+// saved rule, appended last in evaluateInput — ahead of it: only a
+// completely unmatched action lands on the fallback deny.
+const unattendedFallback: Permission.Rule = { action: "*", resource: "*", effect: "deny" }
+
 export const ID = Schema.String.check(Schema.isStartsWith("per")).pipe(
   Schema.brand("PermissionV2.ID"),
   withStatics((schema) => ({ create: (id?: string) => schema.make(id ?? "per_" + Identifier.ascending()) })),
@@ -167,9 +176,10 @@ export const layer = Layer.effect(
       const rules = agent?.permissions ?? missingAgentPermissions
       // Child sessions that are unattended convert ask→deny: the user is not
       // present to reply, so permission prompts become automatic rejections.
-      // A root session (no parentID) always has the user present.
+      // A root session (no parentID) always has the user present. The
+      // head catch-all extends this to the no-rule-matches fallback ask.
       if (session.parentID !== undefined && !session.attended) {
-        return rules.map((r) => (r.effect === "ask" ? { ...r, effect: "deny" as const } : r))
+        return [unattendedFallback, ...rules.map((r) => (r.effect === "ask" ? { ...r, effect: "deny" as const } : r))]
       }
       return rules
     })
@@ -184,8 +194,15 @@ export const layer = Layer.effect(
 
     const evaluateInput = EffectRuntime.fnUntraced(function* (input: AssertInput) {
       const rules = yield* configured(input.sessionID, input.agent)
-      if (denied(input, rules)) return { effect: "deny" as const, rules }
-      const all = [...rules, ...(yield* savedRules())]
+      const remembered = yield* savedRules()
+      // Deny precedence runs against explicit configured rules only: the
+      // unattended fallback is excluded here so a saved approval (appended
+      // after it in `all`, winning findLast) still pre-authorizes an
+      // unattended child, while an explicit configured deny keeps beating a
+      // saved approval.
+      if (denied(input, rules.filter((rule) => rule !== unattendedFallback)))
+        return { effect: "deny" as const, rules }
+      const all = [...rules, ...remembered]
       const effects = input.resources.map((resource) => evaluate(input.action, resource, all).effect)
       const effect: Permission.Effect = effects.includes("deny") ? "deny" : effects.includes("ask") ? "ask" : "allow"
       return { effect, rules: all }
