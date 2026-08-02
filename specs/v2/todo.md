@@ -101,12 +101,19 @@
 - ⬜ M4（未开始——实现已移出本分支，保留在 wip 分支 `todo-task-m4m5`，待 M4 里程碑）: AgentTaskHub 面板（composer 内 "我的智能体" 三区：智能体列表 + 任务衍生聚合（`session_task` 跨 session 按 agentID 过滤）+ 新建入口占位（衍生接 M5 task_spawn）；纯模型 `agent-task-hub-model` 可测）
 - ⬜ M5（未开始——实现已移出本分支，保留在 wip 分支 `todo-task-m4m5`，待 M5 里程碑）: 跨模式集成（`spawned_from`/`depends_on` 落列（迁移 `20260802140709_add_task_spawn_fields`）+ SessionTask 字段持久化；task_spawn Tool（spawnedFrom=消息 id + dependsOn + agentID）；DAG 依赖纯逻辑（`session/dag.ts`：blockedBy 前置终态门控 + findCycle 循环拒绝））。注：V1 Todo（`aigcfroge/src/session/todo.ts` + `tool/todo.ts`）deprecated 注释已随本分支 M3b-2 落地（不删文件）
 
+**M2 已声明限制**（如实，非已解决）：
+1. SessionTodoProgress 仅在会话工作态渲染（沿袭 session-progress 可见性模型）：会话 idle 后节点与统计隐藏；如需常驻展示属产品决策项，本期不做。
+
 **M3 已声明限制**（如实，非已解决）：
 1. 分钟级 cron 用本地时区逐分钟扫描，不处理 DST 边界（计划 §10 声明的分钟级简化）；day-of-month 与 day-of-week 为 AND 语义（偏离标准 cron 的 OR）。
 2. recurring 任务一次 failed 后停跑（arm 过滤非 scheduled/pending），需人工 resume——产品语义如此，后续里程碑再议。
 3. task_schedule 的 remove 是 read-modify-reconcile，同一 provider turn 并行 append 时存在丢写窗口（单写者下不可达）。
 4. 定时任务 prompt 经 TaskDriver 会拼接 parent_context 压缩摘要（P6.1 既有行为），非原样下发。
 5. executor 行为由 stub TaskDriver 单测覆盖；真实 LLM 端到端触发未在 CI 覆盖。
+6. recurring 任务在进程停机期间错过的触发不补偿：re-arm 用 `nextRun(cron, now)` 严格取未来匹配；one-shot 过期任务（`scheduled_at ≤ now`）arm 时会立即补触发——两者行为不对称是有意语义。
+
+**与计划的偏差声明**（M2，已调研后如实记录）：
+1. SessionTodoProgress 节点 hover **未复用 TooltipV2**（计划 §5.5「tooltip 复用现有 tooltip 组件」），保留原生 `title`。证据：① 计划 §5.3 要求 `title` 保留给键盘/读屏，且 e2e 回归（`packages/app/e2e/regression/session-todo-progress.spec.ts`）断言节点带 `title` 属性——原生 title 在鼠标 hover 时同样弹出，叠加 Kobalte tooltip 会双重渲染；② `TooltipV2.Trigger`（`packages/ui/src/v2/components/tooltip-v2.tsx`）硬编码 `as="div"`，无法直接作为绝对定位的 8px 节点按钮，挂接需重构节点几何。`content` 为空的节点不设置 `title`（不弹空 tooltip）。
 
 ### Phase 5 — V1 Retirement
 - Flip AIGCFROGE_V2_RUNTIME to default true after V2 path coverage validation

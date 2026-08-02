@@ -15,7 +15,7 @@
 
 - Persist M3 schedule fields on the `task` table via the drizzle-kit pipeline (`20260802093236_add_task_schedule_fields`): nullable `agent_id`, `scheduled_at` (ms), and `recurrence` (JSON) columns; existing rows backfill null.
 - `SessionTask.WriteInfo`/`Info` now carry `agentID`/`scheduledAt`/`recurrence`; the write paths persist them and preserve them through an omitting reconcile (same rule as `parentID`/`outputDigest`).
-- `TaskRecurrence` changed from a `Schema.Class` to a `Schema.Struct` so the value record encodes/decodes as a plain object (it is persisted as a JSON column and exchanged over HTTP); generated SDK `TaskRecurrence` shape unchanged.
+- `TaskRecurrence` changed from a `Schema.Class` to a `Schema.Struct` so the value record encodes/decodes as a plain object (it is persisted as a JSON column and exchanged over HTTP); generated SDK `TaskRecurrence` shape unchanged. This is an adjudicated exception to the AGENTS.md "multi-field records use `Schema.Class`" rule — the JSON-column persistence plus HTTP exchange constraint above is the recorded justification, and the exception applies to this value type only.
 - New core `ScheduledJobRunner` (single-process in-memory minute-level scheduler): `arm` re-scans the task table to rebuild the next-run queue (startup re-arm), `tick` triggers due jobs and settles each task (completed/failed/cancelled); recurring jobs re-arm to their next cron match only after a completed outcome (failed/cancelled outcomes stay settled).
 - Unattended permission policy (plan §8 G2): scheduled jobs run under an agent whose permissions pre-authorize reads; explicit `allow` rules are not converted to `deny` by the unattended child ask→deny fallback.
 
