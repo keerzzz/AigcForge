@@ -95,9 +95,18 @@
 - ✅ M2a: `output_digest` 落库（迁移 `20260802043814_add_task_output_digest`）+ `SessionTask.patch` 持久化 digest（无 digest 的 patch 不清空）+ `GET /session/{id}/task` 读取端点（重载恢复数据源）
 - ✅ M2b: SessionTodoProgress 脉冲线内嵌节点（`session-todo-progress-model` 纯逻辑 + 组件挂载 timeline session-progress 容器，无 todo 时零改动）+ **移除底部 SessionTodoDock**（composer dock()/todoCollapsed/stories/ready 全清，保留 revert rolled/lift）+ 重载恢复（挂载时 `sync().session.todo` 拉取）
 - ✅ M2c: 可交互折叠浮层（点击统计/节点展开 checkbox 列表，`client.session.task.update` PATCH 回写；新增 `session_task` store 消费 `task.updated` 带稳定 id）+ E2E（nodes/折叠/PATCH/reload 恢复，playwright 2 用例通过）
-- ✅ M3a: ScheduledJobRunner（`arm` 重扫 TaskTable 重建 next-run 队列 = 重启 re-arm；`tick` 触发 + 每路径 settle 三分支；recurring 完成后 re-arm 下一 cron 匹配）+ 分钟级 cron 纯函数（`session/schedule.ts`）+ `agent_id`/`scheduled_at`/`recurrence` 落列（迁移 `20260802093236_add_task_schedule_fields`）+ unattended 权限策略（预授权 ruleset：allow 规则不被 ask→deny 转换，测试证明 unattended 子会话可读）
+- ✅ M3a: ScheduledJobRunner（`arm` 重扫 TaskTable 重建 next-run 队列 = 重启 re-arm；`tick` 触发 + 每路径 settle 三分支；recurring 完成后 re-arm 下一 cron 匹配）+ 分钟级 cron 纯函数（`session/schedule.ts`）+ `agent_id`/`scheduled_at`/`recurrence` 落列（迁移 `20260802093236_add_task_schedule_fields`）+ unattended 权限策略（预授权 ruleset：allow 规则不被 ask→deny 转换，测试证明 unattended 子会话可读）+ **生产接线**：daemon（启动 arm + 分钟 tick + `task.updated` re-arm，`ScheduledJob.daemonNode` 挂入 httpapi app 图）+ 生产 executor（`session/scheduled-job-executor.ts`，TaskDriver unattended 子会话 `attended: false` 驱动 prompt，DelegateError 分类 failed/cancelled）
 - ✅ M3b-1: task_schedule Tool（注册/暂停/恢复/删除定时 task，agentID 归属；builtins 注册）
-- 🔄 M3b-2 (in progress): 定时任务 UI（标题左侧 nextRun 时间戳 + dot-grid 下拉入口 + 弹层）
+- ✅ M3b-2: 定时任务 UI（标题左侧 `⚡ nextRun` chip + dot-grid "定时任务" 菜单项 + 弹层列表/启停走 PATCH reconcile；数据源 `SessionTask.Info.nextRun` 派生）
+- ✅ M4: AgentTaskHub 面板（composer 内 "我的智能体" 三区：智能体列表 + 任务衍生聚合（`session_task` 跨 session 按 agentID 过滤）+ 新建入口占位（衍生接 M5 task_spawn）；纯模型 `agent-task-hub-model` 可测）
+- ✅ M5: 跨模式集成（`spawned_from`/`depends_on` 落列（迁移 `20260802140709_add_task_spawn_fields`）+ SessionTask 字段持久化；task_spawn Tool（spawnedFrom=消息 id + dependsOn + agentID）；DAG 依赖纯逻辑（`session/dag.ts`：blockedBy 前置终态门控 + findCycle 循环拒绝）；V1 Todo（`aigcfroge/src/session/todo.ts` + `tool/todo.ts`）标记 deprecated 注释（不删文件））
+
+**M3 已声明限制**（如实，非已解决）：
+1. 分钟级 cron 用本地时区逐分钟扫描，不处理 DST 边界（计划 §10 声明的分钟级简化）；day-of-month 与 day-of-week 为 AND 语义（偏离标准 cron 的 OR）。
+2. recurring 任务一次 failed 后停跑（arm 过滤非 scheduled/pending），需人工 resume——产品语义如此，后续里程碑再议。
+3. task_schedule 的 remove 是 read-modify-reconcile，同一 provider turn 并行 append 时存在丢写窗口（单写者下不可达）。
+4. 定时任务 prompt 经 TaskDriver 会拼接 parent_context 压缩摘要（P6.1 既有行为），非原样下发。
+5. executor 行为由 stub TaskDriver 单测覆盖；真实 LLM 端到端触发未在 CI 覆盖。
 
 ### Phase 5 — V1 Retirement
 - Flip AIGCFROGE_V2_RUNTIME to default true after V2 path coverage validation

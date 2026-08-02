@@ -1,11 +1,26 @@
 # V2 Schema Changelog
 
+## 2026-08-02: Task Spawn and DAG Fields (Todo/Task M5)
+
+- Persist M5 fields on the `task` table via the drizzle-kit pipeline (`20260802140709_add_task_spawn_fields`): nullable `spawned_from` (originating message id) and `depends_on` (JSON array of predecessor task ids); existing rows backfill null.
+- `SessionTask.WriteInfo`/`Info` carry `spawnedFrom`/`dependsOn`; write paths persist them and preserve them through an omitting reconcile (same rule as `parentID`/`outputDigest`/schedule fields).
+- New `task_spawn` built-in tool creates a pending task tagged with the originating message (`spawnedFrom`), optional DAG predecessors (`dependsOn`), and owning agent; registered in the built-in tool set, permission-gated like `taskwrite`.
+- New pure DAG dependency module (`packages/core/src/session/dag.ts`): `blockedBy` returns non-terminal/missing predecessors that gate a task's trigger; `findCycle` rejects a cyclic graph (no task in a cycle can ever run).
+- V1 Todo (`packages/aigcfroge/src/session/todo.ts` + `tool/todo.ts`) marked `@deprecated` in comments; files retained for V1-runtime backward compatibility (physical deletion is a Phase 5 decision).
+
+## 2026-08-02: SessionTask.Info nextRun Derived Field and Scheduler Production Wiring (Todo/Task M3a/M3b-1)
+
+- `SessionTask.Info` gains an optional derived `nextRun` (ms) field — never persisted, computed at read time against the current clock: only `scheduled`/`pending` tasks carry a value; an enabled recurrence resolves to the next cron match after now, otherwise the one-shot `scheduledAt`; all other statuses omit the field. This is the M3b-2 UI data source and rides every `task.updated` payload and the task HTTP endpoints; generated SDK `SessionTaskInfo` regenerated.
+- ScheduledJobRunner production wiring: the httpapi app graph now mounts `ScheduledJob.node` (shared Database/EventV2/SessionTask + production executor) and `ScheduledJob.daemonNode` — startup `arm`, a minute `tick` fiber, and a `task.updated` subscription that re-arms so new schedules, resumes, and pauses take effect immediately. The production `ScheduledExecutor` (`session/scheduled-job-executor.ts`) drives each trigger through a TaskDriver unattended child Session (`attended: false`), keeping `run` total: `DelegateError` classifies failed/cancelled and seam/infrastructure defects settle failed.
+- Compatibility: `nextRun` is additive and optional; no stored data changes, no migration.
+- M3b-2 UI consumes `nextRun`: the session title row renders a `⚡` chip with the earliest upcoming trigger, and the dot-grid "定时任务" popover lists scheduled tasks (checkbox toggles PATCH `status` only, preserving schedule fields server-side).
+
 ## 2026-08-02: Task Scheduled Job Columns and Recurrence Value Type (Todo/Task M3a)
 
 - Persist M3 schedule fields on the `task` table via the drizzle-kit pipeline (`20260802093236_add_task_schedule_fields`): nullable `agent_id`, `scheduled_at` (ms), and `recurrence` (JSON) columns; existing rows backfill null.
 - `SessionTask.WriteInfo`/`Info` now carry `agentID`/`scheduledAt`/`recurrence`; the write paths persist them and preserve them through an omitting reconcile (same rule as `parentID`/`outputDigest`).
 - `TaskRecurrence` changed from a `Schema.Class` to a `Schema.Struct` so the value record encodes/decodes as a plain object (it is persisted as a JSON column and exchanged over HTTP); generated SDK `TaskRecurrence` shape unchanged.
-- New core `ScheduledJobRunner` (single-process in-memory minute-level scheduler): `arm` re-scans the task table to rebuild the next-run queue (startup re-arm), `tick` triggers due jobs and settles each task (completed/failed/cancelled); recurring jobs re-arm to their next cron match.
+- New core `ScheduledJobRunner` (single-process in-memory minute-level scheduler): `arm` re-scans the task table to rebuild the next-run queue (startup re-arm), `tick` triggers due jobs and settles each task (completed/failed/cancelled); recurring jobs re-arm to their next cron match only after a completed outcome (failed/cancelled outcomes stay settled).
 - Unattended permission policy (plan §8 G2): scheduled jobs run under an agent whose permissions pre-authorize reads; explicit `allow` rules are not converted to `deny` by the unattended child ask→deny fallback.
 
 ## 2026-06-22: Simplify Session Input Promotion
