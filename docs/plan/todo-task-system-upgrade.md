@@ -1,6 +1,6 @@
 # Todo/Task 系统全面升级实施方案
 
-> 状态：**执行中 — M0/M1 已完成，M2 进行中**（2026-08-01，Work M1 已合入 main `a041ca617` 后开始执行；分支切自最新 main；审批修订 E1-E6 + G1-G3 + P1-P2 已应用；2026-08-02 M2 修订方案 B：SessionTodoProgress 脉冲线内嵌节点，移除底部 dock，见 §5.3 Layer 4 + §5.5 边界；**2026-08-02 M0+M1 已交付**：契约/Service/双轨联动/写 API/迁移 5 提交合入 `todo-task`（`dac447900`→`ff5a62268`），**M1.5 `outputDigest` 持久化折入 M2**——TaskPanel 重载恢复是其首个 UI 消费者，放 M2 一并落地（见 §5.2））
+> 状态：**执行中 — M0/M1/M2/M3 已完成，M4 待启动**（2026-08-01 开始执行；2026-08-02 M2 修订方案 B：SessionTodoProgress 脉冲线内嵌节点，移除底部 dock；**2026-08-02 M2+M3 已交付**：`todo-task-m2` 分支 22 提交——outputDigest 持久化 / GET 端点 / 脉冲线 + 折叠浮层 / dock 移除 / ScheduledJobRunner + re-arm + unattended 预授权 / task_schedule / 定时任务 UI，五层差异审批闭环（1 BLOCKER + 3 MAJOR + 9 MINOR 全修复，typecheck/单测/e2e 全绿），审批档案 `docs/review/`；**M4 入口位置已裁决**：dot-grid 下拉 + 弹层，见 §5.7；M4 执行提示词：[prompt-todo-task-m4.md](prompt-todo-task-m4.md)；M4/M5 代码资产存于 wip 分支 `todo-task-m4m5`）
 > 日期：2026-07-31
 > Owner：产品 + Core + App
 > 范围：`packages/schema` + `packages/core` + `packages/aigcfroge` + `packages/app` + `packages/tui`
@@ -248,7 +248,7 @@ Layer 4: App (M2 修订 — 方案 B：脉冲线内嵌节点，移除底部 dock
   ✅ 边界兜底 (详见 §5.5): undefined/空数组/非法 status/除零/单节点/过多节点降采样/aria
   ✅ 可交互 Checkbox → 折叠浮层列表 (hover 节点 or 点击统计展开, M2 交互范围)
   ✅ E2E tests (借鉴 U3)
-  ✅ AgentTaskHub 面板 (M4)
+  ⬜ AgentTaskHub 面板 (M4，入口见 §5.7 决策：dot-grid 下拉 + 弹层；wip 分支 todo-task-m4m5 存可复用实现)
 
 Layer 5: TUI (packages/tui/src/component/todo-item.tsx)
   ⬜ TodoItem → TaskItem 未开始（M5 跨模式集成阶段一并处理或另行立项；截至 M3 TUI 零改动，组件仍为 todo-item.tsx）
@@ -371,6 +371,25 @@ Layer 5: TUI (packages/tui/src/component/todo-item.tsx)
 
 ---
 
+### 5.7 Agent Hub 入口位置（M4 决策，2026-08-02）
+
+> M4 评审预备阶段发现：wip 实现把 AgentTaskHub 入口做成了 composer 区**常显**"My agents"按钮，该位置无任何计划决策背书（评审列为 MAJOR）。三个候选位置经用户裁决：
+
+| 候选 | 形态 | 裁决 |
+|---|---|---|
+| Chat 模式聚合 tab | Chat 主区完整 Agent Hub 页（对齐 Accio agent-hub-page 三区） | ❌ 本期不做——Chat 主区改造超出 M4 估时（3d），**留作 M4 后独立立项** |
+| **时间线下拉入口** | dot-grid 更多下拉加"智能体"菜单项 + 弹层（复用 §5.6 模式） | ✅ **采纳**——与 M3 定时任务同构、零常显 UI、评审面最小 |
+| composer 常显按钮 | wip 已实现形态 | ❌ 否决——无设计依据的常显 UI，new-session 页也会渲染 |
+
+**决策细则**：
+- 入口复用 §5.6 双位置分工的右半：`DropdownMenu.Content` 加"智能体"菜单项 + `pendingScheduled` 式延迟打开 + 弹层锚定 more 按钮；上下文按钮区零改动
+- 弹层三区结构（对齐 Accio A3）：我的智能体 + 任务衍生（占位，接 M5 task_spawn）+ 新建入口
+- 弹层容量上限用"浮层管常用聚合，完整管理跳独立页"分层缓解——独立页即未来的 Chat 聚合 tab 立项
+- wip 分支 `todo-task-m4m5` 的 AgentTaskHub 实现（commit `1b8c426ac`）**model/面板/i18n/CSS 可回收**，composer 挂载 hunk 一律不回收
+- 执行提示词：[prompt-todo-task-m4.md](prompt-todo-task-m4.md)
+
+---
+
 ## 6. 跨模式适用矩阵
 
 | 能力 | Chat | Coding | Work | Assistant | Meta-Agent | 电商 |
@@ -457,9 +476,9 @@ Agent: 合规审查 Agent
 |---|---|---|---|---|
 | **M0 契约** | Schema 新增 `session-task.ts`（文件，包已存在）、TaskDriver↔Task 联动接口定义 | **前置①**: rebase `task-driver` 活跃改动区审计快照（`bff51d690` judge、`50599e86e` CLI persistence、`98762aa47` summaries 均为近期 commit）；**前置②**: 先读 `delegation-parser.ts`/`delegation-protocol.ts`，排查与任务追踪的概念重叠 | Task 契约 + 事件定义 + Schema 评审通过 | 2d |
 | **M1 核心** | SessionTask Service (替代 SessionTodo)、增量 CRUD、TaskDriver↔Task 双轨联动（轨 A `parent_task_id` + 轨 B 自动建 todo + 回写状态机）、tool denies 回灌、`PATCH /session/{id}/task` 写 API + SDK gen | M0 | ✅ **已完成**（2026-08-02，`session-task.test.ts` + `tool-taskwrite.test.ts` + 写 API + 双轨联动测试通过；specs 已同步） | 5d |
-| **M2 UI**（含原 M1.5） | **outputDigest 持久化**（task 表加列 + Service 落库 + 迁移）+ **补 `GET /session/{id}/task` 读取端点**（§9.1 缺口：todo GET 未增 tasks 字段，重载恢复依赖）+ SessionTodoProgress（脉冲线内嵌节点 + hover tooltip + 完成度推进 + 统计 3/5 + 重载恢复 + 边界兜底）+ 移除底部 SessionTodoDock（composer dock() 折叠逻辑/layout todoCollapsed/stories 同步清理）+ 折叠浮层交互（可交互 checkbox）+ E2E tests | M1 | UI 回放 + E2E 全生命周期 + 写 API 联调 + 重载恢复测试（含 outputDigest 刷新后跳转不丢） | 5d |
-| **M3 定时任务** | ScheduledJobRunner（含启动 re-arm + unattended 权限策略）、task_schedule Tool、agentID 归属、**定时任务 UI（标题左侧 icon + nextRun 时间戳 + 更多下拉入口 + 弹层，§5.6）** | M1 | 定时端到端（含重启后 re-arm）+ 标题时间戳渲染 | 7d |
-| **M4 AgentHub** | AgentTaskHub 面板、Agent 视角聚合、定时任务完整管理 UI（对齐 Accio agent-panel） | M2+M3 | Agent Hub 可用 | 3d |
+| **M2 UI**（含原 M1.5） | **outputDigest 持久化**（task 表加列 + Service 落库 + 迁移）+ **补 `GET /session/{id}/task` 读取端点**（§9.1 缺口：todo GET 未增 tasks 字段，重载恢复依赖）+ SessionTodoProgress（脉冲线内嵌节点 + hover tooltip + 完成度推进 + 统计 3/5 + 重载恢复 + 边界兜底）+ 移除底部 SessionTodoDock（composer dock() 折叠逻辑/layout todoCollapsed/stories 同步清理）+ 折叠浮层交互（可交互 checkbox）+ E2E tests | M1 | ✅ **已完成**（2026-08-02，`todo-task-m2` 分支：UI 回放 + E2E 5 用例全绿 + 写 API 联调 + 重载恢复测试含 id 稳定性往返；差异审批 blocking 项全修复） | 5d |
+| **M3 定时任务** | ScheduledJobRunner（含启动 re-arm + unattended 权限策略）、task_schedule Tool、agentID 归属、**定时任务 UI（标题左侧 icon + nextRun 时间戳 + 更多下拉入口 + 弹层，§5.6）** | M1 | ✅ **已完成**（2026-08-02，`todo-task-m2` 分支：重启 re-arm 专项测试 + unattended 预授权测试 + B1 防重入抢占 + 标题时间戳渲染 + E2E；限制已声明：单进程内存调度/真实 LLM 端到端无 CI/停机 recurring 不补偿） | 7d |
+| **M4 AgentHub** | AgentTaskHub 面板（**入口：dot-grid 下拉 + 弹层，§5.7 决策**）、Agent 视角聚合、定时任务完整管理 UI（对齐 Accio agent-panel，含删除 Agent 联动提示 A2）；执行提示词 [prompt-todo-task-m4.md](prompt-todo-task-m4.md)；可复用资产在 wip 分支 `todo-task-m4m5` | M2+M3（✅ 已满足） | Agent Hub 可用 | 3d |
 | **M5 跨模式集成** | Work Preset→Task 展开、Assistant 定时提醒→ScheduledJob、task_spawn Tool、DAG 依赖、电商验证 | M4 | 每条电商 use case 通过 | 3d |
 
 **总估时：25d**

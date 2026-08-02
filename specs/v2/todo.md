@@ -98,7 +98,7 @@
 - ✅ M3a: ScheduledJobRunner（`arm` 重扫 TaskTable 重建 next-run 队列 = 重启 re-arm；`tick` 触发 + 每路径 settle 三分支；recurring 完成后 re-arm 下一 cron 匹配）+ 分钟级 cron 纯函数（`session/schedule.ts`）+ `agent_id`/`scheduled_at`/`recurrence` 落列（迁移 `20260802093236_add_task_schedule_fields`）+ unattended 权限策略（预授权 ruleset：allow 规则不被 ask→deny 转换，测试证明 unattended 子会话可读）+ **生产接线**：daemon（启动 arm + 分钟 tick + `task.updated` re-arm，`ScheduledJob.daemonNode` 挂入 httpapi app 图）+ 生产 executor（`session/scheduled-job-executor.ts`，TaskDriver unattended 子会话 `attended: false` 驱动 prompt，DelegateError 分类 failed/cancelled）
 - ✅ M3b-1: task_schedule Tool（注册/暂停/恢复/删除定时 task，agentID 归属；builtins 注册）
 - ✅ M3b-2: 定时任务 UI（标题左侧 `⚡ nextRun` chip + dot-grid "定时任务" 菜单项 + 弹层列表/启停走 PATCH reconcile；数据源 `SessionTask.Info.nextRun` 派生）
-- ⬜ M4（未开始——实现已移出本分支，保留在 wip 分支 `todo-task-m4m5`，待 M4 里程碑）: AgentTaskHub 面板（composer 内 "我的智能体" 三区：智能体列表 + 任务衍生聚合（`session_task` 跨 session 按 agentID 过滤）+ 新建入口占位（衍生接 M5 task_spawn）；纯模型 `agent-task-hub-model` 可测）
+- ⬜ M4（未开始——可复用实现保留在 wip 分支 `todo-task-m4m5` commit `1b8c426ac`，**入口形态已裁决变更**：composer 常显按钮 → dot-grid 下拉 + 弹层，见计划 §5.7 与执行提示词 `docs/plan/prompt-todo-task-m4.md`）: AgentTaskHub 面板（三区：智能体列表 + 任务衍生占位（接 M5 task_spawn）+ 新建入口）+ Agent 视角聚合（`session_task` 跨 session 按 agentID 过滤）+ 定时任务完整管理 UI（agent 视角，含删除 Agent 联动提示）；纯模型 `agent-task-hub-model` 可回收，composer 挂载 hunk 不回收
 - ⬜ M5（未开始——实现已移出本分支，保留在 wip 分支 `todo-task-m4m5`，待 M5 里程碑）: 跨模式集成（`spawned_from`/`depends_on` 落列（迁移 `20260802140709_add_task_spawn_fields`）+ SessionTask 字段持久化；task_spawn Tool（spawnedFrom=消息 id + dependsOn + agentID）；DAG 依赖纯逻辑（`session/dag.ts`：blockedBy 前置终态门控 + findCycle 循环拒绝））。注：V1 Todo（`aigcfroge/src/session/todo.ts` + `tool/todo.ts`）deprecated 注释已随本分支 M3b-2 落地（不删文件）
 
 **M2 已声明限制**（如实，非已解决）：
