@@ -2,7 +2,7 @@
 
 > **用途**：粘贴到新对话作为初始 prompt，驱动独立 agent 在 `todo-task-m2` 分支上执行 Todo/Task 系统升级的剩余里程碑——M2（outputDigest 持久化 + 读取端点 + SessionTodoProgress UI）、M3（定时任务）、M4（AgentHub）、M5（跨模式集成）。
 > **来源**：[Todo/Task 升级计划](todo-task-system-upgrade.md)（范围真源，§5.1/§5.2/§5.3/§5.5/§5.6/§8/§9/§10）、[Work PRD](../prd/work-mode-execution-layer.md)（ProgressLedger 统一裁决）
-> **前置状态**：M0+M1 已合入本地 main（`ef454564f`），经三轮差异审批（见根目录 `AigcForge_DIFFERENTIAL_REVIEW_2026-08-02.md` 与 `AigcForge_DIFFERENTIAL_REVIEW_ROUND3_2026-08-02.md`）
+> **前置状态**：M0+M1 已合入本地 main（`ef454564f`），经三轮差异审批（见 `docs/review/AigcForge_DIFFERENTIAL_REVIEW_2026-08-02.md` 与 `docs/review/AigcForge_DIFFERENTIAL_REVIEW_ROUND3_2026-08-02.md`）
 > **分支**：`todo-task-m2`（已从本地 main `ef454564f` 切出）
 > **完成标准**：§4 每个 Step 红→绿→重构→验证→重读协议→提交，全部通过后逐里程碑请求审批
 
@@ -32,8 +32,8 @@ docs/plan/todo-task-system-upgrade.md        （本计划全文，范围真源�
 docs/prd/work-mode-execution-layer.md        （Work PRD — ProgressLedger 与 Task 统一）
 specs/v2/todo.md                             （V2 状态追踪器，每个里程碑同步）
 specs/v2/schema-changelog.md                 （契约变更记录，每次改契约同步）
-AigcForge_DIFFERENTIAL_REVIEW_2026-08-02.md         （第二轮审批报告 — 教训清单）
-AigcForge_DIFFERENTIAL_REVIEW_ROUND3_2026-08-02.md  （第三轮审批报告 — 教训清单）
+docs/review/AigcForge_DIFFERENTIAL_REVIEW_2026-08-02.md         （第二轮审批报告 — 教训清单）
+docs/review/AigcForge_DIFFERENTIAL_REVIEW_ROUND3_2026-08-02.md  （第三轮审批报告 — 教训清单）
 ```
 
 **同时精读 M0/M1 已交付的实现**（你的工作是长在它们上面，不是另起炉灶）：
