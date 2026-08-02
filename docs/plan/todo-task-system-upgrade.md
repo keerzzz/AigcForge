@@ -1,6 +1,6 @@
 # Todo/Task 系统全面升级实施方案
 
-> 状态：**执行中 — M0/M1 启动**（2026-08-01，Work M1 已合入 main `a041ca617` 后开始执行；分支切自最新 main；审批修订 E1-E6 + G1-G3 + P1-P2 已应用；2026-08-02 M2 修订方案 B：SessionTodoProgress 脉冲线内嵌节点，移除底部 dock，见 §5.3 Layer 4 + §5.5 边界）
+> 状态：**执行中 — M0/M1 已完成，M2 进行中**（2026-08-01，Work M1 已合入 main `a041ca617` 后开始执行；分支切自最新 main；审批修订 E1-E6 + G1-G3 + P1-P2 已应用；2026-08-02 M2 修订方案 B：SessionTodoProgress 脉冲线内嵌节点，移除底部 dock，见 §5.3 Layer 4 + §5.5 边界；**2026-08-02 M0+M1 已交付**：契约/Service/双轨联动/写 API/迁移 5 提交合入 `todo-task`（`dac447900`→`ff5a62268`），**M1.5 `outputDigest` 持久化折入 M2**——TaskPanel 重载恢复是其首个 UI 消费者，放 M2 一并落地（见 §5.2））
 > 日期：2026-07-31
 > Owner：产品 + Core + App
 > 范围：`packages/schema` + `packages/core` + `packages/aigcfroge` + `packages/app` + `packages/tui`
@@ -175,7 +175,7 @@ export const TaskInfo = Schema.Struct({
   parentID: Schema.optional(Schema.String),       // 子任务支持
   agentID: Schema.optional(Schema.String),        // Agent 归属 (新)
   sessionID: Schema.String,                       // 保留 Session 作用域
-  outputDigest: Schema.optional(Schema.String),   // 步骤增量摘要 (M1.5, Work ProgressLedger 联动)
+  outputDigest: Schema.optional(Schema.String),   // 步骤增量摘要 (M2 折入, TaskPanel 重载恢复持久化)
   scheduledAt: Schema.optional(Schema.Number),    // 定时触发 (M3)
   recurrence: Schema.optional(Schema.Struct({     // 重复规则 (M3)
     cron: Schema.String,
@@ -198,7 +198,7 @@ export const TaskInfo = Schema.Struct({
 | 阶段 | 引入字段 | 理由 |
 |---|---|---|
 | **M0** | `id`, `content`, `status`, `priority`, `parentID`, `sessionID` | 最小可行——`parentID` 低复杂度高价值，`id` 消除 API 不一致 |
-| **M1.5** | `outputDigest` | 与 Work PRD §9.1 ProgressLedger 联动（步骤增量摘要）——字段随其消费者（Work）一起上线 |
+| **M2**（原 M1.5，折入） | `outputDigest` | 与 Work PRD §9.1 ProgressLedger 联动（步骤增量摘要）。M1 双轨回写已把 childSessionID 承载于 outputDigest（事件/返回值）；M2 TaskPanel 的重载恢复是其首个**持久化 UI 消费者**（刷新后跳转子会话链接不丢），故折入 M2 一并落列 + Service 落库 |
 | **M3** | `agentID`, `scheduledAt`, `recurrence` | 与 ScheduledJobRunner 同时上线——不在 M0 引入未实现功能的字段 |
 | **M5** | `dependsOn`, `spawnedFrom` | DAG 依赖和衍生链路——跨模式集成阶段 |
 
@@ -398,7 +398,7 @@ Work Preset "撰写 PRD"
 
 **裁决**：Work PRD §9.1 ProgressLedger 与 Task List **统一为同一模型**：
 - ProgressLedger 的 `step` = TaskInfo 的子集（引用 `id`/`content`/`status`/`outputDigest`）
-- `outputDigest` 已补入 TaskInfo（§5.1）与分期表 M1.5（§5.2）
+- `outputDigest` 已补入 TaskInfo（§5.1）与分期表 M2（原 M1.5 折入，§5.2）
 - `currentStepIndex` = 首个非 `completed` 步骤索引（派生值）；`canResume` = 存在 `failed`/`in_progress` 步骤（派生值），均不落存储
 - 状态字面量统一用 `in_progress`（仓内惯例），Work PRD 原文的 `running` 需在 Work PRD v4.1 修订为 `in_progress`
 - **对齐动作提前到现在，不等 M5**：Work PRD 出 v4.1 小修订，两文档互加关联链接——两边都没写代码，改契约零成本
@@ -456,8 +456,8 @@ Agent: 合规审查 Agent
 | 阶段 | 范围 | 准入 | 退出 | 估时 |
 |---|---|---|---|---|
 | **M0 契约** | Schema 新增 `session-task.ts`（文件，包已存在）、TaskDriver↔Task 联动接口定义 | **前置①**: rebase `task-driver` 活跃改动区审计快照（`bff51d690` judge、`50599e86e` CLI persistence、`98762aa47` summaries 均为近期 commit）；**前置②**: 先读 `delegation-parser.ts`/`delegation-protocol.ts`，排查与任务追踪的概念重叠 | Task 契约 + 事件定义 + Schema 评审通过 | 2d |
-| **M1 核心** | SessionTask Service (替代 SessionTodo)、增量 CRUD、TaskDriver↔Task 双轨联动（轨 A `parent_task_id` + 轨 B 自动建 todo + 回写状态机）、tool denies 回灌、`PATCH /session/{id}/task` 写 API + SDK gen | M0 | `session-task.test.ts` + `tool-taskwrite.test.ts` + 写 API + 双轨联动测试通过；同步 `specs/v2/todo.md` + `specs/v2/schema-changelog.md` | 5d |
-| **M2 UI** | SessionTodoProgress（脉冲线内嵌节点 + hover tooltip + 完成度推进 + 统计 3/5 + 重载恢复 + 边界兜底）、移除底部 SessionTodoDock（composer dock() 折叠逻辑/layout todoCollapsed/stories 同步清理）、折叠浮层交互（可交互 checkbox）、E2E tests | M1 | UI 回放 + E2E 全生命周期 + 写 API 联调 + 重载恢复测试 | 5d |
+| **M1 核心** | SessionTask Service (替代 SessionTodo)、增量 CRUD、TaskDriver↔Task 双轨联动（轨 A `parent_task_id` + 轨 B 自动建 todo + 回写状态机）、tool denies 回灌、`PATCH /session/{id}/task` 写 API + SDK gen | M0 | ✅ **已完成**（2026-08-02，`session-task.test.ts` + `tool-taskwrite.test.ts` + 写 API + 双轨联动测试通过；specs 已同步） | 5d |
+| **M2 UI**（含原 M1.5） | **outputDigest 持久化**（task 表加列 + Service 落库 + 迁移）+ **补 `GET /session/{id}/task` 读取端点**（§9.1 缺口：todo GET 未增 tasks 字段，重载恢复依赖）+ SessionTodoProgress（脉冲线内嵌节点 + hover tooltip + 完成度推进 + 统计 3/5 + 重载恢复 + 边界兜底）+ 移除底部 SessionTodoDock（composer dock() 折叠逻辑/layout todoCollapsed/stories 同步清理）+ 折叠浮层交互（可交互 checkbox）+ E2E tests | M1 | UI 回放 + E2E 全生命周期 + 写 API 联调 + 重载恢复测试（含 outputDigest 刷新后跳转不丢） | 5d |
 | **M3 定时任务** | ScheduledJobRunner（含启动 re-arm + unattended 权限策略）、task_schedule Tool、agentID 归属、**定时任务 UI（标题左侧 icon + nextRun 时间戳 + 更多下拉入口 + 弹层，§5.6）** | M1 | 定时端到端（含重启后 re-arm）+ 标题时间戳渲染 | 7d |
 | **M4 AgentHub** | AgentTaskHub 面板、Agent 视角聚合、定时任务完整管理 UI（对齐 Accio agent-panel） | M2+M3 | Agent Hub 可用 | 3d |
 | **M5 跨模式集成** | Work Preset→Task 展开、Assistant 定时提醒→ScheduledJob、task_spawn Tool、DAG 依赖、电商验证 | M4 | 每条电商 use case 通过 | 3d |
