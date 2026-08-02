@@ -3,7 +3,7 @@ import { Popover as KobaltePopover } from "@kobalte/core/popover"
 import { useLanguage } from "@/context/language"
 import { useLocal } from "@/context/local"
 import { useServerSync } from "@/context/server-sync"
-import { aggregateAgentTasks, activeTaskCount } from "@/pages/session/composer/agent-task-hub-model"
+import { aggregateAgentTasks, activeTaskCount } from "@/pages/session/timeline/agent-task-hub-model"
 
 /**
  * M4 AgentTaskHub (plan §5.3 Layer 4 + §8 M4): an Agent-视角 aggregation panel
@@ -25,7 +25,7 @@ export function AgentTaskHub(props: {
   const serverSync = useServerSync()
 
   const agents = createMemo(() => local.agent.list())
-  const [selected, setSelected] = createSignal<string | undefined>(local.agent.current()?.name)
+  const [selected, setSelected] = createSignal(local.agent.current()?.name)
 
   const rows = createMemo(() => aggregateAgentTasks(serverSync().data.session_task, selected()))
   const active = createMemo(() => activeTaskCount(rows()))

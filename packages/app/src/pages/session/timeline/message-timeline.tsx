@@ -82,6 +82,7 @@ import {
   SessionScheduledChip,
   SessionScheduledTasksPopover,
 } from "@/pages/session/timeline/session-scheduled-tasks"
+import { AgentTaskHub } from "@/pages/session/timeline/agent-task-hub"
 
 const emptyMessages: MessageType[] = []
 const emptyParts: PartType[] = []
@@ -603,6 +604,7 @@ export function MessageTimeline(props: {
     pendingRename: false,
     pendingShare: false,
     pendingScheduled: false,
+    pendingHub: false,
   })
   let titleRef: HTMLInputElement | undefined
 
@@ -611,6 +613,7 @@ export function MessageTimeline(props: {
     dismiss: null as "escape" | "outside" | null,
   })
   const [scheduledOpen, setScheduledOpen] = createSignal(false)
+  const [hubOpen, setHubOpen] = createSignal(false)
   const [bar, setBar] = createStore({
     ms: pace(640),
   })
@@ -1506,10 +1509,10 @@ export function MessageTimeline(props: {
                           variant="ghost"
                           class="size-6 rounded-md data-[expanded]:bg-surface-base-active"
                           classList={{
-                            "bg-surface-base-active": share.open || title.pendingShare || scheduledOpen() || title.pendingScheduled,
+                            "bg-surface-base-active": share.open || title.pendingShare || scheduledOpen() || title.pendingScheduled || hubOpen() || title.pendingHub,
                           }}
                           aria-label={language.t("common.moreOptions")}
-                          aria-expanded={title.menuOpen || share.open || title.pendingShare || scheduledOpen() || title.pendingScheduled}
+                          aria-expanded={title.menuOpen || share.open || title.pendingShare || scheduledOpen() || title.pendingScheduled || hubOpen() || title.pendingHub}
                           ref={(el: HTMLButtonElement) => {
                             more = el
                           }}
@@ -1536,6 +1539,13 @@ export function MessageTimeline(props: {
                                 requestAnimationFrame(() => {
                                   setScheduledOpen(true)
                                   setTitle("pendingScheduled", false)
+                                })
+                              }
+                              if (title.pendingHub) {
+                                event.preventDefault()
+                                requestAnimationFrame(() => {
+                                  setHubOpen(true)
+                                  setTitle("pendingHub", false)
                                 })
                               }
                             }}
@@ -1565,6 +1575,13 @@ export function MessageTimeline(props: {
                               }}
                             >
                               <DropdownMenu.ItemLabel>{language.t("session.scheduled.title")}</DropdownMenu.ItemLabel>
+                            </DropdownMenu.Item>
+                            <DropdownMenu.Item
+                              onSelect={() => {
+                                setTitle({ pendingHub: true, menuOpen: false })
+                              }}
+                            >
+                              <DropdownMenu.ItemLabel>{language.t("session.agentHub.agents")}</DropdownMenu.ItemLabel>
                             </DropdownMenu.Item>
                             <DropdownMenu.Item onSelect={() => void archiveSession(id)}>
                               <DropdownMenu.ItemLabel>{language.t("common.archive")}</DropdownMenu.ItemLabel>
@@ -1681,6 +1698,12 @@ export function MessageTimeline(props: {
                         sessionID={() => id}
                         open={scheduledOpen()}
                         onOpenChange={setScheduledOpen}
+                        anchorRef={() => more}
+                      />
+
+                      <AgentTaskHub
+                        open={hubOpen()}
+                        onOpenChange={setHubOpen}
                         anchorRef={() => more}
                       />
                     </Show>
