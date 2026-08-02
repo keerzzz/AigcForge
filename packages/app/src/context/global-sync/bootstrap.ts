@@ -7,6 +7,7 @@ import type {
   ProviderAuthResponse,
   QuestionRequest,
   Session,
+  SessionTaskInfo,
   Todo,
 } from "@aigcfroge/sdk/v2/client"
 import { showToast } from "@/utils/toast"
@@ -29,6 +30,9 @@ type GlobalStore = {
   project: Project[]
   session_todo: {
     [sessionID: string]: Todo[]
+  }
+  session_task: {
+    [sessionID: string]: SessionTaskInfo[]
   }
   provider: NormalizedProviderListResponse
   provider_auth: ProviderAuthResponse

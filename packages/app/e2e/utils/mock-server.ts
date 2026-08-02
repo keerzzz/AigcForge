@@ -24,6 +24,12 @@ export interface MockServerConfig {
   onMessages?: (input: { sessionID: string; before?: string; phase: "start" | "end" }) => void
   events?: () => unknown[]
   eventRetry?: number
+  /** Optional id-bearing task list served by GET /session/:id/task. PATCH
+   * replaces it and returns the payload so the fold-over writeback round-trips. */
+  tasks?: unknown[]
+  /** Optional three-field todo projection served by GET /session/:id/todo
+   * (reload-recovery source when task.updated is not re-delivered). */
+  todoList?: unknown[]
 }
 
 export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) {
@@ -67,7 +73,19 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
       return json(route, session ?? {})
     }
 
-    if (/^\/session\/[^/]+\/(children|todo|diff)$/.test(path)) return json(route, [])
+    const todoPath = path.match(/^\/session\/([^/]+)\/todo$/)
+    if (todoPath) return json(route, config.todoList ?? [])
+    if (/^\/session\/[^/]+\/(children|diff)$/.test(path)) return json(route, [])
+
+    const taskMatch = path.match(/^\/session\/([^/]+)\/task$/)
+    if (taskMatch) {
+      if (route.request().method() === "PATCH") {
+        const body = route.request().postDataJSON()
+        config.tasks = body
+        return json(route, body)
+      }
+      return json(route, config.tasks ?? [])
+    }
 
     const messagesMatch = path.match(/^\/session\/([^/]+)\/message$/)
     if (messagesMatch) {

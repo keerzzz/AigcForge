@@ -8,6 +8,7 @@ import type {
   QuestionRequest,
   Session,
   SessionStatus,
+  SessionTaskInfo,
   SnapshotFileDiff,
   Todo,
 } from "@aigcfroge/sdk/v2/client"
@@ -17,6 +18,9 @@ import { dropSessionCaches } from "./session-cache"
 import { diffs as list, message as clean } from "@/utils/diffs"
 
 const SKIP_PARTS = new Set(["patch", "step-start", "step-finish"])
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value)
 
 export function applyGlobalEvent(input: {
   event: { type: string; properties?: unknown }
@@ -51,9 +55,11 @@ function cleanupSessionCaches(
   setStore: SetStoreFunction<State>,
   sessionID: string,
   setSessionTodo?: (sessionID: string, todos: Todo[] | undefined) => void,
+  setSessionTask?: (sessionID: string, tasks: SessionTaskInfo[] | undefined) => void,
 ) {
   if (!sessionID) return
   setSessionTodo?.(sessionID, undefined)
+  setSessionTask?.(sessionID, undefined)
   setStore(
     produce((draft) => {
       dropSessionCaches(draft, [sessionID])
@@ -66,6 +72,7 @@ export function cleanupDroppedSessionCaches(
   setStore: SetStoreFunction<State>,
   next: Session[],
   setSessionTodo?: (sessionID: string, todos: Todo[] | undefined) => void,
+  setSessionTask?: (sessionID: string, tasks: SessionTaskInfo[] | undefined) => void,
 ) {
   const keep = new Set(next.map((item) => item.id))
   const stale = [
@@ -82,6 +89,7 @@ export function cleanupDroppedSessionCaches(
   if (stale.length === 0) return
   for (const sessionID of stale) {
     setSessionTodo?.(sessionID, undefined)
+    setSessionTask?.(sessionID, undefined)
   }
   setStore(
     produce((draft) => {
@@ -99,6 +107,7 @@ export function applyDirectoryEvent(input: {
   loadLsp: () => void
   vcsCache?: VcsCache
   setSessionTodo?: (sessionID: string, todos: Todo[] | undefined) => void
+  setSessionTask?: (sessionID: string, tasks: SessionTaskInfo[] | undefined) => void
   retainedLimit?: number
 }) {
   const event = input.event
@@ -119,7 +128,7 @@ export function applyDirectoryEvent(input: {
       next.splice(result.index, 0, info)
       const trimmed = trimSessions(next, { limit, permission: input.store.permission })
       input.setStore("session", reconcile(trimmed, { key: "id" }))
-      cleanupDroppedSessionCaches(input.store, input.setStore, trimmed, input.setSessionTodo)
+      cleanupDroppedSessionCaches(input.store, input.setStore, trimmed, input.setSessionTodo, input.setSessionTask)
       if (!info.parentID) input.setStore("sessionTotal", (value) => value + 1)
       break
     }
@@ -136,7 +145,7 @@ export function applyDirectoryEvent(input: {
             }),
           )
         }
-        cleanupSessionCaches(input.setStore, info.id, input.setSessionTodo)
+        cleanupSessionCaches(input.setStore, info.id, input.setSessionTodo, input.setSessionTask)
         if (info.parentID) break
         input.setStore("sessionTotal", (value) => Math.max(0, value - 1))
         break
@@ -149,7 +158,7 @@ export function applyDirectoryEvent(input: {
       next.splice(result.index, 0, info)
       const trimmed = trimSessions(next, { limit, permission: input.store.permission })
       input.setStore("session", reconcile(trimmed, { key: "id" }))
-      cleanupDroppedSessionCaches(input.store, input.setStore, trimmed, input.setSessionTodo)
+      cleanupDroppedSessionCaches(input.store, input.setStore, trimmed, input.setSessionTodo, input.setSessionTask)
       break
     }
     case "session.deleted": {
@@ -163,7 +172,7 @@ export function applyDirectoryEvent(input: {
           }),
         )
       }
-      cleanupSessionCaches(input.setStore, info.id, input.setSessionTodo)
+      cleanupSessionCaches(input.setStore, info.id, input.setSessionTodo, input.setSessionTask)
       if (info.parentID) break
       input.setStore("sessionTotal", (value) => Math.max(0, value - 1))
       break
@@ -177,6 +186,19 @@ export function applyDirectoryEvent(input: {
       const props = event.properties as { sessionID: string; todos: Todo[] }
       input.setStore("todo", props.sessionID, reconcile(props.todos, { key: "id" }))
       input.setSessionTodo?.(props.sessionID, props.todos)
+      break
+    }
+    case "task.updated": {
+      // Narrow the untrusted event payload with predicates (the incremental
+      // lint gate rejects unsafe type assertions on added lines).
+      if (!isRecord(event.properties)) break
+      const sessionID = event.properties.sessionID
+      const raw = event.properties.tasks
+      if (typeof sessionID !== "string" || !Array.isArray(raw)) break
+      input.setSessionTask?.(
+        sessionID,
+        raw.filter((item): item is SessionTaskInfo => isRecord(item) && typeof item.id === "string"),
+      )
       break
     }
     case "session.status": {

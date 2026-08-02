@@ -1,4 +1,13 @@
-import type { AigcfrogeClient, Config, Path, ProductMode, Project, ProviderAuthResponse, Todo } from "@aigcfroge/sdk/v2/client"
+import type {
+  AigcfrogeClient,
+  Config,
+  Path,
+  ProductMode,
+  Project,
+  ProviderAuthResponse,
+  SessionTaskInfo,
+  Todo,
+} from "@aigcfroge/sdk/v2/client"
 import { showToast } from "@/utils/toast"
 import { getFilename } from "@aigcfroge/core/util/path"
 import { type Accessor, batch, createMemo, getOwner, onCleanup, onMount, untrack } from "solid-js"
@@ -46,6 +55,9 @@ type GlobalStore = {
   project: Project[]
   session_todo: {
     [sessionID: string]: Todo[]
+  }
+  session_task: {
+    [sessionID: string]: SessionTaskInfo[]
   }
   provider: NormalizedProviderListResponse
   provider_auth: ProviderAuthResponse
@@ -119,6 +131,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     },
     project: [],
     session_todo: {},
+    session_task: {},
     provider_auth: {},
     get path() {
       const EMPTY = { state: "", config: "", worktree: "", directory: "", home: "" }
@@ -200,6 +213,20 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
       return
     }
     setGlobalStore("session_todo", sessionID, reconcile(todos, { key: "id" }))
+  }
+
+  const setSessionTask = (sessionID: string, tasks: SessionTaskInfo[] | undefined) => {
+    if (!sessionID) return
+    if (!tasks) {
+      setGlobalStore(
+        "session_task",
+        produce((draft) => {
+          delete draft[sessionID]
+        }),
+      )
+      return
+    }
+    setGlobalStore("session_task", sessionID, reconcile(tasks, { key: "id" }))
   }
 
   const paused = () => untrack(() => globalStore.reload) !== undefined
@@ -423,6 +450,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
       setStore,
       push: queue.push,
       setSessionTodo,
+      setSessionTask,
       retainedLimit: sessionMeta.get(key)?.limit,
       vcsCache: children.vcsCache.get(key),
       loadLsp: () => {
@@ -499,6 +527,9 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     project: projectApi,
     todo: {
       set: setSessionTodo,
+    },
+    task: {
+      set: setSessionTask,
     },
     mcp: {
       toggle: async (directory: string, name: string) => {

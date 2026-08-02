@@ -11,6 +11,7 @@ export interface TodoProgressInput {
   readonly id?: string
   readonly content: string
   readonly status: string
+  readonly priority?: string
 }
 
 export interface TodoProgressNode {
@@ -43,6 +44,20 @@ export const normalizeStatus = (status: string): TodoProgressStatus => {
     default:
       return "pending"
   }
+}
+
+/** Priority stays within the TaskPriority literal for the PATCH writeback. */
+export const normalizePriority = (priority: string | undefined): "high" | "medium" | "low" => {
+  if (priority === "high" || priority === "low") return priority
+  return "medium"
+}
+
+/** Checkbox toggle: checking an unfinished task completes it, unchecking a
+ * completed one returns it to pending. Cancelled tasks stay untouched. */
+export const flipTaskStatus = (status: TodoProgressStatus): TodoProgressStatus => {
+  if (status === "completed") return "pending"
+  if (status === "cancelled") return "cancelled"
+  return "completed"
 }
 
 export const computeTodoProgress = (todos: readonly TodoProgressInput[]): TodoProgress => {
