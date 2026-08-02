@@ -140,6 +140,20 @@
     }
   }
 
+  /* Plan §5.5: marks the gaps left when >20 nodes downsample to
+     first/anchor/last. Pure indicator (aria-hidden); hover title repeats the
+     done/total summary, the full list stays in the fold-over panel. */
+  [data-component="session-todo-progress-ellipsis"] {
+    position: absolute;
+    top: 0;
+    height: 8px;
+    margin-left: -4px;
+    font-size: 8px;
+    line-height: 8px;
+    color: var(--v2-text-text-muted);
+    user-select: none;
+  }
+
   [data-component="session-todo-progress-stats"] {
     position: absolute;
     right: 0;

@@ -93,6 +93,32 @@ describe("computeTodoProgress", () => {
     expect(p.nodes.some((n) => n.pct === (10 / 24) * 100)).toBe(true)
   })
 
+  test("downsampling marks each omitted gap with an ellipsis midpoint", () => {
+    const todos = Array.from({ length: 25 }, (_, i) => ({
+      content: `t${i}`,
+      status: i === 10 ? "in_progress" : "pending",
+    }))
+    const p = computeTodoProgress(todos)
+    // gaps 0→10 and 10→24 both omit nodes, so two ellipsis markers appear at
+    // the gap midpoints (plan §5.5 "中间省略点")
+    expect(p.ellipsis).toEqual([((10 / 24) * 100) / 2, ((10 / 24) * 100 + 100) / 2])
+  })
+
+  test("downsampling without an interior anchor marks one ellipsis gap", () => {
+    const todos = Array.from({ length: 25 }, (_, i) => ({ content: `t${i}`, status: "pending" }))
+    const p = computeTodoProgress(todos)
+    expect(p.nodes).toHaveLength(2)
+    expect(p.ellipsis).toEqual([50])
+  })
+
+  test("at or below the limit no ellipsis markers appear", () => {
+    const p = computeTodoProgress(
+      Array.from({ length: 20 }, (_, i) => ({ content: `t${i}`, status: "pending" })),
+    )
+    expect(p.nodes).toHaveLength(20)
+    expect(p.ellipsis).toEqual([])
+  })
+
   test("cancelled nodes are excluded from done but still rendered greyed", () => {
     const p = computeTodoProgress([
       { content: "a", status: "completed" },

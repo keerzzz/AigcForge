@@ -58,7 +58,7 @@ export function SessionTodoProgress(props: { sessionID: () => string | undefined
   createEffect(() => {
     const id = props.sessionID()
     if (!id) return
-    sync().session.todo(id)
+    void sync().session.todo(id)
     // Only seed when the SSE channel has not already delivered fresher
     // task.updated data, and re-check at resolve time so a late response
     // never clobbers a newer event.
@@ -126,6 +126,13 @@ export function SessionTodoProgress(props: { sessionID: () => string | undefined
         />
         <Index each={progress().nodes}>
           {(node) => (
+            // Plan §5.5 deviation (see specs/v2/todo.md): hover uses the
+            // native `title`, not TooltipV2 — the plan keeps `title` for
+            // keyboard/screen readers (and the e2e regression asserts the
+            // attribute), but native title also fires on hover, so a Kobalte
+            // tooltip would double-render. TooltipV2.Trigger also hardcodes
+            // `as="div"`, which cannot wrap the absolutely-positioned 8px
+            // node without restructuring its geometry.
             <button
               type="button"
               data-component="session-todo-progress-node"
@@ -138,6 +145,18 @@ export function SessionTodoProgress(props: { sessionID: () => string | undefined
               onClick={toggleOpen}
               style={{ left: `${node().pct}%` }}
             />
+          )}
+        </Index>
+        <Index each={progress().ellipsis}>
+          {(pct) => (
+            <span
+              data-component="session-todo-progress-ellipsis"
+              aria-hidden="true"
+              title={language.t("session.todo.progress", { done: progress().done, total: progress().total })}
+              style={{ left: `${pct()}%` }}
+            >
+              …
+            </span>
           )}
         </Index>
         <button

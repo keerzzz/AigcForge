@@ -29,6 +29,11 @@ export interface TodoProgress {
   readonly done: number
   readonly doneRatio: number
   readonly nodes: TodoProgressNode[]
+  /**
+   * Midpoint positions (0-100) of gaps where downsampling omitted nodes
+   * (plan §5.5 "只渲染首尾 + 中间省略点"). Empty unless downsampling ran.
+   */
+  readonly ellipsis: number[]
 }
 
 /** Above this many nodes the pulse line downsamples to first/anchor/last. */
@@ -78,13 +83,19 @@ export const computeTodoProgress = (todos: readonly TodoProgressInput[]): TodoPr
   }))
 
   let nodes = raw
+  let ellipsis: number[] = []
   if (total > DOWNSAMPLE_LIMIT) {
     const keep = new Set<number>([0, total - 1])
     if (firstInProgress !== -1 && firstInProgress !== 0 && firstInProgress !== total - 1) {
       keep.add(firstInProgress)
     }
-    nodes = [...keep].sort((a, b) => a - b).map((i) => raw[i])
+    const kept = [...keep].sort((a, b) => a - b)
+    nodes = kept.map((i) => raw[i])
+    ellipsis = kept.slice(1).flatMap((j, k) => {
+      const i = kept[k]
+      return j - i > 1 ? [(raw[i].pct + raw[j].pct) / 2] : []
+    })
   }
 
-  return { total, done, doneRatio, nodes }
+  return { total, done, doneRatio, nodes, ellipsis }
 }
