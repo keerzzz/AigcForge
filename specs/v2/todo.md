@@ -95,7 +95,9 @@
 - ✅ M2a: `output_digest` 落库（迁移 `20260802043814_add_task_output_digest`）+ `SessionTask.patch` 持久化 digest（无 digest 的 patch 不清空）+ `GET /session/{id}/task` 读取端点（重载恢复数据源）
 - ✅ M2b: SessionTodoProgress 脉冲线内嵌节点（`session-todo-progress-model` 纯逻辑 + 组件挂载 timeline session-progress 容器，无 todo 时零改动）+ **移除底部 SessionTodoDock**（composer dock()/todoCollapsed/stories/ready 全清，保留 revert rolled/lift）+ 重载恢复（挂载时 `sync().session.todo` 拉取）
 - ✅ M2c: 可交互折叠浮层（点击统计/节点展开 checkbox 列表，`client.session.task.update` PATCH 回写；新增 `session_task` store 消费 `task.updated` 带稳定 id）+ E2E（nodes/折叠/PATCH/reload 恢复，playwright 2 用例通过）
-- M3: ScheduledJobRunner（含 re-arm + unattended 权限策略）+ 定时任务 UI（标题左侧 nextRun 时间戳 + dot-grid 下拉入口）
+- ✅ M3a: ScheduledJobRunner（`arm` 重扫 TaskTable 重建 next-run 队列 = 重启 re-arm；`tick` 触发 + 每路径 settle 三分支；recurring 完成后 re-arm 下一 cron 匹配）+ 分钟级 cron 纯函数（`session/schedule.ts`）+ `agent_id`/`scheduled_at`/`recurrence` 落列（迁移 `20260802093236_add_task_schedule_fields`）+ unattended 权限策略（预授权 ruleset：allow 规则不被 ask→deny 转换，测试证明 unattended 子会话可读）
+- ✅ M3b-1: task_schedule Tool（注册/暂停/恢复/删除定时 task，agentID 归属；builtins 注册）
+- 🔄 M3b-2 (in progress): 定时任务 UI（标题左侧 nextRun 时间戳 + dot-grid 下拉入口 + 弹层）
 
 ### Phase 5 — V1 Retirement
 - Flip AIGCFROGE_V2_RUNTIME to default true after V2 path coverage validation
