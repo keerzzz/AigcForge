@@ -1178,6 +1178,41 @@ describe("session task HttpApi", () => {
   )
 
   it.instance(
+    "GET /session/:id/task returns the full TaskInfo list with outputDigest; empty session returns []",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = { "x-aigcfroge-directory": encodeURIComponent(test.directory) }
+        const session = yield* createSession({ title: "task get" })
+
+        // Seed a task and settle it with a digest (the delegation writeback path).
+        const tasks = yield* SessionTask.Service
+        const [seeded] = yield* tasks.update({
+          sessionID: session.id,
+          tasks: [{ content: "first", status: "in_progress", priority: "high" }],
+        })
+        yield* tasks.patch({ sessionID: session.id, id: seeded.id, status: "completed", outputDigest: "ses_child" })
+
+        // GET returns the persisted Info with id + digest (reload-recovery source).
+        const body = yield* requestJson<SessionTask.Info[]>(pathFor(SessionPaths.task, { sessionID: session.id }), {
+          headers,
+        })
+        expect(body).toHaveLength(1)
+        expect(body[0]?.id).toBe(seeded.id)
+        expect(body[0]?.content).toBe("first")
+        expect(body[0]?.status).toBe("completed")
+        expect(body[0]?.outputDigest).toBe("ses_child")
+
+        // A session with no tasks reads back an empty array.
+        const empty = yield* createSession({ title: "task empty" })
+        const emptyBody = yield* requestJson<SessionTask.Info[]>(pathFor(SessionPaths.task, { sessionID: empty.id }), {
+          headers,
+        })
+        expect(emptyBody).toEqual([])
+      }),
+  )
+
+  it.instance(
     "GET /session/:id/todo reads the legacy TodoTable in the default V1 runtime",
     () =>
       Effect.gen(function* () {

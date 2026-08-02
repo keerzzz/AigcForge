@@ -67,10 +67,10 @@
 ### Task System (Todo/Task 升级 M0/M1)
 - [x] SessionTask Schema contract (shared package, stable `tsk_` id + parentID, literal status/priority)
 - [x] SessionTask Service (incremental CRUD, `task.updated` EventV2) replacing SessionTodo
-- [x] task table (id PK, parent_id, session_id FK) via drizzle migration pipeline
+- [x] task table (id PK, parent_id, session_id FK, output_digest nullable column) via drizzle migration pipeline
 - [x] Dual-track TaskDriver ↔ Task linkage: track A `parent_task_id`, track B auto-create + settle writeback
 - [x] Writeback state machine: completed / failed (error digest) / cancelled, childSessionID in outputDigest
-- [x] taskwrite LLM tool (registered in builtins) — M0 fields only; outputDigest persists in M2
+- [x] taskwrite LLM tool (registered in builtins) — M0 fields; `outputDigest` persisted via `SessionTask.patch` in M2
 
 ## 🔄 In Progress
 
@@ -92,7 +92,8 @@
 ### Todo/Task 升级（Todo 计划 M0-M5，见 [docs/plan/todo-task-system-upgrade.md](../../docs/plan/todo-task-system-upgrade.md)）
 - ✅ M0: SessionTask Schema（`packages/schema/src/session-task.ts`，TaskStatus/TaskPriority Literal）
 - ✅ M1: SessionTask Service 替代 SessionTodo + `PATCH /session/{id}/task` 写 API + **TaskDriver↔Task 双轨联动**（轨 A `parent_task_id` 显式关联 / 轨 B 委派自动建 todo，元智能体编排可观测性）
-- M2: SessionTodoProgress 脉冲线内嵌节点（移除底部 dock）+ 重载恢复
+- ✅ M2a: `output_digest` 落库（迁移 `20260802043814_add_task_output_digest`）+ `SessionTask.patch` 持久化 digest（无 digest 的 patch 不清空）+ `GET /session/{id}/task` 读取端点（重载恢复数据源）
+- 🔄 M2b/c (in progress): SessionTodoProgress 脉冲线内嵌节点（移除底部 dock）+ 可交互折叠浮层 + E2E
 - M3: ScheduledJobRunner（含 re-arm + unattended 权限策略）+ 定时任务 UI（标题左侧 nextRun 时间戳 + dot-grid 下拉入口）
 
 ### Phase 5 — V1 Retirement

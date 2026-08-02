@@ -17,9 +17,8 @@ export type Info = typeof Info.Type
 /**
  * Write shape accepted by {@link SessionTask.update}/{@link SessionTask.append}/
  * {@link SessionTask.replaceLegacy}. `id` is optional: absent tasks are minted a
- * stable `tsk_` id. M0 persists only the id/content/status/priority/parentID/
- * sessionID fields; `outputDigest` rides the returned list and the `task.updated`
- * event but is not stored until M2.
+ * stable `tsk_` id. M0 persists id/content/status/priority/parentID/sessionID;
+ * M2 adds `output_digest`, written through {@link SessionTask.patch}.
  */
 export class WriteInfo extends Schema.Class<WriteInfo>("SessionTask.WriteInfo")({
   id: Schema.optional(Schema.String),
@@ -107,8 +106,8 @@ export interface Interface {
   }) => Effect.Effect<ReadonlyArray<Info>>
   /**
    * Target a single task by id and update its status (delegation writeback).
-   * Other rows are untouched; `outputDigest` rides the returned Info and the
-   * republished `task.updated` event but is not stored until M2.
+   * Other rows are untouched; `outputDigest` is persisted (M2) and rides the
+   * returned Info and the republished `task.updated` event.
    */
   readonly patch: (input: {
     readonly sessionID: SessionSchema.ID
@@ -133,6 +132,7 @@ const toInfo = (row: TaskRow): Info =>
     priority: row.priority,
     sessionID: row.session_id,
     ...(row.parent_id ? { parentID: row.parent_id } : {}),
+    ...(row.output_digest ? { outputDigest: row.output_digest } : {}),
     createdAt: row.time_created,
     updatedAt: row.time_updated,
   })
@@ -383,28 +383,25 @@ export const layer = Layer.effect(
     }) {
       const now = (yield* DateTime.nowAsDate).getTime()
       const scoped = and(eq(TaskTable.id, input.id), eq(TaskTable.session_id, input.sessionID))
-      yield* db.update(TaskTable).set({ status: input.status, time_updated: now }).where(scoped).run().pipe(Effect.orDie)
+      // Persist the digest (M2): TaskPanel reload-recovery reads it back after a
+      // refresh. A patch without one leaves the stored digest intact.
+      yield* db
+        .update(TaskTable)
+        .set({
+          status: input.status,
+          time_updated: now,
+          ...(input.outputDigest !== undefined ? { output_digest: input.outputDigest } : {}),
+        })
+        .where(scoped)
+        .run()
+        .pipe(Effect.orDie)
       const row = yield* db.select().from(TaskTable).where(scoped).get().pipe(Effect.orDie)
       if (!row) return undefined
-      const info: Info = new Info({
-        ...toInfo(row),
-        updatedAt: now,
-        ...(input.outputDigest ? { outputDigest: input.outputDigest } : {}),
-      })
-      // The event carries the digest for the patched task even though M2 does not
-      // store it yet, so consumers can jump to the child Session from the payload.
-      const full = yield* read(input.sessionID).pipe(
-        Effect.map((rows) =>
-          rows.map((r) => {
-            const current = toInfo(r)
-            return current.id === input.id && input.outputDigest
-              ? new Info({ ...current, updatedAt: now, outputDigest: input.outputDigest })
-              : current
-          }),
-        ),
-      )
+      // The event re-reads the table and maps rows to Info, so the patched
+      // digest rides the payload (DB and event payload stay in agreement).
+      const full = yield* read(input.sessionID).pipe(Effect.map((rows) => rows.map(toInfo)))
       yield* publishBoth(input.sessionID, full)
-      return info
+      return new Info({ ...toInfo(row), updatedAt: now })
     })
 
     const remove = Effect.fn("SessionTask.delete")(function* (sessionID: SessionSchema.ID) {

@@ -133,6 +133,9 @@ export const TaskTable = sqliteTable(
     status: text().$type<SessionTaskSchema.TaskStatus>().notNull(),
     priority: text().$type<SessionTaskSchema.TaskPriority>().notNull(),
     parent_id: text(),
+    // M2: incremental step output digest (Work ProgressLedger) — TaskPanel
+    // reload-recovery reads it back after a page refresh.
+    output_digest: text(),
     position: integer().notNull(),
     ...Timestamps,
   },

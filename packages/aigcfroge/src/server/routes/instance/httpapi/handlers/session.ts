@@ -141,6 +141,12 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       )
     })
 
+    const getTask = Effect.fn("SessionHttpApi.getTask")(function* (ctx: { params: { sessionID: SessionID } }) {
+      yield* requireSession(ctx.params.sessionID)
+      const v2task = yield* SessionTask.Service
+      return yield* v2task.get(ctx.params.sessionID)
+    })
+
     const diff = Effect.fn("SessionHttpApi.diff")(function* (ctx: {
       params: { sessionID: SessionID }
       query: typeof DiffQuery.Type
@@ -643,6 +649,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       .handle("children", children)
       .handle("todo", todo)
       .handle("task", task)
+      .handle("getTask", getTask)
       .handle("diff", diff)
       .handle("messages", messages)
       .handle("message", message)

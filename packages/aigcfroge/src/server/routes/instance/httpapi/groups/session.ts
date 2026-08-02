@@ -185,6 +185,19 @@ export const SessionApi = HttpApi.make("session")
               "Reconcile a session's task list: entries without an id are minted a stable tsk_ id, entries with an existing id are updated in place, and omitted entries are removed.",
           }),
         ),
+        HttpApiEndpoint.get("getTask", SessionPaths.task, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          success: described(Schema.Array(SessionTask.Info), "Task list"),
+          error: [HttpApiError.BadRequest, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.task.get",
+            summary: "Get session tasks",
+            description:
+              "Retrieve a session's task list with stable ids and persisted output digests (reload-recovery source for the TaskPanel).",
+          }),
+        ),
         HttpApiEndpoint.get("diff", SessionPaths.diff, {
           params: { sessionID: SessionID },
           query: DiffQuery,

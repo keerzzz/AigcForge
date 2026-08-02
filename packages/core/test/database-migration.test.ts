@@ -17,6 +17,7 @@ import simplifyIntegrationCredentialsMigration from "@aigcfroge/core/database/mi
 import simplifySessionInputMigration from "@aigcfroge/core/database/migration/20260622202450_simplify_session_input"
 import sessionInputKindMigration from "@aigcfroge/core/database/migration/20260705170359_session_input_kind"
 import backfillTaskTableMigration from "@aigcfroge/core/database/migration/20260802220000_backfill_task_table"
+import addTaskOutputDigestMigration from "@aigcfroge/core/database/migration/20260802043814_add_task_output_digest"
 import { EventV2 } from "@aigcfroge/core/event"
 import { ProjectV2 } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
@@ -847,6 +848,44 @@ describe("DatabaseMigration", () => {
           sql`SELECT status, priority FROM task WHERE content = 'legacy'`,
         )
         expect(migrated).toEqual({ status: "pending", priority: "medium" })
+      }),
+    )
+  })
+
+  test("adds a nullable output_digest column to task preserving existing rows", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        // Pre-migration shape: task table without output_digest, with existing rows.
+        yield* db.run(sql`
+          CREATE TABLE task (
+            id text PRIMARY KEY,
+            session_id text NOT NULL,
+            content text NOT NULL,
+            status text NOT NULL,
+            priority text NOT NULL,
+            parent_id text,
+            position integer NOT NULL,
+            time_created integer NOT NULL,
+            time_updated integer NOT NULL
+          )
+        `)
+        yield* db.run(
+          sql`INSERT INTO task (id, session_id, content, status, priority, position, time_created, time_updated) VALUES ('tsk_1', 'ses_1', 'first', 'pending', 'low', 0, 1, 1)`,
+        )
+
+        yield* DatabaseMigration.applyOnly(db, [addTaskOutputDigestMigration])
+
+        // Column exists and existing rows read back a null digest.
+        const cols = yield* db.all<{ name: string }>(sql`SELECT name FROM pragma_table_info('task')`)
+        expect(cols.map((column) => column.name)).toContain("output_digest")
+        expect(yield* db.get(sql`SELECT output_digest FROM task WHERE id = 'tsk_1'`)).toEqual({ output_digest: null })
+
+        // Column is writable.
+        yield* db.run(sql`UPDATE task SET output_digest = 'ses_child' WHERE id = 'tsk_1'`)
+        expect(yield* db.get(sql`SELECT output_digest FROM task WHERE id = 'tsk_1'`)).toEqual({
+          output_digest: "ses_child",
+        })
       }),
     )
   })

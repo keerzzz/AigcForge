@@ -278,6 +278,7 @@ export default {
           \`status\` text NOT NULL,
           \`priority\` text NOT NULL,
           \`parent_id\` text,
+          \`output_digest\` text,
           \`position\` integer NOT NULL,
           \`time_created\` integer NOT NULL,
           \`time_updated\` integer NOT NULL,

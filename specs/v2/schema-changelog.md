@@ -13,6 +13,13 @@
 - Reset experimental events, sequences, Session inputs, projected Session messages, Context Epochs, synchronized workspace rows, and Session workspace links.
 - Preserve canonical V1 `session`, `message`, and `part` rows.
 
+## 2026-08-02: Task output_digest Persistence and GET Task Endpoint (Todo/Task M2a)
+
+- Persist `output_digest` on the `task` table (nullable column) via the drizzle-kit pipeline (`20260802043814_add_task_output_digest`); `SessionTask.patch` writes the digest, and a later patch omitting it leaves the stored digest intact.
+- `SessionTask.Info` maps `outputDigest` from the table, so it survives a page refresh (TaskPanel reload-recovery); DB, resolved Info, and `task.updated` payload stay in agreement.
+- New `GET /session/:sessionID/task` HTTP endpoint returning the full TaskInfo list with stable ids + persisted digest (empty session returns `[]`); generated SDK `Task.getTask` client method.
+- Legacy `GET /session/:id/todo` V1/V2 dual-branch read path unchanged.
+
 ## 2026-08-02: SessionTask Contract, Table, and PATCH API (Todo/Task M0+M1)
 
 - New shared `SessionTask` Schema contract (`packages/schema/src/session-task.ts`): stable `tsk_` id, literal `TaskStatus`/`TaskPriority`, optional `parentID`; M2/M3/M5 fields (outputDigest/agentID/scheduledAt/recurrence/spawnedFrom/dependsOn) declared but not yet persisted.

@@ -125,6 +125,29 @@ describe("SessionTask", () => {
     }),
   )
 
+  it.effect("patch persists outputDigest and a later patch without one keeps it", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const [task] = yield* tasks.update({
+        sessionID,
+        tasks: [{ content: "audit", status: "in_progress", priority: "medium" }],
+      })
+
+      // M2: the digest is now stored, so a re-read after patch still sees it
+      // (TaskPanel reload-recovery depends on this surviving a page refresh).
+      yield* tasks.patch({ sessionID, id: task.id, status: "completed", outputDigest: "ses_child" })
+      const after = yield* tasks.get(sessionID)
+      expect(after[0]?.outputDigest).toBe("ses_child")
+
+      // A patch without a digest must not clear the stored one.
+      yield* tasks.patch({ sessionID, id: task.id, status: "cancelled" })
+      const final = yield* tasks.get(sessionID)
+      expect(final[0]?.status).toBe("cancelled")
+      expect(final[0]?.outputDigest).toBe("ses_child")
+    }),
+  )
+
   it.effect("patch is scoped to the owning session", () =>
     Effect.gen(function* () {
       yield* setup

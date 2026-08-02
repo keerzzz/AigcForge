@@ -260,6 +260,8 @@ import type {
   SessionStatusResponses,
   SessionSummarizeErrors,
   SessionSummarizeResponses,
+  SessionTaskGetErrors,
+  SessionTaskGetResponses,
   SessionTaskUpdateErrors,
   SessionTaskUpdateResponses,
   SessionTaskWriteInfo,
@@ -4718,6 +4720,38 @@ export class Provider extends HeyApiClient {
 }
 
 export class Task extends HeyApiClient {
+  /**
+   * Get session tasks
+   *
+   * Retrieve a session's task list with stable ids and persisted output digests (reload-recovery source for the TaskPanel).
+   */
+  public get<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionTaskGetResponses, SessionTaskGetErrors, ThrowOnError>({
+      url: "/session/{sessionID}/task",
+      ...options,
+      ...params,
+    })
+  }
+
   /**
    * Replace session tasks
    *

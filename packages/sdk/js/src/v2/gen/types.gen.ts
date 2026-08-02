@@ -12126,6 +12126,40 @@ export type SessionTodoResponses = {
 
 export type SessionTodoResponse = SessionTodoResponses[keyof SessionTodoResponses]
 
+export type SessionTaskGetData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/task"
+}
+
+export type SessionTaskGetErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionTaskGetError = SessionTaskGetErrors[keyof SessionTaskGetErrors]
+
+export type SessionTaskGetResponses = {
+  /**
+   * Task list
+   */
+  200: Array<SessionTaskInfo>
+}
+
+export type SessionTaskGetResponse = SessionTaskGetResponses[keyof SessionTaskGetResponses]
+
 export type SessionTaskUpdateData = {
   body?: Array<SessionTaskWriteInfo>
   path: {
