@@ -806,4 +806,48 @@ describe("DatabaseMigration", () => {
       }),
     )
   })
+
+  test("backfill migration normalizes legacy free-form status/priority", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`
+          CREATE TABLE todo (
+            session_id text NOT NULL,
+            content text NOT NULL,
+            status text NOT NULL,
+            priority text NOT NULL,
+            position integer NOT NULL,
+            time_created integer NOT NULL,
+            time_updated integer NOT NULL,
+            PRIMARY KEY (session_id, position)
+          )
+        `)
+        yield* db.run(sql`
+          CREATE TABLE task (
+            id text PRIMARY KEY,
+            session_id text NOT NULL,
+            content text NOT NULL,
+            status text NOT NULL,
+            priority text NOT NULL,
+            parent_id text,
+            position integer NOT NULL,
+            time_created integer NOT NULL,
+            time_updated integer NOT NULL
+          )
+        `)
+        // Legacy Todo.Info had unconstrained status/priority strings.
+        yield* db.run(
+          sql`INSERT INTO todo (session_id, content, status, priority, position, time_created, time_updated) VALUES ('ses_1', 'legacy', 'done', 'urgent', 0, 1, 1)`,
+        )
+
+        yield* DatabaseMigration.applyOnly(db, [backfillTaskTableMigration])
+
+        const migrated = yield* db.get<{ status: string; priority: string }>(
+          sql`SELECT status, priority FROM task WHERE content = 'legacy'`,
+        )
+        expect(migrated).toEqual({ status: "pending", priority: "medium" })
+      }),
+    )
+  })
 })

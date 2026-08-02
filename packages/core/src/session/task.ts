@@ -2,6 +2,7 @@ export * as SessionTask from "./task"
 
 import { and, asc, eq } from "drizzle-orm"
 import { Context, Effect, Layer, Schema } from "effect"
+import * as DateTime from "effect/DateTime"
 import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task"
 import { Database } from "../database/database"
 import { EventV2 } from "../event"
@@ -14,10 +15,10 @@ export const Info = SessionTaskSchema.Info
 export type Info = typeof Info.Type
 
 /**
- * Write shape accepted by {@link SessionTask.update}. `id` is optional: absent
- * tasks are minted a stable `tsk_` id. M0 persists only the id/content/status/
- * priority/parentID/sessionID fields; `outputDigest` rides the returned list and
- * the `task.updated` event but is not stored until M1.5.
+ * Write shape accepted by {@link SessionTask.update}/{@link SessionTask.append}.
+ * `id` is optional: absent tasks are minted a stable `tsk_` id. M0 persists only
+ * the id/content/status/priority/parentID/sessionID fields; `outputDigest` rides
+ * the returned list and the `task.updated` event but is not stored until M2.
  */
 export const WriteInfo = Schema.Struct({
   id: Schema.optional(Schema.String),
@@ -28,12 +29,30 @@ export const WriteInfo = Schema.Struct({
 }).annotate({ identifier: "SessionTask.WriteInfo" })
 export type WriteInfo = typeof WriteInfo.Type
 
+/**
+ * Compatibility projection of a task into the legacy three-field todo shape so
+ * existing App/TUI `todo.updated` consumers keep working against the task source.
+ */
+export const TodoProjection = Schema.Struct({
+  content: Schema.String,
+  status: Schema.String,
+  priority: Schema.String,
+}).annotate({ identifier: "SessionTask.TodoProjection" })
+
 export const Event = {
   Updated: EventV2.define({
     type: "task.updated",
     schema: {
       sessionID: SessionSchema.ID,
       tasks: Schema.Array(Info),
+    },
+  }),
+  /** Legacy `todo.updated` projection emitted alongside every task write. */
+  TodoUpdated: EventV2.define({
+    type: "todo.updated",
+    schema: {
+      sessionID: SessionSchema.ID,
+      todos: Schema.Array(TodoProjection),
     },
   }),
 }
@@ -45,9 +64,19 @@ export interface Interface {
     readonly tasks: ReadonlyArray<WriteInfo>
   }) => Effect.Effect<ReadonlyArray<Info>>
   /**
+   * Append new tasks at the end of the session's list in a single transaction.
+   * Positions are computed and the full list is re-read atomically, so
+   * concurrent appends (multiple task tool calls in one provider turn) never
+   * drop each other's rows — unlike a read-modify-reconcile.
+   */
+  readonly append: (input: {
+    readonly sessionID: SessionSchema.ID
+    readonly tasks: ReadonlyArray<WriteInfo>
+  }) => Effect.Effect<ReadonlyArray<Info>>
+  /**
    * Target a single task by id and update its status (delegation writeback).
    * Other rows are untouched; `outputDigest` rides the returned Info and the
-   * republished `task.updated` event but is not stored in M0.
+   * republished `task.updated` event but is not stored in M2.
    */
   readonly patch: (input: {
     readonly sessionID: SessionSchema.ID
@@ -90,6 +119,15 @@ export const layer = Layer.effect(
         .all()
         .pipe(Effect.orDie)
 
+    const publishBoth = (sessionID: SessionSchema.ID, tasks: ReadonlyArray<Info>) =>
+      Effect.gen(function* () {
+        yield* events.publish(Event.Updated, { sessionID, tasks })
+        yield* events.publish(Event.TodoUpdated, {
+          sessionID,
+          todos: tasks.map((task) => ({ content: task.content, status: task.status, priority: task.priority })),
+        })
+      })
+
     const update = Effect.fn("SessionTask.update")(function* (input: {
       readonly sessionID: SessionSchema.ID
       readonly tasks: ReadonlyArray<WriteInfo>
@@ -101,7 +139,8 @@ export const layer = Layer.effect(
         position: index,
       }))
       const retained = new Set(planned.map((task) => task.id))
-      const now = yield* Effect.sync(() => Date.now())
+      const now = (yield* DateTime.nowAsDate).getTime()
+      const createdAt = new Map<string, number>()
 
       yield* db
         .transaction((tx) =>
@@ -113,6 +152,7 @@ export const layer = Layer.effect(
               .all()
               .pipe(Effect.orDie)
             const existingById = new Map(existing.map((row) => [row.id, row]))
+            for (const row of existing) createdAt.set(row.id, row.time_created)
             for (const task of planned) {
               const columns = {
                 content: task.content,
@@ -148,10 +188,60 @@ export const layer = Layer.effect(
         priority: task.priority,
         sessionID: input.sessionID,
         ...(task.parentID ? { parentID: task.parentID } : {}),
-        createdAt: now,
+        createdAt: createdAt.get(task.id) ?? now,
         updatedAt: now,
       }))
-      yield* events.publish(Event.Updated, { sessionID: input.sessionID, tasks: resolved })
+      yield* publishBoth(input.sessionID, resolved)
+      return resolved
+    })
+
+    const append = Effect.fn("SessionTask.append")(function* (input: {
+      readonly sessionID: SessionSchema.ID
+      readonly tasks: ReadonlyArray<WriteInfo>
+    }) {
+      const now = (yield* DateTime.nowAsDate).getTime()
+      const planned = input.tasks.map((task) => ({ id: task.id ?? Identifier.ascending("task"), ...task }))
+      const resolved = yield* db
+        .transaction((tx) =>
+          Effect.gen(function* () {
+            const existing = yield* tx
+              .select()
+              .from(TaskTable)
+              .where(eq(TaskTable.session_id, input.sessionID))
+              .orderBy(asc(TaskTable.position))
+              .all()
+              .pipe(Effect.orDie)
+            let position = existing.length
+            for (const task of planned) {
+              yield* tx
+                .insert(TaskTable)
+                .values({
+                  id: task.id,
+                  session_id: input.sessionID,
+                  content: task.content,
+                  status: task.status,
+                  priority: task.priority,
+                  parent_id: task.parentID ?? null,
+                  position,
+                  time_created: now,
+                  time_updated: now,
+                })
+                .run()
+                .pipe(Effect.orDie)
+              position++
+            }
+            const full = yield* tx
+              .select()
+              .from(TaskTable)
+              .where(eq(TaskTable.session_id, input.sessionID))
+              .orderBy(asc(TaskTable.position))
+              .all()
+              .pipe(Effect.orDie)
+            return full.map(toInfo)
+          }),
+        )
+        .pipe(Effect.orDie)
+      yield* publishBoth(input.sessionID, resolved)
       return resolved
     })
 
@@ -166,22 +256,18 @@ export const layer = Layer.effect(
       readonly status: SessionTaskSchema.TaskStatus
       readonly outputDigest?: string
     }) {
-      const now = yield* Effect.sync(() => Date.now())
-      yield* db
-        .update(TaskTable)
-        .set({ status: input.status, time_updated: now })
-        .where(and(eq(TaskTable.id, input.id), eq(TaskTable.session_id, input.sessionID)))
-        .run()
-        .pipe(Effect.orDie)
-      const row = yield* db.select().from(TaskTable).where(eq(TaskTable.id, input.id)).get().pipe(Effect.orDie)
+      const now = (yield* DateTime.nowAsDate).getTime()
+      const scoped = and(eq(TaskTable.id, input.id), eq(TaskTable.session_id, input.sessionID))
+      yield* db.update(TaskTable).set({ status: input.status, time_updated: now }).where(scoped).run().pipe(Effect.orDie)
+      const row = yield* db.select().from(TaskTable).where(scoped).get().pipe(Effect.orDie)
       if (!row) return undefined
       const info: Info = {
         ...toInfo(row),
         updatedAt: now,
         ...(input.outputDigest ? { outputDigest: input.outputDigest } : {}),
       }
-      // The event carries the digest for the patched task even though M0 does not
-      // store it, so consumers can jump to the child Session from the payload.
+      // The event carries the digest for the patched task even though M2 does not
+      // store it yet, so consumers can jump to the child Session from the payload.
       const full = yield* read(input.sessionID).pipe(
         Effect.map((rows) =>
           rows.map((r) => {
@@ -192,16 +278,16 @@ export const layer = Layer.effect(
           }),
         ),
       )
-      yield* events.publish(Event.Updated, { sessionID: input.sessionID, tasks: full })
+      yield* publishBoth(input.sessionID, full)
       return info
     })
 
     const remove = Effect.fn("SessionTask.delete")(function* (sessionID: SessionSchema.ID) {
       yield* db.delete(TaskTable).where(eq(TaskTable.session_id, sessionID)).run().pipe(Effect.orDie)
-      yield* events.publish(Event.Updated, { sessionID, tasks: [] })
+      yield* publishBoth(sessionID, [])
     })
 
-    return Service.of({ update, patch, get, delete: remove })
+    return Service.of({ update, append, patch, get, delete: remove })
   }),
 )
 

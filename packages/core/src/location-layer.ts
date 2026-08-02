@@ -135,8 +135,8 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
     )
     const skillGuidance = SkillGuidance.locationLayer.pipe(Layer.provide(services))
     const referenceGuidance = ReferenceGuidance.locationLayer.pipe(Layer.provide(services))
-    const todos = SessionTodo.layer.pipe(Layer.provide(services))
     const tasks = SessionTask.layer.pipe(Layer.provide(services))
+    const todos = SessionTodo.layer.pipe(Layer.provide(tasks), Layer.provide(services))
     const questions = QuestionV2.locationLayer.pipe(Layer.provide(services))
     const workArtifact = WorkArtifact.locationLayer.pipe(Layer.provide(services), Layer.provide(mutation))
     // The `task` built-in reaches child Sessions through the TaskDriver module

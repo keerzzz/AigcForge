@@ -260,9 +260,9 @@ import type {
   SessionStatusResponses,
   SessionSummarizeErrors,
   SessionSummarizeResponses,
-  SessionTaskInfo,
   SessionTaskUpdateErrors,
   SessionTaskUpdateResponses,
+  SessionTaskWriteInfo,
   SessionTodoErrors,
   SessionTodoResponses,
   SessionToolSummaryErrors,
@@ -4721,14 +4721,14 @@ export class Task extends HeyApiClient {
   /**
    * Replace session tasks
    *
-   * Reconcile a session's task list: entries with an existing id are updated in place, entries without a persisted row are minted a stable tsk_ id, and omitted entries are removed.
+   * Reconcile a session's task list: entries without an id are minted a stable tsk_ id, entries with an existing id are updated in place, and omitted entries are removed.
    */
   public update<ThrowOnError extends boolean = false>(
     parameters: {
       sessionID: string
       directory?: string
       workspace?: string
-      body?: Array<SessionTaskInfo>
+      body?: Array<SessionTaskWriteInfo>
     },
     options?: Options<never, ThrowOnError>,
   ) {

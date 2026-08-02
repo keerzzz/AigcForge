@@ -4711,6 +4711,14 @@ export type ImportParserResult = {
   errors: Array<ImportParserParseError>
 }
 
+export type SessionTaskWriteInfo = {
+  id?: string
+  content: string
+  status: TaskStatus
+  priority: TaskPriority
+  parentID?: string
+}
+
 export type ToolSummaryEntry = {
   tool: string
   file?: string
@@ -12119,7 +12127,7 @@ export type SessionTodoResponses = {
 export type SessionTodoResponse = SessionTodoResponses[keyof SessionTodoResponses]
 
 export type SessionTaskUpdateData = {
-  body?: Array<SessionTaskInfo>
+  body?: Array<SessionTaskWriteInfo>
   path: {
     sessionID: string
   }

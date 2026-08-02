@@ -221,13 +221,11 @@ export const layer = Layer.effectDiscard(
               // original delegation created.
               let taskID: string | undefined = input.parent_task_id
               if (taskID === undefined && resumeID === undefined) {
-                const current = yield* tasks.get(context.sessionID)
-                const created = yield* tasks.update({
+                // Track B: append atomically in one transaction so concurrent
+                // task calls in the same provider turn never drop each other's rows.
+                const created = yield* tasks.append({
                   sessionID: context.sessionID,
-                  tasks: [
-                    ...current,
-                    { content: input.description, status: "in_progress", priority: "medium" },
-                  ],
+                  tasks: [{ content: input.description, status: "in_progress", priority: "medium" }],
                 })
                 taskID = created.at(-1)?.id
               }

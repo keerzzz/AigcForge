@@ -7,7 +7,7 @@ import { Project } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionV2 } from "@aigcfroge/core/session"
-import { SessionTable, TodoTable } from "@aigcfroge/core/session/sql"
+import { SessionTable, TaskTable } from "@aigcfroge/core/session/sql"
 import { SessionTodo } from "@aigcfroge/core/session/todo"
 import { testEffect } from "./lib/effect"
 
@@ -61,15 +61,13 @@ describe("SessionTodo", () => {
         { content: "second", status: "pending", priority: "low" },
         { content: "first", status: "in_progress", priority: "high" },
       ])
-      expect(
-        (yield* db.select().from(TodoTable).orderBy(asc(TodoTable.position)).all().pipe(Effect.orDie)).map((row) => ({
-          content: row.content,
-          position: row.position,
-        })),
-      ).toEqual([
+      // SessionTodo now forwards to the Task source: rows land in TaskTable.
+      const rows = yield* db.select().from(TaskTable).orderBy(asc(TaskTable.position)).all().pipe(Effect.orDie)
+      expect(rows.map((row) => ({ content: row.content, position: row.position }))).toEqual([
         { content: "second", position: 0 },
         { content: "first", position: 1 },
       ])
+      expect(rows.every((row) => row.id.startsWith("tsk_"))).toBe(true)
 
       yield* todos.update({ sessionID, todos: [{ content: "replacement", status: "completed", priority: "medium" }] })
       expect(yield* todos.get(sessionID)).toEqual([{ content: "replacement", status: "completed", priority: "medium" }])

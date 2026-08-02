@@ -22,7 +22,6 @@ import { SessionRevert } from "@/session/revert"
 import { SessionRunState } from "@/session/run-state"
 import { SessionStatus } from "@/session/status"
 import { SessionSummary } from "@/session/summary"
-import { Todo } from "@/session/todo"
 import { MessageID, PartID, SessionID } from "@/session/schema"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { getCacheDiagnostics } from "@aigcfroge/core/session/cache-diagnostics"
@@ -73,7 +72,6 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const agentSvc = yield* Agent.Service
     const permissionSvc = yield* Permission.Service
     const statusSvc = yield* SessionStatus.Service
-    const todoSvc = yield* Todo.Service
     const summary = yield* SessionSummary.Service
     const events = yield* EventV2Bridge.Service
     const { db } = yield* Database.Service
@@ -117,16 +115,15 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
 
     const todo = Effect.fn("SessionHttpApi.todo")(function* (ctx: { params: { sessionID: SessionID } }) {
       yield* requireSession(ctx.params.sessionID)
-      if (AIGCFROGE_V2_RUNTIME) {
-        const v2todo = yield* SessionTodo.Service
-        return yield* v2todo.get(ctx.params.sessionID)
-      }
-      return yield* todoSvc.get(ctx.params.sessionID)
+      // TaskTable is the single source of truth; SessionTodo projects the legacy
+      // three-field shape from it (backward-compatible with existing consumers).
+      const v2todo = yield* SessionTodo.Service
+      return yield* v2todo.get(ctx.params.sessionID)
     })
 
     const task = Effect.fn("SessionHttpApi.task")(function* (ctx: {
       params: { sessionID: SessionID }
-      payload: ReadonlyArray<SessionTask.Info>
+      payload: ReadonlyArray<SessionTask.WriteInfo>
     }) {
       yield* requireSession(ctx.params.sessionID)
       const v2task = yield* SessionTask.Service

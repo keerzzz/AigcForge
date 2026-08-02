@@ -174,7 +174,7 @@ export const SessionApi = HttpApi.make("session")
         HttpApiEndpoint.patch("task", SessionPaths.task, {
           params: { sessionID: SessionID },
           query: WorkspaceRoutingQuery,
-          payload: Schema.Array(SessionTask.Info),
+          payload: Schema.Array(SessionTask.WriteInfo),
           success: described(Schema.Array(SessionTask.Info), "Updated task list"),
           error: [HttpApiError.BadRequest, ApiNotFoundError],
         }).annotateMerge(
@@ -182,7 +182,7 @@ export const SessionApi = HttpApi.make("session")
             identifier: "session.task.update",
             summary: "Replace session tasks",
             description:
-              "Reconcile a session's task list: entries with an existing id are updated in place, entries without a persisted row are minted a stable tsk_ id, and omitted entries are removed.",
+              "Reconcile a session's task list: entries without an id are minted a stable tsk_ id, entries with an existing id are updated in place, and omitted entries are removed.",
           }),
         ),
         HttpApiEndpoint.get("diff", SessionPaths.diff, {

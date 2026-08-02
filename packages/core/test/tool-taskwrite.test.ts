@@ -70,6 +70,8 @@ let maxTaskCalls = 1
 let parentTaskID: string | undefined
 // When > 0, child streams fail with a provider error (exercises failed writeback).
 let childStreamFailures = 0
+// When set, the parent's task call requests background delegation.
+let backgroundMode = false
 // When set, child streams signal `streamStarted` then block on `streamGate`.
 let streamGate: Deferred.Deferred<void> | undefined
 let streamStarted: Deferred.Deferred<void> | undefined
@@ -117,6 +119,7 @@ const client = Layer.mock(LLMClient.Service, {
           prompt: "Investigate the thing",
           subagent_type: "build",
           ...(parentTaskID ? { parent_task_id: parentTaskID } : {}),
+          ...(backgroundMode ? { background: true } : {}),
         },
       }),
       LLMEvent.stepFinish({ index: 0, reason: "tool-calls" }),
@@ -270,6 +273,7 @@ const setup = Effect.gen(function* () {
   maxTaskCalls = 1
   parentTaskID = undefined
   childStreamFailures = 0
+  backgroundMode = false
   streamGate = undefined
   streamStarted = undefined
   const sessions = yield* SessionV2.Service
@@ -434,6 +438,70 @@ describe("task tool — dual-track todo writeback", () => {
 
       const exit = yield* Fiber.await(fiber)
       expect(Exit.isSuccess(exit)).toBe(true)
+
+      const tasks = yield* SessionTask.Service
+      const got = yield* tasks.get(parentID)
+      expect(got[0]?.status).toBe("cancelled")
+    }),
+  )
+
+  it.live("background delegation settles the auto-created task as completed", () =>
+    Effect.gen(function* () {
+      process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS = "true"
+      yield* setup
+      backgroundMode = true
+      const session = yield* SessionV2.Service
+      const background = yield* BackgroundJob.Service
+
+      yield* runParent
+      const children = yield* session.children(parentID)
+      expect(children.length).toBe(1)
+      const childID = children[0].id
+      yield* background.wait({ id: childID })
+
+      const tasks = yield* SessionTask.Service
+      const got = yield* tasks.get(parentID)
+      expect(got[0]?.status).toBe("completed")
+      expect(got[0]?.content).toBe("do work")
+    }),
+  )
+
+  it.live("background delegation failure settles the task as failed", () =>
+    Effect.gen(function* () {
+      process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS = "true"
+      yield* setup
+      backgroundMode = true
+      childStreamFailures = 1
+      const session = yield* SessionV2.Service
+      const background = yield* BackgroundJob.Service
+
+      yield* runParent
+      const children = yield* session.children(parentID)
+      const childID = children[0].id
+      yield* background.wait({ id: childID })
+
+      const tasks = yield* SessionTask.Service
+      const got = yield* tasks.get(parentID)
+      expect(got[0]?.status).toBe("failed")
+    }),
+  )
+
+  it.live("background delegation cancel settles the task as cancelled", () =>
+    Effect.gen(function* () {
+      process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS = "true"
+      yield* setup
+      backgroundMode = true
+      const gate = yield* Deferred.make<void>()
+      streamGate = gate
+      const session = yield* SessionV2.Service
+      const background = yield* BackgroundJob.Service
+
+      yield* runParent
+      const children = yield* session.children(parentID)
+      const childID = children[0].id
+      yield* session.interrupt(childID)
+      yield* Deferred.succeed(gate, undefined)
+      yield* background.wait({ id: childID })
 
       const tasks = yield* SessionTask.Service
       const got = yield* tasks.get(parentID)

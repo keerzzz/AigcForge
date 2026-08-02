@@ -1,6 +1,6 @@
 export * as TaskDriver from "./task-driver"
 
-import { Effect, Schema } from "effect"
+import { Cause, Effect, Exit, Schema } from "effect"
 import { AgentV2 } from "../agent"
 import { Location } from "../location"
 import { SessionMessage } from "../session/message"
@@ -469,16 +469,33 @@ export const install = (
           background.start(
             input.sessionID,
             Effect.gen(function* () {
-              yield* sessions.resume(input.sessionID)
-              const text = yield* readResult(input.sessionID)
+              // Drive the child, read its result, and inject it into the parent,
+              // then settle the linked todo exactly once from the captured Exit so
+              // background failure/cancel never leaves the task stuck in_progress.
+              const exit = yield* Effect.gen(function* () {
+                yield* sessions.resume(input.sessionID)
+                const text = yield* readResult(input.sessionID)
+                yield* sessions.injectSynthetic({
+                  sessionID: input.parentID,
+                  text: renderBackgroundResult({ sessionID: input.sessionID, description: input.description, text }),
+                })
+              }).pipe(Effect.exit)
               if (input.taskID && input.onSettle) {
-                yield* input.onSettle({ status: "completed", outputDigest: input.sessionID }).pipe(Effect.ignore)
+                if (Exit.isSuccess(exit)) {
+                  yield* input.onSettle({ status: "completed", outputDigest: input.sessionID }).pipe(Effect.ignore)
+                } else if (Cause.hasInterruptsOnly(exit.cause)) {
+                  yield* input.onSettle({ status: "cancelled" }).pipe(Effect.ignore)
+                } else {
+                  const digest = Cause.pretty(exit.cause) || "background delegation failed"
+                  yield* input.onSettle({ status: "failed", outputDigest: digest }).pipe(Effect.ignore)
+                }
               }
-              yield* sessions.injectSynthetic({
-                sessionID: input.parentID,
-                text: renderBackgroundResult({ sessionID: input.sessionID, description: input.description, text }),
-              })
-            }).pipe(Effect.tapCause((cause) => Effect.logError("TaskDriver background injection failed", cause))),
+              if (Exit.isFailure(exit)) {
+                yield* Effect.logError("TaskDriver background delegation failed", exit.cause)
+              }
+              // Re-raise so the BackgroundJob status reflects the child outcome.
+              yield* exit
+            }),
           ),
         ),
         Effect.orDie,

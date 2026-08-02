@@ -62,6 +62,7 @@ import { PtyTicket } from "@aigcfroge/core/pty/ticket"
 import { Ripgrep } from "@aigcfroge/core/ripgrep"
 import { SessionProjector } from "@aigcfroge/core/session/projector"
 import { SessionTask } from "@aigcfroge/core/session/task"
+import { SessionTodo } from "@aigcfroge/core/session/todo"
 import { lazy } from "@/util/lazy"
 import { CorsConfig, isAllowedCorsOrigin, type CorsOptions } from "@aigcfroge/server/cors"
 import { serveUIEffect } from "@/server/shared/ui"
@@ -276,6 +277,7 @@ const app = LayerNode.group([
   ProjectCopy.node,
   PtyTicket.node,
   SessionTask.node,
+  SessionTodo.node,
 ])
 
 export function createRoutes(

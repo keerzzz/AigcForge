@@ -42,7 +42,7 @@ export const Info = Schema.Struct({
   parentID: Schema.optional(Schema.String).annotate({
     description: "Parent task ID for subtask support",
   }),
-  // ── M1.5: Work ProgressLedger alignment ──
+  // ── M2: TaskPanel reload-recovery persistence (folded from M1.5) ──
   outputDigest: Schema.optional(Schema.String).annotate({
     description: "Incremental step output digest (Work ProgressLedger)",
   }),

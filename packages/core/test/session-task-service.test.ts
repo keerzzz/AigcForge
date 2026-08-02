@@ -1,6 +1,6 @@
 import { describe, expect } from "bun:test"
 import { asc } from "drizzle-orm"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Schema } from "effect"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
 import { Project } from "@aigcfroge/core/project"
@@ -101,6 +101,95 @@ describe("SessionTask", () => {
       ])
       expect(published[0].data).toEqual({ sessionID, tasks: resolved })
       expect(published.at(-1)?.data).toEqual({ sessionID, tasks: [] })
+    }),
+  )
+
+  it.effect("concurrent appends never drop each other's tasks", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+
+      yield* Effect.all(
+        ["a", "b", "c"].map((content) =>
+          tasks.append({ sessionID, tasks: [{ content, status: "pending", priority: "low" }] }),
+        ),
+        { concurrency: "unbounded" },
+      )
+
+      const got = yield* tasks.get(sessionID)
+      expect(got.map((task) => task.content).sort()).toEqual(["a", "b", "c"])
+      expect(new Set(got.map((task) => task.id)).size).toBe(3)
+    }),
+  )
+
+  it.effect("patch is scoped to the owning session", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const otherSession = SessionV2.ID.make("ses_task_other")
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: otherSession,
+          project_id: Project.ID.global,
+          slug: "task-other",
+          directory: "/project",
+          title: "task-other",
+          version: "test",
+        })
+        .run()
+        .pipe(Effect.orDie)
+      const tasks = yield* SessionTask.Service
+      const [otherTask] = yield* tasks.update({
+        sessionID: otherSession,
+        tasks: [{ content: "other", status: "pending", priority: "low" }],
+      })
+
+      // Patching with another session's task id is a no-op, not a cross-session leak.
+      const result = yield* tasks.patch({ sessionID, id: otherTask.id, status: "completed" })
+      expect(result).toBeUndefined()
+      const other = yield* tasks.get(otherSession)
+      expect(other[0]?.status).toBe("pending")
+    }),
+  )
+
+  it.effect("update preserves createdAt for existing tasks", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const [created] = yield* tasks.update({
+        sessionID,
+        tasks: [{ content: "x", status: "pending", priority: "low" }],
+      })
+      yield* tasks.update({
+        sessionID,
+        tasks: [{ ...created, status: "completed" }],
+      })
+      const got = yield* tasks.get(sessionID)
+      expect(got[0]?.status).toBe("completed")
+      expect(got[0]?.createdAt).toBe(created.createdAt)
+    }),
+  )
+
+  it.effect("task writes emit a compatible todo.updated projection", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const events = yield* EventV2.Service
+      const tasks = yield* SessionTask.Service
+      const published = new Array<EventV2.Payload>()
+      const unsubscribe = yield* events.listen((event) =>
+        Effect.sync(() => {
+          if (event.type === SessionTask.Event.TodoUpdated.type) published.push(event)
+        }),
+      )
+      yield* Effect.addFinalizer(() => unsubscribe)
+
+      yield* tasks.update({
+        sessionID,
+        tasks: [{ content: "x", status: "in_progress", priority: "high" }],
+      })
+      const data = Schema.decodeUnknownSync(SessionTask.Event.TodoUpdated.data)(published[0]?.data)
+      expect(data.todos).toEqual([{ content: "x", status: "in_progress", priority: "high" }])
     }),
   )
 })

@@ -1083,4 +1083,80 @@ describe("session task HttpApi", () => {
         expect(response.status).toBe(400)
       }),
   )
+
+  it.instance(
+    "PATCH /session/:id/task creates tasks from minimal write info",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = {
+          "x-aigcfroge-directory": encodeURIComponent(test.directory),
+          "content-type": "application/json",
+        }
+        const session = yield* createSession({ title: "task create" })
+
+        const body = yield* requestJson<SessionTask.Info[]>(pathFor(SessionPaths.task, { sessionID: session.id }), {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify([{ content: "fresh", status: "in_progress", priority: "high" }]),
+        })
+        expect(body).toHaveLength(1)
+        expect(body[0]?.content).toBe("fresh")
+        expect(body[0]?.id.startsWith("tsk_")).toBe(true)
+        expect(body[0]?.sessionID).toBe(session.id)
+
+        const tasks = yield* SessionTask.Service
+        const got = yield* tasks.get(session.id)
+        expect(got[0]?.content).toBe("fresh")
+      }),
+  )
+
+  it.instance(
+    "PATCH /session/:id/task cannot inject another session's id",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = {
+          "x-aigcfroge-directory": encodeURIComponent(test.directory),
+          "content-type": "application/json",
+        }
+        const session = yield* createSession({ title: "task forge" })
+        const other = yield* createSession({ title: "other" })
+
+        const body = yield* requestJson<SessionTask.Info[]>(pathFor(SessionPaths.task, { sessionID: session.id }), {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify([
+            { content: "x", status: "pending", priority: "low", sessionID: other.id, createdAt: 999, updatedAt: 999 },
+          ]),
+        })
+        // The path sessionID always owns the row; forged body fields are ignored.
+        expect(body[0]?.sessionID).toBe(session.id)
+
+        const tasks = yield* SessionTask.Service
+        const otherTasks = yield* tasks.get(other.id)
+        expect(otherTasks).toHaveLength(0)
+      }),
+  )
+
+  it.instance(
+    "GET /session/:id/todo reflects task writes from the Task source",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = { "x-aigcfroge-directory": encodeURIComponent(test.directory) }
+        const session = yield* createSession({ title: "todo from task" })
+        const tasks = yield* SessionTask.Service
+        yield* tasks.update({
+          sessionID: session.id,
+          tasks: [{ content: "via-task", status: "in_progress", priority: "high" }],
+        })
+
+        const todos = yield* requestJson<Array<{ content: string; status: string; priority: string }>>(
+          pathFor(SessionPaths.todo, { sessionID: session.id }),
+          { headers },
+        )
+        expect(todos).toEqual([{ content: "via-task", status: "in_progress", priority: "high" }])
+      }),
+  )
 })
