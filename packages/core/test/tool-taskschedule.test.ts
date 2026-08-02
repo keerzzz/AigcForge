@@ -177,4 +177,68 @@ describe("task_schedule tool", () => {
       expect(yield* tasks.get(sessionID)).toHaveLength(0)
     }),
   )
+
+  it.effect("rejects an enabled recurrence whose cron is invalid or never matches (dead job)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const reg = yield* ToolRegistry.Service
+      const tasks = yield* SessionTask.Service
+
+      expect(
+        yield* executeTool(reg, call([{ content: "bad hour", recurrence: { cron: "0 25 * * *", enabled: true } }])),
+      ).toEqual({
+        type: "error",
+        value:
+          'task_schedule: recurrence cron "0 25 * * *" is invalid or has no future run; refusing to persist a dead job',
+      })
+      // A parseable cron with no real-world match (30th of February) is dead too.
+      expect(
+        yield* executeTool(reg, call([{ content: "feb 30", recurrence: { cron: "0 9 30 2 *", enabled: true } }])),
+      ).toEqual({
+        type: "error",
+        value:
+          'task_schedule: recurrence cron "0 9 30 2 *" is invalid or has no future run; refusing to persist a dead job',
+      })
+      expect(yield* tasks.get(sessionID)).toHaveLength(0)
+    }),
+  )
+
+  it.effect("rejects a disabled recurrence without a scheduledAt fallback (dead job)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const reg = yield* ToolRegistry.Service
+      const tasks = yield* SessionTask.Service
+
+      expect(
+        yield* executeTool(reg, call([{ content: "never runs", recurrence: { cron: "0 3 * * *", enabled: false } }])),
+      ).toEqual({
+        type: "error",
+        value:
+          "task_schedule: recurrence is disabled and scheduledAt is unset; a job without a trigger can never run",
+      })
+      expect(yield* tasks.get(sessionID)).toHaveLength(0)
+    }),
+  )
+
+  it.effect("rejects pause/resume/remove without an existing task id", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const reg = yield* ToolRegistry.Service
+      const tasks = yield* SessionTask.Service
+
+      expect(yield* executeTool(reg, call([{ action: "pause" }]))).toEqual({
+        type: "error",
+        value: "task_schedule: pause requires the id of an existing task",
+      })
+      expect(yield* executeTool(reg, call([{ action: "resume" }]))).toEqual({
+        type: "error",
+        value: "task_schedule: resume requires the id of an existing task",
+      })
+      expect(yield* executeTool(reg, call([{ action: "remove" }]))).toEqual({
+        type: "error",
+        value: "task_schedule: remove requires the id of an existing task",
+      })
+      expect(yield* tasks.get(sessionID)).toHaveLength(0)
+    }),
+  )
 })

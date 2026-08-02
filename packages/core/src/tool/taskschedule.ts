@@ -1,9 +1,10 @@
 export * as TaskScheduleTool from "./taskschedule"
 
 import { ToolFailure } from "@aigcfroge/llm"
-import { Effect, Layer, Schema } from "effect"
+import { DateTime, Effect, Layer, Schema } from "effect"
 import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task"
 import { PermissionV2 } from "../permission"
+import { nextRun } from "../session/schedule"
 import { SessionTask } from "../session/task"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
@@ -71,42 +72,12 @@ export const layer = Layer.effectDiscard(
               const resolved: SessionTask.Info[] = []
               for (const entry of input.tasks) {
                 const action = entry.action ?? "schedule"
-                if (action === "schedule") {
-                  const content = entry.content?.trim()
-                  if (!content)
+                if (action !== "schedule") {
+                  if (entry.id === undefined)
                     return yield* new ToolFailure({
-                      message: "task_schedule: schedule requires a non-empty content prompt",
+                      message: `task_schedule: ${action} requires the id of an existing task`,
                     })
-                  if (entry.scheduledAt === undefined && entry.recurrence === undefined)
-                    // Without a trigger the arm scan can never pick the row
-                    // up — reject the dead job instead of persisting it.
-                    return yield* new ToolFailure({
-                      message:
-                        "task_schedule: schedule requires scheduledAt (one-shot) or recurrence (cron); a job without a trigger can never run",
-                    })
-                  const created = yield* tasks.append({
-                    sessionID: context.sessionID,
-                    tasks: [
-                      {
-                        content,
-                        status: "scheduled",
-                        priority: "medium",
-                        scheduledAt: entry.scheduledAt,
-                        recurrence: entry.recurrence,
-                        agentID: entry.agentID,
-                      },
-                    ],
-                  })
-                  resolved.push(...created)
-                } else if (entry.id !== undefined) {
-                  if (action === "pause" || action === "resume") {
-                    const patched = yield* tasks.patch({
-                      sessionID: context.sessionID,
-                      id: entry.id,
-                      status: action === "pause" ? "cancelled" : "scheduled",
-                    })
-                    if (patched) resolved.push(patched)
-                  } else if (action === "remove") {
+                  if (action === "remove") {
                     const current = yield* tasks.get(context.sessionID)
                     const kept = current.filter((task) => task.id !== entry.id)
                     const reconciled = yield* tasks.update({
@@ -119,8 +90,60 @@ export const layer = Layer.effectDiscard(
                       })),
                     })
                     resolved.push(...reconciled)
+                    continue
                   }
+                  const patched = yield* tasks.patch({
+                    sessionID: context.sessionID,
+                    id: entry.id,
+                    status: action === "pause" ? "cancelled" : "scheduled",
+                  })
+                  if (patched) resolved.push(patched)
+                  continue
                 }
+                const content = entry.content?.trim()
+                if (!content)
+                  return yield* new ToolFailure({
+                    message: "task_schedule: schedule requires a non-empty content prompt",
+                  })
+                if (entry.scheduledAt === undefined && entry.recurrence === undefined)
+                  // Without a trigger the arm scan can never pick the row
+                  // up — reject the dead job instead of persisting it.
+                  return yield* new ToolFailure({
+                    message:
+                      "task_schedule: schedule requires scheduledAt (one-shot) or recurrence (cron); a job without a trigger can never run",
+                  })
+                if (entry.recurrence !== undefined && !entry.recurrence.enabled && entry.scheduledAt === undefined)
+                  // A disabled recurrence is not a trigger, so the same
+                  // dead-job rule applies when no one-shot fallback is set.
+                  return yield* new ToolFailure({
+                    message:
+                      "task_schedule: recurrence is disabled and scheduledAt is unset; a job without a trigger can never run",
+                  })
+                // The arm scan prefers an enabled recurrence over scheduledAt,
+                // so a cron that yields no future run is a dead job even when
+                // scheduledAt is set. nextRun's search window (~1 year of
+                // minute ticks) keeps this check bounded.
+                if (entry.recurrence?.enabled) {
+                  const now = (yield* DateTime.nowAsDate).getTime()
+                  if (nextRun(entry.recurrence.cron, now) === undefined)
+                    return yield* new ToolFailure({
+                      message: `task_schedule: recurrence cron "${entry.recurrence.cron}" is invalid or has no future run; refusing to persist a dead job`,
+                    })
+                }
+                const created = yield* tasks.append({
+                  sessionID: context.sessionID,
+                  tasks: [
+                    {
+                      content,
+                      status: "scheduled",
+                      priority: "medium",
+                      scheduledAt: entry.scheduledAt,
+                      recurrence: entry.recurrence,
+                      agentID: entry.agentID,
+                    },
+                  ],
+                })
+                resolved.push(...created)
               }
               return { tasks: resolved }
             }).pipe(

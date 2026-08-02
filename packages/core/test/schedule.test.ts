@@ -50,4 +50,20 @@ describe("nextRun", () => {
   test("an invalid cron expression returns undefined", () => {
     expect(nextRun("not a cron", 0)).toBeUndefined()
   })
+
+  test("a non-minute-aligned from returns a minute-aligned timestamp", () => {
+    // 37 seconds and 500ms past the minute must not leak into the result.
+    const from = new Date(2026, 7, 2, 9, 0, 37, 500).getTime()
+    expect(nextRun("* * * * *", from)).toBe(at(2026, 8, 2, 9, 1))
+    expect(nextRun("*/5 * * * *", from)).toBe(at(2026, 8, 2, 9, 5))
+  })
+
+  test("an out-of-range field makes the cron unparseable", () => {
+    const from = at(2026, 8, 2, 9, 0)
+    expect(nextRun("0 25 * * *", from)).toBeUndefined()
+    expect(nextRun("61 * * * *", from)).toBeUndefined()
+    expect(nextRun("0 9 * 13 *", from)).toBeUndefined()
+    expect(nextRun("0 9 32 * *", from)).toBeUndefined()
+    expect(nextRun("0 9 * * 8", from)).toBeUndefined()
+  })
 })
