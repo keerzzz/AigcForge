@@ -1,9 +1,12 @@
 export * as ScheduledJob from "./scheduled-job"
 
 import { eq, isNotNull, or } from "drizzle-orm"
-import { Context, Effect, Layer } from "effect"
+import { Context, Effect, Layer, Schedule, Stream } from "effect"
 import { Database } from "../database/database"
+import { LayerNode } from "../effect/layer-node"
+import { EventV2 } from "../event"
 import { SessionSchema } from "./schema"
+import { ScheduledJobExecutor } from "./scheduled-job-executor"
 import { TaskTable } from "./sql"
 import { SessionTask } from "./task"
 import { nextRun } from "./schedule"
@@ -103,12 +106,14 @@ export const layer = Layer.effect(
         const run = nextRun(row.recurrence.cron, now)
         if (run !== undefined) {
           queue.set(row.id, run)
-          yield* db
-            .update(TaskTable)
-            .set({ status: "scheduled", time_updated: now })
-            .where(eq(TaskTable.id, row.id))
-            .run()
-            .pipe(Effect.orDie)
+          // Re-arm via patch (not a raw db.update) so the task.updated event
+          // payload matches the DB; omitting outputDigest preserves the digest
+          // stored by the completed settle above. A vanished row is a no-op.
+          yield* tasks.patch({
+            sessionID: row.session_id,
+            id: row.id,
+            status: "scheduled",
+          })
         }
       }
     })
@@ -129,3 +134,35 @@ export const defaultLayer = layer.pipe(
   Layer.provide(SessionTask.defaultLayer),
   Layer.provide(Database.defaultLayer),
 )
+
+/**
+ * Production node: the runner rides the shared Database/EventV2/SessionTask
+ * instances from the app graph (NOT `defaultLayer`, which embeds a private
+ * EventV2 and would split `task.updated` onto a PubSub nobody else sees), plus
+ * the TaskDriver-backed executor.
+ */
+export const node = LayerNode.make(layer, [Database.node, EventV2.node, SessionTask.node, ScheduledJobExecutor.node])
+
+/**
+ * Production daemon (M3b): arms the runner from the task table at startup
+ * (survives restarts — the queue is always re-derived from the DB), ticks every
+ * minute, and re-arms on every `task.updated` so a new schedule, resume, or
+ * pause takes effect immediately instead of at the next process start. A
+ * failing tick or re-arm is contained per iteration so it cannot kill the
+ * daemon fibers.
+ */
+export const daemonLayer = Layer.effectDiscard(
+  Effect.gen(function* () {
+    const runner = yield* Service
+    const events = yield* EventV2.Service
+    yield* runner.arm(Date.now())
+    yield* Effect.forkScoped(
+      runner.tick(Date.now()).pipe(Effect.ignore, Effect.repeat(Schedule.spaced("1 minute"))),
+    )
+    yield* events.subscribe(SessionTask.Event.Updated).pipe(
+      Stream.runForEach(() => runner.arm(Date.now()).pipe(Effect.ignore)),
+      Effect.forkScoped({ startImmediately: true }),
+    )
+  }),
+)
+export const daemonNode = LayerNode.make(daemonLayer, [node, EventV2.node])

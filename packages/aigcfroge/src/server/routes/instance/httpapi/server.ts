@@ -61,6 +61,7 @@ import { ProjectCopy } from "@aigcfroge/core/project/copy"
 import { PtyTicket } from "@aigcfroge/core/pty/ticket"
 import { Ripgrep } from "@aigcfroge/core/ripgrep"
 import { SessionProjector } from "@aigcfroge/core/session/projector"
+import { ScheduledJob } from "@aigcfroge/core/session/scheduled-job"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { SessionTodo } from "@aigcfroge/core/session/todo"
 import { lazy } from "@/util/lazy"
@@ -278,6 +279,9 @@ const app = LayerNode.group([
   PtyTicket.node,
   SessionTask.node,
   SessionTodo.node,
+  // M3 scheduler: runner + daemon (startup arm, minute tick, task.updated re-arm).
+  ScheduledJob.node,
+  ScheduledJob.daemonNode,
 ])
 
 export function createRoutes(

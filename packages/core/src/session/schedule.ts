@@ -62,6 +62,9 @@ const parseCron = (cron: string): CronFields | undefined => {
   }
 }
 
+// NOTE: day-of-month AND day-of-week must both match. Standard cron ORs them
+// when both are restricted; the AND here is a deliberate minute-level
+// simplification of the M3 scheduler (plan §10).
 const matches = (date: Date, fields: CronFields): boolean =>
   fields.minutes.has(date.getMinutes()) &&
   fields.hours.has(date.getHours()) &&

@@ -72,11 +72,23 @@ export const layer = Layer.effectDiscard(
               for (const entry of input.tasks) {
                 const action = entry.action ?? "schedule"
                 if (action === "schedule") {
+                  const content = entry.content?.trim()
+                  if (!content)
+                    return yield* new ToolFailure({
+                      message: "task_schedule: schedule requires a non-empty content prompt",
+                    })
+                  if (entry.scheduledAt === undefined && entry.recurrence === undefined)
+                    // Without a trigger the arm scan can never pick the row
+                    // up — reject the dead job instead of persisting it.
+                    return yield* new ToolFailure({
+                      message:
+                        "task_schedule: schedule requires scheduledAt (one-shot) or recurrence (cron); a job without a trigger can never run",
+                    })
                   const created = yield* tasks.append({
                     sessionID: context.sessionID,
                     tasks: [
                       {
-                        content: entry.content ?? "",
+                        content,
                         status: "scheduled",
                         priority: "medium",
                         scheduledAt: entry.scheduledAt,
@@ -112,8 +124,19 @@ export const layer = Layer.effectDiscard(
               }
               return { tasks: resolved }
             }).pipe(
+              // Preserve the specific TaskWriteError message (foreign/duplicate
+              // id) instead of collapsing it into the generic fallback.
               Effect.mapError((error) =>
-                error instanceof ToolFailure ? error : new ToolFailure({ message: "Unable to schedule tasks" }),
+                error instanceof SessionTask.TaskWriteError ? new ToolFailure({ message: error.message }) : error,
+              ),
+              // ToolFailure passes through (validation, permission, the
+              // TaskWriteError mapping above); only infrastructure failures
+              // get the generic fallback. The message stays action-neutral
+              // because one call may mix schedule/pause/resume/remove.
+              Effect.mapError((error) =>
+                error instanceof ToolFailure
+                  ? error
+                  : new ToolFailure({ message: "Unable to update scheduled tasks" }),
               ),
             ),
         }),

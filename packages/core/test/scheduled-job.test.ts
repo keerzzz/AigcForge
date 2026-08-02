@@ -1,5 +1,6 @@
 import { describe, expect } from "bun:test"
-import { Effect, Layer } from "effect"
+import { Duration, Effect, Layer, Schema } from "effect"
+import * as TestClock from "effect/testing/TestClock"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
 import { Project } from "@aigcfroge/core/project"
@@ -174,6 +175,100 @@ describe("ScheduledJobRunner", () => {
       yield* second.tick(at(2026, 8, 2, 10, 0))
       expect(holder.calls).toHaveLength(1)
       expect(holder.calls[0]?.taskID).toBeDefined()
+    }),
+  )
+})
+
+// Daemon wiring (M3b): bare SessionTask.layer over a SHARED EventV2 (never
+// SessionTask.defaultLayer, whose private EventV2 would split task.updated away
+// from the daemon's subscriber), plus the production daemonLayer.
+const daemonIt = testEffect(
+  ScheduledJob.daemonLayer.pipe(
+    Layer.provideMerge(ScheduledJob.layer),
+    Layer.provideMerge(SessionTask.layer),
+    Layer.provideMerge(EventV2.defaultLayer),
+    Layer.provideMerge(Database.defaultLayer),
+    Layer.provideMerge(stubExecutor),
+  ),
+)
+
+describe("ScheduledJob daemon", () => {
+  daemonIt.effect("a task appended after startup is re-armed via task.updated and fires on a minute tick", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      // Due in the (real-clock) past: the daemon arms/ticks on Date.now(), so
+      // any tick once the task is queued fires it.
+      yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "daemon audit", status: "scheduled", priority: "medium", scheduledAt: Date.now() - 60_000 }],
+      })
+      // The append publishes task.updated; the daemon subscriber re-arms
+      // asynchronously. Advance the TestClock minute-by-minute (bounded) until
+      // the tick fiber picks the task up — readiness via the stub recording,
+      // never Effect.sleep.
+      for (let i = 0; i < 5 && holder.calls.length === 0; i++) {
+        yield* Effect.yieldNow
+        yield* TestClock.adjust(Duration.minutes(1))
+        yield* Effect.yieldNow
+      }
+      expect(holder.calls).toHaveLength(1)
+      expect(holder.calls[0]).toMatchObject({ parentID: sessionID, prompt: "daemon audit" })
+
+      yield* Effect.yieldNow
+      const settled = yield* tasks.get(sessionID)
+      expect(settled[0]?.status).toBe("completed")
+    }),
+  )
+
+  daemonIt.effect("a task paused after arming is not fired by later ticks", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const runner = yield* ScheduledJob.Service
+      const [task] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "daemon audit", status: "scheduled", priority: "medium", scheduledAt: Date.now() - 60_000 }],
+      })
+      // Queue it deterministically, then pause before the tick: the trigger-time
+      // status re-check (and the task.updated re-arm) must keep it from firing.
+      yield* runner.arm(Date.now())
+      yield* tasks.patch({ sessionID, id: task.id, status: "cancelled" })
+
+      yield* TestClock.adjust(Duration.minutes(1))
+      yield* Effect.yieldNow
+      yield* TestClock.adjust(Duration.minutes(1))
+      yield* Effect.yieldNow
+
+      expect(holder.calls).toHaveLength(0)
+      const settled = yield* tasks.get(sessionID)
+      expect(settled[0]?.status).toBe("cancelled")
+    }),
+  )
+
+  it.effect("a claimed in_progress task is not re-armed or re-triggered (B1 re-entry guard)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const runner = yield* ScheduledJob.Service
+      const [task] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "audit", status: "scheduled", priority: "medium", scheduledAt: at(2026, 8, 2, 9, 0) }],
+      })
+
+      // Claim the task as the runner now does before executing (trigger sets
+      // in_progress). While the child Session runs (potentially minutes), the
+      // daemon re-arms on any task.updated and ticks again.
+      yield* tasks.patch({ sessionID, id: task.id, status: "in_progress" })
+
+      // Re-arm + a due tick must NOT re-enqueue or re-run the in-flight task.
+      yield* runner.arm(at(2026, 8, 2, 8, 59))
+      yield* runner.tick(at(2026, 8, 2, 9, 0))
+      expect(holder.calls).toHaveLength(0)
+      expect((yield* tasks.get(sessionID))[0]?.status).toBe("in_progress")
+
+      // Settle closes the claim; only then can a future schedule pick it up.
+      yield* tasks.patch({ sessionID, id: task.id, status: "completed" })
     }),
   )
 })

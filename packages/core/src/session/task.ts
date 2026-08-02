@@ -8,6 +8,7 @@ import { Database } from "../database/database"
 import { EventV2 } from "../event"
 import { Identifier } from "../id/id"
 import { LayerNode } from "../effect/layer-node"
+import { nextRun } from "./schedule"
 import { SessionSchema } from "./schema"
 import { TaskTable } from "./sql"
 
@@ -128,8 +129,30 @@ export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v
 
 type TaskRow = typeof TaskTable.$inferSelect
 
-const toInfo = (row: TaskRow): Info =>
-  new Info({
+/**
+ * Derived next trigger (M3b-2 UI data source): only scheduled/pending tasks
+ * carry one — a recurrence's next cron match after `now`, else the one-shot
+ * `scheduledAt`. Terminal and in-flight statuses omit the field.
+ */
+const resolveNextRun = (
+  input: {
+    status: TaskRow["status"]
+    scheduledAt?: number
+    recurrence?: SessionTaskSchema.TaskRecurrence
+  },
+  now: number,
+) => {
+  if (input.status !== "scheduled" && input.status !== "pending") return undefined
+  if (input.recurrence?.enabled) return nextRun(input.recurrence.cron, now)
+  return input.scheduledAt
+}
+
+const toInfo = (row: TaskRow, now: number): Info => {
+  const run = resolveNextRun(
+    { status: row.status, scheduledAt: row.scheduled_at ?? undefined, recurrence: row.recurrence ?? undefined },
+    now,
+  )
+  return new Info({
     id: row.id,
     content: row.content,
     status: row.status,
@@ -140,9 +163,11 @@ const toInfo = (row: TaskRow): Info =>
     ...(row.agent_id ? { agentID: row.agent_id } : {}),
     ...(row.scheduled_at !== null && row.scheduled_at !== undefined ? { scheduledAt: row.scheduled_at } : {}),
     ...(row.recurrence ? { recurrence: row.recurrence } : {}),
+    ...(run !== undefined ? { nextRun: run } : {}),
     createdAt: row.time_created,
     updatedAt: row.time_updated,
   })
+}
 
 export const layer = Layer.effect(
   Service,
@@ -279,6 +304,7 @@ export const layer = Layer.effect(
         const parentID = parentIdById.get(task.id)
         const outputDigest = digestById.get(task.id)
         const schedule = scheduleById.get(task.id)
+        const run = resolveNextRun({ status: task.status, ...schedule }, now)
         return new Info({
           id: task.id,
           content: task.content,
@@ -290,6 +316,7 @@ export const layer = Layer.effect(
           ...(schedule?.agentID ? { agentID: schedule.agentID } : {}),
           ...(schedule?.scheduledAt !== undefined ? { scheduledAt: schedule.scheduledAt } : {}),
           ...(schedule?.recurrence ? { recurrence: schedule.recurrence } : {}),
+          ...(run !== undefined ? { nextRun: run } : {}),
           createdAt: createdAt.get(task.id) ?? now,
           updatedAt: now,
         })
@@ -343,7 +370,7 @@ export const layer = Layer.effect(
               .orderBy(asc(TaskTable.position))
               .all()
               .pipe(Effect.orDie)
-            return full.map(toInfo)
+            return full.map((row) => toInfo(row, now))
           }),
         )
         .pipe(Effect.orDie)
@@ -400,7 +427,7 @@ export const layer = Layer.effect(
               .orderBy(asc(TaskTable.position))
               .all()
               .pipe(Effect.orDie)
-            return full.map(toInfo)
+            return full.map((row) => toInfo(row, now))
           }),
         )
         .pipe(Effect.orDie)
@@ -409,8 +436,9 @@ export const layer = Layer.effect(
     })
 
     const get = Effect.fn("SessionTask.get")(function* (sessionID: SessionSchema.ID) {
+      const now = (yield* DateTime.nowAsDate).getTime()
       const rows = yield* read(sessionID)
-      return rows.map(toInfo)
+      return rows.map((row) => toInfo(row, now))
     })
 
     const patch = Effect.fn("SessionTask.patch")(function* (input: {
@@ -437,9 +465,9 @@ export const layer = Layer.effect(
       if (!row) return undefined
       // The event re-reads the table and maps rows to Info, so the patched
       // digest rides the payload (DB and event payload stay in agreement).
-      const full = yield* read(input.sessionID).pipe(Effect.map((rows) => rows.map(toInfo)))
+      const full = yield* read(input.sessionID).pipe(Effect.map((rows) => rows.map((item) => toInfo(item, now))))
       yield* publishBoth(input.sessionID, full)
-      return new Info({ ...toInfo(row), updatedAt: now })
+      return new Info({ ...toInfo(row, now), updatedAt: now })
     })
 
     const remove = Effect.fn("SessionTask.delete")(function* (sessionID: SessionSchema.ID) {

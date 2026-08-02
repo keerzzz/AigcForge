@@ -2,61 +2,67 @@ import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
-import { Location } from "@aigcfroge/core/location"
 import { PermissionV2 } from "@aigcfroge/core/permission"
-import { PermissionSaved } from "@aigcfroge/core/permission/saved"
 import { Project } from "@aigcfroge/core/project"
+import { ProjectTable } from "@aigcfroge/core/project/sql"
+import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionV2 } from "@aigcfroge/core/session"
-import { SessionExecution } from "@aigcfroge/core/session/execution"
-import { SessionStore } from "@aigcfroge/core/session/store"
+import { SessionTable } from "@aigcfroge/core/session/sql"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { TaskScheduleTool } from "@aigcfroge/core/tool/taskschedule"
 import { ToolRegistry } from "@aigcfroge/core/tool/registry"
-import { Tools } from "@aigcfroge/core/tool/tools"
-import { ApplicationTools } from "@aigcfroge/core/tool/application-tools"
-import { ToolOutputStore } from "@aigcfroge/core/tool-output-store"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { location } from "./fixture/location"
 import { testEffect } from "./lib/effect"
+import { executeTool, settleTool, toolIdentity } from "./lib/tool"
 
-const current = Layer.succeed(
-  Location.Service,
-  Location.Service.of(location({ directory: AbsolutePath.make("/project") })),
+const sessionID = SessionV2.ID.make("ses_taskschedule_tool_test")
+
+const permission = Layer.succeed(
+  PermissionV2.Service,
+  PermissionV2.Service.of({
+    assert: () => Effect.void,
+    ask: () => Effect.die("unused"),
+    reply: () => Effect.die("unused"),
+    get: () => Effect.die("unused"),
+    forSession: () => Effect.die("unused"),
+    list: () => Effect.die("unused"),
+  }),
 )
-const sessions = SessionV2.layer.pipe(
-  Layer.provide(EventV2.defaultLayer),
-  Layer.provide(Database.defaultLayer),
-  Layer.provide(SessionStore.defaultLayer),
-  Layer.provide(Project.defaultLayer),
-  Layer.provide(SessionExecution.noopLayer),
-)
-const permission = PermissionV2.locationLayer.pipe(
-  Layer.provideMerge(Database.defaultLayer),
-  Layer.provideMerge(SessionStore.defaultLayer),
-  Layer.provideMerge(EventV2.defaultLayer),
-  Layer.provideMerge(current),
-  Layer.provideMerge(sessions),
-  Layer.provideMerge(SessionExecution.noopLayer),
-  Layer.provideMerge(PermissionSaved.defaultLayer),
-)
-const registry = ToolRegistry.layer.pipe(
+const registry = ToolRegistry.defaultLayer.pipe(Layer.provide(permission))
+const tool = TaskScheduleTool.layer.pipe(
+  Layer.provide(registry),
   Layer.provide(permission),
-  Layer.provide(ApplicationTools.layer),
-  Layer.provide(ToolOutputStore.defaultLayer),
+  Layer.provide(SessionTask.defaultLayer),
 )
-const tools = Layer.effect(
-  Tools.Service,
-  ToolRegistry.Service.use((reg) => Effect.succeed(Tools.Service.of({ register: reg.register }))),
-).pipe(Layer.provide(registry))
-
 const it = testEffect(
-  TaskScheduleTool.layer.pipe(
-    Layer.provideMerge(tools),
-    Layer.provideMerge(registry),
-    Layer.provideMerge(SessionTask.defaultLayer),
-    Layer.provideMerge(permission),
-  ),
+  Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer, SessionTask.defaultLayer, permission, registry, tool),
 )
+
+const setup = Effect.gen(function* () {
+  const { db } = yield* Database.Service
+  yield* db
+    .insert(ProjectTable)
+    .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
+    .run()
+    .pipe(Effect.orDie)
+  yield* db
+    .insert(SessionTable)
+    .values({
+      id: sessionID,
+      project_id: Project.ID.global,
+      slug: "taskschedule",
+      directory: "/project",
+      title: "taskschedule",
+      version: "test",
+    })
+    .run()
+    .pipe(Effect.orDie)
+})
+
+const call = (tasks: ReadonlyArray<Record<string, unknown>>, id = "call-taskschedule") => ({
+  sessionID,
+  ...toolIdentity,
+  call: { type: "tool-call" as const, id, name: TaskScheduleTool.name, input: { tasks } },
+})
 
 describe("task_schedule tool", () => {
   it.effect("registers the task_schedule tool in the registry", () =>
@@ -66,6 +72,109 @@ describe("task_schedule tool", () => {
         { action: TaskScheduleTool.name, resource: "*", effect: "allow" },
       ])
       expect(materialized.definitions.some((definition) => definition.name === TaskScheduleTool.name)).toBe(true)
+    }),
+  )
+
+  it.effect("schedule persists content, scheduledAt, recurrence, and agentID on the created task", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const reg = yield* ToolRegistry.Service
+      const tasks = yield* SessionTask.Service
+
+      const settlement = yield* settleTool(
+        reg,
+        call([
+          {
+            content: "nightly audit",
+            scheduledAt: 1_780_000_000_000,
+            recurrence: { cron: "0 3 * * *", enabled: true },
+            agentID: "auditor",
+          },
+        ]),
+      )
+      expect(settlement.result.type).toBe("text")
+
+      const persisted = yield* tasks.get(sessionID)
+      expect(persisted).toHaveLength(1)
+      expect(persisted[0]).toMatchObject({
+        content: "nightly audit",
+        status: "scheduled",
+        scheduledAt: 1_780_000_000_000,
+        recurrence: { cron: "0 3 * * *", enabled: true },
+        agentID: "auditor",
+      })
+    }),
+  )
+
+  it.effect("pause settles a scheduled task to cancelled and resume returns it to scheduled", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const reg = yield* ToolRegistry.Service
+      const tasks = yield* SessionTask.Service
+      const [created] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "audit", status: "scheduled", priority: "medium", scheduledAt: 1_780_000_000_000 }],
+      })
+
+      yield* executeTool(reg, call([{ id: created.id, action: "pause" }]))
+      expect((yield* tasks.get(sessionID))[0]?.status).toBe("cancelled")
+
+      yield* executeTool(reg, call([{ id: created.id, action: "resume" }]))
+      expect((yield* tasks.get(sessionID))[0]?.status).toBe("scheduled")
+    }),
+  )
+
+  it.effect("remove drops only the target id", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const reg = yield* ToolRegistry.Service
+      const tasks = yield* SessionTask.Service
+      const [keep, drop] = yield* tasks.append({
+        sessionID,
+        tasks: [
+          { content: "keep", status: "scheduled", priority: "medium", scheduledAt: 1_780_000_000_000 },
+          { content: "drop", status: "scheduled", priority: "medium", scheduledAt: 1_780_000_000_000 },
+        ],
+      })
+
+      yield* executeTool(reg, call([{ id: drop.id, action: "remove" }]))
+
+      const remaining = yield* tasks.get(sessionID)
+      expect(remaining).toHaveLength(1)
+      expect(remaining[0]?.id).toBe(keep.id)
+    }),
+  )
+
+  it.effect("rejects a schedule entry with missing or empty content", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const reg = yield* ToolRegistry.Service
+      const tasks = yield* SessionTask.Service
+
+      expect(yield* executeTool(reg, call([{ scheduledAt: 1_780_000_000_000 }]))).toEqual({
+        type: "error",
+        value: "task_schedule: schedule requires a non-empty content prompt",
+      })
+      expect(yield* executeTool(reg, call([{ content: "   ", scheduledAt: 1_780_000_000_000 }]))).toEqual({
+        type: "error",
+        value: "task_schedule: schedule requires a non-empty content prompt",
+      })
+      expect(yield* tasks.get(sessionID)).toHaveLength(0)
+    }),
+  )
+
+  it.effect("rejects a schedule entry without scheduledAt or recurrence (dead job)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const reg = yield* ToolRegistry.Service
+      const tasks = yield* SessionTask.Service
+
+      expect(yield* executeTool(reg, call([{ content: "never runs" }]))).toEqual({
+        type: "error",
+        value:
+          "task_schedule: schedule requires scheduledAt (one-shot) or recurrence (cron); a job without a trigger can never run",
+      })
+      expect(yield* tasks.get(sessionID)).toHaveLength(0)
     }),
   )
 })

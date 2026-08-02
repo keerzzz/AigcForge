@@ -1,3 +1,8 @@
+/**
+ * @deprecated M5 (Todo/Task 升级)：V1 todowrite tool 已由 `taskwrite`/`task_schedule`/
+ * `task_spawn`（`@aigcfroge/core/tool`）取代。本文件保留以向后兼容（V1 runtime 仍可
+ * 写入 TodoTable），不新增功能；物理删除属 Phase 5 V1 退役的独立决策，M5 只标记不删除。
+ */
 import { Effect, Schema } from "effect"
 import * as Tool from "./tool"
 import DESCRIPTION_WRITE from "./todowrite.txt"

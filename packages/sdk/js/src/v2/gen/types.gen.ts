@@ -3689,6 +3689,10 @@ export type SessionTaskInfo = {
    */
   scheduledAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
   recurrence?: TaskRecurrence
+  /**
+   * Next trigger timestamp (ms); derived, only set for scheduled/pending tasks
+   */
+  nextRun?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
   spawnedFrom?: string
   dependsOn?: Array<string>
   createdAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
@@ -8064,6 +8068,10 @@ export type SessionTaskInfo1 = {
    */
   scheduledAt?: number | "NaN" | "Infinity" | "-Infinity"
   recurrence?: TaskRecurrence
+  /**
+   * Next trigger timestamp (ms); derived, only set for scheduled/pending tasks
+   */
+  nextRun?: number | "NaN" | "Infinity" | "-Infinity"
   spawnedFrom?: string
   dependsOn?: Array<string>
   createdAt: number | "NaN" | "Infinity" | "-Infinity"
