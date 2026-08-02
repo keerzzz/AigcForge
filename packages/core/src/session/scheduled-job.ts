@@ -83,12 +83,32 @@ export const layer = Layer.effect(
     const trigger = Effect.fn("ScheduledJob.trigger")(function* (taskID: string, now: number) {
       const row = yield* db.select().from(TaskTable).where(eq(TaskTable.id, taskID)).get().pipe(Effect.orDie)
       if (!row) return
-      const result = yield* executor.run({
-        parentID: row.session_id,
-        agent: row.agent_id ?? undefined,
-        prompt: row.content,
-        taskID: row.id,
-      })
+      // Re-check status at trigger time: a task paused (or otherwise settled)
+      // between arm and the due tick must not fire. Mirrors the arm filter.
+      if (row.status !== "scheduled" && row.status !== "pending") return
+      // Claim the task as in_progress BEFORE executing (B1 re-entry guard): the
+      // daemon re-arms on any task.updated — including this very patch and the
+      // child Session's own events — and would otherwise re-enqueue the
+      // still-scheduled row and run the job twice concurrently. Once claimed,
+      // both arm's filter and this guard skip it, and the settle below closes
+      // the claim.
+      yield* tasks.patch({ sessionID: row.session_id, id: row.id, status: "in_progress" })
+      const result = yield* executor
+        .run({
+          parentID: row.session_id,
+          agent: row.agent_id ?? undefined,
+          prompt: row.content,
+          taskID: row.id,
+        })
+        .pipe(
+          // An executor failure/defect settles this task failed instead of
+          // aborting the whole tick and skipping the remaining due jobs.
+          Effect.catchCause((cause) =>
+            Effect.logError("Scheduled job executor failed", cause).pipe(
+              Effect.as({ outcome: "failed" } satisfies ScheduledResult),
+            ),
+          ),
+        )
       const digest =
         result.outcome === "completed"
           ? (result.childSessionID ?? "scheduled job completed")

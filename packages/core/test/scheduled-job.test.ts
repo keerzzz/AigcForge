@@ -18,7 +18,7 @@ const at = (y: number, mo: number, d: number, h: number, mi: number) =>
 const sessionID = SessionV2.ID.make("ses_schedule_test")
 
 type Call = { parentID: string; agent?: string; prompt: string; taskID: string }
-const holder: { calls: Call[]; result: ScheduledJob.ScheduledResult } = {
+const holder: { calls: Call[]; result: ScheduledJob.ScheduledResult; dieFor?: string } = {
   calls: [],
   result: { outcome: "completed", childSessionID: SessionV2.ID.make("ses_child") },
 }
@@ -26,10 +26,14 @@ const stubExecutor = Layer.succeed(
   ScheduledJob.ScheduledExecutor,
   ScheduledJob.ScheduledExecutor.of({
     run: (input) =>
-      Effect.sync(() => {
-        holder.calls.push(input)
-        return holder.result
-      }),
+      // `dieFor` makes the executor raise a defect for the matching prompt so
+      // tests can exercise the tick-level failure containment.
+      holder.dieFor === input.prompt
+        ? Effect.die("executor defect")
+        : Effect.sync(() => {
+            holder.calls.push(input)
+            return holder.result
+          }),
   }),
 )
 
@@ -45,6 +49,7 @@ const it = testEffect(
 const setup = Effect.gen(function* () {
   holder.calls = []
   holder.result = { outcome: "completed", childSessionID: SessionV2.ID.make("ses_child") }
+  holder.dieFor = undefined
   const { db } = yield* Database.Service
   yield* db
     .insert(ProjectTable)
@@ -126,6 +131,14 @@ describe("ScheduledJobRunner", () => {
       yield* setup
       const tasks = yield* SessionTask.Service
       const runner = yield* ScheduledJob.Service
+      const events = yield* EventV2.Service
+      const published = new Array<EventV2.Payload>()
+      const unsubscribe = yield* events.listen((event) =>
+        Effect.sync(() => {
+          if (event.type === SessionTask.Event.Updated.type) published.push(event)
+        }),
+      )
+      yield* Effect.addFinalizer(() => unsubscribe)
       yield* tasks.append({
         sessionID,
         tasks: [
@@ -147,29 +160,92 @@ describe("ScheduledJobRunner", () => {
       // Recurring job returns to scheduled, waiting for the next run.
       expect(after[0]?.status).toBe("scheduled")
 
+      // The re-arm goes through SessionTask.patch, so the last task.updated
+      // payload agrees with the DB (scheduled) and keeps the completed digest.
+      const last = published.at(-1)
+      expect(last).toBeDefined()
+      const data = Schema.decodeUnknownSync(SessionTask.Event.Updated.data)(last!.data)
+      expect(data.tasks[0]?.status).toBe("scheduled")
+      expect(data.tasks[0]?.status).toBe(after[0]?.status)
+      expect(data.tasks[0]?.outputDigest).toBe("ses_child")
+      expect(after[0]?.outputDigest).toBe("ses_child")
+
       // The re-armed queue fires again at 09:10 (strictly after 09:05).
       yield* runner.tick(at(2026, 8, 2, 9, 10))
       expect(holder.calls).toHaveLength(2)
     }),
   )
 
-  it.effect("a fresh runner instance re-arms from the task table (restart re-arm)", () =>
+  it.effect("a task paused after arming does not trigger the executor", () =>
     Effect.gen(function* () {
       yield* setup
       const tasks = yield* SessionTask.Service
+      const runner = yield* ScheduledJob.Service
+      const [task] = yield* registerScheduled
+
+      yield* runner.arm(at(2026, 8, 2, 8, 59))
+      // Pause lands between arm and the due tick.
+      yield* tasks.patch({ sessionID, id: task.id, status: "cancelled" })
+
+      yield* runner.tick(at(2026, 8, 2, 9, 0))
+      expect(holder.calls).toHaveLength(0)
+
+      const settled = yield* tasks.get(sessionID)
+      expect(settled[0]?.status).toBe("cancelled")
+    }),
+  )
+
+  it.effect("an executor defect settles the task failed and does not skip later due jobs", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const runner = yield* ScheduledJob.Service
+      const [bad] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "bad", status: "scheduled", priority: "medium", scheduledAt: at(2026, 8, 2, 9, 0) }],
+      })
+      // append returns the full table, so the new row is the last entry.
+      const good = (yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "good", status: "scheduled", priority: "medium", scheduledAt: at(2026, 8, 2, 9, 0) }],
+      })).at(-1)!
+      holder.dieFor = "bad"
+
+      yield* runner.arm(at(2026, 8, 2, 8, 59))
+      // The tick itself succeeds even though the first due job's executor dies.
+      yield* runner.tick(at(2026, 8, 2, 9, 0))
+
+      const settled = yield* tasks.get(sessionID)
+      expect(settled.find((task) => task.id === bad.id)?.status).toBe("failed")
+      expect(settled.find((task) => task.id === bad.id)?.outputDigest).toBe("scheduled job failed")
+      // The second due job in the same tick still triggers and settles.
+      expect(holder.calls).toHaveLength(1)
+      expect(holder.calls[0]).toMatchObject({ prompt: "good", taskID: good.id })
+      expect(settled.find((task) => task.id === good.id)?.status).toBe("completed")
+    }),
+  )
+
+  it.effect("arm rebuilds the queue from the task table on every call (restart re-arm)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      // Both yields resolve to the same memoized instance; the restart re-arm
+      // guarantee comes from arm() re-scanning the whole task table rather
+      // than from constructing a second runner (the queue is never carried
+      // across arm calls).
       const first = yield* ScheduledJob.Service
       yield* tasks.append({
         sessionID,
         tasks: [{ content: "audit", status: "scheduled", priority: "medium", scheduledAt: at(2026, 8, 2, 10, 0) }],
       })
 
-      // Instance A arms but does not fire (10:00 is in the future).
+      // Arm but do not fire (10:00 is in the future).
       yield* first.arm(at(2026, 8, 2, 9, 0))
       yield* first.tick(at(2026, 8, 2, 9, 30))
       expect(holder.calls).toHaveLength(0)
 
-      // "Restart": a brand-new service instance (fresh in-memory queue) re-arms
-      // from the DB and fires the still-pending job at its scheduled time.
+      // "Restart": a fresh arm() (what a new process runs at startup) re-scans
+      // the DB and fires the still-pending job at its scheduled time.
       const second = yield* ScheduledJob.Service
       yield* second.arm(at(2026, 8, 2, 9, 0))
       yield* second.tick(at(2026, 8, 2, 10, 0))
