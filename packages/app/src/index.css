@@ -185,6 +185,28 @@
   }
 
 
+  [data-component="session-scheduled-chip"] {
+    white-space: nowrap;
+    user-select: none;
+  }
+
+  [data-component="session-scheduled-list"] {
+    max-height: 260px;
+    overflow-y: auto;
+  }
+
+  [data-component="session-scheduled-popover"] [data-slot="checkbox-v2-label-text"] {
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-regular);
+    color: var(--v2-text-text-base);
+  }
+
+  [data-component="session-scheduled-popover"] [data-slot="checkbox-v2-description"] {
+    font-size: var(--font-size-x-small);
+    font-weight: var(--font-weight-regular);
+    color: var(--v2-text-text-muted);
+  }
+
   [data-component="getting-started"] {
     container-type: inline-size;
     container-name: getting-started;

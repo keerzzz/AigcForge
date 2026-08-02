@@ -78,6 +78,10 @@ import { createTimelineProjection } from "./projection"
 import { MessageComment, SummaryDiff, TimelineRow, TimelineRowMap } from "./rows"
 import { filterVirtualIndexes } from "./virtual-items"
 import { SessionTodoProgress } from "@/pages/session/timeline/session-todo-progress"
+import {
+  SessionScheduledChip,
+  SessionScheduledTasksPopover,
+} from "@/pages/session/timeline/session-scheduled-tasks"
 
 const emptyMessages: MessageType[] = []
 const emptyParts: PartType[] = []
@@ -598,6 +602,7 @@ export function MessageTimeline(props: {
     menuOpen: false,
     pendingRename: false,
     pendingShare: false,
+    pendingScheduled: false,
   })
   let titleRef: HTMLInputElement | undefined
 
@@ -605,6 +610,7 @@ export function MessageTimeline(props: {
     open: false,
     dismiss: null as "escape" | "outside" | null,
   })
+  const [scheduledOpen, setScheduledOpen] = createSignal(false)
   const [bar, setBar] = createStore({
     ms: pace(640),
   })
@@ -1438,6 +1444,7 @@ export function MessageTimeline(props: {
                       </div>
                     </Show>
                   </div>
+                  <SessionScheduledChip sessionID={sessionID} />
                   <Show when={childTitle() || title.editing}>
                     <Show
                       when={title.editing}
@@ -1499,10 +1506,10 @@ export function MessageTimeline(props: {
                           variant="ghost"
                           class="size-6 rounded-md data-[expanded]:bg-surface-base-active"
                           classList={{
-                            "bg-surface-base-active": share.open || title.pendingShare,
+                            "bg-surface-base-active": share.open || title.pendingShare || scheduledOpen() || title.pendingScheduled,
                           }}
                           aria-label={language.t("common.moreOptions")}
-                          aria-expanded={title.menuOpen || share.open || title.pendingShare}
+                          aria-expanded={title.menuOpen || share.open || title.pendingShare || scheduledOpen() || title.pendingScheduled}
                           ref={(el: HTMLButtonElement) => {
                             more = el
                           }}
@@ -1522,6 +1529,13 @@ export function MessageTimeline(props: {
                                 requestAnimationFrame(() => {
                                   setShare({ open: true, dismiss: null })
                                   setTitle("pendingShare", false)
+                                })
+                              }
+                              if (title.pendingScheduled) {
+                                event.preventDefault()
+                                requestAnimationFrame(() => {
+                                  setScheduledOpen(true)
+                                  setTitle("pendingScheduled", false)
                                 })
                               }
                             }}
@@ -1545,6 +1559,13 @@ export function MessageTimeline(props: {
                                 </DropdownMenu.ItemLabel>
                               </DropdownMenu.Item>
                             </Show>
+                            <DropdownMenu.Item
+                              onSelect={() => {
+                                setTitle({ pendingScheduled: true, menuOpen: false })
+                              }}
+                            >
+                              <DropdownMenu.ItemLabel>{language.t("session.scheduled.title")}</DropdownMenu.ItemLabel>
+                            </DropdownMenu.Item>
                             <DropdownMenu.Item onSelect={() => void archiveSession(id)}>
                               <DropdownMenu.ItemLabel>{language.t("common.archive")}</DropdownMenu.ItemLabel>
                             </DropdownMenu.Item>
@@ -1655,6 +1676,13 @@ export function MessageTimeline(props: {
                           </KobaltePopover.Content>
                         </KobaltePopover.Portal>
                       </KobaltePopover>
+
+                      <SessionScheduledTasksPopover
+                        sessionID={() => id}
+                        open={scheduledOpen()}
+                        onOpenChange={setScheduledOpen}
+                        anchorRef={() => more}
+                      />
                     </Show>
                   </div>
                 )}
