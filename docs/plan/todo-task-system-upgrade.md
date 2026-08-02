@@ -250,8 +250,8 @@ Layer 4: App (M2 修订 — 方案 B：脉冲线内嵌节点，移除底部 dock
   ✅ E2E tests (借鉴 U3)
   ✅ AgentTaskHub 面板 (M4)
 
-Layer 5: TUI (packages/tui/src/component/task-item.tsx)
-  ✅ TodoItem → TaskItem (定时/子任务标记)
+Layer 5: TUI (packages/tui/src/component/todo-item.tsx)
+  ⬜ TodoItem → TaskItem 未开始（M5 跨模式集成阶段一并处理或另行立项；截至 M3 TUI 零改动，组件仍为 todo-item.tsx）
 ```
 
 ### 5.4 核心断裂修复：TaskDriver ↔ Task 联动（双轨）
@@ -479,12 +479,12 @@ Agent: 合规审查 Agent
 | `SessionTodo.update/get` | 内部转发到 `SessionTask`，标记 deprecated |
 | `TodoWrite` Tool | 保留，Schema 兼容（Todo.Info ⊂ Task.Info） |
 | `todo.updated` Event | 继续 emit，同时 emit `task.updated`（注意：V1/V2 已在双发 `todo.updated`，双发 `task.updated` 时一并收敛） |
-| `GET /session/{id}/todo` | 现有唯一 todo endpoint（无 POST，写入全走 tool 路径）。M1 新增 `PATCH /session/{id}/task` 后，Response 增 `tasks` 字段，旧字段保留 |
+| `GET /session/{id}/todo` | 现有唯一 todo endpoint（无 POST，写入全走 tool 路径），Response 保持三字段投影不变。M2 另增独立的 `GET /session/{id}/task` 读取端点（`packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts:144`）返回带稳定 id 的 tasks，重载恢复数据源；旧 endpoint 原样保留 |
 | `TodoTable` (SQLite) | 保留，新增 `TaskTable`，M1 自动迁移 |
 
 ### 9.2 V1 退役路径
 
-V1 Todo (`packages/aigcfroge/src/session/todo.ts` + `tool/todo.ts`) M5 后 deprecated，下个大版本移除。M1-M5 不做 V1 改动。
+V1 Todo (`packages/aigcfroge/src/session/todo.ts` + `tool/todo.ts`) 自 M3b-2 起已标记 deprecated（提前标记决策），移除仍在 M5 之后的下个大版本。M1-M5 不做 V1 改动。
 
 ### 9.3 数据迁移
 
