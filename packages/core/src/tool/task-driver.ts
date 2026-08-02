@@ -486,8 +486,12 @@ export const install = (
                 } else if (Cause.hasInterruptsOnly(exit.cause)) {
                   yield* input.onSettle({ status: "cancelled" }).pipe(Effect.ignore)
                 } else {
-                  const digest = Cause.pretty(exit.cause) || "background delegation failed"
-                  yield* input.onSettle({ status: "failed", outputDigest: digest }).pipe(Effect.ignore)
+                  // Fixed classification only: the raw cause may embed Authorization
+                  // headers, tokens, prompts, or stacks, which must not reach the
+                  // task.updated payload (Clean Logs).
+                  yield* input.onSettle({ status: "failed", outputDigest: "background delegation failed" }).pipe(
+                    Effect.ignore,
+                  )
                 }
               }
               if (Exit.isFailure(exit)) {

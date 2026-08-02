@@ -70,7 +70,7 @@
 - [x] task table (id PK, parent_id, session_id FK) via drizzle migration pipeline
 - [x] Dual-track TaskDriver ↔ Task linkage: track A `parent_task_id`, track B auto-create + settle writeback
 - [x] Writeback state machine: completed / failed (error digest) / cancelled, childSessionID in outputDigest
-- [x] taskwrite LLM tool (registered in builtins) — M0 fields only; outputDigest persists in M1.5
+- [x] taskwrite LLM tool (registered in builtins) — M0 fields only; outputDigest persists in M2
 
 ## 🔄 In Progress
 

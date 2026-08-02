@@ -15,7 +15,7 @@
 
 ## 2026-08-02: SessionTask Contract, Table, and PATCH API (Todo/Task M0+M1)
 
-- New shared `SessionTask` Schema contract (`packages/schema/src/session-task.ts`): stable `tsk_` id, literal `TaskStatus`/`TaskPriority`, optional `parentID`; M1.5/M3/M5 fields (outputDigest/agentID/scheduledAt/recurrence/spawnedFrom/dependsOn) declared but not yet persisted.
+- New shared `SessionTask` Schema contract (`packages/schema/src/session-task.ts`): stable `tsk_` id, literal `TaskStatus`/`TaskPriority`, optional `parentID`; M2/M3/M5 fields (outputDigest/agentID/scheduledAt/recurrence/spawnedFrom/dependsOn) declared but not yet persisted.
 - New `task` table (id PK, session_id FK → session.id ON DELETE CASCADE, content/status/priority/parent_id/position + timestamps) with `task_session_idx`, generated via the drizzle-kit pipeline (`20260801230425_add_task_table`).
 - New `task.updated` EventV2 (sessionID + tasks) alongside the retained `todo.updated`; both remain emitted during transition.
 - New `PATCH /session/:sessionID/task` HTTP endpoint (replace-list reconcile) and generated SDK `SessionTaskUpdate` client + `SessionTaskInfo` type.

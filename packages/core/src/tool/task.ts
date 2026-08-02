@@ -217,8 +217,9 @@ export const layer = Layer.effectDiscard(
               // Track A: an explicit parent_task_id links to an existing task
               // minted by taskwrite. Track B: a fresh delegation auto-creates an
               // in_progress task (content = description) so the todo dashboard
-              // mirrors the delegation tree; resuming a child reuses the todo the
-              // original delegation created.
+              // mirrors the delegation tree. A resumed delegation (task_id) without
+              // parent_task_id has no persisted task mapping yet (M2 adds it via
+              // outputDigest persistence), so no new todo is created.
               let taskID: string | undefined = input.parent_task_id
               if (taskID === undefined && resumeID === undefined) {
                 // Track B: append atomically in one transaction so concurrent

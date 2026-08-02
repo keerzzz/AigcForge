@@ -15,19 +15,19 @@ export const Info = SessionTaskSchema.Info
 export type Info = typeof Info.Type
 
 /**
- * Write shape accepted by {@link SessionTask.update}/{@link SessionTask.append}.
- * `id` is optional: absent tasks are minted a stable `tsk_` id. M0 persists only
- * the id/content/status/priority/parentID/sessionID fields; `outputDigest` rides
- * the returned list and the `task.updated` event but is not stored until M2.
+ * Write shape accepted by {@link SessionTask.update}/{@link SessionTask.append}/
+ * {@link SessionTask.replaceLegacy}. `id` is optional: absent tasks are minted a
+ * stable `tsk_` id. M0 persists only the id/content/status/priority/parentID/
+ * sessionID fields; `outputDigest` rides the returned list and the `task.updated`
+ * event but is not stored until M2.
  */
-export const WriteInfo = Schema.Struct({
+export class WriteInfo extends Schema.Class<WriteInfo>("SessionTask.WriteInfo")({
   id: Schema.optional(Schema.String),
   content: Schema.String,
   status: SessionTaskSchema.TaskStatus,
   priority: SessionTaskSchema.TaskPriority,
   parentID: Schema.optional(Schema.String),
-}).annotate({ identifier: "SessionTask.WriteInfo" })
-export type WriteInfo = typeof WriteInfo.Type
+}) {}
 
 /**
  * Compatibility projection of a task into the legacy three-field todo shape so
@@ -74,6 +74,15 @@ export interface Interface {
     readonly tasks: ReadonlyArray<WriteInfo>
   }) => Effect.Effect<ReadonlyArray<Info>>
   /**
+   * Legacy todowrite bridge: reconcile by position, reusing existing ids so a
+   * delegation writeback to a linked task survives a later full-list replace.
+   * New positions mint ids, trailing rows are removed, all in one transaction.
+   */
+  readonly replaceLegacy: (input: {
+    readonly sessionID: SessionSchema.ID
+    readonly tasks: ReadonlyArray<WriteInfo>
+  }) => Effect.Effect<ReadonlyArray<Info>>
+  /**
    * Target a single task by id and update its status (delegation writeback).
    * Other rows are untouched; `outputDigest` rides the returned Info and the
    * republished `task.updated` event but is not stored in M2.
@@ -93,16 +102,17 @@ export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v
 
 type TaskRow = typeof TaskTable.$inferSelect
 
-const toInfo = (row: TaskRow): Info => ({
-  id: row.id,
-  content: row.content,
-  status: row.status,
-  priority: row.priority,
-  sessionID: row.session_id,
-  ...(row.parent_id ? { parentID: row.parent_id } : {}),
-  createdAt: row.time_created,
-  updatedAt: row.time_updated,
-})
+const toInfo = (row: TaskRow): Info =>
+  new Info({
+    id: row.id,
+    content: row.content,
+    status: row.status,
+    priority: row.priority,
+    sessionID: row.session_id,
+    ...(row.parent_id ? { parentID: row.parent_id } : {}),
+    createdAt: row.time_created,
+    updatedAt: row.time_updated,
+  })
 
 export const layer = Layer.effect(
   Service,
@@ -181,16 +191,18 @@ export const layer = Layer.effect(
         )
         .pipe(Effect.orDie)
 
-      const resolved: Info[] = planned.map((task) => ({
-        id: task.id,
-        content: task.content,
-        status: task.status,
-        priority: task.priority,
-        sessionID: input.sessionID,
-        ...(task.parentID ? { parentID: task.parentID } : {}),
-        createdAt: createdAt.get(task.id) ?? now,
-        updatedAt: now,
-      }))
+      const resolved: Info[] = planned.map((task) =>
+        new Info({
+          id: task.id,
+          content: task.content,
+          status: task.status,
+          priority: task.priority,
+          sessionID: input.sessionID,
+          ...(task.parentID ? { parentID: task.parentID } : {}),
+          createdAt: createdAt.get(task.id) ?? now,
+          updatedAt: now,
+        }),
+      )
       yield* publishBoth(input.sessionID, resolved)
       return resolved
     })
@@ -245,6 +257,60 @@ export const layer = Layer.effect(
       return resolved
     })
 
+    const replaceLegacy = Effect.fn("SessionTask.replaceLegacy")(function* (input: {
+      readonly sessionID: SessionSchema.ID
+      readonly tasks: ReadonlyArray<WriteInfo>
+    }) {
+      const now = (yield* DateTime.nowAsDate).getTime()
+      const resolved = yield* db
+        .transaction((tx) =>
+          Effect.gen(function* () {
+            const existing = yield* tx
+              .select()
+              .from(TaskTable)
+              .where(eq(TaskTable.session_id, input.sessionID))
+              .orderBy(asc(TaskTable.position))
+              .all()
+              .pipe(Effect.orDie)
+            for (const [index, task] of input.tasks.entries()) {
+              const prior = existing[index]
+              const id = prior?.id ?? Identifier.ascending("task")
+              const columns = {
+                content: task.content,
+                status: task.status,
+                priority: task.priority,
+                parent_id: prior?.parent_id ?? task.parentID ?? null,
+                position: index,
+                time_updated: now,
+              }
+              if (prior) {
+                yield* tx.update(TaskTable).set(columns).where(eq(TaskTable.id, id)).run().pipe(Effect.orDie)
+              } else {
+                yield* tx
+                  .insert(TaskTable)
+                  .values({ id, session_id: input.sessionID, ...columns, time_created: now })
+                  .run()
+                  .pipe(Effect.orDie)
+              }
+            }
+            for (const row of existing.slice(input.tasks.length)) {
+              yield* tx.delete(TaskTable).where(eq(TaskTable.id, row.id)).run().pipe(Effect.orDie)
+            }
+            const full = yield* tx
+              .select()
+              .from(TaskTable)
+              .where(eq(TaskTable.session_id, input.sessionID))
+              .orderBy(asc(TaskTable.position))
+              .all()
+              .pipe(Effect.orDie)
+            return full.map(toInfo)
+          }),
+        )
+        .pipe(Effect.orDie)
+      yield* publishBoth(input.sessionID, resolved)
+      return resolved
+    })
+
     const get = Effect.fn("SessionTask.get")(function* (sessionID: SessionSchema.ID) {
       const rows = yield* read(sessionID)
       return rows.map(toInfo)
@@ -261,11 +327,11 @@ export const layer = Layer.effect(
       yield* db.update(TaskTable).set({ status: input.status, time_updated: now }).where(scoped).run().pipe(Effect.orDie)
       const row = yield* db.select().from(TaskTable).where(scoped).get().pipe(Effect.orDie)
       if (!row) return undefined
-      const info: Info = {
+      const info: Info = new Info({
         ...toInfo(row),
         updatedAt: now,
         ...(input.outputDigest ? { outputDigest: input.outputDigest } : {}),
-      }
+      })
       // The event carries the digest for the patched task even though M2 does not
       // store it yet, so consumers can jump to the child Session from the payload.
       const full = yield* read(input.sessionID).pipe(
@@ -273,7 +339,7 @@ export const layer = Layer.effect(
           rows.map((r) => {
             const current = toInfo(r)
             return current.id === input.id && input.outputDigest
-              ? { ...current, updatedAt: now, outputDigest: input.outputDigest }
+              ? new Info({ ...current, updatedAt: now, outputDigest: input.outputDigest })
               : current
           }),
         ),
@@ -287,7 +353,7 @@ export const layer = Layer.effect(
       yield* publishBoth(sessionID, [])
     })
 
-    return Service.of({ update, append, patch, get, delete: remove })
+    return Service.of({ update, append, replaceLegacy, patch, get, delete: remove })
   }),
 )
 

@@ -24,7 +24,7 @@ import { SessionPaths } from "../../src/server/routes/instance/httpapi/groups/se
 import { Session } from "@/session/session"
 import { MessageID, PartID, SessionID, type SessionID as SessionIDType } from "../../src/session/schema"
 import { Database } from "@aigcfroge/core/database/database"
-import { SessionInputTable, SessionMessageTable, SessionTable } from "@aigcfroge/core/session/sql"
+import { SessionInputTable, SessionMessageTable, SessionTable, TodoTable } from "@aigcfroge/core/session/sql"
 import { SessionMessage } from "@aigcfroge/core/session/message"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { ModelV2 } from "@aigcfroge/core/model"
@@ -1140,23 +1140,32 @@ describe("session task HttpApi", () => {
   )
 
   it.instance(
-    "GET /session/:id/todo reflects task writes from the Task source",
+    "GET /session/:id/todo reads the legacy TodoTable in the default V1 runtime",
     () =>
       Effect.gen(function* () {
         const test = yield* TestInstance
         const headers = { "x-aigcfroge-directory": encodeURIComponent(test.directory) }
-        const session = yield* createSession({ title: "todo from task" })
-        const tasks = yield* SessionTask.Service
-        yield* tasks.update({
-          sessionID: session.id,
-          tasks: [{ content: "via-task", status: "in_progress", priority: "high" }],
-        })
+        const session = yield* createSession({ title: "todo v1" })
+        const { db } = yield* Database.Service
+        yield* db
+          .insert(TodoTable)
+          .values({
+            session_id: session.id,
+            content: "legacy",
+            status: "in_progress",
+            priority: "high",
+            position: 0,
+            time_created: Date.now(),
+            time_updated: Date.now(),
+          })
+          .run()
+          .pipe(Effect.orDie)
 
         const todos = yield* requestJson<Array<{ content: string; status: string; priority: string }>>(
           pathFor(SessionPaths.todo, { sessionID: session.id }),
           { headers },
         )
-        expect(todos).toEqual([{ content: "via-task", status: "in_progress", priority: "high" }])
+        expect(todos).toEqual([{ content: "legacy", status: "in_progress", priority: "high" }])
       }),
   )
 })

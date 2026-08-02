@@ -79,7 +79,9 @@ export const layer = Layer.effect(
       readonly sessionID: SessionSchema.ID
       readonly todos: ReadonlyArray<Info>
     }) {
-      yield* tasks.update({ sessionID: input.sessionID, tasks: input.todos.map(toTask) })
+      // Bridge to the Task source by position: existing ids are reused so a
+      // delegation writeback to a linked task survives this full-list replace.
+      yield* tasks.replaceLegacy({ sessionID: input.sessionID, tasks: input.todos.map(toTask) })
     })
 
     const get = Effect.fn("SessionTodo.get")(function* (sessionID: SessionSchema.ID) {

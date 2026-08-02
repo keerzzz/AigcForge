@@ -26,14 +26,13 @@ export const TaskPriority = Schema.Literals(["high", "medium", "low"]).annotate(
 })
 export type TaskPriority = typeof TaskPriority.Type
 
-export const TaskRecurrence = Schema.Struct({
+export class TaskRecurrence extends Schema.Class<TaskRecurrence>("TaskRecurrence")({
   cron: Schema.String,
   timezone: Schema.optional(Schema.String),
   enabled: Schema.Boolean,
-}).annotate({ identifier: "TaskRecurrence" })
-export type TaskRecurrence = typeof TaskRecurrence.Type
+}) {}
 
-export const Info = Schema.Struct({
+export class Info extends Schema.Class<Info>("SessionTask.Info")({
   id: Schema.String.annotate({ description: "Stable task ID (tsk_ prefixed, time-ordered)" }),
   content: Schema.String.annotate({ description: "Brief description of the task" }),
   status: TaskStatus,
@@ -61,5 +60,4 @@ export const Info = Schema.Struct({
   }),
   createdAt: Schema.Number,
   updatedAt: Schema.Number,
-}).annotate({ identifier: "SessionTask.Info" })
-export interface Info extends Schema.Schema.Type<typeof Info> {}
+}) {}

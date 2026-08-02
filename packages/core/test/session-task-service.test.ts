@@ -9,9 +9,12 @@ import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionV2 } from "@aigcfroge/core/session"
 import { SessionTable, TaskTable } from "@aigcfroge/core/session/sql"
 import { SessionTask } from "@aigcfroge/core/session/task"
+import { SessionTodo } from "@aigcfroge/core/session/todo"
 import { testEffect } from "./lib/effect"
 
-const it = testEffect(Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer, SessionTask.defaultLayer))
+const it = testEffect(
+  Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer, SessionTask.defaultLayer, SessionTodo.defaultLayer),
+)
 const sessionID = SessionV2.ID.make("ses_task_test")
 
 const setup = Effect.gen(function* () {
@@ -190,6 +193,39 @@ describe("SessionTask", () => {
       })
       const data = Schema.decodeUnknownSync(SessionTask.Event.TodoUpdated.data)(published[0]?.data)
       expect(data.todos).toEqual([{ content: "x", status: "in_progress", priority: "high" }])
+    }),
+  )
+
+  it.effect("legacy todowrite replace preserves the id a background delegation settled", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const todos = yield* SessionTodo.Service
+
+      // A background delegation creates a linked task (tsk_A).
+      const [linked] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "audit", status: "in_progress", priority: "medium" }],
+      })
+
+      // Legacy todowrite replaces the whole list — the linked id must survive,
+      // otherwise the delegation's settle patch would no-op on a rebuilt id.
+      yield* todos.update({
+        sessionID,
+        todos: [{ content: "audit", status: "in_progress", priority: "medium" }],
+      })
+      const afterReplace = yield* tasks.get(sessionID)
+      expect(afterReplace.map((task) => task.id)).toEqual([linked.id])
+
+      // The delegation settle writeback still lands on the linked task.
+      const patched = yield* tasks.patch({
+        sessionID,
+        id: linked.id,
+        status: "completed",
+        outputDigest: "ses_child",
+      })
+      expect(patched?.id).toBe(linked.id)
+      expect((yield* tasks.get(sessionID))[0]?.status).toBe("completed")
     }),
   )
 })
