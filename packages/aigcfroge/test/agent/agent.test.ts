@@ -197,6 +197,7 @@ it.instance("general agent denies todo tools", () =>
     expect(general?.mode).toBe("subagent")
     expect(general?.hidden).toBeUndefined()
     expect(evalPerm(general, "todowrite")).toBe("deny")
+    expect(evalPerm(general, "task_schedule")).toBe("deny")
   }),
 )
 

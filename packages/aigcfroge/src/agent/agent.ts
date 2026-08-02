@@ -274,6 +274,7 @@ export const layer = Layer.effect(
               defaults,
               Permission.fromConfig({
                 todowrite: "deny",
+                task_schedule: "deny",
               }),
               user,
             ),
