@@ -1140,6 +1140,44 @@ describe("session task HttpApi", () => {
   )
 
   it.instance(
+    "PATCH /session/:id/task rejects a foreign task id with 400 and writes nothing",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = {
+          "x-aigcfroge-directory": encodeURIComponent(test.directory),
+          "content-type": "application/json",
+        }
+        const session = yield* createSession({ title: "task foreign" })
+        const other = yield* createSession({ title: "other" })
+
+        // Seed one task per session; the other's id is foreign to this session.
+        const tasks = yield* SessionTask.Service
+        const [mine] = yield* tasks.update({
+          sessionID: session.id,
+          tasks: [{ content: "mine", status: "pending", priority: "low" }],
+        })
+        const [theirs] = yield* tasks.update({
+          sessionID: other.id,
+          tasks: [{ content: "theirs", status: "pending", priority: "low" }],
+        })
+
+        const response = yield* request(pathFor(SessionPaths.task, { sessionID: session.id }), {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify([{ id: theirs.id, content: "forged", status: "pending", priority: "low" }]),
+        })
+        expect(response.status).toBe(400)
+        const error = yield* responseJson(response)
+        expect(error).toMatchObject({ _tag: "InvalidRequestError" })
+
+        // The rejection happens before any write in both sessions.
+        expect((yield* tasks.get(session.id)).map((task) => task.id)).toEqual([mine.id])
+        expect((yield* tasks.get(other.id)).map((task) => task.id)).toEqual([theirs.id])
+      }),
+  )
+
+  it.instance(
     "GET /session/:id/todo reads the legacy TodoTable in the default V1 runtime",
     () =>
       Effect.gen(function* () {

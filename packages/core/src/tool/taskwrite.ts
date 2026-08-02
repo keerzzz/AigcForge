@@ -47,9 +47,23 @@ export const layer = Layer.effectDiscard(
                 agent: context.agent,
                 source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
               })
-              const resolved = yield* tasks.update({ sessionID: context.sessionID, tasks: input.tasks })
+              const resolved = yield* tasks
+                .update({ sessionID: context.sessionID, tasks: input.tasks })
+                .pipe(
+                  Effect.mapError((error) =>
+                    error instanceof SessionTask.TaskWriteError
+                      ? new ToolFailure({ message: error.message })
+                      : new ToolFailure({ message: "Unable to update tasks" }),
+                  ),
+                )
               return { tasks: resolved }
-            }).pipe(Effect.mapError(() => new ToolFailure({ message: "Unable to update tasks" }))),
+            }).pipe(
+              // Preserve the specific TaskWriteError message mapped above; only
+              // wrap non-tool failures (permission, infrastructure) generically.
+              Effect.mapError((error) =>
+                error instanceof ToolFailure ? error : new ToolFailure({ message: "Unable to update tasks" }),
+              ),
+            ),
         }),
       })
       .pipe(Effect.orDie)

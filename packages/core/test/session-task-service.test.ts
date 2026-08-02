@@ -228,4 +228,69 @@ describe("SessionTask", () => {
       expect((yield* tasks.get(sessionID))[0]?.status).toBe("completed")
     }),
   )
+
+  it.effect("update rejects foreign and duplicate client ids with TaskWriteError and writes nothing", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const [seeded] = yield* tasks.update({
+        sessionID,
+        tasks: [{ content: "keep", status: "pending", priority: "low" }],
+      })
+
+      // An id not owned by this session (stale reference or forge attempt).
+      const foreign = yield* tasks
+        .update({
+          sessionID,
+          tasks: [{ id: "tsk_0000000000000000000000zz", content: "x", status: "pending", priority: "low" }],
+        })
+        .pipe(Effect.flip)
+      expect(foreign).toBeInstanceOf(SessionTask.TaskWriteError)
+      expect(foreign.reason).toBe("foreign")
+
+      // The same id twice in one payload.
+      const duplicate = yield* tasks
+        .update({
+          sessionID,
+          tasks: [
+            { id: seeded.id, content: "keep", status: "completed", priority: "low" },
+            { id: seeded.id, content: "keep", status: "pending", priority: "low" },
+          ],
+        })
+        .pipe(Effect.flip)
+      expect(duplicate).toBeInstanceOf(SessionTask.TaskWriteError)
+      expect(duplicate.reason).toBe("duplicate")
+
+      // Rejection happens before any write: the seeded row is untouched.
+      const got = yield* tasks.get(sessionID)
+      expect(got).toHaveLength(1)
+      expect(got[0]?.id).toBe(seeded.id)
+      expect(got[0]?.status).toBe("pending")
+    }),
+  )
+
+  it.effect("update preserves parentID when omitted and reports it in the resolved payload", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const [parent] = yield* tasks.update({
+        sessionID,
+        tasks: [{ content: "parent", status: "pending", priority: "low" }],
+      })
+      const [, child] = yield* tasks.update({
+        sessionID,
+        tasks: [parent, { content: "child", status: "in_progress", priority: "medium", parentID: parent.id }],
+      })
+      expect(child.parentID).toBe(parent.id)
+
+      // A later update that omits parentID must keep the stored link and must
+      // reflect it in the resolved Info (event payload matches the DB).
+      const resolved = yield* tasks.update({
+        sessionID,
+        tasks: [parent, { id: child.id, content: "child", status: "completed", priority: "medium" }],
+      })
+      expect(resolved[1]?.parentID).toBe(parent.id)
+      expect((yield* tasks.get(sessionID))[1]?.parentID).toBe(parent.id)
+    }),
+  )
 })

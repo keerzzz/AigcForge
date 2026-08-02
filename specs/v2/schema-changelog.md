@@ -19,7 +19,7 @@
 - New `task` table (id PK, session_id FK → session.id ON DELETE CASCADE, content/status/priority/parent_id/position + timestamps) with `task_session_idx`, generated via the drizzle-kit pipeline (`20260801230425_add_task_table`).
 - New `task.updated` EventV2 (sessionID + tasks) alongside the retained `todo.updated`; both remain emitted during transition.
 - New `PATCH /session/:sessionID/task` HTTP endpoint (replace-list reconcile) and generated SDK `SessionTaskUpdate` client + `SessionTaskInfo` type.
-- Legacy `TodoTable`/`SessionTodo`/`TodoWrite` retained for backward compatibility; TodoTable→TaskTable backfill migration still pending (Step 5).
+- Legacy `TodoTable`/`SessionTodo`/`TodoWrite` retained for backward compatibility; the one-shot TodoTable→TaskTable backfill migration is delivered (`20260802220000_backfill_task_table`, `tsk_` ids, unknown status/priority normalized to pending/medium).
 
 ## 2026-06-22: Make Session Interruption Process-Local
 

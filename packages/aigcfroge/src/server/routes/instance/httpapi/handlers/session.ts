@@ -47,7 +47,7 @@ import {
   SummarizePayload,
   UpdatePayload,
 } from "../groups/session"
-import { PermissionNotFoundError } from "../errors"
+import { PermissionNotFoundError, InvalidRequestError } from "../errors"
 import { notFound } from "../errors"
 import * as SessionError from "./session-errors"
 import { AIGCFROGE_V2_RUNTIME } from "@/effect/app-runtime"
@@ -133,7 +133,12 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     }) {
       yield* requireSession(ctx.params.sessionID)
       const v2task = yield* SessionTask.Service
-      return yield* v2task.update({ sessionID: ctx.params.sessionID, tasks: ctx.payload })
+      return yield* v2task.update({ sessionID: ctx.params.sessionID, tasks: ctx.payload }).pipe(
+        // A forged or repeated client-supplied id is a client error, not a 500.
+        Effect.catchTag("SessionTask.TaskWriteError", (error) =>
+          Effect.fail(new InvalidRequestError({ message: error.message })),
+        ),
+      )
     })
 
     const diff = Effect.fn("SessionHttpApi.diff")(function* (ctx: {

@@ -20,7 +20,7 @@ import {
   WorkspaceRoutingQuery,
   WorkspaceRoutingQueryFields,
 } from "../middleware/workspace-routing"
-import { ApiNotFoundError, PermissionNotFoundError, SessionBusyError } from "../errors"
+import { ApiNotFoundError, PermissionNotFoundError, SessionBusyError, InvalidRequestError } from "../errors"
 import { described } from "./metadata"
 import { QueryBoolean } from "./query"
 import { ProviderV2 } from "@aigcfroge/core/provider"
@@ -176,7 +176,7 @@ export const SessionApi = HttpApi.make("session")
           query: WorkspaceRoutingQuery,
           payload: Schema.Array(SessionTask.WriteInfo),
           success: described(Schema.Array(SessionTask.Info), "Updated task list"),
-          error: [HttpApiError.BadRequest, ApiNotFoundError],
+          error: [InvalidRequestError, ApiNotFoundError],
         }).annotateMerge(
           OpenApi.annotations({
             identifier: "session.task.update",

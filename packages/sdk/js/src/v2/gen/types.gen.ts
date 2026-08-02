@@ -12140,9 +12140,9 @@ export type SessionTaskUpdateData = {
 
 export type SessionTaskUpdateErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: InvalidRequestError
   /**
    * NotFoundError
    */

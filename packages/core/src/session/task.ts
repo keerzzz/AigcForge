@@ -30,14 +30,33 @@ export class WriteInfo extends Schema.Class<WriteInfo>("SessionTask.WriteInfo")(
 }) {}
 
 /**
+ * A client-supplied task id that cannot be reconciled: `foreign` ids are not
+ * owned by the target session (a forge attempt or stale reference), `duplicate`
+ * ids repeat a prior id in the same payload. Both would otherwise hit the
+ * global `task.id` PK constraint and surface as an unhandled 500 defect, so
+ * they are rejected up front as a typed failure (HTTP 400).
+ */
+export class TaskWriteError extends Schema.TaggedErrorClass<TaskWriteError>()("SessionTask.TaskWriteError", {
+  sessionID: SessionSchema.ID,
+  id: Schema.String,
+  reason: Schema.Literals(["foreign", "duplicate"]),
+}) {
+  override get message() {
+    return this.reason === "foreign"
+      ? `Task id "${this.id}" is not owned by session ${this.sessionID}`
+      : `Duplicate task id "${this.id}" in payload for session ${this.sessionID}`
+  }
+}
+
+/**
  * Compatibility projection of a task into the legacy three-field todo shape so
  * existing App/TUI `todo.updated` consumers keep working against the task source.
  */
-export const TodoProjection = Schema.Struct({
+export class TodoProjection extends Schema.Class<TodoProjection>("SessionTask.TodoProjection")({
   content: Schema.String,
   status: Schema.String,
   priority: Schema.String,
-}).annotate({ identifier: "SessionTask.TodoProjection" })
+}) {}
 
 export const Event = {
   Updated: EventV2.define({
@@ -58,11 +77,15 @@ export const Event = {
 }
 
 export interface Interface {
-  /** Reconcile a session's task list by id: upsert present rows, delete absent ones, republish. */
+  /**
+   * Reconcile a session's task list by id: upsert present rows, delete absent ones, republish.
+   * Fails with {@link TaskWriteError} when a client-supplied id is foreign to the session
+   * or duplicated within the payload.
+   */
   readonly update: (input: {
     readonly sessionID: SessionSchema.ID
     readonly tasks: ReadonlyArray<WriteInfo>
-  }) => Effect.Effect<ReadonlyArray<Info>>
+  }) => Effect.Effect<ReadonlyArray<Info>, TaskWriteError>
   /**
    * Append new tasks at the end of the session's list in a single transaction.
    * Positions are computed and the full list is re-read atomically, so
@@ -85,7 +108,7 @@ export interface Interface {
   /**
    * Target a single task by id and update its status (delegation writeback).
    * Other rows are untouched; `outputDigest` rides the returned Info and the
-   * republished `task.updated` event but is not stored in M2.
+   * republished `task.updated` event but is not stored until M2.
    */
   readonly patch: (input: {
     readonly sessionID: SessionSchema.ID
@@ -134,7 +157,9 @@ export const layer = Layer.effect(
         yield* events.publish(Event.Updated, { sessionID, tasks })
         yield* events.publish(Event.TodoUpdated, {
           sessionID,
-          todos: tasks.map((task) => ({ content: task.content, status: task.status, priority: task.priority })),
+          todos: tasks.map(
+            (task) => new TodoProjection({ content: task.content, status: task.status, priority: task.priority }),
+          ),
         })
       })
 
@@ -151,8 +176,13 @@ export const layer = Layer.effect(
       const retained = new Set(planned.map((task) => task.id))
       const now = (yield* DateTime.nowAsDate).getTime()
       const createdAt = new Map<string, number>()
+      const parentIdById = new Map<string, string | null>()
 
-      yield* db
+      // Run validation + reconcile in one transaction. The transaction always
+      // succeeds: it reports a rejected client id via the tagged result instead
+      // of failing, so the typed TaskWriteError is surfaced AFTER the orDie
+      // (which would otherwise convert it into an unhandled defect).
+      const result = yield* db
         .transaction((tx) =>
           Effect.gen(function* () {
             const existing = yield* tx
@@ -162,16 +192,39 @@ export const layer = Layer.effect(
               .all()
               .pipe(Effect.orDie)
             const existingById = new Map(existing.map((row) => [row.id, row]))
+            // Reject foreign ids (client-supplied ids not owned by this session)
+            // and duplicate ids within the payload before any writes. The loop
+            // collects the first violation; the failure is raised after the loop
+            // so every return statement in this gen is value-bearing.
+            const seen = new Set<string>()
+            let invalid: TaskWriteError | undefined
+            for (const task of input.tasks) {
+              if (task.id === undefined) continue
+              if (!existingById.has(task.id)) {
+                invalid = new TaskWriteError({ sessionID: input.sessionID, id: task.id, reason: "foreign" })
+                break
+              }
+              if (seen.has(task.id)) {
+                invalid = new TaskWriteError({ sessionID: input.sessionID, id: task.id, reason: "duplicate" })
+                break
+              }
+              seen.add(task.id)
+            }
+            if (invalid) return yield* Effect.succeed({ type: "invalid" as const, error: invalid })
             for (const row of existing) createdAt.set(row.id, row.time_created)
             for (const task of planned) {
+              const prior = existingById.get(task.id)
               const columns = {
                 content: task.content,
                 status: task.status,
                 priority: task.priority,
-                parent_id: task.parentID ?? null,
+                parent_id: task.parentID ?? prior?.parent_id ?? null,
                 position: task.position,
                 time_updated: now,
               }
+              // Capture the effective parent_id (resolved from the input or the
+              // existing row) so the returned Info matches what was persisted.
+              parentIdById.set(task.id, columns.parent_id)
               if (existingById.has(task.id)) {
                 yield* tx.update(TaskTable).set(columns).where(eq(TaskTable.id, task.id)).run().pipe(Effect.orDie)
               } else {
@@ -187,22 +240,28 @@ export const layer = Layer.effect(
                 yield* tx.delete(TaskTable).where(eq(TaskTable.id, row.id)).run().pipe(Effect.orDie)
               }
             }
+            return yield* Effect.succeed({ type: "ok" as const })
           }),
         )
         .pipe(Effect.orDie)
 
-      const resolved: Info[] = planned.map((task) =>
-        new Info({
+      if (result.type === "invalid") {
+        return yield* Effect.fail(result.error)
+      }
+
+      const resolved: Info[] = planned.map((task) => {
+        const parentID = parentIdById.get(task.id)
+        return new Info({
           id: task.id,
           content: task.content,
           status: task.status,
           priority: task.priority,
           sessionID: input.sessionID,
-          ...(task.parentID ? { parentID: task.parentID } : {}),
+          ...(parentID ? { parentID } : {}),
           createdAt: createdAt.get(task.id) ?? now,
           updatedAt: now,
-        }),
-      )
+        })
+      })
       yield* publishBoth(input.sessionID, resolved)
       return resolved
     })
