@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "32ab51cb-7d14-4f2f-891d-6ffadc1c1c23",
+  "id": "07527a77-8e19-41ce-bbba-838e74ae2b26",
   "prevIds": [
-    "1fb59954-e727-48f6-b109-e07b4723dcb9"
+    "32ab51cb-7d14-4f2f-891d-6ffadc1c1c23"
   ],
   "ddl": [
     {
@@ -1819,6 +1819,36 @@
       "default": null,
       "generated": null,
       "name": "output_digest",
+      "entityType": "columns",
+      "table": "task"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "agent_id",
+      "entityType": "columns",
+      "table": "task"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "scheduled_at",
+      "entityType": "columns",
+      "table": "task"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "recurrence",
       "entityType": "columns",
       "table": "task"
     },

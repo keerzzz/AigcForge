@@ -26,11 +26,15 @@ export const TaskPriority = Schema.Literals(["high", "medium", "low"]).annotate(
 })
 export type TaskPriority = typeof TaskPriority.Type
 
-export class TaskRecurrence extends Schema.Class<TaskRecurrence>("TaskRecurrence")({
+// Value record persisted as a JSON column and exchanged as a plain object over
+// HTTP, so a Struct (not a Class) keeps encode/decode working without instance
+// wrapping.
+export const TaskRecurrence = Schema.Struct({
   cron: Schema.String,
   timezone: Schema.optional(Schema.String),
   enabled: Schema.Boolean,
-}) {}
+}).annotate({ identifier: "TaskRecurrence" })
+export type TaskRecurrence = typeof TaskRecurrence.Type
 
 export class Info extends Schema.Class<Info>("SessionTask.Info")({
   id: Schema.String.annotate({ description: "Stable task ID (tsk_ prefixed, time-ordered)" }),

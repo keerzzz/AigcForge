@@ -136,6 +136,10 @@ export const TaskTable = sqliteTable(
     // M2: incremental step output digest (Work ProgressLedger) — TaskPanel
     // reload-recovery reads it back after a page refresh.
     output_digest: text(),
+    // M3: scheduled jobs — owning agent, next trigger, and repetition rule.
+    agent_id: text(),
+    scheduled_at: integer(),
+    recurrence: text({ mode: "json" }).$type<SessionTaskSchema.TaskRecurrence>(),
     position: integer().notNull(),
     ...Timestamps,
   },

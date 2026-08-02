@@ -26,6 +26,10 @@ export class WriteInfo extends Schema.Class<WriteInfo>("SessionTask.WriteInfo")(
   status: SessionTaskSchema.TaskStatus,
   priority: SessionTaskSchema.TaskPriority,
   parentID: Schema.optional(Schema.String),
+  // M3: scheduled jobs — owning agent, next trigger, and repetition rule.
+  agentID: Schema.optional(Schema.String),
+  scheduledAt: Schema.optional(Schema.Number),
+  recurrence: Schema.optional(SessionTaskSchema.TaskRecurrence),
 }) {}
 
 /**
@@ -133,6 +137,9 @@ const toInfo = (row: TaskRow): Info =>
     sessionID: row.session_id,
     ...(row.parent_id ? { parentID: row.parent_id } : {}),
     ...(row.output_digest ? { outputDigest: row.output_digest } : {}),
+    ...(row.agent_id ? { agentID: row.agent_id } : {}),
+    ...(row.scheduled_at !== null && row.scheduled_at !== undefined ? { scheduledAt: row.scheduled_at } : {}),
+    ...(row.recurrence ? { recurrence: row.recurrence } : {}),
     createdAt: row.time_created,
     updatedAt: row.time_updated,
   })
@@ -178,6 +185,10 @@ export const layer = Layer.effect(
       const createdAt = new Map<string, number>()
       const parentIdById = new Map<string, string | null>()
       const digestById = new Map<string, string | null>()
+      const scheduleById = new Map<
+        string,
+        { agentID?: string; scheduledAt?: number; recurrence?: SessionTaskSchema.TaskRecurrence }
+      >()
 
       // Run validation + reconcile in one transaction. The transaction always
       // succeeds: it reports a rejected client id via the tagged result instead
@@ -220,6 +231,9 @@ export const layer = Layer.effect(
                 status: task.status,
                 priority: task.priority,
                 parent_id: task.parentID ?? prior?.parent_id ?? null,
+                agent_id: task.agentID ?? prior?.agent_id ?? null,
+                scheduled_at: task.scheduledAt ?? prior?.scheduled_at ?? null,
+                recurrence: task.recurrence ?? prior?.recurrence ?? null,
                 position: task.position,
                 time_updated: now,
               }
@@ -230,6 +244,13 @@ export const layer = Layer.effect(
               // digest always survives reconcile via the existing row; mirror it
               // into the resolved Info to keep the event payload in sync with the DB.
               digestById.set(task.id, prior?.output_digest ?? null)
+              scheduleById.set(task.id, {
+                ...(columns.agent_id ? { agentID: columns.agent_id } : {}),
+                ...(columns.scheduled_at !== null && columns.scheduled_at !== undefined
+                  ? { scheduledAt: columns.scheduled_at }
+                  : {}),
+                ...(columns.recurrence ? { recurrence: columns.recurrence } : {}),
+              })
               if (existingById.has(task.id)) {
                 yield* tx.update(TaskTable).set(columns).where(eq(TaskTable.id, task.id)).run().pipe(Effect.orDie)
               } else {
@@ -257,6 +278,7 @@ export const layer = Layer.effect(
       const resolved: Info[] = planned.map((task) => {
         const parentID = parentIdById.get(task.id)
         const outputDigest = digestById.get(task.id)
+        const schedule = scheduleById.get(task.id)
         return new Info({
           id: task.id,
           content: task.content,
@@ -265,6 +287,9 @@ export const layer = Layer.effect(
           sessionID: input.sessionID,
           ...(parentID ? { parentID } : {}),
           ...(outputDigest ? { outputDigest } : {}),
+          ...(schedule?.agentID ? { agentID: schedule.agentID } : {}),
+          ...(schedule?.scheduledAt !== undefined ? { scheduledAt: schedule.scheduledAt } : {}),
+          ...(schedule?.recurrence ? { recurrence: schedule.recurrence } : {}),
           createdAt: createdAt.get(task.id) ?? now,
           updatedAt: now,
         })
@@ -300,6 +325,9 @@ export const layer = Layer.effect(
                   status: task.status,
                   priority: task.priority,
                   parent_id: task.parentID ?? null,
+                  agent_id: task.agentID ?? null,
+                  scheduled_at: task.scheduledAt ?? null,
+                  recurrence: task.recurrence ?? null,
                   position,
                   time_created: now,
                   time_updated: now,
@@ -346,6 +374,9 @@ export const layer = Layer.effect(
                 status: task.status,
                 priority: task.priority,
                 parent_id: prior?.parent_id ?? task.parentID ?? null,
+                agent_id: prior?.agent_id ?? task.agentID ?? null,
+                scheduled_at: prior?.scheduled_at ?? task.scheduledAt ?? null,
+                recurrence: prior?.recurrence ?? task.recurrence ?? null,
                 position: index,
                 time_updated: now,
               }

@@ -342,4 +342,24 @@ describe("PermissionV2", () => {
       expect(yield* service.ask(assertion())).toMatchObject({ effect: "ask" })
     }),
   )
+
+  it.effect("unattended child Session with a pre-auth allow ruleset reads without silent denial (M3)", () =>
+    Effect.gen(function* () {
+      // Scheduled jobs run under an agent whose permissions pre-authorize the
+      // tools they need (plan §8 G2). An explicit allow rule is NOT converted
+      // to deny, so the unattended job can read files instead of being silently
+      // rejected by the ask→deny fallback.
+      yield* setup([{ action: "read", resource: "*", effect: "allow" }])
+      const { db } = yield* Database.Service
+      yield* db
+        .update(SessionTable)
+        .set({ parent_id: SessionV2.ID.make("ses_parent"), attended: 0 })
+        .where(eq(SessionTable.id, SessionV2.ID.make("ses_test")))
+        .run()
+        .pipe(Effect.orDie)
+
+      const service = yield* PermissionV2.Service
+      expect(yield* service.ask(assertion())).toMatchObject({ effect: "allow" })
+    }),
+  )
 })

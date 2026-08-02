@@ -4717,6 +4717,9 @@ export type SessionTaskWriteInfo = {
   status: TaskStatus
   priority: TaskPriority
   parentID?: string
+  agentID?: string
+  scheduledAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  recurrence?: TaskRecurrence
 }
 
 export type ToolSummaryEntry = {

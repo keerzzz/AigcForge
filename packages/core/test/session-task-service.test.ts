@@ -317,6 +317,46 @@ describe("SessionTask", () => {
     }),
   )
 
+  it.effect("persists M3 schedule fields and keeps them through an omitting reconcile", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const recurrence = { cron: "0 9 * * *", enabled: true }
+      const [scheduled] = yield* tasks.update({
+        sessionID,
+        tasks: [
+          {
+            content: "daily audit",
+            status: "scheduled",
+            priority: "medium",
+            agentID: "ag_audit",
+            scheduledAt: 1234,
+            recurrence,
+          },
+        ],
+      })
+      expect(scheduled.agentID).toBe("ag_audit")
+      expect(scheduled.scheduledAt).toBe(1234)
+      expect(scheduled.recurrence).toMatchObject(recurrence)
+
+      // Re-read from the table: the columns survived.
+      const got = yield* tasks.get(sessionID)
+      expect(got[0]?.agentID).toBe("ag_audit")
+      expect(got[0]?.scheduledAt).toBe(1234)
+      expect(got[0]?.recurrence).toMatchObject(recurrence)
+
+      // A later reconcile that omits the schedule fields must keep the stored
+      // values (same rule as parentID/digest) and report them in the resolved Info.
+      const resolved = yield* tasks.update({
+        sessionID,
+        tasks: [{ id: scheduled.id, content: "daily audit", status: "scheduled", priority: "medium" }],
+      })
+      expect(resolved[0]?.agentID).toBe("ag_audit")
+      expect(resolved[0]?.scheduledAt).toBe(1234)
+      expect(resolved[0]?.recurrence).toMatchObject(recurrence)
+    }),
+  )
+
   it.effect("update reconcile preserves outputDigest in the resolved payload and the event", () =>
     Effect.gen(function* () {
       yield* setup
