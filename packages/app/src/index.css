@@ -62,6 +62,95 @@
     will-change: clip-path;
   }
 
+  /* M2: when tasks exist the pulse line expands into an interactive strip
+     (SessionTodoProgress). The :has() guard keeps the no-todo case byte-for-byte
+     unchanged. The decorative whip bar freezes so the doneRatio fill + anchor
+     pulse own the animation instead. */
+  [data-component="session-progress"]:has([data-component="session-todo-progress"]) {
+    height: 14px;
+    overflow: visible;
+    pointer-events: auto;
+  }
+
+  [data-component="session-progress"]:has([data-component="session-todo-progress"]) [data-component="session-progress-bar"] {
+    animation: none;
+  }
+
+  [data-component="session-todo-progress"] {
+    position: absolute;
+    inset: 0 0 auto;
+    width: 100%;
+  }
+
+  [data-component="session-todo-progress-fill"] {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 2px;
+    background: var(--icon-interactive-base);
+    will-change: clip-path;
+  }
+
+  [data-component="session-todo-progress-fill"][data-anchor] {
+    background: linear-gradient(90deg, var(--icon-interactive-base), var(--icon-interactive-hover), var(--icon-interactive-base));
+  }
+
+  [data-component="session-todo-progress-node"] {
+    position: absolute;
+    top: 0;
+    width: 8px;
+    height: 8px;
+    margin-left: -4px;
+    border-radius: 999px;
+    border: 1.5px solid var(--background-stronger);
+    background: var(--icon-interactive-base);
+    padding: 0;
+    cursor: pointer;
+    transition: transform 120ms var(--tool-motion-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  }
+
+  [data-component="session-todo-progress-node"]:hover {
+    transform: scale(1.4);
+  }
+
+  [data-component="session-todo-progress-node"][data-state="pending"] {
+    background: transparent;
+    border-color: var(--icon-interactive-base);
+  }
+
+  [data-component="session-todo-progress-node"][data-state="completed"] {
+    background: var(--icon-interactive-base);
+  }
+
+  [data-component="session-todo-progress-node"][data-state="cancelled"] {
+    background: var(--icon-disabled);
+    border-color: var(--icon-disabled);
+  }
+
+  [data-component="session-todo-progress-node"][data-state="in_progress"][data-anchor] {
+    animation: session-todo-progress-node-pulse 1.6s infinite;
+  }
+
+  @keyframes session-todo-progress-node-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--icon-interactive-base) 60%, transparent);
+    }
+    50% {
+      box-shadow: 0 0 0 4px transparent;
+    }
+  }
+
+  [data-component="session-todo-progress-stats"] {
+    position: absolute;
+    right: 0;
+    top: 0;
+    font-size: 10px;
+    line-height: 14px;
+    color: var(--text-weak);
+    user-select: none;
+    pointer-events: none;
+  }
+
   [data-component="getting-started"] {
     container-type: inline-size;
     container-name: getting-started;

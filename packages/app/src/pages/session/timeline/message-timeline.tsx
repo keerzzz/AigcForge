@@ -68,6 +68,7 @@ import { useTabs } from "@/context/tabs"
 import { requireServerKey, sessionHref } from "@/utils/session-route"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
+import { useServerSync } from "@/context/server-sync"
 import { notifySessionTabsRemoved } from "@/components/titlebar-session-events"
 import { messageAgentColor } from "@/utils/agent"
 import { sessionTitle } from "@/utils/session-title"
@@ -76,6 +77,7 @@ import { scheduleConnectedMeasure } from "./measure"
 import { createTimelineProjection } from "./projection"
 import { MessageComment, SummaryDiff, TimelineRow, TimelineRowMap } from "./rows"
 import { filterVirtualIndexes } from "./virtual-items"
+import { SessionTodoProgress } from "@/pages/session/timeline/session-todo-progress"
 
 const emptyMessages: MessageType[] = []
 const emptyParts: PartType[] = []
@@ -290,6 +292,8 @@ export function MessageTimeline(props: {
   })
   const working = createMemo(() => sessionStatus().type !== "idle")
   const sessionMessages = createMemo(() => (sessionID() ? (sync().data.message[sessionID()!] ?? []) : []))
+  const serverSync = useServerSync()
+  const sessionTodos = createMemo(() => (sessionID() ? (serverSync().data.session_todo[sessionID()!] ?? []) : []))
   const tint = createMemo(() => messageAgentColor(sessionMessages(), sync().data.agent))
 
   const currentAgentName = createMemo(() => {
@@ -1382,7 +1386,11 @@ export function MessageTimeline(props: {
             }}
           >
             <Show when={workingStatus() !== "hidden" && settings.general.showSessionProgressBar()}>
-              <div data-component="session-progress" data-state={workingStatus()} aria-hidden="true">
+              <div
+                data-component="session-progress"
+                data-state={workingStatus()}
+                aria-hidden={sessionTodos().length > 0 ? undefined : "true"}
+              >
                 <div
                   data-component="session-progress-bar"
                   style={{
@@ -1390,6 +1398,7 @@ export function MessageTimeline(props: {
                     animation: `session-progress-whip ${bar.ms}ms infinite`,
                   }}
                 />
+                <SessionTodoProgress sessionID={sessionID} />
               </div>
             </Show>
             <div class="h-12 w-full flex items-center justify-between gap-2">

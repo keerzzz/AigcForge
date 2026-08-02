@@ -93,7 +93,8 @@
 - ✅ M0: SessionTask Schema（`packages/schema/src/session-task.ts`，TaskStatus/TaskPriority Literal）
 - ✅ M1: SessionTask Service 替代 SessionTodo + `PATCH /session/{id}/task` 写 API + **TaskDriver↔Task 双轨联动**（轨 A `parent_task_id` 显式关联 / 轨 B 委派自动建 todo，元智能体编排可观测性）
 - ✅ M2a: `output_digest` 落库（迁移 `20260802043814_add_task_output_digest`）+ `SessionTask.patch` 持久化 digest（无 digest 的 patch 不清空）+ `GET /session/{id}/task` 读取端点（重载恢复数据源）
-- 🔄 M2b/c (in progress): SessionTodoProgress 脉冲线内嵌节点（移除底部 dock）+ 可交互折叠浮层 + E2E
+- ✅ M2b: SessionTodoProgress 脉冲线内嵌节点（`session-todo-progress-model` 纯逻辑 + 组件挂载 timeline session-progress 容器，无 todo 时零改动）+ **移除底部 SessionTodoDock**（composer dock()/todoCollapsed/stories/ready 全清，保留 revert rolled/lift）+ 重载恢复（挂载时 `sync().session.todo` 拉取）
+- 🔄 M2c (in progress): 可交互折叠浮层 + E2E
 - M3: ScheduledJobRunner（含 re-arm + unattended 权限策略）+ 定时任务 UI（标题左侧 nextRun 时间戳 + dot-grid 下拉入口）
 
 ### Phase 5 — V1 Retirement

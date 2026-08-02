@@ -1720,7 +1720,6 @@ export default function Page() {
   const composerRegion = (placement: "dock" | "inline") => (
     <SessionComposerRegion
       state={composer}
-      ready={!store.deferRender && messagesReady()}
       centered={placement === "dock" && centered()}
       placement={placement}
       inputRef={(el) => {
