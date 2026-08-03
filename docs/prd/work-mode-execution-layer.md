@@ -4,7 +4,7 @@
 > 负责人：产品（范围与指标）/ Core（Artifact 契约 & Progress Ledger）/ App（Work surface & Context Inspector）/ Security（写入边界 & 跨 Location 授权）
 > 范围：`packages/app` + `packages/core` + `packages/aigcfroge` + `packages/schema`
 > 关联：[ADR-11](../architecture/adr/ADR-11-product-mode-session-classification.md)、[ADR-12](../architecture/adr/ADR-12-product-mode-entry-routing.md)、[ADR-13](../architecture/adr/ADR-13-chat-work-mode-boundary.md)（已接受）、[ADR-13 Amendment-1](../architecture/adr/ADR-13-amendment-1-workflow-asset.md)（工作流定义归 Chat，执行归 Work）、[ADR-14](../architecture/adr/ADR-14-persistence-and-scope-strategy.md)（已接受）、[ADR-15](../architecture/adr/ADR-15-mode-workspace-main-area-slot.md)（已接受）、[ARCHITECTURE.md](../../ARCHITECTURE.md) §4.10、[CONTEXT.md](../../CONTEXT.md)、[Chat PRD](chat-mode-creation-layer.md)、[Meta-Agent PRD](meta-agent-orchestrator.md)
-> 最后更新：2026-07-31（v4.0 全面升级：对齐 Chat PRD v4 结构，融入 12+5 泛人群真需求、Progress Ledger 断点恢复、Context Inspector、同名冲突询问与”存为资产”通道；v4.1 修订：Progress Ledger 与 Todo/Task 升级计划统一为同一模型）
+> 最后更新：2026-07-31（v4.0 全面升级：对齐 Chat PRD v4 结构，融入 12+5 泛人群真需求、Progress Ledger 断点恢复、Context Inspector、同名冲突询问与”存为资产”通道；v4.1 修订：Progress Ledger 与 Todo/Task 升级计划统一为同一模型；v4.2 修订注记 2026-08-03：Progress Ledger 的可视化载体 SessionTodoProgress 立项 M7 统一轨道 UX 重构——轨道下移标题行下方、四态状态机含 idle 静态留存、几何/填充索引语义修复、session_task 双源 freshness 修复，决策全录见计划 §5.8，不影响本 PRD 的 Ledger 数据模型）
 > 关联计划：[Todo/Task 系统升级实施方案](../plan/todo-task-system-upgrade.md)（Progress Ledger = Task List 子集，两文档交叉裁决于 2026-07-31）
 
 ---

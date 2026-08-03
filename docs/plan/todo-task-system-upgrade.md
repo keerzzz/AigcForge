@@ -1,6 +1,6 @@
 # Todo/Task 系统全面升级实施方案
 
-> 状态：**M0-M6 已完成（2026-08-03）**，集成分支 `todo-task-m2`（M6 在 `todo-task-m6` 分支三步审批闭环）；交付明细见 `specs/v2/todo.md`，审批档案 `docs/review/`，其余延后项见 §8 延后总表
+> 状态：**M0-M6 已完成（2026-08-03）**，集成分支 `todo-task-m2`（M6 在 `todo-task-m6` 分支三步审批闭环）；**M7 统一轨道 UX 重构已立项（2026-08-03，§5.8）待执行**；交付明细见 `specs/v2/todo.md`，审批档案 `docs/review/`，其余延后项见 §8 延后总表
 > 日期：2026-07-31
 > Owner：产品 + Core + App
 > 范围：`packages/schema` + `packages/core` + `packages/aigcfroge` + `packages/app` + `packages/tui`
@@ -395,6 +395,37 @@ Layer 5: TUI (packages/tui/src/component/task-item.tsx)
 
 ---
 
+### 5.8 SessionTodoProgress 统一轨道 UX 重构（M7 决策，2026-08-03）
+
+> 起源：M2 脉冲线上线后用户实测反馈 7 项缺陷（首尾节点裁切不可见、填充终点与节点完成位置错位、统计数值不更新、顶部不明白块、节点/线比例失调、节点 icon 不合理、面板遮挡标题右侧图标）。审批通道（代码根因定位）与外部设计方案（`sse_progress_ux_proposal`）独立诊断后交叉收敛：三个功能 bug（裁切/错位/静态锁定）双方一致确诊。DESIGN.md「quiet, dense, operational」裁决：**不采纳**方案中的节点下文字标签、节点旁百分比徽标、独立大卡片布局、宽度变化统计 pill、节点内数字。
+
+**决策**：
+
+1. **统一轨道**：无 TODO 环境脉冲与 TODO 交互条合并为同一条轨道，位置从 sticky 标题栏顶部移到**标题行下方**（同一 sticky 容器内，absolute 零占位，不触发布局位移——DESIGN.md 硬约束）。否决「顶部 whip + 下方 TODO 条」双轨夹标题方案（语义相近却位置分离，视觉噪音翻倍）。
+2. **状态机**：
+
+   | 状态 | 轨道 | 左侧文本 | 节点 | 右侧统计 |
+   |---|---|---|---|---|
+   | 无 TODO（working） | 2px 环境脉冲 | 隐藏 | 无 | 隐藏 |
+   | TODO 激活 | 2px 轨道 + 填充 | 「任务列表」（i18n） | 10px 圆点/勾 | `done/total` |
+   | 全部完成 | 填充贯通 | 同左 | 全勾 | 成功色（只变色，宽度不变） |
+   | idle 且有任务 | **静态留存**（无动画） | 同左 | 静态 | 静态 |
+
+   第三行「成功色」走 `--v2-state-*` 族 token（执行时 grep 确认确切名称）；第四行**修订 M2 已声明限制①**（原「会话 idle 后节点与统计隐藏」作废，`specs/v2/todo.md` 同步修订）；下次 working 恢复脉冲动画。
+3. **几何**：轨道两端内缩 **8px**（首末节点不再裁切、不被统计遮挡；16px 方案否决——20 节点时间距仅 ~4.7%，两端 32px 太奢侈）；节点 **10px** 圆心压线（线心与圆心垂直对齐，修线贴上缘走的错位）；完成节点 accent 实心 + **小勾**；anchor 节点呼吸光晕；统计文本为轨道右端内侧邻居，不压末节点。
+4. **填充终点索引语义**：废除 `doneRatio` 比率裁剪（比率语义与节点索引语义永不对齐的根因），改为节点位置语义——填充止于 anchor（当前 in_progress）节点 pct；无 anchor 止于最后完成节点 pct；全完成贯通 100%。
+5. **脉冲动画**：
+   - **无 TODO 环境脉冲**：复用现有 clip-path 扫描机制（零新动画代码），周期 640ms → **~1.4s 且含停留段**（keyframes 内静止区间），颜色降为 `color-mix(var(--v2-icon-icon-accent) 50%, transparent)` 柔光——位置下移后离内容更近，原速原色会抢注意。
+   - **TODO 任务脉冲**：高亮段在 `[--pulse-from, --pulse-to]` 区间往返（`--pulse-from` = 最后完成节点 pct，无完成则 0%；`--pulse-to` = anchor 节点 pct），CSS 自定义属性 + keyframes `translateX` 驱动，**无 JS 帧循环**。百分比完全可控，距离天然等于节点几何。无 anchor（无 in_progress）不跑。
+6. **交互**：保持**默认收起**（否决「触发自动展开、点击收起」——长会话多次重建任务列表会反复打断，且节点出现本身已是启动信号）；折叠面板从轨道下缘展开 + **点击外部关闭**（修当前无 dismiss layer、面板常驻遮挡标题右侧 more-options 图标的缺陷）。「首次 TODO 统计短暂脉冲高亮」affordance 评审后放弃（极致减法）。
+7. **⑦ session_task 静态锁定修复**（双通道独立确诊）：`session_todo`/`session_task` 双数据源从「task 非空即锁定」（`session-todo-progress.tsx:44-49` 偏好逻辑 + `:58-78` 播种逻辑）改为**按新鲜度选择**；V1 runtime 下一次性播种的数据不得锁死 `todo.updated` 通道驱动的实时更新。
+8. **④ 顶部白块**：执行时先用 playwright 对 mock 环境截图 + 元素检查指认真凶再处理；若证实为既有 titlebar 边框等非本组件元素，如实记录「非本组件」不动，不为了交差乱改。
+9. **轨道可读性遮蔽（2026-08-03 补充裁决）**：不给轨道加「模块背景/pill 底」（DESIGN.md 否决装饰性卡片与 framed 工具面，且 pill 内边距会与 8px 内缩、节点定位几何纠缠）。改为**扩展 sticky 标题栏既有渐变遮蔽**：`bg-[linear-gradient(to_bottom,var(--background-stronger)_48px,transparent)]` 的实色段从 48px 延伸到覆盖轨道区（~64-70px，执行时按轨道实际落点校准），底部保持渐隐——轨道下移后即移出 48px 实色区，节点/统计文本会直接叠印滚动消息内容，遮蔽是可读性必需而非装饰。token 保持 `--background-stronger` 不换（DESIGN.md：v1 token 可用于匹配既有组件，同一标题栏表面换 v2 会造成上下两截色差）；折叠面板不受影响（自有 `--v2-background-bg-layer-01` 浮层背景，语义正确）。absolute 零占位与布局稳定约束不变。
+
+**影响面**：只动 `packages/app`（session-todo-progress 组件/model、`index.css` 相关段、message-timeline 挂载点与显隐条件、server-sync/event-reducer freshness、i18n en/zh/zht、e2e 与 mock-server）+ 文档（本计划、`specs/v2/todo.md`、PRD 交叉注记）。L1-L4（schema/core/server/SDK）与 tui/plugin **零 diff**。
+
+---
+
 ## 6. 跨模式适用矩阵
 
 | 能力 | Chat | Coding | Work | Assistant | Meta-Agent | 电商 |
@@ -486,6 +517,7 @@ Agent: 合规审查 Agent
 | **M4 AgentHub** | AgentTaskHub 面板（**入口：dot-grid 下拉 + 弹层，§5.7 决策**）、Agent 视角聚合、定时任务完整管理 UI（对齐 Accio agent-panel；**删除 Agent 已移出 M4**，语义见 §5.7 保留裁决）；执行提示词 [prompt-todo-task-m4.md](prompt-todo-task-m4.md)；可复用资产在 wip 分支 `todo-task-m4m5` | M2+M3（✅ 已满足） | ✅ 已完成（2026-08-03，`todo-task-m4` 五步审批闭环） | 3d |
 | **M5 跨模式集成** | task_spawn Tool、DAG 依赖、hub 衍生区接线、电商验证（~~Work Preset→Task 展开、Assistant 定时提醒→ScheduledJob~~——2026-08-03 裁决：无既有基础设施支撑，移出本里程碑另行立项）；执行提示词 [prompt-todo-task-m5.md](prompt-todo-task-m5.md)；资产在 wip commit `3e4f50f46` | M4（✅ 已满足） | ✅ 已完成（2026-08-03，`todo-task-m5` 五步审批闭环，1 MAJOR 打回修复 + 1 MAJOR 审批亲修） | 3d |
 | **M6 TUI TaskItem** | TUI 数据源脱离 V1 投影桥（sync 改读 `session.task` GET + `task.updated`）+ TodoItem→TaskItem 改名 + 六状态完整映射 + ⚡ 定时标记；plugin 公开面 `state.session.todo()` 兼容投影 + `@deprecated`；**只动 `packages/tui`**；执行提示词 [prompt-todo-task-m6.md](prompt-todo-task-m6.md) | M5（✅ 已满足） | ✅ 已完成（2026-08-03，`todo-task-m6` 三步审批闭环；TUI 对 `session.todo`/`todo.updated` 零依赖、侧栏展示任务真身含定时标记、测试全绿） | 1-2d |
+| **M7 统一轨道 UX** | SessionTodoProgress 统一轨道重构（§5.8：轨道下移标题行下方 + 四态状态机 + 几何修复（8px 内缩/10px 带勾节点/圆心压线）+ 填充终点索引语义 + 双脉冲动画（环境柔光 1.4s / 任务段 pulse-from→pulse-to）+ 面板外部点击关闭 + ⑦ session_task freshness 修复 + ④ 白块指认）+ M2 idle 隐藏限制修订为静态留存；**只动 `packages/app`**；执行提示词 [prompt-todo-task-m7.md](prompt-todo-task-m7.md) | M2（✅ 已满足） | 📋 已立项（2026-08-03，三轮设计评审收敛，审批/设计双通道根因一致） | 2d |
 
 **总估时：25d**
 
