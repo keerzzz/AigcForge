@@ -1,6 +1,6 @@
 # Todo/Task 系统全面升级实施方案
 
-> 状态：**执行中 — M0/M1/M2/M3/M4 已完成，M5 已启动**（2026-08-01 开始执行；2026-08-02 M2 修订方案 B：SessionTodoProgress 脉冲线内嵌节点，移除底部 dock；**2026-08-02 M2+M3 已交付**：`todo-task-m2` 分支 22 提交，五层差异审批闭环（1 BLOCKER + 3 MAJOR + 9 MINOR 全修复），审批档案 `docs/review/`；**2026-08-03 M4 已交付**：`todo-task-m4` 分支 8 提交——dot-grid 入口 + 弹层 / `GET /agent-task` 跨 session 聚合 / 定时任务管理 UI / dead-job cron 校验下沉，删除 Agent 按裁决剔除，五步审批闭环；**M5 执行提示词**：[prompt-todo-task-m5.md](prompt-todo-task-m5.md)；M5 代码资产存于 wip 分支 `todo-task-m4m5` commit `3e4f50f46`）
+> 状态：**执行中 — M0/M1/M2/M3/M4/M5 已完成**（2026-08-01 开始执行；2026-08-02 M2 修订方案 B：SessionTodoProgress 脉冲线内嵌节点，移除底部 dock；**2026-08-02 M2+M3 已交付**：`todo-task-m2` 分支 22 提交，五层差异审批闭环（1 BLOCKER + 3 MAJOR + 9 MINOR 全修复），审批档案 `docs/review/`；**2026-08-03 M4 已交付**：`todo-task-m4` 分支 8 提交——dot-grid 入口 + 弹层 / `GET /agent-task` 跨 session 聚合 / 定时任务管理 UI / dead-job cron 校验下沉，删除 Agent 按裁决剔除，五步审批闭环；**M5 已交付**：`todo-task-m5` 分支——spawn 字段+task_spawn Tool / DAG 门控（trigger blockedBy 复查 + 写侧 findCycle 拒环）/ hub 任务衍生区接线 / 电商机制链路集成测试）
 > 日期：2026-07-31
 > Owner：产品 + Core + App
 > 范围：`packages/schema` + `packages/core` + `packages/aigcfroge` + `packages/app` + `packages/tui`

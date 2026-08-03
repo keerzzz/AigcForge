@@ -430,4 +430,137 @@ describe("ScheduledJob daemon", () => {
       expect(holder.calls[0]).toMatchObject({ taskID: job?.id })
     }),
   )
+
+  it.effect("chain §7.1: a spawned task fires only after its single predecessor settles", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const runner = yield* ScheduledJob.Service
+      // 补货 prerequisite (setup) + a spawned 补货分析 task carrying spawnedFrom
+      // + dependsOn and a schedule so it rides the real trigger gate.
+      const [setupTask] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "inventory check", status: "pending", priority: "medium" }],
+      })
+      const spawned = (yield* tasks.append({
+        sessionID,
+        tasks: [
+          {
+            content: "restock analysis",
+            status: "scheduled",
+            priority: "medium",
+            spawnedFrom: "msg_replenish",
+            dependsOn: [setupTask.id],
+            scheduledAt: at(2026, 8, 2, 9, 0),
+          },
+        ],
+      })).find((t) => t.content === "restock analysis")
+      expect(spawned).toBeDefined()
+
+      yield* runner.arm(at(2026, 8, 2, 8, 59))
+      yield* runner.tick(at(2026, 8, 2, 9, 0))
+      expect(holder.calls).toHaveLength(0)
+
+      // Predecessor completes → re-arm → the spawned task is released and fires.
+      yield* tasks.patch({ sessionID, id: setupTask.id, status: "completed" })
+      yield* runner.arm(at(2026, 8, 2, 9, 0))
+      yield* runner.tick(at(2026, 8, 2, 9, 0))
+      expect(holder.calls).toHaveLength(1)
+      expect(holder.calls[0]).toMatchObject({ taskID: spawned?.id, prompt: "restock analysis" })
+
+      const settled = (yield* tasks.get(sessionID)).find((t) => t.id === spawned?.id)
+      expect(settled?.status).toBe("completed")
+      expect(settled?.outputDigest).toBe("ses_child")
+    }),
+  )
+
+  it.effect("chain §7.2: a multi-predecessor DAG releases only when all predecessors complete", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const runner = yield* ScheduledJob.Service
+      // 风控部署 depends on 优惠券校验 + 物流确认.
+      const [coupon, logistics] = yield* tasks.append({
+        sessionID,
+        tasks: [
+          { content: "coupon validate", status: "pending", priority: "medium" },
+          { content: "logistics confirm", status: "pending", priority: "medium" },
+        ],
+      })
+      const deploy = (yield* tasks.append({
+        sessionID,
+        tasks: [
+          {
+            content: "risk deploy",
+            status: "scheduled",
+            priority: "medium",
+            dependsOn: [coupon.id, logistics.id],
+            scheduledAt: at(2026, 8, 2, 9, 0),
+          },
+        ],
+      })).find((t) => t.content === "risk deploy")
+
+      yield* runner.arm(at(2026, 8, 2, 8, 59))
+      yield* runner.tick(at(2026, 8, 2, 9, 0))
+      expect(holder.calls).toHaveLength(0)
+
+      // Only coupon completes → still blocked.
+      yield* tasks.patch({ sessionID, id: coupon.id, status: "completed" })
+      yield* runner.arm(at(2026, 8, 2, 9, 0))
+      yield* runner.tick(at(2026, 8, 2, 9, 0))
+      expect(holder.calls).toHaveLength(0)
+
+      // Both complete → released.
+      yield* tasks.patch({ sessionID, id: logistics.id, status: "completed" })
+      yield* runner.arm(at(2026, 8, 2, 9, 0))
+      yield* runner.tick(at(2026, 8, 2, 9, 0))
+      expect(holder.calls).toHaveLength(1)
+      expect(holder.calls[0]).toMatchObject({ taskID: deploy?.id, prompt: "risk deploy" })
+    }),
+  )
+
+  it.effect("chain §7.3: a recurring gated task re-arms each round without disturbing other tasks", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const runner = yield* ScheduledJob.Service
+      const [pred] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "gate", status: "completed", priority: "medium" }],
+      })
+      const recurring = (yield* tasks.append({
+        sessionID,
+        tasks: [
+          {
+            content: "daily report",
+            status: "scheduled",
+            priority: "medium",
+            dependsOn: [pred.id],
+            recurrence: { cron: "0 9 * * *", enabled: true },
+          },
+        ],
+      })).find((t) => t.content === "daily report")
+      expect(recurring).toBeDefined()
+
+      // Round 1: fires, completes, re-arms to the next 09:00.
+      yield* runner.arm(at(2026, 8, 2, 8, 59))
+      yield* runner.tick(at(2026, 8, 2, 9, 0))
+      expect(holder.calls).toHaveLength(1)
+      expect(holder.calls[0]).toMatchObject({ taskID: recurring?.id })
+
+      // Round 2 (next day): fires again.
+      yield* runner.arm(at(2026, 8, 3, 8, 59))
+      yield* runner.tick(at(2026, 8, 3, 9, 0))
+      expect(holder.calls).toHaveLength(2)
+
+      // The task list stayed consistent across rounds: pred intact, recurring
+      // re-scheduled, nothing duplicated or corrupted.
+      const all = yield* tasks.get(sessionID)
+      expect(all).toHaveLength(2)
+      const predRow = all.find((t) => t.id === pred.id)
+      expect(predRow?.status).toBe("completed")
+      const recurringRow = all.find((t) => t.id === recurring?.id)
+      expect(recurringRow?.status).toBe("scheduled")
+    }),
+  )
 })
