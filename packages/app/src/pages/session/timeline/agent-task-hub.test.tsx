@@ -11,7 +11,7 @@ import path from "path"
 const hubKeys = [
   "session.agentHub.agents",
   "session.agentHub.derived",
-  "session.agentHub.spawnComingSoon",
+  "session.agentHub.spawnSource",
   "session.agentHub.active",
   "session.agentHub.empty",
   "session.agentHub.new",

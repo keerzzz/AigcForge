@@ -685,7 +685,7 @@ export const dict = {
   "session.scheduled.writeback.failed.title": "Failed to update scheduled task",
   "session.agentHub.agents": "My agents",
   "session.agentHub.derived": "Derived tasks",
-  "session.agentHub.spawnComingSoon": "Spawn from conversations — coming in M5",
+  "session.agentHub.spawnSource": "From message {{id}}",
   "session.agentHub.active": "active",
   "session.agentHub.empty": "No derived tasks",
   "session.agentHub.new": "New agent",

@@ -34,6 +34,32 @@ const userMessage = {
   ],
 }
 
+const assistantMessage = {
+  info: {
+    id: "msg_assistant_hub",
+    sessionID,
+    role: "assistant",
+    time: { created: 1700000001000 },
+    parentID: "msg_user_hub",
+    modelID: model.modelID,
+    providerID: model.providerID,
+    mode: "build",
+    agent: "build",
+    path: { cwd: directory, root: directory },
+    cost: 0,
+    tokens: { input: 1, output: 1, reasoning: 0, cache: { read: 0, write: 0 } },
+  },
+  parts: [
+    {
+      id: "prt_assistant_hub",
+      sessionID,
+      messageID: "msg_assistant_hub",
+      type: "text",
+      text: "spawned a task",
+    },
+  ],
+}
+
 const nextRun = Date.UTC(2030, 0, 2, 9, 0, 0)
 const taskSchedA = {
   id: "tsk_hub_sched_a",
@@ -78,8 +104,19 @@ const taskOrphan = {
   createdAt: 1700000000000,
   updatedAt: 1700000000000,
 }
+const taskSpawned = {
+  id: "tsk_hub_spawned",
+  content: "spawned audit",
+  status: "pending",
+  priority: "medium",
+  sessionID,
+  agentID: "build",
+  spawnedFrom: "msg_assistant_hub",
+  createdAt: 1700000000000,
+  updatedAt: 1700000000000,
+}
 
-const allTasks = [taskSchedA, taskSchedB, taskPlain, taskOrphan]
+const allTasks = [taskSchedA, taskSchedB, taskPlain, taskOrphan, taskSpawned]
 
 async function mockServer(page: Page, events: EventPayload[], config?: Partial<MockServerConfig>) {
   await mockAigcfrogeServer(page, {
@@ -87,7 +124,7 @@ async function mockServer(page: Page, events: EventPayload[], config?: Partial<M
     project: project(),
     provider: provider(),
     sessions: [session()],
-    pageMessages: () => ({ items: [userMessage] }),
+    pageMessages: () => ({ items: [userMessage, assistantMessage] }),
     events: () => [
       { directory, payload: { type: "session.status", properties: { sessionID, status: { type: "busy" } } } },
       ...events.splice(0, 1),
@@ -143,9 +180,44 @@ test.describe("regression: agent hub scheduled-task management (M4)", () => {
     const response = await patch
     expect(response.status()).toBe(200)
     const body = await response.json()
-    expect(body).toHaveLength(4)
+    expect(body).toHaveLength(5)
     const flipped = body.find((task: { id: string }) => task.id === "tsk_hub_sched_a")
     expect(flipped?.status).toBe("cancelled")
+  })
+
+  test("renders the task-derivation zone grouped by source message", async ({ page }) => {
+    const events: EventPayload[] = []
+    await mockServer(page, events)
+    await configurePage(page)
+
+    events.push({
+      directory,
+      payload: { type: "task.updated", properties: { sessionID, tasks: allTasks } },
+    })
+
+    await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+    await expectSessionTitle(page, title)
+
+    await page.locator('[data-session-title] [aria-label="More options"]').click()
+    await page.getByText("My agents", { exact: true }).click()
+    const hub = page.locator('[data-component="agent-task-hub"]')
+    await expect(hub).toBeVisible({ timeout: 15_000 })
+
+    // Zone 2b: the spawned task is grouped under its source message — an
+    // assistant message, whose jump resolves to the parent user message anchor.
+    const spawn = hub.locator('[data-component="agent-task-hub-spawn"]')
+    await expect(spawn).toBeVisible({ timeout: 15_000 })
+    await expect(spawn.locator('[data-component="agent-task-hub-spawn-source"]').first()).toContainText(
+      "msg_user_hub",
+    )
+    await expect(spawn.locator('[data-component="agent-task-hub-spawn-task"]').first()).toContainText(
+      "spawned audit",
+    )
+
+    // Behavior assertion: clicking the source lands on the resolved deep-link
+    // hash (a render-only assertion would not catch a dead jump).
+    await spawn.locator('[data-component="agent-task-hub-spawn-source"]').first().click()
+    await expect(page).toHaveURL(/#message-msg_user_hub/)
   })
 })
 

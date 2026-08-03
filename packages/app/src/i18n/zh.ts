@@ -591,7 +591,7 @@ export const dict = {
   "session.scheduled.writeback.failed.title": "更新定时任务失败",
   "session.agentHub.agents": "我的智能体",
   "session.agentHub.derived": "任务衍生",
-  "session.agentHub.spawnComingSoon": "对话衍生智能体，即将在 M5 提供",
+  "session.agentHub.spawnSource": "来自消息 {{id}}",
   "session.agentHub.active": "进行中",
   "session.agentHub.empty": "暂无衍生任务",
   "session.agentHub.new": "新建智能体",

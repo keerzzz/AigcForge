@@ -532,7 +532,7 @@ export const dict = {
   "session.scheduled.writeback.failed.title": "更新定時任務失敗",
   "session.agentHub.agents": "我的智能體",
   "session.agentHub.derived": "任務衍生",
-  "session.agentHub.spawnComingSoon": "從對話衍生智能體，即將在 M5 提供",
+  "session.agentHub.spawnSource": "來自訊息 {{id}}",
   "session.agentHub.active": "進行中",
   "session.agentHub.empty": "暫無衍生任務",
   "session.agentHub.new": "新建智能體",

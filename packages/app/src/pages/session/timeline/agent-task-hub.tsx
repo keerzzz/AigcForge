@@ -1,4 +1,5 @@
 import { For, Show, createEffect, createMemo, createSignal } from "solid-js"
+import { useLocation, useNavigate } from "@solidjs/router"
 import { Popover as KobaltePopover } from "@kobalte/core/popover"
 import { CheckboxV2 } from "@aigcfroge/ui/v2/checkbox-v2"
 import { Button } from "@aigcfroge/ui/button"
@@ -13,12 +14,14 @@ import { showToast } from "@/utils/toast"
 import type { SessionTaskInfo, SessionTaskWriteInfo } from "@aigcfroge/sdk/v2/client"
 import {
   aggregateAgentTasks,
+  derivedTasksBySource,
   newScheduledTask,
   scheduledAgentTasks,
   sessionCountForAgent,
   unassignedTasks,
   withoutTask,
   type AgentTaskRow,
+  type DerivedTaskGroup,
 } from "@/pages/session/timeline/agent-task-hub-model"
 import {
   formatFullTime,
@@ -56,11 +59,32 @@ export function AgentTaskHub(props: {
   const serverSync = useServerSync()
   const sync = useSync()
   const sdk = useSDK()
+  const location = useLocation()
+  const navigate = useNavigate()
 
   createEffect(() => {
     if (!props.open) return
     void loadCrossSessionTasks()
   })
+
+  // Jump to a source message via the app's message deep-link hash (#message-<id>);
+  // useSessionHashScroll reacts to the hash and scrolls the timeline to it.
+  const jumpToMessage = (messageID: string) => {
+    navigate(`${location.pathname}${location.search}#message-${messageID}`, { replace: true })
+  }
+
+  // Resolve a spawn source to the id the timeline actually anchors. spawnedFrom
+  // is an assistant message id, but #message-<id> anchors only exist for user
+  // messages — so resolve assistant → parentID. Only same-session sources can
+  // resolve (the hash scroll is session-scoped); anything else renders as plain
+  // text rather than a dead link.
+  const resolveSource = (group: DerivedTaskGroup): string | undefined => {
+    const sessionID = props.sessionID()
+    if (!sessionID || group.rows[0]?.sessionID !== sessionID) return
+    const source = (sync().data.message[sessionID] ?? []).find((message) => message.id === group.sourceMessageID)
+    if (!source) return
+    return source.role === "assistant" ? source.parentID : source.id
+  }
 
   const loadCrossSessionTasks = async () => {
     try {
@@ -83,6 +107,7 @@ export function AgentTaskHub(props: {
   const agents = createMemo(() => sync().data.agent.filter((agent) => agent.mode !== "subagent" && !agent.hidden))
   const sessions = createMemo(() => sync().data.session)
   const unassigned = createMemo(() => unassignedTasks(store))
+  const derived = createMemo(() => derivedTasksBySource(store))
   const agentRows = createMemo<readonly HubAgentRow[]>(() => [
     ...agents().map((agent) => ({ key: agent.name, label: agent.name, detail: agent.mode })),
     ...(unassigned().length > 0
@@ -306,15 +331,64 @@ export function AgentTaskHub(props: {
                 </Show>
               </div>
             </Show>
-            {/* 任务衍生 zone — M5 task_spawn placeholder (no logic in M4;
-                conversation → spawned agent lands in M5). */}
-            <div
-              class="flex items-center justify-between"
-              data-component="agent-task-hub-spawn"
-              title={language.t("session.agentHub.spawnComingSoon")}
-            >
-              <span class="text-13-medium text-text-strong">{language.t("session.agentHub.derived")}</span>
-              <span class="text-11-regular text-text-weak">{language.t("session.agentHub.spawnComingSoon")}</span>
+            {/* Zone 2b: 任务衍生 — tasks spawned via task_spawn (spawnedFrom
+                set), grouped by source message. Read-only; a source that resolves
+                to a timeline anchor (same session, user-message parent found)
+                renders as a jump button, anything else as plain text — no dead links. */}
+            <div class="flex flex-col gap-1">
+              <div class="text-13-medium text-text-strong">{language.t("session.agentHub.derived")}</div>
+              <Show
+                when={derived().length > 0}
+                fallback={
+                  <div class="text-12-regular text-text-weak" data-component="agent-task-hub-spawn-empty">
+                    {language.t("session.agentHub.empty")}
+                  </div>
+                }
+              >
+                <div class="flex flex-col gap-1.5" data-component="agent-task-hub-spawn">
+                  <For each={derived()}>
+                    {(group) => (
+                      <div class="flex flex-col gap-0.5">
+                        <Show
+                          when={resolveSource(group)}
+                          fallback={
+                            <div
+                              data-component="agent-task-hub-spawn-source"
+                              class="flex items-center gap-1 text-11-regular text-text-weak"
+                            >
+                              {language.t("session.agentHub.spawnSource", { id: group.sourceMessageID })}
+                            </div>
+                          }
+                        >
+                          {(anchorID) => (
+                            <button
+                              type="button"
+                              data-component="agent-task-hub-spawn-source"
+                              class="flex items-center gap-1 text-left text-11-regular text-text-weak hover:text-text-strong"
+                              onClick={() => jumpToMessage(anchorID())}
+                            >
+                              <Icon name="arrow-right" class="size-3" />
+                              {language.t("session.agentHub.spawnSource", { id: anchorID() })}
+                            </button>
+                          )}
+                        </Show>
+                        <For each={group.rows}>
+                          {(row) => (
+                            <div
+                              data-component="agent-task-hub-spawn-task"
+                              data-status={row.status}
+                              class="flex items-center justify-between gap-2 text-12-regular"
+                            >
+                              <span class="truncate text-text-base">{row.content}</span>
+                              <span class="text-11-regular text-text-weak">{row.status}</span>
+                            </div>
+                          )}
+                        </For>
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </Show>
             </div>
             {/* Zone 3: new-agent entry placeholder (no reusable creation path
                 exists in the app yet; stays disabled until one lands). */}

@@ -4,6 +4,7 @@ import {
   activeTaskCount,
   aggregateAgentTasks,
   countByStatus,
+  derivedTasksBySource,
   newScheduledTask,
   scheduledAgentTasks,
   sessionCountForAgent,
@@ -133,6 +134,34 @@ describe("sessionCountForAgent (detail header session count)", () => {
     expect(sessionCountForAgent(sessions, "build")).toBe(2)
     expect(sessionCountForAgent(sessions, "auditor")).toBe(1)
     expect(sessionCountForAgent(sessions, "meta")).toBe(0)
+  })
+})
+
+describe("derivedTasksBySource (M5 zone 2b 任务衍生)", () => {
+  test("groups spawnedFrom-carrying tasks by source message", () => {
+    const groups = derivedTasksBySource({
+      ses_a: [
+        task({ id: "tsk_spawn_1", spawnedFrom: "msg_a" }),
+        task({ id: "tsk_plain", agentID: "build" }),
+        task({ id: "tsk_spawn_2", spawnedFrom: "msg_a", content: "second" }),
+      ],
+      ses_b: [task({ id: "tsk_spawn_3", spawnedFrom: "msg_b", sessionID: "ses_b" })],
+    })
+    expect(groups.map((group) => group.sourceMessageID)).toEqual(["msg_a", "msg_b"])
+    expect(groups[0]?.rows.map((row) => row.id).sort()).toEqual(["tsk_spawn_1", "tsk_spawn_2"])
+    expect(groups[1]?.rows.map((row) => row.id)).toEqual(["tsk_spawn_3"])
+  })
+
+  test("tasks without spawnedFrom are excluded", () => {
+    const groups = derivedTasksBySource({
+      ses_a: [task({ id: "tsk_plain" }), task({ id: "tsk_other", spawnedFrom: "msg_x" })],
+    })
+    expect(groups).toHaveLength(1)
+    expect(groups[0]?.sourceMessageID).toBe("msg_x")
+  })
+
+  test("empty store yields no groups", () => {
+    expect(derivedTasksBySource({})).toEqual([])
   })
 })
 

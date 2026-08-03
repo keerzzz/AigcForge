@@ -69,6 +69,32 @@ export const sessionCountForAgent = (
   agentName: string,
 ): number => sessions.filter((session) => session.agent === agentName).length
 
+/** A group of derived tasks spawned from one source message. */
+export interface DerivedTaskGroup {
+  readonly sourceMessageID: string
+  readonly rows: readonly AgentTaskRow[]
+}
+
+/**
+ * M5 zone 2b (任务衍生): tasks carrying `spawnedFrom` (spawned by task_spawn),
+ * grouped by their source message. Read-only aggregation across every session —
+ * the same store the hub seeds on open via `GET /agent-task`.
+ */
+export const derivedTasksBySource = (
+  sessionTasks: Readonly<Record<string, readonly SessionTaskInfo[]>>,
+): DerivedTaskGroup[] => {
+  const bySource = new Map<string, AgentTaskRow[]>()
+  for (const [sessionID, tasks] of Object.entries(sessionTasks)) {
+    for (const task of tasks) {
+      if (!task.spawnedFrom) continue
+      const list = bySource.get(task.spawnedFrom) ?? []
+      list.push({ ...task, sessionID })
+      bySource.set(task.spawnedFrom, list)
+    }
+  }
+  return [...bySource.entries()].map(([sourceMessageID, rows]) => ({ sourceMessageID, rows }))
+}
+
 /** PATCH payload with the target task removed (task_schedule `remove` semantics). */
 export const withoutTask = <T extends { id: string }>(tasks: readonly T[], id: string): T[] =>
   tasks.filter((task) => task.id !== id)
