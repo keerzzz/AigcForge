@@ -1,6 +1,6 @@
 # Todo/Task 系统全面升级实施方案
 
-> 状态：**执行中 — M0/M1/M2/M3 已完成，M4 待启动**（2026-08-01 开始执行；2026-08-02 M2 修订方案 B：SessionTodoProgress 脉冲线内嵌节点，移除底部 dock；**2026-08-02 M2+M3 已交付**：`todo-task-m2` 分支 22 提交——outputDigest 持久化 / GET 端点 / 脉冲线 + 折叠浮层 / dock 移除 / ScheduledJobRunner + re-arm + unattended 预授权 / task_schedule / 定时任务 UI，五层差异审批闭环（1 BLOCKER + 3 MAJOR + 9 MINOR 全修复，typecheck/单测/e2e 全绿），审批档案 `docs/review/`；**M4 入口位置已裁决**：dot-grid 下拉 + 弹层，见 §5.7；M4 执行提示词：[prompt-todo-task-m4.md](prompt-todo-task-m4.md)；M4/M5 代码资产存于 wip 分支 `todo-task-m4m5`）
+> 状态：**执行中 — M0/M1/M2/M3/M4 已完成，M5 已启动**（2026-08-01 开始执行；2026-08-02 M2 修订方案 B：SessionTodoProgress 脉冲线内嵌节点，移除底部 dock；**2026-08-02 M2+M3 已交付**：`todo-task-m2` 分支 22 提交，五层差异审批闭环（1 BLOCKER + 3 MAJOR + 9 MINOR 全修复），审批档案 `docs/review/`；**2026-08-03 M4 已交付**：`todo-task-m4` 分支 8 提交——dot-grid 入口 + 弹层 / `GET /agent-task` 跨 session 聚合 / 定时任务管理 UI / dead-job cron 校验下沉，删除 Agent 按裁决剔除，五步审批闭环；**M5 执行提示词**：[prompt-todo-task-m5.md](prompt-todo-task-m5.md)；M5 代码资产存于 wip 分支 `todo-task-m4m5` commit `3e4f50f46`）
 > 日期：2026-07-31
 > Owner：产品 + Core + App
 > 范围：`packages/schema` + `packages/core` + `packages/aigcfroge` + `packages/app` + `packages/tui`
@@ -484,7 +484,7 @@ Agent: 合规审查 Agent
 | **M2 UI**（含原 M1.5） | **outputDigest 持久化**（task 表加列 + Service 落库 + 迁移）+ **补 `GET /session/{id}/task` 读取端点**（§9.1 缺口：todo GET 未增 tasks 字段，重载恢复依赖）+ SessionTodoProgress（脉冲线内嵌节点 + hover tooltip + 完成度推进 + 统计 3/5 + 重载恢复 + 边界兜底）+ 移除底部 SessionTodoDock（composer dock() 折叠逻辑/layout todoCollapsed/stories 同步清理）+ 折叠浮层交互（可交互 checkbox）+ E2E tests | M1 | ✅ **已完成**（2026-08-02，`todo-task-m2` 分支：UI 回放 + E2E 5 用例全绿 + 写 API 联调 + 重载恢复测试含 id 稳定性往返；差异审批 blocking 项全修复） | 5d |
 | **M3 定时任务** | ScheduledJobRunner（含启动 re-arm + unattended 权限策略）、task_schedule Tool、agentID 归属、**定时任务 UI（标题左侧 icon + nextRun 时间戳 + 更多下拉入口 + 弹层，§5.6）** | M1 | ✅ **已完成**（2026-08-02，`todo-task-m2` 分支：重启 re-arm 专项测试 + unattended 预授权测试 + B1 防重入抢占 + 标题时间戳渲染 + E2E；限制已声明：单进程内存调度/真实 LLM 端到端无 CI/停机 recurring 不补偿） | 7d |
 | **M4 AgentHub** | AgentTaskHub 面板（**入口：dot-grid 下拉 + 弹层，§5.7 决策**）、Agent 视角聚合、定时任务完整管理 UI（对齐 Accio agent-panel；**删除 Agent 已移出 M4**，语义见 §5.7 保留裁决）；执行提示词 [prompt-todo-task-m4.md](prompt-todo-task-m4.md)；可复用资产在 wip 分支 `todo-task-m4m5` | M2+M3（✅ 已满足） | Agent Hub 可用 | 3d |
-| **M5 跨模式集成** | Work Preset→Task 展开、Assistant 定时提醒→ScheduledJob、task_spawn Tool、DAG 依赖、电商验证 | M4 | 每条电商 use case 通过 | 3d |
+| **M5 跨模式集成** | task_spawn Tool、DAG 依赖、hub 衍生区接线、电商验证（~~Work Preset→Task 展开、Assistant 定时提醒→ScheduledJob~~——2026-08-03 裁决：无既有基础设施支撑，移出本里程碑另行立项）；执行提示词 [prompt-todo-task-m5.md](prompt-todo-task-m5.md)；资产在 wip commit `3e4f50f46` | M4（✅ 已满足） | 每条电商 use case 机制链路通过 | 3d |
 
 **总估时：25d**
 
