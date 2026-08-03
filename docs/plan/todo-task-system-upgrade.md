@@ -1,6 +1,6 @@
 # Todo/Task 系统全面升级实施方案
 
-> 状态：**M0-M5 已完成（2026-08-03）**，集成分支 `todo-task-m2`；**M6 TUI TaskItem 已立项**（执行提示词 [prompt-todo-task-m6.md](prompt-todo-task-m6.md)）；交付明细见 `specs/v2/todo.md`，审批档案 `docs/review/`，其余延后项见 §8 延后总表
+> 状态：**M0-M6 已完成（2026-08-03）**，集成分支 `todo-task-m2`（M6 在 `todo-task-m6` 分支三步审批闭环）；交付明细见 `specs/v2/todo.md`，审批档案 `docs/review/`，其余延后项见 §8 延后总表
 > 日期：2026-07-31
 > Owner：产品 + Core + App
 > 范围：`packages/schema` + `packages/core` + `packages/aigcfroge` + `packages/app` + `packages/tui`
@@ -250,8 +250,8 @@ Layer 4: App (M2 修订 — 方案 B：脉冲线内嵌节点，移除底部 dock
   ✅ E2E tests (借鉴 U3)
   ✅ AgentTaskHub 面板 (M4 已交付：dot-grid 下拉 + 弹层入口 §5.7 + 跨 session 聚合 + 定时任务管理 + M5 衍生区接线)
 
-Layer 5: TUI (packages/tui/src/component/todo-item.tsx)
-  ⬜ TodoItem → TaskItem 未开始（M5 未纳入，另行立项；截至 M5 TUI 零改动，组件仍为 todo-item.tsx）
+Layer 5: TUI (packages/tui/src/component/task-item.tsx)
+  ✅ TodoItem → TaskItem 已完成（M6：sync 读 task store + todo-item.tsx → task-item.tsx 六状态映射 + ⚡ 定时标记 + 侧栏 todo.tsx → task.tsx 读 task store；plugin 面 `state.session.todo()` deprecated 投影 + `state.session.task()` 新增；执行提示词 [prompt-todo-task-m6.md](prompt-todo-task-m6.md)）
 ```
 
 ### 5.4 核心断裂修复：TaskDriver ↔ Task 联动（双轨）
@@ -485,7 +485,7 @@ Agent: 合规审查 Agent
 | **M3 定时任务** | ScheduledJobRunner（含启动 re-arm + unattended 权限策略）、task_schedule Tool、agentID 归属、**定时任务 UI（标题左侧 icon + nextRun 时间戳 + 更多下拉入口 + 弹层，§5.6）** | M1 | ✅ **已完成**（2026-08-02，`todo-task-m2` 分支：重启 re-arm 专项测试 + unattended 预授权测试 + B1 防重入抢占 + 标题时间戳渲染 + E2E；限制已声明：单进程内存调度/真实 LLM 端到端无 CI/停机 recurring 不补偿） | 7d |
 | **M4 AgentHub** | AgentTaskHub 面板（**入口：dot-grid 下拉 + 弹层，§5.7 决策**）、Agent 视角聚合、定时任务完整管理 UI（对齐 Accio agent-panel；**删除 Agent 已移出 M4**，语义见 §5.7 保留裁决）；执行提示词 [prompt-todo-task-m4.md](prompt-todo-task-m4.md)；可复用资产在 wip 分支 `todo-task-m4m5` | M2+M3（✅ 已满足） | ✅ 已完成（2026-08-03，`todo-task-m4` 五步审批闭环） | 3d |
 | **M5 跨模式集成** | task_spawn Tool、DAG 依赖、hub 衍生区接线、电商验证（~~Work Preset→Task 展开、Assistant 定时提醒→ScheduledJob~~——2026-08-03 裁决：无既有基础设施支撑，移出本里程碑另行立项）；执行提示词 [prompt-todo-task-m5.md](prompt-todo-task-m5.md)；资产在 wip commit `3e4f50f46` | M4（✅ 已满足） | ✅ 已完成（2026-08-03，`todo-task-m5` 五步审批闭环，1 MAJOR 打回修复 + 1 MAJOR 审批亲修） | 3d |
-| **M6 TUI TaskItem** | TUI 数据源脱离 V1 投影桥（sync 改读 `session.task` GET + `task.updated`）+ TodoItem→TaskItem 改名 + 六状态完整映射 + ⚡ 定时标记；plugin 公开面 `state.session.todo()` 兼容投影 + `@deprecated`；**只动 `packages/tui`**；执行提示词 [prompt-todo-task-m6.md](prompt-todo-task-m6.md) | M5（✅ 已满足） | TUI 对 `session.todo`/`todo.updated` 零依赖（grep 零残留） | 1-2d |
+| **M6 TUI TaskItem** | TUI 数据源脱离 V1 投影桥（sync 改读 `session.task` GET + `task.updated`）+ TodoItem→TaskItem 改名 + 六状态完整映射 + ⚡ 定时标记；plugin 公开面 `state.session.todo()` 兼容投影 + `@deprecated`；**只动 `packages/tui`**；执行提示词 [prompt-todo-task-m6.md](prompt-todo-task-m6.md) | M5（✅ 已满足） | ✅ 已完成（2026-08-03，`todo-task-m6` 三步审批闭环；TUI 对 `session.todo`/`todo.updated` 零依赖、侧栏展示任务真身含定时标记、测试全绿） | 1-2d |
 
 **总估时：25d**
 
@@ -499,7 +499,7 @@ Agent: 合规审查 Agent
 | 删除 Agent（自定义资产可删/内置永不进列表） | §5.7 保留裁决 | 语义已拍板，待独立 agent 管理立项实现 |
 | Chat 模式 Agent Hub 聚合 tab | §5.7 | M4 后独立立项 |
 | 新建 agent 入口（hub zone-3 占位） | §5.7 | 全项目无可复用创建路径（M4 Step 5 grep 结论），占位待立项 |
-| TUI TodoItem → TaskItem | §5.3 Layer 5 | ✅ **M6 已立项**（2026-08-03，数据源脱离 V1 投影桥 + TaskItem 改名 + 定时标记；执行提示词 [prompt-todo-task-m6.md](prompt-todo-task-m6.md)） |
+| TUI TodoItem → TaskItem | §5.3 Layer 5 | ✅ **M6 已完成**（2026-08-03，`todo-task-m6` 三步审批闭环：sync 数据源迁移 + adapter 兼容投影 + TaskItem 六状态/定时标记 + 侧栏迁移；交付明细见 [specs/v2/todo.md](../../specs/v2/todo.md)，执行提示词 [prompt-todo-task-m6.md](prompt-todo-task-m6.md)） |
 | 拖拽排序 | §5.5 明确不做 | 未排期 |
 | V1 Todo 物理删除 | Phase 5（`specs/v2/todo.md`） | deprecated 注释已落，删除在下个大版本 |
 

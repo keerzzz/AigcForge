@@ -100,6 +100,7 @@
 - ✅ M3b-2: 定时任务 UI（标题左侧 `⚡ nextRun` chip + dot-grid "定时任务" 菜单项 + 弹层列表/启停走 PATCH reconcile；数据源 `SessionTask.Info.nextRun` 派生）
 - ✅ M4: AgentTaskHub（入口 = 标题 dot-grid"智能体"菜单 + 弹层，计划 §5.7，复用 M3 §5.6 模式；三区：我的智能体（非 subagent 全 agent + 未归属桶）+ agent 详情（跨 session 任务聚合 + **定时任务完整管理**：checkbox 启停走 task_schedule pause/resume、删除 = PATCH reconcile remove、新建 = schedule（锚定 hub 所在会话）；省略字段服务端保留式不抹调度）+ 任务衍生 M5 占位（接 task_spawn）+ 新建占位。数据源：`GET /agent-task` 跨 session 聚合端点（新 `agent-task` httpapi group，规避 workspace-routing 对 `/session/<literal>` 的 SessionID.make die）+ SDK 再生成 + 打开时播种 session_task store 后续靠 task.updated SSE；**dead-job cron 校验下沉** SessionTask.update/append（复用 `session/schedule.ts` nextRun，TaskWriteError `invalid_schedule` → HTTP 400，关闭 HTTP PATCH 直通死洞）。**删除 Agent 联动提示已按裁决剔除**（`docs/plan` descope commit `703c5a2ca`）。E2E `agent-task-hub.spec.ts` 3 用例通过（打开→聚合→toggle PATCH 断言 + M5 衍生区分组渲染与跳转行为断言；mock-server 加 `/agent-task` 路由）
 - ✅ M5: 跨模式集成（`spawned_from`/`depends_on` 落列（迁移 `20260802140709_add_task_spawn_fields`）+ `SessionTask` 写路径持久化（preserve-omitted）；task_spawn Tool（spawnedFrom=消息 id + dependsOn + agentID，builtins 注册，subagent deny 已有）+ **DAG 门控**：`session/dag.ts` blockedBy（缺失前置→放行防永久阻塞）+ findCycle；写入侧 update/append 拒环（TaskWriteError `depends_on_cycle` → HTTP 400，用有效 dependsOn 与列计算同规则）；scheduled-job trigger 前置 blockedBy 复查（B1 抢占不破坏，阻塞不 claim + task.updated/arm 重评）；hub zone 2b 任务衍生占位 → 真实只读衍生列表（按源消息分组 + 跳源消息——`spawnedFrom` 为 assistant 消息 id，经 `parentID` 解析为父 user 消息锚点 `#message-<userMsgId>`，不可解析/跨 session 降级纯文本不给死链，e2e 含跳转行为断言）；**电商三场景机制链路集成测试**（§7.1 单前置放行 / §7.2 多前置部分不放行全完成放行 / §7.3 recurring 多轮不干扰，走真实 trigger 门控）。注：V1 Todo（`aigcfroge/src/session/todo.ts` + `tool/todo.ts`）deprecated 注释已随本分支 M3b-2 落地（不删文件）
+- ✅ M6: TUI 数据源脱离 V1 投影桥（sync `task` store keyed sessionID：SSE `todo.updated` 监听 → `task.updated`、hydrate 拉取 `session.todo` → `session.task.get`、老 todo store/监听/拉取物理删除）+ plugin 公开面（`state.session.todo()` 保留 `@deprecated` 投影老 Todo 形状——scheduled→pending 降级规则测试钉死；新增 `state.session.task()` 访问器，`TuiState.session.task?` 可选成员 type-only 扩 `packages/plugin/tui.ts`，其余包零 diff）+ **TaskItem 组件**（`todo-item.tsx` → `task-item.tsx`，`task-status.ts` 显式六状态 switch：pending/in_progress/completed/cancelled/failed/scheduled，scheduled → ⚡ 标记 + nextRun 文本，未知态返回 undefined 诚实回退不假装支持，颜色全走 theme token）+ 侧栏迁移（`sidebar/todo.tsx` → `sidebar/task.tsx` 读 task store、折叠 >2 逻辑保留、标题 Todo→Task、builtins 注册改名 `internal:sidebar-task`）+ routes/session TodoWrite 仅改组件名（metadata.todos 数据源不动，V1 工具寿命期 Phase 5 随工具退）。投影桥（core `todo.updated`）不拆留 Phase 5
 
 **M2 已声明限制**（如实，非已解决）：
 1. SessionTodoProgress 仅在会话工作态渲染（沿袭 session-progress 可见性模型）：会话 idle 后节点与统计隐藏；如需常驻展示属产品决策项，本期不做。
@@ -117,6 +118,14 @@
 2. `task_spawn` 产物无 `scheduled_at`，本期不触发调度（M2 裁决注明）；spawn 任务要触发需另行 PATCH 加调度字段。
 3. hub 衍生区跳源仅同源 session 可解析（assistant→`parentID`→`#message-<userMsgId>`）；跨 session 或父消息不在 store 时降级纯文本，不跳死链。
 4. `packages/core/schema.json` 的 id/prevIds 为手工增量维护（环境无 drizzle-kit CLI），与 wip 逐行核对一致；下一次迁移生成时会自然暴露漂移。
+
+**M6 已声明限制**（如实，非已解决）：
+1. `state.session.task()` 为**可选**公开成员（`TuiState.session.task?`）：新增必需成员会连带 `packages/aigcfroge/test/fixture/tui-plugin.ts` mock 出 diff，违反"其余包零 diff"红线；TUI 内置侧栏用 `task?.() ?? []` 防御读取，第三方插件需 `?.` 守卫。
+2. `state.session.todo()` 投影 scheduled→pending 降级：旧插件只能看到 pending（scheduled 不可表示于旧 status 集），桥随 Phase 5 移除。
+3. `formatNextRun` 用 `new Date(x).toLocaleString()`（仓内无既有时间格式化工具，grep 确认）；文案随 locale/TZ 变化，测试只断言非空不钉死文案。
+4. TUI 版 Agent Hub / 定时任务管理交互明确不做（已裁决：终端管理走 `task_schedule` 工具）。
+5. routes/session `TodoWrite` 消息渲染仍显示 V1 工具输出（`metadata.todos`），非 task store——V1 工具寿命期语义，Phase 5 随工具一起退。
+6. 投影桥（core `todo.updated`）未拆：TUI 已零消费（`task.updated` + `session.task.get`），桥删除在 Phase 5 V1 退役时。
 
 **与计划的偏差声明**（M2，已调研后如实记录）：
 1. SessionTodoProgress 节点 hover **未复用 TooltipV2**（计划 §5.5「tooltip 复用现有 tooltip 组件」），保留原生 `title`。证据：① 计划 §5.3 要求 `title` 保留给键盘/读屏，且 e2e 回归（`packages/app/e2e/regression/session-todo-progress.spec.ts`）断言节点带 `title` 属性——原生 title 在鼠标 hover 时同样弹出，叠加 Kobalte tooltip 会双重渲染；② `TooltipV2.Trigger`（`packages/ui/src/v2/components/tooltip-v2.tsx`）硬编码 `as="div"`，无法直接作为绝对定位的 8px 节点按钮，挂接需重构节点几何。`content` 为空的节点不设置 `title`（不弹空 tooltip）。
