@@ -22,8 +22,8 @@ describe("blockedBy", () => {
     expect(blockedBy(tasks, "b")).toEqual(["a"])
   })
 
-  test("a missing predecessor blocks (stale reference)", () => {
-    expect(blockedBy([task("b", { dependsOn: ["ghost"] })], "b")).toEqual(["ghost"])
+  test("a missing predecessor is released (deleted deps must not deadlock)", () => {
+    expect(blockedBy([task("b", { dependsOn: ["ghost"] })], "b")).toEqual([])
   })
 
   test("unknown task is never blocked", () => {

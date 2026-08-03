@@ -10,15 +10,17 @@ export * as TaskDag from "./dag"
 export interface DagTask {
   readonly id: string
   readonly status: string
-  readonly dependsOn?: string[]
+  readonly dependsOn?: readonly string[]
 }
 
 /** Statuses that count as "done" for a DAG predecessor. */
 const TERMINAL = new Set(["completed", "cancelled", "failed"])
 
 /**
- * Predecessor ids that still block `taskID`: either not terminal, or absent.
- * Empty means the task is ready to trigger.
+ * Predecessor ids that still block `taskID`: a present predecessor that is not
+ * terminal. Empty means the task is ready to trigger. A *deleted* predecessor
+ * (absent from `tasks`) is released — it can never reach a terminal state, so
+ * blocking on it would be a permanent silent deadlock (M5 Step 3).
  */
 export const blockedBy = (tasks: readonly DagTask[], taskID: string): string[] => {
   const task = tasks.find((candidate) => candidate.id === taskID)
@@ -26,7 +28,7 @@ export const blockedBy = (tasks: readonly DagTask[], taskID: string): string[] =
   const byId = new Map(tasks.map((candidate) => [candidate.id, candidate]))
   return task.dependsOn.filter((pred) => {
     const predTask = byId.get(pred)
-    return predTask === undefined || !TERMINAL.has(predTask.status)
+    return predTask !== undefined && !TERMINAL.has(predTask.status)
   })
 }
 

@@ -1,6 +1,6 @@
 export * as ScheduledJob from "./scheduled-job"
 
-import { eq, isNotNull, or } from "drizzle-orm"
+import { eq, inArray, isNotNull, or } from "drizzle-orm"
 import { Context, Effect, Layer, Schedule, Stream } from "effect"
 import { Database } from "../database/database"
 import { LayerNode } from "../effect/layer-node"
@@ -10,6 +10,7 @@ import { ScheduledJobExecutor } from "./scheduled-job-executor"
 import { TaskTable } from "./sql"
 import { SessionTask } from "./task"
 import { nextRun } from "./schedule"
+import { TaskDag } from "./dag"
 
 /**
  * M3 single-process, in-memory, minute-level cron scheduler (plan §8 M3 + §10).
@@ -86,6 +87,24 @@ export const layer = Layer.effect(
       // Re-check status at trigger time: a task paused (or otherwise settled)
       // between arm and the due tick must not fire. Mirrors the arm filter.
       if (row.status !== "scheduled" && row.status !== "pending") return
+      // DAG gate (M5 Step 3): a task with dependsOn may only fire once every
+      // predecessor is terminal. A blocked task is left scheduled/pending (NOT
+      // claimed) and re-evaluates when a task.updated re-arms the queue — a
+      // deleted predecessor is released by blockedBy, so it cannot deadlock.
+      const deps = row.depends_on ?? []
+      const dagRows =
+        deps.length === 0
+          ? [row]
+          : [
+              row,
+              ...(yield* db.select().from(TaskTable).where(inArray(TaskTable.id, deps)).all().pipe(Effect.orDie)),
+            ]
+      if (TaskDag.blockedBy(
+        dagRows.map((item) => ({ id: item.id, status: item.status, dependsOn: item.depends_on ?? undefined })),
+        taskID,
+      ).length > 0) {
+        return
+      }
       // Claim the task as in_progress BEFORE executing (B1 re-entry guard): the
       // daemon re-arms on any task.updated — including this very patch and the
       // child Session's own events — and would otherwise re-enqueue the

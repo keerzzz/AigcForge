@@ -8,6 +8,13 @@
 - New core `session/dag.ts`: pure `blockedBy` (predecessor terminal-state gate) and `findCycle` (cycle detection) helpers; `test/dag.test.ts` covers both.
 - Compatibility: additive nullable columns + optional fields; generated SDK `SessionTaskWriteInfo` regenerated (`spawnedFrom`/`dependsOn`).
 
+### 2026-08-03 (M5 Step 3): DAG gating on the scheduled-job trigger + write-side cycle rejection
+
+- `SessionTask.update`/`append` reject a `dependsOn` cycle via `findCycle` with a new `TaskWriteError` reason `depends_on_cycle` → HTTP 400. The write-side guard prevents a graph where no task in a cycle can ever be triggered. The `update` guard evaluates the *effective* `dependsOn` (`input ?? existing row`, the same preserve-omitted rule as the column write) so an omitted-preserve PATCH cannot close a cycle unseen.
+- `scheduled-job.ts` trigger now runs a DAG gate before claiming a task: a scheduled/pending job whose `dependsOn` predecessors are not all terminal is skipped (left scheduled/pending, NOT claimed), and re-evaluated when a `task.updated` re-arms the queue — the existing B1 in_progress claim semantics are untouched (the gate sits before the claim).
+- `dag.ts blockedBy` semantics changed: a *deleted* predecessor (absent from the task set) is released instead of blocking — otherwise deleting a predecessor would permanently deadlock its dependents. A present non-terminal predecessor still blocks.
+- Compatibility: valid acyclic graphs are unaffected; a `depends_on_cycle` write now fails with 400, and a blocked trigger is skipped until its predecessors settle.
+
 ## 2026-08-03: Agent Task Cross-Session Aggregation Endpoint (Todo/Task M4 Step 3)
 
 - New core `SessionTask.listAll()`: reads every task across all sessions from the `task` table (the M3 `agent_id` column already landed), each row keeping its owning `sessionID`/`agentID`.

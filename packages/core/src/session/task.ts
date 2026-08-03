@@ -9,6 +9,7 @@ import { EventV2 } from "../event"
 import { Identifier } from "../id/id"
 import { LayerNode } from "../effect/layer-node"
 import { nextRun } from "./schedule"
+import { TaskDag } from "./dag"
 import { SessionSchema } from "./schema"
 import { TaskTable } from "./sql"
 
@@ -41,15 +42,16 @@ export class WriteInfo extends Schema.Class<WriteInfo>("SessionTask.WriteInfo")(
  * owned by the target session (a forge attempt or stale reference), `duplicate`
  * ids repeat a prior id in the same payload, `invalid_schedule` carries a
  * recurrence cron that is malformed or has no future run (a dead job — the
- * HTTP PATCH path bypasses the task_schedule tool's own guard). The first two
- * would otherwise hit the global `task.id` PK constraint and surface as an
- * unhandled 500 defect; all three are rejected up front as a typed failure
+ * HTTP PATCH path bypasses the task_schedule tool's own guard). `depends_on_cycle`
+ * rejects a DAG that would never fire (no task in a cycle can trigger). The
+ * first two would otherwise hit the global `task.id` PK constraint and surface
+ * as an unhandled 500 defect; all four are rejected up front as a typed failure
  * (HTTP 400).
  */
 export class TaskWriteError extends Schema.TaggedErrorClass<TaskWriteError>()("SessionTask.TaskWriteError", {
   sessionID: SessionSchema.ID,
   id: Schema.optional(Schema.String),
-  reason: Schema.Literals(["foreign", "duplicate", "invalid_schedule"]),
+  reason: Schema.Literals(["foreign", "duplicate", "invalid_schedule", "depends_on_cycle"]),
 }) {
   override get message() {
     switch (this.reason) {
@@ -59,6 +61,8 @@ export class TaskWriteError extends Schema.TaggedErrorClass<TaskWriteError>()("S
         return `Duplicate task id "${this.id}" in payload for session ${this.sessionID}`
       case "invalid_schedule":
         return `Task ${this.id ? `"${this.id}" ` : ""}in session ${this.sessionID} has an invalid recurrence cron: it is malformed or has no future run within the search window`
+      case "depends_on_cycle":
+        return `Task ${this.id ? `"${this.id}" ` : ""}in session ${this.sessionID} introduces a dependency cycle; no task in the cycle can ever be triggered`
     }
   }
 }
@@ -249,6 +253,28 @@ export const layer = Layer.effect(
               .all()
               .pipe(Effect.orDie)
             const existingById = new Map(existing.map((row) => [row.id, row]))
+            // DAG cycle guard (M5 Step 3): a dependsOn cycle means no task in it
+            // can ever be triggered — reject before any write. Graph = existing
+            // rows + this payload's planned tasks (minted ids included).
+            const cycle = TaskDag.findCycle([
+              ...existing.map((row) => ({ id: row.id, status: row.status, dependsOn: row.depends_on ?? undefined })),
+              // Use the *effective* dependsOn — the same preserve-omitted rule as
+              // the column computation below (`task.dependsOn ?? prior?.depends_on`):
+              // an omitted field keeps the existing row's value, so the guard must
+              // evaluate the graph that actually lands in the DB, or an
+              // omitted-preserve write could close a cycle unseen.
+              ...planned.map((task) => ({
+                id: task.id,
+                status: task.status,
+                dependsOn: task.dependsOn ?? existingById.get(task.id)?.depends_on ?? undefined,
+              })),
+            ])
+            if (cycle) {
+              return yield* Effect.succeed({
+                type: "invalid" as const,
+                error: new TaskWriteError({ sessionID: input.sessionID, id: cycle[0], reason: "depends_on_cycle" }),
+              })
+            }
             // Reject foreign ids (client-supplied ids not owned by this session)
             // and duplicate ids within the payload before any writes. The loop
             // collects the first violation; the failure is raised after the loop
@@ -379,6 +405,25 @@ export const layer = Layer.effect(
             new TaskWriteError({ sessionID: input.sessionID, id: task.id, reason: "invalid_schedule" }),
           )
         }
+      }
+      // DAG cycle guard (M5 Step 3): the appended tasks' dependsOn must not
+      // close a cycle against the session's existing graph. Read the existing
+      // rows here (outside the transaction) so the typed failure propagates
+      // cleanly, then re-read inside the transaction for positions.
+      const existingForGuard = yield* db
+        .select()
+        .from(TaskTable)
+        .where(eq(TaskTable.session_id, input.sessionID))
+        .all()
+        .pipe(Effect.orDie)
+      const cycle = TaskDag.findCycle([
+        ...existingForGuard.map((row) => ({ id: row.id, status: row.status, dependsOn: row.depends_on ?? undefined })),
+        ...planned.map((task) => ({ id: task.id, status: task.status, dependsOn: task.dependsOn })),
+      ])
+      if (cycle) {
+        return yield* Effect.fail(
+          new TaskWriteError({ sessionID: input.sessionID, id: cycle[0], reason: "depends_on_cycle" }),
+        )
       }
       const resolved = yield* db
         .transaction((tx) =>

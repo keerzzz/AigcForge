@@ -1149,6 +1149,39 @@ describe("session task HttpApi", () => {
   )
 
   it.instance(
+    "PATCH /session/:id/task rejects a dependsOn cycle with 400",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = {
+          "x-aigcfroge-directory": encodeURIComponent(test.directory),
+          "content-type": "application/json",
+        }
+        const session = yield* createSession({ title: "task cycle" })
+        const tasks = yield* SessionTask.Service
+        const [a, b] = yield* tasks.append({
+          sessionID: session.id,
+          tasks: [
+            { content: "a", status: "pending", priority: "medium" },
+            { content: "b", status: "pending", priority: "medium" },
+          ],
+        })
+
+        const response = yield* request(pathFor(SessionPaths.task, { sessionID: session.id }), {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify([
+            { id: a.id, content: "a", status: "pending", priority: "medium", dependsOn: [b.id] },
+            { id: b.id, content: "b", status: "pending", priority: "medium", dependsOn: [a.id] },
+          ]),
+        })
+        expect(response.status).toBe(400)
+        const body = yield* response.text
+        expect(body).toContain("dependency cycle")
+      }),
+  )
+
+  it.instance(
     "PATCH /session/:id/task creates tasks from minimal write info",
     () =>
       Effect.gen(function* () {

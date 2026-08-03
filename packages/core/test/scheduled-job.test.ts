@@ -347,4 +347,87 @@ describe("ScheduledJob daemon", () => {
       yield* tasks.patch({ sessionID, id: task.id, status: "completed" })
     }),
   )
+
+  it.effect("a scheduled task with a non-terminal predecessor does not fire (DAG gate)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const runner = yield* ScheduledJob.Service
+      const [pred] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "setup", status: "pending", priority: "medium" }],
+      })
+      const job = (yield* tasks.append({
+        sessionID,
+        tasks: [
+          { content: "gated", status: "scheduled", priority: "medium", scheduledAt: at(2026, 8, 2, 9, 0), dependsOn: [pred.id] },
+        ],
+      })).find((t) => t.content === "gated")
+      expect(job).toBeDefined()
+
+      yield* runner.arm(at(2026, 8, 2, 8, 59))
+      yield* runner.tick(at(2026, 8, 2, 9, 0))
+      expect(holder.calls).toHaveLength(0)
+      expect((yield* tasks.get(sessionID)).find((t) => t.id === job?.id)?.status).toBe("scheduled")
+
+      // Predecessor completes → re-arm → the job is released and fires.
+      yield* tasks.patch({ sessionID, id: pred.id, status: "completed" })
+      yield* runner.arm(at(2026, 8, 2, 9, 0))
+      yield* runner.tick(at(2026, 8, 2, 9, 0))
+      expect(holder.calls).toHaveLength(1)
+      expect(holder.calls[0]).toMatchObject({ taskID: job?.id })
+    }),
+  )
+
+  it.effect("a scheduled task with a terminal predecessor fires normally (DAG gate)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const runner = yield* ScheduledJob.Service
+      const [pred] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "done", status: "completed", priority: "medium" }],
+      })
+      const job = (yield* tasks.append({
+        sessionID,
+        tasks: [
+          { content: "gated", status: "scheduled", priority: "medium", scheduledAt: at(2026, 8, 2, 9, 0), dependsOn: [pred.id] },
+        ],
+      })).find((t) => t.content === "gated")
+
+      yield* runner.arm(at(2026, 8, 2, 8, 59))
+      yield* runner.tick(at(2026, 8, 2, 9, 0))
+      expect(holder.calls).toHaveLength(1)
+      expect(holder.calls[0]).toMatchObject({ taskID: job?.id })
+    }),
+  )
+
+  it.effect("a scheduled task with a deleted predecessor fires (no permanent deadlock)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const runner = yield* ScheduledJob.Service
+      const [pred] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "doomed", status: "pending", priority: "medium" }],
+      })
+      const job = (yield* tasks.append({
+        sessionID,
+        tasks: [
+          { content: "gated", status: "scheduled", priority: "medium", scheduledAt: at(2026, 8, 2, 9, 0), dependsOn: [pred.id] },
+        ],
+      })).find((t) => t.content === "gated")
+
+      // Delete the predecessor via a reconcile that omits it.
+      yield* tasks.update({
+        sessionID,
+        tasks: [{ id: job?.id, content: "gated", status: "scheduled", priority: "medium" }],
+      })
+
+      yield* runner.arm(at(2026, 8, 2, 8, 59))
+      yield* runner.tick(at(2026, 8, 2, 9, 0))
+      expect(holder.calls).toHaveLength(1)
+      expect(holder.calls[0]).toMatchObject({ taskID: job?.id })
+    }),
+  )
 })

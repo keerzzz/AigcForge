@@ -1,5 +1,5 @@
 import { describe, expect } from "bun:test"
-import { asc } from "drizzle-orm"
+import { asc, eq } from "drizzle-orm"
 import { Effect, Layer, Schema } from "effect"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
@@ -522,6 +522,98 @@ describe("SessionTask", () => {
       })
       expect(resolved[0]?.spawnedFrom).toBe("msg_spawn_1")
       expect(resolved[0]?.dependsOn).toEqual(["tsk_pred_a", "tsk_pred_b"])
+    }),
+  )
+
+  it.effect("update rejects a dependsOn cycle with TaskWriteError (depends_on_cycle)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const [a, b] = yield* tasks.append({
+        sessionID,
+        tasks: [
+          { content: "a", status: "pending", priority: "medium" },
+          { content: "b", status: "pending", priority: "medium" },
+        ],
+      })
+
+      const error = yield* tasks
+        .update({
+          sessionID,
+          tasks: [
+            { id: a.id, content: "a", status: "pending", priority: "medium", dependsOn: [b.id] },
+            { id: b.id, content: "b", status: "pending", priority: "medium", dependsOn: [a.id] },
+          ],
+        })
+        .pipe(Effect.flip)
+      expect(error.reason).toBe("depends_on_cycle")
+
+      // The rejected write left the rows untouched (still no cross-deps).
+      const got = yield* tasks.get(sessionID)
+      expect(got.every((task) => task.dependsOn === undefined)).toBe(true)
+    }),
+  )
+
+  it.effect("update rejects an omitted-preserve dependsOn cycle (guard uses effective deps)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const [b] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "b", status: "pending", priority: "medium" }],
+      })
+      const a = (yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "a", status: "pending", priority: "medium", dependsOn: [b.id] }],
+      })).find((t) => t.content === "a")
+      expect(a).toBeDefined()
+      if (!a) throw new Error("a not created")
+
+      // The PATCH omits A's dependsOn (preserve-omitted keeps [b]) while adding
+      // B → [a]. The guard must evaluate A's *preserved* edge, not the omitted
+      // input, or the closed cycle would slip into the DB.
+      const error = yield* tasks
+        .update({
+          sessionID,
+          tasks: [
+            { id: a.id, content: "a", status: "pending", priority: "medium" },
+            { id: b.id, content: "b", status: "pending", priority: "medium", dependsOn: [a.id] },
+          ],
+        })
+        .pipe(Effect.flip)
+      expect(error.reason).toBe("depends_on_cycle")
+
+      // Nothing was persisted by the rejected write.
+      const got = yield* tasks.get(sessionID)
+      const aRow = got.find((t) => t.id === a.id)
+      expect(aRow?.dependsOn).toEqual([b.id])
+      const bRow = got.find((t) => t.id === b.id)
+      expect(bRow?.dependsOn).toBeUndefined()
+    }),
+  )
+
+  it.effect("append defensively rejects a pre-existing dependsOn cycle", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const tasks = yield* SessionTask.Service
+      const [a, b] = yield* tasks.append({
+        sessionID,
+        tasks: [
+          { content: "a", status: "pending", priority: "medium" },
+          { content: "b", status: "pending", priority: "medium" },
+        ],
+      })
+      // Inject a cycle directly (bypassing the service guard) to prove append's
+      // defensive findCycle still catches it. `depends_on` is a json column, so
+      // pass the array (drizzle encodes it).
+      yield* db.update(TaskTable).set({ depends_on: [b.id] }).where(eq(TaskTable.id, a.id)).run()
+      yield* db.update(TaskTable).set({ depends_on: [a.id] }).where(eq(TaskTable.id, b.id)).run()
+
+      const error = yield* tasks
+        .append({ sessionID, tasks: [{ content: "c", status: "pending", priority: "medium" }] })
+        .pipe(Effect.flip)
+      expect(error.reason).toBe("depends_on_cycle")
     }),
   )
 })
