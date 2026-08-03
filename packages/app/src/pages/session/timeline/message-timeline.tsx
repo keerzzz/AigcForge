@@ -1705,6 +1705,7 @@ export function MessageTimeline(props: {
                         open={hubOpen()}
                         onOpenChange={setHubOpen}
                         anchorRef={() => more}
+                        sessionID={() => id}
                       />
                     </Show>
                   </div>

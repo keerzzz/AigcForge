@@ -4,7 +4,11 @@ import {
   activeTaskCount,
   aggregateAgentTasks,
   countByStatus,
+  newScheduledTask,
+  scheduledAgentTasks,
+  sessionCountForAgent,
   unassignedTasks,
+  withoutTask,
   type AgentTaskRow,
 } from "./agent-task-hub-model"
 
@@ -92,5 +96,65 @@ describe("unassignedTasks", () => {
       "build",
     )
     expect(rows.map((row) => row.id)).toEqual(["tsk_nightly"])
+  })
+})
+
+describe("scheduledAgentTasks (Step 4 agent-view management list)", () => {
+  test("returns only scheduled tasks owned by the agent across sessions", () => {
+    const rows = scheduledAgentTasks(
+      {
+        ses_a: [
+          task({ id: "tsk_nightly", agentID: "build", recurrence: { cron: "0 9 * * *", enabled: true } }),
+          task({ id: "tsk_plain", agentID: "build" }),
+        ],
+        ses_b: [
+          task({ id: "tsk_other_agent", agentID: "auditor", scheduledAt: 1600000000000 }),
+          task({ id: "tsk_oneshot", agentID: "build", scheduledAt: 1600000000000 }),
+        ],
+      },
+      "build",
+    )
+    expect(rows.map((row) => row.id).sort()).toEqual(["tsk_nightly", "tsk_oneshot"])
+  })
+
+  test("empty input yields no rows", () => {
+    expect(scheduledAgentTasks({}, "build")).toEqual([])
+  })
+})
+
+describe("sessionCountForAgent (detail header session count)", () => {
+  test("counts sessions bound to the agent", () => {
+    const sessions = [
+      { agent: "build" },
+      { agent: "build" },
+      { agent: "auditor" },
+      {},
+    ]
+    expect(sessionCountForAgent(sessions, "build")).toBe(2)
+    expect(sessionCountForAgent(sessions, "auditor")).toBe(1)
+    expect(sessionCountForAgent(sessions, "meta")).toBe(0)
+  })
+})
+
+describe("scheduled-task writeback helpers (Step 4)", () => {
+  test("withoutTask drops the target id (task_schedule remove semantics)", () => {
+    const tasks = [
+      { id: "tsk_a", content: "a" },
+      { id: "tsk_b", content: "b" },
+      { id: "tsk_c", content: "c" },
+    ]
+    expect(withoutTask(tasks, "tsk_b").map((task) => task.id)).toEqual(["tsk_a", "tsk_c"])
+  })
+
+  test("newScheduledTask builds a mint-able write shape for the selected agent", () => {
+    const recurring = newScheduledTask({ content: "nightly", agentID: "build", recurrence: { cron: "0 9 * * *", enabled: true } })
+    expect(recurring).toMatchObject({ content: "nightly", status: "scheduled", priority: "medium", agentID: "build" })
+    expect(recurring.recurrence?.cron).toBe("0 9 * * *")
+    expect(recurring.scheduledAt).toBeUndefined()
+    expect(recurring.id).toBeUndefined()
+
+    const oneshot = newScheduledTask({ content: "remind", agentID: "build", scheduledAt: 1700000000000 })
+    expect(oneshot.scheduledAt).toBe(1700000000000)
+    expect(oneshot.recurrence).toBeUndefined()
   })
 })

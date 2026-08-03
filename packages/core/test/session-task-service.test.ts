@@ -441,4 +441,53 @@ describe("SessionTask", () => {
       expect(unowned?.agentID).toBeUndefined()
     }),
   )
+
+  it.effect("update and append reject recurrence crons with no future run (dead-job guard)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+
+      // A valid recurring cron persists.
+      const ok = yield* tasks.update({
+        sessionID,
+        tasks: [
+          { content: "nightly", status: "scheduled", priority: "medium", recurrence: { cron: "0 9 * * *", enabled: true } },
+        ],
+      })
+      expect(ok[0]?.recurrence?.cron).toBe("0 9 * * *")
+
+      // Malformed cron → typed TaskWriteError (surfaces as HTTP 400 on PATCH).
+      const malformed = yield* tasks
+        .update({
+          sessionID,
+          tasks: [
+            { content: "bad", status: "scheduled", priority: "medium", recurrence: { cron: "not a cron", enabled: true } },
+          ],
+        })
+        .pipe(Effect.flip)
+      expect(malformed.reason).toBe("invalid_schedule")
+
+      // A cron that parses but never matches in the search window is a dead job.
+      const dead = yield* tasks
+        .update({
+          sessionID,
+          tasks: [
+            { content: "dead", status: "scheduled", priority: "medium", recurrence: { cron: "0 0 30 2 *", enabled: true } },
+          ],
+        })
+        .pipe(Effect.flip)
+      expect(dead.reason).toBe("invalid_schedule")
+
+      // append rejects too (the tool call path shares the guard).
+      const appended = yield* tasks
+        .append({
+          sessionID,
+          tasks: [
+            { content: "bad", status: "scheduled", priority: "medium", recurrence: { cron: "not a cron", enabled: true } },
+          ],
+        })
+        .pipe(Effect.flip)
+      expect(appended.reason).toBe("invalid_schedule")
+    }),
+  )
 })

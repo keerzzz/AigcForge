@@ -17,6 +17,12 @@ const hubKeys = [
   "session.agentHub.new.tooltip",
   "session.agentHub.unassigned",
   "session.agentHub.loadFailed",
+  "session.agentHub.newTask",
+  "session.agentHub.taskContent",
+  "session.agentHub.taskCron",
+  "session.agentHub.taskAt",
+  "session.agentHub.detailCounts",
+  "session.agentHub.deleteTask",
 ] as const
 
 const read = (rel: string) => fs.readFileSync(path.resolve(__dirname, rel), "utf-8")

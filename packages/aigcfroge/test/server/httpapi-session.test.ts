@@ -1085,6 +1085,35 @@ describe("session task HttpApi", () => {
   )
 
   it.instance(
+    "PATCH /session/:id/task rejects a dead-job recurrence cron with 400",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = {
+          "x-aigcfroge-directory": encodeURIComponent(test.directory),
+          "content-type": "application/json",
+        }
+        const session = yield* createSession({ title: "task bad cron" })
+
+        const response = yield* request(pathFor(SessionPaths.task, { sessionID: session.id }), {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify([
+            {
+              content: "nightly",
+              status: "scheduled",
+              priority: "medium",
+              recurrence: { cron: "not a cron", enabled: true },
+            },
+          ]),
+        })
+        expect(response.status).toBe(400)
+        const body = yield* response.json
+        expect(String(JSON.stringify(body))).toContain("invalid recurrence cron")
+      }),
+  )
+
+  it.instance(
     "PATCH /session/:id/task creates tasks from minimal write info",
     () =>
       Effect.gen(function* () {

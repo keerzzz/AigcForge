@@ -66,6 +66,8 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     if (emptyObject.has(path)) return json(route, {})
     if (emptyList.has(path)) return json(route, [])
     if (path in staticRoutes) return json(route, staticRoutes[path])
+    // M4 Agent Hub cross-session aggregation read (agent-task group).
+    if (path === "/agent-task") return json(route, config.tasks ?? [])
 
     const sessionMatch = path.match(/^\/session\/([^/]+)$/)
     if (sessionMatch) {

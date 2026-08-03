@@ -7,6 +7,12 @@
 - Generated SDK client `AgentTask.list` (`/agent-task`).
 - Compatibility: additive read-only endpoint; no stored data changes, no migration.
 
+### 2026-08-03 (M4 Step 4 refinement): Dead-job cron validation sinks to the write path
+
+- `SessionTask.update`/`append` now reject any `recurrence` cron that fails `nextRun` (malformed or no future run within the search window) with a new `TaskWriteError` reason `invalid_schedule`, surfaced as HTTP 400 on `PATCH /session/:sessionID/task`. This closes the dead-job hole that the direct HTTP PATCH path reintroduced after the task_schedule tool's own guard.
+- `TaskWriteError.id` is now optional (a rejected new task has no id yet).
+- Compatibility: valid schedules are unaffected; a previously-accepted malformed cron now fails with 400 instead of persisting a job that can never fire.
+
 ## 2026-08-02: Task Spawn and DAG Fields (Todo/Task M5)
 
 （未落地——M5 变更已移出本分支，完整保留在 wip 分支 `todo-task-m4m5`，待 M5 里程碑合入。移出的内容：`spawned_from`/`depends_on` 落列（迁移 `20260802140709_add_task_spawn_fields`）、`SessionTask.WriteInfo`/`Info` 写路径持久化、`task_spawn` 内建工具、`session/dag.ts` DAG 纯逻辑。注：V1 Todo（`packages/aigcfroge/src/session/todo.ts` + `tool/todo.ts`）的 `@deprecated` 注释已随本分支 M3b-2 落地，文件保留。）

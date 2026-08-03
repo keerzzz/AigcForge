@@ -34,21 +34,29 @@ export class WriteInfo extends Schema.Class<WriteInfo>("SessionTask.WriteInfo")(
 }) {}
 
 /**
- * A client-supplied task id that cannot be reconciled: `foreign` ids are not
+ * A client-supplied task that cannot be reconciled: `foreign` ids are not
  * owned by the target session (a forge attempt or stale reference), `duplicate`
- * ids repeat a prior id in the same payload. Both would otherwise hit the
- * global `task.id` PK constraint and surface as an unhandled 500 defect, so
- * they are rejected up front as a typed failure (HTTP 400).
+ * ids repeat a prior id in the same payload, `invalid_schedule` carries a
+ * recurrence cron that is malformed or has no future run (a dead job — the
+ * HTTP PATCH path bypasses the task_schedule tool's own guard). The first two
+ * would otherwise hit the global `task.id` PK constraint and surface as an
+ * unhandled 500 defect; all three are rejected up front as a typed failure
+ * (HTTP 400).
  */
 export class TaskWriteError extends Schema.TaggedErrorClass<TaskWriteError>()("SessionTask.TaskWriteError", {
   sessionID: SessionSchema.ID,
-  id: Schema.String,
-  reason: Schema.Literals(["foreign", "duplicate"]),
+  id: Schema.optional(Schema.String),
+  reason: Schema.Literals(["foreign", "duplicate", "invalid_schedule"]),
 }) {
   override get message() {
-    return this.reason === "foreign"
-      ? `Task id "${this.id}" is not owned by session ${this.sessionID}`
-      : `Duplicate task id "${this.id}" in payload for session ${this.sessionID}`
+    switch (this.reason) {
+      case "foreign":
+        return `Task id "${this.id}" is not owned by session ${this.sessionID}`
+      case "duplicate":
+        return `Duplicate task id "${this.id}" in payload for session ${this.sessionID}`
+      case "invalid_schedule":
+        return `Task ${this.id ? `"${this.id}" ` : ""}in session ${this.sessionID} has an invalid recurrence cron: it is malformed or has no future run within the search window`
+    }
   }
 }
 
@@ -99,7 +107,7 @@ export interface Interface {
   readonly append: (input: {
     readonly sessionID: SessionSchema.ID
     readonly tasks: ReadonlyArray<WriteInfo>
-  }) => Effect.Effect<ReadonlyArray<Info>>
+  }) => Effect.Effect<ReadonlyArray<Info>, TaskWriteError>
   /**
    * Legacy todowrite bridge: reconcile by position, reusing existing ids so a
    * delegation writeback to a linked task survives a later full-list replace.
@@ -241,6 +249,17 @@ export const layer = Layer.effect(
             // so every return statement in this gen is value-bearing.
             const seen = new Set<string>()
             let invalid: TaskWriteError | undefined
+            // Dead-job guard (mirrors task_schedule): a recurrence cron that is
+            // malformed or yields no future run within the search window must be
+            // rejected, not persisted as a job that can never fire. Runs for new
+            // (id-less) tasks too, so the HTTP PATCH path cannot revive the hole.
+            for (const task of input.tasks) {
+              if (task.recurrence !== undefined && nextRun(task.recurrence.cron, now) === undefined) {
+                invalid = new TaskWriteError({ sessionID: input.sessionID, id: task.id, reason: "invalid_schedule" })
+                break
+              }
+            }
+            if (invalid) return yield* Effect.succeed({ type: "invalid" as const, error: invalid })
             for (const task of input.tasks) {
               if (task.id === undefined) continue
               if (!existingById.has(task.id)) {
@@ -337,6 +356,15 @@ export const layer = Layer.effect(
     }) {
       const now = (yield* DateTime.nowAsDate).getTime()
       const planned = input.tasks.map((task) => ({ id: task.id ?? Identifier.ascending("task"), ...task }))
+      // Dead-job guard (mirrors task_schedule): reject malformed / no-future-run
+      // recurrence crons before any insert.
+      for (const task of input.tasks) {
+        if (task.recurrence !== undefined && nextRun(task.recurrence.cron, now) === undefined) {
+          return yield* Effect.fail(
+            new TaskWriteError({ sessionID: input.sessionID, id: task.id, reason: "invalid_schedule" }),
+          )
+        }
+      }
       const resolved = yield* db
         .transaction((tx) =>
           Effect.gen(function* () {

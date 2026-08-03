@@ -1,4 +1,5 @@
-import type { SessionTaskInfo } from "@aigcfroge/sdk/v2/client"
+import type { SessionTaskInfo, SessionTaskWriteInfo } from "@aigcfroge/sdk/v2/client"
+import { isScheduledTask } from "@/pages/session/timeline/session-scheduled-tasks-model"
 
 /**
  * M4 AgentTaskHub pure model (plan §5.3 Layer 4 + §8 M4): aggregates tasks owned
@@ -51,3 +52,38 @@ export const countByStatus = (rows: readonly AgentTaskRow[]): Record<string, num
 export const unassignedTasks = (
   sessionTasks: Readonly<Record<string, readonly SessionTaskInfo[]>>,
 ): AgentTaskRow[] => aggregateAgentTasks(sessionTasks).filter((row) => !row.agentID)
+
+/**
+ * Step 4 agent-view management list: the selected agent's scheduled tasks
+ * (one-shot `scheduledAt` or `recurrence`) across every session. Scheduled jobs
+ * are just tasks, so `aggregateAgentTasks` + `isScheduledTask` narrows them.
+ */
+export const scheduledAgentTasks = (
+  sessionTasks: Readonly<Record<string, readonly SessionTaskInfo[]>>,
+  agentID?: string,
+): AgentTaskRow[] => aggregateAgentTasks(sessionTasks, agentID).filter(isScheduledTask)
+
+/** Sessions bound to an agent — the detail header's session count. */
+export const sessionCountForAgent = (
+  sessions: readonly { agent?: string }[],
+  agentName: string,
+): number => sessions.filter((session) => session.agent === agentName).length
+
+/** PATCH payload with the target task removed (task_schedule `remove` semantics). */
+export const withoutTask = <T extends { id: string }>(tasks: readonly T[], id: string): T[] =>
+  tasks.filter((task) => task.id !== id)
+
+/** Build a mint-able scheduled-task write shape (task_schedule `schedule` semantics). */
+export const newScheduledTask = (input: {
+  content: string
+  agentID: string
+  scheduledAt?: number
+  recurrence?: { cron: string; timezone?: string; enabled: boolean }
+}): SessionTaskWriteInfo => ({
+  content: input.content,
+  status: "scheduled",
+  priority: "medium",
+  agentID: input.agentID,
+  ...(input.scheduledAt !== undefined ? { scheduledAt: input.scheduledAt } : {}),
+  ...(input.recurrence !== undefined ? { recurrence: input.recurrence } : {}),
+})
