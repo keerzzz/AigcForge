@@ -13,6 +13,7 @@ import type {
   QuestionRequest,
   Session,
   SessionStatus,
+  SessionTaskInfo,
   TextPart,
   Config as SdkConfig,
 } from "@aigcfroge/sdk/v2"
@@ -388,6 +389,7 @@ export type TuiState = {
     get: (sessionID: string) => Session | undefined
     diff: (sessionID: string) => ReadonlyArray<TuiSidebarFileItem>
     todo: (sessionID: string) => ReadonlyArray<TuiSidebarTodoItem>
+    task?: (sessionID: string) => ReadonlyArray<SessionTaskInfo>
     messages: (sessionID: string) => ReadonlyArray<Message>
     status: (sessionID: string) => SessionStatus | undefined
     permission: (sessionID: string) => ReadonlyArray<PermissionRequest>
