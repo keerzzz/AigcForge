@@ -59,6 +59,14 @@ type GlobalStore = {
   session_task: {
     [sessionID: string]: SessionTaskInfo[]
   }
+  /** Last write recency per session for the todo.updated source (M7 ⑦ freshness). */
+  session_todo_updated_at: {
+    [sessionID: string]: number
+  }
+  /** Last write recency per session for the task.updated source (M7 ⑦ freshness). */
+  session_task_updated_at: {
+    [sessionID: string]: number
+  }
   provider: NormalizedProviderListResponse
   provider_auth: ProviderAuthResponse
   config: Config
@@ -134,6 +142,8 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     project: [],
     session_todo: {},
     session_task: {},
+    session_todo_updated_at: {},
+    session_task_updated_at: {},
     provider_auth: {},
     get path() {
       const EMPTY = { state: "", config: "", worktree: "", directory: "", home: "" }
@@ -212,9 +222,16 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
           delete draft[sessionID]
         }),
       )
+      setGlobalStore(
+        "session_todo_updated_at",
+        produce((draft) => {
+          delete draft[sessionID]
+        }),
+      )
       return
     }
     setGlobalStore("session_todo", sessionID, reconcile(todos, { key: "id" }))
+    setGlobalStore("session_todo_updated_at", sessionID, Date.now())
   }
 
   const setSessionTask = (sessionID: string, tasks: SessionTaskInfo[] | undefined) => {
@@ -226,9 +243,16 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
           delete draft[sessionID]
         }),
       )
+      setGlobalStore(
+        "session_task_updated_at",
+        produce((draft) => {
+          delete draft[sessionID]
+        }),
+      )
       return
     }
     setGlobalStore("session_task", sessionID, reconcile(tasks, { key: "id" }))
+    setGlobalStore("session_task_updated_at", sessionID, Date.now())
   }
 
   const paused = () => untrack(() => globalStore.reload) !== undefined

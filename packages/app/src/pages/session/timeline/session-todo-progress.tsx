@@ -1,4 +1,4 @@
-import { Index, Show, createEffect, createMemo, createSignal } from "solid-js"
+import { Index, Show, createEffect, createMemo, createSignal, onCleanup, type JSX } from "solid-js"
 import { CheckboxV2 } from "@aigcfroge/ui/v2/checkbox-v2"
 import { useServerSync } from "@/context/server-sync"
 import { useSDK } from "@/context/sdk"
@@ -10,64 +10,88 @@ import {
   flipTaskStatus,
   normalizePriority,
   normalizeStatus,
+  pickProgressTodos,
+  sameTodoList,
   type TodoProgressInput,
 } from "@/pages/session/timeline/session-todo-progress-model"
 
 /**
- * M2 pulse-line progress embedded in the timeline session-progress container
- * (plan §5.3 Layer 4 方案 B). Renders nothing when there are no todos, so the
- * existing `session-progress-whip` animation stays byte-for-byte untouched.
+ * M7 unified track (plan §5.8 决策 1-6). Renders ONLY the interactive task
+ * strip — the environment pulse (no-todo state) stays in message-timeline's
+ * `session-progress` container, so the two states are mutually exclusive and
+ * the old `:has()` whip-freeze hack (the M7-④ white-block root cause) is gone.
  *
- * Data source prefers id-bearing tasks from `task.updated` (stable ids so the
- * fold-over can PATCH by id and keep `outputDigest` through reconcile), falling
- * back to the three-field `todo.updated` projection for the V1 runtime. On
- * mount the container seeds the id-bearing store from `GET /session/:id/task`
- * and pulls the legacy projection via directory-sync for reload recovery.
- *
- * Interactivity (M2c): hovering a node shows its content via `title`; clicking
- * a node or the done/total stat expands a checkbox fold-over. Toggling a box
- * PATCHes the whole list back over `PATCH /session/:id/task` (reconcile), which
- * republishes `task.updated` and reconciles the local store. Entries without a
- * stable id (V1 projection) are read-only: reconciling them would mint fresh
- * ids and wipe the persisted `outputDigest`.
+ * The strip is a 22px band under the title row: a 「任务列表」 label + `done/total`
+ * stats row on top, and a 2px track (fill clipped to `fillEndPct` index
+ * semantics) with 10px nodes centered on the line below. `working` decides
+ * animation (task pulse shuttles between the last-completed node and the
+ * anchor) vs idle static retention.
  */
-export function SessionTodoProgress(props: { sessionID: () => string | undefined }) {
+export function SessionTodoProgress(props: {
+  sessionID: () => string | undefined
+  /** workingStatus() !== "hidden" — task pulse on, or idle static retention. */
+  working: () => boolean
+  /** Agent tint for the environment pulse (kept; message-timeline uses it). */
+  tint: () => string | undefined
+}) {
   const sync = useSync()
   const serverSync = useServerSync()
   const sdk = useSDK()
   const language = useLanguage()
   const [open, setOpen] = createSignal(false)
+  const [trackWidth, setTrackWidth] = createSignal(0)
+  let trackRef: HTMLDivElement | undefined
 
-  const tasks = createMemo<TodoProgressInput[]>(() => {
+  const tasks = createMemo<readonly TodoProgressInput[]>(() => {
     const id = props.sessionID()
     if (!id) return []
-    const byId = serverSync().data.session_task[id]
-    if (byId && byId.length > 0) {
-      return byId.map((task) => ({ id: task.id, content: task.content, status: task.status, priority: task.priority }))
-    }
-    return (serverSync().data.session_todo[id] ?? []) as TodoProgressInput[]
+    const data = serverSync().data
+    // M7 ⑦: pick the fresher source (plan §5.8 decision 7). task (id-bearing)
+    // wins when both agree so the fold-over stays writable; a standalone V1
+    // todo.updated outranks the seeded task pull instead of being frozen out.
+    return pickProgressTodos(
+      data.session_task[id]?.map((task) => ({
+        id: task.id,
+        content: task.content,
+        status: task.status,
+        priority: task.priority,
+      })),
+      data.session_task_updated_at[id],
+      (data.session_todo[id] ?? []) as TodoProgressInput[],
+      data.session_todo_updated_at[id],
+    )
   })
 
-  const progress = createMemo(() => computeTodoProgress(tasks()))
+  const progress = createMemo(() => computeTodoProgress(tasks(), { trackWidth: trackWidth() }))
   const hasAnchor = createMemo(() => progress().nodes.some((node) => node.anchor))
+  const allDone = createMemo(() => progress().total > 0 && progress().done === progress().total)
 
   // Reload recovery: pull once when the session mounts (directory-sync has
   // built-in retry; subsequent updates arrive via SSE task.updated/todo.updated).
-  // The id-bearing task list comes from GET /session/:id/task (M2a); the legacy
-  // three-field projection stays as the V1-runtime read-only fallback.
+  // NIT (Step 1 approval): if the live todo source already holds data that
+  // diverges from the persisted TaskTable pull, discard the seed so a stale
+  // V1 task pull can never shadow the fresher todo channel.
   createEffect(() => {
     const id = props.sessionID()
     if (!id) return
     void sync().session.todo(id)
-    // Only seed when the SSE channel has not already delivered fresher
-    // task.updated data, and re-check at resolve time so a late response
-    // never clobbers a newer event.
     if (serverSync().data.session_task[id] !== undefined) return
     void sdk()
       .client.session.task.get({ sessionID: id, directory: sdk().directory })
       .then((response) => {
         if (serverSync().data.session_task[id] !== undefined) return
-        serverSync().task.set(id, response.data ?? [])
+        const tasks = response.data ?? []
+        // Only discard a diverging seed when the live todo source actually has
+        // data — an empty todo pull is not a divergence signal.
+        const liveTodo = serverSync().data.session_todo[id]
+        if (
+          liveTodo &&
+          liveTodo.length > 0 &&
+          !sameTodoList(tasks as TodoProgressInput[], liveTodo as TodoProgressInput[])
+        ) {
+          return
+        }
+        serverSync().task.set(id, tasks)
       })
       .catch((err: unknown) => {
         // Degrades to the read-only todo projection; the next task.updated or
@@ -75,6 +99,36 @@ export function SessionTodoProgress(props: { sessionID: () => string | undefined
         const description = err instanceof Error ? err.message : String(err)
         console.warn("SessionTodoProgress task recovery pull failed", description)
       })
+  })
+
+  // Track width drives the 8px end-inset (model) and the task-pulse px range.
+  // Reading tasks() keeps this effect reactive: the strip mounts asynchronously
+  // (tasks arrive via SSE/pull after the first frame), so a one-shot read of
+  // the ref would early-return before <Show> mounts the div and never attach
+  // the observer — trackWidth would stay 0, killing both the inset and the
+  // task pulse. Effects re-run after the render pass, so the ref is set by
+  // the time tasks() flips non-empty.
+  createEffect(() => {
+    if (tasks().length === 0) return
+    const el = trackRef
+    if (!el) return
+    const measure = () => setTrackWidth(el.clientWidth)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    onCleanup(() => observer.disconnect())
+  })
+
+  // Fold-over dismiss layer (M7 决策 6): click outside the strip + panel closes.
+  createEffect(() => {
+    if (!open()) return
+    const handler = (event: PointerEvent) => {
+      const target = event.target as Node | null
+      if (target && trackRef?.contains(target)) return
+      setOpen(false)
+    }
+    document.addEventListener("pointerdown", handler)
+    onCleanup(() => document.removeEventListener("pointerdown", handler))
   })
 
   // Fold-over writeback: flip one task's status and PATCH the whole list back.
@@ -107,9 +161,27 @@ export function SessionTodoProgress(props: { sessionID: () => string | undefined
 
   const toggleOpen = () => setOpen((value) => !value)
 
+  // Task pulse: a highlight segment shuttling between the last-completed node
+  // and the anchor (决策 5), CSS vars + translateX keyframes — no JS frame loop.
+  const pulseStyle = createMemo<JSX.CSSProperties | undefined>(() => {
+    const width = trackWidth()
+    if (!width) return undefined
+    const p = progress()
+    const anchor = p.nodes.find((node) => node.anchor)
+    if (!anchor) return undefined
+    return {
+      "--pulse-from-px": `${(p.lastCompletedPct / 100) * width}px`,
+      "--pulse-to-px": `${(anchor.pct / 100) * width}px`,
+    }
+  })
+
+  // No task strip to render (the container's env pulse owns this state). The
+  // <Show> keeps the conditional reactive — a top-level early `return null`
+  // would evaluate once at mount and never re-render when the store populates.
   return (
-    <Show when={progress().total > 0}>
+    <Show when={tasks().length > 0}>
       <div
+        ref={trackRef}
         data-component="session-todo-progress"
         role="progressbar"
         aria-label={language.t("session.todo.progress", { done: progress().done, total: progress().total })}
@@ -117,13 +189,17 @@ export function SessionTodoProgress(props: { sessionID: () => string | undefined
         aria-valuemax={progress().total}
         aria-valuenow={progress().done}
       >
+        <span data-component="session-todo-progress-label">{language.t("session.todo.list")}</span>
+        <div data-component="session-todo-progress-track" />
         <div
           data-component="session-todo-progress-fill"
-          data-anchor={hasAnchor() ? "true" : undefined}
           style={{
-            "clip-path": `inset(0 ${100 - progress().doneRatio * 100}% 0 0 round 999px)`,
+            "clip-path": `inset(0 ${100 - progress().fillEndPct}% 0 0 round 999px)`,
           }}
         />
+        <Show when={props.working() && hasAnchor()}>
+          <div data-component="session-todo-progress-pulse" style={pulseStyle()} />
+        </Show>
         <Index each={progress().nodes}>
           {(node) => (
             // Plan §5.5 deviation (see specs/v2/todo.md): hover uses the
@@ -131,7 +207,7 @@ export function SessionTodoProgress(props: { sessionID: () => string | undefined
             // keyboard/screen readers (and the e2e regression asserts the
             // attribute), but native title also fires on hover, so a Kobalte
             // tooltip would double-render. TooltipV2.Trigger also hardcodes
-            // `as="div"`, which cannot wrap the absolutely-positioned 8px
+            // `as="div"`, which cannot wrap the absolutely-positioned 10px
             // node without restructuring its geometry.
             <button
               type="button"
@@ -144,7 +220,13 @@ export function SessionTodoProgress(props: { sessionID: () => string | undefined
               tabIndex={0}
               onClick={toggleOpen}
               style={{ left: `${node().pct}%` }}
-            />
+            >
+              <Show when={node().status === "completed"}>
+                <svg data-component="session-todo-progress-check" viewBox="0 0 10 10" aria-hidden="true" fill="none">
+                  <path d="M2.5 5.2 4.4 7l3.1-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                </svg>
+              </Show>
+            </button>
           )}
         </Index>
         <Index each={progress().ellipsis}>
@@ -159,30 +241,36 @@ export function SessionTodoProgress(props: { sessionID: () => string | undefined
             </span>
           )}
         </Index>
-        <button type="button" data-component="session-todo-progress-stats" aria-expanded={open()} onClick={toggleOpen}>
+        <button
+          type="button"
+          data-component="session-todo-progress-stats"
+          data-complete={allDone() ? "true" : undefined}
+          aria-expanded={open()}
+          onClick={toggleOpen}
+        >
           {progress().done}/{progress().total}
         </button>
+        <Show when={open()}>
+          <div data-component="session-todo-progress-panel" role="list">
+            <Index each={tasks()}>
+              {(task) => (
+                <CheckboxV2
+                  data-slot="session-todo-progress-checkbox"
+                  checked={task().status === "completed"}
+                  indeterminate={task().status === "in_progress"}
+                  disabled={task().status === "cancelled" || task().id === undefined}
+                  onChange={() => writeback(task())}
+                  label={
+                    <span data-slot="session-todo-progress-checkbox-label" data-status={task().status}>
+                      {task().content}
+                    </span>
+                  }
+                />
+              )}
+            </Index>
+          </div>
+        </Show>
       </div>
-      <Show when={open()}>
-        <div data-component="session-todo-progress-panel" role="list">
-          <Index each={tasks()}>
-            {(task) => (
-              <CheckboxV2
-                data-slot="session-todo-progress-checkbox"
-                checked={task().status === "completed"}
-                indeterminate={task().status === "in_progress"}
-                disabled={task().status === "cancelled" || task().id === undefined}
-                onChange={() => writeback(task())}
-                label={
-                  <span data-slot="session-todo-progress-checkbox-label" data-status={task().status}>
-                    {task().content}
-                  </span>
-                }
-              />
-            )}
-          </Index>
-        </div>
-      </Show>
     </Show>
   )
 }

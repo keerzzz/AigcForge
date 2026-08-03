@@ -295,7 +295,15 @@ export function MessageTimeline(props: {
   const working = createMemo(() => sessionStatus().type !== "idle")
   const sessionMessages = createMemo(() => (sessionID() ? (sync().data.message[sessionID()!] ?? []) : []))
   const serverSync = useServerSync()
-  const sessionTodos = createMemo(() => (sessionID() ? (serverSync().data.session_todo[sessionID()!] ?? []) : []))
+  // M7: "has a task strip" = either source holds data (the freshness pick that
+  // decides which source displays lives in SessionTodoProgress). Drives the
+  // track show-condition + aria; the strip and the env pulse are exclusive.
+  const hasTaskData = createMemo(() => {
+    const id = sessionID()
+    if (!id) return false
+    const data = serverSync().data
+    return (data.session_todo[id]?.length ?? 0) + (data.session_task[id]?.length ?? 0) > 0
+  })
   const tint = createMemo(() => messageAgentColor(sessionMessages(), sync().data.agent))
 
   const currentAgentName = createMemo(() => {
@@ -483,7 +491,7 @@ export function MessageTimeline(props: {
     followOnAppend: true,
     scrollEndThreshold: 80,
     get scrollMargin() {
-      return showHeader() ? 64 : 0
+      return showHeader() ? 72 : 0
     },
     overscan: 50,
     paddingEnd: 64,
@@ -1301,7 +1309,7 @@ export function MessageTimeline(props: {
         data-timeline-key={props.rowKey}
         style={{
           position: "absolute",
-          top: `${item().start - (showHeader() ? 64 : 0)}px`,
+          top: `${item().start - (showHeader() ? 72 : 0)}px`,
           left: "0",
           width: "100%",
           height: `${item().size}px`,
@@ -1364,7 +1372,7 @@ export function MessageTimeline(props: {
         onClick={props.onAutoScrollInteraction}
         class="relative min-w-0 w-full h-full"
         style={{
-          "--sticky-accordion-top": showHeader() ? "48px" : "0px",
+          "--sticky-accordion-top": showHeader() ? "72px" : "0px",
         }}
       >
         <Show when={showHeader()}>
@@ -1375,31 +1383,15 @@ export function MessageTimeline(props: {
             }}
             data-session-title
             classList={{
-              "sticky top-0 z-30 bg-[linear-gradient(to_bottom,var(--background-stronger)_48px,transparent)]": true,
+              "sticky top-0 z-30 bg-[linear-gradient(to_bottom,var(--background-stronger)_68px,transparent)]": true,
               "w-full": true,
-              "pb-4": true,
+              "pb-6": true,
               "pr-3": true,
               "pl-4": true,
               "pl-2 md:pl-4": false,
               "md:max-w-200 md:mx-auto 2xl:max-w-[1000px]": props.centered,
             }}
           >
-            <Show when={workingStatus() !== "hidden" && settings.general.showSessionProgressBar()}>
-              <div
-                data-component="session-progress"
-                data-state={workingStatus()}
-                aria-hidden={sessionTodos().length > 0 ? undefined : "true"}
-              >
-                <div
-                  data-component="session-progress-bar"
-                  style={{
-                    background: tint() ?? "var(--icon-interactive-base)",
-                    animation: `session-progress-whip ${bar.ms}ms infinite`,
-                  }}
-                />
-                <SessionTodoProgress sessionID={sessionID} />
-              </div>
-            </Show>
             <div class="h-12 w-full flex items-center justify-between gap-2">
               <div class="flex items-center gap-1 min-w-0 flex-1 pr-3">
                 <div class="flex items-center min-w-0 grow-1">
@@ -1716,6 +1708,27 @@ export function MessageTimeline(props: {
                 )}
               </Show>
             </div>
+            {/* M7 unified track: moved below the title row (same sticky header,
+                absolute zero-space). Env pulse (no tasks) and the task strip are
+                mutually exclusive; idle + tasks keeps a static strip (决策 2). */}
+            <Show when={settings.general.showSessionProgressBar() && (workingStatus() !== "hidden" || hasTaskData())}>
+              <div
+                data-component="session-progress"
+                data-state={workingStatus()}
+                aria-hidden={hasTaskData() ? undefined : "true"}
+              >
+                <Show when={!hasTaskData()}>
+                  <div
+                    data-component="session-progress-bar"
+                    style={{
+                      background: tint() ?? "var(--icon-interactive-base)",
+                      animation: `session-progress-whip ${bar.ms}ms infinite`,
+                    }}
+                  />
+                </Show>
+                <SessionTodoProgress sessionID={sessionID} working={() => workingStatus() !== "hidden"} tint={tint} />
+              </div>
+            </Show>
           </div>
         </Show>
         <div

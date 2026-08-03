@@ -208,6 +208,139 @@ test.describe("regression: session todo progress pulse line", () => {
   })
 })
 
+test.describe("regression: session todo progress M7 unified track", () => {
+  test("renders the track below the title row", async ({ page }) => {
+    const events: EventPayload[] = []
+    await mockServer(page, events)
+    await configurePage(page)
+    events.push({ directory, payload: { type: "task.updated", properties: { sessionID, tasks: [taskA, taskB] } } })
+
+    await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+    await expectSessionTitle(page, title)
+    await expect(page.locator('[data-component="session-todo-progress-node"]')).toHaveCount(2, { timeout: 15_000 })
+
+    const track = page.locator('[data-component="session-todo-progress"]')
+    const titleRow = page.locator('[data-slot="session-title-child"]')
+    const trackBox = await track.boundingBox()
+    const titleBox = await titleRow.boundingBox()
+    expect(trackBox).not.toBeNull()
+    expect(titleBox).not.toBeNull()
+    // M7 决策 1: the unified track sits below the title row.
+    expect(trackBox!.y).toBeGreaterThanOrEqual(titleBox!.y + titleBox!.height)
+  })
+
+  test("renders no label/nodes/stats in the no-todo environment-pulse state", async ({ page }) => {
+    const events: EventPayload[] = []
+    // No task data and no todo projection → the container shows only the env pulse.
+    await mockServer(page, events, { tasks: [] })
+    await configurePage(page)
+
+    await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+    await expectSessionTitle(page, title)
+    await expect(page.locator('[data-component="session-progress-bar"]')).toBeVisible({ timeout: 15_000 })
+    await expect(page.locator('[data-component="session-todo-progress-label"]')).toHaveCount(0)
+    await expect(page.locator('[data-component="session-todo-progress-node"]')).toHaveCount(0)
+    await expect(page.locator('[data-component="session-todo-progress-stats"]')).toHaveCount(0)
+  })
+
+  test("shows the task-list label once tasks activate", async ({ page }) => {
+    const events: EventPayload[] = []
+    await mockServer(page, events)
+    await configurePage(page)
+    events.push({ directory, payload: { type: "task.updated", properties: { sessionID, tasks: [taskA, taskB] } } })
+
+    await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+    await expectSessionTitle(page, title)
+    await expect(page.locator('[data-component="session-todo-progress-label"]')).toBeVisible({ timeout: 15_000 })
+  })
+
+  test("retains a static strip when idle with tasks (no task pulse)", async ({ page }) => {
+    // No busy session.status event — the session stays idle, so the strip must
+    // persist statically (M7 决策 2 idle 静态留存) without the task pulse.
+    await mockAigcfrogeServer(page, {
+      directory,
+      project: project(),
+      provider: provider(),
+      sessions: [session()],
+      pageMessages: () => ({ items: [userMessage] }),
+      events: () => [
+        { directory, payload: { type: "task.updated", properties: { sessionID, tasks: [taskA, taskB] } } },
+      ],
+      eventRetry: 16,
+      tasks: [taskA, taskB],
+    })
+    await configurePage(page)
+    await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+    await expectSessionTitle(page, title)
+    await expect(page.locator('[data-component="session-todo-progress-node"]')).toHaveCount(2, { timeout: 15_000 })
+    await expect(page.locator('[data-component="session-todo-progress-pulse"]')).toHaveCount(0)
+  })
+
+  test("flips the stats to the success color when all tasks complete", async ({ page }) => {
+    const events: EventPayload[] = []
+    await mockServer(page, events)
+    await configurePage(page)
+    events.push({
+      directory,
+      payload: {
+        type: "task.updated",
+        properties: { sessionID, tasks: [taskA, { ...taskB, status: "completed" }] },
+      },
+    })
+
+    await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+    await expectSessionTitle(page, title)
+    await expect(page.locator('[data-component="session-todo-progress-stats"]')).toHaveAttribute(
+      "data-complete",
+      "true",
+      {
+        timeout: 15_000,
+      },
+    )
+  })
+
+  test("closes the fold-over when clicking outside the track", async ({ page }) => {
+    const events: EventPayload[] = []
+    await mockServer(page, events)
+    await configurePage(page)
+    events.push({ directory, payload: { type: "task.updated", properties: { sessionID, tasks: [taskA, taskB] } } })
+
+    await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+    await expectSessionTitle(page, title)
+    await expect(page.locator('[data-component="session-todo-progress-node"]')).toHaveCount(2, { timeout: 15_000 })
+
+    const panel = page.locator('[data-component="session-todo-progress-panel"]')
+    await page.locator('[data-component="session-todo-progress-stats"]').click()
+    await expect(panel).toBeVisible()
+    // A click on the title row (outside the track) dismisses the panel.
+    await page.locator('[data-slot="session-title-child"]').click()
+    await expect(panel).not.toBeVisible()
+  })
+
+  test("measures the track and renders the task pulse px range when working", async ({ page }) => {
+    const events: EventPayload[] = []
+    // Mount with an empty task list: the strip must mount strictly after the
+    // first frame, when the task.updated event arrives over SSE. A one-shot
+    // ref read at mount would leave trackWidth at 0 — the pulse would render
+    // without its --pulse-*-px range and the 8px inset would stay dead.
+    await mockServer(page, events, { tasks: [] })
+    await configurePage(page)
+    events.push({
+      directory,
+      payload: {
+        type: "task.updated",
+        properties: { sessionID, tasks: [taskA, { ...taskB, status: "in_progress" }] },
+      },
+    })
+
+    await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+    await expectSessionTitle(page, title)
+    const pulse = page.locator('[data-component="session-todo-progress-pulse"]')
+    await expect(pulse).toBeVisible({ timeout: 15_000 })
+    await expect(pulse).toHaveAttribute("style", /--pulse-from-px/)
+  })
+})
+
 async function configurePage(page: Page) {
   await page.setViewportSize({ width: 1280, height: 800 })
 }

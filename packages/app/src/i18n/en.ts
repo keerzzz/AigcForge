@@ -677,6 +677,7 @@ export const dict = {
 
   "session.context.addToContext": "Add {{selection}} to context",
   "session.todo.progress": "{{done}} of {{total}} todos completed",
+  "session.todo.list": "Task list",
   "session.todo.writeback.failed.title": "Failed to update task",
   "session.scheduled.title": "Scheduled tasks",
   "session.scheduled.empty": "No scheduled tasks",

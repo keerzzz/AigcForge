@@ -34,6 +34,13 @@ type GlobalStore = {
   session_task: {
     [sessionID: string]: SessionTaskInfo[]
   }
+  /** Mirrors server-sync's GlobalStore (M7 ⑦ freshness recency maps). */
+  session_todo_updated_at: {
+    [sessionID: string]: number
+  }
+  session_task_updated_at: {
+    [sessionID: string]: number
+  }
   provider: NormalizedProviderListResponse
   provider_auth: ProviderAuthResponse
   config: Config
