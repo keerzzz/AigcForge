@@ -98,7 +98,7 @@
 - ✅ M3a: ScheduledJobRunner（`arm` 重扫 TaskTable 重建 next-run 队列 = 重启 re-arm；`tick` 触发 + 每路径 settle 三分支；recurring 完成后 re-arm 下一 cron 匹配）+ 分钟级 cron 纯函数（`session/schedule.ts`）+ `agent_id`/`scheduled_at`/`recurrence` 落列（迁移 `20260802093236_add_task_schedule_fields`）+ unattended 权限策略（预授权 ruleset：allow 规则不被 ask→deny 转换，测试证明 unattended 子会话可读）+ **生产接线**：daemon（启动 arm + 分钟 tick + `task.updated` re-arm，`ScheduledJob.daemonNode` 挂入 httpapi app 图）+ 生产 executor（`session/scheduled-job-executor.ts`，TaskDriver unattended 子会话 `attended: false` 驱动 prompt，DelegateError 分类 failed/cancelled）
 - ✅ M3b-1: task_schedule Tool（注册/暂停/恢复/删除定时 task，agentID 归属；builtins 注册）
 - ✅ M3b-2: 定时任务 UI（标题左侧 `⚡ nextRun` chip + dot-grid "定时任务" 菜单项 + 弹层列表/启停走 PATCH reconcile；数据源 `SessionTask.Info.nextRun` 派生）
-- ✅ M4: AgentTaskHub（入口 = 标题 dot-grid"智能体"菜单 + 弹层，计划 §5.7，复用 M3 §5.6 模式；三区：我的智能体（非 subagent 全 agent + 未归属桶）+ agent 详情（跨 session 任务聚合 + **定时任务完整管理**：checkbox 启停走 task_schedule pause/resume、删除 = PATCH reconcile remove、新建 = schedule（锚定 hub 所在会话）；省略字段服务端保留式不抹调度）+ 任务衍生 M5 占位（接 task_spawn）+ 新建占位。数据源：`GET /agent-task` 跨 session 聚合端点（新 `agent-task` httpapi group，规避 workspace-routing 对 `/session/<literal>` 的 SessionID.make die）+ SDK 再生成 + 打开时播种 session_task store 后续靠 task.updated SSE；**dead-job cron 校验下沉** SessionTask.update/append（复用 `session/schedule.ts` nextRun，TaskWriteError `invalid_schedule` → HTTP 400，关闭 HTTP PATCH 直通死洞）。**删除 Agent 联动提示已按裁决剔除**（`docs/plan` descope commit `703c5a2ca`）。E2E `agent-task-hub.spec.ts` 2 用例通过（打开→聚合→toggle PATCH 断言；mock-server 加 `/agent-task` 路由）
+- ✅ M4: AgentTaskHub（入口 = 标题 dot-grid"智能体"菜单 + 弹层，计划 §5.7，复用 M3 §5.6 模式；三区：我的智能体（非 subagent 全 agent + 未归属桶）+ agent 详情（跨 session 任务聚合 + **定时任务完整管理**：checkbox 启停走 task_schedule pause/resume、删除 = PATCH reconcile remove、新建 = schedule（锚定 hub 所在会话）；省略字段服务端保留式不抹调度）+ 任务衍生 M5 占位（接 task_spawn）+ 新建占位。数据源：`GET /agent-task` 跨 session 聚合端点（新 `agent-task` httpapi group，规避 workspace-routing 对 `/session/<literal>` 的 SessionID.make die）+ SDK 再生成 + 打开时播种 session_task store 后续靠 task.updated SSE；**dead-job cron 校验下沉** SessionTask.update/append（复用 `session/schedule.ts` nextRun，TaskWriteError `invalid_schedule` → HTTP 400，关闭 HTTP PATCH 直通死洞）。**删除 Agent 联动提示已按裁决剔除**（`docs/plan` descope commit `703c5a2ca`）。E2E `agent-task-hub.spec.ts` 3 用例通过（打开→聚合→toggle PATCH 断言 + M5 衍生区分组渲染与跳转行为断言；mock-server 加 `/agent-task` 路由）
 - ✅ M5: 跨模式集成（`spawned_from`/`depends_on` 落列（迁移 `20260802140709_add_task_spawn_fields`）+ `SessionTask` 写路径持久化（preserve-omitted）；task_spawn Tool（spawnedFrom=消息 id + dependsOn + agentID，builtins 注册，subagent deny 已有）+ **DAG 门控**：`session/dag.ts` blockedBy（缺失前置→放行防永久阻塞）+ findCycle；写入侧 update/append 拒环（TaskWriteError `depends_on_cycle` → HTTP 400，用有效 dependsOn 与列计算同规则）；scheduled-job trigger 前置 blockedBy 复查（B1 抢占不破坏，阻塞不 claim + task.updated/arm 重评）；hub zone 2b 任务衍生占位 → 真实只读衍生列表（按源消息分组 + 跳源消息——`spawnedFrom` 为 assistant 消息 id，经 `parentID` 解析为父 user 消息锚点 `#message-<userMsgId>`，不可解析/跨 session 降级纯文本不给死链，e2e 含跳转行为断言）；**电商三场景机制链路集成测试**（§7.1 单前置放行 / §7.2 多前置部分不放行全完成放行 / §7.3 recurring 多轮不干扰，走真实 trigger 门控）。注：V1 Todo（`aigcfroge/src/session/todo.ts` + `tool/todo.ts`）deprecated 注释已随本分支 M3b-2 落地（不删文件）
 
 **M2 已声明限制**（如实，非已解决）：
@@ -111,6 +111,12 @@
 4. 定时任务 prompt 经 TaskDriver 会拼接 parent_context 压缩摘要（P6.1 既有行为），非原样下发。
 5. executor 行为由 stub TaskDriver 单测覆盖；真实 LLM 端到端触发未在 CI 覆盖。
 6. recurring 任务在进程停机期间错过的触发不补偿：re-arm 用 `nextRun(cron, now)` 严格取未来匹配；one-shot 过期任务（`scheduled_at ≤ now`）arm 时会立即补触发——两者行为不对称是有意语义。
+
+**M5 已声明限制**（如实，非已解决）：
+1. `dependsOn` 允许跨 session 引用（trigger 门控全局 inArray 查询）；**缺失前置放行**（`blockedBy` 只对存在且非终态的前置阻塞）——防永久死锁的有意语义，代价是写错前置 id 的任务不会被拦住。
+2. `task_spawn` 产物无 `scheduled_at`，本期不触发调度（M2 裁决注明）；spawn 任务要触发需另行 PATCH 加调度字段。
+3. hub 衍生区跳源仅同源 session 可解析（assistant→`parentID`→`#message-<userMsgId>`）；跨 session 或父消息不在 store 时降级纯文本，不跳死链。
+4. `packages/core/schema.json` 的 id/prevIds 为手工增量维护（环境无 drizzle-kit CLI），与 wip 逐行核对一致；下一次迁移生成时会自然暴露漂移。
 
 **与计划的偏差声明**（M2，已调研后如实记录）：
 1. SessionTodoProgress 节点 hover **未复用 TooltipV2**（计划 §5.5「tooltip 复用现有 tooltip 组件」），保留原生 `title`。证据：① 计划 §5.3 要求 `title` 保留给键盘/读屏，且 e2e 回归（`packages/app/e2e/regression/session-todo-progress.spec.ts`）断言节点带 `title` 属性——原生 title 在鼠标 hover 时同样弹出，叠加 Kobalte tooltip 会双重渲染；② `TooltipV2.Trigger`（`packages/ui/src/v2/components/tooltip-v2.tsx`）硬编码 `as="div"`，无法直接作为绝对定位的 8px 节点按钮，挂接需重构节点几何。`content` 为空的节点不设置 `title`（不弹空 tooltip）。
