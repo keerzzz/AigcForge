@@ -282,6 +282,8 @@ export default {
           \`agent_id\` text,
           \`scheduled_at\` integer,
           \`recurrence\` text,
+          \`spawned_from\` text,
+          \`depends_on\` text,
           \`position\` integer NOT NULL,
           \`time_created\` integer NOT NULL,
           \`time_updated\` integer NOT NULL,

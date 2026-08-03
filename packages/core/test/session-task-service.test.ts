@@ -490,4 +490,38 @@ describe("SessionTask", () => {
       expect(appended.reason).toBe("invalid_schedule")
     }),
   )
+
+  it.effect("persists M5 spawn fields and keeps them through an omitting reconcile", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const [spawned] = yield* tasks.append({
+        sessionID,
+        tasks: [
+          {
+            content: "spawn audit",
+            status: "pending",
+            priority: "medium",
+            spawnedFrom: "msg_spawn_1",
+            dependsOn: ["tsk_pred_a", "tsk_pred_b"],
+          },
+        ],
+      })
+      expect(spawned.spawnedFrom).toBe("msg_spawn_1")
+      expect(spawned.dependsOn).toEqual(["tsk_pred_a", "tsk_pred_b"])
+
+      // Re-read from the table: the columns survived.
+      const got = yield* tasks.get(sessionID)
+      expect(got[0]?.spawnedFrom).toBe("msg_spawn_1")
+      expect(got[0]?.dependsOn).toEqual(["tsk_pred_a", "tsk_pred_b"])
+
+      // A reconcile omitting them preserves the stored values and reports them.
+      const resolved = yield* tasks.update({
+        sessionID,
+        tasks: [{ id: spawned.id, content: "spawn audit", status: "completed", priority: "medium" }],
+      })
+      expect(resolved[0]?.spawnedFrom).toBe("msg_spawn_1")
+      expect(resolved[0]?.dependsOn).toEqual(["tsk_pred_a", "tsk_pred_b"])
+    }),
+  )
 })

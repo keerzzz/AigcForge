@@ -19,6 +19,7 @@ import sessionInputKindMigration from "@aigcfroge/core/database/migration/202607
 import backfillTaskTableMigration from "@aigcfroge/core/database/migration/20260802220000_backfill_task_table"
 import addTaskOutputDigestMigration from "@aigcfroge/core/database/migration/20260802043814_add_task_output_digest"
 import addTaskScheduleFieldsMigration from "@aigcfroge/core/database/migration/20260802093236_add_task_schedule_fields"
+import addTaskSpawnFieldsMigration from "@aigcfroge/core/database/migration/20260802140709_add_task_spawn_fields"
 import { EventV2 } from "@aigcfroge/core/event"
 import { ProjectV2 } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
@@ -935,6 +936,53 @@ describe("DatabaseMigration", () => {
           agent_id: "ag_audit",
           scheduled_at: 1234,
           recurrence: '{"cron":"0 9 * * *","enabled":true}',
+        })
+      }),
+    )
+  })
+
+  test("adds nullable spawned_from/depends_on columns preserving existing rows", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        // Pre-migration shape: task table without the M5 spawn columns.
+        yield* db.run(sql`
+          CREATE TABLE task (
+            id text PRIMARY KEY,
+            session_id text NOT NULL,
+            content text NOT NULL,
+            status text NOT NULL,
+            priority text NOT NULL,
+            parent_id text,
+            output_digest text,
+            agent_id text,
+            scheduled_at integer,
+            recurrence text,
+            position integer NOT NULL,
+            time_created integer NOT NULL,
+            time_updated integer NOT NULL
+          )
+        `)
+        yield* db.run(
+          sql`INSERT INTO task (id, session_id, content, status, priority, position, time_created, time_updated) VALUES ('tsk_1', 'ses_1', 'spawn', 'pending', 'medium', 0, 1, 1)`,
+        )
+
+        yield* DatabaseMigration.applyOnly(db, [addTaskSpawnFieldsMigration])
+
+        const cols = yield* db.all<{ name: string }>(sql`SELECT name FROM pragma_table_info('task')`)
+        const names = cols.map((column) => column.name)
+        expect(names).toContain("spawned_from")
+        expect(names).toContain("depends_on")
+        expect(yield* db.get(sql`SELECT spawned_from, depends_on FROM task WHERE id = 'tsk_1'`)).toEqual({
+          spawned_from: null,
+          depends_on: null,
+        })
+        yield* db.run(
+          sql`UPDATE task SET spawned_from = 'msg_1', depends_on = '["tsk_a","tsk_b"]' WHERE id = 'tsk_1'`,
+        )
+        expect(yield* db.get(sql`SELECT spawned_from, depends_on FROM task WHERE id = 'tsk_1'`)).toEqual({
+          spawned_from: "msg_1",
+          depends_on: '["tsk_a","tsk_b"]',
         })
       }),
     )

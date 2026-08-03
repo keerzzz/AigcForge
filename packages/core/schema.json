@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "07527a77-8e19-41ce-bbba-838e74ae2b26",
+  "id": "0cb97b87-761a-482c-94e9-4ab95d42ed9b",
   "prevIds": [
-    "32ab51cb-7d14-4f2f-891d-6ffadc1c1c23"
+    "07527a77-8e19-41ce-bbba-838e74ae2b26"
   ],
   "ddl": [
     {
@@ -1849,6 +1849,26 @@
       "default": null,
       "generated": null,
       "name": "recurrence",
+      "entityType": "columns",
+      "table": "task"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "spawned_from",
+      "entityType": "columns",
+      "table": "task"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "depends_on",
       "entityType": "columns",
       "table": "task"
     },

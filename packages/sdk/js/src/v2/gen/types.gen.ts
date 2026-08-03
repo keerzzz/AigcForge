@@ -4724,6 +4724,8 @@ export type SessionTaskWriteInfo = {
   agentID?: string
   scheduledAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
   recurrence?: TaskRecurrence
+  spawnedFrom?: string
+  dependsOn?: Array<string>
 }
 
 export type ToolSummaryEntry = {

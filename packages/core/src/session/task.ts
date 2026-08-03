@@ -31,6 +31,9 @@ export class WriteInfo extends Schema.Class<WriteInfo>("SessionTask.WriteInfo")(
   agentID: Schema.optional(Schema.String),
   scheduledAt: Schema.optional(Schema.Number),
   recurrence: Schema.optional(SessionTaskSchema.TaskRecurrence),
+  // M5: spawning & DAG — originating message id and predecessor task ids.
+  spawnedFrom: Schema.optional(Schema.String),
+  dependsOn: Schema.optional(Schema.Array(Schema.String)),
 }) {}
 
 /**
@@ -178,6 +181,8 @@ const toInfo = (row: TaskRow, now: number): Info => {
     ...(row.scheduled_at !== null && row.scheduled_at !== undefined ? { scheduledAt: row.scheduled_at } : {}),
     ...(row.recurrence ? { recurrence: row.recurrence } : {}),
     ...(run !== undefined ? { nextRun: run } : {}),
+    ...(row.spawned_from ? { spawnedFrom: row.spawned_from } : {}),
+    ...(row.depends_on && row.depends_on.length > 0 ? { dependsOn: row.depends_on } : {}),
     createdAt: row.time_created,
     updatedAt: row.time_updated,
   })
@@ -228,6 +233,7 @@ export const layer = Layer.effect(
         string,
         { agentID?: string; scheduledAt?: number; recurrence?: SessionTaskSchema.TaskRecurrence }
       >()
+      const spawnById = new Map<string, { spawnedFrom?: string; dependsOn?: readonly string[] }>()
 
       // Run validation + reconcile in one transaction. The transaction always
       // succeeds: it reports a rejected client id via the tagged result instead
@@ -284,6 +290,8 @@ export const layer = Layer.effect(
                 agent_id: task.agentID ?? prior?.agent_id ?? null,
                 scheduled_at: task.scheduledAt ?? prior?.scheduled_at ?? null,
                 recurrence: task.recurrence ?? prior?.recurrence ?? null,
+                spawned_from: task.spawnedFrom ?? prior?.spawned_from ?? null,
+                depends_on: task.dependsOn ?? prior?.depends_on ?? null,
                 position: task.position,
                 time_updated: now,
               }
@@ -300,6 +308,10 @@ export const layer = Layer.effect(
                   ? { scheduledAt: columns.scheduled_at }
                   : {}),
                 ...(columns.recurrence ? { recurrence: columns.recurrence } : {}),
+              })
+              spawnById.set(task.id, {
+                ...(columns.spawned_from ? { spawnedFrom: columns.spawned_from } : {}),
+                ...(columns.depends_on && columns.depends_on.length > 0 ? { dependsOn: columns.depends_on } : {}),
               })
               if (existingById.has(task.id)) {
                 yield* tx.update(TaskTable).set(columns).where(eq(TaskTable.id, task.id)).run().pipe(Effect.orDie)
@@ -329,6 +341,7 @@ export const layer = Layer.effect(
         const parentID = parentIdById.get(task.id)
         const outputDigest = digestById.get(task.id)
         const schedule = scheduleById.get(task.id)
+        const spawn = spawnById.get(task.id)
         const run = resolveNextRun({ status: task.status, ...schedule }, now)
         return new Info({
           id: task.id,
@@ -342,6 +355,8 @@ export const layer = Layer.effect(
           ...(schedule?.scheduledAt !== undefined ? { scheduledAt: schedule.scheduledAt } : {}),
           ...(schedule?.recurrence ? { recurrence: schedule.recurrence } : {}),
           ...(run !== undefined ? { nextRun: run } : {}),
+          ...(spawn?.spawnedFrom ? { spawnedFrom: spawn.spawnedFrom } : {}),
+          ...(spawn?.dependsOn && spawn.dependsOn.length > 0 ? { dependsOn: spawn.dependsOn } : {}),
           createdAt: createdAt.get(task.id) ?? now,
           updatedAt: now,
         })
@@ -389,6 +404,8 @@ export const layer = Layer.effect(
                   agent_id: task.agentID ?? null,
                   scheduled_at: task.scheduledAt ?? null,
                   recurrence: task.recurrence ?? null,
+                  spawned_from: task.spawnedFrom ?? null,
+                  depends_on: task.dependsOn ?? null,
                   position,
                   time_created: now,
                   time_updated: now,
@@ -438,6 +455,8 @@ export const layer = Layer.effect(
                 agent_id: prior?.agent_id ?? task.agentID ?? null,
                 scheduled_at: prior?.scheduled_at ?? task.scheduledAt ?? null,
                 recurrence: prior?.recurrence ?? task.recurrence ?? null,
+                spawned_from: prior?.spawned_from ?? task.spawnedFrom ?? null,
+                depends_on: prior?.depends_on ?? task.dependsOn ?? null,
                 position: index,
                 time_updated: now,
               }

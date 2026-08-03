@@ -1,5 +1,13 @@
 # V2 Schema Changelog
 
+## 2026-08-03: Task Spawn Fields, task_spawn Tool, and DAG Helpers (Todo/Task M5 Step 1 — recovered from wip)
+
+- Persist M5 spawn fields on the `task` table via the drizzle-kit pipeline (`20260802140709_add_task_spawn_fields`): nullable `spawned_from` (originating message id) and `depends_on` (JSON predecessor task ids); existing rows backfill null. Registered in `migration.gen.ts` between `add_task_schedule_fields` and `backfill_task_table`.
+- `SessionTask.WriteInfo`/`Info` now carry `spawnedFrom`/`dependsOn`; `update`/`append`/`replaceLegacy` persist them and preserve them through an omitting reconcile (same preserve-omitted rule as `agentID`/`scheduledAt`/`recurrence`).
+- New core `task_spawn` tool (`tool/taskspawn.ts`): spawns a derived task recording `spawnedFrom` = the calling message id, optional `dependsOn` predecessors, and the owning `agentID`; registered in `tool/builtins.ts`. Subagent default deny for `task_spawn` already landed in M2/M3 (`4baeebe3d`).
+- New core `session/dag.ts`: pure `blockedBy` (predecessor terminal-state gate) and `findCycle` (cycle detection) helpers; `test/dag.test.ts` covers both.
+- Compatibility: additive nullable columns + optional fields; generated SDK `SessionTaskWriteInfo` regenerated (`spawnedFrom`/`dependsOn`).
+
 ## 2026-08-03: Agent Task Cross-Session Aggregation Endpoint (Todo/Task M4 Step 3)
 
 - New core `SessionTask.listAll()`: reads every task across all sessions from the `task` table (the M3 `agent_id` column already landed), each row keeping its owning `sessionID`/`agentID`.

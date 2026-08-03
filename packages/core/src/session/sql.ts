@@ -140,6 +140,9 @@ export const TaskTable = sqliteTable(
     agent_id: text(),
     scheduled_at: integer(),
     recurrence: text({ mode: "json" }).$type<SessionTaskSchema.TaskRecurrence>(),
+    // M5: spawning & DAG — originating message and predecessor task ids.
+    spawned_from: text(),
+    depends_on: text({ mode: "json" }).$type<readonly string[]>(),
     position: integer().notNull(),
     ...Timestamps,
   },

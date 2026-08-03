@@ -13,6 +13,7 @@ import { SkillTool } from "./skill"
 import { TaskTool } from "./task"
 import { TaskWriteTool } from "./taskwrite"
 import { TaskScheduleTool } from "./taskschedule"
+import { TaskSpawnTool } from "./taskspawn"
 import { TodoWriteTool } from "./todowrite"
 import { WebFetchTool } from "./webfetch"
 import { WebSearchTool } from "./websearch"
@@ -53,6 +54,7 @@ export const locationLayer = Layer.mergeAll(
   TaskTool.layer,
   TaskWriteTool.layer,
   TaskScheduleTool.layer,
+  TaskSpawnTool.layer,
   TodoWriteTool.layer,
   WebFetchTool.layer,
   WebSearchTool.layer.pipe(Layer.provide(WebSearchTool.defaultConfigLayer)),
