@@ -95,7 +95,7 @@ packages/tui/src/feature-plugins/sidebar/todo.tsx  侧栏插件 (>2项可折叠,
 | # | 能力 | 实现要点 | 优先级 |
 |---|---|---|---|
 | **A1** | **任务衍生 (Task Spawn)** | 对话 → 自动创建新 Agent。"任务衍生" tab | **P0** |
-| **A2** | **定时任务 (Scheduled Jobs)** | per-Agent cron 调度。删除 Agent 时提示 "将同时删除 N 个会话 + N 个定时任务" | **P0** |
+| **A2** | **定时任务 (Scheduled Jobs)** | per-Agent cron 调度。删除 Agent 时级联提示（**按我们的标签模型改写**，2026-08-02 裁决：删除入口仅对 agent-asset 支撑的自定义智能体开放——调用既有 `DELETE /session/{id}/agent-asset/delete` 并级联清除其定时任务；内置智能体 build/general/explore 等代码定义角色**永不进入可删列表**；会话不随删，仅保留为提示计数） | **P0** |
 | **A3** | **Agent Hub** | 三区：我的智能体 + 任务衍生 + 新建 | **P1** |
 | **A4** | **Board Home 任务入口** | "描述你的任务，开始在隔离环境中会话" | **P1** |
 | **A5** | **Skill per-Agent 安装** | `agent-skill-manager`，官方 + 个人 Skills | **P2** |
@@ -387,6 +387,11 @@ Layer 5: TUI (packages/tui/src/component/todo-item.tsx)
 - 弹层容量上限用"浮层管常用聚合，完整管理跳独立页"分层缓解——独立页即未来的 Chat 聚合 tab 立项
 - wip 分支 `todo-task-m4m5` 的 AgentTaskHub 实现（commit `1b8c426ac`）**model/面板/i18n/CSS 可回收**，composer 挂载 hunk 一律不回收
 - 执行提示词：[prompt-todo-task-m4.md](prompt-todo-task-m4.md)
+
+**删除语义补充裁决（2026-08-02，用户拍板）**：
+- **自定义智能体可删**（chat 模式创建的 agent-asset）：删除 = 调既有 `DELETE /session/{id}/agent-asset/delete` 删资产 + 级联清除该 agent 名下全部定时任务；确认文案如实描述（会话保留，仅作计数提示）
+- **内置智能体永不进入可删列表**：build/general/explore/plan 等代码定义角色（`mode: "primary"`，非资产支撑）不得出现删除入口——判别方式：agent 是否被 agent-asset 列表支撑（`GET /agent-asset`），契约层的 `Agent.Info` 无来源标记，app 侧判别即可，不改契约
+- 会话引用已删 agent 的兜底行为（resolve 失败/回退）需执行时核实并在确认文案中如实说明
 
 ---
 
