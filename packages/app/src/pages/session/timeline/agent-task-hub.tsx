@@ -1,19 +1,36 @@
-import { For, Show, createMemo, createSignal } from "solid-js"
+import { For, Show, createEffect, createMemo, createSignal } from "solid-js"
 import { Popover as KobaltePopover } from "@kobalte/core/popover"
 import { useLanguage } from "@/context/language"
 import { useLocal } from "@/context/local"
 import { useServerSync } from "@/context/server-sync"
-import { aggregateAgentTasks, activeTaskCount } from "@/pages/session/timeline/agent-task-hub-model"
+import { useSync } from "@/context/sync"
+import { useSDK } from "@/context/sdk"
+import { showToast } from "@/utils/toast"
+import type { SessionTaskInfo } from "@aigcfroge/sdk/v2/client"
+import {
+  aggregateAgentTasks,
+  activeTaskCount,
+  unassignedTasks,
+} from "@/pages/session/timeline/agent-task-hub-model"
+
+/** Sentinel key for the "未归属" pseudo-entry in the agent list. */
+const UNASSIGNED = "__unassigned__"
+
+type HubAgentRow = { key: string; label: string; detail?: string }
 
 /**
- * M4 AgentTaskHub (plan §5.3 Layer 4 + §8 M4): an Agent-视角 aggregation panel
- * with the Accio agent-panel three-zone layout:
+ * M4 AgentTaskHub (plan §5.3 Layer 4 + §8 M4, entry §5.7): an Agent-视角
+ * aggregation popover with the Accio agent-panel three-zone layout:
  *
- *   1. 我的智能体 — selectable agent list (from the current mode's orchestrator
- *      set via `local.agent.list()`).
- *   2. 任务衍生 — the selected agent's tasks aggregated across every session
- *      (session_task store), with an active-work count.
+ *   1. 我的智能体 — every user agent (non-subagent, non-hidden) plus a
+ *      "未归属" pseudo-entry when unassigned tasks exist.
+ *   2. 任务衍生 — the selected agent's tasks aggregated across every session,
+ *      with an active-work count.
  *   3. 新建 — placeholder entry; the spawn action lands in M5 (task_spawn).
+ *
+ * Data source (Step 3): on open, `GET /agent-task` seeds the session_task store
+ * with every session's tasks, so aggregation is not limited to sessions already
+ * loaded. The store stays the reactive source (task.updated SSE refreshes it).
  */
 export function AgentTaskHub(props: {
   open: boolean
@@ -23,11 +40,46 @@ export function AgentTaskHub(props: {
   const language = useLanguage()
   const local = useLocal()
   const serverSync = useServerSync()
+  const sync = useSync()
+  const sdk = useSDK()
 
-  const agents = createMemo(() => local.agent.list())
+  createEffect(() => {
+    if (!props.open) return
+    void loadCrossSessionTasks()
+  })
+
+  const loadCrossSessionTasks = async () => {
+    try {
+      const result = await sdk().client.agentTask.list({ directory: sdk().directory })
+      const tasks = result.data ?? []
+      const bySession = new Map<string, SessionTaskInfo[]>()
+      for (const task of tasks) {
+        const list = bySession.get(task.sessionID) ?? []
+        list.push(task)
+        bySession.set(task.sessionID, list)
+      }
+      for (const [sessionID, list] of bySession) serverSync().task.set(sessionID, list)
+    } catch (error) {
+      const description = error instanceof Error ? error.message : String(error)
+      showToast({ title: language.t("session.agentHub.loadFailed"), description })
+    }
+  }
+
+  const store = serverSync().data.session_task
+  const agents = createMemo(() => sync().data.agent.filter((agent) => agent.mode !== "subagent" && !agent.hidden))
+  const unassigned = createMemo(() => unassignedTasks(store))
+  const agentRows = createMemo<readonly HubAgentRow[]>(() => [
+    ...agents().map((agent) => ({ key: agent.name, label: agent.name, detail: agent.mode })),
+    ...(unassigned().length > 0
+      ? [{ key: UNASSIGNED, label: language.t("session.agentHub.unassigned"), detail: undefined }]
+      : []),
+  ])
+
   const [selected, setSelected] = createSignal(local.agent.current()?.name)
 
-  const rows = createMemo(() => aggregateAgentTasks(serverSync().data.session_task, selected()))
+  const rows = createMemo(() =>
+    selected() === UNASSIGNED ? unassigned() : aggregateAgentTasks(store, selected()),
+  )
   const active = createMemo(() => activeTaskCount(rows()))
 
   return (
@@ -46,17 +98,17 @@ export function AgentTaskHub(props: {
             <div class="flex flex-col gap-1">
               <div class="text-13-medium text-text-strong">{language.t("session.agentHub.agents")}</div>
               <div class="flex flex-col gap-0.5" data-component="agent-task-hub-agents">
-                <For each={agents()}>
-                  {(agent) => (
+                <For each={agentRows()}>
+                  {(row) => (
                     <button
                       type="button"
                       data-component="agent-task-hub-agent"
-                      data-selected={agent.name === selected() ? "true" : undefined}
+                      data-selected={row.key === selected() ? "true" : undefined}
                       class="flex items-center justify-between gap-2 px-2 py-1 rounded-md text-left text-13-regular text-text-base hover:bg-surface-base-active"
-                      onClick={() => setSelected(agent.name)}
+                      onClick={() => setSelected(row.key)}
                     >
-                      <span class="truncate">{agent.name}</span>
-                      <span class="text-11-regular text-text-weak">{agent.mode}</span>
+                      <span class="truncate">{row.label}</span>
+                      {row.detail ? <span class="text-11-regular text-text-weak">{row.detail}</span> : null}
                     </button>
                   )}
                 </For>

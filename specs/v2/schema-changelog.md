@@ -1,5 +1,12 @@
 # V2 Schema Changelog
 
+## 2026-08-03: Agent Task Cross-Session Aggregation Endpoint (Todo/Task M4 Step 3)
+
+- New core `SessionTask.listAll()`: reads every task across all sessions from the `task` table (the M3 `agent_id` column already landed), each row keeping its owning `sessionID`/`agentID`.
+- New `GET /agent-task` HTTP endpoint returning `Array<SessionTask.Info>` — the Agent Hub's cross-session aggregation source. It lives in a new `agent-task` httpapi group (root `/agent-task`) rather than under `/session/:sessionID`: the workspace-routing middleware parses `/session/<segment>` as a session id and dies on non-`ses_` literals, so a literal cross-session path cannot live under the session prefix.
+- Generated SDK client `AgentTask.list` (`/agent-task`).
+- Compatibility: additive read-only endpoint; no stored data changes, no migration.
+
 ## 2026-08-02: Task Spawn and DAG Fields (Todo/Task M5)
 
 （未落地——M5 变更已移出本分支，完整保留在 wip 分支 `todo-task-m4m5`，待 M5 里程碑合入。移出的内容：`spawned_from`/`depends_on` 落列（迁移 `20260802140709_add_task_spawn_fields`）、`SessionTask.WriteInfo`/`Info` 写路径持久化、`task_spawn` 内建工具、`session/dag.ts` DAG 纯逻辑。注：V1 Todo（`packages/aigcfroge/src/session/todo.ts` + `tool/todo.ts`）的 `@deprecated` 注释已随本分支 M3b-2 落地，文件保留。）

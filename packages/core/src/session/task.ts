@@ -121,6 +121,12 @@ export interface Interface {
     readonly outputDigest?: string
   }) => Effect.Effect<Info | undefined>
   readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<ReadonlyArray<Info>>
+  /**
+   * Every task across all sessions (M4 Agent Hub aggregation source). Rows keep
+   * their owning `sessionID` and `agentID` so the client can group by agent and
+   * surface unassigned tasks.
+   */
+  readonly listAll: () => Effect.Effect<ReadonlyArray<Info>>
   /** Remove every task owned by the session. */
   readonly delete: (sessionID: SessionSchema.ID) => Effect.Effect<void>
 }
@@ -475,7 +481,13 @@ export const layer = Layer.effect(
       yield* publishBoth(sessionID, [])
     })
 
-    return Service.of({ update, append, replaceLegacy, patch, get, delete: remove })
+    const listAll = Effect.fn("SessionTask.listAll")(function* () {
+      const now = (yield* DateTime.nowAsDate).getTime()
+      const rows = yield* db.select().from(TaskTable).orderBy(asc(TaskTable.position)).all().pipe(Effect.orDie)
+      return rows.map((row) => toInfo(row, now))
+    })
+
+    return Service.of({ update, append, replaceLegacy, patch, get, delete: remove, listAll })
   }),
 )
 

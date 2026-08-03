@@ -15,6 +15,8 @@ const hubKeys = [
   "session.agentHub.empty",
   "session.agentHub.new",
   "session.agentHub.new.tooltip",
+  "session.agentHub.unassigned",
+  "session.agentHub.loadFailed",
 ] as const
 
 const read = (rel: string) => fs.readFileSync(path.resolve(__dirname, rel), "utf-8")

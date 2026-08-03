@@ -689,6 +689,8 @@ export const dict = {
   "session.agentHub.empty": "No derived tasks",
   "session.agentHub.new": "New agent",
   "session.agentHub.new.tooltip": "Coming in M5",
+  "session.agentHub.unassigned": "Unassigned",
+  "session.agentHub.loadFailed": "Failed to load agent tasks",
   "session.question.progress": "{{current}} of {{total}} questions",
   "session.followupDock.summary.one": "{{count}} queued message",
   "session.followupDock.summary.other": "{{count}} queued messages",

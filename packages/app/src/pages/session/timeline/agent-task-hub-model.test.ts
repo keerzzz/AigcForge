@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test"
 import type { SessionTaskInfo } from "@aigcfroge/sdk/v2/client"
-import { activeTaskCount, aggregateAgentTasks, countByStatus, type AgentTaskRow } from "./agent-task-hub-model"
+import {
+  activeTaskCount,
+  aggregateAgentTasks,
+  countByStatus,
+  unassignedTasks,
+  type AgentTaskRow,
+} from "./agent-task-hub-model"
 
 const task = (over: Partial<AgentTaskRow> = {}): SessionTaskInfo => ({
   id: "tsk_1",
@@ -57,5 +63,34 @@ describe("activeTaskCount / countByStatus", () => {
   test("breaks counts down by status", () => {
     const rows = [task({ status: "scheduled" }), task({ status: "scheduled" }), task({ status: "completed" })]
     expect(countByStatus(rows)).toEqual({ scheduled: 2, completed: 1 })
+  })
+})
+
+describe("unassignedTasks", () => {
+  test("buckets tasks without an owning agent across sessions", () => {
+    const rows = unassignedTasks({
+      ses_a: [task({ id: "tsk_owned", agentID: "build" }), task({ id: "tsk_orphan", agentID: undefined })],
+      ses_b: [task({ id: "tsk_orphan_2", agentID: undefined, sessionID: "ses_b" })],
+    })
+    expect(rows.map((row) => row.id).sort()).toEqual(["tsk_orphan", "tsk_orphan_2"])
+    expect(rows.every((row) => row.agentID === undefined)).toBe(true)
+  })
+
+  test("scheduled jobs flow through the per-agent aggregation", () => {
+    const rows = aggregateAgentTasks(
+      {
+        ses_a: [
+          task({
+            id: "tsk_nightly",
+            agentID: "build",
+            status: "scheduled",
+            scheduledAt: 1700000000000,
+            recurrence: { cron: "0 9 * * *", enabled: true },
+          }),
+        ],
+      },
+      "build",
+    )
+    expect(rows.map((row) => row.id)).toEqual(["tsk_nightly"])
   })
 })

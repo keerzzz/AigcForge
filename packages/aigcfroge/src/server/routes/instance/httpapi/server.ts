@@ -104,6 +104,7 @@ import { providerHandlers } from "./handlers/provider"
 import { ptyConnectHandlers, ptyHandlers } from "./handlers/pty"
 import { questionHandlers } from "./handlers/question"
 import { sessionHandlers } from "./handlers/session"
+import { agentTaskHandlers } from "./handlers/agent-task"
 import { syncHandlers } from "./handlers/sync"
 import { tuiHandlers } from "./handlers/tui"
 import { handlers } from "@aigcfroge/server/handlers"
@@ -177,6 +178,7 @@ const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
     ImportParserHandlers.importParserHandlers,
     providerHandlers,
     sessionHandlers,
+    agentTaskHandlers,
     syncHandlers,
     tuiHandlers,
     workspaceHandlers,

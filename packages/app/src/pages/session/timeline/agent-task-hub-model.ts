@@ -42,3 +42,12 @@ export const countByStatus = (rows: readonly AgentTaskRow[]): Record<string, num
   for (const row of rows) counts[row.status] = (counts[row.status] ?? 0) + 1
   return counts
 }
+
+/**
+ * Tasks with no owning agent — the hub's "未归属" bucket. `agentID` is optional
+ * on a task (M0/M1 tasks predate agent ownership), so these surface separately
+ * from per-agent rows rather than being dropped by an agent filter.
+ */
+export const unassignedTasks = (
+  sessionTasks: Readonly<Record<string, readonly SessionTaskInfo[]>>,
+): AgentTaskRow[] => aggregateAgentTasks(sessionTasks).filter((row) => !row.agentID)

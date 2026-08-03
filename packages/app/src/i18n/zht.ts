@@ -536,6 +536,8 @@ export const dict = {
   "session.agentHub.empty": "暫無衍生任務",
   "session.agentHub.new": "新建智能體",
   "session.agentHub.new.tooltip": "即將在 M5 提供",
+  "session.agentHub.unassigned": "未歸屬",
+  "session.agentHub.loadFailed": "載入智能體任務失敗",
   "session.followupDock.summary.one": "{{count}} 則佇列訊息",
   "session.followupDock.summary.other": "{{count}} 則佇列訊息",
   "session.followupDock.sendNow": "立即傳送",

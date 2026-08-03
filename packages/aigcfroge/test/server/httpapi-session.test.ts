@@ -1241,4 +1241,36 @@ describe("session task HttpApi", () => {
         expect(todos).toEqual([{ content: "legacy", status: "in_progress", priority: "high" }])
       }),
   )
+
+  it.instance(
+    "GET /agent-task aggregates every session's tasks for the Agent Hub",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = { "x-aigcfroge-directory": encodeURIComponent(test.directory) }
+        const session = yield* createSession({ title: "agent hub" })
+        const other = yield* createSession({ title: "agent hub other" })
+
+        const tasks = yield* SessionTask.Service
+        yield* tasks.update({
+          sessionID: session.id,
+          tasks: [{ content: "build-a", status: "in_progress", priority: "high", agentID: "build" }],
+        })
+        yield* tasks.update({
+          sessionID: other.id,
+          tasks: [
+            { content: "build-b", status: "scheduled", priority: "medium", agentID: "build" },
+            { content: "unowned", status: "pending", priority: "low" },
+          ],
+        })
+
+        const all = yield* requestJson<SessionTask.Info[]>("/agent-task", { headers })
+        expect(all.map((task) => task.content).sort()).toEqual(["build-a", "build-b", "unowned"])
+        const buildA = all.find((task) => task.content === "build-a")
+        expect(buildA?.agentID).toBe("build")
+        expect(buildA?.sessionID).toBe(session.id)
+        const unowned = all.find((task) => task.content === "unowned")
+        expect(unowned?.agentID).toBeUndefined()
+      }),
+  )
 })

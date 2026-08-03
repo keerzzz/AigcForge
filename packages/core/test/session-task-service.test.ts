@@ -389,4 +389,56 @@ describe("SessionTask", () => {
       expect(data.tasks[0]?.outputDigest).toBe("ses_child")
     }),
   )
+
+  it.effect("listAll aggregates every task across sessions with session and agent tags (M4 hub)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const tasks = yield* SessionTask.Service
+      const otherSession = SessionV2.ID.make("ses_task_list_other")
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: otherSession,
+          project_id: Project.ID.global,
+          slug: "task-list-other",
+          directory: "/project",
+          title: "task-list-other",
+          version: "test",
+        })
+        .run()
+        .pipe(Effect.orDie)
+
+      yield* tasks.update({
+        sessionID,
+        tasks: [{ content: "build-a", status: "in_progress", priority: "high", agentID: "build" }],
+      })
+      yield* tasks.update({
+        sessionID: otherSession,
+        tasks: [
+          {
+            content: "build-b",
+            status: "scheduled",
+            priority: "medium",
+            agentID: "build",
+            recurrence: { cron: "0 9 * * *", enabled: true },
+          },
+          { content: "unowned", status: "pending", priority: "low" },
+        ],
+      })
+
+      const all = yield* tasks.listAll()
+      expect(all.map((task) => task.content).sort()).toEqual(["build-a", "build-b", "unowned"])
+      const buildA = all.find((task) => task.content === "build-a")
+      expect(buildA?.sessionID).toBe(sessionID)
+      expect(buildA?.agentID).toBe("build")
+      const buildB = all.find((task) => task.content === "build-b")
+      expect(buildB?.sessionID).toBe(otherSession)
+      expect(buildB?.agentID).toBe("build")
+      expect(buildB?.recurrence?.cron).toBe("0 9 * * *")
+      const unowned = all.find((task) => task.content === "unowned")
+      expect(unowned?.sessionID).toBe(otherSession)
+      expect(unowned?.agentID).toBeUndefined()
+    }),
+  )
 })

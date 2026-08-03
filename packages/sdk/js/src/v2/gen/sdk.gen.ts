@@ -13,6 +13,8 @@ import type {
   AgentAssetListErrors,
   AgentAssetListResponses,
   AgentPartInput,
+  AgentTaskListErrors,
+  AgentTaskListResponses,
   AppAgentsErrors,
   AppAgentsResponses,
   AppLogErrors,
@@ -4214,6 +4216,38 @@ export class AgentAsset extends HeyApiClient {
         ...options?.headers,
         ...params.headers,
       },
+    })
+  }
+}
+
+export class AgentTask extends HeyApiClient {
+  /**
+   * Aggregate all tasks across sessions
+   *
+   * Cross-session task aggregation for the Agent Hub: every task across all sessions, each carrying its owning sessionID and agentID so the client can group by agent.
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<AgentTaskListResponses, AgentTaskListErrors, ThrowOnError>({
+      url: "/agent-task",
+      ...options,
+      ...params,
     })
   }
 }
@@ -8631,6 +8665,11 @@ export class AigcfrogeClient extends HeyApiClient {
   private _agentAsset?: AgentAsset
   get agentAsset(): AgentAsset {
     return (this._agentAsset ??= new AgentAsset({ client: this.client }))
+  }
+
+  private _agentTask?: AgentTask
+  get agentTask(): AgentTask {
+    return (this._agentTask ??= new AgentTask({ client: this.client }))
   }
 
   private _workflowAsset?: WorkflowAsset

@@ -21,6 +21,7 @@ import { SkillAssetApiGroup } from "./groups/skill-asset"
 import { MCPAssetApiGroup } from "./groups/mcp-asset"
 import { CommandAssetApiGroup } from "./groups/command-asset"
 import { AgentAssetApiGroup } from "./groups/agent-asset"
+import { AgentTaskApiGroup } from "./groups/agent-task"
 import { WorkflowAssetApiGroup } from "./groups/workflow-asset"
 import { PluginAssetApiGroup } from "./groups/plugin-asset"
 import { ImportParserApiGroup } from "./groups/import-parser"
@@ -77,6 +78,7 @@ export const InstanceHttpApi = HttpApi.make("aigcfroge-instance")
   .addHttpApi(MCPAssetApiGroup.MCPAssetApi)
   .addHttpApi(CommandAssetApiGroup.CommandAssetApi)
   .addHttpApi(AgentAssetApiGroup.AgentAssetApi)
+  .addHttpApi(AgentTaskApiGroup.AgentTaskApi)
   .addHttpApi(WorkflowAssetApiGroup.WorkflowAssetApi)
   .addHttpApi(PluginAssetApiGroup.PluginAssetApi)
   .addHttpApi(ImportParserApiGroup.ImportParserApi)

@@ -11408,6 +11408,34 @@ export type AgentAssetDeleteResponses = {
   200: unknown
 }
 
+export type AgentTaskListData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/agent-task"
+}
+
+export type AgentTaskListErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type AgentTaskListError = AgentTaskListErrors[keyof AgentTaskListErrors]
+
+export type AgentTaskListResponses = {
+  /**
+   * All tasks across sessions
+   */
+  200: Array<SessionTaskInfo>
+}
+
+export type AgentTaskListResponse = AgentTaskListResponses[keyof AgentTaskListResponses]
+
 export type WorkflowAssetListData = {
   body?: never
   path?: never
