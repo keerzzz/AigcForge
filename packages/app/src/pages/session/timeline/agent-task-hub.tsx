@@ -80,9 +80,9 @@ export function AgentTaskHub(props: {
   // text rather than a dead link.
   const resolveSource = (group: DerivedTaskGroup): string | undefined => {
     const sessionID = props.sessionID()
-    if (!sessionID || group.rows[0]?.sessionID !== sessionID) return
+    if (!sessionID || group.rows[0]?.sessionID !== sessionID) return undefined
     const source = (sync().data.message[sessionID] ?? []).find((message) => message.id === group.sourceMessageID)
-    if (!source) return
+    if (!source) return undefined
     return source.role === "assistant" ? source.parentID : source.id
   }
 
