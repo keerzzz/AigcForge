@@ -1114,6 +1114,41 @@ describe("session task HttpApi", () => {
   )
 
   it.instance(
+    "PATCH /session/:id/task persists M5 spawn fields (spawnedFrom/dependsOn)",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = {
+          "x-aigcfroge-directory": encodeURIComponent(test.directory),
+          "content-type": "application/json",
+        }
+        const session = yield* createSession({ title: "task spawn fields" })
+
+        const created = yield* requestJson<SessionTask.Info[]>(pathFor(SessionPaths.task, { sessionID: session.id }), {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify([
+            {
+              content: "spawned audit",
+              status: "pending",
+              priority: "medium",
+              spawnedFrom: "msg_spawn_1",
+              dependsOn: ["tsk_pred_a"],
+            },
+          ]),
+        })
+        expect(created[0]?.spawnedFrom).toBe("msg_spawn_1")
+        expect(created[0]?.dependsOn).toEqual(["tsk_pred_a"])
+
+        // Re-read through the service: the columns survived the HTTP write.
+        const tasks = yield* SessionTask.Service
+        const got = yield* tasks.get(session.id)
+        expect(got[0]?.spawnedFrom).toBe("msg_spawn_1")
+        expect(got[0]?.dependsOn).toEqual(["tsk_pred_a"])
+      }),
+  )
+
+  it.instance(
     "PATCH /session/:id/task creates tasks from minimal write info",
     () =>
       Effect.gen(function* () {
