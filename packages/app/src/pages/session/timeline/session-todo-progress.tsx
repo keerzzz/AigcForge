@@ -159,12 +159,7 @@ export function SessionTodoProgress(props: { sessionID: () => string | undefined
             </span>
           )}
         </Index>
-        <button
-          type="button"
-          data-component="session-todo-progress-stats"
-          aria-expanded={open()}
-          onClick={toggleOpen}
-        >
+        <button type="button" data-component="session-todo-progress-stats" aria-expanded={open()} onClick={toggleOpen}>
           {progress().done}/{progress().total}
         </button>
       </div>

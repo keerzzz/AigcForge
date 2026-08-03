@@ -79,7 +79,8 @@ export function SessionScheduledTasksPopover(props: {
   // Checkbox writeback: flip the target task's status and PATCH the full list
   // back (reconcile). The server preserves omitted schedule fields, and the
   // republished task.updated refreshes the store — no manual set here.
-  const writeback = (targetID: string, checked: boolean) => {    const id = props.sessionID()
+  const writeback = (targetID: string, checked: boolean) => {
+    const id = props.sessionID()
     if (!id) return
     const all = serverSync().data.session_task[id] ?? []
     void sdk()
@@ -136,16 +137,15 @@ export function SessionScheduledTasksPopover(props: {
         >
           <div class="flex flex-col p-3 gap-2" data-component="session-scheduled-popover">
             <div class="text-13-medium text-text-strong">{language.t("session.scheduled.title")}</div>
-            <Show when={tasks().length > 0} fallback={<div class="text-12-regular text-text-weak">{language.t("session.scheduled.empty")}</div>}>
+            <Show
+              when={tasks().length > 0}
+              fallback={<div class="text-12-regular text-text-weak">{language.t("session.scheduled.empty")}</div>}
+            >
               <div class="flex flex-col gap-1" data-component="session-scheduled-list">
                 <Show when={tasks().length > 0}>
                   {tasks().map((task) => {
-                    const description = task.recurrence
-                      ? task.recurrence.cron
-                      : language.t("session.scheduled.oneshot")
-                    const suffix = finite(task.nextRun)
-                      ? ` · ${formatFullTime(task.nextRun, language.intl())}`
-                      : ""
+                    const description = task.recurrence ? task.recurrence.cron : language.t("session.scheduled.oneshot")
+                    const suffix = finite(task.nextRun) ? ` · ${formatFullTime(task.nextRun, language.intl())}` : ""
                     return (
                       <CheckboxV2
                         checked={isScheduledActive(task.status)}

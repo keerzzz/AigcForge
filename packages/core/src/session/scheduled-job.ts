@@ -1,7 +1,7 @@
 export * as ScheduledJob from "./scheduled-job"
 
 import { eq, inArray, isNotNull, or } from "drizzle-orm"
-import { Context, Effect, Layer, Schedule, Stream } from "effect"
+import { Cause, Context, Effect, Layer, Schedule, Stream } from "effect"
 import { Database } from "../database/database"
 import { LayerNode } from "../effect/layer-node"
 import { EventV2 } from "../event"
@@ -38,14 +38,17 @@ export interface ScheduledResult {
  * it; tests install a stub. Mirrors the TaskDriver module seam so the scheduler
  * stays dependency-free at the trigger boundary.
  */
-export class ScheduledExecutor extends Context.Service<ScheduledExecutor, {
-  readonly run: (input: {
-    parentID: SessionSchema.ID
-    agent?: string
-    prompt: string
-    taskID: string
-  }) => Effect.Effect<ScheduledResult>
-}>()("@aigcfroge/v2/ScheduledJobExecutor") {}
+export class ScheduledExecutor extends Context.Service<
+  ScheduledExecutor,
+  {
+    readonly run: (input: {
+      parentID: SessionSchema.ID
+      agent?: string
+      prompt: string
+      taskID: string
+    }) => Effect.Effect<ScheduledResult>
+  }
+>()("@aigcfroge/v2/ScheduledJobExecutor") {}
 
 export interface Interface {
   /** Rebuild the in-memory queue from the task table (startup re-arm). */
@@ -95,14 +98,13 @@ export const layer = Layer.effect(
       const dagRows =
         deps.length === 0
           ? [row]
-          : [
-              row,
-              ...(yield* db.select().from(TaskTable).where(inArray(TaskTable.id, deps)).all().pipe(Effect.orDie)),
-            ]
-      if (TaskDag.blockedBy(
-        dagRows.map((item) => ({ id: item.id, status: item.status, dependsOn: item.depends_on ?? undefined })),
-        taskID,
-      ).length > 0) {
+          : [row, ...(yield* db.select().from(TaskTable).where(inArray(TaskTable.id, deps)).all().pipe(Effect.orDie))]
+      if (
+        TaskDag.blockedBy(
+          dagRows.map((item) => ({ id: item.id, status: item.status, dependsOn: item.depends_on ?? undefined })),
+          taskID,
+        ).length > 0
+      ) {
         return
       }
       // Claim the task as in_progress BEFORE executing (B1 re-entry guard): the
@@ -122,10 +124,16 @@ export const layer = Layer.effect(
         .pipe(
           // An executor failure/defect settles this task failed instead of
           // aborting the whole tick and skipping the remaining due jobs.
-          Effect.catchCause((cause) =>
-            Effect.logError("Scheduled job executor failed", cause).pipe(
-              Effect.as({ outcome: "failed" } satisfies ScheduledResult),
-            ),
+          // Interrupt-only causes pass through untouched (mirroring the
+          // executor seam's contract) so a draining runtime can still shut
+          // down instead of persisting a spurious `failed` settle for the
+          // in-flight job.
+          Effect.catchCauseIf(
+            (cause) => !Cause.hasInterruptsOnly(cause),
+            (cause) =>
+              Effect.logError("Scheduled job executor failed", cause).pipe(
+                Effect.as({ outcome: "failed" } satisfies ScheduledResult),
+              ),
           ),
         )
       const digest =
@@ -169,10 +177,7 @@ export const layer = Layer.effect(
   }),
 )
 
-export const defaultLayer = layer.pipe(
-  Layer.provide(SessionTask.defaultLayer),
-  Layer.provide(Database.defaultLayer),
-)
+export const defaultLayer = layer.pipe(Layer.provide(SessionTask.defaultLayer), Layer.provide(Database.defaultLayer))
 
 /**
  * Production node: the runner rides the shared Database/EventV2/SessionTask
@@ -195,9 +200,7 @@ export const daemonLayer = Layer.effectDiscard(
     const runner = yield* Service
     const events = yield* EventV2.Service
     yield* runner.arm(Date.now())
-    yield* Effect.forkScoped(
-      runner.tick(Date.now()).pipe(Effect.ignore, Effect.repeat(Schedule.spaced("1 minute"))),
-    )
+    yield* Effect.forkScoped(runner.tick(Date.now()).pipe(Effect.ignore, Effect.repeat(Schedule.spaced("1 minute"))))
     yield* events.subscribe(SessionTask.Event.Updated).pipe(
       Stream.runForEach(() => runner.arm(Date.now()).pipe(Effect.ignore)),
       Effect.forkScoped({ startImmediately: true }),

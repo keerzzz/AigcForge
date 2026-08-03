@@ -1,5 +1,5 @@
 import { describe, expect } from "bun:test"
-import { Duration, Effect, Layer, Schema } from "effect"
+import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, Schema } from "effect"
 import * as TestClock from "effect/testing/TestClock"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
@@ -12,28 +12,43 @@ import { ScheduledJob } from "@aigcfroge/core/session/scheduled-job"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { testEffect } from "./lib/effect"
 
-const at = (y: number, mo: number, d: number, h: number, mi: number) =>
-  new Date(y, mo - 1, d, h, mi, 0, 0).getTime()
+const at = (y: number, mo: number, d: number, h: number, mi: number) => new Date(y, mo - 1, d, h, mi, 0, 0).getTime()
 
 const sessionID = SessionV2.ID.make("ses_schedule_test")
 
 type Call = { parentID: string; agent?: string; prompt: string; taskID: string }
-const holder: { calls: Call[]; result: ScheduledJob.ScheduledResult; dieFor?: string } = {
+const holder: {
+  calls: Call[]
+  result: ScheduledJob.ScheduledResult
+  dieFor?: string
+  /** When set, the stub signals it and then blocks forever (in-flight run). */
+  blockStarted?: Deferred.Deferred<void>
+} = {
   calls: [],
   result: { outcome: "completed", childSessionID: SessionV2.ID.make("ses_child") },
 }
 const stubExecutor = Layer.succeed(
   ScheduledJob.ScheduledExecutor,
   ScheduledJob.ScheduledExecutor.of({
-    run: (input) =>
+    run: (input) => {
       // `dieFor` makes the executor raise a defect for the matching prompt so
-      // tests can exercise the tick-level failure containment.
-      holder.dieFor === input.prompt
-        ? Effect.die("executor defect")
-        : Effect.sync(() => {
-            holder.calls.push(input)
-            return holder.result
-          }),
+      // tests can exercise the tick-level failure containment. `blockStarted`
+      // makes the executor signal and then block, so tests can interrupt a
+      // mid-flight trigger (simulating a draining daemon scope closing).
+      if (holder.dieFor === input.prompt) return Effect.die("executor defect")
+      const block = holder.blockStarted
+      if (block) {
+        return Effect.gen(function* () {
+          holder.calls.push(input)
+          yield* Deferred.succeed(block, undefined)
+          return yield* Effect.never
+        })
+      }
+      return Effect.sync(() => {
+        holder.calls.push(input)
+        return holder.result
+      })
+    },
   }),
 )
 
@@ -50,6 +65,7 @@ const setup = Effect.gen(function* () {
   holder.calls = []
   holder.result = { outcome: "completed", childSessionID: SessionV2.ID.make("ses_child") }
   holder.dieFor = undefined
+  holder.blockStarted = undefined
   const { db } = yield* Database.Service
   yield* db
     .insert(ProjectTable)
@@ -225,6 +241,40 @@ describe("ScheduledJobRunner", () => {
     }),
   )
 
+  it.effect("an interrupted in-flight executor is not settled as failed (draining daemon scope)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const runner = yield* ScheduledJob.Service
+      yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "audit", status: "scheduled", priority: "medium", scheduledAt: at(2026, 8, 2, 9, 0) }],
+      })
+
+      // Block the executor mid-flight so the trigger is still in its settle
+      // window when we interrupt it — simulating the daemon scope closing.
+      const started = yield* Deferred.make<void>()
+      holder.blockStarted = started
+
+      yield* runner.arm(at(2026, 8, 2, 8, 59))
+      const fiber = yield* runner.tick(at(2026, 8, 2, 9, 0)).pipe(Effect.forkIn(yield* Effect.scope))
+      // The claim (in_progress) has landed once the executor is running.
+      yield* Deferred.await(started)
+
+      // Interrupt the tick mid-run: the interrupt must propagate through the
+      // executor and the trigger's recovery, NOT persist a spurious failed
+      // settle for the in-flight job.
+      yield* Fiber.interrupt(fiber)
+      const exit = yield* Fiber.await(fiber)
+      expect(Exit.isFailure(exit) && Cause.hasInterrupts(exit.cause)).toBe(true)
+
+      const settled = yield* tasks.get(sessionID)
+      expect(settled[0]?.status).not.toBe("failed")
+      // The claim is left open (no settle ran); a future schedule can resume it.
+      expect(settled[0]?.status).toBe("in_progress")
+    }),
+  )
+
   it.effect("arm rebuilds the queue from the task table on every call (restart re-arm)", () =>
     Effect.gen(function* () {
       yield* setup
@@ -360,7 +410,13 @@ describe("ScheduledJob daemon", () => {
       const job = (yield* tasks.append({
         sessionID,
         tasks: [
-          { content: "gated", status: "scheduled", priority: "medium", scheduledAt: at(2026, 8, 2, 9, 0), dependsOn: [pred.id] },
+          {
+            content: "gated",
+            status: "scheduled",
+            priority: "medium",
+            scheduledAt: at(2026, 8, 2, 9, 0),
+            dependsOn: [pred.id],
+          },
         ],
       })).find((t) => t.content === "gated")
       expect(job).toBeDefined()
@@ -391,7 +447,13 @@ describe("ScheduledJob daemon", () => {
       const job = (yield* tasks.append({
         sessionID,
         tasks: [
-          { content: "gated", status: "scheduled", priority: "medium", scheduledAt: at(2026, 8, 2, 9, 0), dependsOn: [pred.id] },
+          {
+            content: "gated",
+            status: "scheduled",
+            priority: "medium",
+            scheduledAt: at(2026, 8, 2, 9, 0),
+            dependsOn: [pred.id],
+          },
         ],
       })).find((t) => t.content === "gated")
 
@@ -414,7 +476,13 @@ describe("ScheduledJob daemon", () => {
       const job = (yield* tasks.append({
         sessionID,
         tasks: [
-          { content: "gated", status: "scheduled", priority: "medium", scheduledAt: at(2026, 8, 2, 9, 0), dependsOn: [pred.id] },
+          {
+            content: "gated",
+            status: "scheduled",
+            priority: "medium",
+            scheduledAt: at(2026, 8, 2, 9, 0),
+            dependsOn: [pred.id],
+          },
         ],
       })).find((t) => t.content === "gated")
 

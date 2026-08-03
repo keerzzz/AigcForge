@@ -125,12 +125,7 @@ describe("scheduledAgentTasks (Step 4 agent-view management list)", () => {
 
 describe("sessionCountForAgent (detail header session count)", () => {
   test("counts sessions bound to the agent", () => {
-    const sessions = [
-      { agent: "build" },
-      { agent: "build" },
-      { agent: "auditor" },
-      {},
-    ]
+    const sessions = [{ agent: "build" }, { agent: "build" }, { agent: "auditor" }, {}]
     expect(sessionCountForAgent(sessions, "build")).toBe(2)
     expect(sessionCountForAgent(sessions, "auditor")).toBe(1)
     expect(sessionCountForAgent(sessions, "meta")).toBe(0)
@@ -176,7 +171,11 @@ describe("scheduled-task writeback helpers (Step 4)", () => {
   })
 
   test("newScheduledTask builds a mint-able write shape for the selected agent", () => {
-    const recurring = newScheduledTask({ content: "nightly", agentID: "build", recurrence: { cron: "0 9 * * *", enabled: true } })
+    const recurring = newScheduledTask({
+      content: "nightly",
+      agentID: "build",
+      recurrence: { cron: "0 9 * * *", enabled: true },
+    })
     expect(recurring).toMatchObject({ content: "nightly", status: "scheduled", priority: "medium", agentID: "build" })
     expect(recurring.recurrence?.cron).toBe("0 9 * * *")
     expect(recurring.scheduledAt).toBeUndefined()

@@ -78,10 +78,7 @@ import { createTimelineProjection } from "./projection"
 import { MessageComment, SummaryDiff, TimelineRow, TimelineRowMap } from "./rows"
 import { filterVirtualIndexes } from "./virtual-items"
 import { SessionTodoProgress } from "@/pages/session/timeline/session-todo-progress"
-import {
-  SessionScheduledChip,
-  SessionScheduledTasksPopover,
-} from "@/pages/session/timeline/session-scheduled-tasks"
+import { SessionScheduledChip, SessionScheduledTasksPopover } from "@/pages/session/timeline/session-scheduled-tasks"
 import { AgentTaskHub } from "@/pages/session/timeline/agent-task-hub"
 
 const emptyMessages: MessageType[] = []
@@ -1197,16 +1194,9 @@ export function MessageTimeline(props: {
         return (
           <TimelineRowFrame row={assistantPartRow}>
             <div data-slot="session-turn-message-container" class="w-full px-4 md:px-5">
-              <div
-                data-slot="session-turn-assistant-content"
-                aria-hidden={isWorking()}
-              >
+              <div data-slot="session-turn-assistant-content" aria-hidden={isWorking()}>
                 {renderAssistantPartGroup(assistantPartRow, onSizeChange)}
-                <Show
-                  when={
-                    isLastAssistant() && !isWorking() && handoffs().length > 0 && props.actions?.handoff
-                  }
-                >
+                <Show when={isLastAssistant() && !isWorking() && handoffs().length > 0 && props.actions?.handoff}>
                   <div class="flex items-center justify-end pt-0.5">
                     <HandoffButton
                       actions={handoffs().map((h) => ({
@@ -1509,10 +1499,24 @@ export function MessageTimeline(props: {
                           variant="ghost"
                           class="size-6 rounded-md data-[expanded]:bg-surface-base-active"
                           classList={{
-                            "bg-surface-base-active": share.open || title.pendingShare || scheduledOpen() || title.pendingScheduled || hubOpen() || title.pendingHub,
+                            "bg-surface-base-active":
+                              share.open ||
+                              title.pendingShare ||
+                              scheduledOpen() ||
+                              title.pendingScheduled ||
+                              hubOpen() ||
+                              title.pendingHub,
                           }}
                           aria-label={language.t("common.moreOptions")}
-                          aria-expanded={title.menuOpen || share.open || title.pendingShare || scheduledOpen() || title.pendingScheduled || hubOpen() || title.pendingHub}
+                          aria-expanded={
+                            title.menuOpen ||
+                            share.open ||
+                            title.pendingShare ||
+                            scheduledOpen() ||
+                            title.pendingScheduled ||
+                            hubOpen() ||
+                            title.pendingHub
+                          }
                           ref={(el: HTMLButtonElement) => {
                             more = el
                           }}

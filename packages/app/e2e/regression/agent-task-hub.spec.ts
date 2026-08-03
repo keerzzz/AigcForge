@@ -173,8 +173,7 @@ test.describe("regression: agent hub scheduled-task management (M4)", () => {
 
     // Pausing the active scheduled task PATCHes its status to cancelled.
     const patch = page.waitForResponse(
-      (response) =>
-        response.url().includes(`/session/${sessionID}/task`) && response.request().method() === "PATCH",
+      (response) => response.url().includes(`/session/${sessionID}/task`) && response.request().method() === "PATCH",
     )
     await detail.locator('[data-slot="checkbox-v2-control"]').first().click()
     const response = await patch
@@ -207,17 +206,108 @@ test.describe("regression: agent hub scheduled-task management (M4)", () => {
     // assistant message, whose jump resolves to the parent user message anchor.
     const spawn = hub.locator('[data-component="agent-task-hub-spawn"]')
     await expect(spawn).toBeVisible({ timeout: 15_000 })
-    await expect(spawn.locator('[data-component="agent-task-hub-spawn-source"]').first()).toContainText(
-      "msg_user_hub",
-    )
-    await expect(spawn.locator('[data-component="agent-task-hub-spawn-task"]').first()).toContainText(
-      "spawned audit",
-    )
+    await expect(spawn.locator('[data-component="agent-task-hub-spawn-source"]').first()).toContainText("msg_user_hub")
+    await expect(spawn.locator('[data-component="agent-task-hub-spawn-task"]').first()).toContainText("spawned audit")
 
     // Behavior assertion: clicking the source lands on the resolved deep-link
     // hash (a render-only assertion would not catch a dead jump).
     await spawn.locator('[data-component="agent-task-hub-spawn-source"]').first().click()
     await expect(page).toHaveURL(/#message-msg_user_hub/)
+  })
+
+  test("deletes a scheduled task via the hub's remove action", async ({ page }) => {
+    const events: EventPayload[] = []
+    await mockServer(page, events)
+    await configurePage(page)
+
+    events.push({
+      directory,
+      payload: { type: "task.updated", properties: { sessionID, tasks: allTasks } },
+    })
+
+    await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+    await expectSessionTitle(page, title)
+
+    await page.locator('[data-session-title] [aria-label="More options"]').click()
+    await page.getByText("My agents", { exact: true }).click()
+    const hub = page.locator('[data-component="agent-task-hub"]')
+    await expect(hub).toBeVisible({ timeout: 15_000 })
+    await hub.locator('[data-component="agent-task-hub-agent"]').first().click()
+    const detail = hub.locator('[data-component="agent-task-hub-detail"]')
+    await expect(detail).toBeVisible({ timeout: 15_000 })
+    await expect(detail.locator('[data-component="agent-task-hub-scheduled"]')).toHaveCount(2)
+
+    // Removing the first scheduled task PATCHes a reconcile that omits it.
+    const patch = page.waitForResponse(
+      (response) => response.url().includes(`/session/${sessionID}/task`) && response.request().method() === "PATCH",
+    )
+    await detail
+      .locator('[data-component="agent-task-hub-scheduled"]')
+      .first()
+      .locator('[data-component="agent-task-hub-task-delete"]')
+      .click()
+    const response = await patch
+    expect(response.status()).toBe(200)
+    const body = await response.json()
+    expect(body).toHaveLength(4)
+    expect(body.find((task: { id: string }) => task.id === "tsk_hub_sched_a")).toBeUndefined()
+    expect(body.find((task: { id: string }) => task.id === "tsk_hub_sched_b")).toBeDefined()
+  })
+
+  test("creates a scheduled task via the hub's create form", async ({ page }) => {
+    const events: EventPayload[] = []
+    await mockServer(page, events)
+    await configurePage(page)
+
+    events.push({
+      directory,
+      payload: { type: "task.updated", properties: { sessionID, tasks: allTasks } },
+    })
+
+    await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+    await expectSessionTitle(page, title)
+
+    await page.locator('[data-session-title] [aria-label="More options"]').click()
+    await page.getByText("My agents", { exact: true }).click()
+    const hub = page.locator('[data-component="agent-task-hub"]')
+    await expect(hub).toBeVisible({ timeout: 15_000 })
+    await hub.locator('[data-component="agent-task-hub-agent"]').first().click()
+    const detail = hub.locator('[data-component="agent-task-hub-detail"]')
+    await expect(detail).toBeVisible({ timeout: 15_000 })
+
+    // Toggle the create form open (the secondary button flips to "Cancel").
+    await detail.getByText("New scheduled task", { exact: true }).click()
+    const form = detail.locator('[data-component="agent-task-hub-create-form"]')
+    await expect(form).toBeVisible()
+    const submit = form.getByText("New scheduled task", { exact: true })
+    await form.getByPlaceholder("Task content").fill("nightly digest")
+
+    // A one-shot time in the past must not be creatable (m-5: the server's
+    // dead-job guard only validates recurrence, so the UI rejects it up front).
+    const atInput = form.locator('input[type="datetime-local"]')
+    await atInput.fill("2020-01-01T09:00")
+    await expect(submit).toBeDisabled()
+    await atInput.fill("")
+
+    await form.getByPlaceholder("Cron expression").fill("0 8 * * *")
+
+    // With the form open, "New scheduled task" is now the submit button.
+    const patch = page.waitForResponse(
+      (response) => response.url().includes(`/session/${sessionID}/task`) && response.request().method() === "PATCH",
+    )
+    await submit.click()
+    const response = await patch
+    expect(response.status()).toBe(200)
+    const body = await response.json()
+    expect(body).toHaveLength(6)
+    const created = body.find((task: { content: string }) => task.content === "nightly digest")
+    expect(created).toMatchObject({
+      content: "nightly digest",
+      status: "scheduled",
+      priority: "medium",
+      agentID: "build",
+      recurrence: { cron: "0 8 * * *", enabled: true },
+    })
   })
 })
 

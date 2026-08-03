@@ -1153,7 +1153,8 @@ export const dict = {
   "chat.dirtyDraft.stay": "留下",
   "chat.dirtyDraft.leave": "离开",
   "chatCapture.captureAsAsset": "存为资产",
-  "chatCapture.instruction": "以下为用户从会话中捕获的内容，请推断最合适的资产类型（prompt/skill/command 等），并调用对应的 propose_*_asset 工具。",
+  "chatCapture.instruction":
+    "以下为用户从会话中捕获的内容，请推断最合适的资产类型（prompt/skill/command 等），并调用对应的 propose_*_asset 工具。",
   "chatCapture.sourceLabel": "来源会话",
   "chatCapture.repeatSuggestion": "这条消息与之前的消息相似，是否要存为可复用的资产？",
   "command.project.previous": "上一个项目",
@@ -1239,7 +1240,8 @@ export const dict = {
   "wsl.onboarding.installAigcfroge": "安装 Aigcfroge",
   "notification.permission.fromSubagent": "来自子智能体",
   "settings.general.row.subagentAttendedDefault.title": "子智能体有人值守模式",
-  "settings.general.row.subagentAttendedDefault.description": "启用后，子智能体会等待用户批准权限请求（有人值守）；禁用后，请求将被自动拒绝（无人值守）。",
+  "settings.general.row.subagentAttendedDefault.description":
+    "启用后，子智能体会等待用户批准权限请求（有人值守）；禁用后，请求将被自动拒绝（无人值守）。",
   "statusBar.metrics.toolCount": "工具调用",
   "statusBar.metrics.group.tools": "工具",
   "statusBar.openContext": "打开上下文标签页",

@@ -16,9 +16,9 @@ describe("isScheduledTask", () => {
   })
 
   test("recurrence counts even without scheduledAt", () => {
-    expect(
-      isScheduledTask({ ...base, status: "scheduled", recurrence: { cron: "0 9 * * *", enabled: true } }),
-    ).toBe(true)
+    expect(isScheduledTask({ ...base, status: "scheduled", recurrence: { cron: "0 9 * * *", enabled: true } })).toBe(
+      true,
+    )
   })
 
   test("plain task does not count", () => {

@@ -126,7 +126,7 @@ export function AgentTaskHub(props: {
     if (!agent) return 0
     return sessionCountForAgent(sessions(), agent)
   })
-  const selectedLabel = () => (isUnassigned() ? language.t("session.agentHub.unassigned") : agentName() ?? "")
+  const selectedLabel = () => (isUnassigned() ? language.t("session.agentHub.unassigned") : (agentName() ?? ""))
 
   // ── writebacks (task_schedule semantics over PATCH /session/:id/task) ──
 
@@ -170,7 +170,15 @@ export function AgentTaskHub(props: {
 
   const canCreate = createMemo(() => {
     if (isUnassigned() || !props.sessionID()) return false
-    return content().trim().length > 0 && (cron().trim().length > 0 || at().length > 0)
+    const hasCron = cron().trim().length > 0
+    const hasAt = at().length > 0
+    if (content().trim().length === 0 || (!hasCron && !hasAt)) return false
+    // A one-shot (cron-less) schedule must point strictly into the future: the
+    // server's dead-job guard only validates recurrence, so a past scheduledAt
+    // would create a task that fires on the very next tick (or sits silently
+    // where no daemon re-arms it) instead of the intended future run.
+    if (!hasCron && hasAt && new Date(at()).getTime() <= Date.now()) return false
+    return true
   })
 
   const submitCreate = () => {
@@ -240,7 +248,10 @@ export function AgentTaskHub(props: {
                 <div class="flex items-center justify-between gap-2">
                   <span class="text-13-medium text-text-strong truncate">{selectedLabel()}</span>
                   <span class="text-11-regular text-text-weak shrink-0">
-                    {language.t("session.agentHub.detailCounts", { sessions: sessionCount(), tasks: scheduled().length })}
+                    {language.t("session.agentHub.detailCounts", {
+                      sessions: sessionCount(),
+                      tasks: scheduled().length,
+                    })}
                   </span>
                 </div>
                 <Show
@@ -320,12 +331,7 @@ export function AgentTaskHub(props: {
                       </Button>
                     </div>
                   </Show>
-                  <Button
-                    variant="secondary"
-                    size="normal"
-                    class="w-full"
-                    onClick={() => setCreating(!creating())}
-                  >
+                  <Button variant="secondary" size="normal" class="w-full" onClick={() => setCreating(!creating())}>
                     {creating() ? language.t("common.cancel") : language.t("session.agentHub.newTask")}
                   </Button>
                 </Show>

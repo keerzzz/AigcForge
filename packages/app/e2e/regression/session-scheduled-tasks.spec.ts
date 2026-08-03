@@ -102,8 +102,7 @@ test.describe("regression: session scheduled tasks UI", () => {
 
     // Checking the active scheduled task PATCHes it to cancelled (echo body).
     const patch = page.waitForResponse(
-      (response) =>
-        response.url().includes(`/session/${sessionID}/task`) && response.request().method() === "PATCH",
+      (response) => response.url().includes(`/session/${sessionID}/task`) && response.request().method() === "PATCH",
     )
     await popover.locator('[data-slot="checkbox-v2-control"]').first().click()
     const response = await patch

@@ -72,7 +72,8 @@
     pointer-events: auto;
   }
 
-  [data-component="session-progress"]:has([data-component="session-todo-progress"]) [data-component="session-progress-bar"] {
+  [data-component="session-progress"]:has([data-component="session-todo-progress"])
+    [data-component="session-progress-bar"] {
     animation: none;
   }
 
@@ -91,7 +92,12 @@
   }
 
   [data-component="session-todo-progress-fill"][data-anchor] {
-    background: linear-gradient(90deg, var(--v2-icon-icon-accent), var(--v2-icon-icon-accent-hover), var(--v2-icon-icon-accent));
+    background: linear-gradient(
+      90deg,
+      var(--v2-icon-icon-accent),
+      var(--v2-icon-icon-accent-hover),
+      var(--v2-icon-icon-accent)
+    );
   }
 
   [data-component="session-todo-progress-node"] {

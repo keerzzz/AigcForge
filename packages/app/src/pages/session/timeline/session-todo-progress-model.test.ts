@@ -1,10 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import {
-  computeTodoProgress,
-  flipTaskStatus,
-  normalizePriority,
-  normalizeStatus,
-} from "./session-todo-progress-model"
+import { computeTodoProgress, flipTaskStatus, normalizePriority, normalizeStatus } from "./session-todo-progress-model"
 
 describe("computeTodoProgress", () => {
   test("empty array has total 0 and ratio 0", () => {
@@ -112,9 +107,7 @@ describe("computeTodoProgress", () => {
   })
 
   test("at or below the limit no ellipsis markers appear", () => {
-    const p = computeTodoProgress(
-      Array.from({ length: 20 }, (_, i) => ({ content: `t${i}`, status: "pending" })),
-    )
+    const p = computeTodoProgress(Array.from({ length: 20 }, (_, i) => ({ content: `t${i}`, status: "pending" })))
     expect(p.nodes).toHaveLength(20)
     expect(p.ellipsis).toEqual([])
   })

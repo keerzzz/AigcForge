@@ -107,8 +107,7 @@ test.describe("regression: session todo progress pulse line", () => {
     // Checking the pending task PATCHes the reconciled list back. Kobalte
     // toggles on the control element, not the root.
     const patch = page.waitForResponse(
-      (response) =>
-        response.url().includes(`/session/${sessionID}/task`) && response.request().method() === "PATCH",
+      (response) => response.url().includes(`/session/${sessionID}/task`) && response.request().method() === "PATCH",
     )
     await panel.locator('[data-slot="checkbox-v2-control"]').nth(1).click()
     const response = await patch
@@ -175,8 +174,7 @@ test.describe("regression: session todo progress pulse line", () => {
     await expect(panel).toBeVisible()
 
     const patch = page.waitForResponse(
-      (response) =>
-        response.url().includes(`/session/${sessionID}/task`) && response.request().method() === "PATCH",
+      (response) => response.url().includes(`/session/${sessionID}/task`) && response.request().method() === "PATCH",
     )
     await panel.locator('[data-slot="checkbox-v2-control"]').nth(1).click()
     const response = await patch

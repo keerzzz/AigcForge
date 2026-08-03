@@ -49,9 +49,8 @@ export const countByStatus = (rows: readonly AgentTaskRow[]): Record<string, num
  * on a task (M0/M1 tasks predate agent ownership), so these surface separately
  * from per-agent rows rather than being dropped by an agent filter.
  */
-export const unassignedTasks = (
-  sessionTasks: Readonly<Record<string, readonly SessionTaskInfo[]>>,
-): AgentTaskRow[] => aggregateAgentTasks(sessionTasks).filter((row) => !row.agentID)
+export const unassignedTasks = (sessionTasks: Readonly<Record<string, readonly SessionTaskInfo[]>>): AgentTaskRow[] =>
+  aggregateAgentTasks(sessionTasks).filter((row) => !row.agentID)
 
 /**
  * Step 4 agent-view management list: the selected agent's scheduled tasks
@@ -64,10 +63,8 @@ export const scheduledAgentTasks = (
 ): AgentTaskRow[] => aggregateAgentTasks(sessionTasks, agentID).filter(isScheduledTask)
 
 /** Sessions bound to an agent — the detail header's session count. */
-export const sessionCountForAgent = (
-  sessions: readonly { agent?: string }[],
-  agentName: string,
-): number => sessions.filter((session) => session.agent === agentName).length
+export const sessionCountForAgent = (sessions: readonly { agent?: string }[], agentName: string): number =>
+  sessions.filter((session) => session.agent === agentName).length
 
 /** A group of derived tasks spawned from one source message. */
 export interface DerivedTaskGroup {

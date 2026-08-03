@@ -92,7 +92,9 @@ function makeQueryOptionsApi(
     agents: (directory: PathKey) => loadAgentsQuery(scope, directory, sdkFor(directory)),
     mcp: (directory: PathKey) => loadMcpQuery(scope, directory, sdkFor(directory)),
     lsp: (directory: PathKey) => loadLspQuery(scope, directory, sdkFor(directory)),
-    sessions: (directory: PathKey, mode?: ProductMode) => ({ queryKey: [scope, directory, "loadSessions", mode] as const }),
+    sessions: (directory: PathKey, mode?: ProductMode) => ({
+      queryKey: [scope, directory, "loadSessions", mode] as const,
+    }),
   }
 }
 export type QueryOptionsApi = ReturnType<typeof makeQueryOptionsApi>
@@ -243,7 +245,8 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     scope: serverSDK.scope,
     persist: persisted,
     isBooting: (directory) => booting.has(directory),
-    isLoadingSessions: (directory) => Array.from(sessionLoads.keys()).some((key) => key === directory || key.startsWith(`${directory}\0`)),
+    isLoadingSessions: (directory) =>
+      Array.from(sessionLoads.keys()).some((key) => key === directory || key.startsWith(`${directory}\0`)),
     onBootstrap: (directory) => {
       void bootstrapInstance(directory)
     },
