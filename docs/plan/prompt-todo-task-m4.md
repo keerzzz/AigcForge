@@ -63,7 +63,7 @@ packages/app/e2e/regression/session-scheduled-tasks.spec.ts    M3 E2E（mock-ser
 |---|---|---|
 | ① AgentTaskHub 面板 | 入口 = **标题右侧 dot-grid 更多下拉加"智能体"菜单项 + 弹层**（§5.7 决策，复用 §5.6 模式）；三区结构：我的智能体 + 任务衍生（**占位**，接 M5 task_spawn，本期不接逻辑）+ 新建入口 | 计划 §3.1 A3、§5.3 Layer 4 |
 | ② Agent 视角聚合 | 智能体列表 + 每个 Agent 名下的 task / 定时任务聚合视图 | 计划 §3.2 映射表、§8 M4 |
-| ③ 定时任务完整管理 UI（agent 视角） | 列表 / 新建 / 启停 / 删除；**删除 Agent 时提示"将同时删除 N 个会话 + N 个定时任务"** | 计划 §3.1 A2、§8 M4（对齐 Accio agent-panel） |
+| ③ 定时任务完整管理 UI（agent 视角） | 列表 / 新建 / 启停 / 删除（**仅删定时任务**；删除 Agent 已移出 M4——2026-08-03 裁决，见计划 §5.7 保留裁决） | 计划 §3.1 A2、§8 M4（对齐 Accio agent-panel） |
 
 **退出条件**：Agent Hub 可用（三件套联调通过 + E2E 全生命周期）。
 
@@ -144,10 +144,10 @@ wip 分支 commit `1b8c426ac`（`feat(app): AgentTaskHub panel (M4)`）存有前
 
 **红**：
 - agent 视角定时任务列表（该 agent 名下全部 session 的 scheduled task）
-- 新建 / 启停 / 删除操作测试；**删除 Agent 联动提示**：删除有 N 个 session + M 个定时任务的 agent 时，确认文案包含两个计数（计划 §3.1 A2）
+- 新建 / 启停 / 删除操作测试（删除对象是定时任务本身；**不做删除 Agent 入口**，已移出 M4）
 - 写回路径测试：启停/删除走 task_schedule 的 pause/resume/remove 语义（M3 已交付，服务端 reconcile 保留式——省略字段不会抹掉调度配置，`task.ts:258-261` 已验证）
 
-**绿**：弹层内 agent 详情区承载管理 UI；复用 M3 弹层的 checkbox/列表模式；删除 Agent 的联动提示走项目既有确认弹窗组件（先 grep 复用）。
+**绿**：弹层内 agent 详情区承载管理 UI；复用 M3 弹层的 checkbox/列表模式。
 
 **验证**：app typecheck + test + lint + 定向 E2E。提交。
 

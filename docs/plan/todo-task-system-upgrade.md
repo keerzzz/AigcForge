@@ -95,7 +95,7 @@ packages/tui/src/feature-plugins/sidebar/todo.tsx  侧栏插件 (>2项可折叠,
 | # | 能力 | 实现要点 | 优先级 |
 |---|---|---|---|
 | **A1** | **任务衍生 (Task Spawn)** | 对话 → 自动创建新 Agent。"任务衍生" tab | **P0** |
-| **A2** | **定时任务 (Scheduled Jobs)** | per-Agent cron 调度。删除 Agent 时级联提示（**按我们的标签模型改写**，2026-08-02 裁决：删除入口仅对 agent-asset 支撑的自定义智能体开放——调用既有 `DELETE /session/{id}/agent-asset/delete` 并级联清除其定时任务；内置智能体 build/general/explore 等代码定义角色**永不进入可删列表**；会话不随删，仅保留为提示计数） | **P0** |
+| **A2** | **定时任务 (Scheduled Jobs)** | per-Agent cron 调度。~~删除 Agent 时提示 "将同时删除 N 个会话 + N 个定时任务"~~（2026-08-03 裁决：**删除 Agent 整体移出 M4**，留待独立 agent 管理立项，删除语义见 §5.7 保留裁决） | **P0** |
 | **A3** | **Agent Hub** | 三区：我的智能体 + 任务衍生 + 新建 | **P1** |
 | **A4** | **Board Home 任务入口** | "描述你的任务，开始在隔离环境中会话" | **P1** |
 | **A5** | **Skill per-Agent 安装** | `agent-skill-manager`，官方 + 个人 Skills | **P2** |
@@ -388,10 +388,10 @@ Layer 5: TUI (packages/tui/src/component/todo-item.tsx)
 - wip 分支 `todo-task-m4m5` 的 AgentTaskHub 实现（commit `1b8c426ac`）**model/面板/i18n/CSS 可回收**，composer 挂载 hunk 一律不回收
 - 执行提示词：[prompt-todo-task-m4.md](prompt-todo-task-m4.md)
 
-**删除语义补充裁决（2026-08-02，用户拍板）**：
-- **自定义智能体可删**（chat 模式创建的 agent-asset）：删除 = 调既有 `DELETE /session/{id}/agent-asset/delete` 删资产 + 级联清除该 agent 名下全部定时任务；确认文案如实描述（会话保留，仅作计数提示）
-- **内置智能体永不进入可删列表**：build/general/explore/plan 等代码定义角色（`mode: "primary"`，非资产支撑）不得出现删除入口——判别方式：agent 是否被 agent-asset 列表支撑（`GET /agent-asset`），契约层的 `Agent.Info` 无来源标记，app 侧判别即可，不改契约
-- 会话引用已删 agent 的兜底行为（resolve 失败/回退）需执行时核实并在确认文案中如实说明
+**删除语义裁决（2026-08-02 拍板，2026-08-03 收缩移出 M4，留作未来 agent 管理立项的既定语义）**：
+- **M4 不含删除 Agent**：AgentTaskHub 只做定时任务的启停/删除/新建；任何 agent 行不得出现删除入口
+- 未来立项时的既定语义：**自定义智能体可删**（chat 模式创建的 agent-asset）——删除 = 调既有 `DELETE /session/{id}/agent-asset/delete` 删资产 + 级联清除其定时任务；**内置智能体永不进入可删列表**（build/general/explore/plan 等代码定义角色，判别：是否被 `GET /agent-asset` 列表支撑，契约层 `Agent.Info` 无来源标记，app 侧判别即可）
+- 会话引用已删 agent 的兜底行为（resolve 失败/回退）届时需核实并在确认文案中如实说明
 
 ---
 
@@ -483,7 +483,7 @@ Agent: 合规审查 Agent
 | **M1 核心** | SessionTask Service (替代 SessionTodo)、增量 CRUD、TaskDriver↔Task 双轨联动（轨 A `parent_task_id` + 轨 B 自动建 todo + 回写状态机）、tool denies 回灌、`PATCH /session/{id}/task` 写 API + SDK gen | M0 | ✅ **已完成**（2026-08-02，`session-task.test.ts` + `tool-taskwrite.test.ts` + 写 API + 双轨联动测试通过；specs 已同步） | 5d |
 | **M2 UI**（含原 M1.5） | **outputDigest 持久化**（task 表加列 + Service 落库 + 迁移）+ **补 `GET /session/{id}/task` 读取端点**（§9.1 缺口：todo GET 未增 tasks 字段，重载恢复依赖）+ SessionTodoProgress（脉冲线内嵌节点 + hover tooltip + 完成度推进 + 统计 3/5 + 重载恢复 + 边界兜底）+ 移除底部 SessionTodoDock（composer dock() 折叠逻辑/layout todoCollapsed/stories 同步清理）+ 折叠浮层交互（可交互 checkbox）+ E2E tests | M1 | ✅ **已完成**（2026-08-02，`todo-task-m2` 分支：UI 回放 + E2E 5 用例全绿 + 写 API 联调 + 重载恢复测试含 id 稳定性往返；差异审批 blocking 项全修复） | 5d |
 | **M3 定时任务** | ScheduledJobRunner（含启动 re-arm + unattended 权限策略）、task_schedule Tool、agentID 归属、**定时任务 UI（标题左侧 icon + nextRun 时间戳 + 更多下拉入口 + 弹层，§5.6）** | M1 | ✅ **已完成**（2026-08-02，`todo-task-m2` 分支：重启 re-arm 专项测试 + unattended 预授权测试 + B1 防重入抢占 + 标题时间戳渲染 + E2E；限制已声明：单进程内存调度/真实 LLM 端到端无 CI/停机 recurring 不补偿） | 7d |
-| **M4 AgentHub** | AgentTaskHub 面板（**入口：dot-grid 下拉 + 弹层，§5.7 决策**）、Agent 视角聚合、定时任务完整管理 UI（对齐 Accio agent-panel，含删除 Agent 联动提示 A2）；执行提示词 [prompt-todo-task-m4.md](prompt-todo-task-m4.md)；可复用资产在 wip 分支 `todo-task-m4m5` | M2+M3（✅ 已满足） | Agent Hub 可用 | 3d |
+| **M4 AgentHub** | AgentTaskHub 面板（**入口：dot-grid 下拉 + 弹层，§5.7 决策**）、Agent 视角聚合、定时任务完整管理 UI（对齐 Accio agent-panel；**删除 Agent 已移出 M4**，语义见 §5.7 保留裁决）；执行提示词 [prompt-todo-task-m4.md](prompt-todo-task-m4.md)；可复用资产在 wip 分支 `todo-task-m4m5` | M2+M3（✅ 已满足） | Agent Hub 可用 | 3d |
 | **M5 跨模式集成** | Work Preset→Task 展开、Assistant 定时提醒→ScheduledJob、task_spawn Tool、DAG 依赖、电商验证 | M4 | 每条电商 use case 通过 | 3d |
 
 **总估时：25d**
