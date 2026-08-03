@@ -11,6 +11,7 @@ import path from "path"
 const hubKeys = [
   "session.agentHub.agents",
   "session.agentHub.derived",
+  "session.agentHub.spawnComingSoon",
   "session.agentHub.active",
   "session.agentHub.empty",
   "session.agentHub.new",
@@ -32,12 +33,14 @@ describe("AgentTaskHub", () => {
     const panelPath = path.resolve(__dirname, "agent-task-hub.tsx")
     expect(fs.existsSync(panelPath)).toBe(true)
     const panel = read("agent-task-hub.tsx")
-    // Zone 1: selectable agent list. Zone 2: derived tasks. Zone 3: new entry.
+    // Zone 1: selectable agent list. Zone 2: derived tasks + scheduled
+    // management. Zone 2b: M5 task_spawn placeholder. Zone 3: new entry.
     expect(panel).toContain('data-component="agent-task-hub-agent"')
     expect(panel).toContain('data-component="agent-task-hub-task"')
     expect(panel).toContain('data-component="agent-task-hub-new"')
     expect(panel).toContain('data-component="agent-task-hub-agents"')
     expect(panel).toContain('data-component="agent-task-hub-empty"')
+    expect(panel).toContain('data-component="agent-task-hub-spawn"')
   })
 
   test("no agent-task-hub residue remains in the composer region", () => {

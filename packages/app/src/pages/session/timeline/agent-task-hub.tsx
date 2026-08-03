@@ -306,7 +306,18 @@ export function AgentTaskHub(props: {
                 </Show>
               </div>
             </Show>
-            {/* Zone 3: new entry placeholder (spawn lands in M5) */}
+            {/* 任务衍生 zone — M5 task_spawn placeholder (no logic in M4;
+                conversation → spawned agent lands in M5). */}
+            <div
+              class="flex items-center justify-between"
+              data-component="agent-task-hub-spawn"
+              title={language.t("session.agentHub.spawnComingSoon")}
+            >
+              <span class="text-13-medium text-text-strong">{language.t("session.agentHub.derived")}</span>
+              <span class="text-11-regular text-text-weak">{language.t("session.agentHub.spawnComingSoon")}</span>
+            </div>
+            {/* Zone 3: new-agent entry placeholder (no reusable creation path
+                exists in the app yet; stays disabled until one lands). */}
             <button
               type="button"
               disabled
