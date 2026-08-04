@@ -100,7 +100,8 @@ test.describe("regression: session scheduled tasks UI", () => {
     await expect(popover).toBeVisible({ timeout: 10_000 })
     await expect(popover.locator('[data-slot="checkbox-v2"]')).toHaveCount(2)
 
-    // Checking the active scheduled task PATCHes it to cancelled (echo body).
+    // Checking the active scheduled task PATCHes just that task to cancelled
+    // (single-task patch, HIGH-2 — the response is the one patched task).
     const patch = page.waitForResponse(
       (response) => response.url().includes(`/session/${sessionID}/task`) && response.request().method() === "PATCH",
     )
@@ -108,9 +109,8 @@ test.describe("regression: session scheduled tasks UI", () => {
     const response = await patch
     expect(response.status()).toBe(200)
     const body = await response.json()
-    expect(body).toHaveLength(2)
-    const flipped = body.find((task: { id: string }) => task.id === "tsk_sched_a")
-    expect(flipped?.status).toBe("cancelled")
+    expect(body.id).toBe("tsk_sched_a")
+    expect(body.status).toBe("cancelled")
   })
 })
 

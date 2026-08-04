@@ -8047,7 +8047,7 @@ export type EventQuestionV2Rejected = {
   }
 }
 
-export type SessionTaskInfo1 = {
+export type SessionTaskInfo4 = {
   /**
    * Stable task ID (tsk_ prefixed, time-ordered)
    */
@@ -8085,7 +8085,7 @@ export type EventTaskUpdated = {
   type: "task.updated"
   properties: {
     sessionID: string
-    tasks: Array<SessionTaskInfo1>
+    tasks: Array<SessionTaskInfo4>
   }
 }
 
@@ -12234,6 +12234,112 @@ export type SessionTaskUpdateResponses = {
 }
 
 export type SessionTaskUpdateResponse = SessionTaskUpdateResponses[keyof SessionTaskUpdateResponses]
+
+export type SessionTaskCreateData = {
+  body?: SessionTaskWriteInfo
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/task"
+}
+
+export type SessionTaskCreateErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionTaskCreateError = SessionTaskCreateErrors[keyof SessionTaskCreateErrors]
+
+export type SessionTaskCreateResponses = {
+  /**
+   * Created task
+   */
+  200: SessionTaskInfo
+}
+
+export type SessionTaskCreateResponse = SessionTaskCreateResponses[keyof SessionTaskCreateResponses]
+
+export type SessionTaskDeleteData = {
+  body?: never
+  path: {
+    sessionID: string
+    taskID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/task/{taskID}"
+}
+
+export type SessionTaskDeleteErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionTaskDeleteError = SessionTaskDeleteErrors[keyof SessionTaskDeleteErrors]
+
+export type SessionTaskDeleteResponses = {
+  /**
+   * Deleted task
+   */
+  200: SessionTaskInfo
+}
+
+export type SessionTaskDeleteResponse = SessionTaskDeleteResponses[keyof SessionTaskDeleteResponses]
+
+export type SessionTaskPatchData = {
+  body?: {
+    status: TaskStatus
+  }
+  path: {
+    sessionID: string
+    taskID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/task/{taskID}"
+}
+
+export type SessionTaskPatchErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionTaskPatchError = SessionTaskPatchErrors[keyof SessionTaskPatchErrors]
+
+export type SessionTaskPatchResponses = {
+  /**
+   * Patched task
+   */
+  200: SessionTaskInfo
+}
+
+export type SessionTaskPatchResponse = SessionTaskPatchResponses[keyof SessionTaskPatchResponses]
 
 export type SessionDiffData = {
   body?: never

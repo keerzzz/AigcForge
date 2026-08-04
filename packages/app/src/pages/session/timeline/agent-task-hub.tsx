@@ -11,7 +11,7 @@ import { useServerSync } from "@/context/server-sync"
 import { useSync } from "@/context/sync"
 import { useSDK } from "@/context/sdk"
 import { showToast } from "@/utils/toast"
-import type { SessionTaskInfo, SessionTaskWriteInfo } from "@aigcfroge/sdk/v2/client"
+import type { SessionTaskInfo } from "@aigcfroge/sdk/v2/client"
 import {
   aggregateAgentTasks,
   derivedTasksBySource,
@@ -19,7 +19,6 @@ import {
   scheduledAgentTasks,
   sessionCountForAgent,
   unassignedTasks,
-  withoutTask,
   type AgentTaskRow,
   type DerivedTaskGroup,
 } from "@/pages/session/timeline/agent-task-hub-model"
@@ -43,10 +42,10 @@ type HubAgentRow = { key: string; label: string; detail?: string }
  * create-scheduled-task form.
  *
  * Data source: on open, `GET /agent-task` seeds the session_task store with
- * every session's tasks; the store is the reactive source (task.updated SSE).
- * Writebacks PATCH `session.task.update` with a minimal shape — the server
- * reconcile preserves omitted schedule/agent fields, so toggle/delete never
- * clobber the schedule (task.ts preserve-omitted semantics).
+ * every session's tasks (snapshot semantics — absent sessions are cleared); the
+ * store is the reactive source (task.updated SSE). Writebacks use the atomic
+ * single-task patch/delete/create endpoints, so a stale cache can never delete
+ * a concurrently appended row (HIGH-2).
  */
 export function AgentTaskHub(props: {
   open: boolean
@@ -88,6 +87,7 @@ export function AgentTaskHub(props: {
 
   const loadCrossSessionTasks = async () => {
     try {
+      const requestStart = Date.now()
       const result = await sdk().client.agentTask.list({ directory: sdk().directory })
       const tasks = result.data ?? []
       const bySession = new Map<string, SessionTaskInfo[]>()
@@ -96,7 +96,25 @@ export function AgentTaskHub(props: {
         list.push(task)
         bySession.set(task.sessionID, list)
       }
-      for (const [sessionID, list] of bySession) serverSync().task.set(sessionID, list)
+      // Snapshot semantics (differential-review MEDIUM-3): /agent-task is the
+      // full cross-session view — sessions absent from it have no tasks
+      // server-side, so clear their buckets instead of leaving stale rows that
+      // a later full-list reconcile could revive or reject.
+      //
+      // The write is guarded by request-start recency: a task.updated SSE that
+      // landed after this GET was issued carries a newer `session_task_updated_at`
+      // and must win over the (older) response, so the snapshot can never
+      // overwrite fresher data. listAll is global (no directory filter), so a
+      // session missing from the response genuinely has no tasks anywhere.
+      for (const sessionID of Object.keys(serverSync().data.session_task)) {
+        if (bySession.has(sessionID)) continue
+        const newer = serverSync().data.session_task_updated_at[sessionID]
+        if (newer === undefined || newer <= requestStart) serverSync().task.set(sessionID, undefined)
+      }
+      for (const [sessionID, list] of bySession) {
+        const newer = serverSync().data.session_task_updated_at[sessionID]
+        if (newer === undefined || newer <= requestStart) serverSync().task.set(sessionID, list)
+      }
     } catch (error) {
       const description = error instanceof Error ? error.message : String(error)
       showToast({ title: language.t("session.agentHub.loadFailed"), description })
@@ -128,37 +146,38 @@ export function AgentTaskHub(props: {
   })
   const selectedLabel = () => (isUnassigned() ? language.t("session.agentHub.unassigned") : (agentName() ?? ""))
 
-  // ── writebacks (task_schedule semantics over PATCH /session/:id/task) ──
+  // ── writebacks (atomic single-task mutations, differential-review HIGH-2) ──
+  // A full-list reconcile from the cached store could delete a task appended
+  // server-side but not yet delivered by SSE; each op below touches only the
+  // named row, so a stale cache can never delete what it doesn't know about.
 
-  const minimal = (tasks: readonly SessionTaskInfo[]): SessionTaskWriteInfo[] =>
-    tasks.map((task) => ({ id: task.id, content: task.content, status: task.status, priority: task.priority }))
-
-  const patch = (sessionID: string, body: SessionTaskWriteInfo[]) =>
-    sdk()
-      .client.session.task.update({ sessionID, directory: sdk().directory, body })
+  // pause/resume: flip the target's status scheduled↔cancelled.
+  const toggleTask = (row: AgentTaskRow, checked: boolean) => {
+    void sdk()
+      .client.session.task.patch({
+        sessionID: row.sessionID,
+        taskID: row.id,
+        directory: sdk().directory,
+        status: scheduledToggleStatus(checked),
+      })
       .catch((err: unknown) => {
         const description = err instanceof Error ? err.message : String(err)
         showToast({ title: language.t("session.scheduled.writeback.failed.title"), description })
       })
-
-  // pause/resume: flip the target's status scheduled↔cancelled.
-  const toggleTask = (row: AgentTaskRow, checked: boolean) => {
-    const all = serverSync().data.session_task[row.sessionID] ?? []
-    void patch(
-      row.sessionID,
-      all.map((task) => ({
-        id: task.id,
-        content: task.content,
-        status: task.id === row.id ? scheduledToggleStatus(checked) : task.status,
-        priority: task.priority,
-      })),
-    )
   }
 
-  // remove: drop the target so reconcile deletes it server-side.
+  // remove: delete the single task by id.
   const removeTask = (row: AgentTaskRow) => {
-    const all = serverSync().data.session_task[row.sessionID] ?? []
-    void patch(row.sessionID, minimal(withoutTask(all, row.id)))
+    void sdk()
+      .client.session.task.delete({
+        sessionID: row.sessionID,
+        taskID: row.id,
+        directory: sdk().directory,
+      })
+      .catch((err: unknown) => {
+        const description = err instanceof Error ? err.message : String(err)
+        showToast({ title: language.t("session.scheduled.writeback.failed.title"), description })
+      })
   }
 
   // ── create a scheduled task (attaches to the hub's anchor session) ──
@@ -185,14 +204,24 @@ export function AgentTaskHub(props: {
     const sessionID = props.sessionID()
     const agent = agentName()
     if (!sessionID || !agent || !canCreate()) return
-    const all = serverSync().data.session_task[sessionID] ?? []
     const created = newScheduledTask({
       content: content().trim(),
       agentID: agent,
       ...(cron().trim().length > 0 ? { recurrence: { cron: cron().trim(), enabled: true } } : {}),
       ...(at().length > 0 ? { scheduledAt: new Date(at()).getTime() } : {}),
     })
-    void patch(sessionID, [...minimal(all), created])
+    // Append one task atomically (HIGH-2): a reconcile here would rebuild the
+    // whole list from the stale cache and could drop concurrent appends.
+    void sdk()
+      .client.session.task.create({
+        sessionID,
+        directory: sdk().directory,
+        sessionTaskWriteInfo: created,
+      })
+      .catch((err: unknown) => {
+        const description = err instanceof Error ? err.message : String(err)
+        showToast({ title: language.t("session.scheduled.writeback.failed.title"), description })
+      })
     setCreating(false)
     setContent("")
     setCron("")

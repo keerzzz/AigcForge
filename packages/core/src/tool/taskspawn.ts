@@ -13,7 +13,10 @@ export const name = "task_spawn"
 export const Input = Schema.Struct({
   tasks: Schema.Array(
     Schema.Struct({
-      content: Schema.String.annotate({ description: "Prompt the spawned agent runs." }),
+      content: Schema.String.annotate({
+        description:
+          "Content of the derived task. This milestone only RECORDS the task for the Agent Hub — it does not spawn an agent or execute the prompt. To trigger execution, attach a schedule (task_schedule or PATCH with scheduledAt/recurrence).",
+      }),
       priority: Schema.optional(SessionTaskSchema.TaskPriority),
       dependsOn: Schema.optional(Schema.Array(Schema.String)).annotate({
         description: "Predecessor task ids; this task waits until they complete.",
@@ -42,7 +45,7 @@ export const layer = Layer.effectDiscard(
       .register({
         [name]: Tool.make({
           description:
-            "Spawn a derived task from the current delegation: the task records the originating message and optional DAG predecessors (dependsOn), and the owning agent.",
+            "Record a derived task from the current delegation: the task captures the originating message (spawnedFrom), optional DAG predecessors (dependsOn), and the owning agent. This milestone only records the task — it does not spawn an agent or run the content. To trigger execution later, attach a schedule via task_schedule or PATCH.",
           input: Input,
           output: Output,
           toModelOutput: ({ output }) => [{ type: "text", text: toModelOutput(output) }],

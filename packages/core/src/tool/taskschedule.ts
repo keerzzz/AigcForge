@@ -78,18 +78,16 @@ export const layer = Layer.effectDiscard(
                       message: `task_schedule: ${action} requires the id of an existing task`,
                     })
                   if (action === "remove") {
-                    const current = yield* tasks.get(context.sessionID)
-                    const kept = current.filter((task) => task.id !== entry.id)
-                    const reconciled = yield* tasks.update({
+                    // Atomic single-task delete (differential-review HIGH-2): a
+                    // read-modify-reconcile here would drop any task appended
+                    // between the `get` snapshot and the `update` — core supports
+                    // concurrent appends in the same provider turn, so the old
+                    // window was reachable. removeTask touches only the named row.
+                    const removed = yield* tasks.removeTask({
                       sessionID: context.sessionID,
-                      tasks: kept.map((task) => ({
-                        id: task.id,
-                        content: task.content,
-                        status: task.status,
-                        priority: task.priority,
-                      })),
+                      id: entry.id,
                     })
-                    resolved.push(...reconciled)
+                    if (removed) resolved.push(removed)
                     continue
                   }
                   const patched = yield* tasks.patch({
@@ -121,8 +119,10 @@ export const layer = Layer.effectDiscard(
                   })
                 // The arm scan prefers an enabled recurrence over scheduledAt,
                 // so a cron that yields no future run is a dead job even when
-                // scheduledAt is set. nextRun's search window (~1 year of
-                // minute ticks) keeps this check bounded.
+                // scheduledAt is set. nextRun's day-step budget (not a strict
+                // elapsed-time horizon — see schedule.ts) keeps this check
+                // bounded: an impossible cron (Feb 30) bails, a valid sparse
+                // one (leap-day) may resolve years ahead.
                 if (entry.recurrence?.enabled) {
                   const now = (yield* DateTime.nowAsDate).getTime()
                   if (nextRun(entry.recurrence.cron, now) === undefined)

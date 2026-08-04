@@ -145,6 +145,37 @@ describe("task_schedule tool", () => {
     }),
   )
 
+  it.effect("remove does not drop a concurrently appended task (re-review HIGH-1)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const reg = yield* ToolRegistry.Service
+      const tasks = yield* SessionTask.Service
+      const [drop, keep] = yield* tasks.append({
+        sessionID,
+        tasks: [
+          { content: "drop", status: "scheduled", priority: "medium", scheduledAt: 1_780_000_000_000 },
+          { content: "keep", status: "scheduled", priority: "medium", scheduledAt: 1_780_000_000_000 },
+        ],
+      })
+
+      yield* Effect.all(
+        [
+          executeTool(reg, call([{ id: drop.id, action: "remove" }])).pipe(Effect.asVoid),
+          tasks.append({
+            sessionID,
+            tasks: [{ content: "concurrent", status: "pending", priority: "medium" }],
+          }),
+        ],
+        { concurrency: "unbounded" },
+      )
+
+      const remaining = yield* tasks.get(sessionID)
+      expect(remaining.some((task) => task.content === "concurrent")).toBe(true)
+      expect(remaining.some((task) => task.id === drop.id)).toBe(false)
+      expect(remaining.some((task) => task.id === keep.id)).toBe(true)
+    }),
+  )
+
   it.effect("rejects a schedule entry with missing or empty content", () =>
     Effect.gen(function* () {
       yield* setup

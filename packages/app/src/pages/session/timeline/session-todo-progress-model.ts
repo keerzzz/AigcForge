@@ -89,6 +89,54 @@ export const flipTaskStatus = (status: TodoProgressStatus): TodoProgressStatus =
   return "completed"
 }
 
+/**
+ * Six-state literal accepted by the task write endpoint (persist path only).
+ * Distinct from the four-state {@link TodoProgressStatus} used for rendering.
+ */
+export type TaskWriteStatus = "pending" | "in_progress" | "completed" | "cancelled" | "scheduled" | "failed"
+
+/**
+ * Write-side status guard (differential-review HIGH-1): preserves the full
+ * six-state task status verbatim. Display normalization (`normalizeStatus`,
+ * which folds scheduled/failed into pending) must NEVER run on the persist
+ * path — it would flatten an unrelated scheduled/failed task to pending on
+ * every checkbox interaction, and with a preserved recurrence the daemon could
+ * re-arm a failed job. Only a genuinely illegal value falls back to pending.
+ */
+export const preserveStatus = (status: string): TaskWriteStatus => {
+  switch (status) {
+    case "pending":
+    case "in_progress":
+    case "completed":
+    case "cancelled":
+    case "scheduled":
+    case "failed":
+      return status
+    default:
+      return "pending"
+  }
+}
+
+/**
+ * Target-status transition for the interactive fold-over (explicit six-state
+ * adjudication, differential-review HIGH-1): checking an unfinished task
+ * completes it, unchecking a completed one returns it to pending. `cancelled`
+ * and `scheduled` are not interactively togglable in the fold-over — they have
+ * their own management UI (scheduled-tasks popover / Agent Hub) — so they pass
+ * through unchanged and a checkbox interaction can never corrupt their state.
+ */
+export const flipTaskWriteStatus = (status: TaskWriteStatus): TaskWriteStatus => {
+  switch (status) {
+    case "completed":
+      return "pending"
+    case "cancelled":
+    case "scheduled":
+      return status
+    default:
+      return "completed"
+  }
+}
+
 export const computeTodoProgress = (
   todos: readonly TodoProgressInput[],
   options?: TodoProgressOptions,

@@ -51,8 +51,13 @@ export class ScheduledExecutor extends Context.Service<
 >()("@aigcfroge/v2/ScheduledJobExecutor") {}
 
 export interface Interface {
-  /** Rebuild the in-memory queue from the task table (startup re-arm). */
-  readonly arm: (now: number) => Effect.Effect<void>
+  /**
+   * Rebuild the in-memory queue from the task table (startup re-arm). With
+   * `recover: true` (startup only) a schedule-bearing `in_progress` row — a
+   * stale claim left by a dead scheduler process — is reset to `pending` so the
+   * job is re-queued instead of orphaned forever (differential-review HIGH-3).
+   */
+  readonly arm: (now: number, options?: { recover?: boolean }) => Effect.Effect<void>
   /** Trigger every queued job whose next run has arrived; settle + re-arm. */
   readonly tick: (now: number) => Effect.Effect<void>
 }
@@ -68,7 +73,7 @@ export const layer = Layer.effect(
 
     let queue = new Map<string, number>()
 
-    const arm = Effect.fn("ScheduledJob.arm")(function* (now: number) {
+    const arm = Effect.fn("ScheduledJob.arm")(function* (now: number, options?: { recover?: boolean }) {
       const rows = yield* db
         .select()
         .from(TaskTable)
@@ -77,7 +82,19 @@ export const layer = Layer.effect(
         .pipe(Effect.orDie)
       const next = new Map<string, number>()
       for (const row of rows) {
-        if (row.status !== "scheduled" && row.status !== "pending") continue
+        let status = row.status
+        // Startup recovery (differential-review HIGH-3): a process start means
+        // any schedule-bearing `in_progress` row is a stale claim from a dead
+        // scheduler — this single-process scheduler never claimed it. Reset it
+        // to a retryable state so the job is re-queued instead of orphaned
+        // forever. Only the startup arm does this: the task.updated re-arm must
+        // not touch the live claim of a job the running daemon is executing
+        // (that would re-enqueue and double-run).
+        if (options?.recover && status === "in_progress") {
+          yield* tasks.patch({ sessionID: row.session_id, id: row.id, status: "pending" }).pipe(Effect.orDie)
+          status = "pending"
+        }
+        if (status !== "scheduled" && status !== "pending") continue
         const run = row.recurrence?.enabled ? nextRun(row.recurrence.cron, now) : row.scheduled_at
         if (run !== undefined && run !== null) next.set(row.id, run)
       }
@@ -113,7 +130,9 @@ export const layer = Layer.effect(
       // still-scheduled row and run the job twice concurrently. Once claimed,
       // both arm's filter and this guard skip it, and the settle below closes
       // the claim.
-      yield* tasks.patch({ sessionID: row.session_id, id: row.id, status: "in_progress" })
+      yield* tasks
+        .patch({ sessionID: row.session_id, id: row.id, status: "in_progress" })
+        .pipe(Effect.orDie)
       const result = yield* executor
         .run({
           parentID: row.session_id,
@@ -142,12 +161,14 @@ export const layer = Layer.effect(
           : result.outcome === "failed"
             ? "scheduled job failed"
             : "scheduled job cancelled"
-      yield* tasks.patch({
-        sessionID: row.session_id,
-        id: row.id,
-        status: result.outcome,
-        outputDigest: digest,
-      })
+      yield* tasks
+        .patch({
+          sessionID: row.session_id,
+          id: row.id,
+          status: result.outcome,
+          outputDigest: digest,
+        })
+        .pipe(Effect.orDie)
       // Re-arm a successful recurring job to its next cron match.
       if (row.recurrence?.enabled && result.outcome === "completed") {
         const run = nextRun(row.recurrence.cron, now)
@@ -156,11 +177,13 @@ export const layer = Layer.effect(
           // Re-arm via patch (not a raw db.update) so the task.updated event
           // payload matches the DB; omitting outputDigest preserves the digest
           // stored by the completed settle above. A vanished row is a no-op.
-          yield* tasks.patch({
-            sessionID: row.session_id,
-            id: row.id,
-            status: "scheduled",
-          })
+          yield* tasks
+            .patch({
+              sessionID: row.session_id,
+              id: row.id,
+              status: "scheduled",
+            })
+            .pipe(Effect.orDie)
         }
       }
     })
@@ -199,7 +222,7 @@ export const daemonLayer = Layer.effectDiscard(
   Effect.gen(function* () {
     const runner = yield* Service
     const events = yield* EventV2.Service
-    yield* runner.arm(Date.now())
+    yield* runner.arm(Date.now(), { recover: true })
     yield* Effect.forkScoped(runner.tick(Date.now()).pipe(Effect.ignore, Effect.repeat(Schedule.spaced("1 minute"))))
     yield* events.subscribe(SessionTask.Event.Updated).pipe(
       Stream.runForEach(() => runner.arm(Date.now()).pipe(Effect.ignore)),

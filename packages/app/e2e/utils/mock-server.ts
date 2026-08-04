@@ -25,8 +25,9 @@ export interface MockServerConfig {
   events?: () => unknown[]
   eventRetry?: number
   /** Optional id-bearing task list served by GET /session/:id/task. PATCH
-   * replaces it and returns the payload so the fold-over writeback round-trips. */
-  tasks?: unknown[]
+   * replaces it and returns the payload so the fold-over writeback round-trips.
+   * Structured (not `unknown[]`) so the mock's own find/filter typechecks. */
+  tasks?: Array<{ id: string } & Record<string, unknown>>
   /** Optional three-field todo projection served by GET /session/:id/todo
    * (reload-recovery source when task.updated is not re-delivered). */
   todoList?: unknown[]
@@ -35,6 +36,7 @@ export interface MockServerConfig {
 export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) {
   const cursors = new Map<string, string>()
   let nextCursor = 0
+  let nextTaskID = 0
   const staticRoutes: Record<string, unknown> = {
     "/provider": config.provider,
     "/path": {
@@ -81,12 +83,42 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
 
     const taskMatch = path.match(/^\/session\/([^/]+)\/task$/)
     if (taskMatch) {
-      if (route.request().method() === "PATCH") {
+      const method = route.request().method()
+      if (method === "POST") {
+        // Atomic create (HIGH-2): append one task. Fidelity: the real server
+        // mints the id and ignores a client-supplied one — mirror that.
+        const body = route.request().postDataJSON()
+        const created = { ...body, id: `tsk_mock_${++nextTaskID}` }
+        config.tasks = [...(config.tasks ?? []), created]
+        return json(route, created)
+      }
+      if (method === "PATCH") {
         const body = route.request().postDataJSON()
         config.tasks = body
         return json(route, body)
       }
       return json(route, config.tasks ?? [])
+    }
+
+    const taskItemMatch = path.match(/^\/session\/([^/]+)\/task\/([^/]+)$/)
+    if (taskItemMatch) {
+      const [, , taskID] = taskItemMatch
+      const method = route.request().method()
+      if (method === "PATCH") {
+        // Atomic single-task patch (HIGH-2): only the named row changes.
+        const body = route.request().postDataJSON()
+        const patched = { ...(config.tasks ?? []).find((t) => t.id === taskID), ...body }
+        config.tasks = (config.tasks ?? []).map((task) => (task.id === taskID ? patched : task))
+        return json(route, patched)
+      }
+      if (method === "DELETE") {
+        // Fidelity: the real endpoint 404s when the session doesn't own the id.
+        const removed = (config.tasks ?? []).find((t) => t.id === taskID)
+        if (!removed) return json(route, { error: "not found" }, undefined, 404)
+        config.tasks = (config.tasks ?? []).filter((task) => task.id !== taskID)
+        return json(route, removed)
+      }
+      return route.fallback()
     }
 
     const messagesMatch = path.match(/^\/session\/([^/]+)\/message$/)

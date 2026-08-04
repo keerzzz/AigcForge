@@ -5,6 +5,7 @@ import { SessionV2 } from "@aigcfroge/core/session"
 import { SessionMessage } from "@aigcfroge/core/session/message"
 import { SessionTodo } from "@aigcfroge/core/session/todo"
 import { SessionTask } from "@aigcfroge/core/session/task"
+import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task"
 import { PermissionV2 } from "@aigcfroge/core/permission"
 import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
 import { SessionRevert as V2SessionRevert } from "@aigcfroge/core/session/revert"
@@ -145,6 +146,90 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       yield* requireSession(ctx.params.sessionID)
       const v2task = yield* SessionTask.Service
       return yield* v2task.get(ctx.params.sessionID)
+    })
+
+    // Atomic single-task mutations (differential-review HIGH-2): each touches
+    // only the named row, so a stale client cache can never delete a task that
+    // was appended server-side but whose SSE event hasn't reached the client yet.
+    const patchTask = Effect.fn("SessionHttpApi.patchTask")(function* (ctx: {
+      params: { sessionID: SessionID; taskID: string }
+      payload: { status: SessionTaskSchema.TaskStatus }
+    }) {
+      yield* requireSession(ctx.params.sessionID)
+      const v2task = yield* SessionTask.Service
+      const patched = yield* v2task
+        .patch({
+          sessionID: ctx.params.sessionID,
+          id: ctx.params.taskID,
+          status: ctx.payload.status,
+        })
+        .pipe(
+          // Resuming a schedule-less task to `scheduled` is rejected by the
+          // domain invariant (HIGH-4) — surface it as a client error, not a 500.
+          Effect.catchTag("SessionTask.TaskWriteError", (error) =>
+            Effect.fail(new InvalidRequestError({ message: error.message })),
+          ),
+        )
+      if (!patched) {
+        return yield* Effect.fail(notFound(`Task ${ctx.params.taskID} not found in session ${ctx.params.sessionID}`))
+      }
+      return patched
+    })
+
+    const createTask = Effect.fn("SessionHttpApi.createTask")(function* (ctx: {
+      params: { sessionID: SessionID }
+      payload: SessionTask.WriteInfo
+    }) {
+      yield* requireSession(ctx.params.sessionID)
+      const v2task = yield* SessionTask.Service
+      // The server owns id generation on create: a client-supplied id on POST
+      // could collide with the global task PK or enable cycle forgery
+      // (differential-review re-review HIGH-2). `append` mints a fresh `tsk_`.
+      const created = yield* v2task
+        .append({
+          sessionID: ctx.params.sessionID,
+          tasks: [
+            {
+              content: ctx.payload.content,
+              status: ctx.payload.status,
+              priority: ctx.payload.priority,
+              ...(ctx.payload.parentID !== undefined ? { parentID: ctx.payload.parentID } : {}),
+              ...(ctx.payload.agentID !== undefined ? { agentID: ctx.payload.agentID } : {}),
+              ...(ctx.payload.scheduledAt !== undefined ? { scheduledAt: ctx.payload.scheduledAt } : {}),
+              ...(ctx.payload.recurrence !== undefined ? { recurrence: ctx.payload.recurrence } : {}),
+              ...(ctx.payload.spawnedFrom !== undefined ? { spawnedFrom: ctx.payload.spawnedFrom } : {}),
+              ...(ctx.payload.dependsOn !== undefined ? { dependsOn: ctx.payload.dependsOn } : {}),
+            },
+          ],
+        })
+        .pipe(
+          // A forged/repeated id or dead schedule is a client error, not a 500.
+          Effect.catchTag("SessionTask.TaskWriteError", (error) =>
+            Effect.fail(new InvalidRequestError({ message: error.message })),
+          ),
+        )
+      // `append` returns the full position-ordered list; the newly appended row
+      // carries the highest position (re-review MEDIUM-1), so `.at(-1)` is the
+      // created task even in a pre-populated session. An empty result for a
+      // single-item append is an infrastructure invariant violation → 500
+      // defect, not a client 404.
+      const createdTask = created.at(-1)
+      if (!createdTask) {
+        return yield* Effect.die("SessionTask.append returned no task for a single-item create")
+      }
+      return createdTask
+    })
+
+    const deleteTask = Effect.fn("SessionHttpApi.deleteTask")(function* (ctx: {
+      params: { sessionID: SessionID; taskID: string }
+    }) {
+      yield* requireSession(ctx.params.sessionID)
+      const v2task = yield* SessionTask.Service
+      const removed = yield* v2task.removeTask({ sessionID: ctx.params.sessionID, id: ctx.params.taskID })
+      if (!removed) {
+        return yield* Effect.fail(notFound(`Task ${ctx.params.taskID} not found in session ${ctx.params.sessionID}`))
+      }
+      return removed
     })
 
     const diff = Effect.fn("SessionHttpApi.diff")(function* (ctx: {
@@ -650,6 +735,9 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       .handle("todo", todo)
       .handle("task", task)
       .handle("getTask", getTask)
+      .handle("patchTask", patchTask)
+      .handle("createTask", createTask)
+      .handle("deleteTask", deleteTask)
       .handle("diff", diff)
       .handle("messages", messages)
       .handle("message", message)

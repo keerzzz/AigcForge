@@ -262,8 +262,14 @@ import type {
   SessionStatusResponses,
   SessionSummarizeErrors,
   SessionSummarizeResponses,
+  SessionTaskCreateErrors,
+  SessionTaskCreateResponses,
+  SessionTaskDeleteErrors,
+  SessionTaskDeleteResponses,
   SessionTaskGetErrors,
   SessionTaskGetResponses,
+  SessionTaskPatchErrors,
+  SessionTaskPatchResponses,
   SessionTaskUpdateErrors,
   SessionTaskUpdateResponses,
   SessionTaskWriteInfo,
@@ -295,6 +301,7 @@ import type {
   SyncStartResponses,
   SyncStealErrors,
   SyncStealResponses,
+  TaskStatus,
   TextPartInput,
   ToolIdsErrors,
   ToolIdsResponses,
@@ -4815,6 +4822,120 @@ export class Task extends HeyApiClient {
     )
     return (options?.client ?? this.client).patch<SessionTaskUpdateResponses, SessionTaskUpdateErrors, ThrowOnError>({
       url: "/session/{sessionID}/task",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Create one task
+   *
+   * Append a single task to the session without reconciling (and thus deleting) the existing list.
+   */
+  public create<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      sessionTaskWriteInfo?: SessionTaskWriteInfo
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { key: "sessionTaskWriteInfo", map: "body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<SessionTaskCreateResponses, SessionTaskCreateErrors, ThrowOnError>({
+      url: "/session/{sessionID}/task",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete one task
+   *
+   * Delete a single task by id. Other rows are untouched.
+   */
+  public delete<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      taskID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "path", key: "taskID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).delete<SessionTaskDeleteResponses, SessionTaskDeleteErrors, ThrowOnError>({
+      url: "/session/{sessionID}/task/{taskID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Patch one task
+   *
+   * Update a single task's status by id. Unlike the full-list reconcile, no other row is touched and no absent row is deleted.
+   */
+  public patch<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      taskID: string
+      directory?: string
+      workspace?: string
+      status?: TaskStatus
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "path", key: "taskID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "status" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).patch<SessionTaskPatchResponses, SessionTaskPatchErrors, ThrowOnError>({
+      url: "/session/{sessionID}/task/{taskID}",
       ...options,
       ...params,
       headers: {

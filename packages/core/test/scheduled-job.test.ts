@@ -275,6 +275,36 @@ describe("ScheduledJobRunner", () => {
     }),
   )
 
+  it.effect("arm with recover re-queues a stale in_progress claim (HIGH-3)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const runner = yield* ScheduledJob.Service
+      const created = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "audit", status: "scheduled", priority: "medium", scheduledAt: at(2026, 8, 2, 9, 0) }],
+      })
+      const id = created[0]?.id
+      if (!id) throw new Error("append returned no task")
+      // Simulate a dead scheduler's stale claim: the interrupted trigger left
+      // the row in_progress (see the test above), and a process restart must
+      // not orphan the job forever.
+      yield* tasks.patch({ sessionID, id, status: "in_progress" })
+
+      // A plain re-arm (task.updated path) must NOT touch the live claim of a
+      // running job — that would re-enqueue and double-run.
+      yield* runner.arm(at(2026, 8, 2, 8, 59))
+      expect((yield* tasks.get(sessionID))[0]?.status).toBe("in_progress")
+
+      // Startup recovery resets the stale claim and re-queues the job.
+      yield* runner.arm(at(2026, 8, 2, 8, 59), { recover: true })
+      expect((yield* tasks.get(sessionID))[0]?.status).toBe("pending")
+      yield* runner.tick(at(2026, 8, 2, 9, 0))
+      expect((yield* tasks.get(sessionID))[0]?.status).toBe("completed")
+      expect(holder.calls).toHaveLength(1)
+    }),
+  )
+
   it.effect("arm rebuilds the queue from the task table on every call (restart re-arm)", () =>
     Effect.gen(function* () {
       yield* setup

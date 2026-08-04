@@ -171,7 +171,8 @@ test.describe("regression: agent hub scheduled-task management (M4)", () => {
     // The plain (non-scheduled) task renders as a read-only row.
     await expect(detail.locator('[data-component="agent-task-hub-task"]').first()).toContainText("audit")
 
-    // Pausing the active scheduled task PATCHes its status to cancelled.
+    // Pausing the active scheduled task PATCHes its status to cancelled
+    // (single-task patch, HIGH-2 — response is the one patched task).
     const patch = page.waitForResponse(
       (response) => response.url().includes(`/session/${sessionID}/task`) && response.request().method() === "PATCH",
     )
@@ -179,9 +180,8 @@ test.describe("regression: agent hub scheduled-task management (M4)", () => {
     const response = await patch
     expect(response.status()).toBe(200)
     const body = await response.json()
-    expect(body).toHaveLength(5)
-    const flipped = body.find((task: { id: string }) => task.id === "tsk_hub_sched_a")
-    expect(flipped?.status).toBe("cancelled")
+    expect(body.id).toBe("tsk_hub_sched_a")
+    expect(body.status).toBe("cancelled")
   })
 
   test("renders the task-derivation zone grouped by source message", async ({ page }) => {
@@ -237,21 +237,19 @@ test.describe("regression: agent hub scheduled-task management (M4)", () => {
     await expect(detail).toBeVisible({ timeout: 15_000 })
     await expect(detail.locator('[data-component="agent-task-hub-scheduled"]')).toHaveCount(2)
 
-    // Removing the first scheduled task PATCHes a reconcile that omits it.
-    const patch = page.waitForResponse(
-      (response) => response.url().includes(`/session/${sessionID}/task`) && response.request().method() === "PATCH",
+    // Removing the first scheduled task DELETEs it atomically (HIGH-2).
+    const del = page.waitForResponse(
+      (response) => response.url().includes(`/session/${sessionID}/task`) && response.request().method() === "DELETE",
     )
     await detail
       .locator('[data-component="agent-task-hub-scheduled"]')
       .first()
       .locator('[data-component="agent-task-hub-task-delete"]')
       .click()
-    const response = await patch
+    const response = await del
     expect(response.status()).toBe(200)
     const body = await response.json()
-    expect(body).toHaveLength(4)
-    expect(body.find((task: { id: string }) => task.id === "tsk_hub_sched_a")).toBeUndefined()
-    expect(body.find((task: { id: string }) => task.id === "tsk_hub_sched_b")).toBeDefined()
+    expect(body.id).toBe("tsk_hub_sched_a")
   })
 
   test("creates a scheduled task via the hub's create form", async ({ page }) => {
@@ -292,16 +290,15 @@ test.describe("regression: agent hub scheduled-task management (M4)", () => {
     await form.getByPlaceholder("Cron expression").fill("0 8 * * *")
 
     // With the form open, "New scheduled task" is now the submit button.
-    const patch = page.waitForResponse(
-      (response) => response.url().includes(`/session/${sessionID}/task`) && response.request().method() === "PATCH",
+    // The create appends ONE task atomically (POST, HIGH-2).
+    const create = page.waitForResponse(
+      (response) => response.url().includes(`/session/${sessionID}/task`) && response.request().method() === "POST",
     )
     await submit.click()
-    const response = await patch
+    const response = await create
     expect(response.status()).toBe(200)
     const body = await response.json()
-    expect(body).toHaveLength(6)
-    const created = body.find((task: { content: string }) => task.content === "nightly digest")
-    expect(created).toMatchObject({
+    expect(body).toMatchObject({
       content: "nightly digest",
       status: "scheduled",
       priority: "medium",

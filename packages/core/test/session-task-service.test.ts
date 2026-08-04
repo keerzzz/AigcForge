@@ -1,6 +1,6 @@
 import { describe, expect } from "bun:test"
 import { asc, eq } from "drizzle-orm"
-import { Effect, Layer, Schema } from "effect"
+import { Effect, Layer, Result, Schema } from "effect"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
 import { Project } from "@aigcfroge/core/project"
@@ -491,6 +491,77 @@ describe("SessionTask", () => {
     }),
   )
 
+  it.effect("update/append/patch reject a scheduled task with no trigger (HIGH-4 schedule invariant)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const future = new Date(2030, 0, 1).getTime()
+
+      // `scheduled` without recurrence or scheduledAt is a dead job.
+      const noTrigger = yield* tasks
+        .update({ sessionID, tasks: [{ content: "stuck", status: "scheduled", priority: "medium" }] })
+        .pipe(Effect.flip)
+      expect(noTrigger.reason).toBe("invalid_schedule")
+
+      // A disabled recurrence without a one-shot fallback is also trigger-less.
+      const disabledOnly = yield* tasks
+        .update({
+          sessionID,
+          tasks: [
+            { content: "off", status: "scheduled", priority: "medium", recurrence: { cron: "0 9 * * *", enabled: false } },
+          ],
+        })
+        .pipe(Effect.flip)
+      expect(disabledOnly.reason).toBe("invalid_schedule")
+
+      // A one-shot scheduledAt alone is a valid trigger.
+      const oneShot = yield* tasks.update({
+        sessionID,
+        tasks: [{ content: "once", status: "scheduled", priority: "medium", scheduledAt: future }],
+      })
+      expect(oneShot[0]?.status).toBe("scheduled")
+
+      // Disabled recurrence with a scheduledAt fallback is valid (tool rule).
+      const fallback = yield* tasks.update({
+        sessionID,
+        tasks: [
+          {
+            content: "fallback",
+            status: "scheduled",
+            priority: "medium",
+            recurrence: { cron: "0 9 * * *", enabled: false },
+            scheduledAt: future,
+          },
+        ],
+      })
+      expect(fallback[0]?.status).toBe("scheduled")
+
+      // append rejects a trigger-less scheduled task too.
+      const appended = yield* tasks
+        .append({ sessionID, tasks: [{ content: "stuck", status: "scheduled", priority: "medium" }] })
+        .pipe(Effect.flip)
+      expect(appended.reason).toBe("invalid_schedule")
+
+      // patch (the resume path): flipping a schedule-less task to `scheduled`
+      // is rejected, while a task that already carries a schedule resumes fine.
+      const plain = yield* tasks.append({ sessionID, tasks: [{ content: "plain", status: "pending", priority: "medium" }] })
+      const plainID = plain.find((task) => task.content === "plain")?.id
+      if (!plainID) throw new Error("append returned no plain task")
+      const resumeDenied = yield* tasks.patch({ sessionID, id: plainID, status: "scheduled" }).pipe(Effect.flip)
+      expect(resumeDenied.reason).toBe("invalid_schedule")
+
+      const scheduled = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "real", status: "scheduled", priority: "medium", scheduledAt: future }],
+      })
+      const scheduledID = scheduled.find((task) => task.content === "real")?.id
+      if (!scheduledID) throw new Error("append returned no scheduled task")
+      yield* tasks.patch({ sessionID, id: scheduledID, status: "cancelled" })
+      const resumed = yield* tasks.patch({ sessionID, id: scheduledID, status: "scheduled" })
+      expect(resumed?.status).toBe("scheduled")
+    }),
+  )
+
   it.effect("persists M5 spawn fields and keeps them through an omitting reconcile", () =>
     Effect.gen(function* () {
       yield* setup
@@ -614,6 +685,228 @@ describe("SessionTask", () => {
         .append({ sessionID, tasks: [{ content: "c", status: "pending", priority: "medium" }] })
         .pipe(Effect.flip)
       expect(error.reason).toBe("depends_on_cycle")
+    }),
+  )
+
+  it.effect("rejects a cross-session dependsOn cycle (MEDIUM-1: write check uses the global graph)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const tasks = yield* SessionTask.Service
+      const otherSession = SessionV2.ID.make("ses_task_other")
+      // The task table has a session FK; the second session must exist too.
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: otherSession,
+          project_id: Project.ID.global,
+          slug: "task-other",
+          directory: "/project",
+          title: "task other",
+          version: "test",
+        })
+        .run()
+        .pipe(Effect.orDie)
+
+      const [a1] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "a1", status: "pending", priority: "medium" }],
+      })
+      const [b1] = yield* tasks.append({
+        sessionID: otherSession,
+        tasks: [{ content: "b1", status: "pending", priority: "medium" }],
+      })
+
+      // A single cross-session edge is fine — the runtime trigger resolves
+      // predecessors globally, so cross-session deps are allowed by design.
+      yield* tasks.update({
+        sessionID,
+        tasks: [{ id: a1.id, content: "a1", status: "pending", priority: "medium", dependsOn: [b1.id] }],
+      })
+
+      // Closing the loop from the other session must be rejected: the write-time
+      // check now sees the globally-referenced predecessor (transitively fetched).
+      const error = yield* tasks
+        .update({
+          sessionID: otherSession,
+          tasks: [{ id: b1.id, content: "b1", status: "pending", priority: "medium", dependsOn: [a1.id] }],
+        })
+        .pipe(Effect.flip)
+      expect(error.reason).toBe("depends_on_cycle")
+
+      // The rejected write left session 2's edge unpersisted.
+      const got = yield* tasks.get(otherSession)
+      expect(got[0]?.dependsOn).toBeUndefined()
+    }),
+  )
+
+  it.effect("concurrent cross-session updates reject a would-be cycle (re-review HIGH-2)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const tasks = yield* SessionTask.Service
+      const otherSession = SessionV2.ID.make("ses_task_concurrent_other")
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: otherSession,
+          project_id: Project.ID.global,
+          slug: "task-concurrent-other",
+          directory: "/project",
+          title: "task concurrent other",
+          version: "test",
+        })
+        .run()
+        .pipe(Effect.orDie)
+
+      const [a1] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "a1", status: "pending", priority: "medium" }],
+      })
+      const [b1] = yield* tasks.append({
+        sessionID: otherSession,
+        tasks: [{ content: "b1", status: "pending", priority: "medium" }],
+      })
+
+      const results = yield* Effect.all(
+        [
+          tasks
+            .update({
+              sessionID,
+              tasks: [{ id: a1.id, content: "a1", status: "pending", priority: "medium", dependsOn: [b1.id] }],
+            })
+            .pipe(Effect.result),
+          tasks
+            .update({
+              sessionID: otherSession,
+              tasks: [{ id: b1.id, content: "b1", status: "pending", priority: "medium", dependsOn: [a1.id] }],
+            })
+            .pipe(Effect.result),
+        ],
+        { concurrency: "unbounded" },
+      )
+
+      const failures = results.filter(Result.isFailure)
+      expect(failures.length).toBeGreaterThanOrEqual(1)
+      for (const failure of failures) {
+        if (Result.isFailure(failure)) expect(failure.failure.reason).toBe("depends_on_cycle")
+      }
+
+      const aGot = yield* tasks.get(sessionID)
+      const bGot = yield* tasks.get(otherSession)
+      const aHasB = aGot[0]?.dependsOn?.includes(b1.id) ?? false
+      const bHasA = bGot[0]?.dependsOn?.includes(a1.id) ?? false
+      expect(aHasB && bHasA).toBe(false)
+    }),
+  )
+
+  it.effect("concurrent cross-session appends cannot both close a cycle (M-2)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const tasks = yield* SessionTask.Service
+      const otherSession = SessionV2.ID.make("ses_task_other2")
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: otherSession,
+          project_id: Project.ID.global,
+          slug: "task-append-other",
+          directory: "/project",
+          title: "task append other",
+          version: "test",
+        })
+        .run()
+        .pipe(Effect.orDie)
+
+      // Each append references the OTHER session's planned id. On a single
+      // SQLite connection + the service write lock, the two transactions
+      // serialize, so whichever runs second sees the first's committed edge and
+      // the closing edge forms a cycle → exactly one may land, never both.
+      const results = yield* Effect.all(
+        [
+          tasks
+            .append({
+              sessionID,
+              tasks: [
+                { id: "tsk_app_a", content: "a2", status: "pending", priority: "medium", dependsOn: ["tsk_app_b"] },
+              ],
+            })
+            .pipe(Effect.result),
+          tasks
+            .append({
+              sessionID: otherSession,
+              tasks: [
+                { id: "tsk_app_b", content: "b2", status: "pending", priority: "medium", dependsOn: ["tsk_app_a"] },
+              ],
+            })
+            .pipe(Effect.result),
+        ],
+        { concurrency: "unbounded" },
+      )
+
+      const failures = results.filter(Result.isFailure)
+      expect(failures.length).toBeGreaterThanOrEqual(1)
+      for (const failure of failures) {
+        if (Result.isFailure(failure)) expect(failure.failure.reason).toBe("depends_on_cycle")
+      }
+      // Only one edge may exist server-side (never both).
+      const aGot = yield* tasks.get(sessionID)
+      const bGot = yield* tasks.get(otherSession)
+      const aHasB = aGot[0]?.dependsOn?.includes("tsk_app_b") ?? false
+      const bHasA = bGot[0]?.dependsOn?.includes("tsk_app_a") ?? false
+      expect(aHasB && bHasA).toBe(false)
+    }),
+  )
+
+  it.effect("removeTask + append keep positions unique after a middle delete (MEDIUM-2)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const tasks = yield* SessionTask.Service
+      const created = yield* tasks.append({
+        sessionID,
+        tasks: [
+          { content: "a", status: "pending", priority: "medium" },
+          { content: "b", status: "pending", priority: "medium" },
+          { content: "c", status: "pending", priority: "medium" },
+        ],
+      })
+      const b = created.find((task) => task.content === "b")
+      if (!b) throw new Error("b not created")
+
+      // Delete the middle task — the (session_id, position) PK would reject a
+      // later insert that reuses its position.
+      yield* tasks.removeTask({ sessionID, id: b.id })
+
+      // Append again: position must continue from max+1, not existing.length.
+      const appended = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "d", status: "pending", priority: "medium" }],
+      })
+      expect(appended.find((task) => task.content === "d")).toBeDefined()
+
+      const rows = yield* db
+        .select()
+        .from(TaskTable)
+        .where(eq(TaskTable.session_id, sessionID))
+        .orderBy(asc(TaskTable.position))
+        .all()
+        .pipe(Effect.orDie)
+      expect(rows.map((row) => row.content)).toEqual(["a", "c", "d"])
+      const positions = rows.map((row) => row.position)
+      expect(new Set(positions).size).toBe(positions.length)
+    }),
+  )
+
+  it.effect("replaceLegacy rejects a dead scheduled task via the legacy TodoWrite bridge (M-1)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const todo = yield* SessionTodo.Service
+      const error = yield* todo
+        .update({ sessionID, todos: [{ content: "legacy sched", status: "scheduled", priority: "medium" }] })
+        .pipe(Effect.flip)
+      expect(error.reason).toBe("invalid_schedule")
     }),
   )
 })

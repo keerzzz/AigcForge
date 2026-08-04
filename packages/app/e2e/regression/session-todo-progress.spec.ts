@@ -112,10 +112,11 @@ test.describe("regression: session todo progress pulse line", () => {
     await panel.locator('[data-slot="checkbox-v2-control"]').nth(1).click()
     const response = await patch
     expect(response.status()).toBe(200)
+    // The writeback is a single-task patch (HIGH-2): the response is the one
+    // patched task, and the other task is untouched server-side.
     const body = await response.json()
-    expect(body).toHaveLength(2)
-    expect(body[1]?.id).toBe("tsk_mock_b")
-    expect(body[1]?.status).toBe("completed")
+    expect(body.id).toBe("tsk_mock_b")
+    expect(body.status).toBe("completed")
 
     // The republished task.updated reconciles the fold-over to 2/2.
     events.push({
@@ -179,11 +180,11 @@ test.describe("regression: session todo progress pulse line", () => {
     await panel.locator('[data-slot="checkbox-v2-control"]').nth(1).click()
     const response = await patch
     expect(response.status()).toBe(200)
+    // The single-task patch (HIGH-2) keeps the ORIGINAL task id and only flips
+    // the status; the untoggled sibling is not part of the payload.
     const body = await response.json()
-    expect(body).toHaveLength(2)
-    expect(body[0]?.id).toBe("tsk_mock_a")
-    expect(body[1]?.id).toBe("tsk_mock_b")
-    expect(body[1]?.status).toBe("completed")
+    expect(body.id).toBe("tsk_mock_b")
+    expect(body.status).toBe("completed")
   })
 
   test("renders the id-less V1 todo projection read-only", async ({ page }) => {

@@ -2,9 +2,11 @@ import { describe, expect, test } from "bun:test"
 import {
   computeTodoProgress,
   flipTaskStatus,
+  flipTaskWriteStatus,
   normalizePriority,
   normalizeStatus,
   pickProgressTodos,
+  preserveStatus,
   type TodoProgressInput,
 } from "./session-todo-progress-model"
 
@@ -167,6 +169,41 @@ describe("normalizePriority", () => {
   test("maps missing or illegal priorities to medium", () => {
     expect(normalizePriority(undefined)).toBe("medium")
     expect(normalizePriority("urgent")).toBe("medium")
+  })
+})
+
+describe("preserveStatus (six-state write guard, HIGH-1)", () => {
+  test("keeps every valid six-state literal verbatim", () => {
+    for (const status of ["pending", "in_progress", "completed", "cancelled", "scheduled", "failed"] as const) {
+      expect(preserveStatus(status)).toBe(status)
+    }
+  })
+
+  test("only a genuinely illegal value falls back to pending", () => {
+    expect(preserveStatus("bogus")).toBe("pending")
+    expect(preserveStatus("")).toBe("pending")
+  })
+
+  test("scheduled and failed survive the persist path (not folded to pending)", () => {
+    expect(preserveStatus("scheduled")).toBe("scheduled")
+    expect(preserveStatus("failed")).toBe("failed")
+  })
+})
+
+describe("flipTaskWriteStatus (six-state fold-over transition, HIGH-1)", () => {
+  test("checking an unfinished task completes it", () => {
+    expect(flipTaskWriteStatus("pending")).toBe("completed")
+    expect(flipTaskWriteStatus("in_progress")).toBe("completed")
+    expect(flipTaskWriteStatus("failed")).toBe("completed")
+  })
+
+  test("unchecking a completed task returns it to pending", () => {
+    expect(flipTaskWriteStatus("completed")).toBe("pending")
+  })
+
+  test("cancelled and scheduled pass through unchanged (their own management UI)", () => {
+    expect(flipTaskWriteStatus("cancelled")).toBe("cancelled")
+    expect(flipTaskWriteStatus("scheduled")).toBe("scheduled")
   })
 })
 

@@ -21,12 +21,13 @@ import {
  *   showing the earliest upcoming trigger across the session's scheduled tasks
  *   (constant display, §5.6 "标题左侧").
  * - `SessionScheduledTasksPopover` — the dot-grid "定时任务" popover listing
- *   every scheduled task with an interactive checkbox that PATCHes the
- *   reconciled list back over `PATCH /session/:id/task` (same writeback path as
- *   the M2c todo fold-over).
+ *   every scheduled task with an interactive checkbox that flips the target via
+ *   the atomic single-task `PATCH /session/:id/task/:taskID` (differential-review
+ *   HIGH-2 — never a full-list reconcile, so a stale cache can't delete a
+ *   concurrently appended row).
  *
  * Data source is the id-bearing `session_task` store (task.updated); the
- * writeback omits schedule fields, which the server preserves on reconcile.
+ * patch touches only the target row, and the server preserves its schedule.
  */
 export function SessionScheduledChip(props: { sessionID: () => string | undefined }) {
   const serverSync = useServerSync()
@@ -76,23 +77,20 @@ export function SessionScheduledTasksPopover(props: {
   // SDK number fields are `number | "NaN" | ...`; guard before formatting.
   const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value)
 
-  // Checkbox writeback: flip the target task's status and PATCH the full list
-  // back (reconcile). The server preserves omitted schedule fields, and the
+  // Checkbox writeback: flip the target task's status via the single-task
+  // patch endpoint (differential-review HIGH-2). A full-list reconcile from the
+  // cached list could delete a task appended server-side but not yet delivered
+  // by SSE; a single-task patch touches only the flipped row, and the
   // republished task.updated refreshes the store — no manual set here.
   const writeback = (targetID: string, checked: boolean) => {
     const id = props.sessionID()
     if (!id) return
-    const all = serverSync().data.session_task[id] ?? []
     void sdk()
-      .client.session.task.update({
+      .client.session.task.patch({
         sessionID: id,
+        taskID: targetID,
         directory: sdk().directory,
-        body: all.map((task) => ({
-          id: task.id,
-          content: task.content,
-          status: task.id === targetID ? scheduledToggleStatus(checked) : task.status,
-          priority: task.priority,
-        })),
+        status: scheduledToggleStatus(checked),
       })
       .catch((err: unknown) => {
         const description = err instanceof Error ? err.message : String(err)

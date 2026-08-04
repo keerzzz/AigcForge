@@ -1,6 +1,7 @@
 # Todo/Task 系统全面升级实施方案
 
 > 状态：**M0-M7 已完成（2026-08-04）**，集成分支 `todo-task-m2`（M6 在 `todo-task-m6` 分支、M7 在 `todo-task-m7` 分支四步审批闭环）；交付明细见 `specs/v2/todo.md`，审批档案 `docs/review/`，其余延后项见 §8 延后总表
+> 评审修复：**差分审查 5 HIGH + 3 MEDIUM + GATE + 二轮 2 HIGH + 5 MEDIUM 已逐项闭环**（2026-08-04，报告 `docs/review/AigcForge_DIFFERENTIAL_REVIEW_M2_M7_2026-08-03.md` + `AigcForge_DIFFERENTIAL_REREVIEW_M2_M7_2026-08-04.md`）——六态写回、原子单任务端点、调度中断恢复、scheduled-trigger 不变量、task_spawn 契约、跨 session 环、cron 性能/语义、Hub 快照语义、lint；明细与回归测试见 `specs/v2/todo.md`「评审修复记录」
 > 日期：2026-07-31
 > Owner：产品 + Core + App
 > 范围：`packages/schema` + `packages/core` + `packages/aigcfroge` + `packages/app` + `packages/tui`
@@ -569,6 +570,7 @@ Agent: 合规审查 Agent
 | `TodoWrite` Tool         | 保留，Schema 兼容（Todo.Info ⊂ Task.Info）                                                                                                                                                                                                                                         |
 | `todo.updated` Event     | 继续 emit，同时 emit `task.updated`（注意：V1/V2 已在双发 `todo.updated`，双发 `task.updated` 时一并收敛）                                                                                                                                                                         |
 | `GET /session/{id}/todo` | 现有唯一 todo endpoint（无 POST，写入全走 tool 路径），Response 保持三字段投影不变。M2 另增独立的 `GET /session/{id}/task` 读取端点（`packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts:144`）返回带稳定 id 的 tasks，重载恢复数据源；旧 endpoint 原样保留 |
+| `PATCH /session/{id}/task` | 保留为**全量 reconcile**（M1 原始写 API）。评审修复（2026-08-04）新增**原子单任务端点**：`PATCH/DELETE /session/{id}/task/:taskID`（改/删单行，`SessionTask.patch/removeTask`）+ `POST /session/{id}/task`（append 单条，服务端 mint id，`SessionTask.append`）——UI 交互路径一律走原子端点，reconcile 仅保留给全量替换场景 |
 | `TodoTable` (SQLite)     | 保留，新增 `TaskTable`，M1 自动迁移                                                                                                                                                                                                                                                |
 
 ### 9.2 V1 退役路径

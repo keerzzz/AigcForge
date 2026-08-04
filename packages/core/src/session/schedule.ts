@@ -77,23 +77,54 @@ const matches = (date: Date, fields: CronFields): boolean =>
   fields.daysOfMonth.has(date.getDate()) &&
   fields.daysOfWeek.has(date.getDay())
 
-/** Search cap: ~1 year of minute ticks, bounded so a bad schedule cannot spin. */
-const SEARCH_WINDOW_MINUTES = 525_600
+/**
+ * Day-loop step budget. This bounds the number of individual day advances the
+ * search performs before giving up — NOT an elapsed-time horizon (differential-
+ * review MEDIUM-4): month jumps are single steps, so a sparse-but-possible cron
+ * (e.g. leap-day Feb 29) can legitimately resolve several years ahead within the
+ * budget, while an impossible one (Feb 30) bails after 365 day-steps. The
+ * original minute-scan capped at 525,600 ticks (~365 days) and would have
+ * returned `undefined` for a leap-day match beyond that; the field-jump search
+ * deliberately keeps those valid future matches.
+ */
+const MAX_DAY_STEPS = 365
 
 /**
  * Next timestamp (ms) strictly after `from` that matches the cron, or
  * `undefined` when the expression is invalid or has no match in the window.
+ *
+ * Field-jumping search (differential-review MEDIUM-2): instead of scanning
+ * every minute, the candidate advances month → day → hour → minute, so a sparse
+ * cron (yearly, Feb 29) needs at most a few hundred day-steps rather than
+ * ~525k minute-steps. After the minute loop rolls into a later hour/day, the
+ * candidate is re-validated as a whole; a mismatch re-advances from the rolled
+ * date, so the returned value is always the earliest full match after `from`.
  */
 export const nextRun = (cron: string, from: number): number | undefined => {
   const fields = parseCron(cron)
   if (!fields) return undefined
-  const base = new Date(from + 60_000)
+  const candidate = new Date(from + 60_000)
   // Align to the minute boundary so the returned timestamp never carries the
   // seconds/millis of `from`; without this the trigger drifts within the
   // minute while the cron fields only match whole minutes.
-  base.setSeconds(0, 0)
-  for (let i = 0; i < SEARCH_WINDOW_MINUTES; i++) {
-    const candidate = new Date(base.getTime() + i * 60_000)
+  candidate.setSeconds(0, 0)
+  let daySteps = 0
+  while (daySteps <= MAX_DAY_STEPS) {
+    while (!fields.months.has(candidate.getMonth() + 1)) {
+      candidate.setMonth(candidate.getMonth() + 1, 1)
+      candidate.setHours(0, 0, 0, 0)
+    }
+    while (!(fields.daysOfMonth.has(candidate.getDate()) && fields.daysOfWeek.has(candidate.getDay()))) {
+      candidate.setDate(candidate.getDate() + 1)
+      candidate.setHours(0, 0, 0, 0)
+      if (++daySteps > MAX_DAY_STEPS) return undefined
+    }
+    while (!fields.hours.has(candidate.getHours())) {
+      candidate.setHours(candidate.getHours() + 1, 0, 0, 0)
+    }
+    while (!fields.minutes.has(candidate.getMinutes())) {
+      candidate.setMinutes(candidate.getMinutes() + 1, 0, 0)
+    }
     if (matches(candidate, fields)) return candidate.getTime()
   }
   return undefined

@@ -248,7 +248,10 @@ export const layer = Layer.effectDiscard(
                       status: outcome.status,
                       outputDigest: outcome.outputDigest,
                     })
-                    .pipe(Effect.asVoid)
+                    // The settle writes a terminal status (never `scheduled`),
+                    // so the schedule invariant can't trip; a failure here is a
+                    // defect, not a client error.
+                    .pipe(Effect.orDie, Effect.asVoid)
               }
 
               // Tracks the current attempt's child so an abort can stop it and a

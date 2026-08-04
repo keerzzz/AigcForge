@@ -7,10 +7,9 @@ import { useLanguage } from "@/context/language"
 import { showToast } from "@/utils/toast"
 import {
   computeTodoProgress,
-  flipTaskStatus,
-  normalizePriority,
-  normalizeStatus,
+  flipTaskWriteStatus,
   pickProgressTodos,
+  preserveStatus,
   sameTodoList,
   type TodoProgressInput,
 } from "@/pages/session/timeline/session-todo-progress-model"
@@ -123,7 +122,7 @@ export function SessionTodoProgress(props: {
   createEffect(() => {
     if (!open()) return
     const handler = (event: PointerEvent) => {
-      const target = event.target as Node | null
+      const target = event.target instanceof Node ? event.target : null
       if (target && trackRef?.contains(target)) return
       setOpen(false)
     }
@@ -131,27 +130,25 @@ export function SessionTodoProgress(props: {
     onCleanup(() => document.removeEventListener("pointerdown", handler))
   })
 
-  // Fold-over writeback: flip one task's status and PATCH the whole list back.
+  // Fold-over writeback: flip ONE task's status via the single-task patch
+  // endpoint (differential-review HIGH-2). A full-list reconcile from the
+  // cached list would delete a task appended server-side but not yet delivered
+  // by SSE; a single-task patch touches only the flipped row, so unrelated
+  // tasks — including their six-state status (HIGH-1) — are never rewritten.
   const writeback = (target: TodoProgressInput) => {
     const id = props.sessionID()
     if (!id) return
     // Never PATCH id-less entries (V1 three-field projection): the reconcile
     // would mint fresh ids and delete the stored rows, wiping outputDigest.
     // The fold-over renders such entries read-only instead (see disabled below).
+    if (target.id === undefined) return
     if (tasks().some((task) => task.id === undefined)) return
-    const next = tasks().map((task) =>
-      task.id === target.id ? { ...task, status: flipTaskStatus(normalizeStatus(task.status)) } : task,
-    )
     void sdk()
-      .client.session.task.update({
+      .client.session.task.patch({
         sessionID: id,
+        taskID: target.id,
         directory: sdk().directory,
-        body: next.map((task) => ({
-          id: task.id,
-          content: task.content,
-          status: normalizeStatus(task.status),
-          priority: normalizePriority(task.priority),
-        })),
+        status: flipTaskWriteStatus(preserveStatus(target.status)),
       })
       .catch((err: unknown) => {
         const description = err instanceof Error ? err.message : String(err)
@@ -258,7 +255,12 @@ export function SessionTodoProgress(props: {
                   data-slot="session-todo-progress-checkbox"
                   checked={task().status === "completed"}
                   indeterminate={task().status === "in_progress"}
-                  disabled={task().status === "cancelled" || task().id === undefined}
+                  disabled={
+                    // scheduled/cancelled have their own management UI (the
+                    // header scheduled-tasks popover / Agent Hub), so the
+                    // fold-over never rewrites them (HIGH-1 six-state guard).
+                    task().status === "cancelled" || task().status === "scheduled" || task().id === undefined
+                  }
                   onChange={() => writeback(task())}
                   label={
                     <span data-slot="session-todo-progress-checkbox-label" data-status={task().status}>
