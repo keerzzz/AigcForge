@@ -1085,12 +1085,20 @@ it.instance(
 )
 
 // ========================================================================
-// Bug #5: McpOAuthCallback.cancelPending uses wrong key
+// cancelPending uses the mcpName → oauthState reverse index to locate the
+// pending auth entry. This test verifies cancellation is observed by the
+// promise returned from waitForCallback.
 // ========================================================================
 
-it.live("McpOAuthCallback.cancelPending is keyed by mcpName but pendingAuths uses oauthState", () =>
+it.live("McpOAuthCallback.cancelPending cancels the pending auth by mcpName", () =>
   Effect.acquireUseRelease(
-    Effect.sync(() => McpOAuthCallback.waitForCallback("abc123hexstate", "my-mcp-server")),
+    Effect.sync(() => {
+      const callback = McpOAuthCallback.waitForCallback("abc123hexstate", "my-mcp-server")
+      // Attach a no-op catch so the synchronous reject in cancelPending is
+      // not reported as an unhandled rejection before Effect.tryPromise subscribes.
+      callback.catch(() => {})
+      return callback
+    }),
     (callback) =>
       Effect.gen(function* () {
         McpOAuthCallback.cancelPending("my-mcp-server")
