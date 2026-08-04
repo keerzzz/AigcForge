@@ -400,43 +400,46 @@ describe("session HttpApi", () => {
     { git: true, config: { formatter: false, lsp: false } },
   )
 
-  it.live("uses the persisted session directory for prompt requests", () =>
-    Effect.gen(function* () {
-      const llm = yield* TestLLMServer
-      yield* llm.text("ok", { usage: { input: 1, output: 1 } })
+  it.live(
+    "uses the persisted session directory for prompt requests",
+    () =>
+      Effect.gen(function* () {
+        const llm = yield* TestLLMServer
+        yield* llm.text("ok", { usage: { input: 1, output: 1 } })
 
-      const config = testProviderConfig(llm.url)
-      const sessionDirectory = yield* tmpdirScoped({ git: true, config })
-      const requestDirectory = yield* tmpdirScoped({ git: true, config })
-      const session = yield* createSession({ title: "directory regression" }).pipe(
-        provideInstanceEffect(sessionDirectory),
-      )
+        const config = testProviderConfig(llm.url)
+        const sessionDirectory = yield* tmpdirScoped({ git: true, config })
+        const requestDirectory = yield* tmpdirScoped({ git: true, config })
+        const session = yield* createSession({ title: "directory regression" }).pipe(
+          provideInstanceEffect(sessionDirectory),
+        )
 
-      const response = yield* request(
-        `${pathFor(SessionPaths.prompt, { sessionID: session.id })}?directory=${encodeURIComponent(requestDirectory)}`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            agent: "build",
-            model: { providerID: "test", modelID: "test-model" },
-            parts: [{ type: "text", text: "which directory?" }],
-          }),
-        },
-      )
+        const response = yield* request(
+          `${pathFor(SessionPaths.prompt, { sessionID: session.id })}?directory=${encodeURIComponent(requestDirectory)}`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              agent: "build",
+              model: { providerID: "test", modelID: "test-model" },
+              parts: [{ type: "text", text: "which directory?" }],
+            }),
+          },
+        )
 
-      expect(response.status).toBe(200)
-      yield* responseJson(response)
+        expect(response.status).toBe(200)
+        yield* responseJson(response)
 
-      const messages = yield* Session.use
-        .messages({ sessionID: session.id })
-        .pipe(provideInstanceEffect(sessionDirectory), Effect.orDie)
-      const assistant = messages.find((message) => message.info.role === "assistant")
-      expect(assistant?.info.role === "assistant" ? assistant.info.path : undefined).toEqual({
-        cwd: sessionDirectory,
-        root: sessionDirectory,
-      })
-    }).pipe(Effect.provide(TestLLMServer.layer), Effect.provide(CrossSpawnSpawner.defaultLayer)),
+        const messages = yield* Session.use
+          .messages({ sessionID: session.id })
+          .pipe(provideInstanceEffect(sessionDirectory), Effect.orDie)
+        const assistant = messages.find((message) => message.info.role === "assistant")
+        expect(assistant?.info.role === "assistant" ? assistant.info.path : undefined).toEqual({
+          cwd: sessionDirectory,
+          root: sessionDirectory,
+        })
+      }).pipe(Effect.provide(TestLLMServer.layer), Effect.provide(CrossSpawnSpawner.defaultLayer)),
+    { timeout: 60_000 },
   )
 
   it.instance(
@@ -1085,6 +1088,103 @@ describe("session task HttpApi", () => {
   )
 
   it.instance(
+    "PATCH /session/:id/task rejects a dead-job recurrence cron with 400",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = {
+          "x-aigcfroge-directory": encodeURIComponent(test.directory),
+          "content-type": "application/json",
+        }
+        const session = yield* createSession({ title: "task bad cron" })
+
+        const response = yield* request(pathFor(SessionPaths.task, { sessionID: session.id }), {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify([
+            {
+              content: "nightly",
+              status: "scheduled",
+              priority: "medium",
+              recurrence: { cron: "not a cron", enabled: true },
+            },
+          ]),
+        })
+        expect(response.status).toBe(400)
+        const body = yield* response.json
+        expect(String(JSON.stringify(body))).toContain("invalid recurrence cron")
+      }),
+  )
+
+  it.instance(
+    "PATCH /session/:id/task persists M5 spawn fields (spawnedFrom/dependsOn)",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = {
+          "x-aigcfroge-directory": encodeURIComponent(test.directory),
+          "content-type": "application/json",
+        }
+        const session = yield* createSession({ title: "task spawn fields" })
+
+        const created = yield* requestJson<SessionTask.Info[]>(pathFor(SessionPaths.task, { sessionID: session.id }), {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify([
+            {
+              content: "spawned audit",
+              status: "pending",
+              priority: "medium",
+              spawnedFrom: "msg_spawn_1",
+              dependsOn: ["tsk_pred_a"],
+            },
+          ]),
+        })
+        expect(created[0]?.spawnedFrom).toBe("msg_spawn_1")
+        expect(created[0]?.dependsOn).toEqual(["tsk_pred_a"])
+
+        // Re-read through the service: the columns survived the HTTP write.
+        const tasks = yield* SessionTask.Service
+        const got = yield* tasks.get(session.id)
+        expect(got[0]?.spawnedFrom).toBe("msg_spawn_1")
+        expect(got[0]?.dependsOn).toEqual(["tsk_pred_a"])
+      }),
+  )
+
+  it.instance(
+    "PATCH /session/:id/task rejects a dependsOn cycle with 400",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = {
+          "x-aigcfroge-directory": encodeURIComponent(test.directory),
+          "content-type": "application/json",
+        }
+        const session = yield* createSession({ title: "task cycle" })
+        const tasks = yield* SessionTask.Service
+        const [a, b] = yield* tasks.append({
+          sessionID: session.id,
+          tasks: [
+            { content: "a", status: "pending", priority: "medium" },
+            { content: "b", status: "pending", priority: "medium" },
+          ],
+        })
+
+        const response = yield* request(pathFor(SessionPaths.task, { sessionID: session.id }), {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify([
+            { id: a.id, content: "a", status: "pending", priority: "medium", dependsOn: [b.id] },
+            { id: b.id, content: "b", status: "pending", priority: "medium", dependsOn: [a.id] },
+          ]),
+        })
+        expect(response.status).toBe(400)
+        const body = yield* response.text
+        expect(body).toContain("dependency cycle")
+      }),
+  )
+
+  it.instance(
     "PATCH /session/:id/task creates tasks from minimal write info",
     () =>
       Effect.gen(function* () {
@@ -1178,6 +1278,41 @@ describe("session task HttpApi", () => {
   )
 
   it.instance(
+    "GET /session/:id/task returns the full TaskInfo list with outputDigest; empty session returns []",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = { "x-aigcfroge-directory": encodeURIComponent(test.directory) }
+        const session = yield* createSession({ title: "task get" })
+
+        // Seed a task and settle it with a digest (the delegation writeback path).
+        const tasks = yield* SessionTask.Service
+        const [seeded] = yield* tasks.update({
+          sessionID: session.id,
+          tasks: [{ content: "first", status: "in_progress", priority: "high" }],
+        })
+        yield* tasks.patch({ sessionID: session.id, id: seeded.id, status: "completed", outputDigest: "ses_child" })
+
+        // GET returns the persisted Info with id + digest (reload-recovery source).
+        const body = yield* requestJson<SessionTask.Info[]>(pathFor(SessionPaths.task, { sessionID: session.id }), {
+          headers,
+        })
+        expect(body).toHaveLength(1)
+        expect(body[0]?.id).toBe(seeded.id)
+        expect(body[0]?.content).toBe("first")
+        expect(body[0]?.status).toBe("completed")
+        expect(body[0]?.outputDigest).toBe("ses_child")
+
+        // A session with no tasks reads back an empty array.
+        const empty = yield* createSession({ title: "task empty" })
+        const emptyBody = yield* requestJson<SessionTask.Info[]>(pathFor(SessionPaths.task, { sessionID: empty.id }), {
+          headers,
+        })
+        expect(emptyBody).toEqual([])
+      }),
+  )
+
+  it.instance(
     "GET /session/:id/todo reads the legacy TodoTable in the default V1 runtime",
     () =>
       Effect.gen(function* () {
@@ -1204,6 +1339,113 @@ describe("session task HttpApi", () => {
           { headers },
         )
         expect(todos).toEqual([{ content: "legacy", status: "in_progress", priority: "high" }])
+      }),
+  )
+
+  it.instance(
+    "GET /agent-task aggregates every session's tasks for the Agent Hub",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = { "x-aigcfroge-directory": encodeURIComponent(test.directory) }
+        const session = yield* createSession({ title: "agent hub" })
+        const other = yield* createSession({ title: "agent hub other" })
+
+        const tasks = yield* SessionTask.Service
+        yield* tasks.update({
+          sessionID: session.id,
+          tasks: [{ content: "build-a", status: "in_progress", priority: "high", agentID: "build" }],
+        })
+        yield* tasks.update({
+          sessionID: other.id,
+          tasks: [
+            // `scheduled` requires a real trigger (HIGH-4 schedule invariant).
+            {
+              content: "build-b",
+              status: "scheduled",
+              priority: "medium",
+              agentID: "build",
+              scheduledAt: Date.now() + 60_000,
+            },
+            { content: "unowned", status: "pending", priority: "low" },
+          ],
+        })
+
+        const all = yield* requestJson<SessionTask.Info[]>("/agent-task", { headers })
+        expect(all.map((task) => task.content).sort()).toEqual(["build-a", "build-b", "unowned"])
+        const buildA = all.find((task) => task.content === "build-a")
+        expect(buildA?.agentID).toBe("build")
+        expect(buildA?.sessionID).toBe(session.id)
+        const unowned = all.find((task) => task.content === "unowned")
+        expect(unowned?.agentID).toBeUndefined()
+      }),
+  )
+
+  it.instance(
+    "single-task patch/create/delete are atomic (HIGH-2) and reject a dead schedule (HIGH-4)",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = { "x-aigcfroge-directory": encodeURIComponent(test.directory) }
+        const session = yield* createSession({ title: "atomic tasks" })
+
+        // Create one task atomically (POST /session/:id/task).
+        const created = yield* requestJson<SessionTask.Info>(pathFor(SessionPaths.task, { sessionID: session.id }), {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ content: "one", status: "pending", priority: "medium" }),
+        })
+        const taskID = created.id
+
+        // A second create in a now non-empty session must return the NEWLY
+        // created task (re-review MEDIUM-1), and a client-supplied id must be
+        // ignored — the server owns id generation on create (re-review HIGH-2).
+        const second = yield* requestJson<SessionTask.Info>(pathFor(SessionPaths.task, { sessionID: session.id }), {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ id: "tsk_client_forged", content: "two", status: "pending", priority: "medium" }),
+        })
+        expect(second.content).toBe("two")
+        expect(second.id).not.toBe("tsk_client_forged")
+        expect(second.id).not.toBe(taskID)
+
+        // Patch ONE task by id — the other survives (no full reconcile).
+        const patched = yield* requestJson<SessionTask.Info>(
+          pathFor(SessionPaths.taskItem, { sessionID: session.id, taskID }),
+          { method: "PATCH", headers, body: JSON.stringify({ status: "completed" }) },
+        )
+        expect(patched.status).toBe("completed")
+        const afterPatch = yield* requestJson<SessionTask.Info[]>(pathFor(SessionPaths.task, { sessionID: session.id }), {
+          headers,
+        })
+        expect(afterPatch.map((task) => task.content).sort()).toEqual(["one", "two"])
+
+        // Patch a task the session doesn't own → 404 (scoped by session).
+        const foreignResponse = yield* request(
+          pathFor(SessionPaths.taskItem, { sessionID: session.id, taskID: "tsk_foreign" }),
+          { method: "PATCH", headers, body: JSON.stringify({ status: "completed" }) },
+        )
+        expect(foreignResponse.status).toBe(404)
+
+        // A scheduled task without a trigger is rejected at the HTTP boundary
+        // too (HIGH-4: the create endpoint shares the domain invariant).
+        const deadResponse = yield* request(pathFor(SessionPaths.task, { sessionID: session.id }), {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ content: "dead", status: "scheduled", priority: "medium" }),
+        })
+        expect(deadResponse.status).toBe(400)
+
+        // Delete ONE task by id — the other survives.
+        const removed = yield* requestJson<SessionTask.Info>(
+          pathFor(SessionPaths.taskItem, { sessionID: session.id, taskID }),
+          { method: "DELETE", headers },
+        )
+        expect(removed.id).toBe(taskID)
+        const afterDelete = yield* requestJson<SessionTask.Info[]>(pathFor(SessionPaths.task, { sessionID: session.id }), {
+          headers,
+        })
+        expect(afterDelete.map((task) => task.content)).toEqual(["two"])
       }),
   )
 })

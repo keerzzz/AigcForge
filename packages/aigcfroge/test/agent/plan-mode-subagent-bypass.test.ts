@@ -93,8 +93,12 @@ it.instance("general and explore children do not inherit parent task or todo per
 
     expect(Permission.evaluate("task", "general", effectiveGeneral).action).toBe("deny")
     expect(Permission.evaluate("todowrite", "*", effectiveGeneral).action).toBe("deny")
+    expect(Permission.evaluate("task_schedule", "*", effectiveGeneral).action).toBe("deny")
+    expect(Permission.evaluate("task_spawn", "*", effectiveGeneral).action).toBe("deny")
     expect(Permission.evaluate("task", "general", effectiveExplore).action).toBe("deny")
     expect(Permission.evaluate("todowrite", "*", effectiveExplore).action).toBe("deny")
+    expect(Permission.evaluate("task_schedule", "*", effectiveExplore).action).toBe("deny")
+    expect(Permission.evaluate("task_spawn", "*", effectiveExplore).action).toBe("deny")
   }),
 )
 

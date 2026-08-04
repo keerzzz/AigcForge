@@ -132,6 +132,29 @@ describe("AgentV2", () => {
     }),
   )
 
+  it.effect("general subagent denies recursive todo/task writes, scheduling, and spawning", () =>
+    Effect.gen(function* () {
+      const agent = yield* AgentV2.Service
+      yield* AgentPlugin.Plugin.effect(
+        host({
+          agent: agentHost(agent),
+        }),
+      ).pipe(
+        Effect.provideService(
+          Location.Service,
+          Location.Service.of(location({ directory: AbsolutePath.make("/project") })),
+        ),
+      )
+
+      const general = yield* agent.get(AgentV2.ID.make("general"))
+      expect(general).toBeDefined()
+      // Mirrors the V1 subagent defaults (aigcfroge subagent-permissions.ts).
+      for (const action of ["todowrite", "taskwrite", "task_schedule", "task_spawn"]) {
+        expect(PermissionV2.evaluate(action, "*", general!.permissions).effect).toBe("deny")
+      }
+    }),
+  )
+
   it.effect("work-orchestrator is fail-closed and gates .env reads to ask", () =>
     Effect.gen(function* () {
       const agent = yield* AgentV2.Service

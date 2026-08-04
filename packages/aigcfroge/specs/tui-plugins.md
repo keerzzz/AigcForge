@@ -381,7 +381,8 @@ Mode pushes are automatically tracked by the plugin runtime. If a plugin is disa
   - `vcs?.branch`
   - `session.count()`
   - `session.diff(sessionID)`
-  - `session.todo(sessionID)`
+  - `session.task?(sessionID)`
+  - `session.todo(sessionID)` (deprecated — legacy projection of the task store, removed in Phase 5)
   - `session.messages(sessionID)`
   - `session.status(sessionID)`
   - `session.permission(sessionID)`
@@ -511,12 +512,12 @@ Metadata is persisted by plugin id.
 - `internal:sidebar-context`
 - `internal:sidebar-mcp`
 - `internal:sidebar-lsp`
-- `internal:sidebar-todo`
+- `internal:sidebar-task`
 - `internal:sidebar-files`
 - `internal:sidebar-footer`
 - `internal:plugin-manager`
 
-Sidebar content order is currently: context `100`, mcp `200`, lsp `300`, todo `400`, files `500`.
+Sidebar content order is currently: context `100`, mcp `200`, lsp `300`, task `400`, files `500`.
 
 The plugin manager is exposed as a command with title `Plugins` and value `plugins.list`.
 

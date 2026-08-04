@@ -1616,10 +1616,8 @@ export default function Page() {
 
     openProjectNewSession(
       global.ensureServerCtx(conn).projects,
-      (_server, draftDirectory) => appTabs.newDraft(
-        { server: _server, directory: draftDirectory, ...modeDraft("chat") },
-        seedPrompt,
-      ),
+      (_server, draftDirectory) =>
+        appTabs.newDraft({ server: _server, directory: draftDirectory, ...modeDraft("chat") }, seedPrompt),
       ServerConnection.key(conn),
       directory,
     )
@@ -1720,7 +1718,6 @@ export default function Page() {
   const composerRegion = (placement: "dock" | "inline") => (
     <SessionComposerRegion
       state={composer}
-      ready={!store.deferRender && messagesReady()}
       centered={placement === "dock" && centered()}
       placement={placement}
       inputRef={(el) => {

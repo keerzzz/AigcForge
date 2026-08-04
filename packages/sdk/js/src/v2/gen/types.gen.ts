@@ -3689,6 +3689,10 @@ export type SessionTaskInfo = {
    */
   scheduledAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
   recurrence?: TaskRecurrence
+  /**
+   * Next trigger timestamp (ms); derived, only set for scheduled/pending tasks
+   */
+  nextRun?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
   spawnedFrom?: string
   dependsOn?: Array<string>
   createdAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
@@ -4717,6 +4721,11 @@ export type SessionTaskWriteInfo = {
   status: TaskStatus
   priority: TaskPriority
   parentID?: string
+  agentID?: string
+  scheduledAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  recurrence?: TaskRecurrence
+  spawnedFrom?: string
+  dependsOn?: Array<string>
 }
 
 export type ToolSummaryEntry = {
@@ -8038,7 +8047,7 @@ export type EventQuestionV2Rejected = {
   }
 }
 
-export type SessionTaskInfo1 = {
+export type SessionTaskInfo4 = {
   /**
    * Stable task ID (tsk_ prefixed, time-ordered)
    */
@@ -8061,6 +8070,10 @@ export type SessionTaskInfo1 = {
    */
   scheduledAt?: number | "NaN" | "Infinity" | "-Infinity"
   recurrence?: TaskRecurrence
+  /**
+   * Next trigger timestamp (ms); derived, only set for scheduled/pending tasks
+   */
+  nextRun?: number | "NaN" | "Infinity" | "-Infinity"
   spawnedFrom?: string
   dependsOn?: Array<string>
   createdAt: number | "NaN" | "Infinity" | "-Infinity"
@@ -8072,7 +8085,7 @@ export type EventTaskUpdated = {
   type: "task.updated"
   properties: {
     sessionID: string
-    tasks: Array<SessionTaskInfo1>
+    tasks: Array<SessionTaskInfo4>
   }
 }
 
@@ -11397,6 +11410,34 @@ export type AgentAssetDeleteResponses = {
   200: unknown
 }
 
+export type AgentTaskListData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/agent-task"
+}
+
+export type AgentTaskListErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type AgentTaskListError = AgentTaskListErrors[keyof AgentTaskListErrors]
+
+export type AgentTaskListResponses = {
+  /**
+   * All tasks across sessions
+   */
+  200: Array<SessionTaskInfo>
+}
+
+export type AgentTaskListResponse = AgentTaskListResponses[keyof AgentTaskListResponses]
+
 export type WorkflowAssetListData = {
   body?: never
   path?: never
@@ -12126,6 +12167,40 @@ export type SessionTodoResponses = {
 
 export type SessionTodoResponse = SessionTodoResponses[keyof SessionTodoResponses]
 
+export type SessionTaskGetData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/task"
+}
+
+export type SessionTaskGetErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionTaskGetError = SessionTaskGetErrors[keyof SessionTaskGetErrors]
+
+export type SessionTaskGetResponses = {
+  /**
+   * Task list
+   */
+  200: Array<SessionTaskInfo>
+}
+
+export type SessionTaskGetResponse = SessionTaskGetResponses[keyof SessionTaskGetResponses]
+
 export type SessionTaskUpdateData = {
   body?: Array<SessionTaskWriteInfo>
   path: {
@@ -12159,6 +12234,112 @@ export type SessionTaskUpdateResponses = {
 }
 
 export type SessionTaskUpdateResponse = SessionTaskUpdateResponses[keyof SessionTaskUpdateResponses]
+
+export type SessionTaskCreateData = {
+  body?: SessionTaskWriteInfo
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/task"
+}
+
+export type SessionTaskCreateErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionTaskCreateError = SessionTaskCreateErrors[keyof SessionTaskCreateErrors]
+
+export type SessionTaskCreateResponses = {
+  /**
+   * Created task
+   */
+  200: SessionTaskInfo
+}
+
+export type SessionTaskCreateResponse = SessionTaskCreateResponses[keyof SessionTaskCreateResponses]
+
+export type SessionTaskDeleteData = {
+  body?: never
+  path: {
+    sessionID: string
+    taskID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/task/{taskID}"
+}
+
+export type SessionTaskDeleteErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionTaskDeleteError = SessionTaskDeleteErrors[keyof SessionTaskDeleteErrors]
+
+export type SessionTaskDeleteResponses = {
+  /**
+   * Deleted task
+   */
+  200: SessionTaskInfo
+}
+
+export type SessionTaskDeleteResponse = SessionTaskDeleteResponses[keyof SessionTaskDeleteResponses]
+
+export type SessionTaskPatchData = {
+  body?: {
+    status: TaskStatus
+  }
+  path: {
+    sessionID: string
+    taskID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/task/{taskID}"
+}
+
+export type SessionTaskPatchErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionTaskPatchError = SessionTaskPatchErrors[keyof SessionTaskPatchErrors]
+
+export type SessionTaskPatchResponses = {
+  /**
+   * Patched task
+   */
+  200: SessionTaskInfo
+}
+
+export type SessionTaskPatchResponse = SessionTaskPatchResponses[keyof SessionTaskPatchResponses]
 
 export type SessionDiffData = {
   body?: never

@@ -63,10 +63,10 @@
 
 | 能力 | 归属 | 说明 |
 |---|---|---|
-| `TaskInfo` Schema | todo 分支 M0 | Work 的 `outputDigest` 字段已列入 Todo 计划 §5.2 (M1.5) |
+| `TaskInfo` Schema | todo 分支 M0 | Work 的 `outputDigest` 字段已列入 Todo 计划 §5.2（M2，原 M1.5 折入） |
 | `SessionTask` Service | todo 分支 M1 | Work M1.5 复用，不新建 |
 | `PATCH /session/{id}/task` 写 API | todo 分支 M1 | Work 可交互 TaskPanel 依赖 |
-| `outputDigest` | todo 分支 M1.5 | 与 Work M1.5 同步上线 |
+| `outputDigest` | todo 分支 M2（原 M1.5 折入） | 与 Work M1.5 同步上线 |
 | 官方 Preset 注册表 | **work 分支 M1** | Work 独有，与 todo 无交集 |
 | work-orchestrator agent | **work 分支 M1** | 类比 chat-orchestrator，Work 专属 |
 | Artifact 投影 | **work 分支 M0/M1** | Work 独有（产出记录），与 todo 无交集 |

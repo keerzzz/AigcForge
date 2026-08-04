@@ -6,7 +6,7 @@ import { Schema } from "effect"
  * Task/Todo unified contract. Phase strategy (see docs/plan/todo-task-system-upgrade.md §5.2):
  * - M0: id/content/status/priority/parentID/sessionID
  * - M1.5: outputDigest (Work ProgressLedger alignment)
- * - M3: agentID/scheduledAt/recurrence
+ * - M3: agentID/scheduledAt/recurrence (+ derived nextRun)
  * - M5: spawnedFrom/dependsOn
  * Derived values (never stored): currentStepIndex = first non-completed step;
  * canResume = exists a failed|in_progress step.
@@ -26,11 +26,15 @@ export const TaskPriority = Schema.Literals(["high", "medium", "low"]).annotate(
 })
 export type TaskPriority = typeof TaskPriority.Type
 
-export class TaskRecurrence extends Schema.Class<TaskRecurrence>("TaskRecurrence")({
+// Value record persisted as a JSON column and exchanged as a plain object over
+// HTTP, so a Struct (not a Class) keeps encode/decode working without instance
+// wrapping.
+export const TaskRecurrence = Schema.Struct({
   cron: Schema.String,
   timezone: Schema.optional(Schema.String),
   enabled: Schema.Boolean,
-}) {}
+}).annotate({ identifier: "TaskRecurrence" })
+export type TaskRecurrence = typeof TaskRecurrence.Type
 
 export class Info extends Schema.Class<Info>("SessionTask.Info")({
   id: Schema.String.annotate({ description: "Stable task ID (tsk_ prefixed, time-ordered)" }),
@@ -51,6 +55,9 @@ export class Info extends Schema.Class<Info>("SessionTask.Info")({
     description: "Scheduled trigger timestamp (ms)",
   }),
   recurrence: Schema.optional(TaskRecurrence),
+  nextRun: Schema.optional(Schema.Number).annotate({
+    description: "Next trigger timestamp (ms); derived, only set for scheduled/pending tasks",
+  }),
   // ── M5: spawning & DAG ──
   spawnedFrom: Schema.optional(Schema.String).annotate({
     description: "Message ID this task was spawned from",

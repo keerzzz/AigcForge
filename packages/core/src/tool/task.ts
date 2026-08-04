@@ -226,10 +226,15 @@ export const layer = Layer.effectDiscard(
               if (taskID === undefined && resumeID === undefined) {
                 // Track B: append atomically in one transaction so concurrent
                 // task calls in the same provider turn never drop each other's rows.
-                const created = yield* tasks.append({
-                  sessionID: context.sessionID,
-                  tasks: [{ content: input.description, status: "in_progress", priority: "medium" }],
-                })
+                // The write is a plain in_progress task (no recurrence), so the
+                // dead-job guard can't fire; map the typed error to ToolFailure
+                // to keep the tool's error surface uniform.
+                const created = yield* tasks
+                  .append({
+                    sessionID: context.sessionID,
+                    tasks: [{ content: input.description, status: "in_progress", priority: "medium" }],
+                  })
+                  .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message })))
                 taskID = created.at(-1)?.id
               }
               let onSettle: ((outcome: TaskDriver.SettleOutcome) => Effect.Effect<void>) | undefined
@@ -243,7 +248,10 @@ export const layer = Layer.effectDiscard(
                       status: outcome.status,
                       outputDigest: outcome.outputDigest,
                     })
-                    .pipe(Effect.asVoid)
+                    // The settle writes a terminal status (never `scheduled`),
+                    // so the schedule invariant can't trip; a failure here is a
+                    // defect, not a client error.
+                    .pipe(Effect.orDie, Effect.asVoid)
               }
 
               // Tracks the current attempt's child so an abort can stop it and a

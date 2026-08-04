@@ -38,7 +38,7 @@ export interface Interface {
   readonly update: (input: {
     readonly sessionID: SessionSchema.ID
     readonly todos: ReadonlyArray<Info>
-  }) => Effect.Effect<void>
+  }) => Effect.Effect<void, SessionTask.TaskWriteError>
   readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<ReadonlyArray<Info>>
 }
 

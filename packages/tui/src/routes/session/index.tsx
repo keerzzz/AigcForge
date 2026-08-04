@@ -46,7 +46,7 @@ import { useEditorContext } from "../../context/editor"
 import { openEditor } from "../../editor"
 import { useDialog } from "../../ui/dialog"
 import { DialogAlert } from "../../ui/dialog-alert"
-import { TodoItem } from "../../component/todo-item"
+import { TaskItem } from "../../component/task-item"
 import { DialogMessage } from "./dialog-message"
 import type { PromptInfo } from "../../component/prompt/history"
 import { DialogConfirm } from "../../ui/dialog-confirm"
@@ -2458,7 +2458,7 @@ function TodoWrite(props: ToolProps) {
       <Match when={parseTodos(props.metadata.todos).length}>
         <BlockTool title="# Todos" part={props.part}>
           <box>
-            <For each={todos()}>{(todo) => <TodoItem status={todo.status} content={todo.content} />}</For>
+            <For each={todos()}>{(todo) => <TaskItem status={todo.status} content={todo.content} />}</For>
           </box>
         </BlockTool>
       </Match>

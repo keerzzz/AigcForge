@@ -57,7 +57,6 @@ export default function NewSessionPage() {
             <NewSessionDesignView>
               <SessionComposerRegion
                 state={composer}
-                ready
                 centered={false}
                 placement="inline"
                 inputRef={(el) => {

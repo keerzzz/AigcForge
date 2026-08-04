@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "1fb59954-e727-48f6-b109-e07b4723dcb9",
+  "id": "0cb97b87-761a-482c-94e9-4ab95d42ed9b",
   "prevIds": [
-    "3433062a-710a-450f-999d-fe858de9b6f9"
+    "07527a77-8e19-41ce-bbba-838e74ae2b26"
   ],
   "ddl": [
     {
@@ -1809,6 +1809,66 @@
       "default": null,
       "generated": null,
       "name": "parent_id",
+      "entityType": "columns",
+      "table": "task"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "output_digest",
+      "entityType": "columns",
+      "table": "task"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "agent_id",
+      "entityType": "columns",
+      "table": "task"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "scheduled_at",
+      "entityType": "columns",
+      "table": "task"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "recurrence",
+      "entityType": "columns",
+      "table": "task"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "spawned_from",
+      "entityType": "columns",
+      "table": "task"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "depends_on",
       "entityType": "columns",
       "table": "task"
     },

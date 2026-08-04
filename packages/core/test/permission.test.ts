@@ -342,4 +342,85 @@ describe("PermissionV2", () => {
       expect(yield* service.ask(assertion())).toMatchObject({ effect: "ask" })
     }),
   )
+
+  it.effect("unattended child Session with a pre-auth allow ruleset reads without silent denial (M3)", () =>
+    Effect.gen(function* () {
+      // Scheduled jobs run under an agent whose permissions pre-authorize the
+      // tools they need (plan §8 G2). An explicit allow rule is NOT converted
+      // to deny, so the unattended job can read files instead of being silently
+      // rejected by the ask→deny fallback.
+      yield* setup([{ action: "read", resource: "*", effect: "allow" }])
+      const { db } = yield* Database.Service
+      yield* db
+        .update(SessionTable)
+        .set({ parent_id: SessionV2.ID.make("ses_parent"), attended: 0 })
+        .where(eq(SessionTable.id, SessionV2.ID.make("ses_test")))
+        .run()
+        .pipe(Effect.orDie)
+
+      const service = yield* PermissionV2.Service
+      expect(yield* service.ask(assertion())).toMatchObject({ effect: "allow" })
+    }),
+  )
+
+  it.effect("unattended child Session denies an unmatched action instead of parking on the ask fallback", () =>
+    Effect.gen(function* () {
+      // No configured rule matches: previously evaluate's fallback ask parked
+      // assert on a Deferred until teardown (a hung unattended task). The
+      // catch-all deny makes it fail fast with DeniedError, queueing nothing.
+      yield* setup()
+      const { db } = yield* Database.Service
+      yield* db
+        .update(SessionTable)
+        .set({ parent_id: SessionV2.ID.make("ses_parent"), attended: 0 })
+        .where(eq(SessionTable.id, SessionV2.ID.make("ses_test")))
+        .run()
+        .pipe(Effect.orDie)
+
+      const service = yield* PermissionV2.Service
+      const denied = yield* service.assert(assertion()).pipe(Effect.flip)
+      expect(denied).toBeInstanceOf(PermissionV2.DeniedError)
+      expect(yield* service.list()).toEqual([])
+    }),
+  )
+
+  it.effect("unattended child Session asserts cleanly under an explicit allow rule", () =>
+    Effect.gen(function* () {
+      // Regression guard: the catch-all deny sits at the head of the ruleset,
+      // so a configured allow still wins findLast and the assert passes.
+      yield* setup([{ action: "read", resource: "*", effect: "allow" }])
+      const { db } = yield* Database.Service
+      yield* db
+        .update(SessionTable)
+        .set({ parent_id: SessionV2.ID.make("ses_parent"), attended: 0 })
+        .where(eq(SessionTable.id, SessionV2.ID.make("ses_test")))
+        .run()
+        .pipe(Effect.orDie)
+
+      const service = yield* PermissionV2.Service
+      yield* service.assert(assertion())
+      expect(yield* service.list()).toEqual([])
+    }),
+  )
+
+  it.effect("unattended child Session honors saved approvals over the catch-all deny", () =>
+    Effect.gen(function* () {
+      // Saved rules are appended after the catch-all (findLast wins), so a
+      // user pre-authorization still lets an unattended child through.
+      yield* setup()
+      const { db } = yield* Database.Service
+      yield* db
+        .update(SessionTable)
+        .set({ parent_id: SessionV2.ID.make("ses_parent"), attended: 0 })
+        .where(eq(SessionTable.id, SessionV2.ID.make("ses_test")))
+        .run()
+        .pipe(Effect.orDie)
+      const saved = yield* PermissionSaved.Service
+      yield* saved.add({ projectID: Project.ID.global, action: "read", resources: ["src/*"] })
+
+      const service = yield* PermissionV2.Service
+      yield* service.assert(assertion())
+      expect(yield* service.list()).toEqual([])
+    }),
+  )
 })

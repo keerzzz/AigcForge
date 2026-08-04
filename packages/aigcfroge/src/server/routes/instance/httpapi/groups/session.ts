@@ -26,6 +26,7 @@ import { QueryBoolean } from "./query"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { SessionTask } from "@aigcfroge/core/session/task"
+import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
 
 const root = "/session"
@@ -85,6 +86,7 @@ export const SessionPaths = {
   children: `${root}/:sessionID/children`,
   todo: `${root}/:sessionID/todo`,
   task: `${root}/:sessionID/task`,
+  taskItem: `${root}/:sessionID/task/:taskID`,
   diff: `${root}/:sessionID/diff`,
   messages: `${root}/:sessionID/message`,
   message: `${root}/:sessionID/message/:messageID`,
@@ -183,6 +185,70 @@ export const SessionApi = HttpApi.make("session")
             summary: "Replace session tasks",
             description:
               "Reconcile a session's task list: entries without an id are minted a stable tsk_ id, entries with an existing id are updated in place, and omitted entries are removed.",
+          }),
+        ),
+        HttpApiEndpoint.get("getTask", SessionPaths.task, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          success: described(Schema.Array(SessionTask.Info), "Task list"),
+          error: [HttpApiError.BadRequest, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.task.get",
+            summary: "Get session tasks",
+            description:
+              "Retrieve a session's task list with stable ids and persisted output digests (reload-recovery source for the TaskPanel).",
+          }),
+        ),
+        // Single-task atomic mutations (differential-review HIGH-2): the UI must
+        // never PATCH a stale full-list snapshot — the reconcile above deletes
+        // rows the client hasn't seen yet (a concurrent append between SSE
+        // delivery and the write would be silently dropped). These three ops
+        // touch only the named row, so a stale cache can never delete what it
+        // doesn't know about.
+        HttpApiEndpoint.patch("patchTask", SessionPaths.taskItem, {
+          params: { sessionID: SessionID, taskID: Schema.String },
+          query: WorkspaceRoutingQuery,
+          payload: Schema.Struct({
+            status: SessionTaskSchema.TaskStatus,
+            // outputDigest deliberately absent: it is written by the TaskDriver /
+            // ScheduledJob settle paths (internal), and exposing it publicly would
+            // let a client overwrite the execution digest / child-session linkage.
+          }),
+          success: described(SessionTask.Info, "Patched task"),
+          error: [InvalidRequestError, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.task.patch",
+            summary: "Patch one task",
+            description:
+              "Update a single task's status by id. Unlike the full-list reconcile, no other row is touched and no absent row is deleted.",
+          }),
+        ),
+        HttpApiEndpoint.post("createTask", SessionPaths.task, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          payload: SessionTask.WriteInfo,
+          success: described(SessionTask.Info, "Created task"),
+          error: [InvalidRequestError, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.task.create",
+            summary: "Create one task",
+            description:
+              "Append a single task to the session without reconciling (and thus deleting) the existing list.",
+          }),
+        ),
+        HttpApiEndpoint.delete("deleteTask", SessionPaths.taskItem, {
+          params: { sessionID: SessionID, taskID: Schema.String },
+          query: WorkspaceRoutingQuery,
+          success: described(SessionTask.Info, "Deleted task"),
+          error: [InvalidRequestError, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.task.delete",
+            summary: "Delete one task",
+            description: "Delete a single task by id. Other rows are untouched.",
           }),
         ),
         HttpApiEndpoint.get("diff", SessionPaths.diff, {

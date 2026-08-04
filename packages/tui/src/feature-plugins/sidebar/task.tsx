@@ -1,14 +1,19 @@
 import type { TuiPlugin, TuiPluginApi } from "@aigcfroge/plugin/tui"
+import type { SessionTaskInfo } from "@aigcfroge/sdk/v2"
 import type { BuiltinTuiPlugin } from "../builtins"
 import { createMemo, For, Show, createSignal } from "solid-js"
-import { TodoItem } from "../../component/todo-item"
+import { TaskItem } from "../../component/task-item"
 
-const id = "internal:sidebar-todo"
+const id = "internal:sidebar-task"
+
+function nextRunOf(task: SessionTaskInfo): number | undefined {
+  return typeof task.nextRun === "number" ? task.nextRun : undefined
+}
 
 function View(props: { api: TuiPluginApi; session_id: string }) {
   const [open, setOpen] = createSignal(true)
   const theme = () => props.api.theme.current
-  const list = createMemo(() => props.api.state.session.todo(props.session_id))
+  const list = createMemo(() => props.api.state.session.task?.(props.session_id) ?? [])
   const show = createMemo(() => list().length > 0 && list().some((item) => item.status !== "completed"))
 
   return (
@@ -19,11 +24,13 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
             <text fg={theme().text}>{open() ? "▼" : "▶"}</text>
           </Show>
           <text fg={theme().text}>
-            <b>Todo</b>
+            <b>Task</b>
           </text>
         </box>
         <Show when={list().length <= 2 || open()}>
-          <For each={list()}>{(item) => <TodoItem status={item.status} content={item.content} />}</For>
+          <For each={list()}>
+            {(item) => <TaskItem status={item.status} content={item.content} nextRun={nextRunOf(item)} />}
+          </For>
         </Show>
       </box>
     </Show>

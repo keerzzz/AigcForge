@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/solid */
 import { describe, expect, test } from "bun:test"
 import { tmpdir } from "../../../fixture/fixture"
-import { mount, wait } from "./sync-fixture"
+import { json, mount, wait } from "./sync-fixture"
 import type { GlobalEvent } from "@aigcfroge/sdk/v2"
 
 function branchEvent(branch: string, workspace?: string): GlobalEvent {
@@ -56,6 +56,76 @@ describe("tui sync", () => {
       await wait(() => sync.data.vcs?.branch === "feature")
 
       expect(sync.data.vcs?.branch).toBe("feature")
+    } finally {
+      app.renderer.destroy()
+    }
+  })
+
+  test("task.updated event lands in the task store", async () => {
+    await using tmp = await tmpdir()
+    await Bun.write(`${tmp.path}/kv.json`, "{}")
+    const { app, emit, sync } = await mount(undefined, tmp.path)
+
+    try {
+      const sessionID = "sess_task"
+      emit({
+        directory: "/tmp/other",
+        project: "proj_test",
+        payload: {
+          id: "evt_task_1",
+          type: "task.updated",
+          properties: {
+            sessionID,
+            tasks: [
+              {
+                id: "tsk_1",
+                content: "build widget",
+                status: "scheduled",
+                priority: "high",
+                sessionID,
+                createdAt: 1,
+                updatedAt: 1,
+                nextRun: 12345,
+              },
+            ],
+          },
+        },
+      })
+
+      await wait(() => sync.data.task[sessionID]?.length === 1)
+      expect(sync.data.task[sessionID]?.[0]).toMatchObject({ id: "tsk_1", status: "scheduled" })
+    } finally {
+      app.renderer.destroy()
+    }
+  })
+
+  test("session sync hydrates the task store from session.task", async () => {
+    await using tmp = await tmpdir()
+    await Bun.write(`${tmp.path}/kv.json`, "{}")
+    const sessionID = "sess_task"
+    const tasks = [
+      {
+        id: "tsk_1",
+        content: "build widget",
+        status: "pending",
+        priority: "high",
+        sessionID,
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ]
+    const { app, sync } = await mount((url) => {
+      if (url.pathname === `/session/${sessionID}/task`) return json(tasks)
+      if (url.pathname === `/session/${sessionID}/message`) return json([])
+      if (url.pathname === `/session/${sessionID}/diff`) return json([])
+      if (url.pathname === `/session/${sessionID}`) return json({})
+      return undefined
+    }, tmp.path)
+
+    try {
+      await sync.session.sync(sessionID)
+      await wait(() => sync.data.task[sessionID]?.length === 1)
+      expect(sync.data.task[sessionID]?.[0]).toMatchObject({ id: "tsk_1", status: "pending" })
     } finally {
       app.renderer.destroy()
     }

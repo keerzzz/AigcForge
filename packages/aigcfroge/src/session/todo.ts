@@ -1,3 +1,9 @@
+/**
+ * @deprecated Todo/Task 升级：V1 Todo 已由 SessionTask（`@aigcfroge/core/session/task`）
+ * 取代。本文件仅在 `AIGCFROGE_V2_RUNTIME=false` 的 V1 读路径保留以向后兼容，不新增功能。
+ * 自 M3b-2 起标记 deprecated（提前标记决策），物理删除仍在 M5 之后的下个大版本
+ * （Phase 5 V1 退役的独立决策）。
+ */
 import { LayerNode } from "@aigcfroge/core/effect/layer-node"
 import { SessionID } from "./schema"
 import { Effect, Layer, Context, Schema } from "effect"

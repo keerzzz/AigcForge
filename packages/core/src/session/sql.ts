@@ -133,6 +133,16 @@ export const TaskTable = sqliteTable(
     status: text().$type<SessionTaskSchema.TaskStatus>().notNull(),
     priority: text().$type<SessionTaskSchema.TaskPriority>().notNull(),
     parent_id: text(),
+    // M2: incremental step output digest (Work ProgressLedger) — TaskPanel
+    // reload-recovery reads it back after a page refresh.
+    output_digest: text(),
+    // M3: scheduled jobs — owning agent, next trigger, and repetition rule.
+    agent_id: text(),
+    scheduled_at: integer(),
+    recurrence: text({ mode: "json" }).$type<SessionTaskSchema.TaskRecurrence>(),
+    // M5: spawning & DAG — originating message and predecessor task ids.
+    spawned_from: text(),
+    depends_on: text({ mode: "json" }).$type<readonly string[]>(),
     position: integer().notNull(),
     ...Timestamps,
   },
