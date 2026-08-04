@@ -277,6 +277,10 @@ export const Plugin = define({
           ...PermissionV2.merge(defaults, [
             { action: "todowrite", resource: "*", effect: "deny" },
             { action: "taskwrite", resource: "*", effect: "deny" },
+            // Mirror the V1 subagent defaults (aigcfroge subagent-permissions.ts):
+            // a subagent must not schedule or spawn follow-up work recursively.
+            { action: "task_schedule", resource: "*", effect: "deny" },
+            { action: "task_spawn", resource: "*", effect: "deny" },
           ]),
         )
       })

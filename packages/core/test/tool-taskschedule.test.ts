@@ -106,6 +106,39 @@ describe("task_schedule tool", () => {
     }),
   )
 
+  it.effect("multi-entry schedule resolves only the newly created tasks (no full-list duplication)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const reg = yield* ToolRegistry.Service
+      const tasks = yield* SessionTask.Service
+      yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "pre-existing", status: "pending", priority: "medium" }],
+      })
+
+      const settlement = yield* settleTool(
+        reg,
+        call([
+          { content: "first job", scheduledAt: 1_780_000_000_000 },
+          { content: "second job", scheduledAt: 1_780_000_100_000 },
+        ]),
+      )
+      expect(settlement.result.type).toBe("text")
+      const value = settlement.result.value
+      expect(typeof value).toBe("string")
+      if (typeof value !== "string") return
+      const output: ReadonlyArray<{ id: string; content: string }> = JSON.parse(value)
+      // append resolves the full session list; the tool output must contain
+      // only the two rows this call created, not 2x (or 3x) the full list.
+      expect(output).toHaveLength(2)
+      expect(output.map((task) => task.content)).toEqual(["first job", "second job"])
+
+      const persisted = yield* tasks.get(sessionID)
+      expect(persisted).toHaveLength(3)
+      expect(output.every((task) => persisted.some((row) => row.id === task.id))).toBe(true)
+    }),
+  )
+
   it.effect("pause settles a scheduled task to cancelled and resume returns it to scheduled", () =>
     Effect.gen(function* () {
       yield* setup

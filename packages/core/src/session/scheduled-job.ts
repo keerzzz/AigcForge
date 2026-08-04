@@ -129,10 +129,13 @@ export const layer = Layer.effect(
       // child Session's own events — and would otherwise re-enqueue the
       // still-scheduled row and run the job twice concurrently. Once claimed,
       // both arm's filter and this guard skip it, and the settle below closes
-      // the claim.
-      yield* tasks
-        .patch({ sessionID: row.session_id, id: row.id, status: "in_progress" })
+      // the claim. The claim is conditional (expect) so a pause that lands
+      // between the status re-check above and this patch aborts the run
+      // instead of flipping a cancelled row back to in_progress.
+      const claimed = yield* tasks
+        .patch({ sessionID: row.session_id, id: row.id, status: "in_progress", expect: ["scheduled", "pending"] })
         .pipe(Effect.orDie)
+      if (!claimed) return
       const result = yield* executor
         .run({
           parentID: row.session_id,

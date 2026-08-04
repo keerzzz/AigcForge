@@ -143,7 +143,11 @@ export const layer = Layer.effectDiscard(
                     },
                   ],
                 })
-                resolved.push(...created)
+                // append resolves the FULL session list (see SessionTask.append),
+                // so spreading it here would duplicate the whole list per entry.
+                // The row this entry appended is always the last position.
+                const task = created.at(-1)
+                if (task) resolved.push(task)
               }
               return { tasks: resolved }
             }).pipe(

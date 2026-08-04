@@ -128,12 +128,17 @@ export interface Interface {
    * Target a single task by id and update its status (delegation writeback).
    * Other rows are untouched; `outputDigest` is persisted (M2) and rides the
    * returned Info and the republished `task.updated` event.
+   * When `expect` is set, the patch only lands while the current status is one
+   * of the expected ones (checked inside the write lock) and resolves
+   * `undefined` otherwise — the conditional-claim primitive for
+   * ScheduledJob.trigger's pause/claim race.
    */
   readonly patch: (input: {
     readonly sessionID: SessionSchema.ID
     readonly id: string
     readonly status: SessionTaskSchema.TaskStatus
     readonly outputDigest?: string
+    readonly expect?: ReadonlyArray<SessionTaskSchema.TaskStatus>
   }) => Effect.Effect<Info | undefined, TaskWriteError>
   readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<ReadonlyArray<Info>>
   /**
@@ -684,11 +689,16 @@ export const layer = Layer.effect(
       readonly id: string
       readonly status: SessionTaskSchema.TaskStatus
       readonly outputDigest?: string
+      readonly expect?: ReadonlyArray<SessionTaskSchema.TaskStatus>
     }) => writeLock.withPermits(1)(Effect.gen(function* () {
       const now = (yield* DateTime.nowAsDate).getTime()
       const scoped = and(eq(TaskTable.id, input.id), eq(TaskTable.session_id, input.sessionID))
       const prior = yield* db.select().from(TaskTable).where(scoped).get().pipe(Effect.orDie)
       if (!prior) return undefined
+      // Conditional claim: the expected-status check runs inside the write
+      // lock, so a pause (cancelled) racing the claim cannot be flipped back
+      // to in_progress — the loser resolves undefined and the caller aborts.
+      if (input.expect !== undefined && !input.expect.some((status) => status === prior.status)) return undefined
       // Schedule invariant (differential-review HIGH-4): flipping a task to
       // `scheduled` requires it to already carry a real trigger — patch never
       // sets schedule fields, so a resume on a task that was never a scheduled

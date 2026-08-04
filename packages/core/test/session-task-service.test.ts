@@ -148,6 +148,39 @@ describe("SessionTask", () => {
     }),
   )
 
+  it.effect("patch with expect only lands on an expected status (conditional claim)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const [task] = yield* tasks.update({
+        sessionID,
+        tasks: [{ content: "audit", status: "scheduled", priority: "medium", scheduledAt: 1_780_000_000_000 }],
+      })
+
+      // Lost race: a pause (cancelled) landed before the claim, so the claim
+      // must abort instead of flipping the row back to in_progress.
+      yield* tasks.patch({ sessionID, id: task.id, status: "cancelled" })
+      const lost = yield* tasks.patch({
+        sessionID,
+        id: task.id,
+        status: "in_progress",
+        expect: ["scheduled", "pending"],
+      })
+      expect(lost).toBeUndefined()
+      expect((yield* tasks.get(sessionID))[0]?.status).toBe("cancelled")
+
+      // Won race: the row is still scheduled, so the claim lands.
+      yield* tasks.patch({ sessionID, id: task.id, status: "scheduled" })
+      const won = yield* tasks.patch({
+        sessionID,
+        id: task.id,
+        status: "in_progress",
+        expect: ["scheduled", "pending"],
+      })
+      expect(won?.status).toBe("in_progress")
+    }),
+  )
+
   it.effect("patch is scoped to the owning session", () =>
     Effect.gen(function* () {
       yield* setup
