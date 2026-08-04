@@ -1,8 +1,8 @@
 # AigcForge Differential Review — `todo-task-m2` M2–M7
 
-> Review date: 2026-08-03  
-> Baseline: `main` (`ef454564f`)  
-> Head: `todo-task-m2` (`ce4638108`)  
+> Review date: 2026-08-03
+> Baseline: `main` (`ef454564f`)
+> Head: `todo-task-m2` (`ce4638108`)
 > Scope: 47 commits, 118 files, +8,912 / -1,868 lines
 
 ## 1. Executive Summary
@@ -14,7 +14,7 @@
 | MEDIUM | 3 |
 | LOW / Gate | 2 |
 
-**Overall risk:** HIGH  
+**Overall risk:** HIGH
 **Recommendation:** **REJECT — 不批准合并。**
 
 核心原因不是测试数量不足，而是五层契约之间存在可复现断裂：六态 Task 被 App 四态回写破坏、缓存快照通过全量 reconcile 删除并发新增任务、调度中断留下永久 `in_progress`、领域层允许无触发器的“定时任务”、`task_spawn` 对外宣称执行但实际只写一条不会运行的记录。
@@ -50,7 +50,7 @@
 
 这破坏了 M3 声明的“recurring failed 后停跑、需人工 resume”语义，也会改变无关任务状态。
 
-**Introduced by:** `0b6845062`, `056e00430`  
+**Introduced by:** `0b6845062`, `056e00430`
 **Test gap:** unit/E2E 没有覆盖含 `scheduled` 或 `failed` 的 fold-over writeback。
 
 **Required fix:** App 写回必须完整保留非目标任务的六态；目标状态转换也必须对六态显式裁决。不要在持久化写路径使用“非法态 → pending”的显示降级函数。
@@ -90,7 +90,7 @@ trigger 先持久化 `in_progress`。interrupt-only cause 被直接传播，不�
 
 这与同文件“no orphan `in_progress`”及“restart re-arm”描述冲突。
 
-**Introduced/refined by:** `4f300f3c6`  
+**Introduced/refined by:** `4f300f3c6`
 **Required fix:** 设计可恢复 claim（lease/attempt identity/heartbeat）或在确认 child 已停止后原子回退到可重试状态。仅把 interrupt 映射为 failed 也不充分，因为会混淆停机与真实执行失败。
 
 ---

@@ -1,8 +1,8 @@
 # AigcForge Differential Re-review — M2–M7 Fix Set
 
-> Review date: 2026-08-04  
-> Branch: `todo-task-m2` (`ce4638108` + uncommitted fixes)  
-> Fix diff: 24 tracked files, +1,070 / -142 lines  
+> Review date: 2026-08-04
+> Branch: `todo-task-m2` (`ce4638108` + uncommitted fixes)
+> Fix diff: 24 tracked files, +1,070 / -142 lines
 > Previous report: `AigcForge_DIFFERENTIAL_REVIEW_M2_M7_2026-08-03.md`
 
 ## 1. Executive Summary
