@@ -2,9 +2,7 @@ import { describe, expect, test } from "bun:test"
 import {
   computeProgressLedger,
   computeTodoProgress,
-  flipTaskStatus,
   flipTaskWriteStatus,
-  normalizePriority,
   normalizeStatus,
   pickProgressTodos,
   preserveStatus,
@@ -207,33 +205,6 @@ describe("normalizeStatus", () => {
   test("maps illegal or empty values to pending", () => {
     expect(normalizeStatus("anything")).toBe("pending")
     expect(normalizeStatus("")).toBe("pending")
-  })
-})
-
-describe("flipTaskStatus", () => {
-  test("checking an unfinished task completes it", () => {
-    expect(flipTaskStatus("pending")).toBe("completed")
-    expect(flipTaskStatus("in_progress")).toBe("completed")
-  })
-
-  test("unchecking a completed task returns it to pending", () => {
-    expect(flipTaskStatus("completed")).toBe("pending")
-  })
-
-  test("cancelled tasks are left untouched", () => {
-    expect(flipTaskStatus("cancelled")).toBe("cancelled")
-  })
-})
-
-describe("normalizePriority", () => {
-  test("keeps valid literal priorities", () => {
-    expect(normalizePriority("high")).toBe("high")
-    expect(normalizePriority("low")).toBe("low")
-  })
-
-  test("maps missing or illegal priorities to medium", () => {
-    expect(normalizePriority(undefined)).toBe("medium")
-    expect(normalizePriority("urgent")).toBe("medium")
   })
 })
 

@@ -83,21 +83,6 @@ export const normalizeStatus = (status: string): TodoProgressStatus => {
       return "pending"
   }
 }
-
-/** Priority stays within the TaskPriority literal for the PATCH writeback. */
-export const normalizePriority = (priority: string | undefined): "high" | "medium" | "low" => {
-  if (priority === "high" || priority === "low") return priority
-  return "medium"
-}
-
-/** Checkbox toggle: checking an unfinished task completes it, unchecking a
- * completed one returns it to pending. Cancelled tasks stay untouched. */
-export const flipTaskStatus = (status: TodoProgressStatus): TodoProgressStatus => {
-  if (status === "completed") return "pending"
-  if (status === "cancelled" || status === "scheduled") return status
-  return "completed"
-}
-
 /**
  * Six-state literal accepted by the task write endpoint (persist path only).
  * Distinct from the four-state {@link TodoProgressStatus} used for rendering.

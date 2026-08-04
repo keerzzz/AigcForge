@@ -5,6 +5,7 @@ import { CheckboxV2 } from "@aigcfroge/ui/v2/checkbox-v2"
 import { Button } from "@aigcfroge/ui/button"
 import { TextField } from "@aigcfroge/ui/text-field"
 import { Icon } from "@aigcfroge/ui/icon"
+import { Spinner } from "@aigcfroge/ui/spinner"
 import { useLanguage } from "@/context/language"
 import { useLocal } from "@/context/local"
 import { useServerSync } from "@/context/server-sync"
@@ -61,6 +62,11 @@ export function AgentTaskHub(props: {
   const location = useLocation()
   const navigate = useNavigate()
 
+  // GET /agent-task in flight — gates the empty states so they don't flash
+  // "no tasks" while the cross-session snapshot is still loading (DESIGN.md
+  // loading-state requirement for the hub's data source).
+  const [loading, setLoading] = createSignal(false)
+
   createEffect(() => {
     if (!props.open) return
     void loadCrossSessionTasks()
@@ -86,6 +92,7 @@ export function AgentTaskHub(props: {
   }
 
   const loadCrossSessionTasks = async () => {
+    setLoading(true)
     try {
       const requestStart = Date.now()
       const result = await sdk().client.agentTask.list({ directory: sdk().directory })
@@ -118,6 +125,8 @@ export function AgentTaskHub(props: {
     } catch (error) {
       const description = error instanceof Error ? error.message : String(error)
       showToast({ title: language.t("session.agentHub.loadFailed"), description })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -286,8 +295,14 @@ export function AgentTaskHub(props: {
                 <Show
                   when={taskRows().length > 0}
                   fallback={
-                    <div class="text-12-regular text-text-weak" data-component="agent-task-hub-empty">
-                      {language.t("session.agentHub.empty")}
+                    <div
+                      class="flex items-center gap-1.5 text-12-regular text-text-weak"
+                      data-component="agent-task-hub-empty"
+                    >
+                      <Show when={loading()} fallback={language.t("session.agentHub.emptyTasks")}>
+                        <Spinner class="size-3" />
+                        <span>{language.t("common.loading")}</span>
+                      </Show>
                     </div>
                   }
                 >
@@ -375,8 +390,14 @@ export function AgentTaskHub(props: {
               <Show
                 when={derived().length > 0}
                 fallback={
-                  <div class="text-12-regular text-text-weak" data-component="agent-task-hub-spawn-empty">
-                    {language.t("session.agentHub.empty")}
+                  <div
+                    class="flex items-center gap-1.5 text-12-regular text-text-weak"
+                    data-component="agent-task-hub-spawn-empty"
+                  >
+                    <Show when={loading()} fallback={language.t("session.agentHub.empty")}>
+                      <Spinner class="size-3" />
+                      <span>{language.t("common.loading")}</span>
+                    </Show>
                   </div>
                 }
               >
