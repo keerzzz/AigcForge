@@ -1,5 +1,6 @@
 import { describe, expect } from "bun:test"
-import { Effect } from "effect"
+import { Effect, Layer } from "effect"
+import { HttpClient, HttpClientResponse } from "effect/unstable/http"
 import { Catalog } from "@aigcfroge/core/catalog"
 import { Credential } from "@aigcfroge/core/credential"
 import { Integration } from "@aigcfroge/core/integration"
@@ -12,6 +13,16 @@ import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
 const it = testEffect(PluginTestLayer)
+
+// Override FetchHttpClient for credential tests so they don't hit the real
+// console.aigcfroge.ai endpoint with dummy keys. A 404 causes fetchProviders
+// to return undefined, which is sufficient for these assertions.
+const notFoundHttpClientLayer = Layer.succeed(
+  HttpClient.HttpClient,
+  HttpClient.make((request) =>
+    Effect.succeed(HttpClientResponse.fromWeb(request, new Response(null, { status: 404 }))),
+  ),
+)
 
 const addPlugin = Effect.fn(function* () {
   const plugin = yield* PluginV2.Service
@@ -274,7 +285,7 @@ describe("AigcfrogePlugin", () => {
         expect(required(yield* catalog.provider.get(ProviderV2.ID.aigcfroge)).request.body.apiKey).toBeUndefined()
         expect(required(yield* catalog.model.get(ProviderV2.ID.aigcfroge, ModelV2.ID.make("paid"))).enabled).toBe(true)
       }),
-    ),
+    ).pipe(Effect.provide(notFoundHttpClientLayer)),
   )
 
   it.effect("uses configured provider env vars as credentials", () =>
@@ -307,7 +318,7 @@ describe("AigcfrogePlugin", () => {
         expect(required(yield* catalog.provider.get(ProviderV2.ID.aigcfroge)).request.body.apiKey).toBeUndefined()
         expect(required(yield* catalog.model.get(ProviderV2.ID.aigcfroge, ModelV2.ID.make("paid"))).enabled).toBe(true)
       }),
-    ),
+    ).pipe(Effect.provide(notFoundHttpClientLayer)),
   )
 
   it.effect("uses configured apiKey as credentials", () =>
@@ -339,7 +350,7 @@ describe("AigcfrogePlugin", () => {
         expect(required(yield* catalog.provider.get(ProviderV2.ID.aigcfroge)).request.body.apiKey).toBe("configured")
         expect(required(yield* catalog.model.get(ProviderV2.ID.aigcfroge, ModelV2.ID.make("paid"))).enabled).toBe(true)
       }),
-    ),
+    ).pipe(Effect.provide(notFoundHttpClientLayer)),
   )
 
   it.effect("ignores non-aigcfroge providers and models", () =>
