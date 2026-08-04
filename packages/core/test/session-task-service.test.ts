@@ -1042,8 +1042,9 @@ describe("SessionTask", () => {
       const b = created.find((task) => task.content === "b")
       if (!b) throw new Error("b not created")
 
-      // Delete the middle task — the (session_id, position) PK would reject a
-      // later insert that reuses its position.
+      // Delete the middle task — append must continue from max+1 (MEDIUM-2),
+      // not existing.length, or the new row would duplicate a position and make
+      // the orderBy(position) read order-unstable.
       yield* tasks.removeTask({ sessionID, id: b.id })
 
       // Append again: position must continue from max+1, not existing.length.

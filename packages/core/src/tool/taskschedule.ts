@@ -157,13 +157,17 @@ export const layer = Layer.effectDiscard(
                 error instanceof SessionTask.TaskWriteError ? new ToolFailure({ message: error.message }) : error,
               ),
               // ToolFailure passes through (validation, permission, the
-              // TaskWriteError mapping above); only infrastructure failures
-              // get the generic fallback. The message stays action-neutral
-              // because one call may mix schedule/pause/resume/remove.
+              // TaskWriteError mapping above); a permission denial keeps its
+              // context instead of the generic fallback (mirroring question.ts);
+              // only infrastructure failures get the generic fallback. The
+              // message stays action-neutral because one call may mix
+              // schedule/pause/resume/remove.
               Effect.mapError((error) =>
                 error instanceof ToolFailure
                   ? error
-                  : new ToolFailure({ message: "Unable to update scheduled tasks" }),
+                  : error instanceof PermissionV2.DeniedError
+                    ? new ToolFailure({ message: "Permission denied: task_schedule" })
+                    : new ToolFailure({ message: "Unable to update scheduled tasks" }),
               ),
             ),
         }),
