@@ -40,18 +40,22 @@ export class WriteInfo extends Schema.Class<WriteInfo>("SessionTask.WriteInfo")(
 /**
  * A client-supplied task that cannot be reconciled: `foreign` ids are not
  * owned by the target session (a forge attempt or stale reference), `duplicate`
- * ids repeat a prior id in the same payload, `invalid_schedule` carries a
- * recurrence cron that is malformed or has no future run (a dead job — the
- * HTTP PATCH path bypasses the task_schedule tool's own guard). `depends_on_cycle`
- * rejects a DAG that would never fire (no task in a cycle can trigger). The
- * first two would otherwise hit the global `task.id` PK constraint and surface
- * as an unhandled 500 defect; all four are rejected up front as a typed failure
- * (HTTP 400).
+ * ids repeat a prior id in the same payload, `invalid_schedule` carries a dead
+ * schedule — a recurrence cron that is malformed or has no future run, or a
+ * `scheduled` task with no trigger (no scheduledAt, no enabled recurrence).
+ * `depends_on_cycle` rejects a DAG that would never fire (no task in a cycle can
+ * trigger). The first two would otherwise hit the global `task.id` PK constraint
+ * and surface as an unhandled 500 defect; all four are rejected up front as a
+ * typed failure (HTTP 400).
  */
 export class TaskWriteError extends Schema.TaggedErrorClass<TaskWriteError>()("SessionTask.TaskWriteError", {
   sessionID: SessionSchema.ID,
   id: Schema.optional(Schema.String),
   reason: Schema.Literals(["foreign", "duplicate", "invalid_schedule", "depends_on_cycle", "stale_revision"]),
+  // Which half of the `invalid_schedule` guard fired (see `scheduleFailureKind`):
+  // `cron` = recurrence malformed / no future run, `trigger` = scheduled without
+  // a scheduledAt or enabled recurrence. Absent for the other reasons.
+  schedule: Schema.optional(Schema.Literals(["cron", "trigger"])),
 }) {
   override get message() {
     switch (this.reason) {
@@ -60,6 +64,9 @@ export class TaskWriteError extends Schema.TaggedErrorClass<TaskWriteError>()("S
       case "duplicate":
         return `Duplicate task id "${this.id}" in payload for session ${this.sessionID}`
       case "invalid_schedule":
+        if (this.schedule === "trigger") {
+          return `Task ${this.id ? `"${this.id}" ` : ""}in session ${this.sessionID} is scheduled but has no trigger: it must have a scheduledAt or an enabled recurrence`
+        }
         return `Task ${this.id ? `"${this.id}" ` : ""}in session ${this.sessionID} has an invalid recurrence cron: it is malformed or has no future run within the search window`
       case "depends_on_cycle":
         return `Task ${this.id ? `"${this.id}" ` : ""}in session ${this.sessionID} introduces a dependency cycle; no task in the cycle can ever be triggered`
@@ -364,30 +371,31 @@ const reachableCycleGraph = (
   })
 
 /**
- * Schedule invariant (differential-review HIGH-4, re-review M-1): rejects a
- * task that can never fire — (a) a recurrence whose cron is malformed or has no
- * future run, (b) a `scheduled` status with no real trigger (an enabled
- * recurrence with a future cron match, or a one-shot scheduledAt). The
- * effective schedule applies the preserve-omitted rule (input ?? prior), so a
- * reconcile / legacy replace that omits schedule fields against a
- * schedule-bearing row stays valid. Shared by update / append / replaceLegacy /
- * patch so no write path can persist a dead job.
+ * Schedule invariant (differential-review HIGH-4, re-review M-1): identifies a
+ * task that can never fire — `"cron"` when a recurrence's cron is malformed or
+ * has no future run, `"trigger"` when a `scheduled` status carries no real
+ * trigger (an enabled recurrence with a future cron match, or a one-shot
+ * scheduledAt). `undefined` means the schedule is live. The effective schedule
+ * applies the preserve-omitted rule (input ?? prior), so a reconcile / legacy
+ * replace that omits schedule fields against a schedule-bearing row stays
+ * valid. Shared by update / append / replaceLegacy / patch so no write path can
+ * persist a dead job.
  */
-const hasDeadSchedule = (
+const scheduleFailureKind = (
   task: { status: string; recurrence?: SessionTaskSchema.TaskRecurrence | null; scheduledAt?: number | null },
   prior: { recurrence?: SessionTaskSchema.TaskRecurrence | null; scheduled_at?: number | null } | undefined,
   now: number,
-): boolean => {
+): "cron" | "trigger" | undefined => {
   const effectiveRecurrence = task.recurrence ?? prior?.recurrence ?? undefined
   const effectiveScheduledAt = task.scheduledAt ?? prior?.scheduled_at ?? undefined
-  if (effectiveRecurrence !== undefined && nextRun(effectiveRecurrence.cron, now) === undefined) return true
+  if (effectiveRecurrence !== undefined && nextRun(effectiveRecurrence.cron, now) === undefined) return "cron"
   if (task.status === "scheduled") {
     const hasTrigger = effectiveRecurrence?.enabled
       ? nextRun(effectiveRecurrence.cron, now) !== undefined
       : effectiveScheduledAt !== undefined && Number.isFinite(effectiveScheduledAt)
-    return !hasTrigger
+    return hasTrigger ? undefined : "trigger"
   }
-  return false
+  return undefined
 }
 
 // Process-level single-writer mutex for ALL task mutations (differential-review
@@ -527,8 +535,14 @@ export const layer = Layer.effect(
             // (id-less) tasks too, so the HTTP PATCH path cannot revive the hole.
             for (const task of input.tasks) {
               const prior = task.id !== undefined ? existingById.get(task.id) : undefined
-              if (hasDeadSchedule(task, prior, now)) {
-                invalid = new TaskWriteError({ sessionID: input.sessionID, id: task.id, reason: "invalid_schedule" })
+              const dead = scheduleFailureKind(task, prior, now)
+              if (dead) {
+                invalid = new TaskWriteError({
+                  sessionID: input.sessionID,
+                  id: task.id,
+                  reason: "invalid_schedule",
+                  schedule: dead,
+                })
                 break
               }
             }
@@ -647,9 +661,15 @@ export const layer = Layer.effect(
       // trigger, before any insert. Append has no prior row, so the effective
       // schedule is the input itself.
       for (const task of input.tasks) {
-        if (hasDeadSchedule(task, undefined, now)) {
+        const dead = scheduleFailureKind(task, undefined, now)
+        if (dead) {
           return yield* Effect.fail(
-            new TaskWriteError({ sessionID: input.sessionID, id: task.id, reason: "invalid_schedule" }),
+            new TaskWriteError({
+              sessionID: input.sessionID,
+              id: task.id,
+              reason: "invalid_schedule",
+              schedule: dead,
+            }),
           )
         }
       }
@@ -810,13 +830,15 @@ export const layer = Layer.effect(
             // carry `status: "scheduled"` with no trigger — reject instead of
             // persisting a job the daemon's arm scan can never pick up.
             for (const [index, task] of input.tasks.entries()) {
-              if (hasDeadSchedule(task, existing[index], now)) {
+              const dead = scheduleFailureKind(task, existing[index], now)
+              if (dead) {
                 return {
                   type: "invalid" as const,
                   error: new TaskWriteError({
                     sessionID: input.sessionID,
                     id: task.id ?? existing[index]?.id,
                     reason: "invalid_schedule",
+                    schedule: dead,
                   }),
                 }
               }
@@ -902,9 +924,15 @@ export const layer = Layer.effect(
       // `scheduled` requires it to already carry a real trigger — patch never
       // sets schedule fields, so a resume on a task that was never a scheduled
       // job would persist a row the daemon's arm scan can never pick up.
-      if (hasDeadSchedule(input, prior, now)) {
+      const dead = scheduleFailureKind(input, prior, now)
+      if (dead) {
         return yield* Effect.fail(
-          new TaskWriteError({ sessionID: input.sessionID, id: input.id, reason: "invalid_schedule" }),
+          new TaskWriteError({
+            sessionID: input.sessionID,
+            id: input.id,
+            reason: "invalid_schedule",
+            schedule: dead,
+          }),
         )
       }
       // Persist the digest (M2): TaskPanel reload-recovery reads it back after a
