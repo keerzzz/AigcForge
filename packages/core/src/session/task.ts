@@ -64,6 +64,9 @@ export class TaskWriteError extends Schema.TaggedErrorClass<TaskWriteError>()("S
       case "depends_on_cycle":
         return `Task ${this.id ? `"${this.id}" ` : ""}in session ${this.sessionID} introduces a dependency cycle; no task in the cycle can ever be triggered`
     }
+    // Unreachable: reason is a closed literal union, but consistent-return
+    // requires every path to return.
+    return `Task write failed in session ${this.sessionID} (reason: ${this.reason})`
   }
 }
 
