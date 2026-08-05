@@ -1,0 +1,157 @@
+---
+title: Referanser
+description: Legg til lokale kataloger og Git-repoer som prosjektreferanser.
+---
+
+Referanser gir Aigcfroge tilgang til kataloger utenfor gjeldende prosjekt. Bruk dem til å gjøre dokumentasjon, delte biblioteker, eksempler eller et annet repo tilgjengelig mens du jobber.
+
+Referanser konfigureres ved hjelp av alias i `aigcfroge.json` eller `aigcfroge.jsonc`.
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "references": {
+    "docs": {
+      "path": "../product-docs",
+      "description": "Use for product behavior and documentation conventions",
+    },
+    "sdk": {
+      "repository": "keerzzz/AigcForge-sdk-js",
+      "branch": "main",
+      "description": "Use for JavaScript SDK implementation details",
+    },
+  },
+}
+```
+
+---
+
+## Lokale kataloger
+
+Bruk `path` til å referere til en lokal katalog.
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "docs": {
+      "path": "../docs",
+    },
+  },
+}
+```
+
+Baner kan være:
+
+- Relative til konfigurasjonsfilen som definerer referansen
+- Absolutte, for eksempel `/home/user/docs`
+- Relative til hjemmekatalogen din, for eksempel `~/docs`
+
+Du kan også bruke en forkortet streng:
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "docs": "../docs",
+  },
+}
+```
+
+---
+
+## Git-repoer
+
+Bruk `repository` til å referere til et Git-repo. Aigcfroge materialiserer repoet i den lokale repo-cachen og gjør den utsjekkede kildekoden tilgjengelig som en referansekatalog.
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "effect": {
+      "repository": "Effect-TS/effect",
+      "branch": "main",
+    },
+  },
+}
+```
+
+`repository` godtar Git-URL-er, verts-/banereferanser og GitHub `owner/repo`-forkortelse. Det valgfrie `branch`-feltet velger en gren eller ref. Uten `branch` bruker Aigcfroge repoets standardgren.
+
+Du kan bruke en forkortet streng når du ikke trenger en gren, beskrivelse eller andre alternativer:
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "effect": "Effect-TS/effect",
+  },
+}
+```
+
+:::note
+Git-referanser oppdateres asynkront. Et nykonfigurert repo kan ta et øyeblikk å fullføre kloning eller oppdatering.
+:::
+
+---
+
+## Beskriv bruk
+
+Legg til `description` for å forklare når en agent bør bruke en referanse.
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "design-system": {
+      "path": "../design-system",
+      "description": "Use when implementing UI components or design tokens",
+    },
+  },
+}
+```
+
+Aigcfroge inkluderer referanser med beskrivelser i agentkonteksten. Beskrivelser bør være korte og spesifikke nok til å skille referanser med lignende innhold. Referanser uten beskrivelser forblir tilgjengelige gjennom autofullføring og direkte bruk, men annonseres ikke for agenter.
+
+---
+
+## Skjul autofullføringsoppføringer
+
+Sett `hidden` til `true` for å utelate en referanse fra `@` autofullføring i TUI.
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "internal": {
+      "path": "../internal",
+      "description": "Use for internal implementation details",
+      "hidden": true,
+    },
+  },
+}
+```
+
+`hidden` påvirker kun autofullføring. En skjult referanse med en beskrivelse forblir inkludert i agentkonteksten.
+
+---
+
+## Bruk referanser
+
+Konfigurerte referanser vises i TUI `@` autofullføring. Skriv `@alias` for å feste referanseroten, eller `@alias/` for å søke etter filer inni den.
+
+```text
+Compare this implementation with @sdk/src/client.ts
+```
+
+Agenter mottar også de oppløste banene og beskrivelsene til konfigurerte referanser som har beskrivelser, i systemkonteksten sin, slik at de kan inspisere en referanse når den er relevant uten at du fester den manuelt.
+
+Aigcfroge tillater automatisk referansekataloger gjennom tillatelsesgrensen for eksterne kataloger. Normale verktøytillatelser gjelder fortsatt; for eksempel får ikke en agent som ikke kan redigere filer, redigeringstilgang bare fordi en katalog er konfigurert som en referanse.
+
+---
+
+## Konfigurer felter
+
+| Felt         | Lokal | Git | Beskrivelse                                      |
+| ------------- | ----- | --- | ------------------------------------------------ |
+| `path`        | Ja   | Nei  | Lokal referansekatalog                        |
+| `repository`  | Nei    | Ja | Git-URL, verts-/bane eller GitHub `owner/repo`-verdi |
+| `branch`      | Nei    | Ja | Valgfri Git-gren eller ref                       |
+| `description` | Ja   | Ja   | Veiledning som beskriver når referansen bør brukes    |
+| `hidden`      | Ja   | Ja   | Skjul referansen fra TUI `@` autofullføring     |
+
+Referansealias kan ikke være tomme eller inneholde `/`, mellomrom, backticks eller kommaer.

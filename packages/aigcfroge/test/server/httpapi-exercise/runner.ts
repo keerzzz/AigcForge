@@ -1,6 +1,10 @@
 import { Flag } from "@aigcfroge/core/flag/flag"
 import { ConfigV1 } from "@aigcfroge/core/v1/config/config"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
+import { Location } from "@aigcfroge/core/location"
+import { LocationServiceMap } from "@aigcfroge/core/location-layer"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { SessionTask } from "@aigcfroge/core/session/task"
 import { Cause, Duration, Effect, Layer, Scope } from "effect"
 import { TestLLMServer } from "../../lib/llm-server"
 
@@ -175,6 +179,17 @@ function withContext<A, E>(
           messages: (sessionID) =>
             run(modules.Session.Service.use((svc) => svc.messages({ sessionID }).pipe(Effect.orDie))),
           todos: (sessionID, todos) => run(modules.Todo.Service.use((svc) => svc.update({ sessionID, todos }))),
+          tasks: (sessionID, tasks) =>
+            run(
+              Effect.gen(function* () {
+                // SessionTask is Location-scoped; resolve it through the same
+                // LocationServiceMap path the HttpApi handlers use.
+                const locations = yield* LocationServiceMap
+                const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(directory()) }))
+                const service = yield* SessionTask.Service.pipe(Effect.provide(layer), Effect.orDie)
+                return yield* service.update({ sessionID, tasks }).pipe(Effect.orDie)
+              }),
+            ),
           worktree: (input) => run(modules.Worktree.Service.use((svc) => svc.create(input).pipe(Effect.orDie))),
           worktreeRemove: (directory) =>
             run(modules.Worktree.Service.use((svc) => svc.remove({ directory })).pipe(Effect.ignore)),

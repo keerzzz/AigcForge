@@ -6,6 +6,7 @@ import { AgentV2 } from "../agent"
 import { Config } from "../config"
 import { PermissionV2 } from "../permission"
 import { SessionSchema } from "../session/schema"
+import { SessionTask } from "../session/task"
 import { Tool } from "./tool"
 import { TaskDriver } from "./task-driver"
 import { Tools } from "./tools"
@@ -26,6 +27,10 @@ export const Input = Schema.Struct({
   task_id: Schema.optional(Schema.String).annotate({
     description:
       "Set only to resume a previous task: pass a prior task_id to continue that same subagent session instead of creating a fresh one.",
+  }),
+  parent_task_id: Schema.optional(Schema.String).annotate({
+    description:
+      "Link this delegation to an existing task created with taskwrite (track A). When omitted, an in_progress task is created automatically (track B) and written back when the subagent settles.",
   }),
   background: Schema.optional(Schema.Boolean).annotate({
     description:
@@ -116,6 +121,7 @@ export const layer = Layer.effectDiscard(
     const agents = yield* AgentV2.Service
     const permission = yield* PermissionV2.Service
     const config = yield* Config.Service
+    const tasks = yield* SessionTask.Service
     const configEntries = yield* config.entries()
     const configAttendedDefault = Config.latest(configEntries, "subagent_attended_default")
 
@@ -207,6 +213,47 @@ export const layer = Layer.effectDiscard(
                 ? Option.getOrUndefined(Schema.decodeUnknownOption(SessionSchema.ID)(input.task_id))
                 : undefined
 
+              // ── Dual-track todo linkage ──
+              // Track A: an explicit parent_task_id links to an existing task
+              // minted by taskwrite. Track B: a fresh delegation auto-creates an
+              // in_progress task (content = description) so the todo dashboard
+              // mirrors the delegation tree. A resumed delegation (task_id) has no
+              // persisted child-session linkage yet (M2 adds it via outputDigest
+              // persistence), so no new task is created for it; the prior track-B
+              // task was already settled by its own delegation's onSettle (or stays
+              // in_progress if that delegation was interrupted — M2 closes this gap).
+              let taskID: string | undefined = input.parent_task_id
+              if (taskID === undefined && resumeID === undefined) {
+                // Track B: append atomically in one transaction so concurrent
+                // task calls in the same provider turn never drop each other's rows.
+                // The write is a plain in_progress task (no recurrence), so the
+                // dead-job guard can't fire; map the typed error to ToolFailure
+                // to keep the tool's error surface uniform.
+                const created = yield* tasks
+                  .append({
+                    sessionID: context.sessionID,
+                    tasks: [{ content: input.description, status: "in_progress", priority: "medium" }],
+                  })
+                  .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message })))
+                taskID = created.at(-1)?.id
+              }
+              let onSettle: ((outcome: TaskDriver.SettleOutcome) => Effect.Effect<void>) | undefined
+              if (taskID !== undefined) {
+                const linkedTaskID = taskID
+                onSettle = (outcome) =>
+                  tasks
+                    .patch({
+                      sessionID: context.sessionID,
+                      id: linkedTaskID,
+                      status: outcome.status,
+                      outputDigest: outcome.outputDigest,
+                    })
+                    // The settle writes a terminal status (never `scheduled`),
+                    // so the schedule invariant can't trip; a failure here is a
+                    // defect, not a client error.
+                    .pipe(Effect.orDie, Effect.asVoid)
+              }
+
               // Tracks the current attempt's child so an abort can stop it and a
               // retry can cancel the orphan a failed prior attempt left behind.
               const activeChild = yield* Ref.make(Option.none<SessionSchema.ID>())
@@ -267,6 +314,8 @@ export const layer = Layer.effectDiscard(
                     sessionID: child.id,
                     prompt: input.prompt,
                     description: input.description,
+                    taskID,
+                    onSettle,
                   })
                   return {
                     sessionID: child.id,
@@ -278,6 +327,8 @@ export const layer = Layer.effectDiscard(
                   sessionID: child.id,
                   parentID: context.sessionID,
                   prompt: input.prompt,
+                  taskID,
+                  onSettle,
                 })
                 return {
                   sessionID: child.id,

@@ -1,0 +1,216 @@
+---
+title: "Навички агента"
+description: "Визначайте багаторазову поведінку за допомогою визначень SKILL.md"
+---
+
+Навички агента дозволяють Aigcfroge виявляти багаторазові інструкції з вашого репозиторію або домашнього каталогу. Навички завантажуються за запитом через нативний інструмент `skill` — агенти бачать доступні навички та можуть завантажувати повний вміст за потреби.
+
+---
+
+## Розміщення файлів
+
+Створіть один каталог для кожної назви навички та розмістіть у ньому `SKILL.md`. Aigcfroge шукає навички в таких місцях:
+
+- Конфігурація проєкту: `.aigcfroge/skills/<name>/SKILL.md`
+- Глобальна конфігурація: `~/.config/aigcfroge/skills/<name>/SKILL.md`
+- Сумісний із Claude у проєкті: `.claude/skills/<name>/SKILL.md`
+- Сумісний із Claude глобально: `~/.claude/skills/<name>/SKILL.md`
+- Сумісний з агентом у проєкті: `.agents/skills/<name>/SKILL.md`
+- Сумісний з агентом глобально: `~/.agents/skills/<name>/SKILL.md`
+
+---
+
+## Як працює виявлення
+
+Для шляхів, локальних для проєкту, Aigcfroge піднімається від вашого поточного робочого каталогу, доки не досягне робочого дерева Git (git worktree). Він завантажує всі відповідні файли `skills/*/SKILL.md` у `.aigcfroge/`, а також усі відповідні `.claude/skills/*/SKILL.md` або `.agents/skills/*/SKILL.md` по дорозі.
+
+Глобальні визначення також завантажуються з `~/.config/aigcfroge/skills/*/SKILL.md`, `~/.claude/skills/*/SKILL.md` та `~/.agents/skills/*/SKILL.md`.
+
+---
+
+## Написання frontmatter
+
+Кожен файл `SKILL.md` має починатися з YAML-frontmatter. Розпізнаються лише такі поля:
+
+- `name` (обов'язковий)
+- `description` (обов'язковий)
+- `license` (необов'язковий)
+- `compatibility` (необов'язковий)
+- `metadata` (необов'язковий, зіставлення рядок-у-рядок)
+
+Невідомі поля frontmatter ігноруються.
+
+---
+
+## Перевірка назв
+
+`name` має:
+
+- Бути завдовжки 1–64 символи
+- Бути в нижньому регістрі, алфавітно-цифровим, з одинарними дефісами як розділювачами
+- Не починатися й не закінчуватися на `-`
+- Не містити послідовних `--`
+- Збігатися з назвою каталогу, який містить `SKILL.md`
+
+Еквівалентний regex:
+
+```text
+^[a-z0-9]+(-[a-z0-9]+)*$
+```
+
+---
+
+## Правила довжини
+
+`description` має містити 1–1024 символи. Зробіть його достатньо конкретним, щоб агент міг правильно обрати навичку.
+
+---
+
+## Приклад використання
+
+Створіть `.aigcfroge/skills/git-release/SKILL.md` ось так:
+
+```markdown
+---
+name: git-release
+description: Create consistent releases and changelogs
+license: MIT
+compatibility: aigcfroge
+metadata:
+  audience: maintainers
+  workflow: github
+---
+
+## What I do
+
+- Draft release notes from merged PRs
+- Propose a version bump
+- Provide a copy-pasteable `gh release create` command
+
+## When to use me
+
+Use this when you are preparing a tagged release.
+Ask clarifying questions if the target versioning scheme is unclear.
+```
+
+---
+
+## Розпізнавання опису інструмента
+
+Aigcfroge перелічує доступні навички в описі інструмента `skill`. Кожен запис містить назву та опис навички:
+
+```xml
+<available_skills>
+  <skill>
+    <name>git-release</name>
+    <description>Create consistent releases and changelogs</description>
+  </skill>
+</available_skills>
+```
+
+Агент завантажує навичку, викликаючи інструмент:
+
+```
+skill({ name: "git-release" })
+```
+
+---
+
+## Налаштування дозволів
+
+Керуйте тим, до яких навичок можуть отримувати доступ агенти, за допомогою дозволів на основі шаблонів у `aigcfroge.json`:
+
+```json
+{
+  "permission": {
+    "skill": {
+      "*": "allow",
+      "pr-review": "allow",
+      "internal-*": "deny",
+      "experimental-*": "ask"
+    }
+  }
+}
+```
+
+| Permission | Behavior                                  |
+| ---------- | ----------------------------------------- |
+| `allow`    | Навичка завантажується негайно            |
+| `deny`     | Навичка прихована від агента, доступ відхилено |
+| `ask`      | Користувача запитують про дозвіл перед завантаженням |
+
+Шаблони підтримують підстановочні символи: `internal-*` збігається з `internal-docs`, `internal-tools` тощо.
+
+---
+
+## Перевизначення для окремого агента
+
+Надайте окремим агентам інші дозволи, ніж глобальні за замовчуванням.
+
+**Для спеціальних агентів** (у frontmatter агента):
+
+```yaml
+---
+permission:
+  skill:
+    "documents-*": "allow"
+---
+```
+
+**Для вбудованих агентів** (у `aigcfroge.json`):
+
+```json
+{
+  "agent": {
+    "plan": {
+      "permission": {
+        "skill": {
+          "internal-*": "allow"
+        }
+      }
+    }
+  }
+}
+```
+
+---
+
+## Вимкнення інструмента skill
+
+Повністю вимкніть навички для агентів, які не повинні їх використовувати:
+
+**Для спеціальних агентів**:
+
+```yaml
+---
+tools:
+  skill: false
+---
+```
+
+**Для вбудованих агентів**:
+
+```json
+{
+  "agent": {
+    "plan": {
+      "tools": {
+        "skill": false
+      }
+    }
+  }
+}
+```
+
+Коли вимкнено, секція `<available_skills>` повністю пропускається.
+
+---
+
+## Виправлення неполадок із завантаженням
+
+Якщо навичка не з'являється:
+
+1. Переконайтеся, що `SKILL.md` написано великими літерами
+2. Перевірте, що frontmatter містить `name` та `description`
+3. Переконайтеся, що назви навичок унікальні в усіх місцях
+4. Перевірте дозволи — навички зі значенням `deny` приховані від агентів

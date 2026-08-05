@@ -1,69 +1,45 @@
 import type { Session } from "@aigcfroge/sdk/v2/client"
 import {
-  batch,
   createEffect,
   createMemo,
-  createResource,
-  createRoot,
-  createSignal,
   For,
   on,
   onCleanup,
   onMount,
   Show,
-  startTransition,
 } from "solid-js"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { createStore } from "solid-js/store"
-import { useQuery } from "@tanstack/solid-query"
 import { Spinner } from "@aigcfroge/ui/spinner"
-import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { ProjectAvatar } from "@aigcfroge/ui/v2/project-avatar-v2"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { Icon as IconV2 } from "@aigcfroge/ui/v2/icon"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { MenuV2 } from "@aigcfroge/ui/v2/menu-v2"
-import { getProjectAvatarVariant, useLayout, type LocalProject } from "@/context/layout"
-import { useNavigate } from "@solidjs/router"
+import { getProjectAvatarVariant, type LocalProject } from "@/context/layout"
 import { DateTime } from "luxon"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
-import { useDirectoryPicker } from "@/components/directory-picker"
 import { useServerManagementController } from "@/components/dialog-select-server"
 import { DialogServerV2 } from "@/components/settings-v2/dialog-server-v2"
-import { ServerConnection, useServer } from "@/context/server"
+import { ServerConnection } from "@/context/server"
 import { sessionHasOpenTab, useTabs } from "@/context/tabs"
-import { useServerSync, type ServerSync } from "@/context/server-sync"
+import type { ServerSync } from "@/context/server-sync"
 import { useLanguage } from "@/context/language"
-import { useNotification } from "@/context/notification"
 import {
-  closeHomeProject,
   displayName,
   getProjectAvatarSource,
-  homeProjectDirectories,
-  openProjectNewSession,
-  type HomeProjectSelection,
   projectForSession,
   sortedRootSessions,
-  toggleHomeProjectSelection,
 } from "@/pages/layout/helpers"
+import type { HomeProjectSelection } from "@/pages/layout/helpers"
 import { SessionTabAvatar } from "@/pages/layout/session-tab-avatar"
 import { sessionTitle } from "@/utils/session-title"
 import { pathKey } from "@/utils/path-key"
 import { useGlobal } from "@/context/global"
-import { useCommand } from "@/context/command"
 import { ServerRowMenu } from "@/components/server/server-row-menu"
 import { ServerHealthIndicator } from "@/components/server/server-row"
 import { type ServerHealth } from "@/utils/server-health"
 import { Persist, persisted } from "@/utils/persist"
-import { useMarked } from "@aigcfroge/ui/context/marked"
-import { preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"
-import { modeDraft, useMode } from "@/context/mode"
-import { useChatFeature } from "@/context/chat-feature"
-import type { DirectorySDK } from "@/context/sdk"
-import { AssetWorkbench } from "@/components/chat/asset-workbench"
-import { AssetSessionSelector } from "@/components/chat/asset-session-selector"
-import { ChatImportDialog, serializeImport, wrapImportContent } from "@/components/chat/chat-import-dialog"
-import { AssetDeleteDialog } from "@/components/chat/asset-delete-dialog"
 
 export const HOME_SESSION_LIMIT = 64
 const HOME_ROW_LAYOUT =
@@ -93,8 +69,6 @@ export const HOME_SEARCH_RESULT_TITLE =
   "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] leading-4 tracking-[-0.04px] text-v2-text-text-base [font-weight:530]"
 export const HOME_SEARCH_RESULT_META =
   "min-w-0 flex-[1_1_auto] overflow-hidden text-ellipsis whitespace-nowrap text-[13px] leading-4 tracking-[-0.04px] text-v2-text-text-muted [font-weight:440]"
-
-let pendingHomeNavigation: { server: ServerConnection.Key; href: string } | undefined
 
 export function buildHomeSessionRecords(input: {
   sync: Pick<ServerSync, "child">

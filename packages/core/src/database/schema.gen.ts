@@ -271,6 +271,26 @@ export default {
         );
       `)
       yield* tx.run(`
+        CREATE TABLE \`task\` (
+          \`id\` text PRIMARY KEY,
+          \`session_id\` text NOT NULL,
+          \`content\` text NOT NULL,
+          \`status\` text NOT NULL,
+          \`priority\` text NOT NULL,
+          \`parent_id\` text,
+          \`output_digest\` text,
+          \`agent_id\` text,
+          \`scheduled_at\` integer,
+          \`recurrence\` text,
+          \`spawned_from\` text,
+          \`depends_on\` text,
+          \`position\` integer NOT NULL,
+          \`time_created\` integer NOT NULL,
+          \`time_updated\` integer NOT NULL,
+          CONSTRAINT \`fk_task_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
+        );
+      `)
+      yield* tx.run(`
         CREATE TABLE \`todo\` (
           \`session_id\` text NOT NULL,
           \`content\` text NOT NULL,
@@ -342,6 +362,7 @@ export default {
       yield* tx.run(
         `CREATE INDEX \`session_directory_mode_time_updated_idx\` ON \`session\` (\`directory\`,\`mode\`,\`time_updated\`);`,
       )
+      yield* tx.run(`CREATE INDEX \`task_session_idx\` ON \`task\` (\`session_id\`);`)
       yield* tx.run(`CREATE INDEX \`todo_session_idx\` ON \`todo\` (\`session_id\`);`)
     })
   },

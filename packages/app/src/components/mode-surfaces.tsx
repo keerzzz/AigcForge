@@ -19,7 +19,8 @@ import { useTabs } from "@/context/tabs"
 import { useDirectoryPicker } from "@/components/directory-picker"
 import { homeProjectDirectories, openProjectNewSession } from "@/pages/layout/helpers"
 import { getFilename } from "@aigcfroge/core/util/path"
-import { ChatAssetWorkbenchMain, CodingProjectColumnSidebar, CodingSessionListMain, PlaceholderMain } from "@/pages/mode-workspace-slots"
+import { ChatAssetWorkbenchMain, CodingProjectColumnSidebar, CodingSessionListMain, PlaceholderMain, WorkPresetCatalogMain, WorkProjectColumnSidebar } from "@/pages/mode-workspace-slots"
+import { WorkArtifactPanel } from "@/pages/work-artifact-panel"
 
 export type ModeSurface = {
   Sidebar: Component
@@ -314,9 +315,9 @@ const MODE_SURFACES: Record<ModeSurfaceSlot, ModeSurface> = {
     RightPanel: ChatRightPanel,
   },
   work: {
-    Sidebar: () => <PlaceholderSidebar mode="work" />,
-    Main: () => <PlaceholderMain mode="work" />,
-    RightPanel: PlaceholderPanel,
+    Sidebar: WorkProjectColumnSidebar,
+    Main: WorkPresetCatalogMain,
+    RightPanel: () => <WorkArtifactPanel />,
   },
   assistant: {
     Sidebar: () => <PlaceholderSidebar mode="assistant" />,

@@ -68,6 +68,7 @@ import { useTabs } from "@/context/tabs"
 import { requireServerKey, sessionHref } from "@/utils/session-route"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
+import { useServerSync } from "@/context/server-sync"
 import { notifySessionTabsRemoved } from "@/components/titlebar-session-events"
 import { messageAgentColor } from "@/utils/agent"
 import { sessionTitle } from "@/utils/session-title"
@@ -76,6 +77,9 @@ import { scheduleConnectedMeasure } from "./measure"
 import { createTimelineProjection } from "./projection"
 import { MessageComment, SummaryDiff, TimelineRow, TimelineRowMap } from "./rows"
 import { filterVirtualIndexes } from "./virtual-items"
+import { SessionTodoProgress } from "@/pages/session/timeline/session-todo-progress"
+import { SessionScheduledChip, SessionScheduledTasksPopover } from "@/pages/session/timeline/session-scheduled-tasks"
+import { AgentTaskHub } from "@/pages/session/timeline/agent-task-hub"
 
 const emptyMessages: MessageType[] = []
 const emptyParts: PartType[] = []
@@ -290,6 +294,16 @@ export function MessageTimeline(props: {
   })
   const working = createMemo(() => sessionStatus().type !== "idle")
   const sessionMessages = createMemo(() => (sessionID() ? (sync().data.message[sessionID()!] ?? []) : []))
+  const serverSync = useServerSync()
+  // M7: "has a task strip" = either source holds data (the freshness pick that
+  // decides which source displays lives in SessionTodoProgress). Drives the
+  // track show-condition + aria; the strip and the env pulse are exclusive.
+  const hasTaskData = createMemo(() => {
+    const id = sessionID()
+    if (!id) return false
+    const data = serverSync().data
+    return (data.session_todo[id]?.length ?? 0) + (data.session_task[id]?.length ?? 0) > 0
+  })
   const tint = createMemo(() => messageAgentColor(sessionMessages(), sync().data.agent))
 
   const currentAgentName = createMemo(() => {
@@ -477,7 +491,7 @@ export function MessageTimeline(props: {
     followOnAppend: true,
     scrollEndThreshold: 80,
     get scrollMargin() {
-      return showHeader() ? 64 : 0
+      return showHeader() ? 72 : 0
     },
     overscan: 50,
     paddingEnd: 64,
@@ -594,6 +608,8 @@ export function MessageTimeline(props: {
     menuOpen: false,
     pendingRename: false,
     pendingShare: false,
+    pendingScheduled: false,
+    pendingHub: false,
   })
   let titleRef: HTMLInputElement | undefined
 
@@ -601,6 +617,8 @@ export function MessageTimeline(props: {
     open: false,
     dismiss: null as "escape" | "outside" | null,
   })
+  const [scheduledOpen, setScheduledOpen] = createSignal(false)
+  const [hubOpen, setHubOpen] = createSignal(false)
   const [bar, setBar] = createStore({
     ms: pace(640),
   })
@@ -1053,7 +1071,7 @@ export function MessageTimeline(props: {
                 deferToolContent
                 virtualizeDiff={false}
                 onContentRendered={onSizeChange}
-                onCapture={idle() && props.actions?.capture ? props.actions!.capture! : undefined}
+                onCapture={idle() && props.actions?.capture ? props.actions.capture : undefined}
                 captureLabel={language.t("chatCapture.captureAsAsset")}
                 capturePulse={idle() && props.actions?.capture ? props.capturePulse : undefined}
               />
@@ -1184,16 +1202,9 @@ export function MessageTimeline(props: {
         return (
           <TimelineRowFrame row={assistantPartRow}>
             <div data-slot="session-turn-message-container" class="w-full px-4 md:px-5">
-              <div
-                data-slot="session-turn-assistant-content"
-                aria-hidden={isWorking()}
-              >
+              <div data-slot="session-turn-assistant-content" aria-hidden={isWorking()}>
                 {renderAssistantPartGroup(assistantPartRow, onSizeChange)}
-                <Show
-                  when={
-                    isLastAssistant() && !isWorking() && handoffs().length > 0 && props.actions?.handoff
-                  }
-                >
+                <Show when={isLastAssistant() && !isWorking() && handoffs().length > 0 && props.actions?.handoff}>
                   <div class="flex items-center justify-end pt-0.5">
                     <HandoffButton
                       actions={handoffs().map((h) => ({
@@ -1298,7 +1309,7 @@ export function MessageTimeline(props: {
         data-timeline-key={props.rowKey}
         style={{
           position: "absolute",
-          top: `${item().start - (showHeader() ? 64 : 0)}px`,
+          top: `${item().start - (showHeader() ? 72 : 0)}px`,
           left: "0",
           width: "100%",
           height: `${item().size}px`,
@@ -1361,7 +1372,7 @@ export function MessageTimeline(props: {
         onClick={props.onAutoScrollInteraction}
         class="relative min-w-0 w-full h-full"
         style={{
-          "--sticky-accordion-top": showHeader() ? "48px" : "0px",
+          "--sticky-accordion-top": showHeader() ? "72px" : "0px",
         }}
       >
         <Show when={showHeader()}>
@@ -1372,26 +1383,15 @@ export function MessageTimeline(props: {
             }}
             data-session-title
             classList={{
-              "sticky top-0 z-30 bg-[linear-gradient(to_bottom,var(--background-stronger)_48px,transparent)]": true,
+              "sticky top-0 z-30 bg-[linear-gradient(to_bottom,var(--background-stronger)_68px,transparent)]": true,
               "w-full": true,
-              "pb-4": true,
+              "pb-6": true,
               "pr-3": true,
               "pl-4": true,
               "pl-2 md:pl-4": false,
               "md:max-w-200 md:mx-auto 2xl:max-w-[1000px]": props.centered,
             }}
           >
-            <Show when={workingStatus() !== "hidden" && settings.general.showSessionProgressBar()}>
-              <div data-component="session-progress" data-state={workingStatus()} aria-hidden="true">
-                <div
-                  data-component="session-progress-bar"
-                  style={{
-                    background: tint() ?? "var(--icon-interactive-base)",
-                    animation: `session-progress-whip ${bar.ms}ms infinite`,
-                  }}
-                />
-              </div>
-            </Show>
             <div class="h-12 w-full flex items-center justify-between gap-2">
               <div class="flex items-center gap-1 min-w-0 flex-1 pr-3">
                 <div class="flex items-center min-w-0 grow-1">
@@ -1429,6 +1429,7 @@ export function MessageTimeline(props: {
                       </div>
                     </Show>
                   </div>
+                  <SessionScheduledChip sessionID={sessionID} />
                   <Show when={childTitle() || title.editing}>
                     <Show
                       when={title.editing}
@@ -1490,10 +1491,24 @@ export function MessageTimeline(props: {
                           variant="ghost"
                           class="size-6 rounded-md data-[expanded]:bg-surface-base-active"
                           classList={{
-                            "bg-surface-base-active": share.open || title.pendingShare,
+                            "bg-surface-base-active":
+                              share.open ||
+                              title.pendingShare ||
+                              scheduledOpen() ||
+                              title.pendingScheduled ||
+                              hubOpen() ||
+                              title.pendingHub,
                           }}
                           aria-label={language.t("common.moreOptions")}
-                          aria-expanded={title.menuOpen || share.open || title.pendingShare}
+                          aria-expanded={
+                            title.menuOpen ||
+                            share.open ||
+                            title.pendingShare ||
+                            scheduledOpen() ||
+                            title.pendingScheduled ||
+                            hubOpen() ||
+                            title.pendingHub
+                          }
                           ref={(el: HTMLButtonElement) => {
                             more = el
                           }}
@@ -1513,6 +1528,20 @@ export function MessageTimeline(props: {
                                 requestAnimationFrame(() => {
                                   setShare({ open: true, dismiss: null })
                                   setTitle("pendingShare", false)
+                                })
+                              }
+                              if (title.pendingScheduled) {
+                                event.preventDefault()
+                                requestAnimationFrame(() => {
+                                  setScheduledOpen(true)
+                                  setTitle("pendingScheduled", false)
+                                })
+                              }
+                              if (title.pendingHub) {
+                                event.preventDefault()
+                                requestAnimationFrame(() => {
+                                  setHubOpen(true)
+                                  setTitle("pendingHub", false)
                                 })
                               }
                             }}
@@ -1536,6 +1565,20 @@ export function MessageTimeline(props: {
                                 </DropdownMenu.ItemLabel>
                               </DropdownMenu.Item>
                             </Show>
+                            <DropdownMenu.Item
+                              onSelect={() => {
+                                setTitle({ pendingScheduled: true, menuOpen: false })
+                              }}
+                            >
+                              <DropdownMenu.ItemLabel>{language.t("session.scheduled.title")}</DropdownMenu.ItemLabel>
+                            </DropdownMenu.Item>
+                            <DropdownMenu.Item
+                              onSelect={() => {
+                                setTitle({ pendingHub: true, menuOpen: false })
+                              }}
+                            >
+                              <DropdownMenu.ItemLabel>{language.t("session.agentHub.agents")}</DropdownMenu.ItemLabel>
+                            </DropdownMenu.Item>
                             <DropdownMenu.Item onSelect={() => void archiveSession(id)}>
                               <DropdownMenu.ItemLabel>{language.t("common.archive")}</DropdownMenu.ItemLabel>
                             </DropdownMenu.Item>
@@ -1646,11 +1689,46 @@ export function MessageTimeline(props: {
                           </KobaltePopover.Content>
                         </KobaltePopover.Portal>
                       </KobaltePopover>
+
+                      <SessionScheduledTasksPopover
+                        sessionID={() => id}
+                        open={scheduledOpen()}
+                        onOpenChange={setScheduledOpen}
+                        anchorRef={() => more}
+                      />
+
+                      <AgentTaskHub
+                        open={hubOpen()}
+                        onOpenChange={setHubOpen}
+                        anchorRef={() => more}
+                        sessionID={() => id}
+                      />
                     </Show>
                   </div>
                 )}
               </Show>
             </div>
+            {/* M7 unified track: moved below the title row (same sticky header,
+                absolute zero-space). Env pulse (no tasks) and the task strip are
+                mutually exclusive; idle + tasks keeps a static strip (决策 2). */}
+            <Show when={settings.general.showSessionProgressBar() && (workingStatus() !== "hidden" || hasTaskData())}>
+              <div
+                data-component="session-progress"
+                data-state={workingStatus()}
+                aria-hidden={hasTaskData() ? undefined : "true"}
+              >
+                <Show when={!hasTaskData()}>
+                  <div
+                    data-component="session-progress-bar"
+                    style={{
+                      background: tint() ?? "var(--icon-interactive-base)",
+                      animation: `session-progress-whip ${bar.ms}ms infinite`,
+                    }}
+                  />
+                </Show>
+                <SessionTodoProgress sessionID={sessionID} working={() => workingStatus() !== "hidden"} tint={tint} />
+              </div>
+            </Show>
           </div>
         </Show>
         <div

@@ -24,6 +24,7 @@ import { ProposeCommandAsset } from "./propose-command-asset"
 import { ProposeAgentAsset } from "./propose-agent-asset"
 import { ProposeWorkflowAsset } from "./propose-workflow-asset"
 import { ProposePluginAsset } from "./propose-plugin-asset"
+import { WorkPresetTool } from "./work-preset"
 import * as Tool from "./tool"
 import { Config } from "@/config/config"
 import { type ToolContext as PluginToolContext, type ToolDefinition } from "@aigcfroge/plugin"
@@ -122,6 +123,7 @@ export const layer = Layer.effect(
     const proposeAgentAsset = yield* ProposeAgentAsset.ProposeAgentAssetV1
     const proposeWorkflowAsset = yield* ProposeWorkflowAsset.ProposeWorkflowAssetV1
     const proposePluginAsset = yield* ProposePluginAsset.ProposePluginAssetV1
+    const workPreset = yield* WorkPresetTool.WorkPresetV1
     const agent = yield* Agent.Service
 
     const state = yield* InstanceState.make<State>(
@@ -242,6 +244,7 @@ export const layer = Layer.effect(
           proposeAgentAsset: Tool.init(proposeAgentAsset),
           proposeWorkflowAsset: Tool.init(proposeWorkflowAsset),
           proposePluginAsset: Tool.init(proposePluginAsset),
+          workPreset: Tool.init(workPreset),
         })
 
         return {
@@ -262,6 +265,7 @@ export const layer = Layer.effect(
             tool.search,
             tool.skill,
             tool.patch,
+            tool.workPreset,
             ...(flags.experimentalChatAsset
               ? [tool.proposePromptAsset, tool.proposeSkillAsset, tool.proposeMCPAsset, tool.proposeCommandAsset, tool.proposeAgentAsset, tool.proposeWorkflowAsset, tool.proposePluginAsset]
               : []),

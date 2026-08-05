@@ -18,7 +18,9 @@ describe("aigcfroge acp lifecycle subprocess", () => {
         const acp = yield* aigcfroge.acp()
         acp.close()
 
-        const code = yield* Effect.promise(() => acp.exited).pipe(Effect.timeout(Duration.seconds(5)))
+        // Windows CI runners take >5s just to spawn and shut down the bun
+        // subprocess (observed 5.25s), so the exit wait needs headroom.
+        const code = yield* Effect.promise(() => acp.exited).pipe(Effect.timeout(Duration.seconds(15)))
         expect(code).toBe(0)
       }),
     60_000,

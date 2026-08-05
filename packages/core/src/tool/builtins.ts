@@ -11,9 +11,13 @@ import { ReadTool } from "./read"
 import { ReadToolFileSystem } from "./read-filesystem"
 import { SkillTool } from "./skill"
 import { TaskTool } from "./task"
+import { TaskWriteTool } from "./taskwrite"
+import { TaskScheduleTool } from "./taskschedule"
+import { TaskSpawnTool } from "./taskspawn"
 import { TodoWriteTool } from "./todowrite"
 import { WebFetchTool } from "./webfetch"
 import { WebSearchTool } from "./websearch"
+import { WorkPresetTool } from "./work-preset"
 import { ProposePromptAssetTool } from "./propose-prompt-asset"
 import { ProposeSkillAssetTool } from "./propose-skill-asset"
 import { ProposeMCPAssetTool } from "./propose-mcp-asset"
@@ -48,6 +52,9 @@ export const locationLayer = Layer.mergeAll(
   ReadTool.layer.pipe(Layer.provide(ReadToolFileSystem.layer)),
   SkillTool.layer,
   TaskTool.layer,
+  TaskWriteTool.layer,
+  TaskScheduleTool.layer,
+  TaskSpawnTool.layer,
   TodoWriteTool.layer,
   WebFetchTool.layer,
   WebSearchTool.layer.pipe(Layer.provide(WebSearchTool.defaultConfigLayer)),
@@ -59,4 +66,5 @@ export const locationLayer = Layer.mergeAll(
   ProposeAgentAssetTool.layer,
   ProposeWorkflowAssetTool.layer,
   ProposePluginAssetTool.layer,
+  WorkPresetTool.layer,
 )

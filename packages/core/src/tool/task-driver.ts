@@ -1,6 +1,6 @@
 export * as TaskDriver from "./task-driver"
 
-import { Effect, Schema } from "effect"
+import { Cause, Effect, Exit, Schema } from "effect"
 import { AgentV2 } from "../agent"
 import { Location } from "../location"
 import { SessionMessage } from "../session/message"
@@ -74,10 +74,23 @@ export interface Interface {
    * cancelled — the recoverable outcome the tool retries. Infrastructure faults
    * (admission, scheduling, history read) still die.
    */
+  /**
+   * Fails with {@link DelegateError} when the child's drain crashed or was
+   * cancelled — the recoverable outcome the tool retries. Infrastructure faults
+   * (admission, scheduling, history read) still die.
+   *
+   * `taskID` + `onSettle` opt into the dual-track todo linkage: when the child
+   * settles, `onSettle` fires with the terminal state so the caller can write
+   * back the linked todo entry. The callback runs after `background.wait`, on
+   * the caller's fiber — the child drain has already settled, so it cannot
+   * deadlock the single-connection SQLite serializer.
+   */
   readonly delegate: (input: {
     sessionID: SessionSchema.ID
     parentID?: SessionSchema.ID
     prompt: string
+    taskID?: string
+    onSettle?: (outcome: SettleOutcome) => Effect.Effect<void>
   }) => Effect.Effect<string, DelegateError>
   /**
    * Judge mode: delegate the same prompt to N child sessions in parallel using
@@ -103,6 +116,8 @@ export interface Interface {
     sessionID: SessionSchema.ID
     prompt: string
     description: string
+    taskID?: string
+    onSettle?: (outcome: SettleOutcome) => Effect.Effect<void>
   }) => Effect.Effect<void>
   /**
    * Admit `prompt` to a child Session whose background drain is already running
@@ -159,8 +174,13 @@ export const createChild = (input: {
 }) => active().pipe(Effect.flatMap((impl) => impl.createChild(input)))
 
 /** Delegate a prompt to a child Session and await its final text (foreground). */
-export const delegate = (input: { sessionID: SessionSchema.ID; parentID?: SessionSchema.ID; prompt: string }) =>
-  active().pipe(Effect.flatMap((impl) => impl.delegate(input)))
+export const delegate = (input: {
+  sessionID: SessionSchema.ID
+  parentID?: SessionSchema.ID
+  prompt: string
+  taskID?: string
+  onSettle?: (outcome: SettleOutcome) => Effect.Effect<void>
+}) => active().pipe(Effect.flatMap((impl) => impl.delegate(input)))
 
 /** Judge mode: parallel dispatch across N models, results merged by Judge LLM. */
 export const delegateJudge = (input: {
@@ -180,6 +200,8 @@ export const delegateBackground = (input: {
   sessionID: SessionSchema.ID
   prompt: string
   description: string
+  taskID?: string
+  onSettle?: (outcome: SettleOutcome) => Effect.Effect<void>
 }) => active().pipe(Effect.flatMap((impl) => impl.delegateBackground(input)))
 
 /** Extend a running background delegation with an additional prompt; false if no running job. */
@@ -234,6 +256,16 @@ export interface SessionFacade {
  * {@link Interface.delegate} docstring for why the drain must not run on the
  * caller's fiber.
  */
+/**
+ * Terminal state reported to a delegation's `onSettle` writeback callback.
+ * `outputDigest` carries the child Session id on completion or the error
+ * summary on failure so the linked todo can jump to the sub-session.
+ */
+export interface SettleOutcome {
+  readonly status: "completed" | "failed" | "cancelled"
+  readonly outputDigest?: string
+}
+
 /**
  * The terminal outcome of a scheduled child drain, as observed by `wait`. Mirrors
  * the subset of `BackgroundJob.Info` the seam needs: a job that never registered
@@ -344,27 +376,48 @@ export const install = (
         // yields LLMClient/Catalog, resolved from the runner scope at runtime;
         const parentContextSummary = input.parentID ? (yield* composeParentSummary(input.parentID)) : ""
         const prompt = parentContextSummary ? `<parent_context>\n${parentContextSummary}\n</parent_context>\n\n${input.prompt}` : input.prompt
-        yield* sessions.prompt({ sessionID: input.sessionID, prompt: { text: prompt }, resume: false })
-      }).pipe(
-        Effect.andThen(background.start(input.sessionID, sessions.resume(input.sessionID))),
-        Effect.andThen(background.wait(input.sessionID)),
-        // Infrastructure faults (admission, scheduling, history read) die; only a
-        // crashed or cancelled child drain is a recoverable DelegateError the tool
-        // retries. orDie collapses the `unknown` infra error channel here so the
-        // only surviving failure is the DelegateError raised below.
-        Effect.orDie,
-        // A missing outcome (job never registered / owner scope closed) is treated
-        // as a completed-but-empty drain, not a failure.
-        Effect.flatMap((outcome) =>
-          outcome && (outcome.status === "error" || outcome.status === "cancelled")
-            ? new DelegateError({
-                sessionID: input.sessionID,
-                reason: outcome.status,
-                ...(outcome.error ? { message: outcome.error } : {}),
-              })
-            : readResult(input.sessionID).pipe(Effect.orDie),
-        ),
-      ) as unknown as Effect.Effect<string, DelegateError>,
+        yield* sessions.prompt({ sessionID: input.sessionID, prompt: { text: prompt }, resume: false }).pipe(Effect.orDie)
+        yield* background.start(input.sessionID, sessions.resume(input.sessionID)).pipe(Effect.orDie)
+        // Capture the exit of wait + result handling so the dual-track writeback
+        // fires even when the caller's fiber is interrupted during background.wait
+        // (user abort). Infrastructure faults (prompt, start) still die above.
+        let childCancelled = false
+        const exit = yield* Effect.gen(function* () {
+          const outcome = yield* background.wait(input.sessionID).pipe(Effect.orDie)
+          if (outcome && (outcome.status === "error" || outcome.status === "cancelled")) {
+            childCancelled = outcome.status === "cancelled"
+            return yield* new DelegateError({
+              sessionID: input.sessionID,
+              reason: outcome.status,
+              ...(outcome.error ? { message: outcome.error } : {}),
+            })
+          }
+          return yield* readResult(input.sessionID).pipe(Effect.orDie)
+        }).pipe(Effect.exit)
+        // Dual-track writeback always fires, regardless of exit status.
+        // Sanitised outputDigest: the raw cause may embed Authorization headers,
+        // tokens, prompts, or stacks, which must not reach task.updated (Clean Logs).
+        if (input.taskID && input.onSettle) {
+          const status = Exit.isSuccess(exit)
+            ? "completed"
+            : childCancelled || Cause.hasInterruptsOnly(exit.cause)
+              ? "cancelled"
+              : "failed"
+          yield* input
+            .onSettle({
+              status,
+              outputDigest: status === "completed"
+                ? input.sessionID
+                : status === "failed"
+                  ? "foreground delegation failed"
+                  : undefined,
+            })
+            .pipe(
+              Effect.catchCause((cause) => Effect.logError("TaskDriver onSettle writeback failed", cause)),
+            )
+        }
+        return yield* exit
+      }) as unknown as Effect.Effect<string, DelegateError>,
     delegateJudge: (input) =>
       Effect.gen(function* () {
         const modelCount = Math.min(input.models.length, 5)
@@ -426,22 +479,59 @@ export const install = (
       sessions.prompt({ sessionID: input.sessionID, prompt: { text: input.prompt }, resume: false }).pipe(
         // Drive the child, then inject its result into the parent — all on the
         // background fiber, sequential (never nested), so no SQLite deadlock.
-        // BackgroundJob isolates fiber failures, so a failed injection is logged
-        // but never crashes the runtime; the child result still lives in its own
-        // Session history.
+        // The dual-track writeback settles here too, after the child drain, so
+        // the DB serializer is free. BackgroundJob isolates fiber failures, so a
+        // failed injection is logged but never crashes the runtime; the child
+        // result still lives in its own Session history.
         Effect.andThen(
           background.start(
             input.sessionID,
-            sessions.resume(input.sessionID).pipe(
-              Effect.andThen(readResult(input.sessionID)),
-              Effect.flatMap((text) =>
-                sessions.injectSynthetic({
+            Effect.gen(function* () {
+              // Capture the drain exit (resume + readResult) separately from
+              // injection so a failed injection does not classify the delegation
+              // itself as failed.
+              const drainExit = yield* Effect.gen(function* () {
+                yield* sessions.resume(input.sessionID)
+                return yield* readResult(input.sessionID)
+              }).pipe(Effect.exit)
+              // Settle the linked todo based on the drain outcome only.
+              if (input.taskID && input.onSettle) {
+                if (Exit.isSuccess(drainExit)) {
+                  yield* input.onSettle({ status: "completed", outputDigest: input.sessionID }).pipe(
+                    Effect.catchCause((cause) => Effect.logError("TaskDriver onSettle writeback failed", cause)),
+                  )
+                } else if (Cause.hasInterruptsOnly(drainExit.cause)) {
+                  yield* input.onSettle({ status: "cancelled" }).pipe(
+                    Effect.catchCause((cause) => Effect.logError("TaskDriver onSettle writeback failed", cause)),
+                  )
+                } else {
+                  // Fixed classification only: the raw cause may embed Authorization
+                  // headers, tokens, prompts, or stacks, which must not reach the
+                  // task.updated payload (Clean Logs).
+                  yield* input.onSettle({ status: "failed", outputDigest: "background delegation failed" }).pipe(
+                    Effect.catchCause((cause) => Effect.logError("TaskDriver onSettle writeback failed", cause)),
+                  )
+                }
+              }
+              // Inject result into parent (best-effort, after writeback).
+              if (Exit.isSuccess(drainExit)) {
+                yield* sessions.injectSynthetic({
                   sessionID: input.parentID,
-                  text: renderBackgroundResult({ sessionID: input.sessionID, description: input.description, text }),
-                }),
-              ),
-              Effect.tapCause((cause) => Effect.logError("TaskDriver background injection failed", cause)),
-            ),
+                  text: renderBackgroundResult({
+                    sessionID: input.sessionID,
+                    description: input.description,
+                    text: drainExit.value,
+                  }),
+                }).pipe(
+                  Effect.catchCause((cause) => Effect.logError("TaskDriver background injection failed", cause)),
+                )
+              }
+              if (Exit.isFailure(drainExit)) {
+                yield* Effect.logError("TaskDriver background delegation failed", drainExit.cause)
+              }
+              // Re-raise so the BackgroundJob status reflects the drain outcome.
+              yield* drainExit
+            }),
           ),
         ),
         Effect.orDie,

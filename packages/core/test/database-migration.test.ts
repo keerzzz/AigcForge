@@ -16,6 +16,10 @@ import contextEpochAgentMigration from "@aigcfroge/core/database/migration/20260
 import simplifyIntegrationCredentialsMigration from "@aigcfroge/core/database/migration/20260611192811_lush_chimera"
 import simplifySessionInputMigration from "@aigcfroge/core/database/migration/20260622202450_simplify_session_input"
 import sessionInputKindMigration from "@aigcfroge/core/database/migration/20260705170359_session_input_kind"
+import backfillTaskTableMigration from "@aigcfroge/core/database/migration/20260802220000_backfill_task_table"
+import addTaskOutputDigestMigration from "@aigcfroge/core/database/migration/20260802043814_add_task_output_digest"
+import addTaskScheduleFieldsMigration from "@aigcfroge/core/database/migration/20260802093236_add_task_schedule_fields"
+import addTaskSpawnFieldsMigration from "@aigcfroge/core/database/migration/20260802140709_add_task_spawn_fields"
 import { EventV2 } from "@aigcfroge/core/event"
 import { ProjectV2 } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
@@ -724,6 +728,262 @@ describe("DatabaseMigration", () => {
         // New column is writable.
         yield* db.run(sql`UPDATE session SET summary = 'Updated' WHERE id = 'ses_1'`)
         expect(yield* db.get(sql`SELECT summary FROM session WHERE id = 'ses_1'`)).toEqual({ summary: "Updated" })
+      }),
+    )
+  })
+
+  test("backfills legacy todo rows into the task table with tsk_ ids and preserved positions", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        // Pre-migration shape: legacy todo table + empty task table.
+        yield* db.run(sql`
+          CREATE TABLE todo (
+            session_id text NOT NULL,
+            content text NOT NULL,
+            status text NOT NULL,
+            priority text NOT NULL,
+            position integer NOT NULL,
+            time_created integer NOT NULL,
+            time_updated integer NOT NULL,
+            PRIMARY KEY (session_id, position)
+          )
+        `)
+        yield* db.run(sql`
+          CREATE TABLE task (
+            id text PRIMARY KEY,
+            session_id text NOT NULL,
+            content text NOT NULL,
+            status text NOT NULL,
+            priority text NOT NULL,
+            parent_id text,
+            position integer NOT NULL,
+            time_created integer NOT NULL,
+            time_updated integer NOT NULL
+          )
+        `)
+        yield* db.run(
+          sql`INSERT INTO todo (session_id, content, status, priority, position, time_created, time_updated) VALUES ('ses_1', 'first', 'in_progress', 'high', 0, 111, 222)`,
+        )
+        yield* db.run(
+          sql`INSERT INTO todo (session_id, content, status, priority, position, time_created, time_updated) VALUES ('ses_1', 'second', 'pending', 'low', 1, 333, 444)`,
+        )
+
+        yield* DatabaseMigration.applyOnly(db, [backfillTaskTableMigration])
+
+        const migrated = yield* db.all<{
+          id: string
+          session_id: string
+          content: string
+          status: string
+          priority: string
+          position: number
+          time_created: number
+          time_updated: number
+        }>(sql`SELECT id, session_id, content, status, priority, position, time_created, time_updated FROM task ORDER BY position`)
+        expect(migrated).toHaveLength(2)
+        expect(migrated[0]).toMatchObject({
+          session_id: "ses_1",
+          content: "first",
+          status: "in_progress",
+          priority: "high",
+          position: 0,
+          time_created: 111,
+          time_updated: 222,
+        })
+        expect(migrated[1]).toMatchObject({
+          session_id: "ses_1",
+          content: "second",
+          status: "pending",
+          priority: "low",
+          position: 1,
+          time_created: 333,
+          time_updated: 444,
+        })
+        expect(migrated.every((row) => row.id.startsWith("tsk_"))).toBe(true)
+        expect(new Set(migrated.map((row) => row.id)).size).toBe(2)
+
+        // Legacy table retained for backward-compatible reads.
+        const remaining = yield* db.all<{ content: string }>(sql`SELECT content FROM todo ORDER BY position`)
+        expect(remaining.map((row) => row.content)).toEqual(["first", "second"])
+      }),
+    )
+  })
+
+  test("backfill migration normalizes legacy free-form status/priority", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`
+          CREATE TABLE todo (
+            session_id text NOT NULL,
+            content text NOT NULL,
+            status text NOT NULL,
+            priority text NOT NULL,
+            position integer NOT NULL,
+            time_created integer NOT NULL,
+            time_updated integer NOT NULL,
+            PRIMARY KEY (session_id, position)
+          )
+        `)
+        yield* db.run(sql`
+          CREATE TABLE task (
+            id text PRIMARY KEY,
+            session_id text NOT NULL,
+            content text NOT NULL,
+            status text NOT NULL,
+            priority text NOT NULL,
+            parent_id text,
+            position integer NOT NULL,
+            time_created integer NOT NULL,
+            time_updated integer NOT NULL
+          )
+        `)
+        // Legacy Todo.Info had unconstrained status/priority strings.
+        yield* db.run(
+          sql`INSERT INTO todo (session_id, content, status, priority, position, time_created, time_updated) VALUES ('ses_1', 'legacy', 'done', 'urgent', 0, 1, 1)`,
+        )
+
+        yield* DatabaseMigration.applyOnly(db, [backfillTaskTableMigration])
+
+        const migrated = yield* db.get<{ status: string; priority: string }>(
+          sql`SELECT status, priority FROM task WHERE content = 'legacy'`,
+        )
+        expect(migrated).toEqual({ status: "pending", priority: "medium" })
+      }),
+    )
+  })
+
+  test("adds a nullable output_digest column to task preserving existing rows", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        // Pre-migration shape: task table without output_digest, with existing rows.
+        yield* db.run(sql`
+          CREATE TABLE task (
+            id text PRIMARY KEY,
+            session_id text NOT NULL,
+            content text NOT NULL,
+            status text NOT NULL,
+            priority text NOT NULL,
+            parent_id text,
+            position integer NOT NULL,
+            time_created integer NOT NULL,
+            time_updated integer NOT NULL
+          )
+        `)
+        yield* db.run(
+          sql`INSERT INTO task (id, session_id, content, status, priority, position, time_created, time_updated) VALUES ('tsk_1', 'ses_1', 'first', 'pending', 'low', 0, 1, 1)`,
+        )
+
+        yield* DatabaseMigration.applyOnly(db, [addTaskOutputDigestMigration])
+
+        // Column exists and existing rows read back a null digest.
+        const cols = yield* db.all<{ name: string }>(sql`SELECT name FROM pragma_table_info('task')`)
+        expect(cols.map((column) => column.name)).toContain("output_digest")
+        expect(yield* db.get(sql`SELECT output_digest FROM task WHERE id = 'tsk_1'`)).toEqual({ output_digest: null })
+
+        // Column is writable.
+        yield* db.run(sql`UPDATE task SET output_digest = 'ses_child' WHERE id = 'tsk_1'`)
+        expect(yield* db.get(sql`SELECT output_digest FROM task WHERE id = 'tsk_1'`)).toEqual({
+          output_digest: "ses_child",
+        })
+      }),
+    )
+  })
+
+  test("adds nullable agent_id/scheduled_at/recurrence columns preserving existing rows", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        // Pre-migration shape: task table without the M3 schedule columns.
+        yield* db.run(sql`
+          CREATE TABLE task (
+            id text PRIMARY KEY,
+            session_id text NOT NULL,
+            content text NOT NULL,
+            status text NOT NULL,
+            priority text NOT NULL,
+            parent_id text,
+            output_digest text,
+            position integer NOT NULL,
+            time_created integer NOT NULL,
+            time_updated integer NOT NULL
+          )
+        `)
+        yield* db.run(
+          sql`INSERT INTO task (id, session_id, content, status, priority, position, time_created, time_updated) VALUES ('tsk_1', 'ses_1', 'audit', 'scheduled', 'medium', 0, 1, 1)`,
+        )
+
+        yield* DatabaseMigration.applyOnly(db, [addTaskScheduleFieldsMigration])
+
+        const cols = yield* db.all<{ name: string }>(sql`SELECT name FROM pragma_table_info('task')`)
+        const names = cols.map((column) => column.name)
+        expect(names).toContain("agent_id")
+        expect(names).toContain("scheduled_at")
+        expect(names).toContain("recurrence")
+        // Existing rows read back null for the new columns.
+        expect(yield* db.get(sql`SELECT agent_id, scheduled_at, recurrence FROM task WHERE id = 'tsk_1'`)).toEqual({
+          agent_id: null,
+          scheduled_at: null,
+          recurrence: null,
+        })
+        // The columns are writable.
+        yield* db.run(
+          sql`UPDATE task SET agent_id = 'ag_audit', scheduled_at = 1234, recurrence = '{"cron":"0 9 * * *","enabled":true}' WHERE id = 'tsk_1'`,
+        )
+        expect(yield* db.get(sql`SELECT agent_id, scheduled_at, recurrence FROM task WHERE id = 'tsk_1'`)).toEqual({
+          agent_id: "ag_audit",
+          scheduled_at: 1234,
+          recurrence: '{"cron":"0 9 * * *","enabled":true}',
+        })
+      }),
+    )
+  })
+
+  test("adds nullable spawned_from/depends_on columns preserving existing rows", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        // Pre-migration shape: task table without the M5 spawn columns.
+        yield* db.run(sql`
+          CREATE TABLE task (
+            id text PRIMARY KEY,
+            session_id text NOT NULL,
+            content text NOT NULL,
+            status text NOT NULL,
+            priority text NOT NULL,
+            parent_id text,
+            output_digest text,
+            agent_id text,
+            scheduled_at integer,
+            recurrence text,
+            position integer NOT NULL,
+            time_created integer NOT NULL,
+            time_updated integer NOT NULL
+          )
+        `)
+        yield* db.run(
+          sql`INSERT INTO task (id, session_id, content, status, priority, position, time_created, time_updated) VALUES ('tsk_1', 'ses_1', 'spawn', 'pending', 'medium', 0, 1, 1)`,
+        )
+
+        yield* DatabaseMigration.applyOnly(db, [addTaskSpawnFieldsMigration])
+
+        const cols = yield* db.all<{ name: string }>(sql`SELECT name FROM pragma_table_info('task')`)
+        const names = cols.map((column) => column.name)
+        expect(names).toContain("spawned_from")
+        expect(names).toContain("depends_on")
+        expect(yield* db.get(sql`SELECT spawned_from, depends_on FROM task WHERE id = 'tsk_1'`)).toEqual({
+          spawned_from: null,
+          depends_on: null,
+        })
+        yield* db.run(
+          sql`UPDATE task SET spawned_from = 'msg_1', depends_on = '["tsk_a","tsk_b"]' WHERE id = 'tsk_1'`,
+        )
+        expect(yield* db.get(sql`SELECT spawned_from, depends_on FROM task WHERE id = 'tsk_1'`)).toEqual({
+          spawned_from: "msg_1",
+          depends_on: '["tsk_a","tsk_b"]',
+        })
       }),
     )
   })

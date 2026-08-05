@@ -13,6 +13,7 @@ import { WorkspaceV2 } from "../workspace"
 import { Timestamps } from "../database/schema.sql"
 import type { SystemContext } from "../system-context/index"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task"
 
 
 type SessionMessageData = Omit<(typeof SessionMessage.Message)["Encoded"], "type" | "id">
@@ -118,6 +119,34 @@ export const TodoTable = sqliteTable(
     primaryKey({ columns: [table.session_id, table.position] }),
     index("todo_session_idx").on(table.session_id),
   ],
+)
+
+export const TaskTable = sqliteTable(
+  "task",
+  {
+    id: text().primaryKey(),
+    session_id: text()
+      .$type<SessionSchema.ID>()
+      .notNull()
+      .references(() => SessionTable.id, { onDelete: "cascade" }),
+    content: text().notNull(),
+    status: text().$type<SessionTaskSchema.TaskStatus>().notNull(),
+    priority: text().$type<SessionTaskSchema.TaskPriority>().notNull(),
+    parent_id: text(),
+    // M2: incremental step output digest (Work ProgressLedger) — TaskPanel
+    // reload-recovery reads it back after a page refresh.
+    output_digest: text(),
+    // M3: scheduled jobs — owning agent, next trigger, and repetition rule.
+    agent_id: text(),
+    scheduled_at: integer(),
+    recurrence: text({ mode: "json" }).$type<SessionTaskSchema.TaskRecurrence>(),
+    // M5: spawning & DAG — originating message and predecessor task ids.
+    spawned_from: text(),
+    depends_on: text({ mode: "json" }).$type<readonly string[]>(),
+    position: integer().notNull(),
+    ...Timestamps,
+  },
+  (table) => [index("task_session_idx").on(table.session_id)],
 )
 
 export const SessionMessageTable = sqliteTable(

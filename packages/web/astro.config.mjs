@@ -114,6 +114,11 @@ export default defineConfig({
           lang: "tr-TR",
           dir: "ltr",
         },
+        uk: {
+          label: "\u0423\u043a\u0440\u0430\u0457\u043d\u0441\u044c\u043a\u0430",
+          lang: "uk-UA",
+          dir: "ltr",
+        },
         "zh-cn": {
           label: "简体中文",
           lang: "zh-CN",

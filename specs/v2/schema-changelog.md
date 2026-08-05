@@ -1,5 +1,52 @@
 # V2 Schema Changelog
 
+## 2026-08-03: Task Spawn Fields, task_spawn Tool, and DAG Helpers (Todo/Task M5 Step 1 — recovered from wip)
+
+- Persist M5 spawn fields on the `task` table via the drizzle-kit pipeline (`20260802140709_add_task_spawn_fields`): nullable `spawned_from` (originating message id) and `depends_on` (JSON predecessor task ids); existing rows backfill null. Registered in `migration.gen.ts` between `add_task_schedule_fields` and `backfill_task_table`.
+- `SessionTask.WriteInfo`/`Info` now carry `spawnedFrom`/`dependsOn`; `update`/`append`/`replaceLegacy` persist them and preserve them through an omitting reconcile (same preserve-omitted rule as `agentID`/`scheduledAt`/`recurrence`).
+- New core `task_spawn` tool (`tool/taskspawn.ts`): spawns a derived task recording `spawnedFrom` = the calling message id, optional `dependsOn` predecessors, and the owning `agentID`; registered in `tool/builtins.ts`. Subagent default deny for `task_spawn` already landed in M2/M3 (`4baeebe3d`).
+- New core `session/dag.ts`: pure `blockedBy` (predecessor terminal-state gate) and `findCycle` (cycle detection) helpers; `test/dag.test.ts` covers both.
+- Compatibility: additive nullable columns + optional fields; generated SDK `SessionTaskWriteInfo` regenerated (`spawnedFrom`/`dependsOn`).
+
+### 2026-08-03 (M5 Step 3): DAG gating on the scheduled-job trigger + write-side cycle rejection
+
+- `SessionTask.update`/`append` reject a `dependsOn` cycle via `findCycle` with a new `TaskWriteError` reason `depends_on_cycle` → HTTP 400. The write-side guard prevents a graph where no task in a cycle can ever be triggered. The `update` guard evaluates the *effective* `dependsOn` (`input ?? existing row`, the same preserve-omitted rule as the column write) so an omitted-preserve PATCH cannot close a cycle unseen.
+- `scheduled-job.ts` trigger now runs a DAG gate before claiming a task: a scheduled/pending job whose `dependsOn` predecessors are not all terminal is skipped (left scheduled/pending, NOT claimed), and re-evaluated when a `task.updated` re-arms the queue — the existing B1 in_progress claim semantics are untouched (the gate sits before the claim).
+- `dag.ts blockedBy` semantics changed: a *deleted* predecessor (absent from the task set) is released instead of blocking — otherwise deleting a predecessor would permanently deadlock its dependents. A present non-terminal predecessor still blocks.
+- Compatibility: valid acyclic graphs are unaffected; a `depends_on_cycle` write now fails with 400, and a blocked trigger is skipped until its predecessors settle.
+
+## 2026-08-03: Agent Task Cross-Session Aggregation Endpoint (Todo/Task M4 Step 3)
+
+- New core `SessionTask.listAll()`: reads every task across all sessions from the `task` table (the M3 `agent_id` column already landed), each row keeping its owning `sessionID`/`agentID`.
+- New `GET /agent-task` HTTP endpoint returning `Array<SessionTask.Info>` — the Agent Hub's cross-session aggregation source. It lives in a new `agent-task` httpapi group (root `/agent-task`) rather than under `/session/:sessionID`: the workspace-routing middleware parses `/session/<segment>` as a session id and dies on non-`ses_` literals, so a literal cross-session path cannot live under the session prefix.
+- Generated SDK client `AgentTask.list` (`/agent-task`).
+- Compatibility: additive read-only endpoint; no stored data changes, no migration.
+
+### 2026-08-03 (M4 Step 4 refinement): Dead-job cron validation sinks to the write path
+
+- `SessionTask.update`/`append` now reject any `recurrence` cron that fails `nextRun` (malformed or no future run within the search window) with a new `TaskWriteError` reason `invalid_schedule`, surfaced as HTTP 400 on `PATCH /session/:sessionID/task`. This closes the dead-job hole that the direct HTTP PATCH path reintroduced after the task_schedule tool's own guard.
+- `TaskWriteError.id` is now optional (a rejected new task has no id yet).
+- Compatibility: valid schedules are unaffected; a previously-accepted malformed cron now fails with 400 instead of persisting a job that can never fire.
+
+## 2026-08-02: Task Spawn and DAG Fields (Todo/Task M5)
+
+（未落地——M5 变更已移出本分支，完整保留在 wip 分支 `todo-task-m4m5`，待 M5 里程碑合入。移出的内容：`spawned_from`/`depends_on` 落列（迁移 `20260802140709_add_task_spawn_fields`）、`SessionTask.WriteInfo`/`Info` 写路径持久化、`task_spawn` 内建工具、`session/dag.ts` DAG 纯逻辑。注：V1 Todo（`packages/aigcfroge/src/session/todo.ts` + `tool/todo.ts`）的 `@deprecated` 注释已随本分支 M3b-2 落地，文件保留。）
+
+## 2026-08-02: SessionTask.Info nextRun Derived Field and Scheduler Production Wiring (Todo/Task M3a/M3b-1)
+
+- `SessionTask.Info` gains an optional derived `nextRun` (ms) field — never persisted, computed at read time against the current clock: only `scheduled`/`pending` tasks carry a value; an enabled recurrence resolves to the next cron match after now, otherwise the one-shot `scheduledAt`; all other statuses omit the field. This is the M3b-2 UI data source and rides every `task.updated` payload and the task HTTP endpoints; generated SDK `SessionTaskInfo` regenerated.
+- ScheduledJobRunner production wiring: the httpapi app graph now mounts `ScheduledJob.node` (shared Database/EventV2/SessionTask + production executor) and `ScheduledJob.daemonNode` — startup `arm`, a minute `tick` fiber, and a `task.updated` subscription that re-arms so new schedules, resumes, and pauses take effect immediately. The production `ScheduledExecutor` (`session/scheduled-job-executor.ts`) drives each trigger through a TaskDriver unattended child Session (`attended: false`), keeping `run` total: `DelegateError` classifies failed/cancelled and seam/infrastructure defects settle failed.
+- Compatibility: `nextRun` is additive and optional; no stored data changes, no migration.
+- M3b-2 UI consumes `nextRun`: the session title row renders a `⚡` chip with the earliest upcoming trigger, and the dot-grid "定时任务" popover lists scheduled tasks (checkbox toggles PATCH `status` only, preserving schedule fields server-side).
+
+## 2026-08-02: Task Scheduled Job Columns and Recurrence Value Type (Todo/Task M3a)
+
+- Persist M3 schedule fields on the `task` table via the drizzle-kit pipeline (`20260802093236_add_task_schedule_fields`): nullable `agent_id`, `scheduled_at` (ms), and `recurrence` (JSON) columns; existing rows backfill null.
+- `SessionTask.WriteInfo`/`Info` now carry `agentID`/`scheduledAt`/`recurrence`; the write paths persist them and preserve them through an omitting reconcile (same rule as `parentID`/`outputDigest`).
+- `TaskRecurrence` changed from a `Schema.Class` to a `Schema.Struct` so the value record encodes/decodes as a plain object (it is persisted as a JSON column and exchanged over HTTP); generated SDK `TaskRecurrence` shape unchanged. This is an adjudicated exception to the AGENTS.md "multi-field records use `Schema.Class`" rule — the JSON-column persistence plus HTTP exchange constraint above is the recorded justification, and the exception applies to this value type only.
+- New core `ScheduledJobRunner` (single-process in-memory minute-level scheduler): `arm` re-scans the task table to rebuild the next-run queue (startup re-arm), `tick` triggers due jobs and settles each task (completed/failed/cancelled); recurring jobs re-arm to their next cron match only after a completed outcome (failed/cancelled outcomes stay settled).
+- Unattended permission policy (plan §8 G2): scheduled jobs run under an agent whose permissions pre-authorize reads; explicit `allow` rules are not converted to `deny` by the unattended child ask→deny fallback.
+
 ## 2026-06-22: Simplify Session Input Promotion
 
 - Keep `session.next.prompt.admitted.1` as the durable, client-visible record of pending Session input.
@@ -12,6 +59,21 @@
 - Replace the unpublished `session.next.compaction.ended.1` payload with the current checkpoint payload and remove its legacy decoder.
 - Reset experimental events, sequences, Session inputs, projected Session messages, Context Epochs, synchronized workspace rows, and Session workspace links.
 - Preserve canonical V1 `session`, `message`, and `part` rows.
+
+## 2026-08-02: Task output_digest Persistence and GET Task Endpoint (Todo/Task M2a)
+
+- Persist `output_digest` on the `task` table (nullable column) via the drizzle-kit pipeline (`20260802043814_add_task_output_digest`); `SessionTask.patch` writes the digest, and a later patch omitting it leaves the stored digest intact.
+- `SessionTask.Info` maps `outputDigest` from the table, so it survives a page refresh (TaskPanel reload-recovery); DB, resolved Info, and `task.updated` payload stay in agreement — full-list `update` reconciles carry the stored digest (like `parentID`) into the resolved Info and republished event.
+- New `GET /session/:sessionID/task` HTTP endpoint returning the full TaskInfo list with stable ids + persisted digest (empty session returns `[]`); generated SDK `Task.get` client method.
+- Legacy `GET /session/:id/todo` V1/V2 dual-branch read path unchanged.
+
+## 2026-08-02: SessionTask Contract, Table, and PATCH API (Todo/Task M0+M1)
+
+- New shared `SessionTask` Schema contract (`packages/schema/src/session-task.ts`): stable `tsk_` id, literal `TaskStatus`/`TaskPriority`, optional `parentID`; M2/M3/M5 fields (outputDigest/agentID/scheduledAt/recurrence/spawnedFrom/dependsOn) declared but not yet persisted.
+- New `task` table (id PK, session_id FK → session.id ON DELETE CASCADE, content/status/priority/parent_id/position + timestamps) with `task_session_idx`, generated via the drizzle-kit pipeline (`20260801230425_add_task_table`).
+- New `task.updated` EventV2 (sessionID + tasks) alongside the retained `todo.updated`; both remain emitted during transition.
+- New `PATCH /session/:sessionID/task` HTTP endpoint (replace-list reconcile) and generated SDK `SessionTaskUpdate` client + `SessionTaskInfo` type.
+- Legacy `TodoTable`/`SessionTodo`/`TodoWrite` retained for backward compatibility; the one-shot TodoTable→TaskTable backfill migration is delivered (`20260802220000_backfill_task_table`, `tsk_` ids, unknown status/priority normalized to pending/medium).
 
 ## 2026-06-22: Make Session Interruption Process-Local
 

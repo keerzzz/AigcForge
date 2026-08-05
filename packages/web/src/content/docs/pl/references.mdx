@@ -1,0 +1,157 @@
+---
+title: Referencje
+description: Dodawaj lokalne katalogi i repozytoria Git jako referencje projektu.
+---
+
+Referencje dają Aigcfroge dostęp do katalogów spoza bieżącego projektu. Używaj ich, aby udostępnić podczas pracy dokumentację, współdzielone biblioteki, przykłady lub inne repozytorium.
+
+Referencje konfiguruje się przez alias w pliku `aigcfroge.json` lub `aigcfroge.jsonc`.
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "references": {
+    "docs": {
+      "path": "../product-docs",
+      "description": "Use for product behavior and documentation conventions",
+    },
+    "sdk": {
+      "repository": "keerzzz/AigcForge-sdk-js",
+      "branch": "main",
+      "description": "Use for JavaScript SDK implementation details",
+    },
+  },
+}
+```
+
+---
+
+## Katalogi lokalne
+
+Użyj `path`, aby odwołać się do lokalnego katalogu.
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "docs": {
+      "path": "../docs",
+    },
+  },
+}
+```
+
+Ścieżki mogą być:
+
+- Względne do pliku konfiguracyjnego, który definiuje referencję
+- Bezwzględne, np. `/home/user/docs`
+- Względne do Twojego katalogu domowego, np. `~/docs`
+
+Możesz też użyć skróconej formy ciągu znaków:
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "docs": "../docs",
+  },
+}
+```
+
+---
+
+## Repozytoria Git
+
+Użyj `repository`, aby odwołać się do repozytorium Git. Aigcfroge materializuje repozytorium w swojej lokalnej pamięci podręcznej repozytoriów i udostępnia pobrane źródła jako katalog referencji.
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "effect": {
+      "repository": "Effect-TS/effect",
+      "branch": "main",
+    },
+  },
+}
+```
+
+`repository` akceptuje adresy URL Git, referencje host/ścieżka oraz skróconą formę GitHub `owner/repo`. Opcjonalne pole `branch` wybiera gałąź lub ref. Bez `branch` Aigcfroge używa domyślnej gałęzi repozytorium.
+
+Możesz użyć skróconej formy ciągu znaków, gdy nie potrzebujesz gałęzi, opisu ani innych opcji:
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "effect": "Effect-TS/effect",
+  },
+}
+```
+
+:::note
+Referencje Git są odświeżane asynchronicznie. Nowo skonfigurowane repozytorium może chwilę potrwać, zanim zakończy klonowanie lub aktualizację.
+:::
+
+---
+
+## Opisz sposób użycia
+
+Dodaj `description`, aby wyjaśnić, kiedy agent powinien użyć referencji.
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "design-system": {
+      "path": "../design-system",
+      "description": "Use when implementing UI components or design tokens",
+    },
+  },
+}
+```
+
+Aigcfroge dołącza referencje z opisami do kontekstu agenta. Opisy powinny być krótkie i wystarczająco konkretne, aby odróżnić referencje o podobnej treści. Referencje bez opisów pozostają dostępne przez autouzupełnianie i bezpośrednie użycie, ale nie są reklamowane agentom.
+
+---
+
+## Ukrywanie wpisów autouzupełniania
+
+Ustaw `hidden` na `true`, aby pominąć referencję w autouzupełnianiu `@` w TUI.
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "internal": {
+      "path": "../internal",
+      "description": "Use for internal implementation details",
+      "hidden": true,
+    },
+  },
+}
+```
+
+`hidden` wpływa tylko na autouzupełnianie. Ukryta referencja z opisem pozostaje uwzględniona w kontekście agenta.
+
+---
+
+## Korzystanie z referencji
+
+Skonfigurowane referencje pojawiają się w autouzupełnianiu `@` w TUI. Wpisz `@alias`, aby dołączyć katalog główny referencji, lub `@alias/`, aby wyszukać pliki w jego wnętrzu.
+
+```text
+Compare this implementation with @sdk/src/client.ts
+```
+
+Agenci otrzymują również w swoim kontekście systemowym rozpoznane ścieżki i opisy skonfigurowanych referencji, które mają opisy, dzięki czemu mogą przejrzeć referencję, gdy jest istotna, bez ręcznego dołączania jej przez Ciebie.
+
+Aigcfroge automatycznie zezwala na katalogi referencji przez swój limit uprawnień katalogów zewnętrznych. Normalne uprawnienia narzędzi nadal obowiązują; na przykład agent, który nie może edytować plików, nie uzyskuje dostępu do edycji tylko dlatego, że katalog został skonfigurowany jako referencja.
+
+---
+
+## Pola konfiguracji
+
+| Pole          | Lokalny | Git | Opis                                           |
+| ------------- | ------- | --- | ---------------------------------------------- |
+| `path`        | Tak     | Nie | Lokalny katalog referencji                     |
+| `repository`  | Nie     | Tak | Adres URL Git, host/ścieżka lub wartość GitHub `owner/repo` |
+| `branch`      | Nie     | Tak | Opcjonalna gałąź Git lub ref                   |
+| `description` | Tak     | Tak | Wskazówki opisujące, kiedy użyć referencji     |
+| `hidden`      | Tak     | Tak | Ukryj referencję w autouzupełnianiu `@` w TUI  |
+
+Aliasy referencji nie mogą być puste ani zawierać `/`, białych znaków, grawisów ani przecinków.

@@ -61,6 +61,9 @@ import { ProjectCopy } from "@aigcfroge/core/project/copy"
 import { PtyTicket } from "@aigcfroge/core/pty/ticket"
 import { Ripgrep } from "@aigcfroge/core/ripgrep"
 import { SessionProjector } from "@aigcfroge/core/session/projector"
+import { ScheduledJob } from "@aigcfroge/core/session/scheduled-job"
+import { SessionTask } from "@aigcfroge/core/session/task"
+import { SessionTodo } from "@aigcfroge/core/session/todo"
 import { lazy } from "@/util/lazy"
 import { CorsConfig, isAllowedCorsOrigin, type CorsOptions } from "@aigcfroge/server/cors"
 import { serveUIEffect } from "@/server/shared/ui"
@@ -87,6 +90,7 @@ import { instanceHandlers } from "./handlers/instance"
 import { mcpHandlers } from "./handlers/mcp"
 import { permissionHandlers } from "./handlers/permission"
 import { PromptAssetHandlers } from "./handlers/prompt-asset"
+import { WorkArtifactHandlers } from "./handlers/work-artifact"
 import { SkillAssetHandlers } from "./handlers/skill-asset"
 import { MCPAssetHandlers } from "./handlers/mcp-asset"
 import { CommandAssetHandlers } from "./handlers/command-asset"
@@ -100,6 +104,7 @@ import { providerHandlers } from "./handlers/provider"
 import { ptyConnectHandlers, ptyHandlers } from "./handlers/pty"
 import { questionHandlers } from "./handlers/question"
 import { sessionHandlers } from "./handlers/session"
+import { agentTaskHandlers } from "./handlers/agent-task"
 import { syncHandlers } from "./handlers/sync"
 import { tuiHandlers } from "./handlers/tui"
 import { handlers } from "@aigcfroge/server/handlers"
@@ -163,6 +168,7 @@ const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
     questionHandlers,
     permissionHandlers,
     PromptAssetHandlers.promptAssetHandlers,
+    WorkArtifactHandlers.workArtifactHandlers,
     SkillAssetHandlers.skillAssetHandlers,
     MCPAssetHandlers.mcpAssetHandlers,
     CommandAssetHandlers.commandAssetHandlers,
@@ -172,6 +178,7 @@ const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
     ImportParserHandlers.importParserHandlers,
     providerHandlers,
     sessionHandlers,
+    agentTaskHandlers,
     syncHandlers,
     tuiHandlers,
     workspaceHandlers,
@@ -272,6 +279,11 @@ const app = LayerNode.group([
   ProjectV2.node,
   ProjectCopy.node,
   PtyTicket.node,
+  SessionTask.node,
+  SessionTodo.node,
+  // M3 scheduler: runner + daemon (startup arm, minute tick, task.updated re-arm).
+  ScheduledJob.node,
+  ScheduledJob.daemonNode,
 ])
 
 export function createRoutes(

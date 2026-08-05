@@ -1,14 +1,11 @@
-import { Show, createEffect, createMemo, createResource, onCleanup } from "solid-js"
-import { createStore } from "solid-js/store"
+import { Show, createEffect, createMemo, createResource } from "solid-js"
 import { useNavigate, useSearchParams } from "@solidjs/router"
-import { useSpring } from "@aigcfroge/ui/motion-spring"
 import { useLayout } from "@/context/layout"
 import { PromptInput } from "@/components/prompt-input"
 import { useLanguage } from "@/context/language"
 import { usePrompt } from "@/context/prompt"
 import { useSync } from "@/context/sync"
 import { Icon } from "@aigcfroge/ui/icon"
-import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
 import { getSessionHandoff, setSessionHandoff } from "@/pages/session/handoff"
 import { useSessionKey } from "@/pages/session/session-layout"
 import { SessionPermissionDock } from "@/pages/session/composer/session-permission-dock"
@@ -16,9 +13,7 @@ import { SessionQuestionDock } from "@/pages/session/composer/session-question-d
 import { SessionFollowupDock } from "@/pages/session/composer/session-followup-dock"
 import { SessionRevertDock } from "@/pages/session/composer/session-revert-dock"
 import type { SessionComposerState } from "@/pages/session/composer/session-composer-state"
-import { SessionTodoDock } from "@/pages/session/composer/session-todo-dock"
 import type { FollowupDraft } from "@/components/prompt-input/submit"
-import { createResizeObserver } from "@solid-primitives/resize-observer"
 import { NEW_SESSION_CONTENT_WIDTH } from "@/pages/session/new-session-layout"
 import { createQuery } from "@tanstack/solid-query"
 import { useQueryOptions } from "@/context/server-sync"
@@ -33,11 +28,9 @@ import { useDirectoryPicker } from "@/components/directory-picker"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { requireServerKey, sessionHref } from "@/utils/session-route"
 import { useGlobal } from "@/context/global"
-import { useMode } from "@/context/mode"
 
 export function SessionComposerRegion(props: {
   state: SessionComposerState
-  ready: boolean
   centered: boolean
   placement?: "dock" | "inline"
   inputRef: (el: HTMLDivElement) => void
@@ -78,7 +71,6 @@ export function SessionComposerRegion(props: {
   const server = useServer()
   const tabs = useTabs()
   const global = useGlobal()
-  const modeCtx = useMode()
   const pickDirectory = useDirectoryPicker()
   const [search] = useSearchParams<{ draftId?: string }>()
   const view = layout.view(route.sessionKey)
@@ -132,9 +124,8 @@ export function SessionComposerRegion(props: {
     })
   }
   const controls = createMemo(() => {
-    const allAgents = local.agent.list().map((agent) => agent.name)
-    const agentOptions =
-      modeCtx.currentMode === "chat" ? allAgents.filter((name) => name === ProductModeAgentPolicy.CHAT_ORCHESTRATOR) : allAgents
+    // local.agent.list() 已按 ADR-13 锁定当前模式的 orchestrator，无需再过滤。
+    const agentOptions = local.agent.list().map((agent) => agent.name)
     return {
       agents: {
         available: sync().data.agent,
@@ -186,52 +177,8 @@ export function SessionComposerRegion(props: {
     setSessionHandoff(route.sessionKey(), { prompt: previewPrompt() })
   })
 
-  const [store, setStore] = createStore({
-    ready: false,
-    height: 320,
-    body: undefined as HTMLDivElement | undefined,
-  })
-  let timer: number | undefined
-  let frame: number | undefined
-
-  const clear = () => {
-    if (timer !== undefined) {
-      window.clearTimeout(timer)
-      timer = undefined
-    }
-    if (frame !== undefined) {
-      cancelAnimationFrame(frame)
-      frame = undefined
-    }
-  }
-
-  createEffect(() => {
-    route.sessionKey()
-    const ready = props.ready
-    const delay = 140
-
-    clear()
-    setStore("ready", false)
-    if (!ready) return
-
-    frame = requestAnimationFrame(() => {
-      frame = undefined
-      timer = window.setTimeout(() => {
-        setStore("ready", true)
-        timer = undefined
-      }, delay)
-    })
-  })
-
-  onCleanup(clear)
-
-  const open = createMemo(() => store.ready && props.state.dock() && !props.state.closing())
-  const progress = useSpring(() => (open() ? 1 : 0), { visualDuration: 0.3, bounce: 0 })
-  const value = createMemo(() => Math.max(0, Math.min(1, progress())))
-  const dock = createMemo(() => (store.ready && props.state.dock()) || value() > 0.001)
   const rolled = createMemo(() => (props.revert?.items.length ? props.revert : undefined))
-  const lift = createMemo(() => (rolled() ? 18 : 36 * value()))
-  const full = createMemo(() => Math.max(78, store.height))
+  const lift = createMemo(() => (rolled() ? 18 : 0))
 
   const openParent = () => {
     const id = parentID()
@@ -240,14 +187,6 @@ export function SessionComposerRegion(props: {
     if (!key) return
     navigate(sessionHref(requireServerKey(key), id))
   }
-
-  createEffect(() => {
-    const el = store.body
-    if (!el) return
-    const update = () => setStore("height", el.getBoundingClientRect().height)
-    createResizeObserver(store.body, update)
-    update()
-  })
 
   const ready = Promise.resolve()
   const [promptReadyResource] = createResource(
@@ -319,36 +258,9 @@ export function SessionComposerRegion(props: {
               </>
             }
           >
-            <Show when={dock()}>
-              <div
-                classList={{
-                  "overflow-hidden": true,
-                  "pointer-events-none": value() < 0.98,
-                }}
-                style={{
-                  "max-height": `${full() * value()}px`,
-                }}
-              >
-                <div ref={(el) => setStore("body", el)}>
-                  <SessionTodoDock
-                    sessionID={route.params.id}
-                    todos={props.state.todos()}
-                    collapsed={view.todoCollapsed.get()}
-                    onToggle={() => view.todoCollapsed.set(!view.todoCollapsed.get())}
-                    collapseLabel={language.t("session.todo.collapse")}
-                    expandLabel={language.t("session.todo.expand")}
-                    dockProgress={value()}
-                  />
-                </div>
-              </div>
-            </Show>
             <Show when={rolled()} keyed>
               {(revert) => (
-                <div
-                  style={{
-                    "margin-top": `${-36 * value()}px`,
-                  }}
-                >
+                <div>
                   <SessionRevertDock
                     items={revert.items}
                     restoring={revert.restoring}

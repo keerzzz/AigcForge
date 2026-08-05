@@ -51,6 +51,7 @@ import { Config } from "@aigcfroge/core/config"
 import { ConfigCompaction } from "@aigcfroge/core/config/compaction"
 import { SessionTable } from "@aigcfroge/core/session/sql"
 import { SessionStore } from "@aigcfroge/core/session/store"
+import { SessionTask } from "@aigcfroge/core/session/task"
 import { SystemContext } from "@aigcfroge/core/system-context"
 import { SystemContextRegistry } from "@aigcfroge/core/system-context/registry"
 import { SkillGuidance } from "@aigcfroge/core/skill/guidance"
@@ -281,7 +282,9 @@ const it = testEffect(
     sessions,
     taskTool,
   ).pipe(
-    Layer.provideMerge(Layer.mergeAll(agents, permission, BackgroundJob.defaultLayer)),
+    Layer.provideMerge(
+      Layer.mergeAll(agents, permission, SessionTask.defaultLayer, BackgroundJob.defaultLayer),
+    ),
   ),
 )
 

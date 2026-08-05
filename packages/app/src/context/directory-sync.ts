@@ -542,6 +542,13 @@ export const createDirSyncContext = (
           retry(() => client.session.todo({ sessionID })).then((todo) => {
             if (!tracked(directory, sessionID)) return
             const list = todo.data ?? []
+            // An empty pull carries no signal (nothing persisted server-side)
+            // and must NOT bump session_todo_updated_at: a fresh empty todo
+            // would outrank the id-bearing task channel in pickProgressTodos
+            // and hide real tasks (the e2e M7 track regressions). BLOCKER-2's
+            // "user cleared todos" guard targets genuine todo.updated events,
+            // which arrive through the event stream, not this pull.
+            if (list.length === 0) return
             setStore("todo", sessionID, reconcile(list, { key: "id" }))
             serverSync.todo.set(sessionID, list)
           }),

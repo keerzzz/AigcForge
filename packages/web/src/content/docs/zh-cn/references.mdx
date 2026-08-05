@@ -1,0 +1,157 @@
+---
+title: 引用
+description: 将本地目录和 Git 仓库添加为项目引用。
+---
+
+引用使 Aigcfroge 可以访问当前项目之外的目录。使用它们可以在工作时访问文档、共享库、示例或其他仓库。
+
+引用在 `aigcfroge.json` 或 `aigcfroge.jsonc` 中通过别名进行配置。
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "references": {
+    "docs": {
+      "path": "../product-docs",
+      "description": "Use for product behavior and documentation conventions",
+    },
+    "sdk": {
+      "repository": "keerzzz/AigcForge-sdk-js",
+      "branch": "main",
+      "description": "Use for JavaScript SDK implementation details",
+    },
+  },
+}
+```
+
+---
+
+## 本地目录
+
+使用 `path` 引用本地目录。
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "docs": {
+      "path": "../docs",
+    },
+  },
+}
+```
+
+路径可以是：
+
+- 相对于定义该引用的配置文件
+- 绝对路径，例如 `/home/user/docs`
+- 相对于您的主目录，例如 `~/docs`
+
+您也可以使用字符串简写：
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "docs": "../docs",
+  },
+}
+```
+
+---
+
+## Git 仓库
+
+使用 `repository` 引用 Git 仓库。Aigcfroge 会将仓库实体化到其本地仓库缓存中，并将检出后的源代码作为引用目录提供。
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "effect": {
+      "repository": "Effect-TS/effect",
+      "branch": "main",
+    },
+  },
+}
+```
+
+`repository` 接受 Git URL、主机/路径引用以及 GitHub `owner/repo` 简写。可选的 `branch` 字段用于选择分支或 ref。如果没有 `branch`，Aigcfroge 将使用仓库的默认分支。
+
+当您不需要分支、描述或其他选项时，可以使用字符串简写：
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "effect": "Effect-TS/effect",
+  },
+}
+```
+
+:::note
+Git 引用会异步刷新。新配置的仓库可能需要一些时间才能完成克隆或更新。
+:::
+
+---
+
+## 描述用途
+
+添加 `description` 以说明代理何时应该使用某个引用。
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "design-system": {
+      "path": "../design-system",
+      "description": "Use when implementing UI components or design tokens",
+    },
+  },
+}
+```
+
+Aigcfroge 会将带有描述的引用包含在代理上下文中。描述应足够简短和具体，以区分内容相似的引用。没有描述的引用仍可通过自动补全和直接使用来访问，但不会向代理展示。
+
+---
+
+## 隐藏自动补全条目
+
+将 `hidden` 设置为 `true`，可在 TUI 的 `@` 自动补全中省略该引用。
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "internal": {
+      "path": "../internal",
+      "description": "Use for internal implementation details",
+      "hidden": true,
+    },
+  },
+}
+```
+
+`hidden` 仅影响自动补全。带有描述的被隐藏引用仍会包含在代理上下文中。
+
+---
+
+## 使用引用
+
+已配置的引用会出现在 TUI 的 `@` 自动补全中。输入 `@alias` 可附加引用的根目录，或输入 `@alias/` 搜索其中的文件。
+
+```text
+Compare this implementation with @sdk/src/client.ts
+```
+
+代理还会在其系统上下文中收到已配置引用（带有描述）的解析路径和描述，因此当某个引用相关时，它们可以自行检查，而无需您手动附加。
+
+Aigcfroge 会自动允许引用目录通过其外部目录权限边界。常规工具权限仍然适用；例如，无法编辑文件的代理不会因为某个目录被配置为引用而获得编辑权限。
+
+---
+
+## 配置字段
+
+| 字段          | 本地 | Git | 描述                                        |
+| ------------- | ---- | --- | ------------------------------------------- |
+| `path`        | 是   | 否  | 本地引用目录                                |
+| `repository`  | 否   | 是  | Git URL、主机/路径或 GitHub `owner/repo` 值 |
+| `branch`      | 否   | 是  | 可选的 Git 分支或 ref                       |
+| `description` | 是   | 是  | 描述何时使用该引用的指南                    |
+| `hidden`      | 是   | 是  | 从 TUI 的 `@` 自动补全中隐藏该引用          |
+
+引用别名不能为空，也不能包含 `/`、空白字符、反引号或逗号。

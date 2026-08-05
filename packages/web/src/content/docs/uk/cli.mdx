@@ -1,0 +1,732 @@
+---
+title: CLI
+description: Параметри та команди CLI Aigcfroge.
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components"
+
+CLI Aigcfroge за замовчуванням запускає [TUI](/docs/tui), коли запускається без жодних аргументів.
+
+```bash
+aigcfroge
+```
+
+Але він також приймає команди, як задокументовано на цій сторінці. Це дозволяє взаємодіяти з Aigcfroge програмно.
+
+```bash
+aigcfroge run "Explain how closures work in JavaScript"
+```
+
+---
+
+### tui
+
+Запустіть термінальний інтерфейс користувача Aigcfroge.
+
+```bash
+aigcfroge [project]
+```
+
+#### Прапорці
+
+| Flag                                        | Short | Опис                                                                 |
+| ------------------------------------------- | ----- | -------------------------------------------------------------------- |
+| <nobr><code>{"--continue"}</code></nobr>    | `-c`  | Продовжити останню сесію                                              |
+| <nobr><code>{"--session"}</code></nobr>     | `-s`  | ID сесії для продовження                                              |
+| <nobr><code>{"--fork"}</code></nobr>        |       | Розгалужити сесію під час продовження (використовуйте з `--continue` або `--session`) |
+| <nobr><code>{"--prompt"}</code></nobr>      |       | Промпт для використання                                               |
+| <nobr><code>{"--model"}</code></nobr>       | `-m`  | Модель у форматі провайдер/модель                                     |
+| <nobr><code>{"--agent"}</code></nobr>       |       | Агент для використання                                                |
+| <nobr><code>{"--port"}</code></nobr>        |       | Порт для прослуховування                                              |
+| <nobr><code>{"--hostname"}</code></nobr>    |       | Ім'я хоста для прослуховування                                        |
+| <nobr><code>{"--mdns"}</code></nobr>        |       | Увімкнути виявлення mDNS                                              |
+| <nobr><code>{"--mdns-domain"}</code></nobr> |       | Власне доменне ім'я mDNS                                              |
+| <nobr><code>{"--cors"}</code></nobr>        |       | Додаткові джерела (origin) браузера, для яких дозволено CORS          |
+
+---
+
+## Команди
+
+CLI Aigcfroge також має такі команди.
+
+---
+
+### agent
+
+Керування агентами Aigcfroge.
+
+```bash
+aigcfroge agent [command]
+```
+
+---
+
+#### create
+
+Створіть нового агента з власною конфігурацією.
+
+```bash
+aigcfroge agent create
+```
+
+Ця команда проведе вас через створення нового агента з власним системним промптом і конфігурацією дозволів. Усе, чого ви не дозволите, буде заборонено у frontmatter згенерованого агента.
+
+#### Прапорці
+
+| Flag                                        | Short | Опис                                                                                                                                                                                                                         |
+| ------------------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <nobr><code>{"--path"}</code></nobr>        |       | Каталог для запису файлу агента (за замовчуванням глобальний або `.aigcfroge/agent`, залежно від промпта)                                                                                                                   |
+| <nobr><code>{"--description"}</code></nobr> |       | Що агент має робити                                                                                                                                                                                                           |
+| <nobr><code>{"--mode"}</code></nobr>        |       | Режим агента: `all`, `primary` або `subagent`                                                                                                                                                                                 |
+| <nobr><code>{"--permissions"}</code></nobr> |       | Список дозволів через кому (за замовчуванням: усі). Доступні: `bash`, `read`, `edit`, `glob`, `grep`, `webfetch`, `task`, `todowrite`, `websearch`, `lsp`, `skill`. Усе, що пропущено, заборонено. Псевдонім: `--tools`    |
+| <nobr><code>{"--model"}</code></nobr>       | `-m`  | Модель у форматі `провайдер/модель`                                                                                                                                                                                            |
+
+Передача всіх `--path`, `--description`, `--mode` та `--permissions` запускає команду без інтерактивного режиму.
+
+---
+
+#### list
+
+Виводить перелік усіх доступних агентів.
+
+```bash
+aigcfroge agent list
+```
+
+---
+
+### attach
+
+Підключіть термінал до вже запущеного сервера Aigcfroge, який стартував через команди `serve` або `web`.
+
+```bash
+aigcfroge attach [url]
+```
+
+Це дозволяє використовувати TUI з віддаленим сервером Aigcfroge. Наприклад:
+
+```bash
+# Start the backend server for web/mobile access
+aigcfroge web --port 4096 --hostname 0.0.0.0
+
+# In another terminal, attach the TUI to the running backend
+aigcfroge attach http://10.20.30.40:4096
+```
+
+#### Прапорці
+
+| Flag                                     | Short | Опис                                                                   |
+| ---------------------------------------- | ----- | ---------------------------------------------------------------------- |
+| <nobr><code>{"--dir"}</code></nobr>      |       | Робочий каталог для запуску TUI                                        |
+| <nobr><code>{"--continue"}</code></nobr> | `-c`  | Продовжити останню сесію                                               |
+| <nobr><code>{"--session"}</code></nobr>  | `-s`  | ID сесії для продовження                                               |
+| <nobr><code>{"--fork"}</code></nobr>     |       | Розгалужити сесію під час продовження (використовуйте з `--continue` або `--session`) |
+| <nobr><code>{"--password"}</code></nobr> | `-p`  | Пароль базової автентифікації (за замовчуванням `AIGCFROGE_SERVER_PASSWORD`)            |
+| <nobr><code>{"--username"}</code></nobr> | `-u`  | Ім'я користувача базової автентифікації (за замовчуванням `AIGCFROGE_SERVER_USERNAME` або `aigcfroge`) |
+
+---
+
+### auth
+
+Команда для керування обліковими даними та входом для провайдерів.
+
+```bash
+aigcfroge auth [command]
+```
+
+---
+
+#### login
+
+Aigcfroge працює на основі списку провайдерів на [Models.dev](https://models.dev), тож ви можете використати `aigcfroge auth login`, щоб налаштувати API-ключі для будь-якого провайдера, який хочете використовувати. Це зберігається у `~/.local/share/aigcfroge/auth.json`.
+
+```bash
+aigcfroge auth login
+```
+
+Під час запуску Aigcfroge завантажує провайдерів з файлу облікових даних, а також будь-які ключі, визначені у вашому середовищі або у файлі `.env` у вашому проєкті.
+
+##### Прапорці
+
+| Flag                                     | Short | Опис                                                  |
+| ---------------------------------------- | ----- | ----------------------------------------------------- |
+| <nobr><code>{"--provider"}</code></nobr> | `-p`  | ID або назва провайдера для входу                     |
+| <nobr><code>{"--method"}</code></nobr>   | `-m`  | Назва методу входу, пропускаючи вибір методу          |
+
+---
+
+#### list
+
+Виводить перелік усіх автентифікованих провайдерів, що зберігаються у файлі облікових даних.
+
+```bash
+aigcfroge auth list
+```
+
+Або скорочений варіант.
+
+```bash
+aigcfroge auth ls
+```
+
+---
+
+#### logout
+
+Виходить з провайдера, видаляючи його з файлу облікових даних.
+
+```bash
+aigcfroge auth logout
+```
+
+---
+
+### github
+
+Керування агентом GitHub для автоматизації репозиторію.
+
+```bash
+aigcfroge github [command]
+```
+
+---
+
+#### install
+
+Встановлює агента GitHub у вашому репозиторії.
+
+```bash
+aigcfroge github install
+```
+
+Це налаштовує необхідний робочий процес GitHub Actions і проведе вас через процес конфігурації. [Дізнатися більше](/docs/github).
+
+---
+
+#### run
+
+Запускає агента GitHub. Зазвичай використовується у GitHub Actions.
+
+```bash
+aigcfroge github run
+```
+
+##### Прапорці
+
+| Flag                                  | Опис                                      |
+| ------------------------------------- | ----------------------------------------- |
+| <nobr><code>{"--event"}</code></nobr> | Мок-подія GitHub, для якої запускається агент |
+| <nobr><code>{"--token"}</code></nobr> | Персональний токен доступу GitHub         |
+
+---
+
+### mcp
+
+Керування серверами Model Context Protocol.
+
+```bash
+aigcfroge mcp [command]
+```
+
+---
+
+#### add
+
+Додає MCP-сервер до вашої конфігурації.
+
+```bash
+aigcfroge mcp add
+```
+
+Ця команда проведе вас через додавання локального або віддаленого MCP-сервера.
+
+---
+
+#### list
+
+Виводить перелік усіх налаштованих MCP-серверів та їхній статус підключення.
+
+```bash
+aigcfroge mcp list
+```
+
+Або скористайтеся скороченим варіантом.
+
+```bash
+aigcfroge mcp ls
+```
+
+---
+
+#### auth
+
+Автентифікуйтеся з MCP-сервером, що підтримує OAuth.
+
+```bash
+aigcfroge mcp auth [name]
+```
+
+Якщо ви не вкажете назву сервера, вам буде запропоновано вибрати з доступних серверів, що підтримують OAuth.
+
+Ви також можете перелічити сервери, що підтримують OAuth, та їхній статус автентифікації.
+
+```bash
+aigcfroge mcp auth list
+```
+
+Або скористайтеся скороченим варіантом.
+
+```bash
+aigcfroge mcp auth ls
+```
+
+---
+
+#### logout
+
+Видаляє облікові дані OAuth для MCP-сервера.
+
+```bash
+aigcfroge mcp logout [name]
+```
+
+---
+
+#### debug
+
+Налагодження проблем підключення OAuth для MCP-сервера.
+
+```bash
+aigcfroge mcp debug <name>
+```
+
+---
+
+### models
+
+Виводить перелік усіх доступних моделей з налаштованих провайдерів.
+
+```bash
+aigcfroge models [provider]
+```
+
+Ця команда показує всі моделі, доступні у ваших налаштованих провайдерів, у форматі `провайдер/модель`.
+
+Це корисно, щоб визначити точну назву моделі для використання у [вашій конфігурації](/docs/config/).
+
+Ви можете за бажанням передати ID провайдера, щоб відфільтрувати моделі за цим провайдером.
+
+```bash
+aigcfroge models anthropic
+```
+
+#### Прапорці
+
+| Flag                                    | Опис                                                            |
+| --------------------------------------- | --------------------------------------------------------------- |
+| <nobr><code>{"--refresh"}</code></nobr> | Оновити кеш моделей з models.dev                                |
+| <nobr><code>{"--verbose"}</code></nobr> | Використовувати детальніший вивід моделей (включає метадані, як-от вартість) |
+
+Використовуйте прапорець `--refresh`, щоб оновити кешований список моделей. Це корисно, коли до провайдера додано нові моделі і ви хочете побачити їх у Aigcfroge.
+
+```bash
+aigcfroge models --refresh
+```
+
+---
+
+### run
+
+Запускає aigcfroge у неінтерактивному режимі, передаючи промпт безпосередньо.
+
+```bash
+aigcfroge run [message..]
+```
+
+Це корисно для скриптів, автоматизації або коли ви хочете швидку відповідь без запуску повного TUI. Наприклад:
+
+```bash "aigcfroge run"
+aigcfroge run Explain the use of context in Go
+```
+
+Ви також можете підключитися до запущеного екземпляра `aigcfroge serve`, щоб уникнути холодного старту MCP-серверів під час кожного запуску:
+
+```bash
+# Start a headless server in one terminal
+aigcfroge serve
+
+# In another terminal, run commands that attach to it
+aigcfroge run --attach http://localhost:4096 "Explain async/await in JavaScript"
+```
+
+#### Прапорці
+
+| Flag                                                         | Short | Опис                                                                 |
+| ------------------------------------------------------------ | ----- | -------------------------------------------------------------------- |
+| <nobr><code>{"--command"}</code></nobr>                      |       | Команда для запуску, аргументи передаються через повідомлення        |
+| <nobr><code>{"--continue"}</code></nobr>                     | `-c`  | Продовжити останню сесію                                             |
+| <nobr><code>{"--session"}</code></nobr>                      | `-s`  | ID сесії для продовження                                             |
+| <nobr><code>{"--fork"}</code></nobr>                         |       | Розгалужити сесію під час продовження (використовуйте з `--continue` або `--session`) |
+| <nobr><code>{"--share"}</code></nobr>                        |       | Поділитися сесією                                                    |
+| <nobr><code>{"--model"}</code></nobr>                        | `-m`  | Модель у форматі провайдер/модель                                    |
+| <nobr><code>{"--agent"}</code></nobr>                        |       | Агент для використання                                               |
+| <nobr><code>{"--file"}</code></nobr>                         | `-f`  | Файл(и) для прикріплення до повідомлення                             |
+| <nobr><code>{"--format"}</code></nobr>                       |       | Формат: default (форматований) або json (необроблені JSON-події)     |
+| <nobr><code>{"--title"}</code></nobr>                        |       | Назва сесії (використовується скорочений промпт, якщо значення не вказано) |
+| <nobr><code>{"--attach"}</code></nobr>                       |       | Підключитися до запущеного сервера aigcfroge (наприклад, http://localhost:4096) |
+| <nobr><code>{"--password"}</code></nobr>                     | `-p`  | Пароль базової автентифікації (за замовчуванням `AIGCFROGE_SERVER_PASSWORD`) |
+| <nobr><code>{"--username"}</code></nobr>                     | `-u`  | Ім'я користувача базової автентифікації (за замовчуванням `AIGCFROGE_SERVER_USERNAME` або `aigcfroge`) |
+| <nobr><code>{"--dir"}</code></nobr>                          |       | Каталог для запуску або шлях на віддаленому сервері під час підключення |
+| <nobr><code>{"--port"}</code></nobr>                         |       | Порт для локального сервера (за замовчуванням випадковий порт)       |
+| <nobr><code>{"--variant"}</code></nobr>                      |       | Варіант моделі (специфічний для провайдера рівень міркування)        |
+| <nobr><code>{"--thinking"}</code></nobr>                     |       | Показувати блоки роздумів                                            |
+| <nobr><code>{"--dangerously-skip-permissions"}</code></nobr> |       | Автоматично схвалювати дозволи, які не заборонені явно (небезпечно!) |
+
+---
+
+### serve
+
+Запускає безголовий сервер Aigcfroge для доступу через API. Перегляньте [документацію сервера](/docs/server), щоб дізнатися про повний HTTP-інтерфейс.
+
+```bash
+aigcfroge serve
+```
+
+Це запускає HTTP-сервер, який надає API-доступ до функціональності aigcfroge без інтерфейсу TUI. Встановіть `AIGCFROGE_SERVER_PASSWORD`, щоб увімкнути базову HTTP-автентифікацію (ім'я користувача за замовчуванням — `aigcfroge`).
+
+#### Прапорці
+
+| Flag                                        | Опис                                                        |
+| ------------------------------------------- | ----------------------------------------------------------- |
+| <nobr><code>{"--port"}</code></nobr>        | Порт для прослуховування                                    |
+| <nobr><code>{"--hostname"}</code></nobr>    | Ім'я хоста для прослуховування                              |
+| <nobr><code>{"--mdns"}</code></nobr>        | Увімкнути виявлення mDNS                                    |
+| <nobr><code>{"--mdns-domain"}</code></nobr> | Власне доменне ім'я mDNS                                    |
+| <nobr><code>{"--cors"}</code></nobr>        | Додаткові джерела (origin) браузера, для яких дозволено CORS |
+
+---
+
+### session
+
+Керування сесіями Aigcfroge.
+
+```bash
+aigcfroge session [command]
+```
+
+---
+
+#### list
+
+Виводить перелік усіх сесій Aigcfroge.
+
+```bash
+aigcfroge session list
+```
+
+##### Прапорці
+
+| Flag                                      | Short | Опис                                 |
+| ----------------------------------------- | ----- | ------------------------------------ |
+| <nobr><code>{"--max-count"}</code></nobr> | `-n`  | Обмежити до N найновіших сесій       |
+| <nobr><code>{"--format"}</code></nobr>    |       | Формат виводу: table або json (за замовчуванням table) |
+
+---
+
+#### delete
+
+Видаляє сесію Aigcfroge.
+
+```bash
+aigcfroge session delete <sessionID>
+```
+
+---
+
+### stats
+
+Показує статистику використання токенів і вартості для ваших сесій Aigcfroge.
+
+```bash
+aigcfroge stats
+```
+
+#### Прапорці
+
+| Flag                                    | Опис                                                                       |
+| --------------------------------------- | -------------------------------------------------------------------------- |
+| <nobr><code>{"--days"}</code></nobr>    | Показати статистику за останні N днів (за весь час)                        |
+| <nobr><code>{"--tools"}</code></nobr>   | Кількість інструментів для показу (усі)                                    |
+| <nobr><code>{"--models"}</code></nobr>  | Показати розбивку використання моделей (приховано за замовчуванням). Передайте число, щоб показати топ N |
+| <nobr><code>{"--project"}</code></nobr> | Фільтр за проєктом (усі проєкти, порожній рядок: поточний проєкт)          |
+
+---
+
+### export
+
+Експортує дані сесії у форматі JSON.
+
+```bash
+aigcfroge export [sessionID]
+```
+
+Якщо ви не вкажете ID сесії, вам буде запропоновано вибрати з доступних сесій.
+
+#### Прапорці
+
+| Flag                                     | Опис                                 |
+| ---------------------------------------- | ------------------------------------ |
+| <nobr><code>{"--sanitize"}</code></nobr> | Вилучає чутливі дані з транскрипту/файлів |
+
+---
+
+### import
+
+Імпортує дані сесії з JSON-файлу або URL для обміну Aigcfroge.
+
+```bash
+aigcfroge import <file>
+```
+
+Ви можете імпортувати з локального файлу або з URL для обміну Aigcfroge.
+
+```bash
+aigcfroge import session.json
+aigcfroge import https://opncd.ai/s/abc123
+```
+
+---
+
+### web
+
+Запускає безголовий сервер Aigcfroge з веб-інтерфейсом.
+
+```bash
+aigcfroge web
+```
+
+Це запускає HTTP-сервер і відкриває веб-браузер для доступу до Aigcfroge через веб-інтерфейс. Встановіть `AIGCFROGE_SERVER_PASSWORD`, щоб увімкнути базову HTTP-автентифікацію (ім'я користувача за замовчуванням — `aigcfroge`).
+
+#### Прапорці
+
+| Flag                                        | Опис                                                        |
+| ------------------------------------------- | ----------------------------------------------------------- |
+| <nobr><code>{"--port"}</code></nobr>        | Порт для прослуховування                                    |
+| <nobr><code>{"--hostname"}</code></nobr>    | Ім'я хоста для прослуховування                              |
+| <nobr><code>{"--mdns"}</code></nobr>        | Увімкнути виявлення mDNS                                    |
+| <nobr><code>{"--mdns-domain"}</code></nobr> | Власне доменне ім'я mDNS                                    |
+| <nobr><code>{"--cors"}</code></nobr>        | Додаткові джерела (origin) браузера, для яких дозволено CORS |
+
+---
+
+### acp
+
+Запускає сервер ACP (Agent Client Protocol).
+
+```bash
+aigcfroge acp
+```
+
+Ця команда запускає сервер ACP, який спілкується через stdin/stdout за допомогою nd-JSON.
+
+#### Прапорці
+
+| Flag                                        | Опис                                                        |
+| ------------------------------------------- | ----------------------------------------------------------- |
+| <nobr><code>{"--cwd"}</code></nobr>         | Робочий каталог                                             |
+| <nobr><code>{"--port"}</code></nobr>        | Порт для прослуховування                                    |
+| <nobr><code>{"--hostname"}</code></nobr>    | Ім'я хоста для прослуховування                              |
+| <nobr><code>{"--mdns"}</code></nobr>        | Увімкнути виявлення mDNS                                    |
+| <nobr><code>{"--mdns-domain"}</code></nobr> | Власне доменне ім'я mDNS                                    |
+| <nobr><code>{"--cors"}</code></nobr>        | Додаткові джерела (origin) браузера, для яких дозволено CORS |
+
+---
+
+### plugin
+
+Встановлює плагін і оновлює вашу конфігурацію.
+
+```bash
+aigcfroge plugin <module>
+```
+
+Або скористайтеся псевдонімом.
+
+```bash
+aigcfroge plug <module>
+```
+
+#### Прапорці
+
+| Flag                                   | Short | Опис                               |
+| -------------------------------------- | ----- | ---------------------------------- |
+| <nobr><code>{"--global"}</code></nobr> | `-g`  | Встановити у глобальну конфігурацію |
+| <nobr><code>{"--force"}</code></nobr>  | `-f`  | Замінити наявну версію плагіна     |
+
+---
+
+### pr
+
+Отримує та перемикається на гілку PR GitHub, після чого запускає Aigcfroge.
+
+```bash
+aigcfroge pr <number>
+```
+
+---
+
+### db
+
+Інструменти бази даних.
+
+```bash
+aigcfroge db [query]
+```
+
+#### Прапорці
+
+| Flag                                   | Опис                        |
+| -------------------------------------- | --------------------------- |
+| <nobr><code>{"--format"}</code></nobr> | Формат виводу: `json` або `tsv` |
+
+---
+
+#### path
+
+Виводить шлях до бази даних.
+
+```bash
+aigcfroge db path
+```
+
+---
+
+### debug
+
+Інструменти налагодження та усунення неполадок.
+
+```bash
+aigcfroge debug [command]
+```
+
+---
+
+### uninstall
+
+Видаляє Aigcfroge та всі пов'язані файли.
+
+```bash
+aigcfroge uninstall
+```
+
+#### Прапорці
+
+| Flag                                        | Short | Опис                                                |
+| ------------------------------------------- | ----- | --------------------------------------------------- |
+| <nobr><code>{"--keep-config"}</code></nobr> | `-c`  | Зберегти файли конфігурації                         |
+| <nobr><code>{"--keep-data"}</code></nobr>   | `-d`  | Зберегти дані сесій та знімки                       |
+| <nobr><code>{"--dry-run"}</code></nobr>     |       | Показує, що було б видалено, без фактичного видалення |
+| <nobr><code>{"--force"}</code></nobr>       | `-f`  | Пропустити запити підтвердження                     |
+
+---
+
+### upgrade
+
+Оновлює aigcfroge до останньої версії або до конкретної версії.
+
+```bash
+aigcfroge upgrade [target]
+```
+
+Щоб оновитися до останньої версії:
+
+```bash
+aigcfroge upgrade
+```
+
+Щоб оновитися до конкретної версії:
+
+```bash
+aigcfroge upgrade v0.1.48
+```
+
+#### Прапорці
+
+| Flag                                   | Short | Опис                                                       |
+| -------------------------------------- | ----- | ---------------------------------------------------------- |
+| <nobr><code>{"--method"}</code></nobr> | `-m`  | Метод встановлення, який використовувався; curl, npm, pnpm, bun, brew |
+
+---
+
+## Глобальні прапорці
+
+CLI aigcfroge приймає такі глобальні прапорці.
+
+| Flag                                       | Short | Опис                                 |
+| ------------------------------------------ | ----- | ------------------------------------ |
+| <nobr><code>{"--help"}</code></nobr>       | `-h`  | Показати довідку                     |
+| <nobr><code>{"--version"}</code></nobr>    | `-v`  | Вивести номер версії                 |
+| <nobr><code>{"--print-logs"}</code></nobr> |       | Виводити логи у stderr               |
+| <nobr><code>{"--log-level"}</code></nobr>  |       | Рівень логування (DEBUG, INFO, WARN, ERROR) |
+| <nobr><code>{"--pure"}</code></nobr>       |       | Запустити без зовнішніх плагінів     |
+
+---
+
+## Змінні середовища
+
+Aigcfroge можна налаштувати за допомогою змінних середовища.
+
+| Variable                              | Type    | Опис                                               |
+| ------------------------------------- | ------- | -------------------------------------------------- |
+| `AIGCFROGE_AUTO_SHARE`                 | boolean | Автоматично ділитися сесіями                       |
+| `AIGCFROGE_GIT_BASH_PATH`              | string  | Шлях до виконуваного файлу Git Bash у Windows      |
+| `AIGCFROGE_CONFIG`                     | string  | Шлях до файлу конфігурації                         |
+| `AIGCFROGE_TUI_CONFIG`                 | string  | Шлях до файлу конфігурації TUI                     |
+| `AIGCFROGE_CONFIG_DIR`                 | string  | Шлях до каталогу конфігурації                      |
+| `AIGCFROGE_CONFIG_CONTENT`             | string  | Вбудований вміст конфігурації у форматі JSON       |
+| `AIGCFROGE_DISABLE_AUTOUPDATE`         | boolean | Вимкнути автоматичні перевірки оновлень            |
+| `AIGCFROGE_DISABLE_PRUNE`              | boolean | Вимкнути очищення застарілих даних                 |
+| `AIGCFROGE_DISABLE_TERMINAL_TITLE`     | boolean | Вимкнути автоматичне оновлення заголовка термінала |
+| `AIGCFROGE_PERMISSION`                 | string  | Вбудована конфігурація дозволів у форматі JSON     |
+| `AIGCFROGE_DISABLE_DEFAULT_PLUGINS`    | boolean | Вимкнути плагіни за замовчуванням                  |
+| `AIGCFROGE_DISABLE_LSP_DOWNLOAD`       | boolean | Вимкнути автоматичне завантаження LSP-серверів     |
+| `AIGCFROGE_ENABLE_EXPERIMENTAL_MODELS` | boolean | Увімкнути експериментальні моделі                  |
+| `AIGCFROGE_DISABLE_AUTOCOMPACT`        | boolean | Вимкнути автоматичне ущільнення контексту          |
+| `AIGCFROGE_DISABLE_CLAUDE_CODE`        | boolean | Вимкнути читання з `.claude` (промпт + скіли)      |
+| `AIGCFROGE_DISABLE_CLAUDE_CODE_PROMPT` | boolean | Вимкнути читання `~/.claude/CLAUDE.md`             |
+| `AIGCFROGE_DISABLE_CLAUDE_CODE_SKILLS` | boolean | Вимкнути завантаження `.claude/skills`             |
+| `AIGCFROGE_DISABLE_MODELS_FETCH`       | boolean | Вимкнути отримання моделей з віддалених джерел     |
+| `AIGCFROGE_DISABLE_MOUSE`              | boolean | Вимкнути захоплення миші у TUI                     |
+| `AIGCFROGE_FAKE_VCS`                   | string  | Фейковий VCS-провайдер для цілей тестування        |
+| `AIGCFROGE_CLIENT`                     | string  | Ідентифікатор клієнта (за замовчуванням `cli`)     |
+| `AIGCFROGE_ENABLE_EXA`                 | boolean | Увімкнути інструменти веб-пошуку Exa               |
+| `AIGCFROGE_SERVER_PASSWORD`            | string  | Увімкнути базову автентифікацію для `serve`/`web`  |
+| `AIGCFROGE_SERVER_USERNAME`            | string  | Перевизначити ім'я користувача базової автентифікації (за замовчуванням `aigcfroge`) |
+| `AIGCFROGE_MODELS_URL`                 | string  | Власний URL для отримання конфігурації моделей     |
+
+---
+
+### Експериментальні
+
+Ці змінні середовища вмикають експериментальні функції, які можуть змінюватися або бути видаленими.
+
+| Variable                                        | Type    | Опис                                              |
+| ----------------------------------------------- | ------- | ------------------------------------------------- |
+| `AIGCFROGE_EXPERIMENTAL`                         | boolean | Увімкнути загальний експериментальний прапорець   |
+| `AIGCFROGE_EXPERIMENTAL_ICON_DISCOVERY`          | boolean | Увімкнути виявлення піктограм                     |
+| `AIGCFROGE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT`  | boolean | Вимкнути копіювання під час виділення у TUI       |
+| `AIGCFROGE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS` | number  | Таймаут за замовчуванням для команд bash у мс     |
+| `AIGCFROGE_EXPERIMENTAL_OUTPUT_TOKEN_MAX`        | number  | Максимальна кількість вихідних токенів для відповідей LLM |
+| `AIGCFROGE_EXPERIMENTAL_FILEWATCHER`             | boolean | Увімкнути відстеження файлів для всього каталогу  |
+| `AIGCFROGE_EXPERIMENTAL_OXFMT`                   | boolean | Увімкнути форматування oxfmt                      |
+| `AIGCFROGE_EXPERIMENTAL_LSP_TOOL`                | boolean | Увімкнути експериментальний LSP-інструмент        |
+| `AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER`     | boolean | Вимкнути відстеження файлів                       |
+| `AIGCFROGE_EXPERIMENTAL_EXA`                     | boolean | Увімкнути експериментальні функції Exa            |
+| `AIGCFROGE_EXPERIMENTAL_LSP_TY`                  | boolean | Увімкнути LSP TY для Python-файлів                |
+| `AIGCFROGE_EXPERIMENTAL_PLAN_MODE`               | boolean | Увімкнути режим планування                        |
+| `AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS`    | boolean | Увімкнути фонові завдання субагентів              |
+| `AIGCFROGE_EXPERIMENTAL_EVENT_SYSTEM`            | boolean | Увімкнути експериментальну систему подій          |
+| `AIGCFROGE_EXPERIMENTAL_NATIVE_LLM`              | boolean | Увімкнути нативний шлях запитів LLM               |
+| `AIGCFROGE_EXPERIMENTAL_PARALLEL`                | boolean | Увімкнути паралельне виконання веб-пошуку         |
+| `AIGCFROGE_EXPERIMENTAL_SCOUT`                   | boolean | Увімкнути субагента Scout                         |
+| `AIGCFROGE_EXPERIMENTAL_WORKSPACES`              | boolean | Увімкнути підтримку робочих просторів             |

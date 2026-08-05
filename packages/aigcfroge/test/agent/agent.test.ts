@@ -63,6 +63,7 @@ it.instance("returns default native agents when no config", () =>
     expect(names).toContain("compaction")
     expect(names).toContain("title")
     expect(names).toContain("summary")
+    expect(names).toContain("work-orchestrator")
   }),
 )
 
@@ -85,6 +86,27 @@ it.instance("plan agent denies edits except .aigcfroge/plans/*", () =>
     expect(evalPerm(plan, "edit")).toBe("deny")
     // But specific path is allowed
     expect(Permission.evaluate("edit", ".aigcfroge/plans/foo.md", plan.permission).action).toBe("allow")
+  }),
+)
+
+it.instance("work-orchestrator is registered as a fail-closed primary agent", () =>
+  Effect.gen(function* () {
+    const agent = yield* load((svc) => svc.get("work-orchestrator"))
+    expect(agent).toBeDefined()
+    expect(agent?.mode).toBe("primary")
+    expect(agent?.native).toBe(true)
+    expect(agent?.hidden).toBeUndefined()
+    expect(agent?.prompt).toBeDefined()
+    // Fail-closed: edit/shell/task denied, read-only + question + work-preset allowed
+    expect(evalPerm(agent, "edit")).toBe("deny")
+    expect(evalPerm(agent, "bash")).toBe("deny")
+    expect(evalPerm(agent, "task")).toBe("deny")
+    expect(evalPerm(agent, "read")).toBe("allow")
+    expect(evalPerm(agent, "question")).toBe("allow")
+    expect(evalPerm(agent, "work-preset")).toBe("allow")
+    // .env reads fall back to ask, .env.example stays allowed
+    expect(Permission.evaluate("read", ".env", agent.permission).action).toBe("ask")
+    expect(Permission.evaluate("read", ".env.example", agent.permission).action).toBe("allow")
   }),
 )
 
@@ -175,6 +197,7 @@ it.instance("general agent denies todo tools", () =>
     expect(general?.mode).toBe("subagent")
     expect(general?.hidden).toBeUndefined()
     expect(evalPerm(general, "todowrite")).toBe("deny")
+    expect(evalPerm(general, "task_schedule")).toBe("deny")
   }),
 )
 
@@ -770,6 +793,7 @@ it.instance(
         build: { disable: true },
         plan: { disable: true },
         "chat-orchestrator": { disable: true },
+        "work-orchestrator": { disable: true },
       },
     },
   },

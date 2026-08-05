@@ -13,6 +13,8 @@ import type {
   AgentAssetListErrors,
   AgentAssetListResponses,
   AgentPartInput,
+  AgentTaskListErrors,
+  AgentTaskListResponses,
   AppAgentsErrors,
   AppAgentsResponses,
   AppLogErrors,
@@ -260,6 +262,17 @@ import type {
   SessionStatusResponses,
   SessionSummarizeErrors,
   SessionSummarizeResponses,
+  SessionTaskCreateErrors,
+  SessionTaskCreateResponses,
+  SessionTaskDeleteErrors,
+  SessionTaskDeleteResponses,
+  SessionTaskGetErrors,
+  SessionTaskGetResponses,
+  SessionTaskPatchErrors,
+  SessionTaskPatchResponses,
+  SessionTaskUpdateErrors,
+  SessionTaskUpdateResponses,
+  SessionTaskWriteInfo,
   SessionTodoErrors,
   SessionTodoResponses,
   SessionToolSummaryErrors,
@@ -288,6 +301,7 @@ import type {
   SyncStartResponses,
   SyncStealErrors,
   SyncStealResponses,
+  TaskStatus,
   TextPartInput,
   ToolIdsErrors,
   ToolIdsResponses,
@@ -451,6 +465,8 @@ import type {
   VcsStatusResponses,
   VcsUnstageErrors,
   VcsUnstageResponses,
+  WorkArtifactApplyErrors,
+  WorkArtifactApplyResponses,
   WorkflowAssetApplyErrors,
   WorkflowAssetApplyResponses,
   WorkflowAssetContentErrors,
@@ -3564,6 +3580,53 @@ export class PromptAsset extends HeyApiClient {
   }
 }
 
+export class WorkArtifact extends HeyApiClient {
+  /**
+   * Apply work artifact
+   *
+   * Persist a drafted work artifact (candidate message) to the current Location atomically.
+   */
+  public apply<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      title?: string
+      relativePath?: string
+      content?: string
+      overwrite?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "title" },
+            { in: "body", key: "relativePath" },
+            { in: "body", key: "content" },
+            { in: "body", key: "overwrite" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WorkArtifactApplyResponses, WorkArtifactApplyErrors, ThrowOnError>({
+      url: "/session/{sessionID}/work-artifact/apply",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class SkillAsset extends HeyApiClient {
   /**
    * List skill assets
@@ -4164,6 +4227,38 @@ export class AgentAsset extends HeyApiClient {
   }
 }
 
+export class AgentTask extends HeyApiClient {
+  /**
+   * Aggregate all tasks across sessions
+   *
+   * Cross-session task aggregation for the Agent Hub: every task across all sessions, each carrying its owning sessionID and agentID so the client can group by agent.
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<AgentTaskListResponses, AgentTaskListErrors, ThrowOnError>({
+      url: "/agent-task",
+      ...options,
+      ...params,
+    })
+  }
+}
+
 export class WorkflowAsset extends HeyApiClient {
   /**
    * List workflow assets
@@ -4662,6 +4757,193 @@ export class Provider extends HeyApiClient {
   private _oauth?: Oauth
   get oauth(): Oauth {
     return (this._oauth ??= new Oauth({ client: this.client }))
+  }
+}
+
+export class Task extends HeyApiClient {
+  /**
+   * Get session tasks
+   *
+   * Retrieve a session's task list with stable ids and persisted output digests (reload-recovery source for the TaskPanel).
+   */
+  public get<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionTaskGetResponses, SessionTaskGetErrors, ThrowOnError>({
+      url: "/session/{sessionID}/task",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Replace session tasks
+   *
+   * Reconcile a session's task list: entries without an id are minted a stable tsk_ id, entries with an existing id are updated in place, and omitted entries are removed.
+   */
+  public update<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      body?: Array<SessionTaskWriteInfo>
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { key: "body", map: "body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).patch<SessionTaskUpdateResponses, SessionTaskUpdateErrors, ThrowOnError>({
+      url: "/session/{sessionID}/task",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Create one task
+   *
+   * Append a single task to the session without reconciling (and thus deleting) the existing list.
+   */
+  public create<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      sessionTaskWriteInfo?: SessionTaskWriteInfo
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { key: "sessionTaskWriteInfo", map: "body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<SessionTaskCreateResponses, SessionTaskCreateErrors, ThrowOnError>({
+      url: "/session/{sessionID}/task",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete one task
+   *
+   * Delete a single task by id. Other rows are untouched.
+   */
+  public delete<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      taskID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "path", key: "taskID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).delete<SessionTaskDeleteResponses, SessionTaskDeleteErrors, ThrowOnError>({
+      url: "/session/{sessionID}/task/{taskID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Patch one task
+   *
+   * Update a single task's status by id. Unlike the full-list reconcile, no other row is touched and no absent row is deleted.
+   */
+  public patch<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      taskID: string
+      directory?: string
+      workspace?: string
+      status?: TaskStatus
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "path", key: "taskID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "status" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).patch<SessionTaskPatchResponses, SessionTaskPatchErrors, ThrowOnError>({
+      url: "/session/{sessionID}/task/{taskID}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
   }
 }
 
@@ -5702,6 +5984,11 @@ export class Session2 extends HeyApiClient {
       ...options,
       ...params,
     })
+  }
+
+  private _task?: Task
+  get task(): Task {
+    return (this._task ??= new Task({ client: this.client }))
   }
 }
 
@@ -8476,6 +8763,11 @@ export class AigcfrogeClient extends HeyApiClient {
     return (this._promptAsset ??= new PromptAsset({ client: this.client }))
   }
 
+  private _workArtifact?: WorkArtifact
+  get workArtifact(): WorkArtifact {
+    return (this._workArtifact ??= new WorkArtifact({ client: this.client }))
+  }
+
   private _skillAsset?: SkillAsset
   get skillAsset(): SkillAsset {
     return (this._skillAsset ??= new SkillAsset({ client: this.client }))
@@ -8494,6 +8786,11 @@ export class AigcfrogeClient extends HeyApiClient {
   private _agentAsset?: AgentAsset
   get agentAsset(): AgentAsset {
     return (this._agentAsset ??= new AgentAsset({ client: this.client }))
+  }
+
+  private _agentTask?: AgentTask
+  get agentTask(): AgentTask {
+    return (this._agentTask ??= new AgentTask({ client: this.client }))
   }
 
   private _workflowAsset?: WorkflowAsset

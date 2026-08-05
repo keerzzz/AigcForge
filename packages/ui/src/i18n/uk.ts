@@ -53,6 +53,15 @@ export const dict: Record<string, string> = {
   "ui.sessionTurn.error.freeUsageExceeded": "Перевищено ліміт безкоштовного використання",
   "ui.sessionTurn.error.addCredits": "Додати кредити",
 
+  "dialog.usageExceeded.freeTier.title": "Досягнуто безкоштовного ліміту",
+  "dialog.usageExceeded.freeTier.description":
+    "Підпишіться на Aigcfroge Go, щоб отримати надійний доступ до найкращих моделей з відкритим кодом від $5 на місяць.",
+  "dialog.usageExceeded.freeTier.actionLabel": "Підписатися",
+  "dialog.usageExceeded.accountRateLimit.title": "Досягнуто ліміту Go",
+  "dialog.usageExceeded.accountRateLimit.description":
+    "Досягнуто ліміту використання. Щоб продовжити використовувати цю модель зараз, увімкніть оплату з доступного балансу",
+  "dialog.usageExceeded.accountRateLimit.actionLabel": "Відкрити налаштування",
+
   "ui.sessionTurn.status.delegating": "Делегування роботи",
   "ui.sessionTurn.status.planning": "Планування наступних кроків",
   "ui.sessionTurn.status.gatheringContext": "Дослідження",

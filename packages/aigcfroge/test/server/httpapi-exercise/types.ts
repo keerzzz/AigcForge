@@ -1,4 +1,5 @@
 import type { Duration, Effect } from "effect"
+import type { SessionTask } from "@aigcfroge/core/session/task"
 import { ConfigV1 } from "@aigcfroge/core/v1/config/config"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
 import type { Project } from "../../../src/project/project"
@@ -59,6 +60,10 @@ export type ScenarioContext = {
   message: (sessionID: SessionID, input?: { text?: string }) => Effect.Effect<MessageSeed>
   messages: (sessionID: SessionID) => Effect.Effect<SessionV1.WithParts[]>
   todos: (sessionID: SessionID, todos: TodoInfo[]) => Effect.Effect<void>
+  tasks: (
+    sessionID: SessionID,
+    tasks: ReadonlyArray<SessionTask.WriteInfo>,
+  ) => Effect.Effect<ReadonlyArray<SessionTask.Info>>
   worktree: (input?: { name?: string }) => Effect.Effect<Worktree.Info>
   worktreeRemove: (directory: string) => Effect.Effect<void>
   llmText: (value: string) => Effect.Effect<void>

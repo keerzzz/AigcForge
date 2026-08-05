@@ -100,6 +100,46 @@ describe("tool.registry", () => {
     }),
   )
 
+  it.instance("registers work-preset and loads an official preset by id", () =>
+    Effect.gen(function* () {
+      const registry = yield* ToolRegistry.Service
+      const ids = yield* registry.ids()
+      expect(ids).toContain("work-preset")
+
+      const agent = yield* Agent.Service
+      const orchestrator = yield* agent.get("work-orchestrator")
+      if (!orchestrator) throw new Error("work-orchestrator agent not found")
+      const tool = (yield* registry.tools({
+        providerID: ProviderV2.ID.aigcfroge,
+        modelID: ModelV2.ID.make("test"),
+        agent: orchestrator,
+      })).find((item) => item.id === "work-preset")
+      expect(tool).toBeDefined()
+
+      const ctx = {
+        sessionID: SessionID.make("ses_test"),
+        messageID: MessageID.make("msg_test"),
+        callID: "",
+        agent: "work-orchestrator",
+        abort: AbortSignal.any([]),
+        messages: [],
+        metadata: () => Effect.void,
+        ask: () => Effect.void,
+      }
+      const all = yield* registry.all()
+      const def = all.find((item) => item.id === "work-preset")
+      if (!def) throw new Error("work-preset tool not found")
+
+      const result = yield* def.execute({ presetID: "storyboard-video" }, ctx)
+      expect(result.metadata.found).toBe(true)
+      expect(result.output).toContain("Guidance")
+
+      const missing = yield* def.execute({ presetID: "no-such-preset" }, ctx)
+      expect(missing.metadata.found).toBe(false)
+      expect(missing.output).toContain("Unknown work preset")
+    }),
+  )
+
   it.instance("hides task background parameter unless experimental background subagents are enabled", () =>
     Effect.gen(function* () {
       const registry = yield* ToolRegistry.Service

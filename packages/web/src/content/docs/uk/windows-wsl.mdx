@@ -1,0 +1,112 @@
+---
+title: Windows (WSL)
+description: Запускайте Aigcfroge на Windows за допомогою WSL для найкращого досвіду.
+---
+
+import { Steps } from "@astrojs/starlight/components"
+
+Хоча Aigcfroge може працювати безпосередньо на Windows, ми рекомендуємо використовувати [Підсистему Windows для Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install) для найкращого досвіду. WSL надає середовище Linux, яке бездоганно працює з функціями Aigcfroge.
+
+:::tip[Чому WSL?]
+WSL пропонує кращу продуктивність файлової системи, повну підтримку термінала та сумісність з інструментами розробки, на які покладається Aigcfroge.
+:::
+
+---
+
+## Налаштування
+
+<Steps>
+
+1. **Встановлення WSL**
+
+   Якщо ви ще цього не зробили, [встановіть WSL](https://learn.microsoft.com/en-us/windows/wsl/install), скориставшись офіційним посібником Microsoft.
+
+2. **Встановлення Aigcfroge у WSL**
+
+   Після налаштування WSL відкрийте термінал WSL і встановіть Aigcfroge одним із [способів встановлення](/docs/).
+
+   ```bash
+   curl -fsSL https://aigcfroge.ai/install | bash
+   ```
+
+3. **Використання Aigcfroge з WSL**
+
+   Перейдіть до каталогу вашого проєкту (доступ до файлів Windows через `/mnt/c/`, `/mnt/d/` тощо) і запустіть Aigcfroge.
+
+   ```bash
+   cd /mnt/c/Users/YourName/project
+   aigcfroge
+   ```
+
+</Steps>
+
+---
+
+## Настільний застосунок + сервер WSL
+
+Якщо ви віддаєте перевагу використанню настільного застосунка Aigcfroge, але хочете запускати сервер у WSL:
+
+1. **Запустіть сервер у WSL** з `--hostname 0.0.0.0`, щоб дозволити зовнішні підключення:
+
+   ```bash
+   aigcfroge serve --hostname 0.0.0.0 --port 4096
+   ```
+
+2. **Підключіть настільний застосунок** до `http://localhost:4096`
+
+:::note
+Якщо `localhost` не працює у вашій конфігурації, підключіться за допомогою IP-адреси WSL (у WSL: `hostname -I`) і використовуйте `http://<wsl-ip>:4096`.
+:::
+
+:::caution
+Під час використання `--hostname 0.0.0.0` встановіть `AIGCFROGE_SERVER_PASSWORD`, щоб захистити сервер.
+:::
+
+```bash
+AIGCFROGE_SERVER_PASSWORD=your-password aigcfroge serve --hostname 0.0.0.0
+```
+
+---
+
+## Веб-клієнт + WSL
+
+Для найкращого веб-досвіду на Windows:
+
+1. **Запустіть `aigcfroge web` у терміналі WSL**, а не в PowerShell:
+
+   ```bash
+   aigcfroge web --hostname 0.0.0.0
+   ```
+
+2. **Отримайте доступ зі свого браузера Windows** за адресою `http://localhost:<port>` (Aigcfroge виводить URL)
+
+Запуск `aigcfroge web` з WSL гарантує належний доступ до файлової системи та інтеграцію з терміналом, залишаючись доступним з вашого браузера Windows.
+
+---
+
+## Доступ до файлів Windows
+
+WSL може отримувати доступ до всіх ваших файлів Windows через каталог `/mnt/`:
+
+- Диск `C:` → `/mnt/c/`
+- Диск `D:` → `/mnt/d/`
+- І так далі...
+
+Приклад:
+
+```bash
+cd /mnt/c/Users/YourName/Documents/project
+aigcfroge
+```
+
+:::tip
+Для найбільш плавної роботи розгляньте можливість клонування/копіювання вашого репозиторію у файлову систему WSL (наприклад, у `~/code/`) і запуску Aigcfroge там.
+:::
+
+---
+
+## Поради
+
+- Тримайте Aigcfroge запущеним у WSL для проєктів, що зберігаються на дисках Windows - доступ до файлів безшовний
+- Використовуйте [розширення WSL](https://code.visualstudio.com/docs/remote/wsl) для VS Code разом з Aigcfroge для інтегрованого робочого процесу розробки
+- Ваша конфігурація та сесії Aigcfroge зберігаються в середовищі WSL за адресою `~/.local/share/aigcfroge/`

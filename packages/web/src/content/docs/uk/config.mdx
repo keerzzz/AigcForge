@@ -1,0 +1,926 @@
+---
+title: Конфігурація
+description: Використання JSON-конфігурації Aigcfroge.
+---
+
+Ви можете налаштувати Aigcfroge за допомогою файлу JSON-конфігурації.
+
+---
+
+## Формат
+
+Aigcfroge підтримує формати **JSON** і **JSONC** (JSON з коментарями).
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "model": "anthropic/claude-sonnet-4-5",
+  "autoupdate": true,
+  "server": {
+    "port": 4096,
+  },
+}
+```
+
+---
+
+## Місця розташування
+
+Ви можете розмістити конфігурацію в кількох різних місцях, і вони мають
+різний порядок пріоритету.
+
+:::note
+Файли конфігурації **об'єднуються**, а не замінюються.
+:::
+
+Файли конфігурації об'єднуються, а не замінюються. Налаштування з наведених нижче місць розташування конфігурації комбінуються. Пізніші конфігурації перевизначають попередні лише для конфліктуючих ключів. Неконфліктуючі налаштування з усіх конфігурацій зберігаються.
+
+Наприклад, якщо ваша глобальна конфігурація встановлює `autoupdate: true`, а конфігурація проєкту встановлює `model: "anthropic/claude-sonnet-4-5"`, то фінальна конфігурація міститиме обидва налаштування.
+
+---
+
+### Порядок пріоритету
+
+Джерела конфігурації завантажуються в такому порядку (пізніші джерела перевизначають попередні):
+
+1. **Віддалена конфігурація** (із `.well-known/aigcfroge`) — типові значення організації
+2. **Глобальна конфігурація** (`~/.config/aigcfroge/aigcfroge.json`) — налаштування користувача
+3. **Власна конфігурація** (змінна середовища `AIGCFROGE_CONFIG`) — власні перевизначення
+4. **Конфігурація проєкту** (`aigcfroge.json` у проєкті) — налаштування, специфічні для проєкту
+5. **Каталоги `.aigcfroge`** — агенти, команди, плагіни
+6. **Вбудована конфігурація** (змінна середовища `AIGCFROGE_CONFIG_CONTENT`) — перевизначення під час виконання
+7. **Керовані файли конфігурації** (`/Library/Application Support/aigcfroge/` на macOS) — контрольовані адміністратором
+8. **Керовані параметри macOS** (`.mobileconfig` через MDM) — найвищий пріоритет, користувач не може їх перевизначити
+
+Це означає, що конфігурації проєкту можуть перевизначати глобальні типові значення, а глобальні конфігурації можуть перевизначати віддалені типові значення організації. Керовані налаштування перевизначають усе.
+
+:::note
+Каталоги `.aigcfroge` і `~/.config/aigcfroge` використовують **назви у множині** для підкаталогів: `agents/`, `commands/`, `modes/`, `plugins/`, `skills/`, `tools/` та `themes/`. Назви в однині (наприклад, `agent/`) також підтримуються для зворотної сумісності.
+:::
+
+---
+
+### Віддалена
+
+Організації можуть надавати типову конфігурацію через кінцеву точку `.well-known/aigcfroge`. Вона завантажується автоматично, коли ви автентифікуєтесь за допомогою провайдера, який її підтримує.
+
+Віддалена конфігурація завантажується першою і слугує базовим шаром. Усі інші джерела конфігурації (глобальне, проєктне) можуть перевизначати ці типові значення.
+
+Наприклад, якщо ваша організація надає MCP-сервери, які за замовчуванням вимкнені:
+
+```json title="Remote config from .well-known/aigcfroge"
+{
+  "mcp": {
+    "jira": {
+      "type": "remote",
+      "url": "https://jira.example.com/mcp",
+      "enabled": false
+    }
+  }
+}
+```
+
+Ви можете ввімкнути окремі сервери у вашій локальній конфігурації:
+
+```json title="aigcfroge.json"
+{
+  "mcp": {
+    "jira": {
+      "type": "remote",
+      "url": "https://jira.example.com/mcp",
+      "enabled": true
+    }
+  }
+}
+```
+
+---
+
+### Глобальна
+
+Розмістіть вашу глобальну конфігурацію Aigcfroge у `~/.config/aigcfroge/aigcfroge.json`. Використовуйте глобальну конфігурацію для загальнокористувацьких налаштувань сервера/середовища виконання, як-от провайдери, моделі та дозволи.
+
+Для налаштувань, специфічних для TUI, використовуйте `~/.config/aigcfroge/tui.json`.
+
+Глобальна конфігурація перевизначає віддалені типові значення організації.
+
+---
+
+### За проєктом
+
+Додайте `aigcfroge.json` у корінь проєкту. Конфігурація проєкту має найвищий пріоритет серед стандартних файлів конфігурації — вона перевизначає і глобальну, і віддалену конфігурації.
+
+Для налаштувань TUI, специфічних для проєкту, додайте поряд `tui.json`.
+
+:::tip
+Розмістіть конфігурацію проєкту в корені вашого проєкту.
+:::
+
+Під час запуску Aigcfroge спочатку шукає файл конфігурації в поточному каталозі, а потім піднімається до найближчого Git-каталогу.
+
+Цей файл також можна безпечно додати в Git, і він використовує ту саму схему, що й глобальна конфігурація.
+
+---
+
+### Власний шлях
+
+Вкажіть власний шлях до файлу конфігурації за допомогою змінної середовища `AIGCFROGE_CONFIG`.
+
+```bash
+export AIGCFROGE_CONFIG=/path/to/my/custom-config.json
+aigcfroge run "Hello world"
+```
+
+Власна конфігурація завантажується між глобальною та конфігурацією проєкту в порядку пріоритету.
+
+---
+
+### Власний каталог
+
+Вкажіть власний каталог конфігурації за допомогою змінної середовища
+`AIGCFROGE_CONFIG_DIR`. У цьому каталозі виконуватиметься пошук агентів,
+команд, режимів і плагінів так само, як у стандартному каталозі `.aigcfroge`,
+і він має відповідати тій самій структурі.
+
+```bash
+export AIGCFROGE_CONFIG_DIR=/path/to/my/config-directory
+aigcfroge run "Hello world"
+```
+
+Власний каталог завантажується після глобальної конфігурації та каталогів `.aigcfroge`, тому він **може перевизначати** їхні налаштування.
+
+---
+
+### Керовані налаштування
+
+Організації можуть нав'язувати конфігурацію, яку користувачі не можуть перевизначити. Керовані налаштування завантажуються на найвищому рівні пріоритету.
+
+#### На основі файлів
+
+Розмістіть файл `aigcfroge.json` або `aigcfroge.jsonc` у системному керованому каталозі конфігурації:
+
+| Платформа | Шлях                                      |
+| --------- | ----------------------------------------- |
+| macOS     | `/Library/Application Support/aigcfroge/` |
+| Linux     | `/etc/aigcfroge/`                         |
+| Windows   | `%ProgramData%\aigcfroge`                 |
+
+Для запису в ці каталоги потрібні права адміністратора/root, тому користувачі не можуть їх змінювати.
+
+#### Керовані параметри macOS
+
+На macOS Aigcfroge читає керовані параметри з домену параметрів `ai.aigcfroge.managed`. Розгорніть `.mobileconfig` через MDM (Jamf, Kandji, FleetDM), і налаштування застосовуватимуться автоматично.
+
+Aigcfroge перевіряє ці шляхи:
+
+1. `/Library/Managed Preferences/<user>/ai.aigcfroge.managed.plist`
+2. `/Library/Managed Preferences/ai.aigcfroge.managed.plist`
+
+Ключі plist безпосередньо зіставляються з полями `aigcfroge.json`. Ключі метаданих MDM (`PayloadUUID`, `PayloadType` тощо) видаляються автоматично.
+
+**Створення `.mobileconfig`**
+
+Використовуйте PayloadType `ai.aigcfroge.managed`. Ключі конфігурації Aigcfroge розміщуються безпосередньо у словнику payload:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadType</key>
+      <string>ai.aigcfroge.managed</string>
+      <key>PayloadIdentifier</key>
+      <string>com.example.aigcfroge.config</string>
+      <key>PayloadUUID</key>
+      <string>GENERATE-YOUR-OWN-UUID</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>share</key>
+      <string>disabled</string>
+      <key>server</key>
+      <dict>
+        <key>hostname</key>
+        <string>127.0.0.1</string>
+      </dict>
+      <key>permission</key>
+      <dict>
+        <key>*</key>
+        <string>ask</string>
+        <key>bash</key>
+        <dict>
+          <key>*</key>
+          <string>ask</string>
+          <key>rm -rf *</key>
+          <string>deny</string>
+        </dict>
+      </dict>
+    </dict>
+  </array>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadIdentifier</key>
+  <string>com.example.aigcfroge</string>
+  <key>PayloadUUID</key>
+  <string>GENERATE-YOUR-OWN-UUID</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>
+```
+
+Згенеруйте унікальні UUID за допомогою `uuidgen`. Налаштуйте параметри відповідно до вимог вашої організації.
+
+**Розгортання через MDM**
+
+- **Jamf Pro:** Computers > Configuration Profiles > Upload > поширення на цільові пристрої або розумні групи
+- **FleetDM:** Додайте `.mobileconfig` до вашого gitops-репозиторію в `mdm.macos_settings.custom_settings` і виконайте `fleetctl apply`
+
+**Перевірка на пристрої**
+
+Двічі клацніть `.mobileconfig`, щоб установити його локально для тестування (з'являється в System Settings > Privacy & Security > Profiles), а потім виконайте:
+
+```bash
+aigcfroge debug config
+```
+
+Усі ключі керованих параметрів з'являються в остаточній конфігурації, і їх не можуть перевизначити конфігурація користувача чи проєкту.
+
+---
+
+## Схема
+
+Схема конфігурації сервера/середовища виконання визначена в [**`aigcfroge.ai/config.json`**](https://aigcfroge.ai/config.json).
+
+Конфігурація TUI використовує [**`aigcfroge.ai/tui.json`**](https://aigcfroge.ai/tui.json).
+
+Ваш редактор має вміти перевіряти та виконувати автодоповнення на основі цієї схеми.
+
+---
+
+### TUI
+
+Використовуйте окремий файл `tui.json` (або `tui.jsonc`) для налаштувань, специфічних для TUI.
+
+```json title="tui.json"
+{
+  "$schema": "https://aigcfroge.ai/tui.json",
+  "scroll_speed": 3,
+  "scroll_acceleration": {
+    "enabled": true
+  },
+  "diff_style": "auto",
+  "mouse": true,
+  "attention": {
+    "enabled": true,
+    "notifications": true,
+    "sound": true,
+    "volume": 0.4
+  }
+}
+```
+
+Використовуйте `AIGCFROGE_TUI_CONFIG`, щоб указати на власний файл конфігурації TUI.
+
+Встановіть `attention.enabled`, щоб увімкнути сповіщення та звуки TUI на робочому столі. Див. [Увага TUI](/docs/tui#attention).
+
+Застарілі ключі `theme`, `keybinds` і `tui` у `aigcfroge.json` є застарілими та автоматично переносяться, коли це можливо.
+
+---
+
+### Сервер
+
+Ви можете налаштувати параметри сервера для команд `aigcfroge serve` і `aigcfroge web` через опцію `server`.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "server": {
+    "port": 4096,
+    "hostname": "0.0.0.0",
+    "mdns": true,
+    "mdnsDomain": "myproject.local",
+    "cors": ["http://localhost:5173"]
+  }
+}
+```
+
+Доступні опції:
+
+- `port` — порт, на якому слухає сервер.
+- `hostname` — ім'я хоста, на якому слухає сервер. Коли `mdns` увімкнено, а ім'я хоста не встановлено, за замовчуванням використовується `0.0.0.0`.
+- `mdns` — увімкнення виявлення служб mDNS. Це дозволяє іншим пристроям у мережі виявляти ваш сервер Aigcfroge.
+- `mdnsDomain` — власне доменне ім'я для служби mDNS. За замовчуванням `aigcfroge.local`. Корисно для запуску кількох екземплярів в одній мережі.
+- `cors` — додаткові джерела (origins), які дозволяються для CORS під час використання HTTP-сервера з браузерного клієнта. Значення мають бути повними джерелами (схема + хост + необов'язковий порт), напр. `https://app.example.com`.
+
+[Дізнайтеся більше про сервер тут](/docs/server).
+
+---
+
+### Оболонка
+
+Ви можете налаштувати оболонку, яка використовується для інтерактивного термінала, через опцію `shell`. Сумісні оболонки також використовуються для викликів інструментів агента.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "shell": "pwsh"
+}
+```
+
+Якщо не вказано, Aigcfroge автоматично визначить і використає розумне типове значення на основі вашої операційної системи (напр. `pwsh` або `cmd.exe` у Windows, `/bin/zsh` або `/bin/bash` у macOS/Linux). Ви можете вказати абсолютний шлях або коротку назву.
+
+---
+
+### Інструменти
+
+Ви можете керувати інструментами, які може використовувати LLM, через опцію `tools`.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "tools": {
+    "write": false,
+    "bash": false
+  }
+}
+```
+
+[Дізнайтеся більше про інструменти тут](/docs/tools).
+
+---
+
+### Моделі
+
+Ви можете налаштувати провайдерів і моделі, які хочете використовувати у конфігурації Aigcfroge, через опції `provider`, `model` та `small_model`.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "provider": {},
+  "model": "anthropic/claude-sonnet-4-5",
+  "small_model": "anthropic/claude-haiku-4-5"
+}
+```
+
+Опція `small_model` налаштовує окрему модель для легковажних завдань, як-от генерація заголовків. За замовчуванням Aigcfroge намагається використати дешевшу модель, якщо така доступна у вашого провайдера, інакше він повертається до основної моделі.
+
+Опції провайдера можуть містити `timeout`, `chunkTimeout` та `setCacheKey`:
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "provider": {
+    "anthropic": {
+      "options": {
+        "timeout": 600000,
+        "chunkTimeout": 30000,
+        "setCacheKey": true
+      }
+    }
+  }
+}
+```
+
+- `timeout` — таймаут запиту в мілісекундах (за замовчуванням: 300000). Встановіть `false`, щоб вимкнути.
+- `chunkTimeout` — таймаут у мілісекундах між фрагментами потокової відповіді. Якщо фрагмент не надходить вчасно, запит переривається.
+- `setCacheKey` — гарантує, що ключ кешу завжди встановлюється для вказаного провайдера.
+
+Ви також можете налаштувати [локальні моделі](/docs/models#local). [Дізнайтеся більше](/docs/models).
+
+---
+
+### Політики
+
+Використовуйте опцію `experimental.policies`, щоб дозволяти або забороняти дії Aigcfroge над налаштованими ресурсами. Наразі політики можуть контролювати, які провайдери може використовувати Aigcfroge.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "experimental": {
+    "policies": [
+      {
+        "effect": "deny",
+        "action": "provider.use",
+        "resource": "openai"
+      }
+    ]
+  }
+}
+```
+
+[Дізнайтеся більше про політики тут](/docs/policies).
+
+---
+
+### Зображення-вкладення
+
+Aigcfroge нормалізує зображення-вкладення перед надсиланням їх моделі. За замовчуванням зображення змінюють розмір, якщо вони перевищують `2000x2000` пікселів або `5242880` байтів base64.
+
+Налаштуйте обмеження для зображень-вкладень за допомогою опції `attachment.image`:
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "attachment": {
+    "image": {
+      "auto_resize": true,
+      "max_width": 2000,
+      "max_height": 2000,
+      "max_base64_bytes": 5242880
+    }
+  }
+}
+```
+
+- `auto_resize` — змінювати розмір зображень, що перевищують налаштовані обмеження, перед запитами до провайдера. Встановіть `false`, щоб натомість відхиляти завеликі зображення.
+- `max_width` — максимальна ширина зображення в пікселях перед зміною розміру або відхиленням.
+- `max_height` — максимальна висота зображення в пікселях перед зміною розміру або відхиленням.
+- `max_base64_bytes` — максимальний розмір закодованого payload зображення. Це розмір payload у base64, а не розмір оригінального файлу.
+
+Якщо зображення все ще не поміщається після зміни розміру, Aigcfroge пропускає завеликі зображення результатів інструментів або завершує завеликі надані користувачем зображення помилкою розміру зображення.
+
+---
+
+#### Опції, специфічні для провайдера
+
+Деякі провайдери підтримують додаткові опції конфігурації, окрім загальних налаштувань `timeout` та `apiKey`.
+
+##### Amazon Bedrock
+
+Amazon Bedrock підтримує конфігурацію, специфічну для AWS:
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "provider": {
+    "amazon-bedrock": {
+      "options": {
+        "region": "us-east-1",
+        "profile": "my-aws-profile",
+        "endpoint": "https://bedrock-runtime.us-east-1.vpce-xxxxx.amazonaws.com"
+      }
+    }
+  }
+}
+```
+
+- `region` — регіон AWS для Bedrock (за замовчуванням змінна середовища `AWS_REGION` або `us-east-1`)
+- `profile` — іменований профіль AWS із `~/.aws/credentials` (за замовчуванням змінна середовища `AWS_PROFILE`)
+- `endpoint` — власна URL кінцевої точки для VPC endpoints. Це псевдонім загальної опції `baseURL` із використанням термінології, специфічної для AWS. Якщо вказано обидва, `endpoint` має пріоритет.
+
+:::note
+Bearer-токени (`AWS_BEARER_TOKEN_BEDROCK` або `/connect`) мають пріоритет над автентифікацією на основі профілю. Детальніше див. [пріоритет автентифікації](/docs/providers#authentication-precedence).
+:::
+
+[Дізнайтеся більше про конфігурацію Amazon Bedrock](/docs/providers#amazon-bedrock).
+
+---
+
+### Теми
+
+Встановіть тему інтерфейсу у `tui.json`.
+
+```json title="tui.json"
+{
+  "$schema": "https://aigcfroge.ai/tui.json",
+  "theme": "tokyonight"
+}
+```
+
+[Дізнайтеся більше тут](/docs/themes).
+
+---
+
+### Агенти
+
+Ви можете налаштувати спеціалізованих агентів для конкретних завдань через опцію `agent`.
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "agent": {
+    "code-reviewer": {
+      "description": "Reviews code for best practices and potential issues",
+      "model": "anthropic/claude-sonnet-4-5",
+      "prompt": "You are a code reviewer. Focus on security, performance, and maintainability.",
+      "tools": {
+        // Disable file modification tools for review-only agent
+        "write": false,
+        "edit": false,
+      },
+    },
+  },
+}
+```
+
+Ви також можете визначати агентів за допомогою файлів markdown у `~/.config/aigcfroge/agents/` або `.aigcfroge/agents/`. [Дізнайтеся більше тут](/docs/agents).
+
+---
+
+### Агент за замовчуванням
+
+Ви можете встановити агента за замовчуванням через опцію `default_agent`. Вона визначає, якого агента буде використано, коли жодного не вказано явно.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "default_agent": "plan"
+}
+```
+
+Агент за замовчуванням має бути головним агентом (не підагентом). Це може бути вбудований агент, як-от `"build"` або `"plan"`, або [власний агент](/docs/agents), якого ви визначили. Якщо вказаний агент не існує або є підагентом, Aigcfroge повернеться до `"build"` із попередженням.
+
+Це налаштування застосовується в усіх інтерфейсах: TUI, CLI (`aigcfroge run`), настільному застосунку та GitHub Action.
+
+---
+
+### Обмін
+
+Ви можете налаштувати функцію [обміну](/docs/share) через опцію `share`.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "share": "manual"
+}
+```
+
+Опція приймає:
+
+- `"manual"` — дозволяє ручний обмін через команди (за замовчуванням)
+- `"auto"` — автоматично ділитися новими розмовами
+- `"disabled"` — повністю вимкнути обмін
+
+За замовчуванням обмін налаштовано на ручний режим, у якому ви маєте явно ділитися розмовами за допомогою команди `/share`.
+
+---
+
+### Команди
+
+Ви можете налаштувати власні команди для повторюваних завдань через опцію `command`.
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "command": {
+    "test": {
+      "template": "Run the full test suite with coverage report and show any failures.\nFocus on the failing tests and suggest fixes.",
+      "description": "Run tests with coverage",
+      "agent": "build",
+      "model": "anthropic/claude-haiku-4-5",
+    },
+    "component": {
+      "template": "Create a new React component named $ARGUMENTS with TypeScript support.\nInclude proper typing and basic structure.",
+      "description": "Create a new component",
+    },
+  },
+}
+```
+
+Ви також можете визначати команди за допомогою файлів markdown у `~/.config/aigcfroge/commands/` або `.aigcfroge/commands/`. [Дізнайтеся більше тут](/docs/commands).
+
+---
+
+### Клавіатурні скорочення
+
+Налаштуйте клавіатурні скорочення TUI у `tui.json` за допомогою `keybinds`.
+
+```json title="tui.json"
+{
+  "$schema": "https://aigcfroge.ai/tui.json",
+  "keybinds": {
+    "command_list": "ctrl+p"
+  }
+}
+```
+
+`keybinds` об'єднується з вбудованими типовими значеннями, тому вам потрібно налаштувати лише скорочення, які хочете змінити.
+
+[Дізнайтеся більше тут](/docs/keybinds).
+
+---
+
+### Знімки
+
+Aigcfroge використовує знімки (snapshots) для відстеження змін файлів під час операцій агента, що дозволяє вам скасовувати та повертати зміни в межах сесії. Знімки ввімкнено за замовчуванням.
+
+Для великих репозиторіїв або проєктів із багатьма субмодулями система знімків може спричиняти повільне індексування та значне використання диска, оскільки вона відстежує всі зміни за допомогою внутрішнього Git-репозиторію. Ви можете вимкнути знімки за допомогою опції `snapshot`.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "snapshot": false
+}
+```
+
+Зверніть увагу, що вимкнення знімків означає, що зміни, внесені агентом, неможливо відкотити через інтерфейс.
+
+---
+
+### Автооновлення
+
+Aigcfroge автоматично завантажує будь-які нові оновлення під час запуску. Ви можете вимкнути це за допомогою опції `autoupdate`.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "autoupdate": false
+}
+```
+
+Якщо ви не хочете оновлень, але хочете отримувати сповіщення, коли доступна нова версія, встановіть `autoupdate` на `"notify"`.
+Зверніть увагу, що це працює лише тоді, коли застосунок не було встановлено через менеджер пакунків, як-от Homebrew.
+
+---
+
+### Форматери
+
+Ви можете ввімкнути та налаштувати форматери коду через опцію `formatter`. Опустіть її, щоб залишити форматери вимкненими.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "formatter": true
+}
+```
+
+Використовуйте об'єкт, щоб залишити вбудовані форматери ввімкненими, налаштовуючи перевизначення або власні форматери.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "formatter": {
+    "prettier": {
+      "disabled": true
+    },
+    "custom-prettier": {
+      "command": ["npx", "prettier", "--write", "$FILE"],
+      "environment": {
+        "NODE_ENV": "development"
+      },
+      "extensions": [".js", ".ts", ".jsx", ".tsx"]
+    }
+  }
+}
+```
+
+[Дізнайтеся більше про форматери тут](/docs/formatters).
+
+---
+
+### LSP-сервери
+
+Ви можете ввімкнути та налаштувати LSP-сервери через опцію `lsp`. Опустіть її, щоб залишити LSP вимкненим.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "lsp": true
+}
+```
+
+Використовуйте об'єкт, щоб залишити вбудовані сервери ввімкненими, налаштовуючи перевизначення або власні LSP-сервери.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "lsp": {
+    "typescript": {
+      "disabled": true
+    }
+  }
+}
+```
+
+[Дізнайтеся більше про LSP-сервери тут](/docs/lsp).
+
+---
+
+### Дозволи
+
+За замовчуванням aigcfroge **дозволяє всі операції** без вимоги явного схвалення. Ви можете змінити це за допомогою опції `permission`.
+
+Наприклад, щоб гарантувати, що інструменти `edit` і `bash` потребують схвалення користувача:
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "permission": {
+    "edit": "ask",
+    "bash": "ask"
+  }
+}
+```
+
+[Дізнайтеся більше про дозволи тут](/docs/permissions).
+
+---
+
+### Ущільнення
+
+Ви можете контролювати поведінку ущільнення контексту через опцію `compaction`.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "compaction": {
+    "auto": true,
+    "prune": false,
+    "reserved": 10000
+  }
+}
+```
+
+- `auto` — автоматично ущільнювати сесію, коли контекст заповнений (за замовчуванням: `true`).
+- `prune` — видаляти старі виводи інструментів, щоб економити токени (за замовчуванням: `false`). Встановіть `true`, щоб увімкнути обрізання.
+- `reserved` — резерв токенів для ущільнення. Залишає достатньо вікна, щоб уникнути переповнення під час ущільнення.
+
+---
+
+### Відстеження файлів
+
+Ви можете налаштувати шаблони ігнорування для відстеження файлів через опцію `watcher`.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "watcher": {
+    "ignore": ["node_modules/**", "dist/**", ".git/**"]
+  }
+}
+```
+
+Шаблони відповідають синтаксису glob. Використовуйте це, щоб виключити галасливі каталоги з відстеження файлів.
+
+---
+
+### MCP-сервери
+
+Ви можете налаштувати MCP-сервери, які хочете використовувати, через опцію `mcp`.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "mcp": {}
+}
+```
+
+[Дізнайтеся більше тут](/docs/mcp-servers).
+
+---
+
+### Плагіни
+
+[Плагіни](/docs/plugins) розширюють Aigcfroge власними інструментами, хуками та інтеграціями.
+
+Розміщуйте файли плагінів у `.aigcfroge/plugins/` або `~/.config/aigcfroge/plugins/`. Ви також можете завантажувати плагіни з npm через опцію `plugin`.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "plugin": ["aigcfroge-helicone-session", "@my-org/custom-plugin"]
+}
+```
+
+[Дізнайтеся більше тут](/docs/plugins).
+
+---
+
+### Інструкції
+
+Ви можете налаштувати інструкції для моделі, яку використовуєте, через опцію `instructions`.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "instructions": ["CONTRIBUTING.md", "docs/guidelines.md", ".cursor/rules/*.md"]
+}
+```
+
+Опція приймає масив шляхів і glob-шаблонів до файлів інструкцій. [Дізнайтеся
+більше про правила тут](/docs/rules).
+
+---
+
+### Вимкнені провайдери
+
+Ви можете вимкнути провайдерів, які завантажуються автоматично, через опцію `disabled_providers`. Це корисно, коли ви хочете запобігти завантаженню певних провайдерів, навіть якщо їхні облікові дані доступні.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "disabled_providers": ["openai", "gemini"]
+}
+```
+
+:::note
+`disabled_providers` має пріоритет над `enabled_providers`.
+:::
+
+Опція `disabled_providers` приймає масив ідентифікаторів провайдерів. Коли провайдера вимкнено:
+
+- Він не буде завантажений, навіть якщо змінні середовища встановлено.
+- Він не буде завантажений, навіть якщо API-ключі налаштовано через команду `/connect`.
+- Моделі провайдера не з'являтимуться у списку вибору моделей.
+
+---
+
+### Увімкнені провайдери
+
+Ви можете вказати список дозволених провайдерів через опцію `enabled_providers`. Якщо встановлено, лише вказані провайдери будуть увімкнені, а всі інші ігноруватимуться.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "enabled_providers": ["anthropic", "openai"]
+}
+```
+
+Це корисно, коли ви хочете обмежити Aigcfroge використанням лише певних провайдерів, а не вимикати їх по одному.
+
+:::note
+`disabled_providers` має пріоритет над `enabled_providers`.
+:::
+
+Якщо провайдер з'являється в обох списках `enabled_providers` і `disabled_providers`, пріоритет має `disabled_providers` для зворотної сумісності.
+
+---
+
+### Експериментальне
+
+Ключ `experimental` містить опції, які перебувають в активній розробці.
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "experimental": {}
+}
+```
+
+:::caution
+Експериментальні опції нестабільні. Вони можуть змінюватися або бути видаленими без попередження.
+:::
+
+---
+
+## Змінні
+
+Ви можете використовувати підстановку змінних у файлах конфігурації, щоб посилатися на змінні середовища та вміст файлів.
+
+---
+
+### Змінні середовища
+
+Використовуйте `{env:VARIABLE_NAME}`, щоб підставити змінні середовища:
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "model": "{env:AIGCFROGE_MODEL}",
+  "provider": {
+    "anthropic": {
+      "models": {},
+      "options": {
+        "apiKey": "{env:ANTHROPIC_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+Якщо змінну середовища не встановлено, її буде замінено порожнім рядком.
+
+---
+
+### Файли
+
+Використовуйте `{file:path/to/file}`, щоб підставити вміст файлу:
+
+```json title="aigcfroge.json"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "instructions": ["./custom-instructions.md"],
+  "provider": {
+    "openai": {
+      "options": {
+        "apiKey": "{file:~/.secrets/openai-key}"
+      }
+    }
+  }
+}
+```
+
+Шляхи до файлів можуть бути:
+
+- Відносними до каталогу файлу конфігурації
+- Або абсолютними шляхами, що починаються з `/` або `~`
+
+Вони корисні для:
+
+- Зберігання чутливих даних, як-от API-ключі, в окремих файлах.
+- Включення великих файлів інструкцій, не захаращуючи вашу конфігурацію.
+- Обміну спільними фрагментами конфігурації між кількома файлами конфігурації.

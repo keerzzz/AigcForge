@@ -5,6 +5,7 @@ import { define } from "./internal"
 import { Effect } from "effect"
 import { AgentV2 } from "../agent"
 import { ChatOrchestratorPrompt } from "../agent/prompt/chat-orchestrator"
+import { WorkOrchestratorPrompt } from "../agent/prompt/work-orchestrator"
 import { Global } from "../global"
 import { Location } from "../location"
 import { PermissionV2 } from "../permission"
@@ -272,7 +273,16 @@ export const Plugin = define({
         item.description =
           "General-purpose agent for researching complex questions and executing multi-step tasks. Use this agent to execute multiple units of work in parallel."
         item.mode = "subagent"
-        item.permissions.push(...PermissionV2.merge(defaults, [{ action: "todowrite", resource: "*", effect: "deny" }]))
+        item.permissions.push(
+          ...PermissionV2.merge(defaults, [
+            { action: "todowrite", resource: "*", effect: "deny" },
+            { action: "taskwrite", resource: "*", effect: "deny" },
+            // Mirror the V1 subagent defaults (aigcfroge subagent-permissions.ts):
+            // a subagent must not schedule or spawn follow-up work recursively.
+            { action: "task_schedule", resource: "*", effect: "deny" },
+            { action: "task_spawn", resource: "*", effect: "deny" },
+          ]),
+        )
       })
 
       draft.update(AgentV2.ID.make("explore"), (item) => {
@@ -318,6 +328,32 @@ export const Plugin = define({
               { action: "propose_agent_asset", resource: "*", effect: "allow" },
               { action: "propose_workflow_asset", resource: "*", effect: "allow" },
               { action: "propose_plugin_asset", resource: "*", effect: "allow" },
+            ],
+            readonlyExternalDirectory,
+          ),
+        )
+      })
+
+      // work-orchestrator: Work mode only, fail-closed permissions (no edit/shell/task)
+      draft.update(AgentV2.ID.make("work-orchestrator"), (item) => {
+        item.description = "Work mode agent for drafting documents from official presets via conversation."
+        item.system = WorkOrchestratorPrompt.SYSTEM_PROMPT
+        item.mode = "primary"
+        item.hidden = false
+        item.permissions.push(
+          ...PermissionV2.merge(
+            defaults,
+            [
+              { action: "*", resource: "*", effect: "deny" },
+              { action: "read", resource: "*", effect: "allow" },
+              { action: "glob", resource: "*", effect: "allow" },
+              { action: "grep", resource: "*", effect: "allow" },
+              { action: "question", resource: "*", effect: "allow" },
+              { action: "work-preset", resource: "*", effect: "allow" },
+              // evaluate 取 findLast：上方 read * allow 会覆盖 defaults 的 .env ask，须以最后顺序恢复
+              { action: "read", resource: "*.env", effect: "ask" },
+              { action: "read", resource: "*.env.*", effect: "ask" },
+              { action: "read", resource: "*.env.example", effect: "allow" },
             ],
             readonlyExternalDirectory,
           ),

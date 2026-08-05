@@ -1,0 +1,157 @@
+---
+title: Références
+description: Ajoutez des répertoires locaux et des dépôts Git comme références de projet.
+---
+
+Les références donnent à Aigcfroge accès à des répertoires en dehors du projet en cours. Utilisez-les pour rendre disponibles de la documentation, des bibliothèques partagées, des exemples ou un autre dépôt pendant que vous travaillez.
+
+Les références sont configurées par alias dans `aigcfroge.json` ou `aigcfroge.jsonc`.
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "$schema": "https://aigcfroge.ai/config.json",
+  "references": {
+    "docs": {
+      "path": "../product-docs",
+      "description": "Use for product behavior and documentation conventions",
+    },
+    "sdk": {
+      "repository": "keerzzz/AigcForge-sdk-js",
+      "branch": "main",
+      "description": "Use for JavaScript SDK implementation details",
+    },
+  },
+}
+```
+
+---
+
+## Répertoires locaux
+
+Utilisez `path` pour référencer un répertoire local.
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "docs": {
+      "path": "../docs",
+    },
+  },
+}
+```
+
+Les chemins peuvent être :
+
+- Relatifs au fichier de configuration qui définit la référence
+- Absolus, tels que `/home/user/docs`
+- Relatifs à votre répertoire personnel, tels que `~/docs`
+
+Vous pouvez également utiliser un raccourci sous forme de chaîne :
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "docs": "../docs",
+  },
+}
+```
+
+---
+
+## Dépôts Git
+
+Utilisez `repository` pour référencer un dépôt Git. Aigcfroge matérialise le dépôt dans son cache de dépôts local et rend le code source extrait disponible comme répertoire de référence.
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "effect": {
+      "repository": "Effect-TS/effect",
+      "branch": "main",
+    },
+  },
+}
+```
+
+`repository` accepte les URL Git, les références hôte/chemin et le raccourci GitHub `owner/repo`. Le champ facultatif `branch` sélectionne une branche ou une référence. Sans `branch`, Aigcfroge utilise la branche par défaut du dépôt.
+
+Vous pouvez utiliser le raccourci sous forme de chaîne lorsque vous n'avez besoin ni d'une branche, ni d'une description, ni d'autres options :
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "effect": "Effect-TS/effect",
+  },
+}
+```
+
+:::note
+Les références Git sont actualisées de manière asynchrone. Un dépôt nouvellement configuré peut prendre un certain temps pour terminer le clonage ou la mise à jour.
+:::
+
+---
+
+## Décrire l'utilisation
+
+Ajoutez `description` pour expliquer quand un agent doit utiliser une référence.
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "design-system": {
+      "path": "../design-system",
+      "description": "Use when implementing UI components or design tokens",
+    },
+  },
+}
+```
+
+Aigcfroge inclut les références avec descriptions dans le contexte de l'agent. Les descriptions doivent être courtes et suffisamment spécifiques pour distinguer des références au contenu similaire. Les références sans description restent disponibles via l'autocomplétion et l'utilisation directe, mais ne sont pas signalées aux agents.
+
+---
+
+## Masquer les entrées d'autocomplétion
+
+Définissez `hidden` sur `true` pour omettre une référence de l'autocomplétion `@` dans le TUI.
+
+```jsonc title="aigcfroge.jsonc"
+{
+  "references": {
+    "internal": {
+      "path": "../internal",
+      "description": "Use for internal implementation details",
+      "hidden": true,
+    },
+  },
+}
+```
+
+`hidden` n'affecte que l'autocomplétion. Une référence masquée avec une description reste incluse dans le contexte de l'agent.
+
+---
+
+## Utiliser les références
+
+Les références configurées apparaissent dans l'autocomplétion `@` du TUI. Saisissez `@alias` pour joindre la racine de la référence, ou `@alias/` pour rechercher des fichiers à l'intérieur.
+
+```text
+Compare this implementation with @sdk/src/client.ts
+```
+
+Les agents reçoivent également les chemins résolus et les descriptions des références configurées qui ont des descriptions dans leur contexte système, afin qu'ils puissent inspecter une référence lorsqu'elle est pertinente sans que vous l'ayez jointe manuellement.
+
+Aigcfroge autorise automatiquement les répertoires de référence à travers sa frontière d'autorisation de répertoire externe. Les autorisations d'outil normales s'appliquent toujours ; par exemple, un agent qui ne peut pas modifier de fichiers n'obtient pas l'accès en modification parce qu'un répertoire est configuré comme référence.
+
+---
+
+## Champs de configuration
+
+| Champ         | Local | Git | Description                                      |
+| ------------- | ----- | --- | ------------------------------------------------ |
+| `path`        | Oui   | Non | Répertoire de référence local                    |
+| `repository`  | Non   | Oui | URL Git, hôte/chemin, ou valeur GitHub `owner/repo` |
+| `branch`      | Non   | Oui | Branche ou référence Git facultative             |
+| `description` | Oui   | Oui | Indications décrivant quand utiliser la référence |
+| `hidden`      | Oui   | Oui | Masque la référence de l'autocomplétion `@` du TUI |
+
+Les alias de référence ne peuvent pas être vides ni contenir `/`, des espaces, des accents graves ou des virgules.

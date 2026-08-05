@@ -148,9 +148,13 @@ describe("LocationServiceMap", () => {
             "read",
             "skill",
             "task",
+            "task_schedule",
+            "task_spawn",
+            "taskwrite",
             "todowrite",
             "webfetch",
             "websearch",
+            "work-preset",
             "write",
           ])
           const allowedState = yield* update(allowed.path)
@@ -174,9 +178,13 @@ describe("LocationServiceMap", () => {
             "read",
             "skill",
             "task",
+            "task_schedule",
+            "task_spawn",
+            "taskwrite",
             "todowrite",
             "webfetch",
             "websearch",
+            "work-preset",
             "write",
           ])
         }),

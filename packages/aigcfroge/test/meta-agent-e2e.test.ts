@@ -7,8 +7,6 @@ import { describe, expect, it, beforeAll, afterAll } from "bun:test"
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "fs"
 import { join } from "path"
 import { tmpdir } from "os"
-import { Effect, Layer } from "effect"
-import { AgentV2 } from "@aigcfroge/core/agent"
 import { MetaPrompt } from "@aigcfroge/core/agent/meta/meta-prompt"
 import { scanAssets } from "../src/agent/meta/assets-loader"
 

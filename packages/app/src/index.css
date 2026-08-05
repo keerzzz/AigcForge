@@ -24,15 +24,21 @@
 }
 
 @layer components {
+  /* M7 决策 5: environment pulse reuses the clip-path scan, ~1.4s cycle with a
+     hold segment (34%-50% fully revealed) so the pulse reads as a soft sweep. */
   @keyframes session-progress-whip {
     0% {
       clip-path: inset(0 100% 0 0 round 999px);
       animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
     }
 
-    48% {
+    34% {
       clip-path: inset(0 0 0 0 round 999px);
       animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+    }
+
+    50% {
+      clip-path: inset(0 0 0 0 round 999px);
     }
 
     100% {
@@ -40,26 +46,259 @@
     }
   }
 
-  [data-component="session-progress"] {
-    position: absolute;
-    inset: 0 0 auto;
-    height: 2px;
-    overflow: hidden;
-    pointer-events: none;
-    opacity: 1;
-    transition: opacity 220ms ease-out;
+  /* M7 决策 5: task pulse shuttles a highlight segment between the last
+     completed node (--pulse-from-px) and the anchor (--pulse-to-px). CSS vars +
+     translateX keyframes, no JS frame loop. */
+  @keyframes session-todo-progress-pulse {
+    0%,
+    100% {
+      transform: translateX(var(--pulse-from-px, 0px));
+    }
+    50% {
+      transform: translateX(var(--pulse-to-px, 0px));
+    }
   }
 
-  [data-component="session-progress"][data-state="hiding"] {
-    opacity: 0;
+  /* M7 unified track: absolute, below the h-12 title row, fixed 22px band so
+     the environment-pulse line and the task line share one vertical position
+     (决策 1/3 — no layout jump when tasks appear). */
+  [data-component="session-progress"] {
+    position: absolute;
+    top: 48px;
+    left: 0;
+    right: 0;
+    height: 22px;
+    overflow: visible;
+    pointer-events: none;
   }
 
   [data-component="session-progress-bar"] {
-    width: 100%;
-    height: 100%;
+    position: absolute;
+    top: 16px;
+    left: 0;
+    right: 0;
+    height: 2px;
     border-radius: 999px;
     clip-path: inset(0 100% 0 0 round 999px);
     will-change: clip-path;
+    /* 决策 5 soft glow. Tradeoff vs the plan's color-mix(--v2-icon-icon-accent)
+       wording: the agent tint (v1 token, inline) is preserved and softened via
+       opacity instead of being dropped — prompt §2 "保持 agent tint 语义". */
+    opacity: 0.5;
+  }
+
+  /* Only the environment pulse fades during "hiding"; the task strip persists
+     into idle static retention (决策 2) and must not fade then pop back. */
+  [data-component="session-progress"][data-state="hiding"] [data-component="session-progress-bar"] {
+    opacity: 0;
+    transition: opacity 220ms ease-out;
+  }
+
+  /* Task strip fills the track band; only interactive elements receive events.
+     The env pulse and the strip are mutually exclusive (message-timeline
+     renders one or the other), so no :has() freeze is needed. */
+  [data-component="session-todo-progress"] {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  [data-component="session-todo-progress-label"] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 12px;
+    font-size: 10px;
+    line-height: 12px;
+    color: var(--v2-text-text-muted);
+    user-select: none;
+  }
+
+  [data-component="session-todo-progress-track"] {
+    position: absolute;
+    top: 16px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 999px;
+    background: var(--v2-border-border-base);
+  }
+
+  [data-component="session-todo-progress-fill"] {
+    position: absolute;
+    top: 16px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--v2-icon-icon-accent);
+    will-change: clip-path;
+  }
+
+  [data-component="session-todo-progress-pulse"] {
+    position: absolute;
+    top: 16px;
+    left: 0;
+    height: 2px;
+    width: 14px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--v2-icon-icon-accent) 60%, transparent);
+    animation: session-todo-progress-pulse 1.4s ease-in-out infinite;
+  }
+
+  [data-component="session-todo-progress-node"] {
+    position: absolute;
+    top: 11px;
+    width: 10px;
+    height: 10px;
+    margin-left: -5px;
+    border-radius: 999px;
+    border: 1.5px solid var(--v2-background-bg-deep);
+    background: var(--v2-icon-icon-accent);
+    padding: 0;
+    cursor: pointer;
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 120ms var(--tool-motion-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  }
+
+  [data-component="session-todo-progress-node"]:hover {
+    transform: scale(1.4);
+  }
+
+  [data-component="session-todo-progress-node"][data-state="pending"] {
+    background: transparent;
+    border-color: var(--v2-icon-icon-accent);
+  }
+
+  [data-component="session-todo-progress-node"][data-state="completed"] {
+    background: var(--v2-icon-icon-accent);
+    color: var(--v2-icon-icon-contrast);
+  }
+
+  [data-component="session-todo-progress-node"][data-state="cancelled"] {
+    background: var(--v2-icon-icon-muted);
+    border-color: var(--v2-icon-icon-muted);
+    color: var(--v2-icon-icon-contrast);
+  }
+
+  [data-component="session-todo-progress-node"][data-state="in_progress"][data-anchor] {
+    animation: session-todo-progress-node-pulse 1.6s infinite;
+  }
+
+  @keyframes session-todo-progress-node-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--v2-icon-icon-accent) 60%, transparent);
+    }
+    50% {
+      box-shadow: 0 0 0 4px transparent;
+    }
+  }
+
+  [data-component="session-todo-progress-check"] {
+    width: 6px;
+    height: 6px;
+  }
+
+  /* Plan §5.5: marks the gaps left when >20 nodes downsample to
+     first/anchor/last. Pure indicator (aria-hidden); hover title repeats the
+     done/total summary, the full list stays in the fold-over panel. */
+  [data-component="session-todo-progress-ellipsis"] {
+    position: absolute;
+    top: 11px;
+    height: 10px;
+    margin-left: -5px;
+    font-size: 8px;
+    line-height: 10px;
+    color: var(--v2-text-text-muted);
+    user-select: none;
+  }
+
+  [data-component="session-todo-progress-stats"] {
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 12px;
+    font-size: 10px;
+    line-height: 12px;
+    color: var(--v2-text-text-muted);
+    user-select: none;
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: inherit;
+    cursor: pointer;
+    pointer-events: auto;
+  }
+
+  [data-component="session-todo-progress-stats"]:hover {
+    color: var(--v2-text-text-base);
+  }
+
+  /* M7 决策 2: all-complete flips the stats to the success color, width
+     unchanged (only the color changes). */
+  [data-component="session-todo-progress-stats"][data-complete="true"] {
+    color: var(--v2-state-fg-success);
+  }
+
+  [data-component="session-todo-progress-panel"] {
+    position: absolute;
+    top: 22px;
+    right: 0;
+    min-width: 220px;
+    max-width: min(320px, calc(100vw - 24px));
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 6px;
+    border-radius: var(--radius-md);
+    background: var(--v2-background-bg-layer-01);
+    border: 1px solid var(--v2-border-border-base);
+    box-shadow: var(--shadow-md);
+    pointer-events: auto;
+  }
+
+  [data-component="session-todo-progress-checkbox-label"][data-status="completed"] {
+    color: var(--v2-text-text-muted);
+    text-decoration: line-through;
+  }
+
+  [data-component="session-todo-progress-checkbox-label"][data-status="cancelled"] {
+    color: var(--v2-text-text-muted);
+    opacity: 0.7;
+  }
+
+  [data-component="session-scheduled-chip"] {
+    white-space: nowrap;
+    user-select: none;
+  }
+
+  [data-component="session-scheduled-list"] {
+    max-height: 260px;
+    overflow-y: auto;
+  }
+
+  [data-component="session-scheduled-popover"] [data-slot="checkbox-v2-label-text"] {
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-regular);
+    color: var(--v2-text-text-base);
+  }
+
+  [data-component="session-scheduled-popover"] [data-slot="checkbox-v2-description"] {
+    font-size: var(--font-size-x-small);
+    font-weight: var(--font-weight-regular);
+    color: var(--v2-text-text-muted);
+  }
+
+  [data-component="agent-task-hub-agent"][data-selected] {
+    background: var(--v2-background-bg-layer-01);
+  }
+
+  [data-component="agent-task-hub-task"][data-status="completed"],
+  [data-component="agent-task-hub-task"][data-status="cancelled"],
+  [data-component="agent-task-hub-task"][data-status="failed"] {
+    color: var(--v2-text-text-muted);
   }
 
   [data-component="getting-started"] {

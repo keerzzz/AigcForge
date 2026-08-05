@@ -1,4 +1,13 @@
-import type { AigcfrogeClient, Config, Path, ProductMode, Project, ProviderAuthResponse, Todo } from "@aigcfroge/sdk/v2/client"
+import type {
+  AigcfrogeClient,
+  Config,
+  Path,
+  ProductMode,
+  Project,
+  ProviderAuthResponse,
+  SessionTaskInfo,
+  Todo,
+} from "@aigcfroge/sdk/v2/client"
 import { showToast } from "@/utils/toast"
 import { getFilename } from "@aigcfroge/core/util/path"
 import { type Accessor, batch, createMemo, getOwner, onCleanup, onMount, untrack } from "solid-js"
@@ -47,6 +56,17 @@ type GlobalStore = {
   session_todo: {
     [sessionID: string]: Todo[]
   }
+  session_task: {
+    [sessionID: string]: SessionTaskInfo[]
+  }
+  /** Last write recency per session for the todo.updated source (M7 ⑦ freshness). */
+  session_todo_updated_at: {
+    [sessionID: string]: number
+  }
+  /** Last write recency per session for the task.updated source (M7 ⑦ freshness). */
+  session_task_updated_at: {
+    [sessionID: string]: number
+  }
   provider: NormalizedProviderListResponse
   provider_auth: ProviderAuthResponse
   config: Config
@@ -80,7 +100,9 @@ function makeQueryOptionsApi(
     agents: (directory: PathKey) => loadAgentsQuery(scope, directory, sdkFor(directory)),
     mcp: (directory: PathKey) => loadMcpQuery(scope, directory, sdkFor(directory)),
     lsp: (directory: PathKey) => loadLspQuery(scope, directory, sdkFor(directory)),
-    sessions: (directory: PathKey, mode?: ProductMode) => ({ queryKey: [scope, directory, "loadSessions", mode] as const }),
+    sessions: (directory: PathKey, mode?: ProductMode) => ({
+      queryKey: [scope, directory, "loadSessions", mode] as const,
+    }),
   }
 }
 export type QueryOptionsApi = ReturnType<typeof makeQueryOptionsApi>
@@ -119,6 +141,9 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     },
     project: [],
     session_todo: {},
+    session_task: {},
+    session_todo_updated_at: {},
+    session_task_updated_at: {},
     provider_auth: {},
     get path() {
       const EMPTY = { state: "", config: "", worktree: "", directory: "", home: "" }
@@ -197,9 +222,37 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
           delete draft[sessionID]
         }),
       )
+      setGlobalStore(
+        "session_todo_updated_at",
+        produce((draft) => {
+          delete draft[sessionID]
+        }),
+      )
       return
     }
     setGlobalStore("session_todo", sessionID, reconcile(todos, { key: "id" }))
+    setGlobalStore("session_todo_updated_at", sessionID, Date.now())
+  }
+
+  const setSessionTask = (sessionID: string, tasks: SessionTaskInfo[] | undefined) => {
+    if (!sessionID) return
+    if (!tasks) {
+      setGlobalStore(
+        "session_task",
+        produce((draft) => {
+          delete draft[sessionID]
+        }),
+      )
+      setGlobalStore(
+        "session_task_updated_at",
+        produce((draft) => {
+          delete draft[sessionID]
+        }),
+      )
+      return
+    }
+    setGlobalStore("session_task", sessionID, reconcile(tasks, { key: "id" }))
+    setGlobalStore("session_task_updated_at", sessionID, Date.now())
   }
 
   const paused = () => untrack(() => globalStore.reload) !== undefined
@@ -216,7 +269,8 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     scope: serverSDK.scope,
     persist: persisted,
     isBooting: (directory) => booting.has(directory),
-    isLoadingSessions: (directory) => Array.from(sessionLoads.keys()).some((key) => key === directory || key.startsWith(`${directory}\0`)),
+    isLoadingSessions: (directory) =>
+      Array.from(sessionLoads.keys()).some((key) => key === directory || key.startsWith(`${directory}\0`)),
     onBootstrap: (directory) => {
       void bootstrapInstance(directory)
     },
@@ -423,6 +477,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
       setStore,
       push: queue.push,
       setSessionTodo,
+      setSessionTask,
       retainedLimit: sessionMeta.get(key)?.limit,
       vcsCache: children.vcsCache.get(key),
       loadLsp: () => {
@@ -499,6 +554,9 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     project: projectApi,
     todo: {
       set: setSessionTodo,
+    },
+    task: {
+      set: setSessionTask,
     },
     mcp: {
       toggle: async (directory: string, name: string) => {

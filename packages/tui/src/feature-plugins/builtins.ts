@@ -6,7 +6,7 @@ import SidebarFiles from "./sidebar/files"
 import SidebarFooter from "./sidebar/footer"
 import SidebarLsp from "./sidebar/lsp"
 import SidebarMcp from "./sidebar/mcp"
-import SidebarTodo from "./sidebar/todo"
+import SidebarTask from "./sidebar/task"
 import DiffViewer from "./system/diff-viewer"
 import Notifications from "./system/notifications"
 import PluginManager from "./system/plugins"
@@ -25,7 +25,7 @@ export function createBuiltinPlugins(_options: { experimentalEventSystem: boolea
     SidebarContext,
     SidebarMcp,
     SidebarLsp,
-    SidebarTodo,
+    SidebarTask,
     SidebarFiles,
     SidebarFooter,
     Notifications,

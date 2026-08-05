@@ -1,0 +1,298 @@
+---
+title: Zen
+description: Підібраний список моделей, наданих Aigcfroge.
+---
+
+import config from "../../../config.mjs"
+export const console = config.console
+export const email = `mailto:${config.email}`
+
+Aigcfroge Zen — це список перевірених і схвалених моделей, наданих командою Aigcfroge.
+
+Zen працює так само, як будь-який інший провайдер у Aigcfroge. Ви входите в Aigcfroge Zen і отримуєте свій API-ключ. Він **повністю необов'язковий**, і вам не потрібно ним користуватися, щоб працювати з Aigcfroge.
+
+---
+
+## Передумови
+
+На ринку є велика кількість моделей, але лише деякі з них добре працюють як агенти для програмування. Крім того, більшість провайдерів налаштовані дуже по-різному, тож ви отримуєте дуже різну продуктивність і якість.
+
+:::tip
+Ми протестували окрему групу моделей і провайдерів, які добре працюють з Aigcfroge.
+:::
+
+Тож якщо ви використовуєте модель через щось на кшталт OpenRouter, ви ніколи не можете бути впевнені, що отримуєте найкращу версію потрібної вам моделі.
+
+Щоб виправити це, ми зробили кілька речей:
+
+1. Ми протестували окрему групу моделей і поспілкувалися з їхніми командами про те, як найкраще їх запускати.
+2. Потім ми попрацювали з кількома провайдерами, щоб переконатися, що ці моделі обслуговуються правильно.
+3. Нарешті, ми протестували комбінації моделей і провайдерів і склали список, який впевнено рекомендуємо.
+
+Aigcfroge Zen — це AI-шлюз, який надає вам доступ до цих моделей.
+
+---
+
+## Як це працює
+
+Aigcfroge Zen працює так само, як будь-який інший провайдер у Aigcfroge.
+
+1. Ви входите до **<a href={console}>Aigcfroge Zen</a>**, додаєте платіжні дані та копіюєте свій API-ключ.
+2. Ви виконуєте команду `/connect` у TUI, обираєте Aigcfroge Zen і вставляєте свій API-ключ.
+3. Виконайте `/models` у TUI, щоб переглянути список моделей, які ми рекомендуємо.
+
+Оплата стягується за кожен запит, і ви можете поповнювати кредити на своєму рахунку.
+
+---
+
+## Ендпоінти
+
+Ви також можете отримувати доступ до наших моделей через наведені нижче ендпоінти API.
+
+| Model                  | Model ID               | Endpoint                                             | AI SDK Package              |
+| ---------------------- | ---------------------- | ---------------------------------------------------- | --------------------------- |
+| GPT 5.5                | gpt-5.5                | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.5 Pro            | gpt-5.5-pro            | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.4                | gpt-5.4                | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.4 Pro            | gpt-5.4-pro            | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.4 Mini           | gpt-5.4-mini           | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.4 Nano           | gpt-5.4-nano           | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.3 Codex          | gpt-5.3-codex          | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.3 Codex Spark    | gpt-5.3-codex-spark    | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.2                | gpt-5.2                | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.2 Codex          | gpt-5.2-codex          | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.1                | gpt-5.1                | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.1 Codex          | gpt-5.1-codex          | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.1 Codex Max      | gpt-5.1-codex-max      | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5.1 Codex Mini     | gpt-5.1-codex-mini     | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5                  | gpt-5                  | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5 Codex            | gpt-5-codex            | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| GPT 5 Nano             | gpt-5-nano             | `https://aigcfroge.ai/zen/v1/responses`               | `@ai-sdk/openai`            |
+| Claude Fable 5         | claude-fable-5         | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Claude Opus 4.8        | claude-opus-4-8        | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Claude Opus 4.7        | claude-opus-4-7        | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Claude Opus 4.6        | claude-opus-4-6        | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Claude Opus 4.5        | claude-opus-4-5        | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Claude Opus 4.1        | claude-opus-4-1        | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Claude Sonnet 4.6      | claude-sonnet-4-6      | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Claude Sonnet 4.5      | claude-sonnet-4-5      | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Claude Sonnet 4        | claude-sonnet-4        | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Claude Haiku 4.5       | claude-haiku-4-5       | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Claude Haiku 3.5       | claude-3-5-haiku       | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Gemini 3.5 Flash       | gemini-3.5-flash       | `https://aigcfroge.ai/zen/v1/models/gemini-3.5-flash` | `@ai-sdk/google`            |
+| Gemini 3.1 Pro         | gemini-3.1-pro         | `https://aigcfroge.ai/zen/v1/models/gemini-3.1-pro`   | `@ai-sdk/google`            |
+| Gemini 3 Flash         | gemini-3-flash         | `https://aigcfroge.ai/zen/v1/models/gemini-3-flash`   | `@ai-sdk/google`            |
+| Qwen3.7 Max            | qwen3.7-max            | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Qwen3.7 Plus           | qwen3.7-plus           | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Qwen3.6 Plus           | qwen3.6-plus           | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| Qwen3.5 Plus           | qwen3.5-plus           | `https://aigcfroge.ai/zen/v1/messages`                | `@ai-sdk/anthropic`         |
+| DeepSeek V4 Pro        | deepseek-v4-pro        | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| DeepSeek V4 Flash      | deepseek-v4-flash      | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| MiniMax M2.7           | minimax-m2.7           | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| MiniMax M2.5           | minimax-m2.5           | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| GLM 5.2                | glm-5.2                | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| GLM 5.1                | glm-5.1                | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| GLM 5                  | glm-5                  | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| Kimi K2.5              | kimi-k2.5              | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| Kimi K2.6              | kimi-k2.6              | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| Grok Build 0.1         | grok-build-0.1         | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| Big Pickle             | big-pickle             | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| MiMo-V2.5 Free         | mimo-v2.5-free         | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| North Mini Code Free   | north-mini-code-free   | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| Nemotron 3 Ultra Free  | nemotron-3-ultra-free  | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+| DeepSeek V4 Flash Free | deepseek-v4-flash-free | `https://aigcfroge.ai/zen/v1/chat/completions`        | `@ai-sdk/openai-compatible` |
+
+Значення [id моделі](/docs/config/#models) у вашій конфігурації Aigcfroge використовує формат `aigcfroge/<model-id>`. Наприклад, для GPT 5.5 ви використаєте `aigcfroge/gpt-5.5` у своїй конфігурації.
+
+---
+
+### Моделі
+
+Повний список доступних моделей та їхні метадані можна отримати з:
+
+```
+https://aigcfroge.ai/zen/v1/models
+```
+
+---
+
+## Ціни
+
+Ми підтримуємо модель оплати за фактичне використання. Нижче наведено ціни **за 1M токенів**.
+
+| Model                             | Input  | Output  | Cached Read | Cached Write |
+| --------------------------------- | ------ | ------- | ----------- | ------------ |
+| Big Pickle                        | Free   | Free    | Free        | -            |
+| DeepSeek V4 Flash Free            | Free   | Free    | Free        | -            |
+| MiMo-V2.5 Free                    | Free   | Free    | Free        | -            |
+| North Mini Code Free              | Free   | Free    | Free        | -            |
+| Nemotron 3 Ultra Free             | Free   | Free    | Free        | -            |
+| MiniMax M2.7                      | $0.30  | $1.20   | $0.06       | $0.375       |
+| MiniMax M2.5                      | $0.30  | $1.20   | $0.06       | $0.375       |
+| GLM 5.2                           | $1.40  | $4.40   | $0.26       | -            |
+| GLM 5.1                           | $1.40  | $4.40   | $0.26       | -            |
+| GLM 5                             | $1.00  | $3.20   | $0.20       | -            |
+| Kimi K2.5                         | $0.60  | $3.00   | $0.10       | -            |
+| Kimi K2.6                         | $0.95  | $4.00   | $0.16       | -            |
+| Qwen3.7 Max                       | $2.50  | $7.50   | $0.50       | $3.125       |
+| Qwen3.7 Plus                      | $0.40  | $1.60   | $0.04       | $0.50        |
+| Qwen3.6 Plus                      | $0.50  | $3.00   | $0.05       | $0.625       |
+| Qwen3.5 Plus                      | $0.20  | $1.20   | $0.02       | $0.25        |
+| DeepSeek V4 Pro                   | $1.74  | $3.48   | $0.145      | -            |
+| DeepSeek V4 Flash                 | $0.14  | $0.28   | $0.028      | -            |
+| Grok Build 0.1                    | $1.00  | $2.00   | $0.20       | -            |
+| Claude Fable 5                    | $10.00 | $50.00  | $1.00       | $12.50       |
+| Claude Opus 4.8                   | $5.00  | $25.00  | $0.50       | $6.25        |
+| Claude Opus 4.7                   | $5.00  | $25.00  | $0.50       | $6.25        |
+| Claude Opus 4.6                   | $5.00  | $25.00  | $0.50       | $6.25        |
+| Claude Opus 4.5                   | $5.00  | $25.00  | $0.50       | $6.25        |
+| Claude Opus 4.1                   | $15.00 | $75.00  | $1.50       | $18.75       |
+| Claude Sonnet 4.6                 | $3.00  | $15.00  | $0.30       | $3.75        |
+| Claude Sonnet 4.5 (≤ 200K tokens) | $3.00  | $15.00  | $0.30       | $3.75        |
+| Claude Sonnet 4.5 (> 200K tokens) | $6.00  | $22.50  | $0.60       | $7.50        |
+| Claude Sonnet 4 (≤ 200K tokens)   | $3.00  | $15.00  | $0.30       | $3.75        |
+| Claude Sonnet 4 (> 200K tokens)   | $6.00  | $22.50  | $0.60       | $7.50        |
+| Claude Haiku 4.5                  | $1.00  | $5.00   | $0.10       | $1.25        |
+| Gemini 3.5 Flash                  | $1.50  | $9.00   | $0.15       | -            |
+| Gemini 3.1 Pro (≤ 200K tokens)    | $2.00  | $12.00  | $0.20       | -            |
+| Gemini 3.1 Pro (> 200K tokens)    | $4.00  | $18.00  | $0.40       | -            |
+| Gemini 3 Flash                    | $0.50  | $3.00   | $0.05       | -            |
+| GPT 5.5 (≤ 272K tokens)           | $5.00  | $30.00  | $0.50       | -            |
+| GPT 5.5 (> 272K tokens)           | $10.00 | $45.00  | $1.00       | -            |
+| GPT 5.5 Pro                       | $30.00 | $180.00 | $30.00      | -            |
+| GPT 5.4 (≤ 272K tokens)           | $2.50  | $15.00  | $0.25       | -            |
+| GPT 5.4 (> 272K tokens)           | $5.00  | $22.50  | $0.50       | -            |
+| GPT 5.4 Pro                       | $30.00 | $180.00 | $30.00      | -            |
+| GPT 5.4 Mini                      | $0.75  | $4.50   | $0.075      | -            |
+| GPT 5.4 Nano                      | $0.20  | $1.25   | $0.02       | -            |
+| GPT 5.3 Codex Spark               | $1.75  | $14.00  | $0.175      | -            |
+| GPT 5.3 Codex                     | $1.75  | $14.00  | $0.175      | -            |
+| GPT 5.2                           | $1.75  | $14.00  | $0.175      | -            |
+| GPT 5.2 Codex                     | $1.75  | $14.00  | $0.175      | -            |
+| GPT 5.1                           | $1.07  | $8.50   | $0.107      | -            |
+| GPT 5.1 Codex                     | $1.07  | $8.50   | $0.107      | -            |
+| GPT 5.1 Codex Max                 | $1.25  | $10.00  | $0.125      | -            |
+| GPT 5.1 Codex Mini                | $0.25  | $2.00   | $0.025      | -            |
+| GPT 5                             | $1.07  | $8.50   | $0.107      | -            |
+| GPT 5 Codex                       | $1.07  | $8.50   | $0.107      | -            |
+| GPT 5 Nano                        | $0.05  | $0.40   | $0.005      | -            |
+
+Ви можете помітити _Claude Haiku 3.5_ в історії використання. Це [недорога модель](/docs/config/#models), яка використовується для створення заголовків ваших сесій.
+
+:::note
+Комісії за кредитні картки передаються за собівартістю (4.4% + $0.30 за транзакцію); ми не стягуємо нічого понад це.
+:::
+
+Безкоштовні моделі:
+
+- DeepSeek V4 Flash Free доступна в Aigcfroge протягом обмеженого часу. Команда використовує цей час, щоб збирати відгуки та покращувати модель.
+- MiMo-V2.5 Free доступна в Aigcfroge протягом обмеженого часу. Команда використовує цей час, щоб збирати відгуки та покращувати модель.
+- North Mini Code Free доступна в Aigcfroge протягом обмеженого часу. Команда використовує цей час, щоб збирати відгуки та покращувати модель.
+- Nemotron 3 Ultra Free доступна в Aigcfroge протягом обмеженого часу. Команда використовує цей час, щоб збирати відгуки та покращувати модель.
+- Big Pickle — це stealth-модель, яка безкоштовна в Aigcfroge протягом обмеженого часу. Команда використовує цей час, щоб збирати відгуки та покращувати модель.
+
+Якщо у вас виникли запитання, <a href={email}>зв'яжіться з нами</a>.
+
+---
+
+### Автопоповнення
+
+Якщо ваш баланс опускається нижче $5, Zen автоматично поповнить рахунок на $20.
+
+Ви можете змінити суму автопоповнення. Також ви можете повністю вимкнути автопоповнення.
+
+---
+
+### Місячні ліміти
+
+Ви також можете встановити місячний ліміт використання для всього робочого простору та для кожного учасника вашої команди.
+
+Наприклад, припустимо, ви встановили місячний ліміт використання $20. Zen не витратить більше $20 на місяць. Але якщо автопоповнення увімкнено, Zen може стягнути з вас понад $20, якщо ваш баланс опуститься нижче $5.
+
+---
+
+### Застарілі моделі
+
+| Model              | Deprecation date |
+| ------------------ | ---------------- |
+| GPT 5.2 Codex      | July 23, 2026    |
+| GPT 5.1 Codex      | July 23, 2026    |
+| GPT 5.1 Codex Max  | July 23, 2026    |
+| GPT 5.1 Codex Mini | July 23, 2026    |
+| GPT 5 Codex        | July 23, 2026    |
+| Claude Sonnet 4    | June 15, 2026    |
+| GLM 5              | May 14, 2026     |
+| MiniMax M2.1       | March 15, 2026   |
+| GLM 4.7            | March 15, 2026   |
+| GLM 4.6            | March 15, 2026   |
+| Gemini 3 Pro       | March 9, 2026    |
+| Kimi K2 Thinking   | March 6, 2026    |
+| Kimi K2            | March 6, 2026    |
+| Claude Haiku 3.5   | Feb 16, 2026     |
+| Qwen3 Coder 480B   | Feb 6, 2026      |
+
+---
+
+## Конфіденційність
+
+Усі наші моделі розміщуються в США. Наші провайдери дотримуються політики нульового зберігання даних і не використовують ваші дані для навчання моделей, за такими винятками:
+
+- Big Pickle: протягом безкоштовного періоду зібрані дані можуть використовуватися для покращення моделі.
+- DeepSeek V4 Flash Free: протягом безкоштовного періоду зібрані дані можуть використовуватися для покращення моделі.
+- MiMo-V2.5 Free: протягом безкоштовного періоду зібрані дані можуть використовуватися для покращення моделі.
+- North Mini Code Free: протягом безкоштовного періоду зібрані дані можуть зберігатися та використовуватися для покращення моделі. Не надсилайте особисті чи конфіденційні дані. Див. наші [Умови використання](https://cohere.com/terms-of-use) та [Політику конфіденційності](https://cohere.com/privacy).
+- Nemotron 3 Ultra Free (безкоштовні ендпоінти NVIDIA): лише пробне використання — не надсилайте особисті чи конфіденційні дані. Ваше використання журналюється з метою безпеки та для покращення продуктів і послуг NVIDIA. Записані дані сесій, що використовуються для покращення, не пов'язуються з вашою особою чи будь-яким постійним ідентифікатором. Додаткову інформацію про наші практики обробки даних див. у нашій [Політиці конфіденційності](https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf). Взаємодіючи з цим ендпоінтом, ви надаєте згоду на збір, запис і використання такої інформації та на [Пробні умови надання послуг NVIDIA API](https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf).
+- OpenAI APIs: запити зберігаються протягом 30 днів відповідно до [Політик обробки даних OpenAI](https://platform.openai.com/docs/guides/your-data).
+- Anthropic APIs: запити зберігаються протягом 30 днів відповідно до [Політик обробки даних Anthropic](https://docs.anthropic.com/en/docs/claude-code/data-usage).
+
+---
+
+## Для команд
+
+Zen також чудово працює для команд. Ви можете запрошувати колег, призначати ролі, підбирати моделі, які використовує ваша команда, і багато іншого.
+
+:::note
+Наразі робочі простори безкоштовні для команд у рамках бета-версії.
+:::
+
+Керування робочим простором наразі безкоштовне для команд у рамках бета-версії. Незабаром ми поділимося більш детальною інформацією про ціни.
+
+---
+
+### Ролі
+
+Ви можете запрошувати колег у свій робочий простір і призначати ролі:
+
+- **Адміністратор**: керує моделями, учасниками, API-ключами та оплатою
+- **Учасник**: керує лише власними API-ключами
+
+Адміністратори також можуть встановлювати місячні ліміти витрат для кожного учасника, щоб тримати витрати під контролем.
+
+---
+
+### Доступ до моделей
+
+Адміністратори можуть вмикати або вимикати окремі моделі для робочого простору. Запити до вимкненої моделі повертатимуть помилку.
+
+Це корисно у випадках, коли ви хочете вимкнути використання моделі, яка збирає дані.
+
+---
+
+### Власний ключ
+
+Ви можете використовувати власні API-ключі OpenAI або Anthropic, водночас маючи доступ до інших моделей у Zen.
+
+Коли ви використовуєте власні ключі, токени оплачуються безпосередньо провайдером, а не Zen.
+
+Наприклад, ваша організація вже може мати ключ для OpenAI або Anthropic, і ви хочете використовувати його замість того, що надає Zen.
+
+---
+
+## Цілі
+
+Ми створили Aigcfroge Zen, щоб:
+
+1. **Бенчмаркати** найкращі моделі та провайдерів для агентів програмування.
+2. Мати доступ до варіантів **найвищої якості**, не знижувати продуктивність і не перемикатися на дешевших провайдерів.
+3. Передавати вам будь-які **зниження цін**, продаючи за собівартістю; тож єдина націнка покриває наші комісії за обробку.
+4. Не **прив'язувати** вас до себе, дозволяючи використовувати його з будь-яким іншим агентом програмування. І завжди дозволяти вам використовувати будь-який інший провайдер разом з Aigcfroge.

@@ -25,6 +25,7 @@ export type { ProjectAvatarVariant }
 const AVATAR_COLOR_KEYS = ["pink", "mint", "orange", "purple", "cyan", "lime"] as const
 const DEFAULT_SIDEBAR_WIDTH = 344
 const DEFAULT_FILE_TREE_WIDTH = 200
+const DEFAULT_WORK_PANEL_WIDTH = 320
 const DEFAULT_SESSION_WIDTH = 600
 const DEFAULT_TERMINAL_HEIGHT = 280
 export type AvatarColorKey = (typeof AVATAR_COLOR_KEYS)[number]
@@ -62,7 +63,6 @@ type SessionView = {
   reviewOpen?: string[]
   pendingMessage?: string
   pendingMessageAt?: number
-  todoCollapsed?: boolean
 }
 
 type TabHandoff = {
@@ -278,6 +278,9 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
           opened: false,
           width: DEFAULT_FILE_TREE_WIDTH,
           tab: "changes" as "changes" | "all",
+        },
+        workPanel: {
+          width: DEFAULT_WORK_PANEL_WIDTH,
         },
         session: {
           width: DEFAULT_SESSION_WIDTH,
@@ -692,6 +695,16 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
           setStore("fileTree", "width", width)
         },
       },
+      workPanel: {
+        width: createMemo(() => store.workPanel?.width ?? DEFAULT_WORK_PANEL_WIDTH),
+        resize(width: number) {
+          if (!store.workPanel) {
+            setStore("workPanel", { width })
+            return
+          }
+          setStore("workPanel", "width", width)
+        },
+      },
       session: {
         width: createMemo(() => store.session?.width ?? DEFAULT_SESSION_WIDTH),
         resize(width: number) {
@@ -793,18 +806,6 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
           },
           setScroll(tab: string, pos: SessionScroll) {
             scroll.setScroll(key(), tab, pos)
-          },
-          todoCollapsed: {
-            get: () => s().todoCollapsed ?? false,
-            set(collapsed: boolean) {
-              const session = key()
-              const current = store.sessionView[session]
-              if (!current) {
-                setStore("sessionView", session, { scroll: {}, todoCollapsed: collapsed })
-              } else {
-                setStore("sessionView", session, "todoCollapsed", collapsed)
-              }
-            },
           },
           terminal: {
             opened: terminalOpened,

@@ -1,4 +1,4 @@
-import { batch, createEffect, createMemo, createRoot, createSignal, For, onCleanup, Show, startTransition } from "solid-js"
+import { createEffect, createMemo, createResource, createRoot, createSignal, For, onCleanup, Show, startTransition } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useChatFeature } from "@/context/chat-feature"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
@@ -6,37 +6,38 @@ import { useLanguage } from "@/context/language"
 import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
 import { useServer, ServerConnection } from "@/context/server"
+import { type DirectorySDK } from "@/context/sdk"
 import { useChatDirectory, useModeWorkspaceAssets, useCodingSelection } from "@/pages/mode-workspace-context"
 import { AssetWorkbench } from "@/components/chat/asset-workbench"
 import { AssetSessionSelector } from "@/components/chat/asset-session-selector"
 import { ChatImportDialog, serializeImport, wrapImportContent } from "@/components/chat/chat-import-dialog"
 import { AssetDeleteDialog } from "@/components/chat/asset-delete-dialog"
 import { modeDraft, useMode } from "@/context/mode"
-import { openProjectNewSession, projectForSession, sortedRootSessions, displayName, type HomeProjectSelection, closeHomeProject, toggleHomeProjectSelection, homeProjectDirectories } from "@/pages/layout/helpers"
-import { useServerSync, type ServerSync } from "@/context/server-sync"
+import { openProjectNewSession, projectForSession, closeHomeProject, homeProjectDirectories, filterSessionsByMode } from "@/pages/layout/helpers"
+import { useServerSync } from "@/context/server-sync"
 import { useLayout, type LocalProject } from "@/context/layout"
 import { useQuery } from "@tanstack/solid-query"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { pathKey } from "@/utils/path-key"
-import { useNavigate } from "@solidjs/router"
-import { sessionTitle } from "@/utils/session-title"
-import { SessionTabAvatar } from "@/pages/layout/session-tab-avatar"
-import { Spinner } from "@aigcfroge/ui/spinner"
 import { useDirectoryPicker } from "@/components/directory-picker"
-import { HomeProjectColumn, HOME_SESSION_LIMIT, HOME_ROW, HOME_SESSION_SEARCH_RESULTS_ID, HOME_SEARCH_RESULT_ROW,
-  HOME_SEARCH_RESULT_TITLE, HOME_SEARCH_RESULT_META, HOME_SECTION_LABEL,
-  HomeSessionSearch, HomeSessionRow, HomeSessionGroupHeader, HomeSessionSkeleton,
-  HomeSessionRecord, HomeSessionGroup, buildHomeSessionRecords, groupSessions, matchesHomeSessionSearch,
+import { HomeProjectColumn, HOME_SESSION_LIMIT, HomeSessionSearch, HomeSessionRow, HomeSessionGroupHeader, HomeSessionSkeleton,
+  buildHomeSessionRecords, groupSessions, matchesHomeSessionSearch,
 } from "@/pages/home"
 import { useNotification } from "@/context/notification"
 import { useMarked } from "@aigcfroge/ui/context/marked"
 import { preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"
-import { makeEventListener } from "@solid-primitives/event-listener"
-import { DateTime } from "luxon"
+import { Icon } from "@aigcfroge/ui/v2/icon"
+import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
+import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
+import { getFilename } from "@aigcfroge/core/util/path"
+import { WorkPreset } from "@aigcfroge/schema/work-preset"
+import type { Session, WorkflowAssetSummary } from "@aigcfroge/sdk/v2/client"
+import { assetVersion } from "@/components/chat/prompt-asset-store"
+import { buildWorkPresetCatalog } from "@/pages/work-preset-catalog"
+import { presetLaunch, workflowLaunch } from "@/pages/work-preset-launch"
 
 /** Coding 左侧栏：项目列 + 服务器管理（复用 HomeProjectColumn，hooks 对齐旧 Home 组件） */
 export function CodingProjectColumnSidebar() {
-  const sync = useServerSync()
   const layout = useLayout()
   const mode = useMode()
   const dialog = useDialog()
@@ -156,17 +157,13 @@ export function CodingSessionListMain() {
   const sync = useServerSync()
   const layout = useLayout()
   const mode = useMode()
-  const dialog = useDialog()
-  const navigate = useNavigate()
   const server = useServer()
   const language = useLanguage()
   const global = useGlobal()
   const tabs = useTabs()
-  const notification = useNotification()
   const marked = useMarked()
   const codingSel = useCodingSelection()
 
-  let focusSessionSearch: (() => void) | undefined
   const [state, setState] = createStore({
     search: "",
     searchFocused: false,
@@ -225,12 +222,7 @@ export function CodingSessionListMain() {
     const current = mode.currentMode
     const all = allRecords()
     if (!all) return []
-    return all
-      .filter((r) => {
-        if (r.session.mode === undefined) return current === "coding"
-        return r.session.mode === current
-      })
-      .slice(0, HOME_SESSION_LIMIT)
+    return filterSessionsByMode(all, current).slice(0, HOME_SESSION_LIMIT)
   })
 
   const searchResults = createMemo(() => {
@@ -239,12 +231,7 @@ export function CodingSessionListMain() {
     const current = mode.currentMode
     const all = allRecords()
     if (!all) return []
-    return all
-      .filter((r) => {
-        if (r.session.mode === undefined) return current === "coding"
-        return r.session.mode === current
-      })
-      .filter((record) => matchesHomeSessionSearch(record, query))
+    return filterSessionsByMode(all, current).filter((record) => matchesHomeSessionSearch(record, query))
   })
 
   const searchOpen = createMemo(() => state.searchFocused && search().length > 0)
@@ -364,7 +351,7 @@ export function CodingSessionListMain() {
         server={codingSel.selection.server}
         activeServer={codingSel.selection.server === server.key}
         noResultsLabel={language.t("home.sessions.search.noResults", { query: search() })}
-        bindFocus={(focus) => { focusSessionSearch = focus }}
+        bindFocus={() => {}}
         onInput={(value) => setState("search", value)}
         onFocus={() => setState("searchFocused", true)}
         onClose={closeSearch}
@@ -426,7 +413,7 @@ export function ChatAssetWorkbenchMain() {
   const global = useGlobal()
   const tabs = useTabs()
   const server = useServer()
-  const { ctx: chatCtx, directory: chatDirectory } = useChatDirectory()
+  const { directory: chatDirectory } = useChatDirectory()
 
   const conn = createMemo(() => server.current ?? global.servers.list()[0])
   const chatDir = () => chatDirectory() ?? ""
@@ -521,11 +508,311 @@ export function ChatAssetWorkbenchMain() {
 }
 
 /** Work 主区占位 */
-export function PlaceholderMain(props: { mode: string }) {
+export function PlaceholderMain(_props: { mode: string }) {
   const language = useLanguage()
   return (
     <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-v2-text-text-muted text-13-regular">
       <span>{language.t("sidebar.secondary.noResults")}</span>
     </div>
+  )
+}
+
+/** Work 侧栏：项目 Location 选择器 + 新建会话 */
+export function WorkProjectColumnSidebar() {
+  const language = useLanguage()
+  const global = useGlobal()
+  const tabs = useTabs()
+  const pickDirectory = useDirectoryPicker()
+  const { conn, ctx, directory } = useChatDirectory()
+
+  function newSession() {
+    const c = conn()
+    const currentCtx = ctx()
+    const dir = directory()
+    if (!c || !currentCtx || !dir) return
+    openProjectNewSession(
+      currentCtx.projects,
+      (serverKey, draftDirectory) =>
+        tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft("work") }),
+      ServerConnection.key(c),
+      dir,
+    )
+  }
+
+  function addProject() {
+    const c = conn()
+    const currentCtx = ctx()
+    if (!c || !currentCtx) return
+    pickDirectory({
+      server: c,
+      title: language.t("command.project.open"),
+      multiple: true,
+      onSelect: (result) => {
+        const dirs = homeProjectDirectories(result)
+        if (!dirs[0]) return
+        dirs.forEach((dir) => currentCtx.projects.open(dir))
+        currentCtx.projects.touch(dirs[0])
+        global.lastSession.set(currentCtx.sdk.scope, dirs[0])
+      },
+    })
+  }
+
+  return (
+    <div class="flex min-h-0 shrink-0 flex-col">
+      <div class="flex items-center gap-1.5 border-b border-v2-border-border-base px-3 pb-3 pt-3">
+        <Icon name="mode-work" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+        <span class="shrink-0 text-v2-text-text-muted text-11-regular">{language.t("chat.feature.project")}</span>
+        <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-11-regular">
+          {directory() ? getFilename(directory()) || directory() : language.t("work.preset.noLocation")}
+        </span>
+        <IconButtonV2
+          variant="ghost-muted"
+          size="small"
+          icon={<Icon name="folder-add-left" />}
+          aria-label={language.t("sidebar.secondary.addProject")}
+          onClick={addProject}
+        />
+      </div>
+      <div class="px-3 pb-2 pt-3">
+        <ButtonV2
+          variant="neutral"
+          size="normal"
+          icon="edit"
+          class="w-full"
+          disabled={!directory()}
+          onClick={newSession}
+        >
+          {language.t("command.session.new")}
+        </ButtonV2>
+      </div>
+    </div>
+  )
+}
+
+/** Work 主区：继续工作 + 官方预设 + 你的工作流资产（M1 §3.5 三区块） */
+export function WorkPresetCatalogMain() {
+  const language = useLanguage()
+  const tabs = useTabs()
+  const layout = useLayout()
+  const sync = useServerSync()
+  const global = useGlobal()
+  const server = useServer()
+  const { conn, ctx, directory } = useChatDirectory()
+  const { categories } = buildWorkPresetCatalog()
+
+  // ---- ① 继续工作：mode=work 会话历史（D5，复用 home 会话管道 + filterSessionsByMode） ----
+  const projects = createMemo(() => ctx()?.projects.list() ?? layout.projects.list())
+  const projectByID = createMemo(
+    () => new Map(projects().flatMap((project) => (project.id ? [[project.id, project] as const] : []))),
+  )
+  const projectDirectories = createMemo(() => {
+    const dir = directory()
+    return dir ? [dir] : []
+  })
+  const sessionLoad = useQuery(() => ({
+    queryKey: ["home", "work-sessions", ...projectDirectories()] as const,
+    queryFn: async () => {
+      await Promise.all(
+        projectDirectories().map((d) => sync().project.loadSessions(d, { limit: HOME_SESSION_LIMIT })),
+      )
+      return null
+    },
+  }))
+  const workRecords = createMemo(() => {
+    const records = buildHomeSessionRecords({ sync: sync(), projectDirectories, projects, projectByID })
+    return filterSessionsByMode(records, "work").slice(0, HOME_SESSION_LIMIT)
+  })
+  const workGroups = createMemo(() => groupSessions(workRecords(), language))
+  const activeConnKey = createMemo(() => {
+    const c = conn()
+    return c ? ServerConnection.key(c) : server.key
+  })
+
+  function openWorkSession(session: Session) {
+    const c = conn()
+    const currentCtx = ctx()
+    if (!c || !currentCtx) return
+    const project = projectForSession(session, projects(), projectByID())
+    const directory = project?.worktree ?? session.directory
+    global.sessionPlacement.set({
+      server: ServerConnection.key(c),
+      leafID: session.id,
+      rootID: session.id,
+      directory: session.directory,
+    })
+    currentCtx.projects.open(directory)
+    currentCtx.projects.touch(directory)
+    void startTransition(() => {
+      const tab = tabs.addSessionTab({ server: ServerConnection.key(c), sessionId: session.id })
+      tabs.select(tab)
+    })
+  }
+
+  // ---- ③ 你的工作流资产：Chat workflow 资产（D3，引导降级） ----
+  const [dirSdk, setDirSdk] = createSignal<DirectorySDK | undefined>()
+  createEffect(() => {
+    const dir = directory()
+    const currentCtx = ctx()
+    if (!dir || !currentCtx) {
+      setDirSdk(undefined)
+      return
+    }
+    setDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
+  })
+  const [workflowAssets] = createResource(
+    () => ({ sdk: dirSdk(), version: assetVersion() }),
+    async (source) => {
+      if (!source.sdk) return []
+      const res = await source.sdk.client.workflowAsset.list()
+      return res.data?.assets ?? []
+    },
+  )
+
+  function startWorkflow(asset: WorkflowAssetSummary) {
+    const c = conn()
+    const currentCtx = ctx()
+    const dir = directory()
+    const sdk = dirSdk()
+    if (!c || !currentCtx || !dir || !sdk) return
+    // content 失败时降级为 name/description 摘要 seed，由 orchestrator 澄清步骤
+    void sdk.client.workflowAsset
+      .content({ path: asset.relativePath })
+      .then((res) =>
+        openProjectNewSession(
+          currentCtx.projects,
+          (serverKey, draftDirectory) =>
+            tabs.newDraft(
+              { server: serverKey, directory: draftDirectory, ...modeDraft("work") },
+              workflowLaunch({ name: asset.name, description: asset.description, steps: res.data?.steps ?? [] }),
+            ),
+          ServerConnection.key(c),
+          dir,
+        ),
+      )
+      .catch((error) => {
+        console.error("[work-home] workflow content load failed", error)
+        openProjectNewSession(
+          currentCtx.projects,
+          (serverKey, draftDirectory) =>
+            tabs.newDraft(
+              { server: serverKey, directory: draftDirectory, ...modeDraft("work") },
+              workflowLaunch({ name: asset.name, description: asset.description, steps: [] }),
+            ),
+          ServerConnection.key(c),
+          dir,
+        )
+      })
+  }
+
+  function startPreset(preset: WorkPreset.Preset) {
+    const c = conn()
+    const currentCtx = ctx()
+    const dir = directory()
+    if (!c || !currentCtx || !dir) return
+    openProjectNewSession(
+      currentCtx.projects,
+      (serverKey, draftDirectory) =>
+        tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft("work") }, presetLaunch(preset)),
+      ServerConnection.key(c),
+      dir,
+    )
+  }
+
+  return (
+    <ScrollView class="min-h-0 flex-1">
+      <div class="flex min-h-0 flex-col gap-6 px-6 py-5">
+        <div class="flex flex-col gap-1">
+          <h1 class="text-v2-text-text-base text-16-medium">{language.t("work.preset.title")}</h1>
+          <p class="text-v2-text-text-muted text-13-regular">{language.t("work.preset.subtitle")}</p>
+        </div>
+
+        {/* ① 继续工作（加载后且有会话时展示；空态隐藏保持首页聚焦预设） */}
+        <Show when={!sessionLoad.isLoading && workGroups().length > 0}>
+          <section class="flex min-w-0 flex-col gap-3">
+            <h2 class="text-v2-text-text-base text-13-medium">{language.t("work.home.continue")}</h2>
+            <div class="flex min-w-0 flex-col gap-px">
+              <For each={workGroups()}>
+                {(group) => (
+                  <div class="flex min-w-0 flex-col gap-2">
+                    <HomeSessionGroupHeader title={group.title} />
+                    <For each={group.sessions}>
+                      {(record) => (
+                        <HomeSessionRow
+                          record={record}
+                          server={activeConnKey()}
+                          activeServer={activeConnKey() === server.key}
+                          onClick={() => openWorkSession(record.session)}
+                        />
+                      )}
+                    </For>
+                  </div>
+                )}
+              </For>
+            </div>
+          </section>
+        </Show>
+
+        {/* ③ 你的工作流资产（仅在有资产时展示） */}
+        <Show when={(workflowAssets() ?? []).length > 0}>
+          <section class="flex min-w-0 flex-col gap-3">
+            <h2 class="text-v2-text-text-base text-13-medium">{language.t("work.asset.title")}</h2>
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <For each={workflowAssets()}>
+                {(asset) => (
+                  <button
+                    type="button"
+                    class="group flex min-w-0 flex-col gap-2 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-4 text-left transition-colors hover:border-v2-border-border-strong hover:bg-v2-background-bg-layer-03 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+                    disabled={!directory()}
+                    onClick={() => startWorkflow(asset)}
+                  >
+                    <span class="text-v2-text-text-base text-13-medium">{asset.name}</span>
+                    <span class="text-v2-text-text-muted text-12-regular">{asset.description}</span>
+                    <span class="text-v2-text-text-faint text-11-regular">{language.t("work.asset.guidedBadge")}</span>
+                  </button>
+                )}
+              </For>
+            </div>
+          </section>
+        </Show>
+
+        {/* ② 开始新任务 · 官方预设 */}
+        <For each={categories}>
+          {(category) => (
+            <section class="flex min-w-0 flex-col gap-3">
+              <h2 class="text-v2-text-text-base text-13-medium">{language.t(category.labelKey)}</h2>
+              <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <For each={category.presets}>
+                  {(preset) => (
+                    <button
+                      type="button"
+                      class="group flex min-w-0 flex-col gap-2 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-4 text-left transition-colors hover:border-v2-border-border-strong hover:bg-v2-background-bg-layer-03 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+                      disabled={!directory()}
+                      onClick={() => startPreset(preset)}
+                    >
+                      <span class="text-v2-text-text-base text-13-medium">{preset.title}</span>
+                      <span class="text-v2-text-text-muted text-12-regular">{preset.description}</span>
+                      <span class="text-v2-text-text-faint text-11-regular">
+                        {language.t("work.preset.questions", { count: preset.questions.length })}
+                      </span>
+                    </button>
+                  )}
+                </For>
+                <For each={category.reserved}>
+                  {(title) => (
+                    <div
+                      aria-disabled="true"
+                      class="flex min-w-0 flex-col gap-2 rounded-lg border border-dashed border-v2-border-border-base bg-v2-background-bg-base p-4 opacity-60"
+                    >
+                      <span class="text-v2-text-text-muted text-13-medium">{title}</span>
+                      <span class="text-v2-text-text-faint text-11-regular">{language.t("work.preset.comingSoon")}</span>
+                    </div>
+                  )}
+                </For>
+              </div>
+            </section>
+          )}
+        </For>
+      </div>
+    </ScrollView>
   )
 }

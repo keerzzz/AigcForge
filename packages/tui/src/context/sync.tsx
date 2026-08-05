@@ -5,7 +5,7 @@ import type {
   Session,
   Part,
   Config,
-  Todo,
+  SessionTaskInfo,
   Command,
   PermissionRequest,
   QuestionRequest,
@@ -85,8 +85,8 @@ export const {
       session_diff: {
         [sessionID: string]: SnapshotFileDiff[]
       }
-      todo: {
-        [sessionID: string]: Todo[]
+      task: {
+        [sessionID: string]: SessionTaskInfo[]
       }
       message: {
         [sessionID: string]: Message[]
@@ -125,7 +125,7 @@ export const {
       session: [],
       session_status: {},
       session_diff: {},
-      todo: {},
+      task: {},
       message: {},
       part: {},
       lsp: [],
@@ -245,8 +245,8 @@ export const {
           break
         }
 
-        case "todo.updated":
-          setStore("todo", event.properties.sessionID, event.properties.todos)
+        case "task.updated":
+          setStore("task", event.properties.sessionID, event.properties.tasks)
           break
 
         case "session.diff":
@@ -582,10 +582,10 @@ export const {
           const tracker = { messages: new Set<string>(), parts: new Set<string>() }
           hydratingSessions.set(sessionID, tracker)
           const task = (async () => {
-            const [session, messages, todo, diff] = await Promise.all([
+            const [session, messages, task, diff] = await Promise.all([
               sdk.client.session.get({ sessionID }, { throwOnError: true }),
               sdk.client.session.messages({ sessionID, limit: 100 }),
-              sdk.client.session.todo({ sessionID }),
+              sdk.client.session.task.get({ sessionID }),
               sdk.client.session.diff({ sessionID }),
             ])
             setStore(
@@ -593,7 +593,7 @@ export const {
                 const match = search(draft.session, sessionID, (s) => s.id)
                 if (match.found) draft.session[match.index] = session.data
                 if (!match.found) draft.session.splice(match.index, 0, session.data)
-                draft.todo[sessionID] = todo.data ?? []
+                draft.task[sessionID] = task.data ?? []
                 const currentMessages = draft.message[sessionID] ?? []
                 const infos = (messages.data ?? []).flatMap((message) => {
                   if (!tracker.messages.has(message.info.id)) return [message.info]

@@ -13,6 +13,7 @@ import type {
   QuestionRequest,
   Session,
   SessionStatus,
+  SessionTaskInfo,
   TextPart,
   Config as SdkConfig,
 } from "@aigcfroge/sdk/v2"
@@ -387,7 +388,12 @@ export type TuiState = {
     count: () => number
     get: (sessionID: string) => Session | undefined
     diff: (sessionID: string) => ReadonlyArray<TuiSidebarFileItem>
+    /**
+     * @deprecated Legacy Todo projection for third-party TUI plugins. Use
+     * `state.session.task` instead; removed in Phase 5 (V1 retirement).
+     */
     todo: (sessionID: string) => ReadonlyArray<TuiSidebarTodoItem>
+    task?: (sessionID: string) => ReadonlyArray<SessionTaskInfo>
     messages: (sessionID: string) => ReadonlyArray<Message>
     status: (sessionID: string) => SessionStatus | undefined
     permission: (sessionID: string) => ReadonlyArray<PermissionRequest>
