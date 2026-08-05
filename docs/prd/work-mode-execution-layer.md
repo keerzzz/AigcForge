@@ -294,4 +294,3 @@ Beta Gate 目标如下：
 2. `ARCHITECTURE.md:261` 决策表补 ADR-13 Amendment-1；
 3. `ARCHITECTURE.md §4.10:210` Decisions 补引 ADR-15。
 此同步提交与本 PRD 批准、`docs/architecture/pages/work.md` 更新、Todo/Task 升级计划一并提交，确保仓库可追溯本次批准。
-
