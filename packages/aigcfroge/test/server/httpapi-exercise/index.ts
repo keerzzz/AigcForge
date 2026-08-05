@@ -1601,6 +1601,215 @@ const scenarios: Scenario[] = [
       check(stable(body) === stable(ctx.state.todos), "todos should match seeded state")
     }),
   http.protected
+    .get("/session/{sessionID}/task", "session.task.get")
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const session = yield* ctx.session({ title: "Task list session" })
+        const tasks = yield* ctx.tasks(session.id, [{ content: "listed", status: "in_progress", priority: "high" }])
+        return { session, tasks }
+      }),
+    )
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/task", { sessionID: ctx.state.session.id }),
+      headers: ctx.headers(),
+    }))
+    .json(200, (body, ctx) => {
+      array(body)
+      check(
+        body.some(
+          (task) =>
+            isRecord(task) &&
+            task.id === ctx.state.tasks[0].id &&
+            task.content === "listed" &&
+            task.status === "in_progress",
+        ),
+        "task list should include the seeded task",
+      )
+    }),
+  http.protected
+    .patch("/session/{sessionID}/task", "session.task.update")
+    .mutating()
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const session = yield* ctx.session({ title: "Task reconcile session" })
+        const tasks = yield* ctx.tasks(session.id, [
+          { content: "keep", status: "pending", priority: "low" },
+          { content: "drop", status: "pending", priority: "low" },
+        ])
+        return { session, tasks }
+      }),
+    )
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/task", { sessionID: ctx.state.session.id }),
+      headers: ctx.headers(),
+      // Full-list reconcile over WriteInfo: the kept task flips status in place,
+      // the id-less entry is minted a fresh tsk_ id, and the omitted seeded task
+      // is removed.
+      body: [
+        { id: ctx.state.tasks[0].id, content: "keep", status: "completed", priority: "low" },
+        { content: "fresh", status: "in_progress", priority: "high" },
+      ],
+    }))
+    .json(
+      200,
+      (body, ctx) => {
+        array(body)
+        check(body.length === 2, "reconcile should return the kept and fresh tasks")
+        check(
+          body.some((task) => isRecord(task) && task.id === ctx.state.tasks[0].id && task.status === "completed"),
+          "reconcile should update the kept task in place",
+        )
+        check(
+          body.every((task) => isRecord(task) && task.id !== ctx.state.tasks[1].id),
+          "reconcile should remove the omitted task",
+        )
+        check(
+          body.some((task) => isRecord(task) && task.content === "fresh" && task.sessionID === ctx.state.session.id),
+          "reconcile should mint the fresh task under the path session",
+        )
+      },
+      "status",
+    ),
+  http.protected
+    .post("/session/{sessionID}/task", "session.task.create")
+    .mutating()
+    .seeded((ctx) => ctx.session({ title: "Task create session" }))
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/task", { sessionID: ctx.state.id }),
+      headers: ctx.headers(),
+      body: { content: "created via route", status: "pending", priority: "medium" },
+    }))
+    .json(
+      200,
+      (body, ctx) => {
+        object(body)
+        check(typeof body.id === "string" && body.id.startsWith("tsk_"), "create should mint a tsk_ id")
+        check(body.sessionID === ctx.state.id, "created task should belong to the seeded session")
+        check(body.content === "created via route", "created task should preserve content")
+        check(body.status === "pending", "created task should preserve status")
+      },
+      "status",
+    ),
+  http.protected
+    .patch("/session/{sessionID}/task/{taskID}", "session.task.patch")
+    .mutating()
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const session = yield* ctx.session({ title: "Task patch session" })
+        const tasks = yield* ctx.tasks(session.id, [
+          { content: "one", status: "pending", priority: "medium" },
+          { content: "two", status: "pending", priority: "medium" },
+        ])
+        return { session, tasks }
+      }),
+    )
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/task/{taskID}", {
+        sessionID: ctx.state.session.id,
+        taskID: ctx.state.tasks[0].id,
+      }),
+      headers: ctx.headers(),
+      // The single-task payload only accepts { status }; outputDigest is written
+      // by internal settle paths and deliberately absent from the public API.
+      body: { status: "completed" },
+    }))
+    .json(
+      200,
+      (body, ctx) => {
+        object(body)
+        check(body.id === ctx.state.tasks[0].id, "patch should return the targeted task")
+        check(body.status === "completed", "patch should apply the new status")
+      },
+      "status",
+    ),
+  http.protected
+    .delete("/session/{sessionID}/task/{taskID}", "session.task.delete")
+    .mutating()
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const session = yield* ctx.session({ title: "Task delete session" })
+        const tasks = yield* ctx.tasks(session.id, [
+          { content: "remove me", status: "pending", priority: "medium" },
+          { content: "survivor", status: "pending", priority: "medium" },
+        ])
+        return { session, tasks }
+      }),
+    )
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/task/{taskID}", {
+        sessionID: ctx.state.session.id,
+        taskID: ctx.state.tasks[0].id,
+      }),
+      headers: ctx.headers(),
+    }))
+    .json(
+      200,
+      (body, ctx) => {
+        object(body)
+        check(body.id === ctx.state.tasks[0].id, "delete should return the removed task")
+        check(body.content === "remove me", "delete should preserve the removed task content")
+      },
+      "status",
+    ),
+  http.protected
+    .get("/agent-task", "agent-task.list")
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const session = yield* ctx.session({ title: "Agent task session" })
+        const tasks = yield* ctx.tasks(session.id, [
+          { content: "hub task", status: "in_progress", priority: "high", agentID: "build" },
+        ])
+        return { session, tasks }
+      }),
+    )
+    .at((ctx) => ({ path: "/agent-task", headers: ctx.headers() }))
+    .json(200, (body, ctx) => {
+      array(body)
+      check(
+        body.some(
+          (task) =>
+            isRecord(task) &&
+            task.id === ctx.state.tasks[0].id &&
+            task.sessionID === ctx.state.session.id &&
+            task.agentID === "build",
+        ),
+        "agent task aggregation should include the seeded task with its owner",
+      )
+    }),
+  http.protected
+    .post("/session/{sessionID}/work-artifact/apply", "work-artifact.apply")
+    .mutating()
+    .seeded((ctx) => ctx.session({ title: "Work artifact session" }))
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/work-artifact/apply", { sessionID: ctx.state.id }),
+      headers: ctx.headers(),
+      body: {
+        title: "Drafted artifact",
+        relativePath: "notes/artifact.md",
+        content: "# Artifact\n",
+        overwrite: false,
+      },
+    }))
+    .jsonEffect(
+      200,
+      (body, ctx) =>
+        Effect.gen(function* () {
+          object(body)
+          check(typeof body.id === "string" && body.id.startsWith("art_"), "apply should mint an art_ id")
+          check(body.sessionID === ctx.state.id, "applied artifact should belong to the seeded session")
+          check(body.kind === "document", "applied artifact should keep the document kind")
+          check(body.title === "Drafted artifact", "applied artifact should preserve the title")
+          check(body.mediaType === "text/markdown", "applied artifact should keep the markdown media type")
+          check(body.relativePath === "notes/artifact.md", "applied artifact should keep the location-relative path")
+          check(body.status === "available", "applied artifact should be available after the write")
+          if (!ctx.directory) throw new Error("work artifact apply needs a project directory")
+          const directory = ctx.directory
+          const exists = yield* Effect.promise(() => Bun.file(path.join(directory, "notes/artifact.md")).exists())
+          check(exists, "work artifact apply should persist the file")
+        }),
+      "status",
+    ),
+  http.protected
     .get("/session/{sessionID}/diff", "session.diff")
     .seeded((ctx) => ctx.session({ title: "Diff session" }))
     .at((ctx) => ({ path: route("/session/{sessionID}/diff", { sessionID: ctx.state.id }), headers: ctx.headers() }))
