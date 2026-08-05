@@ -134,6 +134,9 @@
     will-change: clip-path;
   }
 
+  /* 14px fixed pulse segment width. The component (session-todo-progress.tsx)
+     deducts halfPulse = 7px from --pulse-from-px and --pulse-to-px so the segment
+     center aligns with node centers. */
   [data-component="session-todo-progress-pulse"] {
     position: absolute;
     top: 16px;

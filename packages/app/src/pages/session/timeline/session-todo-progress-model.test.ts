@@ -390,4 +390,18 @@ describe("pct inset (M7 决策 3 两端 8px 内缩)", () => {
     expect(p.nodes[0]?.pct).toBeCloseTo(4, 5)
     expect(p.fillEndPct).toBeCloseTo(4, 5)
   })
+
+  test("lastCompletedPct clamps to first node pct when no nodes are completed but anchor exists", () => {
+    const p = computeTodoProgress(
+      [
+        { content: "a", status: "in_progress" },
+        { content: "b", status: "pending" },
+        { content: "c", status: "pending" },
+      ],
+      { trackWidth: width },
+    )
+    // When no tasks are completed (lastCompleted = -1), lastCompletedPct must clamp
+    // to nodes[0].pct (4%) instead of 0% so the pulse does not scan outside the 8px inset area.
+    expect(p.lastCompletedPct).toBeCloseTo(4, 5)
+  })
 })

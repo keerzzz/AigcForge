@@ -160,15 +160,18 @@ export function SessionTodoProgress(props: {
 
   // Task pulse: a highlight segment shuttling between the last-completed node
   // and the anchor (决策 5), CSS vars + translateX keyframes — no JS frame loop.
+  // 7px (half of the 14px pulse width) is subtracted so the pulse center aligns
+  // with the 10px node center (which has margin-left: -5px).
   const pulseStyle = createMemo<JSX.CSSProperties | undefined>(() => {
     const width = trackWidth()
     if (!width) return undefined
     const p = progress()
     const anchor = p.nodes.find((node) => node.anchor)
     if (!anchor) return undefined
+    const halfPulse = 7
     return {
-      "--pulse-from-px": `${(p.lastCompletedPct / 100) * width}px`,
-      "--pulse-to-px": `${(anchor.pct / 100) * width}px`,
+      "--pulse-from-px": `${(p.lastCompletedPct / 100) * width - halfPulse}px`,
+      "--pulse-to-px": `${(anchor.pct / 100) * width - halfPulse}px`,
     }
   })
 

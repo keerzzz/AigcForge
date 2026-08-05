@@ -156,12 +156,14 @@ export const computeTodoProgress = (
 
   // M7 决策 4 fill endpoint (index semantics, not the ratio): all-complete
   // runs through to 100, otherwise stop at the anchor, else the last completed
-  // node, else 0. lastCompletedPct feeds the task pulse --pulse-from (决策 5).
+  // node, else 0. lastCompletedPct feeds the task pulse --pulse-from (决策 5):
+  // with no completed node but an anchor present it clamps to pct(0) so the
+  // pulse starts at the first node instead of the track edge outside the inset.
   let lastCompleted = -1
   for (let i = 0; i < total; i++) {
     if (todos[i].status === "completed") lastCompleted = i
   }
-  const lastCompletedPct = lastCompleted === -1 ? 0 : pct(lastCompleted)
+  const lastCompletedPct = lastCompleted !== -1 ? pct(lastCompleted) : firstInProgress !== -1 ? pct(0) : 0
 
   let fillEndPct: number
   if (total === 0) {

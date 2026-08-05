@@ -30,6 +30,7 @@ import { applyDirectoryEvent, applyGlobalEvent, cleanupDroppedSessionCaches } fr
 import { clearSessionPrefetchDirectory } from "./global-sync/session-prefetch"
 import { estimateRootSessionTotal, loadRootSessionsWithFallback, mergeModeSessions } from "./global-sync/session-load"
 import { trimSessions } from "./global-sync/session-trim"
+import { sessionTodoStoreValue } from "./global-sync/session-todo"
 import type { ProjectMeta } from "./global-sync/types"
 import { SESSION_RECENT_LIMIT } from "./global-sync/types"
 import { formatServerError } from "@/utils/server-errors"
@@ -230,7 +231,9 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
       )
       return
     }
-    setGlobalStore("session_todo", sessionID, reconcile(todos, { key: "id" }))
+    // Id-less V1 projections take direct replacement so subscribers get a fresh
+    // reference (M7 Bug 1-B); id-bearing lists keep fine-grained reconcile.
+    setGlobalStore("session_todo", sessionID, sessionTodoStoreValue(todos))
     setGlobalStore("session_todo_updated_at", sessionID, Date.now())
   }
 
