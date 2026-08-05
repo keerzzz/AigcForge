@@ -1038,12 +1038,13 @@ describe("session task HttpApi", () => {
           ],
         })
         expect(seeded.every((task) => task.id.startsWith("tsk_"))).toBe(true)
-        const [first] = seeded
+        const first: typeof SessionTask.Info.Type = seeded[0]
 
         // PATCH with one status flipped and the other omitted (removed by reconcile).
         const body = yield* requestJson<SessionTask.Info[]>(pathFor(SessionPaths.task, { sessionID: session.id }), {
           method: "PATCH",
           headers,
+          // oxlint-disable-next-line no-misused-spread -- Schema.Class data carries no prototype members
           body: JSON.stringify([{ ...first, status: "completed" }]),
         })
         expect(body).toHaveLength(1)
@@ -1112,7 +1113,7 @@ describe("session task HttpApi", () => {
         })
         expect(response.status).toBe(400)
         const body = yield* response.json
-        expect(String(JSON.stringify(body))).toContain("invalid recurrence cron")
+        expect(JSON.stringify(body)).toContain("invalid recurrence cron")
       }),
   )
 

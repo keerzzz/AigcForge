@@ -229,8 +229,9 @@ export const sameTodoList = (a: readonly TodoProgressInput[], b: readonly TodoPr
  * timestamp is always the newer — that would lock writeback out permanently.
  * Instead, when both sources agree on content the id-bearing task source wins
  * (writable, and visually identical), and only a genuinely diverging source —
- * a standalone V1 `todo.updated` — wins by recency so the seeded task pull can
- * never freeze the live channel.
+ * a standalone V1 `todo.updated`, including a newer *empty* list — wins by
+ * recency so the seeded task pull can never freeze the live channel nor
+ * resurrect tasks the user already cleared (BLOCKER-2).
  */
 export const pickProgressTodos = (
   task: readonly TodoProgressInput[] | undefined,
@@ -241,7 +242,6 @@ export const pickProgressTodos = (
   const taskEntries = task ?? []
   const todoEntries = todo ?? []
   if (taskEntries.length === 0) return todoEntries
-  if (todoEntries.length === 0) return taskEntries
   if (sameTodoList(taskEntries, todoEntries)) return taskEntries
   const taskTs = taskUpdatedAt ?? -Infinity
   const todoTs = todoUpdatedAt ?? -Infinity

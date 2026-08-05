@@ -103,7 +103,7 @@ export interface Interface {
    */
   readonly update: (input: {
     readonly sessionID: SessionSchema.ID
-    readonly tasks: ReadonlyArray<WriteInfo>
+    readonly tasks: ReadonlyArray<typeof WriteInfo.Type>
   }) => Effect.Effect<ReadonlyArray<Info>, TaskWriteError>
   /**
    * Append new tasks at the end of the session's list in a single transaction.
@@ -113,7 +113,7 @@ export interface Interface {
    */
   readonly append: (input: {
     readonly sessionID: SessionSchema.ID
-    readonly tasks: ReadonlyArray<WriteInfo>
+    readonly tasks: ReadonlyArray<typeof WriteInfo.Type>
   }) => Effect.Effect<ReadonlyArray<Info>, TaskWriteError>
   /**
    * Legacy todowrite bridge: reconcile by position, reusing existing ids so a
@@ -122,7 +122,7 @@ export interface Interface {
    */
   readonly replaceLegacy: (input: {
     readonly sessionID: SessionSchema.ID
-    readonly tasks: ReadonlyArray<WriteInfo>
+    readonly tasks: ReadonlyArray<typeof WriteInfo.Type>
   }) => Effect.Effect<ReadonlyArray<Info>, TaskWriteError>
   /**
    * Target a single task by id and update its status (delegation writeback).
@@ -270,17 +270,21 @@ const hasDeadSchedule = (
   return false
 }
 
+// Process-level single-writer mutex for ALL task mutations (differential-review
+// re-review HIGH-2 / BLOCKER-1): SQLite's deferred transactions do NOT
+// serialize two concurrent appends across sessions, so an in-transaction cycle
+// check alone could let both close a cycle. Module scope keeps one lock shared
+// by every SessionTask instance — HTTP/scheduler (`node`) and the per-Location
+// tool graphs (location-layer.ts builds `SessionTask.layer` under `Layer.fresh`)
+// would otherwise each own a private Semaphore and the serialization guarantee
+// would silently vanish (the plan's scheduler is single-process).
+const writeLock = Semaphore.makeUnsafe(1)
+
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const { db } = yield* Database.Service
     const events = yield* EventV2.Service
-    // Single-writer mutex for all task mutations (differential-review re-review
-    // HIGH-2): SQLite's deferred transactions do NOT serialize two concurrent
-    // appends across sessions, so an in-transaction cycle check alone could let
-    // both close a cycle. Serializing every write makes the check+insert
-    // genuinely atomic (the plan's scheduler is single-process).
-    const writeLock = Semaphore.makeUnsafe(1)
 
     const read = (sessionID: SessionSchema.ID) =>
       db
@@ -304,11 +308,12 @@ export const layer = Layer.effect(
 
     const update = Effect.fn("SessionTask.update")((input: {
       readonly sessionID: SessionSchema.ID
-      readonly tasks: ReadonlyArray<WriteInfo>
+      readonly tasks: ReadonlyArray<typeof WriteInfo.Type>
     }) => writeLock.withPermits(1)(Effect.gen(function* () {
       // Mint ids up front (deterministic) so the event and the transaction agree.
       const planned = input.tasks.map((task, index) => ({
         id: task.id ?? Identifier.ascending("task"),
+        // oxlint-disable-next-line no-misused-spread -- Schema.Class data carries no prototype members
         ...task,
         position: index,
       }))
@@ -496,10 +501,14 @@ export const layer = Layer.effect(
 
     const append = Effect.fn("SessionTask.append")((input: {
       readonly sessionID: SessionSchema.ID
-      readonly tasks: ReadonlyArray<WriteInfo>
+      readonly tasks: ReadonlyArray<typeof WriteInfo.Type>
     }) => writeLock.withPermits(1)(Effect.gen(function* () {
       const now = (yield* DateTime.nowAsDate).getTime()
-      const planned = input.tasks.map((task) => ({ id: task.id ?? Identifier.ascending("task"), ...task }))
+      const planned = input.tasks.map((task) => ({
+        id: task.id ?? Identifier.ascending("task"),
+        // oxlint-disable-next-line no-misused-spread -- Schema.Class data carries no prototype members
+        ...task,
+      }))
       // Dead-job guard (differential-review HIGH-4): reject a recurrence cron
       // that is malformed / has no future run, or a `scheduled` task with no
       // trigger, before any insert. Append has no prior row, so the effective
@@ -603,7 +612,7 @@ export const layer = Layer.effect(
 
     const replaceLegacy = Effect.fn("SessionTask.replaceLegacy")((input: {
       readonly sessionID: SessionSchema.ID
-      readonly tasks: ReadonlyArray<WriteInfo>
+      readonly tasks: ReadonlyArray<typeof WriteInfo.Type>
     }) => writeLock.withPermits(1)(Effect.gen(function* () {
       const now = (yield* DateTime.nowAsDate).getTime()
       const result = yield* db
@@ -726,7 +735,9 @@ export const layer = Layer.effect(
       // digest rides the payload (DB and event payload stay in agreement).
       const full = yield* read(input.sessionID).pipe(Effect.map((rows) => rows.map((item) => toInfo(item, now))))
       yield* publishBoth(input.sessionID, full)
-      return new Info({ ...toInfo(row, now), updatedAt: now })
+      const fresh: typeof Info.Type = toInfo(row, now)
+      // oxlint-disable-next-line no-misused-spread -- Schema.Class data carries no prototype members
+      return new Info({ ...fresh, updatedAt: now })
     })))
 
     const remove = Effect.fn("SessionTask.delete")((sessionID: SessionSchema.ID) =>

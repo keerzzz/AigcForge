@@ -260,6 +260,14 @@ describe("pickProgressTodos (⑦ double-source freshness)", () => {
   test("both sources empty yields an empty list", () => {
     expect(pickProgressTodos(undefined, undefined, undefined, undefined)).toEqual([])
   })
+
+  test("V1 clears the whole todo list: a newer empty todo beats the stale task seed (BLOCKER-2)", () => {
+    expect(pickProgressTodos(seed, 100, [], 200)).toEqual([])
+  })
+
+  test("an older empty todo does not shadow a fresher task seed", () => {
+    expect(pickProgressTodos(seed, 200, [], 100)).toEqual(seed)
+  })
 })
 
 describe("fillEndPct (M7 决策 4 填充终点索引语义)", () => {

@@ -1,6 +1,6 @@
 import { describe, expect } from "bun:test"
 import { asc, eq } from "drizzle-orm"
-import { Effect, Layer, Result, Schema } from "effect"
+import { Context, Effect, Layer, Result, Schema } from "effect"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
 import { Project } from "@aigcfroge/core/project"
@@ -54,7 +54,7 @@ describe("SessionTask", () => {
       yield* Effect.addFinalizer(() => unsubscribe)
 
       // Insert 3 tasks without ids — the service assigns stable tsk_ ids.
-      const resolved = yield* tasks.update({
+      const resolved: readonly typeof SessionTask.Info.Type[] = yield* tasks.update({
         sessionID,
         tasks: [
           { content: "third", status: "pending", priority: "low" },
@@ -73,8 +73,11 @@ describe("SessionTask", () => {
       const after = yield* tasks.update({
         sessionID,
         tasks: [
+          // oxlint-disable-next-line no-misused-spread -- Schema.Class data carries no prototype members
           { ...third, status: "completed" },
+          // oxlint-disable-next-line no-misused-spread -- Schema.Class data carries no prototype members
           { ...first, status: "in_progress" },
+          // oxlint-disable-next-line no-misused-spread -- Schema.Class data carries no prototype members
           { ...second, status: "pending" },
         ],
       })
@@ -888,6 +891,70 @@ describe("SessionTask", () => {
       const bGot = yield* tasks.get(otherSession)
       const aHasB = aGot[0]?.dependsOn?.includes("tsk_app_b") ?? false
       const bHasA = bGot[0]?.dependsOn?.includes("tsk_app_a") ?? false
+      expect(aHasB && bHasA).toBe(false)
+    }),
+  )
+
+  it.effect("two independently-built services still serialize on the process-level write lock (BLOCKER-1)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const tasksA = yield* SessionTask.Service
+      const tasksB = yield* Layer.build(
+        SessionTask.layer.pipe(Layer.provide(EventV2.defaultLayer), Layer.provide(Database.defaultLayer)),
+      ).pipe(Effect.map((ctx) => Context.get(ctx, SessionTask.Service)))
+
+      const otherSession = SessionV2.ID.make("ses_task_blocker1_b")
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: otherSession,
+          project_id: Project.ID.global,
+          slug: "task-blocker1-b",
+          directory: "/project",
+          title: "task blocker1 b",
+          version: "test",
+        })
+        .run()
+        .pipe(Effect.orDie)
+
+      // The two services are distinct instances (HTTP/scheduler `node` vs a
+      // per-Location `Layer.fresh` graph). Each append references the OTHER
+      // instance's planned id: with a per-instance Semaphore both transactions
+      // would run concurrently and both cycle checks could pass (HIGH-2); the
+      // process-level lock serializes them so exactly one may land.
+      const results = yield* Effect.all(
+        [
+          tasksA
+            .append({
+              sessionID,
+              tasks: [
+                { id: "tsk_blk1_a", content: "a", status: "pending", priority: "medium", dependsOn: ["tsk_blk1_b"] },
+              ],
+            })
+            .pipe(Effect.result),
+          tasksB
+            .append({
+              sessionID: otherSession,
+              tasks: [
+                { id: "tsk_blk1_b", content: "b", status: "pending", priority: "medium", dependsOn: ["tsk_blk1_a"] },
+              ],
+            })
+            .pipe(Effect.result),
+        ],
+        { concurrency: "unbounded" },
+      )
+
+      const failures = results.filter(Result.isFailure)
+      expect(failures.length).toBeGreaterThanOrEqual(1)
+      for (const failure of failures) {
+        if (Result.isFailure(failure)) expect(failure.failure.reason).toBe("depends_on_cycle")
+      }
+      // Only one edge may exist server-side (never both).
+      const aGot = yield* tasksA.get(sessionID)
+      const bGot = yield* tasksB.get(otherSession)
+      const aHasB = aGot[0]?.dependsOn?.includes("tsk_blk1_b") ?? false
+      const bHasA = bGot[0]?.dependsOn?.includes("tsk_blk1_a") ?? false
       expect(aHasB && bHasA).toBe(false)
     }),
   )
