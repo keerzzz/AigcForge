@@ -1038,14 +1038,18 @@ describe("session task HttpApi", () => {
           ],
         })
         expect(seeded.every((task) => task.id.startsWith("tsk_"))).toBe(true)
-        const first: typeof SessionTask.Info.Type = seeded[0]
+        const first = seeded[0]
 
         // PATCH with one status flipped and the other omitted (removed by reconcile).
+        // The body is plain JSON — project the WriteInfo fields the endpoint
+        // decodes (id/content/status/priority) explicitly instead of spreading
+        // the decoded Schema.Class instance.
         const body = yield* requestJson<SessionTask.Info[]>(pathFor(SessionPaths.task, { sessionID: session.id }), {
           method: "PATCH",
           headers,
-          // oxlint-disable-next-line no-misused-spread -- Schema.Class data carries no prototype members
-          body: JSON.stringify([{ ...first, status: "completed" }]),
+          body: JSON.stringify([
+            { id: first.id, content: first.content, status: "completed", priority: first.priority },
+          ]),
         })
         expect(body).toHaveLength(1)
         expect(body[0]?.status).toBe("completed")

@@ -207,6 +207,25 @@ const toInfo = (row: TaskRow, now: number): Info => {
   })
 }
 
+/**
+ * Materialize a WriteInfo class instance into a plain planned record with its
+ * (possibly minted) id. Class instances must not be spread (no-misused-spread),
+ * so the write paths project fields explicitly; every optional consumer below
+ * reads with `??`/`?.`, making `undefined` and absent equivalent.
+ */
+const planTask = (task: typeof WriteInfo.Type, id: string) => ({
+  id,
+  content: task.content,
+  status: task.status,
+  priority: task.priority,
+  parentID: task.parentID,
+  agentID: task.agentID,
+  scheduledAt: task.scheduledAt,
+  recurrence: task.recurrence,
+  spawnedFrom: task.spawnedFrom,
+  dependsOn: task.dependsOn,
+})
+
 type CycleNode = { id: string; status: string; dependsOn?: readonly string[] }
 
 /**
@@ -312,9 +331,7 @@ export const layer = Layer.effect(
     }) => writeLock.withPermits(1)(Effect.gen(function* () {
       // Mint ids up front (deterministic) so the event and the transaction agree.
       const planned = input.tasks.map((task, index) => ({
-        id: task.id ?? Identifier.ascending("task"),
-        // oxlint-disable-next-line no-misused-spread -- Schema.Class data carries no prototype members
-        ...task,
+        ...planTask(task, task.id ?? Identifier.ascending("task")),
         position: index,
       }))
       const retained = new Set(planned.map((task) => task.id))
@@ -504,11 +521,7 @@ export const layer = Layer.effect(
       readonly tasks: ReadonlyArray<typeof WriteInfo.Type>
     }) => writeLock.withPermits(1)(Effect.gen(function* () {
       const now = (yield* DateTime.nowAsDate).getTime()
-      const planned = input.tasks.map((task) => ({
-        id: task.id ?? Identifier.ascending("task"),
-        // oxlint-disable-next-line no-misused-spread -- Schema.Class data carries no prototype members
-        ...task,
-      }))
+      const planned = input.tasks.map((task) => planTask(task, task.id ?? Identifier.ascending("task")))
       // Dead-job guard (differential-review HIGH-4): reject a recurrence cron
       // that is malformed / has no future run, or a `scheduled` task with no
       // trigger, before any insert. Append has no prior row, so the effective
@@ -735,9 +748,9 @@ export const layer = Layer.effect(
       // digest rides the payload (DB and event payload stay in agreement).
       const full = yield* read(input.sessionID).pipe(Effect.map((rows) => rows.map((item) => toInfo(item, now))))
       yield* publishBoth(input.sessionID, full)
-      const fresh: typeof Info.Type = toInfo(row, now)
-      // oxlint-disable-next-line no-misused-spread -- Schema.Class data carries no prototype members
-      return new Info({ ...fresh, updatedAt: now })
+      // The row was re-read after the update set time_updated = now, so toInfo
+      // already carries updatedAt = now — no post-hoc override needed.
+      return toInfo(row, now)
     })))
 
     const remove = Effect.fn("SessionTask.delete")((sessionID: SessionSchema.ID) =>
