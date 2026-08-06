@@ -270,6 +270,8 @@ import type {
   SessionTaskGetResponses,
   SessionTaskPatchErrors,
   SessionTaskPatchResponses,
+  SessionTaskReorderErrors,
+  SessionTaskReorderResponses,
   SessionTaskUpdateErrors,
   SessionTaskUpdateResponses,
   SessionTaskWriteInfo,
@@ -301,6 +303,7 @@ import type {
   SyncStartResponses,
   SyncStealErrors,
   SyncStealResponses,
+  TaskPriority,
   TaskStatus,
   TextPartInput,
   ToolIdsErrors,
@@ -4906,9 +4909,9 @@ export class Task extends HeyApiClient {
   }
 
   /**
-   * Patch one task
+   * Update one task
    *
-   * Update a single task's status by id. Unlike the full-list reconcile, no other row is touched and no absent row is deleted.
+   * Update a single task's status, content, and/or priority by id. Pass expectedRevision to reject stale writes. Unlike the full-list reconcile, no other row is touched and no absent row is deleted.
    */
   public patch<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4917,6 +4920,9 @@ export class Task extends HeyApiClient {
       directory?: string
       workspace?: string
       status?: TaskStatus
+      content?: string
+      priority?: TaskPriority
+      expectedRevision?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -4930,12 +4936,56 @@ export class Task extends HeyApiClient {
             { in: "query", key: "directory" },
             { in: "query", key: "workspace" },
             { in: "body", key: "status" },
+            { in: "body", key: "content" },
+            { in: "body", key: "priority" },
+            { in: "body", key: "expectedRevision" },
           ],
         },
       ],
     )
     return (options?.client ?? this.client).patch<SessionTaskPatchResponses, SessionTaskPatchErrors, ThrowOnError>({
       url: "/session/{sessionID}/task/{taskID}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Reorder tasks
+   *
+   * Reorder a session's task list by id. The ids must be a permutation of the current task ids (every task, no omissions, no duplicates). expectedRevision is the max revision the caller observed; if any task changed, the reorder is rejected as stale.
+   */
+  public reorder<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      ids?: Array<string>
+      expectedRevision?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "ids" },
+            { in: "body", key: "expectedRevision" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<SessionTaskReorderResponses, SessionTaskReorderErrors, ThrowOnError>({
+      url: "/session/{sessionID}/task/reorder",
       ...options,
       ...params,
       headers: {
