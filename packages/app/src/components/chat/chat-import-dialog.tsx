@@ -306,10 +306,10 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
         </Show>
 
         <Show when={pr.errors.length > 0}>
-          <div class="rounded-[6px] border border-v2-state-border-error bg-v2-state-bg-error px-3 py-2">
+          <div class="rounded-[6px] border border-v2-state-border-danger bg-v2-state-bg-danger px-3 py-2">
             <For each={pr.errors}>
               {(e) => (
-                <div class="text-v2-state-fg-error text-11-regular">
+                <div class="text-v2-state-fg-danger text-11-regular">
                   [{e.section}] {e.reason}
                 </div>
               )}
@@ -517,7 +517,7 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
         </Show>
 
         <Show when={state.parseError}>
-          <div class="rounded-[6px] border border-v2-state-border-error bg-v2-state-bg-error px-3 py-2 text-v2-state-fg-error text-11-regular">
+          <div class="rounded-[6px] border border-v2-state-border-danger bg-v2-state-bg-danger px-3 py-2 text-v2-state-fg-danger text-11-regular">
             {state.parseError}
           </div>
         </Show>
