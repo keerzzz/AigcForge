@@ -228,7 +228,6 @@ export const layer = Layer.effect(
         : undefined
     })
 
-    let stepSeq = 0
     const writeStep = Effect.fn("MetaAgentService.writeStep")(function* (input: {
       metaAgentSessionID: string
       seq: number
@@ -236,7 +235,15 @@ export const layer = Layer.effect(
       engine: string
       prompt?: string
     }) {
-      const id = `stp_${yield* Effect.sync(() => (++stepSeq).toString(36))}_${Date.now().toString(36)}`
+      // Derive the step counter from the table's MAX(seq)+1 instead of a module
+      // counter, so IDs stay stable across process restarts and repeated test runs.
+      const maxRow = yield* db
+        .select({ max: sql<number>`COALESCE(MAX(${MetaAgentStepTable.seq}), 0)` })
+        .from(MetaAgentStepTable)
+        .get()
+        .pipe(Effect.orDie)
+      const counter = (maxRow?.max ?? 0) + 1
+      const id = `stp_${counter.toString(36)}_${Date.now().toString(36)}`
       const now = yield* DateTime.now
       yield* db
         .insert(MetaAgentStepTable)

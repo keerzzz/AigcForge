@@ -2259,7 +2259,7 @@ function Task(props: ToolProps) {
     if (!description) return ""
     let content = [
       formatSubagentTitle(
-        Locale.titlecase(stringValue(props.input.subagent_type) ?? "General"),
+        taskAgentLabel(props.metadata, props.input),
         description,
         props.metadata.background === true,
       ),
@@ -2311,6 +2311,17 @@ export function formatSubagentToolcalls(count: number) {
 
 export function formatSubagentTitle(agent: string, description: string, background: boolean) {
   return `${agent} Task${background ? " (background)" : ""} — ${description}`
+}
+
+/** Resolve the task title label: an external-CLI dispatch shows the CLI name,
+ * an internal delegation shows the capitalized subagent type. */
+export function taskAgentLabel(metadata: Record<string, unknown>, input: Record<string, unknown>): string {
+  const cli = typeof metadata.cli === "string" && metadata.cli ? metadata.cli : undefined
+  if (metadata.execution_type === "external-cli" || cli) {
+    return cli ?? (typeof input.cli_target === "string" && input.cli_target ? input.cli_target : "CLI")
+  }
+  const type = typeof input.subagent_type === "string" && input.subagent_type ? input.subagent_type : "General"
+  return Locale.titlecase(type)
 }
 
 export function formatSubagentRetry(attempt: number, message: string) {

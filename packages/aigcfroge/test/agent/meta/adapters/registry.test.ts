@@ -3,6 +3,19 @@ import { Effect } from "effect"
 import { testEffect } from "../../../lib/effect"
 import { disposeAllInstances } from "../../../fixture/fixture"
 import { CliAdapterRegistry } from "../../../../src/agent/meta/adapters/registry"
+import { Config } from "@aigcfroge/core/config"
+import { ConfigCliAgent } from "@aigcfroge/core/config/cli-agent"
+import { registerConfigCliAdapters } from "@aigcfroge/core/tool/cli-adapter"
+
+const cliAgentDoc = (entries: Record<string, { command: string }>) =>
+  new Config.Document({
+    type: "document",
+    info: new Config.Info({
+      cli_agents: Object.fromEntries(
+        Object.entries(entries).map(([name, value]) => [name, new ConfigCliAgent.Info(value)]),
+      ),
+    }),
+  })
 
 const it = testEffect(CliAdapterRegistry.defaultLayer)
 
@@ -104,6 +117,27 @@ describe("adapter registry", () => {
       expect(agentInfo.source).toBe("external-cli")
       expect(agentInfo.native).toBe(false)
       expect(agentInfo.hidden).toBe(false)
+    }),
+  )
+
+  it.instance("merges config-defined cli_agents into the registry", () =>
+    Effect.gen(function* () {
+      const registry = yield* CliAdapterRegistry.AdapterRegistry
+      registerConfigCliAdapters([cliAgentDoc({ "custom-cli": { command: "custom-cli" } })])
+      const adapter = yield* registry.get("custom-cli")
+      expect(adapter).toBeDefined()
+      expect(adapter!.name).toBe("custom-cli")
+      expect(adapter!.command).toBe("custom-cli")
+    }),
+  )
+
+  it.instance("config cli_agents override built-ins with the same name", () =>
+    Effect.gen(function* () {
+      const registry = yield* CliAdapterRegistry.AdapterRegistry
+      registerConfigCliAdapters([cliAgentDoc({ "claude-code": { command: "my-claude" } })])
+      const adapter = yield* registry.get("claude-code")
+      expect(adapter).toBeDefined()
+      expect(adapter!.command).toBe("my-claude")
     }),
   )
 })

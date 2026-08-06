@@ -29,12 +29,24 @@ export function fillSubagentsList(
 }
 
 /**
+ * The message rendered when no external CLI tools are detectable. Kept as a
+ * stable marker: `fillCliList` replaces either the `{{CLI_LIST}}` placeholder
+ * or this marker, so a later fill can overwrite an earlier empty fill
+ * (transforms may run in any order across core plugin init and the aigcfroge
+ * filler).
+ */
+export const NO_CLI_MESSAGE = "(no external CLI tools configured)"
+
+/**
  * Fills {{CLI_LIST}} with a list of available CLI tools.
  * Accepts an optional array of CLI names; if empty, shows a default message.
+ * Order-independent: re-filling an already-filled prompt replaces the previous
+ * list or the {@link NO_CLI_MESSAGE} marker.
  */
 export function fillCliList(prompt: string, clis: string[]): string {
-  const list = clis.map((name) => `- ${name}`).join("\n")
-  return prompt.replace("{{CLI_LIST}}", list || "(no external CLI tools configured)")
+  const list = clis.map((name) => `- ${name}`).join("\n") || NO_CLI_MESSAGE
+  if (prompt.includes("{{CLI_LIST}}")) return prompt.replace("{{CLI_LIST}}", list)
+  return prompt.replace(NO_CLI_MESSAGE, list)
 }
 
 /**

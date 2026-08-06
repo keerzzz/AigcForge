@@ -1,10 +1,15 @@
 import { Context, Effect, Layer } from "effect"
 import { LayerNode } from "@aigcfroge/core/effect/layer-node"
-import type { CliAdapter } from "./interface"
-import { adapter as claudeCodeAdapter } from "./claude-code"
-import { adapter as geminiAdapter } from "./gemini"
-import { adapter as codexAdapter } from "./codex"
+import {
+  getCliAdapter,
+  listCliAdapters,
+  registerCliAdapter,
+} from "@aigcfroge/core/tool/cli-adapter"
+import { adapter as claudeCodeAdapter } from "@aigcfroge/core/tool/claude-code"
+import { adapter as geminiAdapter } from "@aigcfroge/core/tool/gemini"
+import { adapter as codexAdapter } from "@aigcfroge/core/tool/codex"
 import { adapter as opencodeAdapter } from "@aigcfroge/core/tool/opencode"
+import type { CliAdapter } from "./interface"
 
 export interface Interface {
   readonly register: (name: string, adapter: CliAdapter) => Effect.Effect<void>
@@ -15,33 +20,32 @@ export interface Interface {
 
 export class AdapterRegistry extends Context.Service<AdapterRegistry, Interface>()("@aigcfroge/CliAdapterRegistry") {}
 
+// Single registry: this service is a thin Effect wrapper over the core module
+// cell (the same store the `task` tool's TaskDriverFill reads from). Seeding the
+// cell with the built-ins here keeps the agent list (@ agent/agent.ts) and the
+// task tool on one store; TaskDriverFill re-registers them idempotently.
+const BUILT_INS = [claudeCodeAdapter, geminiAdapter, codexAdapter, opencodeAdapter]
+
 export const layer = Layer.effect(
   AdapterRegistry,
-  Effect.gen(function* () {
-    const adapters = new Map<string, CliAdapter>()
-
-    // Register built-in adapters
-    adapters.set(claudeCodeAdapter.name, claudeCodeAdapter)
-    adapters.set(geminiAdapter.name, geminiAdapter)
-    adapters.set(codexAdapter.name, codexAdapter)
-    adapters.set(opencodeAdapter.name, opencodeAdapter)
-
+  Effect.sync(() => {
+    for (const adapter of BUILT_INS) registerCliAdapter(adapter.name, adapter)
     return AdapterRegistry.of({
       register: Effect.fn("AdapterRegistry.register")(function* (name: string, adapter: CliAdapter) {
-        adapters.set(name, adapter)
+        registerCliAdapter(name, adapter)
       }),
 
       get: Effect.fn("AdapterRegistry.get")(function* (name: string) {
-        return adapters.get(name)
+        return getCliAdapter(name)
       }),
 
       list: Effect.fn("AdapterRegistry.list")(function* () {
-        return Array.from(adapters.values())
+        return listCliAdapters()
       }),
 
       available: Effect.fn("AdapterRegistry.available")(function* () {
         const results = yield* Effect.forEach(
-          Array.from(adapters.values()),
+          listCliAdapters(),
           (adapter) =>
             adapter
               .detect()

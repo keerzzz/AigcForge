@@ -7,6 +7,7 @@ import { SessionMessage } from "../session/message"
 import { SessionSchema } from "../session/schema"
 import { generateSummary } from "../session/share-summary"
 import { judgeMerge } from "../agent/judge"
+import type { DelegationStatus } from "./cli-adapter"
 
 /**
  * A foreground delegation ended without a usable result because the child
@@ -146,14 +147,15 @@ export interface Interface {
   /**
    * Execute a prompt against an external CLI tool (claude-code, gemini, codex,
    * opencode, etc.). The adapter is resolved through the installed CLI adapter
-   * registry at the composition root. Returns the CLI's output text, or fails
-   * when the CLI is unavailable or times out.
+   * registry at the composition root. Returns the CLI's output text and terminal
+   * status, or fails when the CLI is unavailable or times out.
    */
   readonly executeCLI: (input: {
     cliTarget: string
     prompt: string
+    description: string
     sessionID: SessionSchema.ID
-  }) => Effect.Effect<{ text: string; sessionID: SessionSchema.ID }, Error>
+  }) => Effect.Effect<{ text: string; sessionID: SessionSchema.ID; status: DelegationStatus }, Error>
 }
 
 // The process-global bridge cell. `install` replaces it; the accessors read it
@@ -221,8 +223,12 @@ export const isChildSession = (sessionID: SessionSchema.ID) =>
   active().pipe(Effect.flatMap((impl) => impl.isChildSession(sessionID)))
 
 /** Execute a prompt against an external CLI tool through the installed adapter. */
-export const executeCLI = (input: { cliTarget: string; prompt: string; sessionID: SessionSchema.ID }) =>
-  active().pipe(Effect.flatMap((impl) => impl.executeCLI(input))) as Effect.Effect<{ text: string; sessionID: SessionSchema.ID }, Error>
+export const executeCLI = (input: {
+  cliTarget: string
+  prompt: string
+  description: string
+  sessionID: SessionSchema.ID
+}) => active().pipe(Effect.flatMap((impl) => impl.executeCLI(input)))
 
 /** Minimal `SessionV2` surface the implementation needs. Structural to avoid importing SessionV2. */
 export interface SessionFacade {
@@ -233,6 +239,7 @@ export interface SessionFacade {
     agent?: AgentV2.ID
     location: Location.Ref
     attended?: boolean
+    title?: string
   }) => Effect.Effect<SessionSchema.Info, unknown>
   readonly prompt: (input: { sessionID: SessionSchema.ID; prompt: { text: string }; resume?: boolean }) => Effect.Effect<
     unknown,
@@ -329,8 +336,9 @@ export const install = (
     readonly execute: (input: {
       cliTarget: string
       prompt: string
+      description: string
       sessionID: SessionSchema.ID
-    }) => Effect.Effect<{ text: string; sessionID: SessionSchema.ID }, Error>
+    }) => Effect.Effect<{ text: string; sessionID: SessionSchema.ID; status: DelegationStatus }, Error>
   },
 ) => {
   const readResult = (sessionID: SessionSchema.ID) =>

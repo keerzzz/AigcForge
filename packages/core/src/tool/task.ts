@@ -73,6 +73,17 @@ export const Input = Schema.Struct({
 export const Output = Schema.Struct({
   sessionID: Schema.String,
   output: Schema.String,
+  // External-CLI dispatches carry structured metadata so session-ui / TUI task
+  // cards can render a CLI badge, status, and a link into the child Session.
+  metadata: Schema.optional(
+    Schema.Struct({
+      sessionId: Schema.String,
+      parentSessionId: Schema.String,
+      cli: Schema.String,
+      execution_type: Schema.Literal("external-cli"),
+      status: Schema.String,
+    }),
+  ),
 })
 export type Output = typeof Output.Type
 
@@ -166,34 +177,86 @@ export const layer = Layer.effectDiscard(
                   message: `Unknown agent type: ${input.subagent_type} is not a valid agent type`,
                 })
 
-              yield* permission
-                .assert({
-                  action: name,
-                  resources: [input.subagent_type],
-                  save: ["*"],
-                  sessionID: context.sessionID,
-                  agent: context.agent,
-                  source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
-                })
-                .pipe(Effect.mapError((error) => new ToolFailure({ message: `Task permission denied`, error })))
+              // Non-CLI delegations assert on the subagent type. External-CLI mode
+              // branches to its own assert (below) that carries the CLI target.
+              const cliTarget = input.cli_target
+              if (input.execution_type !== "external-cli") {
+                yield* permission
+                  .assert({
+                    action: name,
+                    resources: [input.subagent_type],
+                    save: ["*"],
+                    sessionID: context.sessionID,
+                    agent: context.agent,
+                    source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
+                  })
+                  .pipe(Effect.mapError((error) => new ToolFailure({ message: `Task permission denied`, error })))
+              }
 
               // CLI execution mode: delegate to an external CLI tool instead of
               // creating a child Session. The CLI adapter is resolved through the
               // TaskDriver seam (registered at the composition root).
               if (input.execution_type === "external-cli") {
-                if (!input.cli_target) {
+                if (!cliTarget) {
                   return yield* new ToolFailure({
                     message: "cli_target is required when execution_type is 'external-cli'",
                   })
                 }
+                yield* permission
+                  .assert({
+                    action: name,
+                    resources: [cliTarget],
+                    save: ["*"],
+                    sessionID: context.sessionID,
+                    agent: context.agent,
+                    source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
+                    metadata: { description: input.description, execution_type: "external-cli" },
+                  })
+                  .pipe(Effect.mapError((error) => new ToolFailure({ message: `Task permission denied`, error })))
+                // Track B: a fresh CLI delegation auto-creates an in_progress task so
+                // the todo dashboard mirrors the delegation; it is settled with the CLI
+                // outcome once the dispatch returns.
+                let cliTaskID: string | undefined = input.parent_task_id
+                if (cliTaskID === undefined) {
+                  const created = yield* tasks
+                    .append({
+                      sessionID: context.sessionID,
+                      tasks: [{ content: input.description, status: "in_progress", priority: "medium" }],
+                    })
+                    .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message })))
+                  cliTaskID = created.at(-1)?.id
+                }
                 const result = yield* TaskDriver.executeCLI({
-                  cliTarget: input.cli_target,
+                  cliTarget,
                   prompt: input.prompt,
+                  description: input.description,
                   sessionID: context.sessionID,
                 }).pipe(Effect.mapError((error) => new ToolFailure({ message: error.message })))
+                // Write back the linked task with the CLI's terminal status.
+                if (cliTaskID !== undefined) {
+                  yield* tasks
+                    .patch({
+                      sessionID: context.sessionID,
+                      id: cliTaskID,
+                      status: result.status === "failed" ? "failed" : "completed",
+                      outputDigest: result.status === "failed" ? undefined : result.sessionID,
+                    })
+                    .pipe(Effect.orDie, Effect.asVoid)
+                }
                 return {
                   sessionID: result.sessionID,
-                  output: renderOutput({ sessionID: result.sessionID, state: "completed", text: result.text }),
+                  output: renderOutput({
+                    sessionID: result.sessionID,
+                    state: result.status === "failed" ? "error" : "completed",
+                    text: result.text,
+                  }),
+                  metadata: {
+                    sessionId: result.sessionID,
+                    parentSessionId: context.sessionID,
+                    cli: cliTarget,
+                    execution_type: "external-cli",
+                    status: result.status,
+                  } as const,
                 }
               }
 

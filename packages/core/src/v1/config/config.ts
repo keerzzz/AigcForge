@@ -11,6 +11,7 @@ import { ConfigFormatterV1 } from "./formatter"
 import { ConfigLayoutV1 } from "./layout"
 import { ConfigLSPV1 } from "./lsp"
 import { ConfigMCPV1 } from "./mcp"
+import { ConfigCliAgent } from "../../config/cli-agent"
 import { ConfigPermissionV1 } from "./permission"
 import { ConfigPluginV1 } from "./plugin"
 import { ConfigProviderV1 } from "./provider"
@@ -110,6 +111,9 @@ export const Info = Schema.Struct({
   mcp: Schema.optional(
     Schema.Record(Schema.String, Schema.Union([ConfigMCPV1.Info, Schema.Struct({ enabled: Schema.Boolean })])),
   ).annotate({ description: "MCP (Model Context Protocol) server configurations" }),
+  cli_agents: Schema.optional(Schema.Record(Schema.String, ConfigCliAgent.Info)).annotate({
+    description: "Named external CLI agent definitions (passthrough to V2)",
+  }),
   formatter: Schema.optional(ConfigFormatterV1.Info).annotate({
     description:
       "Enable or configure formatters. Omit or set to false to disable, true to enable built-ins, or an object to enable built-ins with overrides.",

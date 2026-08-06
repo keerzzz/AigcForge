@@ -168,6 +168,9 @@ const v2TaskDriverFillLayer = TaskDriverFill.layer.pipe(
   Layer.provide(v2SessionLayer),
   Layer.provide(BackgroundJob.defaultLayer),
   Layer.provide(CrossSpawnSpawner.defaultLayer),
+  // The fill writes child messages through EventV2; v2SessionLayer consumes its
+  // own EventV2 internally, so provide the shared default explicitly.
+  Layer.provide(EventV2.defaultLayer),
 )
 
 const V2_LAYERS = Layer.mergeAll(

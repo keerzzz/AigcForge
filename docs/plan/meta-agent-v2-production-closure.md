@@ -79,7 +79,7 @@
 | **V2 SessionSummary/diff 服务** | [session/summary.ts](../../packages/core/src/session/summary.ts) | ✅ **2026-07-08 完成** |
 | **V2 SessionShare（内部分享）** | [session/share-v2.ts](../../packages/core/src/session/share-v2.ts) | ✅ **2026-07-08 完成（替代外网分享）** |
 | **MetaAgent 服务层** | [meta-agent/service.ts](../../packages/core/src/meta-agent/service.ts) | ✅ **2026-07-08 完成** |
-| **meta_agent_step 写入** | [session/task-driver-fill.ts](../../packages/core/src/session/task-driver-fill.ts) | ✅ **2026-07-08 完成** |
+| **meta_agent_step 写入** | [session/task-driver-fill.ts](../../packages/core/src/session/task-driver-fill.ts) | ✅ **subagent step 2026-07-08 完成；external-cli step 写入 + `updateStep` 归位 2026-08-06（M1）补全** |
 | **PreRouter 迁移 + 占位符** | [agent/meta/](../../packages/core/src/agent/meta/) + [plugin/agent.ts](../../packages/core/src/plugin/agent.ts) | ✅ **2026-07-08 完成** |
 | **MetaHooks + ToolHooks SDK** | [plugin/src/v2/effect/](../../packages/plugin/src/v2/effect/) | ✅ **2026-07-08 完成** |
 | **SSE 统一** | [event-v2-bridge.ts](../../packages/aigcfroge/src/event-v2-bridge.ts) + [handlers/event.ts](../../packages/aigcfroge/src/server/routes/instance/httpapi/handlers/event.ts) | ✅ **2026-07-08 完成（GlobalBus 移除）** |
@@ -96,7 +96,7 @@
 | intent 选模型桩 | [runner/model.ts:75,213](../../packages/core/src/session/runner/model.ts#L75) | 同上，dead |
 | cache-warmth | [aigcfroge/src/agent/meta/cache-warmth.ts](../../packages/aigcfroge/src/agent/meta/cache-warmth.ts) | 无 src 调用方 |
 | workflow engine | [aigcfroge/src/agent/meta/workflow/](../../packages/aigcfroge/src/agent/meta/workflow/) | 无 src 调用方 |
-| `meta_agent_step` 表 | [core/src/meta-agent/sql.ts:46](../../packages/core/src/meta-agent/sql.ts#L46) | 无写入方 |
+| `meta_agent_step` 表 | [core/src/meta-agent/sql.ts:46](../../packages/core/src/meta-agent/sql.ts#L46) | ✅ 已有写入方：`task-driver-fill.ts`（`create` 写 subagent step；M1 2026-08-06 起 `executeCLI` 写 `type:"external-cli"` step 并经 `updateStep` 归位 completed/failed，`writeStep` 序号改为表内 `MAX(seq)+1`） |
 | TUI EventV2 消费 | [tui/src/context/data.tsx:132-345](../../packages/tui/src/context/data.tsx#L132) | 已就绪（V2 切换后无需改） |
 
 ### 1.3 已完成（原缺失已补建）
@@ -113,7 +113,7 @@
 | V2 plugin 自定义工具（ToolHooks） | P1 | ✅ | [plugin/src/v2/effect/tool.ts](../../packages/plugin/src/v2/effect/tool.ts) |
 | V2 禁用 meta 回退开关 | P1 | ✅ | [agent.ts:68-81](../../packages/core/src/agent.ts#L68) |
 | V2 SessionShare（内部分享） | P1 | ✅ | [session/share-v2.ts](../../packages/core/src/session/share-v2.ts) |
-| meta_agent_step 写入 | P0 | ✅ | [session/task-driver-fill.ts](../../packages/core/src/session/task-driver-fill.ts) |
+| meta_agent_step 写入 | P0 | ✅ | [session/task-driver-fill.ts](../../packages/core/src/session/task-driver-fill.ts)（subagent + external-cli step，`updateStep` 归位 2026-08-06 M1） |
 | SSE 统一 | P0 | ✅ | [event-v2-bridge.ts](../../packages/aigcfroge/src/event-v2-bridge.ts) |
 | MCP OAuth | P0 | ✅ | [v2-auth.ts](../../packages/aigcfroge/src/mcp/v2-auth.ts) + [v2-oauth-*.ts](../../packages/aigcfroge/src/mcp/) |
 
@@ -207,7 +207,7 @@ SessionRunner.run（packages/core/src/session/runner/llm.ts）
   ├─ tool settlement（durable record + authorize + execute）
   ├─ SessionTodo（todowrite 工具）
   ├─ SessionRevert V2 / SessionSummary V2  ← P2.9/P2.10 补建
-  └─ MetaAgent step 写入（meta_agent_step 表）  ← P2.6 接入
+  └─ MetaAgent step 写入（meta_agent_step 表）  ← P2.6 接入（subagent/external-cli 已接线，workflow 其余边界待接）
   ↓
 EventV2 publish（session.next.*）→ SQLite + PubSub
   ↓
@@ -701,7 +701,7 @@ V1 通用字符串 trigger 需对等迁移到 V2 域 transform 或 aisdk hook：
 
 **调研对标**：§4.4 kimi-plugin-cc — stdout JSONL 帧截获 + 会话 ID 持久化，断线可恢复。
 
-**现状**：`TaskDriver.executeCLI()` 执行外部 CLI 后如果中途断开，没有恢复能力。
+**现状**：resume_hint 解析 + `external_cli_session` 持久化已工作（M1 2026-08-06 修复了 resume 读写键不一致——行按父 Session ID 键存储，第二次同父委派可用上一轮 `external_session_id` 续接）；`task_id` 续接时自动恢复外部 CLI 会话（断线重连）仍未接线。
 
 | 动作 | 文件 | 说明 |
 |---|---|---|

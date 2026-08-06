@@ -35,6 +35,7 @@ import { useFileComponent } from "@aigcfroge/ui/context/file"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { type UiI18n, useI18n } from "@aigcfroge/ui/context/i18n"
 import { BasicTool, GenericTool } from "./basic-tool"
+import { taskCardModel } from "./task-tool-card-model"
 import { AccordionV2 } from "@aigcfroge/ui/v2/accordion-v2"
 import { StickyAccordionHeader } from "@aigcfroge/ui/sticky-accordion-header"
 import { Collapsible } from "@aigcfroge/ui/collapsible"
@@ -420,10 +421,11 @@ export function getToolInfo(
         typeof input.subagent_type === "string" && input.subagent_type
           ? input.subagent_type[0]!.toUpperCase() + input.subagent_type.slice(1)
           : undefined
+      const model = taskCardModel(input, metadata)
       return {
-        icon: "task",
-        title: agentTitle(i18n, type),
-        subtitle: input.description,
+        icon: model.isExternalCli ? "terminal" : "task",
+        title: model.isExternalCli ? model.title : agentTitle(i18n, type),
+        subtitle: model.subtitle,
       }
     }
     case "bash":
@@ -1836,24 +1838,28 @@ ToolRegistry.register({
     const data = useData()
     const i18n = useI18n()
     const location = useLocation()
+    const model = createMemo(() => taskCardModel(props.input, props.metadata, props.output))
     const childSessionId = createMemo(() => {
-      const value = props.metadata.sessionId
-      if (typeof value === "string" && value) return value
+      const value = model().href
+      if (value) return value
       return taskSession(props.input, location.pathname, data.store.session, data.store.agent)
     })
     const agent = createMemo(() => taskAgent(props.input.subagent_type, data.store.agent))
-    const title = createMemo(() => agent().name ?? i18n.t("ui.tool.agent.default"))
+    const title = createMemo(() =>
+      model().isExternalCli ? model().title : (agent().name ?? i18n.t("ui.tool.agent.default")),
+    )
     const tone = createMemo(() => agent().color)
     const subtitle = createMemo(() => {
-      const value =
-        typeof props.input.description === "string" && props.input.description
-          ? props.input.description
-          : childSessionId()
+      const value = model().subtitle ?? childSessionId()
       if (!value) return value
       if (props.metadata.background === true) return `${value} (background)`
       return value
     })
     const running = createMemo(() => props.status === "pending" || props.status === "running")
+    const statusChip = createMemo(() => {
+      if (running()) return "running" as const
+      return model().status
+    })
 
     const href = createMemo(() => sessionLink(childSessionId(), location.pathname, data.sessionHref))
     const clickable = createMemo(() => !!(childSessionId() && (data.navigateToSession || href())))
@@ -1888,6 +1894,14 @@ ToolRegistry.register({
             <span data-component="task-tool-title" style={{ color: tone() ?? "var(--text-strong)" }}>
               {title()}
             </span>
+            <Show when={model().isExternalCli}>
+              <span data-component="task-tool-cli-badge">{i18n.t("ui.tool.cli")}</span>
+            </Show>
+            <Show when={model().isExternalCli && statusChip() !== "completed"}>
+              <span data-component="task-tool-status" data-state={statusChip()}>
+                {statusChip()}
+              </span>
+            </Show>
             <Show when={subtitle()}>
               <span data-slot="basic-tool-tool-subtitle">{subtitle()}</span>
             </Show>
@@ -1911,11 +1925,15 @@ ToolRegistry.register({
 
     return (
       <BasicTool
-        icon="task"
+        icon={model().isExternalCli ? "terminal" : "task"}
         status={props.status}
         trigger={trigger()}
-        hideDetails
-      />
+        hideDetails={!model().isExternalCli}
+      >
+        <Show when={model().isExternalCli && model().summary}>
+          <div data-component="task-tool-cli-summary">{model().summary}</div>
+        </Show>
+      </BasicTool>
     )
   },
 })

@@ -77,6 +77,7 @@ type CreateInput = {
   model?: ModelV2.Ref
   location: Location.Ref
   attended?: boolean
+  title?: string
 }
 
 type CompactInput = {
@@ -216,7 +217,7 @@ export const layer = Layer.effect(
           directory: input.location.directory,
           path: path.relative(project.directory, input.location.directory).replaceAll("\\", "/"),
           workspaceID: input.location.workspaceID ? WorkspaceV2.ID.make(input.location.workspaceID) : undefined,
-          title: `New session - ${new Date(now).toISOString()}`,
+          title: input.title ?? `New session - ${new Date(now).toISOString()}`,
           agent,
           model: input.model
             ? {

@@ -18,6 +18,7 @@ export function executeWithTimeout(
       return { status: "failed" as const, summary: `CLI "${adapter.name}" not available`, errors: ["CLI not found on system"] }
     }
 
+    const timeout = adapter.timeout ?? timeoutMs
     const args = yield* adapter.buildArgs({ prompt: input.prompt, cwd: input.cwd, resumeId: input.resumeId })
     const result = yield* Effect.scoped(
       Effect.gen(function* () {
@@ -44,7 +45,7 @@ export function executeWithTimeout(
       }),
     ).pipe(
       Effect.timeoutOrElse({
-        duration: Duration.millis(timeoutMs),
+        duration: Duration.millis(timeout),
         orElse: () => Effect.fail(new Error("Timed out")),
       }),
       Effect.catch((error) =>
