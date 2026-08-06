@@ -24,6 +24,12 @@ export interface CliAdapter {
   readonly parseOutput: (stdout: string, stderr: string) => Effect.Effect<DelegationResult>
   /** Optional execution timeout in milliseconds; wins over the caller's default. */
   readonly timeout?: number
+  /**
+   * Execution transport. "jsonl" (default) spawns the CLI and parses its JSONL
+   * stdout; "sdk" drives the official SDK; "acp" uses the Agent Client Protocol.
+   * Unknown values fall back to "jsonl".
+   */
+  readonly transport?: "jsonl" | "sdk" | "acp"
   readonly cancel?: (cwd: string) => Effect.Effect<void>
   /**
    * Parse a session.resume_hint JSON frame from the CLI's stdout stream.

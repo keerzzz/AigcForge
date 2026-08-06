@@ -54,4 +54,15 @@ describe("ConfigCliAgent", () => {
     const decoded = decode({ cli_agents: { ok: { command: "x", extra_field: "ignored" } } })
     expect(decoded.cli_agents?.["ok"].command).toBe("x")
   })
+
+  test("accepts an explicit transport strategy", () => {
+    for (const transport of ["jsonl", "sdk", "acp"] as const) {
+      const decoded = decode({ cli_agents: { ok: { command: "x", transport } } })
+      expect(decoded.cli_agents?.["ok"].transport).toBe(transport)
+    }
+  })
+
+  test("rejects an unknown transport strategy", () => {
+    expect(() => decode({ cli_agents: { bad: { command: "x", transport: "telepathy" } } })).toThrow()
+  })
 })

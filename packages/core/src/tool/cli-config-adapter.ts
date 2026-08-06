@@ -49,5 +49,6 @@ export function fromConfig(name: string, info: ConfigCliAgent.Info): CliAdapter 
       return undefined
     },
     timeout: info.timeout,
+    transport: info.transport,
   }
 }
