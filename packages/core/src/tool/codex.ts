@@ -14,9 +14,9 @@ export const adapter: CliAdapter = {
 
   detect: () => Effect.sync(() => which(COMMAND) !== null),
 
-    buildArgs: (input: { prompt: string; cwd: string; resumeId?: string }) =>
+  buildArgs: (input: { prompt: string; cwd: string; resumeId?: string }) =>
     Effect.succeed(
-      input.resumeId ? ["exec", "--json", "--resume", input.resumeId] : ["exec", "--json", input.prompt],
+      input.resumeId ? ["exec", "resume", "--json", input.resumeId, input.prompt] : ["exec", "--json", input.prompt],
     ),
 
   parseOutput: (stdout: string, stderr: string) =>
@@ -25,6 +25,9 @@ export const adapter: CliAdapter = {
       for (const line of lines) {
         try {
           const parsed = JSON.parse(line)
+          if (parsed.type === "thread.started" && typeof parsed.thread_id === "string") {
+            continue
+          }
           if (parsed.type === "text.delta") {
             const text = typeof parsed.text === "string" ? parsed.text : ""
             const inner = DelegationParser.parseDelegationResult(text)
@@ -50,7 +53,10 @@ export const adapter: CliAdapter = {
       try {
         const parsed = JSON.parse(line)
         if (parsed.type === "session.resume_hint" && typeof parsed.sessionID === "string") return parsed.sessionID
-      } catch { continue }
+        if (parsed.type === "thread.started" && typeof parsed.thread_id === "string") return parsed.thread_id
+      } catch {
+        continue
+      }
     }
     return undefined
   },

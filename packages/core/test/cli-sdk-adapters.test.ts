@@ -19,22 +19,12 @@ const run = <A>(effect: Effect.Effect<A>) => Effect.runPromise(effect)
 
 describe("claude-code SDK adapter", () => {
   type SdkMessage = { type: string; result?: string; is_error?: boolean; session_id?: string }
-  type QueryInput = {
-    prompt: string
-    options?: {
-      cwd?: string
-      resume?: string
-      canUseTool?: (
-        tool: string,
-        input: Record<string, unknown>,
-      ) => Promise<{ behavior: "allow" | "deny"; message?: string } | null>
-    }
-  }
+  type QueryInput = Parameters<ClaudeSdk["query"]>[0]
   const streamSdk = (messages: SdkMessage[], onQuery?: (input: QueryInput) => void): ClaudeSdk => ({
     query: (input) => {
       onQuery?.(input)
       return (async function* () {
-        for (const message of messages) yield message
+        for (const message of messages) yield { session_id: "ses_test", ...message }
       })()
     },
   })
@@ -66,10 +56,7 @@ describe("claude-code SDK adapter", () => {
   })
 
   test("bridges canUseTool allow/deny decisions", async () => {
-    let sdkCallback: ((
-      tool: string,
-      input: Record<string, unknown>,
-    ) => Promise<{ behavior: "allow" | "deny"; message?: string } | null>) | undefined
+    let sdkCallback: NonNullable<NonNullable<QueryInput["options"]>["canUseTool"]> | undefined
     const adapter = makeClaudeCodeSdkAdapter(
       streamSdk([{ type: "result", is_error: false, result: "ok" }], (input) => {
         sdkCallback = input.options?.canUseTool
@@ -87,9 +74,38 @@ describe("claude-code SDK adapter", () => {
       }),
     )
     // Exercise the bridge callback the SDK would invoke.
-    const permission = await sdkCallback?.("Bash", { command: "ls" })
+    const permission = await sdkCallback?.(
+      "Bash",
+      { command: "ls" },
+      {
+        signal: new AbortController().signal,
+        toolUseID: "tool_1",
+        requestId: "request_1",
+      },
+    )
     expect(decisions).toContain("Bash")
     expect(permission?.behavior).toBe("deny")
+  })
+
+  test("persists sessions explicitly and captures the session id", async () => {
+    let persistSession: boolean | undefined
+    const adapter = makeClaudeCodeSdkAdapter(
+      streamSdk([{ type: "result", is_error: false, result: "ok", session_id: "ses_abc" }], (input) => {
+        persistSession = input.options?.persistSession
+      }),
+    )
+    const result = await run(adapter.execute!({ prompt: "x", cwd: "/p" }))
+    expect(persistSession).toBe(true)
+    expect(result.sessionId).toBe("ses_abc")
+  })
+
+  test("fails a run without a final response", async () => {
+    const adapter = makeClaudeCodeSdkAdapter(
+      streamSdk([{ type: "result", is_error: false, result: "", session_id: "ses_empty" }]),
+    )
+    const result = await run(adapter.execute!({ prompt: "x", cwd: "/p" }))
+    expect(result.status).toBe("failed")
+    expect(result.summary).toContain("without a final response")
   })
 
   test("captures the session id from the init message into sessionId", async () => {
@@ -109,12 +125,13 @@ describe("codex SDK adapter", () => {
     let seenInput: string | undefined
     const sdk: CodexSdk = {
       startThread: () => ({
+        id: "thread_1",
         run: async (input) => {
           seenInput = input
           return { finalResponse: "Codex done" }
         },
       }),
-      resumeThread: () => ({ run: async () => ({ finalResponse: "resumed" }) }),
+      resumeThread: () => ({ id: "thread_1", run: async () => ({ finalResponse: "resumed" }) }),
     }
     const adapter = makeCodexSdkAdapter(sdk)
     const result = await run(adapter.execute!({ prompt: "x", cwd: "/p" }))
@@ -137,6 +154,16 @@ describe("codex SDK adapter", () => {
     const adapter = makeCodexSdkAdapter(sdk)
     await run(adapter.execute!({ prompt: "x", cwd: "/p", resumeId: "thread_1" }))
     expect(resumed).toBe("thread_1")
+  })
+
+  test("fails a run without a final response", async () => {
+    const sdk: CodexSdk = {
+      startThread: () => ({ id: "thread_empty", run: async () => ({ finalResponse: "" }) }),
+      resumeThread: (id) => ({ id, run: async () => ({ finalResponse: "" }) }),
+    }
+    const result = await run(makeCodexSdkAdapter(sdk).execute!({ prompt: "x", cwd: "/p" }))
+    expect(result.status).toBe("failed")
+    expect(result.summary).toContain("without a final response")
   })
 
   test("returns the thread id as sessionId", async () => {

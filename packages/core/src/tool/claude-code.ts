@@ -14,12 +14,15 @@ export const adapter: CliAdapter = {
 
   detect: () => Effect.sync(() => which(COMMAND) !== null),
 
-  buildArgs: (input: { prompt: string; cwd: string; resumeId?: string }) =>
-    Effect.succeed(
-      input.resumeId
-        ? ["-p", "--no-chrome", "--resume", input.resumeId]
-        : ["-p", "--no-chrome", input.prompt],
-    ),
+  buildArgs: ({ prompt, resumeId }) =>
+    Effect.succeed([
+      "-p",
+      "--no-chrome",
+      "--output-format",
+      "json",
+      ...(resumeId ? ["--resume", resumeId] : []),
+      prompt,
+    ]),
 
   parseOutput: (stdout: string, stderr: string) =>
     Effect.gen(function* () {
@@ -27,16 +30,20 @@ export const adapter: CliAdapter = {
       for (const line of lines) {
         try {
           const parsed = JSON.parse(line)
-          if (parsed.type === "result" || parsed.type === "completion") {
-            const text = parsed.text ?? parsed.content ?? ""
-            const result = DelegationParser.parseDelegationResult(text)
-            if (result) return result
+          if (parsed.type !== "result" && parsed.type !== "completion") continue
+          const text = typeof parsed.result === "string" ? parsed.result : (parsed.text ?? parsed.content ?? "")
+          if (parsed.is_error === true) {
+            return {
+              status: "failed" as const,
+              summary: text || stderr || "Claude Code reported an error",
+              errors: [text || stderr],
+            }
           }
+          return yield* DelegationParser.parseDelegationOutput(text, stderr)
         } catch {
           continue
         }
       }
-      // Fallback to generic parsing
       return yield* DelegationParser.parseDelegationOutput(stdout, stderr)
     }),
 
@@ -44,8 +51,11 @@ export const adapter: CliAdapter = {
     for (const line of stdout.split("\n").filter(Boolean)) {
       try {
         const parsed = JSON.parse(line)
-        if (parsed.type === "session.resume_hint" && typeof parsed.sessionID === "string") return parsed.sessionID
-      } catch { continue }
+        if (typeof parsed.session_id === "string") return parsed.session_id
+        if (typeof parsed.sessionID === "string") return parsed.sessionID
+      } catch {
+        continue
+      }
     }
     return undefined
   },

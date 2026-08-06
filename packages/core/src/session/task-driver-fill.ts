@@ -1,7 +1,7 @@
 export * as TaskDriverFill from "./task-driver-fill"
 
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
-import { and, eq } from "drizzle-orm"
+import { and, desc, eq } from "drizzle-orm"
 import { DateTime, Duration, Effect, Layer, Option, Schema } from "effect"
 import { AgentV2 } from "../agent"
 import { BackgroundJob } from "../background-job"
@@ -39,13 +39,15 @@ export class CliUnavailableError extends Schema.TaggedErrorClass<CliUnavailableE
   "TaskDriverFill.CliUnavailableError",
   {
     cliTarget: Schema.String,
-    reason: Schema.Literals(["no_spawner", "unknown_target"]),
+    reason: Schema.Literals(["no_spawner", "unknown_target", "invalid_task"]),
   },
 ) {
   override get message() {
-    return this.reason === "no_spawner"
-      ? `CLI execution not available (no process spawner) for target ${this.cliTarget}`
-      : `Unknown CLI target: ${this.cliTarget}`
+    if (this.reason === "no_spawner") {
+      return `CLI execution not available (no process spawner) for target ${this.cliTarget}`
+    }
+    if (this.reason === "invalid_task") return `task_id does not belong to this session for target ${this.cliTarget}`
+    return `Unknown CLI target: ${this.cliTarget}`
   }
 }
 
@@ -95,10 +97,21 @@ export const layer = Layer.effectDiscard(
     // Config.Service is present (composition roots always provide one).
     const configOpt = yield* Effect.serviceOption(Config.Service)
     if (configOpt._tag === "Some") {
-      yield* configOpt.value.entries().pipe(
-        Effect.map(registerConfigCliAdapters),
-        Effect.catch(() => Effect.void),
-      )
+      const entries = yield* configOpt.value.entries()
+      yield* Effect.try({
+        try: () =>
+          registerConfigCliAdapters(entries, {
+            "claude-code": {
+              sdk: claudeCodeSdkAdapter,
+              ...(which("claude-code-acp") ? { acp: claudeCodeAcpAdapter } : {}),
+            },
+            codex: {
+              sdk: codexSdkAdapter,
+              ...(which("codex-acp") ? { acp: codexAcpAdapter } : {}),
+            },
+          }),
+        catch: (error) => new Error(error instanceof Error ? error.message : String(error)),
+      }).pipe(Effect.orDie)
     }
     const metaAgent = yield* Effect.serviceOption(MetaAgentService.Service)
     TaskDriver.install(
@@ -129,29 +142,33 @@ export const layer = Layer.effectDiscard(
         interrupt: sessions.interrupt,
       },
       {
-        start: (sessionID, work) =>
-          background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
+        start: (sessionID, work) => background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
         // Map BackgroundJob's terminal Info to the seam's BackgroundOutcome. A
         // still-"running" status can't occur here (wait blocks until the job
         // settles); a missing Info (job never registered / scope closed) is
         // reported as undefined so delegate treats it as completed-but-empty.
         wait: (sessionID) =>
-          background.wait({ id: sessionID }).pipe(
-            Effect.map(({ info }) =>
-              info && info.status !== "running"
-                ? { status: info.status, ...(info.error ? { error: info.error } : {}) }
-                : undefined,
+          background
+            .wait({ id: sessionID })
+            .pipe(
+              Effect.map(({ info }) =>
+                info && info.status !== "running"
+                  ? { status: info.status, ...(info.error ? { error: info.error } : {}) }
+                  : undefined,
+              ),
             ),
-          ),
         cancel: (sessionID) => background.cancel(sessionID).pipe(Effect.asVoid),
         extend: (sessionID, work) => background.extend({ id: sessionID, run: work.pipe(Effect.as("")) }),
       },
       {
         execute: (input) =>
           Effect.gen(function* () {
-            if (!spawner) return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "no_spawner" })
             const adapter = getCliAdapter(input.cliTarget)
-            if (!adapter) return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "unknown_target" })
+            if (!adapter)
+              return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "unknown_target" })
+            if (adapter.transport !== "sdk" && adapter.transport !== "acp" && !spawner) {
+              return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "no_spawner" })
+            }
             const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
 
             // Create a real child session so the task card link navigates to a real
@@ -159,23 +176,29 @@ export const layer = Layer.effectDiscard(
             // CLI name (mirrors V1's task tool, which passes description as the title).
             const childSession = yield* sessions
               .create({
+                id: input.taskID,
                 parentID: input.sessionID,
                 agent: AgentV2.ID.make(input.cliTarget),
                 location: session.location,
                 title: input.description,
               })
               .pipe(Effect.orDie)
+            if (childSession.parentID !== input.sessionID) {
+              return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "invalid_task" })
+            }
 
             // Write the delegated prompt as the child's first user message so the child
             // Session reads like a real conversation (mirrors V1's task tool).
             const cliPrompt = `[Project directory: ${session.location.directory}]\n\n${input.prompt}`
-            yield* events.publish(SessionEvent.Prompted, {
-              sessionID: childSession.id,
-              messageID: SessionMessageID.ID.create(),
-              timestamp: yield* DateTime.now,
-              prompt: Prompt.make({ text: cliPrompt }),
-              delivery: "steer",
-            }).pipe(Effect.orDie)
+            yield* events
+              .publish(SessionEvent.Prompted, {
+                sessionID: childSession.id,
+                messageID: SessionMessageID.ID.create(),
+                timestamp: yield* DateTime.now,
+                prompt: Prompt.make({ text: cliPrompt }),
+                delivery: "steer",
+              })
+              .pipe(Effect.orDie)
 
             // Attempt to load DB for resume lookup and hint persistence.
             // Not all callers (e.g. tests) provide Database.Service, so
@@ -196,14 +219,17 @@ export const layer = Layer.effectDiscard(
                 .where(
                   and(
                     eq(ExternalCliSessionTable.session_id, input.sessionID),
+                    eq(ExternalCliSessionTable.cli_target, input.cliTarget),
                     eq(ExternalCliSessionTable.status, "active"),
                   ),
                 )
+                .orderBy(desc(ExternalCliSessionTable.time_updated))
                 .get()
               resumeId = row?.external_session_id
-              if (resumeId) yield* Effect.logInfo(
-                `CLI resume: found active session ${resumeId} for session ${input.sessionID}, target=${input.cliTarget}`,
-              )
+              if (resumeId)
+                yield* Effect.logInfo(
+                  `CLI resume: found active session ${resumeId} for session ${input.sessionID}, target=${input.cliTarget}`,
+                )
             }
 
             // Meta agent step: record the dispatch up front (status running), then settle it
@@ -274,20 +300,22 @@ export const layer = Layer.effectDiscard(
                           }),
                       }),
                     )
-                : yield* executeWithTimeout(spawner, adapter, {
+                : yield* executeWithTimeout(spawner!, adapter, {
                     prompt: cliPrompt,
                     cwd: session.location.directory,
                     resumeId,
                   })
 
             // Write the CLI summary as the child's second user message.
-            yield* events.publish(SessionEvent.Prompted, {
-              sessionID: childSession.id,
-              messageID: SessionMessageID.ID.create(),
-              timestamp: yield* DateTime.now,
-              prompt: Prompt.make({ text: result.summary }),
-              delivery: "steer",
-            }).pipe(Effect.orDie)
+            yield* events
+              .publish(SessionEvent.Prompted, {
+                sessionID: childSession.id,
+                messageID: SessionMessageID.ID.create(),
+                timestamp: yield* DateTime.now,
+                prompt: Prompt.make({ text: result.summary }),
+                delivery: "steer",
+              })
+              .pipe(Effect.orDie)
 
             if (stepID && metaAgentSvc) {
               yield* metaAgentSvc.updateStep({
@@ -303,12 +331,21 @@ export const layer = Layer.effectDiscard(
             // next same-parent delegation resumes it (P0-1).
             if (Option.isSome(dbOpt)) {
               const db: Database.Interface["db"] = dbOpt.value.db
-              const hint =
-                result.sessionId ?? adapter.parseResumeHint?.(result.rawStdout ?? result.summary)
+              const hint = result.sessionId ?? adapter.parseResumeHint?.(result.rawStdout ?? result.summary)
               if (hint) {
                 yield* Effect.logInfo(
                   `CLI resume: persisted hint ${hint} for session ${input.sessionID}, target=${input.cliTarget}`,
                 )
+                yield* db
+                  .update(ExternalCliSessionTable)
+                  .set({ status: "completed" })
+                  .where(
+                    and(
+                      eq(ExternalCliSessionTable.session_id, input.sessionID),
+                      eq(ExternalCliSessionTable.cli_target, input.cliTarget),
+                      eq(ExternalCliSessionTable.status, "active"),
+                    ),
+                  )
                 yield* db
                   .insert(ExternalCliSessionTable)
                   .values({
@@ -317,7 +354,10 @@ export const layer = Layer.effectDiscard(
                     external_session_id: hint,
                     status: "active",
                   })
-                  .onConflictDoNothing()
+                  .onConflictDoUpdate({
+                    target: [ExternalCliSessionTable.session_id, ExternalCliSessionTable.external_session_id],
+                    set: { cli_target: input.cliTarget, status: "active" },
+                  })
               }
             }
 

@@ -1,9 +1,19 @@
 export * as ClaudeCodeSdkAdapter from "./claude-code-sdk"
 
 import { Effect } from "effect"
-import * as ClaudeAgentSdk from "@anthropic-ai/claude-agent-sdk"
+import { query, type CanUseTool } from "@anthropic-ai/claude-agent-sdk"
 import { which } from "../util/which"
-import type { CliAdapter, SdkPermissionRequest } from "./cli-adapter"
+import type { CliAdapter, DelegationResult, SdkPermissionRequest } from "./cli-adapter"
+
+export interface ClaudeQuery
+  extends AsyncIterable<{
+    type: string
+    result?: string
+    is_error?: boolean
+    session_id?: string
+  }> {
+  close?: () => void
+}
 
 /**
  * The minimal Claude Agent SDK surface this adapter drives. Injected so unit
@@ -16,12 +26,11 @@ export interface ClaudeSdk {
     options?: {
       cwd?: string
       resume?: string
-      canUseTool?: (
-        toolName: string,
-        input: Record<string, unknown>,
-      ) => Promise<{ behavior: "allow" | "deny"; message?: string } | null>
+      persistSession?: boolean
+      abortController?: AbortController
+      canUseTool?: CanUseTool
     }
-  }): AsyncIterable<{ type: string; result?: string; is_error?: boolean; session_id?: string }>
+  }): ClaudeQuery
 }
 
 const toSdkPermissionResult = (decision: "allow" | "deny") =>
@@ -39,47 +48,86 @@ export const makeClaudeCodeSdkAdapter = (sdk: ClaudeSdk, name = "claude-code"): 
   buildArgs: () => Effect.succeed([]),
   parseOutput: (stdout) => Effect.succeed({ status: "success" as const, summary: stdout }),
   execute: ({ prompt, cwd, resumeId, canUseTool }) =>
-    Effect.gen(function* () {
-      let sdkPermission: ((
-        toolName: string,
-        input: Record<string, unknown>,
-      ) => Promise<{ behavior: "allow" | "deny"; message?: string } | null>) | undefined
-      if (canUseTool) {
-        sdkPermission = async (toolName: string, input: Record<string, unknown>) => {
-          const request: SdkPermissionRequest = { toolName, input }
-          return toSdkPermissionResult(await canUseTool(request))
-        }
-      }
-      const query = sdk.query({
-        prompt,
-        options: { cwd, resume: resumeId, canUseTool: sdkPermission },
-      })
+    Effect.scoped(
+      Effect.gen(function* () {
+        const abortController = yield* Effect.acquireRelease(
+          Effect.sync(() => new AbortController()),
+          (controller) => Effect.sync(() => controller.abort()),
+        )
+        const sdkPermission = canUseTool
+          ? async (toolName: string, input: Record<string, unknown>) => {
+              const request: SdkPermissionRequest = { toolName, input }
+              return toSdkPermissionResult(await canUseTool(request))
+            }
+          : undefined
+        const sdkQuery = yield* Effect.acquireRelease(
+          Effect.try({
+            try: () =>
+              sdk.query({
+                prompt,
+                options: {
+                  cwd,
+                  resume: resumeId,
+                  persistSession: true,
+                  abortController,
+                  canUseTool: sdkPermission,
+                },
+              }),
+            catch: (error) => new Error(errorMessage(error)),
+          }),
+          (active) => Effect.sync(() => active.close?.()),
+        )
 
-      const collected = yield* Effect.promise(async () => {
-        let summary = ""
-        let isError = false
-        let sessionId: string | undefined
-        for await (const message of query) {
-          // The SDK's system/init message carries the session id; capture it so
-          // the caller can persist it for the next resume.
-          if (message.session_id) sessionId = message.session_id
-          if (message.type === "result") {
-            isError = message.is_error === true
-            if (message.result) summary = message.result
+        const collected = yield* Effect.tryPromise({
+          try: async () => {
+            let summary = ""
+            let isError = false
+            let sawResult = false
+            let sessionId: string | undefined
+            for await (const message of sdkQuery) {
+              if (message.session_id) sessionId = message.session_id
+              if (message.type !== "result") continue
+              sawResult = true
+              isError = message.is_error === true
+              if (message.result) summary = message.result
+            }
+            return { summary: summary.trim(), isError, sawResult, sessionId }
+          },
+          catch: (error) => new Error(errorMessage(error)),
+        })
+
+        if (collected.isError) {
+          return {
+            status: "failed" as const,
+            summary: collected.summary || "Claude Code reported an error without details",
+            sessionId: collected.sessionId,
+            errors: collected.summary ? [collected.summary] : ["Claude Code reported an error without details"],
           }
         }
-        return { summary, isError, sessionId }
-      })
-      return {
-        status: collected.isError ? ("failed" as const) : ("success" as const),
-        summary: collected.summary || "Task completed",
-        sessionId: collected.sessionId,
-      }
-    }),
+        if (!collected.sawResult || !collected.summary) {
+          return emptyResult(name, collected.sessionId, "completed without a final response")
+        }
+        if (!collected.sessionId) return emptyResult(name, undefined, "completed without a persistent session id")
+        return { status: "success" as const, summary: collected.summary, sessionId: collected.sessionId }
+      }).pipe(
+        Effect.catch((error) =>
+          Effect.succeed<DelegationResult>({
+            status: "failed",
+            summary: `CLI "${name}" SDK execution failed: ${errorMessage(error)}`,
+            errors: [errorMessage(error)],
+          }),
+        ),
+      ),
+    ),
 })
 
-// Production adapter backed by the real Claude Agent SDK. The SDK's richer
-// types are cast to the minimal seam — a third-party compatibility escape (the
-// SDK emits a superset of SDKMessage shapes we intentionally ignore).
-// oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- third-party SDK surface intentionally narrowed to the minimal seam
-export const adapter: CliAdapter = makeClaudeCodeSdkAdapter(ClaudeAgentSdk as unknown as ClaudeSdk)
+const emptyResult = (name: string, sessionId: string | undefined, reason: string): DelegationResult => ({
+  status: "failed",
+  summary: `CLI "${name}" ${reason}`,
+  ...(sessionId ? { sessionId } : {}),
+  errors: [reason],
+})
+
+const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+
+export const adapter: CliAdapter = makeClaudeCodeSdkAdapter({ query: (input) => query(input) })

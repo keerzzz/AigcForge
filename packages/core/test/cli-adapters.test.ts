@@ -24,21 +24,35 @@ describe("CLI adapters — buildArgs", () => {
   const resumeId = "ses_ext_resume_123"
 
   test("claude-code fresh session keeps prompt inline", () =>
-    expect(Effect.runSync(claudeCode.buildArgs({ prompt, cwd: "/p" }))).toEqual(["-p", "--no-chrome", prompt]))
+    expect(Effect.runSync(claudeCode.buildArgs({ prompt, cwd: "/p" }))).toEqual([
+      "-p",
+      "--no-chrome",
+      "--output-format",
+      "json",
+      prompt,
+    ]))
 
   test("claude-code resumed session passes --resume", () =>
     expect(Effect.runSync(claudeCode.buildArgs({ prompt, cwd: "/p", resumeId }))).toEqual([
       "-p",
       "--no-chrome",
+      "--output-format",
+      "json",
       "--resume",
       resumeId,
+      prompt,
     ]))
 
   test("gemini fresh session keeps prompt inline", () =>
-    expect(Effect.runSync(gemini.buildArgs({ prompt, cwd: "/p" }))).toEqual(["exec", prompt]))
+    expect(Effect.runSync(gemini.buildArgs({ prompt, cwd: "/p" }))).toEqual(["-p", prompt]))
 
   test("gemini resumed session passes --resume", () =>
-    expect(Effect.runSync(gemini.buildArgs({ prompt, cwd: "/p", resumeId }))).toEqual(["exec", "--resume", resumeId]))
+    expect(Effect.runSync(gemini.buildArgs({ prompt, cwd: "/p", resumeId }))).toEqual([
+      "-p",
+      prompt,
+      "--resume",
+      resumeId,
+    ]))
 
   test("codex fresh session keeps prompt inline", () =>
     expect(Effect.runSync(codex.buildArgs({ prompt, cwd: "/p" }))).toEqual(["exec", "--json", prompt]))
@@ -46,16 +60,22 @@ describe("CLI adapters — buildArgs", () => {
   test("codex resumed session passes --resume", () =>
     expect(Effect.runSync(codex.buildArgs({ prompt, cwd: "/p", resumeId }))).toEqual([
       "exec",
+      "resume",
       "--json",
-      "--resume",
       resumeId,
+      prompt,
     ]))
 
   test("opencode fresh session keeps prompt inline", () =>
     expect(Effect.runSync(opencode.buildArgs({ prompt, cwd: "/p" }))).toEqual(["run", prompt]))
 
   test("opencode resumed session passes --resume", () =>
-    expect(Effect.runSync(opencode.buildArgs({ prompt, cwd: "/p", resumeId }))).toEqual(["run", "--resume", resumeId]))
+    expect(Effect.runSync(opencode.buildArgs({ prompt, cwd: "/p", resumeId }))).toEqual([
+      "run",
+      "--session",
+      resumeId,
+      prompt,
+    ]))
 })
 
 describe("CLI adapters — parseResumeHint", () => {

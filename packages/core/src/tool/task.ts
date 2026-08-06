@@ -231,6 +231,7 @@ export const layer = Layer.effectDiscard(
                   prompt: input.prompt,
                   description: input.description,
                   sessionID: context.sessionID,
+                  taskID: input.task_id ? SessionSchema.ID.make(input.task_id) : undefined,
                 }).pipe(Effect.mapError((error) => new ToolFailure({ message: error.message })))
                 // Write back the linked task with the CLI's terminal status.
                 if (cliTaskID !== undefined) {
@@ -275,9 +276,7 @@ export const layer = Layer.effectDiscard(
                   prompt: input.prompt,
                   description: input.description,
                 }).pipe(
-                  Effect.catchTag("TaskDriver.DelegateError", (error) =>
-                    new ToolFailure({ message: error.message }),
-                  ),
+                  Effect.catchTag("TaskDriver.DelegateError", (error) => new ToolFailure({ message: error.message })),
                 )
                 return {
                   sessionID: context.sessionID,
@@ -412,26 +411,24 @@ export const layer = Layer.effectDiscard(
                 // await delegate here).
                 const text = yield* Effect.gen(function* () {
                   if (taskID !== undefined) {
-                    yield* events
-                      .subscribe(SessionTask.Event.Updated)
-                      .pipe(
-                        Stream.filter((event) => event.data.sessionID === child.id),
-                        Stream.runForEach((event) =>
-                          Effect.gen(function* () {
-                            const ratio = childCompletionRatio(event.data.tasks)
-                            if (!ratio) return
-                            yield* tasks.recordProgress({
-                              sessionID: context.sessionID,
-                              taskID,
-                              phase: "streaming",
-                              progress: ratio.progress,
-                              current: ratio.current,
-                              total: ratio.total,
-                            })
-                          }),
-                        ),
-                        Effect.forkScoped,
-                      )
+                    yield* events.subscribe(SessionTask.Event.Updated).pipe(
+                      Stream.filter((event) => event.data.sessionID === child.id),
+                      Stream.runForEach((event) =>
+                        Effect.gen(function* () {
+                          const ratio = childCompletionRatio(event.data.tasks)
+                          if (!ratio) return
+                          yield* tasks.recordProgress({
+                            sessionID: context.sessionID,
+                            taskID,
+                            phase: "streaming",
+                            progress: ratio.progress,
+                            current: ratio.current,
+                            total: ratio.total,
+                          })
+                        }),
+                      ),
+                      Effect.forkScoped,
+                    )
                   }
                   return yield* TaskDriver.delegate({
                     sessionID: child.id,

@@ -27,14 +27,16 @@ export interface AcpConnectionFactory {
 // (the protocol does not expose the tool name). The category is used as the
 // PermissionV2 action so the shared bridge decides allow/deny uniformly with the
 // SDK adapters' canUseTool.
-const permissionHandler = (canUseTool: SdkPermissionHandler | undefined): PermissionHandler => async (request) => {
-  if (!canUseTool) return rejectResponse(request)
-  const decision = await canUseTool({
-    toolName: request.toolCall.kind ?? "other",
-    input: inputRecord(request.toolCall.rawInput),
-  })
-  return decision === "allow" ? allowResponse(request) : rejectResponse(request)
-}
+const permissionHandler =
+  (canUseTool: SdkPermissionHandler | undefined): PermissionHandler =>
+  async (request) => {
+    if (!canUseTool) return rejectResponse(request)
+    const decision = await canUseTool({
+      toolName: request.toolCall.kind ?? "other",
+      input: inputRecord(request.toolCall.rawInput),
+    })
+    return decision === "allow" ? allowResponse(request) : rejectResponse(request)
+  }
 
 // ACP tool-call raw input is opaque; the SDK-shaped permission bridge wants a
 // plain record, so non-object inputs are collapsed to an empty object.
@@ -51,9 +53,10 @@ const allowResponse = (request: RequestPermissionRequest): RequestPermissionResp
 
 const rejectResponse = (request: RequestPermissionRequest): RequestPermissionResponse => {
   const option =
-    request.options.find((o) => o.kind === "reject_once") ??
-    request.options.find((o) => o.kind === "reject_always")
-  return option ? { outcome: { outcome: "selected", optionId: option.optionId } } : { outcome: { outcome: "cancelled" } }
+    request.options.find((o) => o.kind === "reject_once") ?? request.options.find((o) => o.kind === "reject_always")
+  return option
+    ? { outcome: { outcome: "selected", optionId: option.optionId } }
+    : { outcome: { outcome: "cancelled" } }
 }
 
 const stopReasonToStatus = (stopReason: string): DelegationStatus => {
@@ -113,9 +116,19 @@ export function makeAcpAdapter(input: {
               ? (yield* Effect.promise(() => connection.loadSession(cwd, resumeId)), resumeId)
               : yield* Effect.promise(() => connection.newSession(cwd))
             const { stopReason } = yield* Effect.promise(() => connection.prompt(sessionId, prompt))
+            const summary = textParts.join("").trim()
+            const status = stopReasonToStatus(stopReason)
+            if (status !== "failed" && !summary) {
+              return {
+                status: "failed" as const,
+                summary: `CLI "${input.name}" completed without a final response`,
+                sessionId,
+                errors: [`ACP stop reason: ${stopReason}`],
+              }
+            }
             return {
-              status: stopReasonToStatus(stopReason),
-              summary: textParts.join("").trim() || "Task completed",
+              status,
+              summary: summary || `CLI "${input.name}" stopped with ${stopReason}`,
               sessionId,
             }
           })

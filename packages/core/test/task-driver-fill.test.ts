@@ -107,6 +107,16 @@ const sdkAdapter: CliAdapter = {
 }
 registerCliAdapter("test-sdk-cli", sdkAdapter)
 
+const sdkAdapterTwo: CliAdapter = {
+  ...sdkAdapter,
+  name: "test-sdk-cli-2",
+  execute: ({ resumeId }) => {
+    sdkCalls.push({ resumeId })
+    return Effect.succeed({ status: "success" as const, summary: "SDK task summary", sessionId: "sdk_thread_2" })
+  },
+}
+registerCliAdapter("test-sdk-cli-2", sdkAdapterTwo)
+
 // Never-settling SDK adapter with a short timeout, for the live-clock timeout test.
 const slowSdkAdapter: CliAdapter = {
   name: "test-slow-sdk-cli",
@@ -236,18 +246,23 @@ const seedParent = Effect.gen(function* () {
   return yield* session.create({ location })
 })
 
-const runCLI = (input: { parentID: string; description?: string; prompt?: string; cliTarget?: string }) =>
+const runCLI = (input: {
+  parentID: string
+  description?: string
+  prompt?: string
+  cliTarget?: string
+  taskID?: string
+}) =>
   TaskDriver.executeCLI({
     cliTarget: input.cliTarget ?? "test-cli",
     prompt: input.prompt ?? "run the cli task",
     description: input.description ?? "cli child title",
     sessionID: SessionV2.ID.make(input.parentID),
+    taskID: input.taskID ? SessionV2.ID.make(input.taskID) : undefined,
   })
 
 const userMessageTexts = (messages: ReadonlyArray<SessionMessage.Message>) =>
-  messages
-    .filter((message): message is SessionMessage.User => message.type === "user")
-    .map((message) => message.text)
+  messages.filter((message): message is SessionMessage.User => message.type === "user").map((message) => message.text)
 
 describe("TaskDriverFill executeCLI", () => {
   beforeEach(() => {
@@ -294,7 +309,9 @@ describe("TaskDriverFill executeCLI", () => {
       const row = yield* db
         .select()
         .from(ExternalCliSessionTable)
-        .where(and(eq(ExternalCliSessionTable.session_id, parent.id), eq(ExternalCliSessionTable.cli_target, "test-cli")))
+        .where(
+          and(eq(ExternalCliSessionTable.session_id, parent.id), eq(ExternalCliSessionTable.cli_target, "test-cli")),
+        )
         .get()
         .pipe(Effect.orDie)
       expect(row?.external_session_id).toBe(RESUME_ID)
@@ -304,6 +321,27 @@ describe("TaskDriverFill executeCLI", () => {
       expect(spawnCalls).toHaveLength(2)
       expect(spawnCalls[1].args).toContain("--resume")
       expect(spawnCalls[1].args).toContain(RESUME_ID)
+    }),
+  )
+
+  it.effect("does not reuse another CLI target's external session", () =>
+    Effect.gen(function* () {
+      const parent = yield* seedParent
+      yield* runCLI({ parentID: parent.id, cliTarget: "test-cli" })
+      yield* runCLI({ parentID: parent.id, cliTarget: "test-sdk-cli" })
+      expect(sdkCalls).toEqual([{ resumeId: undefined }])
+    }),
+  )
+
+  it.effect("taskID reuses the same child Session for external CLI retries", () =>
+    Effect.gen(function* () {
+      const parent = yield* seedParent
+      const first = yield* runCLI({ parentID: parent.id, cliTarget: "test-cli" })
+      const second = yield* runCLI({ parentID: parent.id, cliTarget: "test-cli", taskID: first.sessionID })
+      expect(second.sessionID).toBe(first.sessionID)
+      const session = yield* SessionV2.Service
+      const messages = yield* session.messages({ sessionID: first.sessionID, order: "asc" })
+      expect(userMessageTexts(messages)).toHaveLength(4)
     }),
   )
 
@@ -324,7 +362,9 @@ describe("TaskDriverFill executeCLI", () => {
       const steps = yield* db
         .select()
         .from(MetaAgentStepTable)
-        .where(and(eq(MetaAgentStepTable.meta_agent_session_id, parent.id), eq(MetaAgentStepTable.type, "external-cli")))
+        .where(
+          and(eq(MetaAgentStepTable.meta_agent_session_id, parent.id), eq(MetaAgentStepTable.type, "external-cli")),
+        )
         .all()
         .pipe(Effect.orDie)
       expect(steps).toHaveLength(1)
@@ -356,7 +396,9 @@ describe("TaskDriverFill executeCLI", () => {
       const steps = yield* db
         .select()
         .from(MetaAgentStepTable)
-        .where(and(eq(MetaAgentStepTable.meta_agent_session_id, parent.id), eq(MetaAgentStepTable.type, "external-cli")))
+        .where(
+          and(eq(MetaAgentStepTable.meta_agent_session_id, parent.id), eq(MetaAgentStepTable.type, "external-cli")),
+        )
         .all()
         .pipe(Effect.orDie)
       expect(steps[0].status).toBe("failed")
@@ -378,7 +420,10 @@ describe("TaskDriverFill executeCLI", () => {
         .select()
         .from(ExternalCliSessionTable)
         .where(
-          and(eq(ExternalCliSessionTable.session_id, parent.id), eq(ExternalCliSessionTable.cli_target, "test-sdk-cli")),
+          and(
+            eq(ExternalCliSessionTable.session_id, parent.id),
+            eq(ExternalCliSessionTable.cli_target, "test-sdk-cli"),
+          ),
         )
         .get()
         .pipe(Effect.orDie)
@@ -426,6 +471,15 @@ describe("TaskDriverFill executeCLI", () => {
       yield* runCLI({ parentID: parent.id, cliTarget: "test-perm-cli" })
       expect(permDecisions).toEqual(["allow"])
       expect(permissionCalls).toHaveLength(1)
+    }),
+  )
+
+  itNoSpawner.effect("SDK transport does not require a ChildProcessSpawner", () =>
+    Effect.gen(function* () {
+      const parent = yield* seedParent
+      const result = yield* runCLI({ parentID: parent.id, cliTarget: "test-sdk-cli" })
+      expect(result.status).toBe("success")
+      expect(sdkCalls).toHaveLength(1)
     }),
   )
 

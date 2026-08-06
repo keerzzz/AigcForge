@@ -78,6 +78,8 @@ export const getCliAdapter = (name: string): CliAdapter | undefined => adapters.
 
 export const listCliAdapters = (): CliAdapter[] => Array.from(adapters.values())
 
+export type BuiltInCliTransports = Readonly<Record<string, Partial<Record<"sdk" | "acp", CliAdapter>>>>
+
 /**
  * Register config-defined `cli_agents` as adapters. Later entries win, so a
  * config entry sharing a built-in's name overrides it (config > built-in).
@@ -85,14 +87,19 @@ export const listCliAdapters = (): CliAdapter[] => Array.from(adapters.values())
  * config entry selecting one for another name cannot be honored and fails
  * loudly instead of silently downgrading to a jsonl adapter.
  */
-export const registerConfigCliAdapters = (entries: readonly Config.Entry[]): void => {
+export const registerConfigCliAdapters = (
+  entries: readonly Config.Entry[],
+  builtInTransports: BuiltInCliTransports = {},
+): void => {
   const cliAgents = Config.latest(entries, "cli_agents")
   if (!cliAgents) return
   for (const [name, info] of Object.entries(cliAgents)) {
     if (info.transport === "sdk" || info.transport === "acp") {
-      if (name !== "claude-code" && name !== "codex") {
-        throw new Error(`cli_agents "${name}" transport "${info.transport}" is only supported for claude-code/codex`)
+      const selected = builtInTransports[name]?.[info.transport]
+      if (!selected || selected.transport !== info.transport) {
+        throw new Error(`cli_agents "${name}" transport "${info.transport}" is unavailable`)
       }
+      adapters.set(name, selected)
       continue
     }
     adapters.set(name, fromConfig(name, info))

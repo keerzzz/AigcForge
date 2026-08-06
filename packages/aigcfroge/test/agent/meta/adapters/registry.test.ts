@@ -6,10 +6,9 @@ import { CliAdapterRegistry } from "../../../../src/agent/meta/adapters/registry
 import { Config } from "@aigcfroge/core/config"
 import { ConfigCliAgent } from "@aigcfroge/core/config/cli-agent"
 import { registerConfigCliAdapters } from "@aigcfroge/core/tool/cli-adapter"
+import { adapter as claudeCodeSdkAdapter } from "@aigcfroge/core/tool/claude-code-sdk"
 
-const cliAgentDoc = (
-  entries: Record<string, { command: string; transport?: "jsonl" | "sdk" | "acp" }>,
-) =>
+const cliAgentDoc = (entries: Record<string, { command: string; transport?: "jsonl" | "sdk" | "acp" }>) =>
   new Config.Document({
     type: "document",
     info: new Config.Info({
@@ -146,7 +145,9 @@ describe("adapter registry", () => {
   it.instance("config transport sdk keeps the built-in SDK adapter for claude/codex", () =>
     Effect.gen(function* () {
       const registry = yield* CliAdapterRegistry.AdapterRegistry
-      registerConfigCliAdapters([cliAgentDoc({ "claude-code": { command: "claude", transport: "sdk" } })])
+      registerConfigCliAdapters([cliAgentDoc({ "claude-code": { command: "claude", transport: "sdk" } })], {
+        "claude-code": { sdk: claudeCodeSdkAdapter },
+      })
       const adapter = yield* registry.get("claude-code")
       expect(adapter?.transport).toBe("sdk")
     }),

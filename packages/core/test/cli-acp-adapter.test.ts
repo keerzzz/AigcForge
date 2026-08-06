@@ -41,7 +41,10 @@ type PromptInput = { sessionId: string; prompt: string; input: MockState["factor
 // A mock connection factory whose prompt() drives the captured handlers the way
 // a real agent would: push text + tool-call updates, optionally request
 // permission, then settle the turn.
-const mockFactory = (state: MockState, behavior: (p: PromptInput) => Promise<{ stopReason: string }>): AcpConnectionFactory => {
+const mockFactory = (
+  state: MockState,
+  behavior: (p: PromptInput) => Promise<{ stopReason: string }>,
+): AcpConnectionFactory => {
   return (input) => {
     state.factoryInput = input
     const connection: AcpClientConnection = {
@@ -90,9 +93,7 @@ describe("transport:acp adapter", () => {
 
   test("session/load: resumeId is loaded and echoed back as DelegationResult.sessionId", async () => {
     const state = freshState()
-    const adapter = makeClaudeCodeAcpAdapter(
-      mockFactory(state, async () => ({ stopReason: "end_turn" })),
-    )
+    const adapter = makeClaudeCodeAcpAdapter(mockFactory(state, async () => ({ stopReason: "end_turn" })))
     const result = await run(adapter.execute!({ prompt: "continue", cwd: "/tmp/ws", resumeId: "ses_resume" }))
     expect(state.loadSessionCalls).toEqual([{ cwd: "/tmp/ws", sessionId: "ses_resume" }])
     expect(state.newSessionCalls).toEqual([])
@@ -107,6 +108,10 @@ describe("transport:acp adapter", () => {
       mockFactory(state, async ({ input }) => {
         await input!.onUpdate({
           sessionId: "ses_new",
+          update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "done" } },
+        })
+        await input!.onUpdate({
+          sessionId: "ses_new",
           update: {
             sessionUpdate: "tool_call",
             toolCallId: "tc_1",
@@ -119,7 +124,9 @@ describe("transport:acp adapter", () => {
         return { stopReason: "end_turn" }
       }),
     )
-    const result = await run(adapter.execute!({ prompt: "x", cwd: "/tmp/ws", onProgress: (entry) => progress.push(entry) }))
+    const result = await run(
+      adapter.execute!({ prompt: "x", cwd: "/tmp/ws", onProgress: (entry) => progress.push(entry) }),
+    )
     expect(result.status).toBe("success")
     expect(progress).toEqual([
       { parentToolUseId: "task_42", toolCallId: "tc_1", title: "Read file", kind: "read", status: "in_progress" },
@@ -140,6 +147,10 @@ describe("transport:acp adapter", () => {
           ],
         })
         state.permissionResponses.push(response)
+        await input!.onUpdate({
+          sessionId: "ses_new",
+          update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "done" } },
+        })
         return { stopReason: "end_turn" }
       }),
     )
@@ -195,7 +206,17 @@ describe("transport:acp adapter", () => {
     ]
     for (const c of cases) {
       const state = freshState()
-      const adapter = makeClaudeCodeAcpAdapter(mockFactory(state, async () => ({ stopReason: c.stopReason })))
+      const adapter = makeClaudeCodeAcpAdapter(
+        mockFactory(state, async ({ input }) => {
+          if (c.status !== "failed") {
+            await input!.onUpdate({
+              sessionId: "ses_new",
+              update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "done" } },
+            })
+          }
+          return { stopReason: c.stopReason }
+        }),
+      )
       const result = await run(adapter.execute!({ prompt: "x", cwd: "/tmp/ws" }))
       expect(result.status).toBe(c.status)
     }
