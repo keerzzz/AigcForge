@@ -13,6 +13,7 @@ import type {
   Todo,
 } from "@aigcfroge/sdk/v2/client"
 import type { State, VcsCache } from "./types"
+import type { TaskProgressSnapshot } from "../server-sync"
 import { trimSessions } from "./session-trim"
 import { dropSessionCaches } from "./session-cache"
 import { diffs as list, message as clean } from "@/utils/diffs"
@@ -56,10 +57,12 @@ function cleanupSessionCaches(
   sessionID: string,
   setSessionTodo?: (sessionID: string, todos: Todo[] | undefined) => void,
   setSessionTask?: (sessionID: string, tasks: SessionTaskInfo[] | undefined) => void,
+  setSessionTaskProgress?: (sessionID: string, progress: TaskProgressSnapshot | undefined) => void,
 ) {
   if (!sessionID) return
   setSessionTodo?.(sessionID, undefined)
   setSessionTask?.(sessionID, undefined)
+  setSessionTaskProgress?.(sessionID, undefined)
   setStore(
     produce((draft) => {
       dropSessionCaches(draft, [sessionID])
@@ -73,6 +76,7 @@ export function cleanupDroppedSessionCaches(
   next: Session[],
   setSessionTodo?: (sessionID: string, todos: Todo[] | undefined) => void,
   setSessionTask?: (sessionID: string, tasks: SessionTaskInfo[] | undefined) => void,
+  setSessionTaskProgress?: (sessionID: string, progress: TaskProgressSnapshot | undefined) => void,
 ) {
   const keep = new Set(next.map((item) => item.id))
   const stale = [
@@ -90,6 +94,7 @@ export function cleanupDroppedSessionCaches(
   for (const sessionID of stale) {
     setSessionTodo?.(sessionID, undefined)
     setSessionTask?.(sessionID, undefined)
+    setSessionTaskProgress?.(sessionID, undefined)
   }
   setStore(
     produce((draft) => {
@@ -108,6 +113,18 @@ export function applyDirectoryEvent(input: {
   vcsCache?: VcsCache
   setSessionTodo?: (sessionID: string, todos: Todo[] | undefined) => void
   setSessionTask?: (sessionID: string, tasks: SessionTaskInfo[] | undefined) => void
+  /** P2: ephemeral progress snapshot for the session's active task. */
+  setSessionTaskProgress?: (
+    sessionID: string,
+    progress: {
+      taskID: string
+      phase: "thinking" | "streaming" | "tool" | "waiting"
+      progress?: number
+      current?: number
+      total?: number
+      updatedAt: number
+    } | undefined,
+  ) => void
   retainedLimit?: number
 }) {
   const event = input.event
@@ -128,7 +145,7 @@ export function applyDirectoryEvent(input: {
       next.splice(result.index, 0, info)
       const trimmed = trimSessions(next, { limit, permission: input.store.permission })
       input.setStore("session", reconcile(trimmed, { key: "id" }))
-      cleanupDroppedSessionCaches(input.store, input.setStore, trimmed, input.setSessionTodo, input.setSessionTask)
+      cleanupDroppedSessionCaches(input.store, input.setStore, trimmed, input.setSessionTodo, input.setSessionTask, input.setSessionTaskProgress)
       if (!info.parentID) input.setStore("sessionTotal", (value) => value + 1)
       break
     }
@@ -145,7 +162,7 @@ export function applyDirectoryEvent(input: {
             }),
           )
         }
-        cleanupSessionCaches(input.setStore, info.id, input.setSessionTodo, input.setSessionTask)
+        cleanupSessionCaches(input.setStore, info.id, input.setSessionTodo, input.setSessionTask, input.setSessionTaskProgress)
         if (info.parentID) break
         input.setStore("sessionTotal", (value) => Math.max(0, value - 1))
         break
@@ -158,7 +175,7 @@ export function applyDirectoryEvent(input: {
       next.splice(result.index, 0, info)
       const trimmed = trimSessions(next, { limit, permission: input.store.permission })
       input.setStore("session", reconcile(trimmed, { key: "id" }))
-      cleanupDroppedSessionCaches(input.store, input.setStore, trimmed, input.setSessionTodo, input.setSessionTask)
+      cleanupDroppedSessionCaches(input.store, input.setStore, trimmed, input.setSessionTodo, input.setSessionTask, input.setSessionTaskProgress)
       break
     }
     case "session.deleted": {
@@ -172,7 +189,7 @@ export function applyDirectoryEvent(input: {
           }),
         )
       }
-      cleanupSessionCaches(input.setStore, info.id, input.setSessionTodo, input.setSessionTask)
+      cleanupSessionCaches(input.setStore, info.id, input.setSessionTodo, input.setSessionTask, input.setSessionTaskProgress)
       if (info.parentID) break
       input.setStore("sessionTotal", (value) => Math.max(0, value - 1))
       break
@@ -199,6 +216,30 @@ export function applyDirectoryEvent(input: {
         sessionID,
         raw.filter((item): item is SessionTaskInfo => isRecord(item) && typeof item.id === "string"),
       )
+      break
+    }
+    case "task.progress": {
+      // P2: ephemeral progress snapshot for the session's active task. Narrow the
+      // untrusted payload; drop the event if the shape is wrong (never crash the
+      // reducer on a malformed progress event).
+      if (!isRecord(event.properties)) break
+      const sessionID = event.properties.sessionID
+      const taskID = event.properties.taskID
+      const phase = event.properties.phase
+      if (typeof sessionID !== "string" || typeof taskID !== "string") break
+      if (phase !== "thinking" && phase !== "streaming" && phase !== "tool" && phase !== "waiting") break
+      const progress = event.properties.progress
+      const current = event.properties.current
+      const total = event.properties.total
+      const updatedAt = event.properties.updatedAt
+      input.setSessionTaskProgress?.(sessionID, {
+        taskID,
+        phase,
+        ...(typeof progress === "number" ? { progress } : {}),
+        ...(typeof current === "number" ? { current } : {}),
+        ...(typeof total === "number" ? { total } : {}),
+        ...(typeof updatedAt === "number" ? { updatedAt } : { updatedAt: Date.now() }),
+      })
       break
     }
     case "session.status": {

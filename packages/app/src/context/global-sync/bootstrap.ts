@@ -20,7 +20,7 @@ import { cmp, normalizeAgentList, normalizeProviderList } from "./utils"
 import { formatServerError } from "@/utils/server-errors"
 import { Worktree as WorktreeState } from "@/utils/worktree"
 import { QueryClient, queryOptions } from "@tanstack/solid-query"
-import { loadMcpQuery } from "../server-sync"
+import { loadMcpQuery, type TaskProgressSnapshot } from "../server-sync"
 import { NormalizedProviderListResponse } from "@aigcfroge/session-ui/context"
 import { ScopedKey, type ServerScope } from "@/utils/server-scope"
 
@@ -40,6 +40,10 @@ type GlobalStore = {
   }
   session_task_updated_at: {
     [sessionID: string]: number
+  }
+  /** P2: ephemeral per-session task progress (mirrors server-sync's GlobalStore). */
+  session_task_progress: {
+    [sessionID: string]: TaskProgressSnapshot | undefined
   }
   provider: NormalizedProviderListResponse
   provider_auth: ProviderAuthResponse

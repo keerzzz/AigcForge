@@ -20,6 +20,7 @@ const task = (over: Partial<AgentTaskRow> = {}): SessionTaskInfo => ({
   priority: "medium",
   sessionID: "ses_a",
   agentID: "build",
+  revision: 1,
   createdAt: 1,
   updatedAt: 1,
   ...over,

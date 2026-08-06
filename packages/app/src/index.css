@@ -24,67 +24,97 @@
 }
 
 @layer components {
-  /* M7 决策 5: environment pulse reuses the clip-path scan, ~1.4s cycle with a
-     hold segment (34%-50% fully revealed) so the pulse reads as a soft sweep. */
-  @keyframes session-progress-whip {
-    0% {
-      clip-path: inset(0 100% 0 0 round 999px);
-      animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
-    }
-
-    34% {
-      clip-path: inset(0 0 0 0 round 999px);
-      animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
-    }
-
-    50% {
-      clip-path: inset(0 0 0 0 round 999px);
-    }
-
-    100% {
-      clip-path: inset(0 0 0 100% round 999px);
-    }
-  }
-
-  /* M7 决策 5: task pulse shuttles a highlight segment between the last
-     completed node (--pulse-from-px) and the anchor (--pulse-to-px). CSS vars +
-     translateX keyframes, no JS frame loop. */
-  @keyframes session-todo-progress-pulse {
+  /* M7 决策 5 (2026-08-05 统一): ONE segment-sweep mechanism for both states.
+     Env pulse (no todos) and task pulse (todos) are the same 14px highlight
+     whose center sweeps from --pulse-from-pct to --pulse-to-pct — no JS frame
+     loop, no separate clip-path scan. from = line start / first node, to =
+     line end (no todos) or anchor (todos). */
+  @keyframes session-progress-segment-sweep {
     0%,
     100% {
-      transform: translateX(var(--pulse-from-px, 0px));
+      left: var(--pulse-from-pct, 0%);
+      transform: translateX(-50%);
     }
     50% {
-      transform: translateX(var(--pulse-to-px, 0px));
+      left: var(--pulse-to-pct, 100%);
+      transform: translateX(-50%);
     }
   }
 
-  /* M7 unified track: absolute, below the h-12 title row, fixed 22px band so
-     the environment-pulse line and the task line share one vertical position
-     (决策 1/3 — no layout jump when tasks appear). */
+  /* M7 unified track: absolute, below the h-12 title row. 34px band = label/统计
+     top row (0-12px) + 2px line/10px nodes bottom row + 16px breathing below the
+     line, so the track's bottom whitespace matches the 16px title pl-4 left inset
+     (unified composite margins, 2026-08-05). Env pulse and task line share one
+     vertical position (决策 1/3 — no layout jump when tasks appear). */
   [data-component="session-progress"] {
     position: absolute;
     top: 48px;
     left: 0;
     right: 0;
-    height: 22px;
+    height: 34px;
     overflow: visible;
+    pointer-events: none;
+  }
+
+  [data-component="session-progress-track-area"] {
+    position: absolute;
+    top: 11px;
+    left: var(--session-progress-inset);
+    right: var(--session-progress-inset);
+    height: 10px;
     pointer-events: none;
   }
 
   [data-component="session-progress-bar"] {
     position: absolute;
-    top: 16px;
+    top: 5px;
     left: 0;
-    right: 0;
     height: 2px;
+    width: var(--session-progress-pulse-width);
     border-radius: 999px;
-    clip-path: inset(0 100% 0 0 round 999px);
-    will-change: clip-path;
+    will-change: transform;
+    animation: session-progress-segment-sweep 2.4s ease-in-out infinite;
     /* 决策 5 soft glow. Tradeoff vs the plan's color-mix(--v2-icon-icon-accent)
        wording: the agent tint (v1 token, inline) is preserved and softened via
        opacity instead of being dropped — prompt §2 "保持 agent tint 语义". */
     opacity: 0.5;
+  }
+
+  /* No-todo placeholder track (2026-08-05, unified model): the running state
+     ALWAYS shows the track skeleton — a semi-transparent line + start/end
+     endpoint dots — and the pulse scans from the start dot to the end dot.
+     When todos arrive the task nodes replace these dots (first/last land on
+     the same 16px insets). */
+  [data-component="session-progress-track"] {
+    position: absolute;
+    top: 5px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 999px;
+    background: var(--v2-border-border-base);
+    opacity: 0.5;
+  }
+
+  [data-component="session-progress-endpoint"] {
+    position: absolute;
+    top: 0;
+    width: 10px;
+    height: 10px;
+    margin-left: -5px;
+    border-radius: 999px;
+    border: 1.5px solid var(--v2-icon-icon-accent);
+    background: transparent;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  [data-component="session-progress-endpoint"][data-end="start"] {
+    left: 0;
+  }
+
+  [data-component="session-progress-endpoint"][data-end="end"] {
+    left: 100%;
   }
 
   /* Only the environment pulse fades during "hiding"; the task strip persists
@@ -106,7 +136,7 @@
   [data-component="session-todo-progress-label"] {
     position: absolute;
     top: 0;
-    left: 0;
+    left: var(--session-progress-inset);
     height: 12px;
     font-size: 10px;
     line-height: 12px;
@@ -116,7 +146,7 @@
 
   [data-component="session-todo-progress-track"] {
     position: absolute;
-    top: 16px;
+    top: 5px;
     left: 0;
     right: 0;
     height: 2px;
@@ -126,31 +156,39 @@
 
   [data-component="session-todo-progress-fill"] {
     position: absolute;
-    top: 16px;
+    top: 5px;
     left: 0;
-    right: 0;
     height: 2px;
     background: var(--v2-icon-icon-accent);
     will-change: clip-path;
   }
 
-  /* 14px fixed pulse segment width. The component (session-todo-progress.tsx)
-     deducts halfPulse = 7px from --pulse-from-px and --pulse-to-px so the segment
-     center aligns with node centers. */
+  /* 14px fixed pulse segment width (shared by env + task pulse). The pulse uses
+     track-local percentages and translateX(-50%) so its center aligns with node
+     centers and line endpoints without measuring the DOM width. */
   [data-component="session-todo-progress-pulse"] {
     position: absolute;
-    top: 16px;
+    top: 5px;
     left: 0;
     height: 2px;
-    width: 14px;
+    width: var(--session-progress-pulse-width);
     border-radius: 999px;
     background: color-mix(in srgb, var(--v2-icon-icon-accent) 60%, transparent);
-    animation: session-todo-progress-pulse 1.4s ease-in-out infinite;
+    animation: session-progress-segment-sweep 1.4s ease-in-out infinite;
+  }
+
+  /* P2: when a determinate progressPct is set, rest at that position instead of
+     sweeping. Higher specificity than the reduced-motion rule so it wins in both
+     normal and reduced-motion contexts. */
+  [data-component="session-todo-progress-pulse"][data-determinate="true"] {
+    left: var(--pulse-progress-pct);
+    transform: translateX(-50%);
+    animation: none;
   }
 
   [data-component="session-todo-progress-node"] {
     position: absolute;
-    top: 11px;
+    top: 0;
     width: 10px;
     height: 10px;
     margin-left: -5px;
@@ -186,6 +224,18 @@
     color: var(--v2-icon-icon-contrast);
   }
 
+  [data-component="session-todo-progress-node"][data-state="scheduled"] {
+    background: transparent;
+    border-color: var(--v2-state-fg-warning);
+    border-style: dashed;
+  }
+
+  [data-component="session-todo-progress-node"][data-state="failed"] {
+    background: var(--v2-state-fg-danger);
+    border-color: var(--v2-state-fg-danger);
+    color: var(--v2-icon-icon-contrast);
+  }
+
   [data-component="session-todo-progress-node"][data-state="in_progress"][data-anchor] {
     animation: session-todo-progress-node-pulse 1.6s infinite;
   }
@@ -210,7 +260,7 @@
      done/total summary, the full list stays in the fold-over panel. */
   [data-component="session-todo-progress-ellipsis"] {
     position: absolute;
-    top: 11px;
+    top: 0;
     height: 10px;
     margin-left: -5px;
     font-size: 8px;
@@ -221,7 +271,7 @@
 
   [data-component="session-todo-progress-stats"] {
     position: absolute;
-    right: 0;
+    right: var(--session-progress-inset);
     top: 0;
     height: 12px;
     font-size: 10px;
@@ -248,8 +298,8 @@
 
   [data-component="session-todo-progress-panel"] {
     position: absolute;
-    top: 22px;
-    right: 0;
+    top: 34px;
+    right: var(--session-progress-inset);
     min-width: 220px;
     max-width: min(320px, calc(100vw - 24px));
     max-height: 220px;
@@ -262,14 +312,22 @@
     pointer-events: auto;
   }
 
-  [data-component="session-todo-progress-checkbox-label"][data-status="completed"] {
+  [data-slot="session-todo-progress-checkbox-label"][data-status="completed"] {
     color: var(--v2-text-text-muted);
     text-decoration: line-through;
   }
 
-  [data-component="session-todo-progress-checkbox-label"][data-status="cancelled"] {
+  [data-slot="session-todo-progress-checkbox-label"][data-status="cancelled"] {
     color: var(--v2-text-text-muted);
     opacity: 0.7;
+  }
+
+  [data-slot="session-todo-progress-checkbox-label"][data-status="failed"] {
+    color: var(--v2-state-fg-danger);
+  }
+
+  [data-slot="session-todo-progress-checkbox-label"][data-status="scheduled"] {
+    color: var(--v2-state-fg-warning);
   }
 
   [data-component="session-scheduled-chip"] {
@@ -401,6 +459,18 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    [data-component="session-progress-bar"],
+    [data-component="session-todo-progress-pulse"],
+    [data-component="session-todo-progress-node"][data-state="in_progress"][data-anchor] {
+      animation: none !important;
+    }
+
+    [data-component="session-progress-bar"],
+    [data-component="session-todo-progress-pulse"] {
+      left: var(--pulse-to-pct, 50%);
+      transform: translateX(-50%);
+    }
+
     [data-slot="titlebar-update-loader"] {
       animation: none;
     }

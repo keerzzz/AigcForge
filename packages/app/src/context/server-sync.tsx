@@ -10,6 +10,22 @@ import type {
 } from "@aigcfroge/sdk/v2/client"
 import { showToast } from "@/utils/toast"
 import { getFilename } from "@aigcfroge/core/util/path"
+
+/**
+ * P2: ephemeral task progress snapshot (latest per session, keyed by taskID).
+ * Mirrors the generated `EventTaskProgress["properties"]` (see
+ * packages/sdk/js/src/v2/gen/types.gen.ts) but with the hey-api JSON edge
+ * strings ("NaN"/"Infinity"…) and the event envelope narrowed away by the
+ * reducer's predicate logic - the store only ever holds validated numbers.
+ */
+export interface TaskProgressSnapshot {
+  readonly taskID: string
+  readonly phase: "thinking" | "streaming" | "tool" | "waiting"
+  readonly progress?: number
+  readonly current?: number
+  readonly total?: number
+  readonly updatedAt: number
+}
 import { type Accessor, batch, createMemo, getOwner, onCleanup, onMount, untrack } from "solid-js"
 import { createStore, produce, reconcile } from "solid-js/store"
 import { useLanguage } from "@/context/language"
@@ -67,6 +83,10 @@ type GlobalStore = {
   /** Last write recency per session for the task.updated source (M7 ⑦ freshness). */
   session_task_updated_at: {
     [sessionID: string]: number
+  }
+  /** P2: ephemeral per-session task progress (latest snapshot for the active task). */
+  session_task_progress: {
+    [sessionID: string]: TaskProgressSnapshot | undefined
   }
   provider: NormalizedProviderListResponse
   provider_auth: ProviderAuthResponse
@@ -145,6 +165,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     session_task: {},
     session_todo_updated_at: {},
     session_task_updated_at: {},
+    session_task_progress: {},
     provider_auth: {},
     get path() {
       const EMPTY = { state: "", config: "", worktree: "", directory: "", home: "" }
@@ -258,6 +279,23 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     setGlobalStore("session_task_updated_at", sessionID, Date.now())
   }
 
+  // P2: store the latest ephemeral progress snapshot for a session's active task.
+  // Keyed by session (not task) for simplicity; the UI checks taskID match before
+  // using it so a stale snapshot for a different task is ignored.
+  const setSessionTaskProgress = (sessionID: string, progress: TaskProgressSnapshot | undefined) => {
+    if (!sessionID) return
+    if (!progress) {
+      setGlobalStore(
+        "session_task_progress",
+        produce((draft) => {
+          delete draft[sessionID]
+        }),
+      )
+      return
+    }
+    setGlobalStore("session_task_progress", sessionID, progress)
+  }
+
   const paused = () => untrack(() => globalStore.reload) !== undefined
 
   const queue = createRefreshQueue({
@@ -333,7 +371,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
       })
       if (next.length !== store.session.length) {
         setStore("session", reconcile(next, { key: "id" }))
-        cleanupDroppedSessionCaches(store, setStore, next, setSessionTodo)
+        cleanupDroppedSessionCaches(store, setStore, next, setSessionTodo, setSessionTask, setSessionTaskProgress)
       }
       children.unpin(key)
       return
@@ -380,7 +418,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
                   }),
                 )
                 setStore("session", reconcile(sessions, { key: "id" }))
-                cleanupDroppedSessionCaches(store, setStore, sessions, setSessionTodo)
+                cleanupDroppedSessionCaches(store, setStore, sessions, setSessionTodo, setSessionTask, setSessionTaskProgress)
               })
               sessionMeta.set(bucket, { limit: retained })
             })
@@ -481,6 +519,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
       push: queue.push,
       setSessionTodo,
       setSessionTask,
+      setSessionTaskProgress,
       retainedLimit: sessionMeta.get(key)?.limit,
       vcsCache: children.vcsCache.get(key),
       loadLsp: () => {
