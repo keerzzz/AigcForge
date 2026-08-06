@@ -9,6 +9,8 @@ import { adapter as claudeCodeAdapter } from "@aigcfroge/core/tool/claude-code"
 import { adapter as geminiAdapter } from "@aigcfroge/core/tool/gemini"
 import { adapter as codexAdapter } from "@aigcfroge/core/tool/codex"
 import { adapter as opencodeAdapter } from "@aigcfroge/core/tool/opencode"
+import { adapter as claudeCodeSdkAdapter } from "@aigcfroge/core/tool/claude-code-sdk"
+import { adapter as codexSdkAdapter } from "@aigcfroge/core/tool/codex-sdk"
 import type { CliAdapter } from "./interface"
 
 export interface Interface {
@@ -23,8 +25,16 @@ export class AdapterRegistry extends Context.Service<AdapterRegistry, Interface>
 // Single registry: this service is a thin Effect wrapper over the core module
 // cell (the same store the `task` tool's TaskDriverFill reads from). Seeding the
 // cell with the built-ins here keeps the agent list (@ agent/agent.ts) and the
-// task tool on one store; TaskDriverFill re-registers them idempotently.
-const BUILT_INS = [claudeCodeAdapter, geminiAdapter, codexAdapter, opencodeAdapter]
+// task tool on one store; TaskDriverFill re-registers them idempotently. SDK
+// transports are the default for claude/codex (jsonl stays config-selectable).
+const BUILT_INS = [
+  claudeCodeAdapter,
+  geminiAdapter,
+  codexAdapter,
+  opencodeAdapter,
+  claudeCodeSdkAdapter,
+  codexSdkAdapter,
+]
 
 export const layer = Layer.effect(
   AdapterRegistry,

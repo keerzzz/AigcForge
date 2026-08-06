@@ -18,6 +18,8 @@ import { adapter as opencodeAdapter } from "../tool/opencode"
 import { adapter as claudeCodeAdapter } from "../tool/claude-code"
 import { adapter as geminiAdapter } from "../tool/gemini"
 import { adapter as codexAdapter } from "../tool/codex"
+import { adapter as claudeCodeSdkAdapter } from "../tool/claude-code-sdk"
+import { adapter as codexSdkAdapter } from "../tool/codex-sdk"
 import { MetaAgentService } from "../meta-agent/service"
 import { Database } from "../database/database"
 import { Config } from "../config"
@@ -73,6 +75,10 @@ export const layer = Layer.effectDiscard(
     registerCliAdapter(geminiAdapter.name, geminiAdapter)
     registerCliAdapter(codexAdapter.name, codexAdapter)
     registerCliAdapter(opencodeAdapter.name, opencodeAdapter)
+    // SDK transports become the default for claude/codex; a config cli_agents
+    // entry with transport "jsonl" overrides back to the spawn+parse path.
+    registerCliAdapter(claudeCodeSdkAdapter.name, claudeCodeSdkAdapter)
+    registerCliAdapter(codexSdkAdapter.name, codexSdkAdapter)
     // Register config-defined cli_agents (config > built-in override) when a
     // Config.Service is present (composition roots always provide one).
     const configOpt = yield* Effect.serviceOption(Config.Service)
@@ -205,11 +211,22 @@ export const layer = Layer.effectDiscard(
               }
             }
 
-            const result = yield* executeWithTimeout(spawner, adapter, {
-              prompt: cliPrompt,
-              cwd: session.location.directory,
-              resumeId,
-            })
+            // SDK transports (claude/codex) execute through the SDK's own
+            // stream/resume; jsonl transports spawn + parse. Permission wiring
+            // through PermissionV2 is a follow-up — until then SDK adapters use
+            // their own auto-deny policy.
+            const result =
+              adapter.transport === "sdk" && adapter.execute
+                ? yield* adapter.execute({
+                    prompt: cliPrompt,
+                    cwd: session.location.directory,
+                    resumeId,
+                  })
+                : yield* executeWithTimeout(spawner, adapter, {
+                    prompt: cliPrompt,
+                    cwd: session.location.directory,
+                    resumeId,
+                  })
 
             // Write the CLI summary as the child's second user message.
             yield* events.publish(SessionEvent.Prompted, {
