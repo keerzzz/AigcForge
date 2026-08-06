@@ -51,7 +51,7 @@ export class WriteInfo extends Schema.Class<WriteInfo>("SessionTask.WriteInfo")(
 export class TaskWriteError extends Schema.TaggedErrorClass<TaskWriteError>()("SessionTask.TaskWriteError", {
   sessionID: SessionSchema.ID,
   id: Schema.optional(Schema.String),
-  reason: Schema.Literals(["foreign", "duplicate", "invalid_schedule", "depends_on_cycle"]),
+  reason: Schema.Literals(["foreign", "duplicate", "invalid_schedule", "depends_on_cycle", "stale_revision"]),
 }) {
   override get message() {
     switch (this.reason) {
@@ -63,6 +63,8 @@ export class TaskWriteError extends Schema.TaggedErrorClass<TaskWriteError>()("S
         return `Task ${this.id ? `"${this.id}" ` : ""}in session ${this.sessionID} has an invalid recurrence cron: it is malformed or has no future run within the search window`
       case "depends_on_cycle":
         return `Task ${this.id ? `"${this.id}" ` : ""}in session ${this.sessionID} introduces a dependency cycle; no task in the cycle can ever be triggered`
+      case "stale_revision":
+        return `Task ${this.id ? `"${this.id}" ` : ""}in session ${this.sessionID} changed since the caller last read it; retry with the current revision`
     }
     // Unreachable: reason is a closed literal union, but consistent-return
     // requires every path to return.
@@ -80,6 +82,14 @@ export class TodoProjection extends Schema.Class<TodoProjection>("SessionTask.To
   priority: Schema.String,
 }) {}
 
+/**
+ * Runtime execution phase for a task's current provider turn (P2). Ephemeral -
+ * never persisted on the task row; carried only by `task.progress` events so the
+ * UI can show a determinate pulse when a tool reports `current/total`.
+ */
+export const TaskExecutionPhase = Schema.Literals(["thinking", "streaming", "tool", "waiting"])
+export type TaskExecutionPhase = typeof TaskExecutionPhase.Type
+
 export const Event = {
   Updated: EventV2.define({
     type: "task.updated",
@@ -96,6 +106,23 @@ export const Event = {
       todos: Schema.Array(TodoProjection),
     },
   }),
+  /**
+   * Ephemeral runtime progress for a task (P2). Published by execution sources
+   * (e.g. the `task` delegation tool reporting child-session completion ratio);
+   * never persisted - the app keeps only the latest snapshot in memory.
+   */
+  Progress: EventV2.define({
+    type: "task.progress",
+    schema: {
+      sessionID: SessionSchema.ID,
+      taskID: Schema.String,
+      phase: TaskExecutionPhase,
+      progress: Schema.optional(Schema.Number),
+      current: Schema.optional(Schema.Number),
+      total: Schema.optional(Schema.Number),
+      updatedAt: Schema.Number,
+    },
+  }),
 }
 
 export interface Interface {
@@ -107,6 +134,14 @@ export interface Interface {
   readonly update: (input: {
     readonly sessionID: SessionSchema.ID
     readonly tasks: ReadonlyArray<typeof WriteInfo.Type>
+    /**
+     * Full-list optimistic-concurrency guard (P3-c): the max revision the caller
+     * observed across the session's tasks. If any task's current revision exceeds
+     * it, a concurrent write landed between the caller's read and this replace;
+     * the stale plan is rejected with `stale_revision` so it can't overwrite
+     * newer state.
+     */
+    readonly expectedRevision?: number
   }) => Effect.Effect<ReadonlyArray<Info>, TaskWriteError>
   /**
    * Append new tasks at the end of the session's list in a single transaction.
@@ -142,6 +177,12 @@ export interface Interface {
     readonly status: SessionTaskSchema.TaskStatus
     readonly outputDigest?: string
     readonly expect?: ReadonlyArray<SessionTaskSchema.TaskStatus>
+    /**
+     * Optimistic-concurrency guard (P3-a): when set, the patch only lands while
+     * the current revision matches. Resolves `undefined` otherwise (no write),
+     * mirroring {@link expect}'s conditional-claim semantics.
+     */
+    readonly expectedRevision?: number
   }) => Effect.Effect<Info | undefined, TaskWriteError>
   readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<ReadonlyArray<Info>>
   /**
@@ -162,6 +203,45 @@ export interface Interface {
     readonly sessionID: SessionSchema.ID
     readonly id: string
   }) => Effect.Effect<Info | undefined>
+  /**
+   * Update a single task's content and/or priority without a full-list reconcile
+   * (P3-b). Other rows are untouched; `expectedRevision` rejects stale writes the
+   * same way {@link patch} does. Resolves `undefined` when the id is unknown or
+   * the revision is stale (no write).
+   */
+  readonly updateTask: (input: {
+    readonly sessionID: SessionSchema.ID
+    readonly id: string
+    readonly content?: string
+    readonly priority?: SessionTaskSchema.TaskPriority
+    readonly expectedRevision?: number
+  }) => Effect.Effect<Info | undefined, TaskWriteError>
+  /**
+   * Reorder a session's tasks by id (P3-b). `ids` must be a permutation of the
+   * session's current task ids; otherwise fails with `foreign`/`duplicate`.
+   * `expectedRevision` is the max revision the caller observed across all tasks;
+   * if any task's revision exceeds it, the caller's view is stale and the reorder
+   * fails with `stale_revision`. All tasks get `revision + 1` (structural change).
+   */
+  readonly reorder: (input: {
+    readonly sessionID: SessionSchema.ID
+    readonly ids: readonly string[]
+    readonly expectedRevision?: number
+  }) => Effect.Effect<ReadonlyArray<Info>, TaskWriteError>
+  /**
+   * Publish an ephemeral `task.progress` event (P2). No DB write - the app keeps
+   * the latest snapshot in memory for a determinate pulse when a tool reports
+   * `current/total`. `phase` is always required; `progress`/`current`/`total`
+   * are optional (phase-only when the source has no discrete count).
+   */
+  readonly recordProgress: (input: {
+    readonly sessionID: SessionSchema.ID
+    readonly taskID: string
+    readonly phase: TaskExecutionPhase
+    readonly progress?: number
+    readonly current?: number
+    readonly total?: number
+  }) => Effect.Effect<void>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionTask") {}
@@ -205,6 +285,7 @@ const toInfo = (row: TaskRow, now: number): Info => {
     ...(run !== undefined ? { nextRun: run } : {}),
     ...(row.spawned_from ? { spawnedFrom: row.spawned_from } : {}),
     ...(row.depends_on && row.depends_on.length > 0 ? { dependsOn: row.depends_on } : {}),
+    revision: row.revision,
     createdAt: row.time_created,
     updatedAt: row.time_updated,
   })
@@ -331,6 +412,7 @@ export const layer = Layer.effect(
     const update = Effect.fn("SessionTask.update")((input: {
       readonly sessionID: SessionSchema.ID
       readonly tasks: ReadonlyArray<typeof WriteInfo.Type>
+      readonly expectedRevision?: number
     }) => writeLock.withPermits(1)(Effect.gen(function* () {
       // Mint ids up front (deterministic) so the event and the transaction agree.
       const planned = input.tasks.map((task, index) => ({
@@ -340,6 +422,7 @@ export const layer = Layer.effect(
       const retained = new Set(planned.map((task) => task.id))
       const now = (yield* DateTime.nowAsDate).getTime()
       const createdAt = new Map<string, number>()
+      const revisionById = new Map<string, number>()
       const parentIdById = new Map<string, string | null>()
       const digestById = new Map<string, string | null>()
       const scheduleById = new Map<
@@ -362,6 +445,19 @@ export const layer = Layer.effect(
               .all()
               .pipe(Effect.orDie)
             const existingById = new Map(existing.map((row) => [row.id, row]))
+            // P3-c: full-list optimistic-concurrency guard. The caller's
+            // expectedRevision is the max revision they observed; a higher
+            // current max means a concurrent write landed between their read
+            // and this replace, so the stale plan is rejected before any write.
+            if (input.expectedRevision !== undefined) {
+              const maxRevision = existing.reduce((max, row) => Math.max(max, row.revision), 0)
+              if (maxRevision !== input.expectedRevision) {
+                return yield* Effect.succeed({
+                  type: "invalid" as const,
+                  error: new TaskWriteError({ sessionID: input.sessionID, reason: "stale_revision" }),
+                })
+              }
+            }
             // DAG cycle guard (M5 Step 3): a dependsOn cycle means no task in it
             // can ever be triggered — reject before any write. Graph = existing
             // rows + this payload's planned tasks (minted ids included), plus
@@ -436,6 +532,8 @@ export const layer = Layer.effect(
             for (const row of existing) createdAt.set(row.id, row.time_created)
             for (const task of planned) {
               const prior = existingById.get(task.id)
+              const nextRevision = (prior?.revision ?? 0) + 1
+              revisionById.set(task.id, nextRevision)
               const columns = {
                 content: task.content,
                 status: task.status,
@@ -446,6 +544,7 @@ export const layer = Layer.effect(
                 recurrence: task.recurrence ?? prior?.recurrence ?? null,
                 spawned_from: task.spawnedFrom ?? prior?.spawned_from ?? null,
                 depends_on: task.dependsOn ?? prior?.depends_on ?? null,
+                revision: nextRevision,
                 position: task.position,
                 time_updated: now,
               }
@@ -503,6 +602,7 @@ export const layer = Layer.effect(
           status: task.status,
           priority: task.priority,
           sessionID: input.sessionID,
+          revision: revisionById.get(task.id) ?? 1,
           ...(parentID ? { parentID } : {}),
           ...(outputDigest ? { outputDigest } : {}),
           ...(schedule?.agentID ? { agentID: schedule.agentID } : {}),
@@ -669,6 +769,7 @@ export const layer = Layer.effect(
                 recurrence: prior?.recurrence ?? task.recurrence ?? null,
                 spawned_from: prior?.spawned_from ?? task.spawnedFrom ?? null,
                 depends_on: prior?.depends_on ?? task.dependsOn ?? null,
+                revision: prior ? prior.revision + 1 : 1,
                 position: index,
                 time_updated: now,
               }
@@ -715,6 +816,7 @@ export const layer = Layer.effect(
       readonly status: SessionTaskSchema.TaskStatus
       readonly outputDigest?: string
       readonly expect?: ReadonlyArray<SessionTaskSchema.TaskStatus>
+      readonly expectedRevision?: number
     }) => writeLock.withPermits(1)(Effect.gen(function* () {
       const now = (yield* DateTime.nowAsDate).getTime()
       const scoped = and(eq(TaskTable.id, input.id), eq(TaskTable.session_id, input.sessionID))
@@ -724,6 +826,10 @@ export const layer = Layer.effect(
       // lock, so a pause (cancelled) racing the claim cannot be flipped back
       // to in_progress — the loser resolves undefined and the caller aborts.
       if (input.expect !== undefined && !input.expect.some((status) => status === prior.status)) return undefined
+      // P3-a: revision-level optimistic concurrency. Like `expect`, the check
+      // runs inside the write lock so a concurrent write cannot slip in between
+      // the read and the update; a stale caller resolves undefined (no write).
+      if (input.expectedRevision !== undefined && prior.revision !== input.expectedRevision) return undefined
       // Schedule invariant (differential-review HIGH-4): flipping a task to
       // `scheduled` requires it to already carry a real trigger — patch never
       // sets schedule fields, so a resume on a task that was never a scheduled
@@ -739,6 +845,7 @@ export const layer = Layer.effect(
         .update(TaskTable)
         .set({
           status: input.status,
+          revision: prior.revision + 1,
           time_updated: now,
           ...(input.outputDigest !== undefined ? { output_digest: input.outputDigest } : {}),
         })
@@ -776,13 +883,121 @@ export const layer = Layer.effect(
       return toInfo(row, now)
     })))
 
+    const updateTask = Effect.fn("SessionTask.updateTask")((input: {
+      readonly sessionID: SessionSchema.ID
+      readonly id: string
+      readonly content?: string
+      readonly priority?: SessionTaskSchema.TaskPriority
+      readonly expectedRevision?: number
+    }) => writeLock.withPermits(1)(Effect.gen(function* () {
+      const now = (yield* DateTime.nowAsDate).getTime()
+      const scoped = and(eq(TaskTable.id, input.id), eq(TaskTable.session_id, input.sessionID))
+      const prior = yield* db.select().from(TaskTable).where(scoped).get().pipe(Effect.orDie)
+      if (!prior) return undefined
+      if (input.expectedRevision !== undefined && prior.revision !== input.expectedRevision) return undefined
+      yield* db
+        .update(TaskTable)
+        .set({
+          ...(input.content !== undefined ? { content: input.content } : {}),
+          ...(input.priority !== undefined ? { priority: input.priority } : {}),
+          revision: prior.revision + 1,
+          time_updated: now,
+        })
+        .where(scoped)
+        .run()
+        .pipe(Effect.orDie)
+      const row = yield* db.select().from(TaskTable).where(scoped).get().pipe(Effect.orDie)
+      if (!row) return undefined
+      const full = yield* read(input.sessionID).pipe(Effect.map((rows) => rows.map((item) => toInfo(item, now))))
+      yield* publishBoth(input.sessionID, full)
+      return toInfo(row, now)
+    })))
+
+    const reorder = Effect.fn("SessionTask.reorder")((input: {
+      readonly sessionID: SessionSchema.ID
+      readonly ids: readonly string[]
+      readonly expectedRevision?: number
+    }) => writeLock.withPermits(1)(Effect.gen(function* () {
+      const now = (yield* DateTime.nowAsDate).getTime()
+      const existing = yield* read(input.sessionID)
+      const existingIds = new Set(existing.map((row) => row.id))
+      // Unknown ids in the input (not owned by this session).
+      for (const id of input.ids) {
+        if (!existingIds.has(id)) {
+          return yield* Effect.fail(new TaskWriteError({ sessionID: input.sessionID, id, reason: "foreign" }))
+        }
+      }
+      // Duplicate ids within the input.
+      if (new Set(input.ids).size !== input.ids.length) {
+        return yield* Effect.fail(new TaskWriteError({ sessionID: input.sessionID, reason: "duplicate" }))
+      }
+      // Partial permutation: all ids are known and unique but don't cover every
+      // task - the caller omitted rows. Reject so a stale partial view can't
+      // silently drop tasks from the reordered list.
+      if (input.ids.length !== existing.length) {
+        return yield* Effect.fail(new TaskWriteError({ sessionID: input.sessionID, reason: "foreign" }))
+      }
+      // expectedRevision = max revision the caller observed. A higher current
+      // max means a concurrent write landed between the caller's read and this
+      // reorder; the caller's ordering is based on a stale list.
+      if (input.expectedRevision !== undefined) {
+        const maxRevision = existing.reduce((max, row) => Math.max(max, row.revision), 0)
+        if (maxRevision !== input.expectedRevision) {
+          return yield* Effect.fail(new TaskWriteError({ sessionID: input.sessionID, reason: "stale_revision" }))
+        }
+      }
+      const idToRow = new Map(existing.map((row) => [row.id, row]))
+      yield* db
+        .transaction((tx) =>
+          Effect.gen(function* () {
+            for (let i = 0; i < input.ids.length; i++) {
+              const id = input.ids[i]
+              const row = idToRow.get(id)
+              if (!row) continue
+              yield* tx
+                .update(TaskTable)
+                .set({ position: i, revision: row.revision + 1, time_updated: now })
+                .where(eq(TaskTable.id, id))
+                .run()
+                .pipe(Effect.orDie)
+            }
+          }),
+        )
+        .pipe(Effect.orDie)
+      const full = yield* read(input.sessionID).pipe(Effect.map((rows) => rows.map((item) => toInfo(item, now))))
+      yield* publishBoth(input.sessionID, full)
+      return full
+    })))
+
+    const recordProgress = Effect.fn("SessionTask.recordProgress")((input: {
+      readonly sessionID: SessionSchema.ID
+      readonly taskID: string
+      readonly phase: TaskExecutionPhase
+      readonly progress?: number
+      readonly current?: number
+      readonly total?: number
+    }) =>
+      Effect.gen(function* () {
+        const now = (yield* DateTime.nowAsDate).getTime()
+        yield* events.publish(Event.Progress, {
+          sessionID: input.sessionID,
+          taskID: input.taskID,
+          phase: input.phase,
+          ...(input.progress !== undefined ? { progress: input.progress } : {}),
+          ...(input.current !== undefined ? { current: input.current } : {}),
+          ...(input.total !== undefined ? { total: input.total } : {}),
+          updatedAt: now,
+        })
+      }),
+    )
+
     const listAll = Effect.fn("SessionTask.listAll")(function* () {
       const now = (yield* DateTime.nowAsDate).getTime()
       const rows = yield* db.select().from(TaskTable).orderBy(asc(TaskTable.position)).all().pipe(Effect.orDie)
       return rows.map((row) => toInfo(row, now))
     })
 
-    return Service.of({ update, append, replaceLegacy, patch, get, delete: remove, removeTask, listAll })
+    return Service.of({ update, append, replaceLegacy, patch, get, delete: remove, removeTask, updateTask, reorder, recordProgress, listAll })
   }),
 )
 

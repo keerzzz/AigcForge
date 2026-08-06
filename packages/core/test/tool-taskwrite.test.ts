@@ -198,7 +198,7 @@ const toolsRegister = Layer.effect(
   Tools.Service,
   ToolRegistry.Service.use((reg) => Effect.succeed(Tools.Service.of({ register: reg.register }))),
 ).pipe(Layer.provide(registry))
-const taskTool = TaskTool.layer.pipe(Layer.provide(toolsRegister), Layer.provide(config))
+const taskTool = TaskTool.layer.pipe(Layer.provide(toolsRegister), Layer.provide(config), Layer.provide(EventV2.defaultLayer))
 
 const runner = SessionRunnerLLM.layer.pipe(
   Layer.provide(appProcess),

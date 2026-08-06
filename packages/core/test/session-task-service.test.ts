@@ -1009,4 +1009,424 @@ describe("SessionTask", () => {
       expect(error.reason).toBe("invalid_schedule")
     }),
   )
+
+  // P3-a: revision tracking + expectedRevision optimistic concurrency. Revision is
+  // server-managed (never client-supplied): new tasks start at 1, every write
+  // increments, and patch accepts expectedRevision to reject stale writes the
+  // same way expect rejects stale status transitions.
+  describe("revision (P3-a)", () => {
+    it.effect("starts at 1 for new tasks created via update", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const [task] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "seed", status: "pending", priority: "medium" }],
+        })
+        expect(task.revision).toBe(1)
+        expect((yield* tasks.get(sessionID))[0]?.revision).toBe(1)
+      }),
+    )
+
+    it.effect("starts at 1 for new tasks created via append", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const [task] = yield* tasks.append({
+          sessionID,
+          tasks: [{ content: "seed", status: "pending", priority: "medium" }],
+        })
+        expect(task.revision).toBe(1)
+      }),
+    )
+
+    it.effect("increments on update (same task re-updated -> revision 2)", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const [task] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "seed", status: "pending", priority: "medium" }],
+        })
+        const [after] = yield* tasks.update({
+          sessionID,
+          // oxlint-disable-next-line no-misused-spread -- Schema.Class data carries no prototype members
+          tasks: [{ ...task, status: "in_progress" }],
+        })
+        expect(after.revision).toBe(2)
+      }),
+    )
+
+    it.effect("increments on patch", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const [task] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "seed", status: "in_progress", priority: "medium" }],
+        })
+        const patched = yield* tasks.patch({ sessionID, id: task.id, status: "completed" })
+        expect(patched?.revision).toBe(2)
+        expect((yield* tasks.get(sessionID))[0]?.revision).toBe(2)
+      }),
+    )
+
+    it.effect("increments on replaceLegacy", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        yield* tasks.append({
+          sessionID,
+          tasks: [{ content: "seed", status: "pending", priority: "medium" }],
+        })
+        const after = yield* tasks.replaceLegacy({
+          sessionID,
+          tasks: [{ content: "seed", status: "in_progress", priority: "medium" }],
+        })
+        expect(after[0]?.revision).toBe(2)
+      }),
+    )
+
+    it.effect("patch with matching expectedRevision succeeds and increments", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const [task] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "seed", status: "in_progress", priority: "medium" }],
+        })
+        const patched = yield* tasks.patch({
+          sessionID,
+          id: task.id,
+          status: "completed",
+          expectedRevision: 1,
+        })
+        expect(patched?.revision).toBe(2)
+        expect(patched?.status).toBe("completed")
+      }),
+    )
+
+    it.effect("patch with stale expectedRevision resolves undefined and does not write", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const [task] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "seed", status: "in_progress", priority: "medium" }],
+        })
+        // A concurrent patch bumped revision to 2.
+        yield* tasks.patch({ sessionID, id: task.id, status: "completed" })
+        // The caller's stale expectedRevision=1 must NOT land.
+        const lost = yield* tasks.patch({
+          sessionID,
+          id: task.id,
+          status: "pending",
+          expectedRevision: 1,
+        })
+        expect(lost).toBeUndefined()
+        const got = yield* tasks.get(sessionID)
+        expect(got[0]?.status).toBe("completed")
+        expect(got[0]?.revision).toBe(2)
+      }),
+    )
+
+    it.effect("revision is carried in the task.updated event payload", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const events = yield* EventV2.Service
+        const tasks = yield* SessionTask.Service
+        const published = new Array<EventV2.Payload>()
+        const unsubscribe = yield* events.listen((event) =>
+          Effect.sync(() => {
+            if (event.type === SessionTask.Event.Updated.type) published.push(event)
+          }),
+        )
+        yield* Effect.addFinalizer(() => unsubscribe)
+        const [task] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "seed", status: "pending", priority: "medium" }],
+        })
+        // The event payload carries revision (1 for a new task).
+        expect(published.at(-1)?.data).toEqual({ sessionID, tasks: [task] })
+        expect(task.revision).toBe(1)
+
+        yield* tasks.patch({ sessionID, id: task.id, status: "completed" })
+        const after = yield* tasks.get(sessionID)
+        // The patch event carries the incremented revision.
+        expect(published.at(-1)?.data).toEqual({ sessionID, tasks: after })
+        expect(after[0]?.revision).toBe(2)
+      }),
+    )
+  })
+
+  // P3-b: incremental single-task commands so the LLM never needs a full-list
+  // replace to edit one task's content/priority or to reorder. updateTask is the
+  // per-task analogue of patch (fields, not status); reorder is the structural
+  // analogue. Both carry expectedRevision to reject stale writes.
+  describe("incremental commands (P3-b)", () => {
+    it.effect("updateTask updates content with matching expectedRevision and increments", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const [task] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "seed", status: "pending", priority: "medium" }],
+        })
+        const updated = yield* tasks.updateTask({
+          sessionID,
+          id: task.id,
+          content: "renamed",
+          expectedRevision: 1,
+        })
+        expect(updated?.content).toBe("renamed")
+        expect(updated?.revision).toBe(2)
+        // Unspecified fields are preserved.
+        expect(updated?.status).toBe("pending")
+        expect(updated?.priority).toBe("medium")
+      }),
+    )
+
+    it.effect("updateTask with stale expectedRevision resolves undefined and does not write", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const [task] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "seed", status: "pending", priority: "medium" }],
+        })
+        // Concurrent patch bumped revision to 2.
+        yield* tasks.patch({ sessionID, id: task.id, status: "in_progress" })
+        const lost = yield* tasks.updateTask({
+          sessionID,
+          id: task.id,
+          content: "stale rename",
+          expectedRevision: 1,
+        })
+        expect(lost).toBeUndefined()
+        const got = yield* tasks.get(sessionID)
+        expect(got[0]?.content).toBe("seed")
+        expect(got[0]?.revision).toBe(2)
+      }),
+    )
+
+    it.effect("updateTask updates priority and preserves content", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const [task] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "seed", status: "pending", priority: "medium" }],
+        })
+        const updated = yield* tasks.updateTask({
+          sessionID,
+          id: task.id,
+          priority: "high",
+        })
+        expect(updated?.priority).toBe("high")
+        expect(updated?.content).toBe("seed")
+        expect(updated?.revision).toBe(2)
+      }),
+    )
+
+    it.effect("updateTask on an unknown id resolves undefined", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const updated = yield* tasks.updateTask({
+          sessionID,
+          id: "tsk_missing",
+          content: "nope",
+        })
+        expect(updated).toBeUndefined()
+      }),
+    )
+
+    it.effect("reorder reorders positions and increments revision for all tasks", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const [a, b, c] = yield* tasks.update({
+          sessionID,
+          tasks: [
+            { content: "a", status: "pending", priority: "medium" },
+            { content: "b", status: "pending", priority: "medium" },
+            { content: "c", status: "pending", priority: "medium" },
+          ],
+        })
+        const reordered = yield* tasks.reorder({
+          sessionID,
+          ids: [c.id, b.id, a.id],
+          expectedRevision: 1,
+        })
+        expect(reordered.map((task) => task.id)).toEqual([c.id, b.id, a.id])
+        // All tasks are part of the structural change, so all get revision 2.
+        expect(reordered.every((task) => task.revision === 2)).toBe(true)
+      }),
+    )
+
+    it.effect("reorder with stale expectedRevision (max) fails and does not write", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const [a, b] = yield* tasks.update({
+          sessionID,
+          tasks: [
+            { content: "a", status: "pending", priority: "medium" },
+            { content: "b", status: "pending", priority: "medium" },
+          ],
+        })
+        // A concurrent patch bumped b's revision to 2; max is now 2.
+        yield* tasks.patch({ sessionID, id: b.id, status: "in_progress" })
+        const error = yield* tasks
+          .reorder({ sessionID, ids: [b.id, a.id], expectedRevision: 1 })
+          .pipe(Effect.flip)
+        expect(error).toBeInstanceOf(SessionTask.TaskWriteError)
+        expect(error.reason).toBe("stale_revision")
+        // Positions unchanged.
+        const got = yield* tasks.get(sessionID)
+        expect(got.map((task) => task.id)).toEqual([a.id, b.id])
+      }),
+    )
+
+    it.effect("reorder rejects an unknown id", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const [a] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "a", status: "pending", priority: "medium" }],
+        })
+        const error = yield* tasks
+          .reorder({ sessionID, ids: [a.id, "tsk_foreign"], expectedRevision: 1 })
+          .pipe(Effect.flip)
+        expect(error).toBeInstanceOf(SessionTask.TaskWriteError)
+        expect(error.reason).toBe("foreign")
+      }),
+    )
+
+    it.effect("update with stale expectedRevision (max) fails and does not write", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const [a, b] = yield* tasks.update({
+          sessionID,
+          tasks: [
+            { content: "a", status: "pending", priority: "medium" },
+            { content: "b", status: "pending", priority: "medium" },
+          ],
+        })
+        // A concurrent patch bumped b's revision to 2; max is now 2.
+        yield* tasks.patch({ sessionID, id: b.id, status: "in_progress" })
+        const error = yield* tasks
+          .update({
+            sessionID,
+            // oxlint-disable-next-line no-misused-spread -- Schema.Class data carries no prototype members
+            tasks: [{ ...a, status: "completed" }, { ...b, status: "completed" }],
+            expectedRevision: 1,
+          })
+          .pipe(Effect.flip)
+        expect(error).toBeInstanceOf(SessionTask.TaskWriteError)
+        expect(error.reason).toBe("stale_revision")
+        // The stale replace did not land - b is still in_progress (revision 2).
+        const got = yield* tasks.get(sessionID)
+        expect(got.find((task) => task.id === b.id)?.status).toBe("in_progress")
+      }),
+    )
+  })
+
+  // P2-a: TaskExecutionProgress - ephemeral runtime progress for the pulse.
+  // recordProgress publishes a task.progress event (no DB write); the app keeps
+  // the latest snapshot in memory for a determinate pulse when a tool reports
+  // current/total.
+  describe("task progress (P2-a)", () => {
+    it.effect("recordProgress publishes a task.progress event with the given fields", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const events = yield* EventV2.Service
+        const tasks = yield* SessionTask.Service
+        const published = new Array<EventV2.Payload>()
+        const unsubscribe = yield* events.listen((event) =>
+          Effect.sync(() => {
+            if (event.type === SessionTask.Event.Progress.type) published.push(event)
+          }),
+        )
+        yield* Effect.addFinalizer(() => unsubscribe)
+
+        const [task] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "audit", status: "in_progress", priority: "medium" }],
+        })
+        yield* tasks.recordProgress({
+          sessionID,
+          taskID: task.id,
+          phase: "streaming",
+          progress: 0.5,
+          current: 3,
+          total: 10,
+        })
+
+        expect(published).toHaveLength(1)
+        const data = Schema.decodeUnknownSync(SessionTask.Event.Progress.data)(published[0].data)
+        expect(data.taskID).toBe(task.id)
+        expect(data.sessionID).toBe(sessionID)
+        expect(data.phase).toBe("streaming")
+        expect(data.progress).toBe(0.5)
+        expect(data.current).toBe(3)
+        expect(data.total).toBe(10)
+        expect(typeof data.updatedAt).toBe("number")
+      }),
+    )
+
+    it.effect("recordProgress does not modify the task row (ephemeral, no DB write)", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const [task] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "audit", status: "in_progress", priority: "medium" }],
+        })
+        const before = yield* tasks.get(sessionID)
+        yield* tasks.recordProgress({
+          sessionID,
+          taskID: task.id,
+          phase: "tool",
+          progress: 0.3,
+        })
+        const after = yield* tasks.get(sessionID)
+        // The task row is unchanged - progress is ephemeral.
+        expect(after).toEqual(before)
+      }),
+    )
+
+    it.effect("recordProgress works without optional progress fields (phase-only)", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const events = yield* EventV2.Service
+        const tasks = yield* SessionTask.Service
+        const published = new Array<EventV2.Payload>()
+        const unsubscribe = yield* events.listen((event) =>
+          Effect.sync(() => {
+            if (event.type === SessionTask.Event.Progress.type) published.push(event)
+          }),
+        )
+        yield* Effect.addFinalizer(() => unsubscribe)
+
+        const [task] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "audit", status: "in_progress", priority: "medium" }],
+        })
+        yield* tasks.recordProgress({
+          sessionID,
+          taskID: task.id,
+          phase: "thinking",
+        })
+
+        const data = Schema.decodeUnknownSync(SessionTask.Event.Progress.data)(published[0].data)
+        expect(data.phase).toBe("thinking")
+        expect(data.progress).toBeUndefined()
+        expect(data.current).toBeUndefined()
+        expect(data.total).toBeUndefined()
+      }),
+    )
+  })
 })

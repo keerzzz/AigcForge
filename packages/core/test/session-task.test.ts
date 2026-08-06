@@ -220,7 +220,7 @@ const toolsRegister = Layer.effect(
 // Provide only taskTool-specific deps here; agents/permission stay as
 // requirements satisfied once at the outer pipe so setup's AgentV2.transform and
 // the tool's AgentV2.resolve share the same State instance.
-const taskTool = TaskTool.layer.pipe(Layer.provide(toolsRegister), Layer.provide(config))
+const taskTool = TaskTool.layer.pipe(Layer.provide(toolsRegister), Layer.provide(config), Layer.provide(EventV2.defaultLayer))
 
 const runner = SessionRunnerLLM.layer.pipe(
   Layer.provide(appProcess),
