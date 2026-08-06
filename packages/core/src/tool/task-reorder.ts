@@ -1,4 +1,4 @@
-export * as TaskWriteTool from "./taskwrite"
+export * as TaskReorderTool from "./task-reorder"
 
 import { ToolFailure } from "@aigcfroge/llm"
 import { Effect, Layer, Schema } from "effect"
@@ -7,16 +7,16 @@ import { SessionTask } from "../session/task"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
 
-export const name = "taskwrite"
+export const name = "task_reorder"
 
 export const Input = Schema.Struct({
-  tasks: Schema.Array(SessionTask.WriteInfo).annotate({
+  ids: Schema.Array(Schema.String).annotate({
     description:
-      "The full task list. Entries without an id are created with a stable tsk_ id; entries with an id are reconciled in place. Omitted entries are removed.",
+      "The full task id list in the new order. Must be a permutation of the session's current task ids (every task, no omissions, no duplicates).",
   }),
   expectedRevision: Schema.optional(Schema.Number).annotate({
     description:
-      "The max revision the caller observed across all tasks. If any task changed since, the replace is rejected as stale. Omit only for an unconditional replace; prefer task_create/task_update/task_delete/task_reorder for single-task edits.",
+      "The max revision the caller observed across all tasks. If any task changed since, the reorder is rejected as stale.",
   }),
 })
 
@@ -37,7 +37,7 @@ export const layer = Layer.effectDiscard(
       .register({
         [name]: Tool.make({
           description:
-            "Create and maintain a structured task list for the current session. Use it to track progress during multi-step work, keep task statuses current, and build the todo list a task delegation can later link to with parent_task_id.",
+            "Reorder the session's task list by id. Provide the full id list in the new order. Use this instead of rewriting the full list with taskwrite when only the order changed.",
           input: Input,
           output: Output,
           toModelOutput: ({ output }) => [{ type: "text", text: toModelOutput(output) }],
@@ -52,24 +52,22 @@ export const layer = Layer.effectDiscard(
                 source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
               })
               const resolved = yield* tasks
-                .update({
+                .reorder({
                   sessionID: context.sessionID,
-                  tasks: input.tasks,
+                  ids: input.ids,
                   expectedRevision: input.expectedRevision,
                 })
                 .pipe(
                   Effect.mapError((error) =>
                     error instanceof SessionTask.TaskWriteError
                       ? new ToolFailure({ message: error.message })
-                      : new ToolFailure({ message: "Unable to update tasks" }),
+                      : new ToolFailure({ message: "Unable to reorder tasks" }),
                   ),
                 )
               return { tasks: resolved }
             }).pipe(
-              // Preserve the specific TaskWriteError message mapped above; only
-              // wrap non-tool failures (permission, infrastructure) generically.
               Effect.mapError((error) =>
-                error instanceof ToolFailure ? error : new ToolFailure({ message: "Unable to update tasks" }),
+                error instanceof ToolFailure ? error : new ToolFailure({ message: "Unable to reorder tasks" }),
               ),
             ),
         }),

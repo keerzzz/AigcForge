@@ -1,4 +1,4 @@
-export * as TaskWriteTool from "./taskwrite"
+export * as TaskCreateTool from "./task-create"
 
 import { ToolFailure } from "@aigcfroge/llm"
 import { Effect, Layer, Schema } from "effect"
@@ -7,16 +7,12 @@ import { SessionTask } from "../session/task"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
 
-export const name = "taskwrite"
+export const name = "task_create"
 
 export const Input = Schema.Struct({
   tasks: Schema.Array(SessionTask.WriteInfo).annotate({
     description:
-      "The full task list. Entries without an id are created with a stable tsk_ id; entries with an id are reconciled in place. Omitted entries are removed.",
-  }),
-  expectedRevision: Schema.optional(Schema.Number).annotate({
-    description:
-      "The max revision the caller observed across all tasks. If any task changed since, the replace is rejected as stale. Omit only for an unconditional replace; prefer task_create/task_update/task_delete/task_reorder for single-task edits.",
+      "New tasks to append to the end of the session's list. Entries without an id are minted a stable tsk_ id.",
   }),
 })
 
@@ -37,7 +33,7 @@ export const layer = Layer.effectDiscard(
       .register({
         [name]: Tool.make({
           description:
-            "Create and maintain a structured task list for the current session. Use it to track progress during multi-step work, keep task statuses current, and build the todo list a task delegation can later link to with parent_task_id.",
+            "Append one or more tasks to the end of the current session's task list. Use this for incremental additions instead of rewriting the full list with taskwrite.",
           input: Input,
           output: Output,
           toModelOutput: ({ output }) => [{ type: "text", text: toModelOutput(output) }],
@@ -52,24 +48,18 @@ export const layer = Layer.effectDiscard(
                 source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
               })
               const resolved = yield* tasks
-                .update({
-                  sessionID: context.sessionID,
-                  tasks: input.tasks,
-                  expectedRevision: input.expectedRevision,
-                })
+                .append({ sessionID: context.sessionID, tasks: input.tasks })
                 .pipe(
                   Effect.mapError((error) =>
                     error instanceof SessionTask.TaskWriteError
                       ? new ToolFailure({ message: error.message })
-                      : new ToolFailure({ message: "Unable to update tasks" }),
+                      : new ToolFailure({ message: "Unable to create tasks" }),
                   ),
                 )
               return { tasks: resolved }
             }).pipe(
-              // Preserve the specific TaskWriteError message mapped above; only
-              // wrap non-tool failures (permission, infrastructure) generically.
               Effect.mapError((error) =>
-                error instanceof ToolFailure ? error : new ToolFailure({ message: "Unable to update tasks" }),
+                error instanceof ToolFailure ? error : new ToolFailure({ message: "Unable to create tasks" }),
               ),
             ),
         }),

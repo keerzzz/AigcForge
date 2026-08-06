@@ -5,13 +5,20 @@
  * >20 downsampling, and anchor selection (first in_progress).
  */
 
-export type TodoProgressStatus = "pending" | "in_progress" | "completed" | "cancelled"
+/** 16px unified track margin — matches index.css track/label/stats insets and the title pl-4. */
+export const TRACK_INSET = 16
+/** Shared width of the indeterminate activity segment. */
+export const PULSE_WIDTH = 14
+
+export type TodoProgressStatus = "pending" | "in_progress" | "completed" | "cancelled" | "scheduled" | "failed"
 
 export interface TodoProgressInput {
   readonly id?: string
   readonly content: string
   readonly status: string
   readonly priority?: string
+  /** P3-e: carried through to the fold-over writeback as expectedRevision. */
+  readonly revision?: number
 }
 
 export interface TodoProgressNode {
@@ -28,36 +35,34 @@ export interface TodoProgress {
   readonly total: number
   readonly done: number
   readonly doneRatio: number
-  /**
-   * Fill endpoint in track pct (0-100). M7 决策 4 index semantics: 全完成贯通
-   * 100 → anchor (first in_progress) pct → last completed pct → 0. The
-   * component clips the fill to this instead of the ratio-based doneRatio.
-   */
+  /** Fill endpoint in the inset track's local 0-100 coordinate space. */
   readonly fillEndPct: number
   /**
-   * Last completed node's pct (0 when none) — the task-pulse `--pulse-from`
-   * origin (M7 决策 5), so the pulse shuttles between the completed frontier
-   * and the anchor even when downsampling hides the node.
+   * Last completed node's local pct (0 when none). Feeds the no-anchor fill
+   * endpoint and the activity pulse's completed frontier.
    */
   readonly lastCompletedPct: number
+  /**
+   * Indeterminate task activity, never a completion estimate. It exists only
+   * when an in_progress anchor is ahead of the completed frontier; a leading
+   * or single anchor relies on the node's activity glow instead of fake travel.
+   */
+  readonly pulse?: {
+    readonly fromPct: number
+    readonly toPct: number
+    /**
+     * Determinate pulse position (P2): when an execution source reports a 0..1
+     * progress for the anchor task, the pulse rests here instead of sweeping.
+     * Absent = indeterminate (sweep between fromPct and toPct).
+     */
+    readonly progressPct?: number
+  }
   readonly nodes: TodoProgressNode[]
   /**
    * Midpoint positions (0-100) of gaps where downsampling omitted nodes
    * (plan §5.5 "只渲染首尾 + 中间省略点"). Empty unless downsampling ran.
    */
   readonly ellipsis: number[]
-}
-
-export interface TodoProgressOptions {
-  /**
-   * Track width in px used to convert the 8px end-inset (M7 决策 3) into a
-   * percentage. Inset lives in the model — not CSS padding — so the fill
-   * endpoint and the node positions share one pct basis (CSS inset can't
-   * align both track ends: an absolutely-positioned `left: pct%` resolves
-   * against the padding-box width and overflows the right content edge).
-   * When 0/omitted no inset is applied and the index pct is preserved.
-   */
-  readonly trackWidth?: number
 }
 
 /** Above this many nodes the pulse line downsamples to first/anchor/last. */
@@ -69,6 +74,8 @@ export const normalizeStatus = (status: string): TodoProgressStatus => {
     case "in_progress":
     case "completed":
     case "cancelled":
+    case "scheduled":
+    case "failed":
       return status
     default:
       return "pending"
@@ -85,7 +92,7 @@ export const normalizePriority = (priority: string | undefined): "high" | "mediu
  * completed one returns it to pending. Cancelled tasks stay untouched. */
 export const flipTaskStatus = (status: TodoProgressStatus): TodoProgressStatus => {
   if (status === "completed") return "pending"
-  if (status === "cancelled") return "cancelled"
+  if (status === "cancelled" || status === "scheduled") return status
   return "completed"
 }
 
@@ -139,29 +146,53 @@ export const flipTaskWriteStatus = (status: TaskWriteStatus): TaskWriteStatus =>
 
 export const computeTodoProgress = (
   todos: readonly TodoProgressInput[],
-  options?: TodoProgressOptions,
+  /**
+   * P2: optional 0..1 progress for the anchor task (from a `task.progress` event).
+   * When in range and a pulse exists, the pulse gets a determinate `progressPct`
+   * (rests instead of sweeping). Out-of-range/absent = indeterminate sweep.
+   */
+  anchorProgress?: number,
 ): TodoProgress => {
   const total = todos.length
   const done = todos.filter((todo) => todo.status === "completed").length
   const doneRatio = total === 0 ? 0 : done / total
 
-  // M7 决策 3: inset both ends by 8px (converted to a percentage of the track
-  // width) so the first/last nodes clear the track edges and the stats button.
-  const width = options?.trackWidth ?? 0
-  const inset = width > 0 ? (8 / width) * 100 : 0
-  const span = 100 - 2 * inset
-  const pct = (i: number) => (total <= 1 ? 50 : inset + (i / (total - 1)) * span)
+  // Geometry is local to the already-inset track element. CSS owns the 16px
+  // outer margin; the model only needs stable normalized positions.
+  const pct = (i: number) => (total <= 1 ? 50 : (i / (total - 1)) * 100)
 
   const firstInProgress = todos.findIndex((todo) => todo.status === "in_progress")
 
   // M7 决策 4 fill endpoint (index semantics, not the ratio): all-complete
   // runs through to 100, otherwise stop at the anchor, else the last completed
-  // node, else 0. lastCompletedPct feeds the task pulse --pulse-from (决策 5).
+  // node, else 0. lastCompletedPct feeds fillEndPct in the no-anchor branch.
   let lastCompleted = -1
   for (let i = 0; i < total; i++) {
     if (todos[i].status === "completed") lastCompleted = i
   }
-  const lastCompletedPct = lastCompleted === -1 ? 0 : pct(lastCompleted)
+  const lastCompletedPct = lastCompleted !== -1 ? pct(lastCompleted) : 0
+
+  // Activity is indeterminate: it says "work is happening in this interval",
+  // never "the LLM is N% done". No anchor means no task pulse. A leading or
+  // single anchor has no interval, so its node glow carries the activity.
+  let completedFrontier = -1
+  for (let i = 0; i < firstInProgress; i++) {
+    if (todos[i].status === "completed") completedFrontier = i
+  }
+  const pulseFromPct = completedFrontier === -1 ? 0 : pct(completedFrontier)
+  const pulseToPct = firstInProgress === -1 ? 0 : pct(firstInProgress)
+  const hasInterval = firstInProgress > 0 && pulseFromPct < pulseToPct
+  const progressPct =
+    hasInterval && typeof anchorProgress === "number" && anchorProgress >= 0 && anchorProgress <= 1
+      ? pulseFromPct + anchorProgress * (pulseToPct - pulseFromPct)
+      : undefined
+  const pulse = hasInterval
+    ? {
+        fromPct: pulseFromPct,
+        toPct: pulseToPct,
+        ...(progressPct !== undefined ? { progressPct } : {}),
+      }
+    : undefined
 
   let fillEndPct: number
   if (total === 0) {
@@ -197,7 +228,16 @@ export const computeTodoProgress = (
     })
   }
 
-  return { total, done, doneRatio, fillEndPct, lastCompletedPct, nodes, ellipsis }
+  return {
+    total,
+    done,
+    doneRatio,
+    fillEndPct,
+    lastCompletedPct,
+    pulse,
+    nodes,
+    ellipsis,
+  }
 }
 
 /**

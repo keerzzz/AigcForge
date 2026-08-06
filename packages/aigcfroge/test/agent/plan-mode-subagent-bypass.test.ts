@@ -93,10 +93,18 @@ it.instance("general and explore children do not inherit parent task or todo per
 
     expect(Permission.evaluate("task", "general", effectiveGeneral).action).toBe("deny")
     expect(Permission.evaluate("todowrite", "*", effectiveGeneral).action).toBe("deny")
+    expect(Permission.evaluate("task_create", "*", effectiveGeneral).action).toBe("deny")
+    expect(Permission.evaluate("task_update", "*", effectiveGeneral).action).toBe("deny")
+    expect(Permission.evaluate("task_delete", "*", effectiveGeneral).action).toBe("deny")
+    expect(Permission.evaluate("task_reorder", "*", effectiveGeneral).action).toBe("deny")
     expect(Permission.evaluate("task_schedule", "*", effectiveGeneral).action).toBe("deny")
     expect(Permission.evaluate("task_spawn", "*", effectiveGeneral).action).toBe("deny")
     expect(Permission.evaluate("task", "general", effectiveExplore).action).toBe("deny")
     expect(Permission.evaluate("todowrite", "*", effectiveExplore).action).toBe("deny")
+    expect(Permission.evaluate("task_create", "*", effectiveExplore).action).toBe("deny")
+    expect(Permission.evaluate("task_update", "*", effectiveExplore).action).toBe("deny")
+    expect(Permission.evaluate("task_delete", "*", effectiveExplore).action).toBe("deny")
+    expect(Permission.evaluate("task_reorder", "*", effectiveExplore).action).toBe("deny")
     expect(Permission.evaluate("task_schedule", "*", effectiveExplore).action).toBe("deny")
     expect(Permission.evaluate("task_spawn", "*", effectiveExplore).action).toBe("deny")
   }),
@@ -188,5 +196,47 @@ it.effect("subagent inherits parent session deny rules as hard runtime ceilings"
     )
 
     expect(Permission.evaluate("bash", "git status", effective).action).toBe("deny")
+  }),
+)
+
+it.effect("task_* incremental tools default deny for subagents; explicit grant opts in", () =>
+  Effect.sync(() => {
+    // 2026-08-06 裁决: 子代理默认不得写任务列表 (task_create/update/delete/reorder),
+    // 与 taskwrite 同级; 自定义 agent 显式授权即可 opt-in P2-b 进度上报.
+    const executor = testAgent({
+      name: "executor",
+      mode: "subagent",
+      permission: {},
+    })
+    const effective = Permission.merge(
+      executor.permission,
+      deriveSubagentSessionPermission({
+        parentSessionPermission: [],
+        subagent: executor,
+      }),
+    )
+    for (const action of ["task_create", "task_update", "task_delete", "task_reorder"]) {
+      expect(Permission.evaluate(action, "*", effective).action).toBe("deny")
+    }
+
+    const optedIn = testAgent({
+      name: "opted-in",
+      mode: "subagent",
+      permission: {
+        task_create: "allow",
+        task_update: "allow",
+      },
+    })
+    const effectiveOptedIn = Permission.merge(
+      optedIn.permission,
+      deriveSubagentSessionPermission({
+        parentSessionPermission: [],
+        subagent: optedIn,
+      }),
+    )
+    expect(Permission.evaluate("task_create", "*", effectiveOptedIn).action).toBe("allow")
+    expect(Permission.evaluate("task_update", "*", effectiveOptedIn).action).toBe("allow")
+    expect(Permission.evaluate("task_delete", "*", effectiveOptedIn).action).toBe("deny")
+    expect(Permission.evaluate("task_reorder", "*", effectiveOptedIn).action).toBe("deny")
   }),
 )

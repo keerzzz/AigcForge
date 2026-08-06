@@ -78,6 +78,7 @@ import { createTimelineProjection } from "./projection"
 import { MessageComment, SummaryDiff, TimelineRow, TimelineRowMap } from "./rows"
 import { filterVirtualIndexes } from "./virtual-items"
 import { SessionTodoProgress } from "@/pages/session/timeline/session-todo-progress"
+import { PULSE_WIDTH, TRACK_INSET } from "@/pages/session/timeline/session-todo-progress-model"
 import { SessionScheduledChip, SessionScheduledTasksPopover } from "@/pages/session/timeline/session-scheduled-tasks"
 import { AgentTaskHub } from "@/pages/session/timeline/agent-task-hub"
 
@@ -100,8 +101,6 @@ const taskDescription = (part: PartType, sessionID: string) => {
   const value = part.state.input?.description
   if (typeof value === "string" && value) return value
 }
-
-const pace = (width: number) => Math.round(Math.max(1200, Math.min(3200, (Math.max(width, 360) * 2000) / 900)))
 
 const boundaryTarget = (root: HTMLElement, target: EventTarget | null) => {
   const current = target instanceof Element ? target : undefined
@@ -491,7 +490,7 @@ export function MessageTimeline(props: {
     followOnAppend: true,
     scrollEndThreshold: 80,
     get scrollMargin() {
-      return showHeader() ? 72 : 0
+      return showHeader() ? 82 : 0
     },
     overscan: 50,
     paddingEnd: 64,
@@ -619,18 +618,7 @@ export function MessageTimeline(props: {
   })
   const [scheduledOpen, setScheduledOpen] = createSignal(false)
   const [hubOpen, setHubOpen] = createSignal(false)
-  const [bar, setBar] = createStore({
-    ms: pace(640),
-  })
   let more: HTMLButtonElement | undefined
-  let head: HTMLDivElement | undefined
-
-  const updateTitleMetrics = () => {
-    if (!head || head.clientWidth <= 0) return
-    setBar("ms", pace(head.clientWidth))
-  }
-
-  createResizeObserver(() => head, updateTitleMetrics)
 
   const bindListRoot = (root: HTMLDivElement) => {
     boundListRoot = root
@@ -1309,7 +1297,7 @@ export function MessageTimeline(props: {
         data-timeline-key={props.rowKey}
         style={{
           position: "absolute",
-          top: `${item().start - (showHeader() ? 72 : 0)}px`,
+          top: `${item().start - (showHeader() ? 82 : 0)}px`,
           left: "0",
           width: "100%",
           height: `${item().size}px`,
@@ -1372,20 +1360,15 @@ export function MessageTimeline(props: {
         onClick={props.onAutoScrollInteraction}
         class="relative min-w-0 w-full h-full"
         style={{
-          "--sticky-accordion-top": showHeader() ? "72px" : "0px",
-        }}
+          "--sticky-accordion-top": showHeader() ? "72px" : "0px",        }}
       >
         <Show when={showHeader()}>
           <div
-            ref={(el) => {
-              head = el
-              updateTitleMetrics()
-            }}
             data-session-title
             classList={{
-              "sticky top-0 z-30 bg-[linear-gradient(to_bottom,var(--background-stronger)_68px,transparent)]": true,
+              "sticky top-0 z-30 bg-[linear-gradient(to_bottom,var(--background-stronger)_82px,transparent)]": true,
               "w-full": true,
-              "pb-6": true,
+              "pb-[34px]": true,
               "pr-3": true,
               "pl-4": true,
               "pl-2 md:pl-4": false,
@@ -1716,15 +1699,28 @@ export function MessageTimeline(props: {
                 data-component="session-progress"
                 data-state={workingStatus()}
                 aria-hidden={hasTaskData() ? undefined : "true"}
+                style={{
+                  "--session-progress-inset": `${TRACK_INSET}px`,
+                  "--session-progress-pulse-width": `${PULSE_WIDTH}px`,
+                }}
               >
                 <Show when={!hasTaskData()}>
-                  <div
-                    data-component="session-progress-bar"
-                    style={{
-                      background: tint() ?? "var(--icon-interactive-base)",
-                      animation: `session-progress-whip ${bar.ms}ms infinite`,
-                    }}
-                  />
+                  <div data-component="session-progress-track-area">
+                    {/* No-todo skeleton: semi-transparent line + start/end dots
+                        so the running state always shows the track the pulse
+                        scans (unified model — todo task nodes replace the dots). */}
+                    <div data-component="session-progress-track" aria-hidden="true" />
+                    <span data-component="session-progress-endpoint" data-end="start" aria-hidden="true" />
+                    <span data-component="session-progress-endpoint" data-end="end" aria-hidden="true" />
+                    <div
+                      data-component="session-progress-bar"
+                      style={{
+                        background: tint() ?? "var(--icon-interactive-base)",
+                        "--pulse-from-pct": "0%",
+                        "--pulse-to-pct": "100%",
+                      }}
+                    />
+                  </div>
                 </Show>
                 <SessionTodoProgress sessionID={sessionID} working={() => workingStatus() !== "hidden"} tint={tint} />
               </div>

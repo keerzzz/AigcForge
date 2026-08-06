@@ -65,6 +65,11 @@ export class Info extends Schema.Class<Info>("SessionTask.Info")({
   dependsOn: Schema.optional(Schema.Array(Schema.String)).annotate({
     description: "Predecessor task IDs (DAG dependencies)",
   }),
+  // P3-a: optimistic-concurrency revision. Server-managed (never client-supplied):
+  // new tasks start at 1, every write increments, expectedRevision rejects stale writes.
+  revision: Schema.Number.annotate({
+    description: "Server-managed revision (increments on every write; expectedRevision rejects stale writes)",
+  }),
   createdAt: Schema.Number,
   updatedAt: Schema.Number,
 }) {}

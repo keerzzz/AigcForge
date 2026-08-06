@@ -12,6 +12,10 @@ import { ReadToolFileSystem } from "./read-filesystem"
 import { SkillTool } from "./skill"
 import { TaskTool } from "./task"
 import { TaskWriteTool } from "./taskwrite"
+import { TaskCreateTool } from "./task-create"
+import { TaskUpdateTool } from "./task-update"
+import { TaskDeleteTool } from "./task-delete"
+import { TaskReorderTool } from "./task-reorder"
 import { TaskScheduleTool } from "./taskschedule"
 import { TaskSpawnTool } from "./taskspawn"
 import { TodoWriteTool } from "./todowrite"
@@ -53,6 +57,10 @@ export const locationLayer = Layer.mergeAll(
   SkillTool.layer,
   TaskTool.layer,
   TaskWriteTool.layer,
+  TaskCreateTool.layer,
+  TaskUpdateTool.layer,
+  TaskDeleteTool.layer,
+  TaskReorderTool.layer,
   TaskScheduleTool.layer,
   TaskSpawnTool.layer,
   TodoWriteTool.layer,

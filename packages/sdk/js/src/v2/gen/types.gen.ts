@@ -72,6 +72,7 @@ export type Event =
   | EventQuestionV2Rejected
   | EventTaskUpdated
   | EventTodoUpdated
+  | EventTaskProgress
   | EventWorkArtifactApplied
   | EventLspUpdated
   | EventPermissionAsked
@@ -1459,6 +1460,19 @@ export type GlobalEvent = {
         properties: {
           sessionID: string
           todos: Array<Todo>
+        }
+      }
+    | {
+        id: string
+        type: "task.progress"
+        properties: {
+          sessionID: string
+          taskID: string
+          phase: "thinking" | "streaming" | "tool" | "waiting"
+          progress?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+          current?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+          total?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+          updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
         }
       }
     | {
@@ -3451,6 +3465,7 @@ export type V2Event =
   | V2EventQuestionV2Rejected
   | V2EventTaskUpdated
   | V2EventTodoUpdated
+  | V2EventTaskProgress
   | V2EventWorkArtifactApplied
   | V2EventLspUpdated
   | V2EventPermissionAsked
@@ -3695,6 +3710,7 @@ export type SessionTaskInfo = {
   nextRun?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
   spawnedFrom?: string
   dependsOn?: Array<string>
+  revision: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
   createdAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
   updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
 }
@@ -6729,6 +6745,29 @@ export type V2EventTodoUpdated = {
   }
 }
 
+export type V2EventTaskProgress = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "task.progress"
+  data: {
+    sessionID: string
+    taskID: string
+    phase: "thinking" | "streaming" | "tool" | "waiting"
+    progress?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    current?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    total?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
 export type V2EventWorkArtifactApplied = {
   id: string
   metadata?: {
@@ -8076,6 +8115,10 @@ export type SessionTaskInfo4 = {
   nextRun?: number | "NaN" | "Infinity" | "-Infinity"
   spawnedFrom?: string
   dependsOn?: Array<string>
+  /**
+   * Server-managed revision (increments on every write; expectedRevision rejects stale writes)
+   */
+  revision: number | "NaN" | "Infinity" | "-Infinity"
   createdAt: number | "NaN" | "Infinity" | "-Infinity"
   updatedAt: number | "NaN" | "Infinity" | "-Infinity"
 }
@@ -8095,6 +8138,20 @@ export type EventTodoUpdated = {
   properties: {
     sessionID: string
     todos: Array<Todo>
+  }
+}
+
+export type EventTaskProgress = {
+  id: string
+  type: "task.progress"
+  properties: {
+    sessionID: string
+    taskID: string
+    phase: "thinking" | "streaming" | "tool" | "waiting"
+    progress?: number | "NaN" | "Infinity" | "-Infinity"
+    current?: number | "NaN" | "Infinity" | "-Infinity"
+    total?: number | "NaN" | "Infinity" | "-Infinity"
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity"
   }
 }
 
@@ -12306,7 +12363,10 @@ export type SessionTaskDeleteResponse = SessionTaskDeleteResponses[keyof Session
 
 export type SessionTaskPatchData = {
   body?: {
-    status: TaskStatus
+    status?: TaskStatus
+    content?: string
+    priority?: TaskPriority
+    expectedRevision?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
   }
   path: {
     sessionID: string
@@ -12340,6 +12400,43 @@ export type SessionTaskPatchResponses = {
 }
 
 export type SessionTaskPatchResponse = SessionTaskPatchResponses[keyof SessionTaskPatchResponses]
+
+export type SessionTaskReorderData = {
+  body?: {
+    ids: Array<string>
+    expectedRevision?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/task/reorder"
+}
+
+export type SessionTaskReorderErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionTaskReorderError = SessionTaskReorderErrors[keyof SessionTaskReorderErrors]
+
+export type SessionTaskReorderResponses = {
+  /**
+   * Reordered task list
+   */
+  200: Array<SessionTaskInfo>
+}
+
+export type SessionTaskReorderResponse = SessionTaskReorderResponses[keyof SessionTaskReorderResponses]
 
 export type SessionDiffData = {
   body?: never

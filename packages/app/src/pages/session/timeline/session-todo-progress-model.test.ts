@@ -137,6 +137,8 @@ describe("normalizeStatus", () => {
     expect(normalizeStatus("in_progress")).toBe("in_progress")
     expect(normalizeStatus("completed")).toBe("completed")
     expect(normalizeStatus("cancelled")).toBe("cancelled")
+    expect(normalizeStatus("scheduled")).toBe("scheduled")
+    expect(normalizeStatus("failed")).toBe("failed")
   })
 
   test("maps illegal or empty values to pending", () => {
@@ -334,43 +336,10 @@ describe("fillEndPct (M7 决策 4 填充终点索引语义)", () => {
     ])
     expect(p.lastCompletedPct).toBe(0)
   })
-
-  test("lastCompletedPct follows the inset pct when a track width is given", () => {
-    const p = computeTodoProgress(
-      [
-        { content: "a", status: "completed" },
-        { content: "b", status: "in_progress" },
-      ],
-      { trackWidth: 200 },
-    )
-    expect(p.lastCompletedPct).toBeCloseTo(4, 5)
-    expect(p.fillEndPct).toBeCloseTo(96, 5)
-  })
 })
 
-describe("pct inset (M7 决策 3 两端 8px 内缩)", () => {
-  const width = 200 // 8px = 4% of the track width
-
-  test("nodes are inset 8px from each edge when a track width is given", () => {
-    const p = computeTodoProgress(
-      [
-        { content: "a", status: "pending" },
-        { content: "b", status: "pending" },
-        { content: "c", status: "pending" },
-      ],
-      { trackWidth: width },
-    )
-    expect(p.nodes[0]?.pct).toBeCloseTo(4, 5)
-    expect(p.nodes[1]?.pct).toBe(50)
-    expect(p.nodes[2]?.pct).toBeCloseTo(96, 5)
-  })
-
-  test("single node stays centered regardless of the inset", () => {
-    const p = computeTodoProgress([{ content: "only", status: "pending" }], { trackWidth: width })
-    expect(p.nodes[0]?.pct).toBe(50)
-  })
-
-  test("without a track width the inset is zero (index pct preserved)", () => {
+describe("track-local geometry", () => {
+  test("nodes always use the inset track's local 0-100 coordinate space", () => {
     const p = computeTodoProgress([
       { content: "a", status: "pending" },
       { content: "b", status: "pending" },
@@ -379,15 +348,122 @@ describe("pct inset (M7 决策 3 两端 8px 内缩)", () => {
     expect(p.nodes.map((n) => n.pct)).toEqual([0, 50, 100])
   })
 
-  test("fillEndPct follows the inset pct of a leading anchor", () => {
+  test("the first node and a leading anchor both start at the local track origin", () => {
+    const p = computeTodoProgress([
+      { content: "a", status: "in_progress" },
+      { content: "b", status: "pending" },
+    ])
+    expect(p.nodes[0]?.pct).toBe(0)
+    expect(p.fillEndPct).toBe(0)
+  })
+
+  test("lastCompletedPct stays 0 when no nodes are completed", () => {
+    const p = computeTodoProgress([
+      { content: "a", status: "in_progress" },
+      { content: "b", status: "pending" },
+      { content: "c", status: "pending" },
+    ])
+    expect(p.lastCompletedPct).toBe(0)
+  })
+})
+
+describe("task activity pulse", () => {
+  test("without a completed frontier, pulses from the first node to a later anchor", () => {
+    const p = computeTodoProgress([
+      { content: "a", status: "pending" },
+      { content: "b", status: "in_progress" },
+      { content: "c", status: "pending" },
+    ])
+    expect(p.pulse).toEqual({ fromPct: 0, toPct: 50 })
+  })
+
+  test("with completed work, pulses only from the completed frontier to the anchor", () => {
+    const p = computeTodoProgress([
+      { content: "a", status: "completed" },
+      { content: "b", status: "completed" },
+      { content: "c", status: "in_progress" },
+      { content: "d", status: "pending" },
+    ])
+    expect(p.pulse?.fromPct).toBeCloseTo(100 / 3, 10)
+    expect(p.pulse?.toPct).toBeCloseTo((2 / 3) * 100, 10)
+  })
+
+  test("a leading anchor has no fake travel range; the anchor node carries activity", () => {
+    const p = computeTodoProgress([
+      { content: "a", status: "in_progress" },
+      { content: "b", status: "pending" },
+    ])
+    expect(p.pulse).toBeUndefined()
+  })
+
+  test("a single in_progress node has no fake full-track progress", () => {
+    expect(computeTodoProgress([{ content: "only", status: "in_progress" }]).pulse).toBeUndefined()
+  })
+
+  test("all pending tasks have no task pulse because no task is active", () => {
+    const p = computeTodoProgress([
+      { content: "a", status: "pending" },
+      { content: "b", status: "pending" },
+      { content: "c", status: "pending" },
+    ])
+    expect(p.pulse).toBeUndefined()
+  })
+})
+
+describe("determinate progress (P2)", () => {
+  // 3 tasks: pending, in_progress (anchor at 50%), pending -> pulse 0->50.
+  const withAnchor = [
+    { content: "a", status: "pending" },
+    { content: "b", status: "in_progress" },
+    { content: "c", status: "pending" },
+  ]
+
+  test("anchorProgress 0.5 advances the pulse to the midpoint of the interval", () => {
+    const p = computeTodoProgress(withAnchor, 0.5)
+    expect(p.pulse?.fromPct).toBe(0)
+    expect(p.pulse?.toPct).toBe(50)
+    expect(p.pulse?.progressPct).toBe(25)
+  })
+
+  test("anchorProgress 0 rests at the completed frontier", () => {
+    const p = computeTodoProgress(withAnchor, 0)
+    expect(p.pulse?.progressPct).toBe(0)
+  })
+
+  test("anchorProgress 1 rests at the anchor", () => {
+    const p = computeTodoProgress(withAnchor, 1)
+    expect(p.pulse?.progressPct).toBe(50)
+  })
+
+  test("without anchorProgress, progressPct is absent (indeterminate sweep)", () => {
+    const p = computeTodoProgress(withAnchor)
+    expect(p.pulse?.progressPct).toBeUndefined()
+  })
+
+  test("out-of-range anchorProgress is ignored (no progressPct)", () => {
+    expect(computeTodoProgress(withAnchor, -0.1).pulse?.progressPct).toBeUndefined()
+    expect(computeTodoProgress(withAnchor, 1.1).pulse?.progressPct).toBeUndefined()
+  })
+
+  test("anchorProgress has no effect when there is no pulse (single in_progress)", () => {
+    const p = computeTodoProgress([{ content: "only", status: "in_progress" }], 0.5)
+    expect(p.pulse).toBeUndefined()
+  })
+
+  test("anchorProgress with a completed frontier scales within the sub-interval", () => {
+    // 4 tasks: completed, completed, in_progress (anchor at 2/3), pending.
+    // Pulse from 1/3 (last completed) to 2/3 (anchor); 0.5 -> midpoint = 0.5.
     const p = computeTodoProgress(
       [
-        { content: "a", status: "in_progress" },
-        { content: "b", status: "pending" },
+        { content: "a", status: "completed" },
+        { content: "b", status: "completed" },
+        { content: "c", status: "in_progress" },
+        { content: "d", status: "pending" },
       ],
-      { trackWidth: width },
+      0.5,
     )
-    expect(p.nodes[0]?.pct).toBeCloseTo(4, 5)
-    expect(p.fillEndPct).toBeCloseTo(4, 5)
+    expect(p.pulse?.fromPct).toBeCloseTo(100 / 3, 5)
+    expect(p.pulse?.toPct).toBeCloseTo((2 / 3) * 100, 5)
+    expect(p.pulse?.progressPct).toBeCloseTo(50, 5)
   })
 })

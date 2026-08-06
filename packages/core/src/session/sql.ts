@@ -143,6 +143,8 @@ export const TaskTable = sqliteTable(
     // M5: spawning & DAG — originating message and predecessor task ids.
     spawned_from: text(),
     depends_on: text({ mode: "json" }).$type<readonly string[]>(),
+    // P3-a: optimistic-concurrency revision (server-managed, increments on every write).
+    revision: integer().notNull().default(1),
     position: integer().notNull(),
     ...Timestamps,
   },

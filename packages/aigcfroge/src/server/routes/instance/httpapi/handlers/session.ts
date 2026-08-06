@@ -153,27 +153,70 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     // was appended server-side but whose SSE event hasn't reached the client yet.
     const patchTask = Effect.fn("SessionHttpApi.patchTask")(function* (ctx: {
       params: { sessionID: SessionID; taskID: string }
-      payload: { status: SessionTaskSchema.TaskStatus }
+      payload: {
+        status?: SessionTaskSchema.TaskStatus
+        content?: string
+        priority?: SessionTaskSchema.TaskPriority
+        expectedRevision?: number
+      }
     }) {
       yield* requireSession(ctx.params.sessionID)
       const v2task = yield* SessionTask.Service
-      const patched = yield* v2task
-        .patch({
-          sessionID: ctx.params.sessionID,
-          id: ctx.params.taskID,
-          status: ctx.payload.status,
-        })
-        .pipe(
-          // Resuming a schedule-less task to `scheduled` is rejected by the
-          // domain invariant (HIGH-4) — surface it as a client error, not a 500.
-          Effect.catchTag("SessionTask.TaskWriteError", (error) =>
-            Effect.fail(new InvalidRequestError({ message: error.message })),
-          ),
+      const hasFields = ctx.payload.content !== undefined || ctx.payload.priority !== undefined
+      if (!hasFields && ctx.payload.status === undefined) {
+        return yield* Effect.fail(
+          new InvalidRequestError({ message: "At least one of status, content, or priority is required" }),
         )
-      if (!patched) {
-        return yield* Effect.fail(notFound(`Task ${ctx.params.taskID} not found in session ${ctx.params.sessionID}`))
       }
-      return patched
+      // P3-d: field updates route to updateTask; status routes to patch. When
+      // both are requested, updateTask runs first and its returned revision
+      // guards the subsequent patch. undefined means not-found or stale revision.
+      let result: typeof SessionTask.Info.Type | undefined
+      if (hasFields) {
+        result = yield* v2task
+          .updateTask({
+            sessionID: ctx.params.sessionID,
+            id: ctx.params.taskID,
+            content: ctx.payload.content,
+            priority: ctx.payload.priority,
+            expectedRevision: ctx.payload.expectedRevision,
+          })
+          .pipe(
+            Effect.catchTag("SessionTask.TaskWriteError", (error) =>
+              Effect.fail(new InvalidRequestError({ message: error.message })),
+            ),
+          )
+        if (!result) {
+          return yield* Effect.fail(
+            notFound(`Task ${ctx.params.taskID} not found or revision is stale in session ${ctx.params.sessionID}`),
+          )
+        }
+      }
+      if (ctx.payload.status !== undefined) {
+        result = yield* v2task
+          .patch({
+            sessionID: ctx.params.sessionID,
+            id: ctx.params.taskID,
+            status: ctx.payload.status,
+            expectedRevision: result?.revision ?? ctx.payload.expectedRevision,
+          })
+          .pipe(
+            // Resuming a schedule-less task to `scheduled` is rejected by the
+            // domain invariant (HIGH-4) - surface it as a client error, not a 500.
+            Effect.catchTag("SessionTask.TaskWriteError", (error) =>
+              Effect.fail(new InvalidRequestError({ message: error.message })),
+            ),
+          )
+        if (!result) {
+          return yield* Effect.fail(
+            notFound(`Task ${ctx.params.taskID} not found or revision is stale in session ${ctx.params.sessionID}`),
+          )
+        }
+      }
+      // The early guard ensures at least one branch ran; this final guard
+      // satisfies the endpoint's non-undefined Info return type.
+      if (!result) return yield* Effect.fail(new InvalidRequestError({ message: "Unable to update task" }))
+      return result
     })
 
     const createTask = Effect.fn("SessionHttpApi.createTask")(function* (ctx: {
@@ -230,6 +273,28 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
         return yield* Effect.fail(notFound(`Task ${ctx.params.taskID} not found in session ${ctx.params.sessionID}`))
       }
       return removed
+    })
+
+    // P3-d: reorder a session's task list by id. The ids must be a permutation
+    // of the current task ids; expectedRevision (max observed) rejects stale
+    // reorders. TaskWriteError (foreign/duplicate/stale_revision) -> 400.
+    const reorderTask = Effect.fn("SessionHttpApi.reorderTask")(function* (ctx: {
+      params: { sessionID: SessionID }
+      payload: { ids: readonly string[]; expectedRevision?: number }
+    }) {
+      yield* requireSession(ctx.params.sessionID)
+      const v2task = yield* SessionTask.Service
+      return yield* v2task
+        .reorder({
+          sessionID: ctx.params.sessionID,
+          ids: ctx.payload.ids,
+          expectedRevision: ctx.payload.expectedRevision,
+        })
+        .pipe(
+          Effect.catchTag("SessionTask.TaskWriteError", (error) =>
+            Effect.fail(new InvalidRequestError({ message: error.message })),
+          ),
+        )
     })
 
     const diff = Effect.fn("SessionHttpApi.diff")(function* (ctx: {
@@ -738,6 +803,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       .handle("patchTask", patchTask)
       .handle("createTask", createTask)
       .handle("deleteTask", deleteTask)
+      .handle("reorderTask", reorderTask)
       .handle("diff", diff)
       .handle("messages", messages)
       .handle("message", message)

@@ -277,6 +277,12 @@ export const Plugin = define({
           ...PermissionV2.merge(defaults, [
             { action: "todowrite", resource: "*", effect: "deny" },
             { action: "taskwrite", resource: "*", effect: "deny" },
+            // task_* incremental tools default deny (2026-08-06 裁决: 子代理只
+            // 交付结果、不维护任务进度; 显式授权可 opt-in 启用 P2-b 进度上报).
+            { action: "task_create", resource: "*", effect: "deny" },
+            { action: "task_update", resource: "*", effect: "deny" },
+            { action: "task_delete", resource: "*", effect: "deny" },
+            { action: "task_reorder", resource: "*", effect: "deny" },
             // Mirror the V1 subagent defaults (aigcfroge subagent-permissions.ts):
             // a subagent must not schedule or spawn follow-up work recursively.
             { action: "task_schedule", resource: "*", effect: "deny" },

@@ -1752,6 +1752,47 @@ const scenarios: Scenario[] = [
       "status",
     ),
   http.protected
+    .post("/session/{sessionID}/task/reorder", "session.task.reorder")
+    .mutating()
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const session = yield* ctx.session({ title: "Task reorder session" })
+        const tasks = yield* ctx.tasks(session.id, [
+          { content: "first", status: "pending", priority: "medium" },
+          { content: "second", status: "pending", priority: "medium" },
+        ])
+        return { session, tasks }
+      }),
+    )
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/task/reorder", { sessionID: ctx.state.session.id }),
+      headers: ctx.headers(),
+      // ids must be a permutation of the current task ids; the order is flipped
+      // so the response proves the server applied it.
+      body: { ids: [ctx.state.tasks[1].id, ctx.state.tasks[0].id] },
+    }))
+    .json(
+      200,
+      (body, ctx) => {
+        array(body)
+        check(body.length === 2, "reorder should return the full task list")
+        const first = body[0]
+        const second = body[1]
+        check(
+          isRecord(first) &&
+            isRecord(second) &&
+            first.id === ctx.state.tasks[1].id &&
+            second.id === ctx.state.tasks[0].id,
+          "reorder should apply the submitted id order",
+        )
+        check(
+          body.every((task: unknown) => isRecord(task) && typeof task.revision === "number"),
+          "reorder should bump every task's revision",
+        )
+      },
+      "status",
+    ),
+  http.protected
     .get("/agent-task", "agent-task.list")
     .seeded((ctx) =>
       Effect.gen(function* () {

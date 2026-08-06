@@ -629,6 +629,26 @@ describe("tool.task", () => {
             action: "deny",
           },
           {
+            permission: "task_create",
+            pattern: "*",
+            action: "deny",
+          },
+          {
+            permission: "task_update",
+            pattern: "*",
+            action: "deny",
+          },
+          {
+            permission: "task_delete",
+            pattern: "*",
+            action: "deny",
+          },
+          {
+            permission: "task_reorder",
+            pattern: "*",
+            action: "deny",
+          },
+          {
             permission: "task_schedule",
             pattern: "*",
             action: "deny",

@@ -87,6 +87,7 @@ export const SessionPaths = {
   todo: `${root}/:sessionID/todo`,
   task: `${root}/:sessionID/task`,
   taskItem: `${root}/:sessionID/task/:taskID`,
+  taskReorder: `${root}/:sessionID/task/reorder`,
   diff: `${root}/:sessionID/diff`,
   messages: `${root}/:sessionID/message`,
   message: `${root}/:sessionID/message/:messageID`,
@@ -209,8 +210,14 @@ export const SessionApi = HttpApi.make("session")
         HttpApiEndpoint.patch("patchTask", SessionPaths.taskItem, {
           params: { sessionID: SessionID, taskID: Schema.String },
           query: WorkspaceRoutingQuery,
+          // P3-d: single-task update accepts status and/or content/priority plus
+          // expectedRevision. At least one field is required (handler-enforced);
+          // expectedRevision rejects stale writes (optimistic concurrency).
           payload: Schema.Struct({
-            status: SessionTaskSchema.TaskStatus,
+            status: Schema.optional(SessionTaskSchema.TaskStatus),
+            content: Schema.optional(Schema.String),
+            priority: Schema.optional(SessionTaskSchema.TaskPriority),
+            expectedRevision: Schema.optional(Schema.Number),
             // outputDigest deliberately absent: it is written by the TaskDriver /
             // ScheduledJob settle paths (internal), and exposing it publicly would
             // let a client overwrite the execution digest / child-session linkage.
@@ -220,9 +227,9 @@ export const SessionApi = HttpApi.make("session")
         }).annotateMerge(
           OpenApi.annotations({
             identifier: "session.task.patch",
-            summary: "Patch one task",
+            summary: "Update one task",
             description:
-              "Update a single task's status by id. Unlike the full-list reconcile, no other row is touched and no absent row is deleted.",
+              "Update a single task's status, content, and/or priority by id. Pass expectedRevision to reject stale writes. Unlike the full-list reconcile, no other row is touched and no absent row is deleted.",
           }),
         ),
         HttpApiEndpoint.post("createTask", SessionPaths.task, {
@@ -249,6 +256,23 @@ export const SessionApi = HttpApi.make("session")
             identifier: "session.task.delete",
             summary: "Delete one task",
             description: "Delete a single task by id. Other rows are untouched.",
+          }),
+        ),
+        HttpApiEndpoint.post("reorderTask", SessionPaths.taskReorder, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          payload: Schema.Struct({
+            ids: Schema.Array(Schema.String),
+            expectedRevision: Schema.optional(Schema.Number),
+          }),
+          success: described(Schema.Array(SessionTask.Info), "Reordered task list"),
+          error: [InvalidRequestError, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.task.reorder",
+            summary: "Reorder tasks",
+            description:
+              "Reorder a session's task list by id. The ids must be a permutation of the current task ids (every task, no omissions, no duplicates). expectedRevision is the max revision the caller observed; if any task changed, the reorder is rejected as stale.",
           }),
         ),
         HttpApiEndpoint.get("diff", SessionPaths.diff, {

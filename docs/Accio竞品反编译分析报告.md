@@ -222,6 +222,30 @@ AigcForge 当前:          Accio 当前:
 
 这表明 Accio 在数据模型中维护了 Agent ↔ Task ↔ Session 的完整外键链路，删除时做级联影响分析。
 
+### 5.4 TaskBoard 进度 UI（2026-08-05 深挖补充）
+
+右侧面板任务看板组件：`out/renderer/assets/task-board-Dewuac9d.js`（18KB）。
+
+**进度表达 = 两段式比率宽度条，非节点轨道脉冲**：
+
+```
+┌─ taskBoard.title  completed/total  42%  [chevron]
+│  ▓▓▓▓▓▓▓▓▓░░░░░░░░░                 ← h-1.5 (6px) 圆角轨道 overflow-hidden
+│  ├─ emerald 已完成段 (completed/total×100%)
+│  └─ blue/amber 进行中段 (in_progress/total×100%)   ← blue=agent活跃, amber=非活跃
+│  ● 3 in_progress   ● 5 pending       ← 计数点 (圆点+数字, 无节点 icon 轨道)
+└─ 任务列表 (可滚动, max-height 280px)
+```
+
+**关键实现细节**：
+- 宽度百分比：`completed/total*100%` + `in_progress/total*100%`，两段在同一 6px 圆角轨道拼接
+- **动画 = 宽度 transition**：`transition-all duration-500 ease-out`（头部紧凑条）/ `transition-[width] duration-300`（面板底部条）——计数变化时宽度平滑生长，无位移段、无节点
+- 状态图标：`check_circle`（全完成/绿）、spinning SVG（进行中+活跃/蓝）、`pause_circle`（进行中/琥珀）、`checklist`（pending/灰）
+- 计数点：in_progress（蓝点+数字）、pending（灰点+数字）
+- 数据：`task_create/get/update/list` 工具 + `summary{total,pending,in_progress,completed,archived}`（message-debug-utils 中可见）
+
+**对 AigcForge 的对比**：Accio **无**"脉冲位置跟随 LLM 输出、落在节点之间"的机制——进度就是两个比值算宽度，宽度 transition 是其全部动画。AigcForge 的“节点轨道 + 位移脉冲段 + indeterminate 活动区间”（2026-08-05 实现；P0/P1 修订后删除输出量插值、改为完成前沿↔锚点的不确定性活动脉冲）**领先于 Accio**--Accio 的两段式比率宽度条只能表达完成/进行比值，无法表达“完成前沿到当前锚点之间有工作在进行”的区间活动语义，无现成参考，只能自研。
+
 ---
 
 ## 6. 对 AigcForge 的借鉴优先级矩阵

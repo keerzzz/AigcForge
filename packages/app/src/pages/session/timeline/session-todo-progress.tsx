@@ -20,11 +20,10 @@ import {
  * `session-progress` container, so the two states are mutually exclusive and
  * the old `:has()` whip-freeze hack (the M7-④ white-block root cause) is gone.
  *
- * The strip is a 22px band under the title row: a 「任务列表」 label + `done/total`
- * stats row on top, and a 2px track (fill clipped to `fillEndPct` index
- * semantics) with 10px nodes centered on the line below. `working` decides
- * animation (task pulse shuttles between the last-completed node and the
- * anchor) vs idle static retention.
+ * The strip is a 34px band under the title row: a 「任务列表」 label + `done/total`
+ * stats row on top, and a 2px track filled to `fillEndPct` with 10px nodes
+ * centered on the line below. `working` decides indeterminate activity between
+ * the completed frontier and anchor vs idle static retention.
  */
 export function SessionTodoProgress(props: {
   sessionID: () => string | undefined
@@ -38,7 +37,6 @@ export function SessionTodoProgress(props: {
   const sdk = useSDK()
   const language = useLanguage()
   const [open, setOpen] = createSignal(false)
-  const [trackWidth, setTrackWidth] = createSignal(0)
   let trackRef: HTMLDivElement | undefined
 
   const tasks = createMemo<readonly TodoProgressInput[]>(() => {
@@ -54,6 +52,9 @@ export function SessionTodoProgress(props: {
         content: task.content,
         status: task.status,
         priority: task.priority,
+        // The SDK types revision as number | "NaN" | "Infinity" | ... (JSON
+        // edge cases); narrow to a real number so expectedRevision is clean.
+        revision: typeof task.revision === "number" ? task.revision : undefined,
       })),
       data.session_task_updated_at[id],
       (data.session_todo[id] ?? []) as TodoProgressInput[],
@@ -61,8 +62,18 @@ export function SessionTodoProgress(props: {
     )
   })
 
-  const progress = createMemo(() => computeTodoProgress(tasks(), { trackWidth: trackWidth() }))
-  const hasAnchor = createMemo(() => progress().nodes.some((node) => node.anchor))
+  const progress = createMemo(() => {
+    // P2: apply a determinate progress when the session's active task has a
+    // current progress snapshot. Match the snapshot's taskID against the first
+    // in_progress task (the anchor) so a stale snapshot for a different task
+    // can't move the pulse.
+    const id = props.sessionID()
+    const snapshot = id ? serverSync().data.session_task_progress[id] : undefined
+    const anchorTask = snapshot ? tasks().find((task) => task.status === "in_progress") : undefined
+    const anchorProgress =
+      snapshot && anchorTask && snapshot.taskID === anchorTask.id ? snapshot.progress : undefined
+    return computeTodoProgress(tasks(), anchorProgress)
+  })
   const allDone = createMemo(() => progress().total > 0 && progress().done === progress().total)
 
   // Reload recovery: pull once when the session mounts (directory-sync has
@@ -100,24 +111,6 @@ export function SessionTodoProgress(props: {
       })
   })
 
-  // Track width drives the 8px end-inset (model) and the task-pulse px range.
-  // Reading tasks() keeps this effect reactive: the strip mounts asynchronously
-  // (tasks arrive via SSE/pull after the first frame), so a one-shot read of
-  // the ref would early-return before <Show> mounts the div and never attach
-  // the observer — trackWidth would stay 0, killing both the inset and the
-  // task pulse. Effects re-run after the render pass, so the ref is set by
-  // the time tasks() flips non-empty.
-  createEffect(() => {
-    if (tasks().length === 0) return
-    const el = trackRef
-    if (!el) return
-    const measure = () => setTrackWidth(el.clientWidth)
-    measure()
-    const observer = new ResizeObserver(measure)
-    observer.observe(el)
-    onCleanup(() => observer.disconnect())
-  })
-
   // Fold-over dismiss layer (M7 决策 6): click outside the strip + panel closes.
   createEffect(() => {
     if (!open()) return
@@ -149,6 +142,10 @@ export function SessionTodoProgress(props: {
         taskID: target.id,
         directory: sdk().directory,
         status: flipTaskWriteStatus(preserveStatus(target.status)),
+        // P3-e: expectedRevision guards against a stale fold-over overwriting a
+        // concurrent task write. Undefined (legacy id-less todo source) skips the
+        // guard, but writeback already aborts for id-less entries above.
+        expectedRevision: target.revision,
       })
       .catch((err: unknown) => {
         const description = err instanceof Error ? err.message : String(err)
@@ -158,17 +155,17 @@ export function SessionTodoProgress(props: {
 
   const toggleOpen = () => setOpen((value) => !value)
 
-  // Task pulse: a highlight segment shuttling between the last-completed node
-  // and the anchor (决策 5), CSS vars + translateX keyframes — no JS frame loop.
+  // Task pulse is indeterminate activity between the completed frontier and
+  // anchor. It deliberately does not estimate LLM completion. P2: when a
+  // determinate progressPct is available, the pulse rests at that position
+  // instead of sweeping (data-determinate + --pulse-progress-pct).
   const pulseStyle = createMemo<JSX.CSSProperties | undefined>(() => {
-    const width = trackWidth()
-    if (!width) return undefined
-    const p = progress()
-    const anchor = p.nodes.find((node) => node.anchor)
-    if (!anchor) return undefined
+    const pulse = progress().pulse
+    if (!pulse) return undefined
     return {
-      "--pulse-from-px": `${(p.lastCompletedPct / 100) * width}px`,
-      "--pulse-to-px": `${(anchor.pct / 100) * width}px`,
+      "--pulse-from-pct": `${pulse.fromPct}%`,
+      "--pulse-to-pct": `${pulse.toPct}%`,
+      ...(pulse.progressPct !== undefined ? { "--pulse-progress-pct": `${pulse.progressPct}%` } : {}),
     }
   })
 
@@ -187,57 +184,58 @@ export function SessionTodoProgress(props: {
         aria-valuenow={progress().done}
       >
         <span data-component="session-todo-progress-label">{language.t("session.todo.list")}</span>
-        <div data-component="session-todo-progress-track" />
-        <div
-          data-component="session-todo-progress-fill"
-          style={{
-            "clip-path": `inset(0 ${100 - progress().fillEndPct}% 0 0 round 999px)`,
-          }}
-        />
-        <Show when={props.working() && hasAnchor()}>
-          <div data-component="session-todo-progress-pulse" style={pulseStyle()} />
-        </Show>
-        <Index each={progress().nodes}>
-          {(node) => (
-            // Plan §5.5 deviation (see specs/v2/todo.md): hover uses the
-            // native `title`, not TooltipV2 — the plan keeps `title` for
-            // keyboard/screen readers (and the e2e regression asserts the
-            // attribute), but native title also fires on hover, so a Kobalte
-            // tooltip would double-render. TooltipV2.Trigger also hardcodes
-            // `as="div"`, which cannot wrap the absolutely-positioned 10px
-            // node without restructuring its geometry.
-            <button
-              type="button"
-              data-component="session-todo-progress-node"
-              data-state={node().status}
-              data-anchor={node().anchor ? "true" : undefined}
-              data-key={node().id}
-              aria-label={node().content || undefined}
-              title={node().content || undefined}
-              tabIndex={0}
-              onClick={toggleOpen}
-              style={{ left: `${node().pct}%` }}
-            >
-              <Show when={node().status === "completed"}>
-                <svg data-component="session-todo-progress-check" viewBox="0 0 10 10" aria-hidden="true" fill="none">
-                  <path d="M2.5 5.2 4.4 7l3.1-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-                </svg>
-              </Show>
-            </button>
-          )}
-        </Index>
-        <Index each={progress().ellipsis}>
-          {(pct) => (
-            <span
-              data-component="session-todo-progress-ellipsis"
-              aria-hidden="true"
-              title={language.t("session.todo.progress", { done: progress().done, total: progress().total })}
-              style={{ left: `${pct()}%` }}
-            >
-              …
-            </span>
-          )}
-        </Index>
+        <div data-component="session-progress-track-area">
+          <div data-component="session-todo-progress-track" />
+          <div data-component="session-todo-progress-fill" style={{ width: `${progress().fillEndPct}%` }} />
+          <Show when={props.working() && progress().pulse}>
+            <div
+              data-component="session-todo-progress-pulse"
+              data-determinate={progress().pulse?.progressPct !== undefined ? "true" : undefined}
+              style={pulseStyle()}
+            />
+          </Show>
+          <Index each={progress().nodes}>
+            {(node) => (
+              // Plan §5.5 deviation (see specs/v2/todo.md): hover uses the
+              // native `title`, not TooltipV2 — the plan keeps `title` for
+              // keyboard/screen readers (and the e2e regression asserts the
+              // attribute), but native title also fires on hover, so a Kobalte
+              // tooltip would double-render. TooltipV2.Trigger also hardcodes
+              // `as="div"`, which cannot wrap the absolutely-positioned 10px
+              // node without restructuring its geometry.
+              <button
+                type="button"
+                data-component="session-todo-progress-node"
+                data-state={node().status}
+                data-anchor={node().anchor ? "true" : undefined}
+                data-key={node().id}
+                aria-label={node().content || undefined}
+                title={node().content || undefined}
+                tabIndex={0}
+                onClick={toggleOpen}
+                style={{ left: `${node().pct}%` }}
+              >
+                <Show when={node().status === "completed"}>
+                  <svg data-component="session-todo-progress-check" viewBox="0 0 10 10" aria-hidden="true" fill="none">
+                    <path d="M2.5 5.2 4.4 7l3.1-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                  </svg>
+                </Show>
+              </button>
+            )}
+          </Index>
+          <Index each={progress().ellipsis}>
+            {(pct) => (
+              <span
+                data-component="session-todo-progress-ellipsis"
+                aria-hidden="true"
+                title={language.t("session.todo.progress", { done: progress().done, total: progress().total })}
+                style={{ left: `${pct()}%` }}
+              >
+                …
+              </span>
+            )}
+          </Index>
+        </div>
         <button
           type="button"
           data-component="session-todo-progress-stats"
