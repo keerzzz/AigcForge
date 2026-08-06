@@ -7,7 +7,9 @@ import { Config } from "@aigcfroge/core/config"
 import { ConfigCliAgent } from "@aigcfroge/core/config/cli-agent"
 import { registerConfigCliAdapters } from "@aigcfroge/core/tool/cli-adapter"
 
-const cliAgentDoc = (entries: Record<string, { command: string }>) =>
+const cliAgentDoc = (
+  entries: Record<string, { command: string; transport?: "jsonl" | "sdk" | "acp" }>,
+) =>
   new Config.Document({
     type: "document",
     info: new Config.Info({
@@ -138,6 +140,24 @@ describe("adapter registry", () => {
       const adapter = yield* registry.get("claude-code")
       expect(adapter).toBeDefined()
       expect(adapter!.command).toBe("my-claude")
+    }),
+  )
+
+  it.instance("config transport sdk keeps the built-in SDK adapter for claude/codex", () =>
+    Effect.gen(function* () {
+      const registry = yield* CliAdapterRegistry.AdapterRegistry
+      registerConfigCliAdapters([cliAgentDoc({ "claude-code": { command: "claude", transport: "sdk" } })])
+      const adapter = yield* registry.get("claude-code")
+      expect(adapter?.transport).toBe("sdk")
+    }),
+  )
+
+  it.instance("config transport sdk for an unknown name fails loudly", () =>
+    Effect.gen(function* () {
+      const registry = yield* CliAdapterRegistry.AdapterRegistry
+      expect(() =>
+        registerConfigCliAdapters([cliAgentDoc({ "custom-cli": { command: "custom", transport: "sdk" } })]),
+      ).toThrow()
     }),
   )
 })

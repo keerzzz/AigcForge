@@ -11,6 +11,12 @@ export interface DelegationResult {
   summary: string
   /** Raw stdout from the CLI process, preserved for parseResumeHint. */
   rawStdout?: string
+  /**
+   * External CLI session/thread id captured by SDK/ACP transports (jsonl
+   * transports surface theirs through parseResumeHint instead). Persisted by
+   * the task driver so the next same-parent delegation resumes it.
+   */
+  sessionId?: string
   files?: { created?: string[]; modified?: string[]; deleted?: string[] }
   errors?: string[]
 }
@@ -71,11 +77,20 @@ export const listCliAdapters = (): CliAdapter[] => Array.from(adapters.values())
 /**
  * Register config-defined `cli_agents` as adapters. Later entries win, so a
  * config entry sharing a built-in's name overrides it (config > built-in).
+ * SDK/ACP transports exist only for the built-in claude-code/codex adapters; a
+ * config entry selecting one for another name cannot be honored and fails
+ * loudly instead of silently downgrading to a jsonl adapter.
  */
 export const registerConfigCliAdapters = (entries: readonly Config.Entry[]): void => {
   const cliAgents = Config.latest(entries, "cli_agents")
   if (!cliAgents) return
   for (const [name, info] of Object.entries(cliAgents)) {
+    if (info.transport === "sdk" || info.transport === "acp") {
+      if (name !== "claude-code" && name !== "codex") {
+        throw new Error(`cli_agents "${name}" transport "${info.transport}" is only supported for claude-code/codex`)
+      }
+      continue
+    }
     adapters.set(name, fromConfig(name, info))
   }
 }
