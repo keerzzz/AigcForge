@@ -21,7 +21,7 @@ export interface ClaudeSdk {
         input: Record<string, unknown>,
       ) => Promise<{ behavior: "allow" | "deny"; message?: string } | null>
     }
-  }): AsyncIterable<{ type: string; result?: string; is_error?: boolean }>
+  }): AsyncIterable<{ type: string; result?: string; is_error?: boolean; session_id?: string }>
 }
 
 const toSdkPermissionResult = (decision: "allow" | "deny") =>
@@ -58,17 +58,22 @@ export const makeClaudeCodeSdkAdapter = (sdk: ClaudeSdk, name = "claude-code"): 
       const collected = yield* Effect.promise(async () => {
         let summary = ""
         let isError = false
+        let sessionId: string | undefined
         for await (const message of query) {
+          // The SDK's system/init message carries the session id; capture it so
+          // the caller can persist it for the next resume.
+          if (message.session_id) sessionId = message.session_id
           if (message.type === "result") {
             isError = message.is_error === true
             if (message.result) summary = message.result
           }
         }
-        return { summary, isError }
+        return { summary, isError, sessionId }
       })
       return {
         status: collected.isError ? ("failed" as const) : ("success" as const),
         summary: collected.summary || "Task completed",
+        sessionId: collected.sessionId,
       }
     }),
 })

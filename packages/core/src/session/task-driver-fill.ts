@@ -2,7 +2,7 @@ export * as TaskDriverFill from "./task-driver-fill"
 
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import { and, eq } from "drizzle-orm"
-import { DateTime, Effect, Layer, Option, Schema } from "effect"
+import { DateTime, Duration, Effect, Layer, Option, Schema } from "effect"
 import { AgentV2 } from "../agent"
 import { BackgroundJob } from "../background-job"
 import { EventV2 } from "../event"
@@ -12,6 +12,7 @@ import { SessionMessageID } from "../session/message-id"
 import { SessionEvent } from "../session/event"
 import { TaskDriver } from "../tool/task-driver"
 import { getCliAdapter, registerCliAdapter, registerConfigCliAdapters } from "../tool/cli-adapter"
+import type { DelegationResult } from "../tool/cli-adapter"
 import { executeWithTimeout } from "../tool/cli-timeout"
 import { ExternalCliSessionTable } from "../tool/cli-session.sql"
 import { adapter as opencodeAdapter } from "../tool/opencode"
@@ -214,14 +215,28 @@ export const layer = Layer.effectDiscard(
             // SDK transports (claude/codex) execute through the SDK's own
             // stream/resume; jsonl transports spawn + parse. Permission wiring
             // through PermissionV2 is a follow-up — until then SDK adapters use
-            // their own auto-deny policy.
+            // their own auto-deny policy. The SDK path gets the same timeout
+            // bound as executeWithTimeout; interrupting the fiber abandons the
+            // wait (the SDK's own child may linger briefly).
             const result =
               adapter.transport === "sdk" && adapter.execute
-                ? yield* adapter.execute({
-                    prompt: cliPrompt,
-                    cwd: session.location.directory,
-                    resumeId,
-                  })
+                ? yield* adapter
+                    .execute({
+                      prompt: cliPrompt,
+                      cwd: session.location.directory,
+                      resumeId,
+                    })
+                    .pipe(
+                      Effect.timeoutOrElse({
+                        duration: Duration.millis(adapter.timeout ?? 300_000),
+                        orElse: () =>
+                          Effect.succeed<DelegationResult>({
+                            status: "failed",
+                            summary: `CLI "${adapter.name}" execution Timed out`,
+                            errors: ["Timed out"],
+                          }),
+                      }),
+                    )
                 : yield* executeWithTimeout(spawner, adapter, {
                     prompt: cliPrompt,
                     cwd: session.location.directory,
@@ -245,11 +260,14 @@ export const layer = Layer.effectDiscard(
               })
             }
 
-            // Persist resume_hint if the CLI emitted one and DB is available. Keyed by the
-            // PARENT session id so the next same-parent delegation resumes it (P0-1).
-            if (Option.isSome(dbOpt) && adapter.parseResumeHint) {
+            // Persist the external session id for resume. SDK transports surface
+            // it on the DelegationResult; jsonl transports emit a resume_hint
+            // frame parsed from raw stdout. Keyed by the PARENT session id so the
+            // next same-parent delegation resumes it (P0-1).
+            if (Option.isSome(dbOpt)) {
               const db: Database.Interface["db"] = dbOpt.value.db
-              const hint = adapter.parseResumeHint(result.rawStdout ?? result.summary)
+              const hint =
+                result.sessionId ?? adapter.parseResumeHint?.(result.rawStdout ?? result.summary)
               if (hint) {
                 yield* Effect.logInfo(
                   `CLI resume: persisted hint ${hint} for session ${input.sessionID}, target=${input.cliTarget}`,

@@ -1,9 +1,9 @@
 /**
- * External CLI execution through the real `TaskDriverFill` composition — R1–R5.
+ * External CLI execution through the real `TaskDriverFill` composition — R1–R7.
  *
  * Exercises the fill's `executeCLI` seam over a real in-memory `SessionV2` +
  * `BackgroundJob` + `Database.defaultLayer`, with a mocked `ChildProcessSpawner`
- * and a registered "test-cli" adapter (so no real CLI binary is needed).
+ * and registered test adapters (so no real CLI binary is needed).
  *
  * - R1  child Session ends up with prompt + output user messages
  * - R2  child Session title equals the task description
@@ -12,6 +12,9 @@
  * - R4  meta agent parent writes a `type:"external-cli"` step that settles
  *       `completed` on success / `failed` on failure
  * - R5  missing spawner surfaces a typed error, not a bare `Error`
+ * - R6  SDK transport persists `DelegationResult.sessionId` (no parseResumeHint)
+ *       and passes it back as `execute({ resumeId })` on the next delegation
+ * - R7  SDK transport honors `adapter.timeout` (live clock)
  *
  * @see packages/core/src/session/task-driver-fill.ts
  */
@@ -81,6 +84,39 @@ const testAdapter: CliAdapter = {
   },
 }
 registerCliAdapter("test-cli", testAdapter)
+
+// SDK-transport adapter: no parseResumeHint — the session id travels on the
+// DelegationResult, exercising the same path claude-code-sdk/codex-sdk take.
+const SDK_RESUME_ID = "sdk_thread_1"
+const sdkCalls: Array<{ resumeId?: string }> = []
+const sdkAdapter: CliAdapter = {
+  name: "test-sdk-cli",
+  command: "test-sdk-cli",
+  description: "test SDK adapter",
+  transport: "sdk",
+  detect: () => Effect.succeed(true),
+  buildArgs: () => Effect.succeed([]),
+  parseOutput: (stdout) => Effect.succeed({ status: "success" as const, summary: stdout }),
+  execute: ({ resumeId }) => {
+    sdkCalls.push({ resumeId })
+    return Effect.succeed({ status: "success" as const, summary: "SDK task summary", sessionId: SDK_RESUME_ID })
+  },
+}
+registerCliAdapter("test-sdk-cli", sdkAdapter)
+
+// Never-settling SDK adapter with a short timeout, for the live-clock timeout test.
+const slowSdkAdapter: CliAdapter = {
+  name: "test-slow-sdk-cli",
+  command: "test-slow-sdk-cli",
+  description: "test slow SDK adapter",
+  transport: "sdk",
+  timeout: 50,
+  detect: () => Effect.succeed(true),
+  buildArgs: () => Effect.succeed([]),
+  parseOutput: (stdout) => Effect.succeed({ status: "success" as const, summary: stdout }),
+  execute: () => Effect.never,
+}
+registerCliAdapter("test-slow-sdk-cli", slowSdkAdapter)
 
 const spawnCalls: Array<{ cmd: string; args: readonly string[] }> = []
 const sinkStub = Sink.drain
@@ -168,6 +204,7 @@ const userMessageTexts = (messages: ReadonlyArray<SessionMessage.Message>) =>
 describe("TaskDriverFill executeCLI", () => {
   beforeEach(() => {
     spawnCalls.length = 0
+    sdkCalls.length = 0
   })
 
   it.effect("R1+R2 creates a titled child Session with prompt and output messages", () =>
@@ -272,6 +309,44 @@ describe("TaskDriverFill executeCLI", () => {
         .all()
         .pipe(Effect.orDie)
       expect(steps[0].status).toBe("failed")
+    }),
+  )
+
+  it.effect("R6 SDK transport persists sessionId from DelegationResult and resumes it", () =>
+    Effect.gen(function* () {
+      const parent = yield* seedParent
+      const { db } = yield* Database.Service
+
+      // First delegation: no resumeId yet; the SDK adapter returns its session id.
+      yield* runCLI({ parentID: parent.id, cliTarget: "test-sdk-cli" })
+      expect(sdkCalls).toHaveLength(1)
+      expect(sdkCalls[0].resumeId).toBeUndefined()
+
+      // The row is persisted from DelegationResult.sessionId (no parseResumeHint).
+      const row = yield* db
+        .select()
+        .from(ExternalCliSessionTable)
+        .where(
+          and(eq(ExternalCliSessionTable.session_id, parent.id), eq(ExternalCliSessionTable.cli_target, "test-sdk-cli")),
+        )
+        .get()
+        .pipe(Effect.orDie)
+      expect(row?.external_session_id).toBe(SDK_RESUME_ID)
+
+      // Second delegation with the same parent resumes through the SDK execute input.
+      yield* runCLI({ parentID: parent.id, cliTarget: "test-sdk-cli" })
+      expect(sdkCalls).toHaveLength(2)
+      expect(sdkCalls[1].resumeId).toBe(SDK_RESUME_ID)
+    }),
+  )
+
+  // Live clock: TestClock would never fire the timeout on its own.
+  it.live("R7 SDK transport honors adapter.timeout", () =>
+    Effect.gen(function* () {
+      const parent = yield* seedParent
+      const result = yield* runCLI({ parentID: parent.id, cliTarget: "test-slow-sdk-cli" })
+      expect(result.status).toBe("failed")
+      expect(result.text).toContain("Timed out")
     }),
   )
 

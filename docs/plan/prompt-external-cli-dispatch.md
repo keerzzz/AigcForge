@@ -249,3 +249,25 @@ M3 已验收通过，审批记录见 `docs/review/external-cli-dispatch-m3-revie
 - meta prompt 动态化已闭环：MetaPromptFiller transform effectful 实时取名单 + 60s re-detect 触发 reload；M4 换 SDK 传输不影响该链路。
 - 解冻 2 技术债：config 热更靠 composer 重拉 + 60s re-detect 兜底，SSE 推送未做。
 ```
+---
+
+## M4 审批结果（2026-08-06，通过，含审批方修复）与 M5 补丁
+
+M4 已验收通过，审批记录见 `docs/review/external-cli-dispatch-m4-review.md`。M5 开工时携带「通用前置」+「M1–M3 经验补丁」+ 本段 +「M5 提示词」。
+
+```text
+【M4 经验补丁（M5 起追加遵守）】
+1. SDK/协议边界的 mock seam 测试有根本局限：as unknown as cast 会掩盖真实库的形状失配——M4 的 codex run({type:"text"}) 在真实 SDK 里必抛 TypeError（normalizeInput 对非字符串做 for..of），mock 全绿也发现不了。交付前必须对照 node_modules 的 .d.ts 与运行时实现逐调用点核对 seam 的每个方法签名与参数形状。
+2. 传输路径切换时，既有横切能力必须逐条过 checklist：M4 换 SDK 路径丢了 (a) 会话 ID 捕获（持久化依赖 parseResumeHint，SDK 适配器没有）和 (b) 超时包装（executeWithTimeout 只包 jsonl 路径）。checklist：会话 ID、超时、取消、权限、错误映射、UI metadata，一项都不能默认"新路径自然继承"。
+3. 超时/降级分支的返回字面量要显式标注为契约类型（Effect.succeed<DelegationResult>），否则 union 收窄会让下游属性访问挂掉 typecheck——core 全量 test 全绿也抓不到，必须跑 typecheck 再交付。
+
+【M4 已确立、M5 直接可用的契约事实】
+- CliAdapter 接口现状：{name, command, description, detect, buildArgs, parseOutput, parseResumeHint?, timeout?, transport?, execute?, cancel?}。transport: "jsonl"(默认)|"sdk"|"acp"；execute(input: {prompt, cwd, resumeId?, canUseTool?}) => Effect<DelegationResult>。
+- DelegationResult 增 sessionId?：SDK/ACP 传输的会话 ID 出口；task-driver-fill 持久化统一走 result.sessionId ?? parseResumeHint?.(rawStdout ?? summary)，acp 适配器也必须从 session/load 响应回填 sessionId。
+- SDK 超时语义：adapter.timeout ?? 300_000，超时返回 {status:"failed", summary 含 "Timed out"}（M2 UI timeout chip 依赖该文案）；acp 路径保持同语义。
+- SDK 注册即默认：TaskDriverFill 与 aigcfroge registry 都注册 claude-code-sdk/codex-sdk（同名覆盖 jsonl）；config cli_agents 同名条目仍可覆盖回 jsonl（config > built-in）。M5 的 acp 适配器同模式：注册同名覆盖 SDK 成默认。
+- 权限桥债务（M5 强制项）：PermissionV2 需接进 TaskDriverFill 的 executeCLI——SDK canUseTool 与 ACP session/request_permission 共用这一次组合根 wiring（搜齐 public/server/app-runtime 三处，M1 补丁第 3 条）。wiring 完成前 SDK/ACP 均为 auto-deny。
+- fromConfig 边界：config 条目 transport:"sdk" 目前静默产出无 execute 的适配器（实际 jsonl）。M5 必须二选一：实现 SDK 工厂选择，或对 transport:"sdk"/"acp" 显式报错，禁止静默降级。
+- 依赖现状：@anthropic-ai/claude-agent-sdk@0.3.220、@openai/codex-sdk@0.146.0 在 packages/core；@agentclientprotocol/sdk@0.21.0 仓库已有。
+- 手动验收欠账（M5 前补）：真实 SDK it.live 冒烟（claude 2.1.220 / codex 0.146.0 本机已装）；M1–M3 手动项（tmux TUI 卡片、子会话双消息、配置新增 CLI 免重启）。
+```

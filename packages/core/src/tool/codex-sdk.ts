@@ -13,10 +13,12 @@ import type { CliAdapter } from "./cli-adapter"
  */
 export interface CodexSdk {
   startThread(options?: { workingDirectory?: string; approvalPolicy?: string }): {
-    run(input: { type: "text"; text: string }): Promise<{ finalResponse: string }>
+    id?: string | null
+    run(input: string): Promise<{ finalResponse: string }>
   }
   resumeThread(id: string, options?: { workingDirectory?: string; approvalPolicy?: string }): {
-    run(input: { type: "text"; text: string }): Promise<{ finalResponse: string }>
+    id?: string | null
+    run(input: string): Promise<{ finalResponse: string }>
   }
 }
 
@@ -35,8 +37,13 @@ export const makeCodexSdkAdapter = (sdk: CodexSdk, name = "codex"): CliAdapter =
       // follow-up (codex surfaces approvals as stream events, not a callback).
       const options = { workingDirectory: cwd, approvalPolicy: "never" as const }
       const thread = resumeId ? sdk.resumeThread(resumeId, options) : sdk.startThread(options)
-      const turn = yield* Effect.promise(() => thread.run({ type: "text", text: prompt }))
-      return { status: "success" as const, summary: turn.finalResponse || "Task completed" }
+      const turn = yield* Effect.promise(() => thread.run(prompt))
+      return {
+        status: "success" as const,
+        summary: turn.finalResponse || "Task completed",
+        // The thread id lets the next same-parent delegation resume this thread.
+        sessionId: thread.id ?? undefined,
+      }
     }),
 })
 

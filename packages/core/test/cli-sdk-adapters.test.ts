@@ -18,7 +18,7 @@ import { makeCodexSdkAdapter, type CodexSdk } from "../src/tool/codex-sdk"
 const run = <A>(effect: Effect.Effect<A>) => Effect.runPromise(effect)
 
 describe("claude-code SDK adapter", () => {
-  type SdkMessage = { type: string; result?: string; is_error?: boolean }
+  type SdkMessage = { type: string; result?: string; is_error?: boolean; session_id?: string }
   type QueryInput = {
     prompt: string
     options?: {
@@ -91,18 +91,38 @@ describe("claude-code SDK adapter", () => {
     expect(decisions).toContain("Bash")
     expect(permission?.behavior).toBe("deny")
   })
+
+  test("captures the session id from the init message into sessionId", async () => {
+    const adapter = makeClaudeCodeSdkAdapter(
+      streamSdk([
+        { type: "system", session_id: "ses_abc" },
+        { type: "result", is_error: false, result: "ok", session_id: "ses_abc" },
+      ]),
+    )
+    const result = await run(adapter.execute!({ prompt: "x", cwd: "/p" }))
+    expect(result.sessionId).toBe("ses_abc")
+  })
 })
 
 describe("codex SDK adapter", () => {
   test("runs a turn and returns finalResponse", async () => {
+    let seenInput: string | undefined
     const sdk: CodexSdk = {
-      startThread: () => ({ run: async () => ({ finalResponse: "Codex done" }) }),
+      startThread: () => ({
+        run: async (input) => {
+          seenInput = input
+          return { finalResponse: "Codex done" }
+        },
+      }),
       resumeThread: () => ({ run: async () => ({ finalResponse: "resumed" }) }),
     }
     const adapter = makeCodexSdkAdapter(sdk)
     const result = await run(adapter.execute!({ prompt: "x", cwd: "/p" }))
     expect(result.status).toBe("success")
     expect(result.summary).toBe("Codex done")
+    // The real SDK's run() takes a string (or UserInput[]) — a bare object is
+    // not iterable and would crash normalizeInput at runtime.
+    expect(seenInput).toBe("x")
   })
 
   test("resumes an existing thread by id", async () => {
@@ -117,5 +137,15 @@ describe("codex SDK adapter", () => {
     const adapter = makeCodexSdkAdapter(sdk)
     await run(adapter.execute!({ prompt: "x", cwd: "/p", resumeId: "thread_1" }))
     expect(resumed).toBe("thread_1")
+  })
+
+  test("returns the thread id as sessionId", async () => {
+    const sdk: CodexSdk = {
+      startThread: () => ({ id: "thread_9", run: async () => ({ finalResponse: "done" }) }),
+      resumeThread: (id) => ({ id, run: async () => ({ finalResponse: "resumed" }) }),
+    }
+    const adapter = makeCodexSdkAdapter(sdk)
+    const result = await run(adapter.execute!({ prompt: "x", cwd: "/p" }))
+    expect(result.sessionId).toBe("thread_9")
   })
 })
