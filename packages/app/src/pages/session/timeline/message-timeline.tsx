@@ -1360,14 +1360,13 @@ export function MessageTimeline(props: {
         onClick={props.onAutoScrollInteraction}
         class="relative min-w-0 w-full h-full"
         style={{
-          "--sticky-accordion-top": showHeader() ? "82px" : "0px",
-        }}
+          "--sticky-accordion-top": showHeader() ? "72px" : "0px",        }}
       >
         <Show when={showHeader()}>
           <div
             data-session-title
             classList={{
-              "sticky top-0 z-30 bg-[linear-gradient(to_bottom,var(--background-stronger)_78px,transparent)]": true,
+              "sticky top-0 z-30 bg-[linear-gradient(to_bottom,var(--background-stronger)_82px,transparent)]": true,
               "w-full": true,
               "pb-[34px]": true,
               "pr-3": true,
