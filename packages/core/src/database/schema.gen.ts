@@ -284,6 +284,7 @@ export default {
           \`recurrence\` text,
           \`spawned_from\` text,
           \`depends_on\` text,
+          \`revision\` integer DEFAULT 1 NOT NULL,
           \`position\` integer NOT NULL,
           \`time_created\` integer NOT NULL,
           \`time_updated\` integer NOT NULL,

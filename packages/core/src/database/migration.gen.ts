@@ -54,5 +54,6 @@ export const migrations = (
     import("./migration/20260802093236_add_task_schedule_fields"),
     import("./migration/20260802140709_add_task_spawn_fields"),
     import("./migration/20260802220000_backfill_task_table"),
+    import("./migration/20260806061818_add_task_revision"),
   ])
 ).map((module) => module.default) satisfies DatabaseMigration.Migration[]
