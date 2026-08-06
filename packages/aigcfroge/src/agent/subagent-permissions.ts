@@ -18,6 +18,10 @@ export function deriveSubagentSessionPermission(input: {
 }): PermissionV1.Ruleset {
   const canTask = input.subagent.permission.some((rule) => rule.permission === "task")
   const canTaskwrite = input.subagent.permission.some((rule) => rule.permission === "taskwrite")
+  const canTaskCreate = input.subagent.permission.some((rule) => rule.permission === "task_create")
+  const canTaskUpdate = input.subagent.permission.some((rule) => rule.permission === "task_update")
+  const canTaskDelete = input.subagent.permission.some((rule) => rule.permission === "task_delete")
+  const canTaskReorder = input.subagent.permission.some((rule) => rule.permission === "task_reorder")
   const canTaskSchedule = input.subagent.permission.some((rule) => rule.permission === "task_schedule")
   const canTaskSpawn = input.subagent.permission.some((rule) => rule.permission === "task_spawn")
   const canTodo = input.subagent.permission.some((rule) => rule.permission === "todowrite")
@@ -27,6 +31,20 @@ export function deriveSubagentSessionPermission(input: {
     ),
     ...(canTodo ? [] : [{ permission: "todowrite" as const, pattern: "*" as const, action: "deny" as const }]),
     ...(canTaskwrite ? [] : [{ permission: "taskwrite" as const, pattern: "*" as const, action: "deny" as const }]),
+    // task_* incremental tools default deny (2026-08-06 裁决: 子代理只交付结果、
+    // 不维护任务进度; 显式授权可 opt-in 启用 P2-b 进度上报).
+    ...(canTaskCreate
+      ? []
+      : [{ permission: "task_create" as const, pattern: "*" as const, action: "deny" as const }]),
+    ...(canTaskUpdate
+      ? []
+      : [{ permission: "task_update" as const, pattern: "*" as const, action: "deny" as const }]),
+    ...(canTaskDelete
+      ? []
+      : [{ permission: "task_delete" as const, pattern: "*" as const, action: "deny" as const }]),
+    ...(canTaskReorder
+      ? []
+      : [{ permission: "task_reorder" as const, pattern: "*" as const, action: "deny" as const }]),
     ...(canTask ? [] : [{ permission: "task" as const, pattern: "*" as const, action: "deny" as const }]),
     ...(canTaskSchedule
       ? []

@@ -149,7 +149,16 @@ describe("AgentV2", () => {
       const general = yield* agent.get(AgentV2.ID.make("general"))
       expect(general).toBeDefined()
       // Mirrors the V1 subagent defaults (aigcfroge subagent-permissions.ts).
-      for (const action of ["todowrite", "taskwrite", "task_schedule", "task_spawn"]) {
+      for (const action of [
+        "todowrite",
+        "taskwrite",
+        "task_create",
+        "task_update",
+        "task_delete",
+        "task_reorder",
+        "task_schedule",
+        "task_spawn",
+      ]) {
         expect(PermissionV2.evaluate(action, "*", general!.permissions).effect).toBe("deny")
       }
     }),
