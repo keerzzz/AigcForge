@@ -8,6 +8,7 @@ function task(overrides: Partial<SessionTaskInfo> = {}): SessionTaskInfo {
     content: "do the thing",
     status: "pending",
     priority: "medium",
+    revision: 1,
     sessionID: "sess_1",
     createdAt: 0,
     updatedAt: 0,
