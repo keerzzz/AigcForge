@@ -1,15 +1,32 @@
 export * as TaskTool from "./task"
 
 import { ToolFailure } from "@aigcfroge/llm"
-import { Effect, Layer, Option, Ref, Schema } from "effect"
+import { Effect, Layer, Option, Ref, Schema, Stream } from "effect"
 import { AgentV2 } from "../agent"
 import { Config } from "../config"
+import { EventV2 } from "../event"
 import { PermissionV2 } from "../permission"
 import { SessionSchema } from "../session/schema"
 import { SessionTask } from "../session/task"
 import { Tool } from "./tool"
 import { TaskDriver } from "./task-driver"
 import { Tools } from "./tools"
+
+/**
+ * P2-b: compute a 0..1 completion ratio for a child session's task list. The
+ * `task` delegation tool subscribes to the child's `task.updated` events and
+ * reports this ratio as `recordProgress` for the parent's anchor task, so the
+ * parent's pulse advances determinately as the child completes sub-tasks.
+ * Only `completed` counts; `cancelled`/`failed`/`scheduled`/`pending` do not.
+ */
+export const childCompletionRatio = (
+  tasks: ReadonlyArray<{ status: string }>,
+): { progress: number; current: number; total: number } | undefined => {
+  const total = tasks.length
+  if (total === 0) return undefined
+  const completed = tasks.filter((task) => task.status === "completed").length
+  return { progress: completed / total, current: completed, total }
+}
 
 export const name = "task"
 
@@ -122,6 +139,7 @@ export const layer = Layer.effectDiscard(
     const permission = yield* PermissionV2.Service
     const config = yield* Config.Service
     const tasks = yield* SessionTask.Service
+    const events = yield* EventV2.Service
     const configEntries = yield* config.entries()
     const configAttendedDefault = Config.latest(configEntries, "subagent_attended_default")
 
@@ -323,13 +341,43 @@ export const layer = Layer.effectDiscard(
                   }
                 }
 
-                const text = yield* TaskDriver.delegate({
-                  sessionID: child.id,
-                  parentID: context.sessionID,
-                  prompt: input.prompt,
-                  taskID,
-                  onSettle,
-                })
+                // P2-b: observe the child session's task list and bubble up its
+                // completion ratio as progress for the parent's anchor task. The
+                // observer is forked into a scope that closes when delegate returns,
+                // so it is interrupted on settle (no progress events after the
+                // child drains). Background/judge/CLI paths skip this (they don't
+                // await delegate here).
+                const text = yield* Effect.gen(function* () {
+                  if (taskID !== undefined) {
+                    yield* events
+                      .subscribe(SessionTask.Event.Updated)
+                      .pipe(
+                        Stream.filter((event) => event.data.sessionID === child.id),
+                        Stream.runForEach((event) =>
+                          Effect.gen(function* () {
+                            const ratio = childCompletionRatio(event.data.tasks)
+                            if (!ratio) return
+                            yield* tasks.recordProgress({
+                              sessionID: context.sessionID,
+                              taskID,
+                              phase: "streaming",
+                              progress: ratio.progress,
+                              current: ratio.current,
+                              total: ratio.total,
+                            })
+                          }),
+                        ),
+                        Effect.forkScoped,
+                      )
+                  }
+                  return yield* TaskDriver.delegate({
+                    sessionID: child.id,
+                    parentID: context.sessionID,
+                    prompt: input.prompt,
+                    taskID,
+                    onSettle,
+                  })
+                }).pipe(Effect.scoped)
                 return {
                   sessionID: child.id,
                   output: renderOutput({ sessionID: child.id, state: "completed", text }),
