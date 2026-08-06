@@ -145,9 +145,11 @@ meta agent 经 task 工具（`execution_type: "external-cli"` + `cli_target`）�
 
 ## 6. 里程碑排序与验收总表
 
-| 里程碑 | 内容 | 验收 |
-|---|---|---|
-| M1（阶段 B） | P0/P1/P2 修复 + 卡片四点 + i18n | 子会话有结果消息；卡片有 CLI 徽标/摘要/状态；AgentTaskHub 可见外部委派；相关包 test+typecheck+lint 通过 |
-| M2（阶段 D） | `cli_agents` 配置 + 三处解冻 + 桌面 PATH | 配置文件新增 CLI 免重启生效；新装 CLI 自动出现在 @补全与 meta prompt |
-| M3（阶段 A） | transport 抽象 + claude/codex SDK 化 | 两家适配器删除 JSONL 解析代码，权限回调/resume 走 SDK |
-| M4（阶段 A） | ACP client 侧 + 权限桥接 | claude-code/codex 走 ACP；外部权限问询弹 aigcfroge 权限 UI；JSONL fallback 保留 |
+| 里程碑 | 内容 | 验收 | 状态 |
+|---|---|---|---|
+| M1（阶段 B） | P0/P1/P2 修复 + 卡片四点 + i18n | 子会话有结果消息；卡片有 CLI 徽标/摘要/状态；AgentTaskHub 可见外部委派；相关包 test+typecheck+lint 通过 | ✅ 已完成（`1cae9323c`） |
+| M2（阶段 D） | `cli_agents` 配置 + 三处解冻 + 桌面 PATH | 配置文件新增 CLI 免重启生效；新装 CLI 自动出现在 @补全与 meta prompt | ✅ 已完成（`1cae9323c`） |
+| M3（阶段 A） | transport 抽象 + claude/codex SDK 化 | 两家适配器删除 JSONL 解析代码，权限回调/resume 走 SDK | ✅ 已完成（`53f4d91af`） |
+| M4（阶段 A） | ACP client 侧 + 权限桥接 | claude-code/codex 走 ACP；外部权限问询弹 aigcfroge 权限 UI；JSONL fallback 保留 | 🔶 代码完成（2026-08-06），见下注 |
+
+> **M4/M5 进度注（2026-08-06）**：ACP client 侧（`packages/core/src/acp-client/` 的 `ClientConnection` 生命周期 + `transport:"acp"` 适配器 claude-code/codex）、session/load 替换 resume_hint（`DelegationResult.sessionId` 回填）、权限桥（fill 的 `canUseTool` 从会话上下文解析 `PermissionV2.Service`，SDK canUseTool 与 ACP `session/request_permission` 共用同一 bridge）、task 卡片数据层（`onProgress` + `_meta.parentToolUseId`）均已落地并有契约测试。待办：外部 CLI 工具调用进度的 UI 视觉渲染（展开视图实时进度）为后续项；真实 `claude-code-acp`/`codex-acp` 桥接进程的 `it.live` 冒烟需桥二进制安装后补跑（本机未装，测试已按 CLI 存在门控 skip）。

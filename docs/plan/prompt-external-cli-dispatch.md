@@ -271,3 +271,27 @@ M4 已验收通过，审批记录见 `docs/review/external-cli-dispatch-m4-revie
 - 依赖现状：@anthropic-ai/claude-agent-sdk@0.3.220、@openai/codex-sdk@0.146.0 在 packages/core；@agentclientprotocol/sdk@0.21.0 仓库已有。
 - 手动验收欠账（M5 前补）：真实 SDK it.live 冒烟（claude 2.1.220 / codex 0.146.0 本机已装）；M1–M3 手动项（tmux TUI 卡片、子会话双消息、配置新增 CLI 免重启）。
 ```
+---
+
+## M5 审批结果（2026-08-06，通过，含审批方修复）— 里程碑收官与后续项
+
+M5 已验收通过，M1–M5 全部收官。审批记录见 `docs/review/external-cli-dispatch-m5-review.md` §7（执行方交付记录在 §1–§6）。
+
+```text
+【M5 经验补丁（后续里程碑遵守）】
+1. 交付前必须自己跑一遍 typecheck——连续两个里程碑（M4 union 收窄、M5 测试缺 import）typecheck 假绿，test 全绿不能替代 typecheck。
+2. 对计划假设的修正要给出证据链——M5 执行方推翻"三根显式 wire PermissionV2"时附了 location-layer.ts:109 + 工具 execute 惯例 + 正反两面理由（根级静态 Location 污染 project 作用域），是标准做法，继续保持。
+3. 能力声明要精确到"接线状态"：M5 的"任务卡片数据层已完成"实际指接口+发射侧就绪、fill 未接线、无消费者。以后此类声明统一按「接口/发射/接线/消费」四段式描述。
+
+【M5 已确立的契约事实（终态）】
+- 传输优先级：ACP（which() 门控桥二进制）> SDK > jsonl，同名注册覆盖；config cli_agents 同名仍可覆盖（config > built-in）；config transport:"sdk"/"acp" 用于非 claude/codex 名显式报错。
+- 权限桥：fill 的 executeCLI 经 serviceOption(PermissionV2.Service) 从会话 drain 上下文解析，canUseTool 对 PARENT session assert（action=工具名/kind，resources=[JSON input]，metadata={cli, external:true}）；SDK canUseTool 与 ACP request_permission 共用；无 PermissionV2 → auto-deny。ACP 侧 action 用 toolCall.kind（协议不带工具名）。
+- ACP client：packages/core/src/acp-client/{connection,update,process}.ts；适配器 tool/acp.ts 的 makeAcpAdapter 通用，claude-code-acp/codex-acp 薄包装；session/load 回填 DelegationResult.sessionId；stopReason→status 映射 end_turn=success、max_tokens/max_turn_requests=partial、其余 failed。
+- onProgress 休眠基础设施：CliAdapter.execute 接受 onProgress、ACP 适配器发射 ToolCallProgress（含 _meta.parentToolUseId），fill 未接线、无 UI 消费。启用需三段：fill 传参 → 状态/事件 → UI 渲染。
+```
+
+【后续独立项（不属本计划，需各自立项）】
+1. 手动验收欠账：桥二进制 it.live 冒烟（装 claude-code-acp/codex-acp 后）；真实 SDK 冒烟（AIGCFROGE_LIVE_CLI_SMOKE=1，等 provider 配额）；M1–M3 TUI 三点（卡片四点/子会话双消息/配置免重启）。
+2. 任务卡片外部 CLI 实时进度 UI（onProgress 三段接线 + 展开视图渲染，视觉方案先行）。
+3. meta_agent_step 暴露决策（P2：补全 HTTP+AgentTaskHub 消费，或删表）。
+4. ACP loadSession 能力探测回退（不支持 load 的桥回退 newSession）。

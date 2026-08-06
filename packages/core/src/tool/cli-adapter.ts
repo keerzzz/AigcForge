@@ -2,6 +2,7 @@ export * as CliAdapter from "./cli-adapter"
 
 import { Effect } from "effect"
 import { Config } from "../config"
+import type { ToolCallProgress } from "../acp-client/update"
 import { fromConfig } from "./cli-config-adapter"
 
 export type DelegationStatus = "success" | "partial" | "failed"
@@ -40,13 +41,16 @@ export interface CliAdapter {
    * SDK/ACP transports execute through this instead of buildArgs+parseOutput.
    * `canUseTool` is a plain async bridge (not Effect) so the SDK's permission
    * callback can drive it from its own runtime; the caller maps PermissionV2
-   * decisions into it.
+   * decisions into it. `onProgress` receives live external-CLI tool calls as
+   * they stream (ACP transports; SDK transports may omit it) so the caller can
+   * surface them on the task card via `_meta.parentToolUseId`.
    */
   readonly execute?: (input: {
     prompt: string
     cwd: string
     resumeId?: string
     canUseTool?: SdkPermissionHandler
+    onProgress?: (progress: ToolCallProgress) => void
   }) => Effect.Effect<DelegationResult>
   readonly cancel?: (cwd: string) => Effect.Effect<void>
   /**

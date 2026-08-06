@@ -21,9 +21,14 @@ import { adapter as geminiAdapter } from "../tool/gemini"
 import { adapter as codexAdapter } from "../tool/codex"
 import { adapter as claudeCodeSdkAdapter } from "../tool/claude-code-sdk"
 import { adapter as codexSdkAdapter } from "../tool/codex-sdk"
+import { adapter as claudeCodeAcpAdapter } from "../tool/claude-code-acp"
+import { adapter as codexAcpAdapter } from "../tool/codex-acp"
 import { MetaAgentService } from "../meta-agent/service"
 import { Database } from "../database/database"
 import { Config } from "../config"
+import { PermissionV2 } from "../permission"
+import type { SdkPermissionHandler } from "../tool/cli-adapter"
+import { which } from "../util/which"
 
 /**
  * The external-CLI dispatch could not run because no `ChildProcessSpawner` was
@@ -80,6 +85,12 @@ export const layer = Layer.effectDiscard(
     // entry with transport "jsonl" overrides back to the spawn+parse path.
     registerCliAdapter(claudeCodeSdkAdapter.name, claudeCodeSdkAdapter)
     registerCliAdapter(codexSdkAdapter.name, codexSdkAdapter)
+    // ACP transports become the default only when the bridge binary is on PATH;
+    // otherwise the SDK transport stays the default so machines without
+    // claude-code-acp/codex-acp keep working. Config transport:"acp" for these
+    // two names still resolves to the bridge adapter (see registerConfigCliAdapters).
+    if (which("claude-code-acp")) registerCliAdapter(claudeCodeAcpAdapter.name, claudeCodeAcpAdapter)
+    if (which("codex-acp")) registerCliAdapter(codexAcpAdapter.name, codexAcpAdapter)
     // Register config-defined cli_agents (config > built-in override) when a
     // Config.Service is present (composition roots always provide one).
     const configOpt = yield* Effect.serviceOption(Config.Service)
@@ -212,19 +223,45 @@ export const layer = Layer.effectDiscard(
               }
             }
 
+            // PermissionV2 bridge (M5): when a PermissionV2.Service is present,
+            // external CLI tool calls (SDK canUseTool / ACP request_permission)
+            // are decided against the PARENT session's rules — the child session
+            // is unattended, so asserting against it would auto-deny. The assert
+            // carries its dependencies in the service instance, so it runs from
+            // the SDK/ACP plain-async callback via Effect.runPromise; an "ask"
+            // parks until the user replies through the dock UI.
+            const permissionOpt = yield* Effect.serviceOption(PermissionV2.Service)
+            let canUseTool: SdkPermissionHandler | undefined
+            if (permissionOpt._tag === "Some") {
+              const permission = permissionOpt.value
+              canUseTool = async (request) => {
+                const decision = await Effect.runPromise(
+                  permission
+                    .assert({
+                      sessionID: input.sessionID,
+                      action: request.toolName,
+                      resources: [JSON.stringify(request.input)],
+                      metadata: { cli: input.cliTarget, external: true },
+                      source: { type: "tool", messageID: childSession.id, callID: input.cliTarget },
+                    })
+                    .pipe(Effect.match({ onSuccess: () => "allow" as const, onFailure: () => "deny" as const })),
+                )
+                return decision
+              }
+            }
+
             // SDK transports (claude/codex) execute through the SDK's own
-            // stream/resume; jsonl transports spawn + parse. Permission wiring
-            // through PermissionV2 is a follow-up — until then SDK adapters use
-            // their own auto-deny policy. The SDK path gets the same timeout
-            // bound as executeWithTimeout; interrupting the fiber abandons the
-            // wait (the SDK's own child may linger briefly).
+            // stream/resume; jsonl transports spawn + parse. The SDK/ACP path gets
+            // the same timeout bound as executeWithTimeout; interrupting the fiber
+            // abandons the wait (the SDK's own child may linger briefly).
             const result =
-              adapter.transport === "sdk" && adapter.execute
+              (adapter.transport === "sdk" || adapter.transport === "acp") && adapter.execute
                 ? yield* adapter
                     .execute({
                       prompt: cliPrompt,
                       cwd: session.location.directory,
                       resumeId,
+                      canUseTool,
                     })
                     .pipe(
                       Effect.timeoutOrElse({

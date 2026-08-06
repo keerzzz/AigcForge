@@ -209,6 +209,16 @@ Product Mode (`chat | coding | work | assistant`) is a persisted App filtering c
 - Target implementation: `docs/plan/mode-module-switching-completion.md`.
 - Decisions: `docs/architecture/adr/ADR-11-product-mode-session-classification.md`, `docs/architecture/adr/ADR-12-product-mode-entry-routing.md`, `docs/architecture/adr/ADR-13-chat-work-mode-boundary.md`, `docs/architecture/adr/ADR-14-persistence-and-scope-strategy.md`, `docs/architecture/adr/ADR-15-mode-workspace-main-area-slot.md` (Accepted; main-area typed slot, Chat asset-centric; ADR-13 Amendment-1 assigns workflow definition→Chat, execution→Work).
 
+### 4.11 External CLI Dispatch
+
+Delegates `task` tool executions to external coding CLIs (claude-code, codex, gemini, opencode) over three transports sharing one adapter seam. The `task` built-in writes a child Session per delegation; the child's messages surface the CLI result.
+
+- Single adapter store: module-level registry cell in `packages/core/src/tool/cli-adapter.ts` (`registerCliAdapter`/`getCliAdapter`/`listCliAdapters`). `packages/aigcfroge/src/agent/meta/adapters/registry.ts` is a thin Effect wrapper over the same cell (no second registry). Config-defined `cli_agents` (config > built-in) register via `registerConfigCliAdapters`; `transport: "sdk"|"acp"` for non-claude/codex names fails loudly.
+- Transports: `jsonl` (spawn + parse, default), `sdk` (official `@anthropic-ai/claude-agent-sdk` / `@openai/codex-sdk`), `acp` (Agent Client Protocol via `@agentclientprotocol/sdk`). Built-in order per name: ACP (when bridge binary on PATH) > SDK > jsonl. Resume persists the external session id in `external_cli_session` keyed by parent session (`DelegationResult.sessionId ?? parseResumeHint`).
+- SDK/ACP adapters are factory-injected (`makeClaudeCodeSdkAdapter(sdk)` / `makeAcpAdapter(factory)`), default instances cast the real SDK/process seam at module load; tests inject fakes. ACP client lifecycle lives in `packages/core/src/acp-client/` (`connection.ts` wraps `ClientSideConnection`, `update.ts` parses `session/update` tool-call progress + `_meta.parentToolUseId`, `process.ts` spawns the bridge).
+- Permission bridge: the fill's `executeCLI` resolves `PermissionV2.Service` from the caller's (session-drain) context and builds a `canUseTool` handler — SDK `canUseTool` and ACP `session/request_permission` share this one bridge, asserted against the parent session. Absent PermissionV2 → auto-deny.
+- Implementation: `packages/core/src/session/task-driver-fill.ts`, `packages/core/src/tool/{cli-adapter, cli-timeout, claude-code, codex, gemini, opencode, claude-code-sdk, codex-sdk, claude-code-acp, codex-acp, acp}.ts`. Plan: `docs/plan/external-cli-dispatch-implementation.md`.
+
 ## 5. src/ Directory Index
 
 A directory-to-responsibility map for the two largest packages.
@@ -234,6 +244,7 @@ A directory-to-responsibility map for the two largest packages.
 | Session V2 | `session.ts`, `session/`, `system-context/` |
 | Event | `event.ts`, `event/` |
 | Tool | `tool/`, `tool-output-store.ts` |
+| External CLI (ACP client) | `acp-client/` |
 | Provider & model | `provider.ts`, `model.ts`, `catalog.ts`, `model-request.ts`, `models-dev.ts`, `aisdk.ts` |
 | Permission & policy | `permission.ts`, `permission/`, `policy.ts` |
 | Plugin | `plugin.ts`, `plugin/` |

@@ -154,7 +154,6 @@ describe("adapter registry", () => {
 
   it.instance("config transport sdk for an unknown name fails loudly", () =>
     Effect.gen(function* () {
-      const registry = yield* CliAdapterRegistry.AdapterRegistry
       expect(() =>
         registerConfigCliAdapters([cliAgentDoc({ "custom-cli": { command: "custom", transport: "sdk" } })]),
       ).toThrow()

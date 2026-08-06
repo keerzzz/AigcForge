@@ -11,6 +11,9 @@ import { adapter as codexAdapter } from "@aigcfroge/core/tool/codex"
 import { adapter as opencodeAdapter } from "@aigcfroge/core/tool/opencode"
 import { adapter as claudeCodeSdkAdapter } from "@aigcfroge/core/tool/claude-code-sdk"
 import { adapter as codexSdkAdapter } from "@aigcfroge/core/tool/codex-sdk"
+import { adapter as claudeCodeAcpAdapter } from "@aigcfroge/core/tool/claude-code-acp"
+import { adapter as codexAcpAdapter } from "@aigcfroge/core/tool/codex-acp"
+import { which } from "@aigcfroge/core/util/which"
 import type { CliAdapter } from "./interface"
 
 export interface Interface {
@@ -34,6 +37,10 @@ const BUILT_INS = [
   opencodeAdapter,
   claudeCodeSdkAdapter,
   codexSdkAdapter,
+  // ACP transports become the default only when the bridge binary is on PATH;
+  // otherwise the SDK transport stays the default (see TaskDriverFill).
+  ...(which("claude-code-acp") ? [claudeCodeAcpAdapter] : []),
+  ...(which("codex-acp") ? [codexAcpAdapter] : []),
 ]
 
 export const layer = Layer.effect(

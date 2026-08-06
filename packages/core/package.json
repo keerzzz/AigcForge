@@ -58,6 +58,7 @@
     "drizzle-kit": "catalog:"
   },
   "dependencies": {
+    "@agentclientprotocol/sdk": "0.21.0",
     "@ai-sdk/alibaba": "1.0.17",
     "@ai-sdk/amazon-bedrock": "4.0.112",
     "@ai-sdk/anthropic": "3.0.82",

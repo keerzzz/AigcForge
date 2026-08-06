@@ -15,6 +15,8 @@
  * - R6  SDK transport persists `DelegationResult.sessionId` (no parseResumeHint)
  *       and passes it back as `execute({ resumeId })` on the next delegation
  * - R7  SDK transport honors `adapter.timeout` (live clock)
+ * - R8  SDK canUseTool bridges to PermissionV2.assert with the CLI tool action
+ * - R9  PermissionV2 allow reaches the CLI as allow (shared bridge)
  *
  * @see packages/core/src/session/task-driver-fill.ts
  */
@@ -40,6 +42,7 @@ import { TaskDriverFill } from "@aigcfroge/core/session/task-driver-fill"
 import { TaskDriver } from "@aigcfroge/core/tool/task-driver"
 import { ExternalCliSessionTable } from "@aigcfroge/core/tool/cli-session.sql"
 import { registerCliAdapter, type CliAdapter } from "@aigcfroge/core/tool/cli-adapter"
+import { PermissionV2 } from "@aigcfroge/core/permission"
 import { testEffect } from "./lib/effect"
 
 const encoder = new TextEncoder()
@@ -118,6 +121,48 @@ const slowSdkAdapter: CliAdapter = {
 }
 registerCliAdapter("test-slow-sdk-cli", slowSdkAdapter)
 
+// PermissionV2 mock (M5 permission bridge): captures the assert inputs so the
+// test can assert the fill's canUseTool bridge passes the external tool action,
+// resources, and metadata. The decision is switchable between allow/deny.
+const permissionCalls: Array<PermissionV2.AssertInput> = []
+let permissionDecision: "allow" | "deny" = "deny"
+const mockPermission = PermissionV2.Service.of({
+  ask: (_input) => Effect.succeed({ id: PermissionV2.ID.create(), effect: permissionDecision }),
+  assert: (input) => {
+    permissionCalls.push(input)
+    return permissionDecision === "allow"
+      ? Effect.succeed(undefined)
+      : Effect.fail(new PermissionV2.DeniedError({ rules: [] }))
+  },
+  reply: () => Effect.void,
+  get: () => Effect.succeed(undefined),
+  forSession: () => Effect.succeed([]),
+  list: () => Effect.succeed([]),
+})
+const permissionLayer = Layer.succeed(PermissionV2.Service, mockPermission)
+
+// SDK-transport adapter that invokes the canUseTool bridge the fill built, the
+// way the real claude-code/codex SDKs do for each tool call.
+const permDecisions: Array<"allow" | "deny"> = []
+const permSdkAdapter: CliAdapter = {
+  name: "test-perm-cli",
+  command: "test-perm-cli",
+  description: "test SDK adapter that drives canUseTool",
+  transport: "sdk",
+  detect: () => Effect.succeed(true),
+  buildArgs: () => Effect.succeed([]),
+  parseOutput: (stdout) => Effect.succeed({ status: "success" as const, summary: stdout }),
+  execute: ({ canUseTool }) =>
+    Effect.gen(function* () {
+      const decision = yield* Effect.promise(() =>
+        canUseTool ? canUseTool({ toolName: "Bash", input: { command: "ls" } }) : Promise.resolve("deny" as const),
+      )
+      permDecisions.push(decision)
+      return { status: "success" as const, summary: "perm task summary" }
+    }),
+}
+registerCliAdapter("test-perm-cli", permSdkAdapter)
+
 const spawnCalls: Array<{ cmd: string; args: readonly string[] }> = []
 const sinkStub = Sink.drain
 
@@ -177,6 +222,9 @@ const makeTestLayer = (withSpawner: boolean) =>
     sessions,
     BackgroundJob.defaultLayer,
     metaAgent,
+    // PermissionV2 must be in the SESSION-drain context: the fill's executeCLI
+    // runs on the caller's (task tool's) fiber, which is the session context.
+    permissionLayer,
     makeFillLayer(withSpawner),
   )
 
@@ -205,6 +253,9 @@ describe("TaskDriverFill executeCLI", () => {
   beforeEach(() => {
     spawnCalls.length = 0
     sdkCalls.length = 0
+    permissionCalls.length = 0
+    permDecisions.length = 0
+    permissionDecision = "deny"
   })
 
   it.effect("R1+R2 creates a titled child Session with prompt and output messages", () =>
@@ -347,6 +398,34 @@ describe("TaskDriverFill executeCLI", () => {
       const result = yield* runCLI({ parentID: parent.id, cliTarget: "test-slow-sdk-cli" })
       expect(result.status).toBe("failed")
       expect(result.text).toContain("Timed out")
+    }),
+  )
+
+  it.effect("R8 SDK canUseTool bridges to PermissionV2.assert with the CLI tool action", () =>
+    Effect.gen(function* () {
+      const parent = yield* seedParent
+      const result = yield* runCLI({ parentID: parent.id, cliTarget: "test-perm-cli" })
+      expect(result.status).toBe("success")
+      // The fill built one canUseTool handler from PermissionV2 (the shared
+      // composition-root bridge); the SDK adapter drove it with a tool call.
+      expect(permDecisions).toEqual(["deny"])
+      expect(permissionCalls).toHaveLength(1)
+      const assert = permissionCalls[0]
+      expect(assert.action).toBe("Bash")
+      expect(assert.resources).toEqual([JSON.stringify({ command: "ls" })])
+      expect(assert.metadata).toEqual({ cli: "test-perm-cli", external: true })
+      // The assert targets the PARENT session (attended), not the child.
+      expect(assert.sessionID).toBe(SessionV2.ID.make(parent.id))
+    }),
+  )
+
+  it.effect("R9 PermissionV2 allow reaches the CLI as allow (same bridge)", () =>
+    Effect.gen(function* () {
+      permissionDecision = "allow"
+      const parent = yield* seedParent
+      yield* runCLI({ parentID: parent.id, cliTarget: "test-perm-cli" })
+      expect(permDecisions).toEqual(["allow"])
+      expect(permissionCalls).toHaveLength(1)
     }),
   )
 
