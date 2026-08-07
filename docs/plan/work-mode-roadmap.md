@@ -30,7 +30,8 @@
 | **M1** | 文档闭环 | Preset Catalog、澄清、Markdown 只读预览、同名询问、安全落盘 | 无外部依赖（不碰 ProgressLedger） | ✅ 已完成（merge `a041ca617`） |
 | **M1.5** | 进度与恢复 | Progress Ledger 节点 UI、断点恢复 (Resume)、对齐 Context Tab | **Todo M1（Task 模型）** | ✅ 已完成（work-m1.5 分支，实现+审批通过，已合入 main 2026-08-07） |
 | **M2** | 资产沉淀 | 消息级"存为资产"→ Chat 资产工作室 | Chat M3/M7 接口（已就绪） | ✅ 已完成（work-m2 分支，实现+审批通过，已合入 main 2026-08-07） |
-| **M3** | 扩展产出 | DataAnalysis / 图表 HTML 产出 | CSP 安全评审 | 🔲 远期 |
+| **M3** | Mermaid 内嵌图表（L1） | Markdown 候选稿支持 Mermaid 图表（流程/拓扑/时序/甘特等 15+ 类型） | 无（Mermaid SVG，无 CSP） | 🔲 待启动 |
+| **M3.5** | 独立 HTML 图表（L2，远期） | 全栈可视化 4 模块 / 数据大屏 | CSP 安全评审 + 产品确认 | 🔲 远期 |
 
 ---
 
@@ -133,18 +134,30 @@
 
 **退出**：与 Chat M3/M7 接口对齐，端到端注册成功
 
-### 3.5 M3 扩展产出（远期）
+### 3.5 M3 Mermaid 内嵌图表（L1）
 
-**目标**：DataAnalysis / 图表 HTML 产出。
+**目标**：Markdown 候选稿支持 Mermaid 图表内嵌（```mermaid 代码块 -> SVG），覆盖流程/拓扑/时序/甘特/数据/思维导图等 15+ 类型。
 
 | 交付物 | 说明 | 依赖 |
 |---|---|---|
-| 图表产出 | DataAnalysis preset 生成 HTML 图表 | CSP 安全隔离 |
-| 内容安全评审 | 单独通过 CSP 评审 | — |
+| Mermaid 渲染集成 | markdown-cache.tsx 加 Mermaid 库：代码块 -> SVG | 无（Mermaid SVG，无 CSP） |
+| SYSTEM_PROMPT 指引 | work-orchestrator 教 LLM 适合时用 Mermaid | 无 |
+| preset guidance 示例 | PRD/文献综述加 Mermaid 示例 | 无 |
 
-**退出**：内容安全评审通过
+**退出**：候选稿含 Mermaid 代码块 -> 右栏预览见图表 + E2E 通过
 
----
+### 3.6 M3.5 独立 HTML 图表（L2，远期）
+
+**目标**：独立 HTML 图表产出（全栈可视化 4 模块 / 数据大屏 / 架构全景）。
+
+| 交付物 | 说明 | 依赖 |
+|---|---|---|
+| iframe sandbox 渲染 | 图表 HTML 跨域隔离（allow-scripts 不加 allow-same-origin） | CSP 安全评审 |
+| 图表库选型 | Vis.js（拓扑）/ Chart.js（数据图）/ ECharts | 产品确认 |
+| 图表 preset | 汇报场景 preset（团队全景/数据大屏） | 产品确认 |
+
+**退出**：CSP 评审通过 + 端到端图表产出
+
 
 ## 4. 依赖矩阵
 
@@ -182,7 +195,8 @@
 周 5:     todo M1 合并 main → Work M1.5 启动（ProgressLedger，复用 Task）
 周 6-7:   Work M1.5 完成 + Todo M2 并行（TaskPanel UI）
 周 8:     Work M2 资产沉淀（存为资产 → Chat 工作室）
-周 9+:    Work M3 扩展产出（远期，独立排期）
+周 9:     Work M3 Mermaid 内嵌图表（L1，~3d）
+周 10+:   Work M3.5 独立 HTML 图表（L2，远期，待 CSP 评审）
 ```
 
 ### 关键验收节点
@@ -214,7 +228,8 @@
 2. ✅ **Todo M0-M7 已完成并合入 main**（PR#13 baf93e36f + PR#14 06b51b5f5，2026-08-05）：Task 模型地基 + 增量 CRUD + revision + task.progress
 3. ✅ **Work M1.5 已完成并合入 main**（2026-08-07）：ProgressLedger + Resume + outputDigest，复用 SessionTodoProgress
 4. ✅ **Work M2 已完成并合入 main**（2026-08-07）：存为资产 -> Chat 资产工作室，复用 propose candidate store
-5. **M3 扩展产出**（远期）：DataAnalysis / 图表 HTML，依赖 CSP 安全评审--下一步 CSP 调研
+5. **M3 Mermaid 内嵌图表（L1）**：待启动（~3d，无 CSP 阻塞）--下一步编写实施计划
+6. **M3.5 独立 HTML 图表（L2，远期）**：待产品确认 + CSP 评审后立项
 
 ## 8. 关联文档
 
