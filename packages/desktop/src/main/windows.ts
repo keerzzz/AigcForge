@@ -6,7 +6,7 @@ import { app, BrowserWindow, dialog, net, nativeImage, nativeTheme, protocol } f
 import { dirname, isAbsolute, join, relative, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import type { TitlebarTheme } from "../preload/types"
-import { exportDebugLogs, write as writeLog } from "./logging"
+import { exportDebugLogs, startNetLog, write as writeLog } from "./logging"
 import { perf } from "./perf"
 import { getStore } from "./store"
 import { PINCH_ZOOM_ENABLED_KEY } from "./store-keys"
@@ -178,6 +178,9 @@ export function createMainWindow() {
   win.once("ready-to-show", () => {
     win.show()
     perf("after-readyToShow")
+    // Net log captures renderer/server traffic; starting it after first paint
+    // keeps startup I/O lean.
+    void startNetLog().catch((error) => writeLog("network", "failed to start net log", { error }, "warn"))
   })
 
   return win

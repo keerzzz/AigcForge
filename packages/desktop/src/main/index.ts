@@ -8,7 +8,7 @@ import { getCACertificates, setDefaultCACertificates } from "node:tls"
 import type { Event } from "electron"
 import { app, BrowserWindow } from "electron"
 
-import { Deferred, Effect, Fiber } from "effect"
+import { Deferred, Effect } from "effect"
 import contextMenu from "electron-context-menu"
 
 import type { ServerReadyData } from "../preload/types"
@@ -16,7 +16,7 @@ import { checkAppExists, resolveAppPath } from "./apps"
 import { CHANNEL } from "./constants"
 import { registerIpcHandlers, sendDeepLinks, sendMenuCommand } from "./ipc"
 import { forwardInitializationFailure } from "./initialization"
-import { exportDebugLogs, getLogger, initCrashReporter, initLogging, startNetLog, write as writeLog } from "./logging"
+import { exportDebugLogs, getLogger, initCrashReporter, initLogging, write as writeLog } from "./logging"
 import { parseMarkdown } from "./markdown"
 import { createMenu } from "./menu"
 import { perf, setPerfSink } from "./perf"
@@ -279,18 +279,29 @@ const main = Effect.gen(function* () {
     recordFatalRendererError: (error) => writeLog("renderer", "fatal renderer error", { ...error }, "error"),
   })
   registerWslIpcHandlers(wslServers)
-  void updater.start()
+  // Defer the update check so it does not compete with sidecar startup network I/O.
+  setTimeout(() => void updater.start(), 2_000)
   const updateTimer = setInterval(() => void updater.check(), 10 * 60 * 1000)
   updateTimer.unref()
   app.once("will-quit", () => clearInterval(updateTimer))
-  yield* Effect.promise(() => startNetLog()).pipe(
-    Effect.catch((error) =>
-      Effect.sync(() => {
-        logger.warn("failed to start net log", error)
-      }),
-    ),
-  )
   perf("after-preWindowSetup")
+
+  mainWindow = createMainWindow()
+  if (mainWindow) {
+    createMenu({
+      trigger: (id) => {
+        const win = BrowserWindow.getFocusedWindow() ?? mainWindow
+        if (win) sendMenuCommand(win, id)
+      },
+      checkForUpdates: () => {
+        void showUpdaterDialog(updater, true)
+      },
+      relaunch: () => {
+        relaunch()
+      },
+    })
+  }
+  perf("after-createWindow")
 
   const port = yield* Effect.gen(function* () {
     const fromEnv = process.env.AIGCFROGE_PORT
@@ -319,7 +330,7 @@ const main = Effect.gen(function* () {
   const url = `http://${hostname}:${port}`
   const password = randomUUID()
 
-  const loadingTask = yield* Effect.gen(function* () {
+  yield* Effect.gen(function* () {
     logger.log("sidecar connection started", { url })
 
     ensureLoopbackNoProxy()
@@ -354,29 +365,10 @@ const main = Effect.gen(function* () {
         }),
       ),
     )
+    perf("after-healthCheck")
 
     logger.log("loading task finished")
-  }).pipe(forwardInitializationFailure(serverReady), Effect.forkChild)
-
-  yield* Fiber.await(loadingTask)
-  perf("after-healthCheck")
-
-  mainWindow = createMainWindow()
-  if (mainWindow) {
-    createMenu({
-      trigger: (id) => {
-        const win = BrowserWindow.getFocusedWindow() ?? mainWindow
-        if (win) sendMenuCommand(win, id)
-      },
-      checkForUpdates: () => {
-        void showUpdaterDialog(updater, true)
-      },
-      relaunch: () => {
-        relaunch()
-      },
-    })
-  }
-  perf("after-createWindow")
+  }).pipe(forwardInitializationFailure(serverReady), Effect.forkDetach)
 })
 
 Effect.runFork(main)
