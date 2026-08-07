@@ -17,6 +17,7 @@ import { SessionContextTab } from "@/components/session"
 import { draftFilename, findLatestAssistantMarkdown } from "@/pages/work-artifact-extract"
 import { captureWorkArtifactAsCandidate } from "@/pages/work-asset-capture"
 import { setProposeCandidate } from "@/components/chat/prompt-asset-store"
+import { showToast } from "@/utils/toast"
 import { diffTextLines } from "@/utils/text-diff"
 import { describeApplyError, isConflictError } from "@/pages/work-artifact-error"
 import type { Message } from "@aigcfroge/sdk/v2/client"
@@ -166,6 +167,7 @@ export function WorkArtifactContent() {
     const candidateInfo = captureWorkArtifactAsCandidate(content)
     if (!candidateInfo) return
     setProposeCandidate(id, candidateInfo)
+    showToast({ title: language.t("work.asset.save.success") })
   }
 
   return (
