@@ -97,17 +97,35 @@ function probeAsync(shell: string, mode: "-il" | "-l"): Promise<Probe> {
   return new Promise((resolve) => {
     const child = spawn(shell, [mode, "-c", "env -0"], {
       stdio: ["ignore", "pipe", "ignore"],
-      timeout: TIMEOUT,
       windowsHide: true,
     })
+    let settled = false
     let stdout = Buffer.alloc(0)
     child.stdout?.on("data", (chunk: Buffer) => (stdout = Buffer.concat([stdout, chunk])))
+
+    // Manage the timeout ourselves so we can distinguish our own kill from an
+    // external SIGTERM: spawn's `timeout` option surfaces as close(null, "SIGTERM"),
+    // which is indistinguishable from a foreign signal. With a settled flag, only
+    // our own timer resolves Timeout; an external SIGTERM falls through to the
+    // non-zero branch as Unavailable.
+    const timer = setTimeout(() => {
+      if (settled) return
+      settled = true
+      child.kill("SIGTERM")
+      resolve({ type: "Timeout" })
+    }, TIMEOUT)
+
     child.on("error", (error) => {
-      if ((error as NodeJS.ErrnoException).code === "ETIMEDOUT") return resolve({ type: "Timeout" })
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
       console.log(`[server] Shell env probe failed for ${shell} ${mode}: ${error.message}`)
       resolve({ type: "Unavailable" })
     })
     child.on("close", (code) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
       if (code !== 0) {
         console.log(`[server] Shell env probe exited with non-zero status for ${shell} ${mode}`)
         return resolve({ type: "Unavailable" })

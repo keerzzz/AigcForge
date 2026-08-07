@@ -242,9 +242,9 @@ const main = Effect.gen(function* () {
   const serverReady = Deferred.makeUnsafe<ServerReadyData, unknown>()
 
   yield* Effect.promise(() => app.whenReady())
+  perf("after-whenReady")
   yield* Effect.promise(() => shellEnvPromise)
   perf("after-preferAppEnv")
-  perf("after-whenReady")
 
   if (!TEST_ONBOARDING) migrate()
   perf("after-migrate")
@@ -280,7 +280,7 @@ const main = Effect.gen(function* () {
   })
   registerWslIpcHandlers(wslServers)
   // Defer the update check so it does not compete with sidecar startup network I/O.
-  setTimeout(() => void updater.start(), 2_000)
+  setTimeout(() => void updater.start(), 2_000).unref()
   const updateTimer = setInterval(() => void updater.check(), 10 * 60 * 1000)
   updateTimer.unref()
   app.once("will-quit", () => clearInterval(updateTimer))
