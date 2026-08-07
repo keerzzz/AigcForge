@@ -32,4 +32,22 @@ describe("WorkOrchestratorPrompt", () => {
     expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("inline task specification")
     expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("skip the `work-preset` tool")
   })
+
+  test("plans execution steps via task_create before drafting (M1.5)", () => {
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("Plan steps")
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("task_create")
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("in_progress")
+  })
+
+  test("writes a one-line outputDigest when a step completes (M1.5)", () => {
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("task_update")
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("outputDigest")
+  })
+
+  test("provides a Resume branch that reads the task list and prior digests (M1.5)", () => {
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("Resume")
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("outputDigest")
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("currentStepIndex")
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("without regenerating")
+  })
 })

@@ -340,7 +340,7 @@ export const Plugin = define({
         )
       })
 
-      // work-orchestrator: Work mode only, fail-closed permissions (no edit/shell/task)
+      // work-orchestrator: Work mode only, fail-closed permissions (no edit/shell/spawn)
       draft.update(AgentV2.ID.make("work-orchestrator"), (item) => {
         item.description = "Work mode agent for drafting documents from official presets via conversation."
         item.system = WorkOrchestratorPrompt.SYSTEM_PROMPT
@@ -356,6 +356,13 @@ export const Plugin = define({
               { action: "grep", resource: "*", effect: "allow" },
               { action: "question", resource: "*", effect: "allow" },
               { action: "work-preset", resource: "*", effect: "allow" },
+              // M1.5 D1: the step ledger's incremental task tools (created after
+              // the deny-* so findLast keeps them allowed; task delegation,
+              // spawn, and schedule stay denied).
+              { action: "task_create", resource: "*", effect: "allow" },
+              { action: "task_update", resource: "*", effect: "allow" },
+              { action: "task_delete", resource: "*", effect: "allow" },
+              { action: "task_reorder", resource: "*", effect: "allow" },
               // evaluate 取 findLast：上方 read * allow 会覆盖 defaults 的 .env ask，须以最后顺序恢复
               { action: "read", resource: "*.env", effect: "ask" },
               { action: "read", resource: "*.env.*", effect: "ask" },
