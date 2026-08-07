@@ -6,10 +6,10 @@ const bbox = () => new DOMRect(0, 0, 100, 30)
 SVGGraphicsElement.prototype.getBBox = bbox
 SVGSVGElement.prototype.getBBox = () => new DOMRect(0, 0, 400, 200)
 
-const parseHtml = DOMParser.prototype.parseFromString
+const parseHtml = DOMParser.prototype.parseFromString.bind(DOMParser.prototype)
 DOMParser.prototype.parseFromString = function (html: string, type: DOMParserSupportedType) {
   const withoutSvgStyle = html.replace(/<style>[\s\S]*?<\/style>/g, "")
-  return parseHtml.call(this, withoutSvgStyle, type)
+  return parseHtml(withoutSvgStyle, type)
 }
 
 const placeholder = (src: string) => `<div data-mermaid="${encodeURIComponent(src)}"></div>`

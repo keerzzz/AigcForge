@@ -1,4 +1,5 @@
 import type { Mermaid } from "mermaid"
+import type { ElementHook } from "dompurify"
 import DOMPurify from "dompurify"
 
 function resolveCssVar(name: string, fallback: string): string {
@@ -9,18 +10,40 @@ function resolveCssVar(name: string, fallback: string): string {
 let mermaidReady: Promise<Mermaid> | undefined
 
 // mermaid registers anonymous before/afterSanitizeAttributes hooks on the
-// shared DOMPurify instance on first render (it would overwrite rel to just
-// "noopener" for target=_blank links in all markdown). Remove them once, after
-// mermaid's setup guard has run, so global markdown sanitize keeps its own
-// noopener+noreferrer behavior. removeHook pops the last-registered hook, which
-// is mermaid's (markdown-cache registers at module load, before mermaid loads).
-let mermaidHooksRemoved = false
+// shared DOMPurify instance during its first render; its after-hook would
+// overwrite rel to just "noopener" for target=_blank links in all markdown.
+// Isolate the render behind a drain/restore of the original hooks so mermaid's
+// hooks never survive a render batch, whatever they are.
+type AttributeHook = ElementHook
+let markdownHooks: { before: AttributeHook[]; after: AttributeHook[] } | undefined
 
-function removeMermaidDompurifyHooks() {
-  if (mermaidHooksRemoved) return
-  mermaidHooksRemoved = true
-  DOMPurify.removeHook("beforeSanitizeAttributes")
-  DOMPurify.removeHook("afterSanitizeAttributes")
+function drainHooks(entryPoint: "beforeSanitizeAttributes" | "afterSanitizeAttributes"): AttributeHook[] {
+  const out: AttributeHook[] = []
+  for (let hook = DOMPurify.removeHook(entryPoint); hook !== undefined; hook = DOMPurify.removeHook(entryPoint)) {
+    out.push(hook)
+  }
+  return out
+}
+
+function restoreHooks(entryPoint: "beforeSanitizeAttributes" | "afterSanitizeAttributes", hooks: AttributeHook[]) {
+  for (let i = hooks.length - 1; i >= 0; i--) {
+    DOMPurify.addHook(entryPoint, hooks[i]!)
+  }
+}
+
+function isolateMarkdownHooks() {
+  if (markdownHooks) return
+  markdownHooks = {
+    before: drainHooks("beforeSanitizeAttributes"),
+    after: drainHooks("afterSanitizeAttributes"),
+  }
+}
+
+function restoreMarkdownHooks() {
+  if (!markdownHooks) return
+  restoreHooks("beforeSanitizeAttributes", markdownHooks.before)
+  restoreHooks("afterSanitizeAttributes", markdownHooks.after)
+  markdownHooks = undefined
 }
 
 function getMermaid() {
@@ -29,6 +52,7 @@ function getMermaid() {
       m.default.initialize({
         startOnLoad: false,
         theme: "base",
+        htmlLabels: false,
         themeVariables: {
           primaryColor: resolveCssVar("--v2-background-bg-accent", "#ECECFF"),
           primaryTextColor: resolveCssVar("--v2-text-text-base", "#000000"),
@@ -79,6 +103,7 @@ export async function renderMermaidBlocks(html: string): Promise<string> {
   const doc = new DOMParser().parseFromString(html, "text/html")
   const placeholders = doc.querySelectorAll<HTMLDivElement>("[data-mermaid]")
   if (placeholders.length === 0) return html
+  isolateMarkdownHooks()
   for (const el of placeholders) {
     const src = decodeSrc(el.getAttribute("data-mermaid") ?? "")
     try {
@@ -90,7 +115,7 @@ export async function renderMermaidBlocks(html: string): Promise<string> {
       el.outerHTML = `<pre><code class="language-mermaid">${escapeHtml(src)}</code></pre>`
     }
   }
-  removeMermaidDompurifyHooks()
+  restoreMarkdownHooks()
   return doc.body.innerHTML
 }
 
