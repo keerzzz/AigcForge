@@ -214,6 +214,7 @@ export interface Interface {
     readonly id: string
     readonly content?: string
     readonly priority?: SessionTaskSchema.TaskPriority
+    readonly outputDigest?: string
     readonly expectedRevision?: number
   }) => Effect.Effect<Info | undefined, TaskWriteError>
   /**
@@ -888,6 +889,7 @@ export const layer = Layer.effect(
       readonly id: string
       readonly content?: string
       readonly priority?: SessionTaskSchema.TaskPriority
+      readonly outputDigest?: string
       readonly expectedRevision?: number
     }) => writeLock.withPermits(1)(Effect.gen(function* () {
       const now = (yield* DateTime.nowAsDate).getTime()
@@ -900,6 +902,7 @@ export const layer = Layer.effect(
         .set({
           ...(input.content !== undefined ? { content: input.content } : {}),
           ...(input.priority !== undefined ? { priority: input.priority } : {}),
+          ...(input.outputDigest !== undefined ? { output_digest: input.outputDigest } : {}),
           revision: prior.revision + 1,
           time_updated: now,
         })

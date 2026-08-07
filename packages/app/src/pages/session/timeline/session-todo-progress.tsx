@@ -55,6 +55,8 @@ export function SessionTodoProgress(props: {
         // The SDK types revision as number | "NaN" | "Infinity" | ... (JSON
         // edge cases); narrow to a real number so expectedRevision is clean.
         revision: typeof task.revision === "number" ? task.revision : undefined,
+        // M1.5: Work step digest rides the ledger projection (D5 passthrough).
+        outputDigest: task.outputDigest,
       })),
       data.session_task_updated_at[id],
       (data.session_todo[id] ?? []) as TodoProgressInput[],

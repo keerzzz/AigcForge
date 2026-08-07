@@ -19,6 +19,10 @@ export const Input = Schema.Struct({
     description:
       "New status. Provide this to complete/reopen/start a task instead of rewriting the full list. When combined with content/priority, both update atomically.",
   }),
+  outputDigest: Schema.optional(Schema.String).annotate({
+    description:
+      "Incremental step output summary (Work ProgressLedger). Written when a step completes so an interrupted run can resume from its digest.",
+  }),
   expectedRevision: Schema.optional(Schema.Number).annotate({
     description:
       "The revision the caller last observed. If it changed, the update is rejected as stale - re-read and retry.",
@@ -56,10 +60,11 @@ export const layer = Layer.effectDiscard(
                 agent: context.agent,
                 source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
               })
-              const hasFields = input.content !== undefined || input.priority !== undefined
+              const hasFields =
+                input.content !== undefined || input.priority !== undefined || input.outputDigest !== undefined
               if (!hasFields && input.status === undefined) {
                 return yield* new ToolFailure({
-                  message: "task_update requires at least one of content, priority, or status",
+                  message: "task_update requires at least one of content, priority, outputDigest, or status",
                 })
               }
               // Field updates (content/priority) go through updateTask; status goes
@@ -74,6 +79,7 @@ export const layer = Layer.effectDiscard(
                     id: input.id,
                     content: input.content,
                     priority: input.priority,
+                    outputDigest: input.outputDigest,
                     expectedRevision: input.expectedRevision,
                   })
                   .pipe(

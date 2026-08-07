@@ -19,6 +19,8 @@ export interface TodoProgressInput {
   readonly priority?: string
   /** P3-e: carried through to the fold-over writeback as expectedRevision. */
   readonly revision?: number
+  /** M1.5: Work step summary, shown under the fold-over step item. */
+  readonly outputDigest?: string
 }
 
 export interface TodoProgressNode {
@@ -238,6 +240,36 @@ export const computeTodoProgress = (
     nodes,
     ellipsis,
   }
+}
+
+/**
+ * ProgressLedger view (M1.5 D5): a pure projection of the task list — never
+ * stored, never a separate schema. The Work session uses it to render step
+ * state and decide whether a "从断点恢复" (resume) entry point is available.
+ */
+export interface ProgressLedgerView {
+  /** First non-completed step index; -1 when every step is completed. */
+  readonly currentStepIndex: number
+  /** True while any step is failed or in_progress (an interrupted run). */
+  readonly canResume: boolean
+  readonly steps: readonly {
+    readonly stepID: string
+    readonly title: string
+    readonly status: TodoProgressStatus
+    readonly outputDigest?: string
+  }[]
+}
+
+export const computeProgressLedger = (tasks: readonly TodoProgressInput[]): ProgressLedgerView => {
+  const steps = tasks.map((task) => ({
+    stepID: task.id ?? "",
+    title: task.content,
+    status: normalizeStatus(task.status),
+    outputDigest: task.outputDigest,
+  }))
+  const currentStepIndex = steps.findIndex((step) => step.status !== "completed")
+  const canResume = steps.some((step) => step.status === "failed" || step.status === "in_progress")
+  return { currentStepIndex, canResume, steps }
 }
 
 /**

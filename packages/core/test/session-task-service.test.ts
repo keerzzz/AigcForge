@@ -1241,6 +1241,53 @@ describe("SessionTask", () => {
       }),
     )
 
+    it.effect("updateTask writes outputDigest and rides the republished event payload", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const events = yield* EventV2.Service
+        const published = new Array<EventV2.Payload>()
+        const unsubscribe = yield* events.listen((event) =>
+          Effect.sync(() => {
+            if (event.type === SessionTask.Event.Updated.type) published.push(event)
+          }),
+        )
+        yield* Effect.addFinalizer(() => unsubscribe)
+        const [task] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "seed", status: "pending", priority: "medium" }],
+        })
+        const updated = yield* tasks.updateTask({
+          sessionID,
+          id: task.id,
+          outputDigest: "已构思 5 个分镜场景",
+        })
+        expect(updated?.outputDigest).toBe("已构思 5 个分镜场景")
+        expect(updated?.revision).toBe(2)
+        expect(published.at(-1)?.data).toEqual({ sessionID, tasks: [updated] })
+      }),
+    )
+
+    it.effect("updateTask without outputDigest preserves an existing digest (backward compatible)", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const [task] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "seed", status: "pending", priority: "medium" }],
+        })
+        yield* tasks.patch({ sessionID, id: task.id, status: "completed", outputDigest: "step done" })
+        const updated = yield* tasks.updateTask({
+          sessionID,
+          id: task.id,
+          content: "renamed",
+          expectedRevision: 2,
+        })
+        expect(updated?.content).toBe("renamed")
+        expect(updated?.outputDigest).toBe("step done")
+      }),
+    )
+
     it.effect("reorder reorders positions and increments revision for all tasks", () =>
       Effect.gen(function* () {
         yield* setup
