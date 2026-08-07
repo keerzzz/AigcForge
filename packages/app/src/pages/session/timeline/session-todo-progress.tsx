@@ -4,8 +4,11 @@ import { useServerSync } from "@/context/server-sync"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { useLanguage } from "@/context/language"
+import { useMode } from "@/context/mode"
 import { showToast } from "@/utils/toast"
+import { Identifier } from "@/utils/id"
 import {
+  computeProgressLedger,
   computeTodoProgress,
   flipTaskWriteStatus,
   pickProgressTodos,
@@ -36,6 +39,7 @@ export function SessionTodoProgress(props: {
   const serverSync = useServerSync()
   const sdk = useSDK()
   const language = useLanguage()
+  const mode = useMode()
   const [open, setOpen] = createSignal(false)
   let trackRef: HTMLDivElement | undefined
 
@@ -77,6 +81,29 @@ export function SessionTodoProgress(props: {
     return computeTodoProgress(tasks(), anchorProgress)
   })
   const allDone = createMemo(() => progress().total > 0 && progress().done === progress().total)
+
+  // M1.5 D5: the Work ProgressLedger is a pure projection of the same task
+  // list — currentStepIndex + canResume drive the mode-aware resume button.
+  const ledger = createMemo(() => computeProgressLedger(tasks()))
+
+  // M1.5 D4: dialogue-level resume — clicking the button sends a preset prompt
+  // through the same SDK channel the composer uses (promptAsync); no new send
+  // path. The orchestrator reads the task list and resumes from the digest.
+  const onResume = () => {
+    const id = props.sessionID()
+    if (!id) return
+    void sdk()
+      .client.session.promptAsync({
+        sessionID: id,
+        directory: sdk().directory,
+        messageID: Identifier.ascending("message"),
+        parts: [{ type: "text", text: language.t("work.resume.prompt") }],
+      })
+      .catch((err: unknown) => {
+        const description = err instanceof Error ? err.message : String(err)
+        showToast({ title: language.t("session.todo.writeback.failed.title"), description })
+      })
+  }
 
   // Reload recovery: pull once when the session mounts (directory-sync has
   // built-in retry; subsequent updates arrive via SSE task.updated/todo.updated).
@@ -247,27 +274,46 @@ export function SessionTodoProgress(props: {
         >
           {progress().done}/{progress().total}
         </button>
+        {/* M1.5 D2/D4: resume entry point — work mode only, so Coding/Chat
+            sessions never surface it (mode-aware guard). */}
+        <Show when={ledger().canResume && mode.currentMode === "work"}>
+          <button
+            type="button"
+            data-component="session-todo-progress-resume"
+            class="mt-2 w-fit rounded-md border border-border-strong-base bg-v2-background-bg-layer-01 px-3 py-1.5 text-12-regular text-text-base transition-colors hover:bg-v2-background-bg-layer-02"
+            onClick={onResume}
+          >
+            {language.t("work.resume.button")}
+          </button>
+        </Show>
         <Show when={open()}>
           <div data-component="session-todo-progress-panel" role="list">
             <Index each={tasks()}>
               {(task) => (
-                <CheckboxV2
-                  data-slot="session-todo-progress-checkbox"
-                  checked={task().status === "completed"}
-                  indeterminate={task().status === "in_progress"}
-                  disabled={
-                    // scheduled/cancelled have their own management UI (the
-                    // header scheduled-tasks popover / Agent Hub), so the
-                    // fold-over never rewrites them (HIGH-1 six-state guard).
-                    task().status === "cancelled" || task().status === "scheduled" || task().id === undefined
-                  }
-                  onChange={() => writeback(task())}
-                  label={
-                    <span data-slot="session-todo-progress-checkbox-label" data-status={task().status}>
-                      {task().content}
+                <div class="flex flex-col gap-0.5">
+                  <CheckboxV2
+                    data-slot="session-todo-progress-checkbox"
+                    checked={task().status === "completed"}
+                    indeterminate={task().status === "in_progress"}
+                    disabled={
+                      // scheduled/cancelled have their own management UI (the
+                      // header scheduled-tasks popover / Agent Hub), so the
+                      // fold-over never rewrites them (HIGH-1 six-state guard).
+                      task().status === "cancelled" || task().status === "scheduled" || task().id === undefined
+                    }
+                    onChange={() => writeback(task())}
+                    label={
+                      <span data-slot="session-todo-progress-checkbox-label" data-status={task().status}>
+                        {task().content}
+                      </span>
+                    }
+                  />
+                  <Show when={task().outputDigest}>
+                    <span data-slot="step-digest" class="pl-6 text-12-regular text-text-weak">
+                      {task().outputDigest}
                     </span>
-                  }
-                />
+                  </Show>
+                </div>
               )}
             </Index>
           </div>
