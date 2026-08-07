@@ -1078,6 +1078,8 @@ export const dict = {
   "work.step.digest": "步驟摘要",
   "work.asset.title": "你的工作流資產",
   "work.asset.guidedBadge": "由你的工作流驅動 · 引導模式",
+  "work.asset.save": "存為資產",
+  "work.asset.save.success": "候選稿已儲存為 prompt 資產",
   "mode.assistant": "助理",
   "mode.assistant.description": "個人 AI 助理",
   "mode.switcher": "模式切換器",

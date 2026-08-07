@@ -21,13 +21,18 @@ export function findLatestAssistantMarkdown(
   return null
 }
 
-/** 从候选稿首行标题派生默认文件名；无标题时用通用名。 */
-export function draftFilename(markdown: string): string {
+/** 从候选稿首行 # 标题提取标题；无标题返回 null。draftFilename 与资产映射共用。 */
+export function extractFirstHeading(markdown: string): string | null {
   const firstLine = markdown
     .split("\n")
     .map((line) => line.trim())
     .find((line) => line.startsWith("# "))
-  const title = firstLine?.replace(/^#\s+/, "").trim()
+  return firstLine?.replace(/^#\s+/, "").trim() ?? null
+}
+
+/** 从候选稿首行标题派生默认文件名；无标题时用通用名。 */
+export function draftFilename(markdown: string): string {
+  const title = extractFirstHeading(markdown)
   if (!title) return "work-draft.md"
   const safe = title.replace(/[\\/:*?"<>|]/g, "-").slice(0, 80)
   return safe.endsWith(".md") ? safe : `${safe}.md`

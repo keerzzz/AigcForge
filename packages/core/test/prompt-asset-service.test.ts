@@ -1,6 +1,6 @@
 import path from "path"
 import { describe, expect, test } from "bun:test"
-import { Effect, Layer, Schema } from "effect"
+import { Effect, Layer, Schema, Stream } from "effect"
 import { PromptAsset as SchemaPromptAsset } from "@aigcfroge/schema/prompt-asset"
 import { PromptAssetService } from "@aigcfroge/core/prompt-asset-service"
 import { PromptAsset } from "@aigcfroge/core/prompt-asset"
@@ -107,6 +107,54 @@ describe("PromptAssetService.apply creates", () => {
       expect(info.template).toBe("Hello world")
       expect(info.relativePath).toBe("my-prompt.md")
       expect(info.revision.length).toBe(64)
+    })
+  })
+
+  test("publishes work.asset_saved after a successful apply (M2 telemetry, no body)", async () => {
+    await withTmp(async (dir) => {
+      // M1 范式（artifact.test.ts）：Layer.mock EventV2，记录 publish 调用。
+      const published: Array<{ type: string; data: unknown }> = []
+      const mockEvents = Layer.succeed(
+        EventV2.Service,
+        EventV2.Service.of({
+          publish: (definition: any, data: any) =>
+            Effect.sync(() => {
+              published.push({ type: definition.type, data })
+              return { id: EventV2.ID.create(), type: definition.type, data } as EventV2.Payload<typeof definition>
+            }),
+          subscribe: () => Stream.empty,
+          all: () => Stream.empty,
+          durable: () => Stream.empty,
+          listen: () => Effect.succeed(Effect.void),
+          project: () => Effect.void,
+          replay: () => Effect.void,
+          replayAll: () => Effect.succeed(undefined),
+          remove: () => Effect.void,
+          claim: () => Effect.void,
+        }),
+      )
+      const svc = await runNow(
+        Effect.gen(function* () { return yield* PromptAssetService.Service }).pipe(
+          // M1 范式：mock 放在 locationLayer 的 provide 链内（构造时生效）。
+          Effect.provide(
+            PromptAssetService.locationLayer.pipe(
+              Layer.provide(FileMutation.locationLayer),
+              Layer.provide(LocationMutation.locationLayer),
+              Layer.provide(PromptAsset.locationLayer),
+              Layer.provide(mockEvents),
+              Layer.provide(locationLayer(dir)),
+              Layer.provide(FSUtil.defaultLayer),
+            ),
+          ),
+          Effect.scoped,
+        ),
+      )
+      await runNow(
+        svc.apply({ candidate: makeCandidate("m2-telemetry", "desc", "content"), baseRevision: null, overwrite: false }),
+      )
+      expect(published).toEqual([
+        { type: "work.asset_saved", data: { relativePath: "m2-telemetry.md" } },
+      ])
     })
   })
 

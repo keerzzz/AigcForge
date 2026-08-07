@@ -15,6 +15,9 @@ import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { SessionContextTab } from "@/components/session"
 import { draftFilename, findLatestAssistantMarkdown } from "@/pages/work-artifact-extract"
+import { captureWorkArtifactAsCandidate } from "@/pages/work-asset-capture"
+import { setProposeCandidate } from "@/components/chat/prompt-asset-store"
+import { showToast } from "@/utils/toast"
 import { diffTextLines } from "@/utils/text-diff"
 import { describeApplyError, isConflictError } from "@/pages/work-artifact-error"
 import type { Message } from "@aigcfroge/sdk/v2/client"
@@ -154,6 +157,19 @@ export function WorkArtifactContent() {
     }
   }
 
+  // M2 存为资产（D3 方案 A）：候选稿 -> prompt kind CandidateInfo -> setProposeCandidate
+  // 注入 Chat propose store。不自动切 mode：session 页以 session.mode 为权威
+  // （app.tsx session effect 锁回），用户手动切 Chat 后右栏自动显示审查（store 已在）。
+  function onSaveAsset() {
+    const id = sessionID()
+    const content = candidate()
+    if (!id || !content) return
+    const candidateInfo = captureWorkArtifactAsCandidate(content)
+    if (!candidateInfo) return
+    setProposeCandidate(id, candidateInfo)
+    showToast({ title: language.t("work.asset.save.success") })
+  }
+
   return (
     <Show
         when={appliedCurrent()}
@@ -169,16 +185,29 @@ export function WorkArtifactContent() {
             <ScrollView class="min-h-0 flex-1">
               <div class="flex flex-col gap-3 p-3">
                 <Markdown text={candidate()!} />
-                <ButtonV2
-                  variant="contrast"
-                  size="normal"
-                  icon="folder-add-left"
-                  class="w-full"
-                  disabled={applying()}
-                  onClick={() => void apply()}
-                >
-                  {language.t("work.artifact.apply")}
-                </ButtonV2>
+                <div class="flex gap-2">
+                  <ButtonV2
+                    variant="contrast"
+                    size="normal"
+                    icon="folder-add-left"
+                    class="flex-1"
+                    disabled={applying()}
+                    onClick={() => void apply()}
+                  >
+                    {language.t("work.artifact.apply")}
+                  </ButtonV2>
+                  <Show when={candidate() !== null && !appliedCurrent()}>
+                    <ButtonV2
+                      variant="neutral"
+                      size="normal"
+                      class="flex-1"
+                      data-component="work-save-asset-button"
+                      onClick={onSaveAsset}
+                    >
+                      {language.t("work.asset.save")}
+                    </ButtonV2>
+                  </Show>
+                </div>
               </div>
             </ScrollView>
           </Show>

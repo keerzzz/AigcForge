@@ -635,6 +635,8 @@ export const dict = {
   "work.step.digest": "Step summary",
   "work.asset.title": "Your workflow assets",
   "work.asset.guidedBadge": "Driven by your workflow · guided mode",
+  "work.asset.save": "Save as asset",
+  "work.asset.save.success": "Draft saved as a prompt asset",
   "mode.assistant": "Assistant",
   "mode.assistant.description": "Personal AI assistant",
   "mode.switcher": "Mode switcher",
