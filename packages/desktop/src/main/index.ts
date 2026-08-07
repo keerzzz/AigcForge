@@ -368,6 +368,10 @@ const main = Effect.gen(function* () {
     perf("after-healthCheck")
 
     logger.log("loading task finished")
+    // `forkChild` would interrupt this fiber when `main` completes (auto
+    // supervision), killing the sidecar. `forkDetach` lets the sidecar task
+    // outlive the startup fiber; failures still reach the renderer through
+    // `forwardInitializationFailure(serverReady)`.
   }).pipe(forwardInitializationFailure(serverReady), Effect.forkDetach)
 })
 

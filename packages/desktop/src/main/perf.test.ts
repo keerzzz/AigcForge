@@ -46,4 +46,29 @@ describe("perf startup marks", () => {
     resetStartupMarks()
     expect(getStartupMarks()).toEqual([])
   })
+
+  test("setPerfSink replays marks recorded before the sink was wired", () => {
+    resetStartupMarks()
+    perf("early")
+    const received: { label: string; ms: number }[] = []
+    setPerfSink((label, ms) => received.push({ label, ms }))
+    perf("late")
+    setPerfSink(() => {})
+
+    expect(received.map((entry) => entry.label)).toEqual(["early", "late"])
+    expect(typeof received[0].ms).toBe("number")
+  })
+
+  test("setPerfSink does not replay marks twice on repeated calls", () => {
+    resetStartupMarks()
+    perf("mark")
+    const first: string[] = []
+    const second: string[] = []
+    setPerfSink((label) => first.push(label))
+    setPerfSink((label) => second.push(label))
+    setPerfSink(() => {})
+
+    expect(first).toEqual(["mark"])
+    expect(second).toEqual([])
+  })
 })
