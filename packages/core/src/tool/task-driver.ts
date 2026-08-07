@@ -7,6 +7,7 @@ import { SessionMessage } from "../session/message"
 import { SessionSchema } from "../session/schema"
 import { generateSummary } from "../session/share-summary"
 import { judgeMerge } from "../agent/judge"
+import type { DelegationStatus } from "./cli-adapter"
 
 /**
  * A foreground delegation ended without a usable result because the child
@@ -146,14 +147,16 @@ export interface Interface {
   /**
    * Execute a prompt against an external CLI tool (claude-code, gemini, codex,
    * opencode, etc.). The adapter is resolved through the installed CLI adapter
-   * registry at the composition root. Returns the CLI's output text, or fails
-   * when the CLI is unavailable or times out.
+   * registry at the composition root. Returns the CLI's output text and terminal
+   * status, or fails when the CLI is unavailable or times out.
    */
   readonly executeCLI: (input: {
     cliTarget: string
     prompt: string
+    description: string
     sessionID: SessionSchema.ID
-  }) => Effect.Effect<{ text: string; sessionID: SessionSchema.ID }, Error>
+    taskID?: SessionSchema.ID
+  }) => Effect.Effect<{ text: string; sessionID: SessionSchema.ID; status: DelegationStatus }, Error>
 }
 
 // The process-global bridge cell. `install` replaces it; the accessors read it
@@ -161,9 +164,7 @@ export interface Interface {
 let installed: Interface | undefined
 
 const active = () =>
-  installed
-    ? Effect.succeed(installed)
-    : Effect.die("TaskDriver.install must run before the task tool executes")
+  installed ? Effect.succeed(installed) : Effect.die("TaskDriver.install must run before the task tool executes")
 
 /** Create a child Session through the installed implementation. */
 export const createChild = (input: {
@@ -191,8 +192,7 @@ export const delegateJudge = (input: {
 }) => active().pipe(Effect.flatMap((impl) => impl.delegateJudge(input)))
 
 /** Cancel a child Session's background drain and interrupt its active work (orphan cleanup). */
-export const cancel = (sessionID: SessionSchema.ID) =>
-  active().pipe(Effect.flatMap((impl) => impl.cancel(sessionID)))
+export const cancel = (sessionID: SessionSchema.ID) => active().pipe(Effect.flatMap((impl) => impl.cancel(sessionID)))
 
 /** Delegate to a child Session in the background; its result is injected into the parent later. */
 export const delegateBackground = (input: {
@@ -221,23 +221,32 @@ export const isChildSession = (sessionID: SessionSchema.ID) =>
   active().pipe(Effect.flatMap((impl) => impl.isChildSession(sessionID)))
 
 /** Execute a prompt against an external CLI tool through the installed adapter. */
-export const executeCLI = (input: { cliTarget: string; prompt: string; sessionID: SessionSchema.ID }) =>
-  active().pipe(Effect.flatMap((impl) => impl.executeCLI(input))) as Effect.Effect<{ text: string; sessionID: SessionSchema.ID }, Error>
+export const executeCLI = (input: {
+  cliTarget: string
+  prompt: string
+  description: string
+  sessionID: SessionSchema.ID
+  taskID?: SessionSchema.ID
+}) => active().pipe(Effect.flatMap((impl) => impl.executeCLI(input)))
 
 /** Minimal `SessionV2` surface the implementation needs. Structural to avoid importing SessionV2. */
 export interface SessionFacade {
-  readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<{ location: Location.Ref; parentID?: SessionSchema.ID }, unknown>
+  readonly get: (
+    sessionID: SessionSchema.ID,
+  ) => Effect.Effect<{ location: Location.Ref; parentID?: SessionSchema.ID }, unknown>
   readonly create: (input: {
     id?: SessionSchema.ID
     parentID: SessionSchema.ID
     agent?: AgentV2.ID
     location: Location.Ref
     attended?: boolean
+    title?: string
   }) => Effect.Effect<SessionSchema.Info, unknown>
-  readonly prompt: (input: { sessionID: SessionSchema.ID; prompt: { text: string }; resume?: boolean }) => Effect.Effect<
-    unknown,
-    unknown
-  >
+  readonly prompt: (input: {
+    sessionID: SessionSchema.ID
+    prompt: { text: string }
+    resume?: boolean
+  }) => Effect.Effect<unknown, unknown>
   readonly resume: (sessionID: SessionSchema.ID) => Effect.Effect<void, unknown>
   readonly messages: (input: { sessionID: SessionSchema.ID }) => Effect.Effect<SessionMessage.Message[], unknown>
   /**
@@ -329,8 +338,10 @@ export const install = (
     readonly execute: (input: {
       cliTarget: string
       prompt: string
+      description: string
       sessionID: SessionSchema.ID
-    }) => Effect.Effect<{ text: string; sessionID: SessionSchema.ID }, Error>
+      taskID?: SessionSchema.ID
+    }) => Effect.Effect<{ text: string; sessionID: SessionSchema.ID; status: DelegationStatus }, Error>
   },
 ) => {
   const readResult = (sessionID: SessionSchema.ID) =>
@@ -374,9 +385,13 @@ export const install = (
         // P6.1: prepend a compressed parent-context summary to the prompt so the
         // subagent receives context without the full history. The summary call
         // yields LLMClient/Catalog, resolved from the runner scope at runtime;
-        const parentContextSummary = input.parentID ? (yield* composeParentSummary(input.parentID)) : ""
-        const prompt = parentContextSummary ? `<parent_context>\n${parentContextSummary}\n</parent_context>\n\n${input.prompt}` : input.prompt
-        yield* sessions.prompt({ sessionID: input.sessionID, prompt: { text: prompt }, resume: false }).pipe(Effect.orDie)
+        const parentContextSummary = input.parentID ? yield* composeParentSummary(input.parentID) : ""
+        const prompt = parentContextSummary
+          ? `<parent_context>\n${parentContextSummary}\n</parent_context>\n\n${input.prompt}`
+          : input.prompt
+        yield* sessions
+          .prompt({ sessionID: input.sessionID, prompt: { text: prompt }, resume: false })
+          .pipe(Effect.orDie)
         yield* background.start(input.sessionID, sessions.resume(input.sessionID)).pipe(Effect.orDie)
         // Capture the exit of wait + result handling so the dual-track writeback
         // fires even when the caller's fiber is interrupted during background.wait
@@ -406,22 +421,26 @@ export const install = (
           yield* input
             .onSettle({
               status,
-              outputDigest: status === "completed"
-                ? input.sessionID
-                : status === "failed"
-                  ? "foreground delegation failed"
-                  : undefined,
+              outputDigest:
+                status === "completed"
+                  ? input.sessionID
+                  : status === "failed"
+                    ? "foreground delegation failed"
+                    : undefined,
             })
-            .pipe(
-              Effect.catchCause((cause) => Effect.logError("TaskDriver onSettle writeback failed", cause)),
-            )
+            .pipe(Effect.catchCause((cause) => Effect.logError("TaskDriver onSettle writeback failed", cause)))
         }
         return yield* exit
       }) as unknown as Effect.Effect<string, DelegateError>,
     delegateJudge: (input) =>
       Effect.gen(function* () {
         const modelCount = Math.min(input.models.length, 5)
-        if (modelCount === 0) return yield* new DelegateError({ sessionID: input.parentID, reason: "error", message: "judge_models must specify at least one model" })
+        if (modelCount === 0)
+          return yield* new DelegateError({
+            sessionID: input.parentID,
+            reason: "error",
+            message: "judge_models must specify at least one model",
+          })
 
         // Create N children under the same parent.
         const parent = yield* sessions.get(input.parentID)
@@ -435,8 +454,10 @@ export const install = (
         }
 
         // Compose parent context summary (same as delegate's pattern).
-        const parentSummary = input.parentID ? (yield* composeParentSummary(input.parentID)) : ""
-        const prompt = parentSummary ? `<parent_context>\n${parentSummary}\n</parent_context>\n\n${input.prompt}` : input.prompt
+        const parentSummary = input.parentID ? yield* composeParentSummary(input.parentID) : ""
+        const prompt = parentSummary
+          ? `<parent_context>\n${parentSummary}\n</parent_context>\n\n${input.prompt}`
+          : input.prompt
 
         // Admit prompt to each child sequentially (SQLite serialization), then
         // start background drains and wait for all to complete concurrently.
@@ -460,8 +481,7 @@ export const install = (
 
         // Cancel failed children so their BackgroundJob scopes close.
         for (let i = 0; i < children.length; i++) {
-          if (!outcomes[i] || outcomes[i].length === 0)
-            yield* background.cancel(children[i]).pipe(Effect.ignore)
+          if (!outcomes[i] || outcomes[i].length === 0) yield* background.cancel(children[i]).pipe(Effect.ignore)
         }
 
         // Judge merge: non-empty results → LLM merge → final text.
@@ -497,34 +517,34 @@ export const install = (
               // Settle the linked todo based on the drain outcome only.
               if (input.taskID && input.onSettle) {
                 if (Exit.isSuccess(drainExit)) {
-                  yield* input.onSettle({ status: "completed", outputDigest: input.sessionID }).pipe(
-                    Effect.catchCause((cause) => Effect.logError("TaskDriver onSettle writeback failed", cause)),
-                  )
+                  yield* input
+                    .onSettle({ status: "completed", outputDigest: input.sessionID })
+                    .pipe(Effect.catchCause((cause) => Effect.logError("TaskDriver onSettle writeback failed", cause)))
                 } else if (Cause.hasInterruptsOnly(drainExit.cause)) {
-                  yield* input.onSettle({ status: "cancelled" }).pipe(
-                    Effect.catchCause((cause) => Effect.logError("TaskDriver onSettle writeback failed", cause)),
-                  )
+                  yield* input
+                    .onSettle({ status: "cancelled" })
+                    .pipe(Effect.catchCause((cause) => Effect.logError("TaskDriver onSettle writeback failed", cause)))
                 } else {
                   // Fixed classification only: the raw cause may embed Authorization
                   // headers, tokens, prompts, or stacks, which must not reach the
                   // task.updated payload (Clean Logs).
-                  yield* input.onSettle({ status: "failed", outputDigest: "background delegation failed" }).pipe(
-                    Effect.catchCause((cause) => Effect.logError("TaskDriver onSettle writeback failed", cause)),
-                  )
+                  yield* input
+                    .onSettle({ status: "failed", outputDigest: "background delegation failed" })
+                    .pipe(Effect.catchCause((cause) => Effect.logError("TaskDriver onSettle writeback failed", cause)))
                 }
               }
               // Inject result into parent (best-effort, after writeback).
               if (Exit.isSuccess(drainExit)) {
-                yield* sessions.injectSynthetic({
-                  sessionID: input.parentID,
-                  text: renderBackgroundResult({
-                    sessionID: input.sessionID,
-                    description: input.description,
-                    text: drainExit.value,
-                  }),
-                }).pipe(
-                  Effect.catchCause((cause) => Effect.logError("TaskDriver background injection failed", cause)),
-                )
+                yield* sessions
+                  .injectSynthetic({
+                    sessionID: input.parentID,
+                    text: renderBackgroundResult({
+                      sessionID: input.sessionID,
+                      description: input.description,
+                      text: drainExit.value,
+                    }),
+                  })
+                  .pipe(Effect.catchCause((cause) => Effect.logError("TaskDriver background injection failed", cause)))
               }
               if (Exit.isFailure(drainExit)) {
                 yield* Effect.logError("TaskDriver background delegation failed", drainExit.cause)
@@ -564,17 +584,12 @@ export const install = (
     // child still owns. Orphan cleanup before a retry: best-effort, so both legs
     // ignore failure rather than masking the original delegation error.
     cancel: (sessionID) =>
-      background
-        .cancel(sessionID)
-        .pipe(Effect.ignore, Effect.andThen(sessions.interrupt(sessionID))),
+      background.cancel(sessionID).pipe(Effect.ignore, Effect.andThen(sessions.interrupt(sessionID))),
     isChildSession: (sessionID) =>
       sessions.get(sessionID).pipe(
         Effect.map((info) => info.parentID !== undefined),
         Effect.orDie,
       ),
-    executeCLI: (input) =>
-      cli
-        ? cli.execute(input)
-        : Effect.fail(new Error("CLI adapter registry not available")),
+    executeCLI: (input) => (cli ? cli.execute(input) : Effect.fail(new Error("CLI adapter registry not available"))),
   }
 }

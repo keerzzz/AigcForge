@@ -66,9 +66,9 @@ export class TaskWriteError extends Schema.TaggedErrorClass<TaskWriteError>()("S
       case "stale_revision":
         return `Task ${this.id ? `"${this.id}" ` : ""}in session ${this.sessionID} changed since the caller last read it; retry with the current revision`
     }
-    // Unreachable: reason is a closed literal union, but consistent-return
-    // requires every path to return.
-    return `Task write failed in session ${this.sessionID} (reason: ${this.reason})`
+    // Unreachable: reason is a closed literal union (narrowed to `never` here),
+    // but consistent-return requires every path to return.
+    return `Task write failed in session ${this.sessionID} (reason: ${String(this.reason)})`
   }
 }
 

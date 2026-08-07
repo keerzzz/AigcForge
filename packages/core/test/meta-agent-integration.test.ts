@@ -32,4 +32,15 @@ describe("Meta-agent A injection integration", () => {
     const result = MetaPrompt.fillAssetsList(template, [{ kind: "mcp", name: "github" }])
     expect(result).toContain("- **mcps**: github")
   })
+
+  it("fillCliList refills an earlier empty fill (order-independent)", () => {
+    // The core plugin fills {{CLI_LIST}} with an empty list at init; the
+    // aigcfroge filler must still be able to overwrite that marker later.
+    const empty = MetaPrompt.fillCliList("CLIs:\n{{CLI_LIST}}", [])
+    expect(empty).toContain(MetaPrompt.NO_CLI_MESSAGE)
+    const refilled = MetaPrompt.fillCliList(empty, ["claude-code", "codex"])
+    expect(refilled).toContain("- claude-code")
+    expect(refilled).toContain("- codex")
+    expect(refilled).not.toContain(MetaPrompt.NO_CLI_MESSAGE)
+  })
 })

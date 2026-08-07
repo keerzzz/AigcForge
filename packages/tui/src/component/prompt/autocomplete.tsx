@@ -405,7 +405,7 @@ export function Autocomplete(props: {
       .map(
         (agent): AutocompleteOption => ({
           display: "@" + agent.name,
-          description: agent.source === "external-cli" ? "[CLI]" : undefined,
+          description: agent.source === "external-cli" ? "CLI" : undefined,
           onSelect: () => {
             insertPart(agent.name, {
               type: "agent",

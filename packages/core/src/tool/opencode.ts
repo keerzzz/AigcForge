@@ -15,9 +15,7 @@ export const adapter: CliAdapter = {
   detect: () => Effect.sync(() => which(COMMAND) !== null),
 
   buildArgs: (input: { prompt: string; cwd: string; resumeId?: string }) =>
-    Effect.succeed(
-      input.resumeId ? ["run", "--resume", input.resumeId] : ["run", input.prompt],
-    ),
+    Effect.succeed(input.resumeId ? ["run", "--session", input.resumeId, input.prompt] : ["run", input.prompt]),
 
   parseOutput: (stdout: string, stderr: string) =>
     Effect.gen(function* () {
@@ -34,7 +32,10 @@ export const adapter: CliAdapter = {
       try {
         const parsed = JSON.parse(line)
         if (parsed.type === "session.resume_hint" && typeof parsed.sessionID === "string") return parsed.sessionID
-      } catch { continue }
+        if (typeof parsed.sessionID === "string") return parsed.sessionID
+      } catch {
+        continue
+      }
     }
     return undefined
   },

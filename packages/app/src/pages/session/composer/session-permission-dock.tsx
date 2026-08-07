@@ -21,6 +21,20 @@ export function SessionPermissionDock(props: {
     return value
   }
 
+  const metaDescription = () => {
+    const value = props.request.metadata?.description
+    return typeof value === "string" && value ? value : ""
+  }
+  const metaCliTarget = () => {
+    const value = props.request.metadata?.cli_target
+    return typeof value === "string" && value ? value : ""
+  }
+  const metaExecutionType = () => {
+    const value = props.request.metadata?.execution_type
+    return typeof value === "string" && value ? value : ""
+  }
+  const hasMetadata = createMemo(() => Boolean(metaDescription() || metaCliTarget() || metaExecutionType()))
+
   return (
     <DockPrompt
       kind="permission"
@@ -68,6 +82,23 @@ export function SessionPermissionDock(props: {
         <div data-slot="permission-row">
           <span data-slot="permission-spacer" aria-hidden="true" />
           <div data-slot="permission-hint">{toolDescription()}</div>
+        </div>
+      </Show>
+
+      <Show when={hasMetadata()}>
+        <div data-slot="permission-row">
+          <span data-slot="permission-spacer" aria-hidden="true" />
+          <div data-slot="permission-metadata">
+            <Show when={metaExecutionType()}>
+              <code class="text-12-regular text-text-base break-all">{metaExecutionType()}</code>
+            </Show>
+            <Show when={metaCliTarget()}>
+              <code class="text-12-regular text-text-base break-all">{metaCliTarget()}</code>
+            </Show>
+            <Show when={metaDescription()}>
+              <div class="text-12-regular text-text-weak">{metaDescription()}</div>
+            </Show>
+          </div>
         </div>
       </Show>
 

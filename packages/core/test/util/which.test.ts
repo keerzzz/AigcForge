@@ -97,4 +97,19 @@ describe("util.which", () => {
 
     same(which("mixed", envPath(bin)), file)
   })
+
+  test("finds a command through the login-shell PATH when the process PATH is missing", async () => {
+    await using tmp = await tmpdir()
+    const bin = path.join(tmp.path, "bin")
+    await fs.mkdir(bin)
+    const file = await cmd(bin, "login-cli")
+
+    // Explicitly-empty PATH (e.g. GUI-launched process) + a login-shell env that
+    // still carries the directory where the binary lives.
+    same(which("login-cli", { PATH: "" }, { PATH: bin }), file)
+  })
+
+  test("returns null when a missing PATH has no login-shell fallback either", () => {
+    expect(which("aigcfroge-no-login-cli", { PATH: "" })).toBeNull()
+  })
 })

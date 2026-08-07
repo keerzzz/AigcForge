@@ -49,7 +49,8 @@ import { SkillV2 } from "@aigcfroge/core/skill"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { Config } from "@aigcfroge/core/config"
 import { ConfigCompaction } from "@aigcfroge/core/config/compaction"
-import { SessionTable } from "@aigcfroge/core/session/sql"
+import { SessionTable, TaskTable } from "@aigcfroge/core/session/sql"
+import { SessionMessage } from "@aigcfroge/core/session/message"
 import { SessionStore } from "@aigcfroge/core/session/store"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { SystemContext } from "@aigcfroge/core/system-context"
@@ -58,6 +59,7 @@ import { SkillGuidance } from "@aigcfroge/core/skill/guidance"
 import { ReferenceGuidance } from "@aigcfroge/core/reference/guidance"
 import { Location } from "@aigcfroge/core/location"
 import { Deferred, Effect, Exit, Fiber, Layer, Schema, Stream } from "effect"
+import { eq } from "drizzle-orm"
 import { testEffect } from "./lib/effect"
 
 const parentID = SessionV2.ID.make("ses_task_parent")
@@ -79,6 +81,17 @@ let streamStarted: Deferred.Deferred<void> | undefined
 let backgroundMode = false
 // When set, the parent's task call passes attended: <value> in the tool input.
 let attendedMode: boolean | undefined
+// External-CLI mode: the parent's task call emits execution_type + cli_target,
+// and the installed seam's CLI executor returns a canned result.
+let cliMode = false
+let cliMissingTarget = false
+let cliTarget = "claude-code"
+let cliResultText = "cli result text"
+let cliResultStatus: "success" | "failed" = "success"
+const cliResultSessionID = SessionV2.ID.make("ses_cli_child")
+const cliReceived: Array<{ cliTarget: string; prompt: string; sessionID: SessionV2.ID }> = []
+// Permission assert inputs captured so tests can assert the CLI request shape.
+const permissionCalls: unknown[] = []
 // Route by promptCacheKey (= sessionID): the parent emits a task tool call, any
 // other Session (the dynamically-created child) emits plain text.
 const stopWithText = (id: string, text: string): LLMEvent[] => [
@@ -125,6 +138,9 @@ const client = Layer.succeed(
             description: "do work",
             prompt: "Investigate the thing",
             subagent_type: "build",
+            ...(cliMode
+              ? { execution_type: "external-cli", ...(cliMissingTarget ? {} : { cli_target: cliTarget }) }
+              : {}),
             ...(nextTaskID ? { task_id: nextTaskID } : {}),
             ...(backgroundMode ? { background: true } : {}),
             ...(attendedMode !== undefined ? { attended: attendedMode } : {}),
@@ -142,7 +158,10 @@ const model = Model.make({ id: "task-model", provider: "task", route: OpenAIChat
 const permission = Layer.succeed(
   PermissionV2.Service,
   PermissionV2.Service.of({
-    assert: () => Effect.void,
+    assert: (input) =>
+      Effect.sync(() => {
+        permissionCalls.push(input)
+      }),
     ask: () => Effect.die("unused"),
     reply: () => Effect.die("unused"),
     get: () => Effect.die("unused"),
@@ -299,24 +318,40 @@ const setup = Effect.gen(function* () {
   streamStarted = undefined
   backgroundMode = false
   attendedMode = undefined
+  cliMode = false
+  cliMissingTarget = false
+  cliTarget = "claude-code"
+  cliResultText = "cli result text"
+  cliResultStatus = "success"
+  cliReceived.length = 0
+  permissionCalls.length = 0
   // Install the seam with the test's own SessionV2 so the tool's child Session
   // lands in the same in-memory db the test body reads. Register the default
   // agent so the tool can resolve subagent_type "build". Mirrors TaskDriverFill.
   const sessions = yield* SessionV2.Service
   const background = yield* BackgroundJob.Service
-  TaskDriver.install(sessions, {
-    start: (sessionID, work) => background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
-    wait: (sessionID) =>
-      background.wait({ id: sessionID }).pipe(
-        Effect.map(({ info }) =>
-          info && info.status !== "running"
-            ? { status: info.status, ...(info.error ? { error: info.error } : {}) }
-            : undefined,
+  TaskDriver.install(
+    sessions,
+    {
+      start: (sessionID, work) => background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
+      wait: (sessionID) =>
+        background.wait({ id: sessionID }).pipe(
+          Effect.map(({ info }) =>
+            info && info.status !== "running"
+              ? { status: info.status, ...(info.error ? { error: info.error } : {}) }
+              : undefined,
+          ),
         ),
-      ),
-    cancel: (sessionID) => background.cancel(sessionID).pipe(Effect.asVoid),
-    extend: (sessionID, work) => background.extend({ id: sessionID, run: work.pipe(Effect.as("")) }),
-  }, undefined)
+      cancel: (sessionID) => background.cancel(sessionID).pipe(Effect.asVoid),
+      extend: (sessionID, work) => background.extend({ id: sessionID, run: work.pipe(Effect.as("")) }),
+    },
+    {
+      execute: (input) => {
+        cliReceived.push(input)
+        return Effect.succeed({ text: cliResultText, sessionID: cliResultSessionID, status: cliResultStatus })
+      },
+    },
+  )
   const agents = yield* AgentV2.Service
   yield* agents.transform((editor) => {
     editor.update(AgentV2.ID.make("build"), (draft) => {
@@ -343,6 +378,17 @@ const setup = Effect.gen(function* () {
     .run()
     .pipe(Effect.orDie)
 })
+
+// Find the `task` tool's terminal state on the parent's latest assistant turn so
+// CLI tests can assert the structured result / error without re-implementing
+// message traversal at every call site.
+const readTaskToolState = (messages: ReadonlyArray<SessionMessage.Message>): SessionMessage.ToolState | undefined => {
+  const assistant = messages.find((message): message is SessionMessage.Assistant => message.type === "assistant")
+  const tool = assistant?.content.find(
+    (part): part is SessionMessage.AssistantTool => part.type === "tool" && part.name === "task",
+  )
+  return tool?.state
+}
 
 describe("task tool — child Session delegation", () => {
   it.effect("forks a child Session, runs it, and returns its final text", () =>
@@ -637,6 +683,112 @@ describe("task tool — child Session delegation", () => {
       expect(yield* TaskDriver.isChildSession(parentID)).toBe(false)
       // Child session has a parentID → isChildSession returns true.
       expect(yield* TaskDriver.isChildSession(childID)).toBe(true)
+    }),
+  )
+
+  it.live("R6 external-cli tool result carries sessionId/cli/execution_type/status metadata", () =>
+    Effect.gen(function* () {
+      yield* setup
+      cliMode = true
+      cliTarget = "claude-code"
+      cliResultText = "cli output text"
+      cliResultStatus = "success"
+      const session = yield* SessionV2.Service
+
+      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate cli" }), resume: false })
+      yield* session.resume(parentID)
+
+      const state = yield* session.context(parentID).pipe(Effect.map(readTaskToolState))
+      expect(state?.status).toBe("completed")
+      // The tool's raw Output (with metadata) is persisted as the structured
+      // result, not `state.result` (which is the model-facing ToolResultValue).
+      const structured = state?.status === "completed" ? state.structured : undefined
+      expect(structured?.["sessionID"]).toBe(cliResultSessionID)
+      expect(structured?.["metadata"]).toMatchObject({
+        sessionId: cliResultSessionID,
+        parentSessionId: parentID,
+        cli: "claude-code",
+        execution_type: "external-cli",
+        status: "success",
+      })
+    }),
+  )
+
+  it.live("R7 external-cli failure renders task_error instead of a fixed completed state", () =>
+    Effect.gen(function* () {
+      yield* setup
+      cliMode = true
+      cliResultStatus = "failed"
+      cliResultText = "cli failed output"
+      const session = yield* SessionV2.Service
+
+      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate failing cli" }), resume: false })
+      yield* session.resume(parentID)
+
+      const state = yield* session.context(parentID).pipe(Effect.map(readTaskToolState))
+      expect(state?.status).toBe("completed")
+      const structured = state?.status === "completed" ? state.structured : undefined
+      expect(structured?.["output"]).toContain("task_error")
+      expect(structured?.["output"]).toContain("cli failed output")
+      expect(structured?.["metadata"]).toMatchObject({ status: "failed" })
+    }),
+  )
+
+  it.live("R8 external-cli without cli_target fails with ToolFailure", () =>
+    Effect.gen(function* () {
+      yield* setup
+      cliMode = true
+      cliMissingTarget = true
+      const session = yield* SessionV2.Service
+
+      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate missing target" }), resume: false })
+      yield* session.resume(parentID)
+
+      const state = yield* session.context(parentID).pipe(Effect.map(readTaskToolState))
+      expect(state?.status).toBe("error")
+      const error = state?.status === "error" ? state.error : undefined
+      expect(error?.message).toContain("cli_target is required")
+    }),
+  )
+
+  it.live("R9 external-cli permission assert carries resources:[cli_target] + metadata", () =>
+    Effect.gen(function* () {
+      yield* setup
+      cliMode = true
+      cliTarget = "gemini"
+      const session = yield* SessionV2.Service
+
+      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate with permission" }), resume: false })
+      yield* session.resume(parentID)
+
+      const call = permissionCalls.at(-1)
+      expect(call).toMatchObject({
+        action: "task",
+        resources: ["gemini"],
+        metadata: { description: "do work", execution_type: "external-cli" },
+      })
+    }),
+  )
+
+  it.live("R10 external-cli creates a session_task record that settles completed", () =>
+    Effect.gen(function* () {
+      yield* setup
+      cliMode = true
+      const session = yield* SessionV2.Service
+      const { db } = yield* Database.Service
+
+      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate with task link" }), resume: false })
+      yield* session.resume(parentID)
+
+      const rows = yield* db
+        .select()
+        .from(TaskTable)
+        .where(eq(TaskTable.session_id, parentID))
+        .all()
+        .pipe(Effect.orDie)
+      const linked = rows.find((row) => row.content === "do work")
+      expect(linked).toBeDefined()
+      expect(linked?.status).toBe("completed")
     }),
   )
 })

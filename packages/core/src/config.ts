@@ -11,6 +11,7 @@ import { Policy } from "./policy"
 import { AbsolutePath } from "./schema"
 import { ConfigAgent } from "./config/agent"
 import { ConfigAttachments } from "./config/attachments"
+import { ConfigCliAgent } from "./config/cli-agent"
 import { ConfigCompaction } from "./config/compaction"
 import { ConfigCommand } from "./config/command"
 import { ConfigExperimental } from "./config/experimental"
@@ -61,6 +62,9 @@ export class Info extends Schema.Class<Info>("Config.Info")({
   }),
   agents: Schema.Record(Schema.String, ConfigAgent.Info).pipe(Schema.optional).annotate({
     description: "Named built-in agent overrides and custom agent definitions",
+  }),
+  cli_agents: Schema.Record(Schema.String, ConfigCliAgent.Info).pipe(Schema.optional).annotate({
+    description: "Named external CLI agent definitions that delegate to installed CLI tools",
   }),
   snapshots: Schema.Boolean.pipe(Schema.optional).annotate({
     description: "Enable snapshots used for undo and revert behavior",

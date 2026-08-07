@@ -3,6 +3,20 @@ import { Effect } from "effect"
 import { testEffect } from "../../../lib/effect"
 import { disposeAllInstances } from "../../../fixture/fixture"
 import { CliAdapterRegistry } from "../../../../src/agent/meta/adapters/registry"
+import { Config } from "@aigcfroge/core/config"
+import { ConfigCliAgent } from "@aigcfroge/core/config/cli-agent"
+import { registerConfigCliAdapters } from "@aigcfroge/core/tool/cli-adapter"
+import { adapter as claudeCodeSdkAdapter } from "@aigcfroge/core/tool/claude-code-sdk"
+
+const cliAgentDoc = (entries: Record<string, { command: string; transport?: "jsonl" | "sdk" | "acp" }>) =>
+  new Config.Document({
+    type: "document",
+    info: new Config.Info({
+      cli_agents: Object.fromEntries(
+        Object.entries(entries).map(([name, value]) => [name, new ConfigCliAgent.Info(value)]),
+      ),
+    }),
+  })
 
 const it = testEffect(CliAdapterRegistry.defaultLayer)
 
@@ -104,6 +118,46 @@ describe("adapter registry", () => {
       expect(agentInfo.source).toBe("external-cli")
       expect(agentInfo.native).toBe(false)
       expect(agentInfo.hidden).toBe(false)
+    }),
+  )
+
+  it.instance("merges config-defined cli_agents into the registry", () =>
+    Effect.gen(function* () {
+      const registry = yield* CliAdapterRegistry.AdapterRegistry
+      registerConfigCliAdapters([cliAgentDoc({ "custom-cli": { command: "custom-cli" } })])
+      const adapter = yield* registry.get("custom-cli")
+      expect(adapter).toBeDefined()
+      expect(adapter!.name).toBe("custom-cli")
+      expect(adapter!.command).toBe("custom-cli")
+    }),
+  )
+
+  it.instance("config cli_agents override built-ins with the same name", () =>
+    Effect.gen(function* () {
+      const registry = yield* CliAdapterRegistry.AdapterRegistry
+      registerConfigCliAdapters([cliAgentDoc({ "claude-code": { command: "my-claude" } })])
+      const adapter = yield* registry.get("claude-code")
+      expect(adapter).toBeDefined()
+      expect(adapter!.command).toBe("my-claude")
+    }),
+  )
+
+  it.instance("config transport sdk keeps the built-in SDK adapter for claude/codex", () =>
+    Effect.gen(function* () {
+      const registry = yield* CliAdapterRegistry.AdapterRegistry
+      registerConfigCliAdapters([cliAgentDoc({ "claude-code": { command: "claude", transport: "sdk" } })], {
+        "claude-code": { sdk: claudeCodeSdkAdapter },
+      })
+      const adapter = yield* registry.get("claude-code")
+      expect(adapter?.transport).toBe("sdk")
+    }),
+  )
+
+  it.instance("config transport sdk for an unknown name fails loudly", () =>
+    Effect.gen(function* () {
+      expect(() =>
+        registerConfigCliAdapters([cliAgentDoc({ "custom-cli": { command: "custom", transport: "sdk" } })]),
+      ).toThrow()
     }),
   )
 })

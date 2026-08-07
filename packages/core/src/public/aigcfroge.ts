@@ -27,7 +27,7 @@ const SessionsLayer = SessionV2.layer.pipe(
   Layer.provide(SessionProjector.layer),
   Layer.provide(SessionExecutionLocal.layer),
   Layer.provide(SessionStore.layer),
-  Layer.provide(EventV2.layer),
+  Layer.provide(EventV2.defaultLayer),
   Layer.provide(Database.defaultLayer),
   Layer.provide(ProjectV2.defaultLayer),
   Layer.provide(LocationServiceMap.layer.pipe(Layer.provide(ApplicationTools.layer))),
@@ -36,9 +36,14 @@ const SessionsLayer = SessionV2.layer.pipe(
 
 // Installs the SessionV2-backed TaskDriver bridge so the `task` built-in can
 // drive child Sessions. The child drain runs on a BackgroundJob fiber (never
-// the caller's), so wire BackgroundJob alongside SessionV2.
+// the caller's), so wire BackgroundJob alongside SessionV2. The fill writes
+// child messages through EventV2, and a provided Session layer consumes its own
+// EventV2 internally — so the fill must be given the shared EventV2.defaultLayer
+// explicitly, or its `yield* EventV2.Service` dies with "Service not found".
 const FillerLayer = TaskDriverFill.layer.pipe(
-  Layer.provide(Layer.merge(SessionsLayer, BackgroundJob.defaultLayer)),
+  Layer.provide(SessionsLayer),
+  Layer.provide(BackgroundJob.defaultLayer),
+  Layer.provide(EventV2.defaultLayer),
 )
 // TODO: Accept explicit storage so tests and embeddings can select disposable or application-owned persistence.
 export const layer = Layer.effect(

@@ -1366,3 +1366,42 @@
 [data-component="task-tool-summary-total"] [data-slot="task-tool-summary-total-text"] {
   font-weight: var(--font-weight-regular);
 }
+
+/* External-CLI task card: CLI badge, status chip, collapsible summary. */
+[data-component="task-tool-cli-badge"] {
+  flex-shrink: 0;
+  padding: 0 4px;
+  border: 1px solid var(--v2-border-border-muted);
+  border-radius: 4px;
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-large);
+  color: var(--v2-text-text-muted);
+  white-space: nowrap;
+}
+
+[data-component="task-tool-status"] {
+  flex-shrink: 0;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-large);
+  color: var(--v2-text-text-muted);
+}
+
+[data-component="task-tool-status"][data-state="failed"] {
+  background: var(--v2-state-bg-danger);
+}
+
+[data-component="task-tool-status"][data-state="timeout"] {
+  background: var(--v2-state-bg-warning);
+}
+
+[data-component="task-tool-cli-summary"] {
+  padding: 8px 0 4px 28px;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-large);
+  color: var(--v2-text-text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}

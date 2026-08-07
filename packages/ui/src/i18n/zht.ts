@@ -121,6 +121,7 @@ export const dict = {
   "ui.tool.agent": "{{type}} 代理程式",
   "ui.tool.agent.default": "代理程式",
   "ui.tool.agent.openSession": "Open sub-agent session",
+  "ui.tool.cli": "CLI",
 
   "ui.common.file.one": "個檔案",
   "ui.common.file.other": "個檔案",

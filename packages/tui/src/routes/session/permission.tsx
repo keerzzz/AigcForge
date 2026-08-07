@@ -108,6 +108,17 @@ function TextBody(props: { title: string; description?: string; icon?: string })
   )
 }
 
+/** Permission prompt title for a `task` request: external-CLI dispatches show the
+ * CLI target, internal delegations show the subagent type. */
+export function permissionTaskTitle(data: Record<string, unknown>): string {
+  if (data.execution_type === "external-cli") {
+    const target = typeof data.cli_target === "string" && data.cli_target ? data.cli_target : ""
+    return target ? `${Locale.titlecase(target)} CLI` : "CLI"
+  }
+  const type = typeof data.subagent_type === "string" && data.subagent_type ? data.subagent_type : "Unknown"
+  return `${Locale.titlecase(type)} Task`
+}
+
 export function PermissionPrompt(props: { request: PermissionRequest; directory?: string }) {
   const sdk = useSDK()
   const project = useProject()
@@ -284,11 +295,11 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
             }
 
             if (permission === "task") {
-              const type = typeof data.subagent_type === "string" ? data.subagent_type : "Unknown"
+              const isExternalCli = data.execution_type === "external-cli"
               const desc = typeof data.description === "string" ? data.description : ""
               return {
-                icon: "#",
-                title: `${Locale.titlecase(type)} Task`,
+                icon: isExternalCli ? "λ" : "#",
+                title: permissionTaskTitle(data),
                 body: (
                   <Show when={desc}>
                     <box paddingLeft={1}>

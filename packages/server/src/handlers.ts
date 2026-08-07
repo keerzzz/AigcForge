@@ -4,6 +4,7 @@ import { PermissionSaved } from "@aigcfroge/core/permission/saved"
 import { PtyTicket } from "@aigcfroge/core/pty/ticket"
 import { TaskDriverFill } from "@aigcfroge/core/session/task-driver-fill"
 import { BackgroundJob } from "@aigcfroge/core/background-job"
+import { EventV2 } from "@aigcfroge/core/event"
 import { v2RuntimeLayer, v2ShareLayer } from "@aigcfroge/core/session/v2-runtime"
 import { Layer } from "effect"
 import { layer as locationLayer } from "./groups/location"
@@ -35,6 +36,9 @@ import { ProjectCopyHandler } from "./handlers/project-copy"
 const fillerLayer = TaskDriverFill.layer.pipe(
   Layer.provide(SessionV2.defaultLayer),
   Layer.provide(BackgroundJob.defaultLayer),
+  // The fill writes child messages through EventV2; SessionV2.defaultLayer
+  // consumes its own EventV2 internally, so provide the shared default explicitly.
+  Layer.provide(EventV2.defaultLayer),
 )
 
 export const handlers = Layer.mergeAll(
