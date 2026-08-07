@@ -8,7 +8,7 @@ import { getCACertificates, setDefaultCACertificates } from "node:tls"
 import type { Event } from "electron"
 import { app, BrowserWindow } from "electron"
 
-import { Deferred, Effect, Fiber } from "effect"
+import { Deferred, Effect } from "effect"
 import contextMenu from "electron-context-menu"
 
 import type { ServerReadyData } from "../preload/types"
@@ -16,12 +16,14 @@ import { checkAppExists, resolveAppPath } from "./apps"
 import { CHANNEL } from "./constants"
 import { registerIpcHandlers, sendDeepLinks, sendMenuCommand } from "./ipc"
 import { forwardInitializationFailure } from "./initialization"
-import { exportDebugLogs, initCrashReporter, initLogging, startNetLog, write as writeLog } from "./logging"
+import { exportDebugLogs, getLogger, initCrashReporter, initLogging, write as writeLog } from "./logging"
 import { parseMarkdown } from "./markdown"
 import { createMenu } from "./menu"
+import { perf, setPerfSink } from "./perf"
 import {
   getDefaultServerUrl,
-  preferAppEnv,
+  preloadShellEnv,
+  preferAppEnvSync,
   setDefaultServerUrl,
   spawnLocalServer,
   type SidecarListener,
@@ -101,6 +103,8 @@ function ensureLoopbackNoProxy() {
 }
 
 const main = Effect.gen(function* () {
+  perf("before-whenReady")
+
   contextMenu({ showSaveImageAs: true, showLookUpSelection: false, showSearchWithGoogle: false })
 
   // on macOS apps run in `/` which can cause issues with ripgrep
@@ -134,6 +138,7 @@ const main = Effect.gen(function* () {
   )
   if (onboardingTestRoot) app.setPath("sessionData", join(onboardingTestRoot, "session"))
   logger = initLogging()
+  setPerfSink((label, ms) => writeLog("startup", label, { ms }))
   initCrashReporter()
 
   const wslServers = createWslServersController(
@@ -186,7 +191,9 @@ const main = Effect.gen(function* () {
     return
   }
 
-  preferAppEnv(app.getPath("userData"))
+  perf("before-preferAppEnv")
+  preferAppEnvSync(app.getPath("userData"))
+  const shellEnvPromise = preloadShellEnv(getLogger())
 
   app.on("second-instance", (_event: Event, argv: string[]) => {
     const urls = argv.filter((arg: string) => arg.startsWith("aigcfroge://"))
@@ -235,8 +242,12 @@ const main = Effect.gen(function* () {
   const serverReady = Deferred.makeUnsafe<ServerReadyData, unknown>()
 
   yield* Effect.promise(() => app.whenReady())
+  perf("after-whenReady")
+  yield* Effect.promise(() => shellEnvPromise)
+  perf("after-preferAppEnv")
 
   if (!TEST_ONBOARDING) migrate()
+  perf("after-migrate")
   app.setAsDefaultProtocolClient("aigcfroge")
   registerRendererProtocol()
   setDockIcon()
@@ -268,17 +279,29 @@ const main = Effect.gen(function* () {
     recordFatalRendererError: (error) => writeLog("renderer", "fatal renderer error", { ...error }, "error"),
   })
   registerWslIpcHandlers(wslServers)
-  void updater.start()
+  // Defer the update check so it does not compete with sidecar startup network I/O.
+  setTimeout(() => void updater.start(), 2_000).unref()
   const updateTimer = setInterval(() => void updater.check(), 10 * 60 * 1000)
   updateTimer.unref()
   app.once("will-quit", () => clearInterval(updateTimer))
-  yield* Effect.promise(() => startNetLog()).pipe(
-    Effect.catch((error) =>
-      Effect.sync(() => {
-        logger.warn("failed to start net log", error)
-      }),
-    ),
-  )
+  perf("after-preWindowSetup")
+
+  mainWindow = createMainWindow()
+  if (mainWindow) {
+    createMenu({
+      trigger: (id) => {
+        const win = BrowserWindow.getFocusedWindow() ?? mainWindow
+        if (win) sendMenuCommand(win, id)
+      },
+      checkForUpdates: () => {
+        void showUpdaterDialog(updater, true)
+      },
+      relaunch: () => {
+        relaunch()
+      },
+    })
+  }
+  perf("after-createWindow")
 
   const port = yield* Effect.gen(function* () {
     const fromEnv = process.env.AIGCFROGE_PORT
@@ -307,7 +330,7 @@ const main = Effect.gen(function* () {
   const url = `http://${hostname}:${port}`
   const password = randomUUID()
 
-  const loadingTask = yield* Effect.gen(function* () {
+  yield* Effect.gen(function* () {
     logger.log("sidecar connection started", { url })
 
     ensureLoopbackNoProxy()
@@ -328,6 +351,7 @@ const main = Effect.gen(function* () {
       username: "aigcfroge",
       password,
     })
+    perf("after-spawnSidecar")
 
     if (process.platform === "win32") {
       void wslServers.initialize().catch((error) => logger.error("wsl server initialization failed", error))
@@ -341,27 +365,14 @@ const main = Effect.gen(function* () {
         }),
       ),
     )
+    perf("after-healthCheck")
 
     logger.log("loading task finished")
-  }).pipe(forwardInitializationFailure(serverReady), Effect.forkChild)
-
-  yield* Fiber.await(loadingTask)
-
-  mainWindow = createMainWindow()
-  if (mainWindow) {
-    createMenu({
-      trigger: (id) => {
-        const win = BrowserWindow.getFocusedWindow() ?? mainWindow
-        if (win) sendMenuCommand(win, id)
-      },
-      checkForUpdates: () => {
-        void showUpdaterDialog(updater, true)
-      },
-      relaunch: () => {
-        relaunch()
-      },
-    })
-  }
+    // `forkChild` would interrupt this fiber when `main` completes (auto
+    // supervision), killing the sidecar. `forkDetach` lets the sidecar task
+    // outlive the startup fiber; failures still reach the renderer through
+    // `forwardInitializationFailure(serverReady)`.
+  }).pipe(forwardInitializationFailure(serverReady), Effect.forkDetach)
 })
 
 Effect.runFork(main)
