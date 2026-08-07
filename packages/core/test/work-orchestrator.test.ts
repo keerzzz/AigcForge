@@ -50,4 +50,11 @@ describe("WorkOrchestratorPrompt", () => {
     expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("currentStepIndex")
     expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("without regenerating")
   })
+
+  test("guides Mermaid usage for unclear prose in step 5 (M3)", () => {
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("Mermaid")
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("```mermaid")
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("when text alone is unclear")
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("do not force diagrams into every document")
+  })
 })
