@@ -25,6 +25,7 @@ import {
 import { markdownBlockKey, type MarkdownToken } from "./markdown-worker-protocol"
 import { shouldResetCodeTokens, type RenderedCodeState } from "./markdown-code-state"
 import { getCachedMarkdown, sanitizeMarkdown, touchCachedMarkdown, type MarkdownCacheEntry } from "./markdown-cache"
+import { renderMermaidBlocks } from "./mermaid"
 
 type RenderedBlock =
   | (MarkdownCacheEntry & { key: string; mode: Exclude<Block["mode"], "code"> })
@@ -340,18 +341,18 @@ export function Markdown(
             return rendered
           }
 
-          if (key) {
-            const cached = getCachedMarkdown(key)
-            if (cached?.raw === block.raw) {
-              touchCachedMarkdown(key, cached)
-              return { key: blockKey, mode: block.mode, ...cached }
-            }
-          }
-
           const hash = checksum(block.raw)
-          const safe = sanitizeMarkdown(await Promise.resolve(marked.parse(block.src)))
-          if (key && hash) touchCachedMarkdown(key, { raw: block.raw, hash, html: safe })
-          return { key: blockKey, mode: block.mode, raw: block.raw, hash: hash ?? "", html: safe }
+          let html: string
+          const cached = key ? getCachedMarkdown(key) : undefined
+          if (cached?.raw === block.raw) {
+            touchCachedMarkdown(key!, cached)
+            html = cached.html
+          } else {
+            html = sanitizeMarkdown(await Promise.resolve(marked.parse(block.src)))
+            if (key && hash) touchCachedMarkdown(key, { raw: block.raw, hash, html })
+          }
+          const finalHtml = await renderMermaidBlocks(html)
+          return { key: blockKey, mode: block.mode, raw: block.raw, hash: hash ?? "", html: finalHtml }
         }),
       )
         .then((blocks) => ({ text: src.text, blocks }) satisfies RenderResult)

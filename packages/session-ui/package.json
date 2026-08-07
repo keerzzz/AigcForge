@@ -35,10 +35,10 @@
     "vite": "catalog:"
   },
   "dependencies": {
-    "@kobalte/core": "catalog:",
     "@aigcfroge/core": "workspace:*",
     "@aigcfroge/sdk": "workspace:*",
     "@aigcfroge/ui": "workspace:*",
+    "@kobalte/core": "catalog:",
     "@pierre/diffs": "catalog:",
     "@shikijs/stream": "catalog:",
     "@shikijs/transformers": "3.9.2",
@@ -56,6 +56,7 @@
     "marked": "catalog:",
     "marked-katex-extension": "5.1.6",
     "marked-shiki": "catalog:",
+    "mermaid": "11.16.0",
     "morphdom": "2.7.8",
     "motion": "12.34.5",
     "remeda": "catalog:",

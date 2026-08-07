@@ -468,6 +468,13 @@ async function highlightCodeBlocks(html: string): Promise<string> {
 
 export type NativeMarkdownParser = (markdown: string) => Promise<string>
 
+export function mermaidPlaceholder(code: string): string {
+  // Percent-encode the source: DOMPurify strips attribute values containing
+  // "-->"/"]>" (comment-closing sequences), which common mermaid syntax hits.
+  const encoded = encodeURIComponent(code)
+  return `<div data-mermaid="${encoded}"></div>`
+}
+
 export const { use: useMarked, provider: MarkedProvider } = createSimpleContext({
   name: "Marked",
   init: (props: { nativeParser?: NativeMarkdownParser }) => {
@@ -486,6 +493,7 @@ export const { use: useMarked, provider: MarkedProvider } = createSimpleContext(
       }),
       markedShiki({
         async highlight(code, lang) {
+          if (lang === "mermaid") return mermaidPlaceholder(code)
           const highlighter = await getSharedHighlighter({
             themes: ["Aigcfroge"],
             langs: [],
