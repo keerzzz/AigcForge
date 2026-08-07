@@ -73,6 +73,7 @@ export type Event =
   | EventTaskUpdated
   | EventTodoUpdated
   | EventTaskProgress
+  | EventWorkAssetSaved
   | EventWorkArtifactApplied
   | EventLspUpdated
   | EventPermissionAsked
@@ -1477,6 +1478,13 @@ export type GlobalEvent = {
       }
     | {
         id: string
+        type: "work.asset_saved"
+        properties: {
+          relativePath: string
+        }
+      }
+    | {
+        id: string
         type: "work.artifact_applied"
         properties: {
           sessionID: string
@@ -2084,6 +2092,9 @@ export type Config = {
       | {
           enabled: boolean
         }
+  }
+  cli_agents?: {
+    [key: string]: ConfigV2CliAgent
   }
   /**
    * Enable or configure formatters. Omit or set to false to disable, true to enable built-ins, or an object to enable built-ins with overrides.
@@ -3466,6 +3477,7 @@ export type V2Event =
   | V2EventTaskUpdated
   | V2EventTodoUpdated
   | V2EventTaskProgress
+  | V2EventWorkAssetSaved
   | V2EventWorkArtifactApplied
   | V2EventLspUpdated
   | V2EventPermissionAsked
@@ -4399,6 +4411,18 @@ export type ConfigV2ReferenceLocal = {
   path: string
   description?: string
   hidden?: boolean
+}
+
+export type ConfigV2CliAgent = {
+  /**
+   * Executable name or absolute path of the CLI.
+   */
+  command: string
+  description?: string
+  args?: Array<string>
+  output?: "claude-jsonl" | "codex-jsonl" | "plain"
+  transport?: "jsonl" | "sdk" | "acp"
+  timeout?: number
 }
 
 export type PolicyEffect = "allow" | "deny"
@@ -6768,6 +6792,23 @@ export type V2EventTaskProgress = {
   }
 }
 
+export type V2EventWorkAssetSaved = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "work.asset_saved"
+  data: {
+    relativePath: string
+  }
+}
+
 export type V2EventWorkArtifactApplied = {
   id: string
   metadata?: {
@@ -8152,6 +8193,14 @@ export type EventTaskProgress = {
     current?: number | "NaN" | "Infinity" | "-Infinity"
     total?: number | "NaN" | "Infinity" | "-Infinity"
     updatedAt: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventWorkAssetSaved = {
+  id: string
+  type: "work.asset_saved"
+  properties: {
+    relativePath: string
   }
 }
 
