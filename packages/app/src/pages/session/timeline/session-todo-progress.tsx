@@ -309,7 +309,11 @@ export function SessionTodoProgress(props: {
                     }
                   />
                   <Show when={task().outputDigest}>
-                    <span data-slot="step-digest" class="pl-6 text-12-regular text-text-weak">
+                    <span
+                      data-slot="step-digest"
+                      class="pl-6 text-12-regular text-text-weak"
+                      aria-label={`${language.t("work.step.digest")}: ${task().outputDigest}`}
+                    >
                       {task().outputDigest}
                     </span>
                   </Show>

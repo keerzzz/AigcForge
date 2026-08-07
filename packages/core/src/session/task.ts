@@ -98,6 +98,18 @@ export const Event = {
       tasks: Schema.Array(Info),
     },
   }),
+  /**
+   * M1.5 telemetry for the Work dialogue-level resume entry point (PRD §12,
+   * defined following the work.artifact_applied pattern). The resume is
+   * triggered client-side (SessionTodoProgress sends a preset prompt), so this
+   * type is available for consumers before a server emission channel exists.
+   */
+  StepResumed: EventV2.define({
+    type: "work.step_resumed",
+    schema: {
+      sessionID: SessionSchema.ID,
+    },
+  }),
   /** Legacy `todo.updated` projection emitted alongside every task write. */
   TodoUpdated: EventV2.define({
     type: "todo.updated",

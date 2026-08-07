@@ -1,4 +1,4 @@
-import { describe, expect } from "bun:test"
+import { describe, expect, test } from "bun:test"
 import { asc, eq } from "drizzle-orm"
 import { Context, Effect, Layer, Result, Schema } from "effect"
 import { Database } from "@aigcfroge/core/database/database"
@@ -1475,5 +1475,15 @@ describe("SessionTask", () => {
         expect(data.total).toBeUndefined()
       }),
     )
+  })
+})
+
+describe("SessionTask.Event.StepResumed (M1.5 work resume telemetry)", () => {
+  test("defines the work.step_resumed event with a sessionID payload", () => {
+    const payload = Schema.decodeUnknownSync(SessionTask.Event.StepResumed.data)({
+      sessionID: SessionV2.ID.make("ses_123"),
+    })
+    expect(payload.sessionID).toBe(SessionV2.ID.make("ses_123"))
+    expect(SessionTask.Event.StepResumed.type).toBe("work.step_resumed")
   })
 })
