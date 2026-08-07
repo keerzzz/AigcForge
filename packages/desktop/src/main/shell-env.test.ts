@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 
-import { isNushell, mergeShellEnv, parseShellEnv, resolveUserShell } from "./shell-env"
+import { isNushell, loadShellEnvAsync, mergeShellEnv, parseShellEnv, resolveUserShell } from "./shell-env"
 
 describe("shell env", () => {
   test("parseShellEnv supports null-delimited pairs", () => {
@@ -46,5 +46,28 @@ describe("shell env", () => {
     expect(isNushell("/opt/homebrew/bin/nu")).toBe(true)
     expect(isNushell("C:\\Program Files\\nu.exe")).toBe(true)
     expect(isNushell("/bin/zsh")).toBe(false)
+  })
+})
+
+describe("loadShellEnvAsync", () => {
+  const silent = { log: () => {} }
+
+  test("loads env from a shell that exits 0", async () => {
+    const env = await loadShellEnvAsync("/bin/sh", silent)
+
+    expect(env).not.toBeNull()
+    expect(Object.keys(env!).length).toBeGreaterThan(0)
+  })
+
+  test("returns null for nushell without spawning", async () => {
+    const env = await loadShellEnvAsync("nu", silent)
+
+    expect(env).toBeNull()
+  })
+
+  test("falls back to null when the shell does not exist", async () => {
+    const env = await loadShellEnvAsync("/nonexistent/shell", silent)
+
+    expect(env).toBeNull()
   })
 })

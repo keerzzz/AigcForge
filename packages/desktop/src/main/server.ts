@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url"
 import { app, utilityProcess } from "electron"
 import type { Details } from "electron"
 import { getLogger } from "./logging"
-import { getUserShell, loadShellEnv } from "./shell-env"
+import { getUserShell, loadShellEnv, loadShellEnvAsync, type ShellEnvLogger } from "./shell-env"
 import { getStore } from "./store"
 import { DEFAULT_SERVER_URL_KEY } from "./store-keys"
 
@@ -41,10 +41,9 @@ export function setDefaultServerUrl(url: string | null) {
   getStore().delete(DEFAULT_SERVER_URL_KEY)
 }
 
-export function preferAppEnv(userDataPath: string) {
-  const shell = process.platform === "win32" ? null : getUserShell()
+export function preferAppEnvSync(userDataPath: string, shellEnv?: Record<string, string> | null) {
   Object.assign(process.env, {
-    ...(shell ? loadShellEnv(shell, getLogger()) : null),
+    ...(shellEnv ?? null),
     AIGCFROGE_EXPERIMENTAL_ICON_DISCOVERY: "true",
     AIGCFROGE_EXPERIMENTAL_FILEWATCHER: "true",
     // Enable V2 event system so the V1 SessionProcessor dual-publishes
@@ -55,6 +54,23 @@ export function preferAppEnv(userDataPath: string) {
     AIGCFROGE_CLIENT: "desktop",
     XDG_STATE_HOME: process.env.XDG_STATE_HOME ?? userDataPath,
   })
+}
+
+// Async shell env probe, run concurrently with `app.whenReady()`. The result is
+// merged into `process.env` before the sidecar spawns so the server inherits
+// the user's shell PATH (ripgrep, node, ...). Never blocks the event loop.
+export function preloadShellEnv(logger: ShellEnvLogger): Promise<void> {
+  const shell = process.platform === "win32" ? null : getUserShell()
+  if (!shell) return Promise.resolve()
+  return loadShellEnvAsync(shell, logger).then((shellEnv) => {
+    if (shellEnv) Object.assign(process.env, shellEnv)
+  })
+}
+
+// Sync variant kept for rollback: index.ts can switch back to this call.
+export function preferAppEnv(userDataPath: string) {
+  const shell = process.platform === "win32" ? null : getUserShell()
+  preferAppEnvSync(userDataPath, shell ? loadShellEnv(shell, getLogger()) : null)
 }
 
 export async function spawnLocalServer(

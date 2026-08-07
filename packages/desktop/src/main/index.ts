@@ -16,13 +16,14 @@ import { checkAppExists, resolveAppPath } from "./apps"
 import { CHANNEL } from "./constants"
 import { registerIpcHandlers, sendDeepLinks, sendMenuCommand } from "./ipc"
 import { forwardInitializationFailure } from "./initialization"
-import { exportDebugLogs, initCrashReporter, initLogging, startNetLog, write as writeLog } from "./logging"
+import { exportDebugLogs, getLogger, initCrashReporter, initLogging, startNetLog, write as writeLog } from "./logging"
 import { parseMarkdown } from "./markdown"
 import { createMenu } from "./menu"
 import { perf, setPerfSink } from "./perf"
 import {
   getDefaultServerUrl,
-  preferAppEnv,
+  preloadShellEnv,
+  preferAppEnvSync,
   setDefaultServerUrl,
   spawnLocalServer,
   type SidecarListener,
@@ -191,8 +192,8 @@ const main = Effect.gen(function* () {
   }
 
   perf("before-preferAppEnv")
-  preferAppEnv(app.getPath("userData"))
-  perf("after-preferAppEnv")
+  preferAppEnvSync(app.getPath("userData"))
+  const shellEnvPromise = preloadShellEnv(getLogger())
 
   app.on("second-instance", (_event: Event, argv: string[]) => {
     const urls = argv.filter((arg: string) => arg.startsWith("aigcfroge://"))
@@ -241,6 +242,8 @@ const main = Effect.gen(function* () {
   const serverReady = Deferred.makeUnsafe<ServerReadyData, unknown>()
 
   yield* Effect.promise(() => app.whenReady())
+  yield* Effect.promise(() => shellEnvPromise)
+  perf("after-preferAppEnv")
   perf("after-whenReady")
 
   if (!TEST_ONBOARDING) migrate()
