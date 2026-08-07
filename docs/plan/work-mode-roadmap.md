@@ -28,8 +28,8 @@
 |---|---|---|---|---|
 | **M0** | 契约层 | Artifact 领域事件、Task 模型对齐、原子写入规范 | Todo M0 (Task Schema) | ✅ 已完成（并入 M1 交付） |
 | **M1** | 文档闭环 | Preset Catalog、澄清、Markdown 只读预览、同名询问、安全落盘 | 无外部依赖（不碰 ProgressLedger） | ✅ 已完成（merge `a041ca617`） |
-| **M1.5** | 进度与恢复 | Progress Ledger 节点 UI、断点恢复 (Resume)、对齐 Context Tab | **Todo M1（Task 模型）** | 🔲 待 Todo M1 合入 |
-| **M2** | 资产沉淀 | 消息级"存为资产"→ Chat 资产工作室 | Chat M3/M7 接口（已就绪） | 🔲 可并行启动 |
+| **M1.5** | 进度与恢复 | Progress Ledger 节点 UI、断点恢复 (Resume)、对齐 Context Tab | **Todo M1（Task 模型）** | ✅ 已完成（work-m1.5 分支，实现+审批通过，已合入 main 2026-08-07） |
+| **M2** | 资产沉淀 | 消息级"存为资产"→ Chat 资产工作室 | Chat M3/M7 接口（已就绪） | ✅ 已完成（work-m2 分支，实现+审批通过，已合入 main 2026-08-07） |
 | **M3** | 扩展产出 | DataAnalysis / 图表 HTML 产出 | CSP 安全评审 | 🔲 远期 |
 
 ---
@@ -211,9 +211,10 @@
 
 0. ✅ **批准链已落库**：W1 ARCHITECTURE.md 同步三处（:210/:258/:261）+ Work PRD v4.1 + Todo v2.1 + 本路线图 + M1 计划 + Accio 报告（2026-08-01，工作树已清）
 1. ✅ **M1 已实现并合入 main**（merge `a041ca617`）：Phase A-F + D3-D5 首页三区块（继续工作 + 官方预设 + 工作流资产引导降级）
-2. **启动 Todo M0/M1**（Task 模型地基，解锁 M1.5）——当前动作
-3. **并行 Work M2 资产沉淀**（不依赖 Todo，基础设施就绪）
-4. M1.5 ProgressLedger 待 Todo M1 合入后启动（依赖 SessionTask Service）
+2. ✅ **Todo M0-M7 已完成并合入 main**（PR#13 baf93e36f + PR#14 06b51b5f5，2026-08-05）：Task 模型地基 + 增量 CRUD + revision + task.progress
+3. ✅ **Work M1.5 已完成并合入 main**（2026-08-07）：ProgressLedger + Resume + outputDigest，复用 SessionTodoProgress
+4. ✅ **Work M2 已完成并合入 main**（2026-08-07）：存为资产 -> Chat 资产工作室，复用 propose candidate store
+5. **M3 扩展产出**（远期）：DataAnalysis / 图表 HTML，依赖 CSP 安全评审--下一步 CSP 调研
 
 ## 8. 关联文档
 
