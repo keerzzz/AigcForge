@@ -108,3 +108,34 @@ describe("WorkArtifactContent save-as-asset button (M2)", () => {
     }
   })
 })
+
+// M2 Phase C: the Chat review/apply chain must render work-sourced candidates
+// (empty relativePath + status="valid") without changes. Source-level contract
+// checks against the reused modules; the Core side already covers applying an
+// empty relativePath candidate (packages/core/test/prompt-asset-service.test.ts).
+describe("work-sourced candidate through the Chat review chain (M2 Phase C)", () => {
+  const panelPath = path.resolve(__dirname, "../components/chat/chat-right-panel.tsx")
+  const panel = fs.readFileSync(panelPath, "utf-8")
+  const insertPath = path.resolve(__dirname, "../components/chat/asset-insert.ts")
+  const insert = fs.readFileSync(insertPath, "utf-8")
+
+  test("chat-right-panel renders the apply button on the status=valid branch", () => {
+    expect(panel).toContain('candidate.candidate?.status === "valid"')
+    expect(panel).toMatch(/onClick=\{handleApply\}/)
+  })
+
+  test("chat-right-panel skips the relativePath diff when exists=false (work candidates carry empty path)", () => {
+    expect(panel).toContain("if (!c?.exists) return null")
+  })
+
+  test("asset-insert prompt branch forwards candidate.relativePath; Core apply derives the path from name", () => {
+    expect(insert).toMatch(/client\.promptAsset\.apply/)
+    expect(insert).toContain("relativePath: candidate.relativePath")
+  })
+
+  test("M2 does not touch agent permissions (work-orchestrator keeps no edit/shell)", () => {
+    const panel = fs.readFileSync(path.resolve(__dirname, "work-artifact-panel.tsx"), "utf-8")
+    expect(panel).not.toContain("workOrchestrator")
+    expect(panel).not.toContain("tool.use")
+  })
+})
