@@ -7,6 +7,7 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import type { TitlebarTheme } from "../preload/types"
 import { exportDebugLogs, write as writeLog } from "./logging"
+import { perf } from "./perf"
 import { getStore } from "./store"
 import { PINCH_ZOOM_ENABLED_KEY } from "./store-keys"
 import { createUnresponsiveSampler } from "./unresponsive"
@@ -176,6 +177,7 @@ export function createMainWindow() {
 
   win.once("ready-to-show", () => {
     win.show()
+    perf("after-readyToShow")
   })
 
   return win

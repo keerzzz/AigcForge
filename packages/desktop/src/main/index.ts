@@ -19,6 +19,7 @@ import { forwardInitializationFailure } from "./initialization"
 import { exportDebugLogs, initCrashReporter, initLogging, startNetLog, write as writeLog } from "./logging"
 import { parseMarkdown } from "./markdown"
 import { createMenu } from "./menu"
+import { perf, setPerfSink } from "./perf"
 import {
   getDefaultServerUrl,
   preferAppEnv,
@@ -101,6 +102,8 @@ function ensureLoopbackNoProxy() {
 }
 
 const main = Effect.gen(function* () {
+  perf("before-whenReady")
+
   contextMenu({ showSaveImageAs: true, showLookUpSelection: false, showSearchWithGoogle: false })
 
   // on macOS apps run in `/` which can cause issues with ripgrep
@@ -134,6 +137,7 @@ const main = Effect.gen(function* () {
   )
   if (onboardingTestRoot) app.setPath("sessionData", join(onboardingTestRoot, "session"))
   logger = initLogging()
+  setPerfSink((label, ms) => writeLog("startup", label, { ms }))
   initCrashReporter()
 
   const wslServers = createWslServersController(
@@ -186,7 +190,9 @@ const main = Effect.gen(function* () {
     return
   }
 
+  perf("before-preferAppEnv")
   preferAppEnv(app.getPath("userData"))
+  perf("after-preferAppEnv")
 
   app.on("second-instance", (_event: Event, argv: string[]) => {
     const urls = argv.filter((arg: string) => arg.startsWith("aigcfroge://"))
@@ -235,8 +241,10 @@ const main = Effect.gen(function* () {
   const serverReady = Deferred.makeUnsafe<ServerReadyData, unknown>()
 
   yield* Effect.promise(() => app.whenReady())
+  perf("after-whenReady")
 
   if (!TEST_ONBOARDING) migrate()
+  perf("after-migrate")
   app.setAsDefaultProtocolClient("aigcfroge")
   registerRendererProtocol()
   setDockIcon()
@@ -279,6 +287,7 @@ const main = Effect.gen(function* () {
       }),
     ),
   )
+  perf("after-preWindowSetup")
 
   const port = yield* Effect.gen(function* () {
     const fromEnv = process.env.AIGCFROGE_PORT
@@ -328,6 +337,7 @@ const main = Effect.gen(function* () {
       username: "aigcfroge",
       password,
     })
+    perf("after-spawnSidecar")
 
     if (process.platform === "win32") {
       void wslServers.initialize().catch((error) => logger.error("wsl server initialization failed", error))
@@ -346,6 +356,7 @@ const main = Effect.gen(function* () {
   }).pipe(forwardInitializationFailure(serverReady), Effect.forkChild)
 
   yield* Fiber.await(loadingTask)
+  perf("after-healthCheck")
 
   mainWindow = createMainWindow()
   if (mainWindow) {
@@ -362,6 +373,7 @@ const main = Effect.gen(function* () {
       },
     })
   }
+  perf("after-createWindow")
 })
 
 Effect.runFork(main)
