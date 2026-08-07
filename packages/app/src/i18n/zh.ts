@@ -548,6 +548,8 @@ export const dict = {
   "work.home.continue": "继续工作",
   "work.asset.title": "你的工作流资产",
   "work.asset.guidedBadge": "由你的工作流驱动 · 引导模式",
+  "work.asset.save": "存为资产",
+  "work.asset.save.success": "候选稿已保存为 prompt 资产",
   "mode.assistant": "助手",
   "mode.assistant.description": "个人 AI 助手",
   "mode.switcher": "模式切换器",

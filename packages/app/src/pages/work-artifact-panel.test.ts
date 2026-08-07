@@ -1,4 +1,8 @@
 import { describe, expect, test } from "bun:test"
+import fs from "fs"
+import path from "path"
+import { clearProposeCandidate, setProposeCandidate, useProposeCandidate } from "@/components/chat/prompt-asset-store"
+import { captureWorkArtifactAsCandidate } from "./work-asset-capture"
 import { draftFilename, findLatestAssistantMarkdown } from "./work-artifact-extract"
 
 const message = (over: Partial<{ id: string; agent: string; mode: string }> = {}) => ({
@@ -59,5 +63,48 @@ describe("draftFilename", () => {
 
   test("sanitizes invalid filename characters", () => {
     expect(draftFilename("# 分镜: 脚本/测试?")).toBe("分镜- 脚本-测试-.md")
+  })
+})
+
+// M2 save-as-asset button: the app has no DOM-render unit-test harness (no
+// solid-testing-library); per the agent-task-hub.test.tsx precedent this
+// verifies the source-level wiring contract, while the behavioural path
+// (click -> store -> mode switch) is covered by the M2 E2E.
+describe("WorkArtifactContent save-as-asset button (M2)", () => {
+  const panel = fs.readFileSync(path.resolve(__dirname, "work-artifact-panel.tsx"), "utf-8")
+
+  test("renders a save-as-asset button next to apply", () => {
+    expect(panel).toContain('data-component="work-save-asset-button"')
+    expect(panel).toContain('language.t("work.asset.save")')
+  })
+
+  test("shows the button only when a candidate exists and is not applied (D6: no flag)", () => {
+    expect(panel).toMatch(/<Show when=\{candidate\(\) !== null && !appliedCurrent\(\)\}>/)
+  })
+
+  test("onSaveAsset wires capture -> setProposeCandidate -> setCurrentMode(chat)", () => {
+    expect(panel).toContain("captureWorkArtifactAsCandidate(content)")
+    expect(panel).toContain("setProposeCandidate")
+    expect(panel).toMatch(/setCurrentMode\("chat"\)/)
+  })
+
+  test("does not read the chat-asset flag (G4 un-gated)", () => {
+    expect(panel).not.toContain("AIGCFROGE_EXPERIMENTAL_CHAT_ASSET")
+  })
+
+  test("onSaveAsset source can be injected into the propose store (D5: store before mode switch)", () => {
+    const info = captureWorkArtifactAsCandidate("# 标题\n\n正文")
+    expect(info).not.toBeNull()
+    if (!info) return
+    try {
+      setProposeCandidate("ses_m2", info)
+      const state = useProposeCandidate()
+      expect(state.sessionID).toBe("ses_m2")
+      expect(state.candidate?.name).toBe("标题")
+      expect(state.candidate?.status).toBe("valid")
+      expect(state.candidate?.content).toBe("# 标题\n\n正文")
+    } finally {
+      clearProposeCandidate()
+    }
   })
 })
