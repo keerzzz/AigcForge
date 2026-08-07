@@ -17,7 +17,6 @@ import { SessionContextTab } from "@/components/session"
 import { draftFilename, findLatestAssistantMarkdown } from "@/pages/work-artifact-extract"
 import { captureWorkArtifactAsCandidate } from "@/pages/work-asset-capture"
 import { setProposeCandidate } from "@/components/chat/prompt-asset-store"
-import { useMode } from "@/context/mode"
 import { diffTextLines } from "@/utils/text-diff"
 import { describeApplyError, isConflictError } from "@/pages/work-artifact-error"
 import type { Message } from "@aigcfroge/sdk/v2/client"
@@ -73,7 +72,6 @@ export function WorkArtifactContent() {
   const sync = useSync()
   const sdk = useSDK()
   const dialog = useDialog()
-  const mode = useMode()
   const [applying, setApplying] = createSignal(false)
   const [applied, setApplied] = createSignal<{ sessionID: string; content: string }>()
   let sessionLayout: ReturnType<typeof useSessionLayout> | undefined
@@ -158,9 +156,9 @@ export function WorkArtifactContent() {
     }
   }
 
-  // M2 存为资产（D3 方案 A + D5）：候选稿 -> prompt kind CandidateInfo ->
-  // setProposeCandidate 注入 Chat propose store -> 切 Chat 模式右栏审查。
-  // 顺序固定：candidate 先入 store 再切 mode（chat-right-panel 读 store 渲染）。
+  // M2 存为资产（D3 方案 A）：候选稿 -> prompt kind CandidateInfo -> setProposeCandidate
+  // 注入 Chat propose store。不自动切 mode：session 页以 session.mode 为权威
+  // （app.tsx session effect 锁回），用户手动切 Chat 后右栏自动显示审查（store 已在）。
   function onSaveAsset() {
     const id = sessionID()
     const content = candidate()
@@ -168,7 +166,6 @@ export function WorkArtifactContent() {
     const candidateInfo = captureWorkArtifactAsCandidate(content)
     if (!candidateInfo) return
     setProposeCandidate(id, candidateInfo)
-    mode.setCurrentMode("chat")
   }
 
   return (

@@ -82,10 +82,10 @@ describe("WorkArtifactContent save-as-asset button (M2)", () => {
     expect(panel).toMatch(/<Show when=\{candidate\(\) !== null && !appliedCurrent\(\)\}>/)
   })
 
-  test("onSaveAsset wires capture -> setProposeCandidate -> setCurrentMode(chat)", () => {
+  test("onSaveAsset wires capture -> setProposeCandidate (no auto mode switch: session mode is authoritative)", () => {
     expect(panel).toContain("captureWorkArtifactAsCandidate(content)")
     expect(panel).toContain("setProposeCandidate")
-    expect(panel).toMatch(/setCurrentMode\("chat"\)/)
+    expect(panel).not.toMatch(/setCurrentMode\("chat"\)/)
   })
 
   test("does not read the chat-asset flag (G4 un-gated)", () => {
