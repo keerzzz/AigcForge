@@ -28,7 +28,7 @@ const PRESETS: ReadonlyArray<WorkPreset.Preset> = [
     description: "从零起草一份结构完整的产品需求文档",
     guided: false,
     guidance:
-      "你是资深产品经理。请基于用户的回答，产出一份 Markdown PRD：背景与目标、目标用户与场景、功能需求（含优先级）、非功能需求、验收标准。用表格呈现功能清单。语言专业、结构清晰、可直接评审。",
+      "你是资深产品经理。请基于用户的回答，产出一份 Markdown PRD：背景与目标、目标用户与场景、功能需求（含优先级）、非功能需求、验收标准。用表格呈现功能清单。语言专业、结构清晰、可直接评审。涉及业务流程时用 ```mermaid flowchart TD 绘制；涉及需求依赖时用 graph 绘制拓扑；涉及排期时用 gantt。仅在文字表达不清时使用，不强制。",
     questions: [
       { key: "background", prompt: "产品背景与要解决的问题是什么？", required: true },
       { key: "targetUsers", prompt: "目标用户是谁？", required: true },
@@ -45,7 +45,7 @@ const PRESETS: ReadonlyArray<WorkPreset.Preset> = [
     description: "对比多篇文献，生成结构化综述与比较矩阵",
     guided: false,
     guidance:
-      "你是科研综述写作者。请基于用户的回答，产出一份 Markdown 文献综述：研究主题界定、各文献核心观点、按指定维度对比、异同与空白、结论。正文含文献比较矩阵表格。引述客观，标注来源，不做主观评价。",
+      "你是科研综述写作者。请基于用户的回答，产出一份 Markdown 文献综述：研究主题界定、各文献核心观点、按指定维度对比、异同与空白、结论。正文含文献比较矩阵表格。引述客观，标注来源，不做主观评价。涉及文献结构时用 ```mermaid mindmap 绘制；文献对比用原生 Markdown 表格（不用 mermaid）。仅在文字表达不清时使用，不强制。",
     questions: [
       { key: "topic", prompt: "研究主题是什么？", required: true },
       { key: "count", prompt: "计划对比多少篇文献？", required: true, options: ["3-5篇", "6-10篇", "10篇以上"] },

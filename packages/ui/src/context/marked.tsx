@@ -2,7 +2,7 @@ import { marked } from "marked"
 import markedKatex from "marked-katex-extension"
 import markedShiki from "marked-shiki"
 import katex from "katex"
-import { bundledLanguages, type BundledLanguage } from "shiki"
+import { bundledLanguages } from "shiki"
 import { createSimpleContext } from "./helper"
 import { getSharedHighlighter, registerCustomTheme, ThemeRegistrationResolved } from "@pierre/diffs"
 
@@ -452,7 +452,7 @@ async function highlightCodeBlocks(html: string): Promise<string> {
       language = "text"
     }
     if (!highlighter.getLoadedLanguages().includes(language)) {
-      await highlighter.loadLanguage(language as BundledLanguage)
+      await highlighter.loadLanguage(language)
     }
 
     const highlighted = highlighter.codeToHtml(code, {
@@ -468,43 +468,55 @@ async function highlightCodeBlocks(html: string): Promise<string> {
 
 export type NativeMarkdownParser = (markdown: string) => Promise<string>
 
+export function mermaidPlaceholder(code: string): string {
+  // Percent-encode the source: DOMPurify strips attribute values containing
+  // "-->"/"]>" (comment-closing sequences), which common mermaid syntax hits.
+  const encoded = encodeURIComponent(code)
+  return `<div data-mermaid="${encoded}"></div>`
+}
+
+export function createMarkedParser() {
+  return marked.use(
+    {
+      renderer: {
+        link({ href, title, text }) {
+          const titleAttr = title ? ` title="${title}"` : ""
+          return `<a href="${href}"${titleAttr} class="external-link" target="_blank" rel="noopener noreferrer">${text}</a>`
+        },
+      },
+    },
+    markedKatex({
+      throwOnError: false,
+      nonStandard: true,
+    }),
+    markedShiki({
+      async highlight(code, lang) {
+        if (lang === "mermaid") return mermaidPlaceholder(code)
+        const highlighter = await getSharedHighlighter({
+          themes: ["Aigcfroge"],
+          langs: [],
+          preferredHighlighter: "shiki-wasm",
+        })
+        if (!(lang in bundledLanguages)) {
+          lang = "text"
+        }
+        if (!highlighter.getLoadedLanguages().includes(lang)) {
+          await highlighter.loadLanguage(lang)
+        }
+        return highlighter.codeToHtml(code, {
+          lang: lang || "text",
+          theme: "Aigcfroge",
+          tabindex: false,
+        })
+      },
+    }),
+  )
+}
+
 export const { use: useMarked, provider: MarkedProvider } = createSimpleContext({
   name: "Marked",
   init: (props: { nativeParser?: NativeMarkdownParser }) => {
-    const jsParser = marked.use(
-      {
-        renderer: {
-          link({ href, title, text }) {
-            const titleAttr = title ? ` title="${title}"` : ""
-            return `<a href="${href}"${titleAttr} class="external-link" target="_blank" rel="noopener noreferrer">${text}</a>`
-          },
-        },
-      },
-      markedKatex({
-        throwOnError: false,
-        nonStandard: true,
-      }),
-      markedShiki({
-        async highlight(code, lang) {
-          const highlighter = await getSharedHighlighter({
-            themes: ["Aigcfroge"],
-            langs: [],
-            preferredHighlighter: "shiki-wasm",
-          })
-          if (!(lang in bundledLanguages)) {
-            lang = "text"
-          }
-          if (!highlighter.getLoadedLanguages().includes(lang)) {
-            await highlighter.loadLanguage(lang as BundledLanguage)
-          }
-          return highlighter.codeToHtml(code, {
-            lang: lang || "text",
-            theme: "Aigcfroge",
-            tabindex: false,
-          })
-        },
-      }),
-    )
+    const jsParser = createMarkedParser()
 
     if (props.nativeParser) {
       const nativeParser = props.nativeParser

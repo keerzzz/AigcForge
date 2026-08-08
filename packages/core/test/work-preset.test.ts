@@ -60,4 +60,25 @@ describe("WorkPresetRegistry", () => {
     expect(storyboard?.category).toBe("video-creation")
     expect(storyboard?.questions.length).toBeLessThanOrEqual(5)
   })
+
+  test("M3: write-prd guidance suggests mermaid flowcharts and gantt", () => {
+    const guidance = WorkPresetRegistry.byId("write-prd")?.guidance ?? ""
+    expect(guidance).toContain("mermaid")
+    expect(guidance).toContain("flowchart")
+    expect(guidance).toContain("gantt")
+  })
+
+  test("M3: literature-review guidance suggests mermaid mindmap only", () => {
+    const guidance = WorkPresetRegistry.byId("literature-review")?.guidance ?? ""
+    expect(guidance).toContain("mermaid")
+    expect(guidance).toContain("mindmap")
+  })
+
+  test("M3: storyboard-video guidance never mentions mermaid", () => {
+    expect(WorkPresetRegistry.byId("storyboard-video")?.guidance).not.toContain("mermaid")
+  })
+
+  test("M3: official-document guidance never mentions mermaid", () => {
+    expect(WorkPresetRegistry.byId("official-document")?.guidance).not.toContain("mermaid")
+  })
 })
