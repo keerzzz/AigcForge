@@ -5,6 +5,7 @@ import { DialogProvider } from "@aigcfroge/ui/context/dialog"
 import { FileComponentProvider } from "@aigcfroge/ui/context/file"
 import { MarkedProvider } from "@aigcfroge/ui/context/marked"
 import { File } from "@aigcfroge/session-ui/file"
+import { Mermaid } from "@aigcfroge/session-ui/mermaid"
 import { Font } from "@aigcfroge/ui/font"
 import { Splash } from "@aigcfroge/ui/logo"
 import { ThemeProvider } from "@aigcfroge/ui/theme/context"
@@ -343,6 +344,9 @@ export function AppBaseProviders(props: ParentProps<{ locale?: Locale }>) {
       <ThemeProvider
         onThemeApplied={(_, mode) => {
           void window.api?.setTitlebar?.({ mode })
+          // Mermaid renders concrete theme colors at initialize time; re-render
+          // in-place diagrams so a light/dark or theme switch recolor follows.
+          void Mermaid.recolorMermaidDiagrams()
         }}
       >
         <LanguageProvider locale={props.locale}>

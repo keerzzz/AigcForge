@@ -60,7 +60,7 @@ import { ReferenceGuidance } from "@aigcfroge/core/reference/guidance"
 import { Location } from "@aigcfroge/core/location"
 import { Deferred, Effect, Exit, Fiber, Layer, Schema, Stream } from "effect"
 import { eq } from "drizzle-orm"
-import { testEffect } from "./lib/effect"
+import { testEffect, pollWithTimeout } from "./lib/effect"
 
 const parentID = SessionV2.ID.make("ses_task_parent")
 const requests: LLMRequest[] = []
@@ -88,6 +88,15 @@ let cliMissingTarget = false
 let cliTarget = "claude-code"
 let cliResultText = "cli result text"
 let cliResultStatus: "success" | "failed" = "success"
+// When set, the installed CLI executor fails with this error (unavailable-CLI
+// path); `cliGate`/`cliStarted` make it signal then block (parent-abort path).
+let cliError: Error | undefined
+let cliGate: Deferred.Deferred<void> | undefined
+let cliStarted: Deferred.Deferred<void> | undefined
+// Judge mode: the parent's task call emits execution_type "judge" (+ an
+// optional track-A parent_task_id link).
+let judgeMode = false
+let judgeParentTaskID: string | undefined
 const cliResultSessionID = SessionV2.ID.make("ses_cli_child")
 const cliReceived: Array<{ cliTarget: string; prompt: string; sessionID: SessionV2.ID }> = []
 // Permission assert inputs captured so tests can assert the CLI request shape.
@@ -140,6 +149,13 @@ const client = Layer.succeed(
             subagent_type: "build",
             ...(cliMode
               ? { execution_type: "external-cli", ...(cliMissingTarget ? {} : { cli_target: cliTarget }) }
+              : {}),
+            ...(judgeMode
+              ? {
+                  execution_type: "judge",
+                  judge_models: ["task-model"],
+                  ...(judgeParentTaskID ? { parent_task_id: judgeParentTaskID } : {}),
+                }
               : {}),
             ...(nextTaskID ? { task_id: nextTaskID } : {}),
             ...(backgroundMode ? { background: true } : {}),
@@ -323,6 +339,11 @@ const setup = Effect.gen(function* () {
   cliTarget = "claude-code"
   cliResultText = "cli result text"
   cliResultStatus = "success"
+  cliError = undefined
+  cliGate = undefined
+  cliStarted = undefined
+  judgeMode = false
+  judgeParentTaskID = undefined
   cliReceived.length = 0
   permissionCalls.length = 0
   // Install the seam with the test's own SessionV2 so the tool's child Session
@@ -348,7 +369,13 @@ const setup = Effect.gen(function* () {
     {
       execute: (input) => {
         cliReceived.push(input)
-        return Effect.succeed({ text: cliResultText, sessionID: cliResultSessionID, status: cliResultStatus })
+        if (cliError) return Effect.fail(cliError)
+        const done = Effect.succeed({ text: cliResultText, sessionID: cliResultSessionID, status: cliResultStatus })
+        if (!cliGate) return done
+        return (cliStarted ? Deferred.succeed(cliStarted, undefined) : Effect.void).pipe(
+          Effect.andThen(Deferred.await(cliGate)),
+          Effect.andThen(done),
+        )
       },
     },
   )
@@ -789,6 +816,103 @@ describe("task tool — child Session delegation", () => {
       const linked = rows.find((row) => row.content === "do work")
       expect(linked).toBeDefined()
       expect(linked?.status).toBe("completed")
+    }),
+  )
+
+  it.live("external-cli executor failure still settles the linked task failed", () =>
+    Effect.gen(function* () {
+      yield* setup
+      cliMode = true
+      cliError = new Error("cli unavailable")
+      const session = yield* SessionV2.Service
+      const { db } = yield* Database.Service
+
+      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate failing cli" }), resume: false })
+      yield* session.resume(parentID)
+
+      // The tool call errored, but the auto-created track-B task settled
+      // failed instead of leaking an in_progress row.
+      const state = yield* session.context(parentID).pipe(Effect.map(readTaskToolState))
+      expect(state?.status).toBe("error")
+      const rows = yield* db
+        .select()
+        .from(TaskTable)
+        .where(eq(TaskTable.session_id, parentID))
+        .all()
+        .pipe(Effect.orDie)
+      const linked = rows.find((row) => row.content === "do work")
+      expect(linked?.status).toBe("failed")
+    }),
+  )
+
+  it.live("parent abort during external-cli settles the linked task cancelled", () =>
+    Effect.gen(function* () {
+      yield* setup
+      cliMode = true
+      const gate = yield* Deferred.make<void>()
+      const started = yield* Deferred.make<void>()
+      cliGate = gate
+      cliStarted = started
+      const session = yield* SessionV2.Service
+      const { db } = yield* Database.Service
+
+      // Fork the parent drain; the CLI executor blocks on `gate` mid-dispatch.
+      const fiber = yield* Effect.gen(function* () {
+        yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate cli" }), resume: false })
+        yield* session.resume(parentID)
+      }).pipe(Effect.forkIn(yield* Effect.scope))
+
+      // The dispatch is in flight once the executor signals; abort the parent.
+      yield* Deferred.await(started)
+      yield* session.interrupt(parentID)
+      const exit = yield* Fiber.await(fiber)
+      expect(Exit.isFailure(exit)).toBe(true)
+
+      // The interrupt-only exit settled the track-B task cancelled. The settle
+      // runs on the drain fiber's interrupt continuation, so poll the row
+      // until it leaves in_progress (readiness signal, never a bare sleep).
+      const linked = yield* pollWithTimeout(
+        db
+          .select()
+          .from(TaskTable)
+          .where(eq(TaskTable.session_id, parentID))
+          .all()
+          .pipe(
+            Effect.orDie,
+            Effect.map((rows) => {
+              const row = rows.find((item) => item.content === "do work")
+              return row && row.status !== "in_progress" ? row : undefined
+            }),
+          ),
+        "external-cli linked task did not settle after parent abort",
+      )
+      expect(linked.status).toBe("cancelled")
+    }),
+  )
+
+  it.live("judge delegation claims and settles the linked parent task failed when every delegate fails", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* SessionV2.Service
+      const tasks = yield* SessionTask.Service
+      const [parentTask] = yield* tasks.append({
+        sessionID: parentID,
+        tasks: [{ content: "judge link", status: "pending", priority: "medium" }],
+      })
+      judgeMode = true
+      judgeParentTaskID = parentTask.id
+      // Every judge child's stream fails → DelegateError "All judge delegates failed".
+      childStreamFailures = 10
+
+      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "judge this" }), resume: false })
+      yield* session.resume(parentID)
+
+      const state = yield* session.context(parentID).pipe(Effect.map(readTaskToolState))
+      expect(state?.status).toBe("error")
+      // The track-A parent task was claimed (pending → in_progress) and then
+      // settled failed by the dispatch exit.
+      const after = (yield* tasks.get(parentID)).find((task) => task.id === parentTask.id)
+      expect(after?.status).toBe("failed")
     }),
   )
 })

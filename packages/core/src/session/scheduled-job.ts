@@ -1,6 +1,6 @@
 export * as ScheduledJob from "./scheduled-job"
 
-import { eq, inArray, isNotNull, or } from "drizzle-orm"
+import { and, eq, inArray, isNotNull, isNull, or } from "drizzle-orm"
 import { Cause, Context, Effect, Layer, Schedule, Stream } from "effect"
 import { Database } from "../database/database"
 import { LayerNode } from "../effect/layer-node"
@@ -214,6 +214,28 @@ export const defaultLayer = layer.pipe(Layer.provide(SessionTask.defaultLayer), 
 export const node = LayerNode.make(layer, [Database.node, EventV2.node, SessionTask.node, ScheduledJobExecutor.node])
 
 /**
+ * Startup recovery for NON-scheduled rows: a process start means every
+ * `in_progress` row without a schedule is a stale claim left by the dead
+ * process (the single-process assumption of SessionTask's writeLock note). The
+ * arm recover pass only rescans schedule-bearing rows, so these delegation/UI
+ * claims would be orphaned forever; reset them to pending via patch (event +
+ * revision bump) before the first arm.
+ */
+export const recoverStaleClaims = Effect.fn("ScheduledJob.recoverStaleClaims")(function* () {
+  const { db } = yield* Database.Service
+  const tasks = yield* SessionTask.Service
+  const stale = yield* db
+    .select()
+    .from(TaskTable)
+    .where(and(eq(TaskTable.status, "in_progress"), isNull(TaskTable.scheduled_at), isNull(TaskTable.recurrence)))
+    .all()
+    .pipe(Effect.orDie)
+  for (const row of stale) {
+    yield* tasks.patch({ sessionID: row.session_id, id: row.id, status: "pending" }).pipe(Effect.orDie)
+  }
+})
+
+/**
  * Production daemon (M3b): arms the runner from the task table at startup
  * (survives restarts — the queue is always re-derived from the DB), ticks every
  * minute, and re-arms on every `task.updated` so a new schedule, resume, or
@@ -225,6 +247,7 @@ export const daemonLayer = Layer.effectDiscard(
   Effect.gen(function* () {
     const runner = yield* Service
     const events = yield* EventV2.Service
+    yield* recoverStaleClaims()
     yield* runner.arm(Date.now(), { recover: true })
     yield* Effect.forkScoped(runner.tick(Date.now()).pipe(Effect.ignore, Effect.repeat(Schedule.spaced("1 minute"))))
     yield* events.subscribe(SessionTask.Event.Updated).pipe(
@@ -233,4 +256,4 @@ export const daemonLayer = Layer.effectDiscard(
     )
   }),
 )
-export const daemonNode = LayerNode.make(daemonLayer, [node, EventV2.node])
+export const daemonNode = LayerNode.make(daemonLayer, [node, Database.node, SessionTask.node, EventV2.node])

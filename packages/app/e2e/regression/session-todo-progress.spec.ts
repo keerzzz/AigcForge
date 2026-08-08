@@ -435,6 +435,84 @@ test.describe("regression: session todo progress M7 unified track", () => {
   })
 })
 
+test.describe("regression: work resume ledger (M1.5)", () => {
+  // An interrupted Work run: step 1 completed (with digest), step 2 in_progress.
+  const interruptedSteps = [
+    { ...taskA, content: "澄清需求", status: "completed", outputDigest: "已确认主题/时长/平台" },
+    { ...taskB, content: "构思大纲", status: "in_progress" },
+    { ...taskB, id: "tsk_mock_c", content: "撰写候选稿", status: "pending" },
+  ]
+
+  test("work mode shows the resume button and fold-over digests, and click sends a resume prompt", async ({
+    page,
+  }) => {
+    // M1.5 D2: the resume entry point is work-mode only — set the persisted
+    // mode-view store to work before the app boots (storage prefix + key).
+    await page.addInitScript(() => {
+      localStorage.setItem("aigcfroge.global.dat:mode-view", JSON.stringify({ currentMode: "work" }))
+    })
+    const events: EventPayload[] = []
+    await mockServer(page, events)
+    await configurePage(page)
+    events.push({
+      directory,
+      payload: { type: "task.updated", properties: { sessionID, tasks: interruptedSteps } },
+    })
+
+    await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+    await expectSessionTitle(page, title)
+
+    // canResume (in_progress step) + work mode → the button is visible.
+    const resume = page.locator('[data-component="session-todo-progress-resume"]')
+    await expect(resume).toBeVisible({ timeout: 15_000 })
+
+    // Click → the composer send channel carries the localized resume prompt
+    // (D4: dialogue-level resume, no new send path). The fold-over dropdown
+    // can overlap the button, so the click is dispatched programmatically —
+    // the onClick handler is the contract under test, not pointer hit-testing.
+    const sent = page.waitForResponse(
+      (response) =>
+        response.url().includes(`/session/${sessionID}/prompt_async`) && response.request().method() === "POST",
+    )
+    await page.evaluate(() => {
+      const el = document.querySelector('[data-component="session-todo-progress-resume"]')
+      if (!(el instanceof HTMLButtonElement)) throw new Error("resume button missing in DOM")
+      el.click()
+    })
+    const response = await sent
+    const body = response.request().postDataJSON()
+    expect(body.parts[0].type).toBe("text")
+    // The i18n resume prompt (en: "Please continue from the last interrupted
+    // step, using the completed steps' summaries.") rides the composer channel.
+    expect(body.parts[0].text).toContain("continue")
+
+    // Fold-over lists each step with the completed step's digest as secondary
+    // text (M1.5 D3 outputDigest display).
+    await page.locator('[data-component="session-todo-progress-stats"]').click()
+    await expect(page.locator('[data-component="session-todo-progress-panel"]')).toBeVisible()
+    await expect(page.locator('[data-slot="step-digest"]')).toHaveText("已确认主题/时长/平台")
+  })
+
+  test("coding mode never surfaces the resume button", async ({ page }) => {
+    // Default mode is coding — no mode override. Same interrupted task list.
+    const events: EventPayload[] = []
+    await mockServer(page, events)
+    await configurePage(page)
+    events.push({
+      directory,
+      payload: { type: "task.updated", properties: { sessionID, tasks: interruptedSteps } },
+    })
+
+    await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+    await expectSessionTitle(page, title)
+    await expect(page.locator('[data-component="session-todo-progress-node"]')).toHaveCount(3, {
+      timeout: 15_000,
+    })
+    // M1.5 D2 mode-aware guard: canResume is true but the mode is not work.
+    await expect(page.locator('[data-component="session-todo-progress-resume"]')).toHaveCount(0)
+  })
+})
+
 async function configurePage(page: Page) {
   await page.setViewportSize({ width: 1280, height: 800 })
 }

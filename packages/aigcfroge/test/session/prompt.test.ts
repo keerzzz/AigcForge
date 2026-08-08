@@ -187,7 +187,7 @@ function makePrompt(input?: { processor?: "blocking" }) {
     EventV2Bridge.defaultLayer,
   ).pipe(Layer.provideMerge(infra))
   const question = Question.layer.pipe(Layer.provideMerge(deps))
-  const todo = Todo.layer.pipe(Layer.provideMerge(deps))
+  const todo = Todo.defaultLayer.pipe(Layer.provideMerge(deps))
   const registry = ToolRegistry.layer.pipe(
     Layer.provide(Skill.defaultLayer),
     Layer.provide(LocationServiceMap.layer),

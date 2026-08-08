@@ -24,7 +24,8 @@ import {
 } from "./markdown-worker"
 import { markdownBlockKey, type MarkdownToken } from "./markdown-worker-protocol"
 import { shouldResetCodeTokens, type RenderedCodeState } from "./markdown-code-state"
-import { getCachedMarkdown, sanitizeMarkdown, touchCachedMarkdown, type MarkdownCacheEntry } from "./markdown-cache"
+import { escapeHtml, getCachedMarkdown, sanitizeMarkdown, touchCachedMarkdown, type MarkdownCacheEntry } from "./markdown-cache"
+import { renderMermaidBlocks } from "./mermaid"
 
 type RenderedBlock =
   | (MarkdownCacheEntry & { key: string; mode: Exclude<Block["mode"], "code"> })
@@ -52,17 +53,8 @@ const iconPaths = {
   check: '<path d="M5 11.9657L8.37838 14.7529L15 5.83398" stroke="currentColor" stroke-linecap="square"/>',
 }
 
-function escape(text: string) {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;")
-}
-
 function fallback(markdown: string) {
-  return escape(markdown).replace(/\r\n?/g, "\n").replace(/\n/g, "<br>")
+  return escapeHtml(markdown).replace(/\r\n?/g, "\n").replace(/\n/g, "<br>")
 }
 
 async function code(text: string, language: string | undefined, key: string, complete = false) {
@@ -340,18 +332,22 @@ export function Markdown(
             return rendered
           }
 
-          if (key) {
-            const cached = getCachedMarkdown(key)
-            if (cached?.raw === block.raw) {
-              touchCachedMarkdown(key, cached)
-              return { key: blockKey, mode: block.mode, ...cached }
-            }
-          }
-
           const hash = checksum(block.raw)
-          const safe = sanitizeMarkdown(await Promise.resolve(marked.parse(block.src)))
-          if (key && hash) touchCachedMarkdown(key, { raw: block.raw, hash, html: safe })
-          return { key: blockKey, mode: block.mode, raw: block.raw, hash: hash ?? "", html: safe }
+          let html: string
+          const cached = key ? getCachedMarkdown(key) : undefined
+          if (cached?.raw === block.raw) {
+            touchCachedMarkdown(key!, cached)
+            html = cached.html
+          } else {
+            html = sanitizeMarkdown(await Promise.resolve(marked.parse(block.src)))
+            if (key && hash) touchCachedMarkdown(key, { raw: block.raw, hash, html })
+          }
+          const finalHtml = await renderMermaidBlocks(html)
+          // Cache the mermaid-rendered result so a later cache hit skips the
+          // async render entirely (renderMermaidBlocks is a cheap string check
+          // on already-rendered html).
+          if (key && hash && finalHtml !== html) touchCachedMarkdown(key, { raw: block.raw, hash, html: finalHtml })
+          return { key: blockKey, mode: block.mode, raw: block.raw, hash: hash ?? "", html: finalHtml }
         }),
       )
         .then((blocks) => ({ text: src.text, blocks }) satisfies RenderResult)

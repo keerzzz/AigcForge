@@ -8,10 +8,13 @@ import { ProjectTable } from "@aigcfroge/core/project/sql"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionV2 } from "@aigcfroge/core/session"
 import { SessionTable, TaskTable } from "@aigcfroge/core/session/sql"
+import { SessionTask } from "@aigcfroge/core/session/task"
 import { SessionTodo } from "@aigcfroge/core/session/todo"
 import { testEffect } from "./lib/effect"
 
-const it = testEffect(Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer, SessionTodo.defaultLayer))
+const it = testEffect(
+  Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer, SessionTask.defaultLayer, SessionTodo.defaultLayer),
+)
 const sessionID = SessionV2.ID.make("ses_todo_test")
 
 const setup = Effect.gen(function* () {
@@ -45,7 +48,7 @@ describe("SessionTodo", () => {
       const published = new Array<EventV2.Payload>()
       const unsubscribe = yield* events.listen((event) =>
         Effect.sync(() => {
-          if (event.type === SessionTodo.Event.Updated.type) published.push(event)
+          if (event.type === SessionTask.Event.TodoUpdated.type) published.push(event)
         }),
       )
       yield* Effect.addFinalizer(() => unsubscribe)
@@ -85,6 +88,63 @@ describe("SessionTodo", () => {
         { sessionID, todos: [{ content: "replacement", status: "completed", priority: "medium" }] },
         { sessionID, todos: [] },
       ])
+    }),
+  )
+
+  it.effect("rejects a stale full-list write after an out-of-band append, then accepts the merged retry", () =>
+    Effect.gen(function* () {
+      yield* setup
+      // Own session: the process-level write baseline is keyed by sessionID
+      // and shared across tests in this file.
+      const staleSession = SessionV2.ID.make("ses_todo_stale_test")
+      const { db } = yield* Database.Service
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: staleSession,
+          project_id: Project.ID.global,
+          slug: "todo-stale",
+          directory: "/project",
+          title: "todo-stale",
+          version: "test",
+        })
+        .run()
+        .pipe(Effect.orDie)
+      const tasks = yield* SessionTask.Service
+      const todos = yield* SessionTodo.Service
+
+      yield* todos.update({
+        sessionID: staleSession,
+        todos: [{ content: "a", status: "pending", priority: "low" }],
+      })
+      // Another write path (task tool / HTTP / scheduler) lands in between.
+      yield* tasks.append({
+        sessionID: staleSession,
+        tasks: [{ content: "server", status: "in_progress", priority: "high" }],
+      })
+
+      const stale = yield* todos
+        .update({
+          sessionID: staleSession,
+          todos: [{ content: "a", status: "completed", priority: "low" }],
+        })
+        .pipe(Effect.flip)
+      expect(stale).toBeInstanceOf(SessionTask.TaskWriteError)
+      expect(stale.reason).toBe("stale_revision")
+      // The rejected write did not touch the out-of-band row.
+      expect((yield* todos.get(staleSession)).map((todo) => todo.content)).toEqual(["a", "server"])
+
+      // The caller merged against the current list; the retry passes and
+      // rebuilds the baseline.
+      const merged = yield* todos.update({
+        sessionID: staleSession,
+        todos: [
+          { content: "a", status: "completed", priority: "low" },
+          { content: "server", status: "in_progress", priority: "high" },
+        ],
+      })
+      expect(merged.map((todo) => todo.content)).toEqual(["a", "server"])
+      expect((yield* todos.get(staleSession))[0]?.status).toBe("completed")
     }),
   )
 })

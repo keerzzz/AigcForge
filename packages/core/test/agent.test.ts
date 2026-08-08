@@ -192,6 +192,34 @@ describe("AgentV2", () => {
     }),
   )
 
+  it.effect("work-orchestrator unlocks task CRUD but keeps delegation/spawn/schedule/edit/shell denied", () =>
+    Effect.gen(function* () {
+      const agent = yield* AgentV2.Service
+      yield* AgentPlugin.Plugin.effect(
+        host({
+          agent: agentHost(agent),
+        }),
+      ).pipe(
+        Effect.provideService(
+          Location.Service,
+          Location.Service.of(location({ directory: AbsolutePath.make("/project") })),
+        ),
+      )
+
+      const work = yield* agent.get(AgentV2.ID.make("work-orchestrator"))
+      const permissions = work!.permissions
+      // M1.5 D1: the four incremental task tools are allowed (step ledger CRUD).
+      for (const action of ["task_create", "task_update", "task_delete", "task_reorder"]) {
+        expect(PermissionV2.evaluate(action, "*", permissions).effect).toBe("allow")
+      }
+      // M1.5 keeps the M1 boundary: no delegation, spawning, scheduling, or
+      // file/shell mutation.
+      for (const action of ["task", "taskspawn", "taskschedule", "edit", "write", "bash", "command"]) {
+        expect(PermissionV2.evaluate(action, "*", permissions).effect).toBe("deny")
+      }
+    }),
+  )
+
   it.effect("meta agent system prompt contains Protocol Documents section", () =>
     Effect.gen(function* () {
       const agent = yield* AgentV2.Service

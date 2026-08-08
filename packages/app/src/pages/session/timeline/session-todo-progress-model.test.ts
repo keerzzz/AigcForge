@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import {
+  computeProgressLedger,
   computeTodoProgress,
   flipTaskStatus,
   flipTaskWriteStatus,
@@ -128,6 +129,68 @@ describe("computeTodoProgress", () => {
     ])
     expect(p.done).toBe(1)
     expect(p.nodes.map((n) => n.status)).toEqual(["completed", "cancelled"])
+  })
+})
+
+describe("computeProgressLedger (M1.5 Work ProgressLedger projection)", () => {
+  test("currentStepIndex is the first non-completed step", () => {
+    const ledger = computeProgressLedger([
+      { content: "澄清", status: "completed", outputDigest: "已确认主题" },
+      { content: "构思", status: "in_progress" },
+      { content: "撰写", status: "pending" },
+    ])
+    expect(ledger.currentStepIndex).toBe(1)
+    expect(ledger.canResume).toBe(true)
+  })
+
+  test("currentStepIndex is -1 when every step is completed", () => {
+    const ledger = computeProgressLedger([
+      { content: "澄清", status: "completed" },
+      { content: "撰写", status: "completed" },
+    ])
+    expect(ledger.currentStepIndex).toBe(-1)
+    expect(ledger.canResume).toBe(false)
+  })
+
+  test("a failed step marks the ledger resumable at its index", () => {
+    const ledger = computeProgressLedger([
+      { content: "澄清", status: "completed" },
+      { content: "构思", status: "completed" },
+      { content: "撰写", status: "failed" },
+      { content: "校验", status: "pending" },
+    ])
+    expect(ledger.currentStepIndex).toBe(2)
+    expect(ledger.canResume).toBe(true)
+  })
+
+  test("pending-only steps are not resumable", () => {
+    const ledger = computeProgressLedger([
+      { content: "澄清", status: "pending" },
+      { content: "撰写", status: "pending" },
+    ])
+    expect(ledger.currentStepIndex).toBe(0)
+    expect(ledger.canResume).toBe(false)
+  })
+
+  test("empty task list yields no step and no resume", () => {
+    const ledger = computeProgressLedger([])
+    expect(ledger.currentStepIndex).toBe(-1)
+    expect(ledger.canResume).toBe(false)
+    expect(ledger.steps).toEqual([])
+  })
+
+  test("outputDigest passes through into each step", () => {
+    const ledger = computeProgressLedger([
+      { content: "澄清", status: "completed", outputDigest: "已确认主题/时长/平台" },
+      { content: "撰写", status: "pending" },
+    ])
+    expect(ledger.steps[0]?.outputDigest).toBe("已确认主题/时长/平台")
+    expect(ledger.steps[1]?.outputDigest).toBeUndefined()
+  })
+
+  test("illegal statuses normalize to pending for step rendering", () => {
+    const ledger = computeProgressLedger([{ content: "step", status: "bogus" }])
+    expect(ledger.steps[0]?.status).toBe("pending")
   })
 })
 

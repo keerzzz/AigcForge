@@ -10,6 +10,7 @@ import { FSUtil } from "./fs-util"
 import { LocationMutation } from "./location-mutation"
 import { Hash } from "./util/hash"
 import { KeyedMutex } from "./effect/keyed-mutex"
+import { EventV2 } from "./event"
 
 function yamlEscape(value: string): string {
   // YAML double-quoted string: escape \, ", \r, \n, \t
@@ -18,6 +19,16 @@ function yamlEscape(value: string): string {
 
 function failureMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)
+}
+
+/** M2 埋点（PRD §12）：资产落盘成功时上报，payload 不含正文。Work 与 Chat 入口共用。 */
+export const Event = {
+  AssetSaved: EventV2.define({
+    type: "work.asset_saved",
+    schema: {
+      relativePath: Schema.String,
+    },
+  }),
 }
 
 export class InvalidCandidateError extends Schema.TaggedErrorClass<InvalidCandidateError>()(
@@ -144,6 +155,7 @@ export const locationLayer = Layer.effect(
     const locationMutation = yield* LocationMutation.Service
     const registry = yield* PromptAsset.Service
     const fileMutation = yield* FileMutation.Service
+    const events = yield* EventV2.Service
 
     const locks = KeyedMutex.makeUnsafe<string>()
 
@@ -301,6 +313,7 @@ export const locationLayer = Layer.effect(
               return yield* new ReadbackMismatchError({ relativePath })
             }
 
+            yield* events.publish(Event.AssetSaved, { relativePath })
             return info
           }),
         ),

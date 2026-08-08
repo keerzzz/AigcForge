@@ -255,6 +255,13 @@ describe("tool parameters", () => {
       })
       expect(parsed.todos.length).toBe(1)
     })
+    test("rejects invalid status", () => {
+      expect(accepts(Todo, { todos: [{ content: "do x", status: "bogus", priority: "medium" }] })).toBe(false)
+      expect(accepts(Todo, { todos: [{ content: "do x", status: "scheduled", priority: "medium" }] })).toBe(false)
+    })
+    test("rejects invalid priority", () => {
+      expect(accepts(Todo, { todos: [{ content: "do x", status: "pending", priority: "urgent" }] })).toBe(false)
+    })
     test("rejects missing todos", () => {
       expect(accepts(Todo, {})).toBe(false)
     })

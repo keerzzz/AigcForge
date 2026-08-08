@@ -534,7 +534,7 @@ export const createDirSyncContext = (
         }
 
         if (cached !== undefined) {
-          setStore("todo", sessionID, reconcile(cached, { key: "id" }))
+          setStore("todo", sessionID, cached)
         }
 
         const key = keyFor(directory, sessionID)
@@ -549,7 +549,7 @@ export const createDirSyncContext = (
             // "user cleared todos" guard targets genuine todo.updated events,
             // which arrive through the event stream, not this pull.
             if (list.length === 0) return
-            setStore("todo", sessionID, reconcile(list, { key: "id" }))
+            setStore("todo", sessionID, list)
             serverSync.todo.set(sessionID, list)
           }),
         )
