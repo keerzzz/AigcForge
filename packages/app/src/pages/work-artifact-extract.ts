@@ -31,9 +31,23 @@ export function extractFirstHeading(markdown: string): string | null {
 }
 
 /** 从候选稿首行标题派生默认文件名；无标题时用通用名。 */
-export function draftFilename(markdown: string): string {
-  const title = extractFirstHeading(markdown)
-  if (!title) return "work-draft.md"
+export function draftFilename(content: string): string {
+  const title = extractFirstHeading(content)
+  const ext = detectArtifactFormat(content) === "html" ? "html" : "md"
+  if (!title) return `work-draft.${ext}`
   const safe = title.replace(/[\\/:*?"<>|]/g, "-").slice(0, 80)
-  return safe.endsWith(".md") ? safe : `${safe}.md`
+  return safe.endsWith(`.${ext}`) ? safe : `${safe}.${ext}`
+}
+
+/** M3.5 D1：候选稿含 ```html fenced block -> html artifact 模式；否则 markdown。 */
+export function detectArtifactFormat(content: string): "html" | "markdown" {
+  return /```html\n[\s\S]*?\n```/.test(content) ? "html" : "markdown"
+}
+
+/** M3.5 D7：提取首个 ```html 块；兼容 <artifact type="html"> 标签（宽松，允许未闭合）。 */
+export function extractHtmlBlock(content: string): string | null {
+  const fenced = content.match(/```html\n([\s\S]*?)\n```/)
+  if (fenced) return fenced[1]
+  const tagged = content.match(/<artifact[^>]*type=["']html["'][^>]*>([\s\S]*?)(?:<\/artifact>|$)/)
+  return tagged?.[1] ?? null
 }

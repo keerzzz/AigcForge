@@ -57,4 +57,17 @@ describe("WorkOrchestratorPrompt", () => {
     expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("when text alone is unclear")
     expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("do not force diagrams into every document")
   })
+
+  test("guides interactive HTML artifacts in step 5 (M3.5)", () => {
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("```html")
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("interactive visualizations")
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("vis-network")
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("chart.js")
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("self-contained")
+  })
+
+  test("keeps the Mermaid guidance alongside the HTML guidance (no removal)", () => {
+    const prompt = WorkOrchestratorPrompt.SYSTEM_PROMPT
+    expect(prompt.indexOf("interactive visualizations")).toBeGreaterThan(prompt.indexOf("Mermaid"))
+  })
 })

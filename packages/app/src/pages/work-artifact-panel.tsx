@@ -11,10 +11,16 @@ import { ResizeHandle } from "@aigcfroge/ui/resize-handle"
 import { createSizing } from "@/pages/session/helpers"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { Markdown } from "@aigcfroge/session-ui/markdown"
+import { HtmlArtifact } from "@aigcfroge/session-ui/html-artifact"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { SessionContextTab } from "@/components/session"
-import { draftFilename, findLatestAssistantMarkdown } from "@/pages/work-artifact-extract"
+import {
+  detectArtifactFormat,
+  draftFilename,
+  extractHtmlBlock,
+  findLatestAssistantMarkdown,
+} from "@/pages/work-artifact-extract"
 import { captureWorkArtifactAsCandidate } from "@/pages/work-asset-capture"
 import { setProposeCandidate } from "@/components/chat/prompt-asset-store"
 import { showToast } from "@/utils/toast"
@@ -184,7 +190,22 @@ export function WorkArtifactContent() {
           >
             <ScrollView class="min-h-0 flex-1">
               <div class="flex flex-col gap-3 p-3">
-                <Markdown text={candidate()!} />
+                <Show
+                  when={detectArtifactFormat(candidate()!) === "html"}
+                  fallback={<Markdown text={candidate()!} />}
+                >
+                  <div class="h-[60vh] min-h-[320px]">
+                    <HtmlArtifact
+                      html={extractHtmlBlock(candidate()!) ?? ""}
+                      labels={{
+                        preview: language.t("work.artifact.html.preview"),
+                        code: language.t("work.artifact.html.code"),
+                        renderError: language.t("work.artifact.html.renderError"),
+                        viewCode: language.t("work.artifact.html.viewCode"),
+                      }}
+                    />
+                  </div>
+                </Show>
                 <div class="flex gap-2">
                   <ButtonV2
                     variant="contrast"
