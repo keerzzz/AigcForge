@@ -9,14 +9,18 @@
  */
 
 export const STORAGE_POLYFILL = `<script>
-  window.localStorage = window.sessionStorage = (function() {
+  (function() {
     var store = {};
-    return {
+    var mock = {
       getItem: function(k) { return store[k] || null; },
       setItem: function(k, v) { store[k] = String(v); },
       removeItem: function(k) { delete store[k]; },
       clear: function() { store = {}; }
     };
+    // 直接赋值对 getter-only 的 Window.prototype.localStorage 静默无效（sloppy
+    // mode 忽略无 setter 的访问器赋值），必须 defineProperty 实例属性遮蔽。
+    try { Object.defineProperty(window, "localStorage", { value: mock, configurable: true }); } catch (e) {}
+    try { Object.defineProperty(window, "sessionStorage", { value: mock, configurable: true }); } catch (e) {}
   })();
 </script>`
 

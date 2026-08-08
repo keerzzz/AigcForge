@@ -25,7 +25,7 @@ describe("HtmlArtifact security contract (M3.5)", () => {
 
   test("defense 3: srcdoc is built through buildSrcdoc (CSP meta + storage polyfill)", () => {
     expect(component).toContain("buildSrcdoc(clean, resolveLibs(props.html))")
-    expect(srcdocModule).toContain("window.localStorage = window.sessionStorage =")
+    expect(srcdocModule).toContain('Object.defineProperty(window, "localStorage"')
     expect(srcdocModule).toContain("connect-src 'none'")
   })
 
