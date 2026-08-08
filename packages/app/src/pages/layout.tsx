@@ -9,6 +9,7 @@ import { setNavigate } from "@/utils/notification-click"
 import { ToastRegion } from "@/utils/toast"
 import { ModeProvider, useMode } from "@/context/mode"
 import { ChatFeatureProvider } from "@/context/chat-feature"
+import { WorkSecondaryTabProvider } from "@/context/work-secondary-tab"
 import { ModeSwitcher } from "@/components/mode-switcher"
 import { SecondarySidebar } from "@/components/secondary-sidebar"
 import { StatusBar } from "@/components/status-bar/status-bar"
@@ -75,7 +76,9 @@ export default function Layout(props: ParentProps) {
   return (
     <ModeProvider>
       <ChatFeatureProvider>
-        <LayoutContent update={update}>{props.children}</LayoutContent>
+        <WorkSecondaryTabProvider>
+          <LayoutContent update={update}>{props.children}</LayoutContent>
+        </WorkSecondaryTabProvider>
       </ChatFeatureProvider>
     </ModeProvider>
   )

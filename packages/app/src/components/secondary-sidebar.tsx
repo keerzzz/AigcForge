@@ -14,6 +14,7 @@ import { useLanguage } from "@/context/language"
 import { modeDraft, useMode, type Mode } from "@/context/mode"
 import { ChatFeatureSidebar, PlaceholderSidebar } from "@/components/mode-surfaces"
 import { ChatSessionList } from "@/components/chat/chat-session-list"
+import { WorkSecondarySidebar } from "@/components/work-secondary-sidebar"
 import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
 import { ServerConnection, useServer } from "@/context/server"
@@ -664,7 +665,12 @@ function SecondarySidebar() {
         <ChatFeatureSidebar />
       </div>
       <div style={{ display: mode.currentMode === "work" ? "" : "none" }}>
-        <PlaceholderSidebar mode="work" />
+        <WorkSecondarySidebar
+          directory={chatDirectory}
+          sortNow={sortNow}
+          ctx={sidebarCtx}
+          serverKey={serverKey() ?? undefined}
+        />
       </div>
       <div style={{ display: mode.currentMode === "assistant" ? "" : "none" }}>
         <PlaceholderSidebar mode="assistant" />
