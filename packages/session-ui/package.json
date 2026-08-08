@@ -11,6 +11,7 @@
     "./message-part-text": "./src/components/message-part-text.ts",
     "./markdown-stream": "./src/components/markdown-stream.ts",
     "./markdown-cache": "./src/components/markdown-cache.tsx",
+    "./mermaid": "./src/components/mermaid.ts",
     "./html-artifact-srcdoc": "./src/components/html-artifact-srcdoc.ts",
     "./line-comment-styles": "./src/components/line-comment-styles.ts",
     "./pierre": "./src/pierre/index.ts",

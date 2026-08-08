@@ -35,6 +35,12 @@ describe("renderMermaidBlocks", () => {
     expect(result).toContain("url(#")
   })
 
+  test("keeps the diagram source on a data-mermaid-src wrapper for theme recolor", async () => {
+    const src = "graph TD; A-->B"
+    const result = await Mermaid.renderMermaidBlocks(placeholder(src))
+    expect(result).toMatch(/<div data-mermaid-src="[^"]+"><svg/)
+  })
+
   test("renders at least 4 diagram types into <svg>", async () => {
     const diagrams = [
       "graph TD; A-->B",
@@ -72,6 +78,34 @@ describe("renderMermaidBlocks", () => {
     const out = sanitizeMarkdown('<a href="https://safe.com" target="_blank">link</a>')
     expect(out).toContain("noopener")
     expect(out).toContain("noreferrer")
+  })
+})
+
+describe("recolorMermaidDiagrams", () => {
+  test("is a no-op when no diagram is rendered yet", async () => {
+    await Mermaid.recolorMermaidDiagrams()
+    expect(document.querySelector("[data-mermaid-src]")).toBeNull()
+  })
+
+  test("re-renders an in-place diagram (fresh svg id proves a real re-render)", async () => {
+    document.body.innerHTML = await Mermaid.renderMermaidBlocks(placeholder("graph TD; A-->B"))
+    const el = document.querySelector<HTMLElement>("[data-mermaid-src]")
+    expect(el).not.toBeNull()
+    const before = el!.innerHTML
+    await Mermaid.recolorMermaidDiagrams()
+    const after = document.querySelector<HTMLElement>("[data-mermaid-src]")!.innerHTML
+    expect(after).toContain("<svg")
+    expect(after).not.toBe(before)
+    document.body.innerHTML = ""
+  })
+
+  test("ignores detached wrappers that left the document", async () => {
+    document.body.innerHTML = await Mermaid.renderMermaidBlocks(placeholder("graph TD; A-->B"))
+    const detached = document.querySelector<HTMLElement>("[data-mermaid-src]")
+    detached!.remove()
+    await Mermaid.recolorMermaidDiagrams()
+    expect(document.querySelector("[data-mermaid-src]")).toBeNull()
+    document.body.innerHTML = ""
   })
 })
 
