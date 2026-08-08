@@ -16,6 +16,7 @@ import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { SessionContextTab } from "@/components/session"
 import {
+  applyContentForDisk,
   detectArtifactFormat,
   draftFilename,
   extractHtmlBlock,
@@ -118,7 +119,7 @@ export function WorkArtifactContent() {
         directory: sdk().directory,
         title: relativePath,
         relativePath,
-        content,
+        content: applyContentForDisk(content),
         overwrite,
       })
       setApplied({ sessionID: id, content })
