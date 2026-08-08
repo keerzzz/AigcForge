@@ -1002,9 +1002,11 @@ describe("SessionTask", () => {
   it.effect("replaceLegacy rejects a dead scheduled task via the legacy TodoWrite bridge (M-1)", () =>
     Effect.gen(function* () {
       yield* setup
-      const todo = yield* SessionTodo.Service
-      const error = yield* todo
-        .update({ sessionID, todos: [{ content: "legacy sched", status: "scheduled", priority: "medium" }] })
+      const tasks = yield* SessionTask.Service
+      // SessionTodo's strict WriteItem can no longer carry "scheduled", so the
+      // guard is exercised through replaceLegacy directly.
+      const error = yield* tasks
+        .replaceLegacy({ sessionID, tasks: [{ content: "legacy sched", status: "scheduled", priority: "medium" }] })
         .pipe(Effect.flip)
       expect(error.reason).toBe("invalid_schedule")
     }),
@@ -1084,6 +1086,75 @@ describe("SessionTask", () => {
           tasks: [{ content: "seed", status: "in_progress", priority: "medium" }],
         })
         expect(after[0]?.revision).toBe(2)
+      }),
+    )
+
+    it.effect("replaceLegacy with stale expectedRevision fails and does not write", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const [seed] = yield* tasks.append({
+          sessionID,
+          tasks: [{ content: "seed", status: "pending", priority: "medium" }],
+        })
+        yield* tasks.append({
+          sessionID,
+          tasks: [{ content: "other", status: "pending", priority: "medium" }],
+        })
+        // A concurrent write bumped the max revision to 2.
+        yield* tasks.patch({ sessionID, id: seed.id, status: "in_progress" })
+        const error = yield* tasks
+          .replaceLegacy({
+            sessionID,
+            tasks: [{ content: "seed", status: "completed", priority: "medium" }],
+            expectedRevision: 1,
+          })
+          .pipe(Effect.flip)
+        expect(error).toBeInstanceOf(SessionTask.TaskWriteError)
+        expect(error.reason).toBe("stale_revision")
+        // The stale replace did not land — the other path's rows survive.
+        const got = yield* tasks.get(sessionID)
+        expect(got.map((task) => task.content)).toEqual(["seed", "other"])
+        expect(got[0]?.status).toBe("in_progress")
+      }),
+    )
+
+    it.effect("append rejects an explicit id that collides with the table or repeats in the payload", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        yield* tasks.append({
+          sessionID,
+          tasks: [{ id: "tsk_dupe_seed", content: "seed", status: "pending", priority: "medium" }],
+        })
+
+        // An id already present in the table.
+        const colliding = yield* tasks
+          .append({
+            sessionID,
+            tasks: [{ id: "tsk_dupe_seed", content: "copy", status: "pending", priority: "medium" }],
+          })
+          .pipe(Effect.flip)
+        expect(colliding).toBeInstanceOf(SessionTask.TaskWriteError)
+        expect(colliding.reason).toBe("duplicate")
+
+        // The same fresh id twice in one payload.
+        const repeated = yield* tasks
+          .append({
+            sessionID,
+            tasks: [
+              { id: "tsk_dupe_new", content: "one", status: "pending", priority: "medium" },
+              { id: "tsk_dupe_new", content: "two", status: "pending", priority: "medium" },
+            ],
+          })
+          .pipe(Effect.flip)
+        expect(repeated).toBeInstanceOf(SessionTask.TaskWriteError)
+        expect(repeated.reason).toBe("duplicate")
+
+        // Both rejections happened before any write.
+        const got = yield* tasks.get(sessionID)
+        expect(got).toHaveLength(1)
+        expect(got[0]?.content).toBe("seed")
       }),
     )
 

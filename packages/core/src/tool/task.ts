@@ -1,7 +1,7 @@
 export * as TaskTool from "./task"
 
 import { ToolFailure } from "@aigcfroge/llm"
-import { Effect, Layer, Option, Ref, Schema, Stream } from "effect"
+import { Cause, Effect, Exit, Layer, Option, Ref, Schema, Stream } from "effect"
 import { AgentV2 } from "../agent"
 import { Config } from "../config"
 import { EventV2 } from "../event"
@@ -226,24 +226,42 @@ export const layer = Layer.effectDiscard(
                     .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message })))
                   cliTaskID = created.at(-1)?.id
                 }
+                // Settle the linked task from the dispatch exit (same
+                // classification as the track-B writeback in
+                // TaskDriver.delegate): success → completed/failed per the CLI
+                // status, interrupt-only → cancelled, anything else → failed.
+                // onExit finalizers run uninterruptibly on interruption too
+                // (Effect.exit's continuation does NOT resume once the fiber
+                // is interrupted), so a CliUnavailableError or a parent-fiber
+                // abort still settles the claim instead of leaking an
+                // in_progress row.
                 const result = yield* TaskDriver.executeCLI({
                   cliTarget,
                   prompt: input.prompt,
                   description: input.description,
                   sessionID: context.sessionID,
                   taskID: input.task_id ? SessionSchema.ID.make(input.task_id) : undefined,
-                }).pipe(Effect.mapError((error) => new ToolFailure({ message: error.message })))
-                // Write back the linked task with the CLI's terminal status.
-                if (cliTaskID !== undefined) {
-                  yield* tasks
-                    .patch({
-                      sessionID: context.sessionID,
-                      id: cliTaskID,
-                      status: result.status === "failed" ? "failed" : "completed",
-                      outputDigest: result.status === "failed" ? undefined : result.sessionID,
-                    })
-                    .pipe(Effect.orDie, Effect.asVoid)
-                }
+                }).pipe(
+                  Effect.mapError((error) => new ToolFailure({ message: error.message })),
+                  Effect.onExit((exit) => {
+                    if (cliTaskID === undefined) return Effect.void
+                    return tasks
+                      .patch({
+                        sessionID: context.sessionID,
+                        id: cliTaskID,
+                        status: Exit.isSuccess(exit)
+                          ? exit.value.status === "failed"
+                            ? "failed"
+                            : "completed"
+                          : Cause.hasInterruptsOnly(exit.cause)
+                            ? "cancelled"
+                            : "failed",
+                        outputDigest:
+                          Exit.isSuccess(exit) && exit.value.status !== "failed" ? exit.value.sessionID : undefined,
+                      })
+                      .pipe(Effect.orDie, Effect.asVoid)
+                  }),
+                )
                 return {
                   sessionID: result.sessionID,
                   output: renderOutput({
@@ -270,6 +288,21 @@ export const layer = Layer.effectDiscard(
                     message: "judge_models is required when execution_type is 'judge'",
                   })
                 }
+                // Track A linkage: claim the parent task for the run (only a
+                // pending row flips — an already-claimed or terminal task is
+                // left alone), then settle it from the dispatch exit with the
+                // same classification as the CLI path above.
+                const judgeTaskID = input.parent_task_id
+                if (judgeTaskID !== undefined) {
+                  yield* tasks
+                    .patch({
+                      sessionID: context.sessionID,
+                      id: judgeTaskID,
+                      status: "in_progress",
+                      expect: ["pending"],
+                    })
+                    .pipe(Effect.orDie, Effect.asVoid)
+                }
                 const text = yield* TaskDriver.delegateJudge({
                   parentID: context.sessionID,
                   models,
@@ -277,6 +310,20 @@ export const layer = Layer.effectDiscard(
                   description: input.description,
                 }).pipe(
                   Effect.catchTag("TaskDriver.DelegateError", (error) => new ToolFailure({ message: error.message })),
+                  Effect.onExit((exit) => {
+                    if (judgeTaskID === undefined) return Effect.void
+                    return tasks
+                      .patch({
+                        sessionID: context.sessionID,
+                        id: judgeTaskID,
+                        status: Exit.isSuccess(exit)
+                          ? "completed"
+                          : Cause.hasInterruptsOnly(exit.cause)
+                            ? "cancelled"
+                            : "failed",
+                      })
+                      .pipe(Effect.orDie, Effect.asVoid)
+                  }),
                 )
                 return {
                   sessionID: context.sessionID,

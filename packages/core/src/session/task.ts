@@ -169,10 +169,14 @@ export interface Interface {
    * Legacy todowrite bridge: reconcile by position, reusing existing ids so a
    * delegation writeback to a linked task survives a later full-list replace.
    * New positions mint ids, trailing rows are removed, all in one transaction.
+   * `expectedRevision` is the max revision the caller observed across the
+   * session's tasks (see {@link Interface.update}); a mismatch means another
+   * write path landed in between and the stale replace fails `stale_revision`.
    */
   readonly replaceLegacy: (input: {
     readonly sessionID: SessionSchema.ID
     readonly tasks: ReadonlyArray<typeof WriteInfo.Type>
+    readonly expectedRevision?: number
   }) => Effect.Effect<ReadonlyArray<Info>, TaskWriteError>
   /**
    * Target a single task by id and update its status (delegation writeback).
@@ -668,6 +672,38 @@ export const layer = Layer.effect(
               .orderBy(asc(TaskTable.position))
               .all()
               .pipe(Effect.orDie)
+            // Duplicate-id guard (mirrors update): an explicit id repeated
+            // within the payload, or already present in the table, would hit
+            // the task.id PK (global, not session-scoped — hence the
+            // table-wide probe) and surface as an unhandled defect instead of
+            // a typed failure.
+            const seen = new Set<string>()
+            const explicitIds = new Array<string>()
+            for (const task of input.tasks) {
+              if (task.id === undefined) continue
+              if (seen.has(task.id)) {
+                return {
+                  type: "invalid" as const,
+                  error: new TaskWriteError({ sessionID: input.sessionID, id: task.id, reason: "duplicate" }),
+                }
+              }
+              seen.add(task.id)
+              explicitIds.push(task.id)
+            }
+            if (explicitIds.length > 0) {
+              const taken = yield* tx
+                .select({ id: TaskTable.id })
+                .from(TaskTable)
+                .where(inArray(TaskTable.id, explicitIds))
+                .all()
+                .pipe(Effect.orDie)
+              if (taken.length > 0) {
+                return {
+                  type: "invalid" as const,
+                  error: new TaskWriteError({ sessionID: input.sessionID, id: taken[0]?.id, reason: "duplicate" }),
+                }
+              }
+            }
             const graph = yield* reachableCycleGraph(
               (ids) =>
                 tx
@@ -742,6 +778,7 @@ export const layer = Layer.effect(
     const replaceLegacy = Effect.fn("SessionTask.replaceLegacy")((input: {
       readonly sessionID: SessionSchema.ID
       readonly tasks: ReadonlyArray<typeof WriteInfo.Type>
+      readonly expectedRevision?: number
     }) => writeLock.withPermits(1)(Effect.gen(function* () {
       const now = (yield* DateTime.nowAsDate).getTime()
       const result = yield* db
@@ -754,6 +791,21 @@ export const layer = Layer.effect(
               .orderBy(asc(TaskTable.position))
               .all()
               .pipe(Effect.orDie)
+            // Full-list optimistic-concurrency guard (same semantics as
+            // update): the caller's expectedRevision is the max revision they
+            // observed; a higher current max means another write path landed
+            // between their read and this replace, so the stale plan is
+            // rejected before any write (the trailing-delete below would
+            // otherwise silently drop the other path's rows).
+            if (input.expectedRevision !== undefined) {
+              const maxRevision = existing.reduce((max, row) => Math.max(max, row.revision), 0)
+              if (maxRevision !== input.expectedRevision) {
+                return {
+                  type: "invalid" as const,
+                  error: new TaskWriteError({ sessionID: input.sessionID, reason: "stale_revision" }),
+                }
+              }
+            }
             // Dead-job guard (re-review M-1): the legacy TodoWrite bridge can
             // carry `status: "scheduled"` with no trigger — reject instead of
             // persisting a job the daemon's arm scan can never pick up.
@@ -772,16 +824,19 @@ export const layer = Layer.effect(
             for (const [index, task] of input.tasks.entries()) {
               const prior = existing[index]
               const id = prior?.id ?? Identifier.ascending("task")
+              // Preserve-omitted is input-first (same rule as update and
+              // hasDeadSchedule): an omitted field keeps the existing row's
+              // value, an explicit one wins.
               const columns = {
                 content: task.content,
                 status: task.status,
                 priority: task.priority,
-                parent_id: prior?.parent_id ?? task.parentID ?? null,
-                agent_id: prior?.agent_id ?? task.agentID ?? null,
-                scheduled_at: prior?.scheduled_at ?? task.scheduledAt ?? null,
-                recurrence: prior?.recurrence ?? task.recurrence ?? null,
-                spawned_from: prior?.spawned_from ?? task.spawnedFrom ?? null,
-                depends_on: prior?.depends_on ?? task.dependsOn ?? null,
+                parent_id: task.parentID ?? prior?.parent_id ?? null,
+                agent_id: task.agentID ?? prior?.agent_id ?? null,
+                scheduled_at: task.scheduledAt ?? prior?.scheduled_at ?? null,
+                recurrence: task.recurrence ?? prior?.recurrence ?? null,
+                spawned_from: task.spawnedFrom ?? prior?.spawned_from ?? null,
+                depends_on: task.dependsOn ?? prior?.depends_on ?? null,
                 revision: prior ? prior.revision + 1 : 1,
                 position: index,
                 time_updated: now,

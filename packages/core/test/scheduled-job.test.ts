@@ -275,6 +275,40 @@ describe("ScheduledJobRunner", () => {
     }),
   )
 
+  it.effect("startup sweep resets non-scheduled in_progress rows, leaving schedule rows to arm recover", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const runner = yield* ScheduledJob.Service
+      // A stale delegation/UI claim (no schedule) and a stale scheduler claim
+      // (schedule-bearing) — both left in_progress by a dead process. append
+      // returns the full table, so the new row is the last entry.
+      const plain = (yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "delegated", status: "in_progress", priority: "medium" }],
+      })).at(-1)
+      const job = (yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "audit", status: "in_progress", priority: "medium", scheduledAt: at(2026, 8, 2, 9, 0) }],
+      })).at(-1)
+      if (!plain || !job) throw new Error("append returned no task")
+
+      yield* ScheduledJob.recoverStaleClaims()
+      const swept = yield* tasks.get(sessionID)
+      expect(swept.find((task) => task.id === plain.id)?.status).toBe("pending")
+      // Schedule-bearing rows are the arm recover pass's job, not the sweep's.
+      expect(swept.find((task) => task.id === job.id)?.status).toBe("in_progress")
+
+      // The original recover behavior is unchanged: the scheduled claim is
+      // reset and the job re-queues and fires.
+      yield* runner.arm(at(2026, 8, 2, 8, 59), { recover: true })
+      expect((yield* tasks.get(sessionID)).find((task) => task.id === job.id)?.status).toBe("pending")
+      yield* runner.tick(at(2026, 8, 2, 9, 0))
+      expect((yield* tasks.get(sessionID)).find((task) => task.id === job.id)?.status).toBe("completed")
+      expect(holder.calls).toHaveLength(1)
+    }),
+  )
+
   it.effect("arm with recover re-queues a stale in_progress claim (HIGH-3)", () =>
     Effect.gen(function* () {
       yield* setup

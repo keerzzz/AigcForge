@@ -10,7 +10,7 @@ import { Tools } from "./tools"
 export const name = "todowrite"
 
 export const Input = Schema.Struct({
-  todos: Schema.Array(SessionTodo.Info).annotate({ description: "The updated todo list" }),
+  todos: Schema.Array(SessionTodo.WriteItem).annotate({ description: "The updated todo list" }),
 })
 
 export const Output = Schema.Struct({
@@ -44,9 +44,29 @@ export const layer = Layer.effectDiscard(
                 agent: context.agent,
                 source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
               })
-              yield* todos.update({ sessionID: context.sessionID, todos: input.todos })
-              return { todos: input.todos }
-            }).pipe(Effect.mapError(() => new ToolFailure({ message: "Unable to update todos" }))),
+              const updated = yield* todos.update({ sessionID: context.sessionID, todos: input.todos })
+              return { todos: updated }
+            }).pipe(
+              Effect.catchTag("SessionTask.TaskWriteError", (error) =>
+                Effect.gen(function* () {
+                  // Option B: a stale write hands the model the server's current
+                  // list so it can merge its changes and retry; every other
+                  // reason already carries a readable message.
+                  const message =
+                    error.reason === "stale_revision"
+                      ? `${error.message}\nCurrent server-side todo list:\n${JSON.stringify(yield* todos.get(context.sessionID), null, 2)}\nMerge your changes into this list and retry.`
+                      : error.message
+                  return yield* new ToolFailure({ message, error })
+                }),
+              ),
+              // A permission denial keeps its own identity instead of
+              // degrading to the generic fallback (TaggedErrorClass message is
+              // empty here, so fall back to the tag); only an error with
+              // neither degrades to it.
+              Effect.mapError(
+                (error) => new ToolFailure({ message: error.message || error._tag || "Unable to update todos", error }),
+              ),
+            ),
         }),
       })
       .pipe(Effect.orDie)
