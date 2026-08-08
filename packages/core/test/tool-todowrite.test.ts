@@ -136,8 +136,9 @@ describe("TodoWriteTool", () => {
 
       const result = yield* executeTool(
         registry,
-        // Bypass the WriteItem type to simulate a model emitting a bad value.
-        call(sessionID, [{ content: "x", status: "bogus", priority: "high" } as unknown as SessionTodo.WriteItem]),
+        // 类型负测试：绕过 WriteItem 类型模拟模型发出坏值，验证 schema 边界拒绝。
+        // oxlint-disable-next-line no-unsafe-type-assertion -- documented negative test per AGENTS.md
+        call(sessionID, [{ content: "x", status: "bogus", priority: "high" }] as unknown as SessionTodo.WriteItem[]),
       )
       expect(result.type).toBe("error")
       expect(result.type === "error" && result.value).toContain("Invalid tool input")
