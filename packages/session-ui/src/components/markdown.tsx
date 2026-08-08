@@ -343,6 +343,10 @@ export function Markdown(
             if (key && hash) touchCachedMarkdown(key, { raw: block.raw, hash, html })
           }
           const finalHtml = await renderMermaidBlocks(html)
+          // Cache the mermaid-rendered result so a later cache hit skips the
+          // async render entirely (renderMermaidBlocks is a cheap string check
+          // on already-rendered html).
+          if (key && hash && finalHtml !== html) touchCachedMarkdown(key, { raw: block.raw, hash, html: finalHtml })
           return { key: blockKey, mode: block.mode, raw: block.raw, hash: hash ?? "", html: finalHtml }
         }),
       )
