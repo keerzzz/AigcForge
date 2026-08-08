@@ -16,7 +16,7 @@ describe("computeWorkSidebarGroups (Work sidebar trade dimension)", () => {
       session("s-office", "general-office"),
     ])
 
-    expect([...groups.map((group) => group.category)]).toEqual([...WORK_SIDEBAR_CATEGORY_ORDER])
+    expect(groups.map((group) => group.category)).toEqual([...WORK_SIDEBAR_CATEGORY_ORDER])
   })
 
   test("sessions without presetCategoryId fall into the uncategorized group", () => {

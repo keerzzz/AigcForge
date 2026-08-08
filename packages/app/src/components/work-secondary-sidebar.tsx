@@ -7,7 +7,7 @@ import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { useLanguage } from "@/context/language"
-import { modeDraft } from "@/context/mode"
+import { isMode, modeDefinition, modeDraft } from "@/context/mode"
 import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
 import { ServerConnection } from "@/context/server"
@@ -41,9 +41,15 @@ export function WorkSecondarySidebar(props: {
   // 跨模式指示器（计划 §3.7）：复用 session.tsx:1626 `info()?.mode` 读取路径
   const sessionMode = createMemo(() => (params.id ? dirSync().session.get(params.id)?.mode : undefined))
 
+  // 模式名本地化：复用 modeDefinition.labelKey（对齐 mode-switcher），isMode 收窄 ProductMode.ID -> Mode
+  const modeLabel = createMemo(() => {
+    const m = sessionMode()
+    return m && isMode(m) ? language.t(modeDefinition(m).labelKey) : language.t("mode.coding")
+  })
+
   const store = createMemo(() => {
     const directory = props.directory()
-    if (!directory) return
+    if (!directory) return undefined
     return sync().child(directory, { bootstrap: false })[0]
   })
 
@@ -73,7 +79,7 @@ export function WorkSecondarySidebar(props: {
           data-component="work-sidebar-mode-mismatch"
           class="border-b border-v2-border-border-base bg-v2-background-bg-layer-02 px-3 py-1.5 text-v2-text-text-muted text-11-regular"
         >
-          {language.t("work.sidebar.modeMismatch", { mode: sessionMode() ?? language.t("mode.coding") })}
+          {language.t("work.sidebar.modeMismatch", { mode: modeLabel() })}
         </div>
       </Show>
       <TabsV2 value={tab()} onChange={switchTab}>
