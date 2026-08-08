@@ -12,7 +12,7 @@ describe("mermaidPlaceholder", () => {
     const src = 'graph TD\n  A["say <hi> & bye"]-->B'
     const escaped = mermaidPlaceholder(src)
     expect(escaped).not.toContain("-->")
-    const value = escaped.match(/data-mermaid="([^"]+)"/)![1]!
+    const value = escaped.match(/data-mermaid="([^"]+)"/)![1]
     expect(value).not.toContain("<")
     expect(value).not.toContain(">")
     expect(value).not.toContain('"')
