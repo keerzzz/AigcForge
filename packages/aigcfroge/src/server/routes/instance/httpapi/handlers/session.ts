@@ -23,7 +23,6 @@ import { SessionRevert } from "@/session/revert"
 import { SessionRunState } from "@/session/run-state"
 import { SessionStatus } from "@/session/status"
 import { SessionSummary } from "@/session/summary"
-import { Todo } from "@/session/todo"
 import { MessageID, PartID, SessionID } from "@/session/schema"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { getCacheDiagnostics } from "@aigcfroge/core/session/cache-diagnostics"
@@ -74,7 +73,6 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const agentSvc = yield* Agent.Service
     const permissionSvc = yield* Permission.Service
     const statusSvc = yield* SessionStatus.Service
-    const todoSvc = yield* Todo.Service
     const summary = yield* SessionSummary.Service
     const events = yield* EventV2Bridge.Service
     const { db } = yield* Database.Service
@@ -118,14 +116,10 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
 
     const todo = Effect.fn("SessionHttpApi.todo")(function* (ctx: { params: { sessionID: SessionID } }) {
       yield* requireSession(ctx.params.sessionID)
-      // Default V1 runtime: the V1 todowrite tool still owns TodoTable, so /todo
-      // reads it for backward compatibility. V2 runtime: TaskTable is the single
-      // source and SessionTodo projects the legacy three-field shape from it.
-      if (AIGCFROGE_V2_RUNTIME) {
-        const v2todo = yield* SessionTodo.Service
-        return yield* v2todo.get(ctx.params.sessionID)
-      }
-      return yield* todoSvc.get(ctx.params.sessionID)
+      // TaskTable is the single source in both runtimes; SessionTodo projects
+      // the legacy three-field shape from it.
+      const v2todo = yield* SessionTodo.Service
+      return yield* v2todo.get(ctx.params.sessionID)
     })
 
     const task = Effect.fn("SessionHttpApi.task")(function* (ctx: {
@@ -443,6 +437,38 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       return yield* requireSession(ctx.params.sessionID)
     })
 
+    // Copy the parent's task list into a forked session as a three-field
+    // projection: ids, spawned_from, depends_on, parent_id, schedules and
+    // digests are dropped so the copy holds no dangling references and cannot
+    // re-fire the parent's schedules. The update publishes task.updated /
+    // todo.updated for the child, so clients refresh on their own.
+    const copyForkTasks = Effect.fn("SessionHttpApi.copyForkTasks")(function* (
+      sourceID: SessionID,
+      childID: SessionID,
+    ) {
+      const v2task = yield* SessionTask.Service
+      const tasks = yield* v2task.get(sourceID)
+      if (tasks.length === 0) return
+      yield* v2task
+        .update({
+          sessionID: childID,
+          tasks: tasks.map((task) => ({
+            content: task.content,
+            // Never resume in-flight or scheduled work in the fork: the copy
+            // carries no trigger, and a bare `scheduled` row would be rejected
+            // as a dead schedule.
+            status: task.status === "in_progress" || task.status === "scheduled" ? "pending" : task.status,
+            priority: task.priority,
+          })),
+        })
+        .pipe(
+          // No client-supplied ids or schedules here, so a write error is
+          // theoretically unreachable; surface it as a client-agnostic 400
+          // (the only error the fork endpoint declares besides 404).
+          Effect.catchTag("SessionTask.TaskWriteError", () => Effect.fail(new HttpApiError.BadRequest({}))),
+        )
+    })
+
     const fork = Effect.fn("SessionHttpApi.fork")(function* (ctx: {
       params: { sessionID: SessionID }
       payload?: typeof ForkPayload.Type
@@ -460,14 +486,17 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
             trigger: true,
           })
           .pipe(Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))))
+        yield* copyForkTasks(ctx.params.sessionID, child.id)
         return v2InfoToV1(child) as Session.Info // brand escape: V1→V2 type bridge
       }
-      return yield* SessionError.mapStorageNotFound(
+      const child = yield* SessionError.mapStorageNotFound(
         session.fork({
           sessionID: ctx.params.sessionID,
           messageID: ctx.payload?.messageID,
         }),
       )
+      yield* copyForkTasks(ctx.params.sessionID, child.id)
+      return child
     })
 
     const forkRaw = Effect.fn("SessionHttpApi.forkRaw")(function* (ctx: {

@@ -4,7 +4,7 @@ import { NodeHttpServer, NodeServices } from "@effect/platform-node"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { mkdir } from "node:fs/promises"
 import path from "node:path"
-import { Cause, Config, Effect, Exit, Layer } from "effect"
+import { Cause, Config, Deferred, Effect, Exit, Layer } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse, HttpRouter, HttpServer } from "effect/unstable/http"
 import { layerWebSocketConstructorGlobal } from "effect/unstable/socket/Socket"
 import { CrossSpawnSpawner } from "@aigcfroge/core/cross-spawn-spawner"
@@ -22,20 +22,23 @@ import { HttpApiApp } from "../../src/server/routes/instance/httpapi/server"
 import * as HttpSessionError from "../../src/server/routes/instance/httpapi/handlers/session-errors"
 import { SessionPaths } from "../../src/server/routes/instance/httpapi/groups/session"
 import { Session } from "@/session/session"
+import { Todo } from "@/session/todo"
 import { MessageID, PartID, SessionID, type SessionID as SessionIDType } from "../../src/session/schema"
 import { Database } from "@aigcfroge/core/database/database"
 import { SessionInputTable, SessionMessageTable, SessionTable, TodoTable } from "@aigcfroge/core/session/sql"
 import { SessionMessage } from "@aigcfroge/core/session/message"
 import { SessionTask } from "@aigcfroge/core/session/task"
+import { EventV2 } from "@aigcfroge/core/event"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { ProviderV2 } from "@aigcfroge/core/provider"
+import { AbsolutePath } from "@aigcfroge/core/schema"
 import * as DateTime from "effect/DateTime"
 import { eq } from "drizzle-orm"
 import { resetDatabase } from "../fixture/db"
 import { disposeAllInstances, provideInstanceEffect, TestInstance, tmpdirScoped } from "../fixture/fixture"
 import { TestLLMServer } from "../lib/llm-server"
 import { testProviderConfig } from "../lib/test-provider"
-import { testEffect } from "../lib/effect"
+import { testEffect, awaitWithTimeout } from "../lib/effect"
 import { CliAdapterRegistry } from "../../src/agent/meta/adapters/registry"
 
 const originalWorkspaces = Flag.AIGCFROGE_EXPERIMENTAL_WORKSPACES
@@ -67,6 +70,8 @@ const it = testEffect(
     Project.defaultLayer,
     Session.defaultLayer,
     SessionTask.defaultLayer,
+    Todo.defaultLayer,
+    EventV2.defaultLayer,
     workspaceLayer,
     Database.defaultLayer,
     httpApiLayer,
@@ -792,6 +797,73 @@ describe("session HttpApi", () => {
   )
 
   it.instance(
+    "fork copies the parent's tasks as a three-field projection",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = {
+          "x-aigcfroge-directory": encodeURIComponent(test.directory),
+          "content-type": "application/json",
+        }
+        const parent = yield* createSession({ title: "fork parent" })
+        const tasks = yield* SessionTask.Service
+        yield* tasks.update({
+          sessionID: parent.id,
+          tasks: [
+            { content: "running", status: "in_progress", priority: "high" },
+            // `scheduled` requires a real trigger (dead-schedule guard).
+            {
+              content: "scheduled",
+              status: "scheduled",
+              priority: "medium",
+              agentID: "build",
+              scheduledAt: Date.now() + 60_000,
+            },
+            { content: "done", status: "completed", priority: "low", spawnedFrom: "msg_seed" },
+          ],
+        })
+
+        const child = yield* requestJson<Session.Info>(pathFor(SessionPaths.fork, { sessionID: parent.id }), {
+          method: "POST",
+          headers,
+        })
+
+        const copied = yield* requestJson<SessionTask.Info[]>(pathFor(SessionPaths.task, { sessionID: child.id }), {
+          headers,
+        })
+        const projection: Array<{ content: string; status: string; priority: string }> = [
+          { content: "running", status: "pending", priority: "high" },
+          { content: "scheduled", status: "pending", priority: "medium" },
+          { content: "done", status: "completed", priority: "low" },
+        ]
+        const copiedProjection: Array<{ content: string; status: string; priority: string }> = copied.map((task) => ({
+          content: task.content,
+          status: task.status,
+          priority: task.priority,
+        }))
+        expect(copiedProjection).toEqual(projection)
+        // No dangling references: schedule, spawn and delegation fields are dropped.
+        expect(
+          copied.every(
+            (task) =>
+              task.scheduledAt === undefined &&
+              task.recurrence === undefined &&
+              task.spawnedFrom === undefined &&
+              task.dependsOn === undefined &&
+              task.agentID === undefined,
+          ),
+        ).toBe(true)
+
+        const todos = yield* requestJson<Array<{ content: string; status: string; priority: string }>>(
+          pathFor(SessionPaths.todo, { sessionID: child.id }),
+          { headers },
+        )
+        expect(todos).toEqual(projection)
+      }),
+    { git: true, config: { formatter: false, lsp: false, share: "disabled" } },
+  )
+
+  it.instance(
     "persists selected workspace id when creating a session",
     () =>
       Effect.gen(function* () {
@@ -1318,32 +1390,94 @@ describe("session task HttpApi", () => {
   )
 
   it.instance(
-    "GET /session/:id/todo reads the legacy TodoTable in the default V1 runtime",
+    "GET /session/:id/todo projects from TaskTable in the default V1 runtime",
     () =>
       Effect.gen(function* () {
         const test = yield* TestInstance
         const headers = { "x-aigcfroge-directory": encodeURIComponent(test.directory) }
         const session = yield* createSession({ title: "todo v1" })
+        // The V1 service is the todowrite tool's write path in the default
+        // runtime; after convergence it must land in TaskTable only.
+        const v1todo = yield* Todo.Service
+        yield* v1todo.update({
+          sessionID: session.id,
+          todos: [{ content: "legacy", status: "in_progress", priority: "high" }],
+        })
+
         const { db } = yield* Database.Service
-        yield* db
-          .insert(TodoTable)
-          .values({
-            session_id: session.id,
-            content: "legacy",
-            status: "in_progress",
-            priority: "high",
-            position: 0,
-            time_created: Date.now(),
-            time_updated: Date.now(),
-          })
-          .run()
+        const legacyRows = yield* db
+          .select()
+          .from(TodoTable)
+          .where(eq(TodoTable.session_id, session.id))
+          .all()
           .pipe(Effect.orDie)
+        expect(legacyRows).toEqual([])
 
         const todos = yield* requestJson<Array<{ content: string; status: string; priority: string }>>(
           pathFor(SessionPaths.todo, { sessionID: session.id }),
           { headers },
         )
         expect(todos).toEqual([{ content: "legacy", status: "in_progress", priority: "high" }])
+
+        // Single source: GET /task exposes the same rows with task metadata.
+        const tasks = yield* requestJson<SessionTask.Info[]>(pathFor(SessionPaths.task, { sessionID: session.id }), {
+          headers,
+        })
+        const taskProjection: Array<{ content: string; status: string; priority: string }> = tasks.map((task) => ({
+          content: task.content,
+          status: task.status,
+          priority: task.priority,
+        }))
+        expect(taskProjection).toEqual(todos)
+      }),
+  )
+
+  it.instance(
+    "V1 Todo.Service.update publishes todo.updated on the shared EventV2 bus with instance location",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const session = yield* createSession({ title: "todo event" })
+        const events = yield* EventV2.Service
+        const v1todo = yield* Todo.Service
+        const received = yield* Deferred.make<EventV2.Payload>()
+        const unsubscribe = yield* events.listen((event) =>
+          event.type === "todo.updated" ? Deferred.succeed(received, event).pipe(Effect.asVoid) : Effect.void,
+        )
+        yield* v1todo.update({
+          sessionID: session.id,
+          todos: [{ content: "first", status: "pending", priority: "medium" }],
+        })
+        const event = yield* awaitWithTimeout(Deferred.await(received), "todo.updated not received on the EventV2 bus")
+        yield* unsubscribe
+        expect(event.data).toMatchObject({
+          sessionID: session.id,
+          todos: [{ content: "first", status: "pending", priority: "medium" }],
+        })
+        // The SSE /event route filters on location.directory, so the event must
+        // carry the instance location to be deliverable.
+        expect(event.location?.directory).toBe(AbsolutePath.make(test.directory))
+      }),
+  )
+
+  it.instance(
+    "V1 Todo.Service.update rejects an invalid status",
+    () =>
+      Effect.gen(function* () {
+        const session = yield* createSession({ title: "todo invalid" })
+        const v1todo = yield* Todo.Service
+        const error = yield* v1todo
+          .update({
+            sessionID: session.id,
+            todos: [{ content: "bad", status: "bogus", priority: "high" }],
+          })
+          .pipe(
+            Effect.match({
+              onSuccess: () => undefined,
+              onFailure: (error) => error,
+            }),
+          )
+        expect(error?._tag).toBe("SchemaError")
       }),
   )
 
