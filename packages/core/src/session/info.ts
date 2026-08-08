@@ -1,8 +1,9 @@
-import { DateTime, Schema } from "effect"
+import { DateTime, Option, Schema } from "effect"
 import { AgentV2 } from "../agent"
 import { Location } from "../location"
 import { ModelV2 } from "../model"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { WorkPreset } from "@aigcfroge/schema/work-preset"
 import { ProjectV2 } from "../project"
 import { ProviderV2 } from "../provider"
 import { AbsolutePath, RelativePath } from "../schema"
@@ -11,10 +12,13 @@ import { SessionSchema } from "./schema"
 import { SessionMessage } from "./message"
 import { SessionTable } from "./sql"
 
+const decodePresetCategory = Schema.decodeUnknownOption(WorkPreset.Category)
+
 export function fromRow(row: typeof SessionTable.$inferSelect): SessionSchema.Info {
   return SessionSchema.Info.make({
     id: SessionSchema.ID.make(row.id),
     mode: Schema.decodeUnknownSync(ProductMode.ID)(row.mode ?? ProductMode.Default),
+    presetCategoryId: Option.getOrUndefined(decodePresetCategory(row.metadata?.presetCategoryId)),
     projectID: ProjectV2.ID.make(row.project_id),
     title: row.title,
     slug: row.slug,

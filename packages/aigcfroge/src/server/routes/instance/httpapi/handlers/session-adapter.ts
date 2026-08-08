@@ -17,7 +17,9 @@ import type { SessionSchema } from "@aigcfroge/core/session/schema"
 // MessageID) even though the underlying string format is identical. Per
 // CLAUDE.md No Cheating, this is a documented third-party-type escape, not a
 // logic bypass.
-export function v2InfoToV1(info: SessionSchema.Info): SessionV1.SessionInfo {
+export function v2InfoToV1(
+  info: SessionSchema.Info,
+): SessionV1.SessionInfo & { presetCategoryId?: SessionSchema.Info["presetCategoryId"] } {
   return {
     id: info.id,
     mode: info.mode,
@@ -39,7 +41,7 @@ export function v2InfoToV1(info: SessionSchema.Info): SessionV1.SessionInfo {
     model: info.model
       ? { id: info.model.id, providerID: info.model.providerID, variant: info.model.variant }
       : undefined,
-    metadata: undefined,
+    metadata: info.presetCategoryId ? { presetCategoryId: info.presetCategoryId } : undefined,
     time: {
       created: DateTime.toEpochMillis(info.time.created),
       updated: DateTime.toEpochMillis(info.time.updated),
