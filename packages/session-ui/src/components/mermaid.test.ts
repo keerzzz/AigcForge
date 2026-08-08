@@ -1,16 +1,29 @@
-import { describe, expect, test } from "bun:test"
+import { afterAll, beforeAll, describe, expect, test } from "bun:test"
 import { Mermaid } from "./mermaid"
-import { sanitizeMarkdown } from "./markdown-cache"
+import { escapeHtml, sanitizeMarkdown } from "./markdown-cache"
 
-const bbox = () => new DOMRect(0, 0, 100, 30)
-SVGGraphicsElement.prototype.getBBox = bbox
-SVGSVGElement.prototype.getBBox = () => new DOMRect(0, 0, 400, 200)
+// happy-dom lacks SVGGraphicsElement.getBBox (mermaid layout needs it) and its
+// HTML parser drops SVG children when a <style> element is present. Shim both
+// for this suite only and restore afterwards so other tests see the real
+// prototypes (AGENTS.md: no globalThis.* mocks that leak across suites).
+// Bracket access avoids the unbound-method lint rule (dot access only).
+const origGetBBoxGraphics = SVGGraphicsElement.prototype["getBBox"]
+const origGetBBoxSVG = SVGSVGElement.prototype["getBBox"]
+const origParseFromString = DOMParser.prototype["parseFromString"]
 
-const parseHtml = DOMParser.prototype.parseFromString.bind(DOMParser.prototype)
-DOMParser.prototype.parseFromString = function (html: string, type: DOMParserSupportedType) {
-  const withoutSvgStyle = html.replace(/<style>[\s\S]*?<\/style>/g, "")
-  return parseHtml(withoutSvgStyle, type)
-}
+beforeAll(() => {
+  SVGGraphicsElement.prototype["getBBox"] = () => new DOMRect(0, 0, 100, 30)
+  SVGSVGElement.prototype["getBBox"] = () => new DOMRect(0, 0, 400, 200)
+  DOMParser.prototype["parseFromString"] = function (this: DOMParser, html: string, type: DOMParserSupportedType) {
+    return origParseFromString.call(this, html.replace(/<style>[\s\S]*?<\/style>/g, ""), type)
+  }
+})
+
+afterAll(() => {
+  SVGGraphicsElement.prototype["getBBox"] = origGetBBoxGraphics
+  SVGSVGElement.prototype["getBBox"] = origGetBBoxSVG
+  DOMParser.prototype["parseFromString"] = origParseFromString
+})
 
 const placeholder = (src: string) => `<div data-mermaid="${encodeURIComponent(src)}"></div>`
 
@@ -63,8 +76,8 @@ describe("renderMermaidBlocks", () => {
 })
 
 describe("sanitizeMermaidSvg", () => {
-  test("strips script and foreignObject but keeps svg elements and id", () => {
-    const svg = `<svg id="root"><script/><defs><marker id="arrowhead"><path d="M0,0"/></marker></defs><g id="g1"><text id="t1">hi</text><rect id="r1" x="0" y="0" width="10" height="10"/><path id="p1" d="M0,0"/><circle id="c1" cx="1" cy="1" r="1"/></g><foreignObject><div>bad</div></foreignObject></svg>`
+  test("strips script, foreignObject, and style but keeps svg elements and id", () => {
+    const svg = `<svg id="root"><script/><defs><marker id="arrowhead"><path d="M0,0"/></marker></defs><g id="g1"><text id="t1">hi</text><rect id="r1" x="0" y="0" width="10" height="10"/><path id="p1" d="M0,0"/><circle id="c1" cx="1" cy="1" r="1"/></g><foreignObject><div>bad</div></foreignObject><style>.x{color:red}</style></svg>`
     const result = Mermaid.sanitizeMermaidSvg(svg)
     expect(result).toContain("<svg")
     expect(result).toContain('id="arrowhead"')
@@ -75,6 +88,7 @@ describe("sanitizeMermaidSvg", () => {
     expect(result).toContain("<circle")
     expect(result).not.toContain("<script")
     expect(result).not.toContain("foreignObject")
+    expect(result).not.toContain("<style")
   })
 
   test("strips event handler attributes", () => {
@@ -86,6 +100,6 @@ describe("sanitizeMermaidSvg", () => {
 
 describe("escapeHtml", () => {
   test("escapes & < > quotes", () => {
-    expect(Mermaid.escapeHtml('&<>"\'')).toBe("&amp;&lt;&gt;&quot;&#39;")
+    expect(escapeHtml('&<>"\'')).toBe("&amp;&lt;&gt;&quot;&#39;")
   })
 })
