@@ -34,12 +34,16 @@ const IS_PREVIEW = CHANNEL !== "latest"
 const VERSION = await (async () => {
   if (env.AIGCFROGE_VERSION) return env.AIGCFROGE_VERSION
   if (IS_PREVIEW) return `0.0.0-${CHANNEL}-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "")}`
-  const version = await fetch("https://registry.npmjs.org/aigcfroge/latest")
-    .then((res) => {
-      if (!res.ok) throw new Error(res.statusText)
-      return res.json()
-    })
-    .then((data: any) => data.version)
+  // Version base comes from the latest GitHub release tag: this fork publishes
+  // @aigcfroge/* packages, and the upstream `aigcfroge` npm lookup 404s (that
+  // package was never published). Fall back to the root package.json version
+  // when no release exists yet.
+  const repo = process.env.GH_REPO || "keerzzz/AigcForge"
+  const version = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
+    headers: { "User-Agent": "aigcfroge", "X-GitHub-Api-Version": "2022-11-28" },
+  })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data: { tag_name?: string } | null) => (data?.tag_name ? data.tag_name.replace(/^v/, "") : rootPkg.version))
   const [major, minor, patch] = version.split(".").map((x: string) => Number(x) || 0)
   const t = env.AIGCFROGE_BUMP?.toLowerCase()
   if (t === "major") return `${major + 1}.0.0`
