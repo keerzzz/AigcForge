@@ -542,9 +542,9 @@ bun run lint
 
 | 风险 | 概率 | 影响 | 应对 |
 |---|---|---|---|
-| iframe `csp=` 属性 Tauri/Electron 不支持 | 低 | 高 | Phase A 实测；fallback：仅靠 srcdoc `<meta>`（双重变单重） |
+| iframe `csp=` 属性非 Chromium 浏览器不支持 | 低 | 低 | **已核实**：desktop = Electron 42（Chromium）全平台支持 `csp=`（非 Tauri）；非 Chromium web 部署（Firefox/Safari）仅 `<meta>` 单重（仍有效，`<meta>` CSP 跨浏览器）。双重防线已覆盖 |
 | `?raw` import 图表库源码过大（vis-network ~200KB）导致 srcdoc 膨胀 | 中 | 低 | 可接受（单候选稿 < 500KB）；远期加库源码缓存 |
-| LLM 产 HTML 质量不稳定（未闭合标签/变量错） | 高 | 中 | onerror 降级 + Code/Preview 切换 + SYSTEM_PROMPT 模板引导 |
+| LLM 产 HTML 质量不稳定（未闭合标签/inline on* 被剥） | 高 | 中 | onerror 降级 + Code/Preview 切换 + SYSTEM_PROMPT 指引 `addEventListener`（inline `on*` 被 sanitizeHtmlLite 剥离，LLM 需用 `<script>` + addEventListener） |
 | LLM 误用未白名单库（如 d3） | 中 | 中 | sanitizeHtmlLite 剥离外部 `<script src>`；SYSTEM_PROMPT 限定 vis-network/chart.js |
 | iframe 尺寸自适应问题（HTML 内容高度不定） | 中 | 中 | iframe height 跟随面板 + ResizeHandle（对齐 code/chat B 区） |
 | 主题对齐（iframe 内 HTML 用 v2 token） | 中 | 低 | SYSTEM_PROMPT 指引 LLM 用 `var(--v2-*)` CSS var 字符串（对齐 frontend-theming skill） |
@@ -557,6 +557,7 @@ bun run lint
 
 | 负债 | 风险 | 到期 |
 |---|---|---|
+| bun 1.3.14 无法编译 Solid JSX（bun#28605）-> 组件测试降级为源码契约 + e2e | bun 1.4 修复后可补 it.live 渲染测试；**已核实** 1.3.14 是最新，1.4 未发布 | bun 1.4 发布后 |
 | SVG 独立渲染器未做（```svg） | 渲染器注册表预留接口，SVG 暂走 Markdown 代码块 | M3.5 后按需加 |
 | React 组件渲染未做 | 需预打包 React 运行时，复杂度高 | 远期 |
 | 图表库仅 vis-network + chart.js（无 ECharts） | 大屏场景需 ECharts | 按需加（包体大，动态 import） |

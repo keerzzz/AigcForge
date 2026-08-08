@@ -64,6 +64,8 @@ describe("WorkOrchestratorPrompt", () => {
     expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("vis-network")
     expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("chart.js")
     expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("self-contained")
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("addEventListener")
+    expect(WorkOrchestratorPrompt.SYSTEM_PROMPT).toContain("stripped by the preview sanitizer")
   })
 
   test("keeps the Mermaid guidance alongside the HTML guidance (no removal)", () => {
