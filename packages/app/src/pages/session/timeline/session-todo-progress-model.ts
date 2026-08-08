@@ -107,10 +107,10 @@ export type TaskWriteStatus = "pending" | "in_progress" | "completed" | "cancell
 /**
  * Write-side status guard (differential-review HIGH-1): preserves the full
  * six-state task status verbatim. Display normalization (`normalizeStatus`,
- * which folds scheduled/failed into pending) must NEVER run on the persist
- * path — it would flatten an unrelated scheduled/failed task to pending on
- * every checkbox interaction, and with a preserved recurrence the daemon could
- * re-arm a failed job. Only a genuinely illegal value falls back to pending.
+ * which keeps scheduled/failed as-is and only downgrades unknown values to
+ * pending) is a render-side concern and must NEVER run on the persist path —
+ * the write endpoint accepts the six states directly, and only a genuinely
+ * illegal value falls back to pending here.
  */
 export const preserveStatus = (status: string): TaskWriteStatus => {
   switch (status) {

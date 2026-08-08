@@ -296,10 +296,13 @@ export function SessionTodoProgress(props: {
                     checked={task().status === "completed"}
                     indeterminate={task().status === "in_progress"}
                     disabled={
-                      // scheduled/cancelled have their own management UI (the
-                      // header scheduled-tasks popover / Agent Hub), so the
+                      // scheduled/cancelled/failed have their own management UI
+                      // (the header scheduled-tasks popover / Agent Hub), so the
                       // fold-over never rewrites them (HIGH-1 six-state guard).
-                      task().status === "cancelled" || task().status === "scheduled" || task().id === undefined
+                      task().status === "cancelled" ||
+                      task().status === "scheduled" ||
+                      task().status === "failed" ||
+                      task().id === undefined
                     }
                     onChange={() => writeback(task())}
                     label={
