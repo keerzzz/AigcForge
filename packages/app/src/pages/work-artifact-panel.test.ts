@@ -109,6 +109,37 @@ describe("WorkArtifactContent save-as-asset button (M2)", () => {
   })
 })
 
+// M3.5 format routing: the Artifact tab routes ```html candidates to the
+// HtmlArtifact renderer and everything else to the M1/M3 Markdown renderer.
+// Source-level contract (no DOM harness in the app, per the M2 precedent).
+describe("WorkArtifactContent format routing (M3.5)", () => {
+  const panel = fs.readFileSync(path.resolve(__dirname, "work-artifact-panel.tsx"), "utf-8")
+
+  test("routes html candidates to HtmlArtifact and others to Markdown in a single outlet", () => {
+    expect(panel).toContain('detectArtifactFormat(candidate()!) === "html"')
+    expect(panel).toContain("HtmlArtifact")
+    expect(panel).toContain("extractHtmlBlock(candidate()!)")
+    expect(panel).toContain('<Markdown text={candidate()!} />')
+  })
+
+  test("keeps the Markdown fallback for non-html candidates (M1/M3 no regression)", () => {
+    expect(panel).toContain('detectArtifactFormat(candidate()!) === "html"')
+    expect(panel).toContain('<Markdown text={candidate()!} />')
+  })
+
+  test("passes app-provided i18n labels to HtmlArtifact", () => {
+    expect(panel).toContain('language.t("work.artifact.html.preview")')
+    expect(panel).toContain('language.t("work.artifact.html.code")')
+    expect(panel).toContain('language.t("work.artifact.html.renderError")')
+    expect(panel).toContain('language.t("work.artifact.html.viewCode")')
+  })
+
+  test("does not touch the M2 save-as-asset chain", () => {
+    expect(panel).toContain("captureWorkArtifactAsCandidate(content)")
+    expect(panel).toContain('data-component="work-save-asset-button"')
+  })
+})
+
 // M2 Phase C: the Chat review/apply chain must render work-sourced candidates
 // (empty relativePath + status="valid") without changes. Source-level contract
 // checks against the reused modules; the Core side already covers applying an
