@@ -49,7 +49,7 @@ describe("WorkSecondarySidebar (work secondary sidebar, batch 1)", () => {
   })
 
   test("shows the cross-mode indicator when the routed session is not work", () => {
-    expect(component).toContain('sessionMode() !== "work"')
+    expect(component).toContain('sessionMode() !== undefined && sessionMode() !== "work"')
     expect(component).toContain('language.t("work.sidebar.modeMismatch"')
   })
 

@@ -68,7 +68,7 @@ export function WorkSecondarySidebar(props: {
   return (
     <div class="flex min-h-0 flex-1 flex-col" data-component="work-secondary-sidebar">
       <WorkLocationNewSession directory={props.directory} />
-      <Show when={sessionMode() !== "work"}>
+      <Show when={sessionMode() !== undefined && sessionMode() !== "work"}>
         <div
           data-component="work-sidebar-mode-mismatch"
           class="border-b border-v2-border-border-base bg-v2-background-bg-layer-02 px-3 py-1.5 text-v2-text-text-muted text-11-regular"
