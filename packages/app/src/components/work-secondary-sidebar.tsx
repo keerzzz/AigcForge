@@ -12,7 +12,6 @@ import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
 import { ServerConnection } from "@/context/server"
 import { useServerSync } from "@/context/server-sync"
-import { useSync } from "@/context/sync"
 import { useDirectoryPicker } from "@/components/directory-picker"
 import { useChatDirectory } from "@/pages/mode-workspace-context"
 import { useWorkSecondaryTab } from "@/context/work-secondary-tab"
@@ -34,23 +33,29 @@ export function WorkSecondarySidebar(props: {
 }) {
   const language = useLanguage()
   const sync = useServerSync()
-  const dirSync = useSync()
   const params = useParams()
   const { selected: tab, set: setTab } = useWorkSecondaryTab()
-
-  // 跨模式指示器（计划 §3.7）：复用 session.tsx:1626 `info()?.mode` 读取路径
-  const sessionMode = createMemo(() => (params.id ? dirSync().session.get(params.id)?.mode : undefined))
-
-  // 模式名本地化：复用 modeDefinition.labelKey（对齐 mode-switcher），isMode 收窄 ProductMode.ID -> Mode
-  const modeLabel = createMemo(() => {
-    const m = sessionMode()
-    return m && isMode(m) ? language.t(modeDefinition(m).labelKey) : language.t("mode.coding")
-  })
 
   const store = createMemo(() => {
     const directory = props.directory()
     if (!directory) return undefined
     return sync().child(directory, { bootstrap: false })[0]
+  })
+
+  // 跨模式指示器（计划 §3.7）：复用 session.tsx:1626 `info()?.mode` 读取路径。
+  // 从全局 child store 按路由 session id 读取（useSync 依赖 SDKProvider，仅在
+  // session/draft 路由子树可用；本组件挂全局 shell，/mode/work 首页也渲染）。
+  const sessionMode = createMemo(() => {
+    if (!params.id) return undefined
+    const current = store()
+    if (!current) return undefined
+    return current.session.find((item) => item.id === params.id)?.mode
+  })
+
+  // 模式名本地化：复用 modeDefinition.labelKey（对齐 mode-switcher），isMode 收窄 ProductMode.ID -> Mode
+  const modeLabel = createMemo(() => {
+    const m = sessionMode()
+    return m && isMode(m) ? language.t(modeDefinition(m).labelKey) : language.t("mode.coding")
   })
 
   const sessions = createMemo(() => {
