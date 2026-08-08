@@ -11,6 +11,7 @@
     "./message-part-text": "./src/components/message-part-text.ts",
     "./markdown-stream": "./src/components/markdown-stream.ts",
     "./markdown-cache": "./src/components/markdown-cache.tsx",
+    "./html-artifact-srcdoc": "./src/components/html-artifact-srcdoc.ts",
     "./line-comment-styles": "./src/components/line-comment-styles.ts",
     "./pierre": "./src/pierre/index.ts",
     "./pierre/*": "./src/pierre/*.ts",
@@ -48,6 +49,7 @@
     "@solid-primitives/resize-observer": "2.1.3",
     "@solidjs/meta": "catalog:",
     "@solidjs/router": "catalog:",
+    "chart.js": "4.5.1",
     "diff": "catalog:",
     "dompurify": "3.4.6",
     "fuzzysort": "catalog:",
@@ -64,6 +66,7 @@
     "shiki": "catalog:",
     "solid-js": "catalog:",
     "solid-list": "catalog:",
-    "strip-ansi": "7.1.2"
+    "strip-ansi": "7.1.2",
+    "vis-network": "10.1.0"
   }
 }
