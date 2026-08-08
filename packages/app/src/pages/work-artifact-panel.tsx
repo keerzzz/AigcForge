@@ -189,49 +189,58 @@ export function WorkArtifactContent() {
               </div>
             }
           >
-            <ScrollView class="min-h-0 flex-1">
-              <div class="flex flex-col gap-3 p-3">
-                <Show
-                  when={detectArtifactFormat(candidate()!) === "html"}
-                  fallback={<Markdown text={candidate()!} />}
-                >
-                  <div class="h-[60vh] min-h-[320px]">
-                    <HtmlArtifact
-                      html={extractHtmlBlock(candidate()!) ?? ""}
-                      labels={{
-                        preview: language.t("work.artifact.html.preview"),
-                        code: language.t("work.artifact.html.code"),
-                        renderError: language.t("work.artifact.html.renderError"),
-                        viewCode: language.t("work.artifact.html.viewCode"),
-                      }}
-                    />
-                  </div>
-                </Show>
-                <div class="flex gap-2">
-                  <ButtonV2
-                    variant="contrast"
-                    size="normal"
-                    icon="folder-add-left"
-                    class="flex-1"
-                    disabled={applying()}
-                    onClick={() => void apply()}
-                  >
-                    {language.t("work.artifact.apply")}
-                  </ButtonV2>
-                  <Show when={candidate() !== null && !appliedCurrent()}>
-                    <ButtonV2
-                      variant="neutral"
-                      size="normal"
-                      class="flex-1"
-                      data-component="work-save-asset-button"
-                      onClick={onSaveAsset}
-                    >
-                      {language.t("work.asset.save")}
-                    </ButtonV2>
-                  </Show>
+            <div class="flex min-h-0 flex-1 flex-col">
+              <Show
+                when={detectArtifactFormat(candidate()!) === "html"}
+                fallback={
+                  <ScrollView class="min-h-0 flex-1">
+                    <div class="p-3">
+                      <Markdown text={candidate()!} />
+                    </div>
+                  </ScrollView>
+                }
+              >
+                {/*
+                  HTML 模式：iframe 填满面板可用高度（flex-1），不用 ScrollView +
+                  固定视口高度。iframe 自带滚动条；按钮栏 shrink-0 固定底部，
+                  Apply 始终可见，无需滚动。
+                */}
+                <div class="min-h-0 flex-1 overflow-hidden p-3">
+                  <HtmlArtifact
+                    html={extractHtmlBlock(candidate()!) ?? ""}
+                    labels={{
+                      preview: language.t("work.artifact.html.preview"),
+                      code: language.t("work.artifact.html.code"),
+                      renderError: language.t("work.artifact.html.renderError"),
+                      viewCode: language.t("work.artifact.html.viewCode"),
+                    }}
+                  />
                 </div>
+              </Show>
+              <div class="flex shrink-0 gap-2 p-3 pt-0">
+                <ButtonV2
+                  variant="contrast"
+                  size="normal"
+                  icon="folder-add-left"
+                  class="flex-1"
+                  disabled={applying()}
+                  onClick={() => void apply()}
+                >
+                  {language.t("work.artifact.apply")}
+                </ButtonV2>
+                <Show when={candidate() !== null && !appliedCurrent()}>
+                  <ButtonV2
+                    variant="neutral"
+                    size="normal"
+                    class="flex-1"
+                    data-component="work-save-asset-button"
+                    onClick={onSaveAsset}
+                  >
+                    {language.t("work.asset.save")}
+                  </ButtonV2>
+                </Show>
               </div>
-            </ScrollView>
+            </div>
           </Show>
         }
       >
