@@ -6,7 +6,7 @@ export type SessionPlacement = {
 }
 
 export function createSessionPlacementStore(options?: {
-  onSet?: (server: ServerConnection.Key, directory: string) => void
+  onSet?: (server: ServerConnection.Key, directory: string, leafID: string) => void
 }) {
   const onSet = options?.onSet
   const placements = new Map<string, SessionPlacement>()
@@ -29,7 +29,7 @@ export function createSessionPlacementStore(options?: {
       const placement = { rootID: input.rootID, directory: input.directory }
       write(key(input.server, input.leafID), placement)
       write(key(input.server, input.rootID), placement)
-      onSet?.(input.server, input.directory)
+      onSet?.(input.server, input.directory, input.leafID)
       return placement
     },
     inherit(server: ServerConnection.Key, sourceID: string, leafID: string) {
