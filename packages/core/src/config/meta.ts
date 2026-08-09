@@ -13,7 +13,13 @@ export class DoomLoop extends Schema.Class<DoomLoop>("ConfigV2.Meta.DoomLoop")({
   threshold: PositiveInt.pipe(Schema.optional),
 }) {}
 
+export class CorrectionStore extends Schema.Class<CorrectionStore>("ConfigV2.Meta.CorrectionStore")({
+  enabled: Schema.Boolean.pipe(Schema.optional),
+  max_entries: PositiveInt.pipe(Schema.optional),
+}) {}
+
 export class Info extends Schema.Class<Info>("ConfigV2.Meta")({
   memory: Memory.pipe(Schema.optional),
   doom_loop: DoomLoop.pipe(Schema.optional),
+  correction_store: CorrectionStore.pipe(Schema.optional),
 }) {}
