@@ -155,6 +155,69 @@ Obsidian 双向链接 = 三个机制，对防幻觉的价值差异极大：
 
 ---
 
+## 7. 幻觉检测与缓解研究补充（解码级 / 训练级机制的归属判定）
+
+行业对幻觉控制的研究可归为三维度：自我发现（运行时检测）、前置主动防御、边界突破后的闭环自愈。按"信号源是否在 Harness 控制边界内"判定 AigcForge 归属：
+
+| 机制 | 原理 | 信号源层级 | AigcForge 归属 |
+|---|---|---|---|
+| VarEntropy / Semantic Energy | 解码时熵与熵方差飙升 → 知识盲区 | 模型内部（token 概率） | ❌ 模型侧责任（Harness 拿不到 token 级分布；CHOKE 警示证明不可靠） |
+| CSR / REFIND | 带证据 vs 剥离证据的条件概率差 → 忠实度违背 | 模型内部 + 双路推理（2x 成本） | ⏳ 中期可选：可作为 judge 的"证据敏感度"实现，但成本与收益需评估 |
+| H-Neurons / CLAP | FFN 中 <0.1% 幻觉神经元的激活探针 | 模型权重内部 | ❌ 模型侧责任（需厂商开放） |
+| **CHOKE 警示** | 强误导下模型以极高置信度+零熵输出荒谬幻觉 | —— | ✅ **关键结论：不确定性自查不可作为唯一防线——确定性计算门（机械验证）是唯一可靠防线，与 §2.2 结论一致** |
+| KARL / DPO | RL 阶段校准知识边界，学会拒绝（IDK） | 训练侧 | ❌ 模型侧责任（Harness 不控制） |
+| DAGCD | 解码时按交叉注意力拉升证据对齐 token | 解码侧 | ❌ 模型侧责任 |
+| 渐进式披露 | 只注入目录，用时可加载 | Harness | ✅ 已有：SkillGuidance / 意图工具过滤 / MCP 渐进加载 |
+| 上下文重置 | 提纯进度后重启干净子 Agent | Harness | ✅ 已有：compaction 三级水位 + Context Epoch + 波次 1b SystemContext |
+| PGE 三角色 | Planner/Generator/Evaluator 物理剥离 | Harness | ⏳ 部分已有：judge（Evaluator 骨架）+ task 委派（Planner/Generator 分派）+ verifier（机械 Evaluator）——缺"动态路由策略"，见 §8 |
+| MARCH 非对称盲审 | Checker 不见 Solver 原文，仅凭 QA 命题+文档重答，分歧即失败 | Harness | ⏳ 部分已有：`judgeMerge` 只接收 Worker 最终输出（已天然符合"新鲜眼睛"）——但它是"合并"型而非"盲审校验"型；增强方向：judge 输入改为原子 QA 命题对 |
+| HarnessFix / HTIR | 失败轨迹编译为有向图，Diagnosis Agent 沿图归因到 Harness 缺陷并局部修补 | Harness | ⏳ 波次 4：EventV2 + OTLP span 归因是现成底座 |
+| 确定性物理卡点 | 编译/测试/PR 合入的最终裁决权硬性上收给计算门 | Harness | ✅ 波次 2 verifier 定位即此（"模型建议，代码裁决"） |
+| Shadow/Phantom Registry | 影子注册表可信源校验，拦截 slopsquatting/虚假 URL | Harness | ⏳ 后续安全波次候选 |
+| Monitoring Decoding | 解码中实时评分偏置 token，就地重采样回溯 | 解码侧 | ❌ 模型侧责任 |
+
+**归属判定结论**：AigcForge 作为 Harness 层，可执行的防线集中在"渐进式披露、上下文重置、PGE 组装、机械卡点、盲审增强"五项；解码级/训练级机制记录为模型侧责任，不列入实施范围。CHOKE 警示为"机械验证优先"提供了研究级背书。
+
+---
+
+## 8. PGE 动态路由设计（成本优化）
+
+PGE 多模型并联的 Token/延迟成本是实际部署的第一顾虑。核心解法：**Evaluator 成本分档 + 失败升级路由**——PGE 不是恒定架构，是按任务特征动态启停的验证策略。
+
+### 8.1 关键洞察：机械验证器是"免费的 Evaluator"
+
+PGE 的成本痛点只在 LLM Evaluator。而多数任务（尤其代码修改）的评估可完全机械化（typecheck/test/lint/引用校验）——确定性计算门**零额外 LLM 成本且从不幻觉**（CHOKE 警示反向印证）。因此路由的第一判断是：**任务能否被机械验证？能 → 不开 LLM Evaluator**。这是最大的成本节省点，波次 2 verifier 即此定位。
+
+### 8.2 三级验证策略路由表
+
+| 级别 | 验证策略 | 适用任务特征 | 相对成本 |
+|---|---|---|---|
+| L0 单模型 + 机械验证 | Generator 用主模型；Evaluator = verifier（typecheck/test/引用校验） | 代码修改且可机械验证（默认路径） | 免费验证 |
+| L1 单模型 + 小模型 Judge | 复用现有 `judgeMerge`（廉价模型 + 4 级 fallback） | 开放产出（文档/总结/设计/研究），机械不可验证 | 低 |
+| L2 PGE 全三角色 | 多模型盲审（MARCH 式）：Planner 拆解 → Generator 执行 → 独立 Evaluator | 高风险 + 低机械可验证性（架构级重构/生产数据/跨模块 API） | 高 |
+
+### 8.3 动态决策信号
+
+- **任务特征（静态信号）**：意图分类（`classify`，已有）+ 改动拓扑（包/模块范围，波次 2 verifier 的包路径解析）+ 产出类型（代码 vs 文本）
+- **失败历史（动态信号）**：机械验证连续失败次数 + doom_loop 触发次数——**失败升级（Escalation Router）**：L0 连续失败 ≥ N 次 → 升级 L1；L1 再失败 → 升级 L2 或升级基座模型。这是波次 1a doom_loop 检测器的自然延伸（同为"连续失败计数"语义，仅从"审批"扩展为"验证策略升级"）
+
+### 8.4 升级基座 vs 开启 PGE 的正交权衡
+
+- **基座升级解决"生成质量"（少犯错），PGE 解决"评估独立性"（能发现错）——正交，不可互相替代**（Fresh Eyes 原则：同模型自我评估存在确认偏差）
+- 成本最优组合：
+  - 可机械验证的任务 → **升基座比开 PGE 划算**（贵一点的生成 + 免费的验证 < 多模型多轮）
+  - 不可机械验证的开放产出 → **小模型 Judge（L1）是必需品**，PGE 仅在风险升级时启用
+  - 升级基座不改变 L0/L1 路由，只降低 Generator 的出错率；PGE 在风险维度上兜底
+
+### 8.5 对 AigcForge 的落地路径（全部复用现有资产，无新架构）
+
+1. 波次 2 verifier = L0 机械验证器（计算门，确定性的最终裁决权）
+2. 验证失败计数 → 升级路由（复用 doom_loop 的环形缓冲语义）
+3. `judgeMerge` 增强为 MARCH 式盲审（Checker 输入 = 原子 QA 命题对 + 原始文档，不含 Solver 原文）——现有 judge 已天然"只见产出"，增量是"命题化解构"
+4. L2 全三角色复用现有 `task` 委派（subagent / judge / external-cli 三种委派模式）组装，不新建执行引擎
+
+---
+
 ## 参考
 
 - Anthropic: [Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) (2025-09)
