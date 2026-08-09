@@ -36,8 +36,9 @@ import {
 } from "@/pages/home"
 import { countByMode, pinLastActive } from "@/pages/home-overview-model"
 import { SessionModeBadge } from "@/components/session-mode-badge"
+import { pathKey } from "@/utils/path-key"
 
-const OVERVIEW_GRID = "mx-auto grid h-full max-w-[1200px] grid-cols-[220px_minmax(0,1fr)] gap-4 px-6"
+const OVERVIEW_GRID = "mx-auto grid h-full w-full max-w-[1200px] grid-cols-[220px_minmax(0,1fr)] gap-4 px-6"
 const MODE_FILTER_ROW =
   "flex h-7 min-w-0 cursor-default items-center gap-2 rounded-[6px] px-1.5 text-left text-[13px] text-v2-text-text-muted hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:bg-v2-overlay-simple-overlay-hover data-[selected]:bg-v2-background-bg-layer-03 data-[selected]:text-v2-text-text-base"
 const MODE_FILTER_COUNT = "ml-auto shrink-0 text-11-regular text-v2-text-text-faint"
@@ -138,6 +139,36 @@ export function HomeOverview() {
     })
   }
 
+  const newSessionDirectory = createMemo(() => {
+    const selected = selectedProject()
+    const scope = focusedScope()
+    const last = scope ? global.lastSession.directory(scope) : undefined
+    if (selected && last) {
+      const lastKey = pathKey(last)
+      const containsLast =
+        pathKey(selected.worktree) === lastKey || (selected.sandboxes ?? []).some((s) => pathKey(s) === lastKey)
+      if (containsLast) return last
+    }
+    if (selected) return selected.worktree
+    if (last) return last
+    return projects()[0]?.worktree
+  })
+
+  function openNewSession() {
+    const conn = focusedServer()
+    const ctx = focusedServerCtx()
+    if (!conn || !ctx) return
+    const directory = newSessionDirectory()
+    if (!directory) return
+    openProjectNewSession(
+      ctx.projects,
+      (serverKey, draftDirectory) =>
+        tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft(mode.currentMode) }),
+      ServerConnection.key(conn),
+      directory,
+    )
+  }
+
   function closeSearch() {
     setState("search", "")
     setState("searchFocused", false)
@@ -192,7 +223,7 @@ export function HomeOverview() {
                 when={pinned().pinned || groups().length > 0}
                 fallback={
                   <div class="flex min-w-0 flex-col gap-4">
-                    <HomeSessionGroupHeader title={language.t("home.sessions.empty")} />
+                    <HomeSessionGroupHeader title={language.t("home.sessions.empty")} onNewSession={openNewSession} />
                   </div>
                 }
               >
@@ -213,9 +244,12 @@ export function HomeOverview() {
                   )}
                 </Show>
                 <For each={groups()}>
-                  {(group) => (
+                  {(group, index) => (
                     <div class="flex min-w-0 flex-col gap-4">
-                      <HomeSessionGroupHeader title={group.title} />
+                      <HomeSessionGroupHeader
+                        title={group.title}
+                        onNewSession={index() === 0 ? openNewSession : undefined}
+                      />
                       <div class="flex min-w-0 flex-col gap-px">
                         <For each={group.sessions}>
                           {(record) => (
