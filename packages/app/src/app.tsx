@@ -44,6 +44,7 @@ import { requireServerKey, rootSession, sessionHref } from "./utils/session-rout
 
 import Session from "@/pages/session"
 import { ModeWorkspace } from "@/pages/mode-workspace"
+import { HomeOverview } from "@/pages/home-overview"
 
 const NewSession = lazy(() => import("@/pages/new-session"))
 
@@ -560,16 +561,12 @@ export function ModeRoute() {
   return <Show when={selected()} fallback={<Navigate href="/" />}><ModeWorkspace /></Show>
 }
 
-// ADR-15 alignment: / redirects to /mode/<persistedMode> (one-time landing, not the authority)
-function HomeRedirect() {
-  const mode = useMode()
-  return <Navigate href={`/mode/${mode.currentMode}`} />
-}
-
+// ADR-16: / renders the global home overview page (no redirect); /mode/:mode
+// stays the authoritative mode home route.
 function Routes() {
 	return (
 		<>
-			<Route path="/" component={HomeRedirect} />
+			<Route path="/" component={HomeOverview} />
 			<Route path="/mode/:mode" component={ModeRoute} />
 			<Route path="/new-session" component={DraftRoute} />
 			<Route path="/server/:serverKey/session/:id" component={TargetSessionRoute} />
