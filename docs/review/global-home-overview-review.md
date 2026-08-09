@@ -18,7 +18,8 @@
 | 7 | `750cd3820` | feat(app): add global home overview page with sidebar and mode badge |
 | 8 | `4c0032406` | feat(app): render home overview at / and add titlebar home button |
 | 9 | `e4c241fa4` | feat(app): align chat mode grid width with work mode |
-| 10 | 本记录 + ARCHITECTURE §4.10 补引 ADR-16 | 验证/收尾 |
+| 10a | `8ea2a92b8` | fix(app): make home overview mode filter counts reactive（走查发现：`filters` 需 `createMemo`，否则计数随数据加载不更新；同提交清理 `openSessionRecord` 未用变量 `ctx`） |
+| 10b | `a1655a990` | docs: record global home overview acceptance review（本记录 + ARCHITECTURE §4.10 补引 ADR-16） |
 
 ## 2. 五层 grep 核对（§4 命令输出摘要）
 
