@@ -305,12 +305,12 @@ export function HomeOverviewSidebar(props: {
     return dirs.reduce((t, d) => t + notification.project.unseenCount(d), 0)
   }
 
-  const filters: Array<{ id: "all" | Mode; label: string; count: number }> = [
+  const filters = createMemo<Array<{ id: "all" | Mode; label: string; count: number }>>(() => [
     { id: "all", label: language.t("home.overview.all"), count: props.total },
     { id: "coding", label: language.t("mode.coding"), count: props.counts.coding },
     { id: "chat", label: language.t("mode.chat"), count: props.counts.chat },
     { id: "work", label: language.t("mode.work"), count: props.counts.work },
-  ]
+  ])
 
   return (
     <aside
@@ -319,7 +319,7 @@ export function HomeOverviewSidebar(props: {
     >
       <div class="flex min-w-0 flex-col gap-1">
         <div class={`${HOME_SECTION_LABEL} pl-1.5`}>{language.t("home.overview.modeFilter")}</div>
-        <For each={filters}>
+        <For each={filters()}>
           {(filter) => (
             <button
               type="button"

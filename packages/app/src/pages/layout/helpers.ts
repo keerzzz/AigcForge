@@ -213,7 +213,6 @@ export function openSessionRecord(input: {
   const { session } = input.record
   const project = projectForSession(session, input.projects.list(), input.projectByID)
   const directory = project?.worktree ?? session.directory
-  const ctx = input.global.ensureServerCtx(input.conn)
   input.global.sessionPlacement.set({
     server: input.server,
     leafID: session.id,
