@@ -209,7 +209,7 @@ Product Mode (`chat | coding | work | assistant`) is a persisted App filtering c
 - Projects and Workspaces are shared across Modes; their Session descendants are filtered.
 - Existing rows and historical events without Product Mode decode as Coding.
 - Target implementation: `docs/plan/mode-module-switching-completion.md`.
-- Decisions: `docs/architecture/adr/ADR-11-product-mode-session-classification.md`, `docs/architecture/adr/ADR-12-product-mode-entry-routing.md`, `docs/architecture/adr/ADR-13-chat-work-mode-boundary.md`, `docs/architecture/adr/ADR-14-persistence-and-scope-strategy.md`, `docs/architecture/adr/ADR-15-mode-workspace-main-area-slot.md` (Accepted; main-area typed slot, Chat asset-centric; ADR-13 Amendment-1 assigns workflow definition→Chat, execution→Work).
+- Decisions: `docs/architecture/adr/ADR-11-product-mode-session-classification.md`, `docs/architecture/adr/ADR-12-product-mode-entry-routing.md`, `docs/architecture/adr/ADR-13-chat-work-mode-boundary.md`, `docs/architecture/adr/ADR-14-persistence-and-scope-strategy.md`, `docs/architecture/adr/ADR-15-mode-workspace-main-area-slot.md` (Accepted; main-area typed slot, Chat asset-centric; ADR-13 Amendment-1 assigns workflow definition→Chat, execution→Work), `docs/architecture/adr/ADR-16-global-home-overview.md` (Accepted; `/` renders the global aggregate home page, titlebar left gains a global home entry).
 
 ### 4.11 External CLI Dispatch
 
