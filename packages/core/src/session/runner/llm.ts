@@ -177,10 +177,27 @@ export const layer = Layer.effect(
           })
           .pipe(Effect.exit)
         if (Exit.isFailure(check)) {
-          const blocked = Cause.squash(check.cause)
+          // Only permission failures mean "repeated identical call blocked".
+          // NotFoundError and defects (e.g. a bug inside the permission layer)
+          // must not be misreported as doom_loop blocks - surface the real
+          // failure as the tool error value instead. (A failCause here would
+          // cross the fiber and crash the turn: the tool-fiber error channel
+          // contract only carries ToolOutputStore.Error.)
+          const failure = Option.getOrUndefined(Cause.findErrorOption(check.cause))
+          const permissionFailure =
+            failure instanceof PermissionV2.DeniedError ||
+            failure instanceof PermissionV2.RejectedError ||
+            failure instanceof PermissionV2.CorrectedError
+              ? failure
+              : undefined
+          if (permissionFailure === undefined) {
+            const raw = Cause.squash(check.cause)
+            const message = raw instanceof Error ? raw.message : String(raw)
+            return { result: { type: "error" as const, value: `Doom loop check failed: ${message}` } }
+          }
           const value =
-            blocked instanceof PermissionV2.CorrectedError
-              ? blocked.feedback
+            permissionFailure instanceof PermissionV2.CorrectedError
+              ? permissionFailure.feedback
               : `Repeated identical ${input.toolName} call blocked by doom_loop approval`
           return { result: { type: "error" as const, value } }
         }

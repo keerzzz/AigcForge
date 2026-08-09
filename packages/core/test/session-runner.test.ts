@@ -1498,6 +1498,47 @@ describe("SessionRunnerLLM", () => {
     }),
   )
 
+  it.effect("passes non-permission doom_loop failures through instead of reporting a block", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* SessionV2.Service
+      yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Echo this" }), resume: false })
+
+      requests.length = 0
+      executions.length = 0
+      streamGate = undefined
+      streamStarted = undefined
+      const echoCall = (id: string) => [
+        LLMEvent.stepStart({ index: 0 }),
+        LLMEvent.toolCall({ id, name: "echo", input: { text: "same" } }),
+        LLMEvent.stepFinish({ index: 0, reason: "tool-calls" }),
+        LLMEvent.finish({ reason: "tool-calls" }),
+      ]
+      responses = [echoCall("call-1"), echoCall("call-2"), echoCall("call-3"), []]
+
+      yield* session.resume(sessionID)
+
+      // The first two identical calls execute; the third crosses the doom_loop
+      // threshold and asserts. The shared test permission layer dies with
+      // "unused" (a defect), which must surface as a tool failure - not be
+      // misreported as "blocked by doom_loop approval".
+      expect(executions).toEqual(["same", "same"])
+      const context = yield* session.context(sessionID)
+      const lastAssistant = [...context].reverse().find((message) => message.type === "assistant")
+      const tool =
+        lastAssistant?.type === "assistant"
+          ? lastAssistant.content?.find((part) => part.type === "tool" && part.id === "call-3")
+          : undefined
+      expect(tool).toBeDefined()
+      if (!tool || tool.type !== "tool") return
+      expect(tool.state.status).toBe("error")
+      const error = "error" in tool.state && tool.state.error
+      const message = error && typeof error === "object" && "message" in error ? error.message : ""
+      expect(message).not.toContain("blocked by doom_loop")
+      expect(message).toContain("unused")
+    }),
+  )
+
   it.effect("reloads a model switch before a tool-driven continuation turn", () =>
     Effect.gen(function* () {
       yield* setup
@@ -3254,16 +3295,12 @@ describe("SessionRunnerLLM", () => {
       const admitted = yield* session.shell({ sessionID, command: "echo hello", resume: false })
       yield* (yield* SessionExecution.Service).wake(sessionID)
 
-      const events = yield* session
-        .events({ sessionID })
-        .pipe(
-          Stream.filter((event) =>
-            ["session.next.shell.started", "session.next.shell.ended"].includes(event.type),
-          ),
-          Stream.take(2),
-          Stream.timeout(Duration.seconds(5)),
-          Stream.runCollect,
-        )
+      const events = yield* session.events({ sessionID }).pipe(
+        Stream.filter((event) => ["session.next.shell.started", "session.next.shell.ended"].includes(event.type)),
+        Stream.take(2),
+        Stream.timeout(Duration.seconds(5)),
+        Stream.runCollect,
+      )
       const types = Array.from(events).map((event) => event.type)
       expect(types).toEqual(["session.next.shell.started", "session.next.shell.ended"])
 
@@ -3281,19 +3318,15 @@ describe("SessionRunnerLLM", () => {
       const admitted = yield* session.skill({ sessionID, skill: "test-skill", resume: false })
       yield* (yield* SessionExecution.Service).wake(sessionID)
 
-      const events = yield* session
-        .events({ sessionID })
-        .pipe(
-          Stream.filter((event) => event.type === "session.next.prompted"),
-          Stream.take(1),
-          Stream.timeout(Duration.seconds(5)),
-          Stream.runCollect,
-        )
+      const events = yield* session.events({ sessionID }).pipe(
+        Stream.filter((event) => event.type === "session.next.prompted"),
+        Stream.take(1),
+        Stream.timeout(Duration.seconds(5)),
+        Stream.runCollect,
+      )
       const prompted = Array.from(events)[0]
       expect(prompted?.type).toBe("session.next.prompted")
-      expect(prompted && "prompt" in prompted.data ? prompted.data.prompt.text : "").toBe(
-        "Run the test skill workflow",
-      )
+      expect(prompted && "prompt" in prompted.data ? prompted.data.prompt.text : "").toBe("Run the test skill workflow")
 
       const message = yield* session.message({ sessionID, messageID: admitted.id })
       expect(message?.type).toBe("user")

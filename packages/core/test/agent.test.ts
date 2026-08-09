@@ -220,6 +220,30 @@ describe("AgentV2", () => {
     }),
   )
 
+  it.effect("fail-closed agents re-allow doom_loop as ask after the catch-all deny", () =>
+    Effect.gen(function* () {
+      const agent = yield* AgentV2.Service
+      yield* AgentPlugin.Plugin.effect(
+        host({
+          agent: agentHost(agent),
+        }),
+      ).pipe(
+        Effect.provideService(
+          Location.Service,
+          Location.Service.of(location({ directory: AbsolutePath.make("/project") })),
+        ),
+      )
+
+      for (const id of ["explore", "chat-orchestrator", "work-orchestrator"]) {
+        const info = yield* agent.get(AgentV2.ID.make(id))
+        expect(info).toBeDefined()
+        // findLast resolution: the catch-all deny comes before this explicit
+        // ask, so repeated identical tool calls prompt instead of hard-failing.
+        expect(PermissionV2.evaluate("doom_loop", "*", info!.permissions).effect).toBe("ask")
+      }
+    }),
+  )
+
   it.effect("meta agent system prompt contains Protocol Documents section", () =>
     Effect.gen(function* () {
       const agent = yield* AgentV2.Service

@@ -37,6 +37,10 @@ export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v
 
 // Self-contained sha256 fingerprint so the detector does not depend on the
 // private CacheShape.shortHash helper. Input = tool name + stable JSON.
+// Note: JSON.stringify is sensitive to object key order, so two calls with
+// semantically equal but differently-ordered tool inputs produce different
+// fingerprints (inherited V1 limitation) - acceptable, since providers emit
+// tool arguments with a stable serialization.
 const fingerprintOf = (toolName: string, toolInput: unknown) =>
   createHash("sha256")
     .update(`${toolName}${JSON.stringify(toolInput)}`)
