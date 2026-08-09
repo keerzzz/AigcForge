@@ -209,6 +209,78 @@ Memory 服务可基于三个已有组件零成本起步：compaction 的 7 段�
 | P2 | 执行计划写盘 | meta_agent_step + docs/plan | 中 |
 | P2 | span 关联 + 成本聚合 | EventV2 + OTLP | 低-中 |
 
+> ⚠️ 注：上表为初版评估。经 §10 合规审计后，编排与实施方式已修正，见 §11 审计修正版。
+
+---
+
+## 10. 合规审计（对照协议文档与 skills）
+
+> 审计依据：`CLAUDE.md`（宪法）· `AGENTS.md`（根）· `ARCHITECTURE.md` · `CONTEXT.md` · `packages/core/src/tool/AGENTS.md` · `.aigcfroge/skills/{protocols,database,effect}/SKILL.md` · 行业基准（research/industry 三份）
+
+### 10.1 优点（合规亮点）
+
+| # | 原总结内容 | 对应协议条款 | 评价 |
+|---|---|---|---|
+| 1 | Memory 复用 compaction 模板、验证闭环复用 lifecycle-hooks、执行计划复用 meta_agent_step | 宪法"以创造接口为耻，以复用现有为荣" | ✅ 复用优先级正确 |
+| 2 | 识别"V1/V2 断层"为 3 项差距的共享根因 | 宪法"根因收敛三步法"（归类→找交集→一击必杀） | ✅ 收敛正确 |
+| 3 | 命令语义分级后置并声明"现有 ask 网已可用" | 宪法"方案对冲：选简单实现须显式声明" | ✅ 权衡显式化 |
+| 4 | 验证执行器定位为"缺本体，地基已 4/5" | `packages/core/src/tool/AGENTS.md`"不新增第二执行入口" | ✅ 未建议新造引擎 |
+| 5 | doom_loop 判定"移植不是复制，适配新循环" | 宪法"以盲目修改为耻，谨慎重构" | ✅ 未建议照搬 V1 事件驱动 |
+
+### 10.2 缺点（不合规 / 不完善）——按严重度排序
+
+**D1. 「语义化摘要器公共底座」违背极致减法（严重）**
+
+宪法修复优先级：**复用 → 删除 → 归并 → 重构 → 新增**。原总结建议"波次 1 就抽象 `SemanticSummarizer` 公共组件"——提前新增抽象，违反优先级且违反行业"三之法则"（Rule of Three）。compaction 的 `buildPrompt`/`serialize` 已存在，Memory 应**直接复用 compaction 组件**；验证闭环、执行计划各自先用现成摘要，第三处需求出现时再归并提取。
+
+**D2. Memory 注入机制与 L1/L2/L3 缓存架构冲突未解决（严重）**
+
+原总结仅说"注入 L2/L3 区"，未落到机制。CONTEXT.md / Context Epoch（`baseline_seq` 对齐）表明系统上下文是**持久化快照 + reconcile** 的——Memory 若走 `meta-prompt.ts` 的 fill 替换（每次会话检索结果不同），会**破坏跨会话提示词前缀缓存**（`promptCacheKey` 是 session id 哈希）。正确路径是走 **SystemContext 机制**（快照 + baseline_seq），或会话开始时一次性检索注入（L2 区），且默认关闭。
+
+**D3. 执行计划写盘的存放语义未拍板（git 资产 vs 运行产物）（中等）**
+
+`docs/plan/` 是知识资产（git 版本控制），而执行计划是**高频读写运行产物**。Codex 做法（docs/exec-plans 入 git）与 `.aigcfroge/plans`（已 gitignore 的运行时产物）是两种语义。宪法要求方案对冲显式声明——原总结未做。**需拍板**：入 git（版本控制 + 断点恢复，Codex 风格，需约定提交时机防噪音）还是本地运行时目录（`.aigcfroge/` 风格）。
+
+**D4. 验证执行器"跑测试"与测试门禁冲突未识别（中等）**
+
+AGENTS.md 明确："Tests cannot run from repo root"、"run from package dirs like `packages/<name>`"。验证执行器要在 agent 循环里自动跑 typecheck/test，必须**解析包路径**（monorepo 上下文），否则触发 guard 拒绝。验证执行器设计必须含"Location → 包路径解析"逻辑。
+
+**D5. doom_loop 移植未落到 PermissionV2 接缝（中等）**
+
+V1 走 `permission.ask({permission:"doom_loop"})`（V1 API）；V2 正确路径是 `PermissionV2.assert` → 发布 `permission.v2.asked` 事件 → 复用现有 UI 审批 dock——**复用现有审批网络，不新造 HITL 通道**（九荣九耻）。
+
+**D6. 优先级评估缺证据、缺测试策略（轻微）**
+
+- "3-5 天 / 5-8 天"人天估算是**猜测**（"以瞎猜为耻"）——应标注为量级估计并给出依据（V1 代码行数、新增表数）
+- 每波次未配测试计划（宪法"以主动测试为荣"）：MemoryService 单测、doom_loop 检测单测、验证执行器集成测试应显式列出
+
+**D7. 未检查 CONTEXT.md 的 Session 不变量（轻微）**
+
+AGENTS.md V2 Session Core 不变量（如 "Keep EventV2 replay owner claims separate"、"Keep SessionExecution process-global and Session-ID based"）对执行计划写盘、Memory 写入是硬约束，未逐条核对。执行计划/Memory 设计文档需附"不变量核对清单"。
+
+---
+
+## 11. 审计修正版（编排与实施方式）
+
+| 波次 | 项目 | 修正点 |
+|---|---|---|
+| 波次 1 | V2 doom_loop 移植（1-2 天*） | 走 PermissionV2 审批网络（action: doom_loop）；带检测单测 |
+| 波次 1 | Memory 服务（3-5 天*） | **复用 compaction 摘要组件**（不抽象新底座）；注入走 SystemContext 管道；含 DB 迁移（database skill：snake_case + migration/*.ts）；默认关闭开关；带 MemoryService 单测 |
+| 波次 2 | 验证执行器 + 散文报错（5-8 天*） | 含"Location → 包路径解析"（monorepo 测试门禁）；挂 lifecycle-hooks；带集成测试 |
+| 波次 3 | 执行计划写盘（3-5 天*） | 先拍板"入 git vs 本地产物"；核对 CONTEXT 不变量清单 |
+| 波次 4 | 命令语义分级 + 高危 HITL | 不变（依赖 tree-sitter 移植） |
+| 波次 4 | span 关联 + 成本聚合 | 不变（内部工程债） |
+
+\* 人天为**量级估计**（非承诺排期），依据：V1 对应实现行数 / 新增表与迁移数 / 挂载点就绪度。
+
+### 修正后的关键决策清单
+
+1. ~~抽象 `SemanticSummarizer` 公共底座~~ → **复用 compaction 摘要组件**，第三处需求出现时再归并
+2. Memory 注入 → **SystemContext / SessionContextEpoch 管道**（快照 + baseline_seq），非 prompt 模板替换
+3. 执行计划存放 → **待拍板**：git 版本控制（Codex 风格）vs `.aigcfroge/plans` 运行时风格
+4. doom_loop → **复用 PermissionV2 审批网络**，不新造 HITL 通道
+5. 验证执行器 → **必须解析包路径**（`packages/<name>`），遵守 do-not-run-tests-from-root 门禁
+
 ---
 
 ## 参考
@@ -217,4 +289,5 @@ Memory 服务可基于三个已有组件零成本起步：compaction 的 7 段�
 - 协议演进：`docs/research/industry/AI智能体协议研究.md`
 - 方法论：`docs/research/industry/第一性原理与智能体.md`
 - 实施计划：`docs/plan/meta-agent-orchestrator.md`、`docs/plan/meta-agent-v2-production-closure.md`
-- 架构契约：`ARCHITECTURE.md`、`AGENTS.md`
+- 架构契约：`ARCHITECTURE.md`、`AGENTS.md`、`CONTEXT.md`
+- 技能规范：`.aigcfroge/skills/{protocols,database,effect}/SKILL.md`
