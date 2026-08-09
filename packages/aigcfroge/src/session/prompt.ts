@@ -43,7 +43,7 @@ import { Truncate } from "@/tool/truncate"
 import { Image } from "@/image/image"
 import { decodeDataUrl } from "@/util/data-url"
 import { Process } from "@/util/process"
-import { Cause, Effect, Exit, Latch, Layer, Option, Scope, Context, Schema, Types } from "effect"
+import { Cause, Effect, Exit, Latch, Layer, Option, Ref, Scope, Context, Schema, Types } from "effect"
 import { InstanceState } from "@/effect/instance-state"
 import { TaskTool, type TaskPromptOps } from "@/tool/task"
 import { SessionRunState } from "./run-state"
@@ -198,6 +198,14 @@ export const layer = Layer.effect(
       return parts
     })
 
+    // Title generation is retried at step 1 of every turn (see the loop call
+    // site), so a permanently failing setup — missing title model, provider
+    // down — would otherwise burn a title request per turn forever. After
+    // MAX_TITLE_FAILURES consecutive failures the session stops attempting;
+    // any successful attempt resets the counter.
+    const MAX_TITLE_FAILURES = 3
+    const titleFailures = yield* Ref.make(new Map<SessionID, number>())
+
     const title = Effect.fn("SessionPrompt.ensureTitle")(function* (input: {
       session: Session.Info
       history: SessionV1.WithParts[]
@@ -206,12 +214,27 @@ export const layer = Layer.effect(
     }) {
       if (input.session.parentID) return
       if (!Session.isDefaultTitle(input.session.title)) return
+      const failures = (yield* Ref.get(titleFailures)).get(input.session.id) ?? 0
+      if (failures >= MAX_TITLE_FAILURES) return
+      const attempt = yield* generateTitle(input).pipe(Effect.exit)
+      yield* Ref.update(titleFailures, (map) => {
+        const next = new Map(map)
+        if (Exit.isSuccess(attempt)) next.delete(input.session.id)
+        else next.set(input.session.id, failures + 1)
+        return next
+      })
+    })
 
+    const generateTitle = Effect.fnUntraced(function* (input: {
+      session: Session.Info
+      history: SessionV1.WithParts[]
+      providerID: ProviderV2.ID
+      modelID: ModelV2.ID
+    }) {
       const real = (m: SessionV1.WithParts) =>
         m.info.role === "user" && !m.parts.every((p) => "synthetic" in p && p.synthetic)
       const idx = input.history.findIndex(real)
       if (idx === -1) return
-      if (input.history.filter(real).length !== 1) return
 
       const context = input.history.slice(0, idx + 1)
       const firstUser = context[idx]
