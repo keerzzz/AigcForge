@@ -16,7 +16,7 @@
 
 1. **双向链接的防幻觉价值只在"机械可校验的边"**：Obsidian 式双向链接的三个机制（轻量引用、反向推导、悬空检测）中，只有**悬空链接检测**（引用声称存在→机械校验不存在=幻觉证据）是 100% 确定性、零 LLM、零 MCP、零索引依赖的防线。其余两个机制对 LLM 的价值是"轻量标识符+按需加载"（已被 Anthropic 官方证实为 just-in-time 上下文策略），而非图本身。
 2. **幻觉发现必须依赖外部机械信号源**：行业共识（Anthropic / OpenAI 实验 / 大量开源项目）——LLM 无法自查幻觉，检测信号只能是：验证执行器（typecheck/test 实跑）、引用完整性扫描、多模型仲裁（judge）、结构性拓扑校验（import 树方向）、HITL。**双向链接在这里的贡献是"证据链可追溯"**。
-3. **幻觉自救 = 负向观察上下文闭环**：检测失败 → 错误轨迹/悬空报告封装为散文报错（含违反原则 + 修正指引）→ 喂回模型修正。AigcForge 已有 ToolFailure 通道与 permission 网络，缺口仅在波次 2 verifier。
+3. **幻觉自救 = 负向观察上下文闭环 + 纠正持久化**：检测失败 -> 散文报错喂回模型修正（一次性 augment）；纠正方向持久化到临时记忆钩子（§9），走 SystemContext update 通道不破坏前缀缓存，确保 compaction 后纠正不丢失。**错误只出现一次，之后只注入正确方向**（注意力机制 + 正向指令优于负向指令）。
 4. **知识图谱 / 双向链接数据库适合"个人助手 + 本地知识库"场景，不适合"编程执行 Harness"场景**：个人知识库内容低变动率（无 stale index 问题）、跨会话引用密集、检索是核心交互——这正是图谱的主场（Obsidian / NOOA Agent-Curated Store / Windsurf Memories 均属此类）；编程 Harness 已有更轻的替代（Beads DAG 任务依赖、Cline 五维路径关联、Codex 单向拓扑约束），且 Anthropic 明确避开"索引/语法树"路线。
 
 ---
@@ -215,6 +215,193 @@ PGE 的成本痛点只在 LLM Evaluator。而多数任务（尤其代码修改�
 2. 验证失败计数 → 升级路由（复用 doom_loop 的环形缓冲语义）
 3. `judgeMerge` 增强为 MARCH 式盲审（Checker 输入 = 原子 QA 命题对 + 原始文档，不含 Solver 原文）——现有 judge 已天然"只见产出"，增量是"命题化解构"
 4. L2 全三角色复用现有 `task` 委派（subagent / judge / external-cli 三种委派模式）组装，不新建执行引擎
+
+---
+
+## 9. 临时记忆钩子：幻觉纠正持久化机制
+
+> **新增日期**：2026-08-09
+> **性质**：自救闭环的持久化层设计，补充 §5.3 的一次性 augment 方案的缺口
+
+### 9.1 问题定义：检测结果是易失的
+
+§5.3 的自救闭环设计为"检测 -> 散文报错 -> 喂回模型 -> 复验"。但散文报错是 augment 到 `Settlement.result.value` 的一次性注入，存在两个缺口：
+
+| 时间线 | augment 方式（一次性） | 临时记忆钩子（持久化） |
+|---|---|---|
+| Turn N（检测到错误） | 错误追加到工具结果 | 纠正写入钩子 Ref |
+| Turn N+1 | 模型在工具结果中看到错误 | 模型在 SystemContext update 中看到纠正 |
+| Turn N+5 | 错误仍在对话历史中 | 纠正仍在钩子中，每轮注入正确方向 |
+| Turn N+20（compaction） | **错误可能被压缩掉** | **纠正不受 compaction 影响** |
+| Turn N+30 | 模型可能忘记自己犯过这个错误 | 模型仍看到正确方向引导 |
+
+**核心价值**：compaction 是有损的。LLM 压缩历史时，"模型在 turn 5 声称文件 X 导出了函数 Y 但实际没有"这种具体错误信息很可能被丢掉。临时记忆钩子是独立于对话历史的存储，不受 compaction 影响。
+
+### 9.2 核心设计原则：存纠正不存错误
+
+**错误只出现一次，之后只保留正确方向。** 这基于三层 LLM 工程依据：
+
+1. **注意力机制特性**：Transformer 注意力对所有上下文 token 分配权重。如果每轮注入"你在 turn 5 说错了，X 不是 Y"，"X 不是 Y"这个 token 序列反复出现，模型注意力可能反复关联回负面记录，反而强化错误模式关联。正确做法是：错误在工具结果中出现一次（让模型知道"我错了"），之后上下文只保留"X 是 Y"（正确事实），模型注意力始终对齐正确方向。
+
+2. **上下文窗口是有限资源**：每轮注入累积错误历史持续消耗 token 预算。20 条错误记录可能占 500-800 token。而"已验证事实"列表用正面陈述，通常更简短。
+
+3. **正向指令优于负向指令**：LLM prompt engineering 的基本经验--告诉模型"不要 import ./foo"不如告诉它"import 路径是 ./bar"。持续注入正确方向比持续提醒历史错误更能引导模型行为。
+
+### 9.3 三模式钩子架构
+
+钩子不是被动存储，是主动的**三模式**服务：
+
+```
+模式 1：记录（settle 后）
+  外部检测器发现错误 -> 错误在 result.value 中出现一次（即时反馈）
+  -> 钩子只记录纠正（不记录错误原文、不记录轮次、不记录"你错了"叙述）
+  -> 存储：{ key, correct, wrong?, source }
+
+模式 2：拦截（settle 前，advisory 不 blocking）
+  模型发起工具调用 -> 钩子从 args 中提取路径/符号名
+  -> 匹配纠正数据库中的 wrong 字段
+  -> 命中：advisory warning 追加到 result.value（"此路径已纠正，正确值是 X。如确需使用旧值请忽略此提醒。"）
+  -> 工具照常执行（不 blocking），模型自行决定是否调整
+  -> 未命中：放行，无额外输出
+
+模式 3：注入（SystemContext）
+  每轮 turn 开始 -> reconcile 检测纠正库变化
+  -> 注入"已验证事实"列表（只含 correct，不含 wrong，不含错误历史）
+  -> 格式："Verified facts:\n- module X imports from ./bar\n- function Y is async, returns Promise<string>"
+```
+
+**与 doom_loop 的区别**：doom_loop 检测"完全相同的调用重复"（指纹匹配），是 blocking（走 PermissionV2 assert）；纠正钩子检测"同类型语义错误的重复"（已纠正的错误模式再次出现），是 advisory（追加 warning 但放行）。两者互补：纠正钩子给模型自我调整的机会，doom_loop 是重复行为的最终拦截。执行顺序：纠正钩子先（advisory），doom_loop 后（blocking）。
+
+### 9.4 内容模型：分层提取 + 结构化存储
+
+钩子存储的是**结构化事实**，不是原始文本。提取分四层：
+
+| 层 | 来源 | 提取方式 | 精度 | 可拦截 |
+|---|---|---|---|---|
+| L1 | 检测器结构化输出（引用校验器/验证执行器） | 直接写入 | 高（机械检测，零歧义） | ✅ |
+| L2 | 用户纠正模式提取（正则+启发式） | 模式匹配 | 中高（覆盖常见纠正模式） | ✅ |
+| L3 | 无法结构化的用户纠正 | 回退为原文标注 | 保留信息无匹配能力 | ❌ |
+| L4（可选） | 模型主动记录 | 工具调用 | 取决于模型判断 | ❌ |
+
+**存储格式**（统一 schema）：
+
+```ts
+interface CorrectionEntry {
+  key: string           // 纠正对象标识（"function:foo:signature" / "import:module-X"）
+  correct: string       // 正确值（注入用，正向表述）
+  wrong?: string        // 错误值（拦截匹配用，可空）
+  source: "reference-checker" | "verifier" | "user-correction" | "model-self" | "permission-corrected"
+  extractLayer: 1 | 2 | 3 | 4
+}
+```
+
+**L2 用户纠正提取流程**：
+
+1. 检测纠正信号：机械匹配触发词（"不对"/"错了"/"应该是"/"no"/"wrong"/"should be"）
+2. 提取纠正对象：结合模型最近输出做对照（"这个函数" -> 模型上一轮输出的 `foo`）
+3. 提取正确值和错误值：模式匹配对比对（"不是同步的，是 async 的" -> `wrong="sync"`, `correct="async"`）
+4. 组装结构化事实
+
+**为什么不存原始用户输入**：注意力分散（否定句处理弱）、无法机械匹配、与对话历史冗余。
+
+**为什么不用 LLM 优化**：循环依赖（用可能幻觉的模型提取防幻觉信息）、成本叠加、延迟。
+
+### 9.5 缓存影响分析
+
+**结论：正常轮次零缓存影响，compaction 后随 compaction 一起 break（不额外增加 break 次数）。**
+
+证据链（代码级验证）：
+
+1. **缓存前缀构成**：`cache-shape.ts:capture()` 只哈希 `[agent.info?.system, system.baseline]`（系统提示词）+ tool definitions + rewriteVersion。`messages` 数组（对话历史）不在缓存前缀中。
+
+2. **ContextUpdated 事件去向**：`message-updater.ts:142` 把 `ContextUpdated` 事件转为 `SessionMessage.System`（系统消息），进入对话历史，不进入系统提示词。
+
+3. **entriesForRunner 过滤**：`history.ts:41` 包含 `seq > baselineSeq` 的 system 消息。模型在 `messages` 中看到更新，但 `system` 参数不变。
+
+4. **reconcile "Updated" 分支**：`context-epoch.ts:72-74` 返回 `stored.baseline`（不变），只通过事件发布更新。**baseline 不变 -> systemHash 不变 -> 前缀缓存保留。**
+
+5. **compaction 后 "ReplacementReady"**：`context-epoch.ts:66-69` 调用 `SystemContext.replace`，重新加载所有源（包括纠正库 Ref），生成新 baseline。**baseline 变化 -> 缓存 break。** 但 compaction 本身 increment `rewriteVersion`，缓存本来就会 break。纠正库内容被合并进新 baseline，确保纠正信息在 compaction 后存活。
+
+| 场景 | baseline 变化 | 前缀缓存 | 额外影响 |
+|---|---|---|---|
+| 正常轮次 + 纠正库无变化 | 不变 | 保留 | 无 |
+| 正常轮次 + 纠正库有新条目 | 不变（走 Updated 事件） | 保留 | messages 多一条系统消息 |
+| compaction 后 | 变（走 ReplacementReady） | break | 纠正库合并进新 baseline（不受 compaction 影响） |
+
+### 9.6 其他影响与边界问题
+
+**上下文窗口压力**：每次纠正写入产生一个 ContextUpdated 事件，成为对话历史中的系统消息。10 次纠正 = 10 条系统消息。每条较小（几行），但累积消耗 token 预算。compaction 后这些消息可能被压缩掉，但纠正内容已合并进新 baseline。容量控制：FIFO 环形缓冲，最多保留 20 条。
+
+**settleTool 延迟**：
+- 拦截模式（settle 前）：从 args 提取路径/符号名 + 匹配纠正库（N<20 字符串比较）~ 微秒级，可忽略
+- 记录模式（settle 后）：Ref 更新 ~ 微秒级，可忽略
+- 检测模式：复用阶段 A/B 的检测器延迟（5s + 60s），纠正库写入本身零延迟
+
+**与 doom_loop 的交互**：两者都是 settleTool 中的 pre-settle 检查。执行顺序：纠正钩子先（advisory，给模型自我调整机会），doom_loop 后（blocking，最终拦截）。纠正钩子是 advisory 不 blocking，工具照常执行，doom_loop 独立运行。无冲突。
+
+**拦截模式力度：advisory 不 blocking**。原因：(1) 误报风险--机械模式匹配无法区分"重复已纠正的错误"和"合理引用旧值"（如删除旧文件）；(2) 防线冗余--忽略 advisory 后 Stage A/B 检测器会捕获实际错误，完全重复则 doom_loop 拦截；(3) LLM 行为--advisory warning 含正确方向时模型通常调整，比硬性 blocking 更自然。warning 格式：`ℹ️ [纠正提醒] 此路径已纠正，正确值是 X。如确需使用旧值请忽略此提醒。`
+
+**纠正过期：TTL 衰减 + 用户纠正豁免**。不做验证成功自动清除（验证成功 ≠ 纠正已内化，映射不精确且增加耦合）。
+
+| 来源 | TTL | 拦截参与 | 注入参与 |
+|---|---|---|---|
+| L1 检测器（引用校验/验证执行器） | 10 轮后退出拦截 | ✅ 10 轮内 | ✅ 直到 FIFO 驱逐 |
+| L2 用户纠正模式提取 | 不过期 | ✅ 永久（session 内） | ✅ 直到 FIFO 驱逐 |
+| L3 用户原文回退 | 5 轮后移除 | ❌ 无 wrong 字段 | ✅ 5 轮内 |
+| L4 模型主动记录（可选，暂不做） | 不过期 | ❌ | ✅ 直到 FIFO 驱逐 |
+
+**会话范围**：纠正库 Location-scoped + SessionID 键控（同 doom_loop 模式），父子会话不共享纠正。委派场景中子会话通过 `composeParentSummary`（`task-driver.ts:385`）获得压缩的父上下文，纠正信息如果重要会被摘要保留。
+
+**入口边界**：
+- 检测器写入（L1）：阶段 A/B 的 Service 内部调用，不需要工具
+- 用户纠正提取（L2）：在 `SessionInput.admit`（`input.ts:51`）路径中提取。admit 是用户消息进入系统的唯一入口，发布 `PromptAdmitted` 事件后、返回前调用 `CorrectionStore.extractFromUserMessage(sessionID, prompt.text)`。利用 admit 与 turn 执行的天然时间差（admit 先执行，wake 后异步拾取），纠正在同轮 turn 开始时已写入 Ref，`SystemContextRegistry.load()` 自然读到。提取是内存操作（模式匹配 + Ref 写入），微秒级，不阻塞 admit。
+- 模型主动记录（L4，可选）：通过工具调用，暂不实施
+
+### 9.7 敏感内容安全处理
+
+用户纠正中可能包含敏感信息（API key、密码、token、文件内容片段）。如果被写入 CorrectionStore 并注入 SystemContext，会通过系统提示词发送给 LLM 提供商，违反 CLAUDE.md Clean Logs 门禁。
+
+**策略：白名单提取 + 敏感模式拒绝 + L3 脱敏。**
+
+**1. 提取白名单**（只提取以下技术性模式的纠正内容，拒绝存储自由文本）：
+
+| 模式 | 示例 | 匹配方式 |
+|---|---|---|
+| 文件路径 | `./src/foo.ts`, `packages/core/src/bar.ts` | 相对/绝对路径 + 已知扩展名 |
+| Import 路径 | `./foo`, `@aigcfroge/llm` | 模块说明符 |
+| 类型签名 | `Promise<string>`, `Effect<void, Error>` | TypeScript 类型表达式 |
+| HTTP 方法 | `GET`, `POST`, `PUT`, `DELETE`, `PATCH` | 大写枚举 |
+| 标识符 | 函数名、类名、变量名 | `[a-zA-Z_$][a-zA-Z0-9_$]*` |
+| 布尔/枚举值 | `true`, `false`, `async`, `sync` | 固定词集 |
+
+**2. 敏感模式黑名单**（检测到则拒绝存储整条纠正，只保留工具结果中的一次性 augment）：
+
+```
+sk-[a-zA-Z0-9]{20,}          # OpenAI API key
+AKIA[A-Z0-9]{16}              # AWS access key
+Bearer\s+[a-zA-Z0-9._-]+      # Bearer token
+eyJ[a-zA-Z0-9._-]+\.          # JWT token
+password\s*[=:]               # Password assignment
+secret\s*[=:]                 # Secret assignment
+token\s*[=:]                  # Token assignment
+api[_-]?key\s*[=:]            # API key assignment
+```
+
+以及：值长度 > 200 字符（可能是文件内容片段）、来自 `.env`/`auth.json`/`credentials.*` 文件路径的上下文。
+
+**3. L3 原文回退脱敏**：无法结构化提取、回退为用户原文时，先做敏感模式扫描。命中则**跳过该纠正**（不存储），只保留工具结果中的一次性 augment。确保敏感信息不通过 CorrectionStore 持久化注入。
+
+**4. 为什么不用 LLM 脱敏**：用 LLM 判断"这段文字是否敏感"本身就是把敏感内容喂给 LLM，在脱敏完成前已经泄露。机械模式匹配是唯一安全的方案--在写入 CorrectionStore 之前完成扫描，敏感内容不进入 Ref、不进入 SystemContext、不进入 LLM 请求。
+
+### 9.8 与实施计划的关系
+
+临时记忆钩子是阶段 A/B 的**公共子模块**，不是独立阶段。实施顺序：
+
+1. 先建 `CorrectionStore` Service + SystemContext 源（阶段 A 开始前）
+2. 阶段 A 引用校验器检测到悬空链接 -> 写入 CorrectionStore
+3. 阶段 B 验证执行器检测到 typecheck 失败 -> 写入 CorrectionStore
+4. settleTool 集成拦截模式（模式 2）
+5. 用户纠正提取（L2）作为独立增强项，可在阶段 A/B 之后添加
 
 ---
 
