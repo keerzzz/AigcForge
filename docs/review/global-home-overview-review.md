@@ -20,6 +20,15 @@
 | 9 | `e4c241fa4` | feat(app): align chat mode grid width with work mode |
 | 10a | `8ea2a92b8` | fix(app): make home overview mode filter counts reactive（走查发现：`filters` 需 `createMemo`，否则计数随数据加载不更新；同提交清理 `openSessionRecord` 未用变量 `ctx`） |
 | 10b | `a1655a990` | docs: record global home overview acceptance review（本记录 + ARCHITECTURE §4.10 补引 ADR-16） |
+| 10c | `0853f34c7` | docs: track global home overview plan and tdd prompt（审批条件 F-1 闭环） |
+
+## 1a. 实施期修订（产品走查反馈，2026-08-10）
+
+| # | 反馈 | 处理 | commit |
+|---|---|---|---|
+| R-1 | 会话页顶栏出现「主页」（grid-plus toggleHome）与「首页」（新 home 按钮）两个 icon 指向同一地址 | 移除手写新增的 home 按钮，保留既有 toggleHome 作为全局主页入口；`icon.tsx` 的 `home` 条目随之删除（grep 确认无其他引用）；ADR-16 §2 契约同步修订 | 本轮 |
+| R-2 | 会话行 hover 背景宽度超过滚动条；首页左右列宽度随内容变化 | 根因：`main`（layout.tsx:42）为 `flex flex-col items-start`，首页 grid 缺 `w-full` → grid 宽度由内容驱动（右列随标题长度/滚动条状态伸缩），行 `w-full` 背景随之超出可视区。修复：`OVERVIEW_GRID` 补 `w-full`（对齐 ModeWorkspace 的 self-stretch + w-full 模式），`minmax(0,1fr)` + 右列 `min-w-0` 保持宽度稳定 | 本轮 |
+| R-3 | 首页是否需要新建会话按钮指引 | 需要（首页为全局入口，可能无已打开项目）。空态与首时间分组头复用 `HomeSessionGroupHeader.onNewSession`（与 coding 模式同款），目录解析复用 `newSessionDirectory` 逻辑（选中项目 → lastSession 目录 → 首个项目），draft 模式跟随 `currentMode` | 本轮 |
 
 ## 2. 五层 grep 核对（§4 命令输出摘要）
 
@@ -44,7 +53,7 @@
 | 2 | 左列模式筛选计数正确、点击过滤右侧；项目行点击过滤、菜单可管理 | ✅ | 计数 全部3/编程2/对话0/工作1 与数据一致；chat 筛选→空态；项目行含「新建会话/更多选项」菜单；添加项目按钮在位 |
 | 3 | 「继续上次」置顶组 | ✅ | 打开会话后回首页：置顶组「继续上次」+ 该会话置顶第一，其余入「最近会话」；未命中/归档分支由单测覆盖（pinLastActive 未命中/归档用例） |
 | 4 | 点击会话（含跨模式）→ 会话详情页，次级侧栏匹配模式 | ✅ | 首页点 work 会话 → `/server/…/session/ses_…`；次级侧栏渲染 work「产物」面板，无 mismatch 提示；tab 建立 |
-| 5 | 顶栏主页 icon 会话页/模式页可见，点击回 `/`；`/` 页隐藏 | ✅ | /mode/coding 与 session 页均有 aria-label「首页」home 按钮；点击回到 `/`；`/` 页 header 无该按钮 |
+| 5 | 顶栏主页入口：既有 grid-plus（toggleHome）回首页；不新增重复按钮（R-1 修订后） | ✅ | 会话页/模式页 grid-plus 在位（aria-label「主页」），点击回首页 tab；已移除手写 home 按钮，无重复 icon |
 | 6 | chat 模式首页不再全宽 | ✅ | /mode/chat 网格 computed max-width 1080px（`max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]`） |
 | 7 | 会话行模式徽标；搜索跨项目带项目名 | ✅ | 行内「编程」「工作」徽标；搜索 "New session" 结果行带项目名 "aigcfroge" |
 

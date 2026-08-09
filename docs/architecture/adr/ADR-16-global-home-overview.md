@@ -26,7 +26,7 @@ ADR-15 将 Home 概念迁移为 "ModeWorkspace 在 persisted mode 下的呈现"�
 
 ### 2. 顶栏左侧为全局主页入口
 
-V2 顶栏（Titlebar）左侧新增主页 icon 按钮（`IconV2 name="home"`），`navigate("/")`，**全局可见**（会话页/模式页/草稿页均可用）；pathname 为 `/` 时隐藏（首页不需要回首页按钮）。aria-label 使用 i18n key `home.overview.title`。
+V2 顶栏（Titlebar）左侧的既有 home 切换按钮（`grid-plus` icon，`tabs.toggleHome`，指向首页 tab）即为全局主页入口，**不新增独立按钮**——避免出现两个指向 `/` 的重复 icon（实施期修订，2026-08-10：原契约新增 `IconV2 name="home"` 按钮，评审发现与既有 toggleHome 按钮重复后撤销；`home` 图标条目与 i18n key 中除侧栏 aria-label 外不再使用）。
 
 ### 3. rail 语义锁定为"模式切换"
 
@@ -42,7 +42,7 @@ V2 顶栏（Titlebar）左侧新增主页 icon 按钮（`IconV2 name="home"`）�
 
 ## 对齐
 
-- **ADR-12 §2**：rail/Home 卡片为导航控件契约**不变**；新增的顶栏主页按钮是聚合首页入口，导航目标是 `/`（独立路由），不改变模式入口导航语义。
+- **ADR-12 §2**：rail/Home 卡片为导航控件契约**不变**；顶栏主页入口由既有 home 切换按钮（toggleHome → 首页 tab）承载，导航目标是 `/`（独立路由），不改变模式入口导航语义。
 - **ADR-12 §4 + ADR-15**：canonical session/draft 路由不变；`/mode/:mode` 仍为模式首页唯一权威路由；persisted `currentMode` 单向跟随权威来源。首页为 `mode === undefined` 的历史会话显示 coding 徽标（D3，与 `filterSessionsByMode` 语义一致），点击跳转不强制改当前模式（避免与 ADR-12 §4 单向同步冲突）。
 - **ADR-13 模式定位表**：首页聚合只读会话/项目数据，不改变各模式核心对象与职责边界；无新 DB migration、无 SDK/后端改动。
 - **ADR-15 §1/§3**：typed slot 机制与 "No Mode may copy the shared workspace" 均保留；首页只复用导出组件，不复制 workspace 结构。
@@ -79,6 +79,7 @@ V2 顶栏（Titlebar）左侧新增主页 icon 按钮（`IconV2 name="home"`）�
 
 - **初审**（owner agent 代审）：对照 ADR-12 §2/§4、ADR-15 §对齐、ADR-13 模式定位表逐条核验 —— 导航控件契约不变、canonical route 不变、typed slot 机制保留、无模式专属组件在首页重复实例化。计划 §12 审批记录（2026-08-10）已锁定 A 类修正（A-1/A-2/A-3）与 B 类决策（B-1/B-2/B-3）。
 - **复审**（owner agent）：A-2 测试命令修正核对通过；A-3 `openSessionRecord` 显式 `conn` 参数以 mode-workspace-slots.tsx:287-305 逐行对照迁移，行为不变。
+- **实施期修订**（2026-08-10，产品走查反馈）：①撤销 §2 新增顶栏 home 按钮（与既有 toggleHome 按钮重复指向 `/`，保留既有按钮）；②首页网格补 `w-full`（`main` 为 `flex-col items-start`，缺宽时 grid 宽度由内容驱动 → 左右列随标题长度/滚动条变化、行 hover 背景超出滚动条）；③首页空态与首分组头新增「新建会话」按钮指引（复用 `HomeSessionGroupHeader.onNewSession`，与 coding 模式同款）。
 
 ### Gate 核对
 
