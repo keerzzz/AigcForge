@@ -26,7 +26,7 @@ const configLayer = (meta: { enabled?: boolean; threshold?: number }) =>
     }),
   )
 
-const layerFor = (permission: Layer.Layer<PermissionV2.Service, never>) =>
+const layerFor = (permission: Layer.Layer<PermissionV2.Service>) =>
   DoomLoop.layer.pipe(Layer.provide(permission), Layer.provide(configLayer({})))
 
 describe("DoomLoop", () => {

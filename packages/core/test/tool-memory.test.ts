@@ -170,7 +170,7 @@ describe("MemoryTool failures", () => {
         },
       })
       expect(result.type).toBe("error")
-      expect((result as { value: string }).value).toContain("meta agent")
+      expect("value" in result && String(result.value)).toContain("meta agent")
     }),
   )
 })

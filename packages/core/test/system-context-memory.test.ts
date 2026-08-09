@@ -48,7 +48,7 @@ const memoryConfig = (memory: { enabled?: boolean; top_n?: number }) =>
     }),
   )
 
-const loadBaseline = (directory: string, extra: Layer.Layer<never, never, never>) => {
+const loadBaseline = (directory: string, extra: Layer.Layer<never>) => {
   const builtins = SystemContextBuiltIns.builtInsLayer.pipe(Layer.provide(locationLayer(directory)))
   return Effect.gen(function* () {
     const registry = yield* SystemContextRegistry.Service
