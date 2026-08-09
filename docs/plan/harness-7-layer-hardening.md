@@ -17,7 +17,7 @@
 | **G0 范围真源** | Harness 7 层现状调研 Approved（§9-§11）；本计划是对其修正版的直接实施 | ✅ 已满足 | 全部波次 |
 | **G1 合规审计** | §10 审计 7 项缺点（D1-D7）已收敛进本计划 §3 设计决策 | ✅ 已收敛 | 全部波次 |
 | **G2 复用确认** | Memory 复用 compaction 摘要组件（不抽象新底座）；doom_loop 复用 PermissionV2 审批网络；验证闭环复用 lifecycle-hooks | ✅ 已确认 | 波次 1-2 |
-| **G3 待拍板** | 执行计划存放语义：入 git（Codex 风格）vs 本地运行时目录 | ⚠️ **待审批**（本计划默认：入 git） | 波次 3 |
+| **G3 待拍板** | 执行计划存放语义：入 git（Codex 风格）vs 本地运行时目录 | ✅ **已拍板（2026-08-09）**：方案 C 混合——运行进度本地 + 计划定义归档入 git，见 §3.4 | 波次 3 |
 | **G4 依赖就绪** | V1 doom_loop（processor.ts:35,522-546）与 V1 tree-sitter 解析器可移植；compaction（compaction.ts:89-178）可用；lifecycle-hooks（lifecycle-hooks.ts）已注册 | ✅ 已确认 | 全部波次 |
 
 ### 0.1 审批修正记录（3 P0 + 5 P1，2026-08-09）
@@ -137,13 +137,23 @@
 - 注入内容进 `SystemContext` 的 baseline 快照（`context-epoch.ts` 管理 reconcile/advance），不经过 `meta-prompt.ts` fill——**不破坏 L1/L2/L3 前缀缓存**
 - 验证项：Memory 开关关闭时 `CacheShape` 诊断无变化（前缀哈希不变）
 
-### 3.4 D4 · 执行计划入 git（Codex 风格）
+### 3.4 D4 · 执行计划存放：方案 C 混合（G3 已拍板，2026-08-09）
 
-- 目录：`docs/plan/exec/active/*.md` → 完成/中止移 `docs/plan/exec/completed/*.md`
-- 内容模板（对齐 Codex 白皮书）：依赖图解 + 原子子任务清单（checkbox）+ 进度状态 + 关键决策日志
-- **提交时机约定**：每个原子子任务完成时 agent 必须 commit（`docs(exec-plan): update <id> progress`），避免批量噪音
-- 断点恢复：新会话/新实例启动时扫 `docs/plan/exec/active/*.md`，按清单继续
-- `tech-debt-tracker.md` 放在 `docs/plan/exec/` 根（技术债固化写盘）
+**决策依据**：本项目 `meta_agent_step` 表已是步骤状态的权威存储（执行计划文件是 agent 可读的文本投影，非状态源）；`.aigcfroge/plans` 已有本地产物先例（plan agent + gitignore）；单用户本地工具无团队审计场景；白皮书"仓库即唯一真实源"适用于知识/规约而非高频运行进度。
+
+**分层存储**：
+
+| 层 | 位置 | git | 说明 |
+|---|---|---|---|
+| 运行进度（高频） | `.aigcfroge/exec-plans/active/*.md` | ❌ 忽略（.aigcfroge/.gitignore 加 `exec-plans`） | 自由读写零噪音；**非权威状态**，权威 = `meta_agent_step` DB |
+| 完成归档（低频） | `docs/plan/exec/completed/*.md` | ✅ 入 git | 任务完成后归档（计划定义 + 决策日志，审计沉淀） |
+| 技术债台账（常驻） | `docs/plan/exec/tech-debt-tracker.md` | ✅ 入 git | 重构中临时妥协固化写盘（Codex 白皮书） |
+
+**断点恢复路径**：
+- 同机器：读 `.aigcfroge/exec-plans/active/*.md`（文本引导）+ `meta_agent_step`（权威状态）→ 从断点续传
+- 跨机器/新实例：`docs/plan/exec/completed/` 最近归档 + 重放
+
+**提交时机约定**：仅在**归档时** commit（`docs(exec-plan): archive <id>`），运行期零提交——无噪音、无提交纪律负担。
 
 ### 3.5 D5 · 验证执行器挂 lifecycle-hooks（tool/AGENTS.md 约束）
 
@@ -270,17 +280,18 @@ packages/core/test/session-runner-verifier.test.ts 新建（集成）
 **文件清单**：
 ```
 packages/core/src/agent/meta/exec-plan-driver.ts  新建：create/update/complete/load/list
-docs/plan/exec/active/                            新建（git 版本控制）
-docs/plan/exec/completed/                         新建
-docs/plan/exec/tech-debt-tracker.md               新建
+.aigcfroge/exec-plans/active/                     新建（gitignore，运行进度）
+docs/plan/exec/completed/                         新建（入 git，完成归档）
+docs/plan/exec/tech-debt-tracker.md               新建（入 git，技术债台账）
+.aigcfroge/.gitignore                             加 exec-plans 忽略条目
 packages/core/src/agent/meta/meta-prompt.ts       执行计划指令注入（L3 委托上下文区）
 packages/core/test/exec-plan-driver.test.ts       新建（TDD）
 ```
 
 **TDD 工作流**：
-1. **红**：`exec-plan-driver.test.ts`（create 生成 active/*.md + 模板结构；update 进度；complete 移到 completed/；load 恢复断点解析 checkbox 状态；git 状态校验）
-2. **绿**：driver 实现 + 目录约定
-3. **重构**：markdown 渲染复用 `docs/plan` 既有文档风格；不重复 meta_agent_step 的状态机（执行计划是文件的投影 + step 是 DB 的投影，互不替代）
+1. **红**：`exec-plan-driver.test.ts`（create 生成 active/*.md + 模板结构；update 进度；complete 归档到 docs/plan/exec/completed/；load 恢复断点解析 checkbox 状态 + meta_agent_step 权威对齐）
+2. **绿**：driver 实现 + 目录约定（active 本地 + 归档入 git）
+3. **重构**：markdown 渲染复用 `docs/plan` 既有文档风格；不重复 meta_agent_step 的状态机（执行计划是 agent 可读投影 + step 是 DB 权威，互不替代）
 4. **退出**：测试绿 + typecheck
 
 ### 波次 4 · 最低成本可观测项（按需）
