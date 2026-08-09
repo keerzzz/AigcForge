@@ -491,20 +491,6 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                   />
                 </TooltipV2>
 
-                <Show when={location.pathname !== "/"}>
-                  <TooltipV2 placement="bottom" value={language.t("home.overview.title")} class="shrink-0">
-                    <IconButtonV2
-                      type="button"
-                      variant="ghost-muted"
-                      size="large"
-                      class="!w-9 shrink-0"
-                      icon={<IconV2 name="home" />}
-                      onClick={() => navigate("/")}
-                      aria-label={language.t("home.overview.title")}
-                    />
-                  </TooltipV2>
-                </Show>
-
                 <div data-slot="titlebar-tabs" class="relative min-w-0">
                   <div
                     data-slot="titlebar-tabs-scroll"

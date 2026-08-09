@@ -81,10 +81,6 @@ const icons = {
     viewBox: "0 0 16 16",
     body: `<path d="M8 1.5V3.5M14.5 8H12.5M3.5 8H1.5M12 4L10.5 5.5M4 12L5.5 10.5M12 12L10.5 10.5M4 4L5.5 5.5M8 12.5V14.5" stroke="currentColor" stroke-linejoin="round"/><circle cx="8" cy="8" r="2.5" stroke="currentColor"/>`,
   },
-  home: {
-    viewBox: "0 0 16 16",
-    body: `<path d="M2 7.5L8 2.5L14 7.5M4 6.5V13.5H12V6.5" stroke="currentColor" stroke-linejoin="round"/>`,
-  },
 }
 
 const spriteID = "aigcfroge-v2-icon-sprite"
