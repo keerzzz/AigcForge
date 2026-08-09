@@ -64,7 +64,7 @@
 | "V2 权限默认含 doom_loop: ask"（调研 §7） | **勘误**：V2 `plugin/agent.ts` defaults 实际无 doom_loop 规则（仅 V1 `aigcfroge/agent.ts:131` 有）。波次 1a 需**新增** V2 规则 + 检测器 |
 | "语义化摘要器公共底座"（原总结） | 审计 D1 否决：直接复用 `compaction.ts` 的 `buildPrompt`/`serialize`/`SUMMARY_TEMPLATE` |
 | Memory 注入"L2/L3 区"（原总结） | 审计 D2 修正：走 SystemContext（`system-context/index.ts` + `SessionContextEpoch`），会话初始化时装载 |
-| 执行计划"docs/plan/exec"（原总结） | 审计 D3：存放语义待拍板；本计划默认**入 git**（恢复依赖 git 树检索），提交时机约定见 §3.4 |
+| 执行计划"docs/plan/exec"（原总结） | 审计 D3 已拍板：**方案 C 混合**——运行进度 `.aigcfroge/exec-plans/` 本地（gitignore）+ 完成归档 `docs/plan/exec/completed/` 入 git，见 §3.4 |
 
 ---
 
@@ -273,7 +273,7 @@ packages/core/test/session-runner-verifier.test.ts 新建（集成）
 3. **重构**：包路径解析复用 `Global.Path`/workspace 拓扑（不硬编码包列表）；散文映射表数据驱动
 4. **退出**：三测试绿 + 全量 test + typecheck
 
-### 波次 3 · 执行计划写盘（3-5 天*，依赖 G3 拍板）
+### 波次 3 · 执行计划写盘（3-5 天*，G3 已拍板：方案 C）
 
 **范围**：`exec-plan-driver.ts` + `docs/plan/exec/` 目录约定 + meta_agent_step 关联
 
