@@ -1136,6 +1136,8 @@ export const dict = {
   "statusBar.openContext": "開啟上下文標籤頁",
   "toolActivity.title": "工具呼叫",
   "toolActivity.summary": "工具呼叫（共 {{total}} 次，{{count}} 種工具）",
+  "toolActivity.errors": "{{count}} 次失敗",
+  "toolActivity.blocked": "{{count}} 次被 doom_loop 攔截",
   "toolActivity.category.general": "一般",
   "toolActivity.category.command": "命令",
   "toolActivity.category.skill": "技能",

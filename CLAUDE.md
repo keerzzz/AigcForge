@@ -67,9 +67,9 @@
 | 边界                | 规则                                                                                                                                                                                                       |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **测试**            | 只在单个包内跑 `bun test`，永不从根目录跑。命令：`bun --cwd packages/<name> test --timeout 30000`                                                                                                          |
-| **类型检查**        | 使用 `tsgo --noEmit` 而非 `tsc`。全仓：`bun turbo typecheck`，单包：`bun --cwd packages/<name> typecheck`。`app`/`desktop` 用 `tsgo -b`；`function`/`script`/`storybook`/`web` 无 typecheck 脚本           |
-| **Lint**            | `bun run lint`（oxlint，配置见 `.oxlintrc.json`：`typeAware: true` + `suspicious: warn` + 20+ 规则覆写）                                                                                                   |
-| **Format**          | Prettier：`semi: false, printWidth: 120`，无 pre-commit hook；`.husky/pre-push` 跑 `bun typecheck`                                                                                                         |
+| **类型检查**        | 使用 `tsgo --noEmit` 而非 `tsc`。日常用单包：`bun --cwd packages/<name> typecheck`；全仓 `bun turbo typecheck` 留给 CI。`app`/`desktop` 用 `tsgo -b`；`function`/`script`/`storybook`/`web` 无 typecheck 脚本           |
+| **Lint**            | 日常用增量：`bun run script/lint-changed.ts`（只查改动文件新增行）；全量 `bun run lint`（= `oxlint` 全仓 + `lint-changed.ts`）留给 CI。配置见 `.oxlintrc.json`：`typeAware: true` + `suspicious: warn` + 20+ 规则覆写                                                                                                   |
+| **Format**          | Prettier：`semi: false, printWidth: 120`，无 pre-commit hook；`.husky/pre-push` 跑 `bun typecheck`，可用 `AIGCFROGE_SKIP_TYPECHECK=1` 跳过                                                                                                         |
 | **模块组织**        | 新代码使用 `export * as Foo from "./foo"` 自导出模式。禁止新增 `export namespace`；已有 namespace 不顺手迁移。Barrel `index.ts` 由各包 `AGENTS.md` 自治（aigcfroge 禁多兄弟，llm 允许 `schema/`/`route/`） |
 | **Effect 编码**     | `Effect.gen(function* () {})` 组合、`Effect.fn("Domain.method")` 命名效果。无 `Effect.fork`/`forkDaemon`，用 `Effect.forkIn(scope)`                                                                        |
 | **Schema**          | 多字段用 `Schema.Class`，单值用 `Schema.brand`，错误用 `Schema.TaggedErrorClass`，defect 用 `Schema.Defect`。优先用 `Effect.void` 而非 `Effect.succeed(undefined)`                                         |
@@ -109,7 +109,7 @@
 3. **安全复查**：逐项检查 Catch Everything、No Null Pointer、Security First
 4. **整洁复查**：逐项检查 No Cheating、Reusability、Clean Logs
 5. **数据流追踪**：追踪每个改动的完整调用链——数据从哪里来、经过哪层、最终到哪。确认每个 Effect 的 Layer 依赖已被 provide。确认 import 的模块真实存在。确认条件分支两端都有实际执行路径。架构边界见 `ARCHITECTURE.md`
-6. **命令验证**：运行 `bun run lint` + 受影响包的 `typecheck` + **受影响包的 `test`**（typecheck 通过不代表行为正确）；文档-only 改动可只做链接、事实和 `git diff` 验证
+6. **命令验证**：运行 `bun run script/lint-changed.ts`（增量 lint）+ 受影响包的 `typecheck`（`bun --cwd packages/<name> typecheck`）+ **受影响包的 `test`**（可指定单个测试文件：`bun --cwd packages/<name> test path/to/file.test.ts`）；typecheck 通过不代表行为正确；文档-only 改动可只做链接、事实和 `git diff` 验证
 7. **输出复查结论**：
 
 ```text
@@ -136,3 +136,5 @@
 | nitro@3.0.1-alpha.1 预发布版本 | enterprise | alpha 不应直接用于生产 | TBD | 2026-08-04 |
 | @ai-sdk/google patch 未上游化 | root patches/ | 功能补丁可能滞后 | TBD | 上游监控 |
 | dompurify 锁定 3.4.6 | session-ui | 残留 moderate advisory（IN_PLACE/setConfig/hook 污染类，本仓静态配置+单 hook 用法不可达）；≥3.4.7 与 happy-dom 探针环境不兼容（p/a/svg 被误剥、foreignObject 误放），升级前须先迁移探针到真实浏览器环境 | TBD | 2026-08-27 |
+| 工具活动 doom_loop 拦截统计依赖 runner 错误文案匹配（"blocked by doom_loop approval"） | app | `session/runner/llm.ts` 文案变更会静默漏计；且只覆盖 denied/rejected，CorrectedError 反馈不计入。根治：事件层为 tool error 加结构化标记（如 `cause: "doom-loop"`），UI 按字段判断 | TBD | 事件层加标记时 |
+| 工具活动统计随会话压缩缩水 | app | 统计基于消息 parts，compaction 重写历史后旧 part 被丢弃，计数仅反映当前上下文窗口。根治：event/DB 层聚合持久统计，UI 只读 | TBD | 需要持久指标时 |

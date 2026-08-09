@@ -199,10 +199,10 @@ Enforced across all Effect-touching packages. Detail lives in `.aigcfroge/skills
 
 ## Type Checking
 
-- Run `bun typecheck` (routes to `bun turbo typecheck`) from the repo root, or `bun --cwd packages/<name> typecheck` for a single package. Never invoke `tsc` directly.
+- For daily development, prefer `bun --cwd packages/<name> typecheck` (single package). Run `bun typecheck` (routes to `bun turbo typecheck`) for full-repo checks in CI or before merging. Never invoke `tsc` directly.
 - Every package's `typecheck` script uses `tsgo --noEmit` (the `@typescript/native-preview` binary). `app` and `desktop` use `tsgo -b` (project-references build) instead of `--noEmit`.
 - `function`, `script`, `storybook`, and `web` have no `typecheck` script and are excluded from `bun turbo typecheck`.
-- The `.husky/pre-push` hook runs `bun typecheck` before push; it is not a pre-commit hook.
+- The `.husky/pre-push` hook runs `bun typecheck` before push; it is not a pre-commit hook. Set `AIGCFROGE_SKIP_TYPECHECK=1` to skip (e.g. for rapid iteration pushes to a feature branch).
 
 ## V2 Session Core
 

@@ -1056,6 +1056,8 @@ export const dict = {
 
   "toolActivity.title": "工具调用",
   "toolActivity.summary": "工具调用 (共 {{total}} 次，包含 {{count}} 种工具)",
+  "toolActivity.errors": "{{count}} 次失败",
+  "toolActivity.blocked": "{{count}} 次被 doom_loop 拦截",
   "toolActivity.category.general": "通用工具",
   "toolActivity.category.command": "命令执行",
   "toolActivity.category.skill": "技能调用",
