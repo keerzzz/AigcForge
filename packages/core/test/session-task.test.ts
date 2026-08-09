@@ -36,6 +36,7 @@ import { SessionExecution } from "@aigcfroge/core/session/execution"
 import { SessionRunCoordinator } from "@aigcfroge/core/session/run-coordinator"
 import { SessionRunner } from "@aigcfroge/core/session/runner"
 import * as SessionRunnerLLM from "@aigcfroge/core/session/runner/llm"
+import { DoomLoop } from "@aigcfroge/core/session/doom-loop"
 import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
 import { TaskDriver } from "@aigcfroge/core/tool/task-driver"
 import { TaskTool } from "@aigcfroge/core/tool/task"
@@ -271,6 +272,7 @@ const runner = SessionRunnerLLM.layer.pipe(
   Layer.provide(agents),
   Layer.provide(skillGuidance),
   Layer.provide(referenceGuidance),
+  Layer.provide(DoomLoop.layer),
   Layer.provide(config),
 )
 const execution = Layer.effect(

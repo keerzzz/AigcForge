@@ -13,6 +13,7 @@ import { ConfigAgent } from "./config/agent"
 import { ConfigAttachments } from "./config/attachments"
 import { ConfigCliAgent } from "./config/cli-agent"
 import { ConfigCompaction } from "./config/compaction"
+import { ConfigMeta } from "./config/meta"
 import { ConfigCommand } from "./config/command"
 import { ConfigExperimental } from "./config/experimental"
 import { ConfigFormatter } from "./config/formatter"
@@ -89,6 +90,9 @@ export class Info extends Schema.Class<Info>("Config.Info")({
   }),
   compaction: ConfigCompaction.Info.pipe(Schema.optional).annotate({
     description: "Conversation compaction behavior",
+  }),
+  meta: ConfigMeta.Info.pipe(Schema.optional).annotate({
+    description: "Meta agent memory and doom-loop detection settings",
   }),
   skills: Schema.String.pipe(Schema.Array, Schema.optional).annotate({
     description: "Additional paths or URLs to discover skills from",

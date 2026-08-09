@@ -20,6 +20,7 @@ import { Location } from "../../location"
 import { ModelV2 } from "../../model"
 import { ProviderV2 } from "../../provider"
 import { QuestionV2 } from "../../question"
+import { PermissionV2 } from "../../permission"
 import { Shell } from "../../shell"
 import { SystemContext } from "../../system-context/index"
 import { SystemContextRegistry } from "../../system-context/registry"
@@ -32,8 +33,10 @@ import { ToolOutputStore } from "../../tool-output-store"
 import { classify, type IntentCategory } from "../../agent/meta/intent"
 import { SessionContextEpoch } from "../context-epoch"
 import { SessionCompaction } from "../compaction"
+import { DoomLoop } from "../doom-loop"
 import { SessionEvent } from "../event"
 import { SessionHistory } from "../history"
+import { SessionMessage } from "../message"
 import { Prompt } from "../prompt"
 import { SessionInput } from "../input"
 import { SessionSchema } from "../schema"
@@ -119,6 +122,7 @@ export const layer = Layer.effect(
     const config = yield* Config.Service
     const appProcess = yield* AppProcess.Service
     const db = (yield* Database.Service).db
+    const doomLoop = yield* DoomLoop.Service
     const compaction = SessionCompaction.make({ events, llm, config: yield* config.entries() })
 
     const getSession = Effect.fn("SessionRunner.getSession")(function* (sessionID: SessionSchema.ID) {
@@ -132,8 +136,7 @@ export const layer = Layer.effect(
     })
     const failInterruptedTools = Effect.fn("SessionRunner.failInterruptedTools")(function* (
       sessionID: SessionSchema.ID,
-    ) {
-      for (const message of yield* getContext(sessionID)) {
+    ) {      for (const message of yield* getContext(sessionID)) {
         if (message.type !== "assistant") continue
         for (const tool of message.content) {
           if (tool.type !== "tool" || (tool.state.status !== "pending" && tool.state.status !== "running")) continue
@@ -151,6 +154,40 @@ export const layer = Layer.effect(
         }
       }
     })
+
+    const settleTool = (input: {
+      readonly sessionID: SessionSchema.ID
+      readonly agent: AgentV2.ID
+      readonly toolName: string
+      readonly toolInput: unknown
+      readonly providerExecuted: boolean
+      readonly callID: string
+      readonly assistantMessageID: SessionMessage.ID
+      readonly materialization: ToolRegistry.Materialization
+    }): Effect.Effect<ToolRegistry.Settlement, ToolOutputStore.Error> =>
+      Effect.gen(function* () {
+        const check = yield* doomLoop.check({
+          sessionID: input.sessionID,
+          toolName: input.toolName,
+          toolInput: input.toolInput,
+          providerExecuted: input.providerExecuted,
+          source: { type: "tool", messageID: input.assistantMessageID, callID: input.callID },
+        }).pipe(Effect.exit)
+        if (Exit.isFailure(check)) {
+          const blocked = Cause.squash(check.cause)
+          const value =
+            blocked instanceof PermissionV2.CorrectedError
+              ? blocked.feedback
+              : `Repeated identical ${input.toolName} call blocked by doom_loop approval`
+          return { result: { type: "error" as const, value } }
+        }
+        return yield* input.materialization.settle({
+          sessionID: input.sessionID,
+          agent: input.agent,
+          assistantMessageID: input.assistantMessageID,
+          call: { type: "tool-call", id: input.callID, name: input.toolName, input: input.toolInput },
+        })
+      })
 
     const awaitToolFibers = (fibers: FiberSet.FiberSet<void, ToolOutputStore.Error>) =>
       Effect.raceFirst(FiberSet.join(fibers), FiberSet.awaitEmpty(fibers))
@@ -304,11 +341,15 @@ export const layer = Layer.effect(
             const assistantMessageID = yield* publisher.assistantMessageID(event.id)
             yield* Effect.uninterruptibleMask((restore) =>
               restore(
-                toolMaterialization.settle({
+                settleTool({
                   sessionID: session.id,
                   agent: agent.id,
+                  toolName: event.name,
+                  toolInput: event.input,
+                  providerExecuted: event.providerExecuted === true,
+                  callID: event.id,
                   assistantMessageID,
-                  call: event,
+                  materialization: toolMaterialization,
                 }),
               ).pipe(
                 Effect.flatMap((settlement) =>

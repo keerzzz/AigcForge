@@ -231,6 +231,8 @@ export const Plugin = define({
       { action: "question", resource: "*", effect: "deny" },
       { action: "plan_enter", resource: "*", effect: "deny" },
       { action: "plan_exit", resource: "*", effect: "deny" },
+      // Repeated identical tool calls trigger an approval prompt (V1 parity).
+      { action: "doom_loop", resource: "*", effect: "ask" },
       { action: "read", resource: "*", effect: "allow" },
       { action: "read", resource: "*.env", effect: "ask" },
       { action: "read", resource: "*.env.*", effect: "ask" },

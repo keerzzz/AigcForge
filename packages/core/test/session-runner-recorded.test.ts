@@ -20,6 +20,7 @@ import { SessionExecution } from "@aigcfroge/core/session/execution"
 import { SessionRunCoordinator } from "@aigcfroge/core/session/run-coordinator"
 import { SessionRunner } from "@aigcfroge/core/session/runner"
 import * as SessionRunnerLLM from "@aigcfroge/core/session/runner/llm"
+import { DoomLoop } from "@aigcfroge/core/session/doom-loop"
 import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
 import { ToolRegistry } from "@aigcfroge/core/tool/registry"
 import { SessionTable } from "@aigcfroge/core/session/sql"
@@ -94,6 +95,8 @@ const runner = SessionRunnerLLM.defaultLayer.pipe(
   Layer.provide(agents),
   Layer.provide(skillGuidance),
   Layer.provide(referenceGuidance),
+  Layer.provide(DoomLoop.layer),
+  Layer.provide(permission),
   Layer.provide(config),
 )
 const execution = Layer.effect(
