@@ -1,7 +1,7 @@
 # 外部 CLI 调度 M1–M5 完整实施方案（已批准 2026-08-05）
 
 > 依据：`CLAUDE.md`（第一性原理/门禁/改完即审）、`AGENTS.md`（Effect/Schema/测试/codegraph 分层）、`ARCHITECTURE.md`（五层拓扑）、`DESIGN.md`（v2 token/i18n/a11y）、`packages/aigcfroge/AGENTS.md`（模块形态）、skills（effect / database / frontend-theming）、TDD 成文约定（`docs/plan/work-mode-m1-tdd-prompt.md` 红→绿→重构、`docs/plan/prompt-todo-task-fix-review-2026-08-06.md` 修复类 TDD 变体）。
-> 前置文档：`docs/plan/external-cli-dispatch-roadmap.md`（路线总纲，本文是其可执行细化）。
+> 前置文档：`docs/roadmap/external-cli-dispatch-roadmap.md`（路线总纲，本文是其可执行细化）。
 > 执行提示词：`docs/plan/prompt-external-cli-dispatch.md`。
 > 已确认决策：自动化优先，terminal handoff 暂缓；视觉维持"任务卡片 → 子会话详情页"隐喻；B+D 先行，ACP 为传输层终态。
 
@@ -236,4 +236,4 @@ claude/codex 走 ACP；权限问询双端弹窗一致；外部 CLI 工具调用�
 
 ## 10. 执行顺序与总验收
 
-M1（core 修复）→ M2（UI 闭环）→ M3（配置+探测）→ M4（SDK transport）→ M5（ACP 终态）。总工期预估 23–34 天。每个里程碑独立可发布、独立验收，均走「改完即审」七步并输出复查结论。全部完成后更新 `ARCHITECTURE.md` §4 子系统表与 `docs/plan/external-cli-dispatch-roadmap.md` 状态。
+M1（core 修复）→ M2（UI 闭环）→ M3（配置+探测）→ M4（SDK transport）→ M5（ACP 终态）。总工期预估 23–34 天。每个里程碑独立可发布、独立验收，均走「改完即审」七步并输出复查结论。全部完成后更新 `ARCHITECTURE.md` §4 子系统表与 `docs/roadmap/external-cli-dispatch-roadmap.md` 状态。

@@ -31,7 +31,7 @@
 | `packages/aigcfroge/test/agent/meta/adapters/registry.test.ts` | 移除无用 `registry` 变量（lint warning） |
 | `packages/core/test/task-driver-fill.test.ts` | +R8/R9 权限桥测试（mock PermissionV2 捕获 assert） |
 | `ARCHITECTURE.md` | §4.11 外部 CLI 委派子系统 + §5 目录表 `acp-client/` |
-| `docs/plan/external-cli-dispatch-roadmap.md` | §6 里程碑状态 + M4/M5 进度注 |
+| `docs/roadmap/external-cli-dispatch-roadmap.md` | §6 里程碑状态 + M4/M5 进度注 |
 
 ## 2. 红→绿证据
 
@@ -90,7 +90,7 @@
 1. **权限桥组合根接线实为"隐式满足"**：M4/M5 提示词要求在三处组合根显式 wire PermissionV2，但追踪发现 fill 的 `executeCLI` 由 task 工具调用，effect 运行在**会话 drain 上下文**（ToolRegistry 经 `PermissionV2.locationLayer` 已提供），`Effect.serviceOption(PermissionV2.Service)` 直接命中——三根显式接线既不必要（server 根尝试接线还因 Location.Service 为 per-session 语义错误而回退），也不正确（根级静态 Location 会污染多项目 saved-rules 的 project 作用域）。这是对原计划假设的修正。
 2. **effect v4 beta API 差异再记录**：`Effect.catchAll`→`Effect.catch`、`Effect.runtime` 不存在（回调桥 Effect 需依赖服务实例闭包后 `Effect.runPromise`，R=never）、`acquireRelease` 返回要求 Scope（需 `Effect.scoped` 包裹）、`Stream.fromChunk`→`Stream.fromIterable`。
 3. **代码检索分层**：codegraph 对符号级查询有效；本次大量效果为协议/schema 字段名核对（`_meta.parentToolUseId` 无类型化字段、`RequestPermissionOutcome` 仅 selected/cancelled），必须 grep node_modules `.d.ts`——M4 经验再次验证。
-4. **meta_agent_step 复议**：当前仅 writeStep（running）+ updateStep（settle），数据已真实；无 listSteps/HTTP 端点/UI 消费。建议**不在此次 M5 暴露**——属 `docs/plan/external-cli-dispatch-roadmap.md` §5 列出的独立 P2 决策（要么补全 HTTP+AgentTaskHub 消费，要么删表），需独立计划与验收，避免与 ACP 传输耦合。
+4. **meta_agent_step 复议**：当前仅 writeStep（running）+ updateStep（settle），数据已真实；无 listSteps/HTTP 端点/UI 消费。建议**不在此次 M5 暴露**——属 `docs/roadmap/external-cli-dispatch-roadmap.md` §5 列出的独立 P2 决策（要么补全 HTTP+AgentTaskHub 消费，要么删表），需独立计划与验收，避免与 ACP 传输耦合。
 
 ---
 

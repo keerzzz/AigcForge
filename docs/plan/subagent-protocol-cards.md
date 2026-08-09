@@ -3,7 +3,7 @@
 > 日期：2026-06-29
 > 版本：v1.0
 > 来源调研：
->   - `docs/AI智能体协议研究.md` — 2026 上半年行业协议架构白皮书
+>   - `docs/research/industry/AI智能体协议研究.md` — 2026 上半年行业协议架构白皮书
 >   - `harness-engineering` 项目（4266 stars）— 30 篇交叉分析文章
 >   - `CL4R1T4S` 项目 — Claude Code / Cursor / Cline / Codex / Devin 系统提示词
 >   - 本项目现有代码：agent.ts、core/plugin/agent.ts、meta.txt、delegation-protocol.ts、context-builder.ts
@@ -328,4 +328,4 @@ scripts/check-agent-protocols.sh
 - [V1 agent 注册表](../packages/aigcfroge/src/agent/agent.ts)
 - [V2 agent 注册表](../packages/core/src/plugin/agent.ts)
 - [Harness Engineering 学习指南](https://github.com/deusyu/harness-engineering)
-- [AI 智能体协议研究白皮书](../docs/AI智能体协议研究.md)
+- [AI 智能体协议研究白皮书](../docs/research/industry/AI智能体协议研究.md)

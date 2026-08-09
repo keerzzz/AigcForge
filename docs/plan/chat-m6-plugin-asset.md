@@ -4,7 +4,7 @@
 > 修订记录：
 > - v1.0 (2026-07-27): 初稿，审批发现 Phase 1D Bridge 架构错误（裸 `node:fs` → Effect `FSUtil.Service`）
 > - v1.1 (2026-07-27): 修订 Bridge 为 Effect service + 4 个次要问题修复
-> 依据：[Chat PRD v4.5](../prd/chat-mode-creation-layer.md)、[CLAUDE.md](../../CLAUDE.md)、[AGENTS.md](../../AGENTS.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md)、[智能体插件统一管理调研](../../docs/智能体插件统一管理调研.md)
+> 依据：[Chat PRD v4.5](../prd/chat-mode-creation-layer.md)、[CLAUDE.md](../../CLAUDE.md)、[AGENTS.md](../../AGENTS.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md)、[智能体插件统一管理调研](../../research/agent/智能体插件统一管理调研.md)
 > 前置：M5（WorkflowAsset 开闸）已合并到 main
 > 分支：`m6-plugin-asset`（从 main 切出）
 > 范围：`packages/schema` + `packages/core` + `packages/aigcfroge` + `packages/sdk/js` + `packages/app`

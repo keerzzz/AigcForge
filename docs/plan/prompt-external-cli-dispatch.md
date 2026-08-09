@@ -189,7 +189,7 @@ bun --cwd packages/session-ui test src；bun --cwd packages/app test:unit；bun 
 【验证】core test（内存 transport fake + claude-code-acp it.live 冒烟，CI 无 CLI 时 skip）；三端 UI 回归；桌面端手动全链路。
 
 【验收】claude/codex 走 ACP；权限问询双端弹窗一致；外部 CLI 工具调用进度实时可见；JSONL 可配置回退。
-【收尾】更新 ARCHITECTURE.md §4 子系统表、docs/plan/external-cli-dispatch-roadmap.md 状态；复议 meta_agent_step 是否暴露 HTTP/UI（彼时给结论）。
+【收尾】更新 ARCHITECTURE.md §4 子系统表、docs/roadmap/external-cli-dispatch-roadmap.md 状态；复议 meta_agent_step 是否暴露 HTTP/UI（彼时给结论）。
 ```
 ---
 

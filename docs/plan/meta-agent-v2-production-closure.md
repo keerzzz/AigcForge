@@ -510,7 +510,7 @@ V1 通用字符串 trigger 需对等迁移到 V2 域 transform 或 aisdk hook：
 
 #### P3.8 INTENT_TOOL_FILTERS 接线 — 工具按需加载（1 天，v5 新增，P0）
 
-**调研来源**：[调研报告 §4.3](../../docs/主流编程及 CIL 智能体架构深度调研方案.md) — Kimi Code `select_tools` 机制，业界已验证的工具按需加载减少前缀 Token 30%+。
+**调研来源**：[调研报告 §4.3](../../research/agent/主流编程及 CIL 智能体架构深度调研方案.md) — Kimi Code `select_tools` 机制，业界已验证的工具按需加载减少前缀 Token 30%+。
 
 **现状**：INTENT_TOOL_FILTERS 在 [registry.ts:15-40](../../packages/core/src/tool/registry.ts#L15) 已定义但 runner 不传 intent（[llm.ts:205](../../packages/core/src/session/runner/llm.ts#L205) 仅传 permissions），死代码。PreRouter 的 `preRoute` 已迁移到 core 但未接入。
 
@@ -525,7 +525,7 @@ V1 通用字符串 trigger 需对等迁移到 V2 域 transform 或 aisdk hook：
 
 #### P3.9 PreToolUse/PostToolUse 钩子实现（1.5 天，v5 新增，P0）
 
-**调研来源**：[调研报告 §5.2](../../docs/主流编程及 CIL 智能体架构深度调研方案.md) — PreToolUse 在工具执行前拦截决策，PostToolUse 在工具执行后检查上下文阈值触发压缩。
+**调研来源**：[调研报告 §5.2](../../research/agent/主流编程及 CIL 智能体架构深度调研方案.md) — PreToolUse 在工具执行前拦截决策，PostToolUse 在工具执行后检查上下文阈值触发压缩。
 
 **现状**：MetaHooks 的 `middleware.register` 在 [host.ts](../../packages/core/src/plugin/host.ts) 中是空函数。需要填入真实拦截逻辑。
 
@@ -911,7 +911,7 @@ Day 24+:    灰度运行 1 周 → 移除 feature flag → V1 物理删除
 | v2 | 2026-07-05 | R10 §8 协议合规约束 | [CLAUDE.md](../../CLAUDE.md) 八荣八耻 |
 | v4 | 2026-07-08 | R11 Share 方案变更：外网→内部分享 | 产品分析决策 |
 | v4 | 2026-07-08 | R12 V2 闭环接近完成，Fork 独立 | 实现状态检查 |
-| v5 | 2026-07-08 | R13 基于业界调研新增 5 维度优化 | [调研报告](../../docs/主流编程及 CIL 智能体架构深度调研方案.md) |
+| v5 | 2026-07-08 | R13 基于业界调研新增 5 维度优化 | [调研报告](../../research/agent/主流编程及 CIL 智能体架构深度调研方案.md) |
 | v5 | 2026-07-08 | R14 Fork 决策：不建新服务，复用 create({parentID}) + share | 复用优先原则 |
 | v5 | 2026-07-08 | R15 新增 Phase 6（智能体增强） | 业界对齐 |
 | v5 | 2026-07-08 | R16 INTENT_TOOL_FILTERS 接线升至 P0 | 缓存优化 |
