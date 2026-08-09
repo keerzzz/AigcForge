@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "2904647b-288d-430e-8699-06ef698103c4",
+  "id": "712fbf5d-6540-416f-a190-5e6e59e0e892",
   "prevIds": [
-    "0cb97b87-761a-482c-94e9-4ab95d42ed9b"
+    "2904647b-288d-430e-8699-06ef698103c4"
   ],
   "ddl": [
     {
@@ -40,6 +40,10 @@
     },
     {
       "name": "event",
+      "entityType": "tables"
+    },
+    {
+      "name": "meta_agent_memory",
       "entityType": "tables"
     },
     {
@@ -621,6 +625,96 @@
       "name": "data",
       "entityType": "columns",
       "table": "event"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "meta_agent_memory"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "project_id",
+      "entityType": "columns",
+      "table": "meta_agent_memory"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "meta_agent_id",
+      "entityType": "columns",
+      "table": "meta_agent_memory"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "fact_category",
+      "entityType": "columns",
+      "table": "meta_agent_memory"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "content",
+      "entityType": "columns",
+      "table": "meta_agent_memory"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "source_session_id",
+      "entityType": "columns",
+      "table": "meta_agent_memory"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "source_step_id",
+      "entityType": "columns",
+      "table": "meta_agent_memory"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "time_created",
+      "entityType": "columns",
+      "table": "meta_agent_memory"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "time_updated",
+      "entityType": "columns",
+      "table": "meta_agent_memory"
     },
     {
       "type": "text",
@@ -2113,6 +2207,21 @@
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
+      "name": "fk_meta_agent_memory_meta_agent_id_meta_agent_id_fk",
+      "entityType": "fks",
+      "table": "meta_agent_memory"
+    },
+    {
+      "columns": [
+        "meta_agent_id"
+      ],
+      "tableTo": "meta_agent",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
       "name": "fk_meta_agent_session_meta_agent_id_meta_agent_id_fk",
       "entityType": "fks",
       "table": "meta_agent_session"
@@ -2405,6 +2514,15 @@
         "id"
       ],
       "nameExplicit": false,
+      "name": "meta_agent_memory_pk",
+      "table": "meta_agent_memory",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
       "name": "meta_agent_step_pk",
       "table": "meta_agent_step",
       "entityType": "pks"
@@ -2593,6 +2711,20 @@
       "name": "event_aggregate_type_seq_idx",
       "entityType": "indexes",
       "table": "event"
+    },
+    {
+      "columns": [
+        {
+          "value": "project_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "meta_agent_memory_project_idx",
+      "entityType": "indexes",
+      "table": "meta_agent_memory"
     },
     {
       "columns": [
