@@ -448,7 +448,7 @@ export function SessionSidePanel(props: {
     <div class="flex-1 min-w-0" style={{ display: mode.currentMode === "chat" ? "" : "none" }}>
       <ChatRightPanel />
     </div>
-    <div style={{ display: mode.currentMode === "work" ? "" : "none" }}>
+    <div class="flex-1 min-w-0" style={{ display: mode.currentMode === "work" ? "" : "none" }}>
       <WorkSessionPanel />
     </div>
     <div style={{ display: mode.currentMode === "assistant" ? "" : "none" }}>
