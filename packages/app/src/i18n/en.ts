@@ -605,6 +605,11 @@ export const dict = {
   "home.sessions.group.today": "Today",
   "home.sessions.group.yesterday": "Yesterday",
   "home.sessions.group.older": "Older",
+  "home.overview.title": "Home",
+  "home.overview.continue": "Continue where you left off",
+  "home.overview.all": "All sessions",
+  "home.overview.modeFilter": "Mode filter",
+  "home.overview.projectFilter": "Projects",
 
   "mode.chat": "Chat",
   "mode.chat.description": "General conversation and Q&A",
