@@ -43,8 +43,20 @@ describe("DoomLoop", () => {
     Effect.gen(function* () {
       asserts.length = 0
       const doomLoop = yield* DoomLoop.Service
-      yield* doomLoop.check({ sessionID, toolName: "edit", toolInput: { path: "a.ts" }, providerExecuted: false, source })
-      yield* doomLoop.check({ sessionID, toolName: "edit", toolInput: { path: "a.ts" }, providerExecuted: false, source })
+      yield* doomLoop.check({
+        sessionID,
+        toolName: "edit",
+        toolInput: { path: "a.ts" },
+        providerExecuted: false,
+        source,
+      })
+      yield* doomLoop.check({
+        sessionID,
+        toolName: "edit",
+        toolInput: { path: "a.ts" },
+        providerExecuted: false,
+        source,
+      })
       expect(asserts.length).toBe(0)
     }),
   )
@@ -54,7 +66,13 @@ describe("DoomLoop", () => {
       asserts.length = 0
       const doomLoop = yield* DoomLoop.Service
       for (let i = 0; i < 3; i++) {
-        yield* doomLoop.check({ sessionID, toolName: "edit", toolInput: { path: "a.ts" }, providerExecuted: false, source })
+        yield* doomLoop.check({
+          sessionID,
+          toolName: "edit",
+          toolInput: { path: "a.ts" },
+          providerExecuted: false,
+          source,
+        })
       }
       expect(asserts.length).toBe(1)
       expect(asserts[0]).toMatchObject({
@@ -105,7 +123,13 @@ describe("DoomLoop", () => {
       asserts.length = 0
       const doomLoop = yield* DoomLoop.Service
       for (let i = 0; i < 3; i++) {
-        yield* doomLoop.check({ sessionID, toolName: "edit", toolInput: { path: "a.ts" }, providerExecuted: true, source })
+        yield* doomLoop.check({
+          sessionID,
+          toolName: "edit",
+          toolInput: { path: "a.ts" },
+          providerExecuted: true,
+          source,
+        })
       }
       expect(asserts.length).toBe(0)
     }),
@@ -116,10 +140,101 @@ describe("DoomLoop", () => {
       asserts.length = 0
       const doomLoop = yield* DoomLoop.Service
       const other = SessionV2.ID.make("ses_other")
-      yield* doomLoop.check({ sessionID, toolName: "edit", toolInput: { path: "a.ts" }, providerExecuted: false, source })
-      yield* doomLoop.check({ sessionID, toolName: "edit", toolInput: { path: "a.ts" }, providerExecuted: false, source })
-      yield* doomLoop.check({ sessionID: other, toolName: "edit", toolInput: { path: "a.ts" }, providerExecuted: false, source })
+      yield* doomLoop.check({
+        sessionID,
+        toolName: "edit",
+        toolInput: { path: "a.ts" },
+        providerExecuted: false,
+        source,
+      })
+      yield* doomLoop.check({
+        sessionID,
+        toolName: "edit",
+        toolInput: { path: "a.ts" },
+        providerExecuted: false,
+        source,
+      })
+      yield* doomLoop.check({
+        sessionID: other,
+        toolName: "edit",
+        toolInput: { path: "a.ts" },
+        providerExecuted: false,
+        source,
+      })
       expect(asserts.length).toBe(0)
+    }),
+  )
+
+  it.effect("evicts the oldest session when the tracked buffer cap is reached", () =>
+    Effect.gen(function* () {
+      asserts.length = 0
+      const doomLoop = yield* DoomLoop.Service
+      const sessions = Array.from({ length: 40 }, (_, i) => SessionV2.ID.make(`ses_cap_${i}`))
+      for (const sid of sessions) {
+        yield* doomLoop.check({
+          sessionID: sid,
+          toolName: "edit",
+          toolInput: { path: "a.ts" },
+          providerExecuted: false,
+          source,
+        })
+      }
+      expect(asserts.length).toBe(0)
+      const first = sessions[0]
+      const second = sessions[1]
+      const later = sessions[39]
+      yield* doomLoop.check({
+        sessionID: later,
+        toolName: "edit",
+        toolInput: { path: "a.ts" },
+        providerExecuted: false,
+        source,
+      })
+      yield* doomLoop.check({
+        sessionID: later,
+        toolName: "edit",
+        toolInput: { path: "a.ts" },
+        providerExecuted: false,
+        source,
+      })
+      expect(asserts.length).toBe(1)
+      yield* doomLoop.check({
+        sessionID: first,
+        toolName: "edit",
+        toolInput: { path: "a.ts" },
+        providerExecuted: false,
+        source,
+      })
+      yield* doomLoop.check({
+        sessionID: first,
+        toolName: "edit",
+        toolInput: { path: "a.ts" },
+        providerExecuted: false,
+        source,
+      })
+      expect(asserts.length).toBe(1)
+      yield* doomLoop.check({
+        sessionID: second,
+        toolName: "edit",
+        toolInput: { path: "a.ts" },
+        providerExecuted: false,
+        source,
+      })
+      yield* doomLoop.check({
+        sessionID: second,
+        toolName: "edit",
+        toolInput: { path: "a.ts" },
+        providerExecuted: false,
+        source,
+      })
+      yield* doomLoop.check({
+        sessionID: second,
+        toolName: "edit",
+        toolInput: { path: "a.ts" },
+        providerExecuted: false,
+        source,
+      })
+      expect(asserts.length).toBe(2)
     }),
   )
 })
@@ -138,9 +253,21 @@ describe("DoomLoop threshold", () => {
     Effect.gen(function* () {
       asserts.length = 0
       const doomLoop = yield* DoomLoop.Service
-      yield* doomLoop.check({ sessionID, toolName: "edit", toolInput: { path: "a.ts" }, providerExecuted: false, source })
+      yield* doomLoop.check({
+        sessionID,
+        toolName: "edit",
+        toolInput: { path: "a.ts" },
+        providerExecuted: false,
+        source,
+      })
       expect(asserts.length).toBe(0)
-      yield* doomLoop.check({ sessionID, toolName: "edit", toolInput: { path: "a.ts" }, providerExecuted: false, source })
+      yield* doomLoop.check({
+        sessionID,
+        toolName: "edit",
+        toolInput: { path: "a.ts" },
+        providerExecuted: false,
+        source,
+      })
       expect(asserts.length).toBe(1)
     }),
   )
@@ -161,7 +288,13 @@ describe("DoomLoop disabled", () => {
       asserts.length = 0
       const doomLoop = yield* DoomLoop.Service
       for (let i = 0; i < 3; i++) {
-        yield* doomLoop.check({ sessionID, toolName: "edit", toolInput: { path: "a.ts" }, providerExecuted: false, source })
+        yield* doomLoop.check({
+          sessionID,
+          toolName: "edit",
+          toolInput: { path: "a.ts" },
+          providerExecuted: false,
+          source,
+        })
       }
       expect(asserts.length).toBe(0)
     }),
@@ -170,7 +303,8 @@ describe("DoomLoop disabled", () => {
 
 describe("DoomLoop deny", () => {
   const denied = Layer.mock(PermissionV2.Service, {
-    assert: () => Effect.fail(new PermissionV2.DeniedError({ rules: [{ action: "doom_loop", resource: "*", effect: "deny" }] })),
+    assert: () =>
+      Effect.fail(new PermissionV2.DeniedError({ rules: [{ action: "doom_loop", resource: "*", effect: "deny" }] })),
   })
   const it = testEffect(layerFor(denied))
 

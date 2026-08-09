@@ -88,6 +88,10 @@ export const layer = Layer.effect(
       if (!attached) return yield* new NotMetaSessionError({ sessionID: input.sessionID })
       const id = input.id ?? `mem_${crypto.randomUUID().replaceAll("-", "")}`
       const now = yield* DateTime.now
+      // onConflictDoNothing makes replay idempotent: a retried call with the
+      // same id skips the insert and still reports success, so the caller's
+      // recorded id remains valid without creating duplicates. The random id
+      // path never conflicts.
       yield* db
         .insert(MetaAgentMemoryTable)
         .values({
@@ -124,6 +128,11 @@ export const layer = Layer.effect(
 
     const search = Effect.fn("MetaAgentMemory.search")(function* (input: SearchInput) {
       const pattern = `%${escapeLike(input.keyword)}%`
+      // Leading-wildcard LIKE cannot use the project_id index, so search cost
+      // grows with the number of facts per project. Each fact is a distilled
+      // entry of at most 2000 chars (there is no per-project count cap), so
+      // this stays cheap in practice; if it ever becomes a bottleneck, replace
+      // with a SQLite FTS5 virtual table.
       const rows = yield* db
         .select()
         .from(MetaAgentMemoryTable)
@@ -144,4 +153,7 @@ export const layer = Layer.effect(
   }),
 )
 
-export const defaultLayer = layer.pipe(Layer.provide(Database.defaultLayer), Layer.provide(MetaAgentService.defaultLayer))
+export const defaultLayer = layer.pipe(
+  Layer.provide(Database.defaultLayer),
+  Layer.provide(MetaAgentService.defaultLayer),
+)

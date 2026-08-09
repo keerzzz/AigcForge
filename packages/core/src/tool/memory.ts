@@ -14,7 +14,13 @@ export const RecordInput = Schema.Struct({
   fact_category: MetaAgentMemory.FactCategory.annotate({
     description: "The kind of fact being remembered: code_trap, protocol, api, or workflow",
   }),
-  content: Schema.String.annotate({
+  content: Schema.String.pipe(
+    Schema.check(
+      Schema.isMaxLength(2000, {
+        message: "Memory fact content must be at most 2000 characters - store a distilled fact, not raw tool output",
+      }),
+    ),
+  ).annotate({
     description:
       "One distilled fact (a few sentences). Stored verbatim for this project; other sessions of the same project can search it later.",
   }),
@@ -101,9 +107,7 @@ export const layer = Layer.effectDiscard(
               text:
                 output.records.length === 0
                   ? "No matching memory facts."
-                  : output.records
-                      .map((record) => `[${record.fact_category}] ${record.content}`)
-                      .join("\n"),
+                  : output.records.map((record) => `[${record.fact_category}] ${record.content}`).join("\n"),
             },
           ],
           execute: (input) =>

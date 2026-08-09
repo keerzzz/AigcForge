@@ -35,7 +35,8 @@ const memorySettings = (documents: readonly Config.Entry[]) => {
       topN: current.top_n ?? result.topN,
     }),
     { enabled: DEFAULT_MEMORY_ENABLED, topN: DEFAULT_MEMORY_TOP_N },
-  )}
+  )
+}
 
 const loadMemoryFacts = (
   db: Database.Interface["db"],
@@ -50,9 +51,7 @@ const loadMemoryFacts = (
     .limit(topN)
     .all()
     .pipe(
-      Effect.map((rows) =>
-        rows.map((row) => ({ factCategory: row.fact_category, content: row.content })),
-      ),
+      Effect.map((rows) => rows.map((row) => ({ factCategory: row.fact_category, content: row.content }))),
       Effect.orDie,
     )
 

@@ -99,6 +99,26 @@ describe("MemoryTool", () => {
     }),
   )
 
+  it.effect("memory_record rejects content that exceeds the distilled-fact length cap", () =>
+    Effect.gen(function* () {
+      recorded.length = 0
+      const registry = yield* ToolRegistry.Service
+      const result = yield* executeTool(registry, {
+        sessionID,
+        agent: AgentV2.ID.make("build"),
+        assistantMessageID,
+        call: {
+          type: "tool-call",
+          id: "call_mem_long",
+          name: "memory_record",
+          input: { fact_category: "code_trap", content: "x".repeat(2001) },
+        },
+      })
+      expect(result.type).toBe("error")
+      expect(recorded.length).toBe(0)
+    }),
+  )
+
   it.effect("memory_search executes with the keyword", () =>
     Effect.gen(function* () {
       searched.length = 0
@@ -129,9 +149,7 @@ describe("MemoryTool", () => {
       const all = yield* toolDefinitions(registry)
       expect(all.some((definition) => definition.name === "memory_record")).toBe(true)
       expect(all.some((definition) => definition.name === "memory_search")).toBe(true)
-      const filtered = yield* toolDefinitions(registry, [
-        { action: "memory_record", resource: "*", effect: "deny" },
-      ])
+      const filtered = yield* toolDefinitions(registry, [{ action: "memory_record", resource: "*", effect: "deny" }])
       expect(filtered.some((definition) => definition.name === "memory_record")).toBe(false)
       expect(filtered.some((definition) => definition.name === "memory_search")).toBe(true)
     }),
@@ -141,9 +159,7 @@ describe("MemoryTool", () => {
 describe("MemoryTool failures", () => {
   const failingMemory = Layer.mock(MetaAgentMemory.Service, {
     record: () =>
-      Effect.fail(
-        new MetaAgentMemory.NotMetaSessionError({ sessionID: SessionV2.ID.make("ses_unattached") }),
-      ),
+      Effect.fail(new MetaAgentMemory.NotMetaSessionError({ sessionID: SessionV2.ID.make("ses_unattached") })),
     query: () => Effect.succeed([]),
     search: () => Effect.succeed([]),
     remove: () => Effect.void,

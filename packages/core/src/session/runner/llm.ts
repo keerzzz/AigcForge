@@ -136,7 +136,8 @@ export const layer = Layer.effect(
     })
     const failInterruptedTools = Effect.fn("SessionRunner.failInterruptedTools")(function* (
       sessionID: SessionSchema.ID,
-    ) {      for (const message of yield* getContext(sessionID)) {
+    ) {
+      for (const message of yield* getContext(sessionID)) {
         if (message.type !== "assistant") continue
         for (const tool of message.content) {
           if (tool.type !== "tool" || (tool.state.status !== "pending" && tool.state.status !== "running")) continue
@@ -166,13 +167,15 @@ export const layer = Layer.effect(
       readonly materialization: ToolRegistry.Materialization
     }): Effect.Effect<ToolRegistry.Settlement, ToolOutputStore.Error> =>
       Effect.gen(function* () {
-        const check = yield* doomLoop.check({
-          sessionID: input.sessionID,
-          toolName: input.toolName,
-          toolInput: input.toolInput,
-          providerExecuted: input.providerExecuted,
-          source: { type: "tool", messageID: input.assistantMessageID, callID: input.callID },
-        }).pipe(Effect.exit)
+        const check = yield* doomLoop
+          .check({
+            sessionID: input.sessionID,
+            toolName: input.toolName,
+            toolInput: input.toolInput,
+            providerExecuted: input.providerExecuted,
+            source: { type: "tool", messageID: input.assistantMessageID, callID: input.callID },
+          })
+          .pipe(Effect.exit)
         if (Exit.isFailure(check)) {
           const blocked = Cause.squash(check.cause)
           const value =
@@ -282,7 +285,9 @@ export const layer = Layer.effect(
         return yield* Effect.die(continueAfterCompaction(currentStep))
       }
       const prefixShape = CacheShape.capture(
-        [agent.info?.system, system.baseline].filter((part): part is string => part !== undefined && part.length > 0).join("\n"),
+        [agent.info?.system, system.baseline]
+          .filter((part): part is string => part !== undefined && part.length > 0)
+          .join("\n"),
         toolMaterialization?.definitions ?? [],
         state.rewriteVersion,
       )
@@ -425,7 +430,10 @@ export const layer = Layer.effect(
             yield* withPublication(publisher.failUnsettledTools("Provider did not return a tool result", true))
           if (stream._tag === "Failure") return yield* Effect.failCause(stream.cause)
           if (settled._tag === "Failure") return yield* Effect.failCause(settled.cause)
-          return { needsContinuation: (!publisher.hasProviderError() || publisher.isAborted()) && needsContinuation, step: currentStep }
+          return {
+            needsContinuation: (!publisher.hasProviderError() || publisher.isAborted()) && needsContinuation,
+            step: currentStep,
+          }
         }),
       )
     }, Effect.scoped)
@@ -613,9 +621,7 @@ export const layer = Layer.effect(
           shell = yield* SessionInput.nextPendingShell(db, input.sessionID)
         }
         const nextQueue = yield* SessionInput.hasPending(db, input.sessionID, "queue")
-        const nextShell = nextQueue
-          ? false
-          : (yield* SessionInput.nextPendingShell(db, input.sessionID)) !== undefined
+        const nextShell = nextQueue ? false : (yield* SessionInput.nextPendingShell(db, input.sessionID)) !== undefined
         shouldRun = nextQueue || nextShell
         promotion = nextQueue ? "queue" : undefined
       }
