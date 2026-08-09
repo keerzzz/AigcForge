@@ -9,6 +9,7 @@ import { Project } from "./project"
 import { DateTimeUtcFromMillis, optionalOmitUndefined, RelativePath } from "./schema"
 import { SessionID } from "./session-id"
 import { SessionMessageID } from "./session-message-id"
+import { WorkPreset } from "./work-preset"
 
 export const ID = SessionID.ID
 export type ID = SessionID.ID
@@ -34,6 +35,7 @@ export const Info = Schema.Struct({
     Schema.withDecodingDefaultKey(Effect.succeed(ProductMode.Default as ProductMode.ID)),
     Schema.withConstructorDefault(Effect.succeed(ProductMode.Default as ProductMode.ID)),
   ),
+  presetCategoryId: WorkPreset.Category.pipe(Schema.optional),
   slug: Schema.String,
   version: Schema.String,
   parentID: ID.pipe(optionalOmitUndefined),

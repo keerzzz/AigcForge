@@ -71,6 +71,7 @@ export type Event =
   | EventQuestionV2Replied
   | EventQuestionV2Rejected
   | EventTaskUpdated
+  | EventWorkStepResumed
   | EventTodoUpdated
   | EventTaskProgress
   | EventWorkAssetSaved
@@ -674,21 +675,6 @@ export type TaskRecurrence = {
   cron: string
   timezone?: string
   enabled: boolean
-}
-
-export type Todo = {
-  /**
-   * Brief description of the task
-   */
-  content: string
-  /**
-   * Current status of the task: pending, in_progress, completed, cancelled
-   */
-  status: string
-  /**
-   * Priority level of the task: high, medium, low
-   */
-  priority: string
 }
 
 export type SessionStatus =
@@ -1457,10 +1443,17 @@ export type GlobalEvent = {
       }
     | {
         id: string
+        type: "work.step_resumed"
+        properties: {
+          sessionID: string
+        }
+      }
+    | {
+        id: string
         type: "todo.updated"
         properties: {
           sessionID: string
-          todos: Array<Todo>
+          todos: Array<SessionTaskTodoProjection>
         }
       }
     | {
@@ -2333,6 +2326,7 @@ export type ProjectSummary = {
 export type GlobalSession = {
   id: string
   mode?: ProductMode
+  presetCategoryId?: WorkPresetCategory
   slug: string
   projectID: string
   workspaceID?: string
@@ -2719,6 +2713,7 @@ export type ProviderAuthError1 = {
 export type Session1 = {
   id: string
   mode?: ProductMode
+  presetCategoryId?: WorkPresetCategory
   slug: string
   projectID: string
   workspaceID?: string
@@ -2773,6 +2768,7 @@ export type Session1 = {
 export type Session2 = {
   id: string
   mode?: ProductMode
+  presetCategoryId?: WorkPresetCategory
   slug: string
   projectID: string
   workspaceID?: string
@@ -2831,9 +2827,25 @@ export type NotFoundError = {
   }
 }
 
+export type Todo = {
+  /**
+   * Brief description of the task
+   */
+  content: string
+  /**
+   * Current status of the task: pending, in_progress, completed, cancelled
+   */
+  status: string
+  /**
+   * Priority level of the task: high, medium, low
+   */
+  priority: string
+}
+
 export type Session3 = {
   id: string
   mode?: ProductMode
+  presetCategoryId?: WorkPresetCategory
   slug: string
   projectID: string
   workspaceID?: string
@@ -2888,6 +2900,7 @@ export type Session3 = {
 export type Session4 = {
   id: string
   mode?: ProductMode
+  presetCategoryId?: WorkPresetCategory
   slug: string
   projectID: string
   workspaceID?: string
@@ -2942,6 +2955,7 @@ export type Session4 = {
 export type Session5 = {
   id: string
   mode?: ProductMode
+  presetCategoryId?: WorkPresetCategory
   slug: string
   projectID: string
   workspaceID?: string
@@ -2996,6 +3010,7 @@ export type Session5 = {
 export type Session6 = {
   id: string
   mode?: ProductMode
+  presetCategoryId?: WorkPresetCategory
   slug: string
   projectID: string
   workspaceID?: string
@@ -3050,6 +3065,7 @@ export type Session6 = {
 export type Session7 = {
   id: string
   mode?: ProductMode
+  presetCategoryId?: WorkPresetCategory
   slug: string
   projectID: string
   workspaceID?: string
@@ -3158,6 +3174,7 @@ export type SessionBusyError = {
 export type Session8 = {
   id: string
   mode?: ProductMode
+  presetCategoryId?: WorkPresetCategory
   slug: string
   projectID: string
   workspaceID?: string
@@ -3212,6 +3229,7 @@ export type Session8 = {
 export type Session9 = {
   id: string
   mode?: ProductMode
+  presetCategoryId?: WorkPresetCategory
   slug: string
   projectID: string
   workspaceID?: string
@@ -3475,6 +3493,7 @@ export type V2Event =
   | V2EventQuestionV2Replied
   | V2EventQuestionV2Rejected
   | V2EventTaskUpdated
+  | V2EventWorkStepResumed
   | V2EventTodoUpdated
   | V2EventTaskProgress
   | V2EventWorkAssetSaved
@@ -3725,6 +3744,12 @@ export type SessionTaskInfo = {
   revision: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
   createdAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
   updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+}
+
+export type SessionTaskTodoProjection = {
+  content: string
+  status: string
+  priority: string
 }
 
 export type EventServerInstanceDisposed = {
@@ -4433,6 +4458,8 @@ export type ConfigV2ExperimentalPolicy = {
   resource: string
 }
 
+export type WorkPresetCategory = "it-development" | "video-creation" | "academic" | "general-office"
+
 export type ProjectDirectories = Array<{
   directory: string
   strategy?: string
@@ -4844,6 +4871,7 @@ export type SessionV2Summary = {
 export type SessionV2Info = {
   id: string
   mode?: ProductMode
+  presetCategoryId?: WorkPresetCategory
   slug: string
   version: string
   parentID?: string
@@ -6751,6 +6779,23 @@ export type V2EventTaskUpdated = {
   }
 }
 
+export type V2EventWorkStepResumed = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "work.step_resumed"
+  data: {
+    sessionID: string
+  }
+}
+
 export type V2EventTodoUpdated = {
   id: string
   metadata?: {
@@ -6765,7 +6810,7 @@ export type V2EventTodoUpdated = {
   type: "todo.updated"
   data: {
     sessionID: string
-    todos: Array<Todo>
+    todos: Array<SessionTaskTodoProjection>
   }
 }
 
@@ -8173,12 +8218,20 @@ export type EventTaskUpdated = {
   }
 }
 
+export type EventWorkStepResumed = {
+  id: string
+  type: "work.step_resumed"
+  properties: {
+    sessionID: string
+  }
+}
+
 export type EventTodoUpdated = {
   id: string
   type: "todo.updated"
   properties: {
     sessionID: string
-    todos: Array<Todo>
+    todos: Array<SessionTaskTodoProjection>
   }
 }
 
@@ -12025,6 +12078,7 @@ export type SessionCreateData = {
   body?: {
     parentID?: string
     mode?: ProductMode
+    presetCategoryId?: WorkPresetCategory
     title?: string
     agent?: string
     model?: {

@@ -6,14 +6,15 @@ import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
-import { useLayout } from "@/context/layout"
-import { ResizeHandle } from "@aigcfroge/ui/resize-handle"
+import { useFile } from "@/context/file"
 import { createSizing } from "@/pages/session/helpers"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { Markdown } from "@aigcfroge/session-ui/markdown"
 import { HtmlArtifact } from "@aigcfroge/session-ui/html-artifact"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
+import { SessionFileTree } from "@/components/session-file-tree"
+import FileTree from "@/components/file-tree"
 import { SessionContextTab } from "@/components/session"
 import {
   applyContentForDisk,
@@ -256,11 +257,12 @@ export function WorkArtifactContent() {
  * Context Tab（对齐 Code 模式）+ Artifact Tab。
  * 显隐复用 view().reviewPanel.opened()（对齐 chat/code；session-header 的
  * sidebar-right icon 点击 toggle 此状态），默认展开、可折叠。
+ * A 区宽度 auto 撑满（D5，批次 4），B 区 fileTree 默认关闭（D6）。
  */
 export function WorkSessionPanel() {
   const language = useLanguage()
   const sessionLayout = useSessionLayout()
-  const layout = useLayout()
+  const file = useFile()
   const size = createSizing()
   const [tab, setTab] = createSignal<"context" | "artifact">("artifact")
   const reviewOpen = createMemo(() => sessionLayout.view().reviewPanel.opened())
@@ -270,55 +272,47 @@ export function WorkSessionPanel() {
       aria-label={language.t("work.artifact.tab")}
       aria-hidden={!reviewOpen()}
       inert={!reviewOpen()}
-      class="relative h-full min-w-0 shrink-0 overflow-hidden bg-v2-background-bg-base"
+      class="relative flex h-full min-w-0 shrink-0 overflow-hidden bg-v2-background-bg-base"
       classList={{
         "border-l border-v2-border-border-base": reviewOpen(),
         "pointer-events-none": !reviewOpen(),
         "transition-[width] duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width] motion-reduce:transition-none":
           !size.active(),
       }}
-      style={{ width: reviewOpen() ? `${layout.workPanel.width()}px` : "0px" }}
+      style={{ width: reviewOpen() ? "auto" : "0px" }}
     >
-      {/* 内层宽度跟随拖拽值，折叠动画期间内容不挤压重排 */}
-      <div
-        class="flex h-full min-h-0 shrink-0 flex-col"
-        style={{ width: `${layout.workPanel.width()}px` }}
+      <TabsV2
+        value={tab()}
+        onChange={(value) => setTab(value === "context" ? "context" : "artifact")}
+        class="flex min-h-0 flex-1 flex-col"
       >
-        <TabsV2 value={tab()} onChange={(value) => setTab(value === "context" ? "context" : "artifact")}>
-          <TabsV2.List class="shrink-0 border-b border-v2-border-border-base px-2">
-            <TabsV2.Trigger value="context">{language.t("session.tab.context")}</TabsV2.Trigger>
-            <TabsV2.Trigger value="artifact">{language.t("work.artifact.tab")}</TabsV2.Trigger>
-          </TabsV2.List>
-          <TabsV2.Content value="context" class="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <Show when={tab() === "context"}>
-              <div class="flex-1 min-h-0 overflow-hidden">
-                <SessionContextTab />
-              </div>
-            </Show>
-          </TabsV2.Content>
-          <TabsV2.Content value="artifact" class="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <Show when={tab() === "artifact"}>
-              <WorkArtifactContent />
-            </Show>
-          </TabsV2.Content>
-        </TabsV2>
-      </div>
-      {/* 宽度拖拽：对齐 code/chat B 区 ResizeHandle（edge=start 贴面板左缘） */}
-      <Show when={reviewOpen()}>
-        <div onPointerDown={() => size.start()}>
-          <ResizeHandle
-            direction="horizontal"
-            edge="start"
-            size={layout.workPanel.width()}
-            min={280}
-            max={520}
-            onResize={(width) => {
-              size.touch()
-              layout.workPanel.resize(width)
-            }}
+        <TabsV2.List class="shrink-0 border-b border-v2-border-border-base px-2">
+          <TabsV2.Trigger value="context">{language.t("session.tab.context")}</TabsV2.Trigger>
+          <TabsV2.Trigger value="artifact">{language.t("work.artifact.tab")}</TabsV2.Trigger>
+        </TabsV2.List>
+        <TabsV2.Content value="context" class="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <Show when={tab() === "context"}>
+            <div class="flex-1 min-h-0 overflow-hidden">
+              <SessionContextTab />
+            </div>
+          </Show>
+        </TabsV2.Content>
+        <TabsV2.Content value="artifact" class="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <Show when={tab() === "artifact"}>
+            <WorkArtifactContent />
+          </Show>
+        </TabsV2.Content>
+      </TabsV2>
+      {/* B 区:项目文件树(对齐 code/chat,D6),默认关闭;work 用户可查看落盘产物 */}
+      <SessionFileTree size={size} borderClass="border-l border-v2-border-border-base">
+        <div class="min-h-0 flex-1 overflow-y-auto px-3 pt-3">
+          <FileTree
+            path=""
+            class="pt-1"
+            onFileClick={(node) => void file.load(node.path)}
           />
         </div>
-      </Show>
+      </SessionFileTree>
     </aside>
   )
 }

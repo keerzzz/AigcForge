@@ -11,6 +11,7 @@ import { SessionTabsRemovedDetail } from "@/components/titlebar-session-events"
 import { sessionHref } from "@/utils/session-route"
 import { createTabMemory } from "./tab-memory"
 import { isMode, type Mode } from "./mode"
+import type { WorkPreset } from "@aigcfroge/schema/work-preset"
 
 export type SessionTab = {
   type: "session"
@@ -26,6 +27,7 @@ export type DraftTab = {
   worktree?: string
   mode: Mode
   agent?: string
+  presetCategoryId?: WorkPreset.Category
 }
 
 export type Tab = SessionTab | DraftTab

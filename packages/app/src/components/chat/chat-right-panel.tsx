@@ -5,7 +5,6 @@ import type { DragEvent } from "@thisbeyond/solid-dnd"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
-import { ResizeHandle } from "@aigcfroge/ui/resize-handle"
 import { useLayout } from "@/context/layout"
 import { useLanguage } from "@/context/language"
 import { useSettings } from "@/context/settings"
@@ -27,6 +26,7 @@ import { createFileTabListSync } from "@/pages/session/file-tab-scroll"
 import { bumpAssetVersion, clearProposeCandidate, useProposeCandidate, setProposeCandidate, setApplying, setApplied } from "./prompt-asset-store"
 import { findProposeResult } from "./prompt-asset-candidate"
 import { applyAssetCandidate, assetKindDir, fetchAssetInsertText, listAssets } from "./asset-insert"
+import { SessionFileTree } from "@/components/session-file-tree"
 import type { AssetKindId } from "@aigcfroge/schema/asset"
 
 export function ChatRightPanel() {
@@ -71,15 +71,15 @@ export function ChatRightPanel() {
   // B 区显隐 + 宽度联动:复用 layout.fileTree + settings.visibility.fileTree(对齐 code file-tree;命令面板 fileTree.toggle 切换)。size 复用 createSizing(ResizeHandle 拖拽态,对齐 code props.size)。
   const settings = useSettings()
   const size = createSizing()
-  const shown = createMemo(() => settings.visibility.fileTree())
-  const fileOpen = createMemo(() => shouldShowFileTree({ visible: shown(), opened: layout.fileTree.opened() }))
+  const fileOpen = createMemo(() =>
+    shouldShowFileTree({ visible: settings.visibility.fileTree(), opened: layout.fileTree.opened() }),
+  )
   const open = createMemo(() => reviewOpen() || fileOpen())
   const panelWidth = createMemo(() => {
     if (!open()) return "0px"
     if (reviewOpen()) return "auto"
     return `${layout.fileTree.width()}px`
   })
-  const treeWidth = createMemo(() => (fileOpen() ? `${layout.fileTree.width()}px` : "0px"))
   // 拖拽排序:复用 code 的 DragDrop + getTabReorderIndex + tabs().move 模式(session-side-panel)
   const [dragStore, setDragStore] = createStore({ activeDraggable: undefined as string | undefined })
   const handleDragStart = (event: unknown) => {
@@ -446,59 +446,31 @@ export function ChatRightPanel() {
           </div>
 
           {/* B 区:资产树。显隐复用 fileOpen(对齐 code file-tree:settings.visibility.fileTree + layout.fileTree.opened,命令面板 toggle);宽度复用 layout.fileTree.width。 */}
-          <Show when={shown()}>
-            <div
-              id="file-tree-panel"
-              class="relative min-w-0 h-full shrink-0 overflow-hidden"
-              inert={!fileOpen()}
-              classList={{
-                "transition-[width] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width] motion-reduce:transition-none":
-                  !size.active(),
-              }}
-              style={{ width: treeWidth() }}
-            >
-              <div
-                class="h-full flex flex-col overflow-hidden group/filetree"
-                classList={{ "border-l border-v2-border-border-base": reviewOpen() }}
-              >
-                <div class="flex h-8 items-center gap-2 border-b border-v2-border-border-base px-2">
-                  <Icon name="magnifying-glass" size="small" class="shrink-0 text-v2-icon-icon-muted" />
-                  <input
-                    type="text"
-                    placeholder={language.t("promptAsset.list.searchPlaceholder")}
-                    aria-label={language.t("promptAsset.list.searchPlaceholder")}
-                    class="min-w-0 flex-1 bg-transparent text-v2-text-text-base text-12-regular outline-none placeholder:text-v2-text-text-faint"
-                    value={searchQuery()}
-                    onInput={(e) => setSearchQuery(e.currentTarget.value)}
-                  />
-                </div>
-                {/* FileTree:复用 code FileTree 组件,path=".aigcfroge" 显示总文件夹文件树(对齐 code)。搜索框过滤:query -> 递归 walk .aigcfroge/ 匹配文件名 -> allowed 集合 */}
-                <div class="min-h-0 flex-1 overflow-y-auto px-3 pt-3">
-                  <FileTree
-                    path=".aigcfroge"
-                    active={activeFilePath()}
-                    allowed={searchAllowed()}
-                    onFileClick={(node) => openFileTab(node.path)}
-                  />
-                </div>
-              </div>
-              <Show when={fileOpen()}>
-                <div onPointerDown={() => size.start()}>
-                  <ResizeHandle
-                    direction="horizontal"
-                    edge="start"
-                    size={layout.fileTree.width()}
-                    min={200}
-                    max={480}
-                    onResize={(width) => {
-                      size.touch()
-                      layout.fileTree.resize(width)
-                    }}
-                  />
-                </div>
-              </Show>
+          <SessionFileTree
+            size={size}
+            borderClass={reviewOpen() ? "border-l border-v2-border-border-base" : undefined}
+          >
+            <div class="flex h-8 items-center gap-2 border-b border-v2-border-border-base px-2">
+              <Icon name="magnifying-glass" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+              <input
+                type="text"
+                placeholder={language.t("promptAsset.list.searchPlaceholder")}
+                aria-label={language.t("promptAsset.list.searchPlaceholder")}
+                class="min-w-0 flex-1 bg-transparent text-v2-text-text-base text-12-regular outline-none placeholder:text-v2-text-text-faint"
+                value={searchQuery()}
+                onInput={(e) => setSearchQuery(e.currentTarget.value)}
+              />
             </div>
-          </Show>
+            {/* FileTree:复用 code FileTree 组件,path=".aigcfroge" 显示总文件夹文件树(对齐 code)。搜索框过滤:query -> 递归 walk .aigcfroge/ 匹配文件名 -> allowed 集合 */}
+            <div class="min-h-0 flex-1 overflow-y-auto px-3 pt-3">
+              <FileTree
+                path=".aigcfroge"
+                active={activeFilePath()}
+                allowed={searchAllowed()}
+                onFileClick={(node) => openFileTab(node.path)}
+              />
+            </div>
+          </SessionFileTree>
         </div>
       </Show>
     </aside>

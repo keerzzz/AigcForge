@@ -46,6 +46,7 @@ import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-polic
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { WorkPreset } from "@aigcfroge/schema/work-preset"
 
 const runtime = makeRuntime(Database.Service, Database.defaultLayer)
 
@@ -75,6 +76,7 @@ export function fromRow(row: SessionRow): Info {
   return {
     id: row.id,
     mode: Schema.decodeUnknownSync(ProductMode.ID)(row.mode ?? ProductMode.Default),
+    presetCategoryId: Option.getOrUndefined(decodePresetCategory(row.metadata?.presetCategoryId)),
     slug: row.slug,
     projectID: row.project_id,
     workspaceID: row.workspace_id ?? undefined,
@@ -134,7 +136,9 @@ export function toRow(info: Info) {
     summary_deletions: info.summary?.deletions,
     summary_files: info.summary?.files,
     summary_diffs: info.summary?.diffs,
-    metadata: info.metadata,
+    metadata: info.presetCategoryId
+      ? { ...info.metadata, presetCategoryId: info.presetCategoryId }
+      : info.metadata,
     cost: info.cost ?? 0,
     tokens_input: (info.tokens ?? EmptyTokens).input,
     tokens_output: (info.tokens ?? EmptyTokens).output,
@@ -213,12 +217,15 @@ const Model = Schema.Struct({
 
 export const Metadata = Schema.Record(Schema.String, Schema.Any)
 
+const decodePresetCategory = Schema.decodeUnknownOption(WorkPreset.Category)
+
 export const Info = Schema.Struct({
   id: SessionID,
   mode: ProductMode.ID.pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(ProductMode.Default as ProductMode.ID)),
     Schema.withConstructorDefault(Effect.succeed(ProductMode.Default as ProductMode.ID)),
   ),
+  presetCategoryId: Schema.optional(WorkPreset.Category),
   slug: Schema.String,
   projectID: ProjectV2.ID,
   workspaceID: optionalOmitUndefined(WorkspaceV2.ID),
@@ -257,6 +264,7 @@ export const CreateInput = Schema.optional(
   Schema.Struct({
     parentID: Schema.optional(SessionID),
     mode: Schema.optional(ProductMode.ID),
+    presetCategoryId: Schema.optional(WorkPreset.Category),
     title: Schema.optional(Schema.String),
     agent: Schema.optional(Schema.String),
     model: Schema.optional(Model),
@@ -432,6 +440,7 @@ export interface Interface {
   readonly create: (input?: {
     parentID?: SessionID
     mode?: ProductMode.ID
+    presetCategoryId?: WorkPreset.Category
     title?: string
     agent?: string
     model?: Schema.Schema.Type<typeof Model>
@@ -510,6 +519,7 @@ export const layer: Layer.Layer<
     const createNext = Effect.fn("Session.createNext")(function* (input: {
       id?: SessionID
       mode?: ProductMode.ID
+      presetCategoryId?: WorkPreset.Category
       title?: string
       agent?: string
       model?: Schema.Schema.Type<typeof Model>
@@ -524,6 +534,7 @@ export const layer: Layer.Layer<
       const result: Info = {
         id: SessionID.descending(input.id),
         mode: input.mode ?? ProductMode.Default,
+        presetCategoryId: input.presetCategoryId,
         slug: Slug.create(),
         version: InstallationVersion,
         projectID: ctx.project.id,
@@ -534,7 +545,9 @@ export const layer: Layer.Layer<
         title: input.title ?? (input.parentID ? childTitlePrefix : parentTitlePrefix) + new Date().toISOString(),
         agent: input.agent,
         model: input.model,
-        metadata: input.metadata,
+        metadata: input.presetCategoryId
+          ? { ...input.metadata, presetCategoryId: input.presetCategoryId }
+          : input.metadata,
         permission: input.permission ? [...input.permission] : undefined,
         cost: 0,
         tokens: EmptyTokens,
@@ -681,6 +694,7 @@ export const layer: Layer.Layer<
     const create = Effect.fn("Session.create")(function* (input?: {
       parentID?: SessionID
       mode?: ProductMode.ID
+      presetCategoryId?: WorkPreset.Category
       title?: string
       agent?: string
       model?: Schema.Schema.Type<typeof Model>
@@ -696,6 +710,7 @@ export const layer: Layer.Layer<
       return yield* createNext({
         parentID: input?.parentID,
         mode,
+        presetCategoryId: input?.presetCategoryId,
         directory: ctx.directory,
         path: sessionPath(ctx.worktree, ctx.directory),
         title: input?.title,
@@ -716,6 +731,7 @@ export const layer: Layer.Layer<
         path: sessionPath(ctx.worktree, ctx.directory),
         workspaceID: original.workspaceID,
         mode: original.mode,
+        presetCategoryId: original.presetCategoryId,
         title,
         agent: original.agent,
         model: original.model,

@@ -26,15 +26,12 @@ import { HomeProjectColumn, HOME_SESSION_LIMIT, HomeSessionSearch, HomeSessionRo
 import { useNotification } from "@/context/notification"
 import { useMarked } from "@aigcfroge/ui/context/marked"
 import { preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"
-import { Icon } from "@aigcfroge/ui/v2/icon"
-import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
-import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
-import { getFilename } from "@aigcfroge/core/util/path"
 import { WorkPreset } from "@aigcfroge/schema/work-preset"
 import type { Session, WorkflowAssetSummary } from "@aigcfroge/sdk/v2/client"
 import { assetVersion } from "@/components/chat/prompt-asset-store"
 import { buildWorkPresetCatalog } from "@/pages/work-preset-catalog"
 import { presetLaunch, workflowLaunch } from "@/pages/work-preset-launch"
+import { WorkLocationNewSession } from "@/components/work-secondary-sidebar"
 
 /** Coding 左侧栏：项目列 + 服务器管理（复用 HomeProjectColumn，hooks 对齐旧 Home 组件） */
 export function CodingProjectColumnSidebar() {
@@ -517,76 +514,10 @@ export function PlaceholderMain(_props: { mode: string }) {
   )
 }
 
-/** Work 侧栏：项目 Location 选择器 + 新建会话 */
+/** Work 侧栏：项目 Location 选择器 + 新建会话（顶部逻辑与 WorkSecondarySidebar 共享） */
 export function WorkProjectColumnSidebar() {
-  const language = useLanguage()
-  const global = useGlobal()
-  const tabs = useTabs()
-  const pickDirectory = useDirectoryPicker()
-  const { conn, ctx, directory } = useChatDirectory()
-
-  function newSession() {
-    const c = conn()
-    const currentCtx = ctx()
-    const dir = directory()
-    if (!c || !currentCtx || !dir) return
-    openProjectNewSession(
-      currentCtx.projects,
-      (serverKey, draftDirectory) =>
-        tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft("work") }),
-      ServerConnection.key(c),
-      dir,
-    )
-  }
-
-  function addProject() {
-    const c = conn()
-    const currentCtx = ctx()
-    if (!c || !currentCtx) return
-    pickDirectory({
-      server: c,
-      title: language.t("command.project.open"),
-      multiple: true,
-      onSelect: (result) => {
-        const dirs = homeProjectDirectories(result)
-        if (!dirs[0]) return
-        dirs.forEach((dir) => currentCtx.projects.open(dir))
-        currentCtx.projects.touch(dirs[0])
-        global.lastSession.set(currentCtx.sdk.scope, dirs[0])
-      },
-    })
-  }
-
-  return (
-    <div class="flex min-h-0 shrink-0 flex-col">
-      <div class="flex items-center gap-1.5 border-b border-v2-border-border-base px-3 pb-3 pt-3">
-        <Icon name="mode-work" size="small" class="shrink-0 text-v2-icon-icon-muted" />
-        <span class="shrink-0 text-v2-text-text-muted text-11-regular">{language.t("chat.feature.project")}</span>
-        <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-11-regular">
-          {directory() ? getFilename(directory()) || directory() : language.t("work.preset.noLocation")}
-        </span>
-        <IconButtonV2
-          variant="ghost-muted"
-          size="small"
-          icon={<Icon name="folder-add-left" />}
-          aria-label={language.t("sidebar.secondary.addProject")}
-          onClick={addProject}
-        />
-      </div>
-      <div class="px-3 pb-2 pt-3">
-        <ButtonV2
-          variant="neutral"
-          size="normal"
-          icon="edit"
-          class="w-full"
-          disabled={!directory()}
-          onClick={newSession}
-        >
-          {language.t("command.session.new")}
-        </ButtonV2>
-      </div>
-    </div>
-  )
+  const { directory } = useChatDirectory()
+  return <WorkLocationNewSession directory={directory} />
 }
 
 /** Work 主区：继续工作 + 官方预设 + 你的工作流资产（M1 §3.5 三区块） */
@@ -712,7 +643,15 @@ export function WorkPresetCatalogMain() {
     openProjectNewSession(
       currentCtx.projects,
       (serverKey, draftDirectory) =>
-        tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft("work") }, presetLaunch(preset)),
+        tabs.newDraft(
+          {
+            server: serverKey,
+            directory: draftDirectory,
+            ...modeDraft("work"),
+            presetCategoryId: preset.category,
+          },
+          presetLaunch(preset),
+        ),
       ServerConnection.key(c),
       dir,
     )

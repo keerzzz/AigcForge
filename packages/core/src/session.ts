@@ -18,6 +18,7 @@ import { SessionMessageTable, SessionTable } from "./session/sql"
 import { SessionSchema } from "./session/schema"
 import { AbsolutePath, PositiveInt, RelativePath } from "./schema"
 import { AgentV2 } from "./agent"
+import { WorkPreset } from "@aigcfroge/schema/work-preset"
 import { SessionV1 } from "./v1/session"
 import { InstallationVersion } from "./installation/version"
 import { Slug } from "./util/slug"
@@ -73,6 +74,7 @@ type CreateInput = {
   id?: SessionSchema.ID
   parentID?: SessionSchema.ID
   mode?: ProductMode.ID
+  presetCategoryId?: WorkPreset.Category
   agent?: AgentV2.ID
   model?: ModelV2.Ref
   location: Location.Ref
@@ -230,6 +232,7 @@ export const layer = Layer.effect(
           tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
           time: { created: now, updated: now },
           attended: input.attended,
+          metadata: input.presetCategoryId ? { presetCategoryId: input.presetCategoryId } : undefined,
         })
         const projected = yield* events
           .publish(SessionV1.Event.Created, { sessionID, info }, { location: input.location })

@@ -384,7 +384,11 @@ export function createPromptSubmit(input: PromptSubmitInput) {
         ? tabs.store.find((tab): tab is DraftTab => tab.type === "draft" && tab.draftID === draftID)
         : undefined
       const created = await client.session
-        .create({ mode: draftTab?.mode ?? "coding", agent: draftTab?.agent })
+        .create({
+          mode: draftTab?.mode ?? "coding",
+          agent: draftTab?.agent,
+          presetCategoryId: draftTab?.presetCategoryId,
+        })
         .then((x) => x.data ?? undefined)
         .catch((err) => {
           showToast({

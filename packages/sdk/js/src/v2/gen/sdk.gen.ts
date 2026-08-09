@@ -478,6 +478,7 @@ import type {
   WorkflowAssetDeleteResponses,
   WorkflowAssetListErrors,
   WorkflowAssetListResponses,
+  WorkPresetCategory,
   WorktreeCreateErrors,
   WorktreeCreateInput,
   WorktreeCreateResponses,
@@ -5053,6 +5054,7 @@ export class Session2 extends HeyApiClient {
       workspace?: string
       parentID?: string
       mode?: ProductMode
+      presetCategoryId?: WorkPresetCategory
       title?: string
       agent?: string
       model?: {
@@ -5077,6 +5079,7 @@ export class Session2 extends HeyApiClient {
             { in: "query", key: "workspace" },
             { in: "body", key: "parentID" },
             { in: "body", key: "mode" },
+            { in: "body", key: "presetCategoryId" },
             { in: "body", key: "title" },
             { in: "body", key: "agent" },
             { in: "body", key: "model" },
