@@ -22,6 +22,7 @@ import { SessionRunCoordinator } from "../src/session/run-coordinator"
 import { Prompt } from "../src/session/prompt"
 import { SessionV2 } from "../src/session"
 import { SessionTable } from "../src/session/sql"
+import { EventTable } from "../src/event/sql"
 import { SessionEvent } from "../src/session/event"
 import { ProjectTable } from "../src/project/sql"
 import { SkillV2 } from "../src/skill"
@@ -278,5 +279,3 @@ describe("SessionRunner verifier integration", () => {
     }),
   )
 })
-
-import { EventTable } from "../src/event/sql"

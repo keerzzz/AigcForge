@@ -27,7 +27,6 @@ const settings = (documents: readonly Config.Entry[]) => {
 
 export type RouteLevel = "l0" | "l1" | "l2"
 
-const RouteLevelSchema = Schema.Literals(["l0", "l1", "l2"])
 type RouteState = {
   readonly level: RouteLevel
   readonly failures: number

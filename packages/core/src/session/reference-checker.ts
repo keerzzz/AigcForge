@@ -7,6 +7,7 @@ import { FSUtil } from "../fs-util"
 import { Location } from "../location"
 import { Ripgrep } from "../ripgrep"
 import { SessionSchema } from "./schema"
+import { isRecord } from "../util/record"
 import { CorrectionStore } from "./correction-store"
 
 const DEFAULT_ENABLED = true
@@ -73,9 +74,6 @@ const existsResolved = (fs: FSUtil.Interface, base: string, reference: string) =
     }
     return false
   })
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value)
 
 const extractFiles = (toolName: string, toolInput: unknown): ReadonlyArray<string> => {
   if (!MUTATING_TOOLS.has(toolName) || !isRecord(toolInput)) return []

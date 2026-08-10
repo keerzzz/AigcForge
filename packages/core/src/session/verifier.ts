@@ -7,6 +7,7 @@ import { Config } from "../config"
 import { EventV2 } from "../event"
 import { Location } from "../location"
 import { SessionSchema } from "./schema"
+import { isRecord } from "../util/record"
 import { CorrectionStore } from "./correction-store"
 import { SessionEvent } from "./event"
 import { VerificationRouter } from "./verification-router"
@@ -73,9 +74,6 @@ export const packageDirectory = (file: string): string | undefined => {
   return match ? `packages/${match[1]}` : undefined
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value)
-
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -130,24 +128,7 @@ export const layer = Layer.effect(
             }),
           ),
         )
-        .pipe(
-          Effect.timeoutOrElse({
-            duration: Duration.millis(configured.timeoutMs),
-            orElse: () => Effect.succeed(undefined),
-          }),
-        )
       const durationMs = Date.now() - startedMillis
-      if (result === undefined) {
-        yield* events.publish(SessionEvent.Verify.Failed, {
-          sessionID: input.sessionID,
-          timestamp: yield* DateTime.now,
-          tool: input.toolName,
-          packageDirectory: directory,
-          durationMs,
-          error: `typecheck 超时（${configured.timeoutMs}ms）`,
-        })
-        return ""
-      }
       const output = [result.stdout.toString("utf8"), result.stderr.toString("utf8")].filter((part) => part.length > 0).join("\n")
       if (result.exitCode === 0) {
         yield* Ref.update(failures, (map) => map.set(input.sessionID, 0))

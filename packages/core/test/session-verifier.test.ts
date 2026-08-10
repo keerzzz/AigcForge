@@ -1,6 +1,9 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
 import { AppProcess } from "../src/process"
+import { FSUtil } from "../src/fs-util"
+import os from "os"
+import path from "path"
 import { Config } from "../src/config"
 import { ConfigMeta } from "../src/config/meta"
 import { CorrectionStore } from "../src/session/correction-store"
@@ -11,7 +14,7 @@ import { SessionV2 } from "../src/session"
 import { AbsolutePath } from "../src/schema"
 import { VerificationRouter } from "../src/session/verification-router"
 import { Verifier } from "../src/session/verifier"
-import { testEffect } from "./lib/effect"
+import { it, testEffect } from "./lib/effect"
 
 const sessionID = SessionV2.ID.make("ses_verifier")
 
@@ -199,3 +202,43 @@ describe("Verifier disabled", () => {
     }),
   )
 })
+
+describe("Verifier real subprocess", () => {
+  it.live("runs the real typecheck script and reports failure output", () =>
+    Effect.gen(function* () {
+      const fs = yield* FSUtil.Service
+      const tmpDir = yield* fs.makeTempDirectory({ directory: os.tmpdir(), prefix: "aigcfroge-verifier-" })
+      yield* fs.writeWithDirs(
+        path.join(tmpDir, "packages/core/package.json"),
+        JSON.stringify({
+          name: "fixture-core",
+          scripts: { typecheck: "echo 'src/foo.ts(1,1): error TS2307: Cannot find module ./x' && exit 1" },
+        }),
+      )
+      const liveLayer = Verifier.layer.pipe(
+        Layer.provide(VerificationRouter.layer.pipe(Layer.provide(configLayer({})))),
+        Layer.provideMerge(CorrectionStore.layer.pipe(Layer.provide(configLayer({})))),
+        Layer.provide(EventV2.defaultLayer),
+        Layer.provide(AppProcess.defaultLayer),
+        Layer.provide(
+          Location.layer({ directory: AbsolutePath.make(tmpDir) }).pipe(
+            Layer.provide(Project.defaultLayer),
+          ),
+        ),
+        Layer.provide(configLayer({})),
+      )
+      return yield* Effect.gen(function* () {
+        const verifier = yield* Verifier.Service
+        const warning = yield* verifier.verify({
+          sessionID,
+          toolName: "edit",
+          intent: "code_modification",
+          toolInput: { path: "packages/core/src/foo.ts" },
+        })
+        expect(warning).toContain("⚠️ [验证]")
+        expect(warning).toContain("Cannot find module")
+      }).pipe(Effect.provide(liveLayer))
+    }).pipe(Effect.provide(FSUtil.defaultLayer)),
+  )
+})
+

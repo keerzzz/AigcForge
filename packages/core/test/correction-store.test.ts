@@ -63,6 +63,45 @@ describe("CorrectionStore", () => {
     }),
   )
 
+  it.effect("does not match object keys, only string values", () =>
+    Effect.gen(function* () {
+      const store = yield* CorrectionStore.Service
+      yield* store.record({
+        sessionID,
+        entry: detectorEntry({ key: "ref:path", correct: "./new.ts", wrong: "path" }),
+      })
+      // "path" appears as the key but not as any value: no advisory.
+      const warning = yield* store.check(checkInput({ path: "./old.ts" }))
+      expect(warning).toBe("")
+      // "path" appears as a value: advisory fires.
+      const contentWarning = yield* store.check(checkInput({ content: "the path is fixed" }))
+      expect(contentWarning).toContain("./new.ts")
+    }),
+  )
+
+  it.effect("ignores wrong values shorter than the minimum length", () =>
+    Effect.gen(function* () {
+      const store = yield* CorrectionStore.Service
+      yield* store.record({
+        sessionID,
+        entry: detectorEntry({ key: "ref:no", correct: "./new.ts", wrong: "no" }),
+      })
+      expect(yield* store.check(checkInput({ text: "no" }))).toBe("")
+    }),
+  )
+
+  it.effect("matches wrong values nested inside arrays", () =>
+    Effect.gen(function* () {
+      const store = yield* CorrectionStore.Service
+      yield* store.record({
+        sessionID,
+        entry: detectorEntry({ key: "ref:./old.ts", correct: "./new.ts", wrong: "./old.ts" }),
+      })
+      const warning = yield* store.check(checkInput({ files: ["./a.ts", "./old.ts"] }))
+      expect(warning).toContain("./new.ts")
+    }),
+  )
+
   it.effect("keeps corrections isolated per session", () =>
     Effect.gen(function* () {
       const store = yield* CorrectionStore.Service

@@ -50,6 +50,7 @@ import { SessionRunnerModel } from "./model"
 import { createLLMEventPublisher } from "./publish-llm-event"
 import { toLLMMessages } from "./to-llm-message"
 import { MAX_STEPS_PROMPT } from "./max-steps"
+import { isRecord } from "../../util/record"
 import { CorrectionFacts } from "../../system-context/correction-facts"
 import { ReverseRefs } from "../../system-context/reverse-refs"
 
@@ -174,9 +175,6 @@ export const layer = Layer.effect(
 
     // Tracks the file paths a session touched this drain (for reverse-refs
     // injection). Only mutating tools with a `path` arg are recorded.
-    const isRecord = (value: unknown): value is Record<string, unknown> =>
-      typeof value === "object" && value !== null && !Array.isArray(value)
-
     const trackChangedFile = Effect.fnUntraced(function* (sessionID: SessionSchema.ID, toolName: string, toolInput: unknown) {
       if (toolName !== "edit" && toolName !== "write") return
       if (!isRecord(toolInput) || typeof toolInput.path !== "string") return
