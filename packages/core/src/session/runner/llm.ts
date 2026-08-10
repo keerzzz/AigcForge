@@ -33,6 +33,8 @@ import { ToolOutputStore } from "../../tool-output-store"
 import { classify, type IntentCategory } from "../../agent/meta/intent"
 import { SessionContextEpoch } from "../context-epoch"
 import { SessionCompaction } from "../compaction"
+import { CorrectionExtractor } from "../correction-extractor"
+import { CorrectionStore } from "../correction-store"
 import { DoomLoop } from "../doom-loop"
 import { SessionEvent } from "../event"
 import { SessionHistory } from "../history"
@@ -46,6 +48,7 @@ import { SessionRunnerModel } from "./model"
 import { createLLMEventPublisher } from "./publish-llm-event"
 import { toLLMMessages } from "./to-llm-message"
 import { MAX_STEPS_PROMPT } from "./max-steps"
+import { CorrectionFacts } from "../../system-context/correction-facts"
 
 /**
  * Runs one durable coding-agent Session until it settles.
@@ -123,6 +126,8 @@ export const layer = Layer.effect(
     const appProcess = yield* AppProcess.Service
     const db = (yield* Database.Service).db
     const doomLoop = yield* DoomLoop.Service
+    const correctionStore = yield* CorrectionStore.Service
+    const correctionExtractor = yield* CorrectionExtractor.Service
     const compaction = SessionCompaction.make({ events, llm, config: yield* config.entries() })
 
     const getSession = Effect.fn("SessionRunner.getSession")(function* (sessionID: SessionSchema.ID) {
@@ -156,6 +161,11 @@ export const layer = Layer.effect(
       }
     })
 
+    // Appends an advisory warning to a tool result value without changing the
+    // result type (text stays text, error stays error). No-op when absent.
+    const appendAdvisory = (value: string, advisory: string) =>
+      advisory.length === 0 ? value : `${value}\n\n${advisory}`
+
     const settleTool = (input: {
       readonly sessionID: SessionSchema.ID
       readonly agent: AgentV2.ID
@@ -167,6 +177,13 @@ export const layer = Layer.effect(
       readonly materialization: ToolRegistry.Materialization
     }): Effect.Effect<ToolRegistry.Settlement, ToolOutputStore.Error> =>
       Effect.gen(function* () {
+        // Advisory interception (settle 前): corrections matched against the
+        // tool args append a non-blocking warning to the result value.
+        const advisory = yield* correctionStore.check({
+          sessionID: input.sessionID,
+          toolName: input.toolName,
+          toolInput: input.toolInput,
+        })
         const check = yield* doomLoop
           .check({
             sessionID: input.sessionID,
@@ -193,20 +210,28 @@ export const layer = Layer.effect(
           if (permissionFailure === undefined) {
             const raw = Cause.squash(check.cause)
             const message = raw instanceof Error ? raw.message : String(raw)
-            return { result: { type: "error" as const, value: `Doom loop check failed: ${message}` } }
+            return {
+              result: { type: "error" as const, value: appendAdvisory(`Doom loop check failed: ${message}`, advisory) },
+            }
           }
           const value =
             permissionFailure instanceof PermissionV2.CorrectedError
               ? permissionFailure.feedback
               : `Repeated identical ${input.toolName} call blocked by doom_loop approval`
-          return { result: { type: "error" as const, value } }
+          return { result: { type: "error" as const, value: appendAdvisory(value, advisory) } }
         }
-        return yield* input.materialization.settle({
+        const settlement = yield* input.materialization.settle({
           sessionID: input.sessionID,
           agent: input.agent,
           assistantMessageID: input.assistantMessageID,
           call: { type: "tool-call", id: input.callID, name: input.toolName, input: input.toolInput },
         })
+        if (advisory.length === 0) return settlement
+        if (settlement.result.type !== "text" && settlement.result.type !== "error") return settlement
+        return {
+          ...settlement,
+          result: { ...settlement.result, value: appendAdvisory(String(settlement.result.value), advisory) },
+        }
       })
 
     const awaitToolFibers = (fibers: FiberSet.FiberSet<void, ToolOutputStore.Error>) =>
@@ -232,10 +257,16 @@ export const layer = Layer.effect(
     const continueAfterOverflowCompaction = (step: number) =>
       new TurnTransitionError({ _tag: "ContinueAfterOverflowCompaction", step })
 
-    const loadSystemContext = (agent: AgentV2.Selection) =>
+    const loadSystemContext = (agent: AgentV2.Selection, sessionID: SessionSchema.ID) =>
       Effect.all([systemContext.load(), skillGuidance.load(agent), referenceGuidance.load()], {
         concurrency: "unbounded",
-      }).pipe(Effect.map(SystemContext.combine))
+      }).pipe(
+        Effect.map(SystemContext.combine),
+        Effect.map((combined) => {
+          const facts = CorrectionFacts.source(correctionStore, sessionID)
+          return facts ? SystemContext.combine([combined, facts]) : combined
+        }),
+      )
 
     const runTurnAttempt = Effect.fn("SessionRunner.runTurn")(function* (
       state: CacheState,
@@ -250,7 +281,7 @@ export const layer = Layer.effect(
       if (session.location.directory !== location.directory || session.location.workspaceID !== location.workspaceID)
         return yield* Effect.interrupt
       const agent = yield* agents.select(agentID)
-      const initialized = yield* SessionContextEpoch.initialize(db, loadSystemContext(agent), session.id)
+      const initialized = yield* SessionContextEpoch.initialize(db, loadSystemContext(agent, session.id), session.id)
       const toolFibers = yield* FiberSet.make<void, ToolOutputStore.Error>()
       let needsContinuation = false
       let currentStep = step
@@ -269,22 +300,34 @@ export const layer = Layer.effect(
         if (promoted > 0) currentStep = 1
       }
       const system =
-        initialized ?? (yield* SessionContextEpoch.prepare(db, events, loadSystemContext(agent), session.id))
+        initialized ?? (yield* SessionContextEpoch.prepare(db, events, loadSystemContext(agent, session.id), session.id))
       const model = yield* models.resolve(session)
       const entries = yield* SessionHistory.entriesForRunner(db, session.id, system.baselineSeq)
       const context = entries.map((entry) => entry.message)
       const isLastStep = agent.info?.steps !== undefined && currentStep >= agent.info.steps
       // Derive tool-filtering intent from the latest user message, if available.
-      const intent: IntentCategory | undefined = (() => {
+      const latestUserText = (() => {
         for (let i = context.length - 1; i >= 0; i--) {
           const msg = context[i]
-          if (msg.type === "user") {
-            const category = classify(msg.text).category
-            return category !== "unknown" ? category : undefined
-          }
+          if (msg.type === "user") return msg.text
         }
         return undefined
       })()
+      const intent: IntentCategory | undefined = (() => {
+        if (latestUserText === undefined) return undefined
+        const category = classify(latestUserText).category
+        return category !== "unknown" ? category : undefined
+      })()
+      // Extract user corrections from the latest message before tool
+      // materialization. Admit stays process-level and pure (P0-1); extraction
+      // happens here so the CorrectionStore stays Location-scoped. The
+      // correction-facts source reads the store on the next reconcile.
+      if (latestUserText !== undefined) {
+        yield* correctionExtractor.extract(session.id, latestUserText).pipe(
+          Effect.catchTag("CorrectionStore.InvalidEntryError", () => Effect.void),
+          Effect.catchTag("CorrectionExtractor.ExtractionError", () => Effect.void),
+        )
+      }
       const toolMaterialization = isLastStep ? undefined : yield* tools.materialize(agent.info?.permissions, intent)
       const promptCacheKey = /^ses_[0-9a-f]{64}$/.test(session.id) ? session.id.slice(4) : session.id
       const request = LLM.request({

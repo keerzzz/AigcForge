@@ -153,6 +153,36 @@ describe("CorrectionStore", () => {
     }),
   )
 
+  it.effect("dedupes re-recorded corrections with the same key and correct", () =>
+    Effect.gen(function* () {
+      const store = yield* CorrectionStore.Service
+      yield* store.record({
+        sessionID,
+        entry: detectorEntry({ key: "ref:./old.ts", correct: "./new.ts", wrong: "./old.ts" }),
+      })
+      yield* store.record({
+        sessionID,
+        entry: detectorEntry({ key: "ref:./old.ts", correct: "./new.ts", wrong: "./old.ts" }),
+      })
+      expect(yield* store.facts(sessionID)).toHaveLength(1)
+    }),
+  )
+
+  it.effect("supersedes a correction with the same key but a new correct value", () =>
+    Effect.gen(function* () {
+      const store = yield* CorrectionStore.Service
+      yield* store.record({
+        sessionID,
+        entry: detectorEntry({ key: "ref:./old.ts", correct: "./new.ts", wrong: "./old.ts" }),
+      })
+      yield* store.record({
+        sessionID,
+        entry: detectorEntry({ key: "ref:./old.ts", correct: "./final.ts", wrong: "./old.ts" }),
+      })
+      expect(yield* store.facts(sessionID)).toEqual([{ key: "ref:./old.ts", correct: "./final.ts" }])
+    }),
+  )
+
   it.effect("exposes only correct values through facts", () =>
     Effect.gen(function* () {
       const store = yield* CorrectionStore.Service

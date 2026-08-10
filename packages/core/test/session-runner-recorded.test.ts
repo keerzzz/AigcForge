@@ -8,6 +8,7 @@ import { EventTable } from "@aigcfroge/core/event/sql"
 import { PermissionV2 } from "@aigcfroge/core/permission"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { Config } from "@aigcfroge/core/config"
+import { ConfigMeta } from "@aigcfroge/core/config/meta"
 import { AppProcess } from "@aigcfroge/core/process"
 import { SkillV2 } from "@aigcfroge/core/skill"
 import { Project } from "@aigcfroge/core/project"
@@ -21,6 +22,8 @@ import { SessionRunCoordinator } from "@aigcfroge/core/session/run-coordinator"
 import { SessionRunner } from "@aigcfroge/core/session/runner"
 import * as SessionRunnerLLM from "@aigcfroge/core/session/runner/llm"
 import { DoomLoop } from "@aigcfroge/core/session/doom-loop"
+import { CorrectionExtractor } from "@aigcfroge/core/session/correction-extractor"
+import { CorrectionStore } from "@aigcfroge/core/session/correction-store"
 import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
 import { ToolRegistry } from "@aigcfroge/core/tool/registry"
 import { SessionTable } from "@aigcfroge/core/session/sql"
@@ -72,7 +75,20 @@ const systemContext = SystemContextRegistry.layer
 const location = Location.layer({ directory: AbsolutePath.make("/project") }).pipe(Layer.provide(Project.defaultLayer))
 const skillGuidance = Layer.mock(SkillGuidance.Service, { load: () => Effect.succeed(SystemContext.empty) })
 const referenceGuidance = Layer.mock(ReferenceGuidance.Service, { load: () => Effect.succeed(SystemContext.empty) })
-const config = Layer.succeed(Config.Service, Config.Service.of({ entries: () => Effect.succeed([]) }))
+const config = Layer.succeed(
+  Config.Service,
+  Config.Service.of({
+    entries: () =>
+      Effect.succeed([
+        new Config.Document({
+          type: "document",
+          info: Config.Info.make({
+            meta: ConfigMeta.Info.make({ correction_store: ConfigMeta.CorrectionStore.make({ enabled: false }) }),
+          }),
+        }),
+      ]),
+  }),
+)
 const appProcess = Layer.succeed(
   AppProcess.Service,
   AppProcess.Service.of({ run: () => Effect.die("AppProcess unused") } as unknown as AppProcess.Interface),
@@ -96,6 +112,8 @@ const runner = SessionRunnerLLM.defaultLayer.pipe(
   Layer.provide(skillGuidance),
   Layer.provide(referenceGuidance),
   Layer.provide(DoomLoop.layer),
+  Layer.provide(CorrectionExtractor.layer),
+  Layer.provide(CorrectionStore.layer),
   Layer.provide(permission),
   Layer.provide(config),
 )

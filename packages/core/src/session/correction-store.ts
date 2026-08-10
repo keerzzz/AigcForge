@@ -81,7 +81,8 @@ export interface Interface {
     readonly toolInput: unknown
   }) => Effect.Effect<string>
   readonly facts: (sessionID: SessionSchema.ID) => Effect.Effect<ReadonlyArray<Fact>>
-  readonly enabled: Effect.Effect<boolean>
+  /** Captured at layer construction; mirrors the DoomLoop settings contract. */
+  readonly enabled: boolean
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/CorrectionStore") {}
@@ -121,13 +122,24 @@ export const layer = Layer.effect(
     }) {
       if (!configured.enabled) return
       if (input.entry.key.length === 0)
-        return yield* new InvalidEntryError({ reason: "key must not be empty" })
+        yield* Effect.fail(new InvalidEntryError({ reason: "key must not be empty" }))
       if (input.entry.correct.length === 0)
-        return yield* new InvalidEntryError({ reason: "correct must not be empty" })
+        yield* Effect.fail(new InvalidEntryError({ reason: "correct must not be empty" }))
       const turn = (yield* Ref.get(turns)).get(input.sessionID) ?? 0
       const entry = new CorrectionEntry({ ...input.entry, turnCreated: turn })
       yield* Ref.update(buffer, (map) => {
         const current = map.get(input.sessionID) ?? []
+        // Same key + same correct: the correction is already recorded (the
+        // extractor re-runs every turn on the same user message). Same key
+        // with a different correct supersedes the earlier entry in place.
+        const existingIndex = current.findIndex((item) => item.key === entry.key)
+        if (existingIndex >= 0) {
+          const existing = current[existingIndex]
+          if (existing.correct === entry.correct) return map
+          const next = [...current]
+          next[existingIndex] = entry
+          return map.set(input.sessionID, next)
+        }
         return map.set(input.sessionID, [...evictOldest(current, configured.maxEntries), entry])
       })
     })
@@ -159,6 +171,6 @@ export const layer = Layer.effect(
       return entries.filter((entry) => !expiresForInjection(entry, turn)).map(toFact)
     })
 
-    return Service.of({ record, check, facts, enabled: Effect.succeed(configured.enabled) })
+    return Service.of({ record, check, facts, enabled: configured.enabled })
   }),
 )

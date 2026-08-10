@@ -66,6 +66,8 @@ import { LLMClient } from "@aigcfroge/llm"
 import { RequestExecutor } from "@aigcfroge/llm/route"
 import * as SessionRunnerLLM from "./session/runner/llm"
 import { SessionRunnerModel } from "./session/runner/model"
+import { CorrectionExtractor } from "./session/correction-extractor"
+import { CorrectionStore } from "./session/correction-store"
 import { DoomLoop } from "./session/doom-loop"
 import { SystemContextBuiltIns } from "./system-context/builtins"
 import { FetchHttpClient } from "effect/unstable/http"
@@ -167,10 +169,17 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
     )
     const model = SessionRunnerModel.locationLayer.pipe(Layer.provide(services))
     const doomLoop = DoomLoop.layer.pipe(Layer.provide(services))
+    const correctionStore = CorrectionStore.layer.pipe(Layer.provide(services))
+    const correctionExtractor = CorrectionExtractor.layer.pipe(
+      Layer.provide(correctionStore),
+      Layer.provide(services),
+    )
     const runner = SessionRunnerLLM.defaultLayer.pipe(
       Layer.provide(services),
       Layer.provide(model),
       Layer.provide(doomLoop),
+      Layer.provide(correctionStore),
+      Layer.provide(correctionExtractor),
       Layer.provide(skillGuidance),
       Layer.provide(referenceGuidance),
     )

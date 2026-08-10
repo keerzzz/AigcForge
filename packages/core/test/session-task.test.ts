@@ -37,6 +37,8 @@ import { SessionRunCoordinator } from "@aigcfroge/core/session/run-coordinator"
 import { SessionRunner } from "@aigcfroge/core/session/runner"
 import * as SessionRunnerLLM from "@aigcfroge/core/session/runner/llm"
 import { DoomLoop } from "@aigcfroge/core/session/doom-loop"
+import { CorrectionExtractor } from "@aigcfroge/core/session/correction-extractor"
+import { CorrectionStore } from "@aigcfroge/core/session/correction-store"
 import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
 import { TaskDriver } from "@aigcfroge/core/tool/task-driver"
 import { TaskTool } from "@aigcfroge/core/tool/task"
@@ -49,6 +51,7 @@ import { BackgroundJob } from "@aigcfroge/core/background-job"
 import { SkillV2 } from "@aigcfroge/core/skill"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { Config } from "@aigcfroge/core/config"
+import { ConfigMeta } from "../src/config/meta"
 import { ConfigCompaction } from "@aigcfroge/core/config/compaction"
 import { SessionTable, TaskTable } from "@aigcfroge/core/session/sql"
 import { SessionMessage } from "@aigcfroge/core/session/message"
@@ -232,6 +235,9 @@ const config = Layer.succeed(
               buffer: 100_000,
               keep: new ConfigCompaction.Keep({ tokens: 50_000 }),
             }),
+            meta: ConfigMeta.Info.make({
+              correction_store: ConfigMeta.CorrectionStore.make({ enabled: false }),
+            }),
           }),
         }),
       ]),
@@ -273,6 +279,8 @@ const runner = SessionRunnerLLM.layer.pipe(
   Layer.provide(skillGuidance),
   Layer.provide(referenceGuidance),
   Layer.provide(DoomLoop.layer),
+  Layer.provide(CorrectionExtractor.layer),
+  Layer.provide(CorrectionStore.layer),
   Layer.provide(config),
 )
 const execution = Layer.effect(
