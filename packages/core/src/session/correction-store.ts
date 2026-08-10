@@ -122,8 +122,7 @@ export const layer = Layer.effect(
       readonly entry: NewEntry
     }) {
       if (!configured.enabled) return
-      if (input.entry.key.length === 0)
-        yield* Effect.fail(new InvalidEntryError({ reason: "key must not be empty" }))
+      if (input.entry.key.length === 0) yield* Effect.fail(new InvalidEntryError({ reason: "key must not be empty" }))
       if (input.entry.correct.length === 0)
         yield* Effect.fail(new InvalidEntryError({ reason: "correct must not be empty" }))
       const turn = (yield* Ref.get(turns)).get(input.sessionID) ?? 0
@@ -145,41 +144,41 @@ export const layer = Layer.effect(
       })
     })
 
-// Only string values of the tool input participate in wrong-matching. Matching
-// against `JSON.stringify` would also match object keys (e.g. a wrong value of
-// "path" would hit every `{ path: ... }` argument) and produce noisy false
-// positives. A minimum length guards against overly generic single-token wrong
-// values ("no", "or", "be") recorded from noisy user corrections.
-const MIN_WRONG_LENGTH = 3
+    // Only string values of the tool input participate in wrong-matching. Matching
+    // against `JSON.stringify` would also match object keys (e.g. a wrong value of
+    // "path" would hit every `{ path: ... }` argument) and produce noisy false
+    // positives. A minimum length guards against overly generic single-token wrong
+    // values ("no", "or", "be") recorded from noisy user corrections.
+    const MIN_WRONG_LENGTH = 3
 
-const stringValues = (value: unknown, out: string[] = []): string[] => {
-  if (typeof value === "string") out.push(value)
-  else if (Array.isArray(value)) for (const item of value) stringValues(item, out)
-  else if (isRecord(value)) for (const item of Object.values(value)) stringValues(item, out)
-  return out
-}
+    const stringValues = (value: unknown, out: string[] = []): string[] => {
+      if (typeof value === "string") out.push(value)
+      else if (Array.isArray(value)) for (const item of value) stringValues(item, out)
+      else if (isRecord(value)) for (const item of Object.values(value)) stringValues(item, out)
+      return out
+    }
 
-const check = Effect.fn("CorrectionStore.check")(function* (input: {
-  readonly sessionID: SessionSchema.ID
-  readonly toolName: string
-  readonly toolInput: unknown
-}) {
-  if (!configured.enabled) return ""
-  const turn = yield* Ref.modify(turns, (map) => {
-    const next = (map.get(input.sessionID) ?? 0) + 1
-    return [next, map.set(input.sessionID, next)]
-  })
-  const values = stringValues(input.toolInput)
-  const entries = (yield* Ref.get(buffer)).get(input.sessionID) ?? []
-  const matched = entries.find((entry) => {
-    const wrong = entry.wrong
-    if (wrong === undefined || wrong.length < MIN_WRONG_LENGTH) return false
-    if (expiresForInterception(entry, turn)) return false
-    return values.some((value) => value.includes(wrong))
-  })
-  if (matched === undefined) return ""
-  return ADVISORY_WARNING(matched.correct)
-})
+    const check = Effect.fn("CorrectionStore.check")(function* (input: {
+      readonly sessionID: SessionSchema.ID
+      readonly toolName: string
+      readonly toolInput: unknown
+    }) {
+      if (!configured.enabled) return ""
+      const turn = yield* Ref.modify(turns, (map) => {
+        const next = (map.get(input.sessionID) ?? 0) + 1
+        return [next, map.set(input.sessionID, next)]
+      })
+      const values = stringValues(input.toolInput)
+      const entries = (yield* Ref.get(buffer)).get(input.sessionID) ?? []
+      const matched = entries.find((entry) => {
+        const wrong = entry.wrong
+        if (wrong === undefined || wrong.length < MIN_WRONG_LENGTH) return false
+        if (expiresForInterception(entry, turn)) return false
+        return values.some((value) => value.includes(wrong))
+      })
+      if (matched === undefined) return ""
+      return ADVISORY_WARNING(matched.correct)
+    })
 
     const facts = Effect.fn("CorrectionStore.facts")(function* (sessionID: SessionSchema.ID) {
       const turn = (yield* Ref.get(turns)).get(sessionID) ?? 0
