@@ -315,6 +315,7 @@ export function HomeProjectRow(props: {
   server: ServerConnection.Any
   selected: boolean
   unseenCount: number
+  count?: number
   selectProject: (server: ServerConnection.Any, directory: string) => void
   openNewSession: (server: ServerConnection.Any, directory: string) => void
   editProject: (server: ServerConnection.Any, project: LocalProject) => void
@@ -335,6 +336,9 @@ export function HomeProjectRow(props: {
       >
         <HomeProjectAvatar project={props.project} />
         <span class={HOME_PROJECT_NAV_LABEL}>{displayName(props.project)}</span>
+        <Show when={props.count !== undefined}>
+          <span class="ml-auto shrink-0 pr-8 text-11-regular text-v2-text-text-faint">{props.count}</span>
+        </Show>
       </button>
       <div
         class="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5 opacity-0 transition-opacity group-hover/project:opacity-100 focus-within:opacity-100 data-[menu=true]:opacity-100"

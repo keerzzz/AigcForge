@@ -34,7 +34,7 @@ import {
   HomeSessionSearch,
   HomeSessionSkeleton,
 } from "@/pages/home"
-import { countByMode, pinLastActive } from "@/pages/home-overview-model"
+import { countByMode, countByProject, pinLastActive } from "@/pages/home-overview-model"
 import { SessionModeBadge } from "@/components/session-mode-badge"
 import { pathKey } from "@/utils/path-key"
 
@@ -73,11 +73,8 @@ export function HomeOverview() {
     () => new Map(projects().flatMap((project) => (project.id ? [[project.id, project] as const] : []))),
   )
   const selectedProject = createMemo(() => projects().find((project) => project.worktree === state.projectFilter))
-  const projectDirectories = createMemo(() => {
-    const selected = selectedProject()
-    if (!selected) return projects().flatMap((project) => [project.worktree, ...(project.sandboxes ?? [])])
-    return [selected.worktree, ...(selected.sandboxes ?? [])]
-  })
+  // 统一管道：会话始终全量加载（支撑模式/项目统计），项目/模式筛选在内存完成。
+  const projectDirectories = createMemo(() => projects().flatMap((project) => [project.worktree, ...(project.sandboxes ?? [])]))
   const activeServer = () => {
     const conn = focusedServer()
     return conn ? ServerConnection.key(conn) === server.key : false
@@ -103,8 +100,11 @@ export function HomeOverview() {
 
   const filteredRecords = createMemo(() => {
     const all = allRecords()
-    if (state.modeFilter === "all") return all.slice(0, HOME_SESSION_LIMIT)
-    return filterSessionsByMode(all, state.modeFilter).slice(0, HOME_SESSION_LIMIT)
+    const byProject = state.projectFilter
+      ? all.filter((record) => record.project.worktree === state.projectFilter)
+      : all
+    if (state.modeFilter === "all") return byProject.slice(0, HOME_SESSION_LIMIT)
+    return filterSessionsByMode(byProject, state.modeFilter).slice(0, HOME_SESSION_LIMIT)
   })
 
   const lastActive = createMemo(() => {
@@ -114,6 +114,7 @@ export function HomeOverview() {
   const pinned = createMemo(() => pinLastActive(filteredRecords(), lastActive()))
   const groups = createMemo(() => groupSessions(pinned().rest, language))
   const counts = createMemo(() => countByMode(allRecords()))
+  const projectCounts = createMemo(() => countByProject(allRecords()))
 
   const search = createMemo(() => state.search.trim())
   const searchResults = createMemo(() => {
@@ -191,6 +192,7 @@ export function HomeOverview() {
             selectedDirectory={state.projectFilter}
             total={allRecords().length}
             counts={counts()}
+            projectCounts={projectCounts()}
             modeFilter={state.modeFilter}
             onModeFilter={(modeFilter) => setState("modeFilter", modeFilter)}
             onSelectProject={(directory) => setState("projectFilter", directory)}
@@ -282,6 +284,7 @@ export function HomeOverviewSidebar(props: {
   selectedDirectory: string | undefined
   total: number
   counts: { coding: number; chat: number; work: number }
+  projectCounts: Map<string, number>
   modeFilter: "all" | Mode
   onModeFilter: (mode: "all" | Mode) => void
   onSelectProject: (directory: string | undefined) => void
@@ -372,6 +375,17 @@ export function HomeOverviewSidebar(props: {
       <div class="h-px bg-v2-border-border-base" />
       <div class="flex min-w-0 flex-col gap-1">
         <div class={`${HOME_SECTION_LABEL} pl-1.5`}>{language.t("home.overview.projectFilter")}</div>
+        <button
+          type="button"
+          data-component="home-overview-project-all"
+          class={MODE_FILTER_ROW}
+          data-selected={props.selectedDirectory === undefined ? "" : undefined}
+          aria-current={props.selectedDirectory === undefined ? "page" : undefined}
+          onClick={() => props.onSelectProject(undefined)}
+        >
+          <span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{language.t("home.overview.allProjects")}</span>
+          <span class={MODE_FILTER_COUNT}>{props.total}</span>
+        </button>
         <For each={props.projects}>
           {(project) => (
             <HomeProjectRow
@@ -379,6 +393,7 @@ export function HomeOverviewSidebar(props: {
               server={props.server}
               selected={props.selectedDirectory === project.worktree}
               unseenCount={unseenCount(props.server, project)}
+              count={props.projectCounts.get(project.worktree) ?? 0}
               selectProject={(_conn, directory) =>
                 props.onSelectProject(props.selectedDirectory === directory ? undefined : directory)
               }

@@ -1028,6 +1028,7 @@ export const dict = {
   "home.overview.continue": "Continue where you left off",
   "home.overview.all": "All sessions",
   "home.overview.modeFilter": "Mode filter",
+  "home.overview.allProjects": "All projects",
   "home.overview.projectFilter": "Projects",
   "session.new.project.new": "Новий проєкт",
   "session.new.project.search": "Пошук проєктів",

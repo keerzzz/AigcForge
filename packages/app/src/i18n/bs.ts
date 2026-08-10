@@ -1002,6 +1002,7 @@ export const dict = {
   "home.overview.continue": "Continue where you left off",
   "home.overview.all": "All sessions",
   "home.overview.modeFilter": "Mode filter",
+  "home.overview.allProjects": "All projects",
   "home.overview.projectFilter": "Projects",
   "session.review.noUncommittedChanges": "Još nema nepotvrđenih promjena",
   "session.review.noBranchChanges": "Još nema promjena na grani",

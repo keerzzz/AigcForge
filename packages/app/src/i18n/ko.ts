@@ -915,6 +915,7 @@ export const dict = {
   "home.overview.continue": "Continue where you left off",
   "home.overview.all": "All sessions",
   "home.overview.modeFilter": "Mode filter",
+  "home.overview.allProjects": "All projects",
   "home.overview.projectFilter": "Projects",
   "session.review.noUncommittedChanges": "아직 커밋되지 않은 변경 사항이 없습니다",
   "session.review.noBranchChanges": "아직 브랜치 변경 사항이 없습니다",

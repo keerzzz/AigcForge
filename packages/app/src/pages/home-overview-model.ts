@@ -11,6 +11,12 @@ export function countByMode(records: ReadonlyArray<{ session: { mode?: ProductMo
   return count
 }
 
+export function countByProject(records: ReadonlyArray<{ project: { worktree: string } }>) {
+  const count = new Map<string, number>()
+  for (const r of records) count.set(r.project.worktree, (count.get(r.project.worktree) ?? 0) + 1)
+  return count
+}
+
 export function pinLastActive<T extends { session: { id: string; directory: string } }>(
   records: ReadonlyArray<T>,
   lastActive: { directory: string; sessionID: string } | undefined,

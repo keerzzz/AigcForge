@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { countByMode, pinLastActive } from "./home-overview-model"
+import { countByMode, countByProject, pinLastActive } from "./home-overview-model"
 
 describe("countByMode", () => {
   test("counts chat and work sessions into their own buckets", () => {
@@ -18,6 +18,23 @@ describe("countByMode", () => {
 
   test("empty records yield zero counts", () => {
     expect(countByMode([])).toEqual({ coding: 0, chat: 0, work: 0 })
+  })
+})
+
+describe("countByProject", () => {
+  test("counts records per project worktree", () => {
+    const records = [
+      { project: { worktree: "/a" } },
+      { project: { worktree: "/a" } },
+      { project: { worktree: "/b" } },
+    ]
+    const count = countByProject(records)
+    expect(count.get("/a")).toBe(2)
+    expect(count.get("/b")).toBe(1)
+  })
+
+  test("empty records yield empty map", () => {
+    expect(countByProject([]).size).toBe(0)
   })
 })
 

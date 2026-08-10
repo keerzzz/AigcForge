@@ -1004,6 +1004,7 @@ export const dict = {
   "home.overview.continue": "繼續上次",
   "home.overview.all": "全部會話",
   "home.overview.modeFilter": "模式篩選",
+  "home.overview.allProjects": "全部專案",
   "home.overview.projectFilter": "專案",
   "session.review.noUncommittedChanges": "尚無未提交的變更",
   "session.review.noBranchChanges": "尚無分支變更",

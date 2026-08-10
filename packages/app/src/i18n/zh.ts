@@ -525,6 +525,7 @@ export const dict = {
   "home.overview.continue": "继续上次",
   "home.overview.all": "全部会话",
   "home.overview.modeFilter": "模式筛选",
+  "home.overview.allProjects": "全部项目",
   "home.overview.projectFilter": "项目",
 
   "mode.chat": "对话",

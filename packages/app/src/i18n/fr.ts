@@ -937,6 +937,7 @@ export const dict = {
   "home.overview.continue": "Continue where you left off",
   "home.overview.all": "All sessions",
   "home.overview.modeFilter": "Mode filter",
+  "home.overview.allProjects": "All projects",
   "home.overview.projectFilter": "Projects",
   "session.review.noUncommittedChanges": "Aucune modification non validée pour l'instant",
   "session.review.noBranchChanges": "Aucune modification de branche pour l'instant",
