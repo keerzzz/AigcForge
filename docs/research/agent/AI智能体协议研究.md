@@ -2,9 +2,9 @@
 
 ## **智能体协议文档的工程组织与按需注入机制**
 
-在软件工程全面迈入自主化AI研发阶段的二零二六年，智能体协议与项目规范的组织架构迎来了系统性的范式转变。在开发流程中，如何确保AI智能体在不撑爆上下文窗口的前提下，精准、稳定地遵循项目特定的技术规约，成为了衡量AI编码工具成熟度的核心标准1。当前，工业界两大主流编码助手Claude Code与Cursor分别代表了两种截然不同的上下文管理与协议注入策略3。  
-Claude Code在其底层的.claude/目录体系中，构建了一套立体化的上下文路由网络3。该体系在全局和项目级两个维度上组织智能体的运行上下文3。项目根目录下的CLAUDE.md是智能体的首要参考源，直接注入系统提示词中，用于界定测试、构建、运行等项目级全局命令与约定5。当开发环境进入更为复杂的单体多库（Monorepos）或多技术栈混合项目时，Claude Code支持“目录级继承追加”机制：智能体会感知当前的工作路径，动态加载子目录中的CLAUDE.md文件5。这些子目录规约并不会重写或覆盖根目录规则，而是通过增量追加的方式扩充智能体的当前认知6。  
-针对更为具体的子智能体（Subagents）配置，Claude Code在.claude/agents/（项目级）和\~/.claude/agents/（用户全局级）目录下支持以Markdown文件配合YAML前端元数据（YAML Frontmatter）的形式定义专用的专业化智能体5。在运行期，Claude Code会沿着当前工作目录（CWD）向上递归检索至代码库根目录，扫描所有的智能体定义8。若多处定义了同名智能体，系统将自动采用路径最接近工作目录的定义作为生效实体，实现了细粒度的主动覆盖8。这些子智能体的元数据支持高度定制化的参数控制，如使用context: fork将特定任务隔绝在独立的子会话上下文中运行，以防海量日志污染主线程5；或者通过配置effort: high来调高计算思考等级5。此外，针对安全性要求极高的操作，可通过前置声明bypassPermissions来跳过繁琐的物理机写权限确认，从而在隔离容器中跑通端到端修改8。  
+在软件工程全面迈入自主化AI研发阶段的二零二六年，智能体协议与项目规范的组织架构迎来了系统性的范式转变。在开发流程中，如何确保AI智能体在不撑爆上下文窗口的前提下，精准、稳定地遵循项目特定的技术规约，成为了衡量AI编码工具成熟度的核心标准1。当前，工业界两大主流编码助手Claude Code与Cursor分别代表了两种截然不同的上下文管理与协议注入策略3。
+Claude Code在其底层的.claude/目录体系中，构建了一套立体化的上下文路由网络3。该体系在全局和项目级两个维度上组织智能体的运行上下文3。项目根目录下的CLAUDE.md是智能体的首要参考源，直接注入系统提示词中，用于界定测试、构建、运行等项目级全局命令与约定5。当开发环境进入更为复杂的单体多库（Monorepos）或多技术栈混合项目时，Claude Code支持“目录级继承追加”机制：智能体会感知当前的工作路径，动态加载子目录中的CLAUDE.md文件5。这些子目录规约并不会重写或覆盖根目录规则，而是通过增量追加的方式扩充智能体的当前认知6。
+针对更为具体的子智能体（Subagents）配置，Claude Code在.claude/agents/（项目级）和\~/.claude/agents/（用户全局级）目录下支持以Markdown文件配合YAML前端元数据（YAML Frontmatter）的形式定义专用的专业化智能体5。在运行期，Claude Code会沿着当前工作目录（CWD）向上递归检索至代码库根目录，扫描所有的智能体定义8。若多处定义了同名智能体，系统将自动采用路径最接近工作目录的定义作为生效实体，实现了细粒度的主动覆盖8。这些子智能体的元数据支持高度定制化的参数控制，如使用context: fork将特定任务隔绝在独立的子会话上下文中运行，以防海量日志污染主线程5；或者通过配置effort: high来调高计算思考等级5。此外，针对安全性要求极高的操作，可通过前置声明bypassPermissions来跳过繁琐的物理机写权限确认，从而在隔离容器中跑通端到端修改8。
 在静态约束与动态技能的分离上，Claude Code设计了明确的边界：
 
 | 约束类型 | 物理存放路径 | 长度与上下文特征 | 唤醒与作用机制 |
@@ -12,27 +12,27 @@ Claude Code在其底层的.claude/目录体系中，构建了一套立体化的�
 | **路径感知规则 (Rules)** | .claude/rules/ \[cite: 5\] | 短小精悍，通常为 10-50 行5 | 通过 settings.json 中配置的全局通配符（Globs）在智能体读取特定文件时被自动激活，主要用于限定被动编程约定（如特定数据库上下文的方法调用限制）5。 |
 | **主动执行技能 (Skills)** | .claude/skills/\<name\>/SKILL.md \[cite: 3, 7\] | 结构复杂，推荐控制在 500 行以内7 | 属于主动工作流，只有在主会话中通过命令行显式调用（如 /name）或模型判定当前任务需要特定领域外部逻辑介入时，才会单次加载至会话中，并在完成后立即释放上下文空间3。 |
 
-Cursor的.cursor/rules则彻底抛弃了早期单一大文件.cursorrules的陈旧模式，转而采用一种高弹性的“两阶段动态检索”架构1。在Cursor 0.45版本之后，项目规则被彻底解耦为.cursor/rules/目录下的多个.mdc文件10。每个.mdc规则文件不仅支持规则继承与层叠叠加12，其头部还带有YAML格式的显式控制字段：alwaysApply（声明是否无条件加载到全局系统提示词）和globs（指定该规则关联的文件路径通配符模式）10。  
+Cursor的.cursor/rules则彻底抛弃了早期单一大文件.cursorrules的陈旧模式，转而采用一种高弹性的“两阶段动态检索”架构1。在Cursor 0.45版本之后，项目规则被彻底解耦为.cursor/rules/目录下的多个.mdc文件10。每个.mdc规则文件不仅支持规则继承与层叠叠加12，其头部还带有YAML格式的显式控制字段：alwaysApply（声明是否无条件加载到全局系统提示词）和globs（指定该规则关联的文件路径通配符模式）10。
 这一体系的精妙之处在于将规则的使用流程分为了“注入”与“激活”两个完全隔离的阶段11：
 
-* **第一阶段（静默注入）：** 启动任务时，Cursor会根据用户当前的提问、在编辑器中正打开的文件标签页、当前活跃窗口的文件路径，以及任务运行中已经被智能体修改过的文件清单，匹配对应的Glob规则10。满足匹配条件的规则元数据（主要是规则名称、描述信息及触发条件）会被静默载入系统提示词的\<available\_instructions\>区域10。此时，完整的规则细节并没有真正进入LLM的活跃窗口，避免了无意义的Token开销10。  
+* **第一阶段（静默注入）：** 启动任务时，Cursor会根据用户当前的提问、在编辑器中正打开的文件标签页、当前活跃窗口的文件路径，以及任务运行中已经被智能体修改过的文件清单，匹配对应的Glob规则10。满足匹配条件的规则元数据（主要是规则名称、描述信息及触发条件）会被静默载入系统提示词的\<available\_instructions\>区域10。此时，完整的规则细节并没有真正进入LLM的活跃窗口，避免了无意义的Token开销10。
 * **第二阶段（自主激活）：** 当大模型在内部循环中产生具体的代码逻辑规划时，系统会提示大模型当前有可用的特定规则约束10。此时，具备高参数计算能力的大语言模型会依据上下文自主做出判断，通过调用其内置的fetch\_rules工具，精准抓取所需.mdc规则的完整Markdown文本合入提示词，实现了纯粹的模型自主按需检索10。
 
-这一转变标志着行业在治理“规则膨胀”上已经形成了高度统一。行业实践明确指出，将庞杂的项目全局开发手册全量塞入智能体的提示词空间是一种极具破坏性的反模式2。这种“全量注入”不仅会导致高频调用下的Token成本失控，更严重的是会触发超长上下文中的“注意力稀释”与“上下文中毒”，导致模型忽略核心安全约束或产生幻觉2。  
+这一转变标志着行业在治理“规则膨胀”上已经形成了高度统一。行业实践明确指出，将庞杂的项目全局开发手册全量塞入智能体的提示词空间是一种极具破坏性的反模式2。这种“全量注入”不仅会导致高频调用下的Token成本失控，更严重的是会触发超长上下文中的“注意力稀释”与“上下文中毒”，导致模型忽略核心安全约束或产生幻觉2。
 因此，“按需注入”与“渐进式披露”正在成为二零二六年全行业协议文档的收敛标准16。根据各大AI研发团队的实证数据，项目级别的CLAUDE.md或主引导文档的最佳长度呈现出极强的收敛趋势，均被建议收缩至一百至两百行以内5。而在微观层面，对于规则库的扩充，业界开始严格遵循“三之法则（Rule of Three）”：绝不在开始前主观臆造规范；只有当智能体在开发实操中连续三次在同一规范上犯错或产生代码偏差时，才允许将该痛点正式提炼并沉淀为一条具体的微型规则1。这极大地保证了协议文档库的高内聚性与极简化。
 
 ## **多智能体编排中“协议膨胀”的治理与Token预算管理**
 
-随着复杂业务逻辑的介入，单体智能体在面对数万行跨模块重构、端到端测试套件跑通等长周期任务时往往表现得心有余而力不足14。然而，当系统引入多智能体编排来解决复杂任务时，智能体之间的协作日志、状态同步信息和高频调用轨迹又会形成恐怖的“上下文雪崩”，导致系统面临极大的上下文控制压力2。  
+随着复杂业务逻辑的介入，单体智能体在面对数万行跨模块重构、端到端测试套件跑通等长周期任务时往往表现得心有余而力不足14。然而，当系统引入多智能体编排来解决复杂任务时，智能体之间的协作日志、状态同步信息和高频调用轨迹又会形成恐怖的“上下文雪崩”，导致系统面临极大的上下文控制压力2。
 针对这一严峻课题，Anthropic在其二零二六年四月发表的技术成果中，提出了一套行之有效的无状态编排与数据解耦方案18。这套架构打破了传统智能体与容器强绑定的高耦合模型，实现了“脑”与“手”的彻底剥离18：
 
-* **Session（会话层）：** 将大模型的历史交互流、完整的工具调用日志及输出结果，以纯粹、仅允许追加（Append-only）的事件流（Event Log）形式存放在执行环境容器之外的安全云端数据库中18。  
-* **Harness（控制套件层）：** 充当无状态、轻量级的循环中转站，专门负责调用Claude模型并路由各种工具调用18。  
+* **Session（会话层）：** 将大模型的历史交互流、完整的工具调用日志及输出结果，以纯粹、仅允许追加（Append-only）的事件流（Event Log）形式存放在执行环境容器之外的安全云端数据库中18。
+* **Harness（控制套件层）：** 充当无状态、轻量级的循环中转站，专门负责调用Claude模型并路由各种工具调用18。
 * **Sandbox（沙箱层）：** 采用隔离的轻量化容器（如基于gVisor安全内核的沙箱），仅充当计算和文件执行的临时物理节点，对Harness和Session保持完全的零信任18。
 
-在这一解耦模式下，底层的沙箱容器被视作可随时丢弃的“牲畜”而非需要细心维护的“宠物”18。当容器因为内存溢出、死锁或智能体执行了破坏性操作而崩溃时，外部的Harness不需要花费高昂的代价去恢复环境，只需调动底层的服务通过标准的provision({resources})极速拉起一个干净、标准化配置的全新容器18。同时，Harness自身也可以在崩溃后被瞬间重启，通过wake(sessionId)和getSession(id)拉取Session中最新的事件轨迹，无缝回到中断前的健康帧继续执行18。这一高度自治的恢复环路成功避免了传统的容器保活机制带来的资源浪费，使系统首字延迟（TTFT）在中位数（p50）下大幅降低了约百分之六十，长尾高延迟请求（p95）更是缩减了超过百分之九十14。  
-更重要的是，无状态的Harness层承担了极其精密且 ruthless 的“上下文过滤与动态变换”职责，即“弹性会话调停（Flexible Interrogation）”18。Harness并不会把Session中庞大、未经提炼的所有历史直接塞入Claude的上下文空间18。相反，在发起下一次模型请求前，Harness会调用getEvents()有选择地、分片化地拉取事件日志18。对于智能体执行中产生的大量无用垃圾数据（例如数万行的工具执行冗长堆栈或中间计算日志），Harness会在控制环外部直接进行物理裁切和丢弃，或者调用高压缩比的模型将其合成为精炼的语义化散文摘要，仅将包含核心变更、断言决策和关键标记的“高密度有效Tokens”组装后呈给主模型15。这种主动的物理隔离与修剪极大保障了Claude Code等助手在长时间、多步协同中维持高比例的提示词缓存（Prompt Caching）命中率，实现成本与响应速度的结构化双赢18。  
-为了进一步缩减协议数据在传输过程中的体积，微型化“协议卡片（Protocol Cards）”应运而生23。其最成功的实践同样体现在Google发起的Agent-to-Agent（A2A）生态中24。在多智能体级联分派任务时，为了防止将委托方的全局上下文和运行历史连带传递，A2A在技术上采用了高度标准化的Agent Card23。Agent Card本质上是一个存放在特定静态路径（如根目录下的/.well-known/agent.json）的超轻量JSON声明23。它不包含任何实质性的业务代码或冗余描述，仅以极其严苛的模式声明了该智能体的名称、技能边界、API接口Schema、必需的安全鉴权方法与终端终点23。在多智能体分工流中，主协调智能体在调度其他协作者时，只需动态检索目标智能体的Agent Card，读取其精简声明即可完成任务匹配和握手建立，而无需将协作子系统的整套Prompt规约卷入自身空间，从而在物理上阻断了多智能体协作链条中的“上下文污染与漂移”23。  
+在这一解耦模式下，底层的沙箱容器被视作可随时丢弃的“牲畜”而非需要细心维护的“宠物”18。当容器因为内存溢出、死锁或智能体执行了破坏性操作而崩溃时，外部的Harness不需要花费高昂的代价去恢复环境，只需调动底层的服务通过标准的provision({resources})极速拉起一个干净、标准化配置的全新容器18。同时，Harness自身也可以在崩溃后被瞬间重启，通过wake(sessionId)和getSession(id)拉取Session中最新的事件轨迹，无缝回到中断前的健康帧继续执行18。这一高度自治的恢复环路成功避免了传统的容器保活机制带来的资源浪费，使系统首字延迟（TTFT）在中位数（p50）下大幅降低了约百分之六十，长尾高延迟请求（p95）更是缩减了超过百分之九十14。
+更重要的是，无状态的Harness层承担了极其精密且 ruthless 的“上下文过滤与动态变换”职责，即“弹性会话调停（Flexible Interrogation）”18。Harness并不会把Session中庞大、未经提炼的所有历史直接塞入Claude的上下文空间18。相反，在发起下一次模型请求前，Harness会调用getEvents()有选择地、分片化地拉取事件日志18。对于智能体执行中产生的大量无用垃圾数据（例如数万行的工具执行冗长堆栈或中间计算日志），Harness会在控制环外部直接进行物理裁切和丢弃，或者调用高压缩比的模型将其合成为精炼的语义化散文摘要，仅将包含核心变更、断言决策和关键标记的“高密度有效Tokens”组装后呈给主模型15。这种主动的物理隔离与修剪极大保障了Claude Code等助手在长时间、多步协同中维持高比例的提示词缓存（Prompt Caching）命中率，实现成本与响应速度的结构化双赢18。
+为了进一步缩减协议数据在传输过程中的体积，微型化“协议卡片（Protocol Cards）”应运而生23。其最成功的实践同样体现在Google发起的Agent-to-Agent（A2A）生态中24。在多智能体级联分派任务时，为了防止将委托方的全局上下文和运行历史连带传递，A2A在技术上采用了高度标准化的Agent Card23。Agent Card本质上是一个存放在特定静态路径（如根目录下的/.well-known/agent.json）的超轻量JSON声明23。它不包含任何实质性的业务代码或冗余描述，仅以极其严苛的模式声明了该智能体的名称、技能边界、API接口Schema、必需的安全鉴权方法与终端终点23。在多智能体分工流中，主协调智能体在调度其他协作者时，只需动态检索目标智能体的Agent Card，读取其精简声明即可完成任务匹配和握手建立，而无需将协作子系统的整套Prompt规约卷入自身空间，从而在物理上阻断了多智能体协作链条中的“上下文污染与漂移”23。
 在整体Token预算的控制与财务约束方面，2026年上半年的多智能体平台沉淀出了一套高度成熟的工程化节约模型26：
 
 | Token 优化工程维度 | 物理技术机制与关键控制细节 | 实证业务收益与资源节约表现 |
@@ -44,67 +44,67 @@ Cursor的.cursor/rules则彻底抛弃了早期单一大文件.cursorrules的陈�
 
 ## **OpenAI Codex CLI 的 Harness Engineering 实践细节**
 
-在AI系统工程（Harness Engineering）的演进史中，OpenAI Frontier团队于二零二五年至二零二六年初开展的极客式内部实验具有举足轻重的地位27。该实验在极具约束性的哲学下运行：整个开发团队（最初为3名工程师，后扩展至7人）坚守“零人类代码编写”与“零人类人工代码评审”的硬性红线，完全逼迫由GPT-5驱动的Codex CLI去自主完成系统的每一行代码构建16。在这样的物理倒逼下，团队被迫将所有的精力从传统的“写代码”彻底抽离出来，全部投入到“围栏设计（Harness Engineering）”中，即构建一个能让智能体自主纠错、自我演进且绝不发生架构脱轨的自动化外围约束体系27。这一实验在五个月内成功产出并维护了一个规模逾百万行（1M LOC）的Electron高级数据分析应用27。  
-在该项目中，Codex CLI的AGENTS.md规范扮演了“项目骨干地图”的关键角色16。在 late August 2025 的首次代码库初始化和空壳脚手架 commit 中，该文档便由 Codex 自动生成16。项目组早期尝试过在一份庞大的AGENTS.md中写满技术规范、设计哲学和历史决策，但这导致了严重的上下文拥堵和即时腐化13。为此，项目组进行了彻底的规范重构，将AGENTS.md强力收缩为一份仅有一百行左右的“高阶指路牌”16。该文档本身不包含具体的编码规范，而是由高度结构化的目录索引构成，指向仓库本地协同存放、经过严格版本控制的docs/目录（docs/ 目录作为项目唯一的系统真实源（System of Record））16。智能体进入项目后，以此文档为入口，进行“渐进式披露”检索，大幅降低了初始交互时的认知负荷16。  
-为了配合智能体的自主化合并流，项目组围绕软件架构施加了极其强硬的“拓扑守恒与单向传导规约”16。整个工程被分割为高度解耦且严格分层的六层拓扑模型：  
-![][image1]  
-\[cite: 16\]  
-智能体在开发中必须遵循单向依赖，禁止任何逆向穿透调用（如底层的类型定义层绝对不能依赖上层的UI或服务逻辑）16。而对于跨越所有生命周期的公共基础设施关注点（如全局鉴权、外接服务连接器、监控遥测、功能特性开关等），严禁自由耦合进这六层依赖中，而是强制规定必须经过一个唯一的隔离代理层Providers作为中介进行跨域交互16。  
-在工具库引入上，项目组推行了“极度保守的内部自研哲学”：为了防止智能体在互联网上随意拉取低质量、接口不稳定的开源小包（例如通用的 p-limit 限流包）从而导致系统依赖迅速臃肿滑坡，团队在提示词规范中明确命令：优先采用已经在模型训练集中经过千锤百炼、API稳定性极高且极度“无聊（Boring）”的基础组件和技术栈16；如果项目需要微型的功能辅助（如并发并发流控制），必须强迫智能体在仓库内部手写并高标准跑通单元测试来沉淀为项目自研的原子包（如自研的 map-with-concurrency 辅助方法）16。为了防止智能体在对接外部数据交互时产生数据类型和格式的猜测，项目强制规定智能体必须在所有物理边界（API入口、外部数据存储读取点）使用强类型的边界校验SDK（如Zod）对数据形态进行解析与断言，拒绝任何形式的“YOLO模式随意读取”16。  
+在AI系统工程（Harness Engineering）的演进史中，OpenAI Frontier团队于二零二五年至二零二六年初开展的极客式内部实验具有举足轻重的地位27。该实验在极具约束性的哲学下运行：整个开发团队（最初为3名工程师，后扩展至7人）坚守“零人类代码编写”与“零人类人工代码评审”的硬性红线，完全逼迫由GPT-5驱动的Codex CLI去自主完成系统的每一行代码构建16。在这样的物理倒逼下，团队被迫将所有的精力从传统的“写代码”彻底抽离出来，全部投入到“围栏设计（Harness Engineering）”中，即构建一个能让智能体自主纠错、自我演进且绝不发生架构脱轨的自动化外围约束体系27。这一实验在五个月内成功产出并维护了一个规模逾百万行（1M LOC）的Electron高级数据分析应用27。
+在该项目中，Codex CLI的AGENTS.md规范扮演了“项目骨干地图”的关键角色16。在 late August 2025 的首次代码库初始化和空壳脚手架 commit 中，该文档便由 Codex 自动生成16。项目组早期尝试过在一份庞大的AGENTS.md中写满技术规范、设计哲学和历史决策，但这导致了严重的上下文拥堵和即时腐化13。为此，项目组进行了彻底的规范重构，将AGENTS.md强力收缩为一份仅有一百行左右的“高阶指路牌”16。该文档本身不包含具体的编码规范，而是由高度结构化的目录索引构成，指向仓库本地协同存放、经过严格版本控制的docs/目录（docs/ 目录作为项目唯一的系统真实源（System of Record））16。智能体进入项目后，以此文档为入口，进行“渐进式披露”检索，大幅降低了初始交互时的认知负荷16。
+为了配合智能体的自主化合并流，项目组围绕软件架构施加了极其强硬的“拓扑守恒与单向传导规约”16。整个工程被分割为高度解耦且严格分层的六层拓扑模型：
+![][image1]
+\[cite: 16\]
+智能体在开发中必须遵循单向依赖，禁止任何逆向穿透调用（如底层的类型定义层绝对不能依赖上层的UI或服务逻辑）16。而对于跨越所有生命周期的公共基础设施关注点（如全局鉴权、外接服务连接器、监控遥测、功能特性开关等），严禁自由耦合进这六层依赖中，而是强制规定必须经过一个唯一的隔离代理层Providers作为中介进行跨域交互16。
+在工具库引入上，项目组推行了“极度保守的内部自研哲学”：为了防止智能体在互联网上随意拉取低质量、接口不稳定的开源小包（例如通用的 p-limit 限流包）从而导致系统依赖迅速臃肿滑坡，团队在提示词规范中明确命令：优先采用已经在模型训练集中经过千锤百炼、API稳定性极高且极度“无聊（Boring）”的基础组件和技术栈16；如果项目需要微型的功能辅助（如并发并发流控制），必须强迫智能体在仓库内部手写并高标准跑通单元测试来沉淀为项目自研的原子包（如自研的 map-with-concurrency 辅助方法）16。为了防止智能体在对接外部数据交互时产生数据类型和格式的猜测，项目强制规定智能体必须在所有物理边界（API入口、外部数据存储读取点）使用强类型的边界校验SDK（如Zod）对数据形态进行解析与断言，拒绝任何形式的“YOLO模式随意读取”16。
 在没有人类进行 Code Review 的完全黑盒环境里，Codex CLI 能够保持百万行代码在重构中不发生底层崩溃，其背后是一套极具开创性的“多维机械化验证与自治演进体系”27：
 
-* **语义化散文报错（Semantic Prose Error Injection）：** 传统的静态校验器（Linters）在报错时往往会抛出冰冷、冗长的堆栈信息，智能体直接读取此类日志极易陷入迷茫并胡乱猜测修复方案27。为此，实验团队定制开发了专用的架构守恒校验器16。当智能体的代码修改违反了上述的单向依赖拓扑或Providers隔离原则时，校验器不会只是机械报错，而是向智能体的执行上下文直接注入一段高清晰度的散文说明，详细阐述该逆向调用违反了哪一条架构原则，并附带针对性的标准重构指引，从而直接在提示词内部纠偏，实现自愈16。  
-* **结构性拓扑测试（Structural Dependency Tests）：** 系统内置了强制的静态依赖分析模块，每一次代码生成都会自动触发该测试，严密扫查代码文件之间的 import 树拓扑，确保层级守恒16。  
-* **常驻文档整理智能体（Doc-Gardening Agent）：** 该常驻智能体定时在后台默默运行，主动扫查最新的代码库变更并对比相应的 Markdown 描述16。一旦感知到两者产生细微的语义漂移，它便会自发在本地拉起新分支、编写精准的文档修补逻辑，并自动向主干发起 PR16。  
-* **AI 垃圾碎片清理（Slop Garbage Collection）：** 为了克服智能体在开发中由于思维惯性留下的无效冗余、废弃包装方法或违反黄金原则的垃圾代码碎片，系统配备了定时常驻的静态重构智能体，专门识别并开单清理无用代码，对模块的“AI易读性”重新评分并开单修剪16。  
+* **语义化散文报错（Semantic Prose Error Injection）：** 传统的静态校验器（Linters）在报错时往往会抛出冰冷、冗长的堆栈信息，智能体直接读取此类日志极易陷入迷茫并胡乱猜测修复方案27。为此，实验团队定制开发了专用的架构守恒校验器16。当智能体的代码修改违反了上述的单向依赖拓扑或Providers隔离原则时，校验器不会只是机械报错，而是向智能体的执行上下文直接注入一段高清晰度的散文说明，详细阐述该逆向调用违反了哪一条架构原则，并附带针对性的标准重构指引，从而直接在提示词内部纠偏，实现自愈16。
+* **结构性拓扑测试（Structural Dependency Tests）：** 系统内置了强制的静态依赖分析模块，每一次代码生成都会自动触发该测试，严密扫查代码文件之间的 import 树拓扑，确保层级守恒16。
+* **常驻文档整理智能体（Doc-Gardening Agent）：** 该常驻智能体定时在后台默默运行，主动扫查最新的代码库变更并对比相应的 Markdown 描述16。一旦感知到两者产生细微的语义漂移，它便会自发在本地拉起新分支、编写精准的文档修补逻辑，并自动向主干发起 PR16。
+* **AI 垃圾碎片清理（Slop Garbage Collection）：** 为了克服智能体在开发中由于思维惯性留下的无效冗余、废弃包装方法或违反黄金原则的垃圾代码碎片，系统配备了定时常驻的静态重构智能体，专门识别并开单清理无用代码，对模块的“AI易读性”重新评分并开单修剪16。
 * **可观测性运维闭环（Telemetry Loop）：** 项目通过集成 Chrome DevTools 协议实现对 Electron 渲染端的自动化操作13。智能体可以通过调用截图工具捕获 UI 渲染的状态快照，实时比对 DOM 节点的像素变更13。同时，本地开发分支内会拉起一套临时的可观测性遥测堆栈16。智能体能够使用 LogQL 定向检索临时日志，利用 PromQL 精密监控运行时耗，并设置硬性通过门槛（如“系统冷启动耗时必须稳定低于 800 毫秒”、“核心链路调用响应时长不得超 2 秒”）13。达不到上述性能指标的代码修改，在CI流水线中会被一律无情驳回，确保了交付物的端到端运行质量16。
 
-在处理单次长达六小时的深度编程任务时，由于计算深度极深且涉及大量中间测试报错和漫长的运行反馈，Codex CLI采用了精密的“深度优先子任务分解与物理固化协议”16。  
+在处理单次长达六小时的深度编程任务时，由于计算深度极深且涉及大量中间测试报错和漫长的运行反馈，Codex CLI采用了精密的“深度优先子任务分解与物理固化协议”16。
 面对高级的产品需求，智能体会首先进入分析与设计阶段，将其线性或结构化分解为设计、插桩、修改、跑单测、整体集成等微小的原子子任务，并展现出明显的“渐进式披露”特征16。智能体绝不将这些子任务的运行进度保存在瞬时易逝的模型上下文中，而是根据其性质将其完全物理化写盘16：
 
-* **轻量级 Plan：** 对于涉及范围极小的小型逻辑修正，智能体会自动在本地生成临时的、随用随剪的 lightweight plans，用完即毁16。  
+* **轻量级 Plan：** 对于涉及范围极小的小型逻辑修正，智能体会自动在本地生成临时的、随用随剪的 lightweight plans，用完即毁16。
 * **高度固化的执行计划（Execution Plans）：** 对于涉及跨模块、跨层级重构的中大型任务，系统会强制要求智能体在本地生成标准的 Markdown 执行计划，并在项目仓库的 docs/exec-plans/active/ 目录下进行物理创建与版本控制（任务完成后转移至 docs/exec-plans/completed/）16。这些执行计划包含详尽的依赖图解、明确的原子子任务检查清单、实时的进度状态记录以及关键决策日志16。与此同时，系统还会同步更新一个项目全局的 tech-debt-tracker.md 跟踪器，将重构中临时妥协的技术债完全固化写盘16。
 
-得益于这一套物理写盘、版本控制的进度同步机制，Codex 具备了极佳的中断自愈与无损恢复能力14。在长达 6 小时的持续计算中，由于底层的沙箱容器或者网络环境经常发生中断和超时崩溃，任何新拉起的 Codex 实例都不必像盲盒一样去重新漫长地读取所有的对话历史18。新实例只需在启动阶段静默检索 Git 树并加载活跃目录中的执行计划文件与技术债跟踪器，就能毫秒级完美恢复中断前的开发断点，继续向下执行原子任务清单，成功实现了多步长周期计算的稳定性保障14。  
+得益于这一套物理写盘、版本控制的进度同步机制，Codex 具备了极佳的中断自愈与无损恢复能力14。在长达 6 小时的持续计算中，由于底层的沙箱容器或者网络环境经常发生中断和超时崩溃，任何新拉起的 Codex 实例都不必像盲盒一样去重新漫长地读取所有的对话历史18。新实例只需在启动阶段静默检索 Git 树并加载活跃目录中的执行计划文件与技术债跟踪器，就能毫秒级完美恢复中断前的开发断点，继续向下执行原子任务清单，成功实现了多步长周期计算的稳定性保障14。
 此外，在 GPT-5.3 推出“后台异步 Shell 支持”后，智能体获得了并发编译执行的强力加持29。智能体可以拉起一个慢速的单元测试或打包命令，并将其置于后台异步执行，在其返回之前，智能体能够转而进行其他子模块的代码编写，大幅提高了并行吞吐量29。为了防止智能体在异步等待中陷入无谓的闲置或由于反馈链路过长而使任务发散，项目组在 Harness 工程中确立了近乎严苛的一分钟构建上限（1-Minute Build Limit）：任何本地修改的编译反馈、热重载构建和核心冒烟测试，必须被物理重构和压缩在 1 分钟之内返回结果给智能体28。这一极速反馈环是维持海量并行、高吞吐、零人类介入开发流不发生逻辑死锁的坚实底层支撑28。
 
 ## **2026 年上半年 AI 编码智能体的“协议”趋势**
 
-在二零二六年上半年，AI编码智能体生态经历了从诸侯割据走向行业通信协议深度大一统的里程碑阶段35。这一波标准化的领头羊正是 Google 推出的 Agent-to-Agent（A2A）协议与 Anthropic 开源的 Model Context Protocol（MCP）24。  
+在二零二六年上半年，AI编码智能体生态经历了从诸侯割据走向行业通信协议深度大一统的里程碑阶段35。这一波标准化的领头羊正是 Google 推出的 Agent-to-Agent（A2A）协议与 Anthropic 开源的 Model Context Protocol（MCP）24。
 这两大协议在网络拓扑结构中形成了天衣无缝的“水平-垂直”十字互补矩阵24：
 
-* **A2A（水平协同层）：** A2A由Google于二零二五年四月发布并于六月正式贡献给 Linux 基金会，作为跨厂商、跨组织智能体通信的开放基石23。在 1H 2026，其 1.0 正式稳定版本重磅落地，迎来了包含微软、AWS、Salesforce、SAP等超 150 家企业巨头的原生接入24。A2A 是典型的水平编排协议，解决的是多个具备自主思考能力、可能运行在完全不同厂商云端的智能体如何互相发现、双向谈判、分派长周期异步任务并安全传递结果产物（Artifacts）的问题23。  
+* **A2A（水平协同层）：** A2A由Google于二零二五年四月发布并于六月正式贡献给 Linux 基金会，作为跨厂商、跨组织智能体通信的开放基石23。在 1H 2026，其 1.0 正式稳定版本重磅落地，迎来了包含微软、AWS、Salesforce、SAP等超 150 家企业巨头的原生接入24。A2A 是典型的水平编排协议，解决的是多个具备自主思考能力、可能运行在完全不同厂商云端的智能体如何互相发现、双向谈判、分派长周期异步任务并安全传递结果产物（Artifacts）的问题23。
 * **MCP（垂直控制层）：** 由Anthropic在二零二四年十一月推出，并在二零二五年底同样移交给 Linux 基金会旗下的 Agentic AI Foundation 托管，在二零二六年初已成长为月下载量超越 9700 万次的事实工业标准25。MCP 严格局限于垂直拓扑，致力于标准化单个大语言模型与其本地计算设备、“手”（具体的系统操作工具、API）及静态只读资源（Resources）之间的极速一问一答，其本身不涉及智能体之间的复杂的规划协商和多回合自主调度24。
 
-在二零二六年的大型生产级多智能体工厂中，两者联合构筑了底层的运行蓝图：  
-![][image2]  
-\[cite: 23, 24, 35, 36\]  
-在主编排器通过 A2A 握手定位到目标子智能体并下发编码任务后，子智能体在本地作为 MCP 客户端连接本地和云端的各类 MCP 工具服务器，完成拉代码、静态 Lint 扫描、执行单元测试等操作，并在完成后将 PR、DOM 变化及测试通过证明作为 Artifacts 打包通过 A2A 水平管道呈递回主系统，展现出极致的分工效率23。  
-除了在多智能体之间建立桥梁，二零二六年上半年，如何标准化“代码编辑器（IDE）”与“AI编码智能体进程”之间的双向通信，迎来了真正具备颠覆性的底层标杆——由 JetBrains、Zed 联合发起并开源的 Agent Client Protocol（ACP，智能体客户端协议）40。  
-ACP 的诞生彻底终结了以往各大 IDE 为接入特定智能体不得不进行 bespoke、Fragile 的点对点插件编写的恶劣现状40。ACP 本质上是一个采用 JSON-RPC 2.0 规范的标准协议，通过 stdio（当智能体作为子进程启动时）或远程 HTTP（应对分布式或远程托管云智能体）实现客户端与智能体的顺畅对话41。  
+在二零二六年的大型生产级多智能体工厂中，两者联合构筑了底层的运行蓝图：
+![][image2]
+\[cite: 23, 24, 35, 36\]
+在主编排器通过 A2A 握手定位到目标子智能体并下发编码任务后，子智能体在本地作为 MCP 客户端连接本地和云端的各类 MCP 工具服务器，完成拉代码、静态 Lint 扫描、执行单元测试等操作，并在完成后将 PR、DOM 变化及测试通过证明作为 Artifacts 打包通过 A2A 水平管道呈递回主系统，展现出极致的分工效率23。
+除了在多智能体之间建立桥梁，二零二六年上半年，如何标准化“代码编辑器（IDE）”与“AI编码智能体进程”之间的双向通信，迎来了真正具备颠覆性的底层标杆——由 JetBrains、Zed 联合发起并开源的 Agent Client Protocol（ACP，智能体客户端协议）40。
+ACP 的诞生彻底终结了以往各大 IDE 为接入特定智能体不得不进行 bespoke、Fragile 的点对点插件编写的恶劣现状40。ACP 本质上是一个采用 JSON-RPC 2.0 规范的标准协议，通过 stdio（当智能体作为子进程启动时）或远程 HTTP（应对分布式或远程托管云智能体）实现客户端与智能体的顺畅对话41。
 在 ACP 通信模型中，职责划分极其清晰：
 
-* **Client（编辑器客户端）：** 负责具体的用户界面管理、文件目录监控、终端进程宿主以及鉴权控制42。  
+* **Client（编辑器客户端）：** 负责具体的用户界面管理、文件目录监控、终端进程宿主以及鉴权控制42。
 * **Agent（AI智能体后台进程）：** 专注于规划、高级思考和具体的工具指令输出41。
 
-ACP 的通信流程遵循高度严密的协议方法控制42：  
-![][image3]  
-![][image4]  
-![][image5]  
-![][image6]  
-![][image7]  
-ACP 的大一统在 2026 年上半年引发了整个 AI 编码市场的火山喷发38。包括 Cursor、Claude Code、Kimi CLI、Qwen Code、OpenCode 等在前沿活跃的开发智能体，现已全部融入 ACP 注册表40，这使得任何一款定制开发的 AI 智能体都能无需二次研发，瞬间无缝嵌入 Zed、JetBrains 系列 IDE 及新版 Neovim 中平稳运行40。  
+ACP 的通信流程遵循高度严密的协议方法控制42：
+![][image3]
+![][image4]
+![][image5]
+![][image6]
+![][image7]
+ACP 的大一统在 2026 年上半年引发了整个 AI 编码市场的火山喷发38。包括 Cursor、Claude Code、Kimi CLI、Qwen Code、OpenCode 等在前沿活跃的开发智能体，现已全部融入 ACP 注册表40，这使得任何一款定制开发的 AI 智能体都能无需二次研发，瞬间无缝嵌入 Zed、JetBrains 系列 IDE 及新版 Neovim 中平稳运行40。
 在此标准化洪流下，主流的 AI 编码工具在自身的规则架构和控制机制上也迎来了质的飞跃44：
 
 ### **1\. Cline Rules 的跃迁**
 
-Cline 在其新版本中推出了基于通配符过滤的可视化规则与工作流面板17。Cline 支持在项目根目录下设立通配符关联的.clinerules/规则集目录，每个 Markdown 规则都可以在编辑器的 UI 面板上被手动一键开关17。  
+Cline 在其新版本中推出了基于通配符过滤的可视化规则与工作流面板17。Cline 支持在项目根目录下设立通配符关联的.clinerules/规则集目录，每个 Markdown 规则都可以在编辑器的 UI 面板上被手动一键开关17。
 其最具工程价值的改进在于精细的“五维关联触发算法”，彻底终结了以往每次提问都全量带入规则的愚蠢做法17。只有当检测到以下任一条件时，特定的局部规则才会被自动加载唤醒17：
 
-* 用户当前提问文本中包含了匹配 Glob 通配符的文件路径17；  
-* 编辑器当前的活动标签页（Tabs）中展示了匹配通配符的文件17；  
-* 编辑器的活动视窗（Visible Files）中露出了目标代码17；  
-* 任务运行中被智能体修改（Edited Files）的实体匹配通配符17；  
+* 用户当前提问文本中包含了匹配 Glob 通配符的文件路径17；
+* 编辑器当前的活动标签页（Tabs）中展示了匹配通配符的文件17；
+* 编辑器的活动视窗（Visible Files）中露出了目标代码17；
+* 任务运行中被智能体修改（Edited Files）的实体匹配通配符17；
 * 智能体正准备发起编辑（Pending Operations）的目标路径触发了 Glob 条件17。
 
 通过这套算法，Cline 仅在发生物理关联时才将规则喂给模型，最大化压榨了 Token 使用效能17。
@@ -117,7 +117,7 @@ Cline 在其新版本中推出了基于通配符过滤的可视化规则与工�
 
 在被 Cognition AI 收购并深度注入 Devin 技术后，Windsurf 摒弃了纯静态规则的传统单轨制，推出了极具颠覆性的“静态规则与自适应事实存储（Memories）双轨系统”46：
 
-* **Rules 约束轨道：** 存放于项目本地的 .windsurfrules 或 .windsurf/rules/ 目录下，由研发管理者或团队手动编写，用于界定技术栈、代码规范、测试约定等硬性静态死线47；  
+* **Rules 约束轨道：** 存放于项目本地的 .windsurfrules 或 .windsurf/rules/ 目录下，由研发管理者或团队手动编写，用于界定技术栈、代码规范、测试约定等硬性静态死线47；
 * **Memories 演进轨道：** 这是一个完全由智能体在日常开发中自主读写、自愈更新的长期事实数据库47。当智能体在与开发者共同调试、重构代码的过程中，发掘出“该项目的某个老旧接口存在隐蔽的内存泄漏”、“某第三方 SDK 必须按照特定顺序初始化”等动态事实时，智能体会主动将其转化为一条条结构化的 Memories 写入持久化存储47。
 
 在每一次 Cascade 智能体被唤醒执行多文件重构或生成新功能时，Windsurf 的上下文管道会采用智能拼装：全局与局部静态 Rules ![][image8] 动态语义检索调取的关联历史 Memories ![][image8] 当前视窗状态与 @-commands 指令引用 ![][image8] 最近的多步骤 Flow 追踪历史（包含最近几次被动的本地编译热重载报错、终端执行日志及文件变动轨迹）47。这套双轨机制实现了静态技术死线与运行期经验教训的完美融合，代表了二零二六年上半年 AI IDE 演进的最前沿峰值47。
@@ -133,62 +133,62 @@ Cline 在其新版本中推出了基于通配符过滤的可视化规则与工�
 
 ## **总结与建议**
 
-在系统工程（Harness Engineering）思想与大一统协议（A2A, MCP, ACP）双轮驱动的二零二六年，AI编码智能体已经彻底完成了从“代码续写助手”向“自主软件工程师”的惊人蜕变27。  
+在系统工程（Harness Engineering）思想与大一统协议（A2A, MCP, ACP）双轮驱动的二零二六年，AI编码智能体已经彻底完成了从“代码续写助手”向“自主软件工程师”的惊人蜕变27。
 对于致力于在研发流水线中最大化释放 AI 效能、实现“研发黑灯工厂”的企业团队，本白皮书给出以下极具实操价值的系统性建议27：
 
-* **建立“仓库即唯一真实源”的铁律：** 效仿 OpenAI Frontier 团队的先进实践，坚决执行“代码库内无人工手写代码、代码库内无人工代码评审”的极客式倒逼27。坚信“凡是没有在项目 Git 仓库中以代码、架构图解或执行计划固化的规约，对智能体而言一律不复存在”16。彻底废弃散落在 Slack、飞书或 Wiki 中的技术手册，强迫将所有的设计思路和进度轨迹沉淀至项目内的 docs/exec-plans/，利用仓库本身作为唯一的智能体可读介质16。  
-* **重构“智能体 legible”的拓扑架构：** 抛弃传统由人类工程师维护、带有高频双向交叉引用的复杂逻辑网络，将系统强制重构为“单向依赖的分层拓扑”（如 Types 至 UI 的单向向前依赖），并引入 Provider 隔离横切关注点16。这一“无聊且克制”的代码结构，是防范智能体在跨文件重构中代码发散与发疯的关键物理围栏16。  
-* **用“机械化验证”闭环代替人工监工：** 坚信大语言模型无法承担自身交付物的靠谱裁判13。拒绝冗长而低效的在线拉锯式人工提示，将研发团队的精力百分之百倾注在“自动化测试与性能指标断言”的建设上14。在 CI 中引入强制的结构性拓扑扫描、像素级渲染验证以及 LogQL/PromQL 的运行时性能红线拦截，让冷酷、客观且低成本的物理测试闭环去充当最终的合规审查官，从而彻底释放宝贵的人类工程师精力13。  
+* **建立“仓库即唯一真实源”的铁律：** 效仿 OpenAI Frontier 团队的先进实践，坚决执行“代码库内无人工手写代码、代码库内无人工代码评审”的极客式倒逼27。坚信“凡是没有在项目 Git 仓库中以代码、架构图解或执行计划固化的规约，对智能体而言一律不复存在”16。彻底废弃散落在 Slack、飞书或 Wiki 中的技术手册，强迫将所有的设计思路和进度轨迹沉淀至项目内的 docs/exec-plans/，利用仓库本身作为唯一的智能体可读介质16。
+* **重构“智能体 legible”的拓扑架构：** 抛弃传统由人类工程师维护、带有高频双向交叉引用的复杂逻辑网络，将系统强制重构为“单向依赖的分层拓扑”（如 Types 至 UI 的单向向前依赖），并引入 Provider 隔离横切关注点16。这一“无聊且克制”的代码结构，是防范智能体在跨文件重构中代码发散与发疯的关键物理围栏16。
+* **用“机械化验证”闭环代替人工监工：** 坚信大语言模型无法承担自身交付物的靠谱裁判13。拒绝冗长而低效的在线拉锯式人工提示，将研发团队的精力百分之百倾注在“自动化测试与性能指标断言”的建设上14。在 CI 中引入强制的结构性拓扑扫描、像素级渲染验证以及 LogQL/PromQL 的运行时性能红线拦截，让冷酷、客观且低成本的物理测试闭环去充当最终的合规审查官，从而彻底释放宝贵的人类工程师精力13。
 * **拥抱主流标准化协议栈：** 在平台架设层面，坚决绕过各种封闭、有厂商锁定的私有黑盒系统24。在多智能体交互上全面接入 A2A 1.0 标准，在工具链集成中无条件执行 MCP，并在多 IDE 插件端标准化实施 ACP 通信，从而以极低的系统边际集成开销，组装出弹性、面向未来的自主研发军团24。
 
 #### **引用的著作**
 
-1. Cursor Rules: Write .cursor/rules That Work (2026) | TECHSY, [https://techsy.io/en/blog/cursor-rules-guide](https://techsy.io/en/blog/cursor-rules-guide)  
-2. Context Engineering: A Practical Guide for AI Agents (2026) | Sourcegraph, [https://sourcegraph.com/blog/context-engineering](https://sourcegraph.com/blog/context-engineering)  
-3. Explore the .claude directory \- Claude Code Docs, [https://code.claude.com/docs/en/claude-directory](https://code.claude.com/docs/en/claude-directory)  
-4. Subdirectory-Specific .cursorrules Support \- Feature Requests \- Cursor \- Community Forum, [https://forum.cursor.com/t/subdirectory-specific-cursorrules-support/40566](https://forum.cursor.com/t/subdirectory-specific-cursorrules-support/40566)  
-5. Anatomy of the .claude Folder \- Every File Explained (2026) \- codewithmukesh, [https://codewithmukesh.com/blog/anatomy-of-the-claude-folder/](https://codewithmukesh.com/blog/anatomy-of-the-claude-folder/)  
-6. CLI Agents Part 2: Claude Code Best Practices \- Volodymyr Dvernytskyi, [https://vld-bc.com/blog/cli-agents-part2-claude-code-best-practices](https://vld-bc.com/blog/cli-agents-part2-claude-code-best-practices)  
-7. Claude Code Explained: CLAUDE.md, /command, SKILL.md, hooks, subagents | by Avinash, [https://avinashselvam.medium.com/claude-code-explained-claude-md-command-skill-md-hooks-subagents-e38e0815b59b](https://avinashselvam.medium.com/claude-code-explained-claude-md-command-skill-md-hooks-subagents-e38e0815b59b)  
-8. Create custom subagents \- Claude Code Docs, [https://code.claude.com/docs/en/sub-agents](https://code.claude.com/docs/en/sub-agents)  
-9. CLI Reference \- Cline documentation, [https://docs.cline.bot/cli/cli-reference](https://docs.cline.bot/cli/cli-reference)  
-10. A Deep Dive into Cursor Rules (\> 0.45) \- Reddit, [https://www.reddit.com/r/cursor/comments/1j7wv39/a\_deep\_dive\_into\_cursor\_rules\_045/](https://www.reddit.com/r/cursor/comments/1j7wv39/a_deep_dive_into_cursor_rules_045/)  
-11. A Deep Dive into Cursor Rules (\> 0.45) \- Guides, [https://forum.cursor.com/t/a-deep-dive-into-cursor-rules-0-45/60721](https://forum.cursor.com/t/a-deep-dive-into-cursor-rules-0-45/60721)  
-12. A Guide to understand new .cursor/rules in 0.45 (.cursorrules) : r/cursor \- Reddit, [https://www.reddit.com/r/cursor/comments/1ik06ol/a\_guide\_to\_understand\_new\_cursorrules\_in\_045/](https://www.reddit.com/r/cursor/comments/1ik06ol/a_guide_to_understand_new_cursorrules_in_045/)  
-13. What Is Harness Engineering for AI Agents? \- Milvus, [https://milvus.io/blog/harness-engineering-ai-agents.md](https://milvus.io/blog/harness-engineering-ai-agents.md)  
-14. Context Engineering vs. Memory Engineering vs. Harness Engineering \- HPE Community, [https://community.hpe.com/t5/software-general/context-engineering-vs-memory-engineering-vs-harness-engineering/td-p/7266438](https://community.hpe.com/t5/software-general/context-engineering-vs-memory-engineering-vs-harness-engineering/td-p/7266438)  
-15. Context Window Overflow in 2026: Fix LLM Errors Fast \- Redis, [https://redis.io/blog/context-window-overflow/](https://redis.io/blog/context-window-overflow/)  
-16. Harness engineering: leveraging Codex in an agent-first world | OpenAI, [https://openai.com/index/harness-engineering/](https://openai.com/index/harness-engineering/)  
-17. Rules \- Cline documentation, [https://docs.cline.bot/customization/cline-rules](https://docs.cline.bot/customization/cline-rules)  
-18. Scaling Managed Agents: Decoupling the brain from the hands \- Anthropic, [https://www.anthropic.com/engineering/managed-agents](https://www.anthropic.com/engineering/managed-agents)  
-19. Claude Managed Agents: The Layer That Disappears, The Layer That Stays — A View from Business Automation Agents \- DEV Community, [https://dev.to/aws-builders/claude-managed-agents-the-layer-that-disappears-the-layer-that-stays-a-view-from-business-4n0](https://dev.to/aws-builders/claude-managed-agents-the-layer-that-disappears-the-layer-that-stays-a-view-from-business-4n0)  
-20. Securing Claude Managed Agents \- Pluto Security, [https://pluto.security/blog/securing-claude-managed-agents/](https://pluto.security/blog/securing-claude-managed-agents/)  
-21. Agentic Context Engineering: How AI Agents Manage Context at Scale | CodeGeeks Solutions, [https://www.codegeeks.solutions/blog/agentic-context-engineering-how-ai-agents-work-with-context](https://www.codegeeks.solutions/blog/agentic-context-engineering-how-ai-agents-work-with-context)  
-22. Cut AI Token Costs 50-90%: 7 Techniques \- Unblocked, [https://getunblocked.com/blog/reduce-ai-token-costs/](https://getunblocked.com/blog/reduce-ai-token-costs/)  
-23. What Is the A2A Protocol? How AI Agents Delegate to Each Other \- MindStudio, [https://www.mindstudio.ai/blog/what-is-a2a-agent-to-agent-protocol](https://www.mindstudio.ai/blog/what-is-a2a-agent-to-agent-protocol)  
-24. Google A2A Protocol: How Agent-to-Agent Coordination Works \- Atlan, [https://atlan.com/know/google-a2a-protocol/](https://atlan.com/know/google-a2a-protocol/)  
-25. MCP vs A2A: Key Differences, Use Cases, and Enterprise Integration \- Truefoundry, [https://www.truefoundry.com/blog/mcp-vs-a2a](https://www.truefoundry.com/blog/mcp-vs-a2a)  
-26. Tokenization in NLP: Tokens, Usage & Cost Guide (2026) \- Iternal Technologies, [https://iternal.ai/token-usage-guide](https://iternal.ai/token-usage-guide)  
-27. Zero Human-Written Code: Harness Engineering for Autonomous AI Agents at Scale \- ZenML LLMOps Database, [https://www.zenml.io/llmops-database/zero-human-written-code-harness-engineering-for-autonomous-ai-agents-at-scale](https://www.zenml.io/llmops-database/zero-human-written-code-harness-engineering-for-autonomous-ai-agents-at-scale)  
-28. Extreme Harness Engineering for Token Billionaires: 1M LOC, 1B toks/day, 0% human code, 0% human review — Ryan Lopopolo, OpenAI Frontier & Symphony \- Apple Podcasts, [https://podcasts.apple.com/us/podcast/extreme-harness-engineering-for-token-billionaires/id1674008350?i=1000760089567](https://podcasts.apple.com/us/podcast/extreme-harness-engineering-for-token-billionaires/id1674008350?i=1000760089567)  
-29. OpenAI Distills Engineers' Experience into Skills: Viral Article Author Reveals Internal Practices of Developing a One \- Million \- Line \- Code System without Manual Coding and Review \- 36氪, [https://eu.36kr.com/en/p/3765104802349574](https://eu.36kr.com/en/p/3765104802349574)  
-30. Harness engineering: leveraging Codex in an agent-first world | OpenAI \- Jay Taylor's notes, [https://jaytaylor.com/notes/node/1770842156000.html](https://jaytaylor.com/notes/node/1770842156000.html)  
-31. Harness engineering: Leveraging Codex in an agent-first world | Hacker News, [https://news.ycombinator.com/item?id=48416264](https://news.ycombinator.com/item?id=48416264)  
-32. Agent Harness Engineering at Enterprise Scale \- Lunar.dev, [https://www.lunar.dev/post/agent-harness-engineering](https://www.lunar.dev/post/agent-harness-engineering)  
-33. OpenAI Codex: The Future of Agent Engineering | StartupHub.ai, [https://www.startuphub.ai/ai-news/artificial-intelligence/2026/openai-codex-the-future-of-agent-engineering](https://www.startuphub.ai/ai-news/artificial-intelligence/2026/openai-codex-the-future-of-agent-engineering)  
-34. Code as Agent Harness Toward Executable, Verifiable, and Stateful Agent Systems \- arXiv, [https://arxiv.org/html/2605.18747v1](https://arxiv.org/html/2605.18747v1)  
-35. AI Agent Protocol Ecosystem Map 2026: Complete Visual \- Digital Applied, [https://www.digitalapplied.com/blog/ai-agent-protocol-ecosystem-map-2026-mcp-a2a-acp-ucp](https://www.digitalapplied.com/blog/ai-agent-protocol-ecosystem-map-2026-mcp-a2a-acp-ucp)  
-36. MCP vs A2A: The Complete Guide to AI Agent Protocols in 2026 \- DEV Community, [https://dev.to/pockit\_tools/mcp-vs-a2a-the-complete-guide-to-ai-agent-protocols-in-2026-30li](https://dev.to/pockit_tools/mcp-vs-a2a-the-complete-guide-to-ai-agent-protocols-in-2026-30li)  
-37. A2A Protocol Surpasses 150 Organizations, Lands in Major Cloud Platforms, and Sees Enterprise Production Use in First Year \- Linux Foundation, [https://www.linuxfoundation.org/press/a2a-protocol-surpasses-150-organizations-lands-in-major-cloud-platforms-and-sees-enterprise-production-use-in-first-year](https://www.linuxfoundation.org/press/a2a-protocol-surpasses-150-organizations-lands-in-major-cloud-platforms-and-sees-enterprise-production-use-in-first-year)  
-38. Six Agent Protocols Every AI Builder Needs to Know in 2026 \- MindStudio, [https://www.mindstudio.ai/blog/six-agent-protocols-ai-builders-2026](https://www.mindstudio.ai/blog/six-agent-protocols-ai-builders-2026)  
-39. Agents at Scale: Multi-Agent Architecture with A2A Protocol on Agent Runtime and ADK Integration \- Codelabs, [https://codelabs.developers.google.com/adk-a2a-agent-runtime](https://codelabs.developers.google.com/adk-a2a-agent-runtime)  
-40. Agent Client Protocol (ACP): Use Any Coding Agent in Any IDE \- JetBrains, [https://www.jetbrains.com/acp/](https://www.jetbrains.com/acp/)  
-41. The Agent Client Protocol Overview \- Philschmid, [https://www.philschmid.de/acp-overview](https://www.philschmid.de/acp-overview)  
-42. Overview \- Agent Client Protocol, [https://agentclientprotocol.com/protocol/v1/overview](https://agentclientprotocol.com/protocol/v1/overview)  
-43. agent-client-protocol · GitHub Topics, [https://github.com/topics/agent-client-protocol](https://github.com/topics/agent-client-protocol)  
-44. Cline for VS Code: Free AI Coding Agent Setup Guide (2026) \- DeployHQ, [https://www.deployhq.com/guides/cline](https://www.deployhq.com/guides/cline)  
-45. Cline Rules: Autonomous Coding Agent Best Practices (2026) \- Cursor alternatives, [https://cursor-alternatives.com/blog/cline-rules/](https://cursor-alternatives.com/blog/cline-rules/)  
-46. Cursor vs Windsurf vs Claude Code: The 2026 AI Coding Tool Decision Guide, [https://www.buildthisnow.com/blog/tools/extensions/cursor-vs-windsurf-vs-claude-code](https://www.buildthisnow.com/blog/tools/extensions/cursor-vs-windsurf-vs-claude-code)  
+1. Cursor Rules: Write .cursor/rules That Work (2026) | TECHSY, [https://techsy.io/en/blog/cursor-rules-guide](https://techsy.io/en/blog/cursor-rules-guide)
+2. Context Engineering: A Practical Guide for AI Agents (2026) | Sourcegraph, [https://sourcegraph.com/blog/context-engineering](https://sourcegraph.com/blog/context-engineering)
+3. Explore the .claude directory \- Claude Code Docs, [https://code.claude.com/docs/en/claude-directory](https://code.claude.com/docs/en/claude-directory)
+4. Subdirectory-Specific .cursorrules Support \- Feature Requests \- Cursor \- Community Forum, [https://forum.cursor.com/t/subdirectory-specific-cursorrules-support/40566](https://forum.cursor.com/t/subdirectory-specific-cursorrules-support/40566)
+5. Anatomy of the .claude Folder \- Every File Explained (2026) \- codewithmukesh, [https://codewithmukesh.com/blog/anatomy-of-the-claude-folder/](https://codewithmukesh.com/blog/anatomy-of-the-claude-folder/)
+6. CLI Agents Part 2: Claude Code Best Practices \- Volodymyr Dvernytskyi, [https://vld-bc.com/blog/cli-agents-part2-claude-code-best-practices](https://vld-bc.com/blog/cli-agents-part2-claude-code-best-practices)
+7. Claude Code Explained: CLAUDE.md, /command, SKILL.md, hooks, subagents | by Avinash, [https://avinashselvam.medium.com/claude-code-explained-claude-md-command-skill-md-hooks-subagents-e38e0815b59b](https://avinashselvam.medium.com/claude-code-explained-claude-md-command-skill-md-hooks-subagents-e38e0815b59b)
+8. Create custom subagents \- Claude Code Docs, [https://code.claude.com/docs/en/sub-agents](https://code.claude.com/docs/en/sub-agents)
+9. CLI Reference \- Cline documentation, [https://docs.cline.bot/cli/cli-reference](https://docs.cline.bot/cli/cli-reference)
+10. A Deep Dive into Cursor Rules (\> 0.45) \- Reddit, [https://www.reddit.com/r/cursor/comments/1j7wv39/a\_deep\_dive\_into\_cursor\_rules\_045/](https://www.reddit.com/r/cursor/comments/1j7wv39/a_deep_dive_into_cursor_rules_045/)
+11. A Deep Dive into Cursor Rules (\> 0.45) \- Guides, [https://forum.cursor.com/t/a-deep-dive-into-cursor-rules-0-45/60721](https://forum.cursor.com/t/a-deep-dive-into-cursor-rules-0-45/60721)
+12. A Guide to understand new .cursor/rules in 0.45 (.cursorrules) : r/cursor \- Reddit, [https://www.reddit.com/r/cursor/comments/1ik06ol/a\_guide\_to\_understand\_new\_cursorrules\_in\_045/](https://www.reddit.com/r/cursor/comments/1ik06ol/a_guide_to_understand_new_cursorrules_in_045/)
+13. What Is Harness Engineering for AI Agents? \- Milvus, [https://milvus.io/blog/harness-engineering-ai-agents.md](https://milvus.io/blog/harness-engineering-ai-agents.md)
+14. Context Engineering vs. Memory Engineering vs. Harness Engineering \- HPE Community, [https://community.hpe.com/t5/software-general/context-engineering-vs-memory-engineering-vs-harness-engineering/td-p/7266438](https://community.hpe.com/t5/software-general/context-engineering-vs-memory-engineering-vs-harness-engineering/td-p/7266438)
+15. Context Window Overflow in 2026: Fix LLM Errors Fast \- Redis, [https://redis.io/blog/context-window-overflow/](https://redis.io/blog/context-window-overflow/)
+16. Harness engineering: leveraging Codex in an agent-first world | OpenAI, [https://openai.com/index/harness-engineering/](https://openai.com/index/harness-engineering/)
+17. Rules \- Cline documentation, [https://docs.cline.bot/customization/cline-rules](https://docs.cline.bot/customization/cline-rules)
+18. Scaling Managed Agents: Decoupling the brain from the hands \- Anthropic, [https://www.anthropic.com/engineering/managed-agents](https://www.anthropic.com/engineering/managed-agents)
+19. Claude Managed Agents: The Layer That Disappears, The Layer That Stays — A View from Business Automation Agents \- DEV Community, [https://dev.to/aws-builders/claude-managed-agents-the-layer-that-disappears-the-layer-that-stays-a-view-from-business-4n0](https://dev.to/aws-builders/claude-managed-agents-the-layer-that-disappears-the-layer-that-stays-a-view-from-business-4n0)
+20. Securing Claude Managed Agents \- Pluto Security, [https://pluto.security/blog/securing-claude-managed-agents/](https://pluto.security/blog/securing-claude-managed-agents/)
+21. Agentic Context Engineering: How AI Agents Manage Context at Scale | CodeGeeks Solutions, [https://www.codegeeks.solutions/blog/agentic-context-engineering-how-ai-agents-work-with-context](https://www.codegeeks.solutions/blog/agentic-context-engineering-how-ai-agents-work-with-context)
+22. Cut AI Token Costs 50-90%: 7 Techniques \- Unblocked, [https://getunblocked.com/blog/reduce-ai-token-costs/](https://getunblocked.com/blog/reduce-ai-token-costs/)
+23. What Is the A2A Protocol? How AI Agents Delegate to Each Other \- MindStudio, [https://www.mindstudio.ai/blog/what-is-a2a-agent-to-agent-protocol](https://www.mindstudio.ai/blog/what-is-a2a-agent-to-agent-protocol)
+24. Google A2A Protocol: How Agent-to-Agent Coordination Works \- Atlan, [https://atlan.com/know/google-a2a-protocol/](https://atlan.com/know/google-a2a-protocol/)
+25. MCP vs A2A: Key Differences, Use Cases, and Enterprise Integration \- Truefoundry, [https://www.truefoundry.com/blog/mcp-vs-a2a](https://www.truefoundry.com/blog/mcp-vs-a2a)
+26. Tokenization in NLP: Tokens, Usage & Cost Guide (2026) \- Iternal Technologies, [https://iternal.ai/token-usage-guide](https://iternal.ai/token-usage-guide)
+27. Zero Human-Written Code: Harness Engineering for Autonomous AI Agents at Scale \- ZenML LLMOps Database, [https://www.zenml.io/llmops-database/zero-human-written-code-harness-engineering-for-autonomous-ai-agents-at-scale](https://www.zenml.io/llmops-database/zero-human-written-code-harness-engineering-for-autonomous-ai-agents-at-scale)
+28. Extreme Harness Engineering for Token Billionaires: 1M LOC, 1B toks/day, 0% human code, 0% human review — Ryan Lopopolo, OpenAI Frontier & Symphony \- Apple Podcasts, [https://podcasts.apple.com/us/podcast/extreme-harness-engineering-for-token-billionaires/id1674008350?i=1000760089567](https://podcasts.apple.com/us/podcast/extreme-harness-engineering-for-token-billionaires/id1674008350?i=1000760089567)
+29. OpenAI Distills Engineers' Experience into Skills: Viral Article Author Reveals Internal Practices of Developing a One \- Million \- Line \- Code System without Manual Coding and Review \- 36氪, [https://eu.36kr.com/en/p/3765104802349574](https://eu.36kr.com/en/p/3765104802349574)
+30. Harness engineering: leveraging Codex in an agent-first world | OpenAI \- Jay Taylor's notes, [https://jaytaylor.com/notes/node/1770842156000.html](https://jaytaylor.com/notes/node/1770842156000.html)
+31. Harness engineering: Leveraging Codex in an agent-first world | Hacker News, [https://news.ycombinator.com/item?id=48416264](https://news.ycombinator.com/item?id=48416264)
+32. Agent Harness Engineering at Enterprise Scale \- Lunar.dev, [https://www.lunar.dev/post/agent-harness-engineering](https://www.lunar.dev/post/agent-harness-engineering)
+33. OpenAI Codex: The Future of Agent Engineering | StartupHub.ai, [https://www.startuphub.ai/ai-news/artificial-intelligence/2026/openai-codex-the-future-of-agent-engineering](https://www.startuphub.ai/ai-news/artificial-intelligence/2026/openai-codex-the-future-of-agent-engineering)
+34. Code as Agent Harness Toward Executable, Verifiable, and Stateful Agent Systems \- arXiv, [https://arxiv.org/html/2605.18747v1](https://arxiv.org/html/2605.18747v1)
+35. AI Agent Protocol Ecosystem Map 2026: Complete Visual \- Digital Applied, [https://www.digitalapplied.com/blog/ai-agent-protocol-ecosystem-map-2026-mcp-a2a-acp-ucp](https://www.digitalapplied.com/blog/ai-agent-protocol-ecosystem-map-2026-mcp-a2a-acp-ucp)
+36. MCP vs A2A: The Complete Guide to AI Agent Protocols in 2026 \- DEV Community, [https://dev.to/pockit\_tools/mcp-vs-a2a-the-complete-guide-to-ai-agent-protocols-in-2026-30li](https://dev.to/pockit_tools/mcp-vs-a2a-the-complete-guide-to-ai-agent-protocols-in-2026-30li)
+37. A2A Protocol Surpasses 150 Organizations, Lands in Major Cloud Platforms, and Sees Enterprise Production Use in First Year \- Linux Foundation, [https://www.linuxfoundation.org/press/a2a-protocol-surpasses-150-organizations-lands-in-major-cloud-platforms-and-sees-enterprise-production-use-in-first-year](https://www.linuxfoundation.org/press/a2a-protocol-surpasses-150-organizations-lands-in-major-cloud-platforms-and-sees-enterprise-production-use-in-first-year)
+38. Six Agent Protocols Every AI Builder Needs to Know in 2026 \- MindStudio, [https://www.mindstudio.ai/blog/six-agent-protocols-ai-builders-2026](https://www.mindstudio.ai/blog/six-agent-protocols-ai-builders-2026)
+39. Agents at Scale: Multi-Agent Architecture with A2A Protocol on Agent Runtime and ADK Integration \- Codelabs, [https://codelabs.developers.google.com/adk-a2a-agent-runtime](https://codelabs.developers.google.com/adk-a2a-agent-runtime)
+40. Agent Client Protocol (ACP): Use Any Coding Agent in Any IDE \- JetBrains, [https://www.jetbrains.com/acp/](https://www.jetbrains.com/acp/)
+41. The Agent Client Protocol Overview \- Philschmid, [https://www.philschmid.de/acp-overview](https://www.philschmid.de/acp-overview)
+42. Overview \- Agent Client Protocol, [https://agentclientprotocol.com/protocol/v1/overview](https://agentclientprotocol.com/protocol/v1/overview)
+43. agent-client-protocol · GitHub Topics, [https://github.com/topics/agent-client-protocol](https://github.com/topics/agent-client-protocol)
+44. Cline for VS Code: Free AI Coding Agent Setup Guide (2026) \- DeployHQ, [https://www.deployhq.com/guides/cline](https://www.deployhq.com/guides/cline)
+45. Cline Rules: Autonomous Coding Agent Best Practices (2026) \- Cursor alternatives, [https://cursor-alternatives.com/blog/cline-rules/](https://cursor-alternatives.com/blog/cline-rules/)
+46. Cursor vs Windsurf vs Claude Code: The 2026 AI Coding Tool Decision Guide, [https://www.buildthisnow.com/blog/tools/extensions/cursor-vs-windsurf-vs-claude-code](https://www.buildthisnow.com/blog/tools/extensions/cursor-vs-windsurf-vs-claude-code)
 47. Context Management Strategies for Windsurf: A Complete Guide to the AI Flow IDE, [https://datalakehousehub.com/blog/2026-03-context-management-windsurf/](https://datalakehousehub.com/blog/2026-03-context-management-windsurf/)
 
 [image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAmwAAAAwCAYAAACsRiaAAAAIT0lEQVR4Xu3cd6gsSRWA8WPOYlZMK7vmyJozpnVNKGZMvEVERQUVxazomgPmXQXTmrNizjli1jWgKIqKGTEgou8Prc+q2qk5O3Nn7pt+68zy/aC41dU993Z39UyfPlVzIyRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJu+wrpVyz1f9Tyl1b/ZhSrtbqpycc7x1LuVQply/lDaV8a26L/flkKZeMeu7+Wsqf51f/3728lPu3+tVLOVjKY2erd9LRpdym1Z9Vym+HdZuiH7fdPWO2n1co5W6lvL2Uc5yyxaE5T1q+RGzf9byOA6W8c1g+W9T3/L1jdo44f+86ZQtJ2gG3Hep8iN1+WL7FUD89uHQpP0htF4rNAjbO2RlKeVjUwHfbztlzS7nvsHxy7EZQspf3puUpA7Y754YtxHs09yHLD05t+3XT3BDbdz2vg4fO1+fGhPP16twoSbsiB2wPHOrb7Hq5YYHrxKlvct2mAVt3plKuMSwfTusGFgRs9xmWyTAuOw+74kcxn0362lDf1KZZqk3cJTcssSxge0pq269/5IY47a7ndVwkNyxBwPaa3JgYsEnaaTlgA9kL2t/Tlqkz/HKrVn9dKW+LGgiMT+iPK+VjpbxvaHtLKd8t5cND2xTunhsWeEyc+ibXvWKofyjqsTy7LZM143VvLeWEqPveh5D5wGcd5dihDoZhuIFyDp4T9ZxN6aW5YYkcsLF/DAN3ZAe/HXU/r9jafh61Xx9ayo+jno/Rl0r5Qin3S+1TOGtuWOBpUfeLa+zsad35SvlO1D6lflIpnyrlBlGvvd6flM+X8uRW/17UKQDjNcK+PD5qn/csJeerX9v9fE3lE7He8eeA7bJRj7kPaY7X4blb/cxt+e9t+dGlfL+U41s7D2f9df21vxvqr2x1htVfW8pDWvsHomatx0CXbXsfTOliuWEJArZVwRjHsmobSdpafIjlgA3MebpWq391aCeY63NFmA/WP9yvHXUOHPiQZQ4V2YMLt7aHt59TekluSAgWx5tcxo3/l8PyVaPOhcE3S/lLq7+slH+3Osbf+fxhmZ+PbPUXlnL+Vp8Sc3JWGQO2m8VsPls37j/1vn6cA0TffjDqzXrcnps2wcKUGMq6cm5cgOG/L0bdH4IGPCpmfTPO8yIYIagnaO9BFoHYka1OwNqN1zev71kv9ough7Z+bY/nayqrhvIwBmwcAxniM85W/w/XbPfimAVsHE9/7UWHOhYNLefrg/PW6/28Y+yDc7U6fXBUq0+F4fDz5saE7POqYIz9X7WNJG0tPsQWBWz4ddQhP4YWu1/F/I3901HnhNG26IOa7fkbv88rGjIMmxSygMuGtHKwMeImQDYpr+/z3cgwkY0BN798E+ueOSyzP7zmgjEfEGT5GPZTvhyLh7FGizJsBJDj8iJjv4LtyKSO25O1WpRFIaua93U/5YdRJ4kv89S0zD4dKOWPpfwsrQMB2+VyY9S/Q6byRkNb72ccHOodf2vRtT3a9Ph5r+0lZ9jIDH59WAbBbDcGbHeI2Wt5r46/Z52AjUxyr5Pp7D7aftIHq+Tj3W9hP/d6UGBe7qrAl/03YJO0s/gQWxawse5eqS0HbD+NOhR4YswHdujfOL1HrL4hHYoX5IYFyBItGsYi0OKpfLw5MTT12VYnMFonYOMbi335zVGHzr4RhyejCL7ltiobtShg68PbfXmRHLCRuSLQG7dnWPzpw/IUCKzenRuTHPCzTxwjQ3w9EzoiYDsiN0Z9HcO7I4Z6O9bnbA5t+dqeEsef/2aWAzYyoPm4x8CTrHAP2MbXLgvYrj+05Wt9WcD28faTPmDY+HC5Uykvyo0Jw8AMg48unpbZfwM2STuLD7Flk9n7fK1Rz5jxAc0T/Xgj7dsyFMjQy4GoGRnkb/ltqt+M1kHw1efa3TJmNxow9+Uqrc4T+jlbnUnuPUuWz8NY58bYl5nDw43lEbH+ZPL9WBWodQRZxw3LzP1iH8lEMq+OuXncBMGwFn0FtnlAKReI2rc90OX39SGvvTKHh+rmuWEBsopcT1x3R8RsviFzuMiaEfSQUe2BKfO1rtTqIwLePKmeeW7dG0v5Rau/KeqwOeer9/F4vqbAN43XOf78cAGWj4vZnNHnzVbFn2L2bU/mHfbXXmaog+M5SynPGNrytc6/EOn1/pBEP/C+An3A1ILeB1PL/3pkGa7ZnmV8YtQ5hyP2nz6VpJ2SJxxTeEod3Trmn9pBwMYQxU+iTu7uc4LAUBkTubnBgRsswc5HSnlC32gizJVZFzckhs04RrJPDFmOTo46j+lVbfm6MTsnBJy9ziR0htOofy5qYNPX3TjqFw7G87lqjt1+8f/VVsl9CvbtHVEzS7eLGoT8LWpfjUEg/fr+qENcJw3t4IbMOerzmU5rn4n6twmufhPzGR3+v97BqF8Q4WGBa3M8/lF+OGGeJtuRFeX65/cyf5PAtg+1c776tb1u0LwuMsCr0H+5T8G3Ivm27PFtmcCGjC8Z0J755Zz9q9V5mPhDq3P94uio7w2Ol+kPBGGs529yPqn/s5QHtXpf1x8C+vkgOOp9MKWcJdsLDxVk+tkPMoH94Qs8aPT9f9LQLkk7jYCLD3KGGAhKRtws89CZqnyzWjXMt23sV0mSdgiZGJ6Y87fQmMvSn1L5h7Sad5Oo545MFfN6bji/eqv1DOThGPKUJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJE3hv9WnCxLbjJJoAAAAAElFTkSuQmCC>
