@@ -1,10 +1,12 @@
-import type { Part, ToolPart } from "@aigcfroge/sdk/v2/client"
+import type { Part } from "@aigcfroge/sdk/v2/client"
 
 export type ToolCategory = "general" | "command" | "skill" | "mcp" | "agent" | "asset"
 
 export type ToolActivityItem = {
   name: string
   count: number
+  errors: number
+  blocked: number
 }
 
 export type ToolActivity = {
@@ -33,36 +35,45 @@ const CATEGORY_LABEL: Record<ToolCategory, string> = {
   asset: "toolActivity.category.asset",
 }
 
+// "blocked" counts doom_loop rejections surfaced as tool errors. Detection
+// matches the runner's error text ("... blocked by doom_loop approval",
+// session/runner/llm.ts), so it covers denied/rejected approvals only - a
+// CorrectedError carries the user's feedback text instead and is not counted.
+// Stats reflect the current context window: compaction rewrites history and
+// drops older parts, shrinking the counts.
+const isDoomLoopBlock = (error: string) => error.includes("blocked by doom_loop")
+
 export function aggregateToolActivity(
   parts: readonly Part[],
 ): ToolActivity[] {
-  const toolParts = parts.filter((p): p is ToolPart => p.type === "tool" && p.state.status === "completed")
-  const counts = new Map<string, number>()
+  const counts = new Map<string, ToolActivityItem>()
 
-  for (const part of toolParts) {
-    counts.set(part.tool, (counts.get(part.tool) ?? 0) + 1)
+  for (const part of parts) {
+    if (part.type !== "tool") continue
+    if (part.state.status !== "completed" && part.state.status !== "error") continue
+    const item = counts.get(part.tool) ?? { name: part.tool, count: 0, errors: 0, blocked: 0 }
+    if (part.state.status === "completed") item.count += 1
+    if (part.state.status === "error") {
+      item.errors += 1
+      if (isDoomLoopBlock(part.state.error)) item.blocked += 1
+    }
+    counts.set(part.tool, item)
   }
 
-  const grouped = new Map<ToolCategory, Map<string, number>>()
-  for (const [tool, count] of counts) {
-    const category = classifyTool(tool)
-    let group = grouped.get(category)
-    if (!group) {
-      group = new Map()
-      grouped.set(category, group)
-    }
-    group.set(tool, count)
+  const grouped = new Map<ToolCategory, ToolActivityItem[]>()
+  for (const item of counts.values()) {
+    const category = classifyTool(item.name)
+    const group = grouped.get(category) ?? []
+    group.push(item)
+    grouped.set(category, group)
   }
 
   return CATEGORY_ORDER
     .map((category) => {
       const items = grouped.get(category)
-      if (!items || items.size === 0) return null
+      if (!items || items.length === 0) return null
 
-      const sorted = [...items.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([name, count]) => ({ name, count }))
+      const sorted = items.sort((a, b) => b.count + b.errors - (a.count + a.errors)).slice(0, 10)
 
       return {
         category,

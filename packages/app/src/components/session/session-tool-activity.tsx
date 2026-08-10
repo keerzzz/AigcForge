@@ -2,6 +2,7 @@ import { createMemo, For, Show } from "solid-js"
 import type { Part } from "@aigcfroge/sdk/v2/client"
 import { AccordionV2 } from "@aigcfroge/ui/v2/accordion-v2"
 import { StickyAccordionHeader } from "@aigcfroge/ui/sticky-accordion-header"
+import { Icon } from "@aigcfroge/ui/icon"
 import { useLanguage, type Dictionary } from "@/context/language"
 import { aggregateToolActivity, type ToolActivity as ToolActivityType } from "./session-tool-activity-model"
 
@@ -27,6 +28,24 @@ function ToolActivitySection(props: { activity: ToolActivityType }) {
                   />
                 </div>
                 <span class="text-11-regular text-text-weaker w-3 text-right">{item.count}</span>
+                <Show when={item.errors > 0}>
+                  <span
+                    class="flex items-center gap-0.5 text-11-regular text-text-danger-base"
+                    title={language.t("toolActivity.errors", { count: item.errors.toLocaleString(language.intl()) })}
+                  >
+                    <Icon name="circle-x" size="small" />
+                    {item.errors}
+                  </span>
+                </Show>
+                <Show when={item.blocked > 0}>
+                  <span
+                    class="flex items-center gap-0.5 text-11-regular text-text-warning-base"
+                    title={language.t("toolActivity.blocked", { count: item.blocked.toLocaleString(language.intl()) })}
+                  >
+                    <Icon name="circle-ban-sign" size="small" />
+                    {item.blocked}
+                  </span>
+                </Show>
               </div>
             </div>
           )}

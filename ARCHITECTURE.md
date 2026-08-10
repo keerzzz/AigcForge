@@ -20,6 +20,8 @@
 | Database schema & migrations | `.aigcfroge/skills/database/SKILL.md` |
 | Theme engine internals | `.aigcfroge/skills/frontend-theming/SKILL.md` |
 | Implementation plans & status | `docs/plan/`, `specs/v2/todo.md` |
+| Roadmaps (milestone plans) | `docs/roadmap/` |
+| Research & industry surveys | `docs/research/industry/` · `docs/research/competitors/` · `docs/research/agent/` |
 | Architecture decisions | `docs/architecture/adr/` |
 
 > **`CONTEXT.md` caveat**: despite its name, it is the Session Runtime terminology and relationship-invariant dictionary, **not** a project-wide context file. Read it when working on Session V2 internals.
@@ -266,7 +268,7 @@ A directory-to-responsibility map for the two largest packages.
 | Status | Items |
 |---|---|
 | Implemented | Session V2, EventV2, Tool Registry, Provider/Model Catalog, System Context, Database layer, v2 UI design system, MetaAgent service, MetaHooks/ToolHooks SDK, MCP V2 (stdio+remote+OAuth), SessionShare V2 (internal), SessionRevert V2, SessionSummary V2, INTENT_TOOL_FILTERS, PreToolUse/PostToolUse hooks, Product Mode skeleton (mode classification + `/mode/:mode` entry routing), Prompt Asset M1 (prompt-asset schema/registry/transaction service + V1/V2 propose tool + chat-orchestrator + HTTP API + Chat surface) |
-| Design in progress | Chat PRD v4.6（资产工作室，已批准 2026-07-18；M1-M7 全部完成 — 7 类资产新建/导入/创建/apply/delete 全闭环）与 Work PRD v4.1（非编程执行层，已批准 2026-07-31，实施计划见 [`docs/plan/work-mode-roadmap.md`](docs/plan/work-mode-roadmap.md) + [`docs/plan/work-mode-execution-layer-m1.md`](docs/plan/work-mode-execution-layer-m1.md)）；Assistant/My Agents v3 PRDs are drafts gated by accepted ADRs and owner contracts (`docs/prd/chat-mode-creation-layer.md`, `docs/prd/work-mode-execution-layer.md`, `docs/prd/assistant-mode-personal-agent.md`, `docs/prd/my-agents-launcher.md`) |
+| Design in progress | Chat PRD v4.6（资产工作室，已批准 2026-07-18；M1-M7 全部完成 — 7 类资产新建/导入/创建/apply/delete 全闭环）与 Work PRD v4.1（非编程执行层，已批准 2026-07-31，实施计划见 [`docs/roadmap/work-mode-roadmap.md`](docs/roadmap/work-mode-roadmap.md) + [`docs/plan/work-mode-execution-layer-m1.md`](docs/plan/work-mode-execution-layer-m1.md)）；Assistant/My Agents v3 PRDs are drafts gated by accepted ADRs and owner contracts (`docs/prd/chat-mode-creation-layer.md`, `docs/prd/work-mode-execution-layer.md`, `docs/prd/assistant-mode-personal-agent.md`, `docs/prd/my-agents-launcher.md`) |
 | In progress | V2 config (`specs/v2/config.md`), TUI package extraction (`specs/tui-package.md`), legacy storage removal (`specs/storage/remove-opencode-db.md`) |
 | Phase 6 complete | Structured Handoffs (summary compression), Judge multi-model arbitration, external CLI session recovery, symlink-aware path containment, Fork CLI endpoint |
 | Accepted decisions | `docs/architecture/adr/ADR-09-mode-route-decoupling.md`, `docs/architecture/adr/ADR-10-schema-versioning.md`, `docs/architecture/adr/ADR-11-product-mode-session-classification.md`, `docs/architecture/adr/ADR-12-product-mode-entry-routing.md`, `docs/architecture/adr/ADR-13-chat-work-mode-boundary.md`, `docs/architecture/adr/ADR-13-amendment-1-workflow-asset.md`（工作流定义→Chat，执行→Work）, `docs/architecture/adr/ADR-14-persistence-and-scope-strategy.md`, `docs/architecture/adr/ADR-15-mode-workspace-main-area-slot.md` |

@@ -12,7 +12,7 @@ export type HtmlArtifactLabels = {
   viewCode: string
 }
 
-const IFRAME_CSP = "default-src 'none'; script-src 'unsafe-inline'; connect-src 'none';"
+const IFRAME_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'none';"
 
 /**
  * HTML artifact 渲染器（M3.5）：iframe sandbox（三重防线）+ Code/Preview 两 Tab。

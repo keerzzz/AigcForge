@@ -1162,6 +1162,8 @@ export const dict = {
 
   "toolActivity.title": "Tool Calls",
   "toolActivity.summary": "Tool Calls ({{total}} total, {{count}} tools)",
+  "toolActivity.errors": "{{count}} failed",
+  "toolActivity.blocked": "{{count}} blocked by doom_loop",
   "toolActivity.category.general": "General",
   "toolActivity.category.command": "Commands",
   "toolActivity.category.skill": "Skills",

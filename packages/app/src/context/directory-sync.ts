@@ -477,6 +477,12 @@ export const createDirSyncContext = (
                     if (!tracked(directory, sessionID)) return
                     const data = session.data
                     if (!data) return
+                    // Archived sessions stay out of the session list (aligned
+                    // with upstream: the list is driven only by the list API).
+                    // Messages still load below so archived history stays
+                    // readable, but the session must not resurrect into the
+                    // sidebar or drift sessionTotal.
+                    if (data.time?.archived) return
                     setStore(
                       "session",
                       produce((draft) => {

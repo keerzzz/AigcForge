@@ -132,6 +132,10 @@ test("html candidate renders an iframe with the triple defense and interactive v
   expect(frame).toBeDefined()
   // The interactive renderer drew the topology (vis-network injected and ran).
   await expect(frame!.locator("canvas")).toBeVisible({ timeout: 15_000 })
+  // Inline styles must keep their box: iframe csp attribute intersects with the
+  // srcdoc CSP meta, so a missing style-src would collapse this container to 0.
+  const topoHeight = await frame!.locator("#topo").evaluate((el) => el.getBoundingClientRect().height)
+  expect(topoHeight).toBeGreaterThan(0)
   // Storage polyfill functional: setItem/getItem round-trip without SecurityError.
   const stored = await frame!.evaluate(() => {
     localStorage.setItem("vis-state", "saved")

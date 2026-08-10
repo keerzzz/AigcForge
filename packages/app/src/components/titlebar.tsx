@@ -316,6 +316,11 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
               if (route.type === "session") {
                 const s = session()
                 if (!s) return
+                // Archived sessions must not resurrect a tab: the session was
+                // removed from the active list on archive, so revisiting its
+                // route (browser back, stale URL) stays a read-only history
+                // view instead of re-opening it as a live session.
+                if (s.time?.archived) return
                 const sessionId = s.parentID ?? s.id
                 const next = { server: route.server ?? server.key, sessionId }
                 tabsStoreActions.addSessionTab(next)

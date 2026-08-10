@@ -98,6 +98,20 @@ export default {
         );
       `)
       yield* tx.run(`
+        CREATE TABLE \`meta_agent_memory\` (
+          \`id\` text PRIMARY KEY,
+          \`project_id\` text NOT NULL,
+          \`meta_agent_id\` text NOT NULL,
+          \`fact_category\` text NOT NULL,
+          \`content\` text NOT NULL,
+          \`source_session_id\` text,
+          \`source_step_id\` text,
+          \`time_created\` integer NOT NULL,
+          \`time_updated\` integer NOT NULL,
+          CONSTRAINT \`fk_meta_agent_memory_meta_agent_id_meta_agent_id_fk\` FOREIGN KEY (\`meta_agent_id\`) REFERENCES \`meta_agent\`(\`id\`) ON DELETE CASCADE
+        );
+      `)
+      yield* tx.run(`
         CREATE TABLE \`meta_agent_session\` (
           \`meta_agent_id\` text NOT NULL,
           \`session_id\` text NOT NULL,
@@ -324,6 +338,7 @@ export default {
       )
       yield* tx.run(`CREATE UNIQUE INDEX \`event_aggregate_seq_idx\` ON \`event\` (\`aggregate_id\`,\`seq\`);`)
       yield* tx.run(`CREATE INDEX \`event_aggregate_type_seq_idx\` ON \`event\` (\`aggregate_id\`,\`type\`,\`seq\`);`)
+      yield* tx.run(`CREATE INDEX \`meta_agent_memory_project_idx\` ON \`meta_agent_memory\` (\`project_id\`);`)
       yield* tx.run(`CREATE INDEX \`meta_agent_session_meta_agent_idx\` ON \`meta_agent_session\` (\`meta_agent_id\`);`)
       yield* tx.run(`CREATE INDEX \`meta_agent_session_session_idx\` ON \`meta_agent_session\` (\`session_id\`);`)
       yield* tx.run(`CREATE INDEX \`meta_agent_step_session_idx\` ON \`meta_agent_step\` (\`meta_agent_session_id\`);`)

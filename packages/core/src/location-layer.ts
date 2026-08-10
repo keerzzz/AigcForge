@@ -34,6 +34,9 @@ import { Pty } from "./pty"
 import { SkillV2 } from "./skill"
 import { SkillGuidance } from "./skill/guidance"
 import { BuiltInTools } from "./tool/builtins"
+import { MemoryTool } from "./tool/memory"
+import { MetaAgentMemory } from "./agent/meta/memory"
+import { MetaAgentService } from "./meta-agent/service"
 import { PromptAsset } from "./prompt-asset"
 import { PromptAssetService } from "./prompt-asset-service"
 import { SkillAsset } from "./skill-asset"
@@ -63,6 +66,7 @@ import { LLMClient } from "@aigcfroge/llm"
 import { RequestExecutor } from "@aigcfroge/llm/route"
 import * as SessionRunnerLLM from "./session/runner/llm"
 import { SessionRunnerModel } from "./session/runner/model"
+import { DoomLoop } from "./session/doom-loop"
 import { SystemContextBuiltIns } from "./system-context/builtins"
 import { FetchHttpClient } from "effect/unstable/http"
 
@@ -142,6 +146,10 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
     // The `task` built-in reaches child Sessions through the TaskDriver module
     // bridge (a plain Deferred filled by the composition root), not a Layer, so
     // BuiltInTools carries no extra requirement here. See tool/task-driver.ts.
+    const memoryTools = MemoryTool.layer.pipe(
+      Layer.provide(MetaAgentMemory.layer.pipe(Layer.provide(MetaAgentService.layer))),
+      Layer.provide(services),
+    )
     const builtInTools = BuiltInTools.locationLayer.pipe(
       Layer.provide(services),
       Layer.provide(mutation),
@@ -155,11 +163,14 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       Layer.provide(tasks),
       Layer.provide(questions),
       Layer.provide(image),
+      Layer.provide(memoryTools),
     )
     const model = SessionRunnerModel.locationLayer.pipe(Layer.provide(services))
+    const doomLoop = DoomLoop.layer.pipe(Layer.provide(services))
     const runner = SessionRunnerLLM.defaultLayer.pipe(
       Layer.provide(services),
       Layer.provide(model),
+      Layer.provide(doomLoop),
       Layer.provide(skillGuidance),
       Layer.provide(referenceGuidance),
     )

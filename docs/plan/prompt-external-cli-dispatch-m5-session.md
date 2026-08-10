@@ -63,7 +63,7 @@ Phase C（回归）：core/aigcfroge/app/tui 相关包 test + typecheck + lint�
 
 验收：claude/codex 走 ACP；权限问询双端弹窗一致；外部 CLI 工具调用进度实时可见；JSONL 可配置回退。
 
-收尾：更新 `ARCHITECTURE.md` §4 子系统表 + `docs/plan/external-cli-dispatch-roadmap.md` 状态；复议 meta_agent_step 是否暴露 HTTP/UI（M1 范围外项）。
+收尾：更新 `ARCHITECTURE.md` §4 子系统表 + `docs/roadmap/external-cli-dispatch-roadmap.md` 状态；复议 meta_agent_step 是否暴露 HTTP/UI（M1 范围外项）。
 
 【命令纪律】永不从仓根跑测试；`bun --cwd packages/<name> test --timeout 30000`；typecheck 用 `bun --cwd packages/<name> typecheck`（tsgo）；lint 用 `bun run lint`（仓根）。
 

@@ -59,6 +59,24 @@ describe("ConfigCliAdapter factory", () => {
     expect(result.summary).toContain("Codex done")
   })
 
+  test("parseResumeHint captures the session id from claude-jsonl result frames", () => {
+    const adapter = fromConfig("my-cli", { command: "my-cli", output: "claude-jsonl" })
+    const stdout = JSON.stringify({ type: "result", session_id: "ext_claude_1", result: "done" })
+    expect(adapter.parseResumeHint?.(stdout)).toBe("ext_claude_1")
+  })
+
+  test("parseResumeHint captures the thread id from codex-jsonl thread.started frames", () => {
+    const adapter = fromConfig("my-cli", { command: "my-cli", output: "codex-jsonl" })
+    const stdout = JSON.stringify({ type: "thread.started", thread_id: "ext_codex_1" })
+    expect(adapter.parseResumeHint?.(stdout)).toBe("ext_codex_1")
+  })
+
+  test("parseResumeHint ignores unknown output types", () => {
+    const adapter = fromConfig("my-cli", { command: "my-cli", output: "plain" })
+    const stdout = JSON.stringify({ type: "result", session_id: "ext_ignored" })
+    expect(adapter.parseResumeHint?.(stdout)).toBeUndefined()
+  })
+
   test("detect resolves through the configured command", () => {
     const adapter = fromConfig("my-cli", { command: "definitely-not-a-real-cli-xyz" })
     expect(Effect.runSync(adapter.detect())).toBe(false)

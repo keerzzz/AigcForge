@@ -363,6 +363,25 @@ Retain the compaction capability but redesign the less clear limits. `keep.token
 }
 ```
 
+### Meta agent harness settings
+
+Repeated-identical-tool detection and cross-session memory are opt-in harness features. `doom_loop.enabled` defaults to `true` (V1 parity) with a threshold of 3 identical calls before a permission approval is requested; `memory.enabled` defaults to `false` so the SystemContext baseline stays byte-identical to the pre-feature prefix until enabled.
+
+```jsonc
+{
+  "meta": {
+    "memory": {
+      "enabled": false,
+      "top_n": 10,
+    },
+    "doom_loop": {
+      "enabled": true,
+      "threshold": 3,
+    },
+  },
+}
+```
+
 ## Group 11: Deprecated And Experimental Settings
 
 Fields that should not be ported by inertia; each needs an explicit justification.

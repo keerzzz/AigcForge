@@ -276,6 +276,9 @@ export function WorkSessionPanel() {
       classList={{
         "border-l border-v2-border-border-base": reviewOpen(),
         "pointer-events-none": !reviewOpen(),
+        // 对齐 chat/code:打开时 flex-1 撑满剩余宽度(配合外层 flex-1 min-w-0),
+        // 窗口缩放时面板与上下文模块随容器查询栅格稳定重排。
+        "flex-1": reviewOpen(),
         "transition-[width] duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width] motion-reduce:transition-none":
           !size.active(),
       }}
@@ -286,13 +289,13 @@ export function WorkSessionPanel() {
         onChange={(value) => setTab(value === "context" ? "context" : "artifact")}
         class="flex min-h-0 flex-1 flex-col"
       >
-        <TabsV2.List class="shrink-0 border-b border-v2-border-border-base px-2">
+        <TabsV2.List class="shrink-0 border-b border-v2-border-border-base">
           <TabsV2.Trigger value="context">{language.t("session.tab.context")}</TabsV2.Trigger>
           <TabsV2.Trigger value="artifact">{language.t("work.artifact.tab")}</TabsV2.Trigger>
         </TabsV2.List>
         <TabsV2.Content value="context" class="flex min-h-0 flex-1 flex-col overflow-hidden">
           <Show when={tab() === "context"}>
-            <div class="flex-1 min-h-0 overflow-hidden">
+            <div class="relative pt-2 flex-1 min-h-0 overflow-hidden">
               <SessionContextTab />
             </div>
           </Show>

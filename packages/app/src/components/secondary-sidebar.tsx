@@ -23,6 +23,7 @@ import { useServerSync } from "@/context/server-sync"
 import { useDirectoryPicker } from "@/components/directory-picker"
 import { useNotification } from "@/context/notification"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { notifySessionTabsRemoved } from "@/components/titlebar-session-events"
 import { useLayout, type LocalProject } from "@/context/layout"
 import {
   displayName,
@@ -500,6 +501,8 @@ function SecondarySidebar() {
           if (idx !== -1) draft.session.splice(idx, 1)
         }),
       )
+      sync().ensureDirSyncContext(session.directory).session.evict(session.id)
+      notifySessionTabsRemoved({ directory: session.directory, sessionIDs: [session.id] })
       if (session.id === params.id) {
         const tabIdx = tabs.store.findIndex((t) => t.type === "session" && t.sessionId === session.id)
         if (tabIdx !== -1) tabs.removeTab(tabIdx)

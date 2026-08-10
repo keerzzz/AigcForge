@@ -2296,3 +2296,107 @@ noLLMServer.instance(
     }),
   30_000,
 )
+
+it.instance("generates a title for a default-titled session from the first user message", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(providerCfg)
+    const prompt = yield* SessionPrompt.Service
+    const sessions = yield* Session.Service
+    const chat = yield* sessions.create({
+      permission: [{ permission: "*", pattern: "*", action: "allow" }],
+    })
+    expect(Session.isDefaultTitle(chat.title)).toBe(true)
+
+    yield* prompt.prompt({
+      sessionID: chat.id,
+      agent: "build",
+      noReply: true,
+      parts: [{ type: "text", text: "hello" }],
+    })
+    // The test LLM server auto-answers title requests with "E2E Title".
+    yield* llm.text("world")
+    yield* prompt.loop({ sessionID: chat.id })
+
+    const titled = yield* pollWithTimeout(
+      Effect.gen(function* () {
+        const current = yield* sessions.get(chat.id)
+        return Session.isDefaultTitle(current.title) ? undefined : current.title
+      }),
+      "session title was never generated",
+    )
+    expect(titled).toBe("E2E Title")
+  }),
+)
+
+it.instance("keeps the main loop healthy when title generation cannot resolve a model", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig((url) => ({
+      ...providerCfg(url),
+      agent: { title: { model: "test/missing-model" } },
+    }))
+    const prompt = yield* SessionPrompt.Service
+    const sessions = yield* Session.Service
+    const chat = yield* sessions.create({
+      permission: [{ permission: "*", pattern: "*", action: "allow" }],
+    })
+
+    yield* prompt.prompt({
+      sessionID: chat.id,
+      agent: "build",
+      noReply: true,
+      parts: [{ type: "text", text: "hello" }],
+    })
+    yield* llm.text("ok")
+    const result = yield* prompt.loop({ sessionID: chat.id })
+
+    expect(result.info.role).toBe("assistant")
+    expect(result.parts.some((p) => p.type === "text" && p.text === "ok")).toBe(true)
+    const current = yield* sessions.get(chat.id)
+    expect(Session.isDefaultTitle(current.title)).toBe(true)
+  }),
+)
+
+it.instance(
+  "stops retrying title generation after consecutive failures",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig(providerCfg)
+      // Title requests fail permanently (HTTP 400, non-retryable: one hit per attempt).
+      yield* llm.failTitles
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const chat = yield* sessions.create({
+        permission: [{ permission: "*", pattern: "*", action: "allow" }],
+      })
+      const titleHits = () =>
+        llm.hits.pipe(
+          Effect.map(
+            (hits) =>
+              hits.filter((hit) => JSON.stringify(hit.body).includes("Generate a title for this conversation"))
+                .length,
+          ),
+        )
+
+      for (let turn = 1; turn <= 5; turn++) {
+        yield* prompt.prompt({
+          sessionID: chat.id,
+          agent: "build",
+          noReply: true,
+          parts: [{ type: "text", text: `turn ${turn}` }],
+        })
+        yield* llm.text(`answer ${turn}`)
+        yield* prompt.loop({ sessionID: chat.id })
+        // Turns above the cap must not issue title requests: the count settles
+        // at MAX_TITLE_FAILURES (3) from turn 3 onward.
+        const expected = Math.min(turn, 3)
+        yield* pollWithTimeout(
+          titleHits().pipe(Effect.map((n) => (n === expected ? n : undefined))),
+          `title attempts did not settle at ${expected} after turn ${turn}`,
+        )
+      }
+      expect(yield* titleHits()).toBe(3)
+      const current = yield* sessions.get(chat.id)
+      expect(Session.isDefaultTitle(current.title)).toBe(true)
+    }),
+  30_000,
+)

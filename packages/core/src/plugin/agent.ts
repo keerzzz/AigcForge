@@ -100,8 +100,7 @@ Rules:
 - If the conversation ends with an unanswered question to the user, preserve that exact question
 - If the conversation ends with an imperative statement or request to the user (e.g. "Now please run the command and paste the console output"), always include that exact request in the summary`
 
-const PROMPT_META =
-`You are AigcForge Meta Agent — the unified orchestration entry point.
+const PROMPT_META = `You are AigcForge Meta Agent — the unified orchestration entry point.
 
 Your job: classify user intent, route to the right engine (subagent or external CLI), summarize results back.
 
@@ -231,6 +230,8 @@ export const Plugin = define({
       { action: "question", resource: "*", effect: "deny" },
       { action: "plan_enter", resource: "*", effect: "deny" },
       { action: "plan_exit", resource: "*", effect: "deny" },
+      // Repeated identical tool calls trigger an approval prompt (V1 parity).
+      { action: "doom_loop", resource: "*", effect: "ask" },
       { action: "read", resource: "*", effect: "allow" },
       { action: "read", resource: "*.env", effect: "ask" },
       { action: "read", resource: "*.env.*", effect: "ask" },
@@ -301,6 +302,9 @@ export const Plugin = define({
             defaults,
             [
               { action: "*", resource: "*", effect: "deny" },
+              // Re-allow after the catch-all deny: repeated identical calls must
+              // surface an approval prompt (ask), not silently hard-fail (deny).
+              { action: "doom_loop", resource: "*", effect: "ask" },
               { action: "grep", resource: "*", effect: "allow" },
               { action: "glob", resource: "*", effect: "allow" },
               { action: "webfetch", resource: "*", effect: "allow" },
@@ -323,6 +327,9 @@ export const Plugin = define({
             defaults,
             [
               { action: "*", resource: "*", effect: "deny" },
+              // Re-allow after the catch-all deny: repeated identical calls must
+              // surface an approval prompt (ask), not silently hard-fail (deny).
+              { action: "doom_loop", resource: "*", effect: "ask" },
               { action: "read", resource: "*", effect: "allow" },
               { action: "glob", resource: "*", effect: "allow" },
               { action: "grep", resource: "*", effect: "allow" },
@@ -351,6 +358,9 @@ export const Plugin = define({
             defaults,
             [
               { action: "*", resource: "*", effect: "deny" },
+              // Re-allow after the catch-all deny: repeated identical calls must
+              // surface an approval prompt (ask), not silently hard-fail (deny).
+              { action: "doom_loop", resource: "*", effect: "ask" },
               { action: "read", resource: "*", effect: "allow" },
               { action: "glob", resource: "*", effect: "allow" },
               { action: "grep", resource: "*", effect: "allow" },
@@ -402,10 +412,7 @@ export const Plugin = define({
           .filter((a) => a.id !== "meta")
           .map((a) => `- **${a.id}**: ${a.description || "No description"}`)
           .join("\n")
-        const withSubagents = PROMPT_META.replace(
-          "{{SUBAGENTS_LIST}}",
-          subagentList || "(no subagents registered)",
-        )
+        const withSubagents = PROMPT_META.replace("{{SUBAGENTS_LIST}}", subagentList || "(no subagents registered)")
         item.system = MetaPrompt.fillCliList(withSubagents, [])
         item.mode = "primary"
         item.permissions.push(
