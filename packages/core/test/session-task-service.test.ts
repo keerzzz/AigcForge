@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test"
-import { asc, eq } from "drizzle-orm"
-import { Context, Effect, Layer, Result, Schema } from "effect"
+import { asc, eq, type EmptyRelations } from "drizzle-orm"
+import type { SQLiteTransactionConfig } from "drizzle-orm/sqlite-core/session"
+import { Context, Deferred, Effect, Fiber, Layer, Result, Schema } from "effect"
+import type { SqlError } from "effect/unstable/sql/SqlError"
+import type { EffectSQLiteTransaction } from "@aigcfroge/effect-drizzle-sqlite"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
 import { Project } from "@aigcfroge/core/project"
@@ -10,7 +13,7 @@ import { SessionV2 } from "@aigcfroge/core/session"
 import { SessionTable, TaskTable } from "@aigcfroge/core/session/sql"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { SessionTodo } from "@aigcfroge/core/session/todo"
-import { testEffect } from "./lib/effect"
+import { testEffect, awaitWithTimeout } from "./lib/effect"
 
 const it = testEffect(
   Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer, SessionTask.defaultLayer, SessionTodo.defaultLayer),
@@ -895,17 +898,61 @@ describe("SessionTask", () => {
     }),
   )
 
-  it.effect("two independently-built services still serialize on the process-level write lock (BLOCKER-1)", () =>
+  it.live("two independently-built services still serialize on the process-level write lock (BLOCKER-1)", () =>
     Effect.gen(function* () {
       yield* setup
-      const { db } = yield* Database.Service
-      const tasksA = yield* SessionTask.Service
+      // The two services are distinct instances (HTTP/scheduler `node` vs a
+      // per-Location `Layer.fresh` graph) sharing ONE Database (same SQLite
+      // file). Layer.fresh bypasses the outer memo map so these are genuinely
+      // two SessionTask builds; Layer.succeed injects the same Database
+      // instance (two independent `:memory:` defaults would not share tables,
+      // so the second instance would hit `no such table`).
+      //
+      // A single shared connection serializes transactions at the driver level
+      // (SqlClient single-connection semaphore), so a plain concurrent append
+      // pair cannot distinguish lock scope. Instead the test orchestrates the
+      // interleaving deterministically: the wrapped transaction signals when A
+      // holds the write lock and is blocked inside it, then the test asserts
+      // that B never reaches its transaction entry while A is blocked — a
+      // process-level lock keeps B out (green), a per-instance Semaphore lets
+      // B in (red).
+      const real = yield* Database.Service
+      const aEntered = yield* Deferred.make<void, never>()
+      const aRelease = yield* Deferred.make<void, never>()
+      const bEntered = yield* Deferred.make<void, never>()
+      let calls = 0
+      const wrappedDb: typeof real.db = Object.create(real.db)
+      wrappedDb.transaction = <A, E, R>(
+        transaction: (tx: EffectSQLiteTransaction<EmptyRelations>) => Effect.Effect<A, E, R>,
+        config?: SQLiteTransactionConfig,
+      ): Effect.Effect<A, E | SqlError, R> =>
+        Effect.gen(function* () {
+          calls += 1
+          if (calls > 1) {
+            yield* Deferred.succeed(bEntered, void 0)
+            return yield* real.db.transaction(transaction, config)
+          }
+          yield* Deferred.succeed(aEntered, void 0)
+          yield* Deferred.await(aRelease)
+          return yield* real.db.transaction(transaction, config)
+        })
+      const dbLayer = Layer.succeed(Database.Service, { db: wrappedDb })
+
+      const tasksA = yield* Layer.build(
+        Layer.provide(
+          Layer.fresh(SessionTask.layer),
+          Layer.mergeAll(EventV2.defaultLayer, dbLayer),
+        ),
+      ).pipe(Effect.map((ctx) => Context.get(ctx, SessionTask.Service)))
       const tasksB = yield* Layer.build(
-        SessionTask.layer.pipe(Layer.provide(EventV2.defaultLayer), Layer.provide(Database.defaultLayer)),
+        Layer.provide(
+          Layer.fresh(SessionTask.layer),
+          Layer.mergeAll(EventV2.defaultLayer, dbLayer),
+        ),
       ).pipe(Effect.map((ctx) => Context.get(ctx, SessionTask.Service)))
 
       const otherSession = SessionV2.ID.make("ses_task_blocker1_b")
-      yield* db
+      yield* real.db
         .insert(SessionTable)
         .values({
           id: otherSession,
@@ -918,32 +965,45 @@ describe("SessionTask", () => {
         .run()
         .pipe(Effect.orDie)
 
-      // The two services are distinct instances (HTTP/scheduler `node` vs a
-      // per-Location `Layer.fresh` graph). Each append references the OTHER
-      // instance's planned id: with a per-instance Semaphore both transactions
-      // would run concurrently and both cycle checks could pass (HIGH-2); the
-      // process-level lock serializes them so exactly one may land.
-      const results = yield* Effect.all(
-        [
-          tasksA
-            .append({
-              sessionID,
-              tasks: [
-                { id: "tsk_blk1_a", content: "a", status: "pending", priority: "medium", dependsOn: ["tsk_blk1_b"] },
-              ],
-            })
-            .pipe(Effect.result),
-          tasksB
-            .append({
-              sessionID: otherSession,
-              tasks: [
-                { id: "tsk_blk1_b", content: "b", status: "pending", priority: "medium", dependsOn: ["tsk_blk1_a"] },
-              ],
-            })
-            .pipe(Effect.result),
-        ],
-        { concurrency: "unbounded" },
+      // Start A first and wait until it holds the write lock inside its
+      // transaction entry, then start B: the process-level lock must keep B
+      // from ever reaching its transaction while A is blocked.
+      const scope = yield* Effect.scope
+      const fiberA = yield* Effect.forkIn(scope)(
+        tasksA
+          .append({
+            sessionID,
+            tasks: [
+              { id: "tsk_blk1_a", content: "a", status: "pending", priority: "medium", dependsOn: ["tsk_blk1_b"] },
+            ],
+          })
+          .pipe(Effect.result),
       )
+      yield* Deferred.await(aEntered)
+      const fiberB = yield* Effect.forkIn(scope)(
+        tasksB
+          .append({
+            sessionID: otherSession,
+            tasks: [
+              { id: "tsk_blk1_b", content: "b", status: "pending", priority: "medium", dependsOn: ["tsk_blk1_a"] },
+            ],
+          })
+          .pipe(Effect.result),
+      )
+      // B must stay blocked behind the process-level write lock while A is
+      // inside it; reaching its transaction entry means the lock is
+      // per-instance (the BLOCKER-1 regression).
+      const bBlocked = yield* awaitWithTimeout(
+        Deferred.await(bEntered),
+        "B must not reach its transaction while A holds the write lock",
+        "2 seconds",
+      ).pipe(Effect.isFailure)
+      expect(bBlocked).toBe(true)
+
+      // Release A so it commits; then B runs under the lock and must observe
+      // A's committed edge: exactly one append may land (HIGH-2 / BLOCKER-1).
+      yield* Deferred.succeed(aRelease, void 0)
+      const results = yield* Effect.all([Fiber.join(fiberA), Fiber.join(fiberB)])
 
       const failures = results.filter(Result.isFailure)
       expect(failures.length).toBeGreaterThanOrEqual(1)
