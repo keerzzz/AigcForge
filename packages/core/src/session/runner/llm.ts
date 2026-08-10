@@ -8,7 +8,7 @@ import {
   isContextOverflowFailure,
   type ProviderErrorEvent,
 } from "@aigcfroge/llm"
-import { Cause, DateTime, Duration, Effect, Exit, FiberSet, Layer, Option, Semaphore, Stream } from "effect"
+import { Cause, DateTime, Duration, Effect, Exit, FiberSet, Layer, Option, Ref, Semaphore, Stream } from "effect"
 import { ChildProcess } from "effect/unstable/process"
 import { AgentV2 } from "../../agent"
 import { ProductModeAgentPolicy } from "../../product-mode-agent-policy"
@@ -51,6 +51,7 @@ import { createLLMEventPublisher } from "./publish-llm-event"
 import { toLLMMessages } from "./to-llm-message"
 import { MAX_STEPS_PROMPT } from "./max-steps"
 import { CorrectionFacts } from "../../system-context/correction-facts"
+import { ReverseRefs } from "../../system-context/reverse-refs"
 
 /**
  * Runs one durable coding-agent Session until it settles.
@@ -132,6 +133,7 @@ export const layer = Layer.effect(
     const correctionExtractor = yield* CorrectionExtractor.Service
     const referenceChecker = yield* ReferenceChecker.Service
     const verifier = yield* Verifier.Service
+    const changedFiles = yield* Ref.make(new Map<SessionSchema.ID, string[]>())
     const compaction = SessionCompaction.make({ events, llm, config: yield* config.entries() })
 
     const getSession = Effect.fn("SessionRunner.getSession")(function* (sessionID: SessionSchema.ID) {
@@ -169,6 +171,23 @@ export const layer = Layer.effect(
     // result type (text stays text, error stays error). No-op when absent.
     const appendAdvisory = (value: string, advisory: string) =>
       advisory.length === 0 ? value : `${value}\n\n${advisory}`
+
+    // Tracks the file paths a session touched this drain (for reverse-refs
+    // injection). Only mutating tools with a `path` arg are recorded.
+    const isRecord = (value: unknown): value is Record<string, unknown> =>
+      typeof value === "object" && value !== null && !Array.isArray(value)
+
+    const trackChangedFile = Effect.fnUntraced(function* (sessionID: SessionSchema.ID, toolName: string, toolInput: unknown) {
+      if (toolName !== "edit" && toolName !== "write") return
+      if (!isRecord(toolInput) || typeof toolInput.path !== "string") return
+      const path = toolInput.path
+      yield* Ref.update(changedFiles, (map) => {
+        const files: string[] = map.get(sessionID) ?? []
+        const seen = new Set(files)
+        seen.add(path)
+        return map.set(sessionID, [...seen].slice(-20))
+      })
+    })
 
     const settleTool = (input: {
       readonly sessionID: SessionSchema.ID
@@ -231,6 +250,7 @@ export const layer = Layer.effect(
           assistantMessageID: input.assistantMessageID,
           call: { type: "tool-call", id: input.callID, name: input.toolName, input: input.toolInput },
         })
+        yield* trackChangedFile(input.sessionID, input.toolName, input.toolInput)
         // Post-settle integrity checks. Each runs with its own timeout and
         // skips instead of blocking; only known errors are absorbed, defects
         // and interruptions pass through (tool/AGENTS.md).
@@ -297,6 +317,13 @@ export const layer = Layer.effect(
           const facts = CorrectionFacts.source(correctionStore, sessionID)
           return facts ? SystemContext.combine([combined, facts]) : combined
         }),
+        Effect.flatMap((combined) =>
+          Ref.get(changedFiles).pipe(
+            Effect.map((map) => map.get(sessionID) ?? []),
+            Effect.flatMap((files) => ReverseRefs.source(files)),
+            Effect.map((reverseRefs) => (reverseRefs ? SystemContext.combine([combined, reverseRefs]) : combined)),
+          ),
+        ),
       )
 
     const runTurnAttempt = Effect.fn("SessionRunner.runTurn")(function* (
