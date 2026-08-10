@@ -42,6 +42,7 @@ import { FSUtil } from "../src/fs-util"
 import { DoomLoop } from "../src/session/doom-loop"
 import { CorrectionExtractor } from "../src/session/correction-extractor"
 import { Verifier } from "../src/session/verifier"
+import { VerificationRouter } from "../src/session/verification-router"
 import { AbsolutePath } from "../src/schema"
 import { testEffect } from "./lib/effect"
 
@@ -151,6 +152,7 @@ const runner = SessionRunnerLLM.defaultLayer.pipe(
   Layer.provide(CorrectionStore.layer),
   Layer.provide(
     Verifier.layer.pipe(
+      Layer.provide(VerificationRouter.layer.pipe(Layer.provide(config))),
       Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
       Layer.provide(EventV2.defaultLayer.pipe(Layer.provide(Database.defaultLayer))),
       Layer.provide(location),

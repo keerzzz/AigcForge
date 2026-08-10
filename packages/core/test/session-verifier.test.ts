@@ -9,6 +9,7 @@ import { Location } from "../src/location"
 import { Project } from "../src/project"
 import { SessionV2 } from "../src/session"
 import { AbsolutePath } from "../src/schema"
+import { VerificationRouter } from "../src/session/verification-router"
 import { Verifier } from "../src/session/verifier"
 import { testEffect } from "./lib/effect"
 
@@ -60,6 +61,7 @@ const makeAppProcess = (exitCodes: ReadonlyArray<number>, runs: number[] = []) =
 
 const layerFor = (meta = {}, appProcess?: Layer.Layer<AppProcess.Service, never, never>) =>
   Verifier.layer.pipe(
+    Layer.provide(VerificationRouter.layer.pipe(Layer.provide(configLayer(meta)))),
     Layer.provideMerge(CorrectionStore.layer.pipe(Layer.provide(configLayer(meta)))),
     Layer.provide(EventV2.defaultLayer),
     Layer.provide(appProcess ?? makeAppProcess([0])),

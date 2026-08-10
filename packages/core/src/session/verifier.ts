@@ -9,6 +9,7 @@ import { Location } from "../location"
 import { SessionSchema } from "./schema"
 import { CorrectionStore } from "./correction-store"
 import { SessionEvent } from "./event"
+import { VerificationRouter } from "./verification-router"
 import { VerifierProse } from "./verifier-prose"
 
 const DEFAULT_ENABLED = true
@@ -58,7 +59,7 @@ export interface Interface {
     readonly toolName: string
     readonly toolInput: unknown
     readonly intent: string | undefined
-  }) => Effect.Effect<string, CorrectionStore.InvalidEntryError>
+  }) => Effect.Effect<string, CorrectionStore.InvalidEntryError | VerificationRouter.InvalidLevelError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/Verifier") {}
@@ -84,6 +85,7 @@ export const layer = Layer.effect(
     const location = yield* Location.Service
     const events = yield* EventV2.Service
     const correctionStore = yield* CorrectionStore.Service
+    const router = yield* VerificationRouter.Service
     const failures = yield* Ref.make(new Map<SessionSchema.ID, number>())
 
     const verify = Effect.fn("Verifier.verify")(function* (input: {
@@ -149,6 +151,7 @@ export const layer = Layer.effect(
       const output = [result.stdout.toString("utf8"), result.stderr.toString("utf8")].filter((part) => part.length > 0).join("\n")
       if (result.exitCode === 0) {
         yield* Ref.update(failures, (map) => map.set(input.sessionID, 0))
+        yield* router.route({ sessionID: input.sessionID, intent: input.intent, failed: false })
         yield* events.publish(SessionEvent.Verify.Passed, {
           sessionID: input.sessionID,
           timestamp: yield* DateTime.now,
@@ -160,6 +163,7 @@ export const layer = Layer.effect(
       }
       const nextFailures = (yield* Ref.get(failures)).get(input.sessionID) ?? 0
       yield* Ref.update(failures, (map) => map.set(input.sessionID, nextFailures + 1))
+      const level = yield* router.route({ sessionID: input.sessionID, intent: input.intent, failed: true })
       const prose = VerifierProse.render(output || `typecheck 退出码 ${result.exitCode}`)
       yield* events.publish(SessionEvent.Verify.Failed, {
         sessionID: input.sessionID,
@@ -178,7 +182,13 @@ export const layer = Layer.effect(
           extractLayer: 1,
         },
       })
-      return `⚠️ [验证] typecheck 失败（${directory}）:\n${prose}`
+      const escalation =
+        level === "l0"
+          ? ""
+          : level === "l1"
+            ? "\n\n升级: 机械验证失败，转交 L1 judge 仲裁（judgeMerge）。"
+            : "\n\n升级: L1 仲裁失败，转交 L2 委派（delegateJudge）。"
+      return `⚠️ [验证] typecheck 失败（${directory}）:\n${prose}${escalation}`
     })
 
     return Service.of({ verify })

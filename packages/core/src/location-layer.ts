@@ -70,6 +70,7 @@ import { CorrectionExtractor } from "./session/correction-extractor"
 import { CorrectionStore } from "./session/correction-store"
 import { DoomLoop } from "./session/doom-loop"
 import { ReferenceChecker } from "./session/reference-checker"
+import { VerificationRouter } from "./session/verification-router"
 import { Verifier } from "./session/verifier"
 import { SystemContextBuiltIns } from "./system-context/builtins"
 import { FetchHttpClient } from "effect/unstable/http"
@@ -181,6 +182,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       Layer.provide(services),
     )
     const verifier = Verifier.layer.pipe(
+      Layer.provide(VerificationRouter.layer.pipe(Layer.provide(services))),
       Layer.provide(correctionStore),
       Layer.provide(services),
     )

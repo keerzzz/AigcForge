@@ -26,6 +26,7 @@ import { CorrectionExtractor } from "@aigcfroge/core/session/correction-extracto
 import { CorrectionStore } from "@aigcfroge/core/session/correction-store"
 import { ReferenceChecker } from "@aigcfroge/core/session/reference-checker"
 import { Verifier } from "@aigcfroge/core/session/verifier"
+import { VerificationRouter } from "@aigcfroge/core/session/verification-router"
 import { Ripgrep } from "../src/ripgrep"
 import { RipgrepBinary } from "../src/ripgrep/binary"
 import { FSUtil } from "../src/fs-util"
@@ -124,6 +125,7 @@ const runner = SessionRunnerLLM.defaultLayer.pipe(
   Layer.provide(CorrectionStore.layer),
   Layer.provide(
     Verifier.layer.pipe(
+      Layer.provide(VerificationRouter.layer.pipe(Layer.provide(config))),
       Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
       Layer.provide(EventV2.defaultLayer.pipe(Layer.provide(Database.defaultLayer))),
       Layer.provide(location),
