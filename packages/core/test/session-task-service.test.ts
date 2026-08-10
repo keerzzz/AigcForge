@@ -917,9 +917,9 @@ describe("SessionTask", () => {
       // process-level lock keeps B out (green), a per-instance Semaphore lets
       // B in (red).
       const real = yield* Database.Service
-      const aEntered = yield* Deferred.make<void, never>()
-      const aRelease = yield* Deferred.make<void, never>()
-      const bEntered = yield* Deferred.make<void, never>()
+      const aEntered = yield* Deferred.make<void>()
+      const aRelease = yield* Deferred.make<void>()
+      const bEntered = yield* Deferred.make<void>()
       let calls = 0
       const wrappedDb: typeof real.db = Object.create(real.db)
       wrappedDb.transaction = <A, E, R>(
