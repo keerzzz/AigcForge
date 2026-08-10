@@ -76,4 +76,29 @@ describe("TaskItem", () => {
     expect(frame).toContain(formatNextRun(NEXT_RUN))
     expect(frame).toContain("Deploy canary")
   })
+
+  test("completed task renders the ✓ marker separated from the content by a space", async () => {
+    await using tmp = await tmpdir()
+    const frame = await renderTaskItem(tmp.path, {
+      status: "completed",
+      content: "Deploy canary",
+    })
+
+    expect(frame).toContain("[✓] ")
+    expect(frame).toContain("[✓] Deploy canary")
+  })
+
+  test("a NaN nextRun renders no nextRun text", async () => {
+    await using tmp = await tmpdir()
+    const frame = await renderTaskItem(tmp.path, {
+      status: "scheduled",
+      content: "Deploy canary",
+      nextRun: Number.NaN,
+    })
+
+    expect(frame).toContain("⚡")
+    expect(frame).toContain("Deploy canary")
+    expect(frame).not.toContain("Invalid Date")
+    expect(frame).not.toContain(" · ")
+  })
 })

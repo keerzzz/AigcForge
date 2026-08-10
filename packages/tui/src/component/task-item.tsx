@@ -12,12 +12,18 @@ export function TaskItem(props: TaskItemProps) {
   const { theme } = useTheme()
   const style = () => taskStatusStyle(props.status)
   const fg = () => theme[style()?.color ?? "textMuted"]
-  const nextRunLabel = () => (props.nextRun === undefined ? undefined : formatNextRun(props.nextRun))
+  // Guard against NaN (and stray "NaN"/"Infinity" strings from the SDK's
+  // number-or-literal union) so a non-finite nextRun renders no nextRun text
+  // instead of "Invalid Date".
+  const nextRunLabel = () =>
+    typeof props.nextRun === "number" && Number.isFinite(props.nextRun)
+      ? formatNextRun(props.nextRun)
+      : undefined
 
   return (
     <box flexDirection="row" gap={0}>
       <text flexShrink={0} style={{ fg: fg() }}>
-        [{style()?.marker ?? " "}]
+        [{style()?.marker ?? " "}]{" "}
       </text>
       <text flexGrow={1} wrapMode="word" style={{ fg: fg() }}>
         {props.content}
