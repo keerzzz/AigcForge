@@ -69,6 +69,7 @@ import { SessionRunnerModel } from "./session/runner/model"
 import { CorrectionExtractor } from "./session/correction-extractor"
 import { CorrectionStore } from "./session/correction-store"
 import { DoomLoop } from "./session/doom-loop"
+import { ReferenceChecker } from "./session/reference-checker"
 import { SystemContextBuiltIns } from "./system-context/builtins"
 import { FetchHttpClient } from "effect/unstable/http"
 
@@ -174,12 +175,17 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       Layer.provide(correctionStore),
       Layer.provide(services),
     )
+    const referenceChecker = ReferenceChecker.layer.pipe(
+      Layer.provide(correctionStore),
+      Layer.provide(services),
+    )
     const runner = SessionRunnerLLM.defaultLayer.pipe(
       Layer.provide(services),
       Layer.provide(model),
       Layer.provide(doomLoop),
       Layer.provide(correctionStore),
       Layer.provide(correctionExtractor),
+      Layer.provide(referenceChecker),
       Layer.provide(skillGuidance),
       Layer.provide(referenceGuidance),
     )

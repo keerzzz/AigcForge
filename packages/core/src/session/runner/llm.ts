@@ -36,6 +36,7 @@ import { SessionCompaction } from "../compaction"
 import { CorrectionExtractor } from "../correction-extractor"
 import { CorrectionStore } from "../correction-store"
 import { DoomLoop } from "../doom-loop"
+import { ReferenceChecker } from "../reference-checker"
 import { SessionEvent } from "../event"
 import { SessionHistory } from "../history"
 import { SessionMessage } from "../message"
@@ -128,6 +129,7 @@ export const layer = Layer.effect(
     const doomLoop = yield* DoomLoop.Service
     const correctionStore = yield* CorrectionStore.Service
     const correctionExtractor = yield* CorrectionExtractor.Service
+    const referenceChecker = yield* ReferenceChecker.Service
     const compaction = SessionCompaction.make({ events, llm, config: yield* config.entries() })
 
     const getSession = Effect.fn("SessionRunner.getSession")(function* (sessionID: SessionSchema.ID) {
@@ -226,11 +228,25 @@ export const layer = Layer.effect(
           assistantMessageID: input.assistantMessageID,
           call: { type: "tool-call", id: input.callID, name: input.toolName, input: input.toolInput },
         })
-        if (advisory.length === 0) return settlement
+        // Post-settle integrity checks. Each runs with its own timeout and
+        // skips instead of blocking; only known errors are absorbed, defects
+        // and interruptions pass through (tool/AGENTS.md).
+        const referenceWarning = yield* referenceChecker
+          .check({
+            sessionID: input.sessionID,
+            toolName: input.toolName,
+            toolInput: input.toolInput,
+          })
+          .pipe(Effect.exit)
+        const warnings = [advisory, ...(Exit.isSuccess(referenceWarning) ? [referenceWarning.value] : [])]
+        if (warnings.every((warning) => warning.length === 0)) return settlement
         if (settlement.result.type !== "text" && settlement.result.type !== "error") return settlement
         return {
           ...settlement,
-          result: { ...settlement.result, value: appendAdvisory(String(settlement.result.value), advisory) },
+          result: {
+            ...settlement.result,
+            value: appendAdvisory(String(settlement.result.value), warnings.filter((w) => w.length > 0).join("\n")),
+          },
         }
       })
 

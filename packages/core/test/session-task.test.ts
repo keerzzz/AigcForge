@@ -39,6 +39,10 @@ import * as SessionRunnerLLM from "@aigcfroge/core/session/runner/llm"
 import { DoomLoop } from "@aigcfroge/core/session/doom-loop"
 import { CorrectionExtractor } from "@aigcfroge/core/session/correction-extractor"
 import { CorrectionStore } from "@aigcfroge/core/session/correction-store"
+import { ReferenceChecker } from "@aigcfroge/core/session/reference-checker"
+import { Ripgrep } from "../src/ripgrep"
+import { RipgrepBinary } from "../src/ripgrep/binary"
+import { FSUtil } from "../src/fs-util"
 import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
 import { TaskDriver } from "@aigcfroge/core/tool/task-driver"
 import { TaskTool } from "@aigcfroge/core/tool/task"
@@ -281,6 +285,15 @@ const runner = SessionRunnerLLM.layer.pipe(
   Layer.provide(DoomLoop.layer),
   Layer.provide(CorrectionExtractor.layer),
   Layer.provide(CorrectionStore.layer),
+  Layer.provide(
+    ReferenceChecker.layer.pipe(
+      Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
+      Layer.provide(location),
+      Layer.provide(config),
+      Layer.provide(Ripgrep.layer.pipe(Layer.provide(RipgrepBinary.defaultLayer), Layer.provide(appProcess))),
+      Layer.provide(FSUtil.defaultLayer),
+    ),
+  ),
   Layer.provide(config),
 )
 const execution = Layer.effect(
