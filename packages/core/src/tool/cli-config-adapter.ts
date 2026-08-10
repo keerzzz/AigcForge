@@ -36,17 +36,15 @@ export function fromConfig(name: string, info: ConfigCliAgent.Info): CliAdapter 
       }
     },
     parseResumeHint: (stdout) => {
-      if (info.output === "claude-jsonl" || info.output === "codex-jsonl") {
-        for (const line of stdout.split("\n").filter(Boolean)) {
-          try {
-            const parsed = JSON.parse(line)
-            if (parsed.type === "session.resume_hint" && typeof parsed.sessionID === "string") return parsed.sessionID
-          } catch {
-            continue
-          }
-        }
+      switch (info.output ?? "plain") {
+        case "claude-jsonl":
+          return claudeCodeAdapter.parseResumeHint?.(stdout)
+        case "codex-jsonl":
+          return codexAdapter.parseResumeHint?.(stdout)
+        case "plain":
+        default:
+          return undefined
       }
-      return undefined
     },
     timeout: info.timeout,
     transport: info.transport,
