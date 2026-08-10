@@ -386,6 +386,9 @@ export function update(adapter: Adapter, event: SessionEvent.Event) {
         )
       },
       "session.next.cache.diagnostic": () => Effect.void,
+      "session.next.verify.started": () => Effect.void,
+      "session.next.verify.passed": () => Effect.void,
+      "session.next.verify.failed": () => Effect.void,
     })
   })
 }

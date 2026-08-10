@@ -484,6 +484,42 @@ export namespace Compaction {
   export type Stuck = typeof Stuck.Type
 }
 
+export namespace Verify {
+  const VerifyBase = {
+    ...Base,
+    tool: Schema.String,
+    packageDirectory: Schema.String,
+  }
+
+  export const Started = EventV2.define({
+    type: "session.next.verify.started",
+    ...options,
+    schema: VerifyBase,
+  })
+  export type Started = typeof Started.Type
+
+  export const Passed = EventV2.define({
+    type: "session.next.verify.passed",
+    ...options,
+    schema: {
+      ...VerifyBase,
+      durationMs: Schema.Finite,
+    },
+  })
+  export type Passed = typeof Passed.Type
+
+  export const Failed = EventV2.define({
+    type: "session.next.verify.failed",
+    ...options,
+    schema: {
+      ...VerifyBase,
+      durationMs: Schema.Finite,
+      error: Schema.String,
+    },
+  })
+  export type Failed = typeof Failed.Type
+}
+
 export namespace Cache {
   export const Diagnostic = EventV2.define({
     type: "session.next.cache.diagnostic",
@@ -526,6 +562,9 @@ const DurableDefinitions = [
   Tool.Progress,
   Tool.Success,
   Tool.Failed,
+  Verify.Started,
+  Verify.Passed,
+  Verify.Failed,
   Reasoning.Started,
   Reasoning.Ended,
   Retried,

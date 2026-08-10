@@ -37,6 +37,7 @@ import { CorrectionExtractor } from "../correction-extractor"
 import { CorrectionStore } from "../correction-store"
 import { DoomLoop } from "../doom-loop"
 import { ReferenceChecker } from "../reference-checker"
+import { Verifier } from "../verifier"
 import { SessionEvent } from "../event"
 import { SessionHistory } from "../history"
 import { SessionMessage } from "../message"
@@ -130,6 +131,7 @@ export const layer = Layer.effect(
     const correctionStore = yield* CorrectionStore.Service
     const correctionExtractor = yield* CorrectionExtractor.Service
     const referenceChecker = yield* ReferenceChecker.Service
+    const verifier = yield* Verifier.Service
     const compaction = SessionCompaction.make({ events, llm, config: yield* config.entries() })
 
     const getSession = Effect.fn("SessionRunner.getSession")(function* (sessionID: SessionSchema.ID) {
@@ -176,6 +178,7 @@ export const layer = Layer.effect(
       readonly providerExecuted: boolean
       readonly callID: string
       readonly assistantMessageID: SessionMessage.ID
+      readonly intent: IntentCategory | undefined
       readonly materialization: ToolRegistry.Materialization
     }): Effect.Effect<ToolRegistry.Settlement, ToolOutputStore.Error> =>
       Effect.gen(function* () {
@@ -238,7 +241,19 @@ export const layer = Layer.effect(
             toolInput: input.toolInput,
           })
           .pipe(Effect.exit)
-        const warnings = [advisory, ...(Exit.isSuccess(referenceWarning) ? [referenceWarning.value] : [])]
+        const verifyWarning = yield* verifier
+          .verify({
+            sessionID: input.sessionID,
+            toolName: input.toolName,
+            toolInput: input.toolInput,
+            intent: input.intent,
+          })
+          .pipe(Effect.exit)
+        const warnings = [
+          advisory,
+          ...(Exit.isSuccess(referenceWarning) ? [referenceWarning.value] : []),
+          ...(Exit.isSuccess(verifyWarning) ? [verifyWarning.value] : []),
+        ]
         if (warnings.every((warning) => warning.length === 0)) return settlement
         if (settlement.result.type !== "text" && settlement.result.type !== "error") return settlement
         return {
@@ -430,6 +445,7 @@ export const layer = Layer.effect(
                   providerExecuted: event.providerExecuted === true,
                   callID: event.id,
                   assistantMessageID,
+                  intent,
                   materialization: toolMaterialization,
                 }),
               ).pipe(

@@ -40,6 +40,7 @@ import { DoomLoop } from "@aigcfroge/core/session/doom-loop"
 import { CorrectionExtractor } from "@aigcfroge/core/session/correction-extractor"
 import { CorrectionStore } from "@aigcfroge/core/session/correction-store"
 import { ReferenceChecker } from "@aigcfroge/core/session/reference-checker"
+import { Verifier } from "@aigcfroge/core/session/verifier"
 import { Ripgrep } from "../src/ripgrep"
 import { RipgrepBinary } from "../src/ripgrep/binary"
 import { FSUtil } from "../src/fs-util"
@@ -241,6 +242,7 @@ const config = Layer.succeed(
             }),
             meta: ConfigMeta.Info.make({
               correction_store: ConfigMeta.CorrectionStore.make({ enabled: false }),
+              verifier: ConfigMeta.Verifier.make({ enabled: false }),
             }),
           }),
         }),
@@ -285,6 +287,15 @@ const runner = SessionRunnerLLM.layer.pipe(
   Layer.provide(DoomLoop.layer),
   Layer.provide(CorrectionExtractor.layer),
   Layer.provide(CorrectionStore.layer),
+  Layer.provide(
+    Verifier.layer.pipe(
+      Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
+      Layer.provide(EventV2.defaultLayer.pipe(Layer.provide(Database.defaultLayer))),
+      Layer.provide(location),
+      Layer.provide(appProcess),
+      Layer.provide(config),
+    ),
+  ),
   Layer.provide(
     ReferenceChecker.layer.pipe(
       Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
