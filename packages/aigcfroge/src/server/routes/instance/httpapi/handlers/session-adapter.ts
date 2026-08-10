@@ -42,6 +42,7 @@ export function v2InfoToV1(
       ? { id: info.model.id, providerID: info.model.providerID, variant: info.model.variant }
       : undefined,
     metadata: info.presetCategoryId ? { presetCategoryId: info.presetCategoryId } : undefined,
+    presetCategoryId: info.presetCategoryId,
     time: {
       created: DateTime.toEpochMillis(info.time.created),
       updated: DateTime.toEpochMillis(info.time.updated),
