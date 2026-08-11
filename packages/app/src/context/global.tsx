@@ -31,9 +31,26 @@ export const { use: useGlobal, provider: GlobalProvider } = createSimpleContext(
         if (lastSessionStore[scope] !== directory) setLastSessionStore(scope, directory)
       },
     }
+    // Persisted "last active session" per server scope: the most recently opened /
+    // navigated / sent session (view/send/home navigation all pass through
+    // sessionPlacement.onSet). The global home page pins it as「继续上次」.
+    const [lastActiveStore, setLastActiveStore] = persisted(
+      Persist.global("lastActiveSession", ["last-active-session.v1"]),
+      createStore({} as Record<string, { directory: string; sessionID: string }>),
+    )
+    const lastActiveSession = {
+      get(scope: ServerScope) {
+        return lastActiveStore[scope]
+      },
+      set(scope: ServerScope, value: { directory: string; sessionID: string }) {
+        setLastActiveStore(scope, value)
+      },
+    }
     const sessionPlacement = createSessionPlacementStore({
-      onSet: (serverKey, directory) => {
-        lastSession.set(server.scope(serverKey), directory)
+      onSet: (serverKey, directory, leafID) => {
+        const scope = server.scope(serverKey)
+        lastSession.set(scope, directory)
+        lastActiveSession.set(scope, { directory, sessionID: leafID })
       },
     })
     const serverHealth = useServerHealth(
@@ -110,6 +127,7 @@ export const { use: useGlobal, provider: GlobalProvider } = createSimpleContext(
       },
       sessionPlacement,
       lastSession,
+      lastActiveSession,
       ensureServerCtx(conn: ServerConnection.Any) {
         return ensureServerCtx(conn)
       },

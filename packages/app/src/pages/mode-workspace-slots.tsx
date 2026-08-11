@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createResource, createRoot, createSignal, For, onCleanup, Show, startTransition } from "solid-js"
+import { createEffect, createMemo, createResource, createRoot, createSignal, For, onCleanup, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useChatFeature } from "@/context/chat-feature"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
@@ -13,7 +13,7 @@ import { AssetSessionSelector } from "@/components/chat/asset-session-selector"
 import { ChatImportDialog, serializeImport, wrapImportContent } from "@/components/chat/chat-import-dialog"
 import { AssetDeleteDialog } from "@/components/chat/asset-delete-dialog"
 import { modeDraft, useMode } from "@/context/mode"
-import { openProjectNewSession, projectForSession, closeHomeProject, homeProjectDirectories, filterSessionsByMode } from "@/pages/layout/helpers"
+import { openProjectNewSession, openSessionRecord, closeHomeProject, homeProjectDirectories, filterSessionsByMode } from "@/pages/layout/helpers"
 import { useServerSync } from "@/context/server-sync"
 import { useLayout, type LocalProject } from "@/context/layout"
 import { useQuery } from "@tanstack/solid-query"
@@ -21,7 +21,7 @@ import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { pathKey } from "@/utils/path-key"
 import { useDirectoryPicker } from "@/components/directory-picker"
 import { HomeProjectColumn, HOME_SESSION_LIMIT, HomeSessionSearch, HomeSessionRow, HomeSessionGroupHeader, HomeSessionSkeleton,
-  buildHomeSessionRecords, groupSessions, matchesHomeSessionSearch,
+  buildHomeSessionRecords, groupSessions, matchesHomeSessionSearch, type HomeSessionRecord,
 } from "@/pages/home"
 import { useNotification } from "@/context/notification"
 import { useMarked } from "@aigcfroge/ui/context/marked"
@@ -284,28 +284,25 @@ export function CodingSessionListMain() {
     setState("searchFocused", false)
   }
 
-  function openSession(session: any) {
+  function openSession(record: HomeSessionRecord) {
     const conn = focusedServer()
     if (!conn) return
     const ctx = global.ensureServerCtx(conn)
-    const project = projectForSession(session, projects(), projectByID())
-    const directory = project?.worktree ?? session.directory
-    global.sessionPlacement.set({
+    openSessionRecord({
+      record,
+      conn,
       server: ServerConnection.key(conn),
-      leafID: session.id,
-      rootID: session.id,
-      directory: session.directory,
-    })
-    ctx.projects.open(directory)
-    ctx.projects.touch(directory)
-    void startTransition(() => {
-      const tab = tabs.addSessionTab({ server: ServerConnection.key(conn), sessionId: session.id })
-      tabs.select(tab)
+      global,
+      tabs,
+      projects: ctx.projects,
+      projectByID: projectByID(),
     })
   }
 
-  function selectSearchSession(session: any) {
-    openSession(session)
+  function selectSearchSession(session: Session) {
+    const record = searchResults().find((item) => item.session.id === session.id)
+    if (!record) return
+    openSession(record)
     closeSearch()
   }
 
@@ -385,7 +382,7 @@ export function CodingSessionListMain() {
                             record={record}
                             server={codingSel.selection.server}
                             activeServer={codingSel.selection.server === server.key}
-                            onClick={() => openSession(record.session)}
+                            onClick={() => openSession(record)}
                           />
                         )}
                       </For>
@@ -559,23 +556,18 @@ export function WorkPresetCatalogMain() {
     return c ? ServerConnection.key(c) : server.key
   })
 
-  function openWorkSession(session: Session) {
+  function openWorkSession(record: HomeSessionRecord) {
     const c = conn()
     const currentCtx = ctx()
     if (!c || !currentCtx) return
-    const project = projectForSession(session, projects(), projectByID())
-    const directory = project?.worktree ?? session.directory
-    global.sessionPlacement.set({
+    openSessionRecord({
+      record,
+      conn: c,
       server: ServerConnection.key(c),
-      leafID: session.id,
-      rootID: session.id,
-      directory: session.directory,
-    })
-    currentCtx.projects.open(directory)
-    currentCtx.projects.touch(directory)
-    void startTransition(() => {
-      const tab = tabs.addSessionTab({ server: ServerConnection.key(c), sessionId: session.id })
-      tabs.select(tab)
+      global,
+      tabs,
+      projects: currentCtx.projects,
+      projectByID: projectByID(),
     })
   }
 
@@ -680,7 +672,7 @@ export function WorkPresetCatalogMain() {
                           record={record}
                           server={activeConnKey()}
                           activeServer={activeConnKey() === server.key}
-                          onClick={() => openWorkSession(record.session)}
+                          onClick={() => openWorkSession(record)}
                         />
                       )}
                     </For>

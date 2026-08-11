@@ -139,7 +139,7 @@ export function ModeWorkspace() {
           class={
             "mx-auto grid h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-3 pb-3 lg:grid-rows-1 lg:px-6 lg:pb-16 lg:gap-8" +
             (mode.currentMode === "chat"
-              ? " lg:grid-cols-[280px_minmax(0,1fr)]"
+              ? " max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]"
               : mode.currentMode === "work"
                 ? " max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]"
                 : " max-w-[1080px] lg:grid-cols-[280px_minmax(0,720px)]")

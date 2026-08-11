@@ -720,9 +720,9 @@ async function selectHomeProject(page: Page, projectName: string) {
   await expectAppVisible(row)
   await row.click()
   await expect(row).toHaveAttribute("data-selected", "", { timeout: APP_READY_TIMEOUT })
-  // Selecting a project only updates coding selection state; `/` redirects to the
-  // default product mode route and no further navigation happens (ADR-12).
-  await expect(page).toHaveURL(/\/mode\/coding$/)
+  // ADR-16: `/` renders the global home overview and does not redirect; selecting
+  // a project only updates the selection state (ADR-12 redirect no longer applies).
+  await expect(page).toHaveURL(/\/$/)
 }
 
 async function navigateToSession(page: Page, directory: string, sessionId: string, expectedTitle: string) {

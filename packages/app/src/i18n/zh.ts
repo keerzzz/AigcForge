@@ -521,6 +521,12 @@ export const dict = {
   "home.sessions.group.today": "今天",
   "home.sessions.group.yesterday": "昨天",
   "home.sessions.group.older": "更早",
+  "home.overview.title": "首页",
+  "home.overview.continue": "继续上次",
+  "home.overview.all": "全部会话",
+  "home.overview.modeFilter": "模式筛选",
+  "home.overview.allProjects": "全部项目",
+  "home.overview.projectFilter": "项目",
 
   "mode.chat": "对话",
   "mode.chat.description": "通用对话和问答",

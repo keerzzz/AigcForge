@@ -7,6 +7,7 @@ import {
   onCleanup,
   onMount,
   Show,
+  type JSX,
 } from "solid-js"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { createStore } from "solid-js/store"
@@ -309,11 +310,12 @@ function HomeProjectList(props: {
   )
 }
 
-function HomeProjectRow(props: {
+export function HomeProjectRow(props: {
   project: LocalProject
   server: ServerConnection.Any
   selected: boolean
   unseenCount: number
+  count?: number
   selectProject: (server: ServerConnection.Any, directory: string) => void
   openNewSession: (server: ServerConnection.Any, directory: string) => void
   editProject: (server: ServerConnection.Any, project: LocalProject) => void
@@ -334,6 +336,9 @@ function HomeProjectRow(props: {
       >
         <HomeProjectAvatar project={props.project} />
         <span class={HOME_PROJECT_NAV_LABEL}>{displayName(props.project)}</span>
+        <Show when={props.count !== undefined}>
+          <span class="ml-auto shrink-0 pr-8 text-11-regular text-v2-text-text-faint">{props.count}</span>
+        </Show>
       </button>
       <div
         class="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5 opacity-0 transition-opacity group-hover/project:opacity-100 focus-within:opacity-100 data-[menu=true]:opacity-100"
@@ -706,6 +711,7 @@ export function HomeSessionRow(props: {
   server: ServerConnection.Key
   activeServer: boolean
   onClick: () => void
+  badge?: JSX.Element
 }) {
   const title = createMemo(() => sessionTitle(props.record.session.title) || props.record.session.id)
 
@@ -736,6 +742,7 @@ export function HomeSessionRow(props: {
         <span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-v2-text-text-base [font-weight:530] group-hover:translate-x-0.5 transition-transform duration-150">
           {title()}
         </span>
+        <Show when={props.badge}>{props.badge}</Show>
       </div>
       <span class="text-11-regular text-v2-text-text-muted opacity-80 shrink-0 font-mono select-none pl-2">
         {relativeTime()}
