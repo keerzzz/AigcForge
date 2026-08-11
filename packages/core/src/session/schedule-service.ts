@@ -102,6 +102,17 @@ export interface Interface {
    * running delivery back to cancelled-after-delivery.
    */
   readonly cancel: (id: Schedule.ID) => Effect.Effect<Schedule.Info | undefined>
+  /**
+   * Update a pending/running schedule's content/due time/timezone. A terminal
+   * row resolves `undefined`. Re-scheduling resets the retry state (attempts /
+   * nextAttemptAt) so a fresh due time starts a fresh delivery timeline.
+   */
+  readonly update: (input: {
+    readonly id: Schedule.ID
+    readonly content?: string
+    readonly dueAt?: number
+    readonly timezone?: string
+  }) => Effect.Effect<Schedule.Info | undefined>
   /** Claim a pending row into running with a lease (conditional; undefined when raced). */
   readonly claim: (id: Schedule.ID, owner: string, now: number) => Effect.Effect<Schedule.Info | undefined>
   /** Settle a running row into completed/failed. */
@@ -214,6 +225,38 @@ export const layer = Layer.effect(
       }),
     )
 
+    const update = Effect.fn("ScheduleService.update")((input: {
+      readonly id: Schedule.ID
+      readonly content?: string
+      readonly dueAt?: number
+      readonly timezone?: string
+    }) =>
+      Effect.gen(function* () {
+        const row = yield* db.select().from(ScheduleTable).where(eq(ScheduleTable.id, input.id)).get().pipe(Effect.orDie)
+        if (!row) return undefined
+        if (row.status !== "pending" && row.status !== "running") return undefined
+        const rescheduled = input.dueAt !== undefined && input.dueAt !== row.due_at
+        const updated = yield* db
+          .update(ScheduleTable)
+          .set({
+            ...(input.content !== undefined ? { content: input.content } : {}),
+            ...(input.dueAt !== undefined ? { due_at: input.dueAt } : {}),
+            ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+            // Re-scheduling resets the retry timeline: a fresh due time means a
+            // fresh delivery attempt budget.
+            ...(rescheduled ? { attempts: 0, next_attempt_at: null } : {}),
+            time_updated: Date.now(),
+          })
+          .where(and(eq(ScheduleTable.id, input.id), or(eq(ScheduleTable.status, "pending"), eq(ScheduleTable.status, "running"))))
+          .returning()
+          .get()
+          .pipe(Effect.orDie)
+        if (!updated) return toInfo(row)
+        yield* publishSchedules({ db, events, sessionID: row.session_id })
+        return toInfo(updated)
+      }),
+    )
+
     const claim = Effect.fn("ScheduleService.claim")((id: Schedule.ID, owner: string, now: number) =>
       Effect.gen(function* () {
         const row = yield* db
@@ -259,7 +302,7 @@ export const layer = Layer.effect(
       }),
     )
 
-    return Service.of({ create, list, listPending, countPending, cancel, claim, settle, recoverClaim })
+    return Service.of({ create, list, listPending, countPending, cancel, update, claim, settle, recoverClaim })
   }),
 )
 
