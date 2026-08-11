@@ -138,3 +138,4 @@
 | dompurify 锁定 3.4.6 | session-ui | 残留 moderate advisory（IN_PLACE/setConfig/hook 污染类，本仓静态配置+单 hook 用法不可达）；≥3.4.7 与 happy-dom 探针环境不兼容（p/a/svg 被误剥、foreignObject 误放），升级前须先迁移探针到真实浏览器环境 | TBD | 2026-08-27 |
 | 工具活动 doom_loop 拦截统计依赖 runner 错误文案匹配（"blocked by doom_loop approval"） | app | `session/runner/llm.ts` 文案变更会静默漏计；且只覆盖 denied/rejected，CorrectedError 反馈不计入。根治：事件层为 tool error 加结构化标记（如 `cause: "doom-loop"`），UI 按字段判断 | TBD | 事件层加标记时 |
 | 工具活动统计随会话压缩缩水 | app | 统计基于消息 parts，compaction 重写历史后旧 part 被丢弃，计数仅反映当前上下文窗口。根治：event/DB 层聚合持久统计，UI 只读 | TBD | 需要持久指标时 |
+| 多文件不符合 Prettier 格式规范 | 全仓 | 仓库无 pre-commit format hook，部分文件（如 `verifier.ts`、`reference-checker.ts`）在 main 就不符合 prettier 格式；分支审查时难以区分新旧格式问题。根治：统一跑 `prettier --write` 全仓格式化一次，配合 CI 加 format check 门禁 | TBD | 下次全仓 lint 清理时 |

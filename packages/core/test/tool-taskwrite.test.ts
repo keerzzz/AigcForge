@@ -39,6 +39,14 @@ import { SessionRunCoordinator } from "@aigcfroge/core/session/run-coordinator"
 import { SessionRunner } from "@aigcfroge/core/session/runner"
 import * as SessionRunnerLLM from "@aigcfroge/core/session/runner/llm"
 import { DoomLoop } from "@aigcfroge/core/session/doom-loop"
+import { CorrectionExtractor } from "@aigcfroge/core/session/correction-extractor"
+import { CorrectionStore } from "@aigcfroge/core/session/correction-store"
+import { ReferenceChecker } from "@aigcfroge/core/session/reference-checker"
+import { Verifier } from "@aigcfroge/core/session/verifier"
+import { VerificationRouter } from "@aigcfroge/core/session/verification-router"
+import { Ripgrep } from "../src/ripgrep"
+import { RipgrepBinary } from "../src/ripgrep/binary"
+import { FSUtil } from "../src/fs-util"
 import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { TaskDriver } from "@aigcfroge/core/tool/task-driver"
@@ -52,6 +60,7 @@ import { BackgroundJob } from "@aigcfroge/core/background-job"
 import { SkillV2 } from "@aigcfroge/core/skill"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { Config } from "@aigcfroge/core/config"
+import { ConfigMeta } from "../src/config/meta"
 import { ConfigCompaction } from "@aigcfroge/core/config/compaction"
 import { SessionTable } from "@aigcfroge/core/session/sql"
 import { SessionStore } from "@aigcfroge/core/session/store"
@@ -188,6 +197,10 @@ const config = Layer.succeed(
               buffer: 100_000,
               keep: new ConfigCompaction.Keep({ tokens: 50_000 }),
             }),
+            meta: ConfigMeta.Info.make({
+              correction_store: ConfigMeta.CorrectionStore.make({ enabled: false }),
+              verifier: ConfigMeta.Verifier.make({ enabled: false }),
+            }),
           }),
         }),
       ]),
@@ -216,6 +229,27 @@ const runner = SessionRunnerLLM.layer.pipe(
   Layer.provide(skillGuidance),
   Layer.provide(referenceGuidance),
   Layer.provide(DoomLoop.layer),
+  Layer.provide(CorrectionExtractor.layer),
+  Layer.provide(CorrectionStore.layer),
+  Layer.provide(
+    Verifier.layer.pipe(
+      Layer.provide(VerificationRouter.layer.pipe(Layer.provide(config))),
+      Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
+      Layer.provide(EventV2.defaultLayer.pipe(Layer.provide(Database.defaultLayer))),
+      Layer.provide(location),
+      Layer.provide(appProcess),
+      Layer.provide(config),
+    ),
+  ),
+  Layer.provide(
+    ReferenceChecker.layer.pipe(
+      Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
+      Layer.provide(location),
+      Layer.provide(config),
+      Layer.provide(Ripgrep.layer.pipe(Layer.provide(RipgrepBinary.defaultLayer), Layer.provide(appProcess))),
+      Layer.provide(FSUtil.defaultLayer),
+    ),
+  ),
   Layer.provide(config),
 )
 const execution = Layer.effect(
