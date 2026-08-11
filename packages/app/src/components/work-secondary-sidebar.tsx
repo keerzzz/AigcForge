@@ -1,23 +1,17 @@
 import { createEffect, createMemo, Show, For, type Accessor } from "solid-js"
 import { useParams } from "@solidjs/router"
-import { getFilename } from "@aigcfroge/core/util/path"
 import { base64Encode } from "@aigcfroge/core/util/encode"
-import { Icon } from "@aigcfroge/ui/v2/icon"
-import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
-import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { useLanguage } from "@/context/language"
-import { isMode, modeDefinition, modeDraft } from "@/context/mode"
-import { useGlobal } from "@/context/global"
-import { useTabs } from "@/context/tabs"
+import { Icon } from "@aigcfroge/ui/v2/icon"
+import { ModeLocationNewSession } from "@/components/mode-location-new-session"
+import { isMode, modeDefinition } from "@/context/mode"
 import { ServerConnection } from "@/context/server"
 import { useServerSync } from "@/context/server-sync"
-import { useDirectoryPicker } from "@/components/directory-picker"
-import { useChatDirectory } from "@/pages/mode-workspace-context"
 import { useWorkSecondaryTab } from "@/context/work-secondary-tab"
 import { computeWorkSidebarGroups } from "@/pages/work-sidebar-groups"
 import { SessionItem, SessionSkeleton } from "@/pages/layout/sidebar-items"
-import { sortedRootSessions, openProjectNewSession, homeProjectDirectories } from "@/pages/layout/helpers"
+import { sortedRootSessions } from "@/pages/layout/helpers"
 import type { WorkspaceSidebarContext } from "@/pages/layout/sidebar-workspace"
 
 /**
@@ -159,74 +153,7 @@ export function WorkSecondarySidebar(props: {
  * Work Location 栏 + New Session（批次 1 §3.2 顶部，抽取自
  * WorkProjectColumnSidebar，work 首页与会话详情页共用）。
  */
+/** @deprecated Use the shared ModeLocationNewSession (mode-location-new-session.tsx). */
 export function WorkLocationNewSession(props: { directory: Accessor<string | undefined> }) {
-  const language = useLanguage()
-  const global = useGlobal()
-  const tabs = useTabs()
-  const pickDirectory = useDirectoryPicker()
-  const { conn, ctx } = useChatDirectory()
-
-  function newSession() {
-    const c = conn()
-    const currentCtx = ctx()
-    const dir = props.directory()
-    if (!c || !currentCtx || !dir) return
-    openProjectNewSession(
-      currentCtx.projects,
-      (serverKey, draftDirectory) =>
-        tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft("work") }),
-      ServerConnection.key(c),
-      dir,
-    )
-  }
-
-  function addProject() {
-    const c = conn()
-    const currentCtx = ctx()
-    if (!c || !currentCtx) return
-    pickDirectory({
-      server: c,
-      title: language.t("command.project.open"),
-      multiple: true,
-      onSelect: (result) => {
-        const dirs = homeProjectDirectories(result)
-        const directory = dirs[0]
-        if (!directory) return
-        dirs.forEach((dir) => currentCtx.projects.open(dir))
-        currentCtx.projects.touch(directory)
-        global.lastSession.set(currentCtx.sdk.scope, directory)
-      },
-    })
-  }
-
-  return (
-    <div class="flex min-h-0 shrink-0 flex-col">
-      <div class="flex items-center gap-1.5 border-b border-v2-border-border-base px-3 pb-3 pt-3">
-        <Icon name="mode-work" size="small" class="shrink-0 text-v2-icon-icon-muted" />
-        <span class="shrink-0 text-v2-text-text-muted text-11-regular">{language.t("chat.feature.project")}</span>
-        <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-11-regular">
-          {props.directory() ? getFilename(props.directory()) || props.directory() : language.t("work.preset.noLocation")}
-        </span>
-        <IconButtonV2
-          variant="ghost-muted"
-          size="small"
-          icon={<Icon name="folder-add-left" />}
-          aria-label={language.t("sidebar.secondary.addProject")}
-          onClick={addProject}
-        />
-      </div>
-      <div class="px-3 pb-2 pt-3">
-        <ButtonV2
-          variant="neutral"
-          size="normal"
-          icon="edit"
-          class="w-full"
-          disabled={!props.directory()}
-          onClick={newSession}
-        >
-          {language.t("command.session.new")}
-        </ButtonV2>
-      </div>
-    </div>
-  )
+  return <ModeLocationNewSession directory={props.directory} mode="work" />
 }

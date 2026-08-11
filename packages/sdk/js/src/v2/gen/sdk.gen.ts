@@ -44,6 +44,12 @@ import type {
   ConfigProvidersResponses,
   ConfigUpdateErrors,
   ConfigUpdateResponses,
+  DeliveryInboxErrors,
+  DeliveryInboxResponses,
+  DeliveryReadErrors,
+  DeliveryReadResponses,
+  DeliveryRecentErrors,
+  DeliveryRecentResponses,
   EventSubscribeResponses,
   EventTuiCommandExecute,
   EventTuiPromptAppend,
@@ -220,6 +226,12 @@ import type {
   QuestionReplyErrors,
   QuestionReplyResponses,
   QuestionV2Reply,
+  ScheduleCancelErrors,
+  ScheduleCancelResponses,
+  ScheduleListErrors,
+  ScheduleListResponses,
+  SchedulePendingErrors,
+  SchedulePendingResponses,
   SessionAbortErrors,
   SessionAbortResponses,
   SessionCacheDiagnosticsErrors,
@@ -4227,6 +4239,111 @@ export class AgentAsset extends HeyApiClient {
         ...options?.headers,
         ...params.headers,
       },
+    })
+  }
+}
+
+export class Schedule extends HeyApiClient {
+  /**
+   * All pending schedules
+   *
+   * Cross-session pending schedule list for the assistant dashboard and icon-rail badge.
+   */
+  public pending<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<SchedulePendingResponses, SchedulePendingErrors, ThrowOnError>({
+      url: "/schedule/pending",
+      ...options,
+    })
+  }
+
+  /**
+   * List schedules of a session
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
+    return (options?.client ?? this.client).get<ScheduleListResponses, ScheduleListErrors, ThrowOnError>({
+      url: "/schedule/{sessionID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Cancel a reminder
+   *
+   * A cancelled reminder is never delivered.
+   */
+  public cancel<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }])
+    return (options?.client ?? this.client).post<ScheduleCancelResponses, ScheduleCancelErrors, ThrowOnError>({
+      url: "/schedule/{id}/cancel",
+      ...options,
+      ...params,
+    })
+  }
+}
+
+export class Delivery extends HeyApiClient {
+  /**
+   * Recent deliveries
+   *
+   * Cross-session recent inbox records for the assistant dashboard.
+   */
+  public recent<ThrowOnError extends boolean = false>(
+    parameters?: {
+      limit?: string | "Infinity" | "-Infinity" | "NaN"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "limit" }] }])
+    return (options?.client ?? this.client).get<DeliveryRecentResponses, DeliveryRecentErrors, ThrowOnError>({
+      url: "/delivery/recent",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * List the inbox of a session
+   */
+  public inbox<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
+    return (options?.client ?? this.client).get<DeliveryInboxResponses, DeliveryInboxErrors, ThrowOnError>({
+      url: "/delivery/{sessionID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Mark an inbox delivery read
+   */
+  public read<ThrowOnError extends boolean = false>(
+    parameters: {
+      deliveryKey: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "deliveryKey" }] }])
+    return (options?.client ?? this.client).post<DeliveryReadResponses, DeliveryReadErrors, ThrowOnError>({
+      url: "/delivery/{deliveryKey}/read",
+      ...options,
+      ...params,
     })
   }
 }
@@ -8839,6 +8956,16 @@ export class AigcfrogeClient extends HeyApiClient {
   private _agentAsset?: AgentAsset
   get agentAsset(): AgentAsset {
     return (this._agentAsset ??= new AgentAsset({ client: this.client }))
+  }
+
+  private _schedule?: Schedule
+  get schedule(): Schedule {
+    return (this._schedule ??= new Schedule({ client: this.client }))
+  }
+
+  private _delivery?: Delivery
+  get delivery(): Delivery {
+    return (this._delivery ??= new Delivery({ client: this.client }))
   }
 
   private _agentTask?: AgentTask

@@ -47,6 +47,16 @@ export const ScheduleApi = HttpApi.make("schedule").add(
       ),
     )
     .add(
+      HttpApiEndpoint.get("recent", `${deliveryRoot}/recent`, {
+        query: Schema.Struct({ limit: Schema.optional(Schema.Number) }),
+        success: described(Schema.Array(Schedule.Delivery), "Recent inbox records process-wide"),
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "delivery.recent",
+          summary: "Recent deliveries",
+          description: "Cross-session recent inbox records for the assistant dashboard.",
+        }),
+      ),
       HttpApiEndpoint.get("inbox", `${deliveryRoot}/:sessionID`, {
         params: Schema.Struct({ sessionID: Schema.String }),
         success: described(Schema.Array(Schedule.Delivery), "Inbox deliveries of a session"),

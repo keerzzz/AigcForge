@@ -31,7 +31,7 @@ import type { Session, WorkflowAssetSummary } from "@aigcfroge/sdk/v2/client"
 import { assetVersion } from "@/components/chat/prompt-asset-store"
 import { buildWorkPresetCatalog } from "@/pages/work-preset-catalog"
 import { presetLaunch, workflowLaunch } from "@/pages/work-preset-launch"
-import { WorkLocationNewSession } from "@/components/work-secondary-sidebar"
+import { ModeLocationNewSession } from "@/components/mode-location-new-session"
 
 /** Coding 左侧栏：项目列 + 服务器管理（复用 HomeProjectColumn，hooks 对齐旧 Home 组件） */
 export function CodingProjectColumnSidebar() {
@@ -514,7 +514,7 @@ export function PlaceholderMain(_props: { mode: string }) {
 /** Work 侧栏：项目 Location 选择器 + 新建会话（顶部逻辑与 WorkSecondarySidebar 共享） */
 export function WorkProjectColumnSidebar() {
   const { directory } = useChatDirectory()
-  return <WorkLocationNewSession directory={directory} />
+  return <ModeLocationNewSession directory={directory} mode="work" />
 }
 
 /** Work 主区：继续工作 + 官方预设 + 你的工作流资产（M1 §3.5 三区块） */

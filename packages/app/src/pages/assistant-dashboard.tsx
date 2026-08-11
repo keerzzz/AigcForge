@@ -1,0 +1,245 @@
+import { createMemo, For, Show } from "solid-js"
+import { useQuery } from "@tanstack/solid-query"
+import { Icon } from "@aigcfroge/ui/v2/icon"
+import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
+import { ScrollView } from "@aigcfroge/ui/scroll-view"
+import { useLanguage } from "@/context/language"
+import { useGlobal } from "@/context/global"
+import { useTabs } from "@/context/tabs"
+import { useServer, ServerConnection } from "@/context/server"
+import { useServerSDK } from "@/context/server-sdk"
+import { useChatDirectory } from "@/pages/mode-workspace-context"
+import { modeDraft } from "@/context/mode"
+import { useServerSync } from "@/context/server-sync"
+import { useLayout } from "@/context/layout"
+import { openProjectNewSession, openSessionRecord, filterSessionsByMode } from "@/pages/layout/helpers"
+import {
+  HOME_SESSION_LIMIT,
+  HomeSessionRow,
+  HomeSessionGroupHeader,
+  HomeSessionSkeleton,
+  buildHomeSessionRecords,
+  groupSessions,
+  type HomeSessionRecord,
+} from "@/pages/home"
+import type { ScheduleInfo } from "@aigcfroge/sdk/v2/client"
+
+/**
+ * Assistant Dashboard 主区（计划 §3.9.1）：顶部标题区 + 待办提醒横条（主心智，
+ * 始终显示）+ 最近投递（空态隐藏）+ 会话列表（共享管道）。
+ */
+export function AssistantDashboardMain() {
+  const language = useLanguage()
+  const tabs = useTabs()
+  const sync = useServerSync()
+  const global = useGlobal()
+  const server = useServer()
+  const serverSDK = useServerSDK()
+  const layout = useLayout()
+  const { conn, ctx, directory } = useChatDirectory()
+
+  // ---- ① 待办提醒（跨会话，全局角标同源） ----
+  const pendingQuery = useQuery(() => ({
+    queryKey: ["assistant", "pending"] as const,
+    queryFn: async () => {
+      const res = await serverSDK().client.schedule.pending()
+      return res.data ?? []
+    },
+  }))
+  const pending = createMemo(() => pendingQuery.data ?? [])
+
+  // ---- ② 最近投递（收件箱，跨会话） ----
+  const recentQuery = useQuery(() => ({
+    queryKey: ["assistant", "recent"] as const,
+    queryFn: async () => {
+      const res = await serverSDK().client.delivery.recent({ limit: String(6) })
+      return res.data ?? []
+    },
+  }))
+  const recent = createMemo(() => recentQuery.data ?? [])
+
+  // ---- ④ 会话列表（复用 home 共享管道） ----
+  const projects = createMemo(() => ctx()?.projects.list() ?? layout.projects.list())
+  const projectByID = createMemo(
+    () => new Map(projects().flatMap((project) => (project.id ? [[project.id, project] as const] : []))),
+  )
+  const projectDirectories = createMemo(() => {
+    const dir = directory()
+    return dir ? [dir] : []
+  })
+  const sessionLoad = useQuery(() => ({
+    queryKey: ["home", "assistant-sessions", ...projectDirectories()] as const,
+    queryFn: async () => {
+      await Promise.all(projectDirectories().map((d) => sync().project.loadSessions(d, { limit: HOME_SESSION_LIMIT })))
+      return null
+    },
+  }))
+  const records = createMemo(() => {
+    const all = buildHomeSessionRecords({ sync: sync(), projectDirectories, projects, projectByID })
+    return filterSessionsByMode(all, "assistant").slice(0, HOME_SESSION_LIMIT)
+  })
+  const groups = createMemo(() => groupSessions(records(), language))
+  const activeConnKey = createMemo(() => {
+    const c = conn()
+    return c ? ServerConnection.key(c) : server.key
+  })
+
+  function openAssistantSession(record: HomeSessionRecord) {
+    const c = conn()
+    const currentCtx = ctx()
+    if (!c || !currentCtx) return
+    openSessionRecord({
+      record,
+      conn: c,
+      server: ServerConnection.key(c),
+      global,
+      tabs,
+      projects: currentCtx.projects,
+      projectByID: projectByID(),
+    })
+  }
+
+  function newAssistantSession() {
+    const c = conn()
+    const currentCtx = ctx()
+    const dir = directory()
+    if (!c || !currentCtx || !dir) return
+    openProjectNewSession(
+      currentCtx.projects,
+      (serverKey, draftDirectory) =>
+        tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft("assistant") }),
+      ServerConnection.key(c),
+      dir,
+    )
+  }
+
+  function cancelReminder(id: string) {
+    void serverSDK().client.schedule.cancel({ id }).then(() => pendingQuery.refetch())
+  }
+
+  function markRead(deliveryKey: string) {
+    void serverSDK().client.delivery.read({ deliveryKey }).then(() => recentQuery.refetch())
+  }
+
+  const formatDue = (dueAt: number | "-Infinity" | "Infinity" | "NaN") =>
+    new Date(typeof dueAt === "number" ? dueAt : Date.now()).toLocaleString()
+
+  return (
+    <ScrollView class="min-h-0 flex-1">
+      <div class="flex min-h-0 flex-col gap-6 px-6 py-5">
+        {/* 顶部标题区（统一骨架 ③） */}
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex flex-col gap-1">
+            <h1 class="text-v2-text-text-base text-16-medium">{language.t("assistant.dashboard.title")}</h1>
+            <p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.dashboard.subtitle")}</p>
+          </div>
+          <IconButtonV2
+            variant="neutral"
+            size="normal"
+            icon={<Icon name="plus" />}
+            aria-label={language.t("assistant.dashboard.new")}
+            onClick={newAssistantSession}
+          />
+        </div>
+
+        {/* ② 待办提醒横条（主心智，始终显示） */}
+        <section class="flex min-w-0 flex-col gap-3">
+          <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.dashboard.reminders")}</h2>
+          <div class="flex min-w-0 flex-col gap-2 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
+            <Show
+              when={pending().length > 0}
+              fallback={
+                <p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.dashboard.reminders.empty")}</p>
+              }
+            >
+              <p class="text-v2-text-text-base text-13-medium">
+                {language.t("assistant.dashboard.pendingCount", { count: String(pending().length) })}
+              </p>
+              <div class="flex min-w-0 flex-col gap-px">
+                <For each={pending()}>
+                  {(reminder: ScheduleInfo) => (
+                    <div class="flex min-w-0 items-center gap-2 py-1">
+                      <Icon name="mode-assistant" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+                      <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">
+                        {reminder.content}
+                      </span>
+                      <span class="shrink-0 text-v2-text-text-muted text-11-regular">
+                        {formatDue(reminder.dueAt)} · {reminder.timezone}
+                      </span>
+                      <IconButtonV2
+                        variant="ghost-muted"
+                        size="small"
+                        icon={<Icon name="close" />}
+                        aria-label={language.t("assistant.dashboard.cancel")}
+                        onClick={() => cancelReminder(reminder.id)}
+                      />
+                    </div>
+                  )}
+                </For>
+              </div>
+            </Show>
+          </div>
+        </section>
+
+        {/* ③ 最近投递（辅助区块，空态隐藏） */}
+        <Show when={recent().length > 0}>
+          <section class="flex min-w-0 flex-col gap-3">
+            <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.dashboard.recent")}</h2>
+            <div class="flex min-w-0 flex-col gap-px">
+              <For each={recent()}>
+                {(delivery) => (
+                  <div class="flex min-w-0 items-center gap-2 py-1">
+                    <Icon name="check" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+                    <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">
+                      {delivery.content}
+                    </span>
+                    <span class="shrink-0 text-v2-text-text-muted text-11-regular">
+                      {formatDue(delivery.deliveredAt)}
+                    </span>
+                    <Show when={delivery.caughtUp}>
+                      <span class="shrink-0 text-v2-text-text-faint text-11-regular">caught up</span>
+                    </Show>
+                    <IconButtonV2
+                      variant="ghost-muted"
+                      size="small"
+                      icon={<Icon name="check" />}
+                      aria-label={language.t("assistant.dashboard.markRead")}
+                      onClick={() => markRead(delivery.deliveryKey)}
+                    />
+                  </div>
+                )}
+              </For>
+            </div>
+          </section>
+        </Show>
+
+        {/* ④ 会话列表（共享管道） */}
+        <section class="flex min-w-0 flex-col gap-3">
+          <Show when={!sessionLoad.isLoading} fallback={<HomeSessionSkeleton label={language.t("assistant.dashboard.title")} />}>
+            <Show when={groups().length > 0}>
+              <div class="flex min-w-0 flex-col gap-px">
+                <For each={groups()}>
+                  {(group) => (
+                    <div class="flex min-w-0 flex-col gap-2">
+                      <HomeSessionGroupHeader title={group.title} />
+                      <For each={group.sessions}>
+                        {(record) => (
+                          <HomeSessionRow
+                            record={record}
+                            server={activeConnKey()}
+                            activeServer={activeConnKey() === server.key}
+                            onClick={() => openAssistantSession(record)}
+                          />
+                        )}
+                      </For>
+                    </div>
+                  )}
+                </For>
+              </div>
+            </Show>
+          </Show>
+        </section>
+      </div>
+    </ScrollView>
+  )
+}

@@ -50,6 +50,9 @@ export type Event =
   | EventSessionNextCompactionEnded
   | EventSessionNextCompactionSoftWarning
   | EventSessionNextCompactionStuck
+  | EventSessionNextVerifyStarted
+  | EventSessionNextVerifyPassed
+  | EventSessionNextVerifyFailed
   | EventSessionNextCacheDiagnostic
   | EventFileWatcherUpdated
   | EventMessagePartDelta
@@ -74,6 +77,8 @@ export type Event =
   | EventWorkStepResumed
   | EventTodoUpdated
   | EventTaskProgress
+  | EventScheduleUpdated
+  | EventScheduleDelivered
   | EventWorkAssetSaved
   | EventWorkArtifactApplied
   | EventLspUpdated
@@ -677,6 +682,10 @@ export type TaskRecurrence = {
   enabled: boolean
 }
 
+export type ScheduleKind = "reminder"
+
+export type ScheduleStatus = "pending" | "running" | "completed" | "cancelled" | "failed"
+
 export type SessionStatus =
   | {
       type: "idle"
@@ -1251,6 +1260,39 @@ export type GlobalEvent = {
       }
     | {
         id: string
+        type: "session.next.verify.started"
+        properties: {
+          timestamp: number
+          sessionID: string
+          tool: string
+          packageDirectory: string
+        }
+      }
+    | {
+        id: string
+        type: "session.next.verify.passed"
+        properties: {
+          timestamp: number
+          sessionID: string
+          tool: string
+          packageDirectory: string
+          durationMs: number
+        }
+      }
+    | {
+        id: string
+        type: "session.next.verify.failed"
+        properties: {
+          timestamp: number
+          sessionID: string
+          tool: string
+          packageDirectory: string
+          durationMs: number
+          error: string
+        }
+      }
+    | {
+        id: string
         type: "session.next.cache.diagnostic"
         properties: {
           timestamp: number
@@ -1467,6 +1509,22 @@ export type GlobalEvent = {
           current?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
           total?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
           updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "schedule.updated"
+        properties: {
+          sessionID: string
+          schedules: Array<ScheduleInfo>
+        }
+      }
+    | {
+        id: string
+        type: "schedule.delivered"
+        properties: {
+          sessionID: string
+          delivery: ScheduleDelivery
         }
       }
     | {
@@ -1767,6 +1825,9 @@ export type GlobalEvent = {
     | SyncEventSessionNextRetried
     | SyncEventSessionNextCompactionStarted
     | SyncEventSessionNextCompactionEnded
+    | SyncEventSessionNextVerifyStarted
+    | SyncEventSessionNextVerifyPassed
+    | SyncEventSessionNextVerifyFailed
 }
 
 /**
@@ -3472,6 +3533,9 @@ export type V2Event =
   | V2EventSessionNextCompactionEnded
   | V2EventSessionNextCompactionSoftWarning
   | V2EventSessionNextCompactionStuck
+  | V2EventSessionNextVerifyStarted
+  | V2EventSessionNextVerifyPassed
+  | V2EventSessionNextVerifyFailed
   | V2EventSessionNextCacheDiagnostic
   | V2EventFileWatcherUpdated
   | V2EventMessagePartDelta
@@ -3496,6 +3560,8 @@ export type V2Event =
   | V2EventWorkStepResumed
   | V2EventTodoUpdated
   | V2EventTaskProgress
+  | V2EventScheduleUpdated
+  | V2EventScheduleDelivered
   | V2EventWorkAssetSaved
   | V2EventWorkArtifactApplied
   | V2EventLspUpdated
@@ -3750,6 +3816,52 @@ export type SessionTaskTodoProjection = {
   content: string
   status: string
   priority: string
+}
+
+export type ScheduleInfo = {
+  id: string
+  sessionID: string
+  kind: ScheduleKind
+  /**
+   * User-confirmed reminder text
+   */
+  content: string
+  dueAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  /**
+   * User-confirmed IANA timezone
+   */
+  timezone: string
+  status: ScheduleStatus
+  attempts: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  /**
+   * Bounded retry state
+   */
+  nextAttemptAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  leaseOwner?: string
+  leaseExpiresAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  /**
+   * Stable idempotency key across retries
+   */
+  deliveryKey: string
+  createdAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+}
+
+export type ScheduleDelivery = {
+  deliveryKey: string
+  scheduleID: string
+  sessionID: string
+  kind: ScheduleKind
+  /**
+   * Displayable content snapshot at delivery time
+   */
+  content: string
+  deliveredAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  /**
+   * True when delivered by offline catch-up after restart
+   */
+  caughtUp: boolean
+  createdAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
 }
 
 export type EventServerInstanceDisposed = {
@@ -4421,6 +4533,60 @@ export type SyncEventSessionNextCompactionEnded = {
       reason: "auto" | "manual"
       text: string
       recent: string
+    }
+  }
+}
+
+export type SyncEventSessionNextVerifyStarted = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "session.next.verify.started.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      timestamp: number
+      sessionID: string
+      tool: string
+      packageDirectory: string
+    }
+  }
+}
+
+export type SyncEventSessionNextVerifyPassed = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "session.next.verify.passed.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      timestamp: number
+      sessionID: string
+      tool: string
+      packageDirectory: string
+      durationMs: number
+    }
+  }
+}
+
+export type SyncEventSessionNextVerifyFailed = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "session.next.verify.failed.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      timestamp: number
+      sessionID: string
+      tool: string
+      packageDirectory: string
+      durationMs: number
+      error: string
     }
   }
 }
@@ -6377,6 +6543,69 @@ export type V2EventSessionNextCompactionStuck = {
   }
 }
 
+export type V2EventSessionNextVerifyStarted = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "session.next.verify.started"
+  data: {
+    timestamp: number
+    sessionID: string
+    tool: string
+    packageDirectory: string
+  }
+}
+
+export type V2EventSessionNextVerifyPassed = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "session.next.verify.passed"
+  data: {
+    timestamp: number
+    sessionID: string
+    tool: string
+    packageDirectory: string
+    durationMs: number
+  }
+}
+
+export type V2EventSessionNextVerifyFailed = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "session.next.verify.failed"
+  data: {
+    timestamp: number
+    sessionID: string
+    tool: string
+    packageDirectory: string
+    durationMs: number
+    error: string
+  }
+}
+
 export type V2EventSessionNextCacheDiagnostic = {
   id: string
   metadata?: {
@@ -6834,6 +7063,42 @@ export type V2EventTaskProgress = {
     current?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
     total?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
     updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventScheduleUpdated = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "schedule.updated"
+  data: {
+    sessionID: string
+    schedules: Array<ScheduleInfo>
+  }
+}
+
+export type V2EventScheduleDelivered = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "schedule.delivered"
+  data: {
+    sessionID: string
+    delivery: ScheduleDelivery
   }
 }
 
@@ -7968,6 +8233,42 @@ export type EventSessionNextCompactionStuck = {
   }
 }
 
+export type EventSessionNextVerifyStarted = {
+  id: string
+  type: "session.next.verify.started"
+  properties: {
+    timestamp: number
+    sessionID: string
+    tool: string
+    packageDirectory: string
+  }
+}
+
+export type EventSessionNextVerifyPassed = {
+  id: string
+  type: "session.next.verify.passed"
+  properties: {
+    timestamp: number
+    sessionID: string
+    tool: string
+    packageDirectory: string
+    durationMs: number
+  }
+}
+
+export type EventSessionNextVerifyFailed = {
+  id: string
+  type: "session.next.verify.failed"
+  properties: {
+    timestamp: number
+    sessionID: string
+    tool: string
+    packageDirectory: string
+    durationMs: number
+    error: string
+  }
+}
+
 export type EventSessionNextCacheDiagnostic = {
   id: string
   type: "session.next.cache.diagnostic"
@@ -8246,6 +8547,73 @@ export type EventTaskProgress = {
     current?: number | "NaN" | "Infinity" | "-Infinity"
     total?: number | "NaN" | "Infinity" | "-Infinity"
     updatedAt: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type ScheduleInfo2 = {
+  id: string
+  sessionID: string
+  kind: ScheduleKind
+  /**
+   * User-confirmed reminder text
+   */
+  content: string
+  /**
+   * Normalized absolute due timestamp (ms)
+   */
+  dueAt: number | "NaN" | "Infinity" | "-Infinity"
+  /**
+   * User-confirmed IANA timezone
+   */
+  timezone: string
+  status: ScheduleStatus
+  attempts: number | "NaN" | "Infinity" | "-Infinity"
+  /**
+   * Bounded retry state
+   */
+  nextAttemptAt?: number | "NaN" | "Infinity" | "-Infinity"
+  leaseOwner?: string
+  leaseExpiresAt?: number | "NaN" | "Infinity" | "-Infinity"
+  /**
+   * Stable idempotency key across retries
+   */
+  deliveryKey: string
+  createdAt: number | "NaN" | "Infinity" | "-Infinity"
+  updatedAt: number | "NaN" | "Infinity" | "-Infinity"
+}
+
+export type EventScheduleUpdated = {
+  id: string
+  type: "schedule.updated"
+  properties: {
+    sessionID: string
+    schedules: Array<ScheduleInfo2>
+  }
+}
+
+export type ScheduleDelivery1 = {
+  deliveryKey: string
+  scheduleID: string
+  sessionID: string
+  kind: ScheduleKind
+  /**
+   * Displayable content snapshot at delivery time
+   */
+  content: string
+  deliveredAt: number | "NaN" | "Infinity" | "-Infinity"
+  /**
+   * True when delivered by offline catch-up after restart
+   */
+  caughtUp: boolean
+  createdAt: number | "NaN" | "Infinity" | "-Infinity"
+}
+
+export type EventScheduleDelivered = {
+  id: string
+  type: "schedule.delivered"
+  properties: {
+    sessionID: string
+    delivery: ScheduleDelivery1
   }
 }
 
@@ -11565,6 +11933,164 @@ export type AgentAssetDeleteError = AgentAssetDeleteErrors[keyof AgentAssetDelet
 export type AgentAssetDeleteResponses = {
   /**
    * Deleted
+   */
+  200: unknown
+}
+
+export type SchedulePendingData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/schedule/pending"
+}
+
+export type SchedulePendingErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type SchedulePendingError = SchedulePendingErrors[keyof SchedulePendingErrors]
+
+export type SchedulePendingResponses = {
+  /**
+   * All pending schedules process-wide
+   */
+  200: Array<ScheduleInfo>
+}
+
+export type SchedulePendingResponse = SchedulePendingResponses[keyof SchedulePendingResponses]
+
+export type ScheduleListData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/schedule/{sessionID}"
+}
+
+export type ScheduleListErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type ScheduleListError = ScheduleListErrors[keyof ScheduleListErrors]
+
+export type ScheduleListResponses = {
+  /**
+   * Schedules of a session
+   */
+  200: Array<ScheduleInfo>
+}
+
+export type ScheduleListResponse = ScheduleListResponses[keyof ScheduleListResponses]
+
+export type ScheduleCancelData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: "/schedule/{id}/cancel"
+}
+
+export type ScheduleCancelErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type ScheduleCancelError = ScheduleCancelErrors[keyof ScheduleCancelErrors]
+
+export type ScheduleCancelResponses = {
+  /**
+   * The cancelled schedule
+   */
+  200: ScheduleInfo
+}
+
+export type ScheduleCancelResponse = ScheduleCancelResponses[keyof ScheduleCancelResponses]
+
+export type DeliveryRecentData = {
+  body?: never
+  path?: never
+  query?: {
+    limit?: string | "Infinity" | "-Infinity" | "NaN"
+  }
+  url: "/delivery/recent"
+}
+
+export type DeliveryRecentErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type DeliveryRecentError = DeliveryRecentErrors[keyof DeliveryRecentErrors]
+
+export type DeliveryRecentResponses = {
+  /**
+   * Recent inbox records process-wide
+   */
+  200: Array<ScheduleDelivery>
+}
+
+export type DeliveryRecentResponse = DeliveryRecentResponses[keyof DeliveryRecentResponses]
+
+export type DeliveryInboxData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/delivery/{sessionID}"
+}
+
+export type DeliveryInboxErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type DeliveryInboxError = DeliveryInboxErrors[keyof DeliveryInboxErrors]
+
+export type DeliveryInboxResponses = {
+  /**
+   * Inbox deliveries of a session
+   */
+  200: Array<ScheduleDelivery>
+}
+
+export type DeliveryInboxResponse = DeliveryInboxResponses[keyof DeliveryInboxResponses]
+
+export type DeliveryReadData = {
+  body?: never
+  path: {
+    deliveryKey: string
+  }
+  query?: never
+  url: "/delivery/{deliveryKey}/read"
+}
+
+export type DeliveryReadErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type DeliveryReadError = DeliveryReadErrors[keyof DeliveryReadErrors]
+
+export type DeliveryReadResponses = {
+  /**
+   * Mark a delivery read
    */
   200: unknown
 }

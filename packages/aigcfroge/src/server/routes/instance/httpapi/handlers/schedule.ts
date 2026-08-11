@@ -28,6 +28,10 @@ export const scheduleHandlers = HttpApiBuilder.group(InstanceHttpApi, "schedule"
       return cancelled
     })
 
+    const recent = Effect.fn("ScheduleHttpApi.recent")(function* (ctx: { query: { limit?: number } }) {
+      return yield* deliveries.listRecent(ctx.query.limit ?? 6)
+    })
+
     const inbox = Effect.fn("ScheduleHttpApi.inbox")(function* (ctx: { params: { sessionID: string } }) {
       return yield* deliveries.listInbox(ctx.params.sessionID as never)
     })
@@ -41,6 +45,7 @@ export const scheduleHandlers = HttpApiBuilder.group(InstanceHttpApi, "schedule"
       .handle("list", list)
       .handle("cancel", cancel)
       .handle("inbox", inbox)
+      .handle("recent", recent)
       .handle("read", read)
   }),
 )

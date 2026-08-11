@@ -22,7 +22,7 @@ describe("WorkSecondarySidebar (work secondary sidebar, batch 1)", () => {
 
   test("persists the selected tab through the work-secondary-tab context", () => {
     expect(component).toContain("useWorkSecondaryTab()")
-    expect(component).toContain(".set(")
+    expect(component).toContain("setTab(")
   })
 
   test("groups sessions with computeWorkSidebarGroups", () => {

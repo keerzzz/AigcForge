@@ -327,6 +327,8 @@ export interface DeliveryInterface {
   }) => Effect.Effect<boolean>
   /** Inbox records of a session, newest first. */
   readonly listInbox: (sessionID: SessionSchema.ID) => Effect.Effect<ReadonlyArray<Schedule.Delivery>>
+  /** Recent inbox records process-wide, newest first (assistant dashboard). */
+  readonly listRecent: (limit: number) => Effect.Effect<ReadonlyArray<Schedule.Delivery>>
   readonly markRead: (deliveryKey: string) => Effect.Effect<void>
   readonly countUnread: (sessionID: SessionSchema.ID) => Effect.Effect<number>
 }
@@ -370,6 +372,19 @@ export const deliveryLayer = Layer.effect(
       }),
     )
 
+    const listRecent = Effect.fn("DeliveryService.listRecent")((limit: number) =>
+      Effect.gen(function* () {
+        const rows = yield* db
+          .select()
+          .from(DeliveryTable)
+          .orderBy(desc(DeliveryTable.delivered_at))
+          .limit(limit)
+          .all()
+          .pipe(Effect.orDie)
+        return rows.map(toDelivery)
+      }),
+    )
+
     const listInbox = Effect.fn("DeliveryService.listInbox")((sessionID: SessionSchema.ID) =>
       Effect.gen(function* () {
         const rows = yield* db
@@ -406,7 +421,7 @@ export const deliveryLayer = Layer.effect(
       }),
     )
 
-    return DeliveryService.of({ deliver, listInbox, markRead, countUnread })
+    return DeliveryService.of({ deliver, listInbox, listRecent, markRead, countUnread })
   }),
 )
 
