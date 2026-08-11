@@ -180,7 +180,8 @@ describe("ScheduledJobRunner", () => {
       // payload agrees with the DB (scheduled) and keeps the completed digest.
       const last = published.at(-1)
       expect(last).toBeDefined()
-      const data = Schema.decodeUnknownSync(SessionTask.Event.Updated.data)(last!.data)
+      if (!last) throw new Error("append published no task.updated event")
+      const data = Schema.decodeUnknownSync(SessionTask.Event.Updated.data)(last.data)
       expect(data.tasks[0]?.status).toBe("scheduled")
       expect(data.tasks[0]?.status).toBe(after[0]?.status)
       expect(data.tasks[0]?.outputDigest).toBe("ses_child")
@@ -224,7 +225,9 @@ describe("ScheduledJobRunner", () => {
       const good = (yield* tasks.append({
         sessionID,
         tasks: [{ content: "good", status: "scheduled", priority: "medium", scheduledAt: at(2026, 8, 2, 9, 0) }],
-      })).at(-1)!
+      })).at(-1)
+      expect(good).toBeDefined()
+      if (!good) throw new Error("append returned no good task")
       holder.dieFor = "bad"
 
       yield* runner.arm(at(2026, 8, 2, 8, 59))

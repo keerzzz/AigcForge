@@ -30,7 +30,7 @@
 
 ## 2026-08-02: Task Spawn and DAG Fields (Todo/Task M5)
 
-（未落地——M5 变更已移出本分支，完整保留在 wip 分支 `todo-task-m4m5`，待 M5 里程碑合入。移出的内容：`spawned_from`/`depends_on` 落列（迁移 `20260802140709_add_task_spawn_fields`）、`SessionTask.WriteInfo`/`Info` 写路径持久化、`task_spawn` 内建工具、`session/dag.ts` DAG 纯逻辑。注：V1 Todo（`packages/aigcfroge/src/session/todo.ts` + `tool/todo.ts`）的 `@deprecated` 注释已随本分支 M3b-2 落地，文件保留。）
+（未落地——M5 变更已移出本分支，完整保留在 wip 分支 `todo-task-m4m5`，待 M5 里程碑合入。移出的内容：`spawned_from`/`depends_on` 落列（迁移 `20260802140709_add_task_spawn_fields`）、`SessionTask.WriteInfo`/`Info` 写路径持久化、`task_spawn` 内建工具、`session/dag.ts` DAG 纯逻辑。注：V1 Todo（`packages/aigcfroge/src/session/todo.ts` + `tool/todo.ts`）的 `@deprecated` 注释已随本分支 M3b-2 落地，文件保留。已于 2026-08-03 随 M5 恢复落地，见本文件顶部条目。）
 
 ## 2026-08-02: SessionTask.Info nextRun Derived Field and Scheduler Production Wiring (Todo/Task M3a/M3b-1)
 
@@ -47,19 +47,6 @@
 - New core `ScheduledJobRunner` (single-process in-memory minute-level scheduler): `arm` re-scans the task table to rebuild the next-run queue (startup re-arm), `tick` triggers due jobs and settles each task (completed/failed/cancelled); recurring jobs re-arm to their next cron match only after a completed outcome (failed/cancelled outcomes stay settled).
 - Unattended permission policy (plan §8 G2): scheduled jobs run under an agent whose permissions pre-authorize reads; explicit `allow` rules are not converted to `deny` by the unattended child ask→deny fallback.
 
-## 2026-06-22: Simplify Session Input Promotion
-
-- Keep `session.next.prompt.admitted.1` as the durable, client-visible record of pending Session input.
-- Replace `session.next.prompt.promoted.1` with the existing `session.next.prompted.1` event when input becomes model-visible.
-- Preserve the prompt endpoint, admission receipt, idempotency, steer/queue ordering, and atomic user-message projection.
-- Reset experimental V2 events, projections, inputs, Context Epochs, and synchronized workspace state while preserving canonical V1 `session`, `message`, and `part` rows.
-
-## 2026-06-22: Reset Unpublished Compaction Event
-
-- Replace the unpublished `session.next.compaction.ended.1` payload with the current checkpoint payload and remove its legacy decoder.
-- Reset experimental events, sequences, Session inputs, projected Session messages, Context Epochs, synchronized workspace rows, and Session workspace links.
-- Preserve canonical V1 `session`, `message`, and `part` rows.
-
 ## 2026-08-02: Task output_digest Persistence and GET Task Endpoint (Todo/Task M2a)
 
 - Persist `output_digest` on the `task` table (nullable column) via the drizzle-kit pipeline (`20260802043814_add_task_output_digest`); `SessionTask.patch` writes the digest, and a later patch omitting it leaves the stored digest intact.
@@ -74,6 +61,19 @@
 - New `task.updated` EventV2 (sessionID + tasks) alongside the retained `todo.updated`; both remain emitted during transition.
 - New `PATCH /session/:sessionID/task` HTTP endpoint (replace-list reconcile) and generated SDK `SessionTaskUpdate` client + `SessionTaskInfo` type.
 - Legacy `TodoTable`/`SessionTodo`/`TodoWrite` retained for backward compatibility; the one-shot TodoTable→TaskTable backfill migration is delivered (`20260802220000_backfill_task_table`, `tsk_` ids, unknown status/priority normalized to pending/medium).
+
+## 2026-06-22: Simplify Session Input Promotion
+
+- Keep `session.next.prompt.admitted.1` as the durable, client-visible record of pending Session input.
+- Replace `session.next.prompt.promoted.1` with the existing `session.next.prompted.1` event when input becomes model-visible.
+- Preserve the prompt endpoint, admission receipt, idempotency, steer/queue ordering, and atomic user-message projection.
+- Reset experimental V2 events, projections, inputs, Context Epochs, and synchronized workspace state while preserving canonical V1 `session`, `message`, and `part` rows.
+
+## 2026-06-22: Reset Unpublished Compaction Event
+
+- Replace the unpublished `session.next.compaction.ended.1` payload with the current checkpoint payload and remove its legacy decoder.
+- Reset experimental events, sequences, Session inputs, projected Session messages, Context Epochs, synchronized workspace rows, and Session workspace links.
+- Preserve canonical V1 `session`, `message`, and `part` rows.
 
 ## 2026-06-22: Make Session Interruption Process-Local
 

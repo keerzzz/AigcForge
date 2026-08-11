@@ -1194,6 +1194,34 @@ describe("session task HttpApi", () => {
   )
 
   it.instance(
+    "PATCH /session/:id/task rejects a trigger-less scheduled task with 400",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = {
+          "x-aigcfroge-directory": encodeURIComponent(test.directory),
+          "content-type": "application/json",
+        }
+        const session = yield* createSession({ title: "task no trigger" })
+
+        const response = yield* request(pathFor(SessionPaths.task, { sessionID: session.id }), {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify([
+            {
+              content: "stuck",
+              status: "scheduled",
+              priority: "medium",
+            },
+          ]),
+        })
+        expect(response.status).toBe(400)
+        const body = yield* response.json
+        expect(JSON.stringify(body)).toContain("must have a scheduledAt or an enabled recurrence")
+      }),
+  )
+
+  it.instance(
     "PATCH /session/:id/task persists M5 spawn fields (spawnedFrom/dependsOn)",
     () =>
       Effect.gen(function* () {

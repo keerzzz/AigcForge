@@ -26,7 +26,7 @@ import { QueryBoolean } from "./query"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { SessionTask } from "@aigcfroge/core/session/task"
-import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task"
+import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task" // Schema namespace; the core SessionTask import above uses the unaliased name.
 import { ProductMode } from "@aigcfroge/schema/product-mode"
 
 const root = "/session"

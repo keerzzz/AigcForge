@@ -5,7 +5,7 @@ import { SessionV2 } from "@aigcfroge/core/session"
 import { SessionMessage } from "@aigcfroge/core/session/message"
 import { SessionTodo } from "@aigcfroge/core/session/todo"
 import { SessionTask } from "@aigcfroge/core/session/task"
-import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task"
+import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task" // Schema namespace; the core SessionTask import above uses the unaliased name.
 import { PermissionV2 } from "@aigcfroge/core/permission"
 import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
 import { SessionRevert as V2SessionRevert } from "@aigcfroge/core/session/revert"
@@ -129,7 +129,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       yield* requireSession(ctx.params.sessionID)
       const v2task = yield* SessionTask.Service
       return yield* v2task.update({ sessionID: ctx.params.sessionID, tasks: ctx.payload }).pipe(
-        // A forged or repeated client-supplied id is a client error, not a 500.
+        // A forged/repeated id or dead schedule is a client error, not a 500.
         Effect.catchTag("SessionTask.TaskWriteError", (error) =>
           Effect.fail(new InvalidRequestError({ message: error.message })),
         ),

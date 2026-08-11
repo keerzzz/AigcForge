@@ -12,9 +12,6 @@ export interface AgentTaskRow extends SessionTaskInfo {
   readonly sessionID: string
 }
 
-/** Terminal statuses are not "active" work items. */
-const ACTIVE_STATUSES = new Set(["scheduled", "pending", "in_progress"])
-
 /**
  * Flatten every session's task list into rows, optionally narrowed to one
  * owning agent (`task.agentID`). Sessions with no tasks drop out.
@@ -31,17 +28,6 @@ export const aggregateAgentTasks = (
     }
   }
   return rows
-}
-
-/** Count of scheduled/pending/in_progress tasks in a row set. */
-export const activeTaskCount = (rows: readonly AgentTaskRow[]): number =>
-  rows.filter((row) => ACTIVE_STATUSES.has(row.status)).length
-
-/** Row count broken down by status, ordered by the TaskStatus literal order. */
-export const countByStatus = (rows: readonly AgentTaskRow[]): Record<string, number> => {
-  const counts: Record<string, number> = {}
-  for (const row of rows) counts[row.status] = (counts[row.status] ?? 0) + 1
-  return counts
 }
 
 /**
@@ -91,10 +77,6 @@ export const derivedTasksBySource = (
   }
   return [...bySource.entries()].map(([sourceMessageID, rows]) => ({ sourceMessageID, rows }))
 }
-
-/** PATCH payload with the target task removed (task_schedule `remove` semantics). */
-export const withoutTask = <T extends { id: string }>(tasks: readonly T[], id: string): T[] =>
-  tasks.filter((task) => task.id !== id)
 
 /** Build a mint-able scheduled-task write shape (task_schedule `schedule` semantics). */
 export const newScheduledTask = (input: {

@@ -505,6 +505,8 @@ describe("SessionTask", () => {
         })
         .pipe(Effect.flip)
       expect(malformed.reason).toBe("invalid_schedule")
+      // Malformed / no-future-run crons are attributed to the cron.
+      expect(malformed.message).toContain("invalid recurrence cron")
 
       // A cron that parses but never matches in the search window is a dead job.
       const dead = yield* tasks
@@ -516,6 +518,7 @@ describe("SessionTask", () => {
         })
         .pipe(Effect.flip)
       expect(dead.reason).toBe("invalid_schedule")
+      expect(dead.message).toContain("invalid recurrence cron")
 
       // append rejects too (the tool call path shares the guard).
       const appended = yield* tasks
@@ -541,6 +544,8 @@ describe("SessionTask", () => {
         .update({ sessionID, tasks: [{ content: "stuck", status: "scheduled", priority: "medium" }] })
         .pipe(Effect.flip)
       expect(noTrigger.reason).toBe("invalid_schedule")
+      // A schedule-less `scheduled` task is attributed to the missing trigger.
+      expect(noTrigger.message).toContain("must have a scheduledAt or an enabled recurrence")
 
       // A disabled recurrence without a one-shot fallback is also trigger-less.
       const disabledOnly = yield* tasks
@@ -552,6 +557,8 @@ describe("SessionTask", () => {
         })
         .pipe(Effect.flip)
       expect(disabledOnly.reason).toBe("invalid_schedule")
+      // A disabled recurrence without a fallback is trigger-less, not a cron fault.
+      expect(disabledOnly.message).toContain("must have a scheduledAt or an enabled recurrence")
 
       // A one-shot scheduledAt alone is a valid trigger.
       const oneShot = yield* tasks.update({
@@ -1035,8 +1042,9 @@ describe("SessionTask", () => {
       const b = created.find((task) => task.content === "b")
       if (!b) throw new Error("b not created")
 
-      // Delete the middle task — the (session_id, position) PK would reject a
-      // later insert that reuses its position.
+      // Delete the middle task — append must continue from max+1 (MEDIUM-2),
+      // not existing.length, or the new row would duplicate a position and make
+      // the orderBy(position) read order-unstable.
       yield* tasks.removeTask({ sessionID, id: b.id })
 
       // Append again: position must continue from max+1, not existing.length.

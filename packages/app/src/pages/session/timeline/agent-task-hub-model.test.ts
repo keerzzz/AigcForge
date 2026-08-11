@@ -1,15 +1,12 @@
 import { describe, expect, test } from "bun:test"
 import type { SessionTaskInfo } from "@aigcfroge/sdk/v2/client"
 import {
-  activeTaskCount,
   aggregateAgentTasks,
-  countByStatus,
   derivedTasksBySource,
   newScheduledTask,
   scheduledAgentTasks,
   sessionCountForAgent,
   unassignedTasks,
-  withoutTask,
   type AgentTaskRow,
 } from "./agent-task-hub-model"
 
@@ -50,25 +47,6 @@ describe("aggregateAgentTasks", () => {
   test("empty sessions yield no rows", () => {
     expect(aggregateAgentTasks({})).toEqual([])
     expect(aggregateAgentTasks({ ses_a: [] })).toEqual([])
-  })
-})
-
-describe("activeTaskCount / countByStatus", () => {
-  test("counts only non-terminal statuses", () => {
-    const rows = [
-      task({ status: "scheduled" }),
-      task({ status: "pending" }),
-      task({ status: "in_progress" }),
-      task({ status: "completed" }),
-      task({ status: "cancelled" }),
-      task({ status: "failed" }),
-    ]
-    expect(activeTaskCount(rows)).toBe(3)
-  })
-
-  test("breaks counts down by status", () => {
-    const rows = [task({ status: "scheduled" }), task({ status: "scheduled" }), task({ status: "completed" })]
-    expect(countByStatus(rows)).toEqual({ scheduled: 2, completed: 1 })
   })
 })
 
@@ -162,15 +140,6 @@ describe("derivedTasksBySource (M5 zone 2b 任务衍生)", () => {
 })
 
 describe("scheduled-task writeback helpers (Step 4)", () => {
-  test("withoutTask drops the target id (task_schedule remove semantics)", () => {
-    const tasks = [
-      { id: "tsk_a", content: "a" },
-      { id: "tsk_b", content: "b" },
-      { id: "tsk_c", content: "c" },
-    ]
-    expect(withoutTask(tasks, "tsk_b").map((task) => task.id)).toEqual(["tsk_a", "tsk_c"])
-  })
-
   test("newScheduledTask builds a mint-able write shape for the selected agent", () => {
     const recurring = newScheduledTask({
       content: "nightly",

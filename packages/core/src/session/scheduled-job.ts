@@ -248,7 +248,9 @@ export const daemonLayer = Layer.effectDiscard(
     const runner = yield* Service
     const events = yield* EventV2.Service
     yield* recoverStaleClaims()
-    yield* runner.arm(Date.now(), { recover: true })
+    // The startup arm is contained like every tick/re-arm below: a failing scan
+    // or stale-claim recovery must not kill the daemon layer build.
+    yield* runner.arm(Date.now(), { recover: true }).pipe(Effect.ignore)
     yield* Effect.forkScoped(runner.tick(Date.now()).pipe(Effect.ignore, Effect.repeat(Schedule.spaced("1 minute"))))
     yield* events.subscribe(SessionTask.Event.Updated).pipe(
       Stream.runForEach(() => runner.arm(Date.now()).pipe(Effect.ignore)),
