@@ -85,13 +85,15 @@ describe("SessionV2.create", () => {
   // D.5 safety net: chat sessions default to chat-orchestrator when no agent is
   // supplied, so the fail-closed primary-agent check never rejects a bare chat
   // session (app callers usually pass the agent, but the default must hold).
-  it.effect("defaults a chat session to chat-orchestrator when no agent is supplied", () =>
+  it.effect("defaults every mode session to meta when no agent is supplied (2026-08-11 decision)", () =>
     Effect.gen(function* () {
       const session = yield* SessionV2.Service
-      const root = yield* session.create({ location, mode: "chat" })
+      for (const mode of ["chat", "coding", "work", "assistant"] as const) {
+        const root = yield* session.create({ location, mode })
 
-      expect(root.mode).toBe("chat")
-      expect(root.agent).toBe(AgentV2.ID.make("chat-orchestrator"))
+        expect(root.mode).toBe(mode)
+        expect(root.agent).toBe(AgentV2.ID.make("meta"))
+      }
     }),
   )
 

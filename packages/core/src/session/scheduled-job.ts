@@ -1,11 +1,12 @@
 export * as ScheduledJob from "./scheduled-job"
 
 import { and, eq, inArray, isNotNull, isNull, or } from "drizzle-orm"
-import { Cause, Context, Effect, Layer, Schedule, Stream } from "effect"
+import { Cause, Context, Effect, Layer } from "effect"
 import { Database } from "../database/database"
 import { LayerNode } from "../effect/layer-node"
 import { EventV2 } from "../event"
 import { SessionSchema } from "./schema"
+import { SchedulerCore } from "./schedule-core"
 import { ScheduledJobExecutor } from "./scheduled-job-executor"
 import { TaskTable } from "./sql"
 import { SessionTask } from "./task"
@@ -71,135 +72,113 @@ export const layer = Layer.effect(
     const tasks = yield* SessionTask.Service
     const executor = yield* ScheduledExecutor
 
-    let queue = new Map<string, number>()
-
-    const arm = Effect.fn("ScheduledJob.arm")(function* (now: number, options?: { recover?: boolean }) {
-      const rows = yield* db
-        .select()
-        .from(TaskTable)
-        .where(or(isNotNull(TaskTable.scheduled_at), isNotNull(TaskTable.recurrence)))
-        .all()
-        .pipe(Effect.orDie)
-      const next = new Map<string, number>()
-      for (const row of rows) {
-        let status = row.status
-        // Startup recovery (differential-review HIGH-3): a process start means
-        // any schedule-bearing `in_progress` row is a stale claim from a dead
-        // scheduler — this single-process scheduler never claimed it. Reset it
-        // to a retryable state so the job is re-queued instead of orphaned
-        // forever. Only the startup arm does this: the task.updated re-arm must
-        // not touch the live claim of a job the running daemon is executing
-        // (that would re-enqueue and double-run).
-        if (options?.recover && status === "in_progress") {
-          yield* tasks.patch({ sessionID: row.session_id, id: row.id, status: "pending" }).pipe(Effect.orDie)
-          status = "pending"
-        }
-        if (status !== "scheduled" && status !== "pending") continue
-        const run = row.recurrence?.enabled ? nextRun(row.recurrence.cron, now) : row.scheduled_at
-        if (run !== undefined && run !== null) next.set(row.id, run)
-      }
-      queue = next
-    })
-
-    const trigger = Effect.fn("ScheduledJob.trigger")(function* (taskID: string, now: number) {
-      const row = yield* db.select().from(TaskTable).where(eq(TaskTable.id, taskID)).get().pipe(Effect.orDie)
-      if (!row) return
-      // Re-check status at trigger time: a task paused (or otherwise settled)
-      // between arm and the due tick must not fire. Mirrors the arm filter.
-      if (row.status !== "scheduled" && row.status !== "pending") return
-      // DAG gate (M5 Step 3): a task with dependsOn may only fire once every
-      // predecessor is terminal. A blocked task is left scheduled/pending (NOT
-      // claimed) and re-evaluates when a task.updated re-arms the queue — a
-      // deleted predecessor is released by blockedBy, so it cannot deadlock.
-      const deps = row.depends_on ?? []
-      const dagRows =
-        deps.length === 0
-          ? [row]
-          : [row, ...(yield* db.select().from(TaskTable).where(inArray(TaskTable.id, deps)).all().pipe(Effect.orDie))]
-      if (
-        TaskDag.blockedBy(
-          dagRows.map((item) => ({ id: item.id, status: item.status, dependsOn: item.depends_on ?? undefined })),
-          taskID,
-        ).length > 0
-      ) {
-        return
-      }
-      // Claim the task as in_progress BEFORE executing (B1 re-entry guard): the
-      // daemon re-arms on any task.updated — including this very patch and the
-      // child Session's own events — and would otherwise re-enqueue the
-      // still-scheduled row and run the job twice concurrently. Once claimed,
-      // both arm's filter and this guard skip it, and the settle below closes
-      // the claim. The claim is conditional (expect) so a pause that lands
-      // between the status re-check above and this patch aborts the run
-      // instead of flipping a cancelled row back to in_progress.
-      const claimed = yield* tasks
-        .patch({ sessionID: row.session_id, id: row.id, status: "in_progress", expect: ["scheduled", "pending"] })
-        .pipe(Effect.orDie)
-      if (!claimed) return
-      const result = yield* executor
-        .run({
-          parentID: row.session_id,
-          agent: row.agent_id ?? undefined,
-          prompt: row.content,
-          taskID: row.id,
-        })
-        .pipe(
-          // An executor failure/defect settles this task failed instead of
-          // aborting the whole tick and skipping the remaining due jobs.
-          // Interrupt-only causes pass through untouched (mirroring the
-          // executor seam's contract) so a draining runtime can still shut
-          // down instead of persisting a spurious `failed` settle for the
-          // in-flight job.
-          Effect.catchCauseIf(
-            (cause) => !Cause.hasInterruptsOnly(cause),
-            (cause) =>
-              Effect.logError("Scheduled job executor failed", cause).pipe(
-                Effect.as({ outcome: "failed" } satisfies ScheduledResult),
-              ),
+    // The scan + claim + recovery loop is the shared SchedulerCore; this layer
+    // only adapts it to TaskTable semantics (DAG gate, task.updated re-arm).
+    const core = yield* SchedulerCore.make({
+      scan: () =>
+        db
+          .select()
+          .from(TaskTable)
+          .where(or(isNotNull(TaskTable.scheduled_at), isNotNull(TaskTable.recurrence)))
+          .all()
+          .pipe(
+            Effect.orDie,
+            Effect.map((rows) => rows.map((row) => ({ ...row, scheduledAt: row.scheduled_at }))),
           ),
-        )
-      const digest =
-        result.outcome === "completed"
-          ? (result.childSessionID ?? "scheduled job completed")
-          : result.outcome === "failed"
-            ? "scheduled job failed"
-            : "scheduled job cancelled"
-      yield* tasks
-        .patch({
-          sessionID: row.session_id,
-          id: row.id,
-          status: result.outcome,
-          outputDigest: digest,
-        })
-        .pipe(Effect.orDie)
-      // Re-arm a successful recurring job to its next cron match.
-      if (row.recurrence?.enabled && result.outcome === "completed") {
-        const run = nextRun(row.recurrence.cron, now)
-        if (run !== undefined) {
-          queue.set(row.id, run)
-          // Re-arm via patch (not a raw db.update) so the task.updated event
-          // payload matches the DB; omitting outputDigest preserves the digest
-          // stored by the completed settle above. A vanished row is a no-op.
-          yield* tasks
-            .patch({
-              sessionID: row.session_id,
-              id: row.id,
-              status: "scheduled",
-            })
-            .pipe(Effect.orDie)
+      recover: (row) =>
+        tasks.patch({ sessionID: row.session_id, id: row.id, status: "pending" }).pipe(Effect.orDie),
+      trigger: Effect.fn("ScheduledJob.trigger")(function* (taskID: string, now: number, rearm) {
+        const row = yield* db.select().from(TaskTable).where(eq(TaskTable.id, taskID)).get().pipe(Effect.orDie)
+        if (!row) return
+        // Re-check status at trigger time: a task paused (or otherwise settled)
+        // between arm and the due tick must not fire. Mirrors the arm filter.
+        if (row.status !== "scheduled" && row.status !== "pending") return
+        // DAG gate (M5 Step 3): a task with dependsOn may only fire once every
+        // predecessor is terminal. A blocked task is left scheduled/pending (NOT
+        // claimed) and re-evaluates when a task.updated re-arms the queue — a
+        // deleted predecessor is released by blockedBy, so it cannot deadlock.
+        const deps = row.depends_on ?? []
+        const dagRows =
+          deps.length === 0
+            ? [row]
+            : [row, ...(yield* db.select().from(TaskTable).where(inArray(TaskTable.id, deps)).all().pipe(Effect.orDie))]
+        if (
+          TaskDag.blockedBy(
+            dagRows.map((item) => ({ id: item.id, status: item.status, dependsOn: item.depends_on ?? undefined })),
+            taskID,
+          ).length > 0
+        ) {
+          return
         }
-      }
+        // Claim the task as in_progress BEFORE executing (B1 re-entry guard): the
+        // daemon re-arms on any task.updated — including this very patch and the
+        // child Session's own events — and would otherwise re-enqueue the
+        // still-scheduled row and run the job twice concurrently. Once claimed,
+        // both arm's filter and this guard skip it, and the settle below closes
+        // the claim. The claim is conditional (expect) so a pause that lands
+        // between the status re-check above and this patch aborts the run
+        // instead of flipping a cancelled row back to in_progress.
+        const claimed = yield* tasks
+          .patch({ sessionID: row.session_id, id: row.id, status: "in_progress", expect: ["scheduled", "pending"] })
+          .pipe(Effect.orDie)
+        if (!claimed) return
+        const result = yield* executor
+          .run({
+            parentID: row.session_id,
+            agent: row.agent_id ?? undefined,
+            prompt: row.content,
+            taskID: row.id,
+          })
+          .pipe(
+            // An executor failure/defect settles this task failed instead of
+            // aborting the whole tick and skipping the remaining due jobs.
+            // Interrupt-only causes pass through untouched (mirroring the
+            // executor seam's contract) so a draining runtime can still shut
+            // down instead of persisting a spurious `failed` settle for the
+            // in-flight job.
+            Effect.catchCauseIf(
+              (cause) => !Cause.hasInterruptsOnly(cause),
+              (cause) =>
+                Effect.logError("Scheduled job executor failed", cause).pipe(
+                  Effect.as({ outcome: "failed" } satisfies ScheduledResult),
+                ),
+            ),
+          )
+        const digest =
+          result.outcome === "completed"
+            ? (result.childSessionID ?? "scheduled job completed")
+            : result.outcome === "failed"
+              ? "scheduled job failed"
+              : "scheduled job cancelled"
+        yield* tasks
+          .patch({
+            sessionID: row.session_id,
+            id: row.id,
+            status: result.outcome,
+            outputDigest: digest,
+          })
+          .pipe(Effect.orDie)
+        // Re-arm a successful recurring job to its next cron match.
+        if (row.recurrence?.enabled && result.outcome === "completed") {
+          const run = nextRun(row.recurrence.cron, now)
+          if (run !== undefined) {
+            rearm(run)
+            // Re-arm via patch (not a raw db.update) so the task.updated event
+            // payload matches the DB; omitting outputDigest preserves the digest
+            // stored by the completed settle above. A vanished row is a no-op.
+            yield* tasks
+              .patch({
+                sessionID: row.session_id,
+                id: row.id,
+                status: "scheduled",
+              })
+              .pipe(Effect.orDie)
+          }
+        }
+      }),
     })
 
-    const tick = Effect.fn("ScheduledJob.tick")(function* (now: number) {
-      const due = [...queue.entries()].filter(([, run]) => run <= now)
-      for (const [taskID] of due) {
-        queue.delete(taskID)
-        yield* trigger(taskID, now)
-      }
-    })
-
-    return Service.of({ arm, tick })
+    return Service.of({ arm: core.arm, tick: core.tick })
   }),
 )
 
@@ -247,15 +226,11 @@ export const daemonLayer = Layer.effectDiscard(
   Effect.gen(function* () {
     const runner = yield* Service
     const events = yield* EventV2.Service
-    yield* recoverStaleClaims()
-    // The startup arm is contained like every tick/re-arm below: a failing scan
-    // or stale-claim recovery must not kill the daemon layer build.
-    yield* runner.arm(Date.now(), { recover: true }).pipe(Effect.ignore)
-    yield* Effect.forkScoped(runner.tick(Date.now()).pipe(Effect.ignore, Effect.repeat(Schedule.spaced("1 minute"))))
-    yield* events.subscribe(SessionTask.Event.Updated).pipe(
-      Stream.runForEach(() => runner.arm(Date.now()).pipe(Effect.ignore)),
-      Effect.forkScoped({ startImmediately: true }),
-    )
+    yield* SchedulerCore.daemon({
+      core: runner,
+      startupSweep: recoverStaleClaims(),
+      rearmSignals: events.subscribe(SessionTask.Event.Updated),
+    })
   }),
 )
 export const daemonNode = LayerNode.make(daemonLayer, [node, Database.node, SessionTask.node, EventV2.node])

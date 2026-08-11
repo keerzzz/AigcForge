@@ -29,12 +29,10 @@ describe("product mode", () => {
     }
   })
 
-  test("binds chat drafts to the chat orchestrator", () => {
-    expect(modeDraft("chat")).toEqual({ mode: "chat", agent: "chat-orchestrator" })
-    expect(modeDraft("coding")).toEqual({ mode: "coding", agent: undefined })
-  })
-
-  test("binds work drafts to the work orchestrator", () => {
-    expect(modeDraft("work")).toEqual({ mode: "work", agent: "work-orchestrator" })
+  test("binds every mode draft to meta (2026-08-11 decision)", () => {
+    expect(modeDraft("chat")).toEqual({ mode: "chat", agent: "meta" })
+    expect(modeDraft("coding")).toEqual({ mode: "coding", agent: "meta" })
+    expect(modeDraft("work")).toEqual({ mode: "work", agent: "meta" })
+    expect(modeDraft("assistant")).toEqual({ mode: "assistant", agent: "meta" })
   })
 })

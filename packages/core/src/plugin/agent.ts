@@ -4,6 +4,7 @@ import path from "path"
 import { define } from "./internal"
 import { Effect } from "effect"
 import { AgentV2 } from "../agent"
+import { AssistantOrchestratorPrompt } from "../agent/prompt/assistant-orchestrator"
 import { ChatOrchestratorPrompt } from "../agent/prompt/chat-orchestrator"
 import { WorkOrchestratorPrompt } from "../agent/prompt/work-orchestrator"
 import { Global } from "../global"
@@ -383,6 +384,48 @@ export const Plugin = define({
         )
       })
 
+      // assistant-orchestrator: Assistant mode only, fail-closed permissions
+      // (no edit/shell/task). Phase A registers the permission contract;
+      // reminder_*/kb_*/memory_*/propose_note tools land in Phases B-E.
+      draft.update(AgentV2.ID.make("assistant-orchestrator"), (item) => {
+        item.description = "Assistant mode agent for personal matters (reminders, memory, notes, knowledge base)."
+        item.system = AssistantOrchestratorPrompt.SYSTEM_PROMPT
+        item.mode = "primary"
+        item.hidden = false
+        item.permissions.push(
+          ...PermissionV2.merge(
+            defaults,
+            [
+              { action: "*", resource: "*", effect: "deny" },
+              // Re-allow after the catch-all deny: repeated identical calls must
+              // surface an approval prompt (ask), not silently hard-fail (deny).
+              { action: "doom_loop", resource: "*", effect: "ask" },
+              { action: "read", resource: "*", effect: "allow" },
+              { action: "glob", resource: "*", effect: "allow" },
+              { action: "grep", resource: "*", effect: "allow" },
+              { action: "websearch", resource: "*", effect: "allow" },
+              { action: "webfetch", resource: "*", effect: "allow" },
+              { action: "question", resource: "*", effect: "allow" },
+              // Phase B: reminders.
+              { action: "reminder_create", resource: "*", effect: "allow" },
+              { action: "reminder_update", resource: "*", effect: "allow" },
+              { action: "reminder_cancel", resource: "*", effect: "allow" },
+              // Phase C: personal memory (propose + confirm only).
+              { action: "memory_propose", resource: "*", effect: "allow" },
+              // Phase D/E: knowledge base + notes.
+              { action: "kb_create", resource: "*", effect: "allow" },
+              { action: "kb_search", resource: "*", effect: "allow" },
+              { action: "kb_read", resource: "*", effect: "allow" },
+              { action: "kb_update", resource: "*", effect: "allow" },
+              { action: "kb_delete", resource: "*", effect: "allow" },
+              { action: "kb_list_dangling", resource: "*", effect: "allow" },
+              { action: "propose_note", resource: "*", effect: "allow" },
+            ],
+            readonlyExternalDirectory,
+          ),
+        )
+      })
+
       draft.update(AgentV2.ID.make("compaction"), (item) => {
         item.mode = "primary"
         item.hidden = true
@@ -419,6 +462,12 @@ export const Plugin = define({
           ...PermissionV2.merge(defaults, [
             { action: "list_assets", resource: "*", effect: "allow" },
             { action: "question", resource: "*", effect: "allow" },
+            // 2026-08-11 决策（元智能体调度架构讨论总结 §3.8 修正 1）: meta 只编排
+            // 不亲自执行破坏性写 — bash/edit/write 直接调用 deny，写操作委派 build
+            // 子代理（task 工具保持 allow，是间接写、属子代理权限域 — P1 边界）。
+            { action: "bash", resource: "*", effect: "deny" },
+            { action: "edit", resource: "*", effect: "deny" },
+            { action: "write", resource: "*", effect: "deny" },
             { action: "task", resource: "*", effect: "allow" },
             { action: "plan_enter", resource: "*", effect: "allow" },
           ]),

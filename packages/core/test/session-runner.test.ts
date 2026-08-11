@@ -360,7 +360,7 @@ const it = testEffect(
 const sessionID = SessionV2.ID.make("ses_runner_test")
 const otherSessionID = SessionV2.ID.make("ses_runner_other")
 
-const insertSession = (id: SessionV2.ID) =>
+const insertSession = (id: SessionV2.ID, agent?: string) =>
   Effect.gen(function* () {
     const { db } = yield* Database.Service
     yield* db
@@ -372,10 +372,19 @@ const insertSession = (id: SessionV2.ID) =>
         directory: "/project",
         title: "test",
         version: "test",
+        ...(agent ? { agent } : {}),
       })
       .onConflictDoNothing()
       .run()
       .pipe(Effect.orDie)
+  })
+
+// The shared setup already inserted the session without an agent; tests that
+// exercise agent-specific behavior pin the agent on the existing row.
+const updateSessionAgent = (id: SessionV2.ID, agent: string) =>
+  Effect.gen(function* () {
+    const { db } = yield* Database.Service
+    yield* db.update(SessionTable).set({ agent }).where(eq(SessionTable.id, id)).run().pipe(Effect.orDie)
   })
 
 const setup = Effect.gen(function* () {
@@ -642,6 +651,7 @@ describe("SessionRunnerLLM", () => {
             }),
         }),
       })
+      yield* updateSessionAgent(sessionID, "build")
       yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Use application context" }), resume: false })
       responses = [
         [
@@ -852,8 +862,9 @@ describe("SessionRunnerLLM", () => {
     Effect.gen(function* () {
       yield* setup
       const agent = yield* AgentV2.Service
+      // The mode default agent is meta (2026-08-11 decision).
       yield* agent.transform((editor) =>
-        editor.update(AgentV2.ID.make("build"), (agent) => {
+        editor.update(AgentV2.ID.make("meta"), (agent) => {
           agent.system = "Build agent instructions"
           agent.mode = "primary"
         }),
@@ -869,7 +880,7 @@ describe("SessionRunnerLLM", () => {
     }),
   )
 
-  it.effect("uses the configured default agent system for omitted-agent sessions", () =>
+  it.effect("includes the session's configured agent system for omitted-agent sessions", () =>
     Effect.gen(function* () {
       yield* setup
       const agent = yield* AgentV2.Service
@@ -882,8 +893,8 @@ describe("SessionRunnerLLM", () => {
           agent.system = "Reviewer instructions"
           agent.mode = "primary"
         })
-        editor.default(AgentV2.ID.make("reviewer"))
       })
+      yield* updateSessionAgent(sessionID, "reviewer")
       const session = yield* SessionV2.Service
       yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "First" }), resume: false })
 
@@ -928,6 +939,7 @@ describe("SessionRunnerLLM", () => {
   it.effect("updates selected-agent skill guidance after an agent switch", () =>
     Effect.gen(function* () {
       yield* setup
+      yield* updateSessionAgent(sessionID, "build")
       const session = yield* SessionV2.Service
       const events = yield* EventV2.Service
       skillBaselines.set(AgentV2.ID.make("build"), "Build skills")
@@ -957,6 +969,7 @@ describe("SessionRunnerLLM", () => {
   it.effect("keeps the sampled agent when selection changes during observation", () =>
     Effect.gen(function* () {
       yield* setup
+      yield* updateSessionAgent(sessionID, "build")
       const session = yield* SessionV2.Service
       const events = yield* EventV2.Service
       skillBaselines.set(AgentV2.ID.make("build"), "Build skills")
@@ -2912,6 +2925,7 @@ describe("SessionRunnerLLM", () => {
   it.effect("forces a text response on an agent's configured final step", () =>
     Effect.gen(function* () {
       yield* setup
+      yield* updateSessionAgent(sessionID, "build")
       const agents = yield* AgentV2.Service
       yield* agents.transform((editor) =>
         editor.update(AgentV2.ID.make("build"), (agent) => {
@@ -2960,6 +2974,7 @@ describe("SessionRunnerLLM", () => {
   it.effect("resets the configured step allowance when steering input promotes", () =>
     Effect.gen(function* () {
       yield* setup
+      yield* updateSessionAgent(sessionID, "build")
       const agents = yield* AgentV2.Service
       yield* agents.transform((editor) =>
         editor.update(AgentV2.ID.make("build"), (agent) => {
