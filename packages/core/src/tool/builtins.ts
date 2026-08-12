@@ -25,6 +25,7 @@ import { WorkPresetTool } from "./work-preset"
 import { ReminderCreateTool } from "./reminder-create"
 import { ReminderUpdateTool } from "./reminder-update"
 import { ReminderCancelTool } from "./reminder-cancel"
+import { ProposeMemoryTool } from "./propose-memory"
 import { ProposePromptAssetTool } from "./propose-prompt-asset"
 import { ProposeSkillAssetTool } from "./propose-skill-asset"
 import { ProposeMCPAssetTool } from "./propose-mcp-asset"
@@ -81,4 +82,5 @@ export const locationLayer = Layer.mergeAll(
   ReminderCreateTool.layer,
   ReminderUpdateTool.layer,
   ReminderCancelTool.layer,
+  ProposeMemoryTool.layer,
 )

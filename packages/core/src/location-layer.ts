@@ -60,6 +60,7 @@ import { CrossSpawnSpawner } from "./cross-spawn-spawner"
 import { SessionStore } from "./session/store"
 import { SessionTodo } from "./session/todo"
 import { ScheduleService } from "./session/schedule-service"
+import { PersonalMemory } from "./session/personal-memory"
 import { SessionTask } from "./session/task"
 import { WorkArtifact } from "./session/artifact"
 import { QuestionV2 } from "./question"
@@ -159,6 +160,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
     const builtInTools = BuiltInTools.locationLayer.pipe(
       Layer.provide(services),
       Layer.provide(ScheduleService.layer),
+      Layer.provide(PersonalMemory.layer),
       Layer.provide(mutation),
       Layer.provide(promptAssetService),
       Layer.provide(skillAssetService),
