@@ -80,6 +80,36 @@ export const Event = {
       delivery: Schedule.Delivery,
     },
   }),
+  // Telemetry (PRD §11 / plan §3.8.4): lifecycle markers WITHOUT content —
+  // reminder text never rides these events.
+  Created: EventV2.define({
+    type: "assistant_reminder_created",
+    schema: {
+      sessionID: SessionSchema.ID,
+      scheduleID: Schedule.ID,
+    },
+  }),
+  Cancelled: EventV2.define({
+    type: "assistant_reminder_cancelled",
+    schema: {
+      sessionID: SessionSchema.ID,
+      scheduleID: Schedule.ID,
+    },
+  }),
+  Failed: EventV2.define({
+    type: "assistant_reminder_failed",
+    schema: {
+      sessionID: SessionSchema.ID,
+      scheduleID: Schedule.ID,
+    },
+  }),
+  CaughtUp: EventV2.define({
+    type: "assistant_reminder_caught_up",
+    schema: {
+      sessionID: SessionSchema.ID,
+      scheduleID: Schedule.ID,
+    },
+  }),
 }
 
 export interface Interface {
@@ -158,6 +188,7 @@ export const layer = Layer.effect(
           .run()
           .pipe(Effect.orDie)
         yield* publishSchedules({ db, events, sessionID: input.sessionID })
+        yield* events.publish(Event.Created, { sessionID: input.sessionID, scheduleID: id })
         const row = yield* db.select().from(ScheduleTable).where(eq(ScheduleTable.id, id)).get().pipe(Effect.orDie)
         if (!row) return yield* Effect.die(new Error("created schedule row vanished"))
         return toInfo(row)

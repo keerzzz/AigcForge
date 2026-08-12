@@ -1,6 +1,7 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
 import { Database } from "@aigcfroge/core/database/database"
+import { EventV2 } from "@aigcfroge/core/event"
 import { FSUtil } from "@aigcfroge/core/fs-util"
 import { KBService } from "@aigcfroge/core/session/kb-service"
 import { KBNote } from "@aigcfroge/schema/kb-note"
@@ -11,6 +12,7 @@ const it = testEffect(
   KBService.layer.pipe(
     Layer.provideMerge(Database.defaultLayer),
     Layer.provideMerge(FSUtil.defaultLayer),
+    Layer.provideMerge(EventV2.defaultLayer),
   ),
 )
 

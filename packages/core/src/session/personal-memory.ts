@@ -5,7 +5,24 @@ import { Context, Effect, Layer } from "effect"
 import { PersonalMemory as PersonalMemorySchema } from "@aigcfroge/schema/personal-memory"
 import { Database } from "../database/database"
 import { LayerNode } from "../effect/layer-node"
+import { EventV2 } from "../event"
 import { PersonalMemoryTable } from "./personal-memory.sql"
+
+// Telemetry (plan §3.8.4): lifecycle markers WITHOUT content.
+export const Event = {
+  Proposed: EventV2.define({
+    type: "assistant_memory_proposed",
+    schema: { memoryID: PersonalMemorySchema.ID },
+  }),
+  Confirmed: EventV2.define({
+    type: "assistant_memory_confirmed",
+    schema: { memoryID: PersonalMemorySchema.ID },
+  }),
+  Rejected: EventV2.define({
+    type: "assistant_memory_rejected",
+    schema: { memoryID: PersonalMemorySchema.ID },
+  }),
+}
 
 /**
  * User-level personal memory (PRD §9, M2): confirm-first model. The AI only
@@ -68,6 +85,7 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const { db } = yield* Database.Service
+    const events = yield* EventV2.Service
 
     const propose = Effect.fn("PersonalMemory.propose")((input: {
       readonly content: string
@@ -99,6 +117,7 @@ export const layer = Layer.effect(
           })
           .run()
           .pipe(Effect.orDie)
+        yield* events.publish(Event.Proposed, { memoryID: id })
         const row = yield* db.select().from(PersonalMemoryTable).where(eq(PersonalMemoryTable.id, id)).get().pipe(Effect.orDie)
         if (!row) return yield* Effect.die(new Error("created memory row vanished"))
         return toInfo(row)
@@ -152,6 +171,7 @@ export const layer = Layer.effect(
           .get()
           .pipe(Effect.orDie)
         if (!row) return undefined
+        yield* events.publish(row.status === "confirmed" ? Event.Confirmed : Event.Rejected, { memoryID: id })
         return toInfo(row)
       }),
     )
@@ -208,4 +228,4 @@ export const layer = Layer.effect(
 )
 
 export const defaultLayer = layer.pipe(Layer.provide(Database.defaultLayer))
-export const node = LayerNode.make(layer, [Database.node])
+export const node = LayerNode.make(layer, [Database.node, EventV2.node])

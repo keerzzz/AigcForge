@@ -1,10 +1,16 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
 import { Database } from "@aigcfroge/core/database/database"
+import { EventV2 } from "@aigcfroge/core/event"
 import { PersonalMemory } from "@aigcfroge/core/session/personal-memory"
 import { testEffect } from "./lib/effect"
 
-const it = testEffect(PersonalMemory.layer.pipe(Layer.provideMerge(Database.defaultLayer)))
+const it = testEffect(
+  PersonalMemory.layer.pipe(
+    Layer.provideMerge(Database.defaultLayer),
+    Layer.provideMerge(EventV2.defaultLayer),
+  ),
+)
 
 const makeInput = (overrides: Partial<Parameters<PersonalMemory.Interface["propose"]>[0]> = {}) => ({
   content: "User prefers concise answers",

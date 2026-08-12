@@ -6,8 +6,25 @@ import { KBNote } from "@aigcfroge/schema/kb-note"
 import { Database } from "../database/database"
 import { LayerNode } from "../effect/layer-node"
 import { FSUtil } from "../fs-util"
+import { EventV2 } from "../event"
 import { KBLink } from "../kb/link"
 import { KBLinkTable, KBNoteTable } from "./kb.sql"
+
+// Telemetry (plan §3.8.4): lifecycle markers WITHOUT content.
+export const Event = {
+  NoteCreated: EventV2.define({
+    type: "assistant_note_created",
+    schema: { noteID: KBNote.NoteID },
+  }),
+  NoteRemoved: EventV2.define({
+    type: "assistant_note_removed",
+    schema: { noteID: KBNote.NoteID },
+  }),
+  KBSearched: EventV2.define({
+    type: "assistant_kb_searched",
+    schema: {},
+  }),
+}
 
 /**
  * Knowledge base service (PRD §7.4): typed boundary over kb_note/kb_link +
@@ -87,6 +104,7 @@ export const layer = Layer.effect(
   Effect.gen(function* () {
     const { db } = yield* Database.Service
     const fs = yield* FSUtil.Service
+    const events = yield* EventV2.Service
     yield* db.run(sql.raw(FTS_MAYBE)).pipe(Effect.orDie)
 
     const ensureFts = Effect.fn("KBService.ensureFts")(function* (noteID: string, title: string, content: string) {
@@ -181,6 +199,7 @@ export const layer = Layer.effect(
         // A new title/alias resolves previously dangling edges pointing at it.
         yield* resolveDanglingFor(input.title)
         for (const alias of input.aliases ?? []) yield* resolveDanglingFor(alias)
+        yield* events.publish(Event.NoteCreated, { noteID: id })
         const row = yield* db.select().from(KBNoteTable).where(eq(KBNoteTable.id, id)).get().pipe(Effect.orDie)
         if (!row) return yield* Effect.die(new Error("created note row vanished"))
         return toNote(row)
@@ -245,11 +264,13 @@ export const layer = Layer.effect(
       Effect.gen(function* () {
         yield* removeFts(id)
         yield* db.delete(KBNoteTable).where(eq(KBNoteTable.id, id)).run().pipe(Effect.orDie)
+        yield* events.publish(Event.NoteRemoved, { noteID: id })
       }),
     )
 
     const search = Effect.fn("KBService.search")((query: string, options?: { readonly scope?: KBNote.NoteScope; readonly limit?: number }) =>
       Effect.gen(function* () {
+        yield* events.publish(Event.KBSearched, {})
         const limit = options?.limit ?? 20
         // FTS5 (unicode61) first: word-level for Latin, character-level for CJK.
         const ftsRows = yield* db
@@ -389,4 +410,4 @@ export const layer = Layer.effect(
 )
 
 export const defaultLayer = layer.pipe(Layer.provide(Database.defaultLayer))
-export const node = LayerNode.make(layer, [Database.node, FSUtil.node])
+export const node = LayerNode.make(layer, [Database.node, FSUtil.node, EventV2.node])
