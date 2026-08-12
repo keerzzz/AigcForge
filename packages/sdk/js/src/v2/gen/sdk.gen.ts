@@ -148,6 +148,20 @@ import type {
   McpRemoteConfig,
   McpStatusErrors,
   McpStatusResponses,
+  MemoryConfirmErrors,
+  MemoryConfirmResponses,
+  MemoryEditErrors,
+  MemoryEditResponses,
+  MemoryListErrors,
+  MemoryListResponses,
+  MemoryPendingErrors,
+  MemoryPendingResponses,
+  MemoryRejectErrors,
+  MemoryRejectResponses,
+  MemoryRemoveErrors,
+  MemoryRemoveResponses,
+  MemorySensitivityLevel,
+  MemoryTrustLevel,
   MoveSessionDestination,
   OutputFormat,
   Part as Part2,
@@ -4342,6 +4356,118 @@ export class Delivery extends HeyApiClient {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "deliveryKey" }] }])
     return (options?.client ?? this.client).post<DeliveryReadResponses, DeliveryReadErrors, ThrowOnError>({
       url: "/delivery/{deliveryKey}/read",
+      ...options,
+      ...params,
+    })
+  }
+}
+
+export class Memory extends HeyApiClient {
+  /**
+   * List personal memory entries
+   *
+   * User-level memory across projects (Memory Inspector).
+   */
+  public list<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<MemoryListResponses, MemoryListErrors, ThrowOnError>({
+      url: "/memory",
+      ...options,
+    })
+  }
+
+  /**
+   * List pending memory proposals
+   */
+  public pending<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<MemoryPendingResponses, MemoryPendingErrors, ThrowOnError>({
+      url: "/memory/pending",
+      ...options,
+    })
+  }
+
+  /**
+   * Confirm a memory proposal
+   */
+  public confirm<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }])
+    return (options?.client ?? this.client).post<MemoryConfirmResponses, MemoryConfirmErrors, ThrowOnError>({
+      url: "/memory/{id}/confirm",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Reject a memory proposal
+   */
+  public reject<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }])
+    return (options?.client ?? this.client).post<MemoryRejectResponses, MemoryRejectErrors, ThrowOnError>({
+      url: "/memory/{id}/reject",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Edit a memory entry
+   */
+  public edit<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string
+      content?: string
+      trustLevel?: MemoryTrustLevel
+      sensitivityLevel?: MemorySensitivityLevel
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "id" },
+            { in: "body", key: "content" },
+            { in: "body", key: "trustLevel" },
+            { in: "body", key: "sensitivityLevel" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<MemoryEditResponses, MemoryEditErrors, ThrowOnError>({
+      url: "/memory/{id}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Soft-delete a confirmed memory entry
+   */
+  public remove<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }])
+    return (options?.client ?? this.client).post<MemoryRemoveResponses, MemoryRemoveErrors, ThrowOnError>({
+      url: "/memory/{id}/remove",
       ...options,
       ...params,
     })
@@ -8966,6 +9092,11 @@ export class AigcfrogeClient extends HeyApiClient {
   private _delivery?: Delivery
   get delivery(): Delivery {
     return (this._delivery ??= new Delivery({ client: this.client }))
+  }
+
+  private _memory?: Memory
+  get memory(): Memory {
+    return (this._memory ??= new Memory({ client: this.client }))
   }
 
   private _agentTask?: AgentTask

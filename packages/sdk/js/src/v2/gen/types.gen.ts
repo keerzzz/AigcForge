@@ -2717,6 +2717,14 @@ export type ConflictError = {
   resource?: string
 }
 
+export type MemorySource = "explicit" | "derived"
+
+export type MemoryTrustLevel = "high" | "medium" | "low"
+
+export type MemorySensitivityLevel = "high" | "medium" | "low"
+
+export type MemoryStatus = "pending" | "confirmed" | "rejected" | "deleted"
+
 export type ProviderAuthMethod = {
   type: "oauth" | "api"
   label: string
@@ -4817,6 +4825,24 @@ export type AgentAssetCandidate = {
   config: string
   source: string
   relativePath: string
+}
+
+export type PersonalMemoryInfo = {
+  id: string
+  /**
+   * Memory content
+   */
+  content: string
+  source: MemorySource
+  trustLevel: MemoryTrustLevel
+  sensitivityLevel: MemorySensitivityLevel
+  status: MemoryStatus
+  sourceSessionID?: string
+  sourceMessageID?: string
+  createdBy?: string
+  confirmedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  createdAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
 }
 
 export type WorkflowAssetSummary = {
@@ -12094,6 +12120,168 @@ export type DeliveryReadResponses = {
    */
   200: unknown
 }
+
+export type MemoryListData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/memory"
+}
+
+export type MemoryListErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type MemoryListError = MemoryListErrors[keyof MemoryListErrors]
+
+export type MemoryListResponses = {
+  /**
+   * All personal memory entries
+   */
+  200: Array<PersonalMemoryInfo>
+}
+
+export type MemoryListResponse = MemoryListResponses[keyof MemoryListResponses]
+
+export type MemoryPendingData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/memory/pending"
+}
+
+export type MemoryPendingErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type MemoryPendingError = MemoryPendingErrors[keyof MemoryPendingErrors]
+
+export type MemoryPendingResponses = {
+  /**
+   * Pending memory proposals
+   */
+  200: Array<PersonalMemoryInfo>
+}
+
+export type MemoryPendingResponse = MemoryPendingResponses[keyof MemoryPendingResponses]
+
+export type MemoryConfirmData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: "/memory/{id}/confirm"
+}
+
+export type MemoryConfirmErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type MemoryConfirmError = MemoryConfirmErrors[keyof MemoryConfirmErrors]
+
+export type MemoryConfirmResponses = {
+  /**
+   * The confirmed memory entry
+   */
+  200: PersonalMemoryInfo
+}
+
+export type MemoryConfirmResponse = MemoryConfirmResponses[keyof MemoryConfirmResponses]
+
+export type MemoryRejectData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: "/memory/{id}/reject"
+}
+
+export type MemoryRejectErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type MemoryRejectError = MemoryRejectErrors[keyof MemoryRejectErrors]
+
+export type MemoryRejectResponses = {
+  /**
+   * The rejected memory entry
+   */
+  200: PersonalMemoryInfo
+}
+
+export type MemoryRejectResponse = MemoryRejectResponses[keyof MemoryRejectResponses]
+
+export type MemoryEditData = {
+  body?: {
+    content?: string
+    trustLevel?: MemoryTrustLevel
+    sensitivityLevel?: MemorySensitivityLevel
+  }
+  path: {
+    id: string
+  }
+  query?: never
+  url: "/memory/{id}"
+}
+
+export type MemoryEditErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type MemoryEditError = MemoryEditErrors[keyof MemoryEditErrors]
+
+export type MemoryEditResponses = {
+  /**
+   * The edited memory entry
+   */
+  200: PersonalMemoryInfo
+}
+
+export type MemoryEditResponse = MemoryEditResponses[keyof MemoryEditResponses]
+
+export type MemoryRemoveData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: "/memory/{id}/remove"
+}
+
+export type MemoryRemoveErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type MemoryRemoveError = MemoryRemoveErrors[keyof MemoryRemoveErrors]
+
+export type MemoryRemoveResponses = {
+  /**
+   * The deleted memory entry
+   */
+  200: PersonalMemoryInfo
+}
+
+export type MemoryRemoveResponse = MemoryRemoveResponses[keyof MemoryRemoveResponses]
 
 export type AgentTaskListData = {
   body?: never

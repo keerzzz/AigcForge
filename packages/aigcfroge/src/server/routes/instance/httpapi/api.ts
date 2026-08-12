@@ -23,6 +23,7 @@ import { CommandAssetApiGroup } from "./groups/command-asset"
 import { AgentAssetApiGroup } from "./groups/agent-asset"
 import { AgentTaskApiGroup } from "./groups/agent-task"
 import { ScheduleApiGroup } from "./groups/schedule"
+import { MemoryApiGroup } from "./groups/memory"
 import { WorkflowAssetApiGroup } from "./groups/workflow-asset"
 import { PluginAssetApiGroup } from "./groups/plugin-asset"
 import { ImportParserApiGroup } from "./groups/import-parser"
@@ -80,6 +81,7 @@ export const InstanceHttpApi = HttpApi.make("aigcfroge-instance")
   .addHttpApi(CommandAssetApiGroup.CommandAssetApi)
   .addHttpApi(AgentAssetApiGroup.AgentAssetApi)
   .addHttpApi(ScheduleApiGroup.ScheduleApi)
+  .addHttpApi(MemoryApiGroup.MemoryApi)
   .addHttpApi(AgentTaskApiGroup.AgentTaskApi)
   .addHttpApi(WorkflowAssetApiGroup.WorkflowAssetApi)
   .addHttpApi(PluginAssetApiGroup.PluginAssetApi)

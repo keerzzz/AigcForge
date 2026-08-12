@@ -65,6 +65,7 @@ import { ScheduledJob } from "@aigcfroge/core/session/scheduled-job"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { SessionTodo } from "@aigcfroge/core/session/todo"
 import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
+import { PersonalMemory } from "@aigcfroge/core/session/personal-memory"
 import { lazy } from "@/util/lazy"
 import { CorsConfig, isAllowedCorsOrigin, type CorsOptions } from "@aigcfroge/server/cors"
 import { serveUIEffect } from "@/server/shared/ui"
@@ -107,6 +108,7 @@ import { questionHandlers } from "./handlers/question"
 import { sessionHandlers } from "./handlers/session"
 import { agentTaskHandlers } from "./handlers/agent-task"
 import { scheduleHandlers } from "./handlers/schedule"
+import { memoryHandlers } from "./handlers/memory"
 import { syncHandlers } from "./handlers/sync"
 import { tuiHandlers } from "./handlers/tui"
 import { handlers } from "@aigcfroge/server/handlers"
@@ -182,6 +184,7 @@ const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
     sessionHandlers,
     agentTaskHandlers,
     scheduleHandlers,
+    memoryHandlers,
     syncHandlers,
     tuiHandlers,
     workspaceHandlers,
@@ -296,6 +299,8 @@ const app = LayerNode.group([
   ScheduleService.node,
   ScheduleService.deliveryNode,
   ScheduleService.daemonNode,
+  // Personal memory (Phase C).
+  PersonalMemory.node,
 ])
 
 export function createRoutes(
