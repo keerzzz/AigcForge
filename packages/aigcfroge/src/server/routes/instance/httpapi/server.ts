@@ -66,6 +66,7 @@ import { SessionTask } from "@aigcfroge/core/session/task"
 import { SessionTodo } from "@aigcfroge/core/session/todo"
 import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
 import { PersonalMemory } from "@aigcfroge/core/session/personal-memory"
+import { KBService } from "@aigcfroge/core/session/kb-service"
 import { lazy } from "@/util/lazy"
 import { CorsConfig, isAllowedCorsOrigin, type CorsOptions } from "@aigcfroge/server/cors"
 import { serveUIEffect } from "@/server/shared/ui"
@@ -109,6 +110,7 @@ import { sessionHandlers } from "./handlers/session"
 import { agentTaskHandlers } from "./handlers/agent-task"
 import { scheduleHandlers } from "./handlers/schedule"
 import { memoryHandlers } from "./handlers/memory"
+import { kbHandlers } from "./handlers/kb"
 import { syncHandlers } from "./handlers/sync"
 import { tuiHandlers } from "./handlers/tui"
 import { handlers } from "@aigcfroge/server/handlers"
@@ -185,6 +187,7 @@ const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
     agentTaskHandlers,
     scheduleHandlers,
     memoryHandlers,
+    kbHandlers,
     syncHandlers,
     tuiHandlers,
     workspaceHandlers,
@@ -301,6 +304,8 @@ const app = LayerNode.group([
   ScheduleService.daemonNode,
   // Personal memory (Phase C).
   PersonalMemory.node,
+  // Knowledge base (Phase D).
+  KBService.node,
 ])
 
 export function createRoutes(

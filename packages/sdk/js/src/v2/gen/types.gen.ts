@@ -2725,6 +2725,10 @@ export type MemorySensitivityLevel = "high" | "medium" | "low"
 
 export type MemoryStatus = "pending" | "confirmed" | "rejected" | "deleted"
 
+export type KbNoteScope = "global" | "project"
+
+export type KbNoteFormat = "note" | "summary" | "faq" | "timeline" | "study_guide" | "briefing" | "mindmap"
+
 export type ProviderAuthMethod = {
   type: "oauth" | "api"
   label: string
@@ -4843,6 +4847,27 @@ export type PersonalMemoryInfo = {
   confirmedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
   createdAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
   updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+}
+
+export type KbNoteNote = {
+  id: string
+  title: string
+  /**
+   * Markdown body (may contain [[wikilinks]])
+   */
+  content: string
+  scope: KbNoteScope
+  tags: Array<string>
+  aliases?: Array<string>
+  format: KbNoteFormat
+  createdAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+}
+
+export type KbNoteDanglingLink = {
+  sourceNoteID: string
+  sourceTitle: string
+  targetTitle: string
 }
 
 export type WorkflowAssetSummary = {
@@ -12282,6 +12307,204 @@ export type MemoryRemoveResponses = {
 }
 
 export type MemoryRemoveResponse = MemoryRemoveResponses[keyof MemoryRemoveResponses]
+
+export type KbListData = {
+  body?: never
+  path?: never
+  query?: {
+    scope?: KbNoteScope
+    limit?: string | "Infinity" | "-Infinity" | "NaN"
+  }
+  url: "/kb"
+}
+
+export type KbListErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type KbListError = KbListErrors[keyof KbListErrors]
+
+export type KbListResponses = {
+  /**
+   * Knowledge base notes
+   */
+  200: Array<KbNoteNote>
+}
+
+export type KbListResponse = KbListResponses[keyof KbListResponses]
+
+export type KbCreateData = {
+  body?: {
+    title: string
+    content: string
+    scope: KbNoteScope
+    tags?: Array<string>
+    aliases?: Array<string>
+    format?: KbNoteFormat
+  }
+  path?: never
+  query?: never
+  url: "/kb"
+}
+
+export type KbCreateErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type KbCreateError = KbCreateErrors[keyof KbCreateErrors]
+
+export type KbCreateResponses = {
+  /**
+   * The created note
+   */
+  200: KbNoteNote
+}
+
+export type KbCreateResponse = KbCreateResponses[keyof KbCreateResponses]
+
+export type KbGetData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: "/kb/{id}"
+}
+
+export type KbGetErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type KbGetError = KbGetErrors[keyof KbGetErrors]
+
+export type KbGetResponses = {
+  /**
+   * A knowledge base note
+   */
+  200: KbNoteNote
+}
+
+export type KbGetResponse = KbGetResponses[keyof KbGetResponses]
+
+export type KbUpdateData = {
+  body?: {
+    title?: string
+    content?: string
+    tags?: Array<string>
+    aliases?: Array<string>
+  }
+  path: {
+    id: string
+  }
+  query?: never
+  url: "/kb/{id}"
+}
+
+export type KbUpdateErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type KbUpdateError = KbUpdateErrors[keyof KbUpdateErrors]
+
+export type KbUpdateResponses = {
+  /**
+   * The updated note
+   */
+  200: KbNoteNote
+}
+
+export type KbUpdateResponse = KbUpdateResponses[keyof KbUpdateResponses]
+
+export type KbRemoveData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: "/kb/{id}/remove"
+}
+
+export type KbRemoveErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type KbRemoveError = KbRemoveErrors[keyof KbRemoveErrors]
+
+export type KbRemoveResponses = {
+  /**
+   * The removed note
+   */
+  200: unknown
+}
+
+export type KbDanglingData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/kb/dangling"
+}
+
+export type KbDanglingErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type KbDanglingError = KbDanglingErrors[keyof KbDanglingErrors]
+
+export type KbDanglingResponses = {
+  /**
+   * Dangling wikilinks
+   */
+  200: Array<KbNoteDanglingLink>
+}
+
+export type KbDanglingResponse = KbDanglingResponses[keyof KbDanglingResponses]
+
+export type KbSearchData = {
+  body?: never
+  path?: never
+  query: {
+    query: string
+    scope?: KbNoteScope
+    limit?: string | "Infinity" | "-Infinity" | "NaN"
+  }
+  url: "/kb/search"
+}
+
+export type KbSearchErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type KbSearchError = KbSearchErrors[keyof KbSearchErrors]
+
+export type KbSearchResponses = {
+  /**
+   * Matching notes
+   */
+  200: Array<KbNoteNote>
+}
+
+export type KbSearchResponse = KbSearchResponses[keyof KbSearchResponses]
 
 export type AgentTaskListData = {
   body?: never

@@ -1,4 +1,4 @@
-import { createMemo, For, Show } from "solid-js"
+import { createMemo, createSignal, For, Show } from "solid-js"
 import { useQuery } from "@tanstack/solid-query"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
@@ -22,7 +22,7 @@ import {
   groupSessions,
   type HomeSessionRecord,
 } from "@/pages/home"
-import type { PersonalMemoryInfo, ScheduleInfo } from "@aigcfroge/sdk/v2/client"
+import type { KbNoteNote, PersonalMemoryInfo, ScheduleInfo } from "@aigcfroge/sdk/v2/client"
 
 /**
  * Assistant Dashboard 主区（计划 §3.9.1）：顶部标题区 + 待办提醒横条（主心智，
@@ -78,6 +78,59 @@ export function AssistantDashboardMain() {
   }
   function removeMemory(id: string) {
     void serverSDK().client.memory.remove({ id }).then(() => memoryQuery.refetch())
+  }
+
+  // ---- 知识库（Phase E：笔记列表 + 简易编辑器） ----
+  const kbQuery = useQuery(() => ({
+    queryKey: ["assistant", "kb"] as const,
+    queryFn: async () => {
+      const res = await serverSDK().client.kb.list({})
+      return res.data ?? []
+    },
+  }))
+  const notes = createMemo(() => kbQuery.data ?? [])
+  const [editing, setEditing] = createSignal<KbNoteNote | undefined>()
+  const [editTitle, setEditTitle] = createSignal("")
+  const [editContent, setEditContent] = createSignal("")
+  const [creating, setCreating] = createSignal(false)
+
+  function openEditor(note: KbNoteNote) {
+    setEditing(note)
+    setEditTitle(note.title)
+    setEditContent(note.content)
+    setCreating(false)
+  }
+  function startCreate() {
+    setEditing(undefined)
+    setEditTitle("")
+    setEditContent("")
+    setCreating(true)
+  }
+  function saveNote() {
+    const editingNote = editing()
+    const sdk = serverSDK()
+    if (creating() || !editingNote) {
+      void sdk.client.kb
+        .create({ title: editTitle(), content: editContent(), scope: "global" })
+        .then(() => {
+          setCreating(false)
+          setEditing(undefined)
+          void kbQuery.refetch()
+        })
+      return
+    }
+    void sdk.client.kb
+      .update({ id: editingNote.id, content: editContent() })
+      .then(() => {
+        setEditing(undefined)
+        void kbQuery.refetch()
+      })
+  }
+  function deleteNote(id: string) {
+    void serverSDK().client.kb.remove({ id }).then(() => {
+      setEditing(undefined)
+      void kbQuery.refetch()
+    })
   }
 
   // ---- ④ 会话列表（复用 home 共享管道） ----
@@ -299,6 +352,87 @@ export function AssistantDashboardMain() {
             </Show>
           </section>
         </Show>
+
+        {/* 知识库（Phase E：列表 + 简易编辑器） */}
+        <section class="flex min-w-0 flex-col gap-3">
+          <div class="flex min-w-0 items-center justify-between gap-3">
+            <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.kb.title")}</h2>
+            <IconButtonV2
+              variant="ghost-muted"
+              size="small"
+              icon={<Icon name="plus" />}
+              aria-label={language.t("assistant.kb.new")}
+              onClick={startCreate}
+            />
+          </div>
+
+          <Show when={creating() || editing() !== undefined}>
+            <div class="flex min-w-0 flex-col gap-2 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
+              <input
+                class="w-full rounded-md border border-v2-border-border-base bg-v2-background-bg-base px-2 py-1 text-v2-text-text-base text-13-regular focus:outline-none"
+                placeholder="Title"
+                value={editTitle()}
+                onInput={(event) => setEditTitle(event.currentTarget.value)}
+                disabled={!creating()}
+              />
+              <textarea
+                class="min-h-24 w-full resize-y rounded-md border border-v2-border-border-base bg-v2-background-bg-base px-2 py-1 text-v2-text-text-base text-13-regular focus:outline-none"
+                placeholder="Markdown body, may contain [[wikilinks]]"
+                value={editContent()}
+                onInput={(event) => setEditContent(event.currentTarget.value)}
+              />
+              <div class="flex items-center gap-2">
+                <IconButtonV2
+                  variant="neutral"
+                  size="small"
+                  icon={<Icon name="check" />}
+                  aria-label={language.t("assistant.kb.save")}
+                  onClick={saveNote}
+                />
+                <IconButtonV2
+                  variant="ghost-muted"
+                  size="small"
+                  icon={<Icon name="close" />}
+                  aria-label={language.t("assistant.kb.cancel")}
+                  onClick={() => {
+                    setCreating(false)
+                    setEditing(undefined)
+                  }}
+                />
+                <Show when={editing() !== undefined}>
+                  <IconButtonV2
+                    variant="ghost-muted"
+                    size="small"
+                    icon={<Icon name="trash" />}
+                    aria-label={language.t("assistant.kb.delete")}
+                    onClick={() => deleteNote(editing()!.id)}
+                  />
+                </Show>
+              </div>
+            </div>
+          </Show>
+
+          <Show
+            when={notes().length > 0}
+            fallback={<p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.kb.empty")}</p>}
+          >
+            <div class="flex min-w-0 flex-col gap-px">
+              <For each={notes()}>
+                {(note: KbNoteNote) => (
+                  <button
+                    type="button"
+                    class="flex min-w-0 items-center gap-2 rounded-md px-1 py-1 text-left hover:bg-v2-background-bg-layer-02 focus-visible:outline-none"
+                    onClick={() => openEditor(note)}
+                  >
+                    <Icon name="file-text" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+                    <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">{note.title}</span>
+                    <span class="shrink-0 text-v2-text-text-faint text-11-regular">{note.format}</span>
+                  </button>
+                )}
+              </For>
+            </div>
+          </Show>
+        </section>
 
         {/* ④ 会话列表（共享管道） */}
         <section class="flex min-w-0 flex-col gap-3">

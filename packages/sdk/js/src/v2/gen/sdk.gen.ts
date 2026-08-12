@@ -118,6 +118,22 @@ import type {
   ImportParserParseResponses,
   InstanceDisposeErrors,
   InstanceDisposeResponses,
+  KbCreateErrors,
+  KbCreateResponses,
+  KbDanglingErrors,
+  KbDanglingResponses,
+  KbGetErrors,
+  KbGetResponses,
+  KbListErrors,
+  KbListResponses,
+  KbNoteFormat,
+  KbNoteScope,
+  KbRemoveErrors,
+  KbRemoveResponses,
+  KbSearchErrors,
+  KbSearchResponses,
+  KbUpdateErrors,
+  KbUpdateResponses,
   LocationRef,
   LspStatusErrors,
   LspStatusResponses,
@@ -4468,6 +4484,190 @@ export class Memory extends HeyApiClient {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }])
     return (options?.client ?? this.client).post<MemoryRemoveResponses, MemoryRemoveErrors, ThrowOnError>({
       url: "/memory/{id}/remove",
+      ...options,
+      ...params,
+    })
+  }
+}
+
+export class Kb extends HeyApiClient {
+  /**
+   * List knowledge base notes
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      scope?: KbNoteScope
+      limit?: string | "Infinity" | "-Infinity" | "NaN"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "scope" },
+            { in: "query", key: "limit" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<KbListResponses, KbListErrors, ThrowOnError>({
+      url: "/kb",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Create a knowledge base note
+   */
+  public create<ThrowOnError extends boolean = false>(
+    parameters?: {
+      title?: string
+      content?: string
+      scope?: KbNoteScope
+      tags?: Array<string>
+      aliases?: Array<string>
+      format?: KbNoteFormat
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "title" },
+            { in: "body", key: "content" },
+            { in: "body", key: "scope" },
+            { in: "body", key: "tags" },
+            { in: "body", key: "aliases" },
+            { in: "body", key: "format" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<KbCreateResponses, KbCreateErrors, ThrowOnError>({
+      url: "/kb",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Read a knowledge base note
+   */
+  public get<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }])
+    return (options?.client ?? this.client).get<KbGetResponses, KbGetErrors, ThrowOnError>({
+      url: "/kb/{id}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Update a knowledge base note
+   */
+  public update<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string
+      title?: string
+      content?: string
+      tags?: Array<string>
+      aliases?: Array<string>
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "id" },
+            { in: "body", key: "title" },
+            { in: "body", key: "content" },
+            { in: "body", key: "tags" },
+            { in: "body", key: "aliases" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<KbUpdateResponses, KbUpdateErrors, ThrowOnError>({
+      url: "/kb/{id}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Remove a knowledge base note
+   */
+  public remove<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }])
+    return (options?.client ?? this.client).post<KbRemoveResponses, KbRemoveErrors, ThrowOnError>({
+      url: "/kb/{id}/remove",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * List dangling wikilinks
+   */
+  public dangling<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<KbDanglingResponses, KbDanglingErrors, ThrowOnError>({
+      url: "/kb/dangling",
+      ...options,
+    })
+  }
+
+  /**
+   * Full-text search
+   */
+  public search<ThrowOnError extends boolean = false>(
+    parameters: {
+      query: string
+      scope?: KbNoteScope
+      limit?: string | "Infinity" | "-Infinity" | "NaN"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "query" },
+            { in: "query", key: "scope" },
+            { in: "query", key: "limit" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<KbSearchResponses, KbSearchErrors, ThrowOnError>({
+      url: "/kb/search",
       ...options,
       ...params,
     })
@@ -9097,6 +9297,11 @@ export class AigcfrogeClient extends HeyApiClient {
   private _memory?: Memory
   get memory(): Memory {
     return (this._memory ??= new Memory({ client: this.client }))
+  }
+
+  private _kb?: Kb
+  get kb(): Kb {
+    return (this._kb ??= new Kb({ client: this.client }))
   }
 
   private _agentTask?: AgentTask
