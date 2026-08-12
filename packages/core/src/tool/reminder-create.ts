@@ -1,7 +1,7 @@
 export * as ReminderCreateTool from "./reminder-create"
 
 import { ToolFailure } from "@aigcfroge/llm"
-import { Effect, Layer, Schema } from "effect"
+import { DateTime, Effect, Layer, Schema } from "effect"
 import { ScheduleService } from "../session/schedule-service"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
@@ -22,9 +22,17 @@ Input:
 - timezone: the user-confirmed IANA timezone (e.g. "Asia/Shanghai")`
 
 export const Input = Schema.Struct({
-  content: Schema.String.annotate({ description: "User-confirmed reminder text" }),
-  dueAt: Schema.Number.annotate({ description: "Absolute due timestamp (ms since epoch)" }),
-  timezone: Schema.String.annotate({ description: "User-confirmed IANA timezone" }),
+  content: Schema.String.pipe(
+    Schema.check(Schema.isMinLength(1)),
+    Schema.check(Schema.isMaxLength(500)),
+  ).annotate({ description: "User-confirmed reminder text" }),
+  dueAt: Schema.Number.pipe(
+    Schema.check(Schema.isInt()),
+    Schema.check(Schema.isGreaterThan(0)),
+  ).annotate({ description: "Absolute due timestamp (ms since epoch)" }),
+  timezone: Schema.String.pipe(Schema.check(Schema.isMinLength(1))).annotate({
+    description: "User-confirmed IANA timezone",
+  }),
 })
 
 export const Output = Schema.Struct({
@@ -47,13 +55,22 @@ export const layer = Layer.effectDiscard(
       output: Output,
       execute: (input, context) =>
         Effect.gen(function* () {
+          const now = (yield* DateTime.nowAsDate).getTime()
+          if (input.dueAt <= now) {
+            return yield* Effect.fail(
+              new ToolFailure({ message: "The due time is in the past. Re-confirm the target time with the user." }),
+            )
+          }
           const created = yield* schedules.create({
             sessionID: context.sessionID,
             kind: "reminder",
             content: input.content,
             dueAt: input.dueAt,
             timezone: input.timezone,
-            deliveryKey: `reminder:${context.sessionID}:${Date.now()}:${input.dueAt}`,
+            // Idempotency key (review MINOR): stable per (session, due time) —
+            // a tool retry re-creating the same reminder collides on the
+            // schedule.delivery_key unique constraint instead of duplicating.
+            deliveryKey: `reminder:${context.sessionID}:${input.dueAt}`,
           })
           return {
             id: created.id,

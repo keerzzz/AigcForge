@@ -4331,7 +4331,7 @@ export class Delivery extends HeyApiClient {
    */
   public recent<ThrowOnError extends boolean = false>(
     parameters?: {
-      limit?: string | "Infinity" | "-Infinity" | "NaN"
+      limit?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -4497,7 +4497,7 @@ export class Kb extends HeyApiClient {
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
       scope?: KbNoteScope
-      limit?: string | "Infinity" | "-Infinity" | "NaN"
+      limit?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -4650,7 +4650,7 @@ export class Kb extends HeyApiClient {
     parameters: {
       query: string
       scope?: KbNoteScope
-      limit?: string | "Infinity" | "-Infinity" | "NaN"
+      limit?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {

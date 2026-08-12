@@ -41,7 +41,7 @@ describe("KBNote.Note", () => {
 
   test("NoteFormat literal set covers the seven formats", () => {
     const format = Schema.decodeUnknownSync(KBNote.NoteFormat)
-    for (const value of ["note", "summary", "faq", "timeline", "study_guide", "briefing", "mindmap"]) {
+    for (const value of ["note", "summary", "faq", "timeline", "study_guide", "briefing", "mindmap"] as const) {
       expect(format(value)).toBe(value)
     }
   })
@@ -50,19 +50,19 @@ describe("KBNote.Note", () => {
 describe("KBNote.Link", () => {
   test("decodes a resolved link", () => {
     const s = Schema.decodeUnknownSync(KBNote.Link)({
-      sourceNoteID: "kb_src",
-      targetNoteID: "kb_tgt",
+      sourceNoteID: "kb_src" as KBNote.NoteID,
+      targetNoteID: "kb_tgt" as KBNote.NoteID,
       targetTitle: "Roadmap",
       linkType: "reference",
       dangling: false,
     })
-    expect(s.targetNoteID).toBe("kb_tgt")
+    expect(s.targetNoteID).toBe("kb_tgt" as KBNote.NoteID)
     expect(s.dangling).toBe(false)
   })
 
   test("decodes a dangling link without a target", () => {
     const s = Schema.decodeUnknownSync(KBNote.Link)({
-      sourceNoteID: "kb_src",
+      sourceNoteID: "kb_src" as KBNote.NoteID,
       targetTitle: "Missing",
       linkType: "reference",
       dangling: true,

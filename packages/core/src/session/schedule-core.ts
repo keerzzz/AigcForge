@@ -105,9 +105,30 @@ export const daemon = <R>(input: {
   Effect.gen(function* () {
     if (input.startupSweep) yield* input.startupSweep
     yield* input.core.arm(Date.now(), { recover: true }).pipe(Effect.ignore)
-    yield* Effect.forkScoped(input.core.tick(Date.now()).pipe(Effect.ignore, Effect.repeat(Schedule.spaced("1 minute"))))
+    // Each minute cycle re-derives the queue from the table (arm) BEFORE
+    // triggering (tick), so a due row can never be stranded by a missed
+    // re-arm event — e.g. tool-path writes publishing on a different EventV2
+    // instance than this daemon subscribes to (review MAJOR #3). The event
+    // re-arm below stays as a fast-path optimization, never as the only path.
+    yield* Effect.forkScoped(
+      Effect.gen(function* () {
+        yield* input.core.arm(Date.now()).pipe(
+          // Defect-containment (review MAJOR): Effect.ignore only swallows
+          // typed failures — a defect (e.g. an orDie'd SQLite fault) would
+          // abort the whole repeat and permanently kill the tick fiber.
+          Effect.catchDefect((defect) => Effect.logError("Scheduler arm defect contained", defect)),
+        )
+        yield* input.core.tick(Date.now()).pipe(
+          Effect.catchDefect((defect) => Effect.logError("Scheduler tick defect contained", defect)),
+        )
+      }).pipe(Effect.repeat(Schedule.spaced("1 minute"))),
+    )
     yield* input.rearmSignals.pipe(
-      Stream.runForEach(() => input.core.arm(Date.now()).pipe(Effect.ignore)),
+      Stream.runForEach(() =>
+        input.core.arm(Date.now()).pipe(
+          Effect.catchDefect((defect) => Effect.logError("Scheduler re-arm defect contained", defect)),
+        ),
+      ),
       Effect.forkScoped({ startImmediately: true }),
     )
   })

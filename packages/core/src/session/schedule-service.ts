@@ -143,7 +143,11 @@ export interface Interface {
     readonly dueAt?: number
     readonly timezone?: string
   }) => Effect.Effect<Schedule.Info | undefined>
-  /** Claim a pending row into running with a lease (conditional; undefined when raced). */
+  /**
+   * Claim a pending row into running with a lease (conditional; undefined when
+   * raced). Not used by the production daemon (it claims inside its delivery
+   * transaction); kept as the typed API for manual/managed claim paths.
+   */
   readonly claim: (id: Schedule.ID, owner: string, now: number) => Effect.Effect<Schedule.Info | undefined>
   /** Settle a running row into completed/failed. */
   readonly settle: (id: Schedule.ID, status: "completed" | "failed") => Effect.Effect<Schedule.Info | undefined>
@@ -523,7 +527,10 @@ export const makeAssistantCore = (input: {
                 .from(ScheduleTable)
                 .where(eq(ScheduleTable.id, id as Schedule.ID))
                 .get()
-                .pipe(Effect.orDie)
+                // Review MAJOR: no orDie here — a statement-level SqlError must
+                // stay typed so the transaction catch below can run the
+                // bounded-backoff retry (PRD §7.2). orDie would turn it into a
+                // defect and make the retry branch dead code.
               if (!row) return { skipped: true as const, sessionID: "" }
               if (row.status !== "pending") return { skipped: true as const, sessionID: "" }
               yield* tx

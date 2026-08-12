@@ -35,8 +35,14 @@ export const layer = Layer.effectDiscard(
       description,
       input: Input,
       output: Output,
-      execute: (input) =>
+      execute: (input, context) =>
         Effect.gen(function* () {
+          const prior = yield* schedules.list(context.sessionID)
+          if (!prior.some((item) => item.id === input.id)) {
+            return yield* Effect.fail(
+              new ToolFailure({ message: `Reminder ${input.id} does not belong to this session` }),
+            )
+          }
           const cancelled = yield* schedules.cancel(input.id as Schedule.ID)
           return {
             id: input.id,

@@ -33,10 +33,31 @@ export const LinkType = Schema.Literals(["reference", "supports", "contradicts",
 })
 export type LinkType = typeof LinkType.Type
 
+/**
+ * Note title: the [[link]] match key AND the `.md` file name (ADR-14 §2), so
+ * path separators and parent references are rejected at the schema boundary —
+ * a title like `../../tmp/x` must never escape the knowledge-base directory.
+ */
+export const Title = Schema.String.pipe(
+  Schema.check(
+    Schema.makeFilter<string>(
+      (title) => {
+        if (title.length === 0) return false
+        if (title !== title.trim()) return false
+        if (title.includes("/") || title.includes("\\")) return false
+        if (title === "." || title === ".." || title.startsWith("..")) return false
+        return true
+      },
+      { message: "Note title must be a plain file name: no path separators, no parent references" },
+    ),
+  ),
+).annotate({ identifier: "KBNoteTitle" })
+export type Title = typeof Title.Type
+
 export class Note extends Schema.Class<Note>("KBNote.Note")({
   id: NoteID,
   /** Unique within its scope — the [[link]] match key. */
-  title: Schema.String,
+  title: Title,
   content: Schema.String.annotate({ description: "Markdown body (may contain [[wikilinks]])" }),
   scope: NoteScope,
   tags: Schema.Array(Schema.String),

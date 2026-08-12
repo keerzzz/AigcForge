@@ -16,7 +16,7 @@ export const KBApi = HttpApi.make("kb").add(
       HttpApiEndpoint.get("list", root, {
         query: Schema.Struct({
           scope: Schema.optional(KBNote.NoteScope),
-          limit: Schema.optional(Schema.Number),
+          limit: Schema.optional(Schema.NumberFromString),
         }),
         success: described(Schema.Array(KBNote.Note), "Knowledge base notes"),
       }).annotateMerge(
@@ -86,7 +86,7 @@ export const KBApi = HttpApi.make("kb").add(
         query: Schema.Struct({
           query: Schema.String,
           scope: Schema.optional(KBNote.NoteScope),
-          limit: Schema.optional(Schema.Number),
+          limit: Schema.optional(Schema.NumberFromString),
         }),
         success: described(Schema.Array(KBNote.Note), "Matching notes"),
       }).annotateMerge(

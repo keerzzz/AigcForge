@@ -352,3 +352,44 @@ describe("AssistantSchedulerDaemon (restart recovery)", () => {
     }),
   )
 })
+
+// MAJOR #3 regression: the tool path (location-layer) publishes schedule
+// updates on one EventV2 instance while the daemon subscribes on another
+// (server app graph). The minute cycle re-derives the queue from the table,
+// so a reminder created on the "other" EventV2 must still be delivered.
+const splitEventIt = testEffect(
+  ScheduleService.daemonLayer.pipe(
+    Layer.provideMerge(ScheduleService.layer),
+    Layer.provideMerge(ScheduleService.deliveryLayer),
+    Layer.provideMerge(EventV2.defaultLayer),
+    Layer.provideMerge(Database.defaultLayer),
+  ),
+)
+
+describe("AssistantSchedulerDaemon (split EventV2 instances)", () => {
+  splitEventIt.effect("delivers a reminder created through a different EventV2 instance", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const schedules = yield* ScheduleService.Service
+      const deliveries = yield* ScheduleService.DeliveryService
+      // Created via a *separate* EventV2 layer instance: the daemon never sees
+      // its schedule.updated publish — only the per-minute arm re-derives it.
+      yield* ScheduleService.layer.pipe(
+        Layer.provideMerge(EventV2.defaultLayer),
+        Layer.provideMerge(Database.defaultLayer),
+        Layer.build,
+        Effect.flatMap(() => schedules.create(makeInput({ dueAt: Date.now() - 60_000, deliveryKey: "reminder:split:1" }))),
+      )
+
+      for (let i = 0; i < 4; i++) {
+        yield* Effect.yieldNow
+        yield* TestClock.adjust(Duration.minutes(1))
+        yield* Effect.yieldNow
+      }
+
+      const inbox = yield* deliveries.listInbox(sessionID)
+      expect(inbox).toHaveLength(1)
+      expect(inbox[0]?.deliveryKey).toBe("reminder:split:1")
+    }),
+  )
+})

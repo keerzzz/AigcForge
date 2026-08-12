@@ -208,7 +208,6 @@ describe("ScheduledJobRunner", () => {
       expect(holder.calls).toHaveLength(0)
 
       const settled = yield* tasks.get(sessionID)
-      console.log("DBG settled:", JSON.stringify(settled.map((t) => `${t.content}:${t.status}`)))
       expect(settled[0]?.status).toBe("cancelled")
     }),
   )

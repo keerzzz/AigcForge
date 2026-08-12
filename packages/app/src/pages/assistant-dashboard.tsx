@@ -71,13 +71,13 @@ export function AssistantDashboardMain() {
   const confirmedMemories = createMemo(() => memories().filter((m) => m.status === "confirmed"))
 
   function confirmMemory(id: string) {
-    void serverSDK().client.memory.confirm({ id }).then(() => memoryQuery.refetch())
+    void serverSDK().client.memory.confirm({ id }).then(() => memoryQuery.refetch()).catch(console.error)
   }
   function rejectMemory(id: string) {
-    void serverSDK().client.memory.reject({ id }).then(() => memoryQuery.refetch())
+    void serverSDK().client.memory.reject({ id }).then(() => memoryQuery.refetch()).catch(console.error)
   }
   function removeMemory(id: string) {
-    void serverSDK().client.memory.remove({ id }).then(() => memoryQuery.refetch())
+    void serverSDK().client.memory.remove({ id }).then(() => memoryQuery.refetch()).catch(console.error)
   }
 
   // ---- 知识库（Phase E：笔记列表 + 简易编辑器） ----
@@ -117,6 +117,7 @@ export function AssistantDashboardMain() {
           setEditing(undefined)
           void kbQuery.refetch()
         })
+        .catch(console.error)
       return
     }
     void sdk.client.kb
@@ -125,12 +126,16 @@ export function AssistantDashboardMain() {
         setEditing(undefined)
         void kbQuery.refetch()
       })
+      .catch(console.error)
   }
   function deleteNote(id: string) {
-    void serverSDK().client.kb.remove({ id }).then(() => {
-      setEditing(undefined)
-      void kbQuery.refetch()
-    })
+    void serverSDK().client.kb
+      .remove({ id })
+      .then(() => {
+        setEditing(undefined)
+        void kbQuery.refetch()
+      })
+      .catch(console.error)
   }
 
   // ---- ④ 会话列表（复用 home 共享管道） ----
@@ -189,11 +194,11 @@ export function AssistantDashboardMain() {
   }
 
   function cancelReminder(id: string) {
-    void serverSDK().client.schedule.cancel({ id }).then(() => pendingQuery.refetch())
+    void serverSDK().client.schedule.cancel({ id }).then(() => pendingQuery.refetch()).catch(console.error)
   }
 
   function markRead(deliveryKey: string) {
-    void serverSDK().client.delivery.read({ deliveryKey }).then(() => recentQuery.refetch())
+    void serverSDK().client.delivery.read({ deliveryKey }).then(() => recentQuery.refetch()).catch(console.error)
   }
 
   const formatDue = (dueAt: number | "-Infinity" | "Infinity" | "NaN") =>
@@ -211,7 +216,7 @@ export function AssistantDashboardMain() {
           <IconButtonV2
             variant="neutral"
             size="normal"
-            icon={<Icon name="plus" />}
+            icon={<Icon name="grid-plus" />}
             aria-label={language.t("assistant.dashboard.new")}
             onClick={newAssistantSession}
           />
@@ -244,7 +249,7 @@ export function AssistantDashboardMain() {
                       <IconButtonV2
                         variant="ghost-muted"
                         size="small"
-                        icon={<Icon name="close" />}
+                        icon={<Icon name="xmark-small" />}
                         aria-label={language.t("assistant.dashboard.cancel")}
                         onClick={() => cancelReminder(reminder.id)}
                       />
@@ -277,7 +282,7 @@ export function AssistantDashboardMain() {
                     <IconButtonV2
                       variant="ghost-muted"
                       size="small"
-                      icon={<Icon name="check" />}
+                      icon={<Icon name="status-active" />}
                       aria-label={language.t("assistant.dashboard.markRead")}
                       onClick={() => markRead(delivery.deliveryKey)}
                     />
@@ -308,14 +313,14 @@ export function AssistantDashboardMain() {
                         <IconButtonV2
                           variant="neutral"
                           size="small"
-                          icon={<Icon name="check" />}
+                          icon={<Icon name="status-active" />}
                           aria-label={language.t("assistant.memory.confirm")}
                           onClick={() => confirmMemory(memory.id)}
                         />
                         <IconButtonV2
                           variant="ghost-muted"
                           size="small"
-                          icon={<Icon name="close" />}
+                          icon={<Icon name="xmark-small" />}
                           aria-label={language.t("assistant.memory.reject")}
                           onClick={() => rejectMemory(memory.id)}
                         />
@@ -340,7 +345,7 @@ export function AssistantDashboardMain() {
                         <IconButtonV2
                           variant="ghost-muted"
                           size="small"
-                          icon={<Icon name="trash" />}
+                          icon={<Icon name="xmark-small" />}
                           aria-label={language.t("assistant.memory.delete")}
                           onClick={() => removeMemory(memory.id)}
                         />
@@ -360,7 +365,7 @@ export function AssistantDashboardMain() {
             <IconButtonV2
               variant="ghost-muted"
               size="small"
-              icon={<Icon name="plus" />}
+              icon={<Icon name="grid-plus" />}
               aria-label={language.t("assistant.kb.new")}
               onClick={startCreate}
             />
@@ -385,14 +390,14 @@ export function AssistantDashboardMain() {
                 <IconButtonV2
                   variant="neutral"
                   size="small"
-                  icon={<Icon name="check" />}
+                  icon={<Icon name="status-active" />}
                   aria-label={language.t("assistant.kb.save")}
                   onClick={saveNote}
                 />
                 <IconButtonV2
                   variant="ghost-muted"
                   size="small"
-                  icon={<Icon name="close" />}
+                  icon={<Icon name="xmark-small" />}
                   aria-label={language.t("assistant.kb.cancel")}
                   onClick={() => {
                     setCreating(false)
@@ -403,7 +408,7 @@ export function AssistantDashboardMain() {
                   <IconButtonV2
                     variant="ghost-muted"
                     size="small"
-                    icon={<Icon name="trash" />}
+                    icon={<Icon name="xmark-small" />}
                     aria-label={language.t("assistant.kb.delete")}
                     onClick={() => deleteNote(editing()!.id)}
                   />

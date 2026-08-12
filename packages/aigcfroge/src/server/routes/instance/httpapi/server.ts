@@ -191,7 +191,6 @@ const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
     syncHandlers,
     tuiHandlers,
     workspaceHandlers,
-    scheduleHandlers,
   ]),
 )
 

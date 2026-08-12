@@ -79,6 +79,16 @@ export type Event =
   | EventTaskProgress
   | EventScheduleUpdated
   | EventScheduleDelivered
+  | EventAssistantReminderCreated
+  | EventAssistantReminderCancelled
+  | EventAssistantReminderFailed
+  | EventAssistantReminderCaughtUp
+  | EventAssistantMemoryProposed
+  | EventAssistantMemoryConfirmed
+  | EventAssistantMemoryRejected
+  | EventAssistantNoteCreated
+  | EventAssistantNoteRemoved
+  | EventAssistantKbSearched
   | EventWorkAssetSaved
   | EventWorkArtifactApplied
   | EventLspUpdated
@@ -1529,6 +1539,80 @@ export type GlobalEvent = {
       }
     | {
         id: string
+        type: "assistant_reminder_created"
+        properties: {
+          sessionID: string
+          scheduleID: string
+        }
+      }
+    | {
+        id: string
+        type: "assistant_reminder_cancelled"
+        properties: {
+          sessionID: string
+          scheduleID: string
+        }
+      }
+    | {
+        id: string
+        type: "assistant_reminder_failed"
+        properties: {
+          sessionID: string
+          scheduleID: string
+        }
+      }
+    | {
+        id: string
+        type: "assistant_reminder_caught_up"
+        properties: {
+          sessionID: string
+          scheduleID: string
+        }
+      }
+    | {
+        id: string
+        type: "assistant_memory_proposed"
+        properties: {
+          memoryID: string
+        }
+      }
+    | {
+        id: string
+        type: "assistant_memory_confirmed"
+        properties: {
+          memoryID: string
+        }
+      }
+    | {
+        id: string
+        type: "assistant_memory_rejected"
+        properties: {
+          memoryID: string
+        }
+      }
+    | {
+        id: string
+        type: "assistant_note_created"
+        properties: {
+          noteID: string
+        }
+      }
+    | {
+        id: string
+        type: "assistant_note_removed"
+        properties: {
+          noteID: string
+        }
+      }
+    | {
+        id: string
+        type: "assistant_kb_searched"
+        properties: {
+          [key: string]: unknown
+        }
+      }
+    | {
+        id: string
         type: "work.asset_saved"
         properties: {
           relativePath: string
@@ -2727,6 +2811,8 @@ export type MemoryStatus = "pending" | "confirmed" | "rejected" | "deleted"
 
 export type KbNoteScope = "global" | "project"
 
+export type KbNoteTitle = string
+
 export type KbNoteFormat = "note" | "summary" | "faq" | "timeline" | "study_guide" | "briefing" | "mindmap"
 
 export type ProviderAuthMethod = {
@@ -3574,6 +3660,16 @@ export type V2Event =
   | V2EventTaskProgress
   | V2EventScheduleUpdated
   | V2EventScheduleDelivered
+  | V2EventAssistantReminderCreated
+  | V2EventAssistantReminderCancelled
+  | V2EventAssistantReminderFailed
+  | V2EventAssistantReminderCaughtUp
+  | V2EventAssistantMemoryProposed
+  | V2EventAssistantMemoryConfirmed
+  | V2EventAssistantMemoryRejected
+  | V2EventAssistantNoteCreated
+  | V2EventAssistantNoteRemoved
+  | V2EventAssistantKbSearched
   | V2EventWorkAssetSaved
   | V2EventWorkArtifactApplied
   | V2EventLspUpdated
@@ -4851,7 +4947,7 @@ export type PersonalMemoryInfo = {
 
 export type KbNoteNote = {
   id: string
-  title: string
+  title: KbNoteTitle
   /**
    * Markdown body (may contain [[wikilinks]])
    */
@@ -7153,6 +7249,180 @@ export type V2EventScheduleDelivered = {
   }
 }
 
+export type V2EventAssistantReminderCreated = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "assistant_reminder_created"
+  data: {
+    sessionID: string
+    scheduleID: string
+  }
+}
+
+export type V2EventAssistantReminderCancelled = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "assistant_reminder_cancelled"
+  data: {
+    sessionID: string
+    scheduleID: string
+  }
+}
+
+export type V2EventAssistantReminderFailed = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "assistant_reminder_failed"
+  data: {
+    sessionID: string
+    scheduleID: string
+  }
+}
+
+export type V2EventAssistantReminderCaughtUp = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "assistant_reminder_caught_up"
+  data: {
+    sessionID: string
+    scheduleID: string
+  }
+}
+
+export type V2EventAssistantMemoryProposed = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "assistant_memory_proposed"
+  data: {
+    memoryID: string
+  }
+}
+
+export type V2EventAssistantMemoryConfirmed = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "assistant_memory_confirmed"
+  data: {
+    memoryID: string
+  }
+}
+
+export type V2EventAssistantMemoryRejected = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "assistant_memory_rejected"
+  data: {
+    memoryID: string
+  }
+}
+
+export type V2EventAssistantNoteCreated = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "assistant_note_created"
+  data: {
+    noteID: string
+  }
+}
+
+export type V2EventAssistantNoteRemoved = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "assistant_note_removed"
+  data: {
+    noteID: string
+  }
+}
+
+export type V2EventAssistantKbSearched = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "assistant_kb_searched"
+  data: {
+    [key: string]: unknown
+  }
+}
+
 export type V2EventWorkAssetSaved = {
   id: string
   metadata?: {
@@ -8665,6 +8935,90 @@ export type EventScheduleDelivered = {
   properties: {
     sessionID: string
     delivery: ScheduleDelivery1
+  }
+}
+
+export type EventAssistantReminderCreated = {
+  id: string
+  type: "assistant_reminder_created"
+  properties: {
+    sessionID: string
+    scheduleID: string
+  }
+}
+
+export type EventAssistantReminderCancelled = {
+  id: string
+  type: "assistant_reminder_cancelled"
+  properties: {
+    sessionID: string
+    scheduleID: string
+  }
+}
+
+export type EventAssistantReminderFailed = {
+  id: string
+  type: "assistant_reminder_failed"
+  properties: {
+    sessionID: string
+    scheduleID: string
+  }
+}
+
+export type EventAssistantReminderCaughtUp = {
+  id: string
+  type: "assistant_reminder_caught_up"
+  properties: {
+    sessionID: string
+    scheduleID: string
+  }
+}
+
+export type EventAssistantMemoryProposed = {
+  id: string
+  type: "assistant_memory_proposed"
+  properties: {
+    memoryID: string
+  }
+}
+
+export type EventAssistantMemoryConfirmed = {
+  id: string
+  type: "assistant_memory_confirmed"
+  properties: {
+    memoryID: string
+  }
+}
+
+export type EventAssistantMemoryRejected = {
+  id: string
+  type: "assistant_memory_rejected"
+  properties: {
+    memoryID: string
+  }
+}
+
+export type EventAssistantNoteCreated = {
+  id: string
+  type: "assistant_note_created"
+  properties: {
+    noteID: string
+  }
+}
+
+export type EventAssistantNoteRemoved = {
+  id: string
+  type: "assistant_note_removed"
+  properties: {
+    noteID: string
+  }
+}
+
+export type EventAssistantKbSearched = {
+  id: string
+  type: "assistant_kb_searched"
+  properties: {
+    [key: string]: unknown
   }
 }
 
@@ -12071,7 +12425,7 @@ export type DeliveryRecentData = {
   body?: never
   path?: never
   query?: {
-    limit?: string | "Infinity" | "-Infinity" | "NaN"
+    limit?: string
   }
   url: "/delivery/recent"
 }
@@ -12313,7 +12667,7 @@ export type KbListData = {
   path?: never
   query?: {
     scope?: KbNoteScope
-    limit?: string | "Infinity" | "-Infinity" | "NaN"
+    limit?: string
   }
   url: "/kb"
 }
@@ -12483,7 +12837,7 @@ export type KbSearchData = {
   query: {
     query: string
     scope?: KbNoteScope
-    limit?: string | "Infinity" | "-Infinity" | "NaN"
+    limit?: string
   }
   url: "/kb/search"
 }

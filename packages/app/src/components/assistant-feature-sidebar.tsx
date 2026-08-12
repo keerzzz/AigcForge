@@ -1,4 +1,4 @@
-import { createMemo } from "solid-js"
+import { createMemo, Show } from "solid-js"
 import { useQuery } from "@tanstack/solid-query"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { useLanguage } from "@/context/language"
@@ -36,7 +36,9 @@ export function AssistantSidebar() {
             </span>
             <ShowBadge count={pendingCount()} />
           </div>
-          <p class="text-v2-text-text-muted text-11-regular">{language.t("assistant.dashboard.reminders.empty")}</p>
+          <Show when={pendingCount() === 0}>
+            <p class="text-v2-text-text-muted text-11-regular">{language.t("assistant.dashboard.reminders.empty")}</p>
+          </Show>
         </div>
       </div>
     </div>

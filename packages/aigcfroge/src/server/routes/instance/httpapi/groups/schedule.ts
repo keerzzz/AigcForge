@@ -48,7 +48,7 @@ export const ScheduleApi = HttpApi.make("schedule").add(
     )
     .add(
       HttpApiEndpoint.get("recent", `${deliveryRoot}/recent`, {
-        query: Schema.Struct({ limit: Schema.optional(Schema.Number) }),
+        query: Schema.Struct({ limit: Schema.optional(Schema.NumberFromString) }),
         success: described(Schema.Array(Schedule.Delivery), "Recent inbox records process-wide"),
       }).annotateMerge(
         OpenApi.annotations({

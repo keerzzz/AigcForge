@@ -1,5 +1,6 @@
 export * as KBService from "./kb-service"
 
+import path from "path"
 import { and, asc, desc, eq, like, or, sql } from "drizzle-orm"
 import { Context, Effect, Layer } from "effect"
 import { KBNote } from "@aigcfroge/schema/kb-note"
@@ -76,8 +77,9 @@ export interface Interface {
     readonly content?: string
     readonly tags?: readonly string[]
     readonly aliases?: readonly string[]
+    readonly baseDir?: string
   }) => Effect.Effect<KBNote.Note | undefined>
-  readonly remove: (id: KBNote.NoteID) => Effect.Effect<void>
+  readonly remove: (input: { readonly id: KBNote.NoteID; readonly baseDir?: string }) => Effect.Effect<void>
   /**
    * Full-text search (PRD §7.4 / plan P3): FTS5 unicode61 first; exact Chinese
    * phrases fall back to LIKE on title/content so CJK matching stays exact.
@@ -163,7 +165,16 @@ export const layer = Layer.effect(
       // content source of truth.
       const dir = scope === "global" ? `${baseDir}/knowledge-base` : `${baseDir}/.aigcfroge/knowledge-base`
       yield* fs.ensureDir(dir).pipe(Effect.orDie)
-      yield* fs.writeWithDirs(`${dir}/${title}.md`, content).pipe(Effect.orDie)
+      // Path-traversal guard (review BLOCKER#1): resolve the target and assert
+      // it stays inside the knowledge-base directory — a title that slipped
+      // past schema validation must not write an arbitrary `.md` outside it.
+      const absolute = path.resolve(dir, `${title}.md`)
+      if (!FSUtil.contains(dir, absolute)) {
+        // Defense-in-depth assertion: schema validation already rejects such
+        // titles; a title reaching here is a programming error — die loudly.
+        return yield* Effect.die(new Error(`Note title "${title}" escapes the knowledge-base directory`))
+      }
+      yield* fs.writeWithDirs(absolute, content).pipe(Effect.orDie)
     })
 
     const create = Effect.fn("KBService.create")((input: {
@@ -233,6 +244,7 @@ export const layer = Layer.effect(
       readonly content?: string
       readonly tags?: readonly string[]
       readonly aliases?: readonly string[]
+      readonly baseDir?: string
     }) =>
       Effect.gen(function* () {
         const prior = yield* db.select().from(KBNoteTable).where(eq(KBNoteTable.id, input.id)).get().pipe(Effect.orDie)
@@ -255,16 +267,44 @@ export const layer = Layer.effect(
         yield* syncLinks(input.id, content)
         if (input.title !== undefined) yield* resolveDanglingFor(input.title)
         if (input.aliases !== undefined) for (const alias of input.aliases) yield* resolveDanglingFor(alias)
+        // Keep the `.md` mirror in sync (review MAJOR #6): a renamed title
+        // removes the old file, and the new content overwrites the note file —
+        // otherwise the next syncFromDirectory would revert the edit.
+        if (input.baseDir) {
+          const dir = prior.scope === "global" ? `${input.baseDir}/knowledge-base` : `${input.baseDir}/.aigcfroge/knowledge-base`
+          yield* fs.ensureDir(dir).pipe(Effect.orDie)
+          if (input.title !== undefined && input.title !== prior.title) {
+            yield* Effect.tryPromise(() => Bun.file(`${dir}/${prior.title}.md`).delete()).pipe(Effect.catch(() => Effect.void))
+          }
+          const absolute = path.resolve(dir, `${title}.md`)
+          if (!FSUtil.contains(dir, absolute)) {
+            return yield* Effect.die(new Error(`Note title "${title}" escapes the knowledge-base directory`))
+          }
+          yield* fs.writeWithDirs(absolute, content).pipe(Effect.orDie)
+        }
         const row = yield* db.select().from(KBNoteTable).where(eq(KBNoteTable.id, input.id)).get().pipe(Effect.orDie)
         return row ? toNote(row) : undefined
       }),
     )
 
-    const remove = Effect.fn("KBService.remove")((id: KBNote.NoteID) =>
+    const remove = Effect.fn("KBService.remove")((input: { readonly id: KBNote.NoteID; readonly baseDir?: string }) =>
       Effect.gen(function* () {
-        yield* removeFts(id)
-        yield* db.delete(KBNoteTable).where(eq(KBNoteTable.id, id)).run().pipe(Effect.orDie)
-        yield* events.publish(Event.NoteRemoved, { noteID: id })
+        const prior = yield* db.select().from(KBNoteTable).where(eq(KBNoteTable.id, input.id)).get().pipe(Effect.orDie)
+        yield* removeFts(input.id)
+        yield* db.delete(KBNoteTable).where(eq(KBNoteTable.id, input.id)).run().pipe(Effect.orDie)
+        // Incoming links pointing at the removed note become dangling again
+        // (review MAJOR #6): the edge stays, the target reference is cleared.
+        yield* db
+          .update(KBLinkTable)
+          .set({ target_note_id: null, dangling: true })
+          .where(eq(KBLinkTable.target_note_id, input.id))
+          .run()
+          .pipe(Effect.orDie)
+        if (input.baseDir && prior) {
+          const dir = prior.scope === "global" ? `${input.baseDir}/knowledge-base` : `${input.baseDir}/.aigcfroge/knowledge-base`
+          yield* Effect.tryPromise(() => Bun.file(`${dir}/${prior.title}.md`).delete()).pipe(Effect.catch(() => Effect.void))
+        }
+        yield* events.publish(Event.NoteRemoved, { noteID: input.id })
       }),
     )
 
@@ -273,9 +313,11 @@ export const layer = Layer.effect(
         yield* events.publish(Event.KBSearched, {})
         const limit = options?.limit ?? 20
         // FTS5 (unicode61) first: word-level for Latin, character-level for CJK.
+        // A MATCH syntax error (e.g. an unquoted `"` in the query) must degrade
+        // to the LIKE fallback — never a 500 (review MAJOR #4).
         const ftsRows = yield* db
           .all<{ note_id: string }>(sql`SELECT note_id FROM kb_note_fts WHERE kb_note_fts MATCH ${query} ORDER BY rank LIMIT ${limit}`)
-          .pipe(Effect.orDie)
+          .pipe(Effect.catch(() => Effect.succeed([])))
         const notes: typeof KBNoteTable.$inferSelect[] = []
         for (const row of ftsRows) {
           const note = yield* db
@@ -388,6 +430,21 @@ export const layer = Layer.effect(
             yield* create({ title, content, scope, tags: [], baseDir: undefined })
           }
           synced++
+        }
+        // Notes whose `.md` file disappeared are removed from the index
+        // (review MINOR: the doc contract said so but nothing implemented it —
+        // the file is the content source of truth, so its absence deletes).
+        const existingNotes = yield* db
+          .select()
+          .from(KBNoteTable)
+          .where(eq(KBNoteTable.scope, scope))
+          .all()
+          .pipe(Effect.orDie)
+        const fileTitles = new Set(files.map((file) => file.name.slice(0, -3)))
+        for (const note of existingNotes) {
+          if (!fileTitles.has(note.title)) {
+            yield* remove({ id: note.id, baseDir: undefined })
+          }
         }
         return synced
       }),

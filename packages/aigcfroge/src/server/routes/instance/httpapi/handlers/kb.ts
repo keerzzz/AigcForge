@@ -54,13 +54,14 @@ export const kbHandlers = HttpApiBuilder.group(InstanceHttpApi, "kb", (handlers)
         ...(ctx.payload.content !== undefined ? { content: ctx.payload.content } : {}),
         ...(ctx.payload.tags !== undefined ? { tags: ctx.payload.tags } : {}),
         ...(ctx.payload.aliases !== undefined ? { aliases: ctx.payload.aliases } : {}),
+        baseDir: Global.Path.config,
       })
       if (!updated) return yield* Effect.fail(new InvalidRequestError({ message: `Note ${ctx.params.id} not found` }))
       return updated
     })
 
     const remove = Effect.fn("KBHttpApi.remove")(function* (ctx: { params: { id: string } }) {
-      yield* kb.remove(ctx.params.id as KBNote.NoteID)
+      yield* kb.remove({ id: ctx.params.id as KBNote.NoteID, baseDir: Global.Path.config })
     })
 
     const dangling = Effect.fn("KBHttpApi.dangling")(function* () {

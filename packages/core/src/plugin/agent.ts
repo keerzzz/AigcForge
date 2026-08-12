@@ -412,12 +412,13 @@ export const Plugin = define({
               { action: "reminder_cancel", resource: "*", effect: "allow" },
               // Phase C: personal memory (propose + confirm only).
               { action: "memory_propose", resource: "*", effect: "allow" },
-              // Phase D/E: knowledge base + notes.
-              { action: "kb_create", resource: "*", effect: "allow" },
+              // Phase D/E: knowledge base + notes. Direct kb_* writes stay
+              // denied (review MAJOR #5): the assistant only PROPOSES
+              // (propose_note is a dry run); the user confirms the note in the
+              // UI, which persists through the server API — the same
+              // confirm-first structure as memory.
               { action: "kb_search", resource: "*", effect: "allow" },
               { action: "kb_read", resource: "*", effect: "allow" },
-              { action: "kb_update", resource: "*", effect: "allow" },
-              { action: "kb_delete", resource: "*", effect: "allow" },
               { action: "kb_list_dangling", resource: "*", effect: "allow" },
               { action: "propose_note", resource: "*", effect: "allow" },
             ],

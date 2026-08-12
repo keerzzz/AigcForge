@@ -306,15 +306,17 @@ describe("AgentV2", () => {
         "reminder_update",
         "reminder_cancel",
         "memory_propose",
-        "kb_create",
         "kb_search",
         "kb_read",
-        "kb_update",
-        "kb_delete",
         "kb_list_dangling",
         "propose_note",
       ]) {
         expect(PermissionV2.evaluate(action, "*", permissions).effect).toBe("allow")
+      }
+      // Confirm-first (review MAJOR #5): direct kb writes are denied — notes
+      // land only via propose_note + user confirmation in the UI.
+      for (const action of ["kb_create", "kb_update", "kb_delete"]) {
+        expect(PermissionV2.evaluate(action, "*", permissions).effect).toBe("deny")
       }
       // The catch-all deny also gates the doom_loop surface to ask.
       expect(PermissionV2.evaluate("doom_loop", "*", permissions).effect).toBe("ask")

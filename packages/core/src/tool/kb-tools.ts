@@ -169,6 +169,7 @@ fallback for Chinese phrases.`,
             ...(input.content !== undefined ? { content: input.content } : {}),
             ...(input.tags !== undefined ? { tags: input.tags } : {}),
             ...(input.aliases !== undefined ? { aliases: input.aliases } : {}),
+            baseDir: Global.Path.config,
           })
           return { id: input.id, updated: updated !== undefined }
         }).pipe(
@@ -188,7 +189,7 @@ links pointing at it become dangling.`,
         Effect.gen(function* () {
           const prior = yield* kb.get(input.id as KBNote.NoteID)
           if (!prior) return { id: input.id, deleted: false }
-          yield* kb.remove(prior.id)
+          yield* kb.remove({ id: prior.id, baseDir: prior.scope === "global" ? Global.Path.config : location.directory })
           return { id: input.id, deleted: true }
         }),
       toModelOutput: ({ output }) => [

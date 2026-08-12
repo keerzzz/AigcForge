@@ -21,6 +21,9 @@ export const scheduleHandlers = HttpApiBuilder.group(InstanceHttpApi, "schedule"
     })
 
     const cancel = Effect.fn("ScheduleHttpApi.cancel")(function* (ctx: { params: { id: string } }) {
+      if (!ctx.params.id.startsWith("sch_")) {
+        return yield* Effect.fail(new InvalidRequestError({ message: `Invalid schedule id ${ctx.params.id}` }))
+      }
       const cancelled = yield* schedules.cancel(ctx.params.id as Schedule.ID)
       if (!cancelled) {
         return yield* Effect.fail(new InvalidRequestError({ message: `Schedule ${ctx.params.id} not found or terminal` }))

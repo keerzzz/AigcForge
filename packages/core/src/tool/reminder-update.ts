@@ -1,7 +1,7 @@
 export * as ReminderUpdateTool from "./reminder-update"
 
 import { ToolFailure } from "@aigcfroge/llm"
-import { Effect, Layer, Schema } from "effect"
+import { DateTime, Effect, Layer, Schema } from "effect"
 import { Schedule } from "@aigcfroge/schema/schedule"
 import { ScheduleService } from "../session/schedule-service"
 import { Tool } from "./tool"
@@ -45,8 +45,22 @@ export const layer = Layer.effectDiscard(
       description,
       input: Input,
       output: Output,
-      execute: (input) =>
+      execute: (input, context) =>
         Effect.gen(function* () {
+          const prior = yield* schedules.list(context.sessionID)
+          if (!prior.some((item) => item.id === input.id)) {
+            return yield* Effect.fail(
+              new ToolFailure({ message: `Reminder ${input.id} does not belong to this session` }),
+            )
+          }
+          if (input.dueAt !== undefined) {
+            const now = (yield* DateTime.nowAsDate).getTime()
+            if (input.dueAt <= now) {
+              return yield* Effect.fail(
+                new ToolFailure({ message: "The due time is in the past. Re-confirm the target time with the user." }),
+              )
+            }
+          }
           const updated = yield* schedules.update({
             id: input.id as Schedule.ID,
             ...(input.content !== undefined ? { content: input.content } : {}),
