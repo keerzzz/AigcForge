@@ -22,7 +22,7 @@ import {
   groupSessions,
   type HomeSessionRecord,
 } from "@/pages/home"
-import type { ScheduleInfo } from "@aigcfroge/sdk/v2/client"
+import type { PersonalMemoryInfo, ScheduleInfo } from "@aigcfroge/sdk/v2/client"
 
 /**
  * Assistant Dashboard 主区（计划 §3.9.1）：顶部标题区 + 待办提醒横条（主心智，
@@ -57,6 +57,28 @@ export function AssistantDashboardMain() {
     },
   }))
   const recent = createMemo(() => recentQuery.data ?? [])
+
+  // ---- ③ 个人记忆（Memory Inspector：pending 提议 + 已确认，Phase C） ----
+  const memoryQuery = useQuery(() => ({
+    queryKey: ["assistant", "memory"] as const,
+    queryFn: async () => {
+      const res = await serverSDK().client.memory.list()
+      return res.data ?? []
+    },
+  }))
+  const memories = createMemo(() => memoryQuery.data ?? [])
+  const pendingMemories = createMemo(() => memories().filter((m) => m.status === "pending"))
+  const confirmedMemories = createMemo(() => memories().filter((m) => m.status === "confirmed"))
+
+  function confirmMemory(id: string) {
+    void serverSDK().client.memory.confirm({ id }).then(() => memoryQuery.refetch())
+  }
+  function rejectMemory(id: string) {
+    void serverSDK().client.memory.reject({ id }).then(() => memoryQuery.refetch())
+  }
+  function removeMemory(id: string) {
+    void serverSDK().client.memory.remove({ id }).then(() => memoryQuery.refetch())
+  }
 
   // ---- ④ 会话列表（复用 home 共享管道） ----
   const projects = createMemo(() => ctx()?.projects.list() ?? layout.projects.list())
@@ -210,6 +232,71 @@ export function AssistantDashboardMain() {
                 )}
               </For>
             </div>
+          </section>
+        </Show>
+
+        {/* ③ 个人记忆（Memory Inspector：提议 + 确认，空态隐藏） */}
+        <Show when={memories().length > 0}>
+          <section class="flex min-w-0 flex-col gap-3">
+            <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.memory.title")}</h2>
+
+            <Show when={pendingMemories().length > 0}>
+              <div class="flex min-w-0 flex-col gap-2">
+                <p class="text-v2-text-text-muted text-12-regular">{language.t("assistant.memory.pending")}</p>
+                <div class="flex min-w-0 flex-col gap-px">
+                  <For each={pendingMemories()}>
+                    {(memory: PersonalMemoryInfo) => (
+                      <div class="flex min-w-0 items-center gap-2 py-1">
+                        <Icon name="sparkles" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+                        <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">
+                          {memory.content}
+                        </span>
+                        <span class="shrink-0 text-v2-text-text-faint text-11-regular">{memory.source}</span>
+                        <IconButtonV2
+                          variant="neutral"
+                          size="small"
+                          icon={<Icon name="check" />}
+                          aria-label={language.t("assistant.memory.confirm")}
+                          onClick={() => confirmMemory(memory.id)}
+                        />
+                        <IconButtonV2
+                          variant="ghost-muted"
+                          size="small"
+                          icon={<Icon name="close" />}
+                          aria-label={language.t("assistant.memory.reject")}
+                          onClick={() => rejectMemory(memory.id)}
+                        />
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </div>
+            </Show>
+
+            <Show when={confirmedMemories().length > 0}>
+              <div class="flex min-w-0 flex-col gap-2">
+                <p class="text-v2-text-text-muted text-12-regular">{language.t("assistant.memory.confirmed")}</p>
+                <div class="flex min-w-0 flex-col gap-px">
+                  <For each={confirmedMemories()}>
+                    {(memory: PersonalMemoryInfo) => (
+                      <div class="flex min-w-0 items-center gap-2 py-1">
+                        <Icon name="check" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+                        <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">
+                          {memory.content}
+                        </span>
+                        <IconButtonV2
+                          variant="ghost-muted"
+                          size="small"
+                          icon={<Icon name="trash" />}
+                          aria-label={language.t("assistant.memory.delete")}
+                          onClick={() => removeMemory(memory.id)}
+                        />
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </div>
+            </Show>
           </section>
         </Show>
 
