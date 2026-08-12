@@ -58,5 +58,6 @@ export const migrations = (
     import("./migration/20260809040721_add_meta_agent_memory"),
     import("./migration/20260811165437_oval_karen_page"),
     import("./migration/20260811222608_little_scrambler"),
+    import("./migration/20260812035356_bouncy_jane_foster"),
   ])
 ).map((module) => module.default) satisfies DatabaseMigration.Migration[]

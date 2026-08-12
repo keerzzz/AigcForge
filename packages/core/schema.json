@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "daaeb242-3a07-40eb-8a85-69d4c5a8fde4",
+  "id": "87649e48-40ae-418f-b127-2fe4b81ac931",
   "prevIds": [
-    "35e02f8b-71ea-499c-81ea-742ff9606720"
+    "daaeb242-3a07-40eb-8a85-69d4c5a8fde4"
   ],
   "ddl": [
     {
@@ -12,6 +12,14 @@
     },
     {
       "name": "data_migration",
+      "entityType": "tables"
+    },
+    {
+      "name": "kb_link",
+      "entityType": "tables"
+    },
+    {
+      "name": "kb_note",
       "entityType": "tables"
     },
     {
@@ -217,6 +225,166 @@
       "name": "time_completed",
       "entityType": "columns",
       "table": "data_migration"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": true,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "kb_link"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "source_note_id",
+      "entityType": "columns",
+      "table": "kb_link"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "target_note_id",
+      "entityType": "columns",
+      "table": "kb_link"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "target_title",
+      "entityType": "columns",
+      "table": "kb_link"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'reference'",
+      "generated": null,
+      "name": "link_type",
+      "entityType": "columns",
+      "table": "kb_link"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "false",
+      "generated": null,
+      "name": "dangling",
+      "entityType": "columns",
+      "table": "kb_link"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "time_created",
+      "entityType": "columns",
+      "table": "kb_link"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "kb_note"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "title",
+      "entityType": "columns",
+      "table": "kb_note"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "content",
+      "entityType": "columns",
+      "table": "kb_note"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "scope",
+      "entityType": "columns",
+      "table": "kb_note"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "tags",
+      "entityType": "columns",
+      "table": "kb_note"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "aliases",
+      "entityType": "columns",
+      "table": "kb_note"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'note'",
+      "generated": null,
+      "name": "format",
+      "entityType": "columns",
+      "table": "kb_note"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "time_created",
+      "entityType": "columns",
+      "table": "kb_note"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "time_updated",
+      "entityType": "columns",
+      "table": "kb_note"
     },
     {
       "type": "text",
@@ -2515,6 +2683,21 @@
     },
     {
       "columns": [
+        "source_note_id"
+      ],
+      "tableTo": "kb_note",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_kb_link_source_note_id_kb_note_id_fk",
+      "entityType": "fks",
+      "table": "kb_link"
+    },
+    {
+      "columns": [
         "schedule_id"
       ],
       "tableTo": "schedule",
@@ -2876,6 +3059,24 @@
         "id"
       ],
       "nameExplicit": false,
+      "name": "kb_link_pk",
+      "table": "kb_link",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "kb_note_pk",
+      "table": "kb_note",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
       "name": "personal_memory_pk",
       "table": "personal_memory",
       "entityType": "pks"
@@ -3059,6 +3260,94 @@
       "name": "session_share_pk",
       "table": "session_share",
       "entityType": "pks"
+    },
+    {
+      "columns": [
+        {
+          "value": "source_note_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "kb_link_source_idx",
+      "entityType": "indexes",
+      "table": "kb_link"
+    },
+    {
+      "columns": [
+        {
+          "value": "target_note_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "kb_link_target_idx",
+      "entityType": "indexes",
+      "table": "kb_link"
+    },
+    {
+      "columns": [
+        {
+          "value": "dangling",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "kb_link_dangling_idx",
+      "entityType": "indexes",
+      "table": "kb_link"
+    },
+    {
+      "columns": [
+        {
+          "value": "scope",
+          "isExpression": false
+        },
+        {
+          "value": "title",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "kb_note_scope_title_unique",
+      "entityType": "indexes",
+      "table": "kb_note"
+    },
+    {
+      "columns": [
+        {
+          "value": "scope",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "kb_note_scope_idx",
+      "entityType": "indexes",
+      "table": "kb_note"
+    },
+    {
+      "columns": [
+        {
+          "value": "time_updated",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "kb_note_updated_idx",
+      "entityType": "indexes",
+      "table": "kb_note"
     },
     {
       "columns": [
