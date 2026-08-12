@@ -1,11 +1,13 @@
 export * as ReminderUpdateTool from "./reminder-update"
 
 import { ToolFailure } from "@aigcfroge/llm"
-import { DateTime, Effect, Layer, Schema } from "effect"
+import { Cause, DateTime, Effect, Layer, Schema } from "effect"
 import { Schedule } from "@aigcfroge/schema/schedule"
+import { PermissionV2 } from "../permission"
 import { ScheduleService } from "../session/schedule-service"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
+import { IanaTimezone } from "./reminder-create"
 
 export const name = "reminder_update"
 
@@ -21,10 +23,10 @@ Input:
 - timezone (optional): new IANA timezone`
 
 export const Input = Schema.Struct({
-  id: Schema.String.annotate({ description: "Reminder id from reminder_create" }),
+  id: Schedule.ID.annotate({ description: "Reminder id from reminder_create" }),
   content: Schema.optional(Schema.String),
   dueAt: Schema.optional(Schema.Number),
-  timezone: Schema.optional(Schema.String),
+  timezone: Schema.optional(IanaTimezone),
 })
 
 export const Output = Schema.Struct({
@@ -40,56 +42,70 @@ export const layer = Layer.effectDiscard(
   Effect.gen(function* () {
     const tools = yield* Tools.Service
     const schedules = yield* ScheduleService.Service
+    const permission = yield* PermissionV2.Service
 
     const tool = Tool.make({
       description,
       input: Input,
       output: Output,
       execute: (input, context) =>
-        Effect.gen(function* () {
-          const prior = yield* schedules.list(context.sessionID)
-          if (!prior.some((item) => item.id === input.id)) {
-            return yield* Effect.fail(
-              new ToolFailure({ message: `Reminder ${input.id} does not belong to this session` }),
-            )
-          }
-          if (input.dueAt !== undefined) {
-            const now = (yield* DateTime.nowAsDate).getTime()
-            if (input.dueAt <= now) {
-              return yield* Effect.fail(
-                new ToolFailure({ message: "The due time is in the past. Re-confirm the target time with the user." }),
-              )
-            }
-          }
-          const updated = yield* schedules.update({
-            id: input.id as Schedule.ID,
-            ...(input.content !== undefined ? { content: input.content } : {}),
-            ...(input.dueAt !== undefined ? { dueAt: input.dueAt } : {}),
-            ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+        permission
+          .assert({
+            action: name,
+            resources: ["*"],
+            sessionID: context.sessionID,
+            agent: context.agent,
+            source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
           })
-          if (!updated) {
-            return {
-              id: input.id,
-              status: "terminal",
-              content: input.content ?? "",
-              dueAt: input.dueAt ?? 0,
-              timezone: input.timezone ?? "",
-              updated: false,
-            }
-          }
-          return {
-            id: updated.id,
-            status: updated.status,
-            content: updated.content,
-            dueAt: updated.dueAt,
-            timezone: updated.timezone,
-            updated: true,
-          }
-        }).pipe(
-          Effect.catch((err) =>
-            Effect.fail(new ToolFailure({ message: `Reminder update failed: ${(err as Error).message}` })),
+          .pipe(
+            Effect.mapError(() => new ToolFailure({ message: "Permission denied: reminder_update" })),
+            Effect.andThen(
+              Effect.gen(function* () {
+                const prior = yield* schedules.list(context.sessionID)
+                if (!prior.some((item) => item.id === input.id)) {
+                  return yield* Effect.fail(
+                    new ToolFailure({ message: `Reminder ${input.id} does not belong to this session` }),
+                  )
+                }
+                if (input.dueAt !== undefined) {
+                  const now = (yield* DateTime.nowAsDate).getTime()
+                  if (input.dueAt <= now) {
+                    return yield* Effect.fail(
+                      new ToolFailure({ message: "The due time is in the past. Re-confirm the target time with the user." }),
+                    )
+                  }
+                }
+                const updated = yield* schedules.update({
+                  id: input.id,
+                  ...(input.content !== undefined ? { content: input.content } : {}),
+                  ...(input.dueAt !== undefined ? { dueAt: input.dueAt } : {}),
+                  ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+                })
+                if (!updated) {
+                  return {
+                    id: input.id,
+                    status: "terminal",
+                    content: input.content ?? "",
+                    dueAt: input.dueAt ?? 0,
+                    timezone: input.timezone ?? "",
+                    updated: false,
+                  }
+                }
+                return {
+                  id: updated.id,
+                  status: updated.status,
+                  content: updated.content,
+                  dueAt: updated.dueAt,
+                  timezone: updated.timezone,
+                  updated: true,
+                }
+              }).pipe(
+                Effect.catchCause((cause) =>
+                  Effect.fail(new ToolFailure({ message: `Reminder update failed: ${Cause.pretty(cause)}` })),
+                ),
+              ),
+            ),
           ),
-        ),
       toModelOutput: ({ output }) => [
         {
           type: "text" as const,

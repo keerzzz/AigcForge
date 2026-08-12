@@ -2,7 +2,7 @@ export * as KBService from "./kb-service"
 
 import path from "path"
 import { and, asc, desc, eq, like, or, sql } from "drizzle-orm"
-import { Context, Effect, Layer } from "effect"
+import { Cause, Context, Effect, Layer, Schema } from "effect"
 import { KBNote } from "@aigcfroge/schema/kb-note"
 import { Database } from "../database/database"
 import { LayerNode } from "../effect/layer-node"
@@ -59,6 +59,10 @@ const toLink = (row: typeof KBLinkTable.$inferSelect): KBNote.Link =>
     dangling: row.dangling,
   })
 
+export class SyncDirectoryError extends Schema.TaggedErrorClass<SyncDirectoryError>()("KBService.SyncDirectoryError", {
+  message: Schema.String,
+}) {}
+
 export interface Interface {
   readonly create: (input: {
     readonly title: string
@@ -96,7 +100,7 @@ export interface Interface {
    * (file = content source of truth, ADR-14 §2). Used by the file watcher
    * and on first open; notes whose file disappeared are removed.
    */
-  readonly syncFromDirectory: (dir: string, scope: KBNote.NoteScope) => Effect.Effect<number>
+  readonly syncFromDirectory: (dir: string, scope: KBNote.NoteScope) => Effect.Effect<number, SyncDirectoryError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/KBService") {}
@@ -118,35 +122,83 @@ export const layer = Layer.effect(
       yield* db.run(sql`DELETE FROM kb_note_fts WHERE note_id = ${noteID}`).pipe(Effect.orDie)
     })
 
+    // Scope-aware title index (review MAJOR #4): the unique key is
+    // (scope, title), so the same title may exist in both scopes. Resolution
+    // prefers the source note's OWN scope and only falls back across scopes
+    // when the title is unambiguous — otherwise [[Foo]] could silently bind to
+    // a note in the wrong scope.
+    const buildTitleIndex = (notes: typeof KBNoteTable.$inferSelect[]) => {
+      const byTitle = new Map<string, Array<{ scope: KBNote.NoteScope; id: KBNote.NoteID }>>()
+      const scopeById = new Map<KBNote.NoteID, KBNote.NoteScope>()
+      const aliasesByNote = new Map<KBNote.NoteID, readonly string[]>()
+      for (const note of notes) {
+        scopeById.set(note.id, note.scope)
+        if (note.aliases) aliasesByNote.set(note.id, note.aliases)
+        const list = byTitle.get(note.title) ?? []
+        list.push({ scope: note.scope, id: note.id })
+        byTitle.set(note.title, list)
+      }
+      return { byTitle, scopeById, aliasesByNote }
+    }
+
+    const resolveInScope = (
+      title: string,
+      scope: KBNote.NoteScope | undefined,
+      index: ReturnType<typeof buildTitleIndex>,
+    ): KBNote.NoteID | undefined => {
+      const candidates = index.byTitle.get(title)
+      if (candidates && candidates.length > 0) {
+        if (scope !== undefined) {
+          const same = candidates.find((c) => c.scope === scope)
+          if (same) return same.id
+        }
+        // One candidate binds regardless of scope; two candidates (one per
+        // scope) with no matching scope stay unresolved rather than guessing.
+        if (candidates.length === 1) return candidates[0].id
+        return undefined
+      }
+      for (const [noteID, aliases] of index.aliasesByNote) {
+        if (aliases.includes(title) && (scope === undefined || index.scopeById.get(noteID) === scope)) return noteID
+      }
+      return undefined
+    }
+
     /**
      * A title (or alias) just became real: resolve every dangling edge that
      * points at it. Called after create/update so links resolve as targets
      * appear (PRD §7.4 dangling = target does not exist, evaluated at write).
+     * Each edge resolves against its own source note's scope.
      */
     const resolveDanglingFor = Effect.fn("KBService.resolveDanglingFor")(function* (title: string) {
       const notes = yield* db.select().from(KBNoteTable).all().pipe(Effect.orDie)
-      const notesByTitle = new Map(notes.map((n) => [n.title, n.id]))
-      const aliasesByNote = new Map(notes.flatMap((n) => (n.aliases ? [[n.id, n.aliases] as const] : [])))
-      const target = KBLink.resolveTitle(title, notesByTitle, aliasesByNote)
-      if (!target) return
-      yield* db
-        .update(KBLinkTable)
-        .set({ target_note_id: target as KBNote.NoteID, dangling: false })
+      const index = buildTitleIndex(notes)
+      const dangling = yield* db
+        .select()
+        .from(KBLinkTable)
         .where(and(eq(KBLinkTable.dangling, true), eq(KBLinkTable.target_title, title)))
-        .run()
+        .all()
         .pipe(Effect.orDie)
+      for (const edge of dangling) {
+        const target = resolveInScope(title, index.scopeById.get(edge.source_note_id), index)
+        if (!target) continue
+        yield* db
+          .update(KBLinkTable)
+          .set({ target_note_id: target, dangling: false })
+          .where(and(eq(KBLinkTable.id, edge.id), eq(KBLinkTable.dangling, true)))
+          .run()
+          .pipe(Effect.orDie)
+      }
     })
 
     /** Rewrite the note's kb_link edges from its current content. */
-    const syncLinks = Effect.fn("KBService.syncLinks")(function* (id: KBNote.NoteID, content: string) {
+    const syncLinks = Effect.fn("KBService.syncLinks")(function* (id: KBNote.NoteID, content: string, scope: KBNote.NoteScope) {
       yield* db.delete(KBLinkTable).where(eq(KBLinkTable.source_note_id, id)).run().pipe(Effect.orDie)
       const titles = KBLink.extractWikilinks(content)
       if (titles.length === 0) return
       const notes = yield* db.select().from(KBNoteTable).all().pipe(Effect.orDie)
-      const notesByTitle = new Map(notes.map((n) => [n.title, n.id]))
-      const aliasesByNote = new Map(notes.flatMap((n) => (n.aliases ? [[n.id, n.aliases] as const] : [])))
+      const index = buildTitleIndex(notes)
       for (const title of titles) {
-        const target = KBLink.resolveTitle(title, notesByTitle, aliasesByNote)
+        const target = resolveInScope(title, scope, index)
         yield* db
           .run(sql`INSERT INTO kb_link (source_note_id, target_note_id, target_title, link_type, dangling, time_created) VALUES (${id}, ${target ?? null}, ${title}, 'reference', ${target === undefined}, ${Date.now()})`)
           .pipe(Effect.orDie)
@@ -159,7 +211,7 @@ export const layer = Layer.effect(
       title: string,
       content: string,
     ) {
-      if (!baseDir) return
+      if (!baseDir) return yield* Effect.void
       // ADR-14 §2: global notes live in <config>/knowledge-base/, project notes
       // in <directory>/.aigcfroge/knowledge-base/ — the `.md` file is the
       // content source of truth.
@@ -171,10 +223,11 @@ export const layer = Layer.effect(
       const absolute = path.resolve(dir, `${title}.md`)
       if (!FSUtil.contains(dir, absolute)) {
         // Defense-in-depth assertion: schema validation already rejects such
-        // titles; a title reaching here is a programming error — die loudly.
-        return yield* Effect.die(new Error(`Note title "${title}" escapes the knowledge-base directory`))
+        // titles; a title reaching here is a programming error — die loudly
+        // (Clean Logs: no title in the message).
+        return yield* Effect.die(new Error("Note title escapes the knowledge-base directory"))
       }
-      yield* fs.writeWithDirs(absolute, content).pipe(Effect.orDie)
+      return yield* fs.writeWithDirs(absolute, content).pipe(Effect.orDie)
     })
 
     const create = Effect.fn("KBService.create")((input: {
@@ -187,6 +240,12 @@ export const layer = Layer.effect(
       readonly baseDir?: string
     }) =>
       Effect.gen(function* () {
+        // Both entries (tool input, HTTP payload) schema-gate the title; check
+        // again BEFORE any write so a direct caller cannot leave a dirty row
+        // that poisons list/get via toNote validation (review hardening).
+        if (Schema.decodeUnknownOption(KBNote.Title)(input.title)._tag === "None") {
+          return yield* Effect.die(new Error(`Invalid note title: ${JSON.stringify(input.title)}`))
+        }
         const id = KBNote.NoteID.create()
         const now = Date.now()
         yield* db
@@ -205,7 +264,7 @@ export const layer = Layer.effect(
           .run()
           .pipe(Effect.orDie)
         yield* ensureFts(id, input.title, input.content)
-        yield* syncLinks(id, input.content)
+        yield* syncLinks(id, input.content, input.scope)
         yield* writeFile(input.baseDir, input.scope, input.title, input.content)
         // A new title/alias resolves previously dangling edges pointing at it.
         yield* resolveDanglingFor(input.title)
@@ -249,6 +308,9 @@ export const layer = Layer.effect(
       Effect.gen(function* () {
         const prior = yield* db.select().from(KBNoteTable).where(eq(KBNoteTable.id, input.id)).get().pipe(Effect.orDie)
         if (!prior) return undefined
+        if (input.title !== undefined && Schema.decodeUnknownOption(KBNote.Title)(input.title)._tag === "None") {
+          return yield* Effect.die(new Error(`Invalid note title: ${JSON.stringify(input.title)}`))
+        }
         const title = input.title ?? prior.title
         const content = input.content ?? prior.content
         yield* db
@@ -264,7 +326,7 @@ export const layer = Layer.effect(
           .run()
           .pipe(Effect.orDie)
         yield* ensureFts(input.id, title, content)
-        yield* syncLinks(input.id, content)
+        yield* syncLinks(input.id, content, prior.scope)
         if (input.title !== undefined) yield* resolveDanglingFor(input.title)
         if (input.aliases !== undefined) for (const alias of input.aliases) yield* resolveDanglingFor(alias)
         // Keep the `.md` mirror in sync (review MAJOR #6): a renamed title
@@ -274,11 +336,17 @@ export const layer = Layer.effect(
           const dir = prior.scope === "global" ? `${input.baseDir}/knowledge-base` : `${input.baseDir}/.aigcfroge/knowledge-base`
           yield* fs.ensureDir(dir).pipe(Effect.orDie)
           if (input.title !== undefined && input.title !== prior.title) {
-            yield* Effect.tryPromise(() => Bun.file(`${dir}/${prior.title}.md`).delete()).pipe(Effect.catch(() => Effect.void))
+            yield* Effect.tryPromise(() => Bun.file(`${dir}/${prior.title}.md`).delete()).pipe(
+              // A stale mirror (Clean Logs: no title in the log) is a rename
+              // bookkeeping gap, not a data loss — warn instead of dying.
+              Effect.catch((error) =>
+                Effect.logWarning("failed to remove stale note mirror after rename", { noteID: input.id, error }),
+              ),
+            )
           }
           const absolute = path.resolve(dir, `${title}.md`)
           if (!FSUtil.contains(dir, absolute)) {
-            return yield* Effect.die(new Error(`Note title "${title}" escapes the knowledge-base directory`))
+            return yield* Effect.die(new Error("Note title escapes the knowledge-base directory"))
           }
           yield* fs.writeWithDirs(absolute, content).pipe(Effect.orDie)
         }
@@ -302,7 +370,11 @@ export const layer = Layer.effect(
           .pipe(Effect.orDie)
         if (input.baseDir && prior) {
           const dir = prior.scope === "global" ? `${input.baseDir}/knowledge-base` : `${input.baseDir}/.aigcfroge/knowledge-base`
-          yield* Effect.tryPromise(() => Bun.file(`${dir}/${prior.title}.md`).delete()).pipe(Effect.catch(() => Effect.void))
+          yield* Effect.tryPromise(() => Bun.file(`${dir}/${prior.title}.md`).delete()).pipe(
+            Effect.catch((error) =>
+              Effect.logWarning("failed to remove note mirror on delete", { noteID: input.id, error }),
+            ),
+          )
         }
         yield* events.publish(Event.NoteRemoved, { noteID: input.id })
       }),
@@ -316,14 +388,25 @@ export const layer = Layer.effect(
         // A MATCH syntax error (e.g. an unquoted `"` in the query) must degrade
         // to the LIKE fallback — never a 500 (review MAJOR #4).
         const ftsRows = yield* db
-          .all<{ note_id: string }>(sql`SELECT note_id FROM kb_note_fts WHERE kb_note_fts MATCH ${query} ORDER BY rank LIMIT ${limit}`)
-          .pipe(Effect.catch(() => Effect.succeed([])))
+          .all<{ note_id: KBNote.NoteID }>(sql`SELECT note_id FROM kb_note_fts WHERE kb_note_fts MATCH ${query} ORDER BY rank LIMIT ${limit}`)
+          .pipe(
+            Effect.catchCause((cause: Cause.Cause<unknown>) => {
+              // Degrade ONLY FTS5 query syntax errors (bad user input) to the
+              // LIKE fallback; a real DB failure (locked/corrupt) stays fatal
+              // instead of silently returning empty results. The SQLite
+              // message is nested inside the drizzle wrapper's cause chain.
+              const rendered = Cause.pretty(cause)
+              if (rendered.includes("syntax error") || rendered.includes("unterminated string")) return Effect.succeed([])
+              return Effect.failCause(cause)
+            }),
+            Effect.orDie,
+          )
         const notes: typeof KBNoteTable.$inferSelect[] = []
         for (const row of ftsRows) {
           const note = yield* db
             .select()
             .from(KBNoteTable)
-            .where(eq(KBNoteTable.id, row.note_id as KBNote.NoteID))
+            .where(eq(KBNoteTable.id, row.note_id))
             .get()
             .pipe(Effect.orDie)
           if (note && (!options?.scope || note.scope === options.scope)) notes.push(note)
@@ -424,7 +507,7 @@ export const layer = Layer.effect(
                 .run()
                 .pipe(Effect.orDie)
               yield* ensureFts(existing.id, title, content)
-              yield* syncLinks(existing.id, content)
+              yield* syncLinks(existing.id, content, scope)
             }
           } else {
             yield* create({ title, content, scope, tags: [], baseDir: undefined })
@@ -440,6 +523,14 @@ export const layer = Layer.effect(
           .where(eq(KBNoteTable.scope, scope))
           .all()
           .pipe(Effect.orDie)
+        // Deletion guard (review hardening): a directory without any .md file
+        // must never wipe the index — a wrong or emptied path would otherwise
+        // delete every note in the scope.
+        if (files.length === 0 && existingNotes.length > 0) {
+          return yield* new SyncDirectoryError({
+            message: `Refusing to sync "${dir}" (scope "${scope}"): no .md files found but the index holds ${existingNotes.length} note(s) — likely a wrong or emptied directory`,
+          })
+        }
         const fileTitles = new Set(files.map((file) => file.name.slice(0, -3)))
         for (const note of existingNotes) {
           if (!fileTitles.has(note.title)) {

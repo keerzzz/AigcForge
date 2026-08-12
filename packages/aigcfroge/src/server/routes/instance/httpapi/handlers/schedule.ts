@@ -4,6 +4,7 @@ import { Effect } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { Schedule } from "@aigcfroge/schema/schedule"
 import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
+import { SessionID } from "@/session/schema"
 import { InstanceHttpApi } from "../api"
 import { InvalidRequestError } from "../errors"
 
@@ -16,15 +17,12 @@ export const scheduleHandlers = HttpApiBuilder.group(InstanceHttpApi, "schedule"
       return yield* schedules.listPending()
     })
 
-    const list = Effect.fn("ScheduleHttpApi.list")(function* (ctx: { params: { sessionID: string } }) {
-      return yield* schedules.list(ctx.params.sessionID as never)
+    const list = Effect.fn("ScheduleHttpApi.list")(function* (ctx: { params: { sessionID: SessionID } }) {
+      return yield* schedules.list(ctx.params.sessionID)
     })
 
-    const cancel = Effect.fn("ScheduleHttpApi.cancel")(function* (ctx: { params: { id: string } }) {
-      if (!ctx.params.id.startsWith("sch_")) {
-        return yield* Effect.fail(new InvalidRequestError({ message: `Invalid schedule id ${ctx.params.id}` }))
-      }
-      const cancelled = yield* schedules.cancel(ctx.params.id as Schedule.ID)
+    const cancel = Effect.fn("ScheduleHttpApi.cancel")(function* (ctx: { params: { id: Schedule.ID } }) {
+      const cancelled = yield* schedules.cancel(ctx.params.id)
       if (!cancelled) {
         return yield* Effect.fail(new InvalidRequestError({ message: `Schedule ${ctx.params.id} not found or terminal` }))
       }
@@ -35,8 +33,8 @@ export const scheduleHandlers = HttpApiBuilder.group(InstanceHttpApi, "schedule"
       return yield* deliveries.listRecent(ctx.query.limit ?? 6)
     })
 
-    const inbox = Effect.fn("ScheduleHttpApi.inbox")(function* (ctx: { params: { sessionID: string } }) {
-      return yield* deliveries.listInbox(ctx.params.sessionID as never)
+    const inbox = Effect.fn("ScheduleHttpApi.inbox")(function* (ctx: { params: { sessionID: SessionID } }) {
+      return yield* deliveries.listInbox(ctx.params.sessionID)
     })
 
     const read = Effect.fn("ScheduleHttpApi.read")(function* (ctx: { params: { deliveryKey: string } }) {

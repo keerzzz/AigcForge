@@ -39,9 +39,10 @@ export interface Adapters<Row extends ScheduleRowLike> {
   /**
    * Trigger one due row (fresh status re-check, claim, execute, settle).
    * `rearm(run)` re-queues the row in-memory for its next run (recurring
-   * jobs); the adapter computes the next run itself.
+   * jobs); the adapter computes the next run itself. The id keeps the
+   * owning table's brand (`Row["id"]`) so adapters never re-assert it.
    */
-  readonly trigger: (id: string, now: number, rearm: (run: number) => void) => Effect.Effect<void>
+  readonly trigger: (id: Row["id"], now: number, rearm: (run: number) => void) => Effect.Effect<void>
 }
 
 export interface Interface {
@@ -53,12 +54,12 @@ export interface Interface {
 
 export const make = <Row extends ScheduleRowLike>(adapters: Adapters<Row>): Effect.Effect<Interface> =>
   Effect.gen(function* () {
-    let queue = new Map<string, number>()
+    let queue = new Map<Row["id"], number>()
 
     const arm = Effect.fn("SchedulerCore.arm")((now: number, options?: { recover?: boolean }) =>
       Effect.gen(function* () {
         const rows = yield* adapters.scan()
-        const next = new Map<string, number>()
+        const next = new Map<Row["id"], number>()
         for (const row of rows) {
           let status = row.status
           if (options?.recover && status === "in_progress") {
@@ -113,9 +114,11 @@ export const daemon = <R>(input: {
     yield* Effect.forkScoped(
       Effect.gen(function* () {
         yield* input.core.arm(Date.now()).pipe(
-          // Defect-containment (review MAJOR): Effect.ignore only swallows
-          // typed failures — a defect (e.g. an orDie'd SQLite fault) would
-          // abort the whole repeat and permanently kill the tick fiber.
+          // Defect-containment (review MAJOR): arm/tick have error channel
+          // `never`, so Effect.ignore would swallow the whole cause INCLUDING
+          // defects. catchDefect is kept so a fault is logged (contained), not
+          // silently swallowed — a defect would otherwise abort the repeat and
+          // permanently kill the tick fiber.
           Effect.catchDefect((defect) => Effect.logError("Scheduler arm defect contained", defect)),
         )
         yield* input.core.tick(Date.now()).pipe(

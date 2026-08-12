@@ -1,5 +1,6 @@
-import { describe, expect } from "bun:test"
+import { afterAll, describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
+import fs from "fs/promises"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
 import { FSUtil } from "@aigcfroge/core/fs-util"
@@ -17,8 +18,15 @@ const it = testEffect(
 )
 
 // Real temp dirs exercise the file mirror; FSUtil.defaultLayer backs onto the
-// node filesystem.
-const base = () => `${process.env.TMPDIR ?? "/tmp"}/aigcfroge-kb-${Math.random().toString(36).slice(2)}`
+// node filesystem. Track created dirs so afterAll can remove them — the tests
+// run inside testEffect where `await using` is not available.
+const createdDirs: string[] = []
+const base = () => {
+  const dir = `${process.env.TMPDIR ?? "/tmp"}/aigcfroge-kb-${Math.random().toString(36).slice(2)}`
+  createdDirs.push(dir)
+  return dir
+}
+afterAll(() => Promise.all(createdDirs.map((dir) => fs.rm(dir, { recursive: true, force: true }).catch(() => undefined))))
 
 
 
@@ -146,6 +154,124 @@ describe("KBService syncFromDirectory", () => {
       const imported = notes.find((n) => n.title === "Imported")!
       const links = yield* kb.linksFrom(imported.id)
       expect(links.find((l) => l.targetTitle === "World")?.dangling).toBe(false)
+    }),
+  )
+
+  it.effect("removes notes whose .md file disappeared", () =>
+    Effect.gen(function* () {
+      const kb = yield* KBService.Service
+      const fs = yield* FSUtil.Service
+      const dir = base()
+      yield* fs.writeWithDirs(`${dir}/Stay.md`, "stay").pipe(Effect.orDie)
+      yield* fs.writeWithDirs(`${dir}/Gone.md`, "gone").pipe(Effect.orDie)
+      yield* kb.syncFromDirectory(dir, "global")
+      expect((yield* kb.list({ scope: "global" })).map((n) => n.title).sort()).toEqual(["Gone", "Stay"])
+
+      yield* Effect.tryPromise(() => Bun.file(`${dir}/Gone.md`).delete()).pipe(Effect.orDie)
+      yield* kb.syncFromDirectory(dir, "global")
+      expect((yield* kb.list({ scope: "global" })).map((n) => n.title)).toEqual(["Stay"])
+    }),
+  )
+
+  it.effect("refuses an emptied directory that would wipe the index (deletion guard)", () =>
+    Effect.gen(function* () {
+      const kb = yield* KBService.Service
+      const fs = yield* FSUtil.Service
+      const dir = base()
+      yield* fs.writeWithDirs(`${dir}/Note.md`, "content").pipe(Effect.orDie)
+      yield* kb.syncFromDirectory(dir, "global")
+
+      const emptyDir = base()
+      yield* fs.ensureDir(emptyDir).pipe(Effect.orDie)
+      const exit = yield* kb.syncFromDirectory(emptyDir, "global").pipe(Effect.exit)
+      expect(exit._tag).toBe("Failure")
+      // The index is untouched after the refused sync.
+      expect((yield* kb.list({ scope: "global" })).map((n) => n.title)).toEqual(["Note"])
+    }),
+  )
+})
+
+describe("KBService review hardening", () => {
+  it.effect("rejects an invalid title without leaving a dirty row or writing a file", () =>
+    Effect.gen(function* () {
+      const kb = yield* KBService.Service
+      const fs = yield* FSUtil.Service
+      const dir = base()
+      const exit = yield* kb.create({ title: "../../evil", content: "x", scope: "global", baseDir: dir }).pipe(Effect.exit)
+      expect(exit._tag).toBe("Failure")
+      // No dirty row: list still decodes and is empty (a poisoned row would defect here).
+      expect(yield* kb.list({ scope: "global" })).toEqual([])
+      expect(yield* fs.existsSafe(`${dir}/knowledge-base`)).toBe(false)
+    }),
+  )
+
+  it.effect("update mirrors a rename to the .md file and removes the old file", () =>
+    Effect.gen(function* () {
+      const kb = yield* KBService.Service
+      const fs = yield* FSUtil.Service
+      const dir = base()
+      const note = yield* kb.create({ title: "OldName", content: "v1", scope: "project", baseDir: dir })
+      yield* kb.update({ id: note.id, title: "NewName", content: "v2", baseDir: dir })
+      expect(yield* fs.existsSafe(`${dir}/.aigcfroge/knowledge-base/OldName.md`)).toBe(false)
+      expect(yield* fs.readFileStringSafe(`${dir}/.aigcfroge/knowledge-base/NewName.md`)).toBe("v2")
+    }),
+  )
+
+  it.effect("remove deletes the .md file and marks incoming links dangling", () =>
+    Effect.gen(function* () {
+      const kb = yield* KBService.Service
+      const fs = yield* FSUtil.Service
+      const dir = base()
+      const source = yield* kb.create({ title: "A", content: "[[B]]", scope: "project", baseDir: dir })
+      const target = yield* kb.create({ title: "B", content: "target", scope: "project", baseDir: dir })
+
+      yield* kb.remove({ id: target.id, baseDir: dir })
+      expect(yield* fs.existsSafe(`${dir}/.aigcfroge/knowledge-base/B.md`)).toBe(false)
+      const link = (yield* kb.linksFrom(source.id))[0]
+      expect(link?.dangling).toBe(true)
+      expect(link?.targetNoteID).toBeUndefined()
+    }),
+  )
+
+  it.effect("degrades an FTS5 syntax error to the LIKE fallback instead of failing", () =>
+    Effect.gen(function* () {
+      const kb = yield* KBService.Service
+      const dir = base()
+      yield* kb.create({ title: "Odd", content: 'unbalanced " quote note', scope: "project", baseDir: dir })
+      const hits = yield* kb.search('unbalanced " quote')
+      expect(hits.map((n) => n.title)).toContain("Odd")
+    }),
+  )
+
+  it.effect("resolves [[title]] within the source note's own scope when both scopes share the title", () =>
+    Effect.gen(function* () {
+      const kb = yield* KBService.Service
+      const dir = base()
+      const globalShared = yield* kb.create({ title: "Shared", content: "global version", scope: "global", baseDir: dir })
+      const projectShared = yield* kb.create({ title: "Shared", content: "project version", scope: "project", baseDir: dir })
+
+      // A project note linking [[Shared]] must bind the PROJECT-scope note, not
+      // the global one — the (scope, title) unique key makes both real.
+      const projectSource = yield* kb.create({
+        title: "ProjectSource",
+        content: "see [[Shared]]",
+        scope: "project",
+        baseDir: dir,
+      })
+      const projectLink = (yield* kb.linksFrom(projectSource.id))[0]
+      expect(projectLink?.dangling).toBe(false)
+      expect(projectLink?.targetNoteID).toBe(projectShared.id)
+
+      // The global side binds the global note.
+      const globalSource = yield* kb.create({
+        title: "GlobalSource",
+        content: "see [[Shared]]",
+        scope: "global",
+        baseDir: dir,
+      })
+      const globalLink = (yield* kb.linksFrom(globalSource.id))[0]
+      expect(globalLink?.dangling).toBe(false)
+      expect(globalLink?.targetNoteID).toBe(globalShared.id)
     }),
   )
 })

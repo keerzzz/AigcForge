@@ -128,6 +128,7 @@ import type {
   KbListResponses,
   KbNoteFormat,
   KbNoteScope,
+  KbNoteTitle,
   KbRemoveErrors,
   KbRemoveResponses,
   KbSearchErrors,
@@ -4331,7 +4332,7 @@ export class Delivery extends HeyApiClient {
    */
   public recent<ThrowOnError extends boolean = false>(
     parameters?: {
-      limit?: string
+      limit?: number
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -4497,7 +4498,7 @@ export class Kb extends HeyApiClient {
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
       scope?: KbNoteScope
-      limit?: string
+      limit?: number
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -4524,7 +4525,7 @@ export class Kb extends HeyApiClient {
    */
   public create<ThrowOnError extends boolean = false>(
     parameters?: {
-      title?: string
+      title?: KbNoteTitle
       content?: string
       scope?: KbNoteScope
       tags?: Array<string>
@@ -4583,7 +4584,7 @@ export class Kb extends HeyApiClient {
   public update<ThrowOnError extends boolean = false>(
     parameters: {
       id: string
-      title?: string
+      title?: KbNoteTitle
       content?: string
       tags?: Array<string>
       aliases?: Array<string>
@@ -4650,7 +4651,7 @@ export class Kb extends HeyApiClient {
     parameters: {
       query: string
       scope?: KbNoteScope
-      limit?: string
+      limit?: number
     },
     options?: Options<never, ThrowOnError>,
   ) {

@@ -16,22 +16,22 @@ const valid = {
 describe("PersonalMemory.Info", () => {
   test("decodes a valid pending proposal", () => {
     const s = Schema.decodeUnknownSync(PersonalMemory.Info)(valid)
-    expect(s.id).toBe("pm_abc123" as PersonalMemory.ID)
+    expect(s.id).toBe(PersonalMemory.ID.make("pm_abc123"))
     expect(s.content).toBe("User prefers concise answers")
     expect(s.source).toBe("explicit")
     expect(s.status).toBe("pending")
   })
 
   test("rejects an unknown source", () => {
-    expect(() => Schema.decodeUnknownSync(PersonalMemory.Info)({ ...valid, source: "inferred" as never })).toThrow()
+    expect(() => Schema.decodeUnknownSync(PersonalMemory.Info)({ ...valid, source: "inferred" })).toThrow()
   })
 
   test("rejects an unknown status", () => {
-    expect(() => Schema.decodeUnknownSync(PersonalMemory.Info)({ ...valid, status: "approved" as never })).toThrow()
+    expect(() => Schema.decodeUnknownSync(PersonalMemory.Info)({ ...valid, status: "approved" })).toThrow()
   })
 
   test("rejects a malformed id prefix", () => {
-    expect(() => Schema.decodeUnknownSync(PersonalMemory.Info)({ ...valid, id: "mem_wrong" as never })).toThrow()
+    expect(() => Schema.decodeUnknownSync(PersonalMemory.Info)({ ...valid, id: "mem_wrong" })).toThrow()
   })
 
   test("omits optional audit fields without error", () => {
@@ -46,5 +46,11 @@ describe("PersonalMemory.Info", () => {
     for (const value of ["explicit", "derived"] as const) expect(source(value)).toBe(value)
     const status = Schema.decodeUnknownSync(PersonalMemory.Status)
     for (const value of ["pending", "confirmed", "rejected", "deleted"] as const) expect(status(value)).toBe(value)
+  })
+
+  test("type-negative: MemoryStatus is a closed literal union", () => {
+    // @ts-expect-error MemoryStatus is a 4-value literal union
+    const bad: PersonalMemory.Status = "approved"
+    void bad
   })
 })

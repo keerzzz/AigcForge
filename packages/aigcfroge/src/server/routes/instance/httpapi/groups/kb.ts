@@ -4,9 +4,16 @@ import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { KBNote } from "@aigcfroge/schema/kb-note"
 import { described } from "./metadata"
+import { InvalidRequestError } from "../errors"
 import { Authorization } from "../middleware/authorization"
 import { InstanceContextMiddleware } from "../middleware/instance-context"
 import { WorkspaceRoutingMiddleware } from "../middleware/workspace-routing"
+
+// Matches the session group's pagination bound: negative limits must not reach
+// SQLite (LIMIT -1 is unbounded and would list the whole table).
+const NonNegativeLimit = Schema.optional(
+  Schema.NumberFromString.check(Schema.isInt(), Schema.isGreaterThanOrEqualTo(0)),
+)
 
 const root = "/kb"
 
@@ -16,7 +23,7 @@ export const KBApi = HttpApi.make("kb").add(
       HttpApiEndpoint.get("list", root, {
         query: Schema.Struct({
           scope: Schema.optional(KBNote.NoteScope),
-          limit: Schema.optional(Schema.NumberFromString),
+          limit: NonNegativeLimit,
         }),
         success: described(Schema.Array(KBNote.Note), "Knowledge base notes"),
       }).annotateMerge(
@@ -26,7 +33,8 @@ export const KBApi = HttpApi.make("kb").add(
         }),
       ),
       HttpApiEndpoint.get("get", `${root}/:id`, {
-        params: Schema.Struct({ id: Schema.String }),
+        params: Schema.Struct({ id: KBNote.NoteID }),
+        error: InvalidRequestError,
         success: described(KBNote.Note, "A knowledge base note"),
       }).annotateMerge(
         OpenApi.annotations({
@@ -36,7 +44,7 @@ export const KBApi = HttpApi.make("kb").add(
       ),
       HttpApiEndpoint.post("create", root, {
         payload: Schema.Struct({
-          title: Schema.String,
+          title: KBNote.Title,
           content: Schema.String,
           scope: KBNote.NoteScope,
           tags: Schema.optional(Schema.Array(Schema.String)),
@@ -51,9 +59,10 @@ export const KBApi = HttpApi.make("kb").add(
         }),
       ),
       HttpApiEndpoint.post("update", `${root}/:id`, {
-        params: Schema.Struct({ id: Schema.String }),
+        params: Schema.Struct({ id: KBNote.NoteID }),
+        error: InvalidRequestError,
         payload: Schema.Struct({
-          title: Schema.optional(Schema.String),
+          title: Schema.optional(KBNote.Title),
           content: Schema.optional(Schema.String),
           tags: Schema.optional(Schema.Array(Schema.String)),
           aliases: Schema.optional(Schema.Array(Schema.String)),
@@ -66,7 +75,8 @@ export const KBApi = HttpApi.make("kb").add(
         }),
       ),
       HttpApiEndpoint.post("remove", `${root}/:id/remove`, {
-        params: Schema.Struct({ id: Schema.String }),
+        params: Schema.Struct({ id: KBNote.NoteID }),
+        error: InvalidRequestError,
         success: described(Schema.Void, "The removed note"),
       }).annotateMerge(
         OpenApi.annotations({
@@ -86,7 +96,7 @@ export const KBApi = HttpApi.make("kb").add(
         query: Schema.Struct({
           query: Schema.String,
           scope: Schema.optional(KBNote.NoteScope),
-          limit: Schema.optional(Schema.NumberFromString),
+          limit: NonNegativeLimit,
         }),
         success: described(Schema.Array(KBNote.Note), "Matching notes"),
       }).annotateMerge(

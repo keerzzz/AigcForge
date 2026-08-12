@@ -517,7 +517,7 @@ export const makeAssistantCore = (input: {
         yield* input.schedules.recoverClaim(row.id)
         yield* Ref.update(input.recovered, (set) => new Set(set).add(row.id))
       }),
-    trigger: Effect.fn("AssistantScheduler.trigger")((id: string, now: number) =>
+    trigger: Effect.fn("AssistantScheduler.trigger")((id: Schedule.ID, now: number) =>
       Effect.gen(function* () {
         const outcome = yield* input.db
           .transaction((tx) =>
@@ -525,7 +525,7 @@ export const makeAssistantCore = (input: {
               const row = yield* tx
                 .select()
                 .from(ScheduleTable)
-                .where(eq(ScheduleTable.id, id as Schedule.ID))
+                .where(eq(ScheduleTable.id, id))
                 .get()
                 // Review MAJOR: no orDie here — a statement-level SqlError must
                 // stay typed so the transaction catch below can run the
@@ -541,7 +541,7 @@ export const makeAssistantCore = (input: {
                   lease_expires_at: now + 5 * 60_000,
                   time_updated: now,
                 })
-                .where(and(eq(ScheduleTable.id, id as Schedule.ID), eq(ScheduleTable.status, "pending")))
+                .where(and(eq(ScheduleTable.id, id), eq(ScheduleTable.status, "pending")))
                 .run()
               // Startup-recovery deliveries carry the caught-up marker so the
               // inbox can distinguish offline catch-up from normal delivery.
@@ -570,7 +570,7 @@ export const makeAssistantCore = (input: {
               yield* tx
                 .update(ScheduleTable)
                 .set({ status: "completed", lease_owner: null, lease_expires_at: null, time_updated: now })
-                .where(eq(ScheduleTable.id, id as Schedule.ID))
+                .where(eq(ScheduleTable.id, id))
                 .run()
               return {
                 skipped: false as const,
@@ -593,18 +593,34 @@ export const makeAssistantCore = (input: {
                 const row = yield* input.db
                   .select()
                   .from(ScheduleTable)
-                  .where(eq(ScheduleTable.id, id as Schedule.ID))
+                  .where(eq(ScheduleTable.id, id))
                   .get()
                   .pipe(Effect.orDie)
                 if (!row) return { skipped: true as const, sessionID: "" }
                 const attempts = row.attempts + 1
                 if (attempts >= MAX_DELIVERY_ATTEMPTS) {
-                  yield* input.schedules.settle(row.id, "failed")
+                  // The delivery transaction rolled back, so the row is
+                  // `pending` again — settle() (WHERE status='running') would
+                  // be a silent no-op and leave the row retrying every minute
+                  // forever. Reset it to failed directly (review MAJOR #1),
+                  // guarded so a concurrent cancel still wins.
+                  yield* input.db
+                    .update(ScheduleTable)
+                    .set({ status: "failed", lease_owner: null, lease_expires_at: null, time_updated: now })
+                    .where(
+                      and(
+                        eq(ScheduleTable.id, id),
+                        or(eq(ScheduleTable.status, "pending"), eq(ScheduleTable.status, "running")),
+                      ),
+                    )
+                    .run()
+                    .pipe(Effect.orDie)
+                  yield* publishSchedules({ db: input.db, events: input.events, sessionID: row.session_id })
                 } else {
                   yield* input.db
                     .update(ScheduleTable)
                     .set({ attempts, next_attempt_at: now + backoff(attempts), time_updated: now })
-                    .where(eq(ScheduleTable.id, id as Schedule.ID))
+                    .where(eq(ScheduleTable.id, id))
                     .run()
                     .pipe(Effect.orDie)
                   yield* publishSchedules({ db: input.db, events: input.events, sessionID: row.session_id })
@@ -620,7 +636,7 @@ export const makeAssistantCore = (input: {
             sessionID: outcome.sessionID,
             delivery: {
               deliveryKey: outcome.deliveryKey,
-              scheduleID: id as Schedule.ID,
+              scheduleID: id,
               sessionID: outcome.sessionID,
               kind: outcome.kind,
               content: outcome.content,

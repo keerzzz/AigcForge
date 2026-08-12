@@ -1,10 +1,11 @@
 export * as ProposeNoteTool from "./propose-note"
 
 import { ToolFailure } from "@aigcfroge/llm"
-import { Effect, Layer, Schema } from "effect"
+import { Cause, Effect, Layer, Schema } from "effect"
 import { KBNote } from "@aigcfroge/schema/kb-note"
 import { KBService } from "../session/kb-service"
 import { KBLink } from "../kb/link"
+import { PermissionV2 } from "../permission"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
 
@@ -46,35 +47,49 @@ export const layer = Layer.effectDiscard(
   Effect.gen(function* () {
     const tools = yield* Tools.Service
     const kb = yield* KBService.Service
+    const permission = yield* PermissionV2.Service
 
     const tool = Tool.make({
       description,
       input: Input,
       output: Output,
-      execute: (input) =>
-        Effect.gen(function* () {
-          const scope = input.scope ?? "global"
-          const format = input.format ?? "note"
-          // Name conflict: the scope's unique-title invariant.
-          const existing = yield* kb.list({ scope })
-          const nameConflict = existing.some((note) => note.title === input.title)
-          // Dangling links: mechanical check against the current index.
-          const titles = KBLink.extractWikilinks(input.content)
-          const known = new Set(existing.map((note) => note.title))
-          const danglingLinks = KBLink.detectDangling(titles, known)
-          return {
-            title: input.title,
-            scope,
-            format,
-            exists: nameConflict,
-            nameConflict,
-            danglingLinks,
-          }
-        }).pipe(
-          Effect.catch((err) =>
-            Effect.fail(new ToolFailure({ message: `propose_note failed: ${(err as Error).message}` })),
+      execute: (input, context) =>
+        permission
+          .assert({
+            action: name,
+            resources: ["*"],
+            sessionID: context.sessionID,
+            agent: context.agent,
+            source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
+          })
+          .pipe(
+            Effect.mapError(() => new ToolFailure({ message: "Permission denied: propose_note" })),
+            Effect.andThen(
+              Effect.gen(function* () {
+                const scope = input.scope ?? "global"
+                const format = input.format ?? "note"
+                // Name conflict: the scope's unique-title invariant.
+                const existing = yield* kb.list({ scope })
+                const nameConflict = existing.some((note) => note.title === input.title)
+                // Dangling links: mechanical check against the current index.
+                const titles = KBLink.extractWikilinks(input.content)
+                const known = new Set(existing.map((note) => note.title))
+                const danglingLinks = KBLink.detectDangling(titles, known)
+                return {
+                  title: input.title,
+                  scope,
+                  format,
+                  exists: nameConflict,
+                  nameConflict,
+                  danglingLinks,
+                }
+              }).pipe(
+                Effect.catchCause((cause) =>
+                  Effect.fail(new ToolFailure({ message: `propose_note failed: ${Cause.pretty(cause)}` })),
+                ),
+              ),
+            ),
           ),
-        ),
       toModelOutput: ({ output }) => [
         {
           type: "text" as const,

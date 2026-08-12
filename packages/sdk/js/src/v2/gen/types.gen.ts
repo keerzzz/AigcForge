@@ -12405,9 +12405,9 @@ export type ScheduleCancelData = {
 
 export type ScheduleCancelErrors = {
   /**
-   * Bad request
+   * InvalidRequestError
    */
-  400: BadRequestError
+  400: InvalidRequestError
 }
 
 export type ScheduleCancelError = ScheduleCancelErrors[keyof ScheduleCancelErrors]
@@ -12425,7 +12425,7 @@ export type DeliveryRecentData = {
   body?: never
   path?: never
   query?: {
-    limit?: string
+    limit?: number
   }
   url: "/delivery/recent"
 }
@@ -12561,9 +12561,9 @@ export type MemoryConfirmData = {
 
 export type MemoryConfirmErrors = {
   /**
-   * Bad request
+   * InvalidRequestError
    */
-  400: BadRequestError
+  400: InvalidRequestError
 }
 
 export type MemoryConfirmError = MemoryConfirmErrors[keyof MemoryConfirmErrors]
@@ -12588,9 +12588,9 @@ export type MemoryRejectData = {
 
 export type MemoryRejectErrors = {
   /**
-   * Bad request
+   * InvalidRequestError
    */
-  400: BadRequestError
+  400: InvalidRequestError
 }
 
 export type MemoryRejectError = MemoryRejectErrors[keyof MemoryRejectErrors]
@@ -12619,9 +12619,9 @@ export type MemoryEditData = {
 
 export type MemoryEditErrors = {
   /**
-   * Bad request
+   * InvalidRequestError
    */
-  400: BadRequestError
+  400: InvalidRequestError
 }
 
 export type MemoryEditError = MemoryEditErrors[keyof MemoryEditErrors]
@@ -12646,9 +12646,9 @@ export type MemoryRemoveData = {
 
 export type MemoryRemoveErrors = {
   /**
-   * Bad request
+   * InvalidRequestError
    */
-  400: BadRequestError
+  400: InvalidRequestError
 }
 
 export type MemoryRemoveError = MemoryRemoveErrors[keyof MemoryRemoveErrors]
@@ -12667,7 +12667,7 @@ export type KbListData = {
   path?: never
   query?: {
     scope?: KbNoteScope
-    limit?: string
+    limit?: number
   }
   url: "/kb"
 }
@@ -12692,7 +12692,7 @@ export type KbListResponse = KbListResponses[keyof KbListResponses]
 
 export type KbCreateData = {
   body?: {
-    title: string
+    title: KbNoteTitle
     content: string
     scope: KbNoteScope
     tags?: Array<string>
@@ -12733,9 +12733,9 @@ export type KbGetData = {
 
 export type KbGetErrors = {
   /**
-   * Bad request
+   * InvalidRequestError
    */
-  400: BadRequestError
+  400: InvalidRequestError
 }
 
 export type KbGetError = KbGetErrors[keyof KbGetErrors]
@@ -12751,7 +12751,7 @@ export type KbGetResponse = KbGetResponses[keyof KbGetResponses]
 
 export type KbUpdateData = {
   body?: {
-    title?: string
+    title?: KbNoteTitle
     content?: string
     tags?: Array<string>
     aliases?: Array<string>
@@ -12765,9 +12765,9 @@ export type KbUpdateData = {
 
 export type KbUpdateErrors = {
   /**
-   * Bad request
+   * InvalidRequestError
    */
-  400: BadRequestError
+  400: InvalidRequestError
 }
 
 export type KbUpdateError = KbUpdateErrors[keyof KbUpdateErrors]
@@ -12792,9 +12792,9 @@ export type KbRemoveData = {
 
 export type KbRemoveErrors = {
   /**
-   * Bad request
+   * InvalidRequestError
    */
-  400: BadRequestError
+  400: InvalidRequestError
 }
 
 export type KbRemoveError = KbRemoveErrors[keyof KbRemoveErrors]
@@ -12837,7 +12837,7 @@ export type KbSearchData = {
   query: {
     query: string
     scope?: KbNoteScope
-    limit?: string
+    limit?: number
   }
   url: "/kb/search"
 }

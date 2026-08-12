@@ -52,7 +52,7 @@ export function AssistantDashboardMain() {
   const recentQuery = useQuery(() => ({
     queryKey: ["assistant", "recent"] as const,
     queryFn: async () => {
-      const res = await serverSDK().client.delivery.recent({ limit: String(6) })
+      const res = await serverSDK().client.delivery.recent({ limit: 6 })
       return res.data ?? []
     },
   }))
@@ -226,58 +226,75 @@ export function AssistantDashboardMain() {
         <section class="flex min-w-0 flex-col gap-3">
           <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.dashboard.reminders")}</h2>
           <div class="flex min-w-0 flex-col gap-2 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
-            <Show
-              when={pending().length > 0}
-              fallback={
-                <p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.dashboard.reminders.empty")}</p>
-              }
-            >
-              <p class="text-v2-text-text-base text-13-medium">
-                {language.t("assistant.dashboard.pendingCount", { count: String(pending().length) })}
-              </p>
-              <div class="flex min-w-0 flex-col gap-px">
-                <For each={pending()}>
-                  {(reminder: ScheduleInfo) => (
-                    <div class="flex min-w-0 items-center gap-2 py-1">
-                      <Icon name="mode-assistant" size="small" class="shrink-0 text-v2-icon-icon-muted" />
-                      <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">
-                        {reminder.content}
-                      </span>
-                      <span class="shrink-0 text-v2-text-text-muted text-11-regular">
-                        {formatDue(reminder.dueAt)} · {reminder.timezone}
-                      </span>
-                      <IconButtonV2
-                        variant="ghost-muted"
-                        size="small"
-                        icon={<Icon name="xmark-small" />}
-                        aria-label={language.t("assistant.dashboard.cancel")}
-                        onClick={() => cancelReminder(reminder.id)}
-                      />
-                    </div>
-                  )}
-                </For>
-              </div>
+            <Show when={pendingQuery.isError}>
+              <p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.dashboard.loadError")}</p>
+            </Show>
+            <Show when={!pendingQuery.isError}>
+              <Show
+                when={pending().length > 0}
+                fallback={
+                  pendingQuery.isLoading ? null : (
+                    <p class="text-v2-text-text-muted text-13-regular">
+                      {language.t("assistant.dashboard.reminders.empty")}
+                    </p>
+                  )
+                }
+              >
+                <p class="text-v2-text-text-base text-13-medium">
+                  {language.t("assistant.dashboard.pendingCount", { count: String(pending().length) })}
+                </p>
+                <div class="flex min-w-0 flex-col gap-px">
+                  <For each={pending()}>
+                    {(reminder: ScheduleInfo) => (
+                      <div class="flex min-w-0 items-center gap-2 py-1">
+                        <Icon name="mode-assistant" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+                        <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">
+                          {reminder.content ?? ""}
+                        </span>
+                        <span class="shrink-0 text-v2-text-text-muted text-11-regular">
+                          {formatDue(reminder.dueAt)} · {reminder.timezone ?? ""}
+                        </span>
+                        <IconButtonV2
+                          variant="ghost-muted"
+                          size="small"
+                          icon={<Icon name="xmark-small" />}
+                          aria-label={language.t("assistant.dashboard.cancelReminder")}
+                          onClick={() => cancelReminder(reminder.id)}
+                        />
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </Show>
             </Show>
           </div>
         </section>
 
         {/* ③ 最近投递（辅助区块，空态隐藏） */}
-        <Show when={recent().length > 0}>
+        <Show when={recentQuery.isError}>
+          <section class="flex min-w-0 flex-col gap-3">
+            <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.dashboard.recent")}</h2>
+            <p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.dashboard.loadError")}</p>
+          </section>
+        </Show>
+        <Show when={!recentQuery.isError && recent().length > 0}>
           <section class="flex min-w-0 flex-col gap-3">
             <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.dashboard.recent")}</h2>
             <div class="flex min-w-0 flex-col gap-px">
               <For each={recent()}>
                 {(delivery) => (
                   <div class="flex min-w-0 items-center gap-2 py-1">
-                    <Icon name="check" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+                    <Icon name="status-active" size="small" class="shrink-0 text-v2-icon-icon-muted" />
                     <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">
-                      {delivery.content}
+                      {delivery.content ?? ""}
                     </span>
                     <span class="shrink-0 text-v2-text-text-muted text-11-regular">
                       {formatDue(delivery.deliveredAt)}
                     </span>
                     <Show when={delivery.caughtUp}>
-                      <span class="shrink-0 text-v2-text-text-faint text-11-regular">caught up</span>
+                      <span class="shrink-0 text-v2-text-text-faint text-11-regular">
+                        {language.t("assistant.dashboard.caughtUp")}
+                      </span>
                     </Show>
                     <IconButtonV2
                       variant="ghost-muted"
@@ -294,7 +311,13 @@ export function AssistantDashboardMain() {
         </Show>
 
         {/* ③ 个人记忆（Memory Inspector：提议 + 确认，空态隐藏） */}
-        <Show when={memories().length > 0}>
+        <Show when={memoryQuery.isError}>
+          <section class="flex min-w-0 flex-col gap-3">
+            <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.memory.title")}</h2>
+            <p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.dashboard.loadError")}</p>
+          </section>
+        </Show>
+        <Show when={!memoryQuery.isError && memories().length > 0}>
           <section class="flex min-w-0 flex-col gap-3">
             <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.memory.title")}</h2>
 
@@ -305,9 +328,9 @@ export function AssistantDashboardMain() {
                   <For each={pendingMemories()}>
                     {(memory: PersonalMemoryInfo) => (
                       <div class="flex min-w-0 items-center gap-2 py-1">
-                        <Icon name="sparkles" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+                        <Icon name="status" size="small" class="shrink-0 text-v2-icon-icon-muted" />
                         <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">
-                          {memory.content}
+                          {memory.content ?? ""}
                         </span>
                         <span class="shrink-0 text-v2-text-text-faint text-11-regular">{memory.source}</span>
                         <IconButtonV2
@@ -338,9 +361,9 @@ export function AssistantDashboardMain() {
                   <For each={confirmedMemories()}>
                     {(memory: PersonalMemoryInfo) => (
                       <div class="flex min-w-0 items-center gap-2 py-1">
-                        <Icon name="check" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+                        <Icon name="status-active" size="small" class="shrink-0 text-v2-icon-icon-muted" />
                         <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">
-                          {memory.content}
+                          {memory.content ?? ""}
                         </span>
                         <IconButtonV2
                           variant="ghost-muted"
@@ -375,14 +398,16 @@ export function AssistantDashboardMain() {
             <div class="flex min-w-0 flex-col gap-2 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
               <input
                 class="w-full rounded-md border border-v2-border-border-base bg-v2-background-bg-base px-2 py-1 text-v2-text-text-base text-13-regular focus:outline-none"
-                placeholder="Title"
+                aria-label={language.t("assistant.kb.titlePlaceholder")}
+                placeholder={language.t("assistant.kb.titlePlaceholder")}
                 value={editTitle()}
                 onInput={(event) => setEditTitle(event.currentTarget.value)}
                 disabled={!creating()}
               />
               <textarea
                 class="min-h-24 w-full resize-y rounded-md border border-v2-border-border-base bg-v2-background-bg-base px-2 py-1 text-v2-text-text-base text-13-regular focus:outline-none"
-                placeholder="Markdown body, may contain [[wikilinks]]"
+                aria-label={language.t("assistant.kb.contentPlaceholder")}
+                placeholder={language.t("assistant.kb.contentPlaceholder")}
                 value={editContent()}
                 onInput={(event) => setEditContent(event.currentTarget.value)}
               />
@@ -410,17 +435,20 @@ export function AssistantDashboardMain() {
                     size="small"
                     icon={<Icon name="xmark-small" />}
                     aria-label={language.t("assistant.kb.delete")}
-                    onClick={() => deleteNote(editing()!.id)}
+                    onClick={() => {
+                      const editingNote = editing()
+                      if (editingNote) deleteNote(editingNote.id)
+                    }}
                   />
                 </Show>
               </div>
             </div>
           </Show>
 
-          <Show
-            when={notes().length > 0}
-            fallback={<p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.kb.empty")}</p>}
-          >
+          <Show when={kbQuery.isError}>
+            <p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.dashboard.loadError")}</p>
+          </Show>
+          <Show when={!kbQuery.isError && notes().length > 0}>
             <div class="flex min-w-0 flex-col gap-px">
               <For each={notes()}>
                 {(note: KbNoteNote) => (
@@ -429,13 +457,16 @@ export function AssistantDashboardMain() {
                     class="flex min-w-0 items-center gap-2 rounded-md px-1 py-1 text-left hover:bg-v2-background-bg-layer-02 focus-visible:outline-none"
                     onClick={() => openEditor(note)}
                   >
-                    <Icon name="file-text" size="small" class="shrink-0 text-v2-icon-icon-muted" />
-                    <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">{note.title}</span>
+                    <Icon name="edit" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+                    <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">{note.title ?? ""}</span>
                     <span class="shrink-0 text-v2-text-text-faint text-11-regular">{note.format}</span>
                   </button>
                 )}
               </For>
             </div>
+          </Show>
+          <Show when={!kbQuery.isError && !kbQuery.isLoading && notes().length === 0}>
+            <p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.kb.empty")}</p>
           </Show>
         </section>
 

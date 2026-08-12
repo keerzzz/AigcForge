@@ -2,6 +2,7 @@ import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
+import { PermissionV2 } from "@aigcfroge/core/permission"
 import { Project } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
 import { AbsolutePath } from "@aigcfroge/core/schema"
@@ -17,6 +18,12 @@ import { toolIdentity, settleTool, toolDefinitions } from "./lib/tool"
 
 const sessionID = SessionV2.ID.make("ses_reminder_tool_test")
 
+// Tools self-assert their permission action (review BLOCKER #1 fix); tests
+// provide an allow-all gate so the tool logic itself stays the focus.
+const mockPermission = Layer.mock(PermissionV2.Service, {
+  assert: () => Effect.void,
+})
+
 const it = testEffect(
   ReminderCreateTool.layer.pipe(
     Layer.provideMerge(ReminderUpdateTool.layer),
@@ -26,6 +33,24 @@ const it = testEffect(
     Layer.provideMerge(Database.defaultLayer),
     Layer.provideMerge(EventV2.defaultLayer),
     Layer.provideMerge(ToolRegistry.defaultLayer),
+    Layer.provideMerge(mockPermission),
+  ),
+)
+
+// A deny gate must block the tool (review BLOCKER #1): the runtime
+// permission.assert is the enforcement, not just the materialize-time filter.
+const denyPermission = Layer.mock(PermissionV2.Service, {
+  assert: () => Effect.fail(new PermissionV2.DeniedError({ rules: [] })),
+})
+
+const itDeny = testEffect(
+  ReminderCreateTool.layer.pipe(
+    Layer.provideMerge(ScheduleService.layer),
+    Layer.provideMerge(ScheduleService.deliveryLayer),
+    Layer.provideMerge(Database.defaultLayer),
+    Layer.provideMerge(EventV2.defaultLayer),
+    Layer.provideMerge(ToolRegistry.defaultLayer),
+    Layer.provideMerge(denyPermission),
   ),
 )
 
@@ -85,6 +110,32 @@ describe("Reminder tools", () => {
       expect(list[0]?.content).toBe("Follow up with customer")
       expect(list[0]?.status).toBe("pending")
       expect(list[0]?.timezone).toBe("Asia/Shanghai")
+    }),
+  )
+
+  it.effect("creates two reminders at the same due time with different content (deliveryKey content digest)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const registry = yield* ToolRegistry.Service
+      const dueAt = Date.now() + 3600_000
+      for (const content of ["Take medicine", "Join standup"]) {
+        const result = yield* settleTool(registry, {
+          sessionID,
+          ...toolIdentity,
+          call: {
+            type: "tool-call",
+            id: `call-reminder-create-${content}`,
+            name: "reminder_create",
+            input: { content, dueAt, timezone: "Asia/Shanghai" },
+          },
+        })
+        expect(result.result.type).toBe("text")
+      }
+
+      const schedules = yield* ScheduleService.Service
+      const list = yield* schedules.list(sessionID)
+      expect(list).toHaveLength(2)
+      expect(new Set(list.map((item) => item.deliveryKey)).size).toBe(2)
     }),
   )
 
@@ -160,6 +211,28 @@ describe("Reminder tools", () => {
       })
       expect(update.result.type).toBe("text")
       expect(update.result.value).toContain("terminal")
+    }),
+  )
+
+  itDeny.effect("denies reminder_create when the permission assert fails", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const registry = yield* ToolRegistry.Service
+      const result = yield* settleTool(registry, {
+        sessionID,
+        ...toolIdentity,
+        call: {
+          type: "tool-call",
+          id: "call-reminder-deny",
+          name: "reminder_create",
+          input: { content: "Blocked", dueAt: Date.now() + 3600_000, timezone: "Asia/Shanghai" },
+        },
+      })
+      expect(result.result.type).toBe("error")
+      expect(result.result.value).toContain("Permission denied")
+      // Nothing was persisted — the gate runs before the write.
+      const schedules = yield* ScheduleService.Service
+      expect(yield* schedules.list(sessionID)).toHaveLength(0)
     }),
   )
 })

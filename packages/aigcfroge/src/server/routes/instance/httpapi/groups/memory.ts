@@ -4,6 +4,7 @@ import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { PersonalMemory } from "@aigcfroge/schema/personal-memory"
 import { described } from "./metadata"
+import { InvalidRequestError } from "../errors"
 import { Authorization } from "../middleware/authorization"
 import { InstanceContextMiddleware } from "../middleware/instance-context"
 import { WorkspaceRoutingMiddleware } from "../middleware/workspace-routing"
@@ -31,7 +32,8 @@ export const MemoryApi = HttpApi.make("memory").add(
         }),
       ),
       HttpApiEndpoint.post("confirm", `${root}/:id/confirm`, {
-        params: Schema.Struct({ id: Schema.String }),
+        params: Schema.Struct({ id: PersonalMemory.ID }),
+        error: InvalidRequestError,
         success: described(PersonalMemory.Info, "The confirmed memory entry"),
       }).annotateMerge(
         OpenApi.annotations({
@@ -40,7 +42,8 @@ export const MemoryApi = HttpApi.make("memory").add(
         }),
       ),
       HttpApiEndpoint.post("reject", `${root}/:id/reject`, {
-        params: Schema.Struct({ id: Schema.String }),
+        params: Schema.Struct({ id: PersonalMemory.ID }),
+        error: InvalidRequestError,
         success: described(PersonalMemory.Info, "The rejected memory entry"),
       }).annotateMerge(
         OpenApi.annotations({
@@ -49,7 +52,8 @@ export const MemoryApi = HttpApi.make("memory").add(
         }),
       ),
       HttpApiEndpoint.post("edit", `${root}/:id`, {
-        params: Schema.Struct({ id: Schema.String }),
+        params: Schema.Struct({ id: PersonalMemory.ID }),
+        error: InvalidRequestError,
         payload: Schema.Struct({
           content: Schema.optional(Schema.String),
           trustLevel: Schema.optional(PersonalMemory.TrustLevel),
@@ -63,7 +67,8 @@ export const MemoryApi = HttpApi.make("memory").add(
         }),
       ),
       HttpApiEndpoint.post("remove", `${root}/:id/remove`, {
-        params: Schema.Struct({ id: Schema.String }),
+        params: Schema.Struct({ id: PersonalMemory.ID }),
+        error: InvalidRequestError,
         success: described(PersonalMemory.Info, "The deleted memory entry"),
       }).annotateMerge(
         OpenApi.annotations({

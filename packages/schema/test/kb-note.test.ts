@@ -45,24 +45,30 @@ describe("KBNote.Note", () => {
       expect(format(value)).toBe(value)
     }
   })
+
+  test("type-negative: NoteScope is a closed literal union", () => {
+    // @ts-expect-error NoteScope is global | project
+    const bad: KBNote.NoteScope = "local"
+    void bad
+  })
 })
 
 describe("KBNote.Link", () => {
   test("decodes a resolved link", () => {
     const s = Schema.decodeUnknownSync(KBNote.Link)({
-      sourceNoteID: "kb_src" as KBNote.NoteID,
-      targetNoteID: "kb_tgt" as KBNote.NoteID,
+      sourceNoteID: "kb_src",
+      targetNoteID: "kb_tgt",
       targetTitle: "Roadmap",
       linkType: "reference",
       dangling: false,
     })
-    expect(s.targetNoteID).toBe("kb_tgt" as KBNote.NoteID)
+    expect(s.targetNoteID).toBe(KBNote.NoteID.make("kb_tgt"))
     expect(s.dangling).toBe(false)
   })
 
   test("decodes a dangling link without a target", () => {
     const s = Schema.decodeUnknownSync(KBNote.Link)({
-      sourceNoteID: "kb_src" as KBNote.NoteID,
+      sourceNoteID: "kb_src",
       targetTitle: "Missing",
       linkType: "reference",
       dangling: true,

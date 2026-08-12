@@ -3,7 +3,9 @@ export * as ScheduleApiGroup from "./schedule"
 import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { Schedule } from "@aigcfroge/schema/schedule"
+import { SessionID } from "@/session/schema"
 import { described } from "./metadata"
+import { InvalidRequestError } from "../errors"
 import { Authorization } from "../middleware/authorization"
 import { InstanceContextMiddleware } from "../middleware/instance-context"
 import { WorkspaceRoutingMiddleware } from "../middleware/workspace-routing"
@@ -13,6 +15,24 @@ import { WorkspaceRoutingMiddleware } from "../middleware/workspace-routing"
 // keyed by a literal session id must not live under the session prefix.
 const root = "/schedule"
 const deliveryRoot = "/delivery"
+
+// Negative limits reach SQLite's unbounded LIMIT -1; bound them like the
+// session group's pagination.
+const NonNegativeLimit = Schema.optional(
+  Schema.NumberFromString.check(Schema.isInt(), Schema.isGreaterThanOrEqualTo(0)),
+)
+
+// Delivery keys live in a route segment (`/delivery/:deliveryKey/read`); a key
+// containing a path separator would split the route, so reject those at the
+// schema boundary.
+const DeliveryKeyParam = Schema.String.pipe(
+  Schema.check(
+    Schema.makeFilter<string>(
+      (key) => key.length > 0 && !key.includes("/") && !key.includes("\\"),
+      { message: "deliveryKey must be a single route segment" },
+    ),
+  ),
+)
 
 export const ScheduleApi = HttpApi.make("schedule").add(
   HttpApiGroup.make("schedule")
@@ -27,7 +47,7 @@ export const ScheduleApi = HttpApi.make("schedule").add(
         }),
       ),
       HttpApiEndpoint.get("list", `${root}/:sessionID`, {
-        params: Schema.Struct({ sessionID: Schema.String }),
+        params: Schema.Struct({ sessionID: SessionID }),
         success: described(Schema.Array(Schedule.Info), "Schedules of a session"),
       }).annotateMerge(
         OpenApi.annotations({
@@ -36,7 +56,8 @@ export const ScheduleApi = HttpApi.make("schedule").add(
         }),
       ),
       HttpApiEndpoint.post("cancel", `${root}/:id/cancel`, {
-        params: Schema.Struct({ id: Schema.String }),
+        params: Schema.Struct({ id: Schedule.ID }),
+        error: InvalidRequestError,
         success: described(Schedule.Info, "The cancelled schedule"),
       }).annotateMerge(
         OpenApi.annotations({
@@ -48,7 +69,7 @@ export const ScheduleApi = HttpApi.make("schedule").add(
     )
     .add(
       HttpApiEndpoint.get("recent", `${deliveryRoot}/recent`, {
-        query: Schema.Struct({ limit: Schema.optional(Schema.NumberFromString) }),
+        query: Schema.Struct({ limit: NonNegativeLimit }),
         success: described(Schema.Array(Schedule.Delivery), "Recent inbox records process-wide"),
       }).annotateMerge(
         OpenApi.annotations({
@@ -58,7 +79,7 @@ export const ScheduleApi = HttpApi.make("schedule").add(
         }),
       ),
       HttpApiEndpoint.get("inbox", `${deliveryRoot}/:sessionID`, {
-        params: Schema.Struct({ sessionID: Schema.String }),
+        params: Schema.Struct({ sessionID: SessionID }),
         success: described(Schema.Array(Schedule.Delivery), "Inbox deliveries of a session"),
       }).annotateMerge(
         OpenApi.annotations({
@@ -67,7 +88,7 @@ export const ScheduleApi = HttpApi.make("schedule").add(
         }),
       ),
       HttpApiEndpoint.post("read", `${deliveryRoot}/:deliveryKey/read`, {
-        params: Schema.Struct({ deliveryKey: Schema.String }),
+        params: Schema.Struct({ deliveryKey: DeliveryKeyParam }),
         success: described(Schema.Void, "Mark a delivery read"),
       }).annotateMerge(
         OpenApi.annotations({

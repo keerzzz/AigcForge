@@ -63,7 +63,7 @@ const makeInput = (overrides: Partial<Parameters<ScheduleService.Interface["crea
 })
 
 describe("ScheduleService", () => {
-  it.effect("create persists a pending schedule and publishes schedule.updated", () =>
+  it.effect("create persists a pending schedule; list/countPending reflect it", () =>
     Effect.gen(function* () {
       yield* setup
       const schedules = yield* ScheduleService.Service
@@ -370,15 +370,23 @@ describe("AssistantSchedulerDaemon (split EventV2 instances)", () => {
   splitEventIt.effect("delivers a reminder created through a different EventV2 instance", () =>
     Effect.gen(function* () {
       yield* setup
-      const schedules = yield* ScheduleService.Service
+      const { db } = yield* Database.Service
       const deliveries = yield* ScheduleService.DeliveryService
-      // Created via a *separate* EventV2 layer instance: the daemon never sees
-      // its schedule.updated publish — only the per-minute arm re-derives it.
-      yield* ScheduleService.layer.pipe(
-        Layer.provideMerge(EventV2.defaultLayer),
-        Layer.provideMerge(Database.defaultLayer),
-        Layer.build,
-        Effect.flatMap(() => schedules.create(makeInput({ dueAt: Date.now() - 60_000, deliveryKey: "reminder:split:1" }))),
+      // Create through a *separate* EventV2 layer instance sharing the same
+      // in-memory db: the daemon never sees its schedule.updated publish —
+      // only the per-minute arm re-derives the row from the table. (The test
+      // db is :memory:, so the split layer must reuse the outer db handle
+      // rather than building its own Database.defaultLayer.)
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          const ctx = yield* ScheduleService.layer.pipe(
+            Layer.provideMerge(EventV2.defaultLayer),
+            Layer.provideMerge(Layer.succeed(Database.Service, { db })),
+            Layer.build,
+          )
+          const split = yield* ScheduleService.Service.pipe(Effect.provide(ctx))
+          yield* split.create(makeInput({ dueAt: Date.now() - 60_000, deliveryKey: "reminder:split:1" }))
+        }),
       )
 
       for (let i = 0; i < 4; i++) {

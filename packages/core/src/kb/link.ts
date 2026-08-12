@@ -42,11 +42,11 @@ export function detectDangling(links: readonly string[], knownTitles: ReadonlySe
  * multiple scopes) is out of scope for M2 — resolution is by exact title
  * across the current scope's index.
  */
-export function resolveTitle(
+export function resolveTitle<Id extends string>(
   title: string,
-  notesByTitle: ReadonlyMap<string, string>,
-  aliasesByNote: ReadonlyMap<string, readonly string[]> = new Map(),
-): string | undefined {
+  notesByTitle: ReadonlyMap<string, Id>,
+  aliasesByNote: ReadonlyMap<Id, readonly string[]> = new Map(),
+): Id | undefined {
   const direct = notesByTitle.get(title)
   if (direct !== undefined) return direct
   for (const [noteID, aliases] of aliasesByNote) {

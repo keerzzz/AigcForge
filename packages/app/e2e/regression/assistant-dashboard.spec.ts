@@ -54,6 +54,10 @@ const kbNote = {
 }
 
 test.describe("regression: assistant dashboard", () => {
+  // The dev server cold-compiles the dashboard route on first navigation;
+  // on slow/NTFS filesystems that exceeds the default 60s test timeout.
+  test.describe.configure({ timeout: 180_000 })
+
   test("renders the dashboard with pending reminders, deliveries, memory, and notes", async ({ page }) => {
     await mockServer(page, { state: {} })
     await configurePage(page)
@@ -88,12 +92,35 @@ test.describe("regression: assistant dashboard", () => {
     await configurePage(page)
 
     await page.goto("/mode/assistant")
-    const cancel = page.getByLabel("Cancel").first()
+    const cancel = page.getByLabel("Cancel reminder")
     await expect(cancel).toBeVisible({ timeout: 15_000 })
     await cancel.click()
     await expect
       .poll(() => cancelled, { timeout: 10_000 })
       .toBe(true)
+  })
+
+  test("confirms and rejects a pending memory proposal", async ({ page }) => {
+    let confirmed = false
+    let rejected = false
+    await mockServer(page, {
+      state: {},
+      onMemoryConfirm: () => {
+        confirmed = true
+      },
+      onMemoryReject: () => {
+        rejected = true
+      },
+    })
+    await configurePage(page)
+
+    await page.goto("/mode/assistant")
+    await expect(page.getByText("User prefers concise answers")).toBeVisible({ timeout: 15_000 })
+
+    await page.getByLabel("Confirm").click()
+    await expect.poll(() => confirmed, { timeout: 10_000 }).toBe(true)
+    await page.getByLabel("Reject").click()
+    await expect.poll(() => rejected, { timeout: 10_000 }).toBe(true)
   })
 })
 
@@ -118,12 +145,14 @@ async function mockServer(page: Page, extra: { state: object } & Partial<MockSer
     if (extra.onScheduleCancel) extra.onScheduleCancel()
     return route.fulfill({ json: { ...pendingReminder, status: "cancelled" } })
   })
-  await page.route("**/memory/*/confirm", (route) =>
-    route.fulfill({ json: { ...pendingMemory, status: "confirmed" } }),
-  )
-  await page.route("**/memory/*/reject", (route) =>
-    route.fulfill({ json: { ...pendingMemory, status: "rejected" } }),
-  )
+  await page.route("**/memory/*/confirm", (route) => {
+    if (extra.onMemoryConfirm) extra.onMemoryConfirm()
+    return route.fulfill({ json: { ...pendingMemory, status: "confirmed" } })
+  })
+  await page.route("**/memory/*/reject", (route) => {
+    if (extra.onMemoryReject) extra.onMemoryReject()
+    return route.fulfill({ json: { ...pendingMemory, status: "rejected" } })
+  })
   await page.route("**/delivery/*/read", (route) => route.fulfill({ json: {} }))
   void state
 }

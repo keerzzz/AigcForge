@@ -19,7 +19,7 @@ const valid = {
 describe("Schedule.Info", () => {
   test("decodes a valid reminder schedule", () => {
     const s = Schema.decodeUnknownSync(Schedule.Info)(valid)
-    expect(s.id).toBe("sch_abc123" as Schedule.ID)
+    expect(s.id).toBe(Schedule.ID.make("sch_abc123"))
     expect(s.content).toBe("Follow up with customer")
     expect(s.dueAt).toBe(1754110800000)
     expect(s.timezone).toBe("Asia/Shanghai")
@@ -28,21 +28,21 @@ describe("Schedule.Info", () => {
   })
 
   test("rejects an unknown kind", () => {
-    expect(() => Schema.decodeUnknownSync(Schedule.Info)({ ...valid, kind: "todo" as never })).toThrow()
+    expect(() => Schema.decodeUnknownSync(Schedule.Info)({ ...valid, kind: "todo" })).toThrow()
   })
 
   test("rejects an unknown status", () => {
-    expect(() => Schema.decodeUnknownSync(Schedule.Info)({ ...valid, status: "queued" as never })).toThrow()
+    expect(() => Schema.decodeUnknownSync(Schedule.Info)({ ...valid, status: "queued" })).toThrow()
   })
 
   test("rejects a malformed id prefix", () => {
-    expect(() => Schema.decodeUnknownSync(Schedule.Info)({ ...valid, id: "ses_wrong_prefix" as never })).toThrow()
+    expect(() => Schema.decodeUnknownSync(Schedule.Info)({ ...valid, id: "ses_wrong_prefix" })).toThrow()
   })
 
   test("rejects a missing deliveryKey (idempotency invariant)", () => {
     const { deliveryKey, ...without } = valid
     void deliveryKey
-    expect(() => Schema.decodeUnknownSync(Schedule.Info)(without as never)).toThrow()
+    expect(() => Schema.decodeUnknownSync(Schedule.Info)(without)).toThrow()
   })
 
   test("omits optional lease fields without error", () => {
@@ -57,6 +57,12 @@ describe("Schedule.Info", () => {
     for (const status of ["pending", "running", "completed", "cancelled", "failed"] as const) {
       expect(statuses(status)).toBe(status)
     }
+  })
+
+  test("type-negative: ScheduleStatus is a closed literal union", () => {
+    // @ts-expect-error ScheduleStatus is a 5-value literal union
+    const bad: Schedule.ScheduleStatus = "queued"
+    void bad
   })
 })
 

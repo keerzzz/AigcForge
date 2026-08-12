@@ -302,10 +302,11 @@ export const { use: useNotification, provider: NotificationProvider } = createSi
       // Assistant reminder delivery → desktop notification (best-effort, M1:
       // a notification failure never rolls back the persisted delivery).
       if (event.type === "schedule.delivered") {
-        const properties = event.properties as { delivery?: { content?: string } }
-        const content = properties.delivery?.content
+        const content = event.properties.delivery?.content
         if (!content) return
-        void platform.notify(language.t("assistant.notification.delivered.title"), content)
+        if (settings.notifications.reminder()) {
+          void platform.notify(language.t("assistant.notification.delivered.title"), content)
+        }
       }
     })
     onCleanup(() => {
