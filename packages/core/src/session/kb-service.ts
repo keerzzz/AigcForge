@@ -72,6 +72,12 @@ export interface Interface {
   readonly backlinks: (id: KBNote.NoteID) => Effect.Effect<ReadonlyArray<KBNote.Note>>
   readonly listDangling: () => Effect.Effect<ReadonlyArray<KBNote.DanglingLink>>
   readonly countDangling: () => Effect.Effect<number>
+  /**
+   * Rebuild the index from the `.md` files in a knowledge-base directory
+   * (file = content source of truth, ADR-14 §2). Used by the file watcher
+   * and on first open; notes whose file disappeared are removed.
+   */
+  readonly syncFromDirectory: (dir: string, scope: KBNote.NoteScope) => Effect.Effect<number>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/KBService") {}
@@ -332,6 +338,40 @@ export const layer = Layer.effect(
       }),
     )
 
+    const syncFromDirectory = Effect.fn("KBService.syncFromDirectory")((dir: string, scope: KBNote.NoteScope) =>
+      Effect.gen(function* () {
+        const entries = yield* fs.readDirectoryEntries(dir).pipe(Effect.orDie)
+        const files = entries.filter((e) => e.type === "file" && e.name.endsWith(".md"))
+        let synced = 0
+        for (const file of files) {
+          const title = file.name.slice(0, -3)
+          const content = (yield* fs.readFileStringSafe(`${dir}/${file.name}`).pipe(Effect.orDie)) ?? ""
+          const existing = yield* db
+            .select()
+            .from(KBNoteTable)
+            .where(and(eq(KBNoteTable.scope, scope), eq(KBNoteTable.title, title)))
+            .get()
+            .pipe(Effect.orDie)
+          if (existing) {
+            if (existing.content !== content) {
+              yield* db
+                .update(KBNoteTable)
+                .set({ content, time_updated: Date.now() })
+                .where(eq(KBNoteTable.id, existing.id))
+                .run()
+                .pipe(Effect.orDie)
+              yield* ensureFts(existing.id, title, content)
+              yield* syncLinks(existing.id, content)
+            }
+          } else {
+            yield* create({ title, content, scope, tags: [], baseDir: undefined })
+          }
+          synced++
+        }
+        return synced
+      }),
+    )
+
     const countDangling = Effect.fn("KBService.countDangling")(() =>
       Effect.gen(function* () {
         const rows = yield* db
@@ -344,7 +384,7 @@ export const layer = Layer.effect(
       }),
     )
 
-    return Service.of({ create, get, list, update, remove, search, linksFrom, backlinks, listDangling, countDangling })
+    return Service.of({ create, get, list, update, remove, search, linksFrom, backlinks, listDangling, countDangling, syncFromDirectory })
   }),
 )
 

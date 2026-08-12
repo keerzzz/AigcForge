@@ -124,3 +124,26 @@ describe("KBService", () => {
     }),
   )
 })
+
+describe("KBService syncFromDirectory", () => {
+  it.effect("imports .md files as notes (file is the content source of truth)", () =>
+    Effect.gen(function* () {
+      const kb = yield* KBService.Service
+      const fs = yield* FSUtil.Service
+      const dir = base()
+      yield* fs.ensureDir(dir).pipe(Effect.orDie)
+      yield* fs.writeWithDirs(`${dir}/Imported.md`, "Hello [[World]]").pipe(Effect.orDie)
+      yield* fs.writeWithDirs(`${dir}/World.md`, "exists").pipe(Effect.orDie)
+
+      const synced = yield* kb.syncFromDirectory(dir, "global")
+      expect(synced).toBe(2)
+
+      const notes = yield* kb.list({ scope: "global" })
+      expect(notes.map((n) => n.title).sort()).toEqual(["Imported", "World"])
+      // The imported [[World]] link resolves (write-time dangling resolution).
+      const imported = notes.find((n) => n.title === "Imported")!
+      const links = yield* kb.linksFrom(imported.id)
+      expect(links.find((l) => l.targetTitle === "World")?.dangling).toBe(false)
+    }),
+  )
+})
