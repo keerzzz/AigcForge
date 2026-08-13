@@ -1,13 +1,16 @@
 import { createMemo, For, Show, type Accessor } from "solid-js"
+import { useParams } from "@solidjs/router"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { useLanguage } from "@/context/language"
 import { ModeLocationNewSession } from "@/components/mode-location-new-session"
 import { useServerSync } from "@/context/server-sync"
+import { useServerSDK } from "@/context/server-sdk"
+import { useLayout } from "@/context/layout"
+import { SessionRouteKey, SessionStateKey } from "@/utils/server-scope"
 import { sortedRootSessions } from "@/pages/layout/helpers"
 import { SessionItem, SessionSkeleton } from "@/pages/layout/sidebar-items"
 import { AssistantNavTree } from "@/components/assistant-nav-tree"
 import { openEntityPanel } from "@/pages/session/assistant-session-panel-open"
-import { useSessionLayout } from "@/pages/session/session-layout"
 import type { WorkspaceSidebarContext } from "@/pages/layout/sidebar-workspace"
 import type { ServerConnection } from "@/context/server"
 import type { AssistantNavSelection } from "@/components/assistant-nav-model"
@@ -25,7 +28,16 @@ export function AssistantSessionSidebar(props: {
 }) {
   const language = useLanguage()
   const sync = useServerSync()
-  const { assistant } = useSessionLayout()
+  const params = useParams()
+  const serverSDK = useServerSDK()
+  const layout = useLayout()
+  // 次级侧栏在 SDKProvider 之外渲染，不能用 useSessionLayout（其经 useSDK 读
+  // SDK context）。这里用已在 shell 层可用的 scope + directory + session id
+  // 直接拼 sessionKey，与 useSessionKey 的算法一致。
+  const sessionKey = createMemo(() =>
+    SessionStateKey.from(serverSDK().scope, SessionRouteKey.fromRoute(base64Encode(props.directory()), params.id)),
+  )
+  const assistant = createMemo(() => layout.assistant(sessionKey))
 
   const store = createMemo(() => {
     const directory = props.directory()
