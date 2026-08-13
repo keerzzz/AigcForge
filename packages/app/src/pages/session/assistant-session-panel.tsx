@@ -1,10 +1,8 @@
-import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js"
-import { makeEventListener } from "@solid-primitives/event-listener"
+import { createMemo, For, Show } from "solid-js"
 import { useQuery } from "@tanstack/solid-query"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
-import { ResizeHandle } from "@aigcfroge/ui/resize-handle"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { useLanguage } from "@/context/language"
 import { useServerSDK } from "@/context/server-sdk"
@@ -13,11 +11,7 @@ import { SessionContextTab } from "@/components/session"
 import { DeliveryList, MemoryInspector, ReminderList } from "@/components/assistant-entity-lists"
 import { AssistantNoteEditor } from "@/components/assistant-note-editor"
 import { AssistantKbTab } from "@/pages/session/assistant-kb-tab"
-import {
-  ASSISTANT_PANEL_MIN_WIDTH,
-  openEntityPanel,
-  type AssistantPanelTab,
-} from "./assistant-session-panel-open"
+import { openEntityPanel, type AssistantPanelTab } from "./assistant-session-panel-open"
 
 const TABS: ReadonlyArray<{ id: AssistantPanelTab; label: string }> = [
   { id: "reminders", label: "assistant.panel.tab.reminders" },
@@ -29,9 +23,10 @@ const TABS: ReadonlyArray<{ id: AssistantPanelTab; label: string }> = [
 
 /**
  * Assistant 会话详情页右栏（计划 §3.1，D1）：自包含单面板，5-Tab
- * （提醒/记忆/知识库/笔记编辑器/上下文），手动开 + ResizeHandle 拖拽（min
- * 480px，双栏编辑器需要），右上角 X 关闭。fileTree 不在此槽位渲染（无 B 区
- * 空占位）。数据访问用 useServerSDK 服务级（对齐 dashboard）。
+ * （提醒/记忆/知识库/笔记编辑器/上下文），手动开 + 右上角 X 关闭；面板在
+ * 槽位内 flex-1 填满剩余宽度（对齐 chat/work 右栏，无固定拖拽宽度）。
+ * fileTree 不在此槽位渲染（无 B 区空占位）。数据访问用 useServerSDK 服务级
+ * （对齐 dashboard）。
  */
 export function AssistantSessionPanel() {
   const language = useLanguage()
@@ -42,7 +37,6 @@ export function AssistantSessionPanel() {
   const opened = assistant().opened
   const tab = assistant().tab
   const target = assistant().target
-  const width = assistant().width
 
   const selectTab = (value: string | number) => {
     const next = TABS.find((item) => item.id === value)
@@ -111,17 +105,6 @@ export function AssistantSessionPanel() {
     void serverSDK().client.memory.remove({ id }).then(() => memoryQuery.refetch()).catch(console.error)
   }
 
-  // ---- 宽度拖拽：拖动中禁用 width transition，松开恢复 ----
-  const [dragging, setDragging] = createSignal(false)
-  createEffect(() => {
-    if (!dragging()) return
-    const stop = makeEventListener(window, "pointerup", () => setDragging(false), { once: true })
-    onCleanup(stop)
-  })
-  const maxWidth = createMemo(() =>
-    typeof window === "undefined" ? 1000 : Math.max(ASSISTANT_PANEL_MIN_WIDTH, Math.floor(window.innerWidth * 0.5)),
-  )
-
   return (
     <aside
       data-component="assistant-session-panel"
@@ -130,24 +113,12 @@ export function AssistantSessionPanel() {
       inert={!opened()}
       class="relative min-w-0 h-full flex shrink-0 overflow-hidden bg-v2-background-bg-base"
       classList={{
+        "flex-1": opened(),
         "pointer-events-none": !opened(),
-        "transition-[width] duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width] motion-reduce:transition-none":
-          !dragging(),
       }}
-      style={{ width: opened() ? `${width()}px` : "0px" }}
+      style={{ width: opened() ? "auto" : "0px" }}
     >
       <Show when={opened()}>
-        <ResizeHandle
-          direction="horizontal"
-          edge="start"
-          size={width()}
-          min={ASSISTANT_PANEL_MIN_WIDTH}
-          max={maxWidth()}
-          onPointerDown={() => setDragging(true)}
-          onResize={(next) => assistant().resize(next)}
-          class="absolute left-0 top-0 z-10 h-full w-1 cursor-col-resize"
-          aria-label={language.t("assistant.panel.resize")}
-        />
         <div class="flex h-full min-w-0 flex-1 flex-col">
           <div class="flex shrink-0 items-center gap-1 border-b border-v2-border-border-base py-1 pl-2 pr-1">
             <TabsV2 value={tab()} onChange={selectTab} class="min-w-0 flex-1">

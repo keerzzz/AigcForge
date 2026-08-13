@@ -33,16 +33,9 @@ describe("AssistantSessionPanel (right panel, batch 1 G2)", () => {
     expect(panel).toContain("assistant().close()")
   })
 
-  test("implements the width mechanism: ResizeHandle drag with min 480px", () => {
-    expect(panel).toContain("<ResizeHandle")
-    expect(panel).toContain("direction=\"horizontal\"")
-    expect(panel).toContain("edge=\"start\"")
-    expect(panel).toContain("ASSISTANT_PANEL_MIN_WIDTH")
-    expect(panel).toContain("min={ASSISTANT_PANEL_MIN_WIDTH}")
-  })
-
-  test("closed panel renders zero width and no empty placeholder content", () => {
-    expect(panel).toContain('width: opened() ? `${width()}px` : "0px"')
+  test("closed panel collapses to zero width and open panel fills the slot", () => {
+    expect(panel).toContain('width: opened() ? "auto" : "0px"')
+    expect(panel).toContain('"flex-1": opened()')
     expect(panel).toContain("<Show when={opened()}>")
   })
 
@@ -78,6 +71,12 @@ describe("SessionSidePanel assistant slot (batch 1 G2)", () => {
   test("keeps the render-all + display:none slot model for assistant", () => {
     expect(sidePanel).toContain('mode.currentMode === "assistant"')
     expect(sidePanel).toContain('style={{ display: mode.currentMode === "assistant" ? "" : "none" }}')
+  })
+
+  test("the assistant slot fills the remaining width (flex-1, matching chat/work)", () => {
+    const slotStart = sidePanel.indexOf('mode.currentMode === "assistant"')
+    const slot = sidePanel.slice(slotStart, slotStart + 600)
+    expect(slot).toContain("flex-1 min-w-0")
   })
 
   test("the assistant slot contains no fileTree rendering (no B-zone empty placeholder)", () => {

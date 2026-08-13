@@ -78,11 +78,11 @@ describe("toggleEntityPanel", () => {
   })
 })
 
-describe("panel constants location (LOW-1: context layer must not import pages)", () => {
+describe("panel types location (LOW-1: context layer must not import pages)", () => {
   const layout = fs.readFileSync(path.resolve(__dirname, "../../context/layout.tsx"), "utf-8")
   const utils = fs.readFileSync(path.resolve(__dirname, "../../utils/assistant-panel.ts"), "utf-8")
 
-  test("layout imports the panel constants from utils", () => {
+  test("layout imports the panel types from utils", () => {
     expect(layout).toContain('from "@/utils/assistant-panel"')
   })
 
@@ -90,9 +90,7 @@ describe("panel constants location (LOW-1: context layer must not import pages)"
     expect(layout).not.toContain('from "@/pages/session/assistant-session-panel-open"')
   })
 
-  test("utils/assistant-panel owns the shared width constants and tab type", () => {
-    expect(utils).toContain("export const ASSISTANT_PANEL_MIN_WIDTH = 480")
-    expect(utils).toContain("export const ASSISTANT_PANEL_DEFAULT_WIDTH")
+  test("utils/assistant-panel owns the shared tab and state types", () => {
     expect(utils).toContain("export type AssistantPanelTab")
     expect(utils).toContain("export type AssistantPanelState")
   })

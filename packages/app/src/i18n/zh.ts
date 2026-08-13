@@ -604,7 +604,6 @@ export const dict = {
   "assistant.reminder.status.failed": "失败",
   "assistant.panel.title": "助手面板",
   "assistant.panel.close": "关闭面板",
-  "assistant.panel.resize": "调整面板宽度",
   "assistant.panel.tab.reminders": "提醒",
   "assistant.panel.tab.memory": "记忆",
   "assistant.panel.tab.kb": "知识库",

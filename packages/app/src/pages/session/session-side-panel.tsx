@@ -452,7 +452,7 @@ export function SessionSidePanel(props: {
     <div class="flex-1 min-w-0" style={{ display: mode.currentMode === "work" ? "" : "none" }}>
       <WorkSessionPanel />
     </div>
-    <div style={{ display: mode.currentMode === "assistant" ? "" : "none" }} class="flex min-w-0">
+    <div style={{ display: mode.currentMode === "assistant" ? "" : "none" }} class="flex-1 min-w-0">
       <AssistantSessionPanel />
     </div>
     </Show>

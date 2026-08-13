@@ -1,10 +1,6 @@
 import type { Accessor } from "solid-js"
-import { ASSISTANT_PANEL_DEFAULT_WIDTH, ASSISTANT_PANEL_MIN_WIDTH } from "@/utils/assistant-panel"
 import type { AssistantPanelTab } from "@/utils/assistant-panel"
 
-// 共享常量/类型统一收口在 @/utils/assistant-panel（layout store 与页面层共用，
-// 避免 context → pages 逆向导入）；此处 re-export 保持页面层消费方不变。
-export { ASSISTANT_PANEL_MIN_WIDTH, ASSISTANT_PANEL_DEFAULT_WIDTH } from "@/utils/assistant-panel"
 export type { AssistantPanelState, AssistantPanelTab } from "@/utils/assistant-panel"
 
 /**

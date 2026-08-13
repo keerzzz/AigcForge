@@ -16,7 +16,7 @@ import { createPathHelpers } from "./file/path"
 import type { ProjectAvatarVariant } from "@aigcfroge/ui/v2/project-avatar-v2"
 import { ServerScope, SessionStateKey } from "@/utils/server-scope"
 import { createSessionKeyReader, ensureSessionKey, pruneSessionKeys } from "./layout-helpers"
-import { ASSISTANT_PANEL_DEFAULT_WIDTH, type AssistantPanelState, type AssistantPanelTab } from "@/utils/assistant-panel"
+import { type AssistantPanelState, type AssistantPanelTab } from "@/utils/assistant-panel"
 import { requireServerKey } from "@/utils/session-route"
 
 export { createSessionKeyReader, ensureSessionKey, pruneSessionKeys }
@@ -288,9 +288,6 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
         sessionTabs: {} as Record<string, SessionTabs>,
         sessionView: {} as Record<string, SessionView>,
         sessionAssistant: {} as Record<string, AssistantPanelState>,
-        assistantPanel: {
-          width: ASSISTANT_PANEL_DEFAULT_WIDTH,
-        },
         handoff: {
           tabs: undefined as TabHandoff | undefined,
         },
@@ -717,7 +714,6 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
           opened: createMemo(() => state()?.opened ?? false),
           tab,
           target,
-          width: createMemo(() => store.assistantPanel?.width ?? ASSISTANT_PANEL_DEFAULT_WIDTH),
           open(tab: AssistantPanelTab, target?: string) {
             const session = key()
             if (!store.sessionAssistant[session]) {
@@ -736,13 +732,6 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
               return
             }
             setStore("sessionAssistant", session, "opened", false)
-          },
-          resize(width: number) {
-            if (!store.assistantPanel) {
-              setStore("assistantPanel", { width })
-              return
-            }
-            setStore("assistantPanel", "width", width)
           },
         }
       },
