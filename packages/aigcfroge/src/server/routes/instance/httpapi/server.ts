@@ -64,6 +64,9 @@ import { SessionProjector } from "@aigcfroge/core/session/projector"
 import { ScheduledJob } from "@aigcfroge/core/session/scheduled-job"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { SessionTodo } from "@aigcfroge/core/session/todo"
+import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
+import { PersonalMemory } from "@aigcfroge/core/session/personal-memory"
+import { KBService } from "@aigcfroge/core/session/kb-service"
 import { lazy } from "@/util/lazy"
 import { CorsConfig, isAllowedCorsOrigin, type CorsOptions } from "@aigcfroge/server/cors"
 import { serveUIEffect } from "@/server/shared/ui"
@@ -105,6 +108,9 @@ import { ptyConnectHandlers, ptyHandlers } from "./handlers/pty"
 import { questionHandlers } from "./handlers/question"
 import { sessionHandlers } from "./handlers/session"
 import { agentTaskHandlers } from "./handlers/agent-task"
+import { scheduleHandlers } from "./handlers/schedule"
+import { memoryHandlers } from "./handlers/memory"
+import { kbHandlers } from "./handlers/kb"
 import { syncHandlers } from "./handlers/sync"
 import { tuiHandlers } from "./handlers/tui"
 import { handlers } from "@aigcfroge/server/handlers"
@@ -179,6 +185,9 @@ const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
     providerHandlers,
     sessionHandlers,
     agentTaskHandlers,
+    scheduleHandlers,
+    memoryHandlers,
+    kbHandlers,
     syncHandlers,
     tuiHandlers,
     workspaceHandlers,
@@ -186,7 +195,10 @@ const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
 )
 
 const instanceRoutes = instanceApiRoutes.pipe(
-  Layer.provide([httpApiAuthLayer, workspaceRoutingLive, instanceContextLayer, schemaErrorLayer]),
+  Layer.provide(httpApiAuthLayer),
+  Layer.provide(workspaceRoutingLive),
+  Layer.provide(instanceContextLayer),
+  Layer.provide(schemaErrorLayer),
 )
 const serverRoutes = HttpApiBuilder.layer(Api).pipe(
   Layer.provide(handlers),
@@ -284,6 +296,15 @@ const app = LayerNode.group([
   // M3 scheduler: runner + daemon (startup arm, minute tick, task.updated re-arm).
   ScheduledJob.node,
   ScheduledJob.daemonNode,
+  // Assistant scheduler: Schedule/Delivery services + minute daemon (reminders).
+  // Assistant scheduler: Schedule/Delivery services + minute daemon (reminders).
+  ScheduleService.node,
+  ScheduleService.deliveryNode,
+  ScheduleService.daemonNode,
+  // Personal memory (Phase C).
+  PersonalMemory.node,
+  // Knowledge base (Phase D).
+  KBService.node,
 ])
 
 export function createRoutes(

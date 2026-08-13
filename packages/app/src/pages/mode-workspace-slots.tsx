@@ -13,6 +13,7 @@ import { AssetSessionSelector } from "@/components/chat/asset-session-selector"
 import { ChatImportDialog, serializeImport, wrapImportContent } from "@/components/chat/chat-import-dialog"
 import { AssetDeleteDialog } from "@/components/chat/asset-delete-dialog"
 import { modeDraft, useMode } from "@/context/mode"
+import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
 import { openProjectNewSession, openSessionRecord, closeHomeProject, homeProjectDirectories, filterSessionsByMode } from "@/pages/layout/helpers"
 import { useServerSync } from "@/context/server-sync"
 import { useLayout, type LocalProject } from "@/context/layout"
@@ -31,7 +32,7 @@ import type { Session, WorkflowAssetSummary } from "@aigcfroge/sdk/v2/client"
 import { assetVersion } from "@/components/chat/prompt-asset-store"
 import { buildWorkPresetCatalog } from "@/pages/work-preset-catalog"
 import { presetLaunch, workflowLaunch } from "@/pages/work-preset-launch"
-import { WorkLocationNewSession } from "@/components/work-secondary-sidebar"
+import { ModeLocationNewSession } from "@/components/mode-location-new-session"
 
 /** Coding 左侧栏：项目列 + 服务器管理（复用 HomeProjectColumn，hooks 对齐旧 Home 组件） */
 export function CodingProjectColumnSidebar() {
@@ -514,7 +515,7 @@ export function PlaceholderMain(_props: { mode: string }) {
 /** Work 侧栏：项目 Location 选择器 + 新建会话（顶部逻辑与 WorkSecondarySidebar 共享） */
 export function WorkProjectColumnSidebar() {
   const { directory } = useChatDirectory()
-  return <WorkLocationNewSession directory={directory} />
+  return <ModeLocationNewSession directory={directory} mode="work" />
 }
 
 /** Work 主区：继续工作 + 官方预设 + 你的工作流资产（M1 §3.5 三区块） */
@@ -605,7 +606,7 @@ export function WorkPresetCatalogMain() {
           currentCtx.projects,
           (serverKey, draftDirectory) =>
             tabs.newDraft(
-              { server: serverKey, directory: draftDirectory, ...modeDraft("work") },
+              { server: serverKey, directory: draftDirectory, ...modeDraft("work"), agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR },
               workflowLaunch({ name: asset.name, description: asset.description, steps: res.data?.steps ?? [] }),
             ),
           ServerConnection.key(c),
@@ -618,7 +619,7 @@ export function WorkPresetCatalogMain() {
           currentCtx.projects,
           (serverKey, draftDirectory) =>
             tabs.newDraft(
-              { server: serverKey, directory: draftDirectory, ...modeDraft("work") },
+              { server: serverKey, directory: draftDirectory, ...modeDraft("work"), agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR },
               workflowLaunch({ name: asset.name, description: asset.description, steps: [] }),
             ),
           ServerConnection.key(c),
@@ -640,6 +641,7 @@ export function WorkPresetCatalogMain() {
             server: serverKey,
             directory: draftDirectory,
             ...modeDraft("work"),
+            agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR,
             presetCategoryId: preset.category,
           },
           presetLaunch(preset),

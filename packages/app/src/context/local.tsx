@@ -69,13 +69,25 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     const mode = useMode()
     const list = createMemo(() => {
       const agents = sync().data.agent.filter((item) => item.mode !== "subagent" && !item.hidden)
-      // ADR-13: chat/work 模式锁定各自的 orchestrator；其他模式排除两个 orchestrator 避免误选。
-      // 防止 chat/work 模式选到 meta 等被 policy 拒绝的 agent 触发 die 卡死。
-      const required = ProductModeAgentPolicy.resolvePrimaryAgent(mode.currentMode)
-      if (required) return agents.filter((a) => a.name === required)
+      // 2026-08-11 决策（元智能体调度架构讨论总结 §3.4）: chat/work 默认 meta，
+      // orchestrator 保留为委派目标；assistant 默认 assistant-orchestrator
+      // （fail-closed 个人事项执行者，计划 §3.3）。列表只展示策略允许的 primary
+      // agents — chat/work/assistant 模式显示 meta + 对应 orchestrator，其他
+      // 模式排除三个 orchestrator（避免选到被 policy 拒绝的 agent 触发 die）。
+      if (mode.currentMode === "chat" || mode.currentMode === "work" || mode.currentMode === "assistant") {
+        const orchestrator =
+          mode.currentMode === "chat"
+            ? ProductModeAgentPolicy.CHAT_ORCHESTRATOR
+            : mode.currentMode === "work"
+              ? ProductModeAgentPolicy.WORK_ORCHESTRATOR
+              : ProductModeAgentPolicy.ASSISTANT_ORCHESTRATOR
+        return agents.filter((a) => a.name === ProductModeAgentPolicy.META || a.name === orchestrator)
+      }
       return agents.filter(
         (a) =>
-          a.name !== ProductModeAgentPolicy.CHAT_ORCHESTRATOR && a.name !== ProductModeAgentPolicy.WORK_ORCHESTRATOR,
+          a.name !== ProductModeAgentPolicy.CHAT_ORCHESTRATOR &&
+          a.name !== ProductModeAgentPolicy.WORK_ORCHESTRATOR &&
+          a.name !== ProductModeAgentPolicy.ASSISTANT_ORCHESTRATOR,
       )
     })
     const connected = createMemo(() => new Set(providers.connected().map((item) => item.id)))

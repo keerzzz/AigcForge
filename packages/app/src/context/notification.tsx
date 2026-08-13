@@ -287,15 +287,27 @@ export const { use: useNotification, provider: NotificationProvider } = createSi
 
     const unsub = serverSDK().event.listen((e) => {
       const event = e.details
-      if (event.type !== "session.idle" && event.type !== "session.error") return
-
-      const directory = e.name
-      const time = Date.now()
       if (event.type === "session.idle") {
+        const directory = e.name
+        const time = Date.now()
         handleSessionIdle(directory, event, time)
         return
       }
-      handleSessionError(directory, event, time)
+      if (event.type === "session.error") {
+        const directory = e.name
+        const time = Date.now()
+        handleSessionError(directory, event, time)
+        return
+      }
+      // Assistant reminder delivery → desktop notification (best-effort, M1:
+      // a notification failure never rolls back the persisted delivery).
+      if (event.type === "schedule.delivered") {
+        const content = event.properties.delivery?.content
+        if (!content) return
+        if (settings.notifications.reminder()) {
+          void platform.notify(language.t("assistant.notification.delivered.title"), content)
+        }
+      }
     })
     onCleanup(() => {
       meta.disposed = true

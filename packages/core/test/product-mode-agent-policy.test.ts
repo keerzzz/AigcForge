@@ -3,18 +3,19 @@ import {
   checkPrimaryAgent,
   checkCommandAllowed,
   resolvePrimaryAgent,
+  META,
   CHAT_ORCHESTRATOR,
   WORK_ORCHESTRATOR,
+  ASSISTANT_ORCHESTRATOR,
 } from "../src/product-mode-agent-policy"
 
 
 describe("resolvePrimaryAgent", () => {
-  test("defaults chat mode to chat-orchestrator", () => {
-    expect(resolvePrimaryAgent("chat")).toBe(CHAT_ORCHESTRATOR)
-  })
-
-  test("defaults work mode to work-orchestrator", () => {
-    expect(resolvePrimaryAgent("work")).toBe(WORK_ORCHESTRATOR)
+  test("defaults chat/work/coding to meta; assistant to assistant-orchestrator (2026-08-11 + plan §3.3)", () => {
+    expect(resolvePrimaryAgent("chat")).toBe(META)
+    expect(resolvePrimaryAgent("work")).toBe(META)
+    expect(resolvePrimaryAgent("coding")).toBe(META)
+    expect(resolvePrimaryAgent("assistant")).toBe(ASSISTANT_ORCHESTRATOR)
   })
 
   test("preserves an explicit agent for policy validation", () => {
@@ -23,12 +24,27 @@ describe("resolvePrimaryAgent", () => {
 })
 
 describe("checkPrimaryAgent", () => {
-  test("allows chat-orchestrator in chat mode", () => {
+  test("allows meta in chat mode (default primary)", () => {
+    const r = checkPrimaryAgent("chat", META)
+    expect(r.allowed).toBe(true)
+  })
+
+  test("allows chat-orchestrator in chat mode (delegation target)", () => {
     const r = checkPrimaryAgent("chat", CHAT_ORCHESTRATOR)
     expect(r.allowed).toBe(true)
   })
 
-  test("rejects an implicit default agent in chat mode", () => {
+  test("allows meta in work mode (default primary)", () => {
+    const r = checkPrimaryAgent("work", META)
+    expect(r.allowed).toBe(true)
+  })
+
+  test("allows work-orchestrator in work mode (delegation target)", () => {
+    const r = checkPrimaryAgent("work", WORK_ORCHESTRATOR)
+    expect(r.allowed).toBe(true)
+  })
+
+  test("rejects an implicit undefined agent in chat mode", () => {
     const r = checkPrimaryAgent("chat", undefined)
     expect(r.allowed).toBe(false)
     if (!r.allowed && r.error._tag === "AgentNotAllowedError") expect(r.error.agent).toBeUndefined()
@@ -38,11 +54,6 @@ describe("checkPrimaryAgent", () => {
     const r = checkPrimaryAgent("chat", "build")
     expect(r.allowed).toBe(false)
     if (!r.allowed) expect(r.error._tag).toBe("AgentNotAllowedError")
-  })
-
-  test("rejects meta agent in chat mode", () => {
-    const r = checkPrimaryAgent("chat", "meta")
-    expect(r.allowed).toBe(false)
   })
 
   test("rejects chat-orchestrator in coding mode", () => {
@@ -61,12 +72,23 @@ describe("checkPrimaryAgent", () => {
     expect(r.allowed).toBe(false)
   })
 
-  test("allows work-orchestrator in work mode", () => {
-    const r = checkPrimaryAgent("work", WORK_ORCHESTRATOR)
+  test("allows meta in assistant mode (explicit choice)", () => {
+    const r = checkPrimaryAgent("assistant", META)
     expect(r.allowed).toBe(true)
   })
 
-  test("rejects implicit default agent in work mode", () => {
+  test("allows assistant-orchestrator in assistant mode (fail-closed primary, plan §3.3)", () => {
+    const r = checkPrimaryAgent("assistant", ASSISTANT_ORCHESTRATOR)
+    expect(r.allowed).toBe(true)
+  })
+
+  test("rejects assistant-orchestrator outside assistant mode", () => {
+    const r = checkPrimaryAgent("coding", ASSISTANT_ORCHESTRATOR)
+    expect(r.allowed).toBe(false)
+    if (!r.allowed) expect(r.error._tag).toBe("AgentNotAllowedError")
+  })
+
+  test("rejects implicit undefined agent in work mode", () => {
     const r = checkPrimaryAgent("work", undefined)
     expect(r.allowed).toBe(false)
     if (!r.allowed) expect(r.error._tag).toBe("AgentNotAllowedError")

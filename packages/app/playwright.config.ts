@@ -11,7 +11,11 @@ export default defineConfig({
   testDir: "./e2e",
   testIgnore: process.env.AIGCFROGE_PERFORMANCE === "1" ? "performance/**/*.test.ts" : "performance/**",
   outputDir: "./e2e/test-results",
-  timeout: 60_000,
+  // Generous per-test budget: the Vite dev server cold-compiles routes on
+  // demand, and the branch's assistant dashboard (imported by the app-wide
+  // mode-surface registry) grew the first-page bundle — 60s routinely timed
+  // out on slow CI runners mid-suite.
+  timeout: 180_000,
   expect: {
     timeout: 10_000,
   },

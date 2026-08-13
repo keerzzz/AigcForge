@@ -84,8 +84,10 @@ const serviceIn = (directory: string) => {
 }
 
 describe("MetaAgentMemory", () => {
-  it.live("records a fact and returns a stable id", () =>
-    withTmp((directory) =>
+  it.live(
+    "records a fact and returns a stable id",
+    () =>
+      withTmp((directory) =>
       Effect.gen(function* () {
         yield* attached(directory)
         const { memory } = serviceIn(directory)
@@ -111,6 +113,8 @@ describe("MetaAgentMemory", () => {
         }).pipe(Effect.provide(memory))
       }),
     ),
+    // Windows CI runners are slow: a memory-write I/O test flaked at bun's 5s default.
+    10_000,
   )
 
   it.live("rejects records for sessions without a meta agent mapping", () =>

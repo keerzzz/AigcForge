@@ -4,6 +4,7 @@ import path from "path"
 import { define } from "./internal"
 import { Effect } from "effect"
 import { AgentV2 } from "../agent"
+import { AssistantOrchestratorPrompt } from "../agent/prompt/assistant-orchestrator"
 import { ChatOrchestratorPrompt } from "../agent/prompt/chat-orchestrator"
 import { WorkOrchestratorPrompt } from "../agent/prompt/work-orchestrator"
 import { Global } from "../global"
@@ -126,7 +127,7 @@ Each turn follows this cycle:
 |--------|-------|-----|
 | code_modification (fix/add/refactor) | task → build | multi-file changes, complex implementation |
 | code_understanding (explain/how/why) | task → explore | search, read, analyze |
-| content_creation (create/generate/write) | **do it directly** | simple file writes don't need delegation |
+| content_creation (prose/generate) | **do it directly** | text responses don't need delegation; FILE writes always delegate via task → build |
 | configuration (agent/mcp/workflow) | task → general | multi-step setup |
 | @mention explicit | route to named engine | user knows what they want |
 | workflow (pipeline) | workflow engine | sequential or parallel |
@@ -139,9 +140,9 @@ Delegate (via task tool), when:
 - User explicitly targets an engine via @mention
 
 Execute directly, when:
-- Creating/editing simple files (Write tool)
 - Answering knowledge questions
 - Subagent is unavailable AND task is simple enough
+- Note: bash/edit/write are denied for meta — every FILE write (create/edit) must go through task → build delegation
 
 ## Error Handling
 
@@ -383,6 +384,54 @@ export const Plugin = define({
         )
       })
 
+      // assistant-orchestrator: Assistant mode only, fail-closed permissions
+      // (no edit/shell/task). Phase A registers the permission contract;
+      // reminder_*/kb_*/memory_*/propose_note tools land in Phases B-E.
+      draft.update(AgentV2.ID.make("assistant-orchestrator"), (item) => {
+        item.description = "Assistant mode agent for personal matters (reminders, memory, notes, knowledge base)."
+        item.system = AssistantOrchestratorPrompt.SYSTEM_PROMPT
+        item.mode = "primary"
+        item.hidden = false
+        item.permissions.push(
+          ...PermissionV2.merge(
+            defaults,
+            [
+              { action: "*", resource: "*", effect: "deny" },
+              // Re-allow after the catch-all deny: repeated identical calls must
+              // surface an approval prompt (ask), not silently hard-fail (deny).
+              { action: "doom_loop", resource: "*", effect: "ask" },
+              { action: "read", resource: "*", effect: "allow" },
+              // evaluate 取 findLast：上方 read * allow 会覆盖 defaults 的 .env ask，须以最后顺序恢复
+              // （与 work-orchestrator 同理 — 否则 assistant 会话可静默读 .env 凭证）。
+              { action: "read", resource: "*.env", effect: "ask" },
+              { action: "read", resource: "*.env.*", effect: "ask" },
+              { action: "read", resource: "*.env.example", effect: "allow" },
+              { action: "glob", resource: "*", effect: "allow" },
+              { action: "grep", resource: "*", effect: "allow" },
+              { action: "websearch", resource: "*", effect: "allow" },
+              { action: "webfetch", resource: "*", effect: "allow" },
+              { action: "question", resource: "*", effect: "allow" },
+              // Phase B: reminders.
+              { action: "reminder_create", resource: "*", effect: "allow" },
+              { action: "reminder_update", resource: "*", effect: "allow" },
+              { action: "reminder_cancel", resource: "*", effect: "allow" },
+              // Phase C: personal memory (propose + confirm only).
+              { action: "memory_propose", resource: "*", effect: "allow" },
+              // Phase D/E: knowledge base + notes. Direct kb_* writes stay
+              // denied (review MAJOR #5): the assistant only PROPOSES
+              // (propose_note is a dry run); the user confirms the note in the
+              // UI, which persists through the server API — the same
+              // confirm-first structure as memory.
+              { action: "kb_search", resource: "*", effect: "allow" },
+              { action: "kb_read", resource: "*", effect: "allow" },
+              { action: "kb_list_dangling", resource: "*", effect: "allow" },
+              { action: "propose_note", resource: "*", effect: "allow" },
+            ],
+            readonlyExternalDirectory,
+          ),
+        )
+      })
+
       draft.update(AgentV2.ID.make("compaction"), (item) => {
         item.mode = "primary"
         item.hidden = true
@@ -409,7 +458,10 @@ export const Plugin = define({
         // Fill {{SUBAGENTS_LIST}} with non-primary agents as available subagents.
         const subagentList = draft
           .list()
-          .filter((a) => a.id !== "meta")
+          // Only true delegation targets are advertised: hidden primary agents
+          // (compaction/title/summary) and the orchestrators are not
+          // task-delegatable subagents (review MINOR).
+          .filter((a) => a.id !== "meta" && a.mode === "subagent")
           .map((a) => `- **${a.id}**: ${a.description || "No description"}`)
           .join("\n")
         const withSubagents = PROMPT_META.replace("{{SUBAGENTS_LIST}}", subagentList || "(no subagents registered)")
@@ -419,6 +471,12 @@ export const Plugin = define({
           ...PermissionV2.merge(defaults, [
             { action: "list_assets", resource: "*", effect: "allow" },
             { action: "question", resource: "*", effect: "allow" },
+            // 2026-08-11 决策（元智能体调度架构讨论总结 §3.8 修正 1）: meta 只编排
+            // 不亲自执行破坏性写 — bash/edit/write 直接调用 deny，写操作委派 build
+            // 子代理（task 工具保持 allow，是间接写、属子代理权限域 — P1 边界）。
+            { action: "bash", resource: "*", effect: "deny" },
+            { action: "edit", resource: "*", effect: "deny" },
+            { action: "write", resource: "*", effect: "deny" },
             { action: "task", resource: "*", effect: "allow" },
             { action: "plan_enter", resource: "*", effect: "allow" },
           ]),

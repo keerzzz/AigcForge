@@ -5,6 +5,10 @@ import { Location } from "@aigcfroge/core/location"
 import { LocationServiceMap } from "@aigcfroge/core/location-layer"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionTask } from "@aigcfroge/core/session/task"
+import { KBService } from "@aigcfroge/core/session/kb-service"
+import { PersonalMemory } from "@aigcfroge/core/session/personal-memory"
+import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
+import { LayerNode } from "@aigcfroge/core/effect/layer-node"
 import { Cause, Duration, Effect, Layer, Scope } from "effect"
 import { TestLLMServer } from "../../lib/llm-server"
 
@@ -189,6 +193,60 @@ function withContext<A, E>(
                 const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(directory()) }))
                 const service = yield* SessionTask.Service.pipe(Effect.provide(layer), Effect.orDie)
                 return yield* service.update({ sessionID, tasks }).pipe(Effect.orDie)
+              }),
+            ),
+          kbNote: (input) =>
+            run(
+              Effect.gen(function* () {
+                // KBService is not an output of the location layer (it is an
+                // input to the builtInTools sub-layer), so build it from its own
+                // LayerNode — Database.node resolves to the same isolated
+                // exerciser DB (AIGCFROGE_DB) the HttpApi request uses.
+                const service = yield* KBService.Service.pipe(
+                  Effect.provide(LayerNode.buildLayer(KBService.node)),
+                  Effect.orDie,
+                )
+                return yield* service.create({ ...input, tags: input.tags ?? [], baseDir: undefined }).pipe(Effect.orDie)
+              }),
+            ),
+          memoryPropose: (input) =>
+            run(
+              Effect.gen(function* () {
+                const service = yield* PersonalMemory.Service.pipe(
+                  Effect.provide(LayerNode.buildLayer(PersonalMemory.node)),
+                  Effect.orDie,
+                )
+                return yield* service.propose(input).pipe(Effect.orDie)
+              }),
+            ),
+          memoryConfirm: (id) =>
+            run(
+              Effect.gen(function* () {
+                const service = yield* PersonalMemory.Service.pipe(
+                  Effect.provide(LayerNode.buildLayer(PersonalMemory.node)),
+                  Effect.orDie,
+                )
+                return yield* service.confirm(id).pipe(Effect.orDie)
+              }),
+            ),
+          scheduleCreate: (input) =>
+            run(
+              Effect.gen(function* () {
+                const service = yield* ScheduleService.Service.pipe(
+                  Effect.provide(LayerNode.buildLayer(ScheduleService.node)),
+                  Effect.orDie,
+                )
+                return yield* service.create(input).pipe(Effect.orDie)
+              }),
+            ),
+          deliveryDeliver: (input) =>
+            run(
+              Effect.gen(function* () {
+                const service = yield* ScheduleService.DeliveryService.pipe(
+                  Effect.provide(LayerNode.buildLayer(ScheduleService.deliveryNode)),
+                  Effect.orDie,
+                )
+                return yield* service.deliver(input).pipe(Effect.orDie)
               }),
             ),
           worktree: (input) => run(modules.Worktree.Service.use((svc) => svc.create(input).pipe(Effect.orDie))),

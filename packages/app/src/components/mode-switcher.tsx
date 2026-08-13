@@ -1,13 +1,15 @@
-import { For } from "solid-js"
+import { createMemo, For, Show } from "solid-js"
 import { useNavigate } from "@solidjs/router"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
 import { useLanguage } from "@/context/language"
 import { MODE_DEFINITIONS, useMode } from "@/context/mode"
+import { useServerSDK } from "@/context/server-sdk"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { DialogSettings } from "@/components/settings-v2"
 import { usePlatform } from "@/context/platform"
+import { useQuery } from "@tanstack/solid-query"
 
 export function ModeSwitcher() {
   const mode = useMode()
@@ -15,6 +17,19 @@ export function ModeSwitcher() {
   const dialog = useDialog()
   const navigate = useNavigate()
   const platform = usePlatform()
+  const serverSDK = useServerSDK()
+
+  // 全局角标（计划 §3.9.1b）：跨模式可见的 pending 提醒数；>99 显示 99+，
+  // 为 0 时隐藏。提醒是个人主动事项，不限于 assistant 模式。
+  const pendingQuery = useQuery(() => ({
+    queryKey: ["assistant", "pending-badge"] as const,
+    queryFn: async () => {
+      const res = await serverSDK().client.schedule.pending()
+      return res.data ?? []
+    },
+    refetchInterval: 60_000,
+  }))
+  const pendingCount = createMemo(() => pendingQuery.data?.length ?? 0)
 
   return (
     <nav
@@ -26,15 +41,24 @@ export function ModeSwitcher() {
           const active = () => mode.currentMode === item.id
           return (
             <TooltipV2 value={language.t(item.labelKey)} placement="right" gutter={8}>
-              <IconButtonV2
-                variant={active() ? "neutral" : "ghost-muted"}
-                size="large"
-                class="size-10 rounded-[8px]"
-                icon={<Icon name={item.icon} size="large" />}
-                aria-label={language.t(item.labelKey)}
-                aria-pressed={active()}
-                onClick={() => navigate(item.href)}
-              />
+              <div class="relative">
+                <IconButtonV2
+                  variant={active() ? "neutral" : "ghost-muted"}
+                  size="large"
+                  class="size-10 rounded-[8px]"
+                  icon={<Icon name={item.icon} size="large" />}
+                  aria-label={language.t(item.labelKey)}
+                  aria-pressed={active()}
+                  onClick={() => navigate(item.href)}
+                />
+                <Show
+                  when={item.id === "assistant" && pendingCount() > 0}
+                >
+                  <span class="pointer-events-none absolute -right-0.5 -top-0.5 rounded-full bg-v2-background-bg-deep px-1 text-v2-text-text-muted text-9-regular">
+                    {pendingCount() > 99 ? "99+" : String(pendingCount())}
+                  </span>
+                </Show>
+              </div>
             </TooltipV2>
           )
         }}

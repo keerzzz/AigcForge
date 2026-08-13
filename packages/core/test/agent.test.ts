@@ -115,6 +115,7 @@ describe("AgentV2", () => {
 
       const agents = yield* agent.all()
       expect(agents.map((item) => String(item.id)).sort()).toEqual([
+        "assistant-orchestrator",
         "build",
         "chat-orchestrator",
         "compaction",
@@ -241,6 +242,84 @@ describe("AgentV2", () => {
         // ask, so repeated identical tool calls prompt instead of hard-failing.
         expect(PermissionV2.evaluate("doom_loop", "*", info!.permissions).effect).toBe("ask")
       }
+    }),
+  )
+
+  it.effect("meta is read-only-orchestrate: bash/edit/write denied directly, task delegation kept (P1)", () =>
+    Effect.gen(function* () {
+      const agent = yield* AgentV2.Service
+      yield* AgentPlugin.Plugin.effect(
+        host({
+          agent: agentHost(agent),
+        }),
+      ).pipe(
+        Effect.provideService(
+          Location.Service,
+          Location.Service.of(location({ directory: AbsolutePath.make("/project") })),
+        ),
+      )
+
+      const meta = yield* agent.get(AgentV2.ID.make("meta"))
+      const permissions = meta!.permissions
+      // 2026-08-11 decision: meta orchestrates, it does not mutate directly.
+      for (const action of ["bash", "edit", "write"]) {
+        expect(PermissionV2.evaluate(action, "*", permissions).effect).toBe("deny")
+      }
+      // P1 boundary: task stays allowed — delegation is indirect write through
+      // the subagent's own permission domain, not meta's direct mutation.
+      expect(PermissionV2.evaluate("task", "*", permissions).effect).toBe("allow")
+      // Read/ask/network surface stays intact for simple self-service tasks.
+      for (const action of ["read", "glob", "grep", "question", "list_assets", "plan_enter"]) {
+        expect(PermissionV2.evaluate(action, "*", permissions).effect).toBe("allow")
+      }
+    }),
+  )
+
+  it.effect("assistant-orchestrator is fail-closed: personal-tools allowed, bash/edit/write/task denied", () =>
+    Effect.gen(function* () {
+      const agent = yield* AgentV2.Service
+      yield* AgentPlugin.Plugin.effect(
+        host({
+          agent: agentHost(agent),
+        }),
+      ).pipe(
+        Effect.provideService(
+          Location.Service,
+          Location.Service.of(location({ directory: AbsolutePath.make("/project") })),
+        ),
+      )
+
+      const assistant = yield* agent.get(AgentV2.ID.make("assistant-orchestrator"))
+      expect(assistant).toBeDefined()
+      const permissions = assistant!.permissions
+      for (const action of ["bash", "edit", "write", "task", "task_spawn", "task_schedule"]) {
+        expect(PermissionV2.evaluate(action, "*", permissions).effect).toBe("deny")
+      }
+      for (const action of [
+        "read",
+        "glob",
+        "grep",
+        "websearch",
+        "webfetch",
+        "question",
+        "reminder_create",
+        "reminder_update",
+        "reminder_cancel",
+        "memory_propose",
+        "kb_search",
+        "kb_read",
+        "kb_list_dangling",
+        "propose_note",
+      ]) {
+        expect(PermissionV2.evaluate(action, "*", permissions).effect).toBe("allow")
+      }
+      // Confirm-first (review MAJOR #5): direct kb writes are denied — notes
+      // land only via propose_note + user confirmation in the UI.
+      for (const action of ["kb_create", "kb_update", "kb_delete"]) {
+        expect(PermissionV2.evaluate(action, "*", permissions).effect).toBe("deny")
+      }
+      // The catch-all deny also gates the doom_loop surface to ask.
+      expect(PermissionV2.evaluate("doom_loop", "*", permissions).effect).toBe("ask")
     }),
   )
 

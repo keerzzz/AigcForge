@@ -1207,7 +1207,15 @@ export const layer = Layer.effect(
       const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
       yield* revert.cleanup(session)
       const agent = yield* ProductModeAgentPolicy.enforcePrimary(session.mode, input.agent ?? session.agent)
-      const message = yield* createUserMessage({ ...input, agent })
+      // meta is the orchestrator: for an omitted-agent message that clearly
+      // direct-routes, resolvePromptAgent's intent preroute must win (e.g.
+      // "fix login bug" → build) instead of being flattened onto the defaulted
+      // meta — the meta-default otherwise defeated the preroute fast-path
+      // (regression caught by prompt-preroute.test.ts on main).
+      const message = yield* createUserMessage({
+        ...input,
+        agent: agent === ProductModeAgentPolicy.META ? undefined : agent,
+      })
       yield* sessions.touch(input.sessionID)
 
       const permissions: PermissionV1.Rule[] = []

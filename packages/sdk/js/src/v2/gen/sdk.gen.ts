@@ -44,6 +44,12 @@ import type {
   ConfigProvidersResponses,
   ConfigUpdateErrors,
   ConfigUpdateResponses,
+  DeliveryInboxErrors,
+  DeliveryInboxResponses,
+  DeliveryReadErrors,
+  DeliveryReadResponses,
+  DeliveryRecentErrors,
+  DeliveryRecentResponses,
   EventSubscribeResponses,
   EventTuiCommandExecute,
   EventTuiPromptAppend,
@@ -112,6 +118,23 @@ import type {
   ImportParserParseResponses,
   InstanceDisposeErrors,
   InstanceDisposeResponses,
+  KbCreateErrors,
+  KbCreateResponses,
+  KbDanglingErrors,
+  KbDanglingResponses,
+  KbGetErrors,
+  KbGetResponses,
+  KbListErrors,
+  KbListResponses,
+  KbNoteFormat,
+  KbNoteScope,
+  KbNoteTitle,
+  KbRemoveErrors,
+  KbRemoveResponses,
+  KbSearchErrors,
+  KbSearchResponses,
+  KbUpdateErrors,
+  KbUpdateResponses,
   LocationRef,
   LspStatusErrors,
   LspStatusResponses,
@@ -142,6 +165,20 @@ import type {
   McpRemoteConfig,
   McpStatusErrors,
   McpStatusResponses,
+  MemoryConfirmErrors,
+  MemoryConfirmResponses,
+  MemoryEditErrors,
+  MemoryEditResponses,
+  MemoryListErrors,
+  MemoryListResponses,
+  MemoryPendingErrors,
+  MemoryPendingResponses,
+  MemoryRejectErrors,
+  MemoryRejectResponses,
+  MemoryRemoveErrors,
+  MemoryRemoveResponses,
+  MemorySensitivityLevel,
+  MemoryTrustLevel,
   MoveSessionDestination,
   OutputFormat,
   Part as Part2,
@@ -220,6 +257,12 @@ import type {
   QuestionReplyErrors,
   QuestionReplyResponses,
   QuestionV2Reply,
+  ScheduleCancelErrors,
+  ScheduleCancelResponses,
+  ScheduleListErrors,
+  ScheduleListResponses,
+  SchedulePendingErrors,
+  SchedulePendingResponses,
   SessionAbortErrors,
   SessionAbortResponses,
   SessionCacheDiagnosticsErrors,
@@ -4227,6 +4270,407 @@ export class AgentAsset extends HeyApiClient {
         ...options?.headers,
         ...params.headers,
       },
+    })
+  }
+}
+
+export class Schedule extends HeyApiClient {
+  /**
+   * All pending schedules
+   *
+   * Cross-session pending schedule list for the assistant dashboard and icon-rail badge.
+   */
+  public pending<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<SchedulePendingResponses, SchedulePendingErrors, ThrowOnError>({
+      url: "/schedule/pending",
+      ...options,
+    })
+  }
+
+  /**
+   * List schedules of a session
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
+    return (options?.client ?? this.client).get<ScheduleListResponses, ScheduleListErrors, ThrowOnError>({
+      url: "/schedule/{sessionID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Cancel a reminder
+   *
+   * A cancelled reminder is never delivered.
+   */
+  public cancel<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }])
+    return (options?.client ?? this.client).post<ScheduleCancelResponses, ScheduleCancelErrors, ThrowOnError>({
+      url: "/schedule/{id}/cancel",
+      ...options,
+      ...params,
+    })
+  }
+}
+
+export class Delivery extends HeyApiClient {
+  /**
+   * Recent deliveries
+   *
+   * Cross-session recent inbox records for the assistant dashboard.
+   */
+  public recent<ThrowOnError extends boolean = false>(
+    parameters?: {
+      limit?: number
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "limit" }] }])
+    return (options?.client ?? this.client).get<DeliveryRecentResponses, DeliveryRecentErrors, ThrowOnError>({
+      url: "/delivery/recent",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * List the inbox of a session
+   */
+  public inbox<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
+    return (options?.client ?? this.client).get<DeliveryInboxResponses, DeliveryInboxErrors, ThrowOnError>({
+      url: "/delivery/{sessionID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Mark an inbox delivery read
+   */
+  public read<ThrowOnError extends boolean = false>(
+    parameters: {
+      deliveryKey: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "deliveryKey" }] }])
+    return (options?.client ?? this.client).post<DeliveryReadResponses, DeliveryReadErrors, ThrowOnError>({
+      url: "/delivery/{deliveryKey}/read",
+      ...options,
+      ...params,
+    })
+  }
+}
+
+export class Memory extends HeyApiClient {
+  /**
+   * List personal memory entries
+   *
+   * User-level memory across projects (Memory Inspector).
+   */
+  public list<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<MemoryListResponses, MemoryListErrors, ThrowOnError>({
+      url: "/memory",
+      ...options,
+    })
+  }
+
+  /**
+   * List pending memory proposals
+   */
+  public pending<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<MemoryPendingResponses, MemoryPendingErrors, ThrowOnError>({
+      url: "/memory/pending",
+      ...options,
+    })
+  }
+
+  /**
+   * Confirm a memory proposal
+   */
+  public confirm<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }])
+    return (options?.client ?? this.client).post<MemoryConfirmResponses, MemoryConfirmErrors, ThrowOnError>({
+      url: "/memory/{id}/confirm",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Reject a memory proposal
+   */
+  public reject<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }])
+    return (options?.client ?? this.client).post<MemoryRejectResponses, MemoryRejectErrors, ThrowOnError>({
+      url: "/memory/{id}/reject",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Edit a memory entry
+   */
+  public edit<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string
+      content?: string
+      trustLevel?: MemoryTrustLevel
+      sensitivityLevel?: MemorySensitivityLevel
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "id" },
+            { in: "body", key: "content" },
+            { in: "body", key: "trustLevel" },
+            { in: "body", key: "sensitivityLevel" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<MemoryEditResponses, MemoryEditErrors, ThrowOnError>({
+      url: "/memory/{id}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Soft-delete a confirmed memory entry
+   */
+  public remove<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }])
+    return (options?.client ?? this.client).post<MemoryRemoveResponses, MemoryRemoveErrors, ThrowOnError>({
+      url: "/memory/{id}/remove",
+      ...options,
+      ...params,
+    })
+  }
+}
+
+export class Kb extends HeyApiClient {
+  /**
+   * List knowledge base notes
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      scope?: KbNoteScope
+      limit?: number
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "scope" },
+            { in: "query", key: "limit" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<KbListResponses, KbListErrors, ThrowOnError>({
+      url: "/kb",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Create a knowledge base note
+   */
+  public create<ThrowOnError extends boolean = false>(
+    parameters?: {
+      title?: KbNoteTitle
+      content?: string
+      scope?: KbNoteScope
+      tags?: Array<string>
+      aliases?: Array<string>
+      format?: KbNoteFormat
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "title" },
+            { in: "body", key: "content" },
+            { in: "body", key: "scope" },
+            { in: "body", key: "tags" },
+            { in: "body", key: "aliases" },
+            { in: "body", key: "format" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<KbCreateResponses, KbCreateErrors, ThrowOnError>({
+      url: "/kb",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Read a knowledge base note
+   */
+  public get<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }])
+    return (options?.client ?? this.client).get<KbGetResponses, KbGetErrors, ThrowOnError>({
+      url: "/kb/{id}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Update a knowledge base note
+   */
+  public update<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string
+      title?: KbNoteTitle
+      content?: string
+      tags?: Array<string>
+      aliases?: Array<string>
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "id" },
+            { in: "body", key: "title" },
+            { in: "body", key: "content" },
+            { in: "body", key: "tags" },
+            { in: "body", key: "aliases" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<KbUpdateResponses, KbUpdateErrors, ThrowOnError>({
+      url: "/kb/{id}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Remove a knowledge base note
+   */
+  public remove<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }])
+    return (options?.client ?? this.client).post<KbRemoveResponses, KbRemoveErrors, ThrowOnError>({
+      url: "/kb/{id}/remove",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * List dangling wikilinks
+   */
+  public dangling<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<KbDanglingResponses, KbDanglingErrors, ThrowOnError>({
+      url: "/kb/dangling",
+      ...options,
+    })
+  }
+
+  /**
+   * Full-text search
+   */
+  public search<ThrowOnError extends boolean = false>(
+    parameters: {
+      query: string
+      scope?: KbNoteScope
+      limit?: number
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "query" },
+            { in: "query", key: "scope" },
+            { in: "query", key: "limit" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<KbSearchResponses, KbSearchErrors, ThrowOnError>({
+      url: "/kb/search",
+      ...options,
+      ...params,
     })
   }
 }
@@ -8839,6 +9283,26 @@ export class AigcfrogeClient extends HeyApiClient {
   private _agentAsset?: AgentAsset
   get agentAsset(): AgentAsset {
     return (this._agentAsset ??= new AgentAsset({ client: this.client }))
+  }
+
+  private _schedule?: Schedule
+  get schedule(): Schedule {
+    return (this._schedule ??= new Schedule({ client: this.client }))
+  }
+
+  private _delivery?: Delivery
+  get delivery(): Delivery {
+    return (this._delivery ??= new Delivery({ client: this.client }))
+  }
+
+  private _memory?: Memory
+  get memory(): Memory {
+    return (this._memory ??= new Memory({ client: this.client }))
+  }
+
+  private _kb?: Kb
+  get kb(): Kb {
+    return (this._kb ??= new Kb({ client: this.client }))
   }
 
   private _agentTask?: AgentTask
