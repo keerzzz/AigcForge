@@ -16,6 +16,7 @@ import { createPathHelpers } from "./file/path"
 import type { ProjectAvatarVariant } from "@aigcfroge/ui/v2/project-avatar-v2"
 import { ServerScope, SessionStateKey } from "@/utils/server-scope"
 import { createSessionKeyReader, ensureSessionKey, pruneSessionKeys } from "./layout-helpers"
+import { ASSISTANT_PANEL_DEFAULT_WIDTH, type AssistantPanelTab } from "@/pages/session/assistant-session-panel-open"
 import { requireServerKey } from "@/utils/session-route"
 
 export { createSessionKeyReader, ensureSessionKey, pruneSessionKeys }
@@ -62,6 +63,12 @@ type SessionView = {
   reviewOpen?: string[]
   pendingMessage?: string
   pendingMessageAt?: number
+}
+
+type SessionAssistantState = {
+  opened?: boolean
+  tab?: "reminders" | "memory" | "kb" | "editor" | "context"
+  target?: string
 }
 
 type TabHandoff = {
@@ -286,6 +293,10 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
         },
         sessionTabs: {} as Record<string, SessionTabs>,
         sessionView: {} as Record<string, SessionView>,
+        sessionAssistant: {} as Record<string, SessionAssistantState>,
+        assistantPanel: {
+          width: ASSISTANT_PANEL_DEFAULT_WIDTH,
+        },
         handoff: {
           tabs: undefined as TabHandoff | undefined,
         },
@@ -334,6 +345,7 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
         used: usage.used,
         view: Object.keys(store.sessionView),
         tabs: Object.keys(store.sessionTabs),
+        assistant: Object.keys(store.sessionAssistant),
       })
       if (drop.length === 0) return
 
@@ -342,6 +354,7 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
           for (const key of drop) {
             delete draft.sessionView[key]
             delete draft.sessionTabs[key]
+            delete draft.sessionAssistant[key]
           }
         }),
       )
@@ -700,6 +713,44 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
           }
           setStore("session", "width", width)
         },
+      },
+      assistant(sessionKey: string | Accessor<string>) {
+        const key = createSessionKeyReader(sessionKey, ensureKey)
+        const state = createMemo(() => store.sessionAssistant[key()])
+        const tab = createMemo<AssistantPanelTab>(() => state()?.tab ?? "reminders")
+        const target = createMemo(() => state()?.target)
+        return {
+          opened: createMemo(() => state()?.opened ?? false),
+          tab,
+          target,
+          width: createMemo(() => store.assistantPanel?.width ?? ASSISTANT_PANEL_DEFAULT_WIDTH),
+          open(tab: AssistantPanelTab, target?: string) {
+            const session = key()
+            if (!store.sessionAssistant[session]) {
+              setStore("sessionAssistant", session, { opened: true, tab, target })
+              prune(usage.active ?? session)
+              return
+            }
+            setStore("sessionAssistant", session, { opened: true, tab, target })
+          },
+          close() {
+            const session = key()
+            const current = store.sessionAssistant[session]
+            if (!current) {
+              setStore("sessionAssistant", session, { opened: false, tab: "reminders" })
+              prune(usage.active ?? session)
+              return
+            }
+            setStore("sessionAssistant", session, "opened", false)
+          },
+          resize(width: number) {
+            if (!store.assistantPanel) {
+              setStore("assistantPanel", { width })
+              return
+            }
+            setStore("assistantPanel", "width", width)
+          },
+        }
       },
       mobileSidebar: {
         opened: createMemo(() => store.mobileSidebar?.opened ?? false),

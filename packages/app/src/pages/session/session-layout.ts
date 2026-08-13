@@ -26,5 +26,6 @@ export const useSessionLayout = () => {
     workspaceKey,
     tabs: createMemo(() => layout.tabs(sessionKey)),
     view: createMemo(() => layout.view(sessionKey)),
+    assistant: createMemo(() => layout.assistant(sessionKey)),
   }
 }

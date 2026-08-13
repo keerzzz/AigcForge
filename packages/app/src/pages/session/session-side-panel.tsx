@@ -19,7 +19,8 @@ import { useFile, type SelectedLineRange } from "@/context/file"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { useMode } from "@/context/mode"
-import { ChatRightPanel, PlaceholderPanel } from "@/components/mode-surfaces"
+import { ChatRightPanel } from "@/components/mode-surfaces"
+import { AssistantSessionPanel } from "@/pages/session/assistant-session-panel"
 import { WorkSessionPanel } from "@/pages/work-artifact-panel"
 import { SessionFileTree } from "@/components/session-file-tree"
 import { useSettings } from "@/context/settings"
@@ -451,8 +452,8 @@ export function SessionSidePanel(props: {
     <div class="flex-1 min-w-0" style={{ display: mode.currentMode === "work" ? "" : "none" }}>
       <WorkSessionPanel />
     </div>
-    <div style={{ display: mode.currentMode === "assistant" ? "" : "none" }}>
-      <PlaceholderPanel />
+    <div style={{ display: mode.currentMode === "assistant" ? "" : "none" }} class="flex min-w-0">
+      <AssistantSessionPanel />
     </div>
     </Show>
   )
