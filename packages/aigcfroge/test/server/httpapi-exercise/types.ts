@@ -1,5 +1,8 @@
 import type { Duration, Effect } from "effect"
 import type { SessionTask } from "@aigcfroge/core/session/task"
+import type { KBNote } from "@aigcfroge/schema/kb-note"
+import type { PersonalMemory as PersonalMemorySchema } from "@aigcfroge/schema/personal-memory"
+import type { Schedule } from "@aigcfroge/schema/schedule"
 import { ConfigV1 } from "@aigcfroge/core/v1/config/config"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
 import type { Project } from "../../../src/project/project"
@@ -64,6 +67,38 @@ export type ScenarioContext = {
     sessionID: SessionID,
     tasks: ReadonlyArray<SessionTask.WriteInfo>,
   ) => Effect.Effect<ReadonlyArray<SessionTask.Info>>
+  kbNote: (input: {
+    title: string
+    content: string
+    scope: KBNote.NoteScope
+    tags?: readonly string[]
+    aliases?: readonly string[]
+    format?: KBNote.NoteFormat
+  }) => Effect.Effect<KBNote.Note>
+  memoryPropose: (input: {
+    content: string
+    source: PersonalMemorySchema.Source
+    trustLevel: PersonalMemorySchema.TrustLevel
+    sensitivityLevel: PersonalMemorySchema.SensitivityLevel
+  }) => Effect.Effect<PersonalMemorySchema.Info>
+  memoryConfirm: (id: PersonalMemorySchema.ID) => Effect.Effect<PersonalMemorySchema.Info | undefined>
+  scheduleCreate: (input: {
+    sessionID: SessionID
+    kind: Schedule.ScheduleKind
+    content: string
+    dueAt: number
+    timezone: string
+    deliveryKey: string
+  }) => Effect.Effect<Schedule.Info>
+  deliveryDeliver: (input: {
+    deliveryKey: string
+    scheduleID: Schedule.ID
+    sessionID: SessionID
+    kind: Schedule.ScheduleKind
+    content: string
+    deliveredAt: number
+    caughtUp: boolean
+  }) => Effect.Effect<boolean>
   worktree: (input?: { name?: string }) => Effect.Effect<Worktree.Info>
   worktreeRemove: (directory: string) => Effect.Effect<void>
   llmText: (value: string) => Effect.Effect<void>

@@ -444,8 +444,370 @@ const scenarios: Scenario[] = [
   http.protected.get("/agent", "app.agents").json(200, array, "status"),
   http.protected.get("/skill", "app.skills").json(200, array, "status"),
   ...assetFixtures.flatMap(assetScenarios),
+  // Assistant: knowledge base (kb_note/kb_link). Routes are project-scoped and
+  // back onto KBService through the location layer.
   http.protected
-    .post("/import-asset/parse", "import-parser.parse")
+    .get("/kb", "kb.list")
+    .seeded((ctx) => ctx.kbNote({ title: "Meeting", content: "Q3 goals", scope: "project", tags: ["work"] }))
+    .at((ctx) => ({ path: "/kb", headers: ctx.headers() }))
+    .json(200, (body) => {
+      array(body)
+      check(body.length === 1, "kb list should return the seeded note")
+      const note = body[0]
+      object(note)
+      check(note.title === "Meeting", "kb note should round-trip its title")
+    }),
+  http.protected
+    .post("/kb", "kb.create")
+    .mutating()
+    .at((ctx) => ({
+      path: "/kb",
+      headers: ctx.headers(),
+      body: { title: "New note", content: "fresh content", scope: "project", tags: ["work"] },
+    }))
+    .json(200, (body) => {
+      object(body)
+      check(body.title === "New note", "kb create should return the created note")
+      check(typeof body.id === "string", "kb create should return a note id")
+      check(body.scope === "project", "kb create should echo the scope")
+    }),
+  http.protected
+    .get("/kb/{id}", "kb.get")
+    .seeded((ctx) => ctx.kbNote({ title: "Single", content: "one", scope: "project" }).pipe(Effect.map((n) => n.id)))
+    .at((ctx) => ({ path: route("/kb/{id}", { id: String(ctx.state) }), headers: ctx.headers() }))
+    .json(200, (body) => {
+      object(body)
+      check(body.title === "Single", "kb get should return the seeded note")
+    }),
+  http.protected
+    .post("/kb/{id}", "kb.update")
+    .mutating()
+    .seeded((ctx) => ctx.kbNote({ title: "Editable", content: "v1", scope: "project" }).pipe(Effect.map((n) => n.id)))
+    .at((ctx) => ({
+      path: route("/kb/{id}", { id: String(ctx.state) }),
+      headers: ctx.headers(),
+      body: { content: "v2" },
+    }))
+    .json(200, (body) => {
+      object(body)
+      check(body.content === "v2", "kb update should persist the new content")
+    }),
+  http.protected
+    .post("/kb/{id}/remove", "kb.remove")
+    .mutating()
+    .seeded((ctx) => ctx.kbNote({ title: "Doomed", content: "gone", scope: "project" }).pipe(Effect.map((n) => n.id)))
+    .at((ctx) => ({ path: route("/kb/{id}/remove", { id: String(ctx.state) }), headers: ctx.headers(), body: {} }))
+    .status(200, undefined, "status"),
+  http.protected
+    .get("/kb/dangling", "kb.dangling")
+    .seeded((ctx) => ctx.kbNote({ title: "Linker", content: "see [[Missing]]", scope: "project" }))
+    .at((ctx) => ({ path: "/kb/dangling", headers: ctx.headers() }))
+    .json(200, (body) => {
+      array(body)
+      check(body.length === 1, "kb dangling should report the unresolved wikilink")
+      const edge = body[0]
+      object(edge)
+      check(edge.targetTitle === "Missing", "dangling edge should name the missing target")
+    }),
+  http.protected
+    .get("/kb/search", "kb.search")
+    .seeded((ctx) => ctx.kbNote({ title: "Meeting", content: "quarterly goals", scope: "project" }))
+    .at((ctx) => ({ path: "/kb/search?query=quarterly", headers: ctx.headers() }))
+    .json(200, (body) => {
+      array(body)
+      check(body.length === 1, "kb search should find the seeded note")
+      const note = body[0]
+      object(note)
+      check(note.title === "Meeting", "kb search should return the matching note")
+    }),
+  // Assistant: personal memory (confirm-first propose flow).
+  http.protected
+    .get("/memory", "memory.list")
+    .seeded((ctx) =>
+      ctx.memoryPropose({ content: "user prefers concise", source: "derived", trustLevel: "medium", sensitivityLevel: "low" }),
+    )
+    .at((ctx) => ({ path: "/memory", headers: ctx.headers() }))
+    .json(200, (body) => {
+      array(body)
+      check(body.length === 1, "memory list should include the proposed entry")
+      const entry = body[0]
+      object(entry)
+      check(entry.content === "user prefers concise", "memory entry should round-trip content")
+    }),
+  http.protected
+    .get("/memory/pending", "memory.pending")
+    .seeded((ctx) =>
+      ctx.memoryPropose({ content: "pending entry", source: "derived", trustLevel: "medium", sensitivityLevel: "low" }),
+    )
+    .at((ctx) => ({ path: "/memory/pending", headers: ctx.headers() }))
+    .json(200, (body) => {
+      array(body)
+      check(body.length === 1, "memory pending should include the proposed entry")
+      const entry = body[0]
+      object(entry)
+      check(entry.status === "pending", "proposed memory should be pending")
+    }),
+  http.protected
+    .post("/memory/{id}/confirm", "memory.confirm")
+    .mutating()
+    .seeded((ctx) =>
+      ctx
+        .memoryPropose({ content: "confirm me", source: "explicit", trustLevel: "high", sensitivityLevel: "low" })
+        .pipe(Effect.map((m) => m.id)),
+    )
+    .at((ctx) => ({
+      path: route("/memory/{id}/confirm", { id: String(ctx.state) }),
+      headers: ctx.headers(),
+      body: {},
+    }))
+    .json(200, (body) => {
+      object(body)
+      check(body.status === "confirmed", "confirm should flip the entry to confirmed")
+    }),
+  http.protected
+    .post("/memory/{id}/reject", "memory.reject")
+    .mutating()
+    .seeded((ctx) =>
+      ctx
+        .memoryPropose({ content: "reject me", source: "derived", trustLevel: "medium", sensitivityLevel: "low" })
+        .pipe(Effect.map((m) => m.id)),
+    )
+    .at((ctx) => ({
+      path: route("/memory/{id}/reject", { id: String(ctx.state) }),
+      headers: ctx.headers(),
+      body: {},
+    }))
+    .json(200, (body) => {
+      object(body)
+      check(body.status === "rejected", "reject should flip the entry to rejected")
+    }),
+  http.protected
+    .post("/memory/{id}", "memory.edit")
+    .mutating()
+    .seeded((ctx) =>
+      ctx
+        .memoryPropose({ content: "edit me", source: "derived", trustLevel: "medium", sensitivityLevel: "low" })
+        .pipe(Effect.map((m) => m.id)),
+    )
+    .at((ctx) => ({
+      path: route("/memory/{id}", { id: String(ctx.state) }),
+      headers: ctx.headers(),
+      body: { content: "edited" },
+    }))
+    .json(200, (body) => {
+      object(body)
+      check(body.content === "edited", "memory edit should persist the new content")
+    }),
+  http.protected
+    .post("/memory/{id}/remove", "memory.remove")
+    .mutating()
+    .seeded((ctx) =>
+      ctx
+        .memoryPropose({ content: "delete me", source: "explicit", trustLevel: "high", sensitivityLevel: "low" })
+        .pipe(Effect.flatMap((m) => ctx.memoryConfirm(m.id).pipe(Effect.map(() => m.id)))),
+    )
+    .at((ctx) => ({
+      path: route("/memory/{id}/remove", { id: String(ctx.state) }),
+      headers: ctx.headers(),
+      body: {},
+    }))
+    .json(200, (body) => {
+      object(body)
+      check(body.status === "deleted", "memory remove should mark the entry deleted")
+    }),
+  // Assistant: schedules + deliveries.
+  http.protected
+    .get("/schedule/pending", "schedule.pending")
+    .seeded((ctx) =>
+      ctx.session().pipe(
+        Effect.flatMap((s) =>
+          ctx.scheduleCreate({
+            sessionID: s.id,
+            kind: "reminder",
+            content: "standup",
+            dueAt: Date.now() + 60_000,
+            timezone: "Asia/Shanghai",
+            deliveryKey: "reminder:ex:1",
+          }),
+        ),
+      ),
+    )
+    .at((ctx) => ({ path: "/schedule/pending", headers: ctx.headers() }))
+    .json(200, (body) => {
+      array(body)
+      check(body.length === 1, "schedule pending should include the seeded reminder")
+      const item = body[0]
+      object(item)
+      check(item.status === "pending", "seeded schedule should be pending")
+    }),
+  http.protected
+    .get("/schedule/{sessionID}", "schedule.list")
+    .seeded((ctx) =>
+      ctx.session().pipe(
+        Effect.flatMap((s) =>
+          ctx
+            .scheduleCreate({
+              sessionID: s.id,
+              kind: "reminder",
+              content: "mail",
+              dueAt: Date.now() + 60_000,
+              timezone: "Asia/Shanghai",
+              deliveryKey: "reminder:ex:2",
+            })
+            .pipe(Effect.as(s.id)),
+        ),
+      ),
+    )
+    .at((ctx) => ({
+      path: route("/schedule/{sessionID}", { sessionID: String(ctx.state) }),
+      headers: ctx.headers(),
+    }))
+    .json(200, (body) => {
+      array(body)
+      check(body.length === 1, "schedule list should include the session's reminder")
+      const item = body[0]
+      object(item)
+      check(item.content === "mail", "schedule list should round-trip the reminder content")
+    }),
+  http.protected
+    .post("/schedule/{id}/cancel", "schedule.cancel")
+    .mutating()
+    .seeded((ctx) =>
+      ctx.session().pipe(
+        Effect.flatMap((s) =>
+          ctx
+            .scheduleCreate({
+              sessionID: s.id,
+              kind: "reminder",
+              content: "cancel me",
+              dueAt: Date.now() + 60_000,
+              timezone: "Asia/Shanghai",
+              deliveryKey: "reminder:ex:3",
+            })
+            .pipe(Effect.map((sched) => sched.id)),
+        ),
+      ),
+    )
+    .at((ctx) => ({
+      path: route("/schedule/{id}/cancel", { id: String(ctx.state) }),
+      headers: ctx.headers(),
+      body: {},
+    }))
+    .json(200, (body) => {
+      object(body)
+      check(body.status === "cancelled", "cancel should flip the reminder to cancelled")
+    }),
+  http.protected
+    .get("/delivery/recent", "schedule.delivery.recent")
+    .seeded((ctx) =>
+      ctx.session().pipe(
+        Effect.flatMap((s) =>
+          ctx
+            .scheduleCreate({
+              sessionID: s.id,
+              kind: "reminder",
+              content: "inbox me",
+              dueAt: Date.now() + 60_000,
+              timezone: "Asia/Shanghai",
+              deliveryKey: "reminder:ex:4",
+            })
+            .pipe(
+              Effect.flatMap((sched) =>
+                ctx.deliveryDeliver({
+                  deliveryKey: "reminder:ex:4",
+                  scheduleID: sched.id,
+                  sessionID: s.id,
+                  kind: "reminder",
+                  content: "inbox me",
+                  deliveredAt: Date.now(),
+                  caughtUp: false,
+                }),
+              ),
+            ),
+        ),
+      ),
+    )
+    .at((ctx) => ({ path: "/delivery/recent", headers: ctx.headers() }))
+    .json(200, (body) => {
+      array(body)
+      check(body.length === 1, "delivery recent should include the delivered reminder")
+      const item = body[0]
+      object(item)
+      check(item.content === "inbox me", "delivery should round-trip content")
+    }),
+  http.protected
+    .get("/delivery/{sessionID}", "schedule.delivery.inbox")
+    .seeded((ctx) =>
+      ctx.session().pipe(
+        Effect.flatMap((s) =>
+          ctx
+            .scheduleCreate({
+              sessionID: s.id,
+              kind: "reminder",
+              content: "inbox me",
+              dueAt: Date.now() + 60_000,
+              timezone: "Asia/Shanghai",
+              deliveryKey: "reminder:ex:5",
+            })
+            .pipe(
+              Effect.flatMap((sched) =>
+                ctx.deliveryDeliver({
+                  deliveryKey: "reminder:ex:5",
+                  scheduleID: sched.id,
+                  sessionID: s.id,
+                  kind: "reminder",
+                  content: "inbox me",
+                  deliveredAt: Date.now(),
+                  caughtUp: false,
+                }),
+              ),
+              Effect.as(s.id),
+            ),
+        ),
+      ),
+    )
+    .at((ctx) => ({
+      path: route("/delivery/{sessionID}", { sessionID: String(ctx.state) }),
+      headers: ctx.headers(),
+    }))
+    .json(200, (body) => {
+      array(body)
+      check(body.length === 1, "delivery inbox should include the delivered reminder")
+    }),
+  http.protected
+    .post("/delivery/{deliveryKey}/read", "schedule.delivery.read")
+    .mutating()
+    .seeded((ctx) =>
+      ctx.session().pipe(
+        Effect.flatMap((s) =>
+          ctx
+            .scheduleCreate({
+              sessionID: s.id,
+              kind: "reminder",
+              content: "read me",
+              dueAt: Date.now() + 60_000,
+              timezone: "Asia/Shanghai",
+              deliveryKey: "reminder:ex:6",
+            })
+            .pipe(
+              Effect.flatMap((sched) =>
+                ctx.deliveryDeliver({
+                  deliveryKey: "reminder:ex:6",
+                  scheduleID: sched.id,
+                  sessionID: s.id,
+                  kind: "reminder",
+                  content: "read me",
+                  deliveredAt: Date.now(),
+                  caughtUp: false,
+                }),
+              ),
+            ),
+        ),
+      ),
+    )
+    .at((ctx) => ({ path: "/delivery/{deliveryKey}/read", headers: ctx.headers(), body: {} }))
+    .status(200, undefined, "status"),
+  http.protected.post("/import-asset/parse", "import-parser.parse")
     .global()
     .at(() => ({ path: "/import-asset/parse", body: { content: "# HTTP API Import\n\nPrompt body" } }))
     .json(200, (body) => {
