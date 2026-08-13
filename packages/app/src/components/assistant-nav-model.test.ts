@@ -49,7 +49,17 @@ describe("sessionHighlightIDs (D5 会话列表联动)", () => {
     { id: "sch_2", sessionID: "sess_2", kind: "reminder", content: "r2", dueAt: 1, timezone: "UTC", status: "pending", attempts: 0, deliveryKey: "k", createdAt: 0, updatedAt: 0 } as ScheduleInfo,
   ]
   const memories: PersonalMemoryInfo[] = [
-    { id: "mem_1", content: "m1", source: "derived", sourceSessionID: "sess_3", status: "confirmed" } as PersonalMemoryInfo,
+    {
+      id: "mem_1",
+      content: "m1",
+      source: "derived",
+      trustLevel: "medium",
+      sensitivityLevel: "low",
+      status: "confirmed",
+      sourceSessionID: "sess_3",
+      createdAt: 0,
+      updatedAt: 0,
+    },
   ]
 
   test("highlights the session that created a selected reminder", () => {

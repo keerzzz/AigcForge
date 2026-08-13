@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { useQuery } from "@tanstack/solid-query"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
@@ -116,7 +116,7 @@ export function AssistantSessionPanel() {
   createEffect(() => {
     if (!dragging()) return
     const stop = makeEventListener(window, "pointerup", () => setDragging(false), { once: true })
-    return stop
+    onCleanup(stop)
   })
   const maxWidth = createMemo(() =>
     typeof window === "undefined" ? 1000 : Math.max(ASSISTANT_PANEL_MIN_WIDTH, Math.floor(window.innerWidth * 0.5)),

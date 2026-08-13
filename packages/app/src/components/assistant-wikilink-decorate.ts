@@ -28,7 +28,8 @@ export function decorateWikilinks(root: HTMLElement, resolve: (title: string) =>
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
   const nodes: Text[] = []
   while (walker.nextNode()) {
-    const node = walker.currentNode as Text
+    const node = walker.currentNode
+    if (!(node instanceof Text)) continue
     if (skipNode(node)) continue
     if (!node.data.includes("[[")) continue
     nodes.push(node)
