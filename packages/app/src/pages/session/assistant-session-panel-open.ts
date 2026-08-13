@@ -1,26 +1,16 @@
 import type { Accessor } from "solid-js"
+import { ASSISTANT_PANEL_DEFAULT_WIDTH, ASSISTANT_PANEL_MIN_WIDTH } from "@/utils/assistant-panel"
+import type { AssistantPanelTab } from "@/utils/assistant-panel"
 
-/**
- * Assistant 右栏面板状态（PRD §8.2 五 Tab + 交互模型）。fileTree 不在此槽位
- * 渲染（无 B 区空占位），所以这里没有 fileTree/审查面板概念。
- */
-export type AssistantPanelTab = "reminders" | "memory" | "kb" | "editor" | "context"
+// 共享常量/类型统一收口在 @/utils/assistant-panel（layout store 与页面层共用，
+// 避免 context → pages 逆向导入）；此处 re-export 保持页面层消费方不变。
+export { ASSISTANT_PANEL_MIN_WIDTH, ASSISTANT_PANEL_DEFAULT_WIDTH } from "@/utils/assistant-panel"
+export type { AssistantPanelState, AssistantPanelTab } from "@/utils/assistant-panel"
 
 /**
  * 会话级面板状态（会话内 scope，类比 useSessionLayout 的 view/tabs）：
  * `{ opened, tab, target }`。由 layout store 提供（layout.assistant(sessionKey)）。
  */
-export type AssistantPanelState = {
-  opened: boolean
-  tab: AssistantPanelTab
-  target?: string
-}
-
-/** 右栏面板宽度约束（双栏编辑器需要 min 480px）。 */
-export const ASSISTANT_PANEL_MIN_WIDTH = 480
-export const ASSISTANT_PANEL_DEFAULT_WIDTH = 520
-
-/** 面板状态访问器（layout.assistant(sessionKey) 返回的接口）。 */
 export type AssistantPanelHandle = {
   opened: Accessor<boolean>
   tab: Accessor<AssistantPanelTab>

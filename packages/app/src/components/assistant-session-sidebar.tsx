@@ -97,7 +97,14 @@ export function AssistantSessionSidebar(props: {
           </Show>
         </Show>
       </div>
-      <AssistantNavTree selected={selected()} onSelect={onSelect} />
+      {/* 树独立滚动 + 高度上限（MEDIUM-1 修正）：知识库笔记多时树不溢出 aside、
+          也不把会话列表压缩到 0。 */}
+      <div
+        class="min-h-0 shrink-0 overflow-y-auto border-t border-v2-border-border-base py-1"
+        style={{ "max-height": "45%" }}
+      >
+        <AssistantNavTree selected={selected()} onSelect={onSelect} />
+      </div>
     </div>
   )
 }

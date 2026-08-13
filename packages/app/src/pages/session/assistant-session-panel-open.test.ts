@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test"
+import fs from "fs"
+import path from "path"
 import {
   openEntityPanel,
   toggleEntityPanel,
@@ -73,5 +75,25 @@ describe("toggleEntityPanel", () => {
     const { handle, read } = fakeHandle()
     toggleEntityPanel(handle, "context")
     expect(read()).toEqual({ opened: true, tab: "context", target: undefined })
+  })
+})
+
+describe("panel constants location (LOW-1: context layer must not import pages)", () => {
+  const layout = fs.readFileSync(path.resolve(__dirname, "../../context/layout.tsx"), "utf-8")
+  const utils = fs.readFileSync(path.resolve(__dirname, "../../utils/assistant-panel.ts"), "utf-8")
+
+  test("layout imports the panel constants from utils", () => {
+    expect(layout).toContain('from "@/utils/assistant-panel"')
+  })
+
+  test("layout no longer imports from the pages layer", () => {
+    expect(layout).not.toContain('from "@/pages/session/assistant-session-panel-open"')
+  })
+
+  test("utils/assistant-panel owns the shared width constants and tab type", () => {
+    expect(utils).toContain("export const ASSISTANT_PANEL_MIN_WIDTH = 480")
+    expect(utils).toContain("export const ASSISTANT_PANEL_DEFAULT_WIDTH")
+    expect(utils).toContain("export type AssistantPanelTab")
+    expect(utils).toContain("export type AssistantPanelState")
   })
 })

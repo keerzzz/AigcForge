@@ -113,4 +113,10 @@ describe("AssistantSessionSidebar (detail secondary sidebar, batch 2 G3)", () =>
     expect(secondary).toContain("<AssistantSessionSidebar")
     expect(secondary).not.toContain('<PlaceholderSidebar mode="assistant" />')
   })
+
+  test("detail sidebar keeps the nav tree scrollable with a height cap (MEDIUM-1)", () => {
+    expect(sidebar).toContain('"max-height": "45%"')
+    expect(sidebar).toContain("overflow-y-auto")
+    expect(sidebar).toContain("shrink-0")
+  })
 })

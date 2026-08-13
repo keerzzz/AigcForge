@@ -16,7 +16,7 @@ import { createPathHelpers } from "./file/path"
 import type { ProjectAvatarVariant } from "@aigcfroge/ui/v2/project-avatar-v2"
 import { ServerScope, SessionStateKey } from "@/utils/server-scope"
 import { createSessionKeyReader, ensureSessionKey, pruneSessionKeys } from "./layout-helpers"
-import { ASSISTANT_PANEL_DEFAULT_WIDTH, type AssistantPanelTab } from "@/pages/session/assistant-session-panel-open"
+import { ASSISTANT_PANEL_DEFAULT_WIDTH, type AssistantPanelState, type AssistantPanelTab } from "@/utils/assistant-panel"
 import { requireServerKey } from "@/utils/session-route"
 
 export { createSessionKeyReader, ensureSessionKey, pruneSessionKeys }
@@ -63,12 +63,6 @@ type SessionView = {
   reviewOpen?: string[]
   pendingMessage?: string
   pendingMessageAt?: number
-}
-
-type SessionAssistantState = {
-  opened?: boolean
-  tab?: "reminders" | "memory" | "kb" | "editor" | "context"
-  target?: string
 }
 
 type TabHandoff = {
@@ -293,7 +287,7 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
         },
         sessionTabs: {} as Record<string, SessionTabs>,
         sessionView: {} as Record<string, SessionView>,
-        sessionAssistant: {} as Record<string, SessionAssistantState>,
+        sessionAssistant: {} as Record<string, AssistantPanelState>,
         assistantPanel: {
           width: ASSISTANT_PANEL_DEFAULT_WIDTH,
         },
