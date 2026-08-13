@@ -43,7 +43,10 @@ export function AssistantDashboardMain() {
     queryKey: ["assistant", "pending"] as const,
     queryFn: async () => {
       const res = await serverSDK().client.schedule.pending()
-      return res.data ?? []
+      // Defensive: a mock or unexpected response shape can hand back a non-array
+      // (the workspace renders all mode surfaces, so a crash here takes down
+      // every mode) — normalize to an empty list instead of crashing `.filter`.
+      return Array.isArray(res.data) ? res.data : []
     },
   }))
   const pending = createMemo(() => pendingQuery.data ?? [])
@@ -53,7 +56,7 @@ export function AssistantDashboardMain() {
     queryKey: ["assistant", "recent"] as const,
     queryFn: async () => {
       const res = await serverSDK().client.delivery.recent({ limit: 6 })
-      return res.data ?? []
+      return Array.isArray(res.data) ? res.data : []
     },
   }))
   const recent = createMemo(() => recentQuery.data ?? [])
@@ -63,7 +66,7 @@ export function AssistantDashboardMain() {
     queryKey: ["assistant", "memory"] as const,
     queryFn: async () => {
       const res = await serverSDK().client.memory.list()
-      return res.data ?? []
+      return Array.isArray(res.data) ? res.data : []
     },
   }))
   const memories = createMemo(() => memoryQuery.data ?? [])
@@ -85,7 +88,7 @@ export function AssistantDashboardMain() {
     queryKey: ["assistant", "kb"] as const,
     queryFn: async () => {
       const res = await serverSDK().client.kb.list({})
-      return res.data ?? []
+      return Array.isArray(res.data) ? res.data : []
     },
   }))
   const notes = createMemo(() => kbQuery.data ?? [])
