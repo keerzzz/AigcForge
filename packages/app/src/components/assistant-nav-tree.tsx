@@ -58,7 +58,9 @@ export function AssistantNavTree(props: {
   const dangling = createMemo(() => danglingQuery.data ?? [])
 
   const kbTree = createMemo(() => buildKbTagTree(notes()))
-  const [collapsed, setCollapsed] = createStore<Record<string, boolean>>({ kb: true })
+  // 默认折叠全部实体分组：首页左栏按计划 §3.5 只显示计数，避免提醒/记忆正文
+  // 与主区聚合重复渲染（e2e regression 曾因此 strict-mode 解析到 2 个元素）。
+  const [collapsed, setCollapsed] = createStore<Record<string, boolean>>({ reminders: true, memory: true, kb: true })
 
   const isItemSelected = (kind: "reminders" | "memory" | "kb", itemId: string) => {
     const selection = props.selected
@@ -77,8 +79,8 @@ export function AssistantNavTree(props: {
           icon="mode-assistant"
           label={language.t("assistant.nav.reminders")}
           count={pending().length}
-          collapsed={collapsed.reminders ?? false}
-          onToggle={() => setCollapsed("reminders", !(collapsed.reminders ?? false))}
+          collapsed={collapsed.reminders ?? true}
+          onToggle={() => setCollapsed("reminders", !(collapsed.reminders ?? true))}
         >
           <For each={pending()}>
             {(reminder: ScheduleInfo) => (
@@ -98,8 +100,8 @@ export function AssistantNavTree(props: {
           icon="status"
           label={language.t("assistant.nav.memory")}
           count={memories().length}
-          collapsed={collapsed.memory ?? false}
-          onToggle={() => setCollapsed("memory", !(collapsed.memory ?? false))}
+          collapsed={collapsed.memory ?? true}
+          onToggle={() => setCollapsed("memory", !(collapsed.memory ?? true))}
         >
           <For each={memories()}>
             {(memory: PersonalMemoryInfo) => (

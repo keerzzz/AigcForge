@@ -34,6 +34,10 @@ describe("AssistantNavTree (entity nav tree, batch 2 G3)", () => {
     expect(tree).toContain("dangling().length")
   })
 
+  test("collapses all entity groups by default (home rail = counts, avoids duplicated content)", () => {
+    expect(tree).toContain("{ reminders: true, memory: true, kb: true }")
+  })
+
   test("aggregates the knowledge base by tag hierarchy via buildKbTagTree", () => {
     expect(tree).toContain("buildKbTagTree(notes())")
     expect(tree).toContain("<KbTagNodeRow")
