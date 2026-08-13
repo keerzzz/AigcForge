@@ -9,7 +9,7 @@ import { useServerSync } from "@/context/server-sync"
 import { ServerConnection } from "@/context/server"
 import { useTabs } from "@/context/tabs"
 import { modeDraft } from "@/context/mode"
-import { useChatDirectory } from "@/pages/mode-workspace-context"
+import { useModeDirectory } from "@/pages/mode-workspace-context"
 import { sortedRootSessions } from "@/pages/layout/helpers"
 import { sessionHref } from "@/utils/session-route"
 import { fetchAssetInsertText } from "./asset-insert"
@@ -29,14 +29,14 @@ export function AssetSessionSelector(props: { asset: AssetRow }) {
   const navigate = useNavigate()
   const tabs = useTabs()
   const sync = useServerSync()
-  const { conn, ctx, directory } = useChatDirectory()
+  const { conn, ctx, directory } = useModeDirectory()
 
   const serverKey = createMemo(() => {
     const current = conn()
     return current ? ServerConnection.key(current) : undefined
   })
 
-  // bootstrap 当前 Location 的 chat 会话
+  // bootstrap chat sessions for the current Location
   createEffect(() => {
     const dir = directory()
     if (!dir) return
@@ -75,7 +75,7 @@ export function AssetSessionSelector(props: { asset: AssetRow }) {
 
     dialog.close()
 
-    // 创建新 draft + 自动填充资产内容
+    // create a new draft prefilled with the asset content
     tabs.newDraft(
       {
         server: key,
@@ -93,7 +93,7 @@ export function AssetSessionSelector(props: { asset: AssetRow }) {
       fit
     >
       <div class="flex min-h-0 flex-col gap-px p-2" style={{ "max-height": "60vh" }}>
-        {/* 新建会话入口 */}
+        {/* new session entry */}
         <button
           type="button"
           class="flex items-center gap-2 rounded-[6px] px-3 py-2 text-left text-v2-text-text-base hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
@@ -103,10 +103,10 @@ export function AssetSessionSelector(props: { asset: AssetRow }) {
           <span class="min-w-0 flex-1 truncate text-13-regular">{language.t("promptAsset.insert.newSession")}</span>
         </button>
 
-        {/* 分割线 */}
+        {/* divider */}
         <div class="my-1 mx-2 h-px bg-v2-border-border-base" />
 
-        {/* 已有会话列表 */}
+        {/* existing sessions */}
         <Show
           when={sessions().length > 0}
           fallback={

@@ -196,7 +196,7 @@ export function AssetWorkbenchTable(props: {
   const workspace = useChatWorkspace()
   const store = workspace ?? createAssetWorkbenchStore()
 
-  // 功能树点击 → 同步 kind 筛选到 table
+  // feature tree click → sync kind filter to the table
   createEffect(() => {
     const ext = props.kindFilter
     if (ext !== undefined && ext !== null && ext !== store.state.kindFilter) {
@@ -209,7 +209,7 @@ export function AssetWorkbenchTable(props: {
     return sortRows(filterByOrigin(byKind, store.state.originFilter))
   })
 
-  // 功能筛选标签：用于 header 标题/搜索占位/新建按钮（响应式）
+  // feature filter label: header title / search placeholder / new button (responsive)
   const kindLabel = createMemo(() =>
     store.state.kindFilter === "all"
       ? language.t("asset.panel.all")

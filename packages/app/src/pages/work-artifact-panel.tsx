@@ -30,7 +30,7 @@ import { diffTextLines } from "@/utils/text-diff"
 import { describeApplyError, isConflictError } from "@/pages/work-artifact-error"
 import type { Message } from "@aigcfroge/sdk/v2/client"
 
-/** 覆盖确认时的只读 diff 展示（新旧内容对比）。 */
+/** Read-only diff shown before confirming an overwrite. */
 function WorkDiffView(props: { oldText: string; newText: string }) {
   const lines = createMemo(() => diffTextLines(props.oldText, props.newText))
   return (
@@ -55,27 +55,7 @@ function WorkDiffView(props: { oldText: string; newText: string }) {
   )
 }
 
-/**
- * Work 右栏 Artifact 面板（简单形态）：标题 + WorkArtifactContent。
- * 会话页使用 WorkSessionPanel（Context + Artifact 双 Tab，见下）。
- */
-export function WorkArtifactPanel() {
-  const language = useLanguage()
-  return (
-    <div class="flex h-full min-h-0 w-72 shrink-0 flex-col border-l border-v2-border-border-base bg-v2-background-bg-base">
-      <div class="flex items-center gap-1.5 border-b border-v2-border-border-base px-3 py-2">
-        <Icon name="mode-work" size="small" class="shrink-0 text-v2-icon-icon-muted" />
-        <span class="text-v2-text-text-base text-13-medium">{language.t("work.artifact.tab")}</span>
-      </div>
-      <WorkArtifactContent />
-    </div>
-  )
-}
-
-/**
- * Work Artifact Tab 内容：只读预览候选稿（assistant 消息正文）+ 应用到当前项目。
- * 点击应用 → 原子落盘到当前 Location；目标同名时弹覆盖确认。
- */
+/** Previews the latest Work artifact and applies it through the typed API. */
 export function WorkArtifactContent() {
   const language = useLanguage()
   const sync = useSync()
@@ -83,13 +63,8 @@ export function WorkArtifactContent() {
   const dialog = useDialog()
   const [applying, setApplying] = createSignal(false)
   const [applied, setApplied] = createSignal<{ sessionID: string; content: string }>()
-  let sessionLayout: ReturnType<typeof useSessionLayout> | undefined
-  try {
-    sessionLayout = useSessionLayout()
-  } catch {
-    sessionLayout = undefined
-  }
-  const sessionID = createMemo(() => sessionLayout?.params.id)
+  const sessionLayout = useSessionLayout()
+  const sessionID = createMemo(() => sessionLayout.params.id)
 
   const candidate = createMemo(() => {
     const id = sessionID()
@@ -99,8 +74,7 @@ export function WorkArtifactContent() {
     return findLatestAssistantMarkdown(messages, data.part)
   })
 
-  // 仅当当前会话的候选稿与已应用内容一致时才显示"已应用"（绑定 sessionID，跨会话不串）；
-  // 修订候选稿或切换会话后回到可应用状态。
+  // Applied state belongs to the exact Session and candidate content.
   const appliedCurrent = createMemo(() => {
     const a = applied()
     const id = sessionID()
@@ -165,9 +139,7 @@ export function WorkArtifactContent() {
     }
   }
 
-  // M2 存为资产（D3 方案 A）：候选稿 -> prompt kind CandidateInfo -> setProposeCandidate
-  // 注入 Chat propose store。不自动切 mode：session 页以 session.mode 为权威
-  // （app.tsx session effect 锁回），用户手动切 Chat 后右栏自动显示审查（store 已在）。
+  // Queue the candidate for Chat review without changing the authoritative Session mode.
   function onSaveAsset() {
     const id = sessionID()
     const content = candidate()
@@ -201,11 +173,7 @@ export function WorkArtifactContent() {
                   </ScrollView>
                 }
               >
-                {/*
-                  HTML 模式：iframe 填满面板可用高度（flex-1），不用 ScrollView +
-                  固定视口高度。iframe 自带滚动条；按钮栏 shrink-0 固定底部，
-                  Apply 始终可见，无需滚动。
-                */}
+                {/* The iframe owns scrolling so the action bar remains visible. */}
                 <div class="min-h-0 flex-1 overflow-hidden p-3">
                   <HtmlArtifact
                     html={extractHtmlBlock(candidate()!) ?? ""}
@@ -252,13 +220,7 @@ export function WorkArtifactContent() {
   )
 }
 
-/**
- * Work 会话右栏（双 Tab，对齐 coding/chat panel 架构，PRD §10.2）：
- * Context Tab（对齐 Code 模式）+ Artifact Tab。
- * 显隐复用 view().reviewPanel.opened()（对齐 chat/code；session-header 的
- * sidebar-right icon 点击 toggle 此状态），默认展开、可折叠。
- * A 区宽度 auto 撑满（D5，批次 4），B 区 fileTree 默认关闭（D6）。
- */
+/** Work session panel with Context, Artifact, and project file-tree regions. */
 export function WorkSessionPanel() {
   const language = useLanguage()
   const sessionLayout = useSessionLayout()
@@ -276,8 +238,6 @@ export function WorkSessionPanel() {
       classList={{
         "border-l border-v2-border-border-base": reviewOpen(),
         "pointer-events-none": !reviewOpen(),
-        // 对齐 chat/code:打开时 flex-1 撑满剩余宽度(配合外层 flex-1 min-w-0),
-        // 窗口缩放时面板与上下文模块随容器查询栅格稳定重排。
         "flex-1": reviewOpen(),
         "transition-[width] duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width] motion-reduce:transition-none":
           !size.active(),
@@ -306,7 +266,6 @@ export function WorkSessionPanel() {
           </Show>
         </TabsV2.Content>
       </TabsV2>
-      {/* B 区:项目文件树(对齐 code/chat,D6),默认关闭;work 用户可查看落盘产物 */}
       <SessionFileTree size={size} borderClass="border-l border-v2-border-border-base">
         <div class="min-h-0 flex-1 overflow-y-auto px-3 pt-3">
           <FileTree

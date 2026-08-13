@@ -17,7 +17,8 @@ const [state, setState] = createStore<ProposeCandidateState>({
 })
 
 export function setProposeCandidate(sessionID: string, candidate: CandidateInfo) {
-  // sync poll 会重复产生等价对象；仅在完整候选（含路径、冲突和 per-kind 配置）相同时跳过更新。
+  // sync poll can emit equivalent objects repeatedly; skip the update only when the full
+  // candidate (path, conflicts, per-kind config) is identical.
   if (state.sessionID === sessionID && state.candidate !== null && sameCandidateInfo(state.candidate, candidate)) return
   setState({ candidate, sessionID, applying: false, applied: false })
 }

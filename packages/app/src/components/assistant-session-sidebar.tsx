@@ -15,11 +15,7 @@ import type { WorkspaceSidebarContext } from "@/pages/layout/sidebar-workspace"
 import type { ServerConnection } from "@/context/server"
 import type { AssistantNavSelection } from "@/components/assistant-nav-model"
 
-/**
- * Assistant 会话详情页次级左栏（批次 2 G3，PRD §8.2）：Location + 新建 +
- * mode=assistant 会话列表 + 实体导航树。导航树选中态 ↔ 右栏面板状态
- * （openEntityPanel 开对应 Tab 并定位；面板 Tab/目标变化 → 树高亮同步）。
- */
+/** Assistant session sidebar with mode-scoped sessions and entity navigation. */
 export function AssistantSessionSidebar(props: {
   directory: Accessor<string>
   sortNow: Accessor<number>
@@ -31,9 +27,8 @@ export function AssistantSessionSidebar(props: {
   const params = useParams()
   const serverSDK = useServerSDK()
   const layout = useLayout()
-  // 次级侧栏在 SDKProvider 之外渲染，不能用 useSessionLayout（其经 useSDK 读
-  // SDK context）。这里用已在 shell 层可用的 scope + directory + session id
-  // 直接拼 sessionKey，与 useSessionKey 的算法一致。
+  // This shell renders outside SDKProvider, so derive the same scoped key that
+  // useSessionLayout would create from its directory SDK context.
   const sessionKey = createMemo(() =>
     SessionStateKey.from(serverSDK().scope, SessionRouteKey.fromRoute(base64Encode(props.directory()), params.id)),
   )
@@ -51,7 +46,7 @@ export function AssistantSessionSidebar(props: {
     return sortedRootSessions(current, props.sortNow()).filter((session) => (session.mode ?? "coding") === "assistant")
   })
 
-  // 树选中态 ↔ 右栏面板状态：Tab → kind，target → itemId；context/editor 无实体。
+  // Entity tabs map to navigation selections; context and editor have no tree node.
   const selected = createMemo<AssistantNavSelection>(() => {
     const tab = assistant().tab()
     const target = assistant().target()
@@ -109,8 +104,7 @@ export function AssistantSessionSidebar(props: {
           </Show>
         </Show>
       </div>
-      {/* 树独立滚动 + 高度上限（MEDIUM-1 修正）：知识库笔记多时树不溢出 aside、
-          也不把会话列表压缩到 0。 */}
+      {/* Keep a large knowledge tree from collapsing the session list. */}
       <div
         class="min-h-0 shrink-0 overflow-y-auto border-t border-v2-border-border-base py-1"
         style={{ "max-height": "45%" }}

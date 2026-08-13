@@ -8,7 +8,7 @@ import { useMode } from "@/context/mode"
 import { useServer } from "@/context/server"
 import { ServerConnection } from "@/context/server"
 import { ModeWorkspaceAssetCtx, CodingSelectionCtx, AssistantSelectionCtx } from "@/pages/mode-workspace-context"
-import { useChatDirectory } from "@/pages/mode-workspace-context"
+import { useModeDirectory } from "@/pages/mode-workspace-context"
 import type { HomeProjectSelection } from "@/pages/layout/helpers"
 import type { AssistantNavSelection } from "@/components/assistant-nav-model"
 
@@ -18,9 +18,8 @@ export function ModeWorkspace() {
   const mode = useMode()
   const sync = useServerSync()
   const server = useServer()
-  const { ctx: chatCtx, directory: chatDirectory } = useChatDirectory()
+  const { ctx: chatCtx, directory: chatDirectory } = useModeDirectory()
 
-  // ---- Shared Coding Selection (sidebar ↔ main linkage) ----
   const [codingSel, setCodingSel] = createStore({
     selection: { server: server.key } as HomeProjectSelection,
   })
@@ -30,14 +29,12 @@ export function ModeWorkspace() {
     selectProject: (key: ServerConnection.Key, directory: string) => setCodingSel("selection", { server: key, directory }),
   }
 
-  // ---- Assistant entity selection (sidebar nav tree ↔ session list linkage) ----
   const [assistantSel, setAssistantSel] = createStore<{ selection: AssistantNavSelection }>({ selection: undefined })
   const assistantValue = {
     get selection() { return assistantSel.selection },
     select: (selection: AssistantNavSelection) => setAssistantSel("selection", selection),
   }
 
-  // ---- Asset Resource ----
   const [chatDirSdk, setChatDirSdk] = createSignal<DirectorySDK | undefined>()
   createEffect(() => {
     const dir = chatDirectory()
@@ -75,11 +72,11 @@ export function ModeWorkspace() {
     const agentInvalid = agentsRes.data?.invalid ?? []
     const workflowInvalid = workflowsRes.data?.invalid ?? []
 
-    const bridgedPluginInputs: AssetWorkbench.AssetInput[] = bridgedPlugins.map((b: any) => ({
+    const bridgedPluginInputs: AssetWorkbench.AssetInput[] = bridgedPlugins.map((plugin) => ({
       kind: "plugin" as const,
-      name: b.name,
-      description: b.description,
-      relativePath: b.originPath,
+      name: plugin.name,
+      description: plugin.description,
+      relativePath: plugin.originPath,
       revision: "",
       origin: "system" as const,
     }))
@@ -88,15 +85,15 @@ export function ModeWorkspace() {
       ...promptAssets, ...skillAssets, ...mcpAssets, ...cmdAssets, ...agentAssets, ...workflowAssets, ...pluginAssets, ...bridgedPluginInputs,
     ]
 
-    const invalidRows: AssetWorkbench.AssetRow[] = [
-      ...promptInvalid.map((i: any) => ({ ...i, kind: "prompt" as const })),
-      ...skillInvalid.map((i: any) => ({ ...i, kind: "skill" as const })),
-      ...mcpInvalid.map((i: any) => ({ ...i, kind: "mcp" as const })),
-      ...cmdInvalid.map((i: any) => ({ ...i, kind: "command" as const })),
-      ...agentInvalid.map((i: any) => ({ ...i, kind: "agent" as const })),
-      ...workflowInvalid.map((i: any) => ({ ...i, kind: "workflow" as const })),
-      ...pluginInvalid.map((i: any) => ({ ...i, kind: "plugin" as const })),
-    ]
+    const invalidRows = AssetWorkbench.buildRows([], [
+      ...promptInvalid.map((item) => ({ ...item, kind: "prompt" as const })),
+      ...skillInvalid.map((item) => ({ ...item, kind: "skill" as const })),
+      ...mcpInvalid.map((item) => ({ ...item, kind: "mcp" as const })),
+      ...cmdInvalid.map((item) => ({ ...item, kind: "command" as const })),
+      ...agentInvalid.map((item) => ({ ...item, kind: "agent" as const })),
+      ...workflowInvalid.map((item) => ({ ...item, kind: "workflow" as const })),
+      ...pluginInvalid.map((item) => ({ ...item, kind: "plugin" as const })),
+    ])
 
     return {
       assets: allAssets,

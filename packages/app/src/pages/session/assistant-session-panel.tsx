@@ -11,6 +11,7 @@ import { SessionContextTab } from "@/components/session"
 import { DeliveryList, MemoryInspector, ReminderList } from "@/components/assistant-entity-lists"
 import { AssistantNoteEditor } from "@/components/assistant-note-editor"
 import { AssistantKbTab } from "@/pages/session/assistant-kb-tab"
+import { assistantQueryKey } from "@/utils/assistant-query"
 import { openEntityPanel, type AssistantPanelTab } from "./assistant-session-panel-open"
 
 const TABS: ReadonlyArray<{ id: AssistantPanelTab; label: string }> = [
@@ -21,13 +22,7 @@ const TABS: ReadonlyArray<{ id: AssistantPanelTab; label: string }> = [
   { id: "context", label: "assistant.panel.tab.context" },
 ]
 
-/**
- * Assistant 会话详情页右栏（计划 §3.1，D1）：自包含单面板，5-Tab
- * （提醒/记忆/知识库/笔记编辑器/上下文），手动开 + 右上角 X 关闭；面板在
- * 槽位内 flex-1 填满剩余宽度（对齐 chat/work 右栏，无固定拖拽宽度）。
- * fileTree 不在此槽位渲染（无 B 区空占位）。数据访问用 useServerSDK 服务级
- * （对齐 dashboard）。
- */
+/** Five-tab Assistant session panel without a file-tree region. */
 export function AssistantSessionPanel() {
   const language = useLanguage()
   const serverSDK = useServerSDK()
@@ -46,9 +41,8 @@ export function AssistantSessionPanel() {
 
   const close = () => assistant().close()
 
-  // ---- 提醒（会话内 schedule.list + 历史投递 inbox） ----
   const remindersQuery = useQuery(() => ({
-    queryKey: ["assistant", "panel", "reminders", sessionID()] as const,
+    queryKey: assistantQueryKey(serverSDK().scope, "panel", "reminders", sessionID()),
     queryFn: async () => {
       const id = sessionID()
       if (!id) return []
@@ -59,7 +53,7 @@ export function AssistantSessionPanel() {
   const reminders = createMemo(() => remindersQuery.data ?? [])
 
   const inboxQuery = useQuery(() => ({
-    queryKey: ["assistant", "panel", "inbox", sessionID()] as const,
+    queryKey: assistantQueryKey(serverSDK().scope, "panel", "inbox", sessionID()),
     queryFn: async () => {
       const id = sessionID()
       if (!id) return []
@@ -83,9 +77,8 @@ export function AssistantSessionPanel() {
       .catch(console.error)
   }
 
-  // ---- 记忆（跨会话 memory.list，与首页 Memory Inspector 同源） ----
   const memoryQuery = useQuery(() => ({
-    queryKey: ["assistant", "panel", "memory"] as const,
+    queryKey: assistantQueryKey(serverSDK().scope, "memory"),
     queryFn: async () => {
       const res = await serverSDK().client.memory.list()
       return Array.isArray(res.data) ? res.data : []

@@ -19,7 +19,7 @@ import { useFile, type SelectedLineRange } from "@/context/file"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { useMode } from "@/context/mode"
-import { ChatRightPanel } from "@/components/mode-surfaces"
+import { ChatRightPanel } from "@/components/chat/chat-right-panel"
 import { AssistantSessionPanel } from "@/pages/session/assistant-session-panel"
 import { WorkSessionPanel } from "@/pages/work-artifact-panel"
 import { SessionFileTree } from "@/components/session-file-tree"
@@ -445,7 +445,7 @@ export function SessionSidePanel(props: {
         </Show>
       </aside>
     </Show>
-    {/* ADR-15 §4 方案1: render-all + display:none 替换 Dynamic — slot 组件常驻不 remount */}
+    {/* Keep mode panels mounted so switching modes does not reset their state. */}
     <div class="flex-1 min-w-0" style={{ display: mode.currentMode === "chat" ? "" : "none" }}>
       <ChatRightPanel />
     </div>

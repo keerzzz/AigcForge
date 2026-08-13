@@ -6,14 +6,9 @@ import { useLanguage } from "@/context/language"
 import { useServerSDK } from "@/context/server-sdk"
 import { buildKbTagTree, type AssistantNavSelection, type KbTagNode } from "./assistant-nav-model"
 import type { KbNoteNote, PersonalMemoryInfo, ScheduleInfo } from "@aigcfroge/sdk/v2/client"
+import { assistantQueryKey } from "@/utils/assistant-query"
 
-/**
- * Assistant 实体导航树（批次 2 G3 / D4，计划 §3.2，对齐 ChatFeatureSidebar）：
- * 提醒/记忆/知识库分类（tags 层级聚合）/悬空链接 + 计数。首页左栏
- * （mode-surfaces assistant Sidebar）与详情次级左栏（secondary-sidebar）
- * 共用；数据查询 key 与 dashboard 同源（react-query 共享缓存）。
- * 选中态由父级注入（首页 = AssistantSelectionCtx，详情 = 右栏面板状态）。
- */
+/** Entity navigation shared by the Assistant home and session sidebars. */
 export function AssistantNavTree(props: {
   selected: AssistantNavSelection
   onSelect: (selection: AssistantNavSelection) => void
@@ -22,7 +17,7 @@ export function AssistantNavTree(props: {
   const serverSDK = useServerSDK()
 
   const pendingQuery = useQuery(() => ({
-    queryKey: ["assistant", "pending"] as const,
+    queryKey: assistantQueryKey(serverSDK().scope, "pending"),
     queryFn: async () => {
       const res = await serverSDK().client.schedule.pending()
       return Array.isArray(res.data) ? res.data : []
@@ -31,7 +26,7 @@ export function AssistantNavTree(props: {
   const pending = createMemo(() => pendingQuery.data ?? [])
 
   const memoryQuery = useQuery(() => ({
-    queryKey: ["assistant", "memory"] as const,
+    queryKey: assistantQueryKey(serverSDK().scope, "memory"),
     queryFn: async () => {
       const res = await serverSDK().client.memory.list()
       return Array.isArray(res.data) ? res.data : []
@@ -40,7 +35,7 @@ export function AssistantNavTree(props: {
   const memories = createMemo(() => memoryQuery.data ?? [])
 
   const kbQuery = useQuery(() => ({
-    queryKey: ["assistant", "kb"] as const,
+    queryKey: assistantQueryKey(serverSDK().scope, "kb"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.list({})
       return Array.isArray(res.data) ? res.data : []
@@ -49,7 +44,7 @@ export function AssistantNavTree(props: {
   const notes = createMemo(() => kbQuery.data ?? [])
 
   const danglingQuery = useQuery(() => ({
-    queryKey: ["assistant", "dangling"] as const,
+    queryKey: assistantQueryKey(serverSDK().scope, "dangling"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.dangling()
       return Array.isArray(res.data) ? res.data : []
@@ -58,8 +53,7 @@ export function AssistantNavTree(props: {
   const dangling = createMemo(() => danglingQuery.data ?? [])
 
   const kbTree = createMemo(() => buildKbTagTree(notes()))
-  // 默认折叠全部实体分组：首页左栏按计划 §3.5 只显示计数，避免提醒/记忆正文
-  // 与主区聚合重复渲染（e2e regression 曾因此 strict-mode 解析到 2 个元素）。
+  // Collapsed groups avoid duplicating entity content already shown by the dashboard.
   const [collapsed, setCollapsed] = createStore<Record<string, boolean>>({ reminders: true, memory: true, kb: true })
 
   const isItemSelected = (kind: "reminders" | "memory" | "kb", itemId: string) => {
@@ -73,7 +67,6 @@ export function AssistantNavTree(props: {
         {language.t("assistant.nav.title")}
       </div>
       <nav class="flex flex-col gap-px px-2" aria-label={language.t("assistant.nav.title")}>
-        {/* 提醒：pending 计数 + 列表 */}
         <NavSection
           id="reminders"
           icon="mode-assistant"
@@ -94,7 +87,6 @@ export function AssistantNavTree(props: {
           </For>
         </NavSection>
 
-        {/* 记忆：pending + confirmed 计数 */}
         <NavSection
           id="memory"
           icon="status"
@@ -115,7 +107,6 @@ export function AssistantNavTree(props: {
           </For>
         </NavSection>
 
-        {/* 知识库：tags 层级聚合 */}
         <NavSection
           id="kb"
           icon="edit"
@@ -129,7 +120,6 @@ export function AssistantNavTree(props: {
           </For>
         </NavSection>
 
-        {/* 悬空链接：计数（数组 length） */}
         <NavItem
           icon="outline-dots"
           label={language.t("assistant.nav.dangling")}
@@ -180,54 +170,43 @@ function NavSection(props: {
 
 function KbTagNodeRow(props: {
   node: KbTagNode
+  parentPath?: string
   selected: AssistantNavSelection
   onSelect: (selection: AssistantNavSelection) => void
 }) {
+  const path = () => (props.parentPath ? `${props.parentPath}/${props.node.tag}` : props.node.tag)
   return (
     <div class="flex min-w-0 flex-col">
       <NavItem
         icon="folder"
-        label={props.node.tag === "__untagged__" ? "" : props.node.tag}
+        label={props.node.tag === "__untagged__" ? "" : path()}
         untagged={props.node.tag === "__untagged__"}
         count={props.node.count}
         selected={false}
         onClick={() => props.onSelect({ kind: "kb" })}
-      />      <For each={props.node.children ?? []}>
-        {(child) => (
-          <div class="flex min-w-0 flex-col">
-            <NavItem
-              icon="folder"
-              label={`${props.node.tag}/${child.tag}`}
-              count={child.count}
-              selected={false}
-              onClick={() => props.onSelect({ kind: "kb" })}
-              class="pl-6"
+      />
+      <div class="flex min-w-0 flex-col pl-2">
+        <For each={props.node.children ?? []}>
+          {(child) => (
+            <KbTagNodeRow
+              node={child}
+              parentPath={path()}
+              selected={props.selected}
+              onSelect={props.onSelect}
             />
-            <For each={child.notes}>
-              {(note: KbNoteNote) => (
-                <NavItem
-                  icon="edit"
-                  label={note.title ?? ""}
-                  selected={props.selected?.kind === "kb" && props.selected.itemId === note.id}
-                  onClick={() => props.onSelect({ kind: "kb", itemId: note.id })}
-                  class="pl-8"
-                />
-              )}
-            </For>
-          </div>
-        )}
-      </For>
-      <For each={props.node.notes}>
-        {(note: KbNoteNote) => (
-          <NavItem
-            icon="edit"
-            label={note.title ?? ""}
-            selected={props.selected?.kind === "kb" && props.selected.itemId === note.id}
-            onClick={() => props.onSelect({ kind: "kb", itemId: note.id })}
-            class={props.node.children?.length ? "pl-8" : undefined}
-          />
-        )}
-      </For>
+          )}
+        </For>
+        <For each={props.node.notes}>
+          {(note: KbNoteNote) => (
+            <NavItem
+              icon="edit"
+              label={note.title ?? ""}
+              selected={props.selected?.kind === "kb" && props.selected.itemId === note.id}
+              onClick={() => props.onSelect({ kind: "kb", itemId: note.id })}
+            />
+          )}
+        </For>
+      </div>
     </div>
   )
 }

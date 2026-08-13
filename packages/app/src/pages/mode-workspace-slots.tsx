@@ -7,7 +7,7 @@ import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
 import { useServer, ServerConnection } from "@/context/server"
 import { type DirectorySDK } from "@/context/sdk"
-import { useChatDirectory, useModeWorkspaceAssets, useCodingSelection } from "@/pages/mode-workspace-context"
+import { useModeDirectory, useModeWorkspaceAssets, useCodingSelection } from "@/pages/mode-workspace-context"
 import { AssetWorkbench } from "@/components/chat/asset-workbench"
 import { AssetSessionSelector } from "@/components/chat/asset-session-selector"
 import { ChatImportDialog, serializeImport, wrapImportContent } from "@/components/chat/chat-import-dialog"
@@ -34,7 +34,7 @@ import { buildWorkPresetCatalog } from "@/pages/work-preset-catalog"
 import { presetLaunch, workflowLaunch } from "@/pages/work-preset-launch"
 import { ModeLocationNewSession } from "@/components/mode-location-new-session"
 
-/** Coding 左侧栏：项目列 + 服务器管理（复用 HomeProjectColumn，hooks 对齐旧 Home 组件） */
+/** Coding project and server navigation built on HomeProjectColumn. */
 export function CodingProjectColumnSidebar() {
   const layout = useLayout()
   const mode = useMode()
@@ -150,7 +150,7 @@ export function CodingProjectColumnSidebar() {
   )
 }
 
-/** Coding 主区：全功能会话列表（queryKey 已去 mode，records memo 按 mode 过滤） */
+/** Coding Session list with project selection, search, and prefetch. */
 export function CodingSessionListMain() {
   const sync = useServerSync()
   const layout = useLayout()
@@ -192,7 +192,7 @@ export function CodingSessionListMain() {
 
   const search = createMemo(() => state.search.trim())
 
-  // queryKey 已去 mode.currentMode（ADR-15 Step 7）
+  // Keep one Session cache across mode changes; mode filtering stays in memory.
   const sessionLoad = useQuery(() => ({
     queryKey: ["home", "sessions", codingSel.selection.server, ...projectDirectories()] as const,
     queryFn: async () => {
@@ -291,7 +291,6 @@ export function CodingSessionListMain() {
     const ctx = global.ensureServerCtx(conn)
     openSessionRecord({
       record,
-      conn,
       server: ServerConnection.key(conn),
       global,
       tabs,
@@ -399,7 +398,7 @@ export function CodingSessionListMain() {
   )
 }
 
-/** Chat 主区：资产工作台（ADR-15 Main slot for chat mode） */
+/** Chat asset workbench main surface. */
 export function ChatAssetWorkbenchMain() {
   const assets = useModeWorkspaceAssets()
   const { selected: chatFeature } = useChatFeature()
@@ -408,7 +407,7 @@ export function ChatAssetWorkbenchMain() {
   const global = useGlobal()
   const tabs = useTabs()
   const server = useServer()
-  const { directory: chatDirectory } = useChatDirectory()
+  const { directory: chatDirectory } = useModeDirectory()
 
   const conn = createMemo(() => server.current ?? global.servers.list()[0])
   const chatDir = () => chatDirectory() ?? ""
@@ -502,23 +501,13 @@ export function ChatAssetWorkbenchMain() {
   )
 }
 
-/** Work 主区占位 */
-export function PlaceholderMain(_props: { mode: string }) {
-  const language = useLanguage()
-  return (
-    <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-v2-text-text-muted text-13-regular">
-      <span>{language.t("sidebar.secondary.noResults")}</span>
-    </div>
-  )
-}
-
-/** Work 侧栏：项目 Location 选择器 + 新建会话（顶部逻辑与 WorkSecondarySidebar 共享） */
+/** Work location and new-session controls. */
 export function WorkProjectColumnSidebar() {
-  const { directory } = useChatDirectory()
+  const { directory } = useModeDirectory()
   return <ModeLocationNewSession directory={directory} mode="work" />
 }
 
-/** Work 主区：继续工作 + 官方预设 + 你的工作流资产（M1 §3.5 三区块） */
+/** Work home surface for recent Sessions, workflows, and presets. */
 export function WorkPresetCatalogMain() {
   const language = useLanguage()
   const tabs = useTabs()
@@ -526,10 +515,9 @@ export function WorkPresetCatalogMain() {
   const sync = useServerSync()
   const global = useGlobal()
   const server = useServer()
-  const { conn, ctx, directory } = useChatDirectory()
+  const { conn, ctx, directory } = useModeDirectory()
   const { categories } = buildWorkPresetCatalog()
 
-  // ---- ① 继续工作：mode=work 会话历史（D5，复用 home 会话管道 + filterSessionsByMode） ----
   const projects = createMemo(() => ctx()?.projects.list() ?? layout.projects.list())
   const projectByID = createMemo(
     () => new Map(projects().flatMap((project) => (project.id ? [[project.id, project] as const] : []))),
@@ -539,7 +527,7 @@ export function WorkPresetCatalogMain() {
     return dir ? [dir] : []
   })
   const sessionLoad = useQuery(() => ({
-    queryKey: ["home", "work-sessions", ...projectDirectories()] as const,
+    queryKey: [ctx()?.sdk.scope, "home", "work-sessions", ...projectDirectories()] as const,
     queryFn: async () => {
       await Promise.all(
         projectDirectories().map((d) => sync().project.loadSessions(d, { limit: HOME_SESSION_LIMIT })),
@@ -563,7 +551,6 @@ export function WorkPresetCatalogMain() {
     if (!c || !currentCtx) return
     openSessionRecord({
       record,
-      conn: c,
       server: ServerConnection.key(c),
       global,
       tabs,
@@ -572,7 +559,6 @@ export function WorkPresetCatalogMain() {
     })
   }
 
-  // ---- ③ 你的工作流资产：Chat workflow 资产（D3，引导降级） ----
   const [dirSdk, setDirSdk] = createSignal<DirectorySDK | undefined>()
   createEffect(() => {
     const dir = directory()
@@ -598,7 +584,7 @@ export function WorkPresetCatalogMain() {
     const dir = directory()
     const sdk = dirSdk()
     if (!c || !currentCtx || !dir || !sdk) return
-    // content 失败时降级为 name/description 摘要 seed，由 orchestrator 澄清步骤
+    // If workflow content fails to load, the orchestrator can clarify from its metadata.
     void sdk.client.workflowAsset
       .content({ path: asset.relativePath })
       .then((res) =>
@@ -659,7 +645,6 @@ export function WorkPresetCatalogMain() {
           <p class="text-v2-text-text-muted text-13-regular">{language.t("work.preset.subtitle")}</p>
         </div>
 
-        {/* ① 继续工作（加载后且有会话时展示；空态隐藏保持首页聚焦预设） */}
         <Show when={!sessionLoad.isLoading && workGroups().length > 0}>
           <section class="flex min-w-0 flex-col gap-3">
             <h2 class="text-v2-text-text-base text-13-medium">{language.t("work.home.continue")}</h2>
@@ -685,7 +670,6 @@ export function WorkPresetCatalogMain() {
           </section>
         </Show>
 
-        {/* ③ 你的工作流资产（仅在有资产时展示） */}
         <Show when={(workflowAssets() ?? []).length > 0}>
           <section class="flex min-w-0 flex-col gap-3">
             <h2 class="text-v2-text-text-base text-13-medium">{language.t("work.asset.title")}</h2>
@@ -708,7 +692,6 @@ export function WorkPresetCatalogMain() {
           </section>
         </Show>
 
-        {/* ② 开始新任务 · 官方预设 */}
         <For each={categories}>
           {(category) => (
             <section class="flex min-w-0 flex-col gap-3">

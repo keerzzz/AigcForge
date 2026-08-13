@@ -1,17 +1,13 @@
 import { createMemo } from "solid-js"
-import { useChatDirectory } from "@/pages/mode-workspace-context"
+import { useModeDirectory } from "@/pages/mode-workspace-context"
 import { ModeLocationNewSession } from "@/components/mode-location-new-session"
 import { AssistantNavTree } from "@/components/assistant-nav-tree"
 import { useAssistantSelection } from "@/pages/mode-workspace-context"
 import type { AssistantNavSelection } from "@/components/assistant-nav-model"
 
-/**
- * Assistant 首页左栏（PRD §8.1）：Location + 新建 + 实体导航树
- * （提醒/记忆/知识库分类 + 计数）。导航树选中态写入 AssistantSelectionCtx，
- * 主区会话列表联动（提醒/记忆高亮来源会话，知识库退化为全量）。
- */
+/** Assistant home sidebar with location, new-session, and entity navigation. */
 export function AssistantSidebar() {
-  const { directory } = useChatDirectory()
+  const { directory } = useModeDirectory()
   const { selection, select } = useAssistantSelection()
 
   const onSelect = (next: AssistantNavSelection) => {

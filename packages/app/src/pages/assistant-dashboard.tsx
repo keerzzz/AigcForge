@@ -8,13 +8,14 @@ import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
 import { useServer, ServerConnection } from "@/context/server"
 import { useServerSDK } from "@/context/server-sdk"
-import { useChatDirectory, useAssistantSelection } from "@/pages/mode-workspace-context"
+import { useModeDirectory, useAssistantSelection } from "@/pages/mode-workspace-context"
 import { modeDraft } from "@/context/mode"
 import { useServerSync } from "@/context/server-sync"
 import { useLayout } from "@/context/layout"
 import { openProjectNewSession, openSessionRecord, filterSessionsByMode } from "@/pages/layout/helpers"
 import { DeliveryList, MemoryInspector, ReminderList } from "@/components/assistant-entity-lists"
 import { sessionHighlightIDs } from "@/components/assistant-nav-model"
+import { assistantQueryKey } from "@/utils/assistant-query"
 import {
   HOME_SESSION_LIMIT,
   HomeSessionRow,
@@ -26,10 +27,7 @@ import {
 } from "@/pages/home"
 import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
 
-/**
- * Assistant Dashboard 主区（计划 §3.9.1）：顶部标题区 + 待办提醒横条（主心智，
- * 始终显示）+ 最近投递（空态隐藏）+ 会话列表（共享管道）。
- */
+/** Assistant dashboard for reminders, deliveries, memory, notes, and Sessions. */
 export function AssistantDashboardMain() {
   const language = useLanguage()
   const tabs = useTabs()
@@ -38,12 +36,11 @@ export function AssistantDashboardMain() {
   const server = useServer()
   const serverSDK = useServerSDK()
   const layout = useLayout()
-  const { conn, ctx, directory } = useChatDirectory()
+  const { conn, ctx, directory } = useModeDirectory()
   const { selection } = useAssistantSelection()
 
-  // ---- ① 待办提醒（跨会话，全局角标同源） ----
   const pendingQuery = useQuery(() => ({
-    queryKey: ["assistant", "pending"] as const,
+    queryKey: assistantQueryKey(serverSDK().scope, "pending"),
     queryFn: async () => {
       const res = await serverSDK().client.schedule.pending()
       // Defensive: a mock or unexpected response shape can hand back a non-array
@@ -54,9 +51,8 @@ export function AssistantDashboardMain() {
   }))
   const pending = createMemo(() => pendingQuery.data ?? [])
 
-  // ---- ② 最近投递（收件箱，跨会话） ----
   const recentQuery = useQuery(() => ({
-    queryKey: ["assistant", "recent"] as const,
+    queryKey: assistantQueryKey(serverSDK().scope, "recent"),
     queryFn: async () => {
       const res = await serverSDK().client.delivery.recent({ limit: 6 })
       return Array.isArray(res.data) ? res.data : []
@@ -64,9 +60,8 @@ export function AssistantDashboardMain() {
   }))
   const recent = createMemo(() => recentQuery.data ?? [])
 
-  // ---- ③ 个人记忆（Memory Inspector：pending 提议 + 已确认，Phase C） ----
   const memoryQuery = useQuery(() => ({
-    queryKey: ["assistant", "memory"] as const,
+    queryKey: assistantQueryKey(serverSDK().scope, "memory"),
     queryFn: async () => {
       const res = await serverSDK().client.memory.list()
       return Array.isArray(res.data) ? res.data : []
@@ -86,9 +81,8 @@ export function AssistantDashboardMain() {
     void serverSDK().client.memory.remove({ id }).then(() => memoryQuery.refetch()).catch(console.error)
   }
 
-  // ---- 知识库（Phase E：笔记列表 + 简易编辑器） ----
   const kbQuery = useQuery(() => ({
-    queryKey: ["assistant", "kb"] as const,
+    queryKey: assistantQueryKey(serverSDK().scope, "kb"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.list({})
       return Array.isArray(res.data) ? res.data : []
@@ -144,7 +138,6 @@ export function AssistantDashboardMain() {
       .catch(console.error)
   }
 
-  // ---- ④ 会话列表（复用 home 共享管道） ----
   const projects = createMemo(() => ctx()?.projects.list() ?? layout.projects.list())
   const projectByID = createMemo(
     () => new Map(projects().flatMap((project) => (project.id ? [[project.id, project] as const] : []))),
@@ -154,7 +147,7 @@ export function AssistantDashboardMain() {
     return dir ? [dir] : []
   })
   const sessionLoad = useQuery(() => ({
-    queryKey: ["home", "assistant-sessions", ...projectDirectories()] as const,
+    queryKey: [serverSDK().scope, "home", "assistant-sessions", ...projectDirectories()] as const,
     queryFn: async () => {
       await Promise.all(projectDirectories().map((d) => sync().project.loadSessions(d, { limit: HOME_SESSION_LIMIT })))
       return null
@@ -179,7 +172,6 @@ export function AssistantDashboardMain() {
     if (!c || !currentCtx) return
     openSessionRecord({
       record,
-      conn: c,
       server: ServerConnection.key(c),
       global,
       tabs,
@@ -213,7 +205,6 @@ export function AssistantDashboardMain() {
   return (
     <ScrollView class="min-h-0 flex-1">
       <div class="flex min-h-0 flex-col gap-6 px-6 py-5">
-        {/* 顶部标题区（统一骨架 ③） */}
         <div class="flex items-start justify-between gap-3">
           <div class="flex flex-col gap-1">
             <h1 class="text-v2-text-text-base text-16-medium">{language.t("assistant.dashboard.title")}</h1>
@@ -228,7 +219,6 @@ export function AssistantDashboardMain() {
           />
         </div>
 
-        {/* ② 待办提醒横条（主心智，始终显示） */}
         <section class="flex min-w-0 flex-col gap-3">
           <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.dashboard.reminders")}</h2>
           <ReminderList
@@ -241,7 +231,6 @@ export function AssistantDashboardMain() {
           />
         </section>
 
-        {/* ③ 最近投递（辅助区块，空态隐藏） */}
         <Show when={recentQuery.isError}>
           <section class="flex min-w-0 flex-col gap-3">
             <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.dashboard.recent")}</h2>
@@ -255,7 +244,6 @@ export function AssistantDashboardMain() {
           </section>
         </Show>
 
-        {/* ③ 个人记忆（Memory Inspector：提议 + 确认，空态隐藏） */}
         <Show when={memoryQuery.isError}>
           <section class="flex min-w-0 flex-col gap-3">
             <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.memory.title")}</h2>
@@ -275,7 +263,6 @@ export function AssistantDashboardMain() {
           </section>
         </Show>
 
-        {/* 知识库（Phase E：列表 + 简易编辑器） */}
         <section class="flex min-w-0 flex-col gap-3">
           <div class="flex min-w-0 items-center justify-between gap-3">
             <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.kb.title")}</h2>
@@ -364,7 +351,6 @@ export function AssistantDashboardMain() {
           </Show>
         </section>
 
-        {/* ④ 会话列表（共享管道） */}
         <section class="flex min-w-0 flex-col gap-3">
           <Show when={!sessionLoad.isLoading} fallback={<HomeSessionSkeleton label={language.t("assistant.dashboard.title")} />}>
             <Show when={groups().length > 0}>

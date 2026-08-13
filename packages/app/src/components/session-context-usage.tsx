@@ -54,8 +54,7 @@ export function SessionContextUsage(props: SessionContextUsageProps) {
   const openContext = () => {
     if (!params.id) return
 
-    // Assistant 模式：圆环 toggle 右栏上下文 Tab（D2，计划 §3.1）；右栏无
-    // coding 的 review/fileTree 概念，openSessionContext 不适用。
+    // Assistant owns context in its panel instead of the Coding review/file tabs.
     if (mode.currentMode === "assistant") {
       toggleEntityPanel(assistant(), "context")
       return

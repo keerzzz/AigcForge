@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test"
 import fs from "fs"
 import path from "path"
 
-// 批次 1 G2：AssistantSessionPanel 骨架 + 槽位接入 + 宽度机制。App 无
-// solid-testing-library（agent-task-hub.test.tsx 先例），测试校验源码级 wiring
-// 契约；纯状态迁移由 assistant-session-panel-open.test.ts 行为覆盖。
+// Batch 1 G2: AssistantSessionPanel structure, slot wiring, and layout contract.
+// The app has no solid-testing-library, so wiring is checked at source level;
+// state transitions are covered by assistant-session-panel-open.test.ts.
 
 const read = (rel: string) => fs.readFileSync(path.resolve(__dirname, rel), "utf-8")
 const panel = read("assistant-session-panel.tsx")

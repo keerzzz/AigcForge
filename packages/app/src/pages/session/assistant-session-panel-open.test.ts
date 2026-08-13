@@ -8,8 +8,9 @@ import {
   type AssistantPanelTab,
 } from "./assistant-session-panel-open"
 
-// 批次 1 §3.1 D3：openEntityPanel 信号（对齐 open-session-context.ts 纯函数模式）。
-// 面板状态访问器是注入的 handle（layout store 提供），此处只测状态迁移逻辑。
+// Batch 1 §3.1 D3: openEntityPanel follows the pure state-transition pattern
+// used by open-session-context.ts. The layout store is injected as a handle,
+// so this file only tests state transitions.
 
 function fakeHandle(initial: { opened?: boolean; tab?: AssistantPanelTab; target?: string } = {}) {
   let state = { opened: initial.opened ?? false, tab: initial.tab ?? ("reminders" as AssistantPanelTab), target: initial.target }

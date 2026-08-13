@@ -10,6 +10,7 @@ import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { DialogSettings } from "@/components/settings-v2"
 import { usePlatform } from "@/context/platform"
 import { useQuery } from "@tanstack/solid-query"
+import { assistantQueryKey } from "@/utils/assistant-query"
 
 export function ModeSwitcher() {
   const mode = useMode()
@@ -19,13 +20,11 @@ export function ModeSwitcher() {
   const platform = usePlatform()
   const serverSDK = useServerSDK()
 
-  // 全局角标（计划 §3.9.1b）：跨模式可见的 pending 提醒数；>99 显示 99+，
-  // 为 0 时隐藏。提醒是个人主动事项，不限于 assistant 模式。
   const pendingQuery = useQuery(() => ({
-    queryKey: ["assistant", "pending-badge"] as const,
+    queryKey: assistantQueryKey(serverSDK().scope, "pending"),
     queryFn: async () => {
       const res = await serverSDK().client.schedule.pending()
-      return res.data ?? []
+      return Array.isArray(res.data) ? res.data : []
     },
     refetchInterval: 60_000,
   }))
@@ -51,9 +50,7 @@ export function ModeSwitcher() {
                   aria-pressed={active()}
                   onClick={() => navigate(item.href)}
                 />
-                <Show
-                  when={item.id === "assistant" && pendingCount() > 0}
-                >
+                <Show when={item.id === "assistant" && pendingCount() > 0}>
                   <span class="pointer-events-none absolute -right-0.5 -top-0.5 rounded-full bg-v2-background-bg-deep px-1 text-v2-text-text-muted text-9-regular">
                     {pendingCount() > 99 ? "99+" : String(pendingCount())}
                   </span>

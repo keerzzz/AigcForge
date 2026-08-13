@@ -37,26 +37,18 @@ export function ChatRightPanel() {
   const [searchQuery, setSearchQuery] = createSignal("")
   const layout = useLayout()
   const file = useFile()
-  let sessionLayout: ReturnType<typeof useSessionLayout> | undefined
-
-  try {
-    sessionLayout = useSessionLayout()
-  } catch {
-    // Not inside a session layout
-  }
+  const sessionLayout = useSessionLayout()
   const command = useCommand()
-  // tab 状态走 layout.tabs store(对齐 code:持久化 + 拖拽 move/close 复用)。
-  // preview 为固定 tab(不进 all,仅 setActive);context 已由 openSessionContext 写 store;文件 tab 走 file:// 进 all。
-  const tabs = createMemo(() => sessionLayout?.tabs())
+  const tabs = sessionLayout.tabs
   const openedFileTabs = createMemo(
     () =>
       tabs()
-        ?.all()
+        .all()
         .filter((t) => t.startsWith("file://")) ?? [],
   )
-  const contextOpen = createMemo(() => tabs()?.active() === "context" || (tabs()?.all().includes("context") ?? false))
+  const contextOpen = createMemo(() => tabs().active() === "context" || tabs().all().includes("context"))
   const activeTab = createMemo(() => {
-    const active = tabs()?.active()
+    const active = tabs().active()
     if (active === "preview" || active === "context" || active?.startsWith("file://")) return active
     return openedFileTabs()[0] ?? (contextOpen() ? "context" : "preview")
   })
@@ -66,9 +58,7 @@ export function ChatRightPanel() {
     if (!current || current.active() === active) return
     current.setActive(active)
   })
-  // A 区显隐:复用 view().reviewPanel.opened()(对齐 code review toggle;session-header 的 sidebar-right icon 点击 toggle 此状态)。全局单例,chat/code 共享同一 A 区开关。
-  const reviewOpen = createMemo(() => (sessionLayout ? sessionLayout.view().reviewPanel.opened() : true))
-  // B 区显隐 + 宽度联动:复用 layout.fileTree + settings.visibility.fileTree(对齐 code file-tree;命令面板 fileTree.toggle 切换)。size 复用 createSizing(ResizeHandle 拖拽态,对齐 code props.size)。
+  const reviewOpen = createMemo(() => sessionLayout.view().reviewPanel.opened())
   const settings = useSettings()
   const size = createSizing()
   const fileOpen = createMemo(() =>
@@ -80,7 +70,6 @@ export function ChatRightPanel() {
     if (reviewOpen()) return "auto"
     return `${layout.fileTree.width()}px`
   })
-  // 拖拽排序:复用 code 的 DragDrop + getTabReorderIndex + tabs().move 模式(session-side-panel)
   const [dragStore, setDragStore] = createStore({ activeDraggable: undefined as string | undefined })
   const handleDragStart = (event: unknown) => {
     const id = getDraggableId(event)
@@ -90,25 +79,22 @@ export function ChatRightPanel() {
   const handleDragOver = (event: DragEvent) => {
     const { draggable, droppable } = event
     if (!draggable || !droppable) return
-    const currentTabs = tabs()?.all() ?? []
+    const currentTabs = tabs().all()
     const toIndex = getTabReorderIndex(currentTabs, draggable.id.toString(), droppable.id.toString())
     if (toIndex === undefined) return
-    tabs()?.move(draggable.id.toString(), toIndex)
+    tabs().move(draggable.id.toString(), toIndex)
   }
   const handleDragEnd = () => {
     setDragStore("activeDraggable", undefined)
   }
-  // 文件 tab:点击 FileTree 文件 -> open file:// tab(对齐 code session-side-panel openTab(file.tab(path)))
   const openFileTab = (path: string) => {
-    void tabs()?.open(file.tab(path))
+    void tabs().open(file.tab(path))
   }
-  // FileTree active:当前激活 file:// tab 的 path(高亮 FileTree 对应文件,对齐 code active prop)
   const activeFilePath = createMemo(() => {
     const tab = activeTab()
     return tab.startsWith("file://") ? (file.pathFromTab(tab) ?? undefined) : undefined
   })
-  // 搜索过滤:query 变 -> 防抖 150ms -> 递归遍历 .aigcfroge/ 匹配文件名 -> allowed 集合。
-  // 用 cancelled flag + onCleanup 取消先前慢 walk，避免并发。
+  // Cancel stale recursive searches when the query or directory context changes.
   const [searchAllowed, setSearchAllowed] = createSignal<readonly string[] | undefined>(undefined)
   createEffect(() => {
     const q = searchQuery().trim().toLowerCase()
@@ -138,9 +124,7 @@ export function ChatRightPanel() {
     onCleanup(() => { cancelled = true; clearTimeout(timer) })
   })
 
-  // Detect propose results:sync.data.message[sessionID] -> 各 message 的 parts(F-critical 修复)
   createEffect(() => {
-    if (!sessionLayout) return
     const sessionID = sessionLayout.params.id
     if (!sessionID) return
     const data = sync().data
@@ -167,7 +151,6 @@ export function ChatRightPanel() {
     },
     async (source: { path: string; kind: AssetKindId }) => fetchAssetInsertText(sdk().client, source.kind, source.path),
   )
-  // diff 用 createMemo,仅在 oldContent/candidate.content 变化时重算(E3)
   const diffLinesMemo = createMemo(() => {
     if (candidate.candidate?.status !== "exists") return null
     return diffTextLines(oldContent() ?? "", candidate.candidate?.content ?? "")
@@ -220,7 +203,6 @@ export function ChatRightPanel() {
   }
 
   return (
-    // id="review-panel": 复用 session-header icon 的 aria-controls 目标(对齐 code aside id),chat 模式下指向受控右栏容器
     <aside
       id="review-panel"
       class="relative min-w-0 h-full flex shrink-0 overflow-hidden bg-v2-background-bg-base"
@@ -232,7 +214,6 @@ export function ChatRightPanel() {
     >
       <Show when={open()}>
         <div class="size-full flex">
-          {/* A 区:tab 工作区。显隐复用 reviewOpen(对齐 code review toggle,session-header icon);窄屏由 SessionSidePanel 外层 Show 挡住。 */}
           <div
             class="relative min-w-0 h-full flex-1 overflow-hidden bg-v2-background-bg-base"
             inert={!reviewOpen()}
@@ -245,7 +226,7 @@ export function ChatRightPanel() {
             >
               <DragDropSensors />
               <ConstrainDragYAxis />
-              <TabsV2 value={activeTab()} onChange={(t) => tabs()?.setActive(t)} class="flex min-h-0 flex-1 flex-col">
+              <TabsV2 value={activeTab()} onChange={(tab) => tabs().setActive(tab)} class="flex min-h-0 flex-1 flex-col">
                 <TabsV2.List
                   class="shrink-0"
                   ref={(el: HTMLDivElement) => {
@@ -268,13 +249,13 @@ export function ChatRightPanel() {
                             icon="close-small"
                             variant="ghost"
                             class="h-5 w-5"
-                            onClick={() => sessionLayout?.tabs().close("context")}
+                            onClick={() => sessionLayout.tabs().close("context")}
                             aria-label={language.t("common.closeTab")}
                           />
                         </TooltipKeybind>
                       }
                       hideCloseButton
-                      onMiddleClick={() => sessionLayout?.tabs().close("context")}
+                      onMiddleClick={() => sessionLayout.tabs().close("context")}
                     >
                       <div class="flex items-center gap-2">
                         <SessionContextUsage variant="indicator" />
@@ -282,15 +263,13 @@ export function ChatRightPanel() {
                       </div>
                     </TabsV2.Trigger>
                   </Show>
-                  {/* 文件 tab:复用 SortableTab(默认 file visual:file.pathFromTab + FileVisual) + SortableProvider 拖拽排序,对齐 code */}
                   <SortableProvider ids={openedFileTabs()}>
                     <For each={openedFileTabs()}>
-                      {(p) => <SortableTab tab={p} onTabClose={(t) => tabs()?.close(t)} />}
+                      {(tab) => <SortableTab tab={tab} onTabClose={(item) => tabs().close(item)} />}
                     </For>
                   </SortableProvider>
                 </TabsV2.List>
 
-                {/* 预览 tab:候选预览 + apply */}
                 <TabsV2.Content value="preview" class="min-h-0 flex-1 overflow-y-auto">
                   <Show
                     when={candidate.candidate && !candidate.applied}
@@ -339,7 +318,7 @@ export function ChatRightPanel() {
                               </>
                             }
                           >
-                            {/* exists: 旧↔新 diff + 显式覆盖确认(PRD §9.3) */}
+                            {/* Existing assets require an explicit overwrite after reviewing the diff. */}
                             <span class="mb-2 block shrink-0 text-v2-state-fg-warning text-12-regular">
                               {language.t("promptAsset.candidate.exists")}
                             </span>
@@ -387,7 +366,6 @@ export function ChatRightPanel() {
                           </Show>
                         }
                       >
-                        {/* valid: 内容预览 + 直接应用(overwrite=false) */}
                         <span class="mb-2 block shrink-0 text-v2-state-fg-success text-12-regular">
                           {language.t("promptAsset.candidate.valid")}
                         </span>
@@ -417,7 +395,6 @@ export function ChatRightPanel() {
                   </Show>
                 </TabsV2.Content>
 
-                {/* 上下文 tab:复用 SessionContextTab(ADR-15 A1-3, PRD §9.2),对齐 Code contextOpen 开关 */}
                 <Show when={contextOpen()}>
                   <TabsV2.Content value="context" class="flex flex-col h-full overflow-hidden contain-strict">
                     <Show when={activeTab() === "context"}>
@@ -428,7 +405,6 @@ export function ChatRightPanel() {
                   </TabsV2.Content>
                 </Show>
 
-                {/* 文件 tab:FileTabContent(文件系统查看/编辑,对齐 code session-side-panel)。Step 2 改 ChatFileTabContent 加弹窗确认 */}
                 <Show when={activeTab().startsWith("file://") ? activeTab() : undefined} keyed>
                   {(tab) => <FileTabContent tab={tab} />}
                 </Show>
@@ -445,7 +421,6 @@ export function ChatRightPanel() {
             </DragDropProvider>
           </div>
 
-          {/* B 区:资产树。显隐复用 fileOpen(对齐 code file-tree:settings.visibility.fileTree + layout.fileTree.opened,命令面板 toggle);宽度复用 layout.fileTree.width。 */}
           <SessionFileTree
             size={size}
             borderClass={reviewOpen() ? "border-l border-v2-border-border-base" : undefined}
@@ -461,7 +436,6 @@ export function ChatRightPanel() {
                 onInput={(e) => setSearchQuery(e.currentTarget.value)}
               />
             </div>
-            {/* FileTree:复用 code FileTree 组件,path=".aigcfroge" 显示总文件夹文件树(对齐 code)。搜索框过滤:query -> 递归 walk .aigcfroge/ 匹配文件名 -> allowed 集合 */}
             <div class="min-h-0 flex-1 overflow-y-auto px-3 pt-3">
               <FileTree
                 path=".aigcfroge"
