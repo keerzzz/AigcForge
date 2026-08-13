@@ -381,11 +381,15 @@ describe("HttpApi SDK", () => {
           workspaceID,
           onRequest: (value) => (request = value),
         })
+        // The file-search index (Fff native scan, or the ripgrep fork that fills
+        // state.files) is built asynchronously; on Windows CI the warm-up can
+        // exceed pollWithTimeout's 5s default, so give it a generous window.
         const found = yield* pollWithTimeout(
           call(() => sdk.v2.fs.find({ query: "hello", type: "file" })).pipe(
             Effect.map((result) => (result.data?.data.length ? result : undefined)),
           ),
           "SDK file search index was not ready",
+          "30 seconds",
         )
         const url = new URL(request!.url)
 
