@@ -12,9 +12,10 @@ const max = 200
 const cache = new Map<string, MarkdownCacheEntry>()
 // DOMPurify 默认 ALLOWED_URI_REGEXP 只放行常见网络协议；assistant 引文锚定
 // 使用 [note title](kb://<noteID>)（批次 4 G4），需显式加入 kb: 协议，
-// 否则 sanitize 会剥掉 href 导致角标不可点击。保持其余默认白名单不变。
+// 否则 sanitize 会剥掉 href 导致角标不可点击。其余部分与 DOMPurify 默认
+// 白名单逐字一致（勿额外放行 file: 等默认不含的协议）。
 const ALLOWED_URI_REGEXP =
-  /^(?:(?:https?|ftp|file|mailto|tel|callto|sms|cid|xmpp|matrix|kb):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
+  /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix|kb):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
 const config = {
   USE_PROFILES: { html: true, mathMl: true },
   SANITIZE_NAMED_PROPS: true,
