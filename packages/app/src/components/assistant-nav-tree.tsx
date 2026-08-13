@@ -196,6 +196,8 @@ function KbTagNodeRow(props: {
             />
           )}
         </For>
+      </div>
+      <div class="flex min-w-0 flex-col pl-4">
         <For each={props.node.notes}>
           {(note: KbNoteNote) => (
             <NavItem

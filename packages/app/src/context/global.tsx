@@ -33,7 +33,7 @@ export const { use: useGlobal, provider: GlobalProvider } = createSimpleContext(
     }
     // Persisted "last active session" per server scope: the most recently opened /
     // navigated / sent session (view/send/home navigation all pass through
-    // sessionPlacement.onSet). The global home page pins it as「继续上次」.
+    // sessionPlacement.onSet). The global home page pins it as "Continue last".
     const [lastActiveStore, setLastActiveStore] = persisted(
       Persist.global("lastActiveSession", ["last-active-session.v1"]),
       createStore({} as Record<string, { directory: string; sessionID: string }>),

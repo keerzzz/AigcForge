@@ -69,11 +69,12 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     const mode = useMode()
     const list = createMemo(() => {
       const agents = sync().data.agent.filter((item) => item.mode !== "subagent" && !item.hidden)
-      // 2026-08-11 决策（元智能体调度架构讨论总结 §3.4）: chat/work 默认 meta，
-      // orchestrator 保留为委派目标；assistant 默认 assistant-orchestrator
-      // （fail-closed 个人事项执行者，计划 §3.3）。列表只展示策略允许的 primary
-      // agents — chat/work/assistant 模式显示 meta + 对应 orchestrator，其他
-      // 模式排除三个 orchestrator（避免选到被 policy 拒绝的 agent 触发 die）。
+      // 2026-08-11 decision (meta-agent scheduling discussion, plan §3.4): chat/work default to
+      // meta, keeping the orchestrator as the delegation target; assistant defaults to
+      // assistant-orchestrator (fail-closed personal-task executor, plan §3.3). The list only
+      // shows primary agents allowed by policy — chat/work/assistant show meta plus their
+      // orchestrator; other modes exclude the three orchestrators (avoiding agents the policy
+      // rejects from triggering die).
       if (mode.currentMode === "chat" || mode.currentMode === "work" || mode.currentMode === "assistant") {
         const orchestrator =
           mode.currentMode === "chat"
