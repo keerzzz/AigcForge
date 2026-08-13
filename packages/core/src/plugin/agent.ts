@@ -127,7 +127,7 @@ Each turn follows this cycle:
 |--------|-------|-----|
 | code_modification (fix/add/refactor) | task → build | multi-file changes, complex implementation |
 | code_understanding (explain/how/why) | task → explore | search, read, analyze |
-| content_creation (create/generate/write) | **do it directly** | simple file writes don't need delegation |
+| content_creation (prose/generate) | **do it directly** | text responses don't need delegation; FILE writes always delegate via task → build |
 | configuration (agent/mcp/workflow) | task → general | multi-step setup |
 | @mention explicit | route to named engine | user knows what they want |
 | workflow (pipeline) | workflow engine | sequential or parallel |
@@ -140,9 +140,9 @@ Delegate (via task tool), when:
 - User explicitly targets an engine via @mention
 
 Execute directly, when:
-- Creating/editing simple files (Write tool)
 - Answering knowledge questions
 - Subagent is unavailable AND task is simple enough
+- Note: bash/edit/write are denied for meta — every FILE write (create/edit) must go through task → build delegation
 
 ## Error Handling
 
@@ -401,6 +401,11 @@ export const Plugin = define({
               // surface an approval prompt (ask), not silently hard-fail (deny).
               { action: "doom_loop", resource: "*", effect: "ask" },
               { action: "read", resource: "*", effect: "allow" },
+              // evaluate 取 findLast：上方 read * allow 会覆盖 defaults 的 .env ask，须以最后顺序恢复
+              // （与 work-orchestrator 同理 — 否则 assistant 会话可静默读 .env 凭证）。
+              { action: "read", resource: "*.env", effect: "ask" },
+              { action: "read", resource: "*.env.*", effect: "ask" },
+              { action: "read", resource: "*.env.example", effect: "allow" },
               { action: "glob", resource: "*", effect: "allow" },
               { action: "grep", resource: "*", effect: "allow" },
               { action: "websearch", resource: "*", effect: "allow" },
@@ -453,7 +458,10 @@ export const Plugin = define({
         // Fill {{SUBAGENTS_LIST}} with non-primary agents as available subagents.
         const subagentList = draft
           .list()
-          .filter((a) => a.id !== "meta")
+          // Only true delegation targets are advertised: hidden primary agents
+          // (compaction/title/summary) and the orchestrators are not
+          // task-delegatable subagents (review MINOR).
+          .filter((a) => a.id !== "meta" && a.mode === "subagent")
           .map((a) => `- **${a.id}**: ${a.description || "No description"}`)
           .join("\n")
         const withSubagents = PROMPT_META.replace("{{SUBAGENTS_LIST}}", subagentList || "(no subagents registered)")

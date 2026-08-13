@@ -13,6 +13,7 @@ import { AssetSessionSelector } from "@/components/chat/asset-session-selector"
 import { ChatImportDialog, serializeImport, wrapImportContent } from "@/components/chat/chat-import-dialog"
 import { AssetDeleteDialog } from "@/components/chat/asset-delete-dialog"
 import { modeDraft, useMode } from "@/context/mode"
+import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
 import { openProjectNewSession, openSessionRecord, closeHomeProject, homeProjectDirectories, filterSessionsByMode } from "@/pages/layout/helpers"
 import { useServerSync } from "@/context/server-sync"
 import { useLayout, type LocalProject } from "@/context/layout"
@@ -605,7 +606,7 @@ export function WorkPresetCatalogMain() {
           currentCtx.projects,
           (serverKey, draftDirectory) =>
             tabs.newDraft(
-              { server: serverKey, directory: draftDirectory, ...modeDraft("work") },
+              { server: serverKey, directory: draftDirectory, ...modeDraft("work"), agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR },
               workflowLaunch({ name: asset.name, description: asset.description, steps: res.data?.steps ?? [] }),
             ),
           ServerConnection.key(c),
@@ -618,7 +619,7 @@ export function WorkPresetCatalogMain() {
           currentCtx.projects,
           (serverKey, draftDirectory) =>
             tabs.newDraft(
-              { server: serverKey, directory: draftDirectory, ...modeDraft("work") },
+              { server: serverKey, directory: draftDirectory, ...modeDraft("work"), agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR },
               workflowLaunch({ name: asset.name, description: asset.description, steps: [] }),
             ),
           ServerConnection.key(c),
@@ -640,6 +641,7 @@ export function WorkPresetCatalogMain() {
             server: serverKey,
             directory: draftDirectory,
             ...modeDraft("work"),
+            agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR,
             presetCategoryId: preset.category,
           },
           presetLaunch(preset),

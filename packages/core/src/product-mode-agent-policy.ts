@@ -38,13 +38,17 @@ export class CommandDeniedError extends Schema.TaggedErrorClass<CommandDeniedErr
 export const META = "meta"
 export const CHAT_ORCHESTRATOR = "chat-orchestrator"
 export const WORK_ORCHESTRATOR = "work-orchestrator"
+export const ASSISTANT_ORCHESTRATOR = "assistant-orchestrator"
 
 /**
- * 2026-08-11 决策（元智能体调度架构讨论总结 §3.4）: 所有 Product Mode 的默认
- * agent 都是 meta。chat/work orchestrator 保留为 meta 的 task 委派目标。
+ * 2026-08-11 决策（元智能体调度架构讨论总结 §3.4）: chat/work 的默认 agent 是
+ * meta（chat/work orchestrator 保留为 meta 的 task 委派目标）；assistant 模式
+ * 默认 assistant-orchestrator —— 个人事项的 fail-closed 执行者（计划 §3.3：
+ * 提醒/记忆/知识库/笔记经 assistant 会话直接执行，不做宽权限继承）。
  */
 export function resolvePrimaryAgent(mode: string, agent?: string) {
   if (agent) return agent
+  if (mode === "assistant") return ASSISTANT_ORCHESTRATOR
   return META
 }
 
@@ -93,6 +97,16 @@ export function checkPrimaryAgent(mode: string, agent?: string): PolicyVerdict {
     return { allowed: true }
   }
 
+  if (mode === "assistant") {
+    if (agent !== META && agent !== ASSISTANT_ORCHESTRATOR) {
+      return {
+        allowed: false,
+        error: new AgentNotAllowedError({ mode, agent, reason: "Only meta or assistant-orchestrator is allowed in assistant mode" }),
+      }
+    }
+    return { allowed: true }
+  }
+
   // Other modes: mode-bound orchestrators are not allowed as primary
   if (agent === CHAT_ORCHESTRATOR) {
     return {
@@ -104,6 +118,12 @@ export function checkPrimaryAgent(mode: string, agent?: string): PolicyVerdict {
     return {
       allowed: false,
       error: new AgentNotAllowedError({ mode, agent, reason: "work-orchestrator is only valid in work mode" }),
+    }
+  }
+  if (agent === ASSISTANT_ORCHESTRATOR) {
+    return {
+      allowed: false,
+      error: new AgentNotAllowedError({ mode, agent, reason: "assistant-orchestrator is only valid in assistant mode" }),
     }
   }
   return { allowed: true }

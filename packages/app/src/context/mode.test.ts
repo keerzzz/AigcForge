@@ -29,10 +29,10 @@ describe("product mode", () => {
     }
   })
 
-  test("binds every mode draft to meta (2026-08-11 decision)", () => {
+  test("binds chat/work/coding drafts to meta and assistant drafts to assistant-orchestrator (2026-08-11 + plan §3.3)", () => {
     expect(modeDraft("chat")).toEqual({ mode: "chat", agent: "meta" })
     expect(modeDraft("coding")).toEqual({ mode: "coding", agent: "meta" })
     expect(modeDraft("work")).toEqual({ mode: "work", agent: "meta" })
-    expect(modeDraft("assistant")).toEqual({ mode: "assistant", agent: "meta" })
+    expect(modeDraft("assistant")).toEqual({ mode: "assistant", agent: "assistant-orchestrator" })
   })
 })

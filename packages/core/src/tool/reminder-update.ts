@@ -1,5 +1,6 @@
 export * as ReminderUpdateTool from "./reminder-update"
 
+import { createHash } from "crypto"
 import { ToolFailure } from "@aigcfroge/llm"
 import { Cause, DateTime, Effect, Layer, Schema } from "effect"
 import { Schedule } from "@aigcfroge/schema/schedule"
@@ -24,8 +25,18 @@ Input:
 
 export const Input = Schema.Struct({
   id: Schedule.ID.annotate({ description: "Reminder id from reminder_create" }),
-  content: Schema.optional(Schema.String),
-  dueAt: Schema.optional(Schema.Number),
+  content: Schema.optional(
+    Schema.String.pipe(
+      Schema.check(Schema.isMinLength(1)),
+      Schema.check(Schema.isMaxLength(500)),
+    ),
+  ),
+  dueAt: Schema.optional(
+    Schema.Number.pipe(
+      Schema.check(Schema.isInt()),
+      Schema.check(Schema.isGreaterThan(0)),
+    ),
+  ),
   timezone: Schema.optional(IanaTimezone),
 })
 
@@ -62,7 +73,8 @@ export const layer = Layer.effectDiscard(
             Effect.andThen(
               Effect.gen(function* () {
                 const prior = yield* schedules.list(context.sessionID)
-                if (!prior.some((item) => item.id === input.id)) {
+                const priorRow = prior.find((item) => item.id === input.id)
+                if (!priorRow) {
                   return yield* Effect.fail(
                     new ToolFailure({ message: `Reminder ${input.id} does not belong to this session` }),
                   )
@@ -75,11 +87,22 @@ export const layer = Layer.effectDiscard(
                     )
                   }
                 }
+                // A changed content/due time regenerates the idempotency key so
+                // the original reminder tuple stays re-creatable after an edit
+                // (review MAJOR: the stale key would hit the unique constraint).
+                const identityChanged = input.content !== undefined || input.dueAt !== undefined
+                const mergedContent = input.content ?? priorRow.content
+                const mergedDueAt = input.dueAt ?? priorRow.dueAt
                 const updated = yield* schedules.update({
                   id: input.id,
                   ...(input.content !== undefined ? { content: input.content } : {}),
                   ...(input.dueAt !== undefined ? { dueAt: input.dueAt } : {}),
                   ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+                  ...(identityChanged
+                    ? {
+                        deliveryKey: `reminder:${context.sessionID}:${mergedDueAt}:${createHash("sha256").update(mergedContent).digest("hex").slice(0, 16)}`,
+                      }
+                    : {}),
                 })
                 if (!updated) {
                   return {

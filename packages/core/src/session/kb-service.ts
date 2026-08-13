@@ -190,6 +190,33 @@ export const layer = Layer.effect(
       }
     })
 
+    /**
+     * Re-resolve every incoming edge that currently points at `id` after its
+     * identity (title or aliases) changed: an edge's literal `[[target]]` no
+     * longer matches the renamed note, so it must either re-bind to a new
+     * target or go dangling — otherwise a rename leaves stale non-dangling
+     * edges (review MAJOR).
+     */
+    const reresolveIncoming = Effect.fn("KBService.reresolveIncoming")(function* (id: KBNote.NoteID) {
+      const notes = yield* db.select().from(KBNoteTable).all().pipe(Effect.orDie)
+      const index = buildTitleIndex(notes)
+      const incoming = yield* db
+        .select()
+        .from(KBLinkTable)
+        .where(eq(KBLinkTable.target_note_id, id))
+        .all()
+        .pipe(Effect.orDie)
+      for (const edge of incoming) {
+        const target = resolveInScope(edge.target_title, index.scopeById.get(edge.source_note_id), index)
+        yield* db
+          .update(KBLinkTable)
+          .set({ target_note_id: target ?? null, dangling: target === undefined })
+          .where(eq(KBLinkTable.id, edge.id))
+          .run()
+          .pipe(Effect.orDie)
+      }
+    })
+
     /** Rewrite the note's kb_link edges from its current content. */
     const syncLinks = Effect.fn("KBService.syncLinks")(function* (id: KBNote.NoteID, content: string, scope: KBNote.NoteScope) {
       yield* db.delete(KBLinkTable).where(eq(KBLinkTable.source_note_id, id)).run().pipe(Effect.orDie)
@@ -248,6 +275,11 @@ export const layer = Layer.effect(
         }
         const id = KBNote.NoteID.create()
         const now = Date.now()
+        // File-first (ADR-14: the `.md` file is the content source of truth):
+        // write the mirror BEFORE the DB row so a DB fault leaves an orphan
+        // file that syncFromDirectory re-imports — never a DB row missing its
+        // file (review MAJOR: partial failure left corrupt state).
+        yield* writeFile(input.baseDir, input.scope, input.title, input.content)
         yield* db
           .insert(KBNoteTable)
           .values({
@@ -265,7 +297,6 @@ export const layer = Layer.effect(
           .pipe(Effect.orDie)
         yield* ensureFts(id, input.title, input.content)
         yield* syncLinks(id, input.content, input.scope)
-        yield* writeFile(input.baseDir, input.scope, input.title, input.content)
         // A new title/alias resolves previously dangling edges pointing at it.
         yield* resolveDanglingFor(input.title)
         for (const alias of input.aliases ?? []) yield* resolveDanglingFor(alias)
@@ -313,25 +344,10 @@ export const layer = Layer.effect(
         }
         const title = input.title ?? prior.title
         const content = input.content ?? prior.content
-        yield* db
-          .update(KBNoteTable)
-          .set({
-            ...(input.title !== undefined ? { title } : {}),
-            ...(input.content !== undefined ? { content } : {}),
-            ...(input.tags !== undefined ? { tags: [...input.tags] } : {}),
-            ...(input.aliases !== undefined ? { aliases: [...input.aliases] } : {}),
-            time_updated: Date.now(),
-          })
-          .where(eq(KBNoteTable.id, input.id))
-          .run()
-          .pipe(Effect.orDie)
-        yield* ensureFts(input.id, title, content)
-        yield* syncLinks(input.id, content, prior.scope)
-        if (input.title !== undefined) yield* resolveDanglingFor(input.title)
-        if (input.aliases !== undefined) for (const alias of input.aliases) yield* resolveDanglingFor(alias)
-        // Keep the `.md` mirror in sync (review MAJOR #6): a renamed title
-        // removes the old file, and the new content overwrites the note file —
-        // otherwise the next syncFromDirectory would revert the edit.
+        // File-first mirror (content source of truth, ADR-14 §2): write the new
+        // `.md` BEFORE the DB row so a DB fault leaves the file ahead of the
+        // index — the next syncFromDirectory converges the index to the file
+        // instead of stranding a DB row missing its file (review MAJOR).
         if (input.baseDir) {
           const dir = prior.scope === "global" ? `${input.baseDir}/knowledge-base` : `${input.baseDir}/.aigcfroge/knowledge-base`
           yield* fs.ensureDir(dir).pipe(Effect.orDie)
@@ -350,6 +366,26 @@ export const layer = Layer.effect(
           }
           yield* fs.writeWithDirs(absolute, content).pipe(Effect.orDie)
         }
+        yield* db
+          .update(KBNoteTable)
+          .set({
+            ...(input.title !== undefined ? { title } : {}),
+            ...(input.content !== undefined ? { content } : {}),
+            ...(input.tags !== undefined ? { tags: [...input.tags] } : {}),
+            ...(input.aliases !== undefined ? { aliases: [...input.aliases] } : {}),
+            time_updated: Date.now(),
+          })
+          .where(eq(KBNoteTable.id, input.id))
+          .run()
+          .pipe(Effect.orDie)
+        yield* ensureFts(input.id, title, content)
+        yield* syncLinks(input.id, content, prior.scope)
+        if (input.title !== undefined) yield* resolveDanglingFor(input.title)
+        if (input.aliases !== undefined) for (const alias of input.aliases) yield* resolveDanglingFor(alias)
+        // A rename/alias change invalidates incoming edges that resolved to the
+        // old identity: re-resolve them against the current index so they point
+        // at the new target or go dangling (review MAJOR).
+        if (input.title !== undefined || input.aliases !== undefined) yield* reresolveIncoming(input.id)
         const row = yield* db.select().from(KBNoteTable).where(eq(KBNoteTable.id, input.id)).get().pipe(Effect.orDie)
         return row ? toNote(row) : undefined
       }),
@@ -384,7 +420,9 @@ export const layer = Layer.effect(
       Effect.gen(function* () {
         yield* events.publish(Event.KBSearched, {})
         const limit = options?.limit ?? 20
-        // FTS5 (unicode61) first: word-level for Latin, character-level for CJK.
+        // FTS5 (unicode61) first: word-level for Latin. unicode61 tokenizes a
+        // CJK run as a single token, so partial CJK phrases cannot match FTS —
+        // the LIKE fallback below carries those (plan P3).
         // A MATCH syntax error (e.g. an unquoted `"` in the query) must degrade
         // to the LIKE fallback — never a 500 (review MAJOR #4).
         const ftsRows = yield* db
@@ -488,31 +526,46 @@ export const layer = Layer.effect(
       Effect.gen(function* () {
         const entries = yield* fs.readDirectoryEntries(dir).pipe(Effect.orDie)
         const files = entries.filter((e) => e.type === "file" && e.name.endsWith(".md"))
-        let synced = 0
-        for (const file of files) {
-          const title = file.name.slice(0, -3)
-          const content = (yield* fs.readFileStringSafe(`${dir}/${file.name}`).pipe(Effect.orDie)) ?? ""
-          const existing = yield* db
-            .select()
-            .from(KBNoteTable)
-            .where(and(eq(KBNoteTable.scope, scope), eq(KBNoteTable.title, title)))
-            .get()
-            .pipe(Effect.orDie)
-          if (existing) {
-            if (existing.content !== content) {
-              yield* db
-                .update(KBNoteTable)
-                .set({ content, time_updated: Date.now() })
-                .where(eq(KBNoteTable.id, existing.id))
-                .run()
-                .pipe(Effect.orDie)
-              yield* ensureFts(existing.id, title, content)
-              yield* syncLinks(existing.id, content, scope)
+        // One file whose stem is not a valid note title (e.g. `.md` → empty,
+        // `..md` → `..`) must not abort the whole directory sync: import the
+        // rest and skip the broken file (review MINOR).
+        const importOne = Effect.fn("KBService.syncImportOne")((file: { name: string; type: string }) =>
+          Effect.gen(function* () {
+            const title = file.name.slice(0, -3)
+            const content = (yield* fs.readFileStringSafe(`${dir}/${file.name}`).pipe(Effect.orDie)) ?? ""
+            const existing = yield* db
+              .select()
+              .from(KBNoteTable)
+              .where(and(eq(KBNoteTable.scope, scope), eq(KBNoteTable.title, title)))
+              .get()
+              .pipe(Effect.orDie)
+            if (existing) {
+              if (existing.content !== content) {
+                yield* db
+                  .update(KBNoteTable)
+                  .set({ content, time_updated: Date.now() })
+                  .where(eq(KBNoteTable.id, existing.id))
+                  .run()
+                  .pipe(Effect.orDie)
+                yield* ensureFts(existing.id, title, content)
+                yield* syncLinks(existing.id, content, scope)
+              }
+            } else {
+              yield* create({ title, content, scope, tags: [], baseDir: undefined })
             }
-          } else {
-            yield* create({ title, content, scope, tags: [], baseDir: undefined })
-          }
-          synced++
+            return 1
+          }),
+        )
+        let synced = 0
+        let skipped = 0
+        for (const file of files) {
+          const imported = yield* importOne(file).pipe(
+            Effect.catchCause((cause) =>
+              Effect.logWarning("skipping un-importable note file", { file: file.name, cause }).pipe(Effect.as(0)),
+            ),
+          )
+          synced += imported
+          if (imported === 0) skipped++
         }
         // Notes whose `.md` file disappeared are removed from the index
         // (review MINOR: the doc contract said so but nothing implemented it —
@@ -531,10 +584,15 @@ export const layer = Layer.effect(
             message: `Refusing to sync "${dir}" (scope "${scope}"): no .md files found but the index holds ${existingNotes.length} note(s) — likely a wrong or emptied directory`,
           })
         }
-        const fileTitles = new Set(files.map((file) => file.name.slice(0, -3)))
-        for (const note of existingNotes) {
-          if (!fileTitles.has(note.title)) {
-            yield* remove({ id: note.id, baseDir: undefined })
+        // Only reconcile deletions when every file imported cleanly: a skipped
+        // file means the directory listing isn't fully trustworthy, and the
+        // absence-based deletion could drop notes the file system still owns.
+        if (skipped === 0) {
+          const fileTitles = new Set(files.map((file) => file.name.slice(0, -3)))
+          for (const note of existingNotes) {
+            if (!fileTitles.has(note.title)) {
+              yield* remove({ id: note.id, baseDir: undefined })
+            }
           }
         }
         return synced

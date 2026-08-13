@@ -133,6 +133,25 @@ describe("KBService", () => {
       expect((yield* kb.linksFrom(created.id))[0]?.dangling).toBe(false)
     }),
   )
+
+  it.effect("rename re-resolves incoming edges instead of leaving a stale target", () =>
+    Effect.gen(function* () {
+      const kb = yield* KBService.Service
+      const dir = base()
+      const source = yield* kb.create({ title: "Source", content: "links to [[Old]]", scope: "project", baseDir: dir })
+      const old = yield* kb.create({ title: "Old", content: "target", scope: "project", baseDir: dir })
+      expect((yield* kb.linksFrom(source.id))[0]?.dangling).toBe(false)
+
+      // Rename Old → NewName: [[Old]] no longer matches, so the edge must
+      // re-dangle (review MAJOR: previously it stayed resolved to a dead title).
+      yield* kb.update({ id: old.id, title: "NewName", baseDir: dir })
+      expect((yield* kb.linksFrom(source.id))[0]?.dangling).toBe(true)
+
+      // A new note titled Old re-binds the edge (dangling → resolved).
+      yield* kb.create({ title: "Old", content: "back", scope: "project", baseDir: dir })
+      expect((yield* kb.linksFrom(source.id))[0]?.dangling).toBe(false)
+    }),
+  )
 })
 
 describe("KBService syncFromDirectory", () => {
@@ -154,6 +173,25 @@ describe("KBService syncFromDirectory", () => {
       const imported = notes.find((n) => n.title === "Imported")!
       const links = yield* kb.linksFrom(imported.id)
       expect(links.find((l) => l.targetTitle === "World")?.dangling).toBe(false)
+    }),
+  )
+
+  it.effect("skips un-importable files instead of aborting the whole sync", () =>
+    Effect.gen(function* () {
+      const kb = yield* KBService.Service
+      const fs = yield* FSUtil.Service
+      const dir = base()
+      yield* fs.ensureDir(dir).pipe(Effect.orDie)
+      yield* fs.writeWithDirs(`${dir}/Good.md`, "hello").pipe(Effect.orDie)
+      // A filename whose stem is not a valid note title (empty) must be skipped,
+      // not abort the import of every other file (review MINOR).
+      yield* fs.writeWithDirs(`${dir}/.md`, "junk").pipe(Effect.orDie)
+
+      const synced = yield* kb.syncFromDirectory(dir, "global")
+      expect(synced).toBe(1)
+
+      const notes = yield* kb.list({ scope: "global" })
+      expect(notes.map((n) => n.title)).toEqual(["Good"])
     }),
   )
 

@@ -142,6 +142,7 @@ export interface Interface {
     readonly content?: string
     readonly dueAt?: number
     readonly timezone?: string
+    readonly deliveryKey?: string
   }) => Effect.Effect<Schedule.Info | undefined>
   /**
    * Claim a pending row into running with a lease (conditional; undefined when
@@ -265,6 +266,7 @@ export const layer = Layer.effect(
       readonly content?: string
       readonly dueAt?: number
       readonly timezone?: string
+      readonly deliveryKey?: string
     }) =>
       Effect.gen(function* () {
         const row = yield* db.select().from(ScheduleTable).where(eq(ScheduleTable.id, input.id)).get().pipe(Effect.orDie)
@@ -277,6 +279,10 @@ export const layer = Layer.effect(
             ...(input.content !== undefined ? { content: input.content } : {}),
             ...(input.dueAt !== undefined ? { due_at: input.dueAt } : {}),
             ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+            // A changed content/due time must regenerate the idempotency key
+            // (deliveryKey) or the stale key blocks re-creating the original
+            // reminder (unique constraint) after an edit (review MAJOR).
+            ...(input.deliveryKey !== undefined ? { delivery_key: input.deliveryKey } : {}),
             // Re-scheduling resets the retry timeline: a fresh due time means a
             // fresh delivery attempt budget.
             ...(rescheduled ? { attempts: 0, next_attempt_at: null } : {}),

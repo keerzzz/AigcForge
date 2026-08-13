@@ -95,6 +95,32 @@ describe("ScheduleService", () => {
     }),
   )
 
+  it.effect("update regenerates delivery_key on content/dueAt change, freeing the original tuple", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const schedules = yield* ScheduleService.Service
+      const origDueAt = Date.now() + 120_000
+      const created = yield* schedules.create(makeInput({ dueAt: origDueAt, deliveryKey: "reminder:orig:1" }))
+
+      // Edit content + due time: the idempotency key must change, otherwise
+      // re-creating the ORIGINAL tuple later collides on the unique index
+      // (review MAJOR: reminder_update never regenerated delivery_key).
+      const updated = yield* schedules.update({
+        id: created.id,
+        content: "edited",
+        dueAt: Date.now() + 240_000,
+        deliveryKey: "reminder:edited:1",
+      })
+      expect(updated?.deliveryKey).toBe("reminder:edited:1")
+
+      const recreated = yield* schedules.create(
+        makeInput({ dueAt: origDueAt, content: "follow up with customer", deliveryKey: "reminder:orig:1" }),
+      )
+      expect(recreated.id).toBeDefined()
+      expect(yield* schedules.countPending()).toBe(2)
+    }),
+  )
+
   it.effect("claim is conditional: a pending row claims once, a second claim races", () =>
     Effect.gen(function* () {
       yield* setup
