@@ -81,6 +81,12 @@ export const kbHandlers = HttpApiBuilder.group(InstanceHttpApi, "kb", (handlers)
       return yield* kb.listDangling()
     })
 
+    const backlinks = Effect.fn("KBHttpApi.backlinks")(function* (ctx: { params: { id: KBNote.NoteID } }) {
+      const note = yield* kb.get(ctx.params.id)
+      if (!note) return yield* Effect.fail(new InvalidRequestError({ message: `Note ${ctx.params.id} not found` }))
+      return yield* kb.backlinks(ctx.params.id)
+    })
+
     const search = Effect.fn("KBHttpApi.search")(function* (ctx: {
       query: { readonly query: string; readonly scope?: KBNote.NoteScope; readonly limit?: number }
     }) {
@@ -94,6 +100,7 @@ export const kbHandlers = HttpApiBuilder.group(InstanceHttpApi, "kb", (handlers)
       .handle("update", update)
       .handle("remove", remove)
       .handle("dangling", dangling)
+      .handle("backlinks", backlinks)
       .handle("search", search)
   }),
 )

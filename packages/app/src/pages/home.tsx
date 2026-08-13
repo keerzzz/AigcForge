@@ -712,6 +712,8 @@ export function HomeSessionRow(props: {
   activeServer: boolean
   onClick: () => void
   badge?: JSX.Element
+  /** Assistant 左栏实体选中 → 来源会话高亮（D5）；默认不亮。 */
+  highlighted?: boolean
 }) {
   const title = createMemo(() => sessionTitle(props.record.session.title) || props.record.session.id)
 
@@ -729,6 +731,10 @@ export function HomeSessionRow(props: {
     <button
       type="button"
       data-component="home-session-row"
+      data-highlighted={props.highlighted ? "" : undefined}
+      classList={{
+        "bg-v2-background-bg-layer-03 [box-shadow:inset_0_0_0_0.5px_var(--v2-border-border-muted)]": props.highlighted,
+      }}
       class={`${HOME_ROW} h-10 gap-2 px-6 py-3 pl-4 flex items-center justify-between group`}
       onClick={props.onClick}
     >

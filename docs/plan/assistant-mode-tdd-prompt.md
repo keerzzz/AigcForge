@@ -2,6 +2,7 @@
 
 > **用途**：粘贴到新对话作为初始 prompt，驱动独立 agent 完整执行 [Assistant 模式实施计划](assistant-mode-implementation.md)（Phase A-F）。
 > **来源**：[实施计划](assistant-mode-implementation.md)（范围真源）、[Assistant PRD v4](../prd/assistant-mode-personal-agent.md)、[元智能体调度架构讨论总结](../research/agent/元智能体调度架构讨论总结.md)（meta 契约）、[双向链接与防幻觉机制调研](../research/agent/AigcForge-双向链接与防幻觉机制调研.md)
+> **后续**：本提示词覆盖 Phase A-F（已合入）。会话详情页布局（§2.6 D6 的右栏 Tab）已拆分为独立工作，见 [assistant-session-detail-plan.md](assistant-session-detail-plan.md) + [assistant-session-detail-tdd-prompt.md](assistant-session-detail-tdd-prompt.md)。
 > **分支**：`assistant`（从最新 main 切出）
 > **完成标准**：§9 验收清单全过 + typecheck/lint/test 绿
 

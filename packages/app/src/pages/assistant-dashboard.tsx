@@ -8,11 +8,13 @@ import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
 import { useServer, ServerConnection } from "@/context/server"
 import { useServerSDK } from "@/context/server-sdk"
-import { useChatDirectory } from "@/pages/mode-workspace-context"
+import { useChatDirectory, useAssistantSelection } from "@/pages/mode-workspace-context"
 import { modeDraft } from "@/context/mode"
 import { useServerSync } from "@/context/server-sync"
 import { useLayout } from "@/context/layout"
 import { openProjectNewSession, openSessionRecord, filterSessionsByMode } from "@/pages/layout/helpers"
+import { DeliveryList, MemoryInspector, ReminderList } from "@/components/assistant-entity-lists"
+import { sessionHighlightIDs } from "@/components/assistant-nav-model"
 import {
   HOME_SESSION_LIMIT,
   HomeSessionRow,
@@ -22,7 +24,7 @@ import {
   groupSessions,
   type HomeSessionRecord,
 } from "@/pages/home"
-import type { KbNoteNote, PersonalMemoryInfo, ScheduleInfo } from "@aigcfroge/sdk/v2/client"
+import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
 
 /**
  * Assistant Dashboard 主区（计划 §3.9.1）：顶部标题区 + 待办提醒横条（主心智，
@@ -37,6 +39,7 @@ export function AssistantDashboardMain() {
   const serverSDK = useServerSDK()
   const layout = useLayout()
   const { conn, ctx, directory } = useChatDirectory()
+  const { selection } = useAssistantSelection()
 
   // ---- ① 待办提醒（跨会话，全局角标同源） ----
   const pendingQuery = useQuery(() => ({
@@ -162,6 +165,9 @@ export function AssistantDashboardMain() {
     return filterSessionsByMode(all, "assistant").slice(0, HOME_SESSION_LIMIT)
   })
   const groups = createMemo(() => groupSessions(records(), language))
+  const highlightedSessions = createMemo(() =>
+    sessionHighlightIDs({ selection: selection, reminders: pending(), memories: memories() }),
+  )
   const activeConnKey = createMemo(() => {
     const c = conn()
     return c ? ServerConnection.key(c) : server.key
@@ -204,9 +210,6 @@ export function AssistantDashboardMain() {
     void serverSDK().client.delivery.read({ deliveryKey }).then(() => recentQuery.refetch()).catch(console.error)
   }
 
-  const formatDue = (dueAt: number | "-Infinity" | "Infinity" | "NaN") =>
-    new Date(typeof dueAt === "number" ? dueAt : Date.now()).toLocaleString()
-
   return (
     <ScrollView class="min-h-0 flex-1">
       <div class="flex min-h-0 flex-col gap-6 px-6 py-5">
@@ -228,49 +231,14 @@ export function AssistantDashboardMain() {
         {/* ② 待办提醒横条（主心智，始终显示） */}
         <section class="flex min-w-0 flex-col gap-3">
           <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.dashboard.reminders")}</h2>
-          <div class="flex min-w-0 flex-col gap-2 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
-            <Show when={pendingQuery.isError}>
-              <p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.dashboard.loadError")}</p>
-            </Show>
-            <Show when={!pendingQuery.isError}>
-              <Show
-                when={pending().length > 0}
-                fallback={
-                  pendingQuery.isLoading ? null : (
-                    <p class="text-v2-text-text-muted text-13-regular">
-                      {language.t("assistant.dashboard.reminders.empty")}
-                    </p>
-                  )
-                }
-              >
-                <p class="text-v2-text-text-base text-13-medium">
-                  {language.t("assistant.dashboard.pendingCount", { count: String(pending().length) })}
-                </p>
-                <div class="flex min-w-0 flex-col gap-px">
-                  <For each={pending()}>
-                    {(reminder: ScheduleInfo) => (
-                      <div class="flex min-w-0 items-center gap-2 py-1">
-                        <Icon name="mode-assistant" size="small" class="shrink-0 text-v2-icon-icon-muted" />
-                        <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">
-                          {reminder.content ?? ""}
-                        </span>
-                        <span class="shrink-0 text-v2-text-text-muted text-11-regular">
-                          {formatDue(reminder.dueAt)} · {reminder.timezone ?? ""}
-                        </span>
-                        <IconButtonV2
-                          variant="ghost-muted"
-                          size="small"
-                          icon={<Icon name="xmark-small" />}
-                          aria-label={language.t("assistant.dashboard.cancelReminder")}
-                          onClick={() => cancelReminder(reminder.id)}
-                        />
-                      </div>
-                    )}
-                  </For>
-                </div>
-              </Show>
-            </Show>
-          </div>
+          <ReminderList
+            pending={pending()}
+            error={pendingQuery.isError}
+            loading={pendingQuery.isLoading}
+            onCancel={cancelReminder}
+            emptyLabel={language.t("assistant.dashboard.reminders.empty")}
+            errorLabel={language.t("assistant.dashboard.loadError")}
+          />
         </section>
 
         {/* ③ 最近投递（辅助区块，空态隐藏） */}
@@ -283,33 +251,7 @@ export function AssistantDashboardMain() {
         <Show when={!recentQuery.isError && recent().length > 0}>
           <section class="flex min-w-0 flex-col gap-3">
             <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.dashboard.recent")}</h2>
-            <div class="flex min-w-0 flex-col gap-px">
-              <For each={recent()}>
-                {(delivery) => (
-                  <div class="flex min-w-0 items-center gap-2 py-1">
-                    <Icon name="status-active" size="small" class="shrink-0 text-v2-icon-icon-muted" />
-                    <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">
-                      {delivery.content ?? ""}
-                    </span>
-                    <span class="shrink-0 text-v2-text-text-muted text-11-regular">
-                      {formatDue(delivery.deliveredAt)}
-                    </span>
-                    <Show when={delivery.caughtUp}>
-                      <span class="shrink-0 text-v2-text-text-faint text-11-regular">
-                        {language.t("assistant.dashboard.caughtUp")}
-                      </span>
-                    </Show>
-                    <IconButtonV2
-                      variant="ghost-muted"
-                      size="small"
-                      icon={<Icon name="status-active" />}
-                      aria-label={language.t("assistant.dashboard.markRead")}
-                      onClick={() => markRead(delivery.deliveryKey)}
-                    />
-                  </div>
-                )}
-              </For>
-            </div>
+            <DeliveryList records={recent()} onMarkRead={markRead} />
           </section>
         </Show>
 
@@ -323,64 +265,13 @@ export function AssistantDashboardMain() {
         <Show when={!memoryQuery.isError && memories().length > 0}>
           <section class="flex min-w-0 flex-col gap-3">
             <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.memory.title")}</h2>
-
-            <Show when={pendingMemories().length > 0}>
-              <div class="flex min-w-0 flex-col gap-2">
-                <p class="text-v2-text-text-muted text-12-regular">{language.t("assistant.memory.pending")}</p>
-                <div class="flex min-w-0 flex-col gap-px">
-                  <For each={pendingMemories()}>
-                    {(memory: PersonalMemoryInfo) => (
-                      <div class="flex min-w-0 items-center gap-2 py-1">
-                        <Icon name="status" size="small" class="shrink-0 text-v2-icon-icon-muted" />
-                        <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">
-                          {memory.content ?? ""}
-                        </span>
-                        <span class="shrink-0 text-v2-text-text-faint text-11-regular">{memory.source}</span>
-                        <IconButtonV2
-                          variant="neutral"
-                          size="small"
-                          icon={<Icon name="status-active" />}
-                          aria-label={language.t("assistant.memory.confirm")}
-                          onClick={() => confirmMemory(memory.id)}
-                        />
-                        <IconButtonV2
-                          variant="ghost-muted"
-                          size="small"
-                          icon={<Icon name="xmark-small" />}
-                          aria-label={language.t("assistant.memory.reject")}
-                          onClick={() => rejectMemory(memory.id)}
-                        />
-                      </div>
-                    )}
-                  </For>
-                </div>
-              </div>
-            </Show>
-
-            <Show when={confirmedMemories().length > 0}>
-              <div class="flex min-w-0 flex-col gap-2">
-                <p class="text-v2-text-text-muted text-12-regular">{language.t("assistant.memory.confirmed")}</p>
-                <div class="flex min-w-0 flex-col gap-px">
-                  <For each={confirmedMemories()}>
-                    {(memory: PersonalMemoryInfo) => (
-                      <div class="flex min-w-0 items-center gap-2 py-1">
-                        <Icon name="status-active" size="small" class="shrink-0 text-v2-icon-icon-muted" />
-                        <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">
-                          {memory.content ?? ""}
-                        </span>
-                        <IconButtonV2
-                          variant="ghost-muted"
-                          size="small"
-                          icon={<Icon name="xmark-small" />}
-                          aria-label={language.t("assistant.memory.delete")}
-                          onClick={() => removeMemory(memory.id)}
-                        />
-                      </div>
-                    )}
-                  </For>
-                </div>
-              </div>
-            </Show>
+            <MemoryInspector
+              pending={pendingMemories()}
+              confirmed={confirmedMemories()}
+              onConfirm={confirmMemory}
+              onReject={rejectMemory}
+              onRemove={removeMemory}
+            />
           </section>
         </Show>
 
@@ -488,6 +379,7 @@ export function AssistantDashboardMain() {
                             record={record}
                             server={activeConnKey()}
                             activeServer={activeConnKey() === server.key}
+                            highlighted={highlightedSessions().has(record.session.id)}
                             onClick={() => openAssistantSession(record)}
                           />
                         )}

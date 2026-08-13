@@ -21,10 +21,11 @@ export function pruneSessionKeys(input: {
   used: Map<string, number>
   view: string[]
   tabs: string[]
+  assistant?: string[]
 }) {
   if (!input.keep) return []
 
-  const keys = new Set<string>([...input.view, ...input.tabs])
+  const keys = new Set<string>([...input.view, ...input.tabs, ...(input.assistant ?? [])])
   if (keys.size <= input.max) return []
 
   const score = (key: string) => {

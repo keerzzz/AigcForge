@@ -118,6 +118,8 @@ import type {
   ImportParserParseResponses,
   InstanceDisposeErrors,
   InstanceDisposeResponses,
+  KbBacklinksErrors,
+  KbBacklinksResponses,
   KbCreateErrors,
   KbCreateResponses,
   KbDanglingErrors,
@@ -4629,6 +4631,25 @@ export class Kb extends HeyApiClient {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }])
     return (options?.client ?? this.client).post<KbRemoveResponses, KbRemoveErrors, ThrowOnError>({
       url: "/kb/{id}/remove",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * List backlinks of a note
+   *
+   * Notes whose [[wikilinks]] resolve to the given note (single-sided + derived).
+   */
+  public backlinks<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }])
+    return (options?.client ?? this.client).get<KbBacklinksResponses, KbBacklinksErrors, ThrowOnError>({
+      url: "/kb/{id}/backlinks",
       ...options,
       ...params,
     })

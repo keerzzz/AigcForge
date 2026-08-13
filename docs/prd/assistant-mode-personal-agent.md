@@ -171,24 +171,38 @@ Assistant 复用 ADR-12/ADR-15 的共享 `ModeWorkspace` 和 canonical Session r
 
 ### 8.1 Mode 首页（Dashboard）
 
-- 显示“新建助手对话”、待执行提醒、最近投递和 `mode=assistant` Session 列表。
+- 首页为**两栏结构**（对齐四模式首页骨架，`mode-workspace.tsx:139-145` 共享 `grid-cols-[280px_minmax(0,960px)]`）：280px 左栏 + 主区，**无右栏**。
+- **左栏** = Location + 新建 + **实体导航树**（提醒/记忆/知识库分类 + 计数），对齐 chat 首页功能树（`ChatFeatureSidebar` 渲染模式）。
+- **主区**（富聚合，保持现状不收敛）：待办提醒横条（主心智）+ 最近投递 + Memory Inspector + 知识库列表/编辑器 + `mode=assistant` 会话列表。
+- **会话列表联动**：主区会话列表与左栏实体列表联动——点击左栏某提醒/记忆 → 会话列表高亮/过滤创建它的会话（提醒 `Schedule.Info.sessionID`、记忆 `sourceSessionID` 有会话反链）；知识库笔记为全局实体**无会话反链**，点击知识库节点 → 会话列表退化为全量。
 - 待执行提醒可查看时间、时区、状态并取消；数据来自 Schedule 查询。
 - M2 起增加：笔记最近变更、知识库导航入口。
 - 首页不展示尚未实现的跨信道在线状态或“常驻”指示器。
 
 ### 8.2 Session 详情
 
-- 中栏复用消息流和 Composer；对话生成笔记的候选审查在此弹出。
-- 右栏 Tab 渐进式扩展：
+复用 ADR-12 canonical Session route，壳层 = 次级左栏（可隐藏 256px）+ 中栏 + 右栏（按需打开）：
 
-| Tab | 里程碑 | 内容 |
+- **次级左栏**（对齐 chat/work 富左栏）：Location + 新建 + `mode=assistant` 会话列表 + 实体导航树（提醒/记忆/知识库分类/悬空链接计数）。
+- **中栏**：消息流 + Composer（维持通用实现，不做 assistant 专属改造）；对话生成笔记的候选审查在此弹出。
+- **右栏**（`SessionSidePanel` assistant slot，自包含单面板）：`AssistantSessionPanel`（手动开 + 可拖拽），fileTree 不在此槽位渲染（无 B 区空占位）。
+- 底部 TerminalPanel 保留现状（assistant 无 shell，保留无害）。
+
+**右栏 Tab（5 Tab，全量）**：
+
+| Tab | 内容 | 数据源 |
 |---|---|---|
-| 提醒 | M1 | 待执行 Schedule 列表 + 取消 + 历史 Delivery |
-| 上下文 | M1 | 会话上下文来源 |
-| 记忆 | M2 | Memory Inspector（查看/编辑/删除/审计） |
-| 知识库 | M2 | 笔记列表 + 编辑器 + 反向引用 + 悬空链接 |
-| 笔记编辑器 | M2.5 | Markdown WYSIWYG + `[[自动补全]]` + 标签 |
+| 提醒 | 待执行 Schedule 列表（内容/时间/时区/状态徽章 + 取消/修改）+ 底部历史 Delivery | `schedule.pending/list/cancel` + `delivery.recent/inbox/read` |
+| 记忆 | Memory Inspector（pending 提议 + 已确认分组 + confirm/reject/edit/remove） | `memory.list/confirm/reject/edit/remove` |
+| 知识库 | 搜索 + 标签筛 + 笔记列表 + 选中正文 + 反向引用 + 悬空链接 | `kb.list/get/search/dangling` + 新增 `backlinks` 端点（服务方法已有，HTTP 未暴露） |
+| 笔记编辑器 | 双栏 Markdown 编辑 + `[[补全]]` + 实时预览 + 悬空高亮 + 标签 | `kb.create/update/remove` |
+| 上下文 | 会话上下文来源（复用 `session-context-tab.tsx`，零改动） | 现有会话上下文 |
 
+**交互模型**：
+- 右栏 Tab 非常驻，按需打开；右上角 X 手动关闭。
+- 上下文 Tab ↔ 中栏标题右侧上下文圆环（ProgressCircle 用量%）toggle（对齐 `session-context-usage.tsx` 模式）。
+- 提醒/记忆/知识库/笔记编辑器 Tab ↔ 次级左栏实体列表点击：`openEntityPanel(kind, itemId)` 打开对应 Tab 并定位该项。
+- 引文锚定：回答中 `[笔记ID]` 角标可点击 → 展开原文摘要 → 打开右栏知识库 Tab 定位。
 - 提醒/记忆/知识库状态必须来自对应持久查询，不从对话文本反推。
 - 时间确认、取消、错误和逾期状态走 i18n；键盘、焦点、稳定尺寸、明暗主题和窄屏遵循 `DESIGN.md`。
 

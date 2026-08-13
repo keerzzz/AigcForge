@@ -12806,6 +12806,33 @@ export type KbRemoveResponses = {
   200: unknown
 }
 
+export type KbBacklinksData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: "/kb/{id}/backlinks"
+}
+
+export type KbBacklinksErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type KbBacklinksError = KbBacklinksErrors[keyof KbBacklinksErrors]
+
+export type KbBacklinksResponses = {
+  /**
+   * Notes that link to the given note
+   */
+  200: Array<KbNoteNote>
+}
+
+export type KbBacklinksResponse = KbBacklinksResponses[keyof KbBacklinksResponses]
+
 export type KbDanglingData = {
   body?: never
   path?: never

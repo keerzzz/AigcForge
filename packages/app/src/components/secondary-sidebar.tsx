@@ -15,6 +15,7 @@ import { modeDraft, useMode, type Mode } from "@/context/mode"
 import { ChatFeatureSidebar, PlaceholderSidebar } from "@/components/mode-surfaces"
 import { ChatSessionList } from "@/components/chat/chat-session-list"
 import { WorkSecondarySidebar } from "@/components/work-secondary-sidebar"
+import { AssistantSessionSidebar } from "@/components/assistant-session-sidebar"
 import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
 import { ServerConnection, useServer } from "@/context/server"
@@ -676,7 +677,12 @@ function SecondarySidebar() {
         />
       </div>
       <div style={{ display: mode.currentMode === "assistant" ? "" : "none" }}>
-        <PlaceholderSidebar mode="assistant" />
+        <AssistantSessionSidebar
+          directory={chatDirectory}
+          sortNow={sortNow}
+          ctx={sidebarCtx}
+          serverKey={serverKey() ?? undefined}
+        />
       </div>
       {/* Chat 对话列表：当前 Location 的 chat sessions，mode=chat 过滤（功能树下方） */}
       <Show when={mode.currentMode === "chat" && chatDirectory()}>

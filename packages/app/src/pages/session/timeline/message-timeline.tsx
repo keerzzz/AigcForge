@@ -60,7 +60,7 @@ import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 import { useLanguage } from "@/context/language"
 import { useMode } from "@/context/mode"
-import { useSessionKey } from "@/pages/session/session-layout"
+import { useSessionKey, useSessionLayout } from "@/pages/session/session-layout"
 import { useServerSDK } from "@/context/server-sdk"
 import { usePlatform } from "@/context/platform"
 import { useSettings } from "@/context/settings"
@@ -81,6 +81,9 @@ import { SessionTodoProgress } from "@/pages/session/timeline/session-todo-progr
 import { PULSE_WIDTH, TRACK_INSET } from "@/pages/session/timeline/session-todo-progress-model"
 import { SessionScheduledChip, SessionScheduledTasksPopover } from "@/pages/session/timeline/session-scheduled-tasks"
 import { AgentTaskHub } from "@/pages/session/timeline/agent-task-hub"
+import { openEntityPanel } from "@/pages/session/assistant-session-panel-open"
+import { citationSummary, kbCitationHref } from "@/pages/session/assistant-citation-model"
+import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
 
 const emptyMessages: MessageType[] = []
 const emptyParts: PartType[] = []
@@ -277,6 +280,7 @@ export function MessageTimeline(props: {
   const language = useLanguage()
   const mode = useMode()
   const { params, sessionKey } = useSessionKey()
+  const { assistant } = useSessionLayout()
   const ownerSessionKey = sessionKey()
   const cached = timelineCache.get(ownerSessionKey)
   const initialMeasurements = cached?.measurements
@@ -329,6 +333,31 @@ export function MessageTimeline(props: {
   })
 
   const [timeoutDone, setTimeoutDone] = createSignal(true)
+
+  // ---- 引文锚定（批次 4 G4，F2）：assistant 回答的 [标题](kb://id) 链接
+  // ---- 点击 → 展开原文摘要 + openEntityPanel 开右栏知识库 Tab 定位。
+  // ---- app 层后处理 + mode 门控：coding/chat/work 文本渲染不受影响。
+  const [citation, setCitation] = createSignal<{ id: string; title: string; excerpt: string } | undefined>()
+  const citationEnabled = () => mode.currentMode === "assistant"
+
+  const handleCitationClick = (event: MouseEvent) => {
+    if (!citationEnabled()) return
+    const id = kbCitationHref(event.target)
+    if (!id) return
+    event.preventDefault()
+    event.stopPropagation()
+    openEntityPanel(assistant(), "kb", id)
+    void serverSDK()
+      .client.kb.get({ id })
+      .then((res) => {
+        const note = res.data as KbNoteNote | undefined
+        if (!note) return
+        setCitation({ id: note.id, title: note.title, excerpt: citationSummary(note.content ?? "", 220) })
+      })
+      .catch(() => {
+        // 宽容解析：无记录 → 不渲染摘要，不阻塞回答。
+      })
+  }
 
   const workingStatus = createMemo<"hidden" | "showing" | "hiding">((prev) => {
     if (working()) return "showing"
@@ -1325,7 +1354,28 @@ export function MessageTimeline(props: {
   }
 
   return (
-    <div class="relative w-full h-full min-w-0">
+    <div class="relative w-full h-full min-w-0" onClick={handleCitationClick}>
+      <Show when={citation()} keyed>
+        {(item) => (
+          <div
+            data-component="assistant-citation"
+            class="absolute bottom-6 left-1/2 z-[70] w-[min(480px,calc(100%-2rem))] -translate-x-1/2 rounded-[10px] border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3 shadow-[var(--v2-elevation-floating)]"
+          >
+            <div class="flex min-w-0 items-center gap-2">
+              <Icon name="edit" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+              <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-medium">{item.title}</span>
+              <IconButton
+                icon="close-small"
+                variant="ghost"
+                class="size-5 shrink-0"
+                onClick={() => setCitation(undefined)}
+                aria-label={language.t("assistant.citation.dismiss")}
+              />
+            </div>
+            <p class="mt-1 line-clamp-3 text-v2-text-text-muted text-12-regular">{item.excerpt}</p>
+          </div>
+        )}
+      </Show>
       <div
         class="absolute left-1/2 -translate-x-1/2 bottom-6 z-[60] pointer-events-none transition-all duration-200 ease-out"
         classList={{
