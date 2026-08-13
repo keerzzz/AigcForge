@@ -709,6 +709,7 @@ export const dict = {
   "assistant.editor.edit": "Edit",
   "assistant.editor.preview": "Preview",
   "assistant.editor.dangling": "{{count}} dangling links:",
+  "assistant.citation.dismiss": "Dismiss citation",
   "assistant.nav.title": "Knowledge",
   "assistant.nav.sessions": "Sessions",
   "assistant.nav.sessionsEmpty": "No assistant sessions in this location yet.",

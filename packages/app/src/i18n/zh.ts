@@ -625,6 +625,7 @@ export const dict = {
   "assistant.editor.edit": "编辑",
   "assistant.editor.preview": "预览",
   "assistant.editor.dangling": "{{count}} 个悬空链接：",
+  "assistant.citation.dismiss": "关闭引文",
   "assistant.nav.title": "知识",
   "assistant.nav.sessions": "会话",
   "assistant.nav.sessionsEmpty": "当前位置还没有助手会话。",

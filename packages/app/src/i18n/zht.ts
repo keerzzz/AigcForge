@@ -1154,6 +1154,7 @@ export const dict = {
   "assistant.editor.edit": "編輯",
   "assistant.editor.preview": "預覽",
   "assistant.editor.dangling": "{{count}} 個懸空連結：",
+  "assistant.citation.dismiss": "關閉引文",
   "assistant.nav.title": "知識",
   "assistant.nav.sessions": "會話",
   "assistant.nav.sessionsEmpty": "目前位置還沒有助理會話。",
