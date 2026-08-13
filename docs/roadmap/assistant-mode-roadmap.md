@@ -17,7 +17,7 @@
 ├── [已完成] Work M0~M2 文档闭环 + Todo/Task 升级（含 scheduled-job 调度内核）
 ├── [已完成] Meta-Agent V2（总路由 + prerouter + task 委派）
 │
-├── ▸ ▸ ▸ 下一步：Assistant M0~M2.5（Phase A→F，assistant 分支）▸ ▸ ▸
+├── ▸ ▸ ▸ 进行中：Assistant Phase A-F 已合入（assistant 分支）；下一步 会话详情 UI（M2.6，分支 assistant-session-detail）▸ ▸ ▸
 │
 └── [远期] Assistant M3~M4（主动任务/图谱/闪卡 → 跨信道 PoC）
 ```
@@ -26,12 +26,13 @@
 
 | 阶段 | 名称 | 范围 | 依赖 | 状态 |
 |---|---|---|---|---|
-| **M0** | 调度内核 + 基座 | SchedulerCore 提取、Schedule/Delivery 表、assistant 子智能体、全模式默认 meta | 无（复用 scheduled-job 内核） | 🔲 待启动 |
-| **M1** | 单次提醒闭环 | reminder_create/update/cancel、收件箱、离线补投、桌面通知、Dashboard | M0 | 🔲 待启动 |
-| **M2a** | 个人记忆 | personal_memory 表、提议+确认、Memory Inspector | M1 | 🔲 待启动 |
-| **M2b** | 个人知识库 | kb_note/kb_link、wikilink、悬空检测、反向引用、FTS5、文件落盘 | M2a（共享 kb 基础） | 🔲 待启动 |
-| **M2.5** | 笔记 + AI 产物 | 笔记编辑器、模板/日记、propose_note 7 格式、源数据锚定问答 | M2b | 🔲 待启动 |
-| **M3** | 主动任务 + 图谱 | 周期计划、有限 Session wake、图谱视图、闪卡、随机反刍 | M2.5 + M3 设计评审 | 🔲 远期 |
+| **M0** | 调度内核 + 基座 | SchedulerCore 提取、Schedule/Delivery 表、assistant 子智能体、全模式默认 meta | 无（复用 scheduled-job 内核） | ✅ 已合入（assistant 分支） |
+| **M1** | 单次提醒闭环 | reminder_create/update/cancel、收件箱、离线补投、桌面通知、Dashboard | M0 | ✅ 已合入（assistant 分支） |
+| **M2a** | 个人记忆 | personal_memory 表、提议+确认、Memory Inspector | M1 | ✅ 已合入（assistant 分支） |
+| **M2b** | 个人知识库 | kb_note/kb_link、wikilink、悬空检测、反向引用、FTS5、文件落盘 | M2a（共享 kb 基础） | ✅ 已合入（assistant 分支） |
+| **M2.5** | 笔记 + AI 产物 | 笔记编辑器、模板/日记、propose_note 7 格式、源数据锚定问答 | M2b | ✅ 已合入（assistant 分支） |
+| **M2.6** | 会话详情页 UI | 详情右栏 5-Tab + 次级左栏富结构 + 首页实体导航树/会话联动 + 双栏编辑器 + 引文锚定（[实施计划](assistant-session-detail-plan.md)） | M2.5 | 🔲 待启动（分支 assistant-session-detail） |
+| **M3** | 主动任务 + 图谱 | 周期计划、有限 Session wake、图谱视图、闪卡、随机反刍 | M2.6 + M3 设计评审 | 🔲 远期 |
 | **M4** | 跨信道 | 单一信道 PoC + 社交网关收敛 + Outbox | M3 + Gateway 安全评审 | 🔲 远期 |
 
 ---
@@ -43,6 +44,8 @@
 ```
 assistant 分支:
   M0 (调度内核+基座) → M1 (提醒闭环) → M2a (记忆) → M2b (知识库) → M2.5 (笔记) → 合并 main
+                                                                      ↓
+                                    assistant-session-detail 分支: M2.6 (会话详情页 UI) → 合并 main
                                                           ↓
                                           M3 (主动任务/图谱, 远期) → M4 (跨信道, 远期)
 ```
@@ -139,6 +142,20 @@ assistant 分支:
 | 源数据锚定问答 | 仅基于 kb_note 回答 + 引文角标 | M2b |
 
 **退出**：propose_note 各 format 输出正确；锚定问答防幻觉验证通过
+
+### 3.6 M2.6 会话详情页 UI（[实施计划](assistant-session-detail-plan.md)）
+
+**目标**：补齐 assistant 会话详情页空壳（次级左栏/右栏 Placeholder）并归一化首页骨架。
+
+| 交付物 | 说明 | 依赖 |
+|---|---|---|
+| 详情右栏 5-Tab | 提醒/记忆/知识库/笔记编辑器/上下文，A/B 归一化 B 区隐藏，手动开+拖拽 | M2.5 |
+| 次级左栏富结构 | Location + 会话列表 + 实体导航树（`AssistantSessionSidebar`） | M2.5 |
+| 首页实体导航树 + 会话联动 | `AssistantNavTree` 首页/详情共用；主区会话列表联动左栏实体列表 | M2.5 |
+| 双栏笔记编辑器 | Markdown + `[[补全]]` + 实时预览 + 悬空高亮 | M2.5 |
+| 引文锚定 | timeline `[笔记ID]` 角标 → 右栏知识库 Tab 定位 | M2.5 |
+
+**退出**：详情页 5-Tab 全量可用；首页/详情左栏非 Placeholder；联动高亮/退化正确；引文锚定跳转闭环
 
 ---
 

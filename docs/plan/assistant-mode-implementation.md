@@ -215,6 +215,8 @@ sequenceDiagram
 
 ### 3.7 Assistant Surface UI
 
+> ⚠️ **2026-08-13 超期说明**：本节的"首页右栏 = AssistantRightPanel"与"右栏 Tab 渐进式"已被 [assistant-session-detail-plan.md](assistant-session-detail-plan.md) 取代——**首页为两栏结构（无右栏）**，右栏 5-Tab 实体面板归属**会话详情页**，`session-side-panel.tsx` 的 assistant slot 落地。实施计划只描述 Phase A-F 已合入的首页 dashboard 基座，页面布局定稿见新计划。
+
 `mode-workspace-slots.tsx` + `mode-surfaces.tsx` 替换 Placeholder：
 
 ```tsx
@@ -350,6 +352,8 @@ User → propose_note/kb_create → KBService
 
 #### 3.9.1c 次级左栏：知识库导航树（替换 `PlaceholderSidebar`）
 
+> ⚠️ **2026-08-13 超期说明**：次级左栏落地已并入 [assistant-session-detail-plan.md](assistant-session-detail-plan.md) 批次 2——`AssistantNavTree` 实体导航树在**首页左栏 + 详情次级左栏两处共用**，`PlaceholderSidebar` 由 `AssistantSessionSidebar`（Location + 会话列表 + 实体导航树）替换。本节保留为设计意图记录。
+
 对齐 Chat 功能树（`ChatFeatureSidebar`）结构，内容换为知识库分类：
 
 ```
@@ -372,6 +376,8 @@ Assistant 次级左栏 (AssistantFeatureSidebar)：
 - 复用 Chat 功能树的树+计数渲染模式。
 
 #### 3.9.2 右栏 Tab（`session-side-panel.tsx` 渐进式）
+
+> ⚠️ **2026-08-13 超期说明**：渐进式右栏 Tab 已由 [assistant-session-detail-plan.md](assistant-session-detail-plan.md) 取代——改为**全量 5 Tab**（提醒/记忆/知识库/笔记编辑器/上下文），上下文 Tab 进 Tab 栏，A/B 归一化 B 区 fileTree 隐藏。本小节保留为历史设计过程记录。
 
 | Tab | 布局 | 数据源 |
 |---|---|---|
