@@ -8,12 +8,13 @@ import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
 import { useServer, ServerConnection } from "@/context/server"
 import { useServerSDK } from "@/context/server-sdk"
-import { useChatDirectory } from "@/pages/mode-workspace-context"
+import { useChatDirectory, useAssistantSelection } from "@/pages/mode-workspace-context"
 import { modeDraft } from "@/context/mode"
 import { useServerSync } from "@/context/server-sync"
 import { useLayout } from "@/context/layout"
 import { openProjectNewSession, openSessionRecord, filterSessionsByMode } from "@/pages/layout/helpers"
 import { DeliveryList, MemoryInspector, ReminderList } from "@/components/assistant-entity-lists"
+import { sessionHighlightIDs } from "@/components/assistant-nav-model"
 import {
   HOME_SESSION_LIMIT,
   HomeSessionRow,
@@ -38,6 +39,7 @@ export function AssistantDashboardMain() {
   const serverSDK = useServerSDK()
   const layout = useLayout()
   const { conn, ctx, directory } = useChatDirectory()
+  const { selection } = useAssistantSelection()
 
   // ---- ① 待办提醒（跨会话，全局角标同源） ----
   const pendingQuery = useQuery(() => ({
@@ -163,6 +165,9 @@ export function AssistantDashboardMain() {
     return filterSessionsByMode(all, "assistant").slice(0, HOME_SESSION_LIMIT)
   })
   const groups = createMemo(() => groupSessions(records(), language))
+  const highlightedSessions = createMemo(() =>
+    sessionHighlightIDs({ selection: selection, reminders: pending(), memories: memories() }),
+  )
   const activeConnKey = createMemo(() => {
     const c = conn()
     return c ? ServerConnection.key(c) : server.key
@@ -374,6 +379,7 @@ export function AssistantDashboardMain() {
                             record={record}
                             server={activeConnKey()}
                             activeServer={activeConnKey() === server.key}
+                            highlighted={highlightedSessions().has(record.session.id)}
                             onClick={() => openAssistantSession(record)}
                           />
                         )}

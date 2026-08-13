@@ -7,9 +7,10 @@ import { AssetWorkbench } from "@/components/chat/asset-workbench"
 import { useMode } from "@/context/mode"
 import { useServer } from "@/context/server"
 import { ServerConnection } from "@/context/server"
-import { ModeWorkspaceAssetCtx, CodingSelectionCtx } from "@/pages/mode-workspace-context"
+import { ModeWorkspaceAssetCtx, CodingSelectionCtx, AssistantSelectionCtx } from "@/pages/mode-workspace-context"
 import { useChatDirectory } from "@/pages/mode-workspace-context"
 import type { HomeProjectSelection } from "@/pages/layout/helpers"
+import type { AssistantNavSelection } from "@/components/assistant-nav-model"
 
 const ALL_SLOTS = ["chat", "coding", "work", "assistant"] as const
 
@@ -27,6 +28,13 @@ export function ModeWorkspace() {
     get selection() { return codingSel.selection },
     selectServer: (key: ServerConnection.Key) => setCodingSel("selection", { server: key }),
     selectProject: (key: ServerConnection.Key, directory: string) => setCodingSel("selection", { server: key, directory }),
+  }
+
+  // ---- Assistant entity selection (sidebar nav tree ↔ session list linkage) ----
+  const [assistantSel, setAssistantSel] = createStore<{ selection: AssistantNavSelection }>({ selection: undefined })
+  const assistantValue = {
+    get selection() { return assistantSel.selection },
+    select: (selection: AssistantNavSelection) => setAssistantSel("selection", selection),
   }
 
   // ---- Asset Resource ----
@@ -134,6 +142,7 @@ export function ModeWorkspace() {
   return (
     <ModeWorkspaceAssetCtx.Provider value={assetCtx}>
       <CodingSelectionCtx.Provider value={codingValue}>
+      <AssistantSelectionCtx.Provider value={assistantValue}>
       <div data-mode-workspace class="rounded-[10px] shadow-[var(--v2-elevation-raised)] m-2 min-h-0 lg:overflow-hidden bg-v2-background-bg-base self-stretch flex-1 flex flex-col">
         <div
           class={
@@ -173,6 +182,7 @@ export function ModeWorkspace() {
           </section>
         </div>
       </div>
+      </AssistantSelectionCtx.Provider>
       </CodingSelectionCtx.Provider>
     </ModeWorkspaceAssetCtx.Provider>
   )

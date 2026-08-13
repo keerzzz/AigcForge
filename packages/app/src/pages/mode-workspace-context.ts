@@ -5,6 +5,7 @@ import { type DirectorySDK } from "@/context/sdk"
 import { AssetWorkbench } from "@/components/chat/asset-workbench"
 import { useGlobal } from "@/context/global"
 import { useServer } from "@/context/server"
+import type { AssistantNavSelection } from "@/components/assistant-nav-model"
 
 export type ModeWorkspaceAssetContext = {
   chatDirSdk: Accessor<DirectorySDK | undefined>
@@ -33,6 +34,18 @@ export const CodingSelectionCtx = createContext<CodingSelectionValue>()
 
 export function useCodingSelection() {
   return useContext(CodingSelectionCtx)!
+}
+
+/** Assistant 模式左侧栏 ↔ 主区会话列表共享的实体选中态（D5，计划 §3.3）。 */
+export type AssistantSelectionValue = {
+  selection: AssistantNavSelection
+  select: (selection: AssistantNavSelection) => void
+}
+
+export const AssistantSelectionCtx = createContext<AssistantSelectionValue>()
+
+export function useAssistantSelection() {
+  return useContext(AssistantSelectionCtx)!
 }
 
 /** Chat 首页 Location 解析：当前 server 的 lastSession 目录，回退首个 project worktree。 */
