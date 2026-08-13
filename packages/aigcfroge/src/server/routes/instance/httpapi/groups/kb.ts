@@ -84,6 +84,17 @@ export const KBApi = HttpApi.make("kb").add(
           summary: "Remove a knowledge base note",
         }),
       ),
+      HttpApiEndpoint.get("backlinks", `${root}/:id/backlinks`, {
+        params: Schema.Struct({ id: KBNote.NoteID }),
+        error: InvalidRequestError,
+        success: described(Schema.Array(KBNote.Note), "Notes that link to the given note"),
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "kb.backlinks",
+          summary: "List backlinks of a note",
+          description: "Notes whose [[wikilinks]] resolve to the given note (single-sided + derived).",
+        }),
+      ),
       HttpApiEndpoint.get("dangling", `${root}/dangling`, {
         success: described(Schema.Array(KBNote.DanglingLink), "Dangling wikilinks"),
       }).annotateMerge(

@@ -491,3 +491,16 @@
     }
   }
 }
+
+/* Assistant 知识库 wikilink 装饰（assistant-kb-tab / assistant-note-editor 预览）：
+   已解析 → accent，悬空（目标标题不存在）→ warning 高亮。 */
+[data-wikilink] {
+  cursor: pointer;
+}
+[data-wikilink][data-dangling="true"] {
+  color: var(--v2-state-fg-warning);
+  text-decoration: underline dotted;
+}
+[data-wikilink][data-dangling="false"] {
+  color: var(--v2-text-text-accent);
+}

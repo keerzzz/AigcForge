@@ -520,6 +520,26 @@ const scenarios: Scenario[] = [
       object(note)
       check(note.title === "Meeting", "kb search should return the matching note")
     }),
+  // kb.backlinks: single-sided edge storage + index derivation — the note that
+  // links TO the target is listed as a backlink (批次 3 G4 契约)。
+  http.protected
+    .get("/kb/{id}/backlinks", "kb.backlinks")
+    .seeded((ctx) =>
+      ctx
+        .kbNote({ title: "Cited", content: "references [[Original]]", scope: "project" })
+        .pipe(Effect.zip(ctx.kbNote({ title: "Original", content: "the source", scope: "project" }))),
+    )
+    .at((ctx) => ({
+      path: route("/kb/{id}/backlinks", { id: (ctx.state as [unknown, { id: string }])[1].id }),
+      headers: ctx.headers(),
+    }))
+    .json(200, (body) => {
+      array(body)
+      check(body.length === 1, "kb backlinks should list the note referencing the target")
+      const note = body[0]
+      object(note)
+      check(note.title === "Cited", "kb backlinks should return the referencing note")
+    }),
   // Assistant: personal memory (confirm-first propose flow).
   http.protected
     .get("/memory", "memory.list")

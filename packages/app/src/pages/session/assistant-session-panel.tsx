@@ -11,6 +11,8 @@ import { useServerSDK } from "@/context/server-sdk"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { SessionContextTab } from "@/components/session"
 import { DeliveryList, MemoryInspector, ReminderList } from "@/components/assistant-entity-lists"
+import { AssistantNoteEditor } from "@/components/assistant-note-editor"
+import { AssistantKbTab } from "@/pages/session/assistant-kb-tab"
 import {
   ASSISTANT_PANEL_MIN_WIDTH,
   openEntityPanel,
@@ -168,64 +170,79 @@ export function AssistantSessionPanel() {
             />
           </div>
 
-          <ScrollView class="min-h-0 flex-1">
-            <div class="flex min-h-0 flex-col gap-6 px-3 py-4">
-              <Show when={tab() === "reminders"}>
-                <section class="flex min-w-0 flex-col gap-3">
-                  <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.panel.tab.reminders")}</h2>
-                  <ReminderList
-                    pending={reminders()}
-                    error={remindersQuery.isError}
-                    loading={remindersQuery.isLoading}
-                    onCancel={cancelReminder}
-                    emptyLabel={language.t("assistant.dashboard.reminders.empty")}
-                    errorLabel={language.t("assistant.dashboard.loadError")}
-                    showStatus
-                    targetId={target()}
-                  />
-                </section>
-                <section class="flex min-w-0 flex-col gap-3">
-                  <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.panel.reminders.history")}</h2>
-                  <Show when={inbox().length > 0} fallback={<p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.panel.reminders.historyEmpty")}</p>}>
-                    <DeliveryList records={inbox()} onMarkRead={markRead} />
-                  </Show>
-                </section>
-              </Show>
-
-              <Show when={tab() === "memory"}>
-                <section class="flex min-w-0 flex-col gap-3">
-                  <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.panel.tab.memory")}</h2>
-                  <Show
-                    when={pendingMemories().length > 0 || confirmedMemories().length > 0}
-                    fallback={
-                      <p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.panel.memory.empty")}</p>
-                    }
-                  >
-                    <MemoryInspector
-                      pending={pendingMemories()}
-                      confirmed={confirmedMemories()}
-                      onConfirm={confirmMemory}
-                      onReject={rejectMemory}
-                      onRemove={removeMemory}
+          <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <Show when={tab() === "reminders"}>
+              <ScrollView class="min-h-0 flex-1">
+                <div class="flex min-w-0 flex-col gap-6 px-3 py-4">
+                  <section class="flex min-w-0 flex-col gap-3">
+                    <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.panel.tab.reminders")}</h2>
+                    <ReminderList
+                      pending={reminders()}
+                      error={remindersQuery.isError}
+                      loading={remindersQuery.isLoading}
+                      onCancel={cancelReminder}
+                      emptyLabel={language.t("assistant.dashboard.reminders.empty")}
+                      errorLabel={language.t("assistant.dashboard.loadError")}
+                      showStatus
                       targetId={target()}
                     />
-                  </Show>
-                </section>
-              </Show>
+                  </section>
+                  <section class="flex min-w-0 flex-col gap-3">
+                    <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.panel.reminders.history")}</h2>
+                    <Show when={inbox().length > 0} fallback={<p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.panel.reminders.historyEmpty")}</p>}>
+                      <DeliveryList records={inbox()} onMarkRead={markRead} />
+                    </Show>
+                  </section>
+                </div>
+              </ScrollView>
+            </Show>
 
-              <Show when={tab() === "kb"}>
-                <p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.panel.kb.empty")}</p>
-              </Show>
+            <Show when={tab() === "memory"}>
+              <ScrollView class="min-h-0 flex-1">
+                <div class="flex min-w-0 flex-col gap-6 px-3 py-4">
+                  <section class="flex min-w-0 flex-col gap-3">
+                    <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.panel.tab.memory")}</h2>
+                    <Show
+                      when={pendingMemories().length > 0 || confirmedMemories().length > 0}
+                      fallback={
+                        <p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.panel.memory.empty")}</p>
+                      }
+                    >
+                      <MemoryInspector
+                        pending={pendingMemories()}
+                        confirmed={confirmedMemories()}
+                        onConfirm={confirmMemory}
+                        onReject={rejectMemory}
+                        onRemove={removeMemory}
+                        targetId={target()}
+                      />
+                    </Show>
+                  </section>
+                </div>
+              </ScrollView>
+            </Show>
 
-              <Show when={tab() === "editor"}>
-                <p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.panel.editor.empty")}</p>
-              </Show>
+            <Show when={tab() === "kb"}>
+              <div class="flex min-h-0 flex-1 flex-col px-3 py-4">
+                <AssistantKbTab
+                  target={target()}
+                  onEditNote={(note) => openEntityPanel(assistant(), "editor", note.id)}
+                />
+              </div>
+            </Show>
 
-              <Show when={tab() === "context"}>
+            <Show when={tab() === "editor"}>
+              <div class="flex min-h-0 flex-1 flex-col px-3 py-4">
+                <AssistantNoteEditor noteId={target()} onSaved={() => openEntityPanel(assistant(), "kb")} />
+              </div>
+            </Show>
+
+            <Show when={tab() === "context"}>
+              <div class="relative min-h-0 flex-1 overflow-hidden">
                 <SessionContextTab />
-              </Show>
-            </div>
-          </ScrollView>
+              </div>
+            </Show>
+          </div>
         </div>
       </Show>
     </aside>
