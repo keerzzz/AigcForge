@@ -64,11 +64,21 @@ export function buildKbTagTree(notes: KbNoteNote[]): KbTagNode[] {
       if (node.children) sortTree(node.children)
     }
   }
-  // 节点计数 = 子树聚合（直接标签 + 子标签），与"分类计数"心智一致。
+  // 节点计数 = 子树聚合（直接标签 + 子标签），同一笔记在重叠层级标签
+  // （如 ["a", "a/b"]）下只计一次（LOW 修复：按 note id 去重）。
   const aggregate = (node: KbTagNode): number => {
-    const children = node.children ?? []
-    const sum = children.reduce((total, child) => total + aggregate(child), 0)
-    node.count = node.count + sum
+    const seen = new Set<string>()
+    const collect = (current: KbTagNode): number => {
+      let count = 0
+      for (const note of current.notes) {
+        if (seen.has(note.id)) continue
+        seen.add(note.id)
+        count += 1
+      }
+      for (const child of current.children ?? []) count += collect(child)
+      return count
+    }
+    node.count = collect(node)
     return node.count
   }
   const groups = [...root.values()]

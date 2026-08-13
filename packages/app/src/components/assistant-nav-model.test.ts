@@ -41,6 +41,20 @@ describe("buildKbTagTree", () => {
     const tree = buildKbTagTree([note("a", "A", ["zeta"]), note("b", "B", ["alpha"])])
     expect(tree.map((n) => n.tag)).toEqual(["alpha", "zeta"])
   })
+
+  test("counts a note once when it carries overlapping hierarchical tags (LOW fix)", () => {
+    const tree = buildKbTagTree([note("a", "A", ["work", "work/planning"]), note("b", "B", ["work/planning"])])
+    expect(tree).toHaveLength(1)
+    const work = tree[0] as KbTagNode
+    expect(work.count).toBe(2)
+    const planning = work.children?.[0]
+    expect(planning?.count).toBe(2)
+  })
+
+  test("dedupes across sibling subtrees sharing the same note (LOW fix)", () => {
+    const tree = buildKbTagTree([note("a", "A", ["work/planning", "work/review"])])
+    expect(tree[0]?.count).toBe(1)
+  })
 })
 
 describe("sessionHighlightIDs (D5 会话列表联动)", () => {

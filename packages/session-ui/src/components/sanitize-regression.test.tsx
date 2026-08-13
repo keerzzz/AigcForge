@@ -23,6 +23,17 @@ describe("sanitize regression", () => {
     expect(result).not.toContain("<evil-el>")
   })
 
+  test("kb:// citation href survives sanitization (assistant citation anchors)", () => {
+    const result = sanitizeMarkdown('<a href="kb://kb_123abc" class="external-link">Note title</a>')
+    expect(result).toContain('href="kb://kb_123abc"')
+  })
+
+  test("unsafe javascript: URLs stay stripped while kb:// is allowed", () => {
+    const result = sanitizeMarkdown('<a href="javascript:alert(1)">bad</a><a href="kb://kb_1">good</a>')
+    expect(result).not.toContain("javascript:")
+    expect(result).toContain('href="kb://kb_1"')
+  })
+
   test("target=\"_blank\" gets noopener noreferrer", () => {
     const result = sanitizeMarkdown('<a href="https://safe.com" target="_blank">link</a>')
     expect(result).toContain("noopener")

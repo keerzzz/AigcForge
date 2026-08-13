@@ -10,6 +10,11 @@ export type MarkdownCacheEntry = {
 
 const max = 200
 const cache = new Map<string, MarkdownCacheEntry>()
+// DOMPurify 默认 ALLOWED_URI_REGEXP 只放行常见网络协议；assistant 引文锚定
+// 使用 [note title](kb://<noteID>)（批次 4 G4），需显式加入 kb: 协议，
+// 否则 sanitize 会剥掉 href 导致角标不可点击。保持其余默认白名单不变。
+const ALLOWED_URI_REGEXP =
+  /^(?:(?:https?|ftp|file|mailto|tel|callto|sms|cid|xmpp|matrix|kb):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
 const config = {
   USE_PROFILES: { html: true, mathMl: true },
   SANITIZE_NAMED_PROPS: true,
@@ -17,6 +22,7 @@ const config = {
   FORBID_CONTENTS: ["style", "script"],
   ADD_TAGS: ["svg", "path"],
   ADD_ATTR: ["d", "viewBox", "preserveAspectRatio", "xmlns", "target"],
+  ALLOWED_URI_REGEXP,
 }
 
 if (typeof window !== "undefined" && DOMPurify.isSupported) {

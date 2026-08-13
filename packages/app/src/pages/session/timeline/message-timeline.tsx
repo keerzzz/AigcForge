@@ -82,7 +82,7 @@ import { PULSE_WIDTH, TRACK_INSET } from "@/pages/session/timeline/session-todo-
 import { SessionScheduledChip, SessionScheduledTasksPopover } from "@/pages/session/timeline/session-scheduled-tasks"
 import { AgentTaskHub } from "@/pages/session/timeline/agent-task-hub"
 import { openEntityPanel } from "@/pages/session/assistant-session-panel-open"
-import { citationSummary, parseKbUri } from "@/pages/session/assistant-citation-model"
+import { citationSummary, kbCitationHref } from "@/pages/session/assistant-citation-model"
 import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
 
 const emptyMessages: MessageType[] = []
@@ -342,14 +342,10 @@ export function MessageTimeline(props: {
 
   const handleCitationClick = (event: MouseEvent) => {
     if (!citationEnabled()) return
-    const target = event.target
-    if (!(target instanceof Element)) return
-    const link = target.closest<HTMLAnchorElement>('a[href^="kb://"]')
-    if (!link) return
+    const id = kbCitationHref(event.target)
+    if (!id) return
     event.preventDefault()
     event.stopPropagation()
-    const id = parseKbUri(link.getAttribute("href") ?? "")
-    if (!id) return
     openEntityPanel(assistant(), "kb", id)
     void serverSDK()
       .client.kb.get({ id })

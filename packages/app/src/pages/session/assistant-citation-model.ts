@@ -14,6 +14,17 @@ export function parseKbUri(href: string): string | undefined {
   return id
 }
 
+/**
+ * 从点击目标解析 kb:// 引用（timeline 点击委托使用；宽容：非 kb:// 链接
+ * 返回 undefined，不阻塞回答）。href 需已通过 sanitize 白名单存活。
+ */
+export function kbCitationHref(target: EventTarget | null): string | undefined {
+  if (!(target instanceof Element)) return undefined
+  const link = target.closest<HTMLAnchorElement>('a[href^="kb://"]')
+  if (!link) return undefined
+  return parseKbUri(link.getAttribute("href") ?? "")
+}
+
 /** 摘要截断：正文前 maxLength 字符，词边界 + 省略号。 */
 export function citationSummary(content: string, maxLength: number): string {
   if (content.length <= maxLength) return content
