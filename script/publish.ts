@@ -35,7 +35,7 @@ if (Script.release && !Script.preview) {
 
 await prepareReleaseFiles()
 
-console.log("\n=== cli ===\n")
+console.log("\n=== aigcfroge ===\n")
 await $`bun ./packages/aigcfroge/script/publish.ts`
 
 console.log("\n=== sdk ===\n")

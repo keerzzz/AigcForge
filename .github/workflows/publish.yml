@@ -185,7 +185,6 @@ jobs:
         env:
           AIGCFROGE_VERSION: ${{ needs.version.outputs.version }}
           AIGCFROGE_CHANNEL: ${{ (github.ref_name == 'beta' && 'beta') || 'prod' }}
-          AIGCFROGE_CLI_ARTIFACT: ${{ (runner.os == 'Windows' && 'aigcfroge-cli-windows') || 'aigcfroge-cli' }}
           RUST_TARGET: ${{ matrix.settings.target }}
           GH_TOKEN: ${{ github.token }}
           GITHUB_RUN_ID: ${{ github.run_id }}
@@ -255,7 +254,6 @@ jobs:
           $files = @()
           $files += Get-ChildItem "${{ github.workspace }}\packages\desktop\dist\*.exe" | Select-Object -ExpandProperty FullName
           $files += Get-ChildItem "${{ github.workspace }}\packages\desktop\dist\*unpacked\*.exe" | Select-Object -ExpandProperty FullName
-          $files += Get-ChildItem "${{ github.workspace }}\packages\desktop\dist\*unpacked\resources\aigcfroge-cli.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
 
           foreach ($file in $files | Select-Object -Unique) {
             $sig = Get-AuthenticodeSignature $file
