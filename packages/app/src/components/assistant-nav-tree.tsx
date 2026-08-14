@@ -1,4 +1,4 @@
-import { createMemo, For, Show, type JSX } from "solid-js"
+import { createContext, createMemo, For, Show, useContext, type Accessor, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useQuery } from "@tanstack/solid-query"
 import { Icon } from "@aigcfroge/ui/v2/icon"
@@ -7,6 +7,12 @@ import { useServerSDK } from "@/context/server-sdk"
 import { buildKbTagTree, type AssistantNavSelection, type KbTagNode } from "./assistant-nav-model"
 import type { KbNoteNote, PersonalMemoryInfo, ScheduleInfo } from "@aigcfroge/sdk/v2/client"
 import { assistantQueryKey } from "@/utils/assistant-query"
+
+/**
+ * Provides the reactive selection straight to note leaves so the intermediate
+ * tag-tree nodes don't re-evaluate when the selection changes (session switch).
+ */
+const SelectionContext = createContext<Accessor<AssistantNavSelection>>()
 
 /** Entity navigation shared by the Assistant home and session sidebars. */
 export function AssistantNavTree(props: {
@@ -53,16 +59,18 @@ export function AssistantNavTree(props: {
   const dangling = createMemo(() => danglingQuery.data ?? [])
 
   const kbTree = createMemo(() => buildKbTagTree(notes()))
+  const selection = createMemo(() => props.selected)
   // Collapsed groups avoid duplicating entity content already shown by the dashboard.
   const [collapsed, setCollapsed] = createStore<Record<string, boolean>>({ reminders: true, memory: true, kb: true })
 
   const isItemSelected = (kind: "reminders" | "memory" | "kb", itemId: string) => {
-    const selection = props.selected
-    return selection?.kind === kind && selection.itemId === itemId
+    const current = selection()
+    return current?.kind === kind && current.itemId === itemId
   }
 
   return (
-    <div class="flex min-h-0 flex-col">
+    <SelectionContext.Provider value={selection}>
+      <div class="flex min-h-0 flex-col">
       <div class="px-3 pb-1 pt-2 text-v2-text-text-muted text-11-regular [font-weight:440]">
         {language.t("assistant.nav.title")}
       </div>
@@ -116,7 +124,7 @@ export function AssistantNavTree(props: {
           onToggle={() => setCollapsed("kb", !(collapsed.kb ?? true))}
         >
           <For each={kbTree()}>
-            {(node) => <KbTagNodeRow node={node} selected={props.selected} onSelect={props.onSelect} />}
+            {(node) => <KbTagNodeRow node={node} onSelect={props.onSelect} />}
           </For>
         </NavSection>
 
@@ -124,11 +132,12 @@ export function AssistantNavTree(props: {
           icon="outline-dots"
           label={language.t("assistant.nav.dangling")}
           count={dangling().length}
-          selected={props.selected?.kind === "dangling"}
+          selected={selection()?.kind === "dangling"}
           onClick={() => props.onSelect({ kind: "dangling" })}
         />
       </nav>
-    </div>
+      </div>
+    </SelectionContext.Provider>
   )
 }
 
@@ -171,7 +180,6 @@ function NavSection(props: {
 function KbTagNodeRow(props: {
   node: KbTagNode
   parentPath?: string
-  selected: AssistantNavSelection
   onSelect: (selection: AssistantNavSelection) => void
 }) {
   const path = () => (props.parentPath ? `${props.parentPath}/${props.node.tag}` : props.node.tag)
@@ -187,29 +195,35 @@ function KbTagNodeRow(props: {
       />
       <div class="flex min-w-0 flex-col pl-2">
         <For each={props.node.children ?? []}>
-          {(child) => (
-            <KbTagNodeRow
-              node={child}
-              parentPath={path()}
-              selected={props.selected}
-              onSelect={props.onSelect}
-            />
-          )}
+          {(child) => <KbTagNodeRow node={child} parentPath={path()} onSelect={props.onSelect} />}
         </For>
       </div>
       <div class="flex min-w-0 flex-col pl-4">
         <For each={props.node.notes}>
-          {(note: KbNoteNote) => (
-            <NavItem
-              icon="edit"
-              label={note.title ?? ""}
-              selected={props.selected?.kind === "kb" && props.selected.itemId === note.id}
-              onClick={() => props.onSelect({ kind: "kb", itemId: note.id })}
-            />
-          )}
+          {(note: KbNoteNote) => <KbNoteRow note={note} onSelect={props.onSelect} />}
         </For>
       </div>
     </div>
+  )
+}
+
+function KbNoteRow(props: {
+  note: KbNoteNote
+  onSelect: (selection: AssistantNavSelection) => void
+}) {
+  const { note } = props
+  const selection = useContext(SelectionContext)!
+  const selected = createMemo(() => {
+    const current = selection()
+    return current?.kind === "kb" && current.itemId === note.id
+  })
+  return (
+    <NavItem
+      icon="edit"
+      label={note.title ?? ""}
+      selected={selected()}
+      onClick={() => props.onSelect({ kind: "kb", itemId: note.id })}
+    />
   )
 }
 

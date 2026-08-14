@@ -70,6 +70,14 @@ export function AssistantSessionSidebar(props: {
   return (
     <div class="flex min-h-0 flex-1 flex-col" data-component="assistant-session-sidebar">
       <ModeLocationNewSession directory={props.directory} mode="assistant" />
+      {/* Entity navigation module sits above the session list, capped so a large
+          knowledge tree cannot collapse the conversations below. */}
+      <div
+        class="min-h-0 shrink-0 overflow-y-auto border-b border-v2-border-border-base py-1"
+        style={{ "max-height": "45%" }}
+      >
+        <AssistantNavTree selected={selected()} onSelect={onSelect} />
+      </div>
       <div class="px-3 pb-1 pt-2 text-v2-text-text-muted text-11-regular [font-weight:440]">
         {language.t("assistant.nav.sessions")}
       </div>
@@ -102,13 +110,6 @@ export function AssistantSessionSidebar(props: {
             </div>
           </Show>
         </Show>
-      </div>
-      {/* Keep a large knowledge tree from collapsing the session list. */}
-      <div
-        class="min-h-0 shrink-0 overflow-y-auto border-t border-v2-border-border-base py-1"
-        style={{ "max-height": "45%" }}
-      >
-        <AssistantNavTree selected={selected()} onSelect={onSelect} />
       </div>
     </div>
   )

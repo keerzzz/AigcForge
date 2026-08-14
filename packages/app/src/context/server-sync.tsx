@@ -511,20 +511,22 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     if (!existing) return
     children.mark(key)
     const [store, setStore] = existing
-    applyDirectoryEvent({
-      event,
-      directory,
-      store,
-      setStore,
-      push: queue.push,
-      setSessionTodo,
-      setSessionTask,
-      setSessionTaskProgress,
-      retainedLimit: sessionMeta.get(key)?.limit,
-      vcsCache: children.vcsCache.get(key),
-      loadLsp: () => {
-        void queryClient.fetchQuery(queryOptionsApi.lsp(key))
-      },
+    batch(() => {
+      applyDirectoryEvent({
+        event,
+        directory,
+        store,
+        setStore,
+        push: queue.push,
+        setSessionTodo,
+        setSessionTask,
+        setSessionTaskProgress,
+        retainedLimit: sessionMeta.get(key)?.limit,
+        vcsCache: children.vcsCache.get(key),
+        loadLsp: () => {
+          void queryClient.fetchQuery(queryOptionsApi.lsp(key))
+        },
+      })
     })
   })
 
