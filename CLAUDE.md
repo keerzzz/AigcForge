@@ -1,7 +1,7 @@
 # CLAUDE.md — AigcForge 执行宪法
 
 > **角色**: 高级全栈工程师
-> **范围**: 仅约束 `aigcfroge/` 仓库（22 个 workspace 包：入口 {aigcfroge, cli, tui, desktop} · 应用 {app, server, script} · 领域 {core, llm, schema, sdk/js} · UI {ui, session-ui, storybook} · 扩展 {plugin} · 基础设施 {effect-drizzle-sqlite, effect-sqlite-node, http-recorder} · 部署单元 {enterprise, function, slack, web}；console/_ 与 stats/_ 为独立子项目（子包有 package.json 但未列入 workspaces 配置），containers/docs/identity/sdk 顶层无 package.json 为非 workspace 目录，详见 [ARCHITECTURE.md](ARCHITECTURE.md) §3）
+> **范围**: 仅约束 `aigcfroge/` 仓库（17 个 workspace 包：入口 {aigcfroge, tui, desktop} · 应用 {app, server, script} · 领域 {core, llm, schema, sdk/js} · UI {ui, session-ui, storybook} · 扩展 {plugin} · 基础设施 {effect-drizzle-sqlite, effect-sqlite-node, http-recorder}，详见 [ARCHITECTURE.md](ARCHITECTURE.md) §3）
 > **性质**: 入口文件，承载第一性原理 + 文档路由
 
 `AGENTS.md` · `DESIGN.md` · `ARCHITECTURE.md` · `packages/aigcfroge/AGENTS.md` · `packages/llm/AGENTS.md`
@@ -67,7 +67,7 @@
 | 边界                | 规则                                                                                                                                                                                                       |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **测试**            | 只在单个包内跑 `bun test`，永不从根目录跑。命令：`bun --cwd packages/<name> test --timeout 30000`                                                                                                          |
-| **类型检查**        | 使用 `tsgo --noEmit` 而非 `tsc`。日常用单包：`bun --cwd packages/<name> typecheck`；全仓 `bun turbo typecheck` 留给 CI。`app`/`desktop` 用 `tsgo -b`；`function`/`script`/`storybook`/`web` 无 typecheck 脚本           |
+| **类型检查**        | 使用 `tsgo --noEmit` 而非 `tsc`。日常用单包：`bun --cwd packages/<name> typecheck`；全仓 `bun turbo typecheck` 留给 CI。`app`/`desktop` 用 `tsgo -b`；`script`/`storybook` 无 typecheck 脚本           |
 | **Lint**            | 日常用增量：`bun run script/lint-changed.ts`（只查改动文件新增行）；全量 `bun run lint`（= `oxlint` 全仓 + `lint-changed.ts`）留给 CI。配置见 `.oxlintrc.json`：`typeAware: true` + `suspicious: warn` + 20+ 规则覆写                                                                                                   |
 | **Format**          | Prettier：`semi: false, printWidth: 120`，无 pre-commit hook；`.husky/pre-push` 跑 `bun typecheck`，可用 `AIGCFROGE_SKIP_TYPECHECK=1` 跳过                                                                                                         |
 | **模块组织**        | 新代码使用 `export * as Foo from "./foo"` 自导出模式。禁止新增 `export namespace`；已有 namespace 不顺手迁移。Barrel `index.ts` 由各包 `AGENTS.md` 自治（aigcfroge 禁多兄弟，llm 允许 `schema/`/`route/`） |
@@ -133,7 +133,6 @@
 
 | 负债 | 包 | 风险 | Owner | 到期日 |
 |---|---|---|---|---|
-| nitro@3.0.1-alpha.1 预发布版本 | enterprise | alpha 不应直接用于生产 | TBD | 2026-08-04 |
 | @ai-sdk/google patch 未上游化 | root patches/ | 功能补丁可能滞后 | TBD | 上游监控 |
 | dompurify 锁定 3.4.6 | session-ui | 残留 moderate advisory（IN_PLACE/setConfig/hook 污染类，本仓静态配置+单 hook 用法不可达）；≥3.4.7 与 happy-dom 探针环境不兼容（p/a/svg 被误剥、foreignObject 误放），升级前须先迁移探针到真实浏览器环境 | TBD | 2026-08-27 |
 | 工具活动 doom_loop 拦截统计依赖 runner 错误文案匹配（"blocked by doom_loop approval"） | app | `session/runner/llm.ts` 文案变更会静默漏计；且只覆盖 denied/rejected，CorrectedError 反馈不计入。根治：事件层为 tool error 加结构化标记（如 `cause: "doom-loop"`），UI 按字段判断 | TBD | 事件层加标记时 |
