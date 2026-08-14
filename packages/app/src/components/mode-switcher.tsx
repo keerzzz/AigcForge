@@ -1,5 +1,5 @@
 import { createMemo, For, Show } from "solid-js"
-import { useNavigate } from "@solidjs/router"
+import { useLocation, useNavigate } from "@solidjs/router"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
@@ -17,6 +17,7 @@ export function ModeSwitcher() {
   const language = useLanguage()
   const dialog = useDialog()
   const navigate = useNavigate()
+  const location = useLocation()
   const platform = usePlatform()
   const serverSDK = useServerSDK()
 
@@ -37,7 +38,8 @@ export function ModeSwitcher() {
     >
       <For each={MODE_DEFINITIONS}>
         {(item) => {
-          const active = () => mode.currentMode === item.id
+          // The home route has no current mode; currentMode is only a persisted last-mode default.
+          const active = () => location.pathname !== "/" && mode.currentMode === item.id
           return (
             <TooltipV2 value={language.t(item.labelKey)} placement="right" gutter={8}>
               <div class="relative">
