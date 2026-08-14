@@ -122,15 +122,14 @@ scoop bucket add extras; scoop install extras/aigcfroge-desktop
 
 ## 架构
 
-AigcForge 是一个 22 包 monorepo，基于 [Effect](https://effect.website) 构建，采用 Schema-first 领域模型与 Drizzle + SQLite 持久化：
+AigcForge 是一个 17 包 monorepo，基于 [Effect](https://effect.website) 构建，采用 Schema-first 领域模型与 Drizzle + SQLite 持久化：
 
-- **入口层** — `aigcfroge`（CLI + 编排）、`cli`、`tui`（终端 UI）、`desktop`（Electron 外壳）
+- **入口层** — `desktop`（Electron 外壳）、`aigcfroge`（sidecar 后端 + 编排）、`tui`（终端 UI）
 - **应用层** — `app`（SolidJS 前端）、`server`（HTTP API）、`script`
 - **领域层** — `core`（会话/事件/工具/权限/插件）、`llm`（提供商抽象）、`schema`（契约）、`sdk/js`
 - **UI 层** — `ui`（设计系统）、`session-ui`（会话渲染）、`storybook`
 - **扩展层** — `plugin`（插件 SDK）
 - **基础设施层** — `effect-drizzle-sqlite`、`effect-sqlite-node`、`http-recorder`
-- **部署单元** — `enterprise`、`function`（Cloudflare Worker）、`slack`、`web`
 
 ## 参与贡献
 

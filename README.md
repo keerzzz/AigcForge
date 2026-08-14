@@ -122,15 +122,14 @@ Point AigcForge at the model provider of your choice, then configure models, per
 
 ## Architecture
 
-AigcForge is a 22-package monorepo built on [Effect](https://effect.website) with a Schema-first domain model and Drizzle + SQLite persistence:
+AigcForge is a 17-package monorepo built on [Effect](https://effect.website) with a Schema-first domain model and Drizzle + SQLite persistence:
 
-- **Entry** — `aigcfroge` (CLI + orchestration), `cli`, `tui` (terminal UI), `desktop` (Electron shell)
+- **Entry** — `desktop` (Electron shell), `aigcfroge` (sidecar server + orchestration), `tui` (terminal UI)
 - **Application** — `app` (SolidJS frontend), `server` (HTTP API), `script`
 - **Domain** — `core` (session/event/tool/permission/plugin), `llm` (provider abstraction), `schema` (contracts), `sdk/js`
 - **UI** — `ui` (design system), `session-ui` (session rendering), `storybook`
 - **Extension** — `plugin` (plugin SDK)
 - **Infrastructure** — `effect-drizzle-sqlite`, `effect-sqlite-node`, `http-recorder`
-- **Deploy units** — `enterprise`, `function` (Cloudflare Worker), `slack`, `web`
 
 ## Contributing
 

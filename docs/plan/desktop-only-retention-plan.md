@@ -296,3 +296,29 @@ nix eval .#aigcfroge-desktop.name   # 或交给 CI 的 nix-eval.yml
 - **事实核验**：22 条关键声明分两组实地核验（A 组 sidecar/构建链/nix/patches 11 条；B 组 CI/脚本/根配置/测试覆盖 11 条），覆盖上下游 5 层（desktop → app/ui/aigcfroge → session-ui/server → core/plugin → llm/schema/sdk/effect-*）及其测试代码。结果：**语义 0 不符**；7 处行号漂移 + 1 处 dependencies/devDependencies 措辞已回改本文档（§2.6、§4.2、§4.3、§4.4、§5.2、§6、§8）。
 - **测试自洽性**：保留链 16 包测试零引用被删包；既有测试缺口备案于 §5.4。
 - **裁决**：**有条件批准**——计划可按 §6 顺序执行。前置条件：§9 待决策项中 3 项需在执行前由 owner 拍板（storybook 去留、4 个 npm CLI workflow 处置、specs/docs 保留范围），其余待决策项可在执行中并行决定。
+## 10.2 执行审批记录（2026-08-14，终审：批准）
+
+执行在独立 worktree（`slim_desktop_only`）的分支 `desktop-only` 上完成，9 个 commit 对应 §6 各节，1584 文件变更（+168 / -475,756）。
+
+**用户决策落地（覆盖 §9 默认值）**：`storybook` **保留**（含根 `dev:storybook` 脚本与 `storybook.yml`），保留包总数 16 → **17**。提交历史含 "删后恢复" 抖动（`8636234aa` → `c21758ae8`），合入前可考虑 squash。其余预决策（specs/docs 保留、4 个 npm CLI workflow 保留不动、sign-windows.ps1 与 stats.ts 保留）均按默认执行。
+
+**审批人独立复验（非转述执行方报告）**：
+
+| 门禁 | 结果 |
+|---|---|
+| typecheck ×4（desktop/app/core/aigcfroge） | 全 PASS |
+| core 测试 | 1782 pass / 2 skip / **0 fail**（执行方申报 "2 fail 同基线" 不准确，实为负载抖动） |
+| aigcfroge 测试 | 3167 pass / 1 fail；失败项 `loop sets status to busy then idle`（`test/session/prompt.test.ts:954`，自带 3s 墙钟超时）为并发负载抖动，隔离复跑 57/57 转绿 |
+| app 全量测试 | 831+3 = **834 pass / 0 fail**，与申报一致 |
+| check-refs.sh | 27/27 通过 |
+| 悬空引用 grep | 保留链对被删包引用 = 0 |
+| 构建产物 | `.deb`(126MB) / `.AppImage`(165MB) / `linux-unpacked` 实际存在 |
+
+**白盒审查**：publish.yml 手术（build-cli/sign-cli-windows 移除、needs 修正、4 处 artifact 下载删除）逐行核对无误；根 package.json / .oxlintrc.json / nix/node_modules.nix / patches / script/publish.ts:42 / raw-changelog.ts 均与 §5.2 一致。
+
+**遗留瑕疵（非阻塞，均为删除前已存在的死配置）**：
+1. `publish.yml:188` 仍传死 env `AIGCFROGE_CLI_ARTIFACT`；`:258` 仍 glob `resources\aigcfroge-cli.exe`（带 SilentlyContinue，无害）——建议顺手清理
+2. `script/publish.ts:38` 日志标签 `=== cli ===` 实为 aigcfroge npm 发布段，措辞陈旧（cosmetic）
+
+**合入前提**：主检出工作区（分支 `fix-assistant-panel-layout`）挂有 14 个 `packages/app` 未提交业务改动（非本次产出），合入前需先提交或另行安置。
+

@@ -33,11 +33,11 @@
 ```
 User
  │
-desktop (Electron/Tauri shell) ──┐
+desktop (Electron shell) ────────┐
  │                               │
 tui (terminal)                   │
  │                               ▼
- └──► aigcfroge (CLI entry, command tree, orchestration)
+ └──► aigcfroge (sidecar server, command tree, orchestration)
         │
         ├─► server (HTTP API, Effect HttpApi + OpenAPI)
         │      │
@@ -48,31 +48,28 @@ tui (terminal)                   │
         │             ├─► effect-drizzle-sqlite + effect-sqlite-node (SQLite via Drizzle+Effect)
         │             └─► system-context (Context Source algebra)
         │
-        ├─► app (SolidJS web frontend) ─► ui + session-ui (design system + session rendering)
-        │                                      │
-        │                                      └─► sdk/js (generated OpenAPI client) ─► server
+        ├─► app (SolidJS frontend) ─► ui + session-ui (design system + session rendering)
+        │                                  │
+        │                                  └─► sdk/js (generated OpenAPI client) ─► server
         │
         ├─► tui (OpenTUI/Solid terminal UI)
         └─► plugin (plugin SDK, v1+v2 hybrid)
-
-Out-of-tree deploy units: function (Cloudflare Worker), slack (Slack bot), enterprise (SolidStart site), web (Astro docs)
 ```
 
 Each `►` is an Effect Layer boundary where services are provided and consumed.
 
 ## 3. Package Topology
 
-21 workspace packages (per `packages/*/package.json`) plus `packages/sdk/js` (generated SDK), grouped by layer:
+17 workspace packages (per `packages/*/package.json`) plus `packages/sdk/js` (generated SDK), grouped by layer:
 
 ```
 Entry layer
-  aigcfroge   — CLI entry + command tree + orchestration (largest package, ~82k LOC)
-  cli         — thin CLI wrapper (reuses aigcfroge)
+  desktop     — Electron shell (renderer embeds app + ui; sidecar forks aigcfroge node)
+  aigcfroge   — sidecar server + command tree + orchestration (core engine)
   tui         — terminal UI (OpenTUI/Solid)
-  desktop     — Electron shell (wraps app + ui)
 
 Application layer
-  app         — SolidJS web frontend (routes, layout, session UI)
+  app         — SolidJS frontend (routes, layout, session UI)
   server      — HTTP API server (Effect HttpApi + OpenAPI groups)
   script      — release version computation
 
@@ -94,12 +91,6 @@ Infrastructure layer
   effect-drizzle-sqlite — vendored Drizzle + Effect SQLite adapter (oxlint-disabled vendor code)
   effect-sqlite-node     — Node SQLite driver Effect binding
   http-recorder          — HTTP record/replay cassettes (test infrastructure)
-
-Deploy units (out-of-tree, not in runtime dependency graph)
-  enterprise  — SolidStart enterprise site
-  function    — Cloudflare Worker (SyncServer Durable Object + GitHub JWT)
-  slack       — Slack bot integration
-  web         — Astro + Starlight marketing/docs site
 ```
 
 ### Dependency directions
