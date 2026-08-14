@@ -296,10 +296,6 @@ nix eval .#aigcfroge-desktop.name   # 或交给 CI 的 nix-eval.yml
 - **事实核验**：22 条关键声明分两组实地核验（A 组 sidecar/构建链/nix/patches 11 条；B 组 CI/脚本/根配置/测试覆盖 11 条），覆盖上下游 5 层（desktop → app/ui/aigcfroge → session-ui/server → core/plugin → llm/schema/sdk/effect-*）及其测试代码。结果：**语义 0 不符**；7 处行号漂移 + 1 处 dependencies/devDependencies 措辞已回改本文档（§2.6、§4.2、§4.3、§4.4、§5.2、§6、§8）。
 - **测试自洽性**：保留链 16 包测试零引用被删包；既有测试缺口备案于 §5.4。
 - **裁决**：**有条件批准**——计划可按 §6 顺序执行。前置条件：§9 待决策项中 3 项需在执行前由 owner 拍板（storybook 去留、4 个 npm CLI workflow 处置、specs/docs 保留范围），其余待决策项可在执行中并行决定。
-
-
----
-
 ## 10.2 执行审批记录（2026-08-14，终审：批准）
 
 执行在独立 worktree（`slim_desktop_only`）的分支 `desktop-only` 上完成，9 个 commit 对应 §6 各节，1584 文件变更（+168 / -475,756）。
@@ -325,3 +321,4 @@ nix eval .#aigcfroge-desktop.name   # 或交给 CI 的 nix-eval.yml
 2. `script/publish.ts:38` 日志标签 `=== cli ===` 实为 aigcfroge npm 发布段，措辞陈旧（cosmetic）
 
 **合入前提**：主检出工作区（分支 `fix-assistant-panel-layout`）挂有 14 个 `packages/app` 未提交业务改动（非本次产出），合入前需先提交或另行安置。
+

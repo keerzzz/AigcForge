@@ -1,22 +1,21 @@
 import { createMemo, For, Show, type Accessor } from "solid-js"
+import { useParams } from "@solidjs/router"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { useLanguage } from "@/context/language"
 import { ModeLocationNewSession } from "@/components/mode-location-new-session"
 import { useServerSync } from "@/context/server-sync"
+import { useServerSDK } from "@/context/server-sdk"
+import { useLayout } from "@/context/layout"
+import { SessionRouteKey, SessionStateKey } from "@/utils/server-scope"
 import { sortedRootSessions } from "@/pages/layout/helpers"
 import { SessionItem, SessionSkeleton } from "@/pages/layout/sidebar-items"
 import { AssistantNavTree } from "@/components/assistant-nav-tree"
 import { openEntityPanel } from "@/pages/session/assistant-session-panel-open"
-import { useSessionLayout } from "@/pages/session/session-layout"
 import type { WorkspaceSidebarContext } from "@/pages/layout/sidebar-workspace"
 import type { ServerConnection } from "@/context/server"
 import type { AssistantNavSelection } from "@/components/assistant-nav-model"
 
-/**
- * Assistant 会话详情页次级左栏（批次 2 G3，PRD §8.2）：Location + 新建 +
- * mode=assistant 会话列表 + 实体导航树。导航树选中态 ↔ 右栏面板状态
- * （openEntityPanel 开对应 Tab 并定位；面板 Tab/目标变化 → 树高亮同步）。
- */
+/** Assistant session sidebar with mode-scoped sessions and entity navigation. */
 export function AssistantSessionSidebar(props: {
   directory: Accessor<string>
   sortNow: Accessor<number>
@@ -25,7 +24,17 @@ export function AssistantSessionSidebar(props: {
 }) {
   const language = useLanguage()
   const sync = useServerSync()
-  const { assistant } = useSessionLayout()
+  const params = useParams()
+  const serverSDK = useServerSDK()
+  const layout = useLayout()
+  // This shell renders outside SDKProvider, so derive the same scoped key that
+  // useSessionLayout would create from its directory SDK context.
+  const sessionKey = createMemo(() =>
+    SessionStateKey.from(serverSDK().scope, SessionRouteKey.fromRoute(base64Encode(props.directory()), params.id)),
+  )
+  const assistant = createMemo(() => layout.assistant(sessionKey))
+  const tabs = createMemo(() => layout.tabs(sessionKey))
+  const view = createMemo(() => layout.view(sessionKey))
 
   const store = createMemo(() => {
     const directory = props.directory()
@@ -39,33 +48,36 @@ export function AssistantSessionSidebar(props: {
     return sortedRootSessions(current, props.sortNow()).filter((session) => (session.mode ?? "coding") === "assistant")
   })
 
-  // 树选中态 ↔ 右栏面板状态：Tab → kind，target → itemId；context/editor 无实体。
+  // Entity tabs map to navigation selections; context and editor have no tree node.
   const selected = createMemo<AssistantNavSelection>(() => {
-    const tab = assistant().tab()
+    const active = tabs().active()
     const target = assistant().target()
-    if (tab === "reminders" || tab === "memory" || tab === "kb") {
-      return target ? { kind: tab, itemId: target } : { kind: tab }
+    if (active === "reminders" || active === "memory" || active === "kb") {
+      return target ? { kind: active, itemId: target } : { kind: active }
     }
-    if (tab === "context") return undefined
     return undefined
   })
 
   const onSelect = (next: AssistantNavSelection) => {
-    const handle = assistant()
-    if (!next) {
-      handle.close()
-      return
-    }
+    if (!next) return
     if (next.kind === "reminders" || next.kind === "memory" || next.kind === "kb") {
-      openEntityPanel(handle, next.kind, next.itemId)
+      openEntityPanel({ view: view(), tabs: tabs(), assistant: assistant(), kind: next.kind, itemId: next.itemId })
       return
     }
-    openEntityPanel(handle, "kb")
+    openEntityPanel({ view: view(), tabs: tabs(), assistant: assistant(), kind: "kb" })
   }
 
   return (
     <div class="flex min-h-0 flex-1 flex-col" data-component="assistant-session-sidebar">
       <ModeLocationNewSession directory={props.directory} mode="assistant" />
+      {/* Entity navigation module sits above the session list, capped so a large
+          knowledge tree cannot collapse the conversations below. */}
+      <div
+        class="min-h-0 shrink-0 overflow-y-auto border-b border-v2-border-border-base py-1"
+        style={{ "max-height": "45%" }}
+      >
+        <AssistantNavTree selected={selected()} onSelect={onSelect} />
+      </div>
       <div class="px-3 pb-1 pt-2 text-v2-text-text-muted text-11-regular [font-weight:440]">
         {language.t("assistant.nav.sessions")}
       </div>
@@ -74,7 +86,9 @@ export function AssistantSessionSidebar(props: {
           <Show
             when={sessions().length > 0}
             fallback={
-              <p class="px-1 py-2 text-v2-text-text-muted text-12-regular">{language.t("assistant.nav.sessionsEmpty")}</p>
+              <p class="px-1 py-2 text-v2-text-text-muted text-12-regular">
+                {language.t("assistant.nav.sessionsEmpty")}
+              </p>
             }
           >
             <div class="flex min-w-0 flex-col gap-px">
@@ -96,14 +110,6 @@ export function AssistantSessionSidebar(props: {
             </div>
           </Show>
         </Show>
-      </div>
-      {/* 树独立滚动 + 高度上限（MEDIUM-1 修正）：知识库笔记多时树不溢出 aside、
-          也不把会话列表压缩到 0。 */}
-      <div
-        class="min-h-0 shrink-0 overflow-y-auto border-t border-v2-border-border-base py-1"
-        style={{ "max-height": "45%" }}
-      >
-        <AssistantNavTree selected={selected()} onSelect={onSelect} />
       </div>
     </div>
   )

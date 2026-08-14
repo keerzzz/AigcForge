@@ -81,10 +81,13 @@ describe("AssistantSessionPanel kb/editor tabs (batch 3 G4)", () => {
   })
 
   test("edit from the kb tab opens the editor tab with the note target", () => {
-    expect(panel).toContain('openEntityPanel(assistant(), "editor", note.id)')
+    expect(panel).toContain('kind: "editor"')
+    expect(panel).toContain("itemId: note.id")
   })
 
   test("saving the editor returns to the kb tab", () => {
-    expect(panel).toContain('onSaved={() => openEntityPanel(assistant(), "kb")}')
+    expect(panel).toContain(
+      'onSaved={() => openEntityPanel({ view: view(), tabs: tabs(), assistant: assistant(), kind: "kb" })}',
+    )
   })
 })

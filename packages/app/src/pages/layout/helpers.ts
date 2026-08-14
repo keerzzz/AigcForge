@@ -3,7 +3,6 @@ import { type ProductMode, type Session } from "@aigcfroge/sdk/v2/client"
 import { startTransition } from "solid-js"
 import { pathKey } from "@/utils/path-key"
 import type { ServerConnection } from "@/context/server"
-import { isMode, type Mode } from "@/context/mode"
 import type { HomeSessionRecord } from "@/pages/home"
 import type { LocalProject } from "@/context/layout"
 import type { useGlobal } from "@/context/global"
@@ -197,18 +196,15 @@ export function openProjectNewSession(
 /**
  * Shared "open session record" flow, extracted from CodingSessionListMain.openSession
  * (mode-workspace-slots.tsx:287-305) so the global home page and the mode home pages
- * share one implementation. Behavior must stay identical for coding; the optional
- * setMode syncs persisted currentMode only when the session carries a known mode.
+ * share one implementation. The canonical Session route owns Product Mode sync.
  */
 export function openSessionRecord(input: {
   record: HomeSessionRecord
-  conn: ServerConnection.Any
   server: ServerConnection.Key
   global: ReturnType<typeof useGlobal>
   tabs: ReturnType<typeof useTabs>
   projects: { open: (directory: string) => void; touch: (directory: string) => void; list: () => LocalProject[] }
   projectByID: Map<string, LocalProject>
-  setMode?: (mode: Mode) => void
 }) {
   const { session } = input.record
   const project = projectForSession(session, input.projects.list(), input.projectByID)
@@ -221,7 +217,6 @@ export function openSessionRecord(input: {
   })
   input.projects.open(directory)
   input.projects.touch(directory)
-  if (input.setMode && isMode(session.mode)) input.setMode(session.mode)
   void startTransition(() => {
     const tab = input.tabs.addSessionTab({ server: input.server, sessionId: session.id })
     input.tabs.select(tab)

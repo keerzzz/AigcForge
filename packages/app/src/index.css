@@ -492,8 +492,8 @@
   }
 }
 
-/* Assistant 知识库 wikilink 装饰（assistant-kb-tab / assistant-note-editor 预览）：
-   已解析 → accent，悬空（目标标题不存在）→ warning 高亮。 */
+/* Assistant knowledge base wikilink decoration (assistant-kb-tab / assistant-note-editor preview):
+   resolved -> accent, dangling (target title does not exist) -> warning highlight. */
 [data-wikilink] {
   cursor: pointer;
 }
@@ -505,9 +505,9 @@
   color: var(--v2-text-text-accent);
 }
 
-/* Assistant 引文锚定角标（批次 4 G4）：[note title](kb://<id>) 经 sanitize
-   白名单存活后由 marked 渲染为普通链接，此处做角标化视觉（app 层纯 CSS，
-   不触碰 session-ui 共享渲染路径）。kb:// 链接只会出现在 assistant 回答中。 */
+/* Assistant citation anchor badge: [note title](kb://<id>) surviving sanitization
+   is rendered by marked as standard links, styled here as a badge (pure CSS in app layer,
+   without touching session-ui shared rendering). kb:// links only appear in assistant answers. */
 a[href^="kb://"] {
   display: inline-block;
   margin: 0 0.125rem;

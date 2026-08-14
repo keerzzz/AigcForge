@@ -7,10 +7,8 @@ import { Icon } from "@aigcfroge/ui/v2/icon"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { useLanguage } from "@/context/language"
-import { ChatRightPanel } from "@/components/chat/chat-right-panel"
-export { ChatRightPanel }
 import { assetVersion } from "@/components/chat/prompt-asset-store"
-import { useChatDirectory } from "@/pages/mode-workspace-context"
+import { useModeDirectory } from "@/pages/mode-workspace-context"
 import { AssetWorkbench } from "@/components/chat/asset-workbench"
 import { useGlobal } from "@/context/global"
 import { ServerConnection } from "@/context/server"
@@ -21,13 +19,11 @@ import { homeProjectDirectories, openProjectNewSession } from "@/pages/layout/he
 import { getFilename } from "@aigcfroge/core/util/path"
 import { AssistantDashboardMain } from "@/pages/assistant-dashboard"
 import { AssistantSidebar } from "@/components/assistant-feature-sidebar"
-import { ChatAssetWorkbenchMain, CodingProjectColumnSidebar, CodingSessionListMain, PlaceholderMain, WorkPresetCatalogMain, WorkProjectColumnSidebar } from "@/pages/mode-workspace-slots"
-import { WorkArtifactPanel } from "@/pages/work-artifact-panel"
+import { ChatAssetWorkbenchMain, CodingProjectColumnSidebar, CodingSessionListMain, WorkPresetCatalogMain, WorkProjectColumnSidebar } from "@/pages/mode-workspace-slots"
 
 export type ModeSurface = {
   Sidebar: Component
   Main: Component
-  RightPanel: Component
 }
 
 const CHAT_FEATURES = [
@@ -40,12 +36,12 @@ const CHAT_FEATURES = [
   { id: "plugin", icon: "outline-dots", label: "chat.feature.plugin" },
 ] as const satisfies ReadonlyArray<{ id: ChatFeatureID; icon: string; label: string }>
 
-/** Chat 功能树共享数据：左栏导航 count，directory 复用 useChatDirectory（B2）。 */
+/** Shared Chat feature counts and the current Chat directory. */
 function useChatFeatureData() {
   const sync = useServerSync()
-  const { conn, ctx, directory } = useChatDirectory()
+  const { conn, ctx, directory } = useModeDirectory()
 
-  // M4：child 必须带 { mcp: true } 才会加载 command/mcp（bootstrap.ts 门控），agent 随普通 bootstrap。
+  // Command and MCP data load only when the child store opts into MCP bootstrap.
   const directoryData = createMemo(() => {
     const current = directory()
     if (!current) return
@@ -56,84 +52,7 @@ function useChatFeatureData() {
 }
 
 /**
- * Chat 首页左栏（Home L461）：Location + New Session + Add Project（瘦版，无功能树）。
- * 功能树在 SecondarySidebar 的 ChatFeatureSidebar（全貌）。两者 Location/New Session 一致，
- * 对齐 code 模式（HomeProjectColumn + SecondarySidebar 项目列表也并存）。
- */
-export function ChatSidebar() {
-  const language = useLanguage()
-  const tabs = useTabs()
-  const global = useGlobal()
-  const pickDirectory = useDirectoryPicker()
-  const { conn, ctx, directory } = useChatDirectory()
-
-  function newSession() {
-    const current = conn()
-    const currentCtx = ctx()
-    const currentDirectory = directory()
-    if (!current || !currentCtx || !currentDirectory) return
-    openProjectNewSession(
-      currentCtx.projects,
-      (serverKey, draftDirectory) =>
-        tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft("chat") }),
-      ServerConnection.key(current),
-      currentDirectory,
-    )
-  }
-
-  function addProject() {
-    const current = conn()
-    const currentCtx = ctx()
-    if (!current || !currentCtx) return
-    pickDirectory({
-      server: current,
-      title: language.t("command.project.open"),
-      multiple: true,
-      onSelect: (result) => {
-        const dirs = homeProjectDirectories(result)
-        if (!dirs[0]) return
-        dirs.forEach(currentCtx.projects.open)
-        currentCtx.projects.touch(dirs[0])
-        global.lastSession.set(currentCtx.sdk.scope, dirs[0])
-      },
-    })
-  }
-
-  return (
-    <div class="flex min-h-0 shrink-0 flex-col">
-      <div class="flex items-center gap-1.5 border-b border-v2-border-border-base px-3 pb-3 pt-3">
-        <Icon name="folder" size="small" class="shrink-0 text-v2-icon-icon-muted" />
-        <span class="shrink-0 text-v2-text-text-muted text-11-regular">{language.t("chat.feature.project")}</span>
-        <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-11-regular">
-          {directory() ? getFilename(directory()) || directory() : language.t("chat.feature.noLocation")}
-        </span>
-        <IconButtonV2
-          variant="ghost-muted"
-          size="small"
-          icon={<Icon name="folder-add-left" />}
-          aria-label={language.t("sidebar.secondary.addProject")}
-          onClick={addProject}
-        />
-      </div>
-      <div class="px-3 pb-2 pt-3">
-        <ButtonV2
-          variant="neutral"
-          size="normal"
-          icon="edit"
-          class="w-full"
-          disabled={!directory()}
-          onClick={newSession}
-        >
-          {language.t("command.session.new")}
-        </ButtonV2>
-      </div>
-    </div>
-  )
-}
-
-/**
- * Chat 次级左侧边栏（SecondarySidebar）：Location + New Session + 功能树（分类+计数）+ Add Project。
- * M1 全貌恢复（M2 Step 3 按产品反馈复活）。功能树点击切换 KindFilter，AssetWorkbenchTable 按 kind 展示对应资产。
+ * Chat secondary sidebar: Location, new session, asset categories, and counts.
  */
 export function ChatFeatureSidebar() {
   const language = useLanguage()
@@ -143,9 +62,8 @@ export function ChatFeatureSidebar() {
   const { selected: chatFeature, set: setChatFeature } = useChatFeature()
   const { conn, ctx, directory, directoryData } = useChatFeatureData()
 
-  // 提示词分类资产数量：查当前 Location 的 prompt asset（m1 §1.4）
-  // 用 createEffect 而非 createMemo：ensureDirSdkContext 内部注册 onCleanup/onMount，
-  // effect 有 cleanup 机制，directory 变化时正确释放旧 context（memo 无 cleanup 会泄漏 + owner 混乱）。
+  // ensureDirSdkContext registers cleanup hooks, so it must run under an effect
+  // that disposes the previous directory context when the location changes.
   const [dirSdk, setDirSdk] = createSignal<DirectorySDK | undefined>()
   createEffect(() => {
     const dir = directory()
@@ -156,7 +74,7 @@ export function ChatFeatureSidebar() {
     }
     setDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
   })
-  // 全量资产计数：并发取 7 种 kind 的项目级资产（M3 取 5，M5/M6 增加 workflow/plugin）；带 name 集合供系统级计数去重。
+  // Keep names with counts so system assets can be deduplicated consistently.
   const [kindCounts] = createResource(() => ({ sdk: dirSdk(), version: assetVersion() }), async (source) => {
     if (!source.sdk) return { counts: {} as Record<string, number>, names: {} as Record<string, Set<string>> }
     const [p, s, m, c, a, w, pl] = await Promise.all([
@@ -182,7 +100,7 @@ export function ChatFeatureSidebar() {
       names: Object.fromEntries(Object.entries(byKind).map(([kind, assets]) => [kind, new Set(assets.map((x) => x.name))])),
     }
   })
-  // M4：计数 = 项目级 + 系统级（server-sync 运行时数据，按 kind+name 去重，与表格 mergeAssets 同规则）。
+  // Use the same kind-and-name deduplication rule as the workbench table.
   const countFor = (feature: ChatFeatureID) => {
     const data = kindCounts()
     const syncData = directoryData()
@@ -282,49 +200,22 @@ export function ChatFeatureSidebar() {
   )
 }
 
-
-
-export function PlaceholderSidebar(props: { mode: Mode }) {
-  const language = useLanguage()
-  return (
-    <div class="min-h-0 flex-1 overflow-y-auto px-2">
-      <div class="flex flex-col items-center justify-center gap-3 px-4 py-12 text-center">
-        <Icon name={`mode-${props.mode}`} size="large" class="text-v2-icon-icon-muted opacity-40" />
-        <p class="text-v2-text-text-muted text-13-regular">{language.t("sidebar.secondary.noResults")}</p>
-      </div>
-    </div>
-  )
-}
-
-export function PlaceholderPanel() {
-  const language = useLanguage()
-  return (
-    <aside class="flex w-64 shrink-0 flex-col items-center justify-center gap-3 border-l border-v2-border-border-base bg-v2-background-bg-base p-6 text-center">
-      <span class="text-v2-text-text-muted text-13-regular">{language.t("sidebar.secondary.noResults")}</span>
-    </aside>
-  )
-}
-
 const MODE_SURFACES: Record<ModeSurfaceSlot, ModeSurface> = {
   coding: {
     Sidebar: CodingProjectColumnSidebar,
     Main: CodingSessionListMain,
-    RightPanel: () => null,
   },
   chat: {
     Sidebar: ChatFeatureSidebar,
     Main: ChatAssetWorkbenchMain,
-    RightPanel: ChatRightPanel,
   },
   work: {
     Sidebar: WorkProjectColumnSidebar,
     Main: WorkPresetCatalogMain,
-    RightPanel: () => <WorkArtifactPanel />,
   },
   assistant: {
     Sidebar: AssistantSidebar,
     Main: AssistantDashboardMain,
-    RightPanel: PlaceholderPanel,
   },
 }
 

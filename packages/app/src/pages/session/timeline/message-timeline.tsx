@@ -280,7 +280,7 @@ export function MessageTimeline(props: {
   const language = useLanguage()
   const mode = useMode()
   const { params, sessionKey } = useSessionKey()
-  const { assistant } = useSessionLayout()
+  const { assistant, view: panelView, tabs: sessionTabs } = useSessionLayout()
   const ownerSessionKey = sessionKey()
   const cached = timelineCache.get(ownerSessionKey)
   const initialMeasurements = cached?.measurements
@@ -334,9 +334,8 @@ export function MessageTimeline(props: {
 
   const [timeoutDone, setTimeoutDone] = createSignal(true)
 
-  // ---- 引文锚定（批次 4 G4，F2）：assistant 回答的 [标题](kb://id) 链接
-  // ---- 点击 → 展开原文摘要 + openEntityPanel 开右栏知识库 Tab 定位。
-  // ---- app 层后处理 + mode 门控：coding/chat/work 文本渲染不受影响。
+  // Intercept kb:// links only in Assistant mode so shared message rendering
+  // remains unchanged for Coding, Chat, and Work.
   const [citation, setCitation] = createSignal<{ id: string; title: string; excerpt: string } | undefined>()
   const citationEnabled = () => mode.currentMode === "assistant"
 
@@ -346,7 +345,7 @@ export function MessageTimeline(props: {
     if (!id) return
     event.preventDefault()
     event.stopPropagation()
-    openEntityPanel(assistant(), "kb", id)
+    openEntityPanel({ view: panelView(), tabs: sessionTabs(), assistant: assistant(), kind: "kb", itemId: id })
     void serverSDK()
       .client.kb.get({ id })
       .then((res) => {
@@ -355,7 +354,7 @@ export function MessageTimeline(props: {
         setCitation({ id: note.id, title: note.title, excerpt: citationSummary(note.content ?? "", 220) })
       })
       .catch(() => {
-        // 宽容解析：无记录 → 不渲染摘要，不阻塞回答。
+        // Missing notes leave the answer usable without a citation preview.
       })
   }
 
@@ -1410,7 +1409,8 @@ export function MessageTimeline(props: {
         onClick={props.onAutoScrollInteraction}
         class="relative min-w-0 w-full h-full"
         style={{
-          "--sticky-accordion-top": showHeader() ? "72px" : "0px",        }}
+          "--sticky-accordion-top": showHeader() ? "72px" : "0px",
+        }}
       >
         <Show when={showHeader()}>
           <div

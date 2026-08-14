@@ -8,12 +8,9 @@ import { useLanguage } from "@/context/language"
 import { useServerSDK } from "@/context/server-sdk"
 import { decorateWikilinks } from "@/components/assistant-wikilink-decorate"
 import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
+import { assistantQueryKey } from "@/utils/assistant-query"
 
-/**
- * 知识库 Tab（批次 3 G4，PRD §8.2）：搜索（FTS5）+ 标签筛 + 笔记列表 +
- * 选中正文（wikilink 装饰/悬空高亮）+ 反向引用（GET /kb/:id/backlinks）+
- * 悬空链接面板（kb.dangling）。openEntityPanel("kb", id) 定位笔记。
- */
+/** Knowledge-base search, filtering, backlinks, and dangling-link inspection. */
 export function AssistantKbTab(props: {
   target?: string
   onEditNote: (note: KbNoteNote) => void
@@ -26,7 +23,7 @@ export function AssistantKbTab(props: {
   const [selectedID, setSelectedID] = createSignal<string | undefined>(props.target)
 
   const notesQuery = useQuery(() => ({
-    queryKey: ["assistant", "kb"] as const,
+    queryKey: assistantQueryKey(serverSDK().scope, "kb"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.list({})
       return Array.isArray(res.data) ? res.data : []
@@ -35,7 +32,7 @@ export function AssistantKbTab(props: {
   const notes = createMemo(() => notesQuery.data ?? [])
 
   const searchQuery = useQuery(() => ({
-    queryKey: ["assistant", "kb-search", search()] as const,
+    queryKey: assistantQueryKey(serverSDK().scope, "kb-search", search()),
     queryFn: async () => {
       const value = search()
       if (!value) return notes()
@@ -63,7 +60,7 @@ export function AssistantKbTab(props: {
     return notes().find((note) => note.id === id) ?? filtered().find((note) => note.id === id)
   })
 
-  // openEntityPanel 定位：target 变化 → 选中对应笔记并清空搜索/标签。
+  // A panel target must stay visible even when a previous search hid it.
   createEffect(() => {
     const id = props.target
     if (!id) return
@@ -74,7 +71,7 @@ export function AssistantKbTab(props: {
   })
 
   const backlinksQuery = useQuery(() => ({
-    queryKey: ["assistant", "kb-backlinks", selectedID() ?? ""] as const,
+    queryKey: assistantQueryKey(serverSDK().scope, "kb-backlinks", selectedID() ?? ""),
     queryFn: async () => {
       const id = selectedID()
       if (!id) return []
@@ -86,7 +83,7 @@ export function AssistantKbTab(props: {
   const backlinks = createMemo(() => backlinksQuery.data ?? [])
 
   const danglingQuery = useQuery(() => ({
-    queryKey: ["assistant", "dangling"] as const,
+    queryKey: assistantQueryKey(serverSDK().scope, "dangling"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.dangling()
       return Array.isArray(res.data) ? res.data : []
@@ -96,7 +93,7 @@ export function AssistantKbTab(props: {
 
   const titleIndex = createMemo(() => new Set(notes().map((note) => note.title)))
 
-  // 选中正文的 wikilink 装饰（悬空高亮）；已解析链接点击 → 打开目标笔记。
+  // Decorate rendered wikilinks after Markdown updates the DOM.
   let bodyRef: HTMLDivElement | undefined
   createEffect(() => {
     const root = bodyRef
@@ -144,7 +141,6 @@ export function AssistantKbTab(props: {
 
       <ScrollView class="min-h-0 flex-1">
         <div class="flex min-w-0 flex-col gap-4">
-          {/* 笔记列表 */}
           <Show
             when={!searchQuery.isLoading && !notesQuery.isLoading}
             fallback={<p class="text-v2-text-text-muted text-13-regular">{language.t("common.loading")}</p>}
@@ -177,7 +173,6 @@ export function AssistantKbTab(props: {
             </Show>
           </Show>
 
-          {/* 选中笔记：正文 + 反向引用 */}
           <Show when={selected()} keyed>
             {(note) => (
               <section class="flex min-w-0 flex-col gap-2 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
@@ -226,7 +221,6 @@ export function AssistantKbTab(props: {
             )}
           </Show>
 
-          {/* 悬空链接面板（全局） */}
           <section class="flex min-w-0 flex-col gap-2">
             <p class="text-v2-text-text-base text-13-medium">{language.t("assistant.kb.danglingTitle")}</p>
             <Show

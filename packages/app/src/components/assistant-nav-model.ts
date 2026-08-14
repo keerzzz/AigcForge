@@ -1,12 +1,5 @@
 import type { KbNoteNote, PersonalMemoryInfo, ScheduleInfo } from "@aigcfroge/sdk/v2/client"
 
-/**
- * 实体导航树数据模型（批次 2 G3 / D4，计划 §3.2）：提醒/记忆/知识库分类 +
- * 计数，知识库按 tags 层级聚合；会话列表联动（D5，计划 §3.3）从导航选中态
- * 反查会话（提醒 Schedule.Info.sessionID / 记忆 sourceSessionID），知识库笔记
- * 无会话反链 → 退化为全量。
- */
-
 export type AssistantNavSelection =
   | { kind: "reminders"; itemId?: string }
   | { kind: "memory"; itemId?: string }
@@ -23,7 +16,7 @@ export type KbTagNode = {
 
 const UNTAGGED = "__untagged__"
 
-/** 笔记按 tags 层级聚合（#tag/subtag → 两级树），计数 = 叶子笔记数。 */
+/** Builds an arbitrary-depth tag tree and deduplicated subtree counts. */
 export function buildKbTagTree(notes: KbNoteNote[]): KbTagNode[] {
   const root = new Map<string, KbTagNode>()
   const untagged: KbTagNode = { tag: UNTAGGED, count: 0, notes: [] }
@@ -64,8 +57,7 @@ export function buildKbTagTree(notes: KbNoteNote[]): KbTagNode[] {
       if (node.children) sortTree(node.children)
     }
   }
-  // 节点计数 = 子树聚合（直接标签 + 子标签），同一笔记在重叠层级标签
-  // （如 ["a", "a/b"]）下只计一次（LOW 修复：按 note id 去重）。
+  // A note with overlapping tags such as "a" and "a/b" counts once per subtree.
   const aggregate = (node: KbTagNode): number => {
     const seen = new Set<string>()
     const collect = (current: KbTagNode): number => {
@@ -89,7 +81,7 @@ export function buildKbTagTree(notes: KbNoteNote[]): KbTagNode[] {
   return result
 }
 
-/** 导航选中态 → 会话列表高亮集合（D5；知识库/悬空 → 空集 = 全量）。 */
+/** Resolves the source Session highlighted by the selected Assistant entity. */
 export function sessionHighlightIDs(input: {
   selection: AssistantNavSelection
   reminders: ScheduleInfo[]

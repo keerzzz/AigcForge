@@ -140,7 +140,7 @@ export function SessionTodoProgress(props: {
       })
   })
 
-  // Fold-over dismiss layer (M7 决策 6): click outside the strip + panel closes.
+  // Fold-over dismiss layer (M7 decision 6): click outside the strip + panel closes.
   createEffect(() => {
     if (!open()) return
     const handler = (event: PointerEvent) => {

@@ -43,7 +43,7 @@ const MODE_FILTER_ROW =
   "flex h-7 min-w-0 cursor-default items-center gap-2 rounded-[6px] px-1.5 text-left text-[13px] text-v2-text-text-muted hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:bg-v2-overlay-simple-overlay-hover data-[selected]:bg-v2-background-bg-layer-03 data-[selected]:text-v2-text-text-base"
 const MODE_FILTER_COUNT = "ml-auto shrink-0 text-11-regular text-v2-text-text-faint"
 
-/** 全局聚合首页：跨项目会话列表 + 模式/项目筛选 +「继续上次」置顶（D5：按当前 server 聚合）。 */
+/** Global session overview with mode/project filters and a last-active pin. */
 export function HomeOverview() {
   const sync = useServerSync()
   const layout = useLayout()
@@ -73,7 +73,7 @@ export function HomeOverview() {
     () => new Map(projects().flatMap((project) => (project.id ? [[project.id, project] as const] : []))),
   )
   const selectedProject = createMemo(() => projects().find((project) => project.worktree === state.projectFilter))
-  // 统一管道：会话始终全量加载（支撑模式/项目统计），项目/模式筛选在内存完成。
+  // Load the complete current-server set once; filters and counts stay in memory.
   const projectDirectories = createMemo(() => projects().flatMap((project) => [project.worktree, ...(project.sandboxes ?? [])]))
   const activeServer = () => {
     const conn = focusedServer()
@@ -130,13 +130,11 @@ export function HomeOverview() {
     if (!conn || !ctx) return
     openSessionRecord({
       record,
-      conn,
       server: ServerConnection.key(conn),
       global,
       tabs,
       projects: ctx.projects,
       projectByID: projectByID(),
-      setMode: mode.setCurrentMode,
     })
   }
 
@@ -277,13 +275,13 @@ export function HomeOverview() {
   )
 }
 
-/** 首页左列：模式筛选（计数）+ 项目维度（复用 HomeProjectRow，管理逻辑与 CodingProjectColumnSidebar 同款）。 */
+/** Home sidebar with mode counts and project filters, reusing HomeProjectRow. */
 export function HomeOverviewSidebar(props: {
   server: ServerConnection.Any
   projects: LocalProject[]
   selectedDirectory: string | undefined
   total: number
-  counts: { coding: number; chat: number; work: number }
+  counts: Record<Mode, number>
   projectCounts: Map<string, number>
   modeFilter: "all" | Mode
   onModeFilter: (mode: "all" | Mode) => void
@@ -347,6 +345,7 @@ export function HomeOverviewSidebar(props: {
     { id: "coding", label: language.t("mode.coding"), count: props.counts.coding },
     { id: "chat", label: language.t("mode.chat"), count: props.counts.chat },
     { id: "work", label: language.t("mode.work"), count: props.counts.work },
+    { id: "assistant", label: language.t("mode.assistant"), count: props.counts.assistant },
   ])
 
   return (

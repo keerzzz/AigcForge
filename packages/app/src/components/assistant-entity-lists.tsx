@@ -4,11 +4,7 @@ import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { useLanguage } from "@/context/language"
 import type { PersonalMemoryInfo, ScheduleDelivery, ScheduleInfo } from "@aigcfroge/sdk/v2/client"
 
-/**
- * Assistant 共享实体列表（批次 1 G1）：ReminderList / MemoryInspector /
- * DeliveryList 从 assistant-dashboard.tsx 抽取，首页主区（聚合层）与详情右栏
- * Tab（详情层）两处复用，不复制。抽取后 Dashboard 行为保持不变（F4 门禁）。
- */
+/** Shared Assistant entity lists used by the dashboard and session panel. */
 
 export const formatDueAt = (dueAt: number | "-Infinity" | "Infinity" | "NaN") =>
   new Date(typeof dueAt === "number" ? dueAt : Date.now()).toLocaleString()
@@ -21,7 +17,6 @@ const STATUS_LABEL: Record<ScheduleInfo["status"], string> = {
   failed: "assistant.reminder.status.failed",
 }
 
-/** 待办提醒列表（Dashboard 聚合横条与右栏提醒 Tab 共用；行渲染与抽取前一致）。 */
 export function ReminderList(props: {
   pending: ScheduleInfo[]
   error?: boolean
@@ -30,7 +25,7 @@ export function ReminderList(props: {
   emptyLabel: string
   errorLabel: string
   showStatus?: boolean
-  /** openEntityPanel 定位条目：匹配行加 data-targeted 高亮。 */
+  /** Highlights the row targeted by openEntityPanel. */
   targetId?: string
 }) {
   const language = useLanguage()
@@ -84,14 +79,13 @@ export function ReminderList(props: {
   )
 }
 
-/** 个人记忆两分组（pending 提议 + 已确认；Dashboard Memory Inspector 与右栏记忆 Tab 共用）。 */
 export function MemoryInspector(props: {
   pending: PersonalMemoryInfo[]
   confirmed: PersonalMemoryInfo[]
   onConfirm: (id: string) => void
   onReject: (id: string) => void
   onRemove: (id: string) => void
-  /** openEntityPanel 定位条目：匹配行加 data-targeted 高亮。 */
+  /** Highlights the row targeted by openEntityPanel. */
   targetId?: string
 }) {
   const language = useLanguage()
@@ -161,7 +155,6 @@ export function MemoryInspector(props: {
   )
 }
 
-/** 投递记录行列表（Dashboard 最近投递与右栏提醒 Tab 历史投递共用）。 */
 export function DeliveryList(props: {
   records: ScheduleDelivery[]
   onMarkRead: (deliveryKey: string) => void

@@ -381,7 +381,7 @@ export function AgentTaskHub(props: {
                 </Show>
               </div>
             </Show>
-            {/* Zone 2b: 任务衍生 — tasks spawned via task_spawn (spawnedFrom
+            {/* Zone 2b: derived tasks — spawned via task_spawn (spawnedFrom
                 set), grouped by source message. Read-only; a source that resolves
                 to a timeline anchor (same session, user-message parent found)
                 renders as a jump button, anything else as plain text — no dead links. */}

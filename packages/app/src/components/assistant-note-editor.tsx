@@ -7,6 +7,7 @@ import { Markdown } from "@aigcfroge/session-ui/markdown"
 import { useLanguage } from "@/context/language"
 import { useServerSDK } from "@/context/server-sdk"
 import { decorateWikilinks } from "@/components/assistant-wikilink-decorate"
+import { assistantQueryKey } from "@/utils/assistant-query"
 import {
   danglingWikilinks,
   findWikilinkBeforeCaret,
@@ -15,12 +16,7 @@ import {
 } from "@/components/assistant-note-editor-model"
 import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
 
-/**
- * 双栏笔记编辑器（批次 3 G4，计划 §3.4）：左 Markdown 编辑（`[[补全]]` 从
- * 现有标题索引补全）+ 右实时预览（同一 sanitize 管线）+ 悬空高亮；顶部标题/
- * 标签编辑。只在右栏（首页主区现有简单 textarea 保持现状不动）。绑 KBService，
- * 写时服务端同步 wikilink 索引（内容真源 ADR-14 §2）。
- */
+/** Markdown note editor with wikilink completion, preview, and dangling-link feedback. */
 export function AssistantNoteEditor(props: {
   noteId?: string
   onSaved: () => void
@@ -38,7 +34,7 @@ export function AssistantNoteEditor(props: {
   const [completionIndex, setCompletionIndex] = createSignal(0)
 
   const notesQuery = useQuery(() => ({
-    queryKey: ["assistant", "kb"] as const,
+    queryKey: assistantQueryKey(serverSDK().scope, "kb"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.list({})
       return Array.isArray(res.data) ? res.data : []
@@ -47,7 +43,6 @@ export function AssistantNoteEditor(props: {
   const notes = createMemo(() => notesQuery.data ?? [])
   const titleIndex = createMemo(() => new Set(notes().map((note) => note.title)))
 
-  // 编辑已有笔记（openEntityPanel("editor", id) 定位）。
   createEffect(() => {
     const id = props.noteId
     if (!id) return
@@ -72,7 +67,6 @@ export function AssistantNoteEditor(props: {
     })
   })
 
-  // 新建笔记：无 noteId 时重置表单。
   createEffect(() => {
     if (props.noteId) return
     setTitle("")
@@ -143,7 +137,6 @@ export function AssistantNoteEditor(props: {
 
   const dangling = createMemo(() => danglingWikilinks(content(), titleIndex()))
 
-  // 预览 wikilink 装饰（悬空高亮）。
   let previewRef: HTMLDivElement | undefined
   createEffect(() => {
     const root = previewRef

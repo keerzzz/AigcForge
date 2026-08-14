@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test"
 import fs from "fs"
 import path from "path"
 
-// 批次 1 G2：AssistantSessionPanel 骨架 + 槽位接入 + 宽度机制。App 无
-// solid-testing-library（agent-task-hub.test.tsx 先例），测试校验源码级 wiring
-// 契约；纯状态迁移由 assistant-session-panel-open.test.ts 行为覆盖。
+// Batch 1 G2: AssistantSessionPanel structure, slot wiring, and layout contract.
+// The app has no solid-testing-library, so wiring is checked at source level;
+// state transitions are covered by assistant-session-panel-open.test.ts.
 
 const read = (rel: string) => fs.readFileSync(path.resolve(__dirname, rel), "utf-8")
 const panel = read("assistant-session-panel.tsx")
@@ -15,40 +15,35 @@ describe("AssistantSessionPanel (right panel, batch 1 G2)", () => {
     expect(panel).toContain("export function AssistantSessionPanel")
   })
 
-  test("renders the five-tab bar (提醒/记忆/知识库/笔记编辑器/上下文) behind i18n keys", () => {
+  test("renders the four entity tabs behind i18n keys", () => {
     for (const key of [
       "assistant.panel.tab.reminders",
       "assistant.panel.tab.memory",
       "assistant.panel.tab.kb",
       "assistant.panel.tab.editor",
-      "assistant.panel.tab.context",
     ]) {
       expect(panel).toContain(`label: "${key}"`)
-      expect(panel).toContain(`language.t(item.label)`)
     }
+    expect(panel).toContain("language.t(item.label)")
   })
 
-  test("supports the close button (top-right X)", () => {
-    expect(panel).toContain('language.t("assistant.panel.close")')
-    expect(panel).toContain("assistant().close()")
+  test("renders the context tab via the shared trigger and closes it via the session tab store", () => {
+    expect(panel).toContain("<SessionContextTabTrigger")
+    expect(panel).toContain('closeTab("context")')
   })
 
-  test("implements the width mechanism: ResizeHandle drag with min 480px", () => {
-    expect(panel).toContain("<ResizeHandle")
-    expect(panel).toContain("direction=\"horizontal\"")
-    expect(panel).toContain("edge=\"start\"")
-    expect(panel).toContain("ASSISTANT_PANEL_MIN_WIDTH")
-    expect(panel).toContain("min={ASSISTANT_PANEL_MIN_WIDTH}")
+  test("delegates open/close to the SessionRightPanel shell instead of owning width", () => {
+    expect(panel).toContain("<SessionRightPanel")
+    expect(panel).not.toContain('width: opened() ? "auto" : "0px"')
   })
 
-  test("closed panel renders zero width and no empty placeholder content", () => {
-    expect(panel).toContain('width: opened() ? `${width()}px` : "0px"')
-    expect(panel).toContain("<Show when={opened()}>")
+  test("renders a project FileTree in the B zone (matching work)", () => {
+    expect(panel).toContain("<FileTree")
   })
 
-  test("never renders a fileTree in the assistant slot", () => {
-    expect(panel).not.toContain("FileTree")
-    expect(panel).not.toContain("SessionFileTree")
+  test("closes entity tabs individually (closeButton wiring)", () => {
+    expect(panel).toContain("closeButton")
+    expect(panel).toContain("tabs().close")
   })
 
   test("reuses the shared entity lists and the context tab", () => {
@@ -80,8 +75,14 @@ describe("SessionSidePanel assistant slot (batch 1 G2)", () => {
     expect(sidePanel).toContain('style={{ display: mode.currentMode === "assistant" ? "" : "none" }}')
   })
 
+  test("the assistant slot fills the remaining width (flex-1, matching chat/work)", () => {
+    const slotStart = sidePanel.indexOf('mode.currentMode === "assistant"')
+    const slot = sidePanel.slice(slotStart, slotStart + 600)
+    expect(slot).toContain("flex-1 min-w-0")
+  })
+
   test("the assistant slot contains no fileTree rendering (no B-zone empty placeholder)", () => {
-    const slotStart = sidePanel.indexOf("mode.currentMode === \"assistant\"")
+    const slotStart = sidePanel.indexOf('mode.currentMode === "assistant"')
     const slot = sidePanel.slice(slotStart, slotStart + 600)
     expect(slot).not.toContain("FileTree")
     expect(slot).not.toContain("reviewPanel")

@@ -1,6 +1,6 @@
 import { WorkPreset } from "@aigcfroge/schema/work-preset"
 
-/** 工种 Tab 维度分组（批次 1 §3.4）：4 大类 + 老会话"未分类"。 */
+/** Work category groups: four preset categories plus uncategorized sessions. */
 export const WORK_SIDEBAR_CATEGORY_ORDER: readonly WorkPreset.Category[] = [
   "it-development",
   "video-creation",

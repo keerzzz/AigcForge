@@ -1,0 +1,4 @@
+interface:
+  display_name: "Reuse First Refactor"
+  short_description: "Find duplication, dead code, and complexity"
+  default_prompt: "Use $reuse-first-refactor to inspect this change for duplication, dead code, complex logic, and comment issues."

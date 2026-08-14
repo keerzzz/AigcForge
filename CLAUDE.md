@@ -127,7 +127,7 @@
 > **执行协议**: [AGENTS.md](AGENTS.md)（代码风格、分支提交、Effect 编码、Schema、测试）
 > **设计协议**: [DESIGN.md](DESIGN.md)（产品 UI 性格、技术栈、Token、组件、i18n、无障碍、验证）
 > **架构协议**: [ARCHITECTURE.md](ARCHITECTURE.md)（系统结构、包拓扑、子系统边界、数据流）
-> **技能文件**: `.aigcfroge/skills/`（`frontend-theming` 主题引擎、`effect` 编码、`database` 数据库、`protocols` 双向协议路由）
+> **技能文件**: `.aigcfroge/skills/`（`protocols` 双向协议路由、`enterprise-code-standard` 企业级代码标准、`reuse-first-refactor` 复用优先重构、`quality-to-pr` 端到端交付；以及 `frontend-theming`、`effect`、`database` 专题技能）
 
 ## 已知技术负债
 
