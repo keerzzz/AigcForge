@@ -70,8 +70,6 @@
     "**/.sst",
     "**/*.d.ts",
     "**/sdk.gen.ts",
-    "packages/sdk/js/src/**/gen/**",
-    "packages/console/**",
-    "packages/stats/**"
+    "packages/sdk/js/src/**/gen/**"
   ]
 }
