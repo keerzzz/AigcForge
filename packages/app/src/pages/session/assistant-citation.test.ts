@@ -41,9 +41,7 @@ describe("kb:// citation survival through the sanitize pipeline (HIGH fix regres
 
   test("a normal external link stays intact next to a kb:// link", () => {
     const root = document.createElement("div")
-    root.innerHTML = sanitizeMarkdown(
-      '<a href="https://example.com">web</a><a href="kb://kb_9">note</a>',
-    )
+    root.innerHTML = sanitizeMarkdown('<a href="https://example.com">web</a><a href="kb://kb_9">note</a>')
     const kb = root.querySelector<HTMLAnchorElement>('a[href^="kb://"]')
     const web = root.querySelector<HTMLAnchorElement>('a[href="https://example.com"]')
     expect(kb?.getAttribute("href")).toBe("kb://kb_9")
@@ -108,7 +106,7 @@ describe("MessageTimeline citation wiring (app layer, mode-gated)", () => {
   })
 
   test("opens the kb tab with the cited note id via openEntityPanel", () => {
-    expect(timeline).toContain('openEntityPanel(assistant(), "kb", id)')
+    expect(timeline).toContain('kind: "kb", itemId: id')
   })
 
   test("expands an inline summary of the cited note (宽容：无记录不渲染)", () => {

@@ -22,7 +22,12 @@ describe("AssistantNavTree (entity nav tree, batch 2 G3)", () => {
   })
 
   test("renders the four entity categories behind i18n keys", () => {
-    for (const key of ["assistant.nav.reminders", "assistant.nav.memory", "assistant.nav.kb", "assistant.nav.dangling"]) {
+    for (const key of [
+      "assistant.nav.reminders",
+      "assistant.nav.memory",
+      "assistant.nav.kb",
+      "assistant.nav.dangling",
+    ]) {
       expect(tree).toContain(`language.t("${key}")`)
     }
   })
@@ -90,7 +95,7 @@ describe("home page linkage (batch 2 G3)", () => {
 
   test("HomeSessionRow gains an opt-in highlighted state without changing its default row", () => {
     expect(home).toContain("highlighted?: boolean")
-    expect(home).toContain("data-highlighted={props.highlighted ? \"\" : undefined}")
+    expect(home).toContain('data-highlighted={props.highlighted ? "" : undefined}')
   })
 })
 
@@ -107,10 +112,10 @@ describe("AssistantSessionSidebar (detail secondary sidebar, batch 2 G3)", () =>
     expect(sidebar).toContain("sortedRootSessions")
   })
 
-  test("maps the right-panel state to the tree selection (tab → kind, target → itemId)", () => {
-    expect(sidebar).toContain("assistant().tab()")
+  test("maps the right-panel state to the tree selection (active tab → kind, target → itemId)", () => {
+    expect(sidebar).toContain("tabs().active()")
     expect(sidebar).toContain("assistant().target()")
-    expect(sidebar).toContain("openEntityPanel(handle, next.kind, next.itemId)")
+    expect(sidebar).toContain("openEntityPanel({ view: view(), tabs: tabs(), assistant: assistant()")
   })
 
   test("secondary-sidebar assistant slot is no longer a placeholder", () => {

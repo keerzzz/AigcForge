@@ -1,5 +1,6 @@
 export { SessionHeader } from "./session-header"
 export { SessionContextTab } from "./session-context-tab"
+export { SessionContextTabPanel, SessionContextTabTrigger } from "./session-context-tab-trigger"
 export { SessionToolActivity } from "./session-tool-activity"
 export { SessionCacheDiagnostics } from "./session-cache-diagnostics"
 export { GitStatusBar } from "./git-status-bar"

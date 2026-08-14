@@ -1132,7 +1132,6 @@ export const dict = {
   "assistant.reminder.status.cancelled": "已取消",
   "assistant.reminder.status.failed": "失敗",
   "assistant.panel.title": "助理面板",
-  "assistant.panel.close": "關閉面板",
   "assistant.panel.tab.reminders": "提醒",
   "assistant.panel.tab.memory": "記憶",
   "assistant.panel.tab.kb": "知識庫",

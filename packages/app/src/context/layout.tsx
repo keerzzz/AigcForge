@@ -16,7 +16,7 @@ import { createPathHelpers } from "./file/path"
 import type { ProjectAvatarVariant } from "@aigcfroge/ui/v2/project-avatar-v2"
 import { ServerScope, SessionStateKey } from "@/utils/server-scope"
 import { createSessionKeyReader, ensureSessionKey, pruneSessionKeys } from "./layout-helpers"
-import { type AssistantPanelState, type AssistantPanelTab } from "@/utils/assistant-panel"
+import { type AssistantPanelState } from "@/utils/assistant-panel"
 import { requireServerKey } from "@/utils/session-route"
 
 export { createSessionKeyReader, ensureSessionKey, pruneSessionKeys }
@@ -708,30 +708,17 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
       assistant(sessionKey: string | Accessor<string>) {
         const key = createSessionKeyReader(sessionKey, ensureKey)
         const state = createMemo(() => store.sessionAssistant[key()])
-        const tab = createMemo<AssistantPanelTab>(() => state()?.tab ?? "reminders")
         const target = createMemo(() => state()?.target)
         return {
-          opened: createMemo(() => state()?.opened ?? false),
-          tab,
           target,
-          open(tab: AssistantPanelTab, target?: string) {
+          setTarget(target?: string) {
             const session = key()
             if (!store.sessionAssistant[session]) {
-              setStore("sessionAssistant", session, { opened: true, tab, target })
+              setStore("sessionAssistant", session, { target })
               prune(usage.active ?? session)
               return
             }
-            setStore("sessionAssistant", session, { opened: true, tab, target })
-          },
-          close() {
-            const session = key()
-            const current = store.sessionAssistant[session]
-            if (!current) {
-              setStore("sessionAssistant", session, { opened: false, tab: "reminders" })
-              prune(usage.active ?? session)
-              return
-            }
-            setStore("sessionAssistant", session, "opened", false)
+            setStore("sessionAssistant", session, "target", target)
           },
         }
       },

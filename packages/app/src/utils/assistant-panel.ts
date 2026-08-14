@@ -1,9 +1,7 @@
-/** Shared panel types keep the layout context independent from page modules. */
-export type AssistantPanelTab = "reminders" | "memory" | "kb" | "editor" | "context"
+/** Assistant entity tabs; the shared "context" tab lives in the session tab store. */
+export type AssistantPanelTab = "reminders" | "memory" | "kb" | "editor"
 
-/** Session-scoped panel state. */
+/** Session-scoped Assistant panel state. */
 export type AssistantPanelState = {
-  opened?: boolean
-  tab?: AssistantPanelTab
   target?: string
 }

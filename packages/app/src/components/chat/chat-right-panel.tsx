@@ -5,28 +5,29 @@ import type { DragEvent } from "@thisbeyond/solid-dnd"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
-import { useLayout } from "@/context/layout"
 import { useLanguage } from "@/context/language"
-import { useSettings } from "@/context/settings"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { useFile } from "@/context/file"
-import { SessionContextTab, SortableTab, FileVisual } from "@/components/session"
+import { SessionContextTabPanel, SessionContextTabTrigger, SortableTab, FileVisual } from "@/components/session"
 import FileTree from "@/components/file-tree"
 import { FileTabContent } from "@/pages/session/file-tabs"
-import { SessionContextUsage } from "@/components/session-context-usage"
-import { TooltipKeybind } from "@/components/tooltip-keybind"
-import { IconButton } from "@aigcfroge/ui/icon-button"
-import { useCommand } from "@/context/command"
 import { ConstrainDragYAxis, getDraggableId } from "@/utils/solid-dnd"
 import { diffTextLines } from "@/utils/text-diff"
-import { getTabReorderIndex, shouldShowFileTree, createSizing } from "@/pages/session/helpers"
+import { getTabReorderIndex, createSizing } from "@/pages/session/helpers"
 import { createFileTabListSync } from "@/pages/session/file-tab-scroll"
-import { bumpAssetVersion, clearProposeCandidate, useProposeCandidate, setProposeCandidate, setApplying, setApplied } from "./prompt-asset-store"
+import {
+  bumpAssetVersion,
+  clearProposeCandidate,
+  useProposeCandidate,
+  setProposeCandidate,
+  setApplying,
+  setApplied,
+} from "./prompt-asset-store"
 import { findProposeResult } from "./prompt-asset-candidate"
 import { applyAssetCandidate, assetKindDir, fetchAssetInsertText, listAssets } from "./asset-insert"
-import { SessionFileTree } from "@/components/session-file-tree"
+import { SessionRightPanel } from "@/components/session-right-panel"
 import type { AssetKindId } from "@aigcfroge/schema/asset"
 
 export function ChatRightPanel() {
@@ -35,10 +36,8 @@ export function ChatRightPanel() {
   const sync = useSync()
   const candidate = useProposeCandidate()
   const [searchQuery, setSearchQuery] = createSignal("")
-  const layout = useLayout()
   const file = useFile()
   const sessionLayout = useSessionLayout()
-  const command = useCommand()
   const tabs = sessionLayout.tabs
   const openedFileTabs = createMemo(
     () =>
@@ -58,18 +57,7 @@ export function ChatRightPanel() {
     if (!current || current.active() === active) return
     current.setActive(active)
   })
-  const reviewOpen = createMemo(() => sessionLayout.view().reviewPanel.opened())
-  const settings = useSettings()
   const size = createSizing()
-  const fileOpen = createMemo(() =>
-    shouldShowFileTree({ visible: settings.visibility.fileTree(), opened: layout.fileTree.opened() }),
-  )
-  const open = createMemo(() => reviewOpen() || fileOpen())
-  const panelWidth = createMemo(() => {
-    if (!open()) return "0px"
-    if (reviewOpen()) return "auto"
-    return `${layout.fileTree.width()}px`
-  })
   const [dragStore, setDragStore] = createStore({ activeDraggable: undefined as string | undefined })
   const handleDragStart = (event: unknown) => {
     const id = getDraggableId(event)
@@ -121,7 +109,10 @@ export function ChatRightPanel() {
         if (!cancelled) setSearchAllowed([])
       }
     }, 150)
-    onCleanup(() => { cancelled = true; clearTimeout(timer) })
+    onCleanup(() => {
+      cancelled = true
+      clearTimeout(timer)
+    })
   })
 
   createEffect(() => {
@@ -203,250 +194,196 @@ export function ChatRightPanel() {
   }
 
   return (
-    <aside
-      id="review-panel"
-      class="relative min-w-0 h-full flex shrink-0 overflow-hidden bg-v2-background-bg-base"
-      classList={{
-        "rounded-[10px] shadow-[var(--v2-elevation-raised)] overflow-hidden": true,
-        "flex-1": reviewOpen(),
-      }}
-      style={{ width: panelWidth() }}
+    <SessionRightPanel
+      size={size}
+      fileTree={
+        <>
+          <div class="flex h-8 items-center gap-2 border-b border-v2-border-border-base px-2">
+            <Icon name="magnifying-glass" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+            <input
+              type="text"
+              placeholder={language.t("promptAsset.list.searchPlaceholder")}
+              aria-label={language.t("promptAsset.list.searchPlaceholder")}
+              class="min-w-0 flex-1 bg-transparent text-v2-text-text-base text-12-regular outline-none placeholder:text-v2-text-text-faint"
+              value={searchQuery()}
+              onInput={(e) => setSearchQuery(e.currentTarget.value)}
+            />
+          </div>
+          <div class="min-h-0 flex-1 overflow-y-auto px-3 pt-3">
+            <FileTree
+              path=".aigcfroge"
+              active={activeFilePath()}
+              allowed={searchAllowed()}
+              onFileClick={(node) => openFileTab(node.path)}
+            />
+          </div>
+        </>
+      }
     >
-      <Show when={open()}>
-        <div class="size-full flex">
-          <div
-            class="relative min-w-0 h-full flex-1 overflow-hidden bg-v2-background-bg-base"
-            inert={!reviewOpen()}
+      <DragDropProvider
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragOver={handleDragOver}
+        collisionDetector={closestCenter}
+      >
+        <DragDropSensors />
+        <ConstrainDragYAxis />
+        <TabsV2 value={activeTab()} onChange={(tab) => tabs().setActive(tab)} class="flex min-h-0 flex-1 flex-col">
+          <TabsV2.List
+            class="shrink-0"
+            ref={(el: HTMLDivElement) => {
+              const stop = createFileTabListSync({ el, contextOpen })
+              onCleanup(stop)
+            }}
           >
-            <DragDropProvider
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              onDragOver={handleDragOver}
-              collisionDetector={closestCenter}
-            >
-              <DragDropSensors />
-              <ConstrainDragYAxis />
-              <TabsV2 value={activeTab()} onChange={(tab) => tabs().setActive(tab)} class="flex min-h-0 flex-1 flex-col">
-                <TabsV2.List
-                  class="shrink-0"
-                  ref={(el: HTMLDivElement) => {
-                    const stop = createFileTabListSync({ el, contextOpen })
-                    onCleanup(stop)
-                  }}
-                >
-                  <TabsV2.Trigger value="preview">{language.t("promptAsset.tab.preview")}</TabsV2.Trigger>
-                  <Show when={contextOpen()}>
-                    <TabsV2.Trigger
-                      value="context"
-                      closeButton={
-                        <TooltipKeybind
-                          title={language.t("common.closeTab")}
-                          keybind={command.keybind("tab.close")}
-                          placement="bottom"
-                          gutter={10}
-                        >
-                          <IconButton
-                            icon="close-small"
-                            variant="ghost"
-                            class="h-5 w-5"
-                            onClick={() => sessionLayout.tabs().close("context")}
-                            aria-label={language.t("common.closeTab")}
-                          />
-                        </TooltipKeybind>
-                      }
-                      hideCloseButton
-                      onMiddleClick={() => sessionLayout.tabs().close("context")}
-                    >
-                      <div class="flex items-center gap-2">
-                        <SessionContextUsage variant="indicator" />
-                        <div>{language.t("session.tab.context")}</div>
-                      </div>
-                    </TabsV2.Trigger>
-                  </Show>
-                  <SortableProvider ids={openedFileTabs()}>
-                    <For each={openedFileTabs()}>
-                      {(tab) => <SortableTab tab={tab} onTabClose={(item) => tabs().close(item)} />}
-                    </For>
-                  </SortableProvider>
-                </TabsV2.List>
+            <TabsV2.Trigger value="preview">{language.t("promptAsset.tab.preview")}</TabsV2.Trigger>
+            <SessionContextTabTrigger contextOpen={contextOpen} onClose={() => sessionLayout.tabs().close("context")} />
+            <SortableProvider ids={openedFileTabs()}>
+              <For each={openedFileTabs()}>
+                {(tab) => <SortableTab tab={tab} onTabClose={(item) => tabs().close(item)} />}
+              </For>
+            </SortableProvider>
+          </TabsV2.List>
 
-                <TabsV2.Content value="preview" class="min-h-0 flex-1 overflow-y-auto">
-                  <Show
-                    when={candidate.candidate && !candidate.applied}
-                    fallback={
-                      <Show
-                        when={candidate.applied}
-                        fallback={
-                          <div class="p-4 text-center text-v2-text-text-muted text-12-regular">
-                            {language.t("promptAsset.candidate.noCandidate")}
-                          </div>
-                        }
-                      >
-                        <div class="p-3">
-                          <span class="text-v2-state-fg-success text-12-semibold">
-                            {language.t("promptAsset.candidate.applied")}
-                          </span>
-                        </div>
-                      </Show>
-                    }
-                  >
-                    <div class="flex h-full flex-col p-3">
-                      <div class="mb-1 truncate text-v2-text-text-base text-12-semibold">
-                        {candidate.candidate?.name}
-                      </div>
-                      <div class="mb-2 line-clamp-2 text-v2-text-text-muted text-12-regular">
-                        {candidate.candidate?.description}
-                      </div>
-                      <Show
-                        when={candidate.candidate?.status === "valid"}
-                        fallback={
-                          <Show
-                            when={candidate.candidate?.status === "exists"}
-                            fallback={
-                              <>
-                                <span class="mb-2 block shrink-0 text-v2-state-fg-warning text-12-regular">
-                                  {language.t("promptAsset.candidate.conflict")}
-                                </span>
-                                <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-v2-border-border-base">
-                                  <div class="shrink-0 border-b border-v2-border-border-base px-2 py-1.5 text-v2-text-text-muted text-11-semibold">
-                                    {language.t("promptAsset.tab.preview")}
-                                  </div>
-                                  <pre class="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-2 font-mono text-v2-text-text-base text-12-regular">
-                                    {candidate.candidate?.content}
-                                  </pre>
-                                </div>
-                              </>
-                            }
-                          >
-                            {/* Existing assets require an explicit overwrite after reviewing the diff. */}
-                            <span class="mb-2 block shrink-0 text-v2-state-fg-warning text-12-regular">
-                              {language.t("promptAsset.candidate.exists")}
-                            </span>
-                            <div class="min-h-0 flex-1 overflow-y-auto rounded-md border border-v2-border-border-base">
-                              <Show
-                                when={!oldContent.loading && oldContent() !== undefined}
-                                fallback={
-                                  <div class="p-2 text-v2-text-text-muted text-12-regular">
-                                    {language.t("promptAsset.panel.loading")}
-                                  </div>
-                                }
-                              >
-                                <For each={diffLinesMemo() ?? []}>
-                                  {(line) => (
-                                    <div
-                                      class="flex px-1 font-mono text-12-regular"
-                                      classList={{
-                                        "text-v2-state-fg-success": line.type === "add",
-                                        "text-v2-state-fg-warning": line.type === "del",
-                                        "text-v2-text-text-muted": line.type === "eq",
-                                      }}
-                                    >
-                                      <span class="shrink-0 select-none">
-                                        {line.type === "add" ? "+" : line.type === "del" ? "-" : " "}
-                                      </span>
-                                      <span class="whitespace-pre-wrap break-all">{line.text}</span>
-                                    </div>
-                                  )}
-                                </For>
-                              </Show>
-                            </div>
-                            <div class="mt-2 shrink-0">
-                              <ButtonV2
-                                variant="contrast"
-                                size="small"
-                                class="w-full"
-                                onClick={handleApplyOverwrite}
-                                disabled={candidate.applying}
-                              >
-                                {candidate.applying
-                                  ? language.t("promptAsset.candidate.applying")
-                                  : language.t("promptAsset.candidate.apply")}
-                              </ButtonV2>
-                            </div>
-                          </Show>
-                        }
-                      >
-                        <span class="mb-2 block shrink-0 text-v2-state-fg-success text-12-regular">
-                          {language.t("promptAsset.candidate.valid")}
-                        </span>
-                        <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-v2-border-border-base">
-                          <div class="shrink-0 border-b border-v2-border-border-base px-2 py-1.5 text-v2-text-text-muted text-11-semibold">
-                            {language.t("promptAsset.tab.preview")}
-                          </div>
-                          <pre class="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-2 font-mono text-v2-text-text-base text-12-regular">
-                            {candidate.candidate?.content}
-                          </pre>
-                        </div>
-                        <div class="mt-2 shrink-0">
-                          <ButtonV2
-                            variant="contrast"
-                            size="small"
-                            class="w-full"
-                            onClick={handleApply}
-                            disabled={candidate.applying}
-                          >
-                            {candidate.applying
-                              ? language.t("promptAsset.candidate.applying")
-                              : language.t("promptAsset.candidate.apply")}
-                          </ButtonV2>
-                        </div>
-                      </Show>
+          <TabsV2.Content value="preview" class="min-h-0 flex-1 overflow-y-auto">
+            <Show
+              when={candidate.candidate && !candidate.applied}
+              fallback={
+                <Show
+                  when={candidate.applied}
+                  fallback={
+                    <div class="p-4 text-center text-v2-text-text-muted text-12-regular">
+                      {language.t("promptAsset.candidate.noCandidate")}
                     </div>
-                  </Show>
-                </TabsV2.Content>
-
-                <Show when={contextOpen()}>
-                  <TabsV2.Content value="context" class="flex flex-col h-full overflow-hidden contain-strict">
-                    <Show when={activeTab() === "context"}>
-                      <div class="relative pt-2 flex-1 min-h-0 overflow-hidden">
-                        <SessionContextTab />
+                  }
+                >
+                  <div class="p-3">
+                    <span class="text-v2-state-fg-success text-12-semibold">
+                      {language.t("promptAsset.candidate.applied")}
+                    </span>
+                  </div>
+                </Show>
+              }
+            >
+              <div class="flex h-full flex-col p-3">
+                <div class="mb-1 truncate text-v2-text-text-base text-12-semibold">{candidate.candidate?.name}</div>
+                <div class="mb-2 line-clamp-2 text-v2-text-text-muted text-12-regular">
+                  {candidate.candidate?.description}
+                </div>
+                <Show
+                  when={candidate.candidate?.status === "valid"}
+                  fallback={
+                    <Show
+                      when={candidate.candidate?.status === "exists"}
+                      fallback={
+                        <>
+                          <span class="mb-2 block shrink-0 text-v2-state-fg-warning text-12-regular">
+                            {language.t("promptAsset.candidate.conflict")}
+                          </span>
+                          <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-v2-border-border-base">
+                            <div class="shrink-0 border-b border-v2-border-border-base px-2 py-1.5 text-v2-text-text-muted text-11-semibold">
+                              {language.t("promptAsset.tab.preview")}
+                            </div>
+                            <pre class="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-2 font-mono text-v2-text-text-base text-12-regular">
+                              {candidate.candidate?.content}
+                            </pre>
+                          </div>
+                        </>
+                      }
+                    >
+                      {/* Existing assets require an explicit overwrite after reviewing the diff. */}
+                      <span class="mb-2 block shrink-0 text-v2-state-fg-warning text-12-regular">
+                        {language.t("promptAsset.candidate.exists")}
+                      </span>
+                      <div class="min-h-0 flex-1 overflow-y-auto rounded-md border border-v2-border-border-base">
+                        <Show
+                          when={!oldContent.loading && oldContent() !== undefined}
+                          fallback={
+                            <div class="p-2 text-v2-text-text-muted text-12-regular">
+                              {language.t("promptAsset.panel.loading")}
+                            </div>
+                          }
+                        >
+                          <For each={diffLinesMemo() ?? []}>
+                            {(line) => (
+                              <div
+                                class="flex px-1 font-mono text-12-regular"
+                                classList={{
+                                  "text-v2-state-fg-success": line.type === "add",
+                                  "text-v2-state-fg-warning": line.type === "del",
+                                  "text-v2-text-text-muted": line.type === "eq",
+                                }}
+                              >
+                                <span class="shrink-0 select-none">
+                                  {line.type === "add" ? "+" : line.type === "del" ? "-" : " "}
+                                </span>
+                                <span class="whitespace-pre-wrap break-all">{line.text}</span>
+                              </div>
+                            )}
+                          </For>
+                        </Show>
+                      </div>
+                      <div class="mt-2 shrink-0">
+                        <ButtonV2
+                          variant="contrast"
+                          size="small"
+                          class="w-full"
+                          onClick={handleApplyOverwrite}
+                          disabled={candidate.applying}
+                        >
+                          {candidate.applying
+                            ? language.t("promptAsset.candidate.applying")
+                            : language.t("promptAsset.candidate.apply")}
+                        </ButtonV2>
                       </div>
                     </Show>
-                  </TabsV2.Content>
-                </Show>
-
-                <Show when={activeTab().startsWith("file://") ? activeTab() : undefined} keyed>
-                  {(tab) => <FileTabContent tab={tab} />}
-                </Show>
-              </TabsV2>
-              <DragOverlay>
-                <Show when={dragStore.activeDraggable} keyed>
-                  {(tab) => (
-                    <div data-component="tabs-drag-preview">
-                      <FileVisual active path={file.pathFromTab(tab) ?? ""} />
+                  }
+                >
+                  <span class="mb-2 block shrink-0 text-v2-state-fg-success text-12-regular">
+                    {language.t("promptAsset.candidate.valid")}
+                  </span>
+                  <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-v2-border-border-base">
+                    <div class="shrink-0 border-b border-v2-border-border-base px-2 py-1.5 text-v2-text-text-muted text-11-semibold">
+                      {language.t("promptAsset.tab.preview")}
                     </div>
-                  )}
+                    <pre class="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-2 font-mono text-v2-text-text-base text-12-regular">
+                      {candidate.candidate?.content}
+                    </pre>
+                  </div>
+                  <div class="mt-2 shrink-0">
+                    <ButtonV2
+                      variant="contrast"
+                      size="small"
+                      class="w-full"
+                      onClick={handleApply}
+                      disabled={candidate.applying}
+                    >
+                      {candidate.applying
+                        ? language.t("promptAsset.candidate.applying")
+                        : language.t("promptAsset.candidate.apply")}
+                    </ButtonV2>
+                  </div>
                 </Show>
-              </DragOverlay>
-            </DragDropProvider>
-          </div>
+              </div>
+            </Show>
+          </TabsV2.Content>
 
-          <SessionFileTree
-            size={size}
-            borderClass={reviewOpen() ? "border-l border-v2-border-border-base" : undefined}
-          >
-            <div class="flex h-8 items-center gap-2 border-b border-v2-border-border-base px-2">
-              <Icon name="magnifying-glass" size="small" class="shrink-0 text-v2-icon-icon-muted" />
-              <input
-                type="text"
-                placeholder={language.t("promptAsset.list.searchPlaceholder")}
-                aria-label={language.t("promptAsset.list.searchPlaceholder")}
-                class="min-w-0 flex-1 bg-transparent text-v2-text-text-base text-12-regular outline-none placeholder:text-v2-text-text-faint"
-                value={searchQuery()}
-                onInput={(e) => setSearchQuery(e.currentTarget.value)}
-              />
-            </div>
-            <div class="min-h-0 flex-1 overflow-y-auto px-3 pt-3">
-              <FileTree
-                path=".aigcfroge"
-                active={activeFilePath()}
-                allowed={searchAllowed()}
-                onFileClick={(node) => openFileTab(node.path)}
-              />
-            </div>
-          </SessionFileTree>
-        </div>
-      </Show>
-    </aside>
+          <SessionContextTabPanel contextOpen={contextOpen} active={activeTab} />
+
+          <Show when={activeTab().startsWith("file://") ? activeTab() : undefined} keyed>
+            {(tab) => <FileTabContent tab={tab} />}
+          </Show>
+        </TabsV2>
+        <DragOverlay>
+          <Show when={dragStore.activeDraggable} keyed>
+            {(tab) => (
+              <div data-component="tabs-drag-preview">
+                <FileVisual active path={file.pathFromTab(tab) ?? ""} />
+              </div>
+            )}
+          </Show>
+        </DragOverlay>
+      </DragDropProvider>
+    </SessionRightPanel>
   )
 }

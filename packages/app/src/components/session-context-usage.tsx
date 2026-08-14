@@ -7,13 +7,11 @@ import { useFile } from "@/context/file"
 import { useLayout } from "@/context/layout"
 import { useSync } from "@/context/sync"
 import { useLanguage } from "@/context/language"
-import { useMode } from "@/context/mode"
 import { useProviders } from "@/hooks/use-providers"
 import { getSessionContextMetrics } from "@/components/session/session-context-metrics"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { createSessionTabs } from "@/pages/session/helpers"
 import { openSessionContext } from "./open-session-context"
-import { toggleEntityPanel } from "@/pages/session/assistant-session-panel-open"
 
 interface SessionContextUsageProps {
   variant?: "button" | "indicator"
@@ -26,8 +24,7 @@ export function SessionContextUsage(props: SessionContextUsageProps) {
   const layout = useLayout()
   const language = useLanguage()
   const providers = useProviders()
-  const mode = useMode()
-  const { params, tabs, view, assistant } = useSessionLayout()
+  const { params, tabs, view } = useSessionLayout()
 
   const variant = createMemo(() => props.variant ?? "button")
   const tabState = createSessionTabs({
@@ -53,12 +50,6 @@ export function SessionContextUsage(props: SessionContextUsageProps) {
 
   const openContext = () => {
     if (!params.id) return
-
-    // Assistant owns context in its panel instead of the Coding review/file tabs.
-    if (mode.currentMode === "assistant") {
-      toggleEntityPanel(assistant(), "context")
-      return
-    }
 
     if (tabState.activeTab() === "context") {
       tabs().close("context")

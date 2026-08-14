@@ -35,19 +35,19 @@ describe("SessionFileTree (shared B 区, batch 4)", () => {
     expect(component).toContain("inert")
   })
 
-  test("code panel delegates its B 区 to SessionFileTree", () => {
+  test("code panel delegates to the shared SessionRightPanel shell", () => {
     const code = read("../pages/session/session-side-panel.tsx")
-    expect(code).toContain("<SessionFileTree")
+    expect(code).toContain("<SessionRightPanel")
   })
 
-  test("chat panel delegates its B 区 to SessionFileTree", () => {
+  test("chat panel delegates to the shared SessionRightPanel shell", () => {
     const chat = read("chat/chat-right-panel.tsx")
-    expect(chat).toContain("<SessionFileTree")
+    expect(chat).toContain("<SessionRightPanel")
   })
 
-  test("work panel delegates its B 区 to SessionFileTree", () => {
+  test("work panel delegates to the shared SessionRightPanel shell", () => {
     const work = read("../pages/work-artifact-panel.tsx")
-    expect(work).toContain("<SessionFileTree")
+    expect(work).toContain("<SessionRightPanel")
   })
 
   test("work A 区 width is auto and no longer reads workPanel store", () => {

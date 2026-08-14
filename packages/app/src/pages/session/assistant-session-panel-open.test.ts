@@ -1,81 +1,64 @@
 import { describe, expect, test } from "bun:test"
 import fs from "fs"
 import path from "path"
-import {
-  openEntityPanel,
-  toggleEntityPanel,
-  type AssistantPanelHandle,
-  type AssistantPanelTab,
-} from "./assistant-session-panel-open"
+import { openEntityPanel, type AssistantPanelHandle, type AssistantPanelTab } from "./assistant-session-panel-open"
 
-// Batch 1 §3.1 D3: openEntityPanel follows the pure state-transition pattern
-// used by open-session-context.ts. The layout store is injected as a handle,
-// so this file only tests state transitions.
+// openEntityPanel follows the same pure state-transition pattern as
+// open-session-context.ts; the layout handles are injected so this file only
+// tests transitions.
 
-function fakeHandle(initial: { opened?: boolean; tab?: AssistantPanelTab; target?: string } = {}) {
-  let state = { opened: initial.opened ?? false, tab: initial.tab ?? ("reminders" as AssistantPanelTab), target: initial.target }
+function fake(initial: { target?: string } = {}) {
+  let target = initial.target
+  let opened = false
+  let active: string | undefined
+  const openedTabs: string[] = []
   const handle: AssistantPanelHandle = {
-    opened: () => state.opened,
-    tab: () => state.tab,
-    target: () => state.target,
-    open: (tab, target) => {
-      state = { opened: true, tab, target }
-    },
-    close: () => {
-      state = { ...state, opened: false }
+    target: () => target,
+    setTarget: (next) => {
+      target = next
     },
   }
-  return { handle, read: () => state }
+  const view = {
+    reviewPanel: {
+      open: () => {
+        opened = true
+      },
+    },
+  }
+  const tabs = {
+    open: (tab: string) => {
+      openedTabs.push(tab)
+    },
+    setActive: (tab: string | undefined) => {
+      active = tab
+    },
+  }
+  return { handle, view, tabs, read: () => ({ opened, target, active, openedTabs }) }
 }
 
-const TABS: AssistantPanelTab[] = ["reminders", "memory", "kb", "editor", "context"]
+const TABS: AssistantPanelTab[] = ["reminders", "memory", "kb", "editor"]
 
 describe("openEntityPanel", () => {
-  test("opens the panel on the given tab with the item target", () => {
-    const { handle, read } = fakeHandle()
-    openEntityPanel(handle, "kb", "kb_123")
-    expect(read()).toEqual({ opened: true, tab: "kb", target: "kb_123" })
+  test("reveals the panel, opens and activates the tab, and targets the item", () => {
+    const f = fake()
+    openEntityPanel({ view: f.view, tabs: f.tabs, assistant: f.handle, kind: "kb", itemId: "kb_123" })
+    expect(f.read()).toEqual({ opened: true, target: "kb_123", active: "kb", openedTabs: ["kb"] })
   })
 
-  test("re-targets an already-open panel to a different tab", () => {
-    const { handle, read } = fakeHandle({ opened: true, tab: "memory", target: "mem_1" })
-    openEntityPanel(handle, "reminders", "sch_9")
-    expect(read()).toEqual({ opened: true, tab: "reminders", target: "sch_9" })
+  test("targets undefined when the item id is omitted", () => {
+    const f = fake()
+    openEntityPanel({ view: f.view, tabs: f.tabs, assistant: f.handle, kind: "reminders" })
+    expect(f.read().target).toBeUndefined()
+    expect(f.read().active).toBe("reminders")
   })
 
-  test("opens with an undefined target when the item id is omitted", () => {
-    const { handle, read } = fakeHandle()
-    openEntityPanel(handle, "context")
-    expect(read()).toEqual({ opened: true, tab: "context", target: undefined })
-  })
-
-  test("covers all five tabs of the assistant panel", () => {
+  test("covers all four entity tabs", () => {
     for (const tab of TABS) {
-      const { handle, read } = fakeHandle()
-      openEntityPanel(handle, tab, `item-${tab}`)
-      expect(read().tab).toBe(tab)
-      expect(read().opened).toBe(true)
+      const f = fake()
+      openEntityPanel({ view: f.view, tabs: f.tabs, assistant: f.handle, kind: tab, itemId: `item-${tab}` })
+      expect(f.read().active).toBe(tab)
+      expect(f.read().opened).toBe(true)
     }
-  })
-})
-
-describe("toggleEntityPanel", () => {
-  test("closes the panel when the same tab is already active", () => {
-    const { handle, read } = fakeHandle({ opened: true, tab: "context" })
-    toggleEntityPanel(handle, "context")
-    expect(read().opened).toBe(false)
-  })
-
-  test("opens the tab when another tab is active", () => {
-    const { handle, read } = fakeHandle({ opened: true, tab: "reminders" })
-    toggleEntityPanel(handle, "context")
-    expect(read()).toEqual({ opened: true, tab: "context", target: undefined })
-  })
-
-  test("opens the tab when the panel is closed", () => {
-    const { handle, read } = fakeHandle()
-    toggleEntityPanel(handle, "context")
-    expect(read()).toEqual({ opened: true, tab: "context", target: undefined })
   })
 })
 
@@ -91,7 +74,7 @@ describe("panel types location (LOW-1: context layer must not import pages)", ()
     expect(layout).not.toContain('from "@/pages/session/assistant-session-panel-open"')
   })
 
-  test("utils/assistant-panel owns the shared tab and state types", () => {
+  test("utils/assistant-panel owns the shared entity tab and state types", () => {
     expect(utils).toContain("export type AssistantPanelTab")
     expect(utils).toContain("export type AssistantPanelState")
   })

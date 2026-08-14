@@ -280,7 +280,7 @@ export function MessageTimeline(props: {
   const language = useLanguage()
   const mode = useMode()
   const { params, sessionKey } = useSessionKey()
-  const { assistant } = useSessionLayout()
+  const { assistant, view: panelView, tabs: sessionTabs } = useSessionLayout()
   const ownerSessionKey = sessionKey()
   const cached = timelineCache.get(ownerSessionKey)
   const initialMeasurements = cached?.measurements
@@ -345,7 +345,7 @@ export function MessageTimeline(props: {
     if (!id) return
     event.preventDefault()
     event.stopPropagation()
-    openEntityPanel(assistant(), "kb", id)
+    openEntityPanel({ view: panelView(), tabs: sessionTabs(), assistant: assistant(), kind: "kb", itemId: id })
     void serverSDK()
       .client.kb.get({ id })
       .then((res) => {
@@ -1409,7 +1409,8 @@ export function MessageTimeline(props: {
         onClick={props.onAutoScrollInteraction}
         class="relative min-w-0 w-full h-full"
         style={{
-          "--sticky-accordion-top": showHeader() ? "72px" : "0px",        }}
+          "--sticky-accordion-top": showHeader() ? "72px" : "0px",
+        }}
       >
         <Show when={showHeader()}>
           <div

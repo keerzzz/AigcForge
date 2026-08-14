@@ -33,6 +33,8 @@ export function AssistantSessionSidebar(props: {
     SessionStateKey.from(serverSDK().scope, SessionRouteKey.fromRoute(base64Encode(props.directory()), params.id)),
   )
   const assistant = createMemo(() => layout.assistant(sessionKey))
+  const tabs = createMemo(() => layout.tabs(sessionKey))
+  const view = createMemo(() => layout.view(sessionKey))
 
   const store = createMemo(() => {
     const directory = props.directory()
@@ -48,26 +50,21 @@ export function AssistantSessionSidebar(props: {
 
   // Entity tabs map to navigation selections; context and editor have no tree node.
   const selected = createMemo<AssistantNavSelection>(() => {
-    const tab = assistant().tab()
+    const active = tabs().active()
     const target = assistant().target()
-    if (tab === "reminders" || tab === "memory" || tab === "kb") {
-      return target ? { kind: tab, itemId: target } : { kind: tab }
+    if (active === "reminders" || active === "memory" || active === "kb") {
+      return target ? { kind: active, itemId: target } : { kind: active }
     }
-    if (tab === "context") return undefined
     return undefined
   })
 
   const onSelect = (next: AssistantNavSelection) => {
-    const handle = assistant()
-    if (!next) {
-      handle.close()
-      return
-    }
+    if (!next) return
     if (next.kind === "reminders" || next.kind === "memory" || next.kind === "kb") {
-      openEntityPanel(handle, next.kind, next.itemId)
+      openEntityPanel({ view: view(), tabs: tabs(), assistant: assistant(), kind: next.kind, itemId: next.itemId })
       return
     }
-    openEntityPanel(handle, "kb")
+    openEntityPanel({ view: view(), tabs: tabs(), assistant: assistant(), kind: "kb" })
   }
 
   return (
@@ -81,7 +78,9 @@ export function AssistantSessionSidebar(props: {
           <Show
             when={sessions().length > 0}
             fallback={
-              <p class="px-1 py-2 text-v2-text-text-muted text-12-regular">{language.t("assistant.nav.sessionsEmpty")}</p>
+              <p class="px-1 py-2 text-v2-text-text-muted text-12-regular">
+                {language.t("assistant.nav.sessionsEmpty")}
+              </p>
             }
           >
             <div class="flex min-w-0 flex-col gap-px">

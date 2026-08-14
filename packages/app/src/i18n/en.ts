@@ -687,7 +687,6 @@ export const dict = {
   "assistant.reminder.status.cancelled": "Cancelled",
   "assistant.reminder.status.failed": "Failed",
   "assistant.panel.title": "Assistant panel",
-  "assistant.panel.close": "Close panel",
   "assistant.panel.tab.reminders": "Reminders",
   "assistant.panel.tab.memory": "Memory",
   "assistant.panel.tab.kb": "Knowledge base",
