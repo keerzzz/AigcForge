@@ -29,6 +29,12 @@ describe("buildKbTagTree", () => {
     expect(work.children?.map((n) => n.tag)).toEqual(["planning", "review"])
   })
 
+  test("preserves tag hierarchies deeper than two levels", () => {
+    const tree = buildKbTagTree([note("a", "A", ["work/planning/quarterly"])])
+    expect(tree[0]?.children?.[0]?.children?.[0]?.tag).toBe("quarterly")
+    expect(tree[0]?.count).toBe(1)
+  })
+
   test("keeps untagged notes in a dedicated bucket", () => {
     const tree = buildKbTagTree([note("a", "A", []), note("b", "B", [])])
     expect(tree).toHaveLength(1)

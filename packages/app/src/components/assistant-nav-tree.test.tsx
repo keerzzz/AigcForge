@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test"
 import fs from "fs"
 import path from "path"
 
-// 批次 2 G3：实体导航树（首页左栏 + 详情次级左栏共用）+ 会话列表联动。
-// 纯函数（标签聚合/高亮反查）由 assistant-nav-model.test.ts 行为覆盖。
+// Batch 2 G3: shared entity navigation for the home and session sidebars,
+// including session-list linkage. Pure functions are covered by the model tests.
 
 const read = (rel: string) => fs.readFileSync(path.resolve(__dirname, rel), "utf-8")
 const tree = read("assistant-nav-tree.tsx")
@@ -22,7 +22,12 @@ describe("AssistantNavTree (entity nav tree, batch 2 G3)", () => {
   })
 
   test("renders the four entity categories behind i18n keys", () => {
-    for (const key of ["assistant.nav.reminders", "assistant.nav.memory", "assistant.nav.kb", "assistant.nav.dangling"]) {
+    for (const key of [
+      "assistant.nav.reminders",
+      "assistant.nav.memory",
+      "assistant.nav.kb",
+      "assistant.nav.dangling",
+    ]) {
       expect(tree).toContain(`language.t("${key}")`)
     }
   })
@@ -41,12 +46,12 @@ describe("AssistantNavTree (entity nav tree, batch 2 G3)", () => {
   test("aggregates the knowledge base by tag hierarchy via buildKbTagTree", () => {
     expect(tree).toContain("buildKbTagTree(notes())")
     expect(tree).toContain("<KbTagNodeRow")
+    expect(tree).toContain("parentPath={path()}")
   })
 
-  test("shares react-query keys with the dashboard for cache dedupe", () => {
-    for (const key of ['["assistant", "pending"]', '["assistant", "memory"]', '["assistant", "kb"]', '["assistant", "dangling"]']) {
-      expect(tree).toContain(key)
-    }
+  test("uses the shared server-scoped query key helper", () => {
+    expect(tree).toContain('from "@/utils/assistant-query"')
+    expect(tree).toContain("assistantQueryKey(serverSDK().scope")
   })
 
   test("emits selections with the item id (onSelect)", () => {
@@ -90,7 +95,7 @@ describe("home page linkage (batch 2 G3)", () => {
 
   test("HomeSessionRow gains an opt-in highlighted state without changing its default row", () => {
     expect(home).toContain("highlighted?: boolean")
-    expect(home).toContain("data-highlighted={props.highlighted ? \"\" : undefined}")
+    expect(home).toContain('data-highlighted={props.highlighted ? "" : undefined}')
   })
 })
 
@@ -107,10 +112,10 @@ describe("AssistantSessionSidebar (detail secondary sidebar, batch 2 G3)", () =>
     expect(sidebar).toContain("sortedRootSessions")
   })
 
-  test("maps the right-panel state to the tree selection (tab → kind, target → itemId)", () => {
-    expect(sidebar).toContain("assistant().tab()")
+  test("maps the right-panel state to the tree selection (active tab → kind, target → itemId)", () => {
+    expect(sidebar).toContain("tabs().active()")
     expect(sidebar).toContain("assistant().target()")
-    expect(sidebar).toContain("openEntityPanel(handle, next.kind, next.itemId)")
+    expect(sidebar).toContain("openEntityPanel({ view: view(), tabs: tabs(), assistant: assistant()")
   })
 
   test("secondary-sidebar assistant slot is no longer a placeholder", () => {

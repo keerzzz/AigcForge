@@ -14,11 +14,7 @@ import { SessionItem, SessionSkeleton } from "@/pages/layout/sidebar-items"
 import { sortedRootSessions } from "@/pages/layout/helpers"
 import type { WorkspaceSidebarContext } from "@/pages/layout/sidebar-workspace"
 
-/**
- * Work 会话详情页次级左栏（批次 1 §3.2）：Location + New Session 顶部（复用
- * WorkProjectColumnSidebar 顶部逻辑）+ 维度 Tab（工种/任务集/智能体）+ 会话列表。
- * 会话列表过滤 mode===work（对齐 ChatSessionList），按选中 Tab 维度分组。
- */
+/** Work session sidebar with category tabs and mode-scoped Sessions. */
 export function WorkSecondarySidebar(props: {
   directory: Accessor<string>
   sortNow: Accessor<number>
@@ -36,9 +32,8 @@ export function WorkSecondarySidebar(props: {
     return sync().child(directory, { bootstrap: false })[0]
   })
 
-  // 跨模式指示器（计划 §3.7）：复用 session.tsx:1626 `info()?.mode` 读取路径。
-  // 从全局 child store 按路由 session id 读取（useSync 依赖 SDKProvider，仅在
-  // session/draft 路由子树可用；本组件挂全局 shell，/mode/work 首页也渲染）。
+  // The shell cannot use the directory SDK context, so read Session mode from
+  // the server-scoped child store keyed by the routed Session ID.
   const sessionMode = createMemo(() => {
     if (!params.id) return undefined
     const current = store()
@@ -46,7 +41,6 @@ export function WorkSecondarySidebar(props: {
     return current.session.find((item) => item.id === params.id)?.mode
   })
 
-  // 模式名本地化：复用 modeDefinition.labelKey（对齐 mode-switcher），isMode 收窄 ProductMode.ID -> Mode
   const modeLabel = createMemo(() => {
     const m = sessionMode()
     return m && isMode(m) ? language.t(modeDefinition(m).labelKey) : language.t("mode.coding")
@@ -72,7 +66,7 @@ export function WorkSecondarySidebar(props: {
 
   return (
     <div class="flex min-h-0 flex-1 flex-col" data-component="work-secondary-sidebar">
-      <WorkLocationNewSession directory={props.directory} />
+      <ModeLocationNewSession directory={props.directory} mode="work" />
       <Show when={sessionMode() !== undefined && sessionMode() !== "work"}>
         <div
           data-component="work-sidebar-mode-mismatch"
@@ -147,13 +141,4 @@ export function WorkSecondarySidebar(props: {
       </div>
     </div>
   )
-}
-
-/**
- * Work Location 栏 + New Session（批次 1 §3.2 顶部，抽取自
- * WorkProjectColumnSidebar，work 首页与会话详情页共用）。
- */
-/** @deprecated Use the shared ModeLocationNewSession (mode-location-new-session.tsx). */
-export function WorkLocationNewSession(props: { directory: Accessor<string | undefined> }) {
-  return <ModeLocationNewSession directory={props.directory} mode="work" />
 }

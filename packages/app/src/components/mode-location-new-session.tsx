@@ -7,22 +7,18 @@ import { useLanguage } from "@/context/language"
 import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
 import { useDirectoryPicker } from "@/components/directory-picker"
-import { useChatDirectory } from "@/pages/mode-workspace-context"
+import { useModeDirectory } from "@/pages/mode-workspace-context"
 import { modeDraft, type Mode } from "@/context/mode"
 import { ServerConnection } from "@/context/server"
 import { openProjectNewSession, homeProjectDirectories } from "@/pages/layout/helpers"
 
-/**
- * 共享 Location 模块（计划 §3.9.0）：Chat/Work/Assistant 三模式复用的
- * "Location + 新建会话"侧栏顶部（folder 图标 + 文件名 + folder-add-left +
- * 新建按钮）。抽取自 WorkLocationNewSession；Coding 保持 HomeProjectColumn。
- */
+/** Shared location and new-session controls for Chat, Work, and Assistant. */
 export function ModeLocationNewSession(props: { directory: Accessor<string | undefined>; mode: Mode }) {
   const language = useLanguage()
   const global = useGlobal()
   const tabs = useTabs()
   const pickDirectory = useDirectoryPicker()
-  const { conn, ctx } = useChatDirectory()
+  const { conn, ctx } = useModeDirectory()
 
   function newSession() {
     const c = conn()

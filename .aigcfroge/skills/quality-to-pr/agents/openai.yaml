@@ -1,0 +1,4 @@
+interface:
+  display_name: "Quality To PR"
+  short_description: "Drive changes through tests and PR"
+  default_prompt: "Use $quality-to-pr to take this change through scope, implementation, testing, review, commit, push, and PR evidence."

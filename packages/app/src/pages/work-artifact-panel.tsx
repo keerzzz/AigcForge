@@ -1,4 +1,4 @@
-import { For, Show, createMemo, createSignal } from "solid-js"
+import { For, Show, createEffect, createMemo, createSignal } from "solid-js"
 import { useLanguage } from "@/context/language"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
@@ -7,13 +7,14 @@ import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { useFile } from "@/context/file"
+import { useMode } from "@/context/mode"
 import { createSizing } from "@/pages/session/helpers"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { Markdown } from "@aigcfroge/session-ui/markdown"
 import { HtmlArtifact } from "@aigcfroge/session-ui/html-artifact"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
-import { SessionFileTree } from "@/components/session-file-tree"
+import { SessionRightPanel } from "@/components/session-right-panel"
 import FileTree from "@/components/file-tree"
 import { SessionContextTab } from "@/components/session"
 import {
@@ -30,7 +31,7 @@ import { diffTextLines } from "@/utils/text-diff"
 import { describeApplyError, isConflictError } from "@/pages/work-artifact-error"
 import type { Message } from "@aigcfroge/sdk/v2/client"
 
-/** 覆盖确认时的只读 diff 展示（新旧内容对比）。 */
+/** Read-only diff shown before confirming an overwrite. */
 function WorkDiffView(props: { oldText: string; newText: string }) {
   const lines = createMemo(() => diffTextLines(props.oldText, props.newText))
   return (
@@ -55,27 +56,7 @@ function WorkDiffView(props: { oldText: string; newText: string }) {
   )
 }
 
-/**
- * Work 右栏 Artifact 面板（简单形态）：标题 + WorkArtifactContent。
- * 会话页使用 WorkSessionPanel（Context + Artifact 双 Tab，见下）。
- */
-export function WorkArtifactPanel() {
-  const language = useLanguage()
-  return (
-    <div class="flex h-full min-h-0 w-72 shrink-0 flex-col border-l border-v2-border-border-base bg-v2-background-bg-base">
-      <div class="flex items-center gap-1.5 border-b border-v2-border-border-base px-3 py-2">
-        <Icon name="mode-work" size="small" class="shrink-0 text-v2-icon-icon-muted" />
-        <span class="text-v2-text-text-base text-13-medium">{language.t("work.artifact.tab")}</span>
-      </div>
-      <WorkArtifactContent />
-    </div>
-  )
-}
-
-/**
- * Work Artifact Tab 内容：只读预览候选稿（assistant 消息正文）+ 应用到当前项目。
- * 点击应用 → 原子落盘到当前 Location；目标同名时弹覆盖确认。
- */
+/** Previews the latest Work artifact and applies it through the typed API. */
 export function WorkArtifactContent() {
   const language = useLanguage()
   const sync = useSync()
@@ -83,13 +64,8 @@ export function WorkArtifactContent() {
   const dialog = useDialog()
   const [applying, setApplying] = createSignal(false)
   const [applied, setApplied] = createSignal<{ sessionID: string; content: string }>()
-  let sessionLayout: ReturnType<typeof useSessionLayout> | undefined
-  try {
-    sessionLayout = useSessionLayout()
-  } catch {
-    sessionLayout = undefined
-  }
-  const sessionID = createMemo(() => sessionLayout?.params.id)
+  const sessionLayout = useSessionLayout()
+  const sessionID = createMemo(() => sessionLayout.params.id)
 
   const candidate = createMemo(() => {
     const id = sessionID()
@@ -99,8 +75,7 @@ export function WorkArtifactContent() {
     return findLatestAssistantMarkdown(messages, data.part)
   })
 
-  // 仅当当前会话的候选稿与已应用内容一致时才显示"已应用"（绑定 sessionID，跨会话不串）；
-  // 修订候选稿或切换会话后回到可应用状态。
+  // Applied state belongs to the exact Session and candidate content.
   const appliedCurrent = createMemo(() => {
     const a = applied()
     const id = sessionID()
@@ -115,23 +90,30 @@ export function WorkArtifactContent() {
     setApplying(true)
     try {
       const relativePath = draftFilename(content)
-      await sdk().client.workArtifact.apply({
-        sessionID: id,
-        directory: sdk().directory,
-        title: relativePath,
-        relativePath,
-        content: applyContentForDisk(content),
-        overwrite,
-      })
+      await sdk().client.workArtifact.apply(
+        {
+          sessionID: id,
+          directory: sdk().directory,
+          title: relativePath,
+          relativePath,
+          content: applyContentForDisk(content),
+          overwrite,
+        },
+        { throwOnError: true },
+      )
       setApplied({ sessionID: id, content })
     } catch (error) {
       if (!isConflictError(error)) {
         console.error("[work-artifact] apply failed:", describeApplyError(error))
+        showToast({
+          title: language.t("common.requestFailed"),
+          description: describeApplyError(error),
+        })
         return
       }
       const relativePath = draftFilename(content)
-      const oldContent = await sdk().client.file
-        .read({ path: relativePath })
+      const oldContent = await sdk()
+        .client.file.read({ path: relativePath })
         .then((r) => (r.data?.type === "text" ? r.data.content : undefined))
         .catch(() => undefined)
       void dialog.show(() => (
@@ -165,14 +147,15 @@ export function WorkArtifactContent() {
     }
   }
 
-  // M2 存为资产（D3 方案 A）：候选稿 -> prompt kind CandidateInfo -> setProposeCandidate
-  // 注入 Chat propose store。不自动切 mode：session 页以 session.mode 为权威
-  // （app.tsx session effect 锁回），用户手动切 Chat 后右栏自动显示审查（store 已在）。
+  // Queue the candidate for Chat review without changing the authoritative Session mode.
   function onSaveAsset() {
     const id = sessionID()
     const content = candidate()
     if (!id || !content) return
-    const candidateInfo = captureWorkArtifactAsCandidate(content)
+    const candidateInfo = captureWorkArtifactAsCandidate(content, {
+      name: language.t("work.asset.fallbackName"),
+      description: language.t("work.asset.fallbackDescription"),
+    })
     if (!candidateInfo) return
     setProposeCandidate(id, candidateInfo)
     showToast({ title: language.t("work.asset.save.success") })
@@ -180,142 +163,129 @@ export function WorkArtifactContent() {
 
   return (
     <Show
-        when={appliedCurrent()}
-        fallback={
-          <Show
-            when={candidate()}
-            fallback={
-              <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
-                <p class="text-v2-text-text-muted text-12-regular">{language.t("work.artifact.empty")}</p>
-              </div>
-            }
-          >
-            <div class="flex min-h-0 flex-1 flex-col">
-              <Show
-                when={detectArtifactFormat(candidate()!) === "html"}
-                fallback={
-                  <ScrollView class="min-h-0 flex-1">
-                    <div class="p-3">
-                      <Markdown text={candidate()!} />
-                    </div>
-                  </ScrollView>
-                }
-              >
-                {/*
-                  HTML 模式：iframe 填满面板可用高度（flex-1），不用 ScrollView +
-                  固定视口高度。iframe 自带滚动条；按钮栏 shrink-0 固定底部，
-                  Apply 始终可见，无需滚动。
-                */}
-                <div class="min-h-0 flex-1 overflow-hidden p-3">
-                  <HtmlArtifact
-                    html={extractHtmlBlock(candidate()!) ?? ""}
-                    labels={{
-                      preview: language.t("work.artifact.html.preview"),
-                      code: language.t("work.artifact.html.code"),
-                      renderError: language.t("work.artifact.html.renderError"),
-                      viewCode: language.t("work.artifact.html.viewCode"),
-                    }}
-                  />
-                </div>
-              </Show>
-              <div class="flex shrink-0 gap-2 p-3 pt-0">
-                <ButtonV2
-                  variant="contrast"
-                  size="normal"
-                  icon="folder-add-left"
-                  class="flex-1"
-                  disabled={applying()}
-                  onClick={() => void apply()}
-                >
-                  {language.t("work.artifact.apply")}
-                </ButtonV2>
-                <Show when={candidate() !== null && !appliedCurrent()}>
-                  <ButtonV2
-                    variant="neutral"
-                    size="normal"
-                    class="flex-1"
-                    data-component="work-save-asset-button"
-                    onClick={onSaveAsset}
-                  >
-                    {language.t("work.asset.save")}
-                  </ButtonV2>
-                </Show>
-              </div>
+      when={appliedCurrent()}
+      fallback={
+        <Show
+          when={candidate()}
+          fallback={
+            <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+              <p class="text-v2-text-text-muted text-12-regular">{language.t("work.artifact.empty")}</p>
             </div>
-          </Show>
-        }
-      >
-        <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
-          <p class="text-v2-text-text-muted text-12-regular">{language.t("work.artifact.applied")}</p>
-        </div>
+          }
+        >
+          <div class="flex min-h-0 flex-1 flex-col">
+            <Show
+              when={detectArtifactFormat(candidate()!) === "html"}
+              fallback={
+                <ScrollView class="min-h-0 flex-1">
+                  <div class="p-3">
+                    <Markdown text={candidate()!} />
+                  </div>
+                </ScrollView>
+              }
+            >
+              {/* The iframe owns scrolling so the action bar remains visible. */}
+              <div class="min-h-0 flex-1 overflow-hidden p-3">
+                <HtmlArtifact
+                  html={extractHtmlBlock(candidate()!) ?? ""}
+                  labels={{
+                    preview: language.t("work.artifact.html.preview"),
+                    code: language.t("work.artifact.html.code"),
+                    renderError: language.t("work.artifact.html.renderError"),
+                    viewCode: language.t("work.artifact.html.viewCode"),
+                  }}
+                />
+              </div>
+            </Show>
+            <div class="flex shrink-0 gap-2 p-3 pt-0">
+              <ButtonV2
+                variant="contrast"
+                size="normal"
+                icon="folder-add-left"
+                class="flex-1"
+                disabled={applying()}
+                onClick={() => void apply()}
+              >
+                {language.t("work.artifact.apply")}
+              </ButtonV2>
+              <Show when={candidate() !== null && !appliedCurrent()}>
+                <ButtonV2
+                  variant="neutral"
+                  size="normal"
+                  class="flex-1"
+                  data-component="work-save-asset-button"
+                  onClick={onSaveAsset}
+                >
+                  {language.t("work.asset.save")}
+                </ButtonV2>
+              </Show>
+            </div>
+          </div>
+        </Show>
+      }
+    >
+      <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+        <p class="text-v2-text-text-muted text-12-regular">{language.t("work.artifact.applied")}</p>
+      </div>
     </Show>
   )
 }
 
-/**
- * Work 会话右栏（双 Tab，对齐 coding/chat panel 架构，PRD §10.2）：
- * Context Tab（对齐 Code 模式）+ Artifact Tab。
- * 显隐复用 view().reviewPanel.opened()（对齐 chat/code；session-header 的
- * sidebar-right icon 点击 toggle 此状态），默认展开、可折叠。
- * A 区宽度 auto 撑满（D5，批次 4），B 区 fileTree 默认关闭（D6）。
- */
+/** Work session panel with Context, Artifact, and project file-tree regions. */
 export function WorkSessionPanel() {
   const language = useLanguage()
-  const sessionLayout = useSessionLayout()
+  const mode = useMode()
   const file = useFile()
   const size = createSizing()
-  const [tab, setTab] = createSignal<"context" | "artifact">("artifact")
-  const reviewOpen = createMemo(() => sessionLayout.view().reviewPanel.opened())
+  const { tabs } = useSessionLayout()
+  const activeTab = createMemo(() => {
+    if (mode.currentMode !== "work") return "artifact"
+    const active = tabs().active()
+    if (active === "context" || active === "artifact") return active
+    return "artifact"
+  })
+  // Keep the shared session tab store authoritative so the global context entry
+  // points (stats bar / context usage) switch this panel too.
+  createEffect(() => {
+    if (mode.currentMode !== "work") return
+    const current = tabs()
+    const active = activeTab()
+    if (!current || current.active() === active) return
+    current.setActive(active)
+  })
+  const selectTab = (value: string | number) => {
+    const tab = String(value)
+    if (tab !== "context" && tab !== "artifact") return
+    tabs().setActive(tab)
+  }
   return (
-    <aside
-      id="review-panel"
-      aria-label={language.t("work.artifact.tab")}
-      aria-hidden={!reviewOpen()}
-      inert={!reviewOpen()}
-      class="relative flex h-full min-w-0 shrink-0 overflow-hidden bg-v2-background-bg-base"
-      classList={{
-        "border-l border-v2-border-border-base": reviewOpen(),
-        "pointer-events-none": !reviewOpen(),
-        // 对齐 chat/code:打开时 flex-1 撑满剩余宽度(配合外层 flex-1 min-w-0),
-        // 窗口缩放时面板与上下文模块随容器查询栅格稳定重排。
-        "flex-1": reviewOpen(),
-        "transition-[width] duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width] motion-reduce:transition-none":
-          !size.active(),
-      }}
-      style={{ width: reviewOpen() ? "auto" : "0px" }}
+    <SessionRightPanel
+      size={size}
+      ariaLabel={language.t("work.artifact.tab")}
+      fileTree={
+        <div class="min-h-0 flex-1 overflow-y-auto px-3 pt-3">
+          <FileTree path="" class="pt-1" onFileClick={(node) => void file.load(node.path)} />
+        </div>
+      }
     >
-      <TabsV2
-        value={tab()}
-        onChange={(value) => setTab(value === "context" ? "context" : "artifact")}
-        class="flex min-h-0 flex-1 flex-col"
-      >
+      <TabsV2 value={activeTab()} onChange={selectTab} class="flex min-h-0 flex-1 flex-col">
         <TabsV2.List class="shrink-0 border-b border-v2-border-border-base">
           <TabsV2.Trigger value="context">{language.t("session.tab.context")}</TabsV2.Trigger>
           <TabsV2.Trigger value="artifact">{language.t("work.artifact.tab")}</TabsV2.Trigger>
         </TabsV2.List>
         <TabsV2.Content value="context" class="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <Show when={tab() === "context"}>
+          <Show when={activeTab() === "context"}>
             <div class="relative pt-2 flex-1 min-h-0 overflow-hidden">
               <SessionContextTab />
             </div>
           </Show>
         </TabsV2.Content>
         <TabsV2.Content value="artifact" class="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <Show when={tab() === "artifact"}>
+          <Show when={activeTab() === "artifact"}>
             <WorkArtifactContent />
           </Show>
         </TabsV2.Content>
       </TabsV2>
-      {/* B 区:项目文件树(对齐 code/chat,D6),默认关闭;work 用户可查看落盘产物 */}
-      <SessionFileTree size={size} borderClass="border-l border-v2-border-border-base">
-        <div class="min-h-0 flex-1 overflow-y-auto px-3 pt-3">
-          <FileTree
-            path=""
-            class="pt-1"
-            onFileClick={(node) => void file.load(node.path)}
-          />
-        </div>
-      </SessionFileTree>
-    </aside>
+    </SessionRightPanel>
   )
 }

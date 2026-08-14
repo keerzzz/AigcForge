@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test"
 import fs from "fs"
 import path from "path"
 
-// 批次 1 G1/F4：ReminderList/MemoryInspector/DeliveryList 从 Dashboard 抽取为
-// 共享组件（首页主区 + 详情右栏复用），Dashboard 回归门禁 = 行为不变。
+// Batch 1 G1/F4: ReminderList, MemoryInspector, and DeliveryList are shared by
+// the dashboard and the session panel. The dashboard remains the regression gate.
 
 const read = (rel: string) => fs.readFileSync(path.resolve(__dirname, rel), "utf-8")
 const lists = read("assistant-entity-lists.tsx")

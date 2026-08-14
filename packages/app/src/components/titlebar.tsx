@@ -44,6 +44,8 @@ import { Session } from "@aigcfroge/sdk/v2"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { createTabPromptState } from "@/context/prompt"
 import { modeDraft, useMode } from "@/context/mode"
+import { debounce } from "@solid-primitives/scheduled"
+import { shouldPrefetchTab } from "./titlebar-prefetch-policy"
 
 type TauriDesktopWindow = {
   startDragging?: () => Promise<void>
@@ -450,9 +452,11 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
             const [tabsAreOverflowing, setTabsAreOverflowing] = createSignal(false)
             let tabScrollRef!: HTMLDivElement
 
-            function refreshTabsAreOverflowing() {
-              setTabsAreOverflowing(tabScrollRef.scrollWidth > tabScrollRef.clientWidth)
-            }
+            const debouncedRefreshTabsAreOverflowing = debounce(() => {
+              if (tabScrollRef) {
+                setTabsAreOverflowing(tabScrollRef.scrollWidth > tabScrollRef.clientWidth)
+              }
+            }, 100)
 
             return (
               <div
@@ -497,12 +501,12 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                     class="flex min-w-0 flex-row items-center gap-1.5 overflow-x-auto no-scrollbar [app-region:no-drag]"
                     ref={(el) => {
                       tabScrollRef = el
-                      createResizeObserver(el, refreshTabsAreOverflowing)
+                      createResizeObserver(el, debouncedRefreshTabsAreOverflowing)
                     }}
                   >
                     <div
                       class="flex min-w-0 flex-row items-center gap-1.5"
-                      ref={(el) => createResizeObserver(el, refreshTabsAreOverflowing)}
+                      ref={(el) => createResizeObserver(el, debouncedRefreshTabsAreOverflowing)}
                     >
                       <For each={tabsStore}>
                         {(tab, i) => {
@@ -578,6 +582,13 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                             const ctx = serverCtx()
                             const sess = session()
                             if (!ctx || !sess || prefetched) return
+
+                            // LRU Proximity Guard: Only prefetch active tab and immediate neighbors (±1)
+                            const activeIdx = tabsStore.findIndex((t) => t === currentTab())
+                            if (!shouldPrefetchTab({ tabIndex: i(), activeIndex: activeIdx, totalTabs: tabsStore.length })) {
+                              return
+                            }
+
                             prefetched = true
                             createRoot((dispose) => {
                               try {

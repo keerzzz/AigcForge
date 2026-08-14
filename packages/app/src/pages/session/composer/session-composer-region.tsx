@@ -124,7 +124,7 @@ export function SessionComposerRegion(props: {
     })
   }
   const controls = createMemo(() => {
-    // local.agent.list() 已按 ADR-13 锁定当前模式的 orchestrator，无需再过滤。
+    // local.agent.list() already pins the current mode's orchestrator per ADR-13; no extra filter needed.
     const agentOptions = local.agent.list().map((agent) => agent.name)
     return {
       agents: {

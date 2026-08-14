@@ -36,7 +36,7 @@ import { useComments } from "@/context/comments"
 import { useServerSync } from "@/context/server-sync"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
-import { usePrompt } from "@/context/prompt"
+import { usePrompt, type ContentPart } from "@/context/prompt"
 import { useSDK } from "@/context/sdk"
 import { useServerSDK } from "@/context/server-sdk"
 import { useSettings } from "@/context/settings"
@@ -124,9 +124,9 @@ export default function Page() {
     })
   })
 
-  // Insert 流程（M2 Step 4 + M3 §7.2 通用化）：检测 ?insert=<relativePath>&insertKind=<kind>，
-  // 按 kind 取资产内容注入 composer。与 ?prompt= 不同：?insert= 对已有会话（params.id 存在）生效，
-  // 注入后清参数（一次性，刷新不重复）。
+  // Insert flow (M2 Step 4, generalized per M3 §7.2): read ?insert=<relativePath>&insertKind=<kind>,
+  // inject asset content into the composer by kind. Unlike ?prompt=, ?insert= applies to an existing
+  // session (params.id present); params are cleared after injection (one-shot, no replay on refresh).
   createEffect(() => {
     if (!prompt.ready()) return
     if (!params.id) return
@@ -149,17 +149,17 @@ export default function Page() {
         clear()
       })
       .catch((error: unknown) => {
-        // fetch 失败也清参数，避免卡死
+        // clear params even on fetch failure, so the route can't get stuck
         console.warn("session: failed to fetch asset content for ?insert=", error)
         clear()
       })
   })
 
-  // Dirty Draft: Composer 有未发送内容时标记 dirty，触发路由守卫（M2 Step 5）。
+  // Dirty Draft: mark dirty when the composer holds unsent content to trigger the route guard (M2 Step 5).
   createEffect(() => {
     if (!prompt.ready()) return
     const current = prompt.current()
-    const hasContent = current.some((part: any) => part.type === "text" && part.content?.length > 0)
+    const hasContent = current.some((part: ContentPart) => part.type === "text" && part.content?.length > 0)
     workspace?.setDirty(hasContent)
   })
 
@@ -600,6 +600,36 @@ export default function Page() {
       (lastId, prevLastId) => {
         if (lastId && prevLastId && lastId > prevLastId) {
           setStore("messageId", undefined)
+        }
+      },
+      { defer: true },
+    ),
+  )
+
+  const checkRepeatSuggestion = () => {
+    const messages = timeline.messages()
+    const getParts = (messageID: string) => sync().data.part[messageID] ?? []
+    const userPrompts = extractUserPrompts(messages, getParts)
+    const lastPrompt = userPrompts[userPrompts.length - 1]
+    if (!lastPrompt) return
+    const match = countSimilarPrompts(lastPrompt, userPrompts.slice(0, -1))
+    if (match && !suggestion.show) {
+      if (suggestion.dismissCount === 0 || match.count > suggestion.dismissCount) {
+        setSuggestion("show", true)
+        setSuggestion("message", language.t("chatCapture.repeatSuggestion"))
+        setCapturePulse(true)
+        setTimeout(() => setCapturePulse(false), 1500)
+      }
+    }
+  }
+
+  // Detect repeated prompts on any new user message, not only queued follow-ups.
+  createEffect(
+    on(
+      () => visibleUserMessages().at(-1)?.id,
+      (lastId, prevLastId) => {
+        if (lastId && prevLastId && lastId > prevLastId) {
+          checkRepeatSuggestion()
         }
       },
       { defer: true },
@@ -1368,29 +1398,6 @@ export default function Page() {
 
       setFollowup("items", input.sessionID, (items) => (items ?? []).filter((entry) => entry.id !== input.id))
       if (input.manual) resumeScroll()
-
-      // Repeat detection: check if this prompt is similar to previous ones in session
-      const promptText = item.prompt
-        .filter((p): p is { type: "text"; content: string } & typeof p => "content" in p && p.type === "text")
-        .map((p) => p.content)
-        .join(" ")
-        .trim()
-      if (promptText) {
-        const messages = timeline.messages()
-        const getParts = (messageID: string) => sync().data.part[messageID] ?? []
-        const userPrompts = extractUserPrompts(messages, getParts)
-        // History = prompts before the current one (which is already in messages at this point)
-        const history = userPrompts.slice(0, -1)
-        const match = countSimilarPrompts(promptText, history)
-        if (match && !suggestion.show) {
-          if (suggestion.dismissCount === 0 || match.count > suggestion.dismissCount) {
-            setSuggestion("show", true)
-            setSuggestion("message", language.t("chatCapture.repeatSuggestion"))
-            setCapturePulse(true)
-            setTimeout(() => setCapturePulse(false), 1500)
-          }
-        }
-      }
     },
   }))
 

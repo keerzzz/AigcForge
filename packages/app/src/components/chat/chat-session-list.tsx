@@ -8,7 +8,7 @@ import { base64Encode } from "@aigcfroge/core/util/encode"
 import { useLanguage } from "@/context/language"
 import type { ServerConnection } from "@/context/server"
 
-/** Chat 对话列表：加载并展示当前 Location 的根 chat Sessions。 */
+/** Loads root Chat sessions for the current location. */
 export function ChatSessionList(props: {
   directory: Accessor<string>
   sortNow: Accessor<number>

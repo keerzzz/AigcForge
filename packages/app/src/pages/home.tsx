@@ -712,7 +712,7 @@ export function HomeSessionRow(props: {
   activeServer: boolean
   onClick: () => void
   badge?: JSX.Element
-  /** Assistant 左栏实体选中 → 来源会话高亮（D5）；默认不亮。 */
+  /** Highlights a session linked from the selected Assistant entity. */
   highlighted?: boolean
 }) {
   const title = createMemo(() => sessionTitle(props.record.session.title) || props.record.session.id)

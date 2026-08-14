@@ -6,11 +6,12 @@ import { AssetWorkbench } from "@/components/chat/asset-workbench"
 import { useGlobal } from "@/context/global"
 import { useServer } from "@/context/server"
 import type { AssistantNavSelection } from "@/components/assistant-nav-model"
+import type { State } from "@/context/global-sync/types"
 
 export type ModeWorkspaceAssetContext = {
   chatDirSdk: Accessor<DirectorySDK | undefined>
   chatAssetList: Accessor<{ assets: AssetWorkbench.AssetInput[]; invalid: AssetWorkbench.AssetRow[] } | undefined>
-  chatSystemData: Accessor<{ command: any[]; agent: any[]; mcp: any } | undefined>
+  chatSystemData: Accessor<State | undefined>
   mergedAssetData: Accessor<{ assets: AssetWorkbench.AssetInput[]; invalid: AssetWorkbench.AssetRow[] }>
   refetchAssets: () => void
 }
@@ -23,7 +24,7 @@ export function useModeWorkspaceAssets() {
 
 export { ModeWorkspaceAssetCtx }
 
-/** Coding 模式左侧栏 ↔ 主区共享的 project selection（联动联动） */
+/** Project selection shared by the Coding sidebar and main content. */
 export type CodingSelectionValue = {
   selection: HomeProjectSelection
   selectServer: (key: ServerConnection.Key) => void
@@ -36,7 +37,7 @@ export function useCodingSelection() {
   return useContext(CodingSelectionCtx)!
 }
 
-/** Assistant 模式左侧栏 ↔ 主区会话列表共享的实体选中态（D5，计划 §3.3）。 */
+/** Entity selection shared by the Assistant sidebar and session list. */
 export type AssistantSelectionValue = {
   selection: AssistantNavSelection
   select: (selection: AssistantNavSelection) => void
@@ -48,8 +49,8 @@ export function useAssistantSelection() {
   return useContext(AssistantSelectionCtx)!
 }
 
-/** Chat 首页 Location 解析：当前 server 的 lastSession 目录，回退首个 project worktree。 */
-export function useChatDirectory() {
+/** Resolve the Chat location from the current server's last session or first project. */
+export function useModeDirectory() {
   const global = useGlobal()
   const server = useServer()
   const conn = createMemo(() => server.current ?? server.list[0])

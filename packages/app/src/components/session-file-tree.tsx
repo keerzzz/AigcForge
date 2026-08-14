@@ -4,14 +4,7 @@ import { useLayout } from "@/context/layout"
 import { useSettings } from "@/context/settings"
 import { shouldShowFileTree, type Sizing } from "@/pages/session/helpers"
 
-/**
- * 三模式共享的右栏 B 区（fileTree 槽位，批次 4 §4.2）。
- *
- * 封装 B 区壳层逻辑：显隐（settings.visibility.fileTree +
- * layout.fileTree.opened）、宽度（layout.fileTree.width）+ ResizeHandle。
- * 内容由调用方以 children 注入（code 走 changes/all pill Tabs，chat 走
- * 资产搜索树，work 走项目文件树），保留各自差异点不强行合并。
- */
+/** Shared visibility, sizing, and resize shell for mode-specific file trees. */
 export function SessionFileTree(props: {
   size: Sizing
   borderClass?: string

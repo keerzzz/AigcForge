@@ -12,7 +12,7 @@ import { DragDropProvider, DragDropSensors, DragOverlay, SortableProvider, close
 import { ConstrainDragXAxis } from "@/utils/solid-dnd"
 import { useLanguage } from "@/context/language"
 import { modeDraft, useMode, type Mode } from "@/context/mode"
-import { ChatFeatureSidebar, PlaceholderSidebar } from "@/components/mode-surfaces"
+import { ChatFeatureSidebar } from "@/components/mode-surfaces"
 import { ChatSessionList } from "@/components/chat/chat-session-list"
 import { WorkSecondarySidebar } from "@/components/work-secondary-sidebar"
 import { AssistantSessionSidebar } from "@/components/assistant-session-sidebar"
@@ -664,7 +664,7 @@ function SecondarySidebar() {
           </For>
         </div>
       </Show>
-      {/* ADR-15 §4 方案1: render-all + display:none 替换 Dynamic — slot 组件常驻不 remount */}
+      {/* ADR-15 §4 option 1: render-all + display:none instead of Dynamic — slots stay mounted, no remount */}
       <div style={{ display: mode.currentMode === "chat" ? "" : "none" }}>
         <ChatFeatureSidebar />
       </div>
@@ -684,15 +684,15 @@ function SecondarySidebar() {
           serverKey={serverKey() ?? undefined}
         />
       </div>
-      {/* Chat 对话列表：当前 Location 的 chat sessions，mode=chat 过滤（功能树下方） */}
-      <Show when={mode.currentMode === "chat" && chatDirectory()}>
+      {/* Chat session list: current Location's chat sessions, mode=chat filtered */}
+      <div style={{ display: mode.currentMode === "chat" && chatDirectory() ? "" : "none" }}>
         <ChatSessionList
           directory={chatDirectory}
           sortNow={sortNow}
           ctx={sidebarCtx}
           serverKey={serverKey() ?? undefined}
         />
-      </Show>
+      </div>
     </aside>
   )
 }

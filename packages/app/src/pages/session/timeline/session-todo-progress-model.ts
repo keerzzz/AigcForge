@@ -150,7 +150,7 @@ export const computeTodoProgress = (
 
   const firstInProgress = todos.findIndex((todo) => todo.status === "in_progress")
 
-  // M7 决策 4 fill endpoint (index semantics, not the ratio): all-complete
+  // M7 decision 4 fill endpoint (index semantics, not the ratio): all-complete
   // runs through to 100, otherwise stop at the anchor, else the last completed
   // node, else 0. lastCompletedPct feeds fillEndPct in the no-anchor branch.
   let lastCompleted = -1

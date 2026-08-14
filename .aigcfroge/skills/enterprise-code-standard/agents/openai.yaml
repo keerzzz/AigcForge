@@ -1,0 +1,4 @@
+interface:
+  display_name: "Enterprise Code Standard"
+  short_description: "Align code with Coding mode standards"
+  default_prompt: "Use $enterprise-code-standard to align this change with Coding mode, existing owners, and repository gates."

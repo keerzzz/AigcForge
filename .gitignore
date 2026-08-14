@@ -36,3 +36,20 @@ tsconfig.tsbuildinfo
 *storybook*.log
 .codegraph/
 .reasonix/
+
+# Project protocol skills tracked under the otherwise local .aigcfroge directory.
+!.aigcfroge/
+.aigcfroge/*
+!.aigcfroge/skills/
+.aigcfroge/skills/*
+!.aigcfroge/skills/enterprise-code-standard/
+!.aigcfroge/skills/enterprise-code-standard/**
+!.aigcfroge/skills/reuse-first-refactor/
+!.aigcfroge/skills/reuse-first-refactor/**
+!.aigcfroge/skills/quality-to-pr/
+!.aigcfroge/skills/quality-to-pr/**
+
+# Migration marker files
+.command-asset-migration-*
+**/.command-asset-migration-*
+
