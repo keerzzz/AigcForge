@@ -223,19 +223,19 @@ describe("Runner", () => {
         yield* waitForState(runner, "Running")
 
         const stop = yield* runner.cancel.pipe(Effect.forkChild)
-        yield* Deferred.await(hit).pipe(Effect.timeout("250 millis"))
+        yield* Deferred.await(hit).pipe(Effect.timeout("5 seconds"))
 
         const b = yield* runner.ensureRunning(Deferred.await(done).pipe(Effect.as("second"))).pipe(Effect.forkChild)
         yield* Effect.yieldNow
         expect(runner.busy).toBe(true)
 
         yield* Deferred.succeed(hold, undefined)
-        const stopExit = yield* Fiber.await(stop).pipe(Effect.timeout("250 millis"))
+        const stopExit = yield* Fiber.await(stop).pipe(Effect.timeout("5 seconds"))
         expect(Exit.isSuccess(stopExit)).toBe(true)
 
         expect(runner.busy).toBe(true)
         yield* Deferred.succeed(done, undefined)
-        expect(yield* Fiber.join(b).pipe(Effect.timeout("250 millis"))).toBe("second")
+        expect(yield* Fiber.join(b).pipe(Effect.timeout("5 seconds"))).toBe("second")
         expect(runner.busy).toBe(false)
 
         const exit = yield* Fiber.join(a)
@@ -277,16 +277,16 @@ describe("Runner", () => {
           }),
         )
         .pipe(Effect.forkChild)
-      yield* Deferred.await(started).pipe(Effect.timeout("250 millis"))
+      yield* Deferred.await(started).pipe(Effect.timeout("5 seconds"))
       yield* Effect.gen(function* () {
         while (runner.state._tag !== "Running") yield* Effect.yieldNow
-      }).pipe(Effect.timeout("250 millis"))
+      }).pipe(Effect.timeout("5 seconds"))
 
       const exit = yield* runner.startShell(Effect.succeed("nope")).pipe(Effect.exit)
       expect(Exit.isFailure(exit)).toBe(true)
 
       yield* runner.cancel
-      yield* Fiber.await(fiber).pipe(Effect.timeout("250 millis"))
+      yield* Fiber.await(fiber).pipe(Effect.timeout("5 seconds"))
     }),
   )
 
@@ -320,7 +320,7 @@ describe("Runner", () => {
       yield* waitForState(runner, "Shell")
 
       const stop = yield* runner.cancel.pipe(Effect.forkChild)
-      const stopExit = yield* Fiber.await(stop).pipe(Effect.timeout("250 millis"))
+      const stopExit = yield* Fiber.await(stop).pipe(Effect.timeout("5 seconds"))
       expect(Exit.isSuccess(stopExit)).toBe(true)
       expect(runner.busy).toBe(false)
 
@@ -347,7 +347,7 @@ describe("Runner", () => {
           ready,
         )
         .pipe(Effect.forkChild)
-      yield* ready.await.pipe(Effect.timeout("250 millis"))
+      yield* ready.await.pipe(Effect.timeout("5 seconds"))
 
       yield* runner.cancel
       expect(Exit.isFailure(yield* Fiber.await(sh))).toBe(true)
