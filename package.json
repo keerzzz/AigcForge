@@ -9,6 +9,7 @@
     "dev": "bun run --cwd packages/aigcfroge --conditions=browser src/index.ts",
     "dev:desktop": "bun --cwd packages/desktop dev",
     "dev:web": "bun --cwd packages/app dev",
+    "dev:storybook": "bun --cwd packages/storybook storybook",
     "lint": "oxlint && bun run script/lint-changed.ts",
     "audit": "bun audit",
     "typecheck": "bun turbo typecheck",
