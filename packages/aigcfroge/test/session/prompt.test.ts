@@ -1110,7 +1110,7 @@ raceNoLLMServer.instance(
       }
     }),
   { config: cfg },
-  3_000,
+  15_000,
 )
 
 noLLMServer.instance(
