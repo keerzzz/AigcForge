@@ -277,7 +277,7 @@ export function AssetWorkbenchTable(props: {
               <span class="w-16 lg:w-20 shrink-0">{language.t("promptAsset.list.kind")}</span>
               <span class="flex-[35] truncate">{language.t("promptAsset.list.name")}</span>
               <span class="hidden sm:flex sm:flex-[40] truncate">{language.t("promptAsset.list.description")}</span>
-              <span class="hidden sm:flex sm:flex-[20] sm:justify-end">{language.t("promptAsset.list.updated")}</span>
+              <span class="hidden sm:flex sm:flex-[20] sm:justify-end" aria-hidden="true" />
             </div>
             <For each={rows()}>
               {(row) => (

@@ -685,14 +685,14 @@ function SecondarySidebar() {
         />
       </div>
       {/* Chat session list: current Location's chat sessions, mode=chat filtered */}
-      <Show when={mode.currentMode === "chat" && chatDirectory()}>
+      <div style={{ display: mode.currentMode === "chat" && chatDirectory() ? "" : "none" }}>
         <ChatSessionList
           directory={chatDirectory}
           sortNow={sortNow}
           ctx={sidebarCtx}
           serverKey={serverKey() ?? undefined}
         />
-      </Show>
+      </div>
     </aside>
   )
 }

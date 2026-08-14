@@ -606,6 +606,36 @@ export default function Page() {
     ),
   )
 
+  const checkRepeatSuggestion = () => {
+    const messages = timeline.messages()
+    const getParts = (messageID: string) => sync().data.part[messageID] ?? []
+    const userPrompts = extractUserPrompts(messages, getParts)
+    const lastPrompt = userPrompts[userPrompts.length - 1]
+    if (!lastPrompt) return
+    const match = countSimilarPrompts(lastPrompt, userPrompts.slice(0, -1))
+    if (match && !suggestion.show) {
+      if (suggestion.dismissCount === 0 || match.count > suggestion.dismissCount) {
+        setSuggestion("show", true)
+        setSuggestion("message", language.t("chatCapture.repeatSuggestion"))
+        setCapturePulse(true)
+        setTimeout(() => setCapturePulse(false), 1500)
+      }
+    }
+  }
+
+  // Detect repeated prompts on any new user message, not only queued follow-ups.
+  createEffect(
+    on(
+      () => visibleUserMessages().at(-1)?.id,
+      (lastId, prevLastId) => {
+        if (lastId && prevLastId && lastId > prevLastId) {
+          checkRepeatSuggestion()
+        }
+      },
+      { defer: true },
+    ),
+  )
+
   createEffect(
     on(
       sessionKey,
@@ -1368,29 +1398,6 @@ export default function Page() {
 
       setFollowup("items", input.sessionID, (items) => (items ?? []).filter((entry) => entry.id !== input.id))
       if (input.manual) resumeScroll()
-
-      // Repeat detection: check if this prompt is similar to previous ones in session
-      const promptText = item.prompt
-        .filter((p): p is { type: "text"; content: string } & typeof p => "content" in p && p.type === "text")
-        .map((p) => p.content)
-        .join(" ")
-        .trim()
-      if (promptText) {
-        const messages = timeline.messages()
-        const getParts = (messageID: string) => sync().data.part[messageID] ?? []
-        const userPrompts = extractUserPrompts(messages, getParts)
-        // History = prompts before the current one (which is already in messages at this point)
-        const history = userPrompts.slice(0, -1)
-        const match = countSimilarPrompts(promptText, history)
-        if (match && !suggestion.show) {
-          if (suggestion.dismissCount === 0 || match.count > suggestion.dismissCount) {
-            setSuggestion("show", true)
-            setSuggestion("message", language.t("chatCapture.repeatSuggestion"))
-            setCapturePulse(true)
-            setTimeout(() => setCapturePulse(false), 1500)
-          }
-        }
-      }
     },
   }))
 

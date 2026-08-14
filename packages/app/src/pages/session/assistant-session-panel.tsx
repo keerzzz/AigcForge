@@ -1,4 +1,4 @@
-import { For, Show, createEffect, createMemo } from "solid-js"
+import { For, Show, createEffect, createMemo, on } from "solid-js"
 import { useQuery } from "@tanstack/solid-query"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { Icon } from "@aigcfroge/ui/v2/icon"
@@ -42,13 +42,19 @@ export function AssistantSessionPanel() {
   const contextOpen = createMemo(() => openTabs().includes("context"))
   const activeTab = createMemo(() => tabs().active())
 
-  // Avoid an empty panel when opened via the header icon before any entity tab
-  // was opened: default to the reminders tab.
-  createEffect(() => {
-    if (view().reviewPanel.opened() && tabs().all().length === 0) {
-      void tabs().open("reminders")
-    }
-  })
+  // Default to the reminders tab only when the panel opens empty. Scoping the
+  // effect to the open state keeps closing the last tab from immediately
+  // reopening it (the tab list change alone no longer re-triggers this).
+  createEffect(
+    on(
+      () => view().reviewPanel.opened(),
+      (open) => {
+        if (open && tabs().all().length === 0) {
+          void tabs().open("reminders")
+        }
+      },
+    ),
+  )
 
   const selectTab = (value: string | number) => {
     const tab = String(value)

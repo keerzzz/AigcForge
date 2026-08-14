@@ -27,7 +27,7 @@ describe("captureWorkArtifactAsCandidate", () => {
 
   test("falls back to a generic name when the draft has no heading", () => {
     const info = captureWorkArtifactAsCandidate("纯文本正文，没有标题。")
-    expect(info?.name).toBe("Work 产出")
+    expect(info?.name).toBe("Work draft")
     expect(info?.status).toBe("valid")
   })
 

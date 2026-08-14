@@ -83,7 +83,7 @@ describe("WorkArtifactContent save-as-asset button (M2)", () => {
   })
 
   test("onSaveAsset wires capture -> setProposeCandidate (no auto mode switch: session mode is authoritative)", () => {
-    expect(panel).toContain("captureWorkArtifactAsCandidate(content)")
+    expect(panel).toContain("captureWorkArtifactAsCandidate(content, {")
     expect(panel).toContain("setProposeCandidate")
     expect(panel).not.toMatch(/setCurrentMode\("chat"\)/)
   })
@@ -135,7 +135,7 @@ describe("WorkArtifactContent format routing (M3.5)", () => {
   })
 
   test("does not touch the M2 save-as-asset chain", () => {
-    expect(panel).toContain("captureWorkArtifactAsCandidate(content)")
+    expect(panel).toContain("captureWorkArtifactAsCandidate(content, {")
     expect(panel).toContain('data-component="work-save-asset-button"')
   })
 })

@@ -33,11 +33,14 @@ export function extractSummary(content: string, maxLen = MAX_DESCRIPTION_CHARS):
  * relativePath 留空：apply 从 name 计算路径（prompt-asset-service.ts），空安全。
  * 内容为空或超 Template 上限（100000 bytes）时返回 null，保证产出永远合法。
  */
-export function captureWorkArtifactAsCandidate(content: string): CandidateInfo | null {
+export function captureWorkArtifactAsCandidate(
+  content: string,
+  fallback?: { name?: string; description?: string },
+): CandidateInfo | null {
   if (content.trim() === "") return null
   if (new TextEncoder().encode(content).length > MAX_TEMPLATE_BYTES) return null
-  const name = extractTitle(content) ?? "Work 产出"
-  const description = extractSummary(content) || "From Work session"
+  const name = extractTitle(content) ?? fallback?.name ?? "Work draft"
+  const description = extractSummary(content) || fallback?.description || "From a Work session"
   return {
     name,
     description,

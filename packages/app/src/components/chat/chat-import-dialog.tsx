@@ -224,7 +224,13 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
   async function handleParse() {
     const result = buildResult()
     const content = serializeImport(result)
-    if (!content.trim() || !props.client) return
+    if (!content.trim()) return
+    // Without a connected client the structured parser is unavailable; fall
+    // back to the AI-assisted import flow so the button still does something.
+    if (!props.client) {
+      handleImport()
+      return
+    }
 
     setState({ parsing: true, parseError: undefined, parseResult: undefined })
     try {
@@ -239,7 +245,7 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
         },
       })
     } catch {
-      setState({ parsing: false, parseError: "Parse failed" })
+      setState({ parsing: false, parseError: language.t("chatImport.parseFailed") })
     }
   }
 

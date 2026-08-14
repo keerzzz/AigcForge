@@ -121,7 +121,7 @@ export function AssistantDashboardMain() {
       return
     }
     void sdk.client.kb
-      .update({ id: editingNote.id, content: editContent() })
+      .update({ id: editingNote.id, title: editTitle(), content: editContent() })
       .then(() => {
         setEditing(undefined)
         void kbQuery.refetch()
@@ -283,7 +283,6 @@ export function AssistantDashboardMain() {
                 placeholder={language.t("assistant.kb.titlePlaceholder")}
                 value={editTitle()}
                 onInput={(event) => setEditTitle(event.currentTarget.value)}
-                disabled={!creating()}
               />
               <textarea
                 class="min-h-24 w-full resize-y rounded-md border border-v2-border-border-base bg-v2-background-bg-base px-2 py-1 text-v2-text-text-base text-13-regular focus:outline-none"

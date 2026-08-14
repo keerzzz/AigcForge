@@ -1,4 +1,4 @@
-import { For, Show, createMemo, createSignal } from "solid-js"
+import { For, Show, createEffect, createMemo, createSignal } from "solid-js"
 import { useLanguage } from "@/context/language"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
@@ -101,6 +101,10 @@ export function WorkArtifactContent() {
     } catch (error) {
       if (!isConflictError(error)) {
         console.error("[work-artifact] apply failed:", describeApplyError(error))
+        showToast({
+          title: language.t("common.requestFailed"),
+          description: describeApplyError(error),
+        })
         return
       }
       const relativePath = draftFilename(content)
@@ -144,7 +148,10 @@ export function WorkArtifactContent() {
     const id = sessionID()
     const content = candidate()
     if (!id || !content) return
-    const candidateInfo = captureWorkArtifactAsCandidate(content)
+    const candidateInfo = captureWorkArtifactAsCandidate(content, {
+      name: language.t("work.asset.fallbackName"),
+      description: language.t("work.asset.fallbackDescription"),
+    })
     if (!candidateInfo) return
     setProposeCandidate(id, candidateInfo)
     showToast({ title: language.t("work.asset.save.success") })
@@ -225,7 +232,25 @@ export function WorkSessionPanel() {
   const language = useLanguage()
   const file = useFile()
   const size = createSizing()
-  const [tab, setTab] = createSignal<"context" | "artifact">("artifact")
+  const { tabs } = useSessionLayout()
+  const activeTab = createMemo(() => {
+    const active = tabs().active()
+    if (active === "context" || active === "artifact") return active
+    return "artifact"
+  })
+  // Keep the shared session tab store authoritative so the global context entry
+  // points (stats bar / context usage) switch this panel too.
+  createEffect(() => {
+    const current = tabs()
+    const active = activeTab()
+    if (!current || current.active() === active) return
+    current.setActive(active)
+  })
+  const selectTab = (value: string | number) => {
+    const tab = String(value)
+    if (tab !== "context" && tab !== "artifact") return
+    tabs().setActive(tab)
+  }
   return (
     <SessionRightPanel
       size={size}
@@ -236,24 +261,20 @@ export function WorkSessionPanel() {
         </div>
       }
     >
-      <TabsV2
-        value={tab()}
-        onChange={(value) => setTab(value === "context" ? "context" : "artifact")}
-        class="flex min-h-0 flex-1 flex-col"
-      >
+      <TabsV2 value={activeTab()} onChange={selectTab} class="flex min-h-0 flex-1 flex-col">
         <TabsV2.List class="shrink-0 border-b border-v2-border-border-base">
           <TabsV2.Trigger value="context">{language.t("session.tab.context")}</TabsV2.Trigger>
           <TabsV2.Trigger value="artifact">{language.t("work.artifact.tab")}</TabsV2.Trigger>
         </TabsV2.List>
         <TabsV2.Content value="context" class="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <Show when={tab() === "context"}>
+          <Show when={activeTab() === "context"}>
             <div class="relative pt-2 flex-1 min-h-0 overflow-hidden">
               <SessionContextTab />
             </div>
           </Show>
         </TabsV2.Content>
         <TabsV2.Content value="artifact" class="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <Show when={tab() === "artifact"}>
+          <Show when={activeTab() === "artifact"}>
             <WorkArtifactContent />
           </Show>
         </TabsV2.Content>
