@@ -9,6 +9,7 @@ import { useLanguage } from "@/context/language"
 import { useServerSDK } from "@/context/server-sdk"
 import { useCommand } from "@/context/command"
 import { useFile } from "@/context/file"
+import { useMode } from "@/context/mode"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { SessionRightPanel } from "@/components/session-right-panel"
 import { SessionContextTab, SessionContextTabTrigger } from "@/components/session"
@@ -33,6 +34,7 @@ export function AssistantSessionPanel() {
   const serverSDK = useServerSDK()
   const command = useCommand()
   const file = useFile()
+  const mode = useMode()
   const { params, assistant, tabs, view } = useSessionLayout()
   const size = createSizing()
 
@@ -49,7 +51,7 @@ export function AssistantSessionPanel() {
     on(
       () => view().reviewPanel.opened(),
       (open) => {
-        if (open && tabs().all().length === 0) {
+        if (mode.currentMode === "assistant" && open && tabs().all().length === 0) {
           void tabs().open("reminders")
         }
       },

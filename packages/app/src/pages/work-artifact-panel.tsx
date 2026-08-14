@@ -7,6 +7,7 @@ import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { useFile } from "@/context/file"
+import { useMode } from "@/context/mode"
 import { createSizing } from "@/pages/session/helpers"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { Markdown } from "@aigcfroge/session-ui/markdown"
@@ -89,14 +90,17 @@ export function WorkArtifactContent() {
     setApplying(true)
     try {
       const relativePath = draftFilename(content)
-      await sdk().client.workArtifact.apply({
-        sessionID: id,
-        directory: sdk().directory,
-        title: relativePath,
-        relativePath,
-        content: applyContentForDisk(content),
-        overwrite,
-      })
+      await sdk().client.workArtifact.apply(
+        {
+          sessionID: id,
+          directory: sdk().directory,
+          title: relativePath,
+          relativePath,
+          content: applyContentForDisk(content),
+          overwrite,
+        },
+        { throwOnError: true },
+      )
       setApplied({ sessionID: id, content })
     } catch (error) {
       if (!isConflictError(error)) {
@@ -230,10 +234,12 @@ export function WorkArtifactContent() {
 /** Work session panel with Context, Artifact, and project file-tree regions. */
 export function WorkSessionPanel() {
   const language = useLanguage()
+  const mode = useMode()
   const file = useFile()
   const size = createSizing()
   const { tabs } = useSessionLayout()
   const activeTab = createMemo(() => {
+    if (mode.currentMode !== "work") return "artifact"
     const active = tabs().active()
     if (active === "context" || active === "artifact") return active
     return "artifact"
@@ -241,6 +247,7 @@ export function WorkSessionPanel() {
   // Keep the shared session tab store authoritative so the global context entry
   // points (stats bar / context usage) switch this panel too.
   createEffect(() => {
+    if (mode.currentMode !== "work") return
     const current = tabs()
     const active = activeTab()
     if (!current || current.active() === active) return

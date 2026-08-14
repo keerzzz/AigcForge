@@ -10,6 +10,7 @@ import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { useFile } from "@/context/file"
+import { useMode } from "@/context/mode"
 import { SessionContextTabPanel, SessionContextTabTrigger, SortableTab, FileVisual } from "@/components/session"
 import FileTree from "@/components/file-tree"
 import { FileTabContent } from "@/pages/session/file-tabs"
@@ -34,24 +35,33 @@ export function ChatRightPanel() {
   const language = useLanguage()
   const sdk = useSDK()
   const sync = useSync()
+  const mode = useMode()
   const candidate = useProposeCandidate()
   const [searchQuery, setSearchQuery] = createSignal("")
   const file = useFile()
   const sessionLayout = useSessionLayout()
   const tabs = sessionLayout.tabs
   const openedFileTabs = createMemo(
-    () =>
-      tabs()
-        .all()
-        .filter((t) => t.startsWith("file://")) ?? [],
+    () => {
+      if (mode.currentMode !== "chat") return []
+      return (
+        tabs()
+          .all()
+          .filter((t) => t.startsWith("file://")) ?? []
+      )
+    },
   )
-  const contextOpen = createMemo(() => tabs().active() === "context" || tabs().all().includes("context"))
+  const contextOpen = createMemo(
+    () => mode.currentMode === "chat" && (tabs().active() === "context" || tabs().all().includes("context")),
+  )
   const activeTab = createMemo(() => {
+    if (mode.currentMode !== "chat") return "preview"
     const active = tabs().active()
     if (active === "preview" || active === "context" || active?.startsWith("file://")) return active
     return openedFileTabs()[0] ?? (contextOpen() ? "context" : "preview")
   })
   createEffect(() => {
+    if (mode.currentMode !== "chat") return
     const current = tabs()
     const active = activeTab()
     if (!current || current.active() === active) return
