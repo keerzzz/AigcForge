@@ -102,7 +102,7 @@ export function serializeImport(result: ImportResult) {
 
 /** Keep imported text outside the instruction trust boundary. */
 export function wrapImportContent(text: string, instruction: string) {
-  const escaped = text.replaceAll(/<\/untrusted_import>/gi, "<\\/untrusted_import>")
+  const escaped = text.replaceAll(/<\/untrusted_import\s*>/gi, "<\\/untrusted_import>")
   return `<untrusted_import>\n${escaped}\n</untrusted_import>\n\n${instruction}`
 }
 
@@ -201,7 +201,7 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
 
     setState({ mode: "folder", loading: true, entries: [], selectedPath: "", skippedFiles: 0 })
     try {
-      const loaded = await Promise.all(files.map(readEntry))
+      const loaded = await Promise.all(files.map((f) => readEntry(f).catch(() => undefined)))
       const entries = loaded
         .filter((entry): entry is FileEntry => entry !== undefined)
         .sort((a, b) => a.relativePath.localeCompare(b.relativePath))
@@ -225,10 +225,8 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
     const result = buildResult()
     const content = serializeImport(result)
     if (!content.trim()) return
-    // Without a connected client the structured parser is unavailable; fall
-    // back to the AI-assisted import flow so the button still does something.
     if (!props.client) {
-      handleImport()
+      setState({ parsing: false, parseError: "Import parser service is not connected." })
       return
     }
 
