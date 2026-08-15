@@ -58,9 +58,9 @@ describe("WorkflowAssetPath.isValidSegment", () => {
     expect(WorkflowAssetPath.isValidSegment("trailing.")).toBe(false)
   })
 
-  test("rejects segments exceeding 100 UTF-8 bytes", () => {
-    expect(WorkflowAssetPath.isValidSegment("a".repeat(101))).toBe(false)
-    expect(WorkflowAssetPath.isValidSegment("a".repeat(100))).toBe(true)
+  test("rejects segments exceeding 240 UTF-8 bytes", () => {
+    expect(WorkflowAssetPath.isValidSegment("a".repeat(241))).toBe(false)
+    expect(WorkflowAssetPath.isValidSegment("a".repeat(240))).toBe(true)
   })
 })
 
@@ -99,8 +99,8 @@ describe("WorkflowAssetPath.validateRelativePath", () => {
     expect(WorkflowAssetPath.validateRelativePath("nested\\test.yaml")).toBe("nested/test.yaml")
   })
 
-  test("rejects path exceeding 240 UTF-8 bytes", () => {
-    const longName = "a".repeat(238) + ".yaml"
+  test("rejects path exceeding 500 UTF-8 bytes", () => {
+    const longName = "a/".repeat(200) + "a".repeat(101) + ".yaml"
     expect(() => WorkflowAssetPath.validateRelativePath(longName)).toThrow(WorkflowAssetPath.PathValidationError)
   })
 })

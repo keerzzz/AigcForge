@@ -10,15 +10,20 @@ export { MCPS_DIR }
 
 export const DISALLOWED_CHARS = /[<>:"/\\|?*]/
 export const CONTROL_CHARS = /[\x00-\x1F\x7F]/
+export const WINDOWS_RESERVED = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\..*)?$/i
 
 export const SEGMENT_MIN_BYTES = 1
-export const SEGMENT_MAX_BYTES = 100
-export const PATH_MAX_BYTES = 240
+export const SEGMENT_MAX_BYTES = 240
+export const PATH_MAX_BYTES = 500
 
 export class PathValidationError extends Schema.TaggedErrorClass<PathValidationError>()(
   "MCPAsset.PathValidation",
   { reason: Schema.String, path: Schema.String },
-) {}
+) {
+  override get message() {
+    return this.reason
+  }
+}
 
 function utf8Bytes(value: string): number {
   return new TextEncoder().encode(value).length
@@ -28,6 +33,7 @@ export function isValidSegment(segment: string): boolean {
   if (segment === "" || segment === "." || segment === "..") return false
   if (CONTROL_CHARS.test(segment)) return false
   if (DISALLOWED_CHARS.test(segment)) return false
+  if (WINDOWS_RESERVED.test(segment)) return false
   if (segment.startsWith(" ") || segment.endsWith(" ")) return false
   if (segment.endsWith(".")) return false
   const bytes = utf8Bytes(segment)

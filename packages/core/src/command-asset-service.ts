@@ -10,10 +10,7 @@ import { FSUtil } from "./fs-util"
 import { LocationMutation } from "./location-mutation"
 import { Hash } from "./util/hash"
 import { KeyedMutex } from "./effect/keyed-mutex"
-
-function yamlEscape(value: string): string {
-  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\r/g, "\\r").replace(/\n/g, "\\n").replace(/\t/g, "\\t")}"`
-}
+import { yamlEscape } from "./util/yaml-escape"
 
 function failureMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)
