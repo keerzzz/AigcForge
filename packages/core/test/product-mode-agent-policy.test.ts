@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import {
   checkPrimaryAgent,
   checkCommandAllowed,
+  checkCliDelegationAllowed,
   resolvePrimaryAgent,
   META,
   CHAT_ORCHESTRATOR,
@@ -128,5 +129,29 @@ describe("checkCommandAllowed", () => {
   test("allows command in coding mode", () => {
     const r = checkCommandAllowed("coding")
     expect(r.allowed).toBe(true)
+  })
+})
+
+describe("checkCliDelegationAllowed", () => {
+  test("denies external CLI delegation in chat mode", () => {
+    const r = checkCliDelegationAllowed("chat")
+    expect(r.allowed).toBe(false)
+    if (!r.allowed) {
+      expect(r.error._tag).toBe("CommandDeniedError")
+      expect(r.error.message).toContain("propose_")
+    }
+  })
+
+  test("allows external CLI delegation in coding mode", () => {
+    expect(checkCliDelegationAllowed("coding").allowed).toBe(true)
+  })
+
+  test("allows external CLI delegation in work and assistant modes", () => {
+    expect(checkCliDelegationAllowed("work").allowed).toBe(true)
+    expect(checkCliDelegationAllowed("assistant").allowed).toBe(true)
+  })
+
+  test("unknown mode falls through to allowed (only chat is narrowed)", () => {
+    expect(checkCliDelegationAllowed("something-else").allowed).toBe(true)
   })
 })

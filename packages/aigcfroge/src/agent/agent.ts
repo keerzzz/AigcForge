@@ -228,11 +228,15 @@ export const layer = Layer.effect(
             name: "meta",
             description: MetaAgent.description,
             permission: Permission.merge(
-              buildDefaults,
+              defaults,
               Permission.fromConfig({
                 task: "allow",
-                create_agent: "allow",
-                configure_mcp: "allow",
+                question: "allow",
+                list_assets: "allow",
+                plan_enter: "allow",
+                bash: "deny",
+                edit: "deny",
+                write: "deny",
               }),
               user,
             ),
