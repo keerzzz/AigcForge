@@ -175,7 +175,11 @@ describe("aigcfroge run (non-interactive subprocess)", () => {
         )
         yield* llm.text("after")
 
+        // Execution of bash requires the build agent: the default meta agent is
+        // propose-tier (write/bash denied, ADR-13 Amendment-2 §1b), and this test
+        // asserts the run command's execution ordering, not meta's propose boundary.
         const result = yield* aigcfroge.run("exercise json records", {
+          agent: "build",
           format: "json",
           extraArgs: ["--thinking", "--dangerously-skip-permissions"],
         })

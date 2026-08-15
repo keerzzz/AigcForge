@@ -413,6 +413,13 @@ const step = (state: ParserState, event: OpenAIChatEvent) =>
 
     if (delta?.content) lifecycle = Lifecycle.textDelta(lifecycle, events, "text-0", delta.content)
 
+    // Close the open text block before tool deltas begin so text-end precedes
+    // the tool events (mirrors anthropic's content_block_stop). Deferring to
+    // finish would emit text after tool_use in the consumer's ordering.
+    if (toolDeltas.length > 0 && lifecycle.text.has("text-0")) {
+      lifecycle = Lifecycle.textEnd(lifecycle, events, "text-0")
+    }
+
     for (const tool of toolDeltas) {
       const result = ToolStream.appendOrStart(
         ADAPTER,

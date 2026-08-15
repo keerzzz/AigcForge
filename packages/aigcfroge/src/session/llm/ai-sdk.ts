@@ -189,14 +189,24 @@ export function toLLMEvents(
 
     case "tool-input-start":
       return Effect.sync(() => {
+        const events: LLMEvent[] = []
+        // The AI SDK closes an active reasoning block at the tool boundary but
+        // defers text-end to stream flush, so tool-call would be emitted before
+        // text-end for a text-then-tool stream. Close any open text block here
+        // to preserve stream order.
+        if (state.currentTextID !== undefined) {
+          events.push(LLMEvent.textEnd({ id: state.currentTextID }))
+          state.currentTextID = undefined
+        }
         state.toolNames[event.id] = event.toolName
-        return [
+        events.push(
           LLMEvent.toolInputStart({
             id: event.id,
             name: event.toolName,
             providerMetadata: providerMetadata(event.providerMetadata),
           }),
-        ]
+        )
+        return events
       })
 
     case "tool-input-delta":

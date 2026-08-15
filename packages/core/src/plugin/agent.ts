@@ -471,9 +471,10 @@ export const Plugin = define({
           ...PermissionV2.merge(defaults, [
             { action: "list_assets", resource: "*", effect: "allow" },
             { action: "question", resource: "*", effect: "allow" },
-            // 2026-08-11 决策（元智能体调度架构讨论总结 §3.8 修正 1）: meta 只编排
-            // 不亲自执行破坏性写 — bash/edit/write 直接调用 deny，写操作委派 build
-            // 子代理（task 工具保持 allow，是间接写、属子代理权限域 — P1 边界）。
+            // 2026-08-11 决策（元智能体调度架构讨论总结 §3.8 修正 1）: meta 默认
+            // propose 档位不亲自执行破坏性写 — bash/edit/write deny，写操作委派
+            // build 子代理或经用户激活的 full 档位（ADR-13 Amendment-2 §1b/§1c）。
+            // task 工具保持 allow，是间接写、属子代理权限域 — P1 边界。
             { action: "bash", resource: "*", effect: "deny" },
             { action: "edit", resource: "*", effect: "deny" },
             { action: "write", resource: "*", effect: "deny" },

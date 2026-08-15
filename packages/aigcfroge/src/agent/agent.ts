@@ -234,6 +234,8 @@ export const layer = Layer.effect(
                 question: "allow",
                 list_assets: "allow",
                 plan_enter: "allow",
+                // 默认 propose 档位（ADR-13 Amendment-2 §1b/§1c）：meta 直接写
+                // 拒绝；写能力仅在用户激活的 full 档位走 ask，档位系统尚未实施。
                 bash: "deny",
                 edit: "deny",
                 write: "deny",

@@ -588,6 +588,41 @@ describe("OpenAI Chat route", () => {
     }),
   )
 
+  it.effect("closes the text block before tool deltas so text-end precedes tool events", () =>
+    Effect.gen(function* () {
+      const body = sseEvents(
+        deltaChunk({ role: "assistant", reasoning_content: "thinking" }),
+        deltaChunk({ role: "assistant", content: "before" }),
+        deltaChunk({ tool_calls: [{ index: 0, id: "call_1", function: { name: "lookup", arguments: '{"query"' } }] }),
+        deltaChunk({ tool_calls: [{ index: 0, function: { arguments: ':"weather"}' } }] }),
+        deltaChunk({}, "tool_calls"),
+      )
+      const response = yield* LLMClient.generate(
+        LLM.updateRequest(request, {
+          tools: [{ name: "lookup", description: "Lookup data", inputSchema: { type: "object" } }],
+        }),
+      ).pipe(Effect.provide(fixedResponse(body)))
+
+      const types = response.events.map((event) => event.type)
+      expect(types).toEqual([
+        "step-start",
+        "reasoning-start",
+        "reasoning-delta",
+        "text-start",
+        "text-delta",
+        "text-end",
+        "tool-input-start",
+        "tool-input-delta",
+        "tool-input-delta",
+        "tool-input-end",
+        "tool-call",
+        "reasoning-end",
+        "step-finish",
+        "finish",
+      ])
+    }),
+  )
+
   it.effect("does not finalize streamed tool calls without a finish reason", () =>
     Effect.gen(function* () {
       const body = sseEvents(
