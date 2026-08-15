@@ -43,7 +43,8 @@ PATHS=(
   docs/architecture/system-blueprint.md
   packages/aigcfroge/test/EFFECT_TEST_MIGRATION.md
   docs/plan/mode-module-switching-completion.md
-  .aigcfroge/references/effect-smol
+  # 注意：.aigcfroge/references/effect-smol 是 gitignored 的本地上游 checkout，
+  # 永不入库，不得加入本清单（fresh clone 无此目录，脚本会误报失败）。
 )
 
 miss=0

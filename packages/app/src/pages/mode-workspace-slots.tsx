@@ -480,16 +480,18 @@ export function ChatAssetWorkbenchMain() {
               case "plugin":
                 await sdk.client.pluginAsset.delete(shared, { throwOnError: true }); break
             }
-          } catch (err: any) {
+          } catch (err) {
+            const message = err instanceof Error ? err.message : undefined
             console.error("Failed to delete asset:", err)
             dialog.show(() => (
-              <div class="p-4 text-v2-state-fg-error text-13-regular">
-                {err?.message ?? "Failed to delete asset"}
+              <div class="p-4 text-v2-state-fg-danger text-13-regular">
+                {message ?? language.t("promptAsset.error.deleteFailed")}
               </div>
             ))
-            return
+            return false
           }
           assets?.refetchAssets()
+          return true
         }}
       />
     ))

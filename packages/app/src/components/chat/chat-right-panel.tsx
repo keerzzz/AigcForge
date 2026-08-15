@@ -183,9 +183,10 @@ export function ChatRightPanel() {
       file.tree.expand(kindDir)
       void file.tree.refresh(".aigcfroge")
       bumpAssetVersion()
-    } catch (err: any) {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : undefined
       console.error("Apply failed:", err)
-      setApplyError(err?.message ?? "Apply failed")
+      setApplyError(message ?? language.t("promptAsset.error.applyFailed"))
       setApplying(false)
     }
   }
@@ -208,9 +209,10 @@ export function ChatRightPanel() {
       file.tree.expand(kindDir)
       void file.tree.refresh(".aigcfroge")
       bumpAssetVersion()
-    } catch (err: any) {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : undefined
       console.error("Apply overwrite failed:", err)
-      setApplyError(err?.message ?? "Apply overwrite failed")
+      setApplyError(message ?? language.t("promptAsset.error.applyOverwriteFailed"))
       setApplying(false)
     }
   }

@@ -309,11 +309,15 @@ function parseInput(
     }
 
     if (seenNames.has(candidateName)) {
+      // Reserve room for the " N" suffix BEFORE slicing, else the suffix gets
+      // truncated away and the loop never converges on a fresh name.
       let suffix = 2
-      let disambiguated = safeSliceCodePoints(`${candidateName} ${suffix}`, 80)
+      const disambiguatedName = () =>
+        `${safeSliceCodePoints(candidateName, 80 - String(suffix).length - 1)} ${suffix}`
+      let disambiguated = disambiguatedName()
       while (seenNames.has(disambiguated)) {
         suffix++
-        disambiguated = safeSliceCodePoints(`${candidateName} ${suffix}`, 80)
+        disambiguated = disambiguatedName()
       }
       candidateName = disambiguated
     }

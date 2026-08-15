@@ -604,14 +604,24 @@ export const install = (
     sessionMode: (sessionID) =>
       sessions.get(sessionID).pipe(
         Effect.map((info) => info.mode),
-        Effect.catch(() => Effect.succeed(undefined)),
+        Effect.catch(() =>
+          Effect.logWarning(`task-driver: session lookup failed for mode gate (${sessionID}), defaulting permissively`).pipe(
+            Effect.andThen(Effect.succeed(undefined)),
+          ),
+        ),
       ),
     executeCLI: (input) =>
       Effect.gen(function* () {
         // External-CLI delegation never creates a child Session, so it bypasses
         // `enforcePrimary`'s mode-bound agent allowlist. Gate it on the mode here
         // or chat mode keeps an open write channel (ADR-13 Amendment-2 §1b).
-        const parent = yield* sessions.get(input.sessionID).pipe(Effect.catch(() => Effect.succeed(undefined)))
+        const parent = yield* sessions.get(input.sessionID).pipe(
+          Effect.catch(() =>
+            Effect.logWarning(`task-driver: session lookup failed for CLI gate (${input.sessionID}), defaulting permissively`).pipe(
+              Effect.andThen(Effect.succeed(undefined)),
+            ),
+          ),
+        )
         const verdict = ProductModeAgentPolicy.checkCliDelegationAllowed(parent?.mode ?? "coding")
         if (!verdict.allowed) return yield* Effect.fail(verdict.error)
         if (!cli) return yield* Effect.fail(new Error("CLI adapter registry not available"))

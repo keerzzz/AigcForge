@@ -127,6 +127,8 @@ specs (1)
 | `skills/effect/SKILL.md` | -> | `.aigcfroge/references/effect-smol` |
 | `packages/effect-drizzle-sqlite/AGENTS.md` | -> | `.aigcfroge/references/effect-smol`（同源） |
 
+> `effect-smol` 是 gitignored 的本地上游 checkout（`.aigcfroge/.gitignore` 忽略 `references/`，不入库），故不纳入 `check-refs.sh` 的存在性校验；需要交叉核对 Effect 实现细节时自行克隆到该路径。
+
 ### 孤岛（无显式链接，仅靠目录位置生效）
 - `packages/desktop/AGENTS.md` · `packages/app/e2e/performance/AGENTS.md`
 

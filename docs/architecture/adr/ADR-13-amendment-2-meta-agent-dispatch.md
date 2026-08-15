@@ -9,7 +9,7 @@
 
 ### §1a — Meta-Agent as Universal Default Primary Agent
 
-All Product Modes (Coding, Chat, Work, Assistant) default to `meta` as their primary session agent. `meta` acts as the unified conversational entry and orchestrator that dispatches complex tasks to specialized subagents or mode-bound orchestrators via the `task` tool:
+Coding, Chat, and Work modes default to `meta` as their primary session agent; **Assistant mode defaults to `assistant-orchestrator`** (`resolvePrimaryAgent` in `packages/core/src/product-mode-agent-policy.ts` — 个人事项的 fail-closed 执行者，不做宽权限继承). `meta` acts as the unified conversational entry and orchestrator that dispatches complex tasks to specialized subagents or mode-bound orchestrators via the `task` tool:
 
 - In **Coding mode**: `meta` can delegate execution to `build`, `explore`, `general`, `plan`, or user-defined agents.
 - In **Chat mode**: `meta` creates and manages assets. Mode-specific orchestrator (`chat-orchestrator`) remains available as a task delegation target or explicit choice.
@@ -35,8 +35,9 @@ The guarantee in §1b.3 is **not** achieved by subagents "inheriting" the parent
 
 实现要点与已知约束：
 
-- 子代理路径的拒绝目前表现为 **defect**（`enforcePrimary` 走 `Effect.die`，`TaskDriver.createChild` 又套了 `Effect.orDie`），不是 typed tool failure。模型按 `PROMPT_META` 的 "every FILE write must go through task → build delegation" 指引在 chat 模式尝试委派 `build` 时，会得到一个崩溃而不是"chat 模式不允许"的可读错误。**这是已知缺陷，不是设计意图**，修复方向是让 task 工具在委派前先查模式并返回 `ToolFailure`。
+- 子代理路径由 `task` 工具在委派前先行拦截（`packages/core/src/tool/task.ts`）：`TaskDriver.sessionMode` 查父会话模式，`checkPrimaryAgent` 校验 `subagent_type`，不合规直接返回 typed `ToolFailure`。`enforcePrimary` 的 `Effect.die` 仍保留为 Session 创建层的最后防线（子代理路径若绕过 task 预检直接进入 `SessionV2.create`，仍会被拦截）。
 - 外部 CLI 路径在 chat 模式返回 `CommandDeniedError`（typed），错误信息指向 `propose_*_asset`。
+- **`checkCliDelegationAllowed` 只拦 chat 是有意设计，非遗漏**：ADR-13 §边界规则 1 的"Chat 只创建不执行"只约束 chat——work/coding 本就是执行模式（`work-preset` 直接落盘、build 直接写）。`external-cli` 是 meta 提示词触发的显式用户委派动作，在 work/assistant 放行是给"执行型模式"保留 CLI 委派能力。chat 是唯一纯 propose 边界，因此 gate 只在 chat 收紧。若未来某模式需要同样的 propose-only 语义，按同一模式补充即可。
 - `meta` 的权限条目仍是 `{ action: "task", resource: "*", effect: "allow" }`。写边界不由这条权限承载，而由上表两个模式检查承载；因此**新增任何不经过 Session 创建的委派执行路径（如新的 `execution_type`）都必须同步加一条模式检查**，否则会重新打开这个通道。
 
 ### Affected Sections

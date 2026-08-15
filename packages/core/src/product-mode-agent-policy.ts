@@ -156,6 +156,10 @@ export function checkCommandAllowed(mode: string): PolicyVerdict {
  * blocks write-capable subagents in chat mode. Without this check, chat mode's
  * propose-first invariant (ADR-13 Amendment-2 §1b) would have an open channel:
  * the external CLI writes the workspace under its own permissions.
+ *
+ * Only chat is gated (work/assistant stay open) by design: chat is the sole
+ * pure-propose mode; work/coding are execution modes where external CLI
+ * delegation is an explicit user action (ADR-13 Amendment-2 §1b.3).
  */
 export function checkCliDelegationAllowed(mode: string): PolicyVerdict {
   if (mode === "chat") {

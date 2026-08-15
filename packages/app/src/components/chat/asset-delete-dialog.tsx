@@ -6,14 +6,14 @@ import type { AssetRow } from "./asset-workbench"
 
 export function AssetDeleteDialog(props: {
   asset: AssetRow
-  onDelete: () => Promise<void> | void
+  onDelete: () => Promise<boolean> | boolean
 }) {
   const language = useLanguage()
   const dialog = useDialog()
 
   async function handleDelete() {
-    await props.onDelete()
-    dialog.close()
+    const ok = await props.onDelete()
+    if (ok) dialog.close()
   }
 
   return (

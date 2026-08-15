@@ -1276,6 +1276,8 @@ export const dict = {
   "promptAsset.candidate.template": "範本",
   "promptAsset.candidate.insert": "插入輸入區",
   "promptAsset.error.applyFailed": "套用提示詞資產失敗",
+  "promptAsset.error.applyOverwriteFailed": "覆蓋提示詞資產失敗",
+  "promptAsset.error.deleteFailed": "刪除資產失敗",
   "promptAsset.asset.deleteConfirm": "刪除此資產？",
   "promptAsset.asset.deleteIrreversible": "此操作不可撤銷。檔案內容將永久刪除。",
   "promptAsset.list.path": "路徑",

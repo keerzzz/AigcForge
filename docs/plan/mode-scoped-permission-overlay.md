@@ -137,7 +137,7 @@ read: *→allow, *.env→ask, *.env.*→ask, *.env.example→allow
 | 交互/状态 | `question` `plan_enter` `plan_exit` `list_assets` `skill` |
 | （统计标记）| `doom_loop`（非工具，重复调用拦截的 action 标记）|
 
-**已知坑**：assistant-orchestrator 预留了 `kb_search` / `kb_read` / `kb_list_dangling` 三个 action，但对应工具**尚未实现**（全仓无 `name` 定义），是 Assistant M3/M4 知识库功能的空转 allow 预留位。
+**说明**：assistant-orchestrator 的 `kb_search` / `kb_read` / `kb_list_dangling` 三个 action 对应工具已在 [core/src/tool/kb-tools.ts](../../packages/core/src/tool/kb-tools.ts) 完整实现并注册（[builtins.ts:88](../../packages/core/src/tool/builtins.ts) `KBTools.layer`），allow 条目是有效放行，非空转预留。
 
 ### 1.5 五层权限控制链（总闸 → 档位 → 授权 → 裁决）
 
@@ -224,7 +224,7 @@ configured() 返回 = [ (unattendedFallback?) , ...agent.permissions , ...tierRu
 
 | 文件 | 内容 | 本计划 |
 |---|---|---|
-| [core/plugin/agent.ts](../../packages/core/src/plugin/agent.ts) | V2 meta（deny bash/edit/write + allow task）· chat-orchestrator（:330 deny-all + 7×propose）· work-orchestrator · assistant-orchestrator | ❌ V2 meta 已 fail-closed，不改 |
+| [core/plugin/agent.ts](../../packages/core/src/plugin/agent.ts) | V2 meta（deny bash/edit/write + allow task）· chat-orchestrator（:330 deny-all + 7×propose）· work-orchestrator · assistant-orchestrator | ⚠️ V2 meta 与 V1 同形 fail-open（defaults 首条 `{"*":"allow"}` + 手工 deny 三写 action），Phase 1 一并收敛 |
 | [aigcfroge/agent/agent.ts:129-149](../../packages/aigcfroge/src/agent/agent.ts) | **V1 `defaults` 首条 `{"*":"allow"}`**（fail-open 根源） | ✅ Phase 1 收窄 |
 
 **现状写通道全景**（档位设计不得破坏）：
@@ -412,7 +412,7 @@ const metaDefaults = Permission.fromConfig({
   // bash/edit/write 不在白名单 → 默认 deny（fail-closed）
 })
 ```
-V2 侧 `meta` 已 fail-closed（deny bash/edit/write + allow task），仅需对齐 V1 的 `propose_*` 白名单与 `read` 基线。
+V1/V2 侧 `meta` 同形 fail-open（`defaults` 首条 `{"*":"allow"}` + 手工 deny `bash`/`edit`/`write`）：已知写 action 被 deny 覆盖，**新增任何未知写工具默认放行**。Phase 1 对两侧一并收敛为 deny-all + 显式白名单。
 
 **Step 1.2（红）**：`meta-envelope-parity.test.ts` 或现有 agent 测试新增：
 - meta 的 `bash`/`edit`/`write` 为 deny（现有行为保持）
