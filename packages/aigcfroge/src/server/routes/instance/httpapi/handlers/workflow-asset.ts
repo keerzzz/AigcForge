@@ -94,7 +94,7 @@ export const workflowAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "work
 
       let relativePath: string
       try { relativePath = WorkflowAssetPath.nameToRelativePath(ctx.payload.candidate.name) }
-      catch (e: any) { return yield* Effect.fail(new InvalidRequestError({ message: `Invalid workflow name: ${e?.message ?? ctx.payload.candidate.name}` })) }
+      catch (e) { return yield* Effect.fail(new InvalidRequestError({ message: `Invalid workflow name: ${e instanceof Error ? e.message : String(e)}` })) }
 
       const registryPath = path.basename(relativePath)
       const target = yield* WorkflowAssetPath.resolveSafeTarget(registryPath, locationMutation).pipe(
@@ -196,7 +196,7 @@ export const workflowAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "work
 
       let relativePath: string
       try { relativePath = WorkflowAssetPath.validateRelativePath(ctx.payload.relativePath) }
-      catch (e: any) { return yield* Effect.fail(new InvalidRequestError({ message: `Invalid path: ${e?.message ?? ctx.payload.relativePath}` })) }
+      catch (e) { return yield* Effect.fail(new InvalidRequestError({ message: `Invalid path: ${e instanceof Error ? e.message : String(e)}` })) }
 
       const target = yield* WorkflowAssetPath.resolveSafeTarget(relativePath, locationMutation).pipe(
         Effect.provide(layer),

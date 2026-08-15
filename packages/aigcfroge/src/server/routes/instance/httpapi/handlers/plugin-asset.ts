@@ -107,7 +107,7 @@ export const pluginAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "plugin
 
       let relativePath: string
       try { relativePath = PluginAssetPath.nameToRelativePath(ctx.payload.candidate.name) }
-      catch (e: any) { return yield* Effect.fail(new InvalidRequestError({ message: `Invalid plugin name: ${e?.message ?? ctx.payload.candidate.name}` })) }
+      catch (e) { return yield* Effect.fail(new InvalidRequestError({ message: `Invalid plugin name: ${e instanceof Error ? e.message : String(e)}` })) }
 
       const registryPath = path.basename(relativePath)
       const target = yield* PluginAssetPath.resolveSafeTarget(registryPath, locationMutation).pipe(
@@ -210,7 +210,7 @@ export const pluginAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "plugin
 
       let relativePath: string
       try { relativePath = PluginAssetPath.validateRelativePath(ctx.payload.relativePath) }
-      catch (e: any) { return yield* Effect.fail(new InvalidRequestError({ message: `Invalid path: ${e?.message ?? ctx.payload.relativePath}` })) }
+      catch (e) { return yield* Effect.fail(new InvalidRequestError({ message: `Invalid path: ${e instanceof Error ? e.message : String(e)}` })) }
 
       const target = yield* PluginAssetPath.resolveSafeTarget(relativePath, locationMutation).pipe(
         Effect.provide(layer),

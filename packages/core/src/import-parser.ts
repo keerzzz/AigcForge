@@ -332,8 +332,8 @@ function parseInput(
           template,
         }),
       )
-    } catch (e: any) {
-      errors.push(new SchemaImportParser.ParseError({ section: `Block ${i + 1}`, reason: e?.message ?? "validation_failed" }))
+    } catch (e) {
+      errors.push(new SchemaImportParser.ParseError({ section: `Block ${i + 1}`, reason: e instanceof Error ? e.message : String(e) }))
     }
   }
 
