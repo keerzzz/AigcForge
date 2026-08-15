@@ -105,7 +105,7 @@
 ## 改完即审流程
 
 1. **确认影响面**：`git diff -- <files>` 锁定本次改动，不顺手修无关代码
-2. **匹配 Skills**：涉及主题/配色走 `frontend-theming`；涉及 Effect 编码走 `effect`；涉及数据库走 `database`；UI 组件/无障碍/硬编码规范见 `DESIGN.md`
+2. **匹配 Skills**：涉及主题/配色走 `frontend-theming`；涉及 Effect 编码走 `effect`；涉及数据库走 `database`；涉及重构与代码标准走 `enterprise-code-standard` / `reuse-first-refactor`；涉及质量交付门禁走 `quality-to-pr`；UI 组件/无障碍/硬编码规范见 `DESIGN.md`
 3. **安全复查**：逐项检查 Catch Everything、No Null Pointer、Security First
 4. **整洁复查**：逐项检查 No Cheating、Reusability、Clean Logs
 5. **数据流追踪**：追踪每个改动的完整调用链——数据从哪里来、经过哪层、最终到哪。确认每个 Effect 的 Layer 依赖已被 provide。确认 import 的模块真实存在。确认条件分支两端都有实际执行路径。架构边界见 `ARCHITECTURE.md`
@@ -138,3 +138,9 @@
 | 工具活动 doom_loop 拦截统计依赖 runner 错误文案匹配（"blocked by doom_loop approval"） | app | `session/runner/llm.ts` 文案变更会静默漏计；且只覆盖 denied/rejected，CorrectedError 反馈不计入。根治：事件层为 tool error 加结构化标记（如 `cause: "doom-loop"`），UI 按字段判断 | TBD | 事件层加标记时 |
 | 工具活动统计随会话压缩缩水 | app | 统计基于消息 parts，compaction 重写历史后旧 part 被丢弃，计数仅反映当前上下文窗口。根治：event/DB 层聚合持久统计，UI 只读 | TBD | 需要持久指标时 |
 | 多文件不符合 Prettier 格式规范 | 全仓 | 仓库无 pre-commit format hook，部分文件（如 `verifier.ts`、`reference-checker.ts`）在 main 就不符合 prettier 格式；分支审查时难以区分新旧格式问题。根治：统一跑 `prettier --write` 全仓格式化一次，配合 CI 加 format check 门禁 | TBD | 下次全仓 lint 清理时 |
+| Chat 模式下 meta 默认权限依赖前置拦截与 ADR-13 Amendment-2 约束 | core / aigcfroge | 未彻底收敛为不可配置的只读沙箱，依赖 policy 层 fail-closed 门禁保证安全 | TBD | 权限沙箱重构时 |
+| workflow/plugin 未建 typed service 而是 handler 内联写事务 | aigcfroge | 虽已复用 FileMutation 与 KeyedMutex 恢复 5 大不变量，但未在 core 层封装为标准 Service | TBD | 统一资产服务重构时 |
+| chat 模式下 repeat-detection 启发式分词与语言支持不完备 | app | 采用混合分词与单 token 旁路，长文本混合场景可能存在边界漂移 | TBD | 意图识别升级时 |
+| Import-parser 多候选同名时依赖后缀 disambiguation | core | 导入包含多个同名未命名代码块时生成序号后缀，需依赖后续用户在 UI 侧重命名 | TBD | 导入流增强时 |
+| 资产 apply/delete 缺非会话路由，工作台伪造 sessionID | aigcfroge / app | 路由为 `/session/:sessionID/<kind>-asset/...`，模式首页无会话上下文，前端填 `"ses-home-delete"`；`SessionID` 只校验 `startsWith("ses")` 故静默通过，审计归属链断裂（PRD §8.3.1 已声明 sessionID 非写边界前提，故非安全缺陷）。范围与决定见 [Chat PRD §20.6](docs/prd/chat-mode-creation-layer.md) | TBD | 下次资产端点改动时 |
+| meta 在非 coding 模式下无法委派 build，且无兜底出路 | core | `checkPrimaryAgent` 在 chat/work/assistant 三模式只放行 `meta` 与对应 orchestrator，故 `task → build` 被拒；meta 提示词的 "retry once, then switch engine" 在这些模式下每个备选引擎同样被拒，形成死路。当前各模式靠自己的 typed 写工具（`propose_*_asset` / `work-preset` / `reminder_*`）落盘，设计上成立，但拒绝信息未告知模型该模式可用的替代路径。根治：模式作用域权限叠加（per-agent-per-mode 信封），或在拒绝时返回该模式的可用引擎清单 | TBD | Assistant M4 跨信道前 |
