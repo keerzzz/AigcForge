@@ -471,13 +471,13 @@ export const Plugin = define({
           ...PermissionV2.merge(defaults, [
             { action: "list_assets", resource: "*", effect: "allow" },
             { action: "question", resource: "*", effect: "allow" },
-            // 2026-08-11 决策（元智能体调度架构讨论总结 §3.8 修正 1）: meta 默认
-            // propose 档位不亲自执行破坏性写 — bash/edit/write deny，写操作委派
-            // build 子代理或经用户激活的 full 档位（ADR-13 Amendment-2 §1b/§1c）。
-            // task 工具保持 allow，是间接写、属子代理权限域 — P1 边界。
-            { action: "bash", resource: "*", effect: "deny" },
-            { action: "edit", resource: "*", effect: "deny" },
-            { action: "write", resource: "*", effect: "deny" },
+            // 2026-08-15 人类裁决：meta 是非 coding 模式的 build 等价体 —
+            // bash/edit/write 与 build 对齐可用，但危险操作走 ask 审批（非静默
+            // allow 也非 deny，ADR-13 Amendment-2 §1c）。task 工具保持 allow，
+            // 是间接写、属子代理权限域 — P1 边界。
+            { action: "bash", resource: "*", effect: "ask" },
+            { action: "edit", resource: "*", effect: "ask" },
+            { action: "write", resource: "*", effect: "ask" },
             { action: "task", resource: "*", effect: "allow" },
             { action: "plan_enter", resource: "*", effect: "allow" },
           ]),

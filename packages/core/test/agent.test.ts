@@ -128,7 +128,9 @@ describe("AgentV2", () => {
         "work-orchestrator",
       ])
       for (const item of agents) {
-        expect(item.permissions.some((rule) => rule.action === "bash" && rule.effect !== "deny")).toBe(false)
+        // No built-in agent may silently allow bash (fail-open). `ask` is fine —
+        // it materializes an approval prompt (ADR-13 Amendment-2 §1c).
+        expect(item.permissions.some((rule) => rule.action === "bash" && rule.effect === "allow")).toBe(false)
       }
     }),
   )
@@ -245,7 +247,7 @@ describe("AgentV2", () => {
     }),
   )
 
-  it.effect("meta is read-only-orchestrate: bash/edit/write denied directly, task delegation kept (P1)", () =>
+  it.effect("meta is build-aligned: bash/edit/write ask-gated, task delegation kept (P1, ADR-13 §1c)", () =>
     Effect.gen(function* () {
       const agent = yield* AgentV2.Service
       yield* AgentPlugin.Plugin.effect(
@@ -261,9 +263,11 @@ describe("AgentV2", () => {
 
       const meta = yield* agent.get(AgentV2.ID.make("meta"))
       const permissions = meta!.permissions
-      // 2026-08-11 decision: meta orchestrates, it does not mutate directly.
+      // 2026-08-15 human ruling: meta is the build-equivalent primary agent in
+      // non-coding modes — write capability available, gated by ask (not silent
+      // allow, not deny).
       for (const action of ["bash", "edit", "write"]) {
-        expect(PermissionV2.evaluate(action, "*", permissions).effect).toBe("deny")
+        expect(PermissionV2.evaluate(action, "*", permissions).effect).toBe("ask")
       }
       // P1 boundary: task stays allowed — delegation is indirect write through
       // the subagent's own permission domain, not meta's direct mutation.
