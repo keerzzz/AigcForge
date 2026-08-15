@@ -177,10 +177,9 @@ export function normalizeProposeCandidate(input: { tool: string; state: unknown 
   const structured = isRecord(input.state.structured) ? input.state.structured : undefined
   const metadata = isRecord(input.state.metadata) ? input.state.metadata : undefined
   const result = structured ?? metadata
-  const output = stringField(input.state, "output") ?? ""
-  const exists = booleanField(result, "exists") ?? output.includes("exists")
-  const nameConflict = booleanField(result, "nameConflict") ?? output.includes("Name conflict")
-  const pathConflict = booleanField(result, "pathConflict") ?? output.includes("Path conflict")
+  const exists = booleanField(result, "exists") ?? false
+  const nameConflict = booleanField(result, "nameConflict") ?? false
+  const pathConflict = booleanField(result, "pathConflict") ?? false
   const revision = result?.revision
 
   const common = {

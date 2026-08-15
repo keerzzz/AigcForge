@@ -103,13 +103,19 @@ export function ChatRightPanel() {
     let cancelled = false
     const timer = setTimeout(async () => {
       const result: string[] = []
-      const walk = async (dir: string) => {
-        if (cancelled) return
+      const MAX_DEPTH = 5
+      const MAX_RESULTS = 100
+      const walk = async (dir: string, depth = 0) => {
+        if (cancelled || depth > MAX_DEPTH || result.length >= MAX_RESULTS) return
         await file.tree.list(dir)
-        for (const child of file.tree.children(dir) ?? []) {
-          if (cancelled) return
-          if (child.type === "directory") await walk(child.path)
-          else if (child.path.toLowerCase().includes(q)) result.push(child.path)
+        const children = file.tree.children(dir) ?? []
+        for (const child of children) {
+          if (cancelled || result.length >= MAX_RESULTS) return
+          if (child.type === "directory") {
+            await walk(child.path, depth + 1)
+          } else if (child.path.toLowerCase().includes(q)) {
+            result.push(child.path)
+          }
         }
       }
       try {
@@ -124,6 +130,8 @@ export function ChatRightPanel() {
       clearTimeout(timer)
     })
   })
+
+  const [applyError, setApplyError] = createSignal<string | null>(null)
 
   createEffect(() => {
     const sessionID = sessionLayout.params.id
@@ -161,6 +169,7 @@ export function ChatRightPanel() {
     const c = candidate.candidate
     if (!c || !candidate.sessionID || candidate.applying) return
     setApplying(true)
+    setApplyError(null)
     try {
       await applyAssetCandidate(sdk().client, {
         sessionID: candidate.sessionID,
@@ -174,8 +183,9 @@ export function ChatRightPanel() {
       file.tree.expand(kindDir)
       void file.tree.refresh(".aigcfroge")
       bumpAssetVersion()
-    } catch (err) {
+    } catch (err: any) {
       console.error("Apply failed:", err)
+      setApplyError(err?.message ?? "Apply failed")
       setApplying(false)
     }
   }
@@ -184,6 +194,7 @@ export function ChatRightPanel() {
     const c = candidate.candidate
     if (!c || !candidate.sessionID || candidate.applying) return
     setApplying(true)
+    setApplyError(null)
     try {
       await applyAssetCandidate(sdk().client, {
         sessionID: candidate.sessionID,
@@ -197,8 +208,9 @@ export function ChatRightPanel() {
       file.tree.expand(kindDir)
       void file.tree.refresh(".aigcfroge")
       bumpAssetVersion()
-    } catch (err) {
+    } catch (err: any) {
       console.error("Apply overwrite failed:", err)
+      setApplyError(err?.message ?? "Apply overwrite failed")
       setApplying(false)
     }
   }
@@ -280,6 +292,11 @@ export function ChatRightPanel() {
                 <div class="mb-2 line-clamp-2 text-v2-text-text-muted text-12-regular">
                   {candidate.candidate?.description}
                 </div>
+                <Show when={applyError()}>
+                  <div class="mb-2 rounded-[4px] border border-v2-state-border-danger bg-v2-state-bg-danger p-2 text-v2-state-fg-danger text-12-regular">
+                    {applyError()}
+                  </div>
+                </Show>
                 <Show
                   when={candidate.candidate?.status === "valid"}
                   fallback={

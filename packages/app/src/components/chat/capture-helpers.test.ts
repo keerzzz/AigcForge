@@ -27,9 +27,10 @@ describe("extractMessageContent", () => {
     expect(extractMessageContent(parts)).toBe("hello\n\nworld")
   })
 
-  test("includes reasoning parts as text", () => {
+  test("excludes reasoning parts by default and includes when includeReasoning is true", () => {
     const parts = [reasoningPart("step by step"), toolPart("read"), textPart("result")]
-    expect(extractMessageContent(parts)).toBe("step by step\n\nresult")
+    expect(extractMessageContent(parts)).toBe("result")
+    expect(extractMessageContent(parts, true)).toBe("step by step\n\nresult")
   })
 
   test("filters interactive UI parts", () => {

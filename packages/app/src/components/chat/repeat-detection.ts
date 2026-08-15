@@ -8,7 +8,7 @@
 const DEFAULT_THRESHOLD = 0.7
 const MIN_SIMILAR_COUNT = 3
 
-const CJK_RE = /[一-鿿㐀-䶿豈-﫿]/
+const CJK_RE = /[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]/
 
 export function normalize(text: string): string {
   return text
@@ -24,22 +24,31 @@ function hasCJK(text: string): boolean {
 
 /**
  * Tokenize text for Jaccard comparison.
- * For CJK text: character bigrams (overlapping 2-char windows).
- * For non-CJK text: whitespace-separated words.
+ * For CJK words/segments: character bigrams.
+ * For Latin/non-CJK words: word tokens.
+ * Handles mixed CJK and English naturally.
  */
-function tokenize(text: string): string[] {
+export function tokenize(text: string): string[] {
   const normalized = normalize(text)
   if (!normalized) return []
-  if (hasCJK(normalized)) {
-    const chars = Array.from(normalized.replace(/\s+/g, ""))
-    if (chars.length <= 1) return chars
-    const bigrams: string[] = []
-    for (let i = 0; i < chars.length - 1; i++) {
-      bigrams.push(chars[i] + chars[i + 1])
+  const words = normalized.split(/\s+/).filter(Boolean)
+  const tokens: string[] = []
+
+  for (const word of words) {
+    if (hasCJK(word)) {
+      const chars = Array.from(word)
+      if (chars.length <= 1) {
+        tokens.push(word)
+      } else {
+        for (let i = 0; i < chars.length - 1; i++) {
+          tokens.push(chars[i] + chars[i + 1])
+        }
+      }
+    } else {
+      tokens.push(word)
     }
-    return bigrams
   }
-  return normalized.split(/\s+/).filter(Boolean)
+  return tokens
 }
 
 function jaccardSimilarity(a: string[], b: string[]): number {
@@ -66,6 +75,7 @@ export interface RepeatMatch {
 /**
  * Count how many prompts in the history are similar to `current` (≥ threshold).
  * Returns undefined if count < MIN_SIMILAR_COUNT.
+ * Short single-token inputs (e.g. "continue", "ok") are ignored.
  */
 export function countSimilarPrompts(
   current: string,
@@ -73,6 +83,7 @@ export function countSimilarPrompts(
   threshold: number = DEFAULT_THRESHOLD,
 ): RepeatMatch | undefined {
   const tokens = tokenize(current)
+  if (tokens.length < 2 && current.length < 6) return undefined
   let count = 0
   let best = 0
   for (const entry of history) {

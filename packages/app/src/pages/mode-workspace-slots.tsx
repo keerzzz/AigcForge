@@ -461,6 +461,7 @@ export function ChatAssetWorkbenchMain() {
           const shared = {
             sessionID: "ses-home-delete",
             relativePath: row.relativePath,
+            baseRevision: row.revision ?? undefined,
           }
           try {
             switch (row.kind) {
@@ -479,7 +480,13 @@ export function ChatAssetWorkbenchMain() {
               case "plugin":
                 await sdk.client.pluginAsset.delete(shared, { throwOnError: true }); break
             }
-          } catch {
+          } catch (err: any) {
+            console.error("Failed to delete asset:", err)
+            dialog.show(() => (
+              <div class="p-4 text-v2-state-fg-error text-13-regular">
+                {err?.message ?? "Failed to delete asset"}
+              </div>
+            ))
             return
           }
           assets?.refetchAssets()

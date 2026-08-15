@@ -335,19 +335,21 @@ export function AssetWorkbenchTable(props: {
                     </span>
                     <span class="min-w-0 hidden sm:block sm:flex-[40] truncate text-v2-text-text-muted">{row.description}</span>
                     <span class="relative hidden sm:flex shrink-0 sm:flex-[20] items-center justify-end gap-1 self-stretch">
-                      <Show when={!row.invalid && row.origin !== "system"}>
-                        <ButtonV2
-                          type="button"
-                          variant="ghost-muted"
-                          size="small"
-                          class="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-                          onClick={(event: MouseEvent) => {
-                            event.stopPropagation()
-                            props.onInsert?.(row)
-                          }}
-                        >
-                          {language.t("promptAsset.workbench.insert")}
-                        </ButtonV2>
+                      <Show when={row.origin !== "system"}>
+                        <Show when={!row.invalid}>
+                          <ButtonV2
+                            type="button"
+                            variant="ghost-muted"
+                            size="small"
+                            class="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                            onClick={(event: MouseEvent) => {
+                              event.stopPropagation()
+                              props.onInsert?.(row)
+                            }}
+                          >
+                            {language.t("promptAsset.workbench.insert")}
+                          </ButtonV2>
+                        </Show>
                         <ButtonV2
                           type="button"
                           variant="ghost-muted"
