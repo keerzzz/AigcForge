@@ -1306,6 +1306,8 @@ export const dict = {
   "promptAsset.candidate.template": "Template",
   "promptAsset.candidate.insert": "Insert to input",
   "promptAsset.error.applyFailed": "Failed to apply prompt asset",
+  "promptAsset.error.applyOverwriteFailed": "Failed to overwrite prompt asset",
+  "promptAsset.error.deleteFailed": "Failed to delete asset",
   "promptAsset.asset.deleteConfirm": "Delete this asset?",
   "promptAsset.asset.deleteIrreversible": "This action cannot be undone. The file will be permanently deleted.",
   "promptAsset.list.path": "Path",

@@ -19,9 +19,7 @@ export interface LegacyEntry {
   readonly source?: string
 }
 
-function yamlEscape(value: string): string {
-  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\r/g, "\\r").replace(/\n/g, "\\n").replace(/\t/g, "\\t")}"`
-}
+import { yamlEscape } from "./util/yaml-escape"
 
 function localDocument(entry: Config.Entry, projectDirectory: string): entry is Config.Document {
   if (entry.type !== "document" || !entry.path) return false

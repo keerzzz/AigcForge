@@ -1,8 +1,7 @@
 export * as WorkflowAssetHandlers from "./workflow-asset"
 
 import path from "path"
-import fs from "fs/promises"
-import { Effect, Layer, Schema } from "effect"
+import { Effect, Layer, Option, Schema } from "effect"
 import { InstanceState } from "@/effect/instance-state"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { LocationServiceMap } from "@aigcfroge/core/location-layer"
@@ -11,12 +10,24 @@ import { WorkflowAssetPath } from "@aigcfroge/core/workflow-asset/path"
 import { ProposeWorkflowAssetTool } from "@aigcfroge/core/tool/propose-workflow-asset"
 import { WorkflowAsset as SchemaWorkflowAsset } from "@aigcfroge/schema/workflow-asset"
 import { Location } from "@aigcfroge/core/location"
+import { LocationMutation } from "@aigcfroge/core/location-mutation"
+import { FileMutation } from "@aigcfroge/core/file-mutation"
+import { FSUtil } from "@aigcfroge/core/fs-util"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { Hash } from "@aigcfroge/core/util/hash"
+import { KeyedMutex } from "@aigcfroge/core/effect/keyed-mutex"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
 import { ConflictError, InvalidRequestError } from "../errors"
-import { WORKFLOWS_DIR } from "@aigcfroge/core/constants"
+
+function toHandlerError(err: unknown): Effect.Effect<never, ConflictError | InvalidRequestError> {
+  if (err instanceof ConflictError || err instanceof InvalidRequestError) {
+    return Effect.fail(err)
+  }
+  return Effect.fail(new InvalidRequestError({ message: err instanceof Error ? err.message : String(err) }))
+}
+
+const locks = KeyedMutex.makeUnsafe<string>()
 
 export const workflowAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "workflow-asset", (handlers) =>
   Effect.gen(function* () {
@@ -77,48 +88,99 @@ export const workflowAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "work
       const ref = Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) })
       const layer = locations.get(ref)
       const registry = yield* WorkflowAsset.Service.pipe(Effect.provide(layer), Effect.orDie)
+      const locationMutation = yield* LocationMutation.Service.pipe(Effect.provide(layer), Effect.orDie)
+      const fileMutation = yield* FileMutation.Service.pipe(Effect.provide(layer), Effect.orDie)
+      const fs = yield* FSUtil.Service.pipe(Effect.provide(layer), Effect.orDie)
 
       let relativePath: string
       try { relativePath = WorkflowAssetPath.nameToRelativePath(ctx.payload.candidate.name) }
-      catch { return yield* Effect.fail(new InvalidRequestError({ message: `Invalid workflow name: ${ctx.payload.candidate.name}` })) }
+      catch (e) { return yield* Effect.fail(new InvalidRequestError({ message: `Invalid workflow name: ${e instanceof Error ? e.message : String(e)}` })) }
 
-      const targetPath = path.resolve(ctx2.directory, relativePath)
-      const fileExists = yield* Effect.tryPromise(() => fs.stat(targetPath).then(() => true)).pipe(
-        Effect.catch(() => Effect.succeed(false)),
-      )
-      if (fileExists && !ctx.payload.overwrite) {
-        return yield* Effect.fail(new ConflictError({ message: `Already exists at "${relativePath}". Set overwrite=true.`, resource: relativePath }))
-      }
-      if (fileExists && ctx.payload.baseRevision) {
-        const currentBytes = yield* Effect.tryPromise(() => fs.readFile(targetPath)).pipe(
-          Effect.catch(() => Effect.succeed(undefined)),
-        )
-        if (currentBytes) {
-          const currentRevision = Hash.sha256(Buffer.from(currentBytes))
-          if (currentRevision !== ctx.payload.baseRevision) {
-            return yield* Effect.fail(new ConflictError({ message: `Stale revision for "${relativePath}". Refresh and retry.`, resource: relativePath }))
-          }
-        }
-      }
-
-      yield* Effect.tryPromise(() => fs.mkdir(path.resolve(ctx2.directory, WORKFLOWS_DIR), { recursive: true })).pipe(Effect.ignore)
-      yield* Effect.tryPromise(() => fs.writeFile(targetPath, ctx.payload.candidate.content)).pipe(
-        Effect.catch(() => Effect.fail(new InvalidRequestError({ message: `Failed to write at "${relativePath}".` }))),
-      )
-
-      yield* registry.reload().pipe(Effect.provide(layer), Effect.catch(() => Effect.void))
-
-      // Registry uses path.relative(ownerRoot, file) as key (= short filename), but nameToRelativePath returns WORKFLOWS_DIR-prefixed path.
       const registryPath = path.basename(relativePath)
-      const info = yield* registry.getByPath(registryPath).pipe(
+      const target = yield* WorkflowAssetPath.resolveSafeTarget(registryPath, locationMutation).pipe(
         Effect.provide(layer),
-        Effect.catch(() => Effect.fail(new InvalidRequestError({ message: `Failed to read back "${relativePath}".` }))),
+        Effect.catch((err) => Effect.fail(new InvalidRequestError({ message: err.message }))),
       )
-      return Schema.decodeUnknownSync(SchemaWorkflowAsset.Info)({
-        kind: info.kind, name: info.name, description: info.description,
-        relativePath: info.relativePath, revision: info.revision,
-        version: info.version, triggers: info.triggers, steps: info.steps,
-      })
+
+      return yield* locks.withLock(registryPath)(
+        Effect.uninterruptible(
+          Effect.gen(function* () {
+            const fileExists = yield* fs.exists(target.canonical).pipe(Effect.provide(layer), Effect.catch(() => Effect.succeed(false)))
+            const currentBytes: Uint8Array | null = fileExists
+              ? yield* fs.readFile(target.canonical).pipe(
+                  Effect.provide(layer),
+                  Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)),
+                  Effect.catch(() => Effect.succeed(null)),
+                )
+              : null
+            const currentRevision = currentBytes ? Hash.sha256(Buffer.from(currentBytes)) : null
+
+            const isNew = ctx.payload.baseRevision === undefined || ctx.payload.baseRevision === null
+            if (isNew && fileExists && !ctx.payload.overwrite) {
+              return yield* Effect.fail(new ConflictError({ message: `Already exists at "${registryPath}". Set overwrite=true.`, resource: registryPath }))
+            }
+            if (ctx.payload.baseRevision && currentRevision !== ctx.payload.baseRevision) {
+              return yield* Effect.fail(new ConflictError({ message: `Stale revision for "${registryPath}". Refresh and retry.`, resource: registryPath }))
+            }
+            if (fileExists && !ctx.payload.overwrite) {
+              return yield* Effect.fail(new ConflictError({ message: `Already exists at "${registryPath}". Set overwrite=true.`, resource: registryPath }))
+            }
+
+            yield* fileMutation.writeAtomic({ target, content: ctx.payload.candidate.content }).pipe(
+              Effect.provide(layer),
+              Effect.catch((err) => Effect.fail(new InvalidRequestError({ message: `Failed to write at "${registryPath}": ${err.message}` }))),
+            )
+
+            const writtenBytes = yield* fs.readFile(target.canonical).pipe(
+              Effect.provide(layer),
+              Effect.catch((err) => Effect.fail(new InvalidRequestError({ message: `Readback failed for "${registryPath}": ${err.message}` }))),
+            )
+            const writtenRevision = Hash.sha256(Buffer.from(writtenBytes))
+
+            const rollback = Effect.fnUntraced(function* () {
+              if (currentBytes !== null) {
+                yield* fileMutation.writeAtomic({ target, content: currentBytes }).pipe(
+                  Effect.provide(layer),
+                  Effect.catch(() => Effect.void),
+                )
+              } else {
+                yield* fs.remove(target.canonical).pipe(
+                  Effect.provide(layer),
+                  Effect.catchReason("PlatformError", "NotFound", () => Effect.void),
+                  Effect.catch(() => Effect.void),
+                )
+              }
+              yield* registry.reload().pipe(Effect.provide(layer), Effect.catch(() => Effect.void))
+            })
+
+            yield* registry.reload().pipe(
+              Effect.provide(layer),
+              Effect.catch((err) =>
+                Effect.gen(function* () {
+                  yield* rollback()
+                  return yield* Effect.fail(new InvalidRequestError({ message: `Registry reload failed: ${err.message}` }))
+                }),
+              ),
+            )
+
+            const readback = yield* registry.getByPath(registryPath).pipe(
+              Effect.provide(layer),
+              Effect.option,
+            )
+            if (Option.isNone(readback) || readback.value.revision !== writtenRevision) {
+              yield* rollback()
+              return yield* Effect.fail(new InvalidRequestError({ message: `Readback mismatch for "${registryPath}"` }))
+            }
+
+            const info = readback.value
+            return Schema.decodeUnknownSync(SchemaWorkflowAsset.Info)({
+              kind: info.kind, name: info.name, description: info.description,
+              relativePath: info.relativePath, revision: info.revision,
+              version: info.version, triggers: info.triggers, steps: info.steps,
+            })
+          }),
+        ),
+      ).pipe(Effect.catch(toHandlerError))
     })
 
     const deleteAsset = Effect.fn("WorkflowAssetHttpApi.delete")(function* (ctx: {
@@ -128,28 +190,88 @@ export const workflowAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "work
       const ref = Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) })
       const layer = locations.get(ref)
       const registry = yield* WorkflowAsset.Service.pipe(Effect.provide(layer), Effect.orDie)
+      const locationMutation = yield* LocationMutation.Service.pipe(Effect.provide(layer), Effect.orDie)
+      const fileMutation = yield* FileMutation.Service.pipe(Effect.provide(layer), Effect.orDie)
+      const fs = yield* FSUtil.Service.pipe(Effect.provide(layer), Effect.orDie)
 
-      // Payload path is the registry key (relative to the workflows root); validate
-      // segments before resolving so nested keys work and traversal is rejected.
       let relativePath: string
       try { relativePath = WorkflowAssetPath.validateRelativePath(ctx.payload.relativePath) }
-      catch { return yield* Effect.fail(new InvalidRequestError({ message: `Invalid path: ${ctx.payload.relativePath}` })) }
+      catch (e) { return yield* Effect.fail(new InvalidRequestError({ message: `Invalid path: ${e instanceof Error ? e.message : String(e)}` })) }
 
-      const info = yield* registry.getByPath(relativePath).pipe(
+      const target = yield* WorkflowAssetPath.resolveSafeTarget(relativePath, locationMutation).pipe(
         Effect.provide(layer),
-        Effect.catch(() => Effect.fail(new InvalidRequestError({ message: `Not found: ${relativePath}` }))),
+        Effect.catch((err) => Effect.fail(new InvalidRequestError({ message: err.message }))),
       )
 
-      if (ctx.payload.baseRevision && info.revision !== ctx.payload.baseRevision) {
-        return yield* Effect.fail(new ConflictError({ message: `Stale revision for "${relativePath}". Refresh and retry.`, resource: relativePath }))
-      }
+      // The registry keys by short relative path; apply bridges via basename, so
+      // delete must use the same key or the target lock and the registry readback
+      // would operate in two different key spaces.
+      const registryPath = path.basename(relativePath)
 
-      yield* Effect.tryPromise(() => fs.rm(path.resolve(ctx2.directory, WORKFLOWS_DIR, relativePath))).pipe(
-        Effect.catch(() => Effect.fail(new InvalidRequestError({ message: `Failed to delete at "${relativePath}".` }))),
-      )
-      return yield* registry.reload().pipe(Effect.provide(layer), Effect.catch(() => Effect.void))
+      return yield* locks.withLock(registryPath)(
+        Effect.uninterruptible(
+          Effect.gen(function* () {
+            const fileExists = yield* fs.exists(target.canonical).pipe(Effect.provide(layer), Effect.catch(() => Effect.succeed(false)))
+            if (!fileExists) {
+              return yield* Effect.fail(new InvalidRequestError({ message: `Not found: ${relativePath}` }))
+            }
+
+            const currentBytes = yield* fs.readFile(target.canonical).pipe(
+              Effect.provide(layer),
+              Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)),
+              Effect.catch((err) => Effect.fail(new InvalidRequestError({ message: `Read before delete failed: ${err.message}` }))),
+            )
+            if (currentBytes === null) {
+              return yield* Effect.fail(new InvalidRequestError({ message: `Not found: ${relativePath}` }))
+            }
+
+            const currentRevision = Hash.sha256(Buffer.from(currentBytes))
+            if (ctx.payload.baseRevision && currentRevision !== ctx.payload.baseRevision) {
+              yield* Effect.fail(new ConflictError({ message: `Stale revision for "${relativePath}". Refresh and retry.`, resource: relativePath }))
+            }
+
+            yield* fileMutation.remove({ target }).pipe(
+              Effect.provide(layer),
+              Effect.catch((err) => Effect.fail(new InvalidRequestError({ message: `Failed to delete at "${relativePath}": ${err.message}` }))),
+            )
+
+            const rollbackDelete = () =>
+              fileMutation.writeAtomic({ target, content: currentBytes }).pipe(
+                Effect.provide(layer),
+                Effect.catch(() => Effect.void),
+              )
+
+            yield* registry.reload().pipe(
+              Effect.provide(layer),
+              Effect.catch((err) =>
+                Effect.gen(function* () {
+                  yield* rollbackDelete()
+                  return yield* Effect.fail(new InvalidRequestError({ message: `Registry reload after delete failed: ${err.message}` }))
+                }),
+              ),
+            )
+
+            // PRD §8.3.1: delete confirms absence by readback — a reload that still
+            // resolves the entry means the file survived, so restore and report.
+            const stillPresent = yield* registry.getByPath(registryPath).pipe(
+              Effect.provide(layer),
+              Effect.option,
+              Effect.catch(() => Effect.succeed(Option.none())),
+            )
+            if (Option.isSome(stillPresent)) {
+              yield* rollbackDelete()
+              return yield* Effect.fail(
+                new InvalidRequestError({ message: `Readback after delete still resolves "${relativePath}"` }),
+              )
+            }
+
+            return undefined
+          }),
+        ),
+      ).pipe(Effect.catch(toHandlerError))
     })
 
     return handlers.handle("list", list).handle("content", content).handle("apply", apply).handle("delete", deleteAsset)
   }),
 ).pipe(Layer.provide(LocationServiceMap.layer))
+

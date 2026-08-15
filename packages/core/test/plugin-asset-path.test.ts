@@ -58,9 +58,9 @@ describe("PluginAssetPath.isValidSegment", () => {
     expect(PluginAssetPath.isValidSegment("trailing.")).toBe(false)
   })
 
-  test("rejects segments exceeding 100 UTF-8 bytes", () => {
-    expect(PluginAssetPath.isValidSegment("a".repeat(101))).toBe(false)
-    expect(PluginAssetPath.isValidSegment("a".repeat(100))).toBe(true)
+  test("rejects segments exceeding 240 UTF-8 bytes", () => {
+    expect(PluginAssetPath.isValidSegment("a".repeat(241))).toBe(false)
+    expect(PluginAssetPath.isValidSegment("a".repeat(240))).toBe(true)
   })
 })
 
@@ -103,8 +103,8 @@ describe("PluginAssetPath.validateRelativePath", () => {
     expect(PluginAssetPath.validateRelativePath("nested\\test.plugin.yaml")).toBe("nested/test.plugin.yaml")
   })
 
-  test("rejects path exceeding 240 UTF-8 bytes", () => {
-    const longName = "a".repeat(226) + ".plugin.yaml"
+  test("rejects path exceeding 500 UTF-8 bytes", () => {
+    const longName = "a/".repeat(200) + "a".repeat(101) + ".plugin.yaml"
     expect(() => PluginAssetPath.validateRelativePath(longName)).toThrow(PluginAssetPath.PathValidationError)
   })
 })

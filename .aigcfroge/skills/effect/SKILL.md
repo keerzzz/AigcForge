@@ -22,6 +22,8 @@ Use the current Effect v4 / effect-smol source, not memory or older Effect v2/v3
 - Use `Effect.gen(function* () { ... })` for multi-step workflows.
 - Use `Effect.fn("Name")` or `Effect.fnUntraced(...)` for named effects when adding reusable service methods or important workflows.
 - Prefer Effect `Schema` for API and domain data shapes. Use branded schemas for IDs and `Schema.TaggedErrorClass` for typed domain errors when modeling new error surfaces.
+- For all `Schema.TaggedErrorClass` definitions, implement `override get message()` returning `this.reason` or descriptive text so that `err.message` never yields empty string.
+- Never silently swallow errors with `Effect.catch(() => Effect.void)`. Propagate typed errors, compensate via rollback, or log defects explicitly.
 - Keep HTTP handlers thin: decode input, read request context, call services, and map transport errors. Put business rules in services.
 - In Effect service code, prefer Effect-aware platform abstractions and dependencies over ad hoc promises where the surrounding code already does so.
 - Keep layer composition explicit. Avoid broad hidden provisioning that makes missing dependencies hard to see.

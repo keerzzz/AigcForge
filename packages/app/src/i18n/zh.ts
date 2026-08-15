@@ -1188,6 +1188,8 @@ export const dict = {
   "promptAsset.list.description": "描述",
   "promptAsset.list.updated": "更新",
   "promptAsset.error.applyFailed": "应用提示词资产失败",
+  "promptAsset.error.applyOverwriteFailed": "覆盖提示词资产失败",
+  "promptAsset.error.deleteFailed": "删除资产失败",
   "promptAsset.asset.deleteConfirm": "删除此资产？",
   "promptAsset.asset.deleteIrreversible": "此操作不可撤销。文件内容将永久删除。",
   "promptAsset.list.path": "路径",

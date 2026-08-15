@@ -3,6 +3,7 @@ export * as TaskDriver from "./task-driver"
 import { Cause, Effect, Exit, Schema } from "effect"
 import { AgentV2 } from "../agent"
 import { Location } from "../location"
+import { ProductModeAgentPolicy } from "../product-mode-agent-policy"
 import { SessionMessage } from "../session/message"
 import { SessionSchema } from "../session/schema"
 import { generateSummary } from "../session/share-summary"
@@ -145,6 +146,12 @@ export interface Interface {
   /** Returns true when `sessionID` has a parent (is a child Session). */
   readonly isChildSession: (sessionID: SessionSchema.ID) => Effect.Effect<boolean>
   /**
+   * The Product Mode of `sessionID`, or undefined when it cannot be resolved.
+   * Callers use it to apply mode-bound policy before delegating, so a denied
+   * delegation surfaces as a typed tool failure instead of a child-session defect.
+   */
+  readonly sessionMode: (sessionID: SessionSchema.ID) => Effect.Effect<string | undefined>
+  /**
    * Execute a prompt against an external CLI tool (claude-code, gemini, codex,
    * opencode, etc.). The adapter is resolved through the installed CLI adapter
    * registry at the composition root. Returns the CLI's output text and terminal
@@ -220,6 +227,10 @@ export const interrupt = (sessionID: SessionSchema.ID) =>
 export const isChildSession = (sessionID: SessionSchema.ID) =>
   active().pipe(Effect.flatMap((impl) => impl.isChildSession(sessionID)))
 
+/** The Product Mode of `sessionID`, or undefined when it cannot be resolved. */
+export const sessionMode = (sessionID: SessionSchema.ID) =>
+  active().pipe(Effect.flatMap((impl) => impl.sessionMode(sessionID)))
+
 /** Execute a prompt against an external CLI tool through the installed adapter. */
 export const executeCLI = (input: {
   cliTarget: string
@@ -233,7 +244,7 @@ export const executeCLI = (input: {
 export interface SessionFacade {
   readonly get: (
     sessionID: SessionSchema.ID,
-  ) => Effect.Effect<{ location: Location.Ref; parentID?: SessionSchema.ID }, unknown>
+  ) => Effect.Effect<{ location: Location.Ref; parentID?: SessionSchema.ID; mode?: string }, unknown>
   readonly create: (input: {
     id?: SessionSchema.ID
     parentID: SessionSchema.ID
@@ -590,6 +601,31 @@ export const install = (
         Effect.map((info) => info.parentID !== undefined),
         Effect.orDie,
       ),
-    executeCLI: (input) => (cli ? cli.execute(input) : Effect.fail(new Error("CLI adapter registry not available"))),
+    sessionMode: (sessionID) =>
+      sessions.get(sessionID).pipe(
+        Effect.map((info) => info.mode),
+        Effect.catch(() =>
+          Effect.logWarning(`task-driver: session lookup failed for mode gate (${sessionID}), defaulting permissively`).pipe(
+            Effect.andThen(Effect.succeed(undefined)),
+          ),
+        ),
+      ),
+    executeCLI: (input) =>
+      Effect.gen(function* () {
+        // External-CLI delegation never creates a child Session, so it bypasses
+        // `enforcePrimary`'s mode-bound agent allowlist. Gate it on the mode here
+        // or chat mode keeps an open write channel (ADR-13 Amendment-2 §1b).
+        const parent = yield* sessions.get(input.sessionID).pipe(
+          Effect.catch(() =>
+            Effect.logWarning(`task-driver: session lookup failed for CLI gate (${input.sessionID}), defaulting permissively`).pipe(
+              Effect.andThen(Effect.succeed(undefined)),
+            ),
+          ),
+        )
+        const verdict = ProductModeAgentPolicy.checkCliDelegationAllowed(parent?.mode ?? "coding")
+        if (!verdict.allowed) return yield* Effect.fail(verdict.error)
+        if (!cli) return yield* Effect.fail(new Error("CLI adapter registry not available"))
+        return yield* cli.execute(input)
+      }),
   }
 }

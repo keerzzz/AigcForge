@@ -17,11 +17,15 @@ const waitForFile = (file: string) =>
   Effect.promise(async () => {
     while (true) {
       try {
-        return await fs.readFile(file, "utf8")
+        const content = await fs.readFile(file, "utf8")
+        // The file can appear (directory entry visible) before the writer has
+        // flushed content — under load a read can observe an empty file. Only
+        // treat the write as ready once the content is non-empty.
+        if (content !== "") return content
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
-        await new Promise<void>((resolve) => setTimeout(resolve, 10))
       }
+      await new Promise<void>((resolve) => setTimeout(resolve, 10))
     }
   })
 

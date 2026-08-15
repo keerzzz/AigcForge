@@ -3,9 +3,9 @@ export * as ProductModeAgentPolicy from "./product-mode-agent-policy"
 /**
  * Pure policy function for Product Mode × Agent enforcement.
  *
- * - `mode=chat` requires `chat-orchestrator` as the primary agent.
+ * - `mode=chat` defaults to `meta` (delegates to `chat-orchestrator` / subagents; direct shell/writes denied; ADR-13 Amendment-2).
  * - `chat-orchestrator` is only valid in `chat` mode.
- * - `shell`/`command` prompts are denied in `chat` mode.
+ * - `shell`/`command` prompts are denied in `chat` and `work` modes.
  */
 
 import { Effect, Schema } from "effect"
@@ -143,6 +143,32 @@ export function checkCommandAllowed(mode: string): PolicyVerdict {
     return {
       allowed: false,
       error: new CommandDeniedError({ mode, reason: "Shell/command prompts are denied in work mode" }),
+    }
+  }
+  return { allowed: true }
+}
+
+/**
+ * Check whether delegating to an external CLI engine is allowed in the mode.
+ *
+ * External-CLI delegation does NOT create a child Session, so it never reaches
+ * `enforcePrimary` and therefore escapes the mode-bound agent allowlist that
+ * blocks write-capable subagents in chat mode. Without this check, chat mode's
+ * propose-first invariant (ADR-13 Amendment-2 §1b) would have an open channel:
+ * the external CLI writes the workspace under its own permissions.
+ *
+ * Only chat is gated (work/assistant stay open) by design: chat is the sole
+ * pure-propose mode; work/coding are execution modes where external CLI
+ * delegation is an explicit user action (ADR-13 Amendment-2 §1b.3).
+ */
+export function checkCliDelegationAllowed(mode: string): PolicyVerdict {
+  if (mode === "chat") {
+    return {
+      allowed: false,
+      error: new CommandDeniedError({
+        mode,
+        reason: "External CLI delegation is denied in chat mode; asset changes must go through propose_*_asset",
+      }),
     }
   }
   return { allowed: true }

@@ -87,6 +87,25 @@ describe("ImportParser", () => {
     expect(result.candidates[1].template).toBe("prompt2")
   })
 
+  test("disambiguates duplicate 80-codepoint names without hanging", async () => {
+    const title = "a".repeat(80)
+    const input = `# ${title}\n\`\`\`\nfirst\n\`\`\`\n\n# ${title}\n\`\`\`\nsecond\n\`\`\``
+    const result = await parse(input)
+    expect(result.candidates).toHaveLength(2)
+    expect(result.candidates[0].name).toBe(title)
+    expect(result.candidates[1].name).toBe(`${"a".repeat(78)} 2`)
+  })
+
+  test("disambiguates duplicate names near the 80-codepoint cap", async () => {
+    const title = "a".repeat(79)
+    const input = `# ${title}\n\`\`\`\nfirst\n\`\`\`\n\n# ${title}\n\`\`\`\nsecond\n\`\`\`\n\n# ${title}\n\`\`\`\nthird\n\`\`\``
+    const result = await parse(input)
+    expect(result.candidates).toHaveLength(3)
+    expect(result.candidates[0].name).toBe(title)
+    expect(result.candidates[1].name).toBe(`${"a".repeat(78)} 2`)
+    expect(result.candidates[2].name).toBe(`${"a".repeat(78)} 3`)
+  })
+
   test("detects YAML as plugin kind with tools and hooks", async () => {
     const input = "```yaml\nname: my-plugin\ntools:\n  - name: tool1\nhooks:\n  - onStart\n```"
     const result = await parse(input)

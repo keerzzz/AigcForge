@@ -656,7 +656,15 @@ const onOutputItemAdded = (state: ParserState, event: OpenAIResponsesEvent): Ste
   if (item?.type !== "function_call" || !item.id) return [state, NO_EVENTS]
   const providerMetadata = openaiMetadata({ itemId: item.id })
   const events: LLMEvent[] = []
-  const lifecycle = Lifecycle.stepStart(state.lifecycle, events)
+  // OpenAI streams the output_text item to completion before the function_call
+  // item, so the text stream has ended by the time the tool begins. Close any
+  // open text block now — deferring textEnd to response.completed would emit
+  // `text` after `tool_use` in the consumer's event ordering.
+  let lifecycle = state.lifecycle
+  if (lifecycle.text.size > 0) {
+    for (const id of lifecycle.text) lifecycle = Lifecycle.textEnd(lifecycle, events, id)
+  }
+  lifecycle = Lifecycle.stepStart(lifecycle, events)
   return [
     {
       ...state,

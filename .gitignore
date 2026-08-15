@@ -48,6 +48,14 @@ tsconfig.tsbuildinfo
 !.aigcfroge/skills/reuse-first-refactor/**
 !.aigcfroge/skills/quality-to-pr/
 !.aigcfroge/skills/quality-to-pr/**
+!.aigcfroge/skills/effect/
+!.aigcfroge/skills/effect/**
+!.aigcfroge/skills/database/
+!.aigcfroge/skills/database/**
+!.aigcfroge/skills/frontend-theming/
+!.aigcfroge/skills/frontend-theming/**
+!.aigcfroge/skills/protocols/
+!.aigcfroge/skills/protocols/**
 
 # Migration marker files
 .command-asset-migration-*

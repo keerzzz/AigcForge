@@ -6,6 +6,7 @@ import { AgentV2 } from "../agent"
 import { Config } from "../config"
 import { EventV2 } from "../event"
 import { PermissionV2 } from "../permission"
+import { ProductModeAgentPolicy } from "../product-mode-agent-policy"
 import { SessionSchema } from "../session/schema"
 import { SessionTask } from "../session/task"
 import { Tool } from "./tool"
@@ -181,6 +182,15 @@ export const layer = Layer.effectDiscard(
               // branches to its own assert (below) that carries the CLI target.
               const cliTarget = input.cli_target
               if (input.execution_type !== "external-cli") {
+                // The child Session inherits this Session's mode, and mode policy
+                // gates which agents may be primary there. Check it here so a
+                // disallowed delegation returns a readable tool failure instead of
+                // dying inside child-session creation (ADR-13 Amendment-2 §1b.3).
+                const mode = yield* TaskDriver.sessionMode(context.sessionID)
+                const verdict = ProductModeAgentPolicy.checkPrimaryAgent(mode ?? "coding", input.subagent_type)
+                if (!verdict.allowed) {
+                  return yield* new ToolFailure({ message: verdict.error.message })
+                }
                 yield* permission
                   .assert({
                     action: name,

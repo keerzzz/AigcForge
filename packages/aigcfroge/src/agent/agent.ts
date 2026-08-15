@@ -228,11 +228,18 @@ export const layer = Layer.effect(
             name: "meta",
             description: MetaAgent.description,
             permission: Permission.merge(
-              buildDefaults,
+              defaults,
               Permission.fromConfig({
                 task: "allow",
-                create_agent: "allow",
-                configure_mcp: "allow",
+                question: "allow",
+                list_assets: "allow",
+                plan_enter: "allow",
+                // meta 是非 coding 模式的 build 等价体（用户 2026-08-15 裁决）：
+                // bash/edit/write 与 build 对齐可用，但危险操作走 ask 审批，
+                // 非静默 allow 也非 deny（ADR-13 Amendment-2 §1c）。
+                bash: "ask",
+                edit: "ask",
+                write: "ask",
               }),
               user,
             ),

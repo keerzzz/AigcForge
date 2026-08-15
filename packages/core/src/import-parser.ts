@@ -18,57 +18,125 @@ export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v
 
 // -- Block type detection --
 
-const MAX_BYTES = 200 * 1024 // 200KB
+/**
+ * Per-candidate ceiling. Must match `ImportParser.Candidate`'s `Template` check in
+ * packages/schema, or constructing a Candidate throws out of a `never`-error Effect.
+ */
+const MAX_CANDIDATE_BYTES = 100_000
 
-const fencedCodeBlock = /^(`{3,}|~{3,})(\w*)\s*\n([\s\S]*?)\n?\1/mg
+/**
+ * Whole-input ceiling. Deliberately larger than the per-candidate ceiling: a long
+ * document with several small code blocks is a legitimate import, and each block is
+ * bounded separately below. Bounds the noise-stripping and extraction scans.
+ */
+const MAX_BYTES = 200 * 1024
 
-function extractBlocks(input: string): Array<{ lang: string; body: string }> {
-  const blocks: Array<{ lang: string; body: string }> = []
+const fencedCodeBlock = /^(`{3,}|~{3,})([^\s\n]*)[^\n]*\n([\s\S]*?)\n?\1/mg
+
+interface ExtractedBlock {
+  readonly lang: string
+  readonly body: string
+  readonly headerBefore?: string
+}
+
+interface Extraction {
+  readonly blocks: ExtractedBlock[]
+  /** Prose between/around the fences. Discarded from candidates, so noise found
+   *  here is reported as a warning; noise inside a block body is content. */
+  readonly outside: string
+  readonly fenced: boolean
+}
+
+function extractBlocks(input: string): Extraction {
+  const blocks: ExtractedBlock[] = []
+  const outsideParts: string[] = []
   let match: RegExpExecArray | null
   const re = new RegExp(fencedCodeBlock.source, fencedCodeBlock.flags)
+  let lastIndex = 0
+
   while ((match = re.exec(input)) !== null) {
-    const lang = match[2]?.toLowerCase() ?? ""
+    const lang = (match[2] ?? "").toLowerCase().replace(/[^a-z0-9_+-]/g, "")
     const body = match[3]
-    blocks.push({ lang, body })
+    const textBefore = input.slice(lastIndex, match.index)
+    outsideParts.push(textBefore)
+    const headerMatch = textBefore.match(/#+\s+([^\n]+)$/m)
+    const headerBefore = headerMatch ? headerMatch[1].trim() : undefined
+    blocks.push({ lang, body, headerBefore })
+    lastIndex = re.lastIndex
   }
-  // If no fenced blocks found, treat as plain text
+
+  // If no fenced blocks found, treat whole input as plain text
   if (blocks.length === 0) {
     const trimmed = input.trim()
     if (trimmed) {
       blocks.push({ lang: "", body: trimmed })
     }
+    return { blocks, outside: "", fenced: false }
   }
-  return blocks
+
+  outsideParts.push(input.slice(lastIndex))
+  return { blocks, outside: outsideParts.join("\n"), fenced: true }
 }
 
 // -- Noise stripping --
 
-const THINKING_RE = /<thinking>[\s\S]*?<\/thinking>|<thought>[\s\S]*?<\/thought>/gi
-const CONVERSATION_RE = /^(User|Assistant|Human|AI):\s.*$/gm
-const COMMENT_RE = /^<!--[\s\S]*?-->|^\/\*[\s\S]*?\*\//gm
+const THINKING_TAGS = [
+  { open: "<thinking", close: "</thinking>" },
+  { open: "<thought", close: "</thought>" },
+] as const
 
-function stripNoise(input: string): { cleaned: string; warnings: string[] } {
+/**
+ * Strip `<thinking>`/`<thought>` spans using linear indexOf scanning.
+ * A lazy `[\s\S]*?` regex rescans to end-of-input from every unclosed open tag,
+ * which is quadratic on adversarial paste input; indexOf bounds each tag type to
+ * two scans regardless of how many unclosed tags the input contains.
+ */
+function stripThinking(text: string): { cleaned: string; stripped: boolean } {
+  const lower = text.toLowerCase()
+  let out = ""
+  let cursor = 0
+  let stripped = false
+  for (;;) {
+    let best: { readonly close: string; readonly openAt: number; readonly closeAt: number } | undefined
+    for (const tag of THINKING_TAGS) {
+      const openAt = lower.indexOf(tag.open, cursor)
+      if (openAt === -1) continue
+      const closeAt = lower.indexOf(tag.close, openAt + tag.open.length)
+      if (closeAt === -1) continue
+      if (!best || openAt < best.openAt) best = { close: tag.close, openAt, closeAt }
+    }
+    if (!best) break
+    out += text.slice(cursor, best.openAt)
+    cursor = best.closeAt + best.close.length
+    stripped = true
+  }
+  return { cleaned: stripped ? out + text.slice(cursor) : text, stripped }
+}
+
+function stripProseNoise(input: string): { cleaned: string; warnings: string[] } {
   const warnings: string[] = []
-  let text = input
-
-  // Strip thinking blocks
-  THINKING_RE.lastIndex = 0
-  if (THINKING_RE.test(text)) {
-    text = text.replace(THINKING_RE, "")
+  let { cleaned: text, stripped } = stripThinking(input)
+  if (stripped) {
     warnings.push("stripped_thinking")
   }
 
-  // Strip conversation lines
-  CONVERSATION_RE.lastIndex = 0
-  if (CONVERSATION_RE.test(text)) {
-    text = text.replace(CONVERSATION_RE, "")
+  // Strip conversational wrapper lines only for raw prose. Warn only when a line
+  // was actually removed — a warning on unchanged text tells the user their
+  // content was edited when it was not.
+  const withoutTurns = text.replace(/^(User|Assistant|Human|AI):\s.*$/gm, "")
+  if (withoutTurns !== text) {
+    text = withoutTurns
     warnings.push("stripped_conversation")
   }
 
   // Strip metadata comments
-  text = text.replace(COMMENT_RE, "")
+  const withoutComments = text.replace(/^<!--[\s\S]*?-->|^\/\*[\s\S]*?\*\//gm, "")
+  if (withoutComments !== text) {
+    text = withoutComments
+    warnings.push("stripped_comments")
+  }
 
-  // Compress >3 consecutive blank lines
+  // Compress consecutive blank lines
   text = text.replace(/\n{4,}/g, "\n\n\n")
 
   return { cleaned: text.trim(), warnings }
@@ -84,16 +152,16 @@ function inferKind(lang: string, blockContent: string): string {
     if (/\bkind:\s*workflow\b/.test(content) || /^\s*steps:/m.test(content)) {
       return "workflow"
     }
-    if (/^\s*name:\s*\S/m.test(content) && /^\s*tools:/m.test(content) && /^\s*hooks:/m.test(content)) {
+    if (/\bkind:\s*plugin\b/.test(content) || (/^\s*name:\s*\S/m.test(content) && (/^\s*hooks:/m.test(content) || /^\s*tools:/m.test(content)))) {
       return "plugin"
     }
-    if (/^\s*triggers:/m.test(content) || /^\s*context:/m.test(content)) {
+    if (/^\s*triggers:/m.test(content) || /^\s*context:/m.test(content) || /\bkind:\s*skill\b/.test(content)) {
       return "skill"
     }
     return "prompt"
   }
 
-  if (lower === "json") {
+  if (lower === "json" || lower === "jsonc") {
     try {
       const parsed = JSON.parse(blockContent)
       if (parsed && typeof parsed === "object" && "mcpServers" in parsed) {
@@ -108,7 +176,7 @@ function inferKind(lang: string, blockContent: string): string {
     return "prompt"
   }
 
-  if (lower === "sh" || lower === "bash" || lower === "zsh") {
+  if (lower === "sh" || lower === "bash" || lower === "zsh" || lower === "shell") {
     return "command"
   }
 
@@ -117,20 +185,33 @@ function inferKind(lang: string, blockContent: string): string {
 
 // -- Name inference --
 
-function inferName(input: string, blockContent: string, index: number): string {
-  const headingMatch = input.match(/^#\s+(.+)$/m)
-  if (headingMatch) {
-    return headingMatch[1].trim().slice(0, 80)
+function cleanSegmentName(raw: string): string {
+  return raw
+    .replace(/^#+\s*/, "")
+    .replace(/[<>:"/\\|?*]/g, " ")
+    .replace(/[\x00-\x1F\x7F]/g, "")
+    .trim()
+}
+
+function safeSliceCodePoints(value: string, maxCodePoints: number): string {
+  return Array.from(value).slice(0, maxCodePoints).join("").trim()
+}
+
+function inferName(block: ExtractedBlock, index: number): string {
+  if (block.headerBefore) {
+    const cleaned = cleanSegmentName(block.headerBefore)
+    if (cleaned) return safeSliceCodePoints(cleaned, 80)
   }
 
-  const commentMatch = blockContent.match(/^#\s+(.+)$/m)
-  if (commentMatch) {
-    return commentMatch[1].trim().slice(0, 80)
-  }
-
-  const firstLine = blockContent.split("\n").find((l) => l.trim().length > 0)
-  if (firstLine) {
-    return firstLine.trim().slice(0, 80)
+  const lines = block.body.split("\n")
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    if (trimmed.startsWith("#!")) continue // Skip shebang lines
+    const cleaned = cleanSegmentName(trimmed)
+    if (cleaned) {
+      return safeSliceCodePoints(cleaned, 80)
+    }
   }
 
   return `Imported Asset ${index + 1}`
@@ -162,13 +243,20 @@ function parseInput(
     })
   }
 
-  // 2. Strip noise
-  const { cleaned, warnings } = stripNoise(input)
+  // 2. Strip thinking spans globally: they are model scratch space, never asset
+  //    content, wherever they appear. Conversation-turn and comment stripping is
+  //    NOT global — it runs per-block below, and only on the plain-text fallback,
+  //    so `User:` / `Assistant:` lines inside a fenced template survive verbatim.
+  const warnings: string[] = []
+  const { cleaned: unthoughtInput, stripped: hadThinking } = stripThinking(input)
+  if (hadThinking) {
+    warnings.push("stripped_thinking")
+  }
 
-  // 3. Extract blocks from cleaned text
-  const blocks = extractBlocks(cleaned)
-
-  if (blocks.length === 0) {
+  // 3. Extract blocks FIRST
+  const extraction = extractBlocks(unthoughtInput)
+  const rawBlocks = extraction.blocks
+  if (rawBlocks.length === 0) {
     return SchemaImportParser.Result.make({
       candidates: [],
       warnings,
@@ -176,24 +264,81 @@ function parseInput(
     })
   }
 
-  // 4. Parse each block into a candidate
   const errors: Array<SchemaImportParser.ParseError> = []
   const candidates: Array<SchemaImportParser.Candidate> = []
+  const seenNames = new Set<string>()
 
-  for (let i = 0; i < blocks.length; i++) {
-    const block = blocks[i]
-    const kind = inferKind(block.lang, block.body)
-    const name = inferName(cleaned, block.body, i)
-    const description = ""
-    const template = block.body.trim()
+  // Prose outside the fences is discarded, so report noise found there. Noise
+  // inside a block body is preserved content and must NOT raise a warning.
+  if (extraction.fenced && extraction.outside) {
+    if (/^(User|Assistant|Human|AI):\s.*$/m.test(extraction.outside)) {
+      warnings.push("stripped_conversation")
+    }
+    if (/^<!--[\s\S]*?-->|^\/\*[\s\S]*?\*\//m.test(extraction.outside)) {
+      warnings.push("stripped_comments")
+    }
+  }
+
+  for (let i = 0; i < rawBlocks.length; i++) {
+    const block = rawBlocks[i]
+    let template = block.body.trim()
+
+    // If it was plain text fallback (no fenced blocks), apply prose noise stripping
+    if (rawBlocks.length === 1 && block.lang === "" && !input.includes("```") && !input.includes("~~~")) {
+      const prose = stripProseNoise(template)
+      template = prose.cleaned
+      for (const w of prose.warnings) {
+        if (!warnings.includes(w)) warnings.push(w)
+      }
+    }
 
     if (!template) {
       continue
     }
 
-    candidates.push(
-      new SchemaImportParser.Candidate({ kind, name, description, template }),
-    )
+    const templateBytes = new TextEncoder().encode(template).length
+    if (templateBytes > MAX_CANDIDATE_BYTES) {
+      errors.push(new SchemaImportParser.ParseError({ section: `Block ${i + 1}`, reason: "too_large" }))
+      continue
+    }
+
+    const kind = inferKind(block.lang, template)
+    let candidateName = inferName(block, i)
+    if (!candidateName) {
+      candidateName = `Imported Asset ${i + 1}`
+    }
+
+    if (seenNames.has(candidateName)) {
+      // Reserve room for the " N" suffix BEFORE slicing, else the suffix gets
+      // truncated away and the loop never converges on a fresh name.
+      let suffix = 2
+      const disambiguatedName = () =>
+        `${safeSliceCodePoints(candidateName, 80 - String(suffix).length - 1)} ${suffix}`
+      let disambiguated = disambiguatedName()
+      while (seenNames.has(disambiguated)) {
+        suffix++
+        disambiguated = disambiguatedName()
+      }
+      candidateName = disambiguated
+    }
+    seenNames.add(candidateName)
+
+    try {
+      candidates.push(
+        new SchemaImportParser.Candidate({
+          kind,
+          name: candidateName,
+          description: "",
+          template,
+        }),
+      )
+    } catch (e) {
+      errors.push(new SchemaImportParser.ParseError({ section: `Block ${i + 1}`, reason: e instanceof Error ? e.message : String(e) }))
+    }
+  }
+
+  if (candidates.length === 0 && errors.length === 0) {
+    errors.push(new SchemaImportParser.ParseError({ section: "Input", reason: "empty" }))
   }
 
   return SchemaImportParser.Result.make({ candidates, warnings, errors })

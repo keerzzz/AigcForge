@@ -111,9 +111,10 @@ export function propose(
  * and the HTTP apply handler so both layers enforce one contract.
  */
 export function validateContent(content: string): string | null {
-  const MAX_PROPOSE_YAML = 5_000_000
-  if (content.length > MAX_PROPOSE_YAML) {
-    return `Workflow content exceeds maximum ${MAX_PROPOSE_YAML} bytes.`
+  const MAX_PROPOSE_BYTES = 100_000
+  const bytes = new TextEncoder().encode(content).length
+  if (bytes > MAX_PROPOSE_BYTES) {
+    return `Workflow content exceeds maximum ${MAX_PROPOSE_BYTES} UTF-8 bytes.`
   }
   let parsed: unknown
   try {

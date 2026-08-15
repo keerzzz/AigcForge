@@ -136,9 +136,9 @@ Chat 是**资产生命周期层**：负责创建、校验、应用、管理资�
 // packages/schema：公共基底，所有资产类型继承
 export class AssetSummary extends Schema.Class<AssetSummary>("Asset.Summary")({
   kind: Schema.String,            // AssetKindId，如 "prompt"|"command"|"skill"|"agent"|"mcp"
-  name: Name,                     // 1..80 Unicode code points，Location 内唯一
+  name: Name,                     // 1..80 Unicode code points，Location 内唯一；文件名段 ≤240 UTF-8 bytes（见下方修订说明）
   description: Description,       // 0..300 Unicode code points
-  relativePath: RelativePath,     // 1..240 UTF-8 bytes，位于 .aigcfroge/<kind>/
+  relativePath: RelativePath,     // 1..500 UTF-8 bytes，位于 .aigcfroge/<kind>/（v4.7 修订，见下方说明）
   revision: Revision,             // 最终 bytes 的 SHA-256，仅服务端生成，不写入文件
 }) {}
 
@@ -174,8 +174,28 @@ export class AssetError extends Schema.TaggedErrorClass<AssetError>()(
 // catch-all（unknown_kind 等），不强迁现有实现。V1/V2 adapter 错误映射保持 per-kind。
 ```
 
-**AssetKind 注册机制：**
+#### 8.1.2 字节约束修订（v4.7，2026-08-15）
 
+原 `relativePath` 上限 240 UTF-8 bytes 与 `name` 的 80 Unicode code points 在中日韩文场景下互相矛盾：
+
+- `name` 允许 80 code points，中文按 UTF-8 每字 3 bytes 计即 240 bytes
+- 路径 = `.aigcfroge/<kind>/` 前缀（19–21 bytes）+ 文件名段 + 扩展名（3–5 bytes）
+- 因此一个合法的 80 汉字 `name` 会产生 262–266 bytes 的 `relativePath`，超出原 240 bytes 上限
+
+结果是中文资产名的实际上限被路径层压到约 33 字（旧 `SEGMENT_MAX_BYTES = 100`），与本节承诺的 80 code points 不符，且失败信息为空字符串（详见 [审计报告](../audit/AigcForge_CHAT_MODE_AUDIT_2026-08-14.md) P1-5 / P1-4）。
+
+**修订决定**：`name` 的 80 Unicode code points 是产品承诺，保留；放宽字节上限以容纳它。
+
+| 常量 | 旧值 | 新值 | 依据 |
+|---|---|---|---|
+| `SEGMENT_MAX_BYTES` | 100 | **240** | = 80 code points × 3 bytes，使 80 汉字的 `name` 可完整落盘 |
+| `PATH_MAX_BYTES` | 240 | **500** | = 240 段 + 21 前缀 + 5 扩展名 + 余量，容纳未来嵌套子目录 |
+
+新上限仍远低于各平台文件系统限制（单段 255 bytes 是 ext4/APFS/NTFS 的通行上限，240 留有余量；整路径 500 bytes 远低于 Linux `PATH_MAX` 4096 与 Windows 长路径 32767）。
+
+约束落点：`packages/schema/src/asset.ts`（code points）+ `packages/core/src/*-asset/path.ts`（bytes，7 处同构）。两层单位不同是有意的——schema 面向用户可见长度，路径层面向文件系统字节预算；**两者的一致性由 `packages/core/test/*-asset-path.test.ts` 的边界测试保证**。
+
+**AssetKind 注册机制：**
 ```ts
 // packages/core：per-kind 定义与注册入口
 // 注：S/I 上界用 Schema.Schema.Any（effect 提供的 schema 通用上界），避免 any 逃逸（AGENTS.md §Style）
@@ -619,7 +639,7 @@ Plugin 作为第 7 类资产（`AssetKindId`）开闸：`.plugin.yaml` 格式，
 
 - **import 路径**：导入内容通过 `<untrusted_import>` 标记包裹 + 系统约束，只作为待整理素材不执行。Core import-parser service 延后独立一期（M7 以 Agent 解析替代）。
 - **apply/delete 端点**：handler 层内联实现，不建 typed Effect service（§1.2 技术债）。包含格式校验、路径安全解析（nameToRelativePath → NFKC + segment 校验）、baseRevision CAS（sha256 对比）、write/delete/reload。
-- **Delete UI**：7 类全覆盖，system origin 资产前后端双重拒绝，二次确认含不可撤销警告。
+- **Delete UI**：7 类全覆盖（含 `parse_error` 等无效资产，见 §9.4 的"不允许文件凭空消失"要求），二次确认含不可撤销警告。system 资产不可删除的保证来自数据结构而非授权检查：system 行由 `systemAssets()` 从 server-sync 的 command/agent/mcp 运行时注册表构造，只有 `kind + name + description`，**没有 `relativePath`**，因此在结构上无法构成 delete 请求；`origin` 是前端列表合并时贴的展示标签，后端 schema 无此字段，也不需要有。
 - **权限双写**：V1（agent/agent.ts）+ V2（plugin/agent.ts）同步添加 propose_workflow/plugin_asset allow。
 - **prompt 更新**：chat-orchestrator 系统提示词添加 workflow/plugin 类型引导说明。
 
@@ -630,7 +650,7 @@ Plugin 作为第 7 类资产（`AssetKindId`）开闸：`.plugin.yaml` 格式，
 - [x] propose_workflow/plugin_asset 在 Core V2 + V1 adapter + 权限 + prompt 全部完成
 - [x] workflow/plugin HTTP apply/delete 端点 + SDK 重生成
 - [x] 前端 candidate 归一化 + apply/insert 分派完整
-- [x] Delete UI 全部 7 类 + system origin 拒绝 + 二次确认
+- [x] Delete UI 全部 7 类（含无效资产）+ system 资产结构性不可达 + 二次确认
 - [x] typecheck (core + aigcfroge + app) PASS
 - [x] lint (0 errors)
 - [x] 受影响测试文件全绿：core propose 8/8 · app 43/43 · aigcfroge httpapi workflow 7/7 · plugin 7/7 · prompt 回归 5/5（复审后实测）
@@ -640,9 +660,30 @@ Plugin 作为第 7 类资产（`AssetKindId`）开闸：`.plugin.yaml` 格式，
 
 | 项 | 原因 |
 |----|------|
-| WorkflowAssetService / PluginAssetService typed Effect 事务层 | M5/M6 已明确延后（§1.2），apply/delete 在 handler 内联实现 |
-| Core import-parser Effect service | M7 阶段以 Agent 解析代替，Core parser 延后独立一期 |
-| 会话捕获"存为资产" | PRD §7.2，延后独立一期 |
+| WorkflowAssetService / PluginAssetService typed Effect 事务层 | M5/M6 已明确延后（§1.2）。**2026-08-15 更新**：apply/delete 仍在 handler 内联，但已改为复用 `FileMutation.writeAtomic` + `KeyedMutex` + `resolveSafeTarget`，§8.3 五条不变量与 delete readback 均已恢复；剩余的债只是"未封装为 core 层 Service" |
+| Core import-parser Effect service | ~~M7 阶段以 Agent 解析代替，Core parser 延后独立一期~~ **已实现并接线**（`packages/core/src/import-parser.ts`，经 `/import-parser/parse` 端点供 ImportDialog 调用）。本行保留以记录声明变更 |
+| 会话捕获"存为资产" | PRD §7.2，延后独立一期。`capture-helpers.ts` 已存在但无生产消费者 |
 | 资产 Edit UI | 编辑 = 文件编辑，走 code 模式已可用 |
 | 资产全局导入导出 | PRD §5.2 非目标 |
+| **资产 apply/delete 的非会话路由** | 见 §20.6 |
+
+### 20.6 待办：资产 apply/delete 非会话路由（2026-08-15 记录）
+
+**问题**：资产 apply/delete 的路由是 `/session/:sessionID/<kind>-asset/...`，`sessionID` 是必填路径参数。但资产工作台位于模式首页，**没有会话上下文**，前端只能伪造一个 `sessionID: "ses-home-delete"` 塞进去（`packages/app/src/pages/mode-workspace-slots.tsx`）。`SessionID` schema 只校验 `startsWith("ses")`，所以伪造值被静默接受，审计归属链断裂。
+
+§8.3.1 已明确 `sessionID` 仅用于审计与归属、不作为写边界前提，因此这不是安全缺陷，但审计字段被填入不存在的会话 ID 违反 ADR-13 §36「不塞入自由文本 metadata 充当事实真源」。
+
+**决定**（2026-08-15）：加一套不带 `sessionID` 的路由，而非把哨兵值文档化。
+
+**范围估算**：
+
+| 项 | 工作量 |
+|---|---|
+| `groups/<kind>-asset.ts` × 7：各加 2 个端点（payload / success / error schema 复用现成定义） | 7 文件 |
+| `handlers/<kind>-asset.ts` × 7：先把 apply/delete 事务体抽成共享函数，再挂两个变体 | 7 文件（抽公共体是重点，否则复制 14 份即违反 Reusability 门禁） |
+| `test/server/httpapi-exercise/index.ts`：在泛型 `assetScenarios(fixture)` 里加 2 个 scenario | 1 文件（自动覆盖 7 类，因为有 `assetFixtures` 数组） |
+| SDK 重新生成（`script/generate.ts` → `openapi.json` → `sdk.gen.ts`） | 1 次 |
+| 前端工作台切新路由、删除伪造 sessionID | 1 文件 |
+
+**不做的替代方案**：把 `sessionID` 改成可选参数——HttpApi 的路径参数不支持可选，会退化成两套路由，等价于本方案但语义更含糊。
 
