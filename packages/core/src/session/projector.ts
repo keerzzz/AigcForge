@@ -7,6 +7,7 @@ import { EventV2 } from "../event"
 import { LayerNode } from "../effect/layer-node"
 import { SessionEvent } from "./event"
 import { SessionV1 } from "../v1/session"
+import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { WorkspaceTable } from "../control-plane/workspace.sql"
 import { SessionMessage } from "./message"
 import { SessionMessageUpdater } from "./message-updater"
@@ -69,6 +70,7 @@ function sessionRow(info: SessionV1.SessionInfo): typeof SessionTable.$inferInse
     tokens_cache_write: (info.tokens ?? { cache: { write: 0 } }).cache.write,
     revert: info.revert ?? null,
     permission: info.permission ? [...info.permission] : undefined,
+    permission_tier: info.permissionTier ?? PermissionTier.Default,
     attended: info.attended === undefined ? null : info.attended ? 1 : 0,
     time_created: info.time.created,
     time_updated: info.time.updated,

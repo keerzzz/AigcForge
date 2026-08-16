@@ -46,6 +46,7 @@ import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-polic
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { WorkPreset } from "@aigcfroge/schema/work-preset"
 
 const runtime = makeRuntime(Database.Service, Database.defaultLayer)
@@ -108,6 +109,8 @@ export function fromRow(row: SessionRow): Info {
     metadata: row.metadata ?? undefined,
     revert,
     permission: row.permission ? [...row.permission] : undefined,
+    permissionTier: row.permission_tier ?? PermissionTier.Default,
+    attended: row.attended === null ? undefined : row.attended === 1,
     time: {
       created: row.time_created,
       updated: row.time_updated,
@@ -147,6 +150,8 @@ export function toRow(info: Info) {
     tokens_cache_write: (info.tokens ?? EmptyTokens).cache.write,
     revert: info.revert ?? null,
     permission: info.permission,
+    permission_tier: info.permissionTier,
+    attended: info.attended === undefined ? null : info.attended ? (1 as const) : (0 as const),
     time_created: info.time.created,
     time_updated: info.time.updated,
     time_compacting: info.time.compacting,
@@ -243,6 +248,8 @@ export const Info = Schema.Struct({
   metadata: optionalOmitUndefined(Metadata),
   time: Time,
   permission: optionalOmitUndefined(PermissionV1.Ruleset),
+  permissionTier: optionalOmitUndefined(PermissionTier.ID),
+  attended: optionalOmitUndefined(Schema.Boolean),
   revert: optionalOmitUndefined(Revert),
 }).annotate({ identifier: "Session" })
 export type Info = Types.DeepMutable<Schema.Schema.Type<typeof Info>>
@@ -270,6 +277,8 @@ export const CreateInput = Schema.optional(
     model: Schema.optional(Model),
     metadata: Schema.optional(Metadata),
     permission: Schema.optional(PermissionV1.Ruleset),
+    permissionTier: Schema.optional(PermissionTier.ID),
+    attended: Schema.optional(Schema.Boolean),
     workspaceID: Schema.optional(WorkspaceV2.ID),
   }),
 )
@@ -446,6 +455,8 @@ export interface Interface {
     model?: Schema.Schema.Type<typeof Model>
     metadata?: typeof Metadata.Type
     permission?: PermissionV1.Ruleset
+    permissionTier?: PermissionTier.ID
+    attended?: boolean
     workspaceID?: WorkspaceV2.ID
   }) => Effect.Effect<Info>
   readonly fork: (input: { sessionID: SessionID; messageID?: MessageID }) => Effect.Effect<Info, NotFound>
@@ -455,6 +466,10 @@ export interface Interface {
   readonly setArchived: (input: { sessionID: SessionID; time?: number }) => Effect.Effect<void>
   readonly setMetadata: (input: typeof SetMetadataInput.Type) => Effect.Effect<void>
   readonly setPermission: (input: { sessionID: SessionID; permission: PermissionV1.Ruleset }) => Effect.Effect<void>
+  readonly setPermissionTier: (input: {
+    sessionID: SessionID
+    permissionTier: PermissionTier.ID
+  }) => Effect.Effect<void>
   readonly setRevert: (input: {
     sessionID: SessionID
     revert: Info["revert"]
@@ -502,7 +517,6 @@ export type Patch = Omit<Partial<Info>, "time" | "share" | "summary" | "revert" 
   revert?: Info["revert"] | null
   permission?: Info["permission"] | null
 }
-
 export const layer: Layer.Layer<
   Service,
   never,
@@ -529,6 +543,8 @@ export const layer: Layer.Layer<
       path?: string
       metadata?: typeof Metadata.Type
       permission?: PermissionV1.Ruleset
+      permissionTier?: PermissionTier.ID
+      attended?: boolean
     }) {
       const ctx = yield* InstanceState.context
       const result: Info = {
@@ -549,6 +565,8 @@ export const layer: Layer.Layer<
           ? { ...input.metadata, presetCategoryId: input.presetCategoryId }
           : input.metadata,
         permission: input.permission ? [...input.permission] : undefined,
+        permissionTier: input.permissionTier ?? PermissionTier.Default,
+        attended: input.attended,
         cost: 0,
         tokens: EmptyTokens,
         time: {
@@ -700,6 +718,8 @@ export const layer: Layer.Layer<
       model?: Schema.Schema.Type<typeof Model>
       metadata?: typeof Metadata.Type
       permission?: PermissionV1.Ruleset
+      permissionTier?: PermissionTier.ID
+      attended?: boolean
       workspaceID?: WorkspaceV2.ID
     }) {
       const ctx = yield* InstanceState.context
@@ -718,6 +738,8 @@ export const layer: Layer.Layer<
         model: input?.model,
         metadata: input?.metadata,
         permission: input?.permission,
+        permissionTier: input?.permissionTier,
+        attended: input?.attended,
         workspaceID: input?.workspaceID ?? workspace,
       })
     })
@@ -805,6 +827,15 @@ export const layer: Layer.Layer<
       permission: PermissionV1.Ruleset
     }) {
       yield* patch(input.sessionID, { permission: [...input.permission], time: { updated: Date.now() } }).pipe(
+        Effect.orDie,
+      )
+    })
+
+    const setPermissionTier = Effect.fn("Session.setPermissionTier")(function* (input: {
+      sessionID: SessionID
+      permissionTier: PermissionTier.ID
+    }) {
+      yield* patch(input.sessionID, { permissionTier: input.permissionTier, time: { updated: Date.now() } }).pipe(
         Effect.orDie,
       )
     })
@@ -939,6 +970,7 @@ export const layer: Layer.Layer<
       setArchived,
       setMetadata,
       setPermission,
+      setPermissionTier,
       setRevert,
       clearRevert,
       setSummary,

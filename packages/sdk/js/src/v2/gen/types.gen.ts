@@ -192,6 +192,8 @@ export type PermissionRule = {
 
 export type PermissionRuleset = Array<PermissionRule>
 
+export type PermissionTier = "propose" | "full"
+
 export type Session = {
   id: string
   mode?: ProductMode
@@ -239,6 +241,7 @@ export type Session = {
   }
   permission?: PermissionRuleset
   attended?: boolean
+  permissionTier?: PermissionTier
   revert?: {
     messageID: string
     partID?: string
@@ -2515,6 +2518,8 @@ export type GlobalSession = {
     archived?: number
   }
   permission?: PermissionRuleset
+  permissionTier?: PermissionTier
+  attended?: boolean
   revert?: {
     messageID: string
     partID?: string
@@ -2916,6 +2921,8 @@ export type Session1 = {
     archived?: number
   }
   permission?: PermissionRuleset
+  permissionTier?: PermissionTier
+  attended?: boolean
   revert?: {
     messageID: string
     partID?: string
@@ -2971,6 +2978,8 @@ export type Session2 = {
     archived?: number
   }
   permission?: PermissionRuleset
+  permissionTier?: PermissionTier
+  attended?: boolean
   revert?: {
     messageID: string
     partID?: string
@@ -3048,6 +3057,8 @@ export type Session3 = {
     archived?: number
   }
   permission?: PermissionRuleset
+  permissionTier?: PermissionTier
+  attended?: boolean
   revert?: {
     messageID: string
     partID?: string
@@ -3103,6 +3114,8 @@ export type Session4 = {
     archived?: number
   }
   permission?: PermissionRuleset
+  permissionTier?: PermissionTier
+  attended?: boolean
   revert?: {
     messageID: string
     partID?: string
@@ -3158,6 +3171,8 @@ export type Session5 = {
     archived?: number
   }
   permission?: PermissionRuleset
+  permissionTier?: PermissionTier
+  attended?: boolean
   revert?: {
     messageID: string
     partID?: string
@@ -3213,6 +3228,8 @@ export type Session6 = {
     archived?: number
   }
   permission?: PermissionRuleset
+  permissionTier?: PermissionTier
+  attended?: boolean
   revert?: {
     messageID: string
     partID?: string
@@ -3268,6 +3285,8 @@ export type Session7 = {
     archived?: number
   }
   permission?: PermissionRuleset
+  permissionTier?: PermissionTier
+  attended?: boolean
   revert?: {
     messageID: string
     partID?: string
@@ -3377,6 +3396,8 @@ export type Session8 = {
     archived?: number
   }
   permission?: PermissionRuleset
+  permissionTier?: PermissionTier
+  attended?: boolean
   revert?: {
     messageID: string
     partID?: string
@@ -3432,6 +3453,8 @@ export type Session9 = {
     archived?: number
   }
   permission?: PermissionRuleset
+  permissionTier?: PermissionTier
+  attended?: boolean
   revert?: {
     messageID: string
     partID?: string
@@ -5214,6 +5237,7 @@ export type SessionV2Info = {
   location: LocationRef
   subpath?: string
   attended?: boolean
+  permissionTier?: PermissionTier
   revert?: SessionV2Revert
   summary?: SessionV2Summary
 }
@@ -13408,6 +13432,8 @@ export type SessionCreateData = {
       [key: string]: unknown
     }
     permission?: PermissionRuleset
+    permissionTier?: PermissionTier
+    attended?: boolean
     workspaceID?: string
   }
   path?: never
@@ -13541,6 +13567,7 @@ export type SessionUpdateData = {
       [key: string]: unknown
     }
     permission?: PermissionRuleset
+    permissionTier?: PermissionTier
     time?: {
       archived?: number
     }

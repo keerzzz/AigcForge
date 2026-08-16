@@ -1616,3 +1616,85 @@ describe("session task HttpApi", () => {
       }),
   )
 })
+
+describe("session permission tier HttpApi", () => {
+  it.instance(
+    "creates with permissionTier and attended, updates the tier, and round-trips through get",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = { "x-aigcfroge-directory": encodeURIComponent(test.directory), "content-type": "application/json" }
+
+        const created = yield* requestJson<Session.Info>(SessionPaths.create, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ mode: "chat", permissionTier: "full", attended: false }),
+        })
+        expect(created).toMatchObject({ permissionTier: "full", attended: false })
+
+        const fetched = yield* requestJson<Session.Info>(pathFor(SessionPaths.get, { sessionID: created.id }), {
+          headers,
+        })
+        expect(fetched).toMatchObject({ id: created.id, permissionTier: "full", attended: false })
+
+        const updated = yield* requestJson<Session.Info>(pathFor(SessionPaths.update, { sessionID: created.id }), {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify({ permissionTier: "propose" }),
+        })
+        expect(updated).toMatchObject({ id: created.id, permissionTier: "propose" })
+
+        const defaulted = yield* requestJson<Session.Info>(SessionPaths.create, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ title: "default tier" }),
+        })
+        expect(defaulted.permissionTier).toBe("propose")
+      }),
+  )
+
+  it.live(
+    "round-trips permissionTier through the default V1 create + sync prompt path",
+    () =>
+      Effect.gen(function* () {
+        const llm = yield* TestLLMServer
+        yield* llm.text("ok", { usage: { input: 1, output: 1 } })
+
+        const config = testProviderConfig(llm.url)
+        const sessionDirectory = yield* tmpdirScoped({ git: true, config })
+        const headers = {
+          "x-aigcfroge-directory": encodeURIComponent(sessionDirectory),
+          "content-type": "application/json",
+        }
+
+        const created = yield* requestJson<Session.Info>(SessionPaths.create, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ mode: "chat", permissionTier: "full" }),
+        })
+        expect(created).toMatchObject({ permissionTier: "full" })
+
+        const response = yield* request(pathFor(SessionPaths.prompt, { sessionID: created.id }), {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            agent: "chat-orchestrator",
+            model: { providerID: "test", modelID: "test-model" },
+            parts: [{ type: "text", text: "hello" }],
+          }),
+        })
+        if (response.status !== 200) {
+          const body = yield* response.text
+          throw new Error(`prompt failed: ${response.status} ${body}`)
+        }
+        expect(response.status).toBe(200)
+        yield* responseJson(response)
+
+        const fetched = yield* requestJson<Session.Info>(pathFor(SessionPaths.get, { sessionID: created.id }), {
+          headers,
+        })
+        expect(fetched).toMatchObject({ id: created.id, permissionTier: "full" })
+      }).pipe(Effect.provide(TestLLMServer.layer), Effect.provide(CrossSpawnSpawner.defaultLayer)),
+    { timeout: 60_000 },
+  )
+})

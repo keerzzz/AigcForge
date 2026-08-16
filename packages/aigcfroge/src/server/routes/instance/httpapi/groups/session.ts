@@ -28,6 +28,7 @@ import { ModelV2 } from "@aigcfroge/core/model"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task" // Schema namespace; the core SessionTask import above uses the unaliased name.
 import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 
 const root = "/session"
 export const ListQuery = Schema.Struct({
@@ -54,6 +55,7 @@ export const UpdatePayload = Schema.Struct({
   title: Schema.optional(Schema.String),
   metadata: Schema.optional(Session.Metadata),
   permission: Schema.optional(PermissionV1.Ruleset),
+  permissionTier: Schema.optional(PermissionTier.ID),
   time: Schema.optional(
     Schema.Struct({
       archived: Schema.optional(Session.ArchivedTimestamp),

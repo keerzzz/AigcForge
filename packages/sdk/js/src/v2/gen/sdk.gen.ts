@@ -197,6 +197,7 @@ import type {
   PermissionRespondErrors,
   PermissionRespondResponses,
   PermissionRuleset,
+  PermissionTier,
   PermissionV2Reply,
   PluginAssetApplyErrors,
   PluginAssetApplyResponses,
@@ -5531,6 +5532,8 @@ export class Session2 extends HeyApiClient {
         [key: string]: unknown
       }
       permission?: PermissionRuleset
+      permissionTier?: PermissionTier
+      attended?: boolean
       workspaceID?: string
     },
     options?: Options<never, ThrowOnError>,
@@ -5550,6 +5553,8 @@ export class Session2 extends HeyApiClient {
             { in: "body", key: "model" },
             { in: "body", key: "metadata" },
             { in: "body", key: "permission" },
+            { in: "body", key: "permissionTier" },
+            { in: "body", key: "attended" },
             { in: "body", key: "workspaceID" },
           ],
         },
@@ -5676,6 +5681,7 @@ export class Session2 extends HeyApiClient {
         [key: string]: unknown
       }
       permission?: PermissionRuleset
+      permissionTier?: PermissionTier
       time?: {
         archived?: number
       }
@@ -5693,6 +5699,7 @@ export class Session2 extends HeyApiClient {
             { in: "body", key: "title" },
             { in: "body", key: "metadata" },
             { in: "body", key: "permission" },
+            { in: "body", key: "permissionTier" },
             { in: "body", key: "time" },
           ],
         },

@@ -8,6 +8,7 @@ import { ProjectV2 } from "./project"
 import { WorkspaceV2 } from "./workspace"
 import { ModelV2 } from "./model"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { Location } from "./location"
 import { SessionMessage } from "./session/message"
 import { Prompt } from "./session/prompt"
@@ -79,6 +80,7 @@ type CreateInput = {
   model?: ModelV2.Ref
   location: Location.Ref
   attended?: boolean
+  permissionTier?: PermissionTier.ID
   title?: string
 }
 
@@ -232,6 +234,7 @@ export const layer = Layer.effect(
           tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
           time: { created: now, updated: now },
           attended: input.attended,
+          permissionTier: input.permissionTier ?? PermissionTier.Default,
           metadata: input.presetCategoryId ? { presetCategoryId: input.presetCategoryId } : undefined,
         })
         const projected = yield* events
