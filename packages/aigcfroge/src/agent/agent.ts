@@ -155,6 +155,48 @@ export const layer = Layer.effect(
           }),
         )
 
+        // meta 专属 deny-first 基线（V1/V2 同构，见 core plugin/agent.ts metaDefaults）：
+        // 未知 action 默认 deny，不产生 wildcard allow；read/propose/领域工具显式白名单。
+        const metaDefaults = Permission.merge(
+          Permission.fromConfig({
+            "*": "deny",
+            doom_loop: "ask",
+            external_directory: {
+              "*": "ask",
+              ...Object.fromEntries(whitelistedDirs.map((dir) => [dir, "allow"])),
+            },
+            // mirrors github.com/github/gitignore Node.gitignore pattern for .env files
+            read: {
+              "*": "allow",
+              "*.env": "ask",
+              "*.env.*": "ask",
+              "*.env.example": "allow",
+            },
+            glob: "allow",
+            grep: "allow",
+            webfetch: "allow",
+            websearch: "allow",
+            question: "allow",
+            list_assets: "allow",
+            plan_enter: "allow",
+            // 资产落盘通道（propose → 用户确认 → 受校验的 apply/delete 事务）。
+            propose_prompt_asset: "allow",
+            propose_skill_asset: "allow",
+            propose_mcp_asset: "allow",
+            propose_command_asset: "allow",
+            propose_agent_asset: "allow",
+            propose_workflow_asset: "allow",
+            propose_plugin_asset: "allow",
+            // meta 是非 coding 模式的 build 等价体（用户 2026-08-15 裁决）：
+            // bash/edit/write 与 build 对齐可用，但危险操作走 ask 审批，
+            // 非静默 allow 也非 deny（ADR-13 Amendment-2 §1c）。
+            bash: "ask",
+            edit: "ask",
+            write: "ask",
+            task: "allow",
+          }),
+        )
+
         // Fill {{CLI_LIST}} and {{ASSETS_LIST}} in the meta agent prompt
         const cliAdapters = yield* cliAdapterRegistry.available()
         const cliNames = cliAdapters.map((a) => a.name)
@@ -228,19 +270,7 @@ export const layer = Layer.effect(
             name: "meta",
             description: MetaAgent.description,
             permission: Permission.merge(
-              defaults,
-              Permission.fromConfig({
-                task: "allow",
-                question: "allow",
-                list_assets: "allow",
-                plan_enter: "allow",
-                // meta 是非 coding 模式的 build 等价体（用户 2026-08-15 裁决）：
-                // bash/edit/write 与 build 对齐可用，但危险操作走 ask 审批，
-                // 非静默 allow 也非 deny（ADR-13 Amendment-2 §1c）。
-                bash: "ask",
-                edit: "ask",
-                write: "ask",
-              }),
+              metaDefaults,
               user,
             ),
             mode: MetaAgent.mode,

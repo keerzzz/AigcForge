@@ -4,6 +4,7 @@ import { Provider } from "@/provider/provider"
 import { ProviderTransform } from "@/provider/transform"
 import { MCP } from "@/mcp"
 import { Permission } from "@/permission"
+import { PermissionV1 } from "@aigcfroge/core/v1/permission"
 import { Tool } from "@/tool/tool"
 import { ToolJsonSchema } from "@/tool/json-schema"
 import { ToolRegistry } from "@/tool/registry"
@@ -42,6 +43,8 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   bypassAgentCheck: boolean
   messages: SessionV1.WithParts[]
   promptOps: TaskPromptOps
+  ruleset: PermissionV1.Ruleset
+  finalRules?: PermissionV1.Ruleset
 }) {
   const tools: Record<string, AITool> = {}
   const run = yield* EffectBridge.make()
@@ -79,7 +82,8 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
           ...req,
           sessionID: input.session.id,
           tool: { messageID: input.processor.message.id, callID: options.toolCallId },
-          ruleset: Permission.merge(input.agent.permission, input.session.permission ?? []),
+          ruleset: input.ruleset,
+          ...(input.finalRules?.length ? { finalRules: input.finalRules } : {}),
         })
         .pipe(Effect.orDie),
   })

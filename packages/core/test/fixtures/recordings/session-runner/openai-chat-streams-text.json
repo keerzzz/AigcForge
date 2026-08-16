@@ -13,7 +13,7 @@
         "headers": {
           "content-type": "application/json"
         },
-        "body": "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":\"Say hello in one short sentence.\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"max_tokens\":20,\"temperature\":0}"
+        "body": "{\"model\": \"gpt-4o-mini\", \"messages\": [{\"role\": \"system\", \"content\": \"<permission-state>\\n  Current mode: coding\\n  Agent: \\n  This session is unattended: no user is present to confirm; write and command tools are unavailable.\\n</permission-state>\"}, {\"role\": \"user\", \"content\": \"Say hello in one short sentence.\"}], \"stream\": true, \"stream_options\": {\"include_usage\": true}, \"max_tokens\": 20, \"temperature\": 0}"
       },
       "response": {
         "status": 200,

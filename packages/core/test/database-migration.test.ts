@@ -941,6 +941,46 @@ describe("DatabaseMigration", () => {
     )
   })
 
+  test("adds the session permission_tier column to a clean database", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* DatabaseMigration.apply(db)
+
+        const columns = yield* db.all<{ name: string; notnull: number; dflt_value: unknown }>(
+          sql`SELECT name, "notnull", dflt_value FROM pragma_table_info('session') WHERE name = 'permission_tier'`,
+        )
+        expect(columns).toEqual([{ name: "permission_tier", notnull: 1, dflt_value: "'propose'" }])
+      }),
+    )
+  })
+
+  test("adds nullable permission_tier to existing sessions defaulting to propose", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY, title text NOT NULL)`)
+        yield* db.run(sql`INSERT INTO session (id, title) VALUES ('ses_1', 'Original')`)
+
+        const migration = migrations.find((item) => item.id.endsWith("add_session_permission_tier"))
+        if (!migration) throw new Error("missing add_session_permission_tier migration")
+
+        yield* DatabaseMigration.applyOnly(db, [migration])
+
+        const columns = yield* db.all<{ name: string }>(sql`SELECT name FROM pragma_table_info('session')`)
+        expect(columns.map((column) => column.name)).toContain("permission_tier")
+        expect(yield* db.get(sql`SELECT permission_tier FROM session WHERE id = 'ses_1'`)).toEqual({
+          permission_tier: "propose",
+        })
+
+        yield* db.run(sql`UPDATE session SET permission_tier = 'full' WHERE id = 'ses_1'`)
+        expect(yield* db.get(sql`SELECT permission_tier FROM session WHERE id = 'ses_1'`)).toEqual({
+          permission_tier: "full",
+        })
+      }),
+    )
+  })
+
   test("adds nullable spawned_from/depends_on columns preserving existing rows", async () => {
     await run(
       Effect.gen(function* () {

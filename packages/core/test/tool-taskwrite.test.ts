@@ -143,6 +143,7 @@ const model = Model.make({ id: "task-model", provider: "task", route: OpenAIChat
 const permission = Layer.succeed(
   PermissionV2.Service,
   PermissionV2.Service.of({
+    effectiveRules: () => Effect.succeed([]),
     assert: () => Effect.void,
     ask: () => Effect.die("unused"),
     reply: () => Effect.die("unused"),

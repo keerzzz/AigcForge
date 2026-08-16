@@ -122,6 +122,7 @@ const executions: string[] = []
 const permission = Layer.succeed(
   PermissionV2.Service,
   PermissionV2.Service.of({
+    effectiveRules: () => Effect.succeed([]),
     assert: () => Effect.die("unused"),
     ask: () => Effect.die("unused"),
     reply: () => Effect.die("unused"),
@@ -838,8 +839,8 @@ describe("SessionRunnerLLM", () => {
       yield* session.resume(sessionID)
 
       expect(requests.map((request) => request.system.map((part) => part.text))).toEqual([
-        ["Initial context"],
-        ["Initial context"],
+        [expect.stringContaining("Initial context")],
+        [expect.stringContaining("Initial context")],
       ])
       expect(requests[1]?.messages.map((message) => message.role)).toEqual(["user", "user", "system"])
       expect(requests[1]?.messages.at(-1)?.content).toEqual([{ type: "text", text: "Changed context" }])
@@ -876,7 +877,10 @@ describe("SessionRunnerLLM", () => {
       response = fragmentFixture("text", "text-build", ["Done"]).completeEvents
       yield* session.resume(sessionID)
 
-      expect(requests.at(-1)?.system.map((part) => part.text)).toEqual(["Build agent instructions", "Initial context"])
+      expect(requests.at(-1)?.system.map((part) => part.text)?.[0]).toBe("Build agent instructions")
+      // durable context 现在包含动态 Permission Context（计划 §5）
+      expect(requests.at(-1)?.system.map((part) => part.text)?.[1]).toContain("Initial context")
+      expect(requests.at(-1)?.system.map((part) => part.text)?.[1]).toContain("<permission-state>")
     }),
   )
 
@@ -902,7 +906,9 @@ describe("SessionRunnerLLM", () => {
       response = fragmentFixture("text", "text-reviewer", ["Done"]).completeEvents
       yield* session.resume(sessionID)
 
-      expect(requests.at(-1)?.system.map((part) => part.text)).toEqual(["Reviewer instructions", "Initial context"])
+      expect(requests.at(-1)?.system.map((part) => part.text)?.[0]).toBe("Reviewer instructions")
+      expect(requests.at(-1)?.system.map((part) => part.text)?.[1]).toContain("Initial context")
+      expect(requests.at(-1)?.system.map((part) => part.text)?.[1]).toContain("<permission-state>")
       expect((yield* session.messages({ sessionID }))[0]).toMatchObject({ type: "assistant", agent: "reviewer" })
     }),
   )
@@ -931,7 +937,9 @@ describe("SessionRunnerLLM", () => {
       response = fragmentFixture("text", "text-selected", ["Done"]).completeEvents
       yield* session.resume(sessionID)
 
-      expect(requests.at(-1)?.system.map((part) => part.text)).toEqual(["Reviewer instructions", "Initial context"])
+      expect(requests.at(-1)?.system.map((part) => part.text)?.[0]).toBe("Reviewer instructions")
+      expect(requests.at(-1)?.system.map((part) => part.text)?.[1]).toContain("Initial context")
+      expect(requests.at(-1)?.system.map((part) => part.text)?.[1]).toContain("<permission-state>")
       expect((yield* session.messages({ sessionID }))[0]).toMatchObject({ type: "assistant", agent: "reviewer" })
     }),
   )
@@ -959,8 +967,8 @@ describe("SessionRunnerLLM", () => {
       yield* session.resume(sessionID)
 
       expect(requests.map((request) => request.system.map((part) => part.text))).toEqual([
-        ["Initial context\n\nBuild skills"],
-        ["Initial context\n\nBuild skills"],
+        [expect.stringContaining("Initial context\n\nBuild skills")],
+        [expect.stringContaining("Initial context\n\nBuild skills")],
       ])
       expect(systemTexts(requests[1])).toContainEqual(expect.stringContaining("Reviewer skills"))
     }),
@@ -994,7 +1002,7 @@ describe("SessionRunnerLLM", () => {
       yield* session.resume(sessionID)
 
       expect(requests.map((request) => request.system.map((part) => part.text))).toEqual([
-        ["Initial context\n\nBuild skills"],
+        [expect.stringContaining("Initial context\n\nBuild skills")],
       ])
     }),
   )
@@ -1023,7 +1031,7 @@ describe("SessionRunnerLLM", () => {
       response = []
       yield* session.resume(sessionID)
       expect(requests.map((request) => request.model)).toEqual([model])
-      expect(requests.map((request) => request.system.map((part) => part.text))).toEqual([["Initial context"]])
+      expect(requests.map((request) => request.system.map((part) => part.text))).toEqual([[expect.stringContaining("Initial context")]])
     }),
   )
 
@@ -1072,9 +1080,9 @@ describe("SessionRunnerLLM", () => {
       yield* session.resume(sessionID)
 
       expect(requests.map((request) => request.system.map((part) => part.text))).toEqual([
-        ["Initial context"],
-        ["Initial context"],
-        ["Initial context"],
+        [expect.stringContaining("Initial context")],
+        [expect.stringContaining("Initial context")],
+        [expect.stringContaining("Initial context")],
       ])
       expect(requests[1]?.messages.map((message) => message.role)).toEqual(["user", "user", "system"])
       expect(requests[2]?.messages.filter((message) => message.role === "system")).toHaveLength(2)
@@ -1118,9 +1126,9 @@ describe("SessionRunnerLLM", () => {
       yield* session.resume(sessionID)
 
       expect(requests.map((request) => request.system.map((part) => part.text))).toEqual([
-        ["Initial context"],
-        ["Initial context"],
-        ["Initial context"],
+        [expect.stringContaining("Initial context")],
+        [expect.stringContaining("Initial context")],
+        [expect.stringContaining("Initial context")],
       ])
     }),
   )
@@ -1155,8 +1163,8 @@ describe("SessionRunnerLLM", () => {
       yield* session.resume(sessionID)
 
       expect(requests.map((request) => request.system.map((part) => part.text))).toEqual([
-        ["Initial context"],
-        ["Replacement context"],
+        [expect.stringContaining("Initial context")],
+        [expect.stringContaining("Replacement context")],
       ])
       yield* replaySessionProjection(sessionID)
       yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Third" }), resume: false })
@@ -1384,7 +1392,8 @@ describe("SessionRunnerLLM", () => {
       yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Third" }), resume: false })
       yield* session.resume(sessionID)
 
-      expect(requests.at(-1)?.system.map((part) => part.text)).toEqual(["Initial context"])
+      expect(requests.at(-1)?.system.map((part) => part.text)?.[0]).toContain("Initial context")
+      expect(requests.at(-1)?.system.map((part) => part.text)?.[0]).toContain("<permission-state>")
       expect(systemTexts(requests.at(-1)!)).toContain("Changed context")
     }),
   )
@@ -1624,8 +1633,8 @@ describe("SessionRunnerLLM", () => {
 
       expect(requests.map((request) => request.model)).toEqual([model, replacementModel])
       expect(requests.map((request) => request.system.map((part) => part.text))).toEqual([
-        ["Initial context"],
-        ["Initial context"],
+        [expect.stringContaining("Initial context")],
+        [expect.stringContaining("Initial context")],
       ])
       expect(systemTexts(requests[1])).toContain("Replacement context")
     }),

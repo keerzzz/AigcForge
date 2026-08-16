@@ -49,6 +49,7 @@ export function v2InfoToV1(
       archived: info.time.archived ? DateTime.toEpochMillis(info.time.archived) : undefined,
     },
     permission: undefined,
+    permissionTier: info.permissionTier,
     attended: info.attended,
     revert: info.revert
       ? {

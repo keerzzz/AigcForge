@@ -29,6 +29,9 @@ export interface Interface {
 interface PendingEntry {
   info: PermissionV1.Request
   deferred: Deferred.Deferred<void, PermissionV1.RejectedError | PermissionV1.CorrectedError>
+  // Chat full 危险 action 的逐次确认规则：always 自动放行判定必须与其
+  // 同序（追加在 approved 之后），否则自动放行会跳过确认（H1）。
+  finalRules?: PermissionV1.Ruleset
 }
 
 interface State {
@@ -77,11 +80,11 @@ export const layer = Layer.effect(
 
     const ask = Effect.fn("Permission.ask")(function* (input: PermissionV1.AskInput) {
       const { approved, pending } = yield* InstanceState.get(state)
-      const { ruleset, ...request } = input
+      const { ruleset, finalRules, ...request } = input
       let needsAsk = false
 
       for (const pattern of request.patterns) {
-        const rule = evaluate(request.permission, pattern, ruleset, approved)
+        const rule = evaluate(request.permission, pattern, ruleset, approved, finalRules ? [...finalRules] : [])
         yield* Effect.logInfo("evaluated", { permission: request.permission, pattern, action: rule })
         if (rule.action === "deny") {
           return yield* new PermissionV1.DeniedError({
@@ -107,7 +110,7 @@ export const layer = Layer.effect(
       yield* Effect.logInfo("asking", { id, permission: info.permission, patterns: info.patterns })
 
       const deferred = yield* Deferred.make<void, PermissionV1.RejectedError | PermissionV1.CorrectedError>()
-      pending.set(id, { info, deferred })
+      pending.set(id, { info, deferred, ...(finalRules?.length ? { finalRules } : {}) })
       yield* events.publish(Event.Asked, info)
       return yield* Effect.ensuring(
         Deferred.await(deferred),
@@ -164,7 +167,9 @@ export const layer = Layer.effect(
       for (const [id, item] of pending.entries()) {
         if (item.info.sessionID !== existing.info.sessionID) continue
         const ok = item.info.patterns.every(
-          (pattern) => evaluate(item.info.permission, pattern, approved).action === "allow",
+          (pattern) =>
+            evaluate(item.info.permission, pattern, approved, item.finalRules ? [...item.finalRules] : []).action ===
+            "allow",
         )
         if (!ok) continue
         pending.delete(id)

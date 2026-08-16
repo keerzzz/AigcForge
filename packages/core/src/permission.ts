@@ -2,6 +2,7 @@ export * as PermissionV2 from "./permission"
 
 import { Context, Deferred, Effect as EffectRuntime, Layer, Schema } from "effect"
 import { Permission } from "@aigcfroge/schema/permission"
+import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { EventV2 } from "./event"
 import { Location } from "./location"
 import { AgentV2 } from "./agent"
@@ -11,18 +12,11 @@ import { withStatics } from "./schema"
 import { Identifier } from "./util/identifier"
 import { Wildcard } from "./util/wildcard"
 import { PermissionSaved } from "./permission/saved"
+import { PermissionEffective } from "./permission/effective"
+import { SessionPermissionOverride } from "./permission/session-override"
 
 export { Effect, Rule, Ruleset } from "@aigcfroge/schema/permission"
 const missingAgentPermissions: Permission.Ruleset = [{ action: "*", resource: "*", effect: "deny" }]
-
-// Catch-all deny inserted at the head of an unattended child session's
-// ruleset. evaluate falls back to ask when no rule matches, but an
-// unattended session has nobody to answer the prompt — assert would park on
-// a Deferred until teardown (a hung task). evaluate uses findLast (later
-// rules win), so the head position keeps every configured rule — and every
-// saved rule, appended last in evaluateInput — ahead of it: only a
-// completely unmatched action lands on the fallback deny.
-const unattendedFallback: Permission.Rule = { action: "*", resource: "*", effect: "deny" }
 
 export const ID = Schema.String.check(Schema.isStartsWith("per")).pipe(
   Schema.brand("PermissionV2.ID"),
@@ -128,6 +122,10 @@ export interface Interface {
   readonly get: (id: ID) => EffectRuntime.Effect<Request | undefined>
   readonly forSession: (sessionID: SessionV2.ID) => EffectRuntime.Effect<ReadonlyArray<Request>>
   readonly list: () => EffectRuntime.Effect<ReadonlyArray<Request>>
+  readonly effectiveRules: (
+    sessionID: SessionV2.ID,
+    agentID?: AgentV2.ID,
+  ) => EffectRuntime.Effect<Permission.Ruleset, SessionV2.NotFoundError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/Permission") {}
@@ -146,6 +144,7 @@ export const layer = Layer.effect(
     const agents = yield* AgentV2.Service
     const sessions = yield* SessionStore.Service
     const saved = yield* PermissionSaved.Service
+    const override = yield* SessionPermissionOverride.Service
     const pending = new Map<ID, Pending>()
 
     yield* EffectRuntime.addFinalizer(() =>
@@ -173,20 +172,22 @@ export const layer = Layer.effect(
       const session = yield* sessions.get(sessionID)
       if (!session) return yield* new SessionV2.NotFoundError({ sessionID })
       const agent = yield* agents.resolve(agentID ?? session.agent)
-      const rules = agent?.permissions ?? missingAgentPermissions
-      // Child sessions that are unattended convert ask→deny: the user is not
-      // present to reply, so permission prompts become automatic rejections.
-      // A root session (no parentID) always has the user present. The
-      // head catch-all extends this to the no-rule-matches fallback ask.
-      if (session.parentID !== undefined && !session.attended) {
-        return [unattendedFallback, ...rules.map((r) => (r.effect === "ask" ? { ...r, effect: "deny" as const } : r))]
-      }
-      return rules
+      const base = agent?.permissions ?? missingAgentPermissions
+      return PermissionEffective.effectiveV2(
+        {
+          mode: session.mode,
+          agent: String(session.agent ?? ""),
+          tier: session.permissionTier ?? PermissionTier.Default,
+          parentID: session.parentID,
+          attended: session.attended,
+          masterPermissionEnabled: yield* override.get(sessionID),
+          savedApprovals: yield* savedRules(),
+        },
+        base,
+      )
     })
 
-    function denied(input: AssertInput, rules: Permission.Ruleset) {
-      return input.resources.some((resource) => evaluate(input.action, resource, rules).effect === "deny")
-    }
+    const effectiveRules = configured
 
     function relevant(input: AssertInput, rules: Permission.Ruleset) {
       return rules.filter((rule) => Wildcard.match(input.action, rule.action))
@@ -194,18 +195,9 @@ export const layer = Layer.effect(
 
     const evaluateInput = EffectRuntime.fnUntraced(function* (input: AssertInput) {
       const rules = yield* configured(input.sessionID, input.agent)
-      const remembered = yield* savedRules()
-      // Deny precedence runs against explicit configured rules only: the
-      // unattended fallback is excluded here so a saved approval (appended
-      // after it in `all`, winning findLast) still pre-authorizes an
-      // unattended child, while an explicit configured deny keeps beating a
-      // saved approval.
-      if (denied(input, rules.filter((rule) => rule !== unattendedFallback)))
-        return { effect: "deny" as const, rules }
-      const all = [...rules, ...remembered]
-      const effects = input.resources.map((resource) => evaluate(input.action, resource, all).effect)
+      const effects = input.resources.map((resource) => evaluate(input.action, resource, rules).effect)
       const effect: Permission.Effect = effects.includes("deny") ? "deny" : effects.includes("ask") ? "ask" : "allow"
-      return { effect, rules: all }
+      return { effect, rules }
     })
 
     function request(input: AssertInput): Request {
@@ -304,18 +296,17 @@ export const layer = Layer.effect(
           pending.delete(input.requestID)
           if (input.reply !== "always" || !existing.request.save?.length) return
 
-          const rememberedRules = yield* savedRules()
           for (const [id, item] of pending) {
-            const input = { ...item.request }
             const rules = yield* configured(item.request.sessionID, item.agent).pipe(
               EffectRuntime.catchTag("Session.NotFoundError", () => EffectRuntime.succeed(undefined)),
             )
             if (!rules) continue
-            if (denied(input, rules)) continue
-            const effective = [...rules, ...rememberedRules]
+            // configured 已含 saved approval（在 Chat full 危险 action 的 ask
+            // 之前）与显式 deny 重放；不再追加 remembered——追加会把 saved
+            // allow 放到危险 ask 之后，自动放行跳过逐次确认（H1）。
             if (
               !item.request.resources.every(
-                (resource) => evaluate(item.request.action, resource, effective).effect === "allow",
+                (resource) => evaluate(item.request.action, resource, rules).effect === "allow",
               )
             )
               continue
@@ -343,8 +334,11 @@ export const layer = Layer.effect(
       return Array.from(pending.values(), (item) => item.request).filter((request) => request.sessionID === sessionID)
     })
 
-    return Service.of({ ask, assert, reply, get, forSession, list })
+    return Service.of({ ask, assert, reply, get, forSession, list, effectiveRules })
   }),
 )
 
-export const locationLayer = layer.pipe(Layer.provideMerge(AgentV2.locationLayer))
+export const locationLayer = layer.pipe(
+  Layer.provideMerge(AgentV2.locationLayer),
+  Layer.provideMerge(SessionPermissionOverride.locationLayer),
+)

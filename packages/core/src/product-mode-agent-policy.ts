@@ -9,6 +9,7 @@ export * as ProductModeAgentPolicy from "./product-mode-agent-policy"
  */
 
 import { Effect, Schema } from "effect"
+import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 
 export class AgentNotAllowedError extends Schema.TaggedErrorClass<AgentNotAllowedError>()(
   "AgentNotAllowedError",
@@ -157,11 +158,15 @@ export function checkCommandAllowed(mode: string): PolicyVerdict {
  * propose-first invariant (ADR-13 Amendment-2 §1b) would have an open channel:
  * the external CLI writes the workspace under its own permissions.
  *
- * Only chat is gated (work/assistant stay open) by design: chat is the sole
- * pure-propose mode; work/coding are execution modes where external CLI
- * delegation is an explicit user action (ADR-13 Amendment-2 §1b.3).
+ * Only chat is gated by default (work/assistant open at `full` tier only):
+ * chat is the sole pure-propose mode; work/coding are execution modes where
+ * external CLI delegation is an explicit user action (ADR-13 Amendment-2 §1b.3).
+ * Unknown modes fail safe (deny) — plan §2.4.
  */
-export function checkCliDelegationAllowed(mode: string): PolicyVerdict {
+export function checkCliDelegationAllowed(
+  mode: string,
+  tier: PermissionTier.ID = PermissionTier.Default,
+): PolicyVerdict {
   if (mode === "chat") {
     return {
       allowed: false,
@@ -171,5 +176,22 @@ export function checkCliDelegationAllowed(mode: string): PolicyVerdict {
       }),
     }
   }
-  return { allowed: true }
+  if (mode === "work" || mode === "assistant") {
+    if (tier === "full") return { allowed: true }
+    return {
+      allowed: false,
+      error: new CommandDeniedError({
+        mode,
+        reason: "External CLI delegation in this mode requires the full session permission tier",
+      }),
+    }
+  }
+  if (mode === "coding") return { allowed: true }
+  return {
+    allowed: false,
+    error: new CommandDeniedError({
+      mode,
+      reason: "External CLI delegation is denied for unknown modes",
+    }),
+  }
 }

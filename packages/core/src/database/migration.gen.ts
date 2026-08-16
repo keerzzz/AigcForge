@@ -59,5 +59,7 @@ export const migrations = (
     import("./migration/20260811165437_oval_karen_page"),
     import("./migration/20260811222608_little_scrambler"),
     import("./migration/20260812035356_bouncy_jane_foster"),
+    import("./migration/20260815190311_add_session_permission_tier"),
+    import("./migration/20260816030000_backfill_root_session_attended"),
   ])
 ).map((module) => module.default) satisfies DatabaseMigration.Migration[]

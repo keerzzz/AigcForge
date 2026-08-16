@@ -1919,6 +1919,42 @@ const scenarios: Scenario[] = [
       }),
     ),
   http.protected
+    .get("/session/{sessionID}/permission-override", "permission.override.get")
+    .seeded((ctx) => ctx.session({ title: "Override status session" }))
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/permission-override", { sessionID: ctx.state.id }),
+      headers: ctx.headers(),
+    }))
+    .json(200, (body) => {
+      object(body)
+      check(body.enabled === false, "fresh session should have break-glass override disabled")
+    }),
+  http.protected
+    .put("/session/{sessionID}/permission-override", "permission.override.put")
+    .mutating()
+    .seeded((ctx) => ctx.session({ title: "Override enable session" }))
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/permission-override", { sessionID: ctx.state.id }),
+      headers: ctx.headers(),
+      body: { acknowledged: true },
+    }))
+    .json(200, (body) => {
+      object(body)
+      check(body.enabled === true, "acknowledged enable should activate break-glass override")
+    }),
+  http.protected
+    .delete("/session/{sessionID}/permission-override", "permission.override.delete")
+    .mutating()
+    .seeded((ctx) => ctx.session({ title: "Override disable session" }))
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/permission-override", { sessionID: ctx.state.id }),
+      headers: ctx.headers(),
+    }))
+    .json(200, (body) => {
+      object(body)
+      check(body.enabled === false, "disable should deactivate break-glass override")
+    }),
+  http.protected
     .get("/session/{sessionID}/children", "session.children")
     .seeded((ctx) =>
       Effect.gen(function* () {

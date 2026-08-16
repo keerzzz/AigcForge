@@ -127,7 +127,7 @@ Each turn follows this cycle:
 |--------|-------|-----|
 | code_modification (fix/add/refactor) | task → build | multi-file changes, complex implementation |
 | code_understanding (explain/how/why) | task → explore | search, read, analyze |
-| content_creation (prose/generate) | **do it directly** | text responses don't need delegation; FILE writes always delegate via task → build |
+| content_creation (prose/generate) | **do it directly** | text responses don't need delegation; FILE writes follow the current Session Permission Context |
 | configuration (agent/mcp/workflow) | task → general | multi-step setup |
 | @mention explicit | route to named engine | user knows what they want |
 | workflow (pipeline) | workflow engine | sequential or parallel |
@@ -142,7 +142,7 @@ Delegate (via task tool), when:
 Execute directly, when:
 - Answering knowledge questions
 - Subagent is unavailable AND task is simple enough
-- Note: bash/edit/write are denied for meta — every FILE write (create/edit) must go through task → build delegation
+- File writes and shell commands follow the current Session Permission Context (mode/tier/override) injected each turn
 
 ## Error Handling
 
@@ -237,6 +237,42 @@ export const Plugin = define({
       { action: "read", resource: "*.env", effect: "ask" },
       { action: "read", resource: "*.env.*", effect: "ask" },
       { action: "read", resource: "*.env.example", effect: "allow" },
+    ]
+
+    // meta 专属 deny-first 基线（V1/V2 同构，见 aigcfroge agent.ts metaDefaults）：
+    // 未知 action 默认 deny，不产生 wildcard allow；read/propose/领域工具显式白名单。
+    const metaDefaults: PermissionV2.Ruleset = [
+      { action: "*", resource: "*", effect: "deny" },
+      ...readonlyExternalDirectory,
+      // Repeated identical tool calls trigger an approval prompt (V1 parity).
+      { action: "doom_loop", resource: "*", effect: "ask" },
+      { action: "read", resource: "*", effect: "allow" },
+      { action: "read", resource: "*.env", effect: "ask" },
+      { action: "read", resource: "*.env.*", effect: "ask" },
+      { action: "read", resource: "*.env.example", effect: "allow" },
+      { action: "glob", resource: "*", effect: "allow" },
+      { action: "grep", resource: "*", effect: "allow" },
+      { action: "webfetch", resource: "*", effect: "allow" },
+      { action: "websearch", resource: "*", effect: "allow" },
+      { action: "question", resource: "*", effect: "allow" },
+      { action: "list_assets", resource: "*", effect: "allow" },
+      { action: "plan_enter", resource: "*", effect: "allow" },
+      // 资产落盘通道（propose → 用户确认 → 受校验的 apply/delete 事务）。
+      { action: "propose_prompt_asset", resource: "*", effect: "allow" },
+      { action: "propose_skill_asset", resource: "*", effect: "allow" },
+      { action: "propose_mcp_asset", resource: "*", effect: "allow" },
+      { action: "propose_command_asset", resource: "*", effect: "allow" },
+      { action: "propose_agent_asset", resource: "*", effect: "allow" },
+      { action: "propose_workflow_asset", resource: "*", effect: "allow" },
+      { action: "propose_plugin_asset", resource: "*", effect: "allow" },
+      // 2026-08-15 人类裁决：meta 是非 coding 模式的 build 等价体 —
+      // bash/edit/write 与 build 对齐可用，但危险操作走 ask 审批（非静默
+      // allow 也非 deny，ADR-13 Amendment-2 §1c）。task 工具保持 allow，
+      // 是间接写、属子代理权限域 — P1 边界。
+      { action: "bash", resource: "*", effect: "ask" },
+      { action: "edit", resource: "*", effect: "ask" },
+      { action: "write", resource: "*", effect: "ask" },
+      { action: "task", resource: "*", effect: "allow" },
     ]
 
     yield* ctx.agent.transform((draft) => {
@@ -467,21 +503,7 @@ export const Plugin = define({
         const withSubagents = PROMPT_META.replace("{{SUBAGENTS_LIST}}", subagentList || "(no subagents registered)")
         item.system = MetaPrompt.fillCliList(withSubagents, [])
         item.mode = "primary"
-        item.permissions.push(
-          ...PermissionV2.merge(defaults, [
-            { action: "list_assets", resource: "*", effect: "allow" },
-            { action: "question", resource: "*", effect: "allow" },
-            // 2026-08-15 人类裁决：meta 是非 coding 模式的 build 等价体 —
-            // bash/edit/write 与 build 对齐可用，但危险操作走 ask 审批（非静默
-            // allow 也非 deny，ADR-13 Amendment-2 §1c）。task 工具保持 allow，
-            // 是间接写、属子代理权限域 — P1 边界。
-            { action: "bash", resource: "*", effect: "ask" },
-            { action: "edit", resource: "*", effect: "ask" },
-            { action: "write", resource: "*", effect: "ask" },
-            { action: "task", resource: "*", effect: "allow" },
-            { action: "plan_enter", resource: "*", effect: "allow" },
-          ]),
-        )
+        item.permissions.push(...PermissionV2.merge(metaDefaults))
       })
     })
   }),

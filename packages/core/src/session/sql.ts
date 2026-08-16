@@ -13,6 +13,7 @@ import { WorkspaceV2 } from "../workspace"
 import { Timestamps } from "../database/schema.sql"
 import type { SystemContext } from "../system-context/index"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task"
 
 
@@ -50,6 +51,7 @@ export const SessionTable = sqliteTable(
     tokens_cache_write: integer().notNull().default(0),
     revert: text({ mode: "json" }).$type<{ messageID: MessageID; partID?: PartID; snapshot?: string; diff?: string }>(),
     permission: text({ mode: "json" }).$type<PermissionV1.Ruleset>(),
+    permission_tier: text().$type<PermissionTier.ID>().notNull().default(PermissionTier.Default),
     attended: integer().$type<0 | 1>().default(0),
     agent: text(),
     model: text({ mode: "json" }).$type<{

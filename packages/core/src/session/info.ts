@@ -3,6 +3,7 @@ import { AgentV2 } from "../agent"
 import { Location } from "../location"
 import { ModelV2 } from "../model"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { WorkPreset } from "@aigcfroge/schema/work-preset"
 import { ProjectV2 } from "../project"
 import { ProviderV2 } from "../provider"
@@ -48,6 +49,7 @@ export function fromRow(row: typeof SessionTable.$inferSelect): SessionSchema.In
     }),
     subpath: row.path ? RelativePath.make(row.path) : undefined,
     attended: row.attended === null ? undefined : row.attended === 1,
+    permissionTier: row.permission_tier ?? PermissionTier.Default,
     time: {
       created: DateTime.makeUnsafe(row.time_created),
       updated: DateTime.makeUnsafe(row.time_updated),

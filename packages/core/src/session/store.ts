@@ -2,6 +2,7 @@ export * as SessionStore from "./store"
 
 import { eq } from "drizzle-orm"
 import { Context, Effect, Layer, Schema } from "effect"
+import { LayerNode } from "../effect/layer-node"
 import { Database } from "../database/database"
 import { SessionHistory } from "./history"
 import { MessageDecodeError } from "./error"
@@ -114,3 +115,5 @@ export const layer = Layer.effect(
 )
 
 export const defaultLayer = layer.pipe(Layer.provide(Database.defaultLayer))
+
+export const node = LayerNode.make(layer, [Database.node])

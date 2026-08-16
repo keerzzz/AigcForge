@@ -117,6 +117,7 @@ import { handlers } from "@aigcfroge/server/handlers"
 import { schemaErrorLayer as v2SchemaErrorLayer } from "@aigcfroge/server/middleware/schema-error"
 import { workspaceHandlers } from "./handlers/workspace"
 import { instanceContextLayer } from "./middleware/instance-context"
+import { SessionPermissionOverride } from "@aigcfroge/core/permission/session-override"
 import { workspaceRoutingLayer } from "./middleware/workspace-routing"
 import { disposeMiddleware } from "./lifecycle"
 import { memoMap } from "@aigcfroge/core/effect/memo-map"
@@ -199,6 +200,7 @@ const instanceRoutes = instanceApiRoutes.pipe(
   Layer.provide(workspaceRoutingLive),
   Layer.provide(instanceContextLayer),
   Layer.provide(schemaErrorLayer),
+  Layer.provide(SessionPermissionOverride.locationLayer),
 )
 const serverRoutes = HttpApiBuilder.layer(Api).pipe(
   Layer.provide(handlers),

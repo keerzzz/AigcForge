@@ -279,6 +279,51 @@ describe("AgentV2", () => {
     }),
   )
 
+  it.effect("meta is fail-closed: no wildcard allow, unknown actions deny, propose tools visible", () =>
+    Effect.gen(function* () {
+      const agent = yield* AgentV2.Service
+      yield* AgentPlugin.Plugin.effect(
+        host({
+          agent: agentHost(agent),
+        }),
+      ).pipe(
+        Effect.provideService(
+          Location.Service,
+          Location.Service.of(location({ directory: AbsolutePath.make("/project") })),
+        ),
+      )
+
+      const meta = yield* agent.get(AgentV2.ID.make("meta"))
+      const permissions = meta!.permissions
+      expect(
+        permissions.some((rule) => rule.action === "*" && rule.resource === "*" && rule.effect === "allow"),
+      ).toBe(false)
+      expect(PermissionV2.evaluate("some_future_tool", "*", permissions).effect).toBe("deny")
+      for (const action of ["read", "glob", "grep", "question", "list_assets", "webfetch", "websearch"]) {
+        expect(PermissionV2.evaluate(action, "*", permissions).effect).toBe("allow")
+      }
+      for (const action of [
+        "propose_prompt_asset",
+        "propose_skill_asset",
+        "propose_mcp_asset",
+        "propose_command_asset",
+        "propose_agent_asset",
+        "propose_workflow_asset",
+        "propose_plugin_asset",
+      ]) {
+        expect(PermissionV2.evaluate(action, "*", permissions).effect).toBe("allow")
+      }
+      for (const action of ["bash", "edit", "write"]) {
+        expect(PermissionV2.evaluate(action, "*", permissions).effect).toBe("ask")
+      }
+      expect(PermissionV2.evaluate("task", "*", permissions).effect).toBe("allow")
+      expect(PermissionV2.evaluate("read", ".env", permissions).effect).toBe("ask")
+      expect(PermissionV2.evaluate("read", ".env.local", permissions).effect).toBe("ask")
+      expect(PermissionV2.evaluate("read", ".env.example", permissions).effect).toBe("allow")
+      expect(PermissionV2.evaluate("external_directory", "/outside", permissions).effect).toBe("ask")
+    }),
+  )
+
   it.effect("assistant-orchestrator is fail-closed: personal-tools allowed, bash/edit/write/task denied", () =>
     Effect.gen(function* () {
       const agent = yield* AgentV2.Service

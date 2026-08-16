@@ -1,13 +1,15 @@
 # 会话级权限档位实施计划（Session Permission Tier）
 
-> 状态：**待审批（送审版，2026-08-15）**
-> 日期：2026-08-15
+> 状态：**已实施（2026-08-16，分支 `session-permission-tier`；验收与裁决记录见 §9/§10）**
+> 日期：2026-08-15（送审）· 2026-08-16（实施收口）
 > 依据：[CLAUDE.md](../../CLAUDE.md)、[AGENTS.md](../../AGENTS.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md)、[ADR-13](../architecture/adr/ADR-13-chat-work-mode-boundary.md) + [Amendment-2](../architecture/adr/ADR-13-amendment-2-meta-agent-dispatch.md)、[Chat 模式审计报告](../audit/AigcForge_CHAT_MODE_AUDIT_2026-08-14.md)
 > 前置：`fix/chat-mode-audit-p1-p3` 分支已合并（含 `checkCliDelegationAllowed` 与 task 工具模式前置检查）
 > 分支：`session-permission-tier`（从 main 切出，批准后即切）
 > 范围：`packages/core`（权限服务 + 模式策略 + config 总闸）· `packages/schema`（档位枚举）· `packages/app`（输入框档位选择器 + 设置总闸开关）· `packages/aigcfroge`（V1 meta 信封收窄）
 > Owner：Core（权限层）/ Security（边界评审）/ App（输入框 + 设置 UI）
 > 命中 skills：`effect`（Effect v4 编码）· `enterprise-code-standard`（实现基线）· `reuse-first-refactor`（复用既有 owner）· `quality-to-pr`（交付门禁）
+> Custom 关系：本计划只实现现有 Product Mode 的会话权限档位，不自动批准 Custom 的能力上限或审批模型。Custom 必须在 ADR-17 M0/M1 中定义 mode ceiling 与 Snapshot allowlist；应用级审批入口和 once/Session/Location grant model 属于 Custom M3。
+> **裁决修订（2026-08-16 人类裁决，实测确认）**：propose 档写/命令 action 由本计划 §1.3 原提案的 `deny` 修订为 **`ask`（逐次确认）**。两档差异收敛为：`full` 把未知 action 基线从 deny 抬到 ask；已物化的危险 action（bash/edit/write/apply_patch）两档均逐次 ask。档位产生的 ask 与 configured ask 同待遇——可被 saved approval 预授权（实测：propose 档 always 后同类免确认）；不可预授权的红线仅两条：chat × full 的危险 action（红线 4）与 unattended 全降 deny（红线 5）。
 
 ---
 
@@ -86,8 +88,8 @@
 
 | 档位 | meta 的能力范围（非 coding）| 授权方式 | 语义 |
 |---|---|---|---|
-| `propose`（默认）| 只提议资产（`propose_*`）+ 领域写工具 | 写 deny | 保守默认，ADR-13「Chat 只创建不执行」守住 |
-| `full` | **= build 级全工具**（`bash`/`edit`/`write`/`propose_*`/…）| 写 **ask** | meta 成为 build 等价体，每次写弹 dock |
+| `propose`（默认）| 只提议资产（`propose_*`）+ 领域写工具 | 写 **ask**（2026-08-16 裁决修订，原提案 deny，见文头） | 保守默认，写/命令逐次确认 |
+| `full` | **= build 级全工具**（`bash`/`edit`/`write`/`propose_*`/…）| 写 **ask** | meta 成为 build 等价体，每次写弹 dock；未知 action 基线由 deny 抬到 ask |
 
 **委派死路的根治**：meta 在非 coding 模式**不再需要派 build**——build 不跨模式，meta 自己就是 build（full 档下直接写，走 ask）。`checkPrimaryAgent` 保持现状（非 coding 拒绝 build 当主 agent），恰好与「build 锁死 coding」一致，**无需档位感知改造**。
 
@@ -674,24 +676,24 @@ const rules = [...base, ...tierRules]
 
 ## 9. 验收标准
 
-- [ ] meta 基线不再含 `{"*":"allow"}`，未知 action 默认 deny
-- [ ] `tierRuleset(tier, agentID)` 对 12 组合有确定返回，未知输入 fail-safe 返回空
-- [ ] 同一 agent 在 `propose` 与 `full` 档下对 `edit` 判定不同（档位隔离可证）
-- [ ] 档位 deny 覆盖 agent 基线 allow **且** 覆盖 saved approval
-- [ ] 空/默认档位时行为与改动前完全一致（回归锚点用例）
-- [ ] 任何无人值守会话（根或子）的 `ask` 都不再挂起
-- [ ] 输入框可切换档位，`full` 写操作弹现有 `SessionPermissionDock`
-- [ ] 模式拒绝的错误信息含该模式可用替代路径与可操作指引
-- [ ] `bun --cwd packages/core typecheck` PASS
-- [ ] `bun --cwd packages/aigcfroge typecheck` PASS
-- [ ] `bun --cwd packages/app typecheck` PASS
-- [ ] `bun --cwd packages/core test` ≥ 基线 1808 pass / 0 fail
-- [ ] `bun run script/lint-changed.ts` 0 违规
-- [ ] ADR / CLAUDE.md / ARCHITECTURE.md 描述与代码逐条对应，无"声称但未实现"
-- [ ] CLAUDE.md 债表删除 2 条已闭环债（fail-open 信封、委派死路）
-- [ ] 总闸开 + 有人值守 → 全 allow 无弹窗；总闸开 + 无人值守 → 仍 deny（红线不破）
-- [ ] 总闸关 → 行为与改动前一致（回归锚点）
-- [ ] 打开总闸必有二次确认弹窗（非单点即开）
+- [x] meta 基线不再含 `{"*":"allow"}`，未知 action 默认 deny
+- [x] `tierRuleset(tier, agentID)` 对 12 组合有确定返回，未知输入 fail-safe 返回空
+- [x] 同一 agent 在 `propose` 与 `full` 档下对 `edit` 判定不同（档位隔离可证；裁决修订后两档均为 ask，差异体现在未知 action 基线 deny vs ask，`permission-effective.test.ts` 覆盖）
+- [x] 档位 deny 覆盖 agent 基线 allow **且** 覆盖 saved approval（裁决修订后档位不再产生 deny-write；本条由「基线显式 deny 重放压过 saved approval」承接，`permission.test.ts` 覆盖）
+- [x] 空/默认档位时行为与改动前完全一致（回归锚点用例）
+- [x] 任何无人值守会话（根或子）的 `ask` 都不再挂起（unattended 全降 deny，红线 5）
+- [x] 输入框可切换档位，`full` 写操作弹现有 `SessionPermissionDock`（2026-08-16 桌面实测 + e2e `permission-tier.spec.ts`）
+- [x] 模式拒绝的错误信息含该模式可用替代路径与可操作指引
+- [x] `bun --cwd packages/core typecheck` PASS
+- [x] `bun --cwd packages/aigcfroge typecheck` PASS
+- [x] `bun --cwd packages/app typecheck` PASS
+- [x] `bun --cwd packages/core test` ≥ 基线 1808 pass / 0 fail（实测 1855 pass / 0 fail / 2 skip）
+- [x] `bun run script/lint-changed.ts` 0 违规
+- [x] ADR / CLAUDE.md / ARCHITECTURE.md 描述与代码逐条对应，无"声称但未实现"（2026-08-16 复核补齐本文件闭环）
+- [x] CLAUDE.md 债表删除 2 条已闭环债（fail-open 信封、委派死路）
+- [x] 总闸开 + 有人值守 → 全 allow 无弹窗；总闸开 + 无人值守 → 仍 deny（红线不破；以 Session 级 break-glass 形态落地，见 §10 D6 裁决修订）
+- [x] 总闸关 → 行为与改动前一致（回归锚点）
+- [x] 打开总闸必有二次确认弹窗（非单点即开；break-glass 需勾选「我已了解风险并确认」后才可启用，e2e + 实测覆盖）
 
 ---
 
@@ -703,20 +705,21 @@ const rules = [...base, ...tierRules]
 |---|---|---|
 | **D3** | build 锁死 coding；非 coding 模式 meta 代 build（同样的能力范围，写走 ask）；`checkPrimaryAgent` 保持现状不改造 | 用户明确确认（2026-08-15） |
 
-### 需要审批人裁决的开放项（各带默认建议）
+### 裁决结论（2026-08-16 实施收口时回填）
 
-| 编号 | 问题 | 默认建议 |
+| 编号 | 裁决 | 实施状态 |
 |---|---|---|
-| **D0** | 档位存储：新增 `permission_tier` 列（A）还是复用 `session.permission` 列（B）？ | **A：新增列**（语义清晰，避开 V1/V2 形状纠缠；`session.permission` 是 V1 半接线遗留） |
-| **D1** | Phase 0 根会话 unattended 兜底已调研关闭；**待确认契约**：Assistant M4 桥接会话复用 `subagent_attended_default` 配置进入无人值守态（不硬编码 `attended: false`），是否接受？ | 接受（否则 M4 上线时桥接会话挂起） |
-| **D2** | 档位集合就两个（`propose` 默认 / `full`）够不够？是否需要中间档（如只给 `edit` 不给 `bash`）？ | 两档够；中间档需求待 Product 提出 |
-| **D4** | Phase 5.6 的 `enforcePrimary` `die`→typed failure 改造本期做还是拆出？ | 拆出（影响 5 个调用点），本期只做文案 |
-| **D5** | Phase 6.3 的 `effect` skill 补充本期做还是拆出？ | 建议本期顺手做（审计 §9.3 已标为覆盖缺口），但弱耦合可拆 |
-| **D6** | 最高权限总闸（Phase 7）的语义：全局持久化 vs 会话级临时？总闸是否连 explore/orchestrator 也放开？ | 全局持久 + 每次打开二次弹窗；总闸放开所有 agent（含 fail-closed），靠「二次弹窗 + 第 0 层不可越」兜底 |
+| **D0** | **A：新增 `permission_tier` 列** | ✅ `session/sql.ts` + migration `20260815190311_add_session_permission_tier` |
+| **D1** | 接受（桥接会话复用 `subagent_attended_default`，不硬编码） | ✅ Phase 0 落地，unattended 兜底测试覆盖 |
+| **D2** | 两档够（`propose` 默认 / `full`），中间档待 Product 提出 | ✅ `schema/permission-tier.ts` |
+| **D2-amend** | **propose 档写/命令 = `ask`（逐次确认），修订原提案 deny**（人类裁决 2026-08-16，见文头「裁决修订」） | ✅ 实测确认（propose 档 edit 弹 dock） |
+| **D4** | `enforcePrimary` die→typed failure 改造**拆出** | ✅ 未做（保持 die 兜底 + 前置 typed 检查） |
+| **D5** | `effect` skill 补吞错反模式**拆出** | ⏸ 未做，技术债跟进 |
+| **D6** | **形态修订**：全局持久 config 总闸未实施；以 **Session 级 break-glass**（60s 租约、首启需 `acknowledged:true` 二次确认、不持久化、仅根会话 + 有人值守）落地，chat 危险 action 在 break-glass 下仍逐次确认（红线 4） | ✅ `core/src/permission/session-override.ts` + HTTP `PUT/DELETE /session/:id/permission-override` + App 控件（2026-08-16 e2e + 桌面实测） |
 
 ### 审批记录
 
-> 待填：审批日期、裁决结论（D0/D1/D2/D4/D5/D6）、范围修订
+> 2026-08-16：分支 `session-permission-tier` 实施完成并复审（含 core 五层链路代码审查、e2e 回归、桌面端真实模型实测）。裁决结论如上表；propose=ask 与 break-glass 形态两处对原计划的修订均经人类确认。遗留技术债（V2 系统提示 override 状态 M1、V1 每 turn 收权粒度 M2、break-glass 审计日志 M3、wildcard deny 语义 M5、effect skill 补充 D5）已在 PR 描述声明。
 
 ---
 

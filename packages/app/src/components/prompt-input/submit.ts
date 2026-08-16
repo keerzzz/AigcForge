@@ -388,6 +388,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
           mode: draftTab?.mode ?? "coding",
           agent: draftTab?.agent,
           presetCategoryId: draftTab?.presetCategoryId,
+          permissionTier: draftTab?.permissionTier,
         })
         .then((x) => x.data ?? undefined)
         .catch((err) => {
