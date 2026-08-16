@@ -127,21 +127,12 @@
 > **执行协议**: [AGENTS.md](AGENTS.md)（代码风格、分支提交、Effect 编码、Schema、测试）
 > **设计协议**: [DESIGN.md](DESIGN.md)（产品 UI 性格、技术栈、Token、组件、i18n、无障碍、验证）
 > **架构协议**: [ARCHITECTURE.md](ARCHITECTURE.md)（系统结构、包拓扑、子系统边界、数据流）
+> **测试协议**: [docs/testing.md](docs/testing.md)（测试层级、包级命令、HttpApi exerciser、E2E/性能基准、CI 门禁、书写红线）
 > **技能文件**: `.aigcfroge/skills/`（`protocols` 双向协议路由、`enterprise-code-standard` 企业级代码标准、`reuse-first-refactor` 复用优先重构、`quality-to-pr` 端到端交付；以及 `frontend-theming`、`effect`、`database` 专题技能）
 
 ## 已知技术负债
 
-| 负债 | 包 | 风险 | Owner | 到期日 |
-|---|---|---|---|---|
-| @ai-sdk/google patch 未上游化 | root patches/ | 功能补丁可能滞后 | TBD | 上游监控 |
-| dompurify 锁定 3.4.6 | session-ui | 残留 moderate advisory（IN_PLACE/setConfig/hook 污染类，本仓静态配置+单 hook 用法不可达）；≥3.4.7 与 happy-dom 探针环境不兼容（p/a/svg 被误剥、foreignObject 误放），升级前须先迁移探针到真实浏览器环境 | TBD | 2026-08-27 |
-| 工具活动 doom_loop 拦截统计依赖 runner 错误文案匹配（"blocked by doom_loop approval"） | app | `session/runner/llm.ts` 文案变更会静默漏计；且只覆盖 denied/rejected，CorrectedError 反馈不计入。根治：事件层为 tool error 加结构化标记（如 `cause: "doom-loop"`），UI 按字段判断 | TBD | 事件层加标记时 |
-| 工具活动统计随会话压缩缩水 | app | 统计基于消息 parts，compaction 重写历史后旧 part 被丢弃，计数仅反映当前上下文窗口。根治：event/DB 层聚合持久统计，UI 只读 | TBD | 需要持久指标时 |
-| 多文件不符合 Prettier 格式规范 | 全仓 | 仓库无 pre-commit format hook，部分文件（如 `verifier.ts`、`reference-checker.ts`）在 main 就不符合 prettier 格式；分支审查时难以区分新旧格式问题。根治：统一跑 `prettier --write` 全仓格式化一次，配合 CI 加 format check 门禁 | TBD | 下次全仓 lint 清理时 |
-| ~~Chat 模式下 meta 默认权限依赖前置拦截与 ADR-13 Amendment-2 约束~~ **已闭环 2026-08-16**：meta V1/V2 基线 fail-closed + `PermissionEffective` 唯一有效权限 owner（`session-permission-tier`，见 ADR-13 Amendment-2 状态标注） | core / aigcfroge | 无 | Core | 2026-08-16 |
-| workflow/plugin 未建 typed service 而是 handler 内联写事务 | aigcfroge | 虽已复用 FileMutation 与 KeyedMutex 恢复 5 大不变量，但未在 core 层封装为标准 Service | TBD | 统一资产服务重构时 |
-| chat 模式下 repeat-detection 启发式分词与语言支持不完备 | app | 采用混合分词与单 token 旁路，长文本混合场景可能存在边界漂移 | TBD | 意图识别升级时 |
-| Import-parser 多候选同名时依赖后缀 disambiguation | core | 导入包含多个同名未命名代码块时生成序号后缀，需依赖后续用户在 UI 侧重命名 | TBD | 导入流增强时 |
-| 资产 apply/delete 缺非会话路由，工作台伪造 sessionID | aigcfroge / app | 路由为 `/session/:sessionID/<kind>-asset/...`，模式首页无会话上下文，前端填 `"ses-home-delete"`；`SessionID` 只校验 `startsWith("ses")` 故静默通过，审计归属链断裂（PRD §8.3.1 已声明 sessionID 非写边界前提，故非安全缺陷）。范围与决定见 [Chat PRD §20.6](docs/prd/chat-mode-creation-layer.md) | TBD | 下次资产端点改动时 |
-| P1-10: `resolveSecurePath` 零调用者死代码 | core | `fs-util.ts:257` 的 `resolveSecurePath(worktree, target)` 全仓无调用者（2026-08-14 审计点名），是 fs 工具层的历史残留；可能误导后续路径安全实现去复用一个未经验证的封装。根治：确认无消费方后删除，或纳入统一路径安全封装 | TBD | 下次 fs 层清理时 |
-| 存量 `catch (e: any)` 3 处 | core / aigcfroge | main 既有（非分支新增，不违反 No Cheating 新增门禁）：`fs-util.ts:234` 用 `e?.code === "ENOENT"`（ErrnoException）；`session/llm.ts:143` 用 `e.message ?? String(e)`（LLM SDK 可能抛带 `.message` 的普通对象，`instanceof Error` 改写会变 `[object Object]`，须保留 `.message` 访问语义）；`cli/cmd/github.handler.ts:631` 本体已内部 instanceof 收窄，近乎免费。根治：逐 site 核对语义后改 `instanceof Error` + 类型守卫 | TBD | 下次各自模块清理时 |
+技术债与后期任务统一归档在 [docs/technical-debt.md](docs/technical-debt.md)（单一真源），涵盖：
+权限档位遗留（M1/M2/M3/M5/D5）、4 模式页面归一化延后项、Custom Mode 平台任务（ADR-17 + Roadmap M0-M5）与全局存量债（dompurify、doom_loop 统计、资产路由、Prettier、`catch (e: any)` 等）。
+
+> 更新规则：闭环一项即在 docs/technical-debt.md 中移入「已闭环」表并记录日期与提交；新增债必须写来源与触发条件。
