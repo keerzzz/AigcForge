@@ -6,6 +6,7 @@
 > 当前产品裁决：把“自定义模式”作为 AigcForge 第五个大模式继续设计
 > 调度裁决：Custom 根会话固定由 `meta` 元智能体拥有；用户创建的 Agent 是 `meta` 在该组合内可调度的执行 Agent。Coding（即 Code 模式）保留 `meta` 与 `build` 互补的特殊关系。
 > 冲突提示：本裁决候选修订 ADR-11 的“四种 Product Mode”封闭集合，以及 `docs/prd/my-agents-launcher.md` 中“不是第五个 Product Mode”的旧结论。实施前必须通过新 ADR 明确取代关系，不能静默改写历史决策。
+> 统一底座提案：详见 [ADR-17](../../architecture/adr/ADR-17-custom-mode-composition-platform.md)，产品范围见 [Custom PRD](../../prd/custom-mode-composition-platform.md)，交付阶段见 [Custom 路线图](../../roadmap/custom-mode-roadmap.md)。
 
 ## 1. 已保存的调研结论
 
@@ -393,17 +394,18 @@ MVP 验收标准：
 - Custom Session 使用 canonical Session route。
 - Chat 创建的 Agent、Prompt、Skill 可在 Custom 中完成一次真实消费闭环。
 
-## 13. 下一轮需要共同裁决的问题
+## 13. 协议复核后的裁决
 
-1. 已裁决：Custom 根会话固定使用 `meta`，用户 Agent 都是其可调度执行者。
-2. 多 Agent 首发是否支持，还是先完成单用户 Agent 委派？建议 M1 单用户 Agent，M2 增加 Agent 池和并行调度。
-3. Custom Profile 是否成为第八类资产？建议是，名称暂定 `custom-profile`，由 Chat 管理、Custom 消费。
-4. 用户能否在 Custom 会话运行中添加资产？建议 Draft 阶段可改，运行后只能 fork 到新组合。
-5. 首发资产范围是否接受 Agent + Prompt + Skill？建议接受，以换取可恢复且可测试的第一个闭环。
-6. 全局资产是否进入首发？建议不进入，M1 只使用当前 Location 资产。
-7. Plugin 是否允许影响 Host 与 Client？建议分面声明并逐面审批，首发不开放动态运行。
-8. Code Presentation 是否成为 Custom 的首发卖点？建议后置，先稳定组合和权限真值。
-9. 用户选择的 Prompt、Skill、MCP 等资产默认绑定 `meta`、指定用户 Agent，还是必须逐项选择？建议提供明确默认值但允许查看和修改绑定，不做全员自动注入。
+2026-08-16 按 `CLAUDE.md`、`protocols`、Accepted ADR、Session/Tool/Permission 协议、Custom PRD 和路线图复核后，范围收敛为：
+
+1. Custom 根会话固定使用 `meta`；M1 只有一个用户 Agent 委派目标，零个或多个都阻断，多 Agent 留到 M2。
+2. `custom-profile` 作为第八类资产的方向成立，但必须等待 ADR-17 Accepted，并拥有独立 AssetKind/typed owner/事务/registry 契约。
+3. Draft 阶段可修改组合；首次提交冻结 Snapshot，运行后只能通过 fork/new Session 采用新组合。
+4. M1 只开放当前 Location 的 Agent + Prompt + Skill 与 native presentation；全局资产、MCP、Command、Workflow 执行、Plugin runtime 和 Code Presentation均后置。
+5. M1 完全不执行 Runtime Extension；M4 才允许已安装、验证、审批、版本固定且可停止/隔离/回滚的 Trusted Extension，禁止模型代码即时执行。
+6. 删除 Profile 后历史与 Snapshot 始终可查看；继续执行取决于冻结内容与精确运行依赖，缺失时明确阻断，不能静默使用默认 Agent 或最新版本。
+7. 统一审批入口属于 M3：应用级可见，授权事实限定 once/Session/Location，并包含 Agent、revision、过期和撤销语义；应用级入口不等于应用级永久授权。
+8. Prompt/Skill 提供明确默认消费者绑定并允许启动前改绑；未连接资产不加载，不做全员自动注入。
 
 ## 14. 当前推荐结论
 
@@ -417,3 +419,42 @@ Composition Snapshot = 每个 Session 创建时冻结的运行真值
 ```
 
 这比“每个 Agent 一个模式”更可控，也比“我的智能体只是启动台”更完整。它真正覆盖用户提出的目标：用户在一个独立大模式中选择自己创建的智能体并组合其他资产，由 `meta` 统一理解、调度和汇总，同时保持 AigcForge 的权限、Location、Session V2 和资产审批边界。Coding 保留 `meta` 与 `build` 互补的产品特例，不强行套入单一委派模型。
+
+## 15. 升级方向已收敛
+
+第五模式不直接把资产当作任意可执行代码，而采用四层平台模型：
+
+```text
+Platform Foundation
+  -> Composition Profile
+      -> Asset Blocks
+          -> Session Composition Snapshot
+```
+
+- **Platform Foundation**：复用现有 ModeWorkspace、Session V2、Permission、ToolRegistry、Location、v2 UI 和 Plugin 安全边界；用户资产不能替换这些底座。
+- **Composition Profile**：新增的第八类资产，保存 Agent allowlist、资产引用、绑定关系、presentation 和 revision；由 Chat 管理、Custom 消费。
+- **Asset Blocks**：Agent/Workflow 是主干，Skill/MCP/Command 是枝干，Prompt/参数/数据引用是叶子，Plugin 是高风险扩展；所有连接必须显式。
+- **Composition Snapshot**：首次提交时冻结 Profile 和资产解析结果；当前 Session 不因 watcher 或文件变化而热替换执行环境。
+
+加载生命周期分为三种：
+
+1. 冷启动：完整解析、依赖检查、权限计算和用户预览。
+2. 热启动：复用未过期的解析计划和非敏感缓存，但仍重新确认 revision、权限和凭证可用性。
+3. 热更新：更新 registry 和未启动 Profile 的健康状态；运行中 Session 只收到版本漂移提示，通过 fork/new session 采用新版本。
+
+删除也分为移除引用、删除 Profile、删除资产和禁用 Plugin，不做隐式级联删除。删除前显示反向引用，删除资产后已有 Session 按快照继续或进入明确阻断状态，后续不完整组合不得静默回退。
+
+页面上继续使用共享 `ModeWorkspace` 外壳和 Custom typed slot。Custom 主区围绕“组合”组织为资产目录、组合清单/画布、解析预览三部分；Session 仍使用 canonical Session route，Plugin 只能接入声明式 typed slot 或既有 tool-view，不能任意接管页面。
+
+推荐实施顺序：
+
+```text
+M0 统一 AssetRef/Revision/Health/Dependency/ReverseReference 和 CompositionResolver 契约
+M1 custom + meta + 一个用户 Agent + Prompt/Skill + Snapshot
+M2 多 Agent + Command/Workflow + 进度/取消/恢复
+M3 MCP 的 Session/Location scoped 工具注册和凭证生命周期
+M4 Plugin trust、审批、Host/Client 分面和受控 UI
+M5 Native/Code Tool Presentation 与 run_code SDK
+```
+
+具体平台边界和生命周期规则以 [ADR-17](../../architecture/adr/ADR-17-custom-mode-composition-platform.md) 为准，产品范围与验收以 [Custom PRD](../../prd/custom-mode-composition-platform.md) 为准，阶段依赖与交付顺序以 [Custom 路线图](../../roadmap/custom-mode-roadmap.md) 为准。

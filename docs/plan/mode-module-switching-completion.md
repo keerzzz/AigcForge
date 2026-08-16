@@ -6,6 +6,7 @@
 > Owner：App + Session Platform
 > 架构决策：[`ADR-11-product-mode-session-classification.md`](../architecture/adr/ADR-11-product-mode-session-classification.md)、[`ADR-12-product-mode-entry-routing.md`](../architecture/adr/ADR-12-product-mode-entry-routing.md)
 > 取代：[`mode-unified-architecture.md`](mode-unified-architecture.md)、[`mode-switcher-implementation.md`](mode-switcher-implementation.md)
+> 后续扩展边界：本计划记录已经完成的四模式基线。ADR-17/Custom PRD 提议通过独立 M0 治理增加固定 `custom`；接受前不得把本计划中的封闭四值约束改写为已实现五值，也不得从前端放宽为任意字符串 Mode。
 
 ## 实施摘要
 
@@ -33,7 +34,7 @@
 - Draft 路由以 `DraftTab.mode` 为权威；Session 路由以 durable `Session.mode` 为权威。
 - Home 的最近 Mode 仅作为展示默认值。
 - ServerSync 按 `(directory, mode)` 发起服务端过滤查询，并合并到统一 Session 实体集。
-- Product Mode 是封闭领域，不支持前端任意字符串 Custom Mode。
+- Product Mode 是封闭领域，不支持前端任意字符串 Mode。当前封闭集合为四值；ADR-17 若获接受，只能通过 Schema/API/SDK/迁移同步增加固定 `custom`，不能由前端动态注册任意 Mode。
 
 ### 后续迭代
 

@@ -4,6 +4,7 @@
 > Date: 2026-07-19
 > Amends: [ADR-12 §3](ADR-12-product-mode-entry-routing.md)
 > 关联：[ADR-11](ADR-11-product-mode-session-classification.md)、[ADR-13](ADR-13-chat-work-mode-boundary.md)（模式定位表）、[ADR-14](ADR-14-persistence-and-scope-strategy.md) §4（数据真源）、[Chat PRD §9](../../prd/chat-mode-creation-layer.md)
+> Proposed extension: [ADR-17](ADR-17-custom-mode-composition-platform.md) proposes a Custom typed slot using this same shared owner. It must not create a parallel workspace shell and is not implemented until ADR-17 is Accepted.
 
 ## 背景
 

@@ -16,6 +16,7 @@
 | Per-page UI architecture | `docs/architecture/pages/*.md` |
 | V2 subsystem API design | `specs/v2/*.md` |
 | Product Mode state and Session classification | `docs/architecture/adr/ADR-11-product-mode-session-classification.md` |
+| Proposed Custom Mode composition contract | `docs/architecture/adr/ADR-17-custom-mode-composition-platform.md` · `docs/prd/custom-mode-composition-platform.md` · `docs/roadmap/custom-mode-roadmap.md` |
 | Product PRDs & requirements | `docs/prd/` |
 | Skills navigation & protocol topology | `.aigcfroge/skills/protocols/SKILL.md` |
 | Enterprise code standard & refactoring | `.aigcfroge/skills/enterprise-code-standard/SKILL.md` · `.aigcfroge/skills/reuse-first-refactor/SKILL.md` |
@@ -196,6 +197,8 @@ Effect Schema-first provider abstraction. Default path is the AI SDK; native pat
 
 Product Mode (`chat | coding | work | assistant`) is a persisted App filtering context and a durable Session classification. It is separate from Agent execution mode (`primary | subagent | all`).
 
+The four-value set above is the current implemented and Accepted contract. ADR-17 proposes one additional fixed value, `custom`, plus a `Custom Profile -> Composition Plan -> Composition Snapshot` lifecycle. Until ADR-17 is Accepted and its supersede/migration chain is approved, readers and implementations must not treat `custom` as a valid runtime value or decode it as Coding.
+
 - Home cards and the global icon rail navigate to `/mode/:mode`; that module-entry navigation never creates/restores a Draft or Session, selects a Tab, reclassifies work, or changes the Agent.
 - Session routes remain keyed only by server and Session identity.
 - Draft routes remain keyed by draft identity; Product Mode comes from `DraftTab.mode`.
@@ -205,6 +208,7 @@ Product Mode (`chat | coding | work | assistant`) is a persisted App filtering c
 - Existing rows and historical events without Product Mode decode as Coding.
 - Target implementation: `docs/plan/mode-module-switching-completion.md`.
 - Decisions: `docs/architecture/adr/ADR-11-product-mode-session-classification.md`, `docs/architecture/adr/ADR-12-product-mode-entry-routing.md`, `docs/architecture/adr/ADR-13-chat-work-mode-boundary.md`, `docs/architecture/adr/ADR-14-persistence-and-scope-strategy.md`, `docs/architecture/adr/ADR-15-mode-workspace-main-area-slot.md` (Accepted; main-area typed slot, Chat asset-centric; ADR-13 Amendment-1 assigns workflow definition→Chat, execution→Work), `docs/architecture/adr/ADR-16-global-home-overview.md` (Accepted; `/` renders the global aggregate home page, titlebar left gains a global home entry).
+- Proposed extension: `docs/architecture/adr/ADR-17-custom-mode-composition-platform.md`; product scope and staged gates live in `docs/prd/custom-mode-composition-platform.md` and `docs/roadmap/custom-mode-roadmap.md`.
 
 ### 4.11 External CLI Dispatch
 

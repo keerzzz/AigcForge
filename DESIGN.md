@@ -26,6 +26,7 @@ Do not build landing-page hero patterns inside the app shell. Avoid decorative s
 ## Product Mode Switching
 
 - Chat, Coding, Work, and Assistant have first-class module entry routes at `/mode/:mode`. Home cards and the global icon rail navigate to those routes, but selection alone must not create a Draft/Session, restore recent work, select a Tab, reclassify work, or change the Agent.
+- ADR-17 proposes a fifth fixed Custom entry. Until it is Accepted, the four routes above remain the implemented contract. If accepted, Custom must join the same definition registry and shared `ModeWorkspace`; it must not introduce a parallel shell, Session route, navigation rail, or styling system.
 - Projects and Workspaces remain visible across Mode changes. Session lists, search results, load-more state, empty states, and unread summaries reflect the selected Mode.
 - When the routed Session or current Draft belongs to a different Mode, show a compact contextual indicator. Do not silently reclassify it or interrupt the Composer.
 - An empty Mode provides an explicit, Mode-labelled new-session action; selection alone never creates work.

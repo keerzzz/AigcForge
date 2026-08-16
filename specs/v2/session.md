@@ -12,6 +12,19 @@ The target contract adds required `mode` to Session Info, optional `mode` to roo
 
 App module entry navigation is defined by ADR-12: Home cards and the global icon rail navigate to `/mode/:mode`, but that navigation never creates/restores a Session, creates a Draft, selects a Tab, changes Agent selection, or reclassifies the routed Session. Implementation and test sequencing are defined in `docs/plan/mode-module-switching-completion.md`.
 
+### Proposed Custom Extension
+
+ADR-17 and the Custom PRD propose adding one fixed `custom` Product Mode. That proposal is not part of the current approved four-value contract until its governance gate is complete. The target extension preserves the existing Session laws and adds these requirements:
+
+- a Custom root Session uses `meta`; one M1 user Agent is a Snapshot-bound delegation target, not the root Agent;
+- the first submission freezes an immutable Composition Snapshot, while Context Epoch remains the truth for exact model-visible System Context;
+- child Sessions and forks inherit the parent/source Custom Mode and the applicable Snapshot facts;
+- profile or asset changes never rewrite a running Session; adopting new revisions requires a fork or new Session;
+- unsupported old clients fail explicitly for `custom` and never apply the historical Coding fallback;
+- profile deletion preserves Session history; continuation fails explicitly when exact runtime dependencies are unavailable.
+
+Source of truth while proposed: `docs/architecture/adr/ADR-17-custom-mode-composition-platform.md`, `docs/prd/custom-mode-composition-platform.md`, and `docs/roadmap/custom-mode-roadmap.md`.
+
 ## Current V2 Core Slice
 
 The Effect-native core facade treats prompt recording and execution as separate responsibilities:

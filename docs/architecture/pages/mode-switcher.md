@@ -4,6 +4,7 @@
 > 代码位置：packages/app/src/context/mode.tsx, packages/app/src/components/mode-switcher.tsx, packages/app/src/components/mode-surfaces.tsx
 > 决策：[`ADR-11-product-mode-session-classification.md`](../adr/ADR-11-product-mode-session-classification.md)、[`ADR-12-product-mode-entry-routing.md`](../adr/ADR-12-product-mode-entry-routing.md)
 > 实施计划：[`mode-module-switching-completion.md`](../../plan/mode-module-switching-completion.md)
+> Proposed extension: [`ADR-17`](../adr/ADR-17-custom-mode-composition-platform.md) proposes a fixed Custom entry; until accepted, this page documents the implemented four-mode switcher.
 
 ---
 

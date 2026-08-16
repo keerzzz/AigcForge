@@ -4,6 +4,7 @@
 > Date: 2026-07-12
 > Amends: [ADR-11 Product Mode State and Session Classification](ADR-11-product-mode-session-classification.md)
 > Preserves: [ADR-09 Mode Route Decoupling](ADR-09-mode-route-decoupling.md)
+> Proposed extension: [ADR-17 Custom Mode Composition Platform](ADR-17-custom-mode-composition-platform.md) proposes `/mode/custom` through the same parameterized route and shared workspace. It does not authorize arbitrary string modes, and this ADR remains authoritative until ADR-17 is Accepted.
 
 ## Context
 

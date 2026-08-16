@@ -2,6 +2,7 @@
 
 > 状态：Accepted（2026-07-15 接受；接受条件已满足：四份 v3 PRD 对边界表述与本 ADR 一致、工作流归属保持未决、ARCHITECTURE.md §7 同步列 Accepted）
 > 关联：[ADR-11](ADR-11-product-mode-session-classification.md)、[ADR-12](ADR-12-product-mode-entry-routing.md)、[Amendment-1](ADR-13-amendment-1-workflow-asset.md)、[Amendment-2](ADR-13-amendment-2-meta-agent-dispatch.md)、[Chat PRD](../../prd/chat-mode-creation-layer.md)、[Work PRD](../../prd/work-mode-execution-layer.md)、[Assistant PRD](../../prd/assistant-mode-personal-agent.md)、[My Agents PRD](../../prd/my-agents-launcher.md)
+> Proposed supersede: [ADR-17](ADR-17-custom-mode-composition-platform.md) proposes moving My Agents launch/combination into a fixed fifth Custom Mode. Until ADR-17 is Accepted, §边界规则 4 remains the current decision.
 
 ## 背景
 

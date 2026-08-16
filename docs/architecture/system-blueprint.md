@@ -128,7 +128,7 @@ Home 组件：
 
 ## 9. 后续规划 (PLANNED，当前代码未实现)
 
-- Mode Switcher: 四模式 (Chat/Work/Coding/Assistant)
+- Mode Switcher: 当前四模式 (Chat/Work/Coding/Assistant)；ADR-17 提议加入固定 Custom，第五入口必须复用同一 Mode registry/ModeWorkspace，接受前不属于已实现事实
 - Status Bar: 底部度量栏
 - MetaAgent: CHAT 模式元智能体调度
 - 6 大资产: .aigcfroge/ 目录体系
