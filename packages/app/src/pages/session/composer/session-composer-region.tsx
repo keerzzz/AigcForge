@@ -1,4 +1,4 @@
-import { Show, createEffect, createMemo, createResource } from "solid-js"
+import { Show, createEffect, createMemo, createResource, createSignal } from "solid-js"
 import { useNavigate, useSearchParams } from "@solidjs/router"
 import { useLayout } from "@/context/layout"
 import { PromptInput } from "@/components/prompt-input"
@@ -11,6 +11,7 @@ import { getSessionHandoff, setSessionHandoff } from "@/pages/session/handoff"
 import { useSessionKey } from "@/pages/session/session-layout"
 import { SessionPermissionDock } from "@/pages/session/composer/session-permission-dock"
 import { PermissionTierSelector } from "@/pages/session/composer/permission-tier-selector"
+import { SessionPermissionOverrideControl } from "@/pages/session/composer/session-permission-override-dialog"
 import { SessionQuestionDock } from "@/pages/session/composer/session-question-dock"
 import { SessionFollowupDock } from "@/pages/session/composer/session-followup-dock"
 import { SessionRevertDock } from "@/pages/session/composer/session-revert-dock"
@@ -169,6 +170,40 @@ export function SessionComposerRegion(props: {
   const tierValue = createMemo<"propose" | "full" | undefined>(
     () => draft()?.permissionTier ?? info()?.permissionTier,
   )
+  const [overrideEnabled, setOverrideEnabled] = createSignal(false)
+  const overrideStatus = async () => {
+    const id = route.params.id
+    if (!id) return
+    try {
+      const res = await sdk().client.permission.override.get({ sessionID: id })
+      setOverrideEnabled(res.data?.enabled === true)
+    } catch {
+      setOverrideEnabled(false)
+    }
+  }
+  createEffect(() => {
+    if (!route.params.id) return
+    void overrideStatus()
+  })
+  const overrideRequest = async (input: { method: "PUT" | "DELETE"; acknowledged?: boolean }) => {
+    const id = route.params.id
+    if (!id) return
+    try {
+      if (input.method === "PUT") {
+        const res = await sdk().client.permission.override.put({
+          sessionID: id,
+          ...(input.acknowledged !== undefined ? { acknowledged: input.acknowledged } : {}),
+        })
+        setOverrideEnabled(res.data?.enabled === true)
+      } else {
+        await sdk().client.permission.override.delete({ sessionID: id })
+        setOverrideEnabled(false)
+      }
+    } catch {
+      showToast({ title: language.t("common.requestFailed") })
+    }
+  }
+
   const onTierChange = async (tier: "propose" | "full") => {
     if (search.draftId) {
       tabs.updateDraft(search.draftId, { permissionTier: tier })
@@ -259,6 +294,18 @@ export function SessionComposerRegion(props: {
         </Show>
 
         <PermissionTierSelector mode={tierMode()} agent={tierAgent()} value={tierValue()} onChange={onTierChange} />
+
+        <Show when={route.params.id}>
+          <SessionPermissionOverrideControl
+            sessionID={route.params.id!}
+            root={!parentID()}
+            attended={info()?.attended}
+            enabled={overrideEnabled}
+            onEnable={() => void overrideRequest({ method: "PUT", acknowledged: true })}
+            onRenew={() => void overrideRequest({ method: "PUT" })}
+            onDisable={() => void overrideRequest({ method: "DELETE" })}
+          />
+        </Show>
 
         <Show when={showComposer()}>
           <Show

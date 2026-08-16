@@ -27,6 +27,7 @@ import { MessageID, PartID, SessionID, type SessionID as SessionIDType } from ".
 import { Database } from "@aigcfroge/core/database/database"
 import { SessionInputTable, SessionMessageTable, SessionTable, TodoTable } from "@aigcfroge/core/session/sql"
 import { SessionMessage } from "@aigcfroge/core/session/message"
+import { SessionPermissionOverride } from "@aigcfroge/core/permission/session-override"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { EventV2 } from "@aigcfroge/core/event"
 import { ModelV2 } from "@aigcfroge/core/model"
@@ -74,6 +75,7 @@ const it = testEffect(
     EventV2.defaultLayer,
     workspaceLayer,
     Database.defaultLayer,
+    SessionPermissionOverride.locationLayer,
     httpApiLayer,
   ).pipe(Layer.provide(Ripgrep.defaultLayer)),
 )
@@ -1696,5 +1698,68 @@ describe("session permission tier HttpApi", () => {
         expect(fetched).toMatchObject({ id: created.id, permissionTier: "full" })
       }).pipe(Effect.provide(TestLLMServer.layer), Effect.provide(CrossSpawnSpawner.defaultLayer)),
     { timeout: 60_000 },
+  )
+})
+
+describe("session permission override HttpApi", () => {
+  it.instance(
+    "enables, renews, and disables the override for an attended root session",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = { "x-aigcfroge-directory": encodeURIComponent(test.directory), "content-type": "application/json" }
+        const session = yield* createSession({ mode: "chat", agent: "meta" })
+
+        const initial = yield* requestJson<{ enabled: boolean }>(
+          pathFor(SessionPaths.permissionOverride, { sessionID: session.id }),
+          { headers },
+        )
+        expect(initial).toEqual({ enabled: false })
+
+        const missingAck = yield* request(
+          pathFor(SessionPaths.permissionOverride, { sessionID: session.id }),
+          { method: "PUT", headers, body: JSON.stringify({}) },
+        )
+        expect(missingAck.status).toBe(400)
+
+        const enabled = yield* requestJson<{ enabled: boolean }>(
+          pathFor(SessionPaths.permissionOverride, { sessionID: session.id }),
+          { method: "PUT", headers, body: JSON.stringify({ acknowledged: true }) },
+        )
+        expect(enabled).toEqual({ enabled: true })
+
+        const renewed = yield* requestJson<{ enabled: boolean }>(
+          pathFor(SessionPaths.permissionOverride, { sessionID: session.id }),
+          { method: "PUT", headers, body: JSON.stringify({}) },
+        )
+        expect(renewed).toEqual({ enabled: true })
+
+        const disabled = yield* requestJson<{ enabled: boolean }>(
+          pathFor(SessionPaths.permissionOverride, { sessionID: session.id }),
+          { method: "DELETE", headers },
+        )
+        expect(disabled).toEqual({ enabled: false })
+      }),
+  )
+
+  it.instance(
+    "rejects override activation for child and unattended sessions",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = { "x-aigcfroge-directory": encodeURIComponent(test.directory), "content-type": "application/json" }
+        const parent = yield* createSession({ mode: "chat", agent: "meta" })
+        const child = yield* createSession({ parentID: parent.id, mode: "chat", agent: "meta" })
+        const unattended = yield* createSession({ mode: "chat", agent: "meta", attended: false })
+
+        for (const session of [child, unattended]) {
+          const response = yield* request(
+            pathFor(SessionPaths.permissionOverride, { sessionID: session.id }),
+            { method: "PUT", headers, body: JSON.stringify({ acknowledged: true }) },
+          )
+          expect(response.status).toBe(400)
+          expect(yield* responseJson(response)).toMatchObject({ _tag: "InvalidRequestError" })
+        }
+      }),
   )
 })

@@ -13,6 +13,7 @@ import { Identifier } from "./util/identifier"
 import { Wildcard } from "./util/wildcard"
 import { PermissionSaved } from "./permission/saved"
 import { PermissionEffective } from "./permission/effective"
+import { SessionPermissionOverride } from "./permission/session-override"
 
 export { Effect, Rule, Ruleset } from "@aigcfroge/schema/permission"
 const missingAgentPermissions: Permission.Ruleset = [{ action: "*", resource: "*", effect: "deny" }]
@@ -143,6 +144,7 @@ export const layer = Layer.effect(
     const agents = yield* AgentV2.Service
     const sessions = yield* SessionStore.Service
     const saved = yield* PermissionSaved.Service
+    const override = yield* SessionPermissionOverride.Service
     const pending = new Map<ID, Pending>()
 
     yield* EffectRuntime.addFinalizer(() =>
@@ -178,7 +180,7 @@ export const layer = Layer.effect(
           tier: session.permissionTier ?? PermissionTier.Default,
           parentID: session.parentID,
           attended: session.attended,
-          masterPermissionEnabled: false,
+          masterPermissionEnabled: yield* override.get(sessionID),
           savedApprovals: yield* savedRules(),
         },
         base,
@@ -338,4 +340,7 @@ export const layer = Layer.effect(
   }),
 )
 
-export const locationLayer = layer.pipe(Layer.provideMerge(AgentV2.locationLayer))
+export const locationLayer = layer.pipe(
+  Layer.provideMerge(AgentV2.locationLayer),
+  Layer.provideMerge(SessionPermissionOverride.locationLayer),
+)

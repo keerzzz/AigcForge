@@ -21,6 +21,7 @@ import { Git } from "./git"
 import { Global } from "./global"
 import { Database } from "./database/database"
 import { PermissionV2 } from "./permission"
+import { SessionPermissionOverride } from "./permission/session-override"
 import { PermissionSaved } from "./permission/saved"
 import { FileSystem } from "./filesystem"
 import { Ripgrep } from "./ripgrep"
@@ -119,6 +120,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
     const resources = ToolOutputStore.layer.pipe(Layer.provide(base))
     const permissionsAndTools = ToolRegistry.layer.pipe(
       Layer.provideMerge(PermissionV2.locationLayer),
+      Layer.provideMerge(SessionPermissionOverride.locationLayer),
       Layer.provide(resources),
       Layer.provide(base),
     )

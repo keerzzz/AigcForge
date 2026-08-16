@@ -108,6 +108,7 @@ export const SessionPaths = {
   revert: `${root}/:sessionID/revert`,
   unrevert: `${root}/:sessionID/unrevert`,
   permissions: `${root}/:sessionID/permissions/:permissionID`,
+  permissionOverride: `${root}/:sessionID/permission-override`,
   deleteMessage: `${root}/:sessionID/message/:messageID`,
   deletePart: `${root}/:sessionID/message/:messageID/part/:partID`,
   updatePart: `${root}/:sessionID/message/:messageID/part/:partID`,
@@ -516,6 +517,45 @@ export const SessionApi = HttpApi.make("session")
             summary: "Respond to permission",
             description: "Approve or deny a permission request from the AI assistant.",
             deprecated: true,
+          }),
+        ),
+        HttpApiEndpoint.get("getPermissionOverride", SessionPaths.permissionOverride, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          success: described(Schema.Struct({ enabled: Schema.Boolean }), "Override status"),
+          error: [HttpApiError.BadRequest, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "permission.override.get",
+            summary: "Get session permission override status",
+            description:
+              "Returns whether the temporary break-glass permission override is active for the current session.",
+          }),
+        ),
+        HttpApiEndpoint.put("putPermissionOverride", SessionPaths.permissionOverride, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          payload: Schema.Struct({ acknowledged: Schema.optional(Schema.Boolean) }),
+          success: described(Schema.Struct({ enabled: Schema.Boolean }), "Override status"),
+          error: [HttpApiError.BadRequest, ApiNotFoundError, InvalidRequestError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "permission.override.put",
+            summary: "Enable or renew the session permission override",
+            description:
+              "Enables (first enable requires acknowledged:true) or renews the 60s temporary break-glass lease. Child and unattended sessions are rejected.",
+          }),
+        ),
+        HttpApiEndpoint.delete("deletePermissionOverride", SessionPaths.permissionOverride, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          success: described(Schema.Struct({ enabled: Schema.Boolean }), "Override status"),
+          error: [HttpApiError.BadRequest, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "permission.override.delete",
+            summary: "Disable the session permission override",
+            description: "Disables the temporary break-glass permission override for the current session.",
           }),
         ),
         HttpApiEndpoint.delete("deleteMessage", SessionPaths.deleteMessage, {

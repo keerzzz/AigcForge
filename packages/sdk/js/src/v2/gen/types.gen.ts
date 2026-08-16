@@ -62,6 +62,8 @@ export type Event =
   | EventInstallationUpdateAvailable
   | EventFileEdited
   | EventReferenceUpdated
+  | EventPermissionOverrideEnabled
+  | EventPermissionOverrideDisabled
   | EventPermissionV2Asked
   | EventPermissionV2Replied
   | EventPluginAdded
@@ -1389,6 +1391,21 @@ export type GlobalEvent = {
         type: "reference.updated"
         properties: {
           [key: string]: unknown
+        }
+      }
+    | {
+        id: string
+        type: "permission.override.enabled"
+        properties: {
+          sessionID: string
+          expiresAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "permission.override.disabled"
+        properties: {
+          sessionID: string
         }
       }
     | {
@@ -3666,6 +3683,8 @@ export type V2Event =
   | V2EventInstallationUpdateAvailable
   | V2EventFileEdited
   | V2EventReferenceUpdated
+  | V2EventPermissionOverrideEnabled
+  | V2EventPermissionOverrideDisabled
   | V2EventPermissionV2Asked
   | V2EventPermissionV2Replied
   | V2EventPluginAdded
@@ -6954,6 +6973,41 @@ export type V2EventReferenceUpdated = {
   }
 }
 
+export type V2EventPermissionOverrideEnabled = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "permission.override.enabled"
+  data: {
+    sessionID: string
+    expiresAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventPermissionOverrideDisabled = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "permission.override.disabled"
+  data: {
+    sessionID: string
+  }
+}
+
 export type V2EventPermissionV2Asked = {
   id: string
   metadata?: {
@@ -8707,6 +8761,23 @@ export type EventReferenceUpdated = {
   type: "reference.updated"
   properties: {
     [key: string]: unknown
+  }
+}
+
+export type EventPermissionOverrideEnabled = {
+  id: string
+  type: "permission.override.enabled"
+  properties: {
+    sessionID: string
+    expiresAt: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventPermissionOverrideDisabled = {
+  id: string
+  type: "permission.override.disabled"
+  properties: {
+    sessionID: string
   }
 }
 
@@ -14568,6 +14639,117 @@ export type PermissionRespondResponses = {
 }
 
 export type PermissionRespondResponse = PermissionRespondResponses[keyof PermissionRespondResponses]
+
+export type PermissionOverrideDeleteData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/permission-override"
+}
+
+export type PermissionOverrideDeleteErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type PermissionOverrideDeleteError = PermissionOverrideDeleteErrors[keyof PermissionOverrideDeleteErrors]
+
+export type PermissionOverrideDeleteResponses = {
+  /**
+   * Override status
+   */
+  200: {
+    enabled: boolean
+  }
+}
+
+export type PermissionOverrideDeleteResponse =
+  PermissionOverrideDeleteResponses[keyof PermissionOverrideDeleteResponses]
+
+export type PermissionOverrideGetData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/permission-override"
+}
+
+export type PermissionOverrideGetErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type PermissionOverrideGetError = PermissionOverrideGetErrors[keyof PermissionOverrideGetErrors]
+
+export type PermissionOverrideGetResponses = {
+  /**
+   * Override status
+   */
+  200: {
+    enabled: boolean
+  }
+}
+
+export type PermissionOverrideGetResponse = PermissionOverrideGetResponses[keyof PermissionOverrideGetResponses]
+
+export type PermissionOverridePutData = {
+  body?: {
+    acknowledged?: boolean
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/permission-override"
+}
+
+export type PermissionOverridePutErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type PermissionOverridePutError = PermissionOverridePutErrors[keyof PermissionOverridePutErrors]
+
+export type PermissionOverridePutResponses = {
+  /**
+   * Override status
+   */
+  200: {
+    enabled: boolean
+  }
+}
+
+export type PermissionOverridePutResponse = PermissionOverridePutResponses[keyof PermissionOverridePutResponses]
 
 export type PartDeleteData = {
   body?: never

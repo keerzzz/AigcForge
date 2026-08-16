@@ -192,6 +192,12 @@ import type {
   PathGetResponses,
   PermissionListErrors,
   PermissionListResponses,
+  PermissionOverrideDeleteErrors,
+  PermissionOverrideDeleteResponses,
+  PermissionOverrideGetErrors,
+  PermissionOverrideGetResponses,
+  PermissionOverridePutErrors,
+  PermissionOverridePutResponses,
   PermissionReplyErrors,
   PermissionReplyResponses,
   PermissionRespondErrors,
@@ -3364,6 +3370,123 @@ export class Question extends HeyApiClient {
   }
 }
 
+export class Override extends HeyApiClient {
+  /**
+   * Disable the session permission override
+   *
+   * Disables the temporary break-glass permission override for the current session.
+   */
+  public delete<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).delete<
+      PermissionOverrideDeleteResponses,
+      PermissionOverrideDeleteErrors,
+      ThrowOnError
+    >({
+      url: "/session/{sessionID}/permission-override",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get session permission override status
+   *
+   * Returns whether the temporary break-glass permission override is active for the current session.
+   */
+  public get<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<
+      PermissionOverrideGetResponses,
+      PermissionOverrideGetErrors,
+      ThrowOnError
+    >({
+      url: "/session/{sessionID}/permission-override",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Enable or renew the session permission override
+   *
+   * Enables (first enable requires acknowledged:true) or renews the 60s temporary break-glass lease. Child and unattended sessions are rejected.
+   */
+  public put<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      acknowledged?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "acknowledged" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).put<
+      PermissionOverridePutResponses,
+      PermissionOverridePutErrors,
+      ThrowOnError
+    >({
+      url: "/session/{sessionID}/permission-override",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class Permission extends HeyApiClient {
   /**
    * List pending permissions
@@ -3477,6 +3600,11 @@ export class Permission extends HeyApiClient {
         ...params.headers,
       },
     })
+  }
+
+  private _override?: Override
+  get override(): Override {
+    return (this._override ??= new Override({ client: this.client }))
   }
 }
 

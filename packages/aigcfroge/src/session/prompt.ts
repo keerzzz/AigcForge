@@ -35,6 +35,7 @@ import { SessionProcessor } from "./processor"
 import { Tool } from "@/tool/tool"
 import { Permission } from "@/permission"
 import { PermissionEffective } from "@aigcfroge/core/permission/effective"
+import { SessionPermissionOverride } from "@aigcfroge/core/permission/session-override"
 import { PermissionStateContext } from "@aigcfroge/core/system-context/permission-state"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { SessionStatus } from "./status"
@@ -133,6 +134,18 @@ export const layer = Layer.effect(
     const commands = yield* Command.Service
     const config = yield* Config.Service
     const permission = yield* Permission.Service
+    // 软依赖：override service 缺失时按关闭处理（fail-closed）。
+    const override = Option.getOrElse(
+      yield* Effect.serviceOption(SessionPermissionOverride.Service),
+      () =>
+        SessionPermissionOverride.Service.of({
+          get: () => Effect.succeed(false),
+          enable: () => Effect.void,
+          renew: () => Effect.void,
+          disable: () => Effect.void,
+          clear: () => Effect.void,
+        }),
+    )
     const fsys = yield* FSUtil.Service
     const mcp = yield* MCP.Service
     const lsp = yield* LSP.Service
@@ -360,7 +373,9 @@ export const layer = Layer.effect(
         tier: session.permissionTier ?? PermissionTier.Default,
         parentID: session.parentID,
         attended: session.attended,
-        masterPermissionEnabled: false,
+        masterPermissionEnabled: yield* override
+                .get(sessionID)
+                .pipe(Effect.catchTag("Session.NotFoundError", () => Effect.succeed(false))),
         savedApprovals: [],
       }
       const subtaskRules = PermissionEffective.effectiveV1(
@@ -1412,7 +1427,9 @@ export const layer = Layer.effect(
               tier: session.permissionTier ?? PermissionTier.Default,
               parentID: session.parentID,
               attended: session.attended,
-              masterPermissionEnabled: false,
+              masterPermissionEnabled: yield* override
+                .get(session.id)
+                .pipe(Effect.catchTag("Session.NotFoundError", () => Effect.succeed(false))),
               savedApprovals: [],
             }
             const effectiveRules = PermissionEffective.effectiveV1(
