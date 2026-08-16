@@ -34,6 +34,10 @@ import { NamedError } from "@aigcfroge/core/util/error"
 import { SessionProcessor } from "./processor"
 import { Tool } from "@/tool/tool"
 import { Permission } from "@/permission"
+import { PermissionEffective } from "@aigcfroge/core/permission/effective"
+import { SessionPermissionOverride } from "@aigcfroge/core/permission/session-override"
+import { PermissionStateContext } from "@aigcfroge/core/system-context/permission-state"
+import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { SessionStatus } from "./status"
 import { LLM } from "./llm"
 import { Shell } from "@aigcfroge/core/shell"
@@ -130,6 +134,18 @@ export const layer = Layer.effect(
     const commands = yield* Command.Service
     const config = yield* Config.Service
     const permission = yield* Permission.Service
+    // 软依赖：override service 缺失时按关闭处理（fail-closed）。
+    const override = Option.getOrElse(
+      yield* Effect.serviceOption(SessionPermissionOverride.Service),
+      () =>
+        SessionPermissionOverride.Service.of({
+          get: () => Effect.succeed(false),
+          enable: () => Effect.void,
+          renew: () => Effect.void,
+          disable: () => Effect.void,
+          clear: () => Effect.void,
+        }),
+    )
     const fsys = yield* FSUtil.Service
     const mcp = yield* MCP.Service
     const lsp = yield* LSP.Service
@@ -350,6 +366,24 @@ export const layer = Layer.effect(
         throw error
       }
 
+      // 子代理工具审批回调：同一 owner 计算（session 档位语义 + 子代理基线）。
+      const subtaskInput: PermissionEffective.Input = {
+        mode: session.mode,
+        agent: taskAgent.name,
+        tier: session.permissionTier ?? PermissionTier.Default,
+        parentID: session.parentID,
+        attended: session.attended,
+        masterPermissionEnabled: yield* override
+                .get(sessionID)
+                .pipe(Effect.catchTag("Session.NotFoundError", () => Effect.succeed(false))),
+        savedApprovals: [],
+      }
+      const subtaskRules = PermissionEffective.effectiveV1(
+        subtaskInput,
+        Permission.merge(taskAgent.permission, session.permission ?? []),
+      )
+      const subtaskFinalRules = PermissionEffective.v1FinalRules(subtaskInput)
+
       let error: Error | undefined
       const taskAbort = new AbortController()
       const result = yield* taskTool
@@ -374,7 +408,8 @@ export const layer = Layer.effect(
               .ask({
                 ...req,
                 sessionID,
-                ruleset: Permission.merge(taskAgent.permission, session.permission ?? []),
+                ruleset: subtaskRules,
+                ...(subtaskFinalRules.length ? { finalRules: subtaskFinalRules } : {}),
               })
               .pipe(Effect.orDie),
         })
@@ -1384,6 +1419,25 @@ export const layer = Layer.effect(
             const bypassAgentCheck = lastUserMsg?.parts.some((p) => p.type === "agent") ?? false
             const promptOps = yield* ops()
 
+            // V1 provider turn 只计算一次有效 Ruleset（唯一 owner），供工具
+            // 物化、LLM request 与 ctx.ask 共用（计划 §2.3）。
+            const effectiveInput: PermissionEffective.Input = {
+              mode: session.mode,
+              agent: agent.name,
+              tier: session.permissionTier ?? PermissionTier.Default,
+              parentID: session.parentID,
+              attended: session.attended,
+              masterPermissionEnabled: yield* override
+                .get(session.id)
+                .pipe(Effect.catchTag("Session.NotFoundError", () => Effect.succeed(false))),
+              savedApprovals: [],
+            }
+            const effectiveRules = PermissionEffective.effectiveV1(
+              effectiveInput,
+              Permission.merge(agent.permission, session.permission ?? []),
+            )
+            const finalRules = PermissionEffective.v1FinalRules(effectiveInput)
+
             const tools = yield* SessionTools.resolve({
               agent,
               session,
@@ -1392,6 +1446,8 @@ export const layer = Layer.effect(
               bypassAgentCheck,
               messages: msgs,
               promptOps,
+              ruleset: effectiveRules,
+              finalRules,
             }).pipe(
               Effect.provideService(Plugin.Service, plugin),
               Effect.provideService(Permission.Service, permission),
@@ -1420,13 +1476,18 @@ export const layer = Layer.effect(
               instruction.system().pipe(Effect.orDie),
               MessageV2.toModelMessagesEffect(msgs, model),
             ])
-            const system = [...env, ...instructions, ...(skills ? [skills] : [])]
+            const system = [
+              ...env,
+              ...instructions,
+              ...(skills ? [skills] : []),
+              PermissionStateContext.render(effectiveInput),
+            ]
             const format = lastUser.format ?? { type: "text" as const }
             if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
             const result = yield* handle.process({
               user: lastUser,
               agent,
-              permission: session.permission,
+              permission: effectiveRules,
               sessionID,
               parentSessionID: session.parentID,
               system,

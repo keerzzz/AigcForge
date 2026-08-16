@@ -736,6 +736,39 @@ it.instance("meta agent prompt contains protocol documents and identity sections
   }),
 )
 
+it.instance("meta is fail-closed: no wildcard allow, unknown actions deny, propose tools visible", () =>
+  Effect.gen(function* () {
+    const meta = yield* load((svc) => svc.get("meta"))
+    expect(meta).toBeDefined()
+    const rules = meta!.permission
+    expect(
+      rules.some((rule) => rule.permission === "*" && rule.pattern === "*" && rule.action === "allow"),
+    ).toBe(false)
+    expect(Permission.evaluate("some_future_tool", "*", rules).action).toBe("deny")
+    for (const action of ["read", "glob", "grep", "question", "list_assets", "webfetch", "websearch"]) {
+      expect(Permission.evaluate(action, "*", rules).action).toBe("allow")
+    }
+    for (const action of [
+      "propose_prompt_asset",
+      "propose_skill_asset",
+      "propose_mcp_asset",
+      "propose_command_asset",
+      "propose_agent_asset",
+      "propose_workflow_asset",
+      "propose_plugin_asset",
+    ]) {
+      expect(Permission.evaluate(action, "*", rules).action).toBe("allow")
+    }
+    for (const action of ["bash", "edit", "write"]) {
+      expect(Permission.evaluate(action, "*", rules).action).toBe("ask")
+    }
+    expect(Permission.evaluate("task", "*", rules).action).toBe("allow")
+    expect(Permission.evaluate("read", ".env", rules).action).toBe("ask")
+    expect(Permission.evaluate("read", ".env.example", rules).action).toBe("allow")
+    expect(Permission.evaluate("external_directory", "/outside", rules).action).toBe("ask")
+  }),
+)
+
 it.instance(
   "defaultAgent throws when default_agent points to subagent",
   () => expectDefaultAgentError('default agent "explore" is a subagent'),

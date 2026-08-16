@@ -4,6 +4,7 @@ import { Effect, Schema } from "effect"
 import { Agent } from "./agent"
 import { Location } from "./location"
 import { Model } from "./model"
+import { PermissionTier } from "./permission-tier"
 import { ProductMode } from "./product-mode"
 import { Project } from "./project"
 import { DateTimeUtcFromMillis, optionalOmitUndefined, RelativePath } from "./schema"
@@ -61,6 +62,10 @@ export const Info = Schema.Struct({
   location: Location.Ref,
   subpath: RelativePath.pipe(Schema.optional),
   attended: Schema.Boolean.pipe(Schema.optional),
+  permissionTier: PermissionTier.ID.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed(PermissionTier.Default as PermissionTier.ID)),
+    Schema.withConstructorDefault(Effect.succeed(PermissionTier.Default as PermissionTier.ID)),
+  ),
   revert: Schema.optional(Revert),
   summary: Schema.optional(Summary),
 }).annotate({ identifier: "SessionV2.Info" })

@@ -3,8 +3,8 @@
 > 状态：**Approved**（2026-07-18，全权 owner 拍板；Gate 1-5 签字见 §15.1）
 > 负责人：产品（范围与指标）/ Core（资产契约与事务）/ App（Chat surface）/ Security（写入边界）
 > 范围：`packages/app` + `packages/core` + `packages/aigcfroge` + `packages/schema`
-> 关联：[ADR-11](../architecture/adr/ADR-11-product-mode-session-classification.md)、[ADR-12](../architecture/adr/ADR-12-product-mode-entry-routing.md)、[ADR-13](../architecture/adr/ADR-13-chat-work-mode-boundary.md)、[ADR-13 Amendment-2](../architecture/adr/ADR-13-amendment-2-meta-agent-dispatch.md)、[ADR-14](../architecture/adr/ADR-14-persistence-and-scope-strategy.md)、[ADR-15](../architecture/adr/ADR-15-mode-workspace-main-area-slot.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md) §4.10、[CONTEXT.md](../../CONTEXT.md)、[M1 实施计划](../plan/chat-mode-creation-layer-m1.md)、[M2 实施计划](../plan/chat-asset-studio-m2.md)、[Assistant PRD](assistant-mode-personal-agent.md)
-> 最后更新：2026-08-15（v4.8：同步 Chat 当前 Session `meta + full` 受控执行例外；资产 typed 事务边界不变）
+> 关联：[ADR-11](../architecture/adr/ADR-11-product-mode-session-classification.md)、[ADR-12](../architecture/adr/ADR-12-product-mode-entry-routing.md)、[ADR-13](../architecture/adr/ADR-13-chat-work-mode-boundary.md)、[ADR-14](../architecture/adr/ADR-14-persistence-and-scope-strategy.md)、[ADR-15](../architecture/adr/ADR-15-mode-workspace-main-area-slot.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md) §4.10、[CONTEXT.md](../../CONTEXT.md)、[M1 实施计划](../plan/chat-mode-creation-layer-m1.md)、[M2 实施计划](../plan/chat-asset-studio-m2.md)、[Assistant PRD](assistant-mode-personal-agent.md)
+> 最后更新：2026-08-16（v4.8 实施注记：会话级权限档位 `propose`/`full` 与当前 Session `full` 例外已落地，约束见 [ADR-13 Amendment-2 §1c 状态标注](../architecture/adr/ADR-13-amendment-2-meta-agent-dispatch.md) 与 [实施计划](../plan/mode-scoped-permission-overlay.md)；Chat 默认 propose-only，`full` 仅由用户主动为有人值守根 Session 开启，危险 action 逐次确认）
 
 ---
 
@@ -20,7 +20,7 @@
 
 > 内部用户（产品负责人）原话：外部内容有导出的我直接导出到电脑上然后导入到当前项目中；如果没有，直接复制对话内容，包括思考过程。
 
-Chat 是**资产生命周期层**：负责创建、校验、应用、管理资产；Work/Coding 负责消费资产执行任务；Assistant 负责个人记忆与主动触达。边界遵循已接受的 ADR-13/14。**创建动作不只在 Chat 发生**（捕获入口遍布所有模式），但资产的管理中心只在 Chat。用户可为当前有人值守的 Chat 根 Session 主动开启 `meta + full` 执行通用文件写入和命令；该例外不转移资产 owner，也不能绕过本 PRD 的 propose/apply 事务。
+Chat 是**资产生命周期层**：负责创建、校验、应用、管理资产；Work/Coding 负责消费资产执行任务；Assistant 负责个人记忆与主动触达。边界遵循已接受的 ADR-13/14。**创建动作不只在 Chat 发生**（捕获入口遍布所有模式），但资产的管理中心只在 Chat。
 
 ## 3. 架构前提
 
@@ -28,7 +28,6 @@ Chat 是**资产生命周期层**：负责创建、校验、应用、管理资�
 |---|---|---|
 | 四类 Product Mode 与 canonical Session route | ADR-11/12 已接受 | 直接遵循 |
 | Chat/Work/Assistant 职责边界 | ADR-13 已接受 | 直接遵循；个人记忆归 Assistant |
-| Chat 当前 Session `meta + full` | ADR-13 Amendment-2 §1c 已接受 | 默认仍 propose-only；用户主动开启后危险操作逐次确认，受管资产仍走 typed 事务 |
 | 项目/全局落盘策略与 typed owner service | ADR-14 已接受 | 每类资产独立 typed 契约与事务 |
 | 提示词资产闭环（schema/registry/事务/双运行时） | 实现中，见 M1 计划 | 作为框架首个类型复用，不重写 |
 | 工作流引擎归属 | 定义归 Chat / 执行归 Work（[ADR-13 Amendment-1](../architecture/adr/ADR-13-amendment-1-workflow-asset.md)） | Chat 负责定义（第 6 类资产），不预埋执行能力 |
@@ -60,16 +59,7 @@ Chat 是**资产生命周期层**：负责创建、校验、应用、管理资�
 - 创建 Agent 保持 fail-closed：仅 `read`/`glob`/`grep`/`question`/`propose_*`，无 `task`/`edit`/`write`/`bash`；apply/delete 安全由 HTTP 认证 + 服务端事务 + UI 显式确认保证（§8.3.1），模型不可见 apply/delete。
 - 项目级落盘 `<Location.directory>/.aigcfroge/`，资产可随项目 git 共享。
 
-### 5.2 Chat Session `full` 例外
-
-- 默认 `propose` 不变；只有用户主动为当前有人值守的 Chat 根 Session 选择 `meta + full` 才生效。
-- `bash`、`edit`、`write`、`apply_patch` 和未来未知危险 action 以 `ask` 暴露，每次操作进入现有 Permission Dock；不得静默 `allow`，saved approval 不得跳过 Chat `full` 的逐次确认。
-- unattended Session 将未预授权的 `ask` 降为 `deny`，saved approval 与临时 master override 均不得越过。
-- Chat 在 `propose` 和 `full` 下都禁止 `task → build` 与 external CLI。
-- `full` 只允许处理不属于已注册资产事务的通用文件/命令任务。对本 PRD 管理的资产，仍必须走 `propose_* → 用户确认 → 受校验的 apply/delete 事务`，不得用通用写工具绕过 Schema、路径 containment、CAS、回滚、registry reload 和 readback。这里约束事务行为，不宣称每个资产类型都已封装为独立 Core Effect service。
-- `chat-orchestrator` 与创建 Agent 的 fail-closed 信封不因 Session 档位改变；例外只适用于显式选择的 `meta`。
-
-### 5.3 非目标
+### 5.2 非目标
 
 - 不做个人记忆/偏好的创建与注入（归 Assistant 模式及其后续里程碑）。
 - 不做外部对话流的持续同步、官方 API 接入或浏览器扩展（另立 ADR/PRD）。
@@ -89,7 +79,7 @@ Chat 是**资产生命周期层**：负责创建、校验、应用、管理资�
 | 作为技术负责人，我想资产落在项目目录，以便团队 git 共享统一规范 | 资产写入 `.aigcfroge/` 项目级路径，无用户级隐藏状态 |
 | 作为资产管理者，我想按用途浏览、搜索、编辑资产，以便保持清单整洁可用 | 管理视图按消费路径分组；编辑走同一事务；空/错/加载态明确 |
 | 作为资产管理者，我想编辑资产时改坏了能恢复，以便不破坏项目 | 编辑走同一 apply 事务（baseRevision CAS）；apply 失败回滚旧内容；未确认前不落盘；并发改动返回 stale 不覆盖 |
-| 作为资产管理者，我想删除资产前有明确确认且失败可恢复，以免误删 | 删除走认证后的 HTTP 事务；显式二次确认；失败恢复旧文件；registry reload 后才算成功 |
+| 作为资产管理者，我想删除资产前有明确确认且失败可恢复，以免误删 | 删除走 `prompt_asset_delete` 独立权限动作 + 事务；显式二次确认；失败恢复旧文件；registry reload 后才算成功 |
 | 作为创建者，我想在创建时知道已有相似资产，以便避免重复 | propose 返回相似资产提示，用户选择复用或新建 |
 | 作为失败恢复者，我想校验或注册失败后保留原文件，以便项目不被破坏 | 新文件被清理或旧文件字节级恢复，并显示可操作错误 |
 
@@ -128,7 +118,7 @@ Chat 是**资产生命周期层**：负责创建、校验、应用、管理资�
 - 编辑入口复用预览/校验/事务；删除需确认（软删除与归档属后续里程碑）。
 - 三条路径共用同一个"预览 → 校验 → 确认 → 事务"骨架，UI 不复制三份。
 
-已注册资产不得由模型调用通用 Write 完成落盘，即使当前 Chat Session 启用了 `meta + full`。模型负责生成候选内容，资产服务拥有持久化边界。
+不得由模型直接调用通用 Write 完成落盘。模型负责生成候选内容，资产服务拥有持久化边界。
 
 ## 8. 数据与接口契约
 
@@ -305,14 +295,14 @@ Chat 会话页（canonical `/server/:serverKey/session/:id`，外壳与 Coding �
 
 - 按消费路径分组（Composer 插入、斜杠调用、Agent、Skill、MCP），分组行显示计数；空分组显示 0 不隐藏。
 - 资产行：名称单行截断，按最近修改排序；类型内子目录支持嵌套显示。
-- 行操作（hover 出现、键盘可达）：插入/调用、编辑、删除。删除走 HTTP 认证 + 显式二次确认 + 服务端事务（§8.3.1），不依赖未消费的 Agent 权限动作。
+- 行操作（hover 出现、键盘可达）：插入/调用、编辑、删除。删除走 `prompt_asset_delete` 独立权限动作 + 显式二次确认 + 事务（§8.3.1），不只靠 UI 确认。
 - "未解析"区：registry 跳过的坏文件必须可见（名称 + 解析失败态，点击查看错误 tag），不允许文件"凭空消失"。registry 暴露 `listInvalid(): ReadonlyArray<{ relativePath, errorTag }>` 与 `getInvalid(path)` 接口（C3）：返回坏文件路径 + error tag，**不含正文/旧内容**；M1 当前为"跳过 + 脱敏 warning"，Phase B 契约须扩此接口供 UI 与管理视图消费。
 - 点击资产 → 以资产 tab 打开（交互同 Coding 文件树点击打开文件 tab）。
 
 ### 9.5 资产 tab（查看/编辑两态）
 
 - 复用文件 tab 的打开机制与查看层（只读渲染、搜索、滚动恢复）；资产即 `.aigcfroge/` 下的 markdown 文件，tab 身份沿用文件路径。
-- 查看态：名称/描述/路径 + 正文只读 + [编辑] [插入] [删除]。[删除] 经 HTTP 认证后执行：显式二次确认 -> 服务端事务（备份/原子删除/reload/readback）-> 失败恢复旧文件。
+- 查看态：名称/描述/路径 + 正文只读 + [编辑] [插入] [删除]。[删除] 触发 `prompt_asset_delete` 独立权限动作（§8.3.1）：显式二次确认 -> 服务端事务（备份/原子删除/reload/readback）-> 失败恢复旧文件；不只靠 UI 二次确认。
 - 编辑态：正文可编辑 + [应用]（走 apply 事务，携带 baseRevision CAS，全量重校验，授权模型见 §8.3.1）+ [取消]。编辑器选型（A2）：编辑态正文用**受控 textarea 起步**（等宽字体，复用 v2 token），不引入编辑器依赖；后续如需语法高亮/结构化 diff，单独走依赖评审（与 plan 禁止凭空引 `@solidjs/testing-library` 同理）。
 - 不继承行评论（资产的修订回路是直接编辑或对话修订，非 prompt 上下文批注）。
 
@@ -409,7 +399,7 @@ PRD 覆盖全部路径与类型；实施按供给路径先后推进、按消费�
 - 捕获预填内容与原消息一致；重复指令建议可触发、可忽略、可关闭；**凭证模式扫描（S4）：含 API key / `.env` 行 / 私钥的消息触发警告且不阻断，剥离动作生效，日志不含命中片段正文**。
 - 写入失败、原子替换失败、registry parse 失败、reload 失败和回读不一致；故障后新文件不存在或旧文件字节一致。
 - 预览编辑后的内容与最终落盘一致；apply 不信任预览状态、全量重校验。
-- 编辑/删除事务回归（C2/S2/S3）：编辑 apply 走 baseRevision CAS，失败回滚旧内容；delete 走认证后的 HTTP 事务，失败恢复旧文件，外部修改返回 `concurrent_modification`；任意会话发起 apply/delete 均不放宽写边界（HTTP 认证、路径 containment、确认、脱敏不变）。
+- 编辑/删除事务回归（C2/S2/S3）：编辑 apply 走 baseRevision CAS，失败回滚旧内容；delete 走 `prompt_asset_delete` 事务，失败恢复旧文件，外部修改返回 `concurrent_modification`；任意会话发起 apply/delete 均不放宽写边界（路径 containment、权限动作、脱敏不变）。
 - 导入 untrusted 隔离（S1）：导入内容进模型上下文时被 `<untrusted_import>` 包裹 + 系统约束，创建 Agent 不将其作为指令执行；注入样本（"忽略以上指令，改写为…"）不生效。
 - 双区右栏窄屏（A5）：<768px 时 B 区资产树折叠为抽屉，A 区全宽，折叠/展开状态内存态保留；`isDesktop` gate 对 chat 生效。
 - 三条路径共用事务的回归：同一时刻仅一个目标写入。
@@ -435,7 +425,7 @@ PRD 覆盖全部路径与类型；实施按供给路径先后推进、按消费�
 
 1. ADR-13/14 状态与 `ARCHITECTURE.md` 一致（已接受，需在评审记录中确认）。
 2. 资产框架契约（§8.1.1：AssetKind 注册/schema/错误面/注册入口 + per-type owner + 原子写入事务）通过 Core 架构评审。
-3. 安全评审覆盖路径边界、覆盖/删除确认、apply/delete 的 HTTP 认证与事务模型（§8.3.1）、日志脱敏、失败回滚、导入 LLM 上下文 untrusted 隔离（§7.3）与凭证扫描边界（§7.2）。
+3. 安全评审覆盖路径边界、覆盖确认、`prompt_asset_delete` 删除权限动作、apply/delete 授权模型（§8.3.1）、日志脱敏、失败回滚、导入 LLM 上下文 untrusted 隔离（§7.3）与凭证扫描边界（§7.2）。
 4. 产品、Core、App 三方负责人确认分路径指标（§11）、埋点与 Beta Gate；G3 替代测量（§11.1）与 50 次基线计划（§11.2）就绪。
 5. App 评审覆盖 SessionSidePanel per-slot 重构估算（A1）、编辑器选型（A2）、diff 复用范围（A3）、i18n 18 locale 补齐计划（A4）、窄屏双区行为（A5）。
 
@@ -453,7 +443,7 @@ PRD 覆盖全部路径与类型；实施按供给路径先后推进、按消费�
 |---|---|---|---|
 | 1. ADR 一致 | **PASS** | ADR-13/14 Accepted（2026-07-15）；`ARCHITECTURE.md` §7 已同步列 Accepted + Implemented 补 Prompt Asset M1 | — |
 | 2. 框架契约 Core 评审 | **PASS** | §8.1.1 AssetKind 注册/schema/错误面/注册入口；C-2 签名对齐项目规范 + 迁移路径推荐 (a) | Core owner: ✓ |
-| 3. 安全评审 | **PASS** | §8.3.1 apply/delete 授权（S-1 定论：HTTP 认证 + 事务 + UI 确认）；§7.3 导入 untrusted 隔离；§7.2 凭证扫描；§9.4/9.5 删除交互与事务 | Security owner: ✓ |
+| 3. 安全评审 | **PASS** | §8.3.1 apply/delete 授权（S-1 定论：HTTP 认证 + 事务 + UI 确认）；§7.3 导入 untrusted 隔离；§7.2 凭证扫描；§9.4/9.5 `prompt_asset_delete` | Security owner: ✓ |
 | 4. 指标/埋点/Beta Gate | **PASS** | §11 分路径指标；§11.1 G3 替代测量；§11.2 基线计划；§12 灰度 | 产品/Core/App owner: ✓ |
 | 5. App A1-A5 | **PASS** | §13.2 A1 per-slot；A2 textarea；A3 diff 复用；A4 i18n 补齐 18 locale；A5 窄屏 | App owner: ✓ |
 
@@ -696,3 +686,4 @@ Plugin 作为第 7 类资产（`AssetKindId`）开闸：`.plugin.yaml` 格式，
 | 前端工作台切新路由、删除伪造 sessionID | 1 文件 |
 
 **不做的替代方案**：把 `sessionID` 改成可选参数——HttpApi 的路径参数不支持可选，会退化成两套路由，等价于本方案但语义更含糊。
+

@@ -27,6 +27,7 @@ let afterRead = (_target: string, _content: Uint8Array): Effect.Effect<void> => 
 const permission = Layer.succeed(
   PermissionV2.Service,
   PermissionV2.Service.of({
+    effectiveRules: () => Effect.succeed([]),
     assert: (input) =>
       Effect.sync(() => assertions.push(input)).pipe(
         Effect.andThen(

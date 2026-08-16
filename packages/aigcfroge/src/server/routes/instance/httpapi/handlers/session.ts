@@ -7,6 +7,7 @@ import { SessionTodo } from "@aigcfroge/core/session/todo"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task" // Schema namespace; the core SessionTask import above uses the unaliased name.
 import { PermissionV2 } from "@aigcfroge/core/permission"
+import { SessionPermissionOverride } from "@aigcfroge/core/permission/session-override"
 import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
 import { SessionRevert as V2SessionRevert } from "@aigcfroge/core/session/revert"
 import { SessionSummary as V2SessionSummary } from "@aigcfroge/core/session/summary"
@@ -77,6 +78,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const events = yield* EventV2Bridge.Service
     const { db } = yield* Database.Service
     const scope = yield* Scope.Scope
+    const permissionOverrideSvc = yield* SessionPermissionOverride.Service
 
     const list = Effect.fn("SessionHttpApi.list")(function* (ctx: { query: typeof ListQuery.Type }) {
       return yield* session.list({
@@ -407,6 +409,55 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       return true
     })
 
+    const overrideNotFound = (sessionID: SessionID) =>
+      Effect.fail(notFound(`Session not found: ${sessionID}`))
+
+    const overrideGet = Effect.fnUntraced(function* (sessionID: SessionID) {
+      return yield* permissionOverrideSvc.get(sessionID).pipe(
+        Effect.catchTag("Session.NotFoundError", () => overrideNotFound(sessionID)),
+      )
+    })
+
+    const overrideStatus = Effect.fn("SessionHttpApi.overrideStatus")(function* (sessionID: SessionID) {
+      return { enabled: yield* overrideGet(sessionID) }
+    })
+
+    const putOverride = Effect.fn("SessionHttpApi.putOverride")(function* (ctx: {
+      params: { sessionID: SessionID }
+      payload: { acknowledged?: boolean }
+    }) {
+      const active = yield* permissionOverrideSvc
+        .get(ctx.params.sessionID)
+        .pipe(Effect.catchTag("Session.NotFoundError", () => overrideNotFound(ctx.params.sessionID)))
+      if (!active && ctx.payload.acknowledged !== true) {
+        return yield* new InvalidRequestError({
+          message: "First activation of the permission override requires acknowledged:true",
+          kind: "permission-override",
+        })
+      }
+      yield* (active ? permissionOverrideSvc.renew : permissionOverrideSvc.enable)(ctx.params.sessionID).pipe(
+        Effect.catchTag("PermissionOverride.UnavailableError", (error) =>
+          Effect.fail(
+            new InvalidRequestError({
+              message: error.reason === "child-session"
+                ? "Permission override is only available for root sessions"
+                : "Permission override is not available for unattended sessions",
+              kind: "permission-override",
+            }),
+          ),
+        ),
+        Effect.catchTag("Session.NotFoundError", () => overrideNotFound(ctx.params.sessionID)),
+      )
+      return { enabled: true }
+    })
+
+    const deleteOverride = Effect.fn("SessionHttpApi.deleteOverride")(function* (ctx: {
+      params: { sessionID: SessionID }
+    }) {
+      yield* permissionOverrideSvc.disable(ctx.params.sessionID)
+      return { enabled: false }
+    })
+
     const update = Effect.fn("SessionHttpApi.update")(function* (ctx: {
       params: { sessionID: SessionID }
       payload: typeof UpdatePayload.Type
@@ -430,6 +481,29 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
           sessionID: ctx.params.sessionID,
           permission: Permission.merge(current.permission ?? [], ctx.payload.permission),
         })
+      }
+      if (ctx.payload.permissionTier !== undefined) {
+        yield* session
+          .setPermissionTier({
+            sessionID: ctx.params.sessionID,
+            permissionTier: ctx.payload.permissionTier,
+          })
+          .pipe(
+            Effect.catchTag("Session.PermissionTierError", (error) =>
+              Effect.fail(
+                new InvalidRequestError({
+                  message:
+                    error.reason === "child-session"
+                      ? "Permission tier is only available for root sessions"
+                      : "Permission tier is not available for unattended sessions",
+                  kind: "permission-tier",
+                }),
+              ),
+            ),
+            Effect.catchTag("NotFoundError", () =>
+              Effect.fail(notFound(`Session not found: ${ctx.params.sessionID}`)),
+            ),
+          )
       }
       if (ctx.payload.time?.archived !== undefined) {
         yield* session.setArchived({ sessionID: ctx.params.sessionID, time: ctx.payload.time.archived })
@@ -852,6 +926,11 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       .handle("revert", revert)
       .handle("unrevert", unrevert)
       .handle("permissionRespond", permissionRespond)
+      .handle("getPermissionOverride", (ctx: { params: { sessionID: SessionID } }) =>
+        overrideStatus(ctx.params.sessionID),
+      )
+      .handle("putPermissionOverride", putOverride)
+      .handle("deletePermissionOverride", deleteOverride)
       .handle("deleteMessage", deleteMessage)
       .handle("deletePart", deletePart)
       .handle("updatePart", updatePart)

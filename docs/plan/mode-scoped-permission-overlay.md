@@ -1,697 +1,726 @@
 # 会话级权限档位实施计划（Session Permission Tier）
 
-> 状态：**送审终版（前置 Gate 已关闭；尚未实施，2026-08-16 最终复审）**
-> 日期：2026-08-15（2026-08-16 复审修订）
-> 依据：[CLAUDE.md](../../CLAUDE.md)、[AGENTS.md](../../AGENTS.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md)、[CONTEXT.md](../../CONTEXT.md)、[ADR-13](../architecture/adr/ADR-13-chat-work-mode-boundary.md)、[ADR-13 Amendment-2](../architecture/adr/ADR-13-amendment-2-meta-agent-dispatch.md)（§1c，2026-08-15 人类裁决）、[Chat PRD](../prd/chat-mode-creation-layer.md)（v4.8 §5.2）
-> 前置 Gate：**已关闭（2026-08-16 核验）**——`chat-mode-audit` 已合入 `main`（merge `a4b0485aa`，PR #30）；权限安全前置提交 `38de28529`（meta 信封收窄 + external-cli 通道 gate）、`a6321f20e`（meta 非 coding 模式 bash/edit/write 改 ask）、`a272e463f`（ADR-13 Amendment-2）均为 `main` 祖先（`git merge-base --is-ancestor 38de28529 main` 通过，`main..HEAD` 为空）。实施分支 `session-permission-tier` 可从当前 `main` 直接切出
-> 范围：`packages/schema`、`packages/core`、`packages/aigcfroge`、`packages/app`、`packages/sdk/js`、相关 ADR/PRD/架构文档
-> Owner：Core（有效权限与 Session 数据）/ Security（权限边界）/ App（档位与 break-glass UI）/ API（V1/V2 往返）
-> 执行提示词：[prompt-mode-scoped-permission-overlay.md](prompt-mode-scoped-permission-overlay.md)
+> 状态：**已实施（2026-08-16，分支 `session-permission-tier`；验收与裁决记录见 §9/§10）**
+> 日期：2026-08-15（送审）· 2026-08-16（实施收口）
+> 依据：[CLAUDE.md](../../CLAUDE.md)、[AGENTS.md](../../AGENTS.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md)、[ADR-13](../architecture/adr/ADR-13-chat-work-mode-boundary.md) + [Amendment-2](../architecture/adr/ADR-13-amendment-2-meta-agent-dispatch.md)、[Chat 模式审计报告](../audit/AigcForge_CHAT_MODE_AUDIT_2026-08-14.md)
+> 前置：`fix/chat-mode-audit-p1-p3` 分支已合并（含 `checkCliDelegationAllowed` 与 task 工具模式前置检查）
+> 分支：`session-permission-tier`（从 main 切出，批准后即切）
+> 范围：`packages/core`（权限服务 + 模式策略 + config 总闸）· `packages/schema`（档位枚举）· `packages/app`（输入框档位选择器 + 设置总闸开关）· `packages/aigcfroge`（V1 meta 信封收窄）
+> Owner：Core（权限层）/ Security（边界评审）/ App（输入框 + 设置 UI）
+> 命中 skills：`effect`（Effect v4 编码）· `enterprise-code-standard`（实现基线）· `reuse-first-refactor`（复用既有 owner）· `quality-to-pr`（交付门禁）
+> Custom 关系：本计划只实现现有 Product Mode 的会话权限档位，不自动批准 Custom 的能力上限或审批模型。Custom 必须在 ADR-17 M0/M1 中定义 mode ceiling 与 Snapshot allowlist；应用级审批入口和 once/Session/Location grant model 属于 Custom M3。
+> **裁决修订（2026-08-16 人类裁决，实测确认）**：propose 档写/命令 action 由本计划 §1.3 原提案的 `deny` 修订为 **`ask`（逐次确认）**。两档差异收敛为：`full` 把未知 action 基线从 deny 抬到 ask；已物化的危险 action（bash/edit/write/apply_patch）两档均逐次 ask。档位产生的 ask 与 configured ask 同待遇——可被 saved approval 预授权（实测：propose 档 always 后同类免确认）；不可预授权的红线仅两条：chat × full 的危险 action（红线 4）与 unattended 全降 deny（红线 5）。
 
 ---
 
-## 0. 结论与目标
+## 0. 背景与目标
 
-### 0.1 根因
+### 0.1 当前状态（代码实测，非推测）
 
-当前权限行为由多处分别决定（2026-08-16 main 代码实测）：
+**问题 1 — meta 默认 fail-open，chat 的 deny-write 边界名存实亡。**
 
-1. Agent 固有权限决定工具是否在 provider turn 开始前可见。（V2：`SessionRunner.runTurn` 直接 `tools.materialize(agent.info?.permissions, intent)`，`packages/core/src/session/runner/llm.ts:387`；V1：`LLMRequestPrep.resolveTools` 内 `Permission.merge(input.agent.permission, input.permission ?? [])`，`packages/aigcfroge/src/session/llm/request.ts:197-200`）
-2. V1 `Permission.ask()` 与 V2 `PermissionV2.assert()` 在执行时再次裁决。（V2 `packages/core/src/permission.ts:244`；V1 `packages/aigcfroge/src/session/prompt.ts:373` 与 `tools.ts:82` 的 `ctx.ask`）
-3. Session 的 `permission` 字段只进入 V1 部分链路。（V1 `tools.ts:82`/`request.ts:200` 会 merge `session.permission`；V2 `configured()`（`permission.ts:169-185`）只读 agent 固有权限，不读 `session.permission`）
-4. Product Mode 只限制 Agent 选择和部分委派路径，不表达用户主动抬权。
-5. V1/V2 Session 创建与 prompt 路径尚未完全收敛。
+`meta` 在 V1（[aigcfroge/agent/agent.ts:129-149](../../packages/aigcfroge/src/agent/agent.ts)）的基线是 `defaults`，首条 `{"*": "allow"}`，仅 deny `bash`/`edit`/`write` 三个 action；V2（[core/plugin/agent.ts:228](../../packages/core/src/plugin/agent.ts)）同形。这属于 fail-open：**新增任何写能力工具，默认对所有模式放行**，除非有人记得去 deny 列表补一行。审计报告 P1-1 / P1-11 已确认。
 
-如果仅在 V2 `configured()` 追加档位规则，会出现“授权层允许，但工具未物化”“V2 生效但默认 V1 不生效”“UI 显示 full 但模型看不到写工具”的三类双轨行为。
+**问题 2 — 非 coding 模式下 `task → build` 委派被拒且无出路。**
+
+`checkPrimaryAgent` 对三个非编码模式只放行「`meta` + 该模式 orchestrator」，`task → build` 一律拒绝（[product-mode-agent-policy.ts:79-113](../../packages/core/src/product-mode-agent-policy.ts)）。子会话继承父模式（[core/session.ts:203](../../packages/core/src/session.ts) `parent?.mode ?? input.mode ?? Default`），所以委派必被拒；meta 提示词的 `retry once, then switch engine` 换哪个引擎都被拒 → 死路。
+
+**问题 3 — 根会话的 unattended 假设，是 Assistant M4（跨信道）的阻断项。**
+
+[core/permission.ts:177-182](../../packages/core/src/permission.ts) 的 `configured()` 只对子会话做 ask→deny 降级，注释写明「A root session (no parentID) always has the user present」。社交桥接会话是根会话，该假设不成立；`assert` 会挂在 Deferred 上直到会话销毁（`unattendedFallback` 注释预言的挂起失败）。
 
 ### 0.2 目标
 
-1. 将 `meta` 的 V1/V2 默认信封统一收敛为 fail-closed。
-2. 新增 Session 持久档位：`propose`（默认）与 `full`。
-3. 档位只影响经过批准的 `mode × agent` 组合；Coding 不受档位影响。
-4. 用户主动为有人值守的 Chat 根 Session 开启 `full` 后，meta 可直接使用写文件和命令工具；危险操作仍逐次 `ask`，并同步 ADR/PRD。
-5. V1/V2 工具物化与执行裁决读取同一个有效权限 owner。
-6. 根会话可显式声明 `attended:false`，所有未预授权的 `ask` 确定降级为 `deny`。
-7. 提供当前根 Session 的临时 break-glass：有人值守时放开一般权限，但 Chat `full` 危险 action 仍逐次 `ask`；状态不持久化、不继承、进程重启自动关闭。
-8. 补齐 Schema、数据库、HTTP、SDK、App、fork/child 的完整数据往返。
-9. 通过动态 Permission Context 告知 meta 当前 mode/tier/override，删除静态提示词中的错误绝对指引。
+1. **收窄 meta 默认信封为 fail-closed**：默认只放行提议工具与领域写工具，`bash`/`edit`/`write` 默认 deny。
+2. **引入会话级权限档位**：用户可在输入框切换档位，同一 meta 在不同档位下拥有不同有效写权限，且默认档位是收窄的一侧。
+3. **build 锁死 coding，meta 非 coding 代 build**：非 coding 模式下 meta 就是 build 的等价体（同样的能力范围），full 档下直接写（走 ask），根治委派死路——meta 不再需要跨模式派 build。
+4. **复用现有 ask 审批链路**：高权限档位的写操作走 `ask`，弹现有 `SessionPermissionDock`，不新写弹窗。
+5. **修补根会话 unattended 假设**，解除 Assistant M4 的权限层阻断。
+6. **委派被拒时返回可操作指引**，消除死路。
+7. **新增全局最高权限总闸**：设置里的逃生舱，打开 = 所有智能体所有权限放开（配二次弹窗），越不过 unattended 兜底。
 
 ### 0.3 非目标
 
-- 不迁移或删除 V1 runtime；本计划要求 V1/V2 同时实现。
-- 不实现 Assistant M4 信道网关；只提供明确的根 Session `attended` 创建契约。
-- 不把 `enforcePrimary` 的最后防线从 defect 改为 typed failure；task 前置检查继续提供可读错误，底层 `die` 保留为不可绕过防线。
-- 不新增全局持久化“最高权限”配置。
-- 不改变 `chat-orchestrator`、`work-orchestrator`、`assistant-orchestrator` 的固定 fail-closed 信封。
-- 不给模型暴露 break-glass HTTP API，也不新增可修改权限状态的工具。
-- 不顺带修改 Effect skill；吞错反模式规则已经存在。
+- 不实现 Assistant M4 的信道网关本身；本计划只解除权限层阻断并交付「桥接会话复用 `subagent_attended_default` 进入无人值守态」契约。
+- 不做 `enforcePrimary` 的 `die`→typed failure 改造（影响 5 个调用点，独立立项，见裁决 D4）。
+- 不新增"完整访问直接 allow"档位——写权限只给 `ask`，不给 `allow`；更彻底的"全放开"由总闸（Phase 7）提供，配二次弹窗与 unattended 兜底。
+- 资产修改/删除的 meta 工具入口（`propose_*_asset_update` / `delete` 之类）不在本计划——目前修改/删除是纯 UI 按钮（PRD §8.3.1），本计划只管"meta 有了写权限后的边界控制"，不管"给 meta 新增删改工具"。
 
----
+### 0.4 本计划闭环的技术债（从 CLAUDE.md 债表与审计报告收敛）
 
-## 1. 已定架构决策
-
-| 编号 | 决策 | 结果 |
+| 债 | 来源 | 本计划 Phase |
 |---|---|---|
-| D0 | 档位存储 | 新增 `session.permission_tier` 列；领域/API 字段统一为 `permissionTier` |
-| D1 | 档位集合 | `propose`（默认）/ `full` 两档 |
-| D2 | 生效范围 | `chat/work/assistant × meta`；Coding 和非 meta Agent 忽略档位 |
-| D3 | Chat 边界 | 默认 propose-only；用户主动为有人值守的当前根 Session 开启 `full` 后，meta 可直接写文件和运行命令，危险操作逐次 `ask` |
-| D4 | build 定位 | build 继续锁死 Coding；非 Coding 的 meta 在 `full` 下直接使用本地工具，不跨模式委派 build |
-| D5 | 有效权限 owner | 新增一个纯 owner，同时生成 V1/V2 有效 Ruleset |
-| D6 | break-glass | 当前根 Session 临时状态；不落库、不进 config、不继承 child/fork、服务重启清零 |
-| D7 | unattended | 根会话由创建方显式传 `attended:false`；不复用 `subagent_attended_default` |
-| D8 | 运行时范围 | V1/V2 工具物化与执行授权必须同时接线 |
-| D9 | 生效时机 | 放宽工具目录从下一 provider turn 生效；收窄后的执行裁决可立即拒绝尚未执行的工具调用 |
+| chat 默认 meta fail-open（`{"*":"allow"}` 基线） | 审计 P1-1 / P1-11；CLAUDE.md 债表「chat 默认主 agent 为 meta（fail-open 权限信封）」 | Phase 1 |
+| meta 非 coding 无法委派 build 且无兜底出路 | CLAUDE.md 债表已登记；审计根因 D | Phase 5 |
+| 根会话 unattended 假设（ask 挂起风险） | 审计 §7 根因；本计划问题 3 | Phase 0 |
+| `effect` skill 缺吞错反模式（`Effect.catch(() => Effect.void)` / `orDie`） | 审计 §9.3 覆盖缺口 | Phase 6（弱耦合，可拆出） |
 
-### 1.1 ADR-13 当前 Session 例外
-
-现有 ADR-13 已批准的默认契约保持不变：
-
-- `propose` 是默认档位。
-- `chat-orchestrator` 永远 propose-only。
-- Chat 不允许通过 `task → build` 或 external CLI 绕过模式边界。
-
-人类已于 2026-08-15 选择受控例外：
-
-- 用户必须主动为当前有人值守的 Chat 根 Session 选择 `meta + full`。
-- meta 可直接使用当前有效规则物化出的写文件和命令工具。
-- `bash`、`edit`、`write`、`apply_patch` 及未来未知危险 action 默认 `ask`，每次操作进入现有 Permission Dock。
-- Chat `full` 的危险 action 必须逐次确认，saved approval 不得将其静默预授权；Agent 基线显式 deny、unattended deny 优先。
-- unattended Session 不得启用 break-glass，且 `full` 中的 `ask` 一律降为 `deny`。
-- Chat 的 `task → build` 与 external CLI 继续拒绝，避免形成第二条不可监管执行通道。
-- 已注册资产类型仍必须走 `propose_* → 用户确认 → 受校验的 apply/delete 事务`，不得用通用写工具绕过资产校验、CAS、回滚和 registry reload。
-
-该例外改变的是当前 Session 的执行权限，不改变 Chat 默认档位和资产生命周期 owner。ADR-13 Amendment-2 §1c（6 项约束）与 Chat PRD v4.8 §5.2（6 项约束）已与本表逐条一致（2026-08-15 工作区同步版），实施时不得扩大该例外。
-
-### 1.2 档位语义
-
-| 场景 | 有效结果 |
-|---|---|
-| Coding + 任意 Agent + 任意档位 | 忽略档位，保持 Agent 固有信封 |
-| 非 Coding + 非 meta | 忽略档位，保持 orchestrator/Agent 固有信封 |
-| 非 Coding + meta + propose | meta fail-closed 基线 |
-| Chat/Work/Assistant + meta + full | 未知 action 默认 ask；meta 基线中的安全 allow 继续 allow |
-| 当前根 Session + master/override + attended | 一般场景全 action/resource allow；Chat `full` 危险 action 仍为 ask |
-| 任意 unattended Session | break-glass 无效；所有 ask 转 deny |
-| 未知 mode / 未知 agent / 未知 tier | fail-safe：不抬权、不产生 wildcard allow，保持对应兜底（Coding 默认 / orchestrator 信封 / propose 语义） |
-
-`full` 不是 `build` 的等价体：它只把 `chat/work/assistant × meta` 基线中原本 deny 的写/命令 action 抬到 `ask`，不产生任何新的 `allow`，也不改变 read/领域工具既有 allow。若未来确需“build 等价”语义，必须另行定义完整 action/resource 范围与新增工具的 fail-closed 策略，并另走 ADR 审批。
-
-`full` 的构造不得手写“当前 40 个工具白名单”。它应使用以下稳定语义：
-
-```text
-meta fail-closed baseline
-→ 追加 wildcard ask，使未知能力可见但必须确认
-→ 重新追加 baseline 中非 deny 规则，保留 read/propose/question 等既有 allow
-```
-
-这样新工具不会静默放行，也不会因为漏维护静态清单而永远不可见。
-
-### 1.3 saved approval 优先级
-
-规则优先级保持现有安全语义：
-
-1. Agent/meta 基线与档位中的显式 `deny` 优先于 saved approval。
-2. Work/Assistant 的 `full` 产生的 `ask` 可沿用 saved approval；Chat `full` 的危险 action 必须逐次确认，不接受 `always` 预授权。
-3. unattended 将 `ask` 转成显式 `deny`，saved approval 不得重新放开该次无人值守调用。
-4. break-glass 不写入 saved approval，也不产生长期授权。
+> 注：资产 apply/delete 非会话路由（CLAUDE.md 债表「工作台伪造 sessionID」）与本计划无直接耦合，不纳入，保持独立债项。
 
 ---
 
-## 2. 唯一有效权限 Owner
+## 1. 方案核心：会话级档位 + 复用现有 ask
 
-### 2.1 新模块
+### 1.1 与旧叠加层方案（已否决）的区别
 
-新增：
-
-`packages/core/src/permission/effective.ts`
-
-模块自导出：
-
-```ts
-export * as PermissionEffective from "./effective"
-```
-
-该模块是纯函数 owner，不访问数据库、不读取 Config、不持有 Map。输入由调用方从 Session、Agent、master/override service 和 saved approvals 组装。
-
-建议公开面：
-
-```ts
-type Input = {
-  mode: ProductMode.ID
-  agent: string
-  tier: PermissionTier.ID
-  parentID?: SessionSchema.ID
-  attended?: boolean
-  masterPermissionEnabled: boolean
-  savedApprovals: ReadonlyArray<SavedApproval>
-}
-
-effectiveV1(input, base): PermissionV1.Ruleset
-effectiveV2(input, base): PermissionV2.Ruleset
-context(input): PermissionContext
-```
-
-`effectiveV1` 与 `effectiveV2` 必须由同一个中性 action/resource 决策结果转换而来；V1/V2 不得各自重写 mode、agent、tier、master、attended 或 saved approval 的条件分支。`masterPermissionEnabled` 是会话级临时状态，默认关闭，必须经过二次确认，且不能由模型或普通 Session API 修改。
-
-同一有效规则是以下五类消费者的唯一输入：
-
-1. V1/V2 provider turn 的工具物化（`ToolRegistry.materialize`，`packages/core/src/tool/registry.ts:52/162`）；
-2. V1/V2 工具执行授权（`PermissionV2.assert`，`permission.ts:244`；V1 `ctx.ask`，`packages/aigcfroge/src/session/tools.ts:82`）；
-3. unattended 降级（`Input.attended === false` 时 `ask → deny`，saved approval 与 override 均不得重新放开）；
-4. saved approval 优先级（`Input.savedApprovals`，见 §1.3）；
-5. 会话级临时 master/override（`Input.masterPermissionEnabled` + §4 的 SessionPermissionOverride）。
-
-当前 `configured()`（`permission.ts:169-185`）与 `runner/llm.ts:387` 的 `materialize(agent.info?.permissions, intent)` 分别读取不同来源，正是本计划要消除的分叉；`ToolRegistry` 不新增 Permission service 依赖，也不承担执行授权（`packages/core/src/tool/AGENTS.md` 已确认 registry 无 `PermissionV2` 依赖）。
-
-### 2.2 V2 调用链
-
-```text
-SessionRunner.runTurn（packages/core/src/session/runner/llm.ts:327/:578）
-  → PermissionV2.Service.effectiveRules(sessionID, agentID)   [新接口]
-  → ToolRegistry.materialize(effectiveRules, intent)          （runner llm.ts:387 现传 agent.info?.permissions，需改）
-  → provider
-  → tool leaf PermissionV2.assert(...)                        （permission.ts:244，经 evaluateInput → configured）
-  → PermissionV2.Service.effectiveRules(sessionID, retainedAgent)
-```
-
-改动要求：
-
-- `PermissionV2.Interface`（`permission.ts:124-131`）新增只读 `effectiveRules`。
-- `configured()`（`permission.ts:169-185`）内部改为调用 `PermissionEffective.effectiveV2`；unattended 降级从“仅子会话”推广到显式 `attended:false` 的根会话（现状只覆盖 `parentID !== undefined`）。
-- `SessionRunner` 不再把 `agent.info.permissions` 直接交给 `materialize()`（`runner/llm.ts:387`）。
-- `ToolRegistry` 继续只负责定义过滤，不新增 Permission service 依赖，符合 `packages/core/src/tool/AGENTS.md`。
-- 执行时重新裁决允许“用户刚刚收窄权限”立即生效；放宽后的新增工具目录在下一 provider turn 出现。
-
-### 2.3 V1 调用链
-
-```text
-SessionPrompt.loop（packages/aigcfroge/src/session/prompt.ts）
-  → 读取 Session + Agent + SessionPermissionOverride
-  → PermissionEffective.effectiveV1(...)
-  → SessionTools.resolve(effectiveRules)          （tools.ts:82 现 merge agent.permission + session.permission）
-  → LLMRequestPrep.resolveTools(effectiveRules)   （llm/request.ts:197-200 现再次拼接 agent 基线）
-  → tool context.ask(effectiveRules)              （prompt.ts:373 现 merge taskAgent.permission + session.permission）
-```
-
-改动要求：
-
-- V1 provider turn 只计算一次 effective Ruleset，并传给工具定义过滤、LLM request 和 `ctx.ask()`。
-- `SessionTools.resolve` 不再自行 `merge(agent.permission, session.permission)`（`tools.ts:82`）。
-- `LLMRequestPrep.resolveTools` 不再再次拼接 Agent 基线（`request.ts:197-200`）。
-- Session 临时 `permission` 规则仍可作为 base 的末尾输入，但档位/override 规则必须由统一 owner 追加。
-- V1/V2 针对同一 mode/agent/tier/attended/override 的行为必须有 parity 测试。
-
-### 2.4 委派策略
-
-`checkPrimaryAgent` 保持 build 锁死 Coding 的现状（`packages/core/src/product-mode-agent-policy.ts:79`）。
-
-`checkCliDelegationAllowed`（`product-mode-agent-policy.ts:164`，调用点 `packages/core/src/tool/task-driver.ts:625`）改为接收档位：
-
-| Mode | propose | full |
+| 维度 | 旧方案：per-agent-per-mode 叠加层 | 新方案：会话级权限档位 |
 |---|---|---|
-| chat | deny | deny |
-| work | deny | allow |
-| assistant | deny | allow |
-| coding | allow | allow（档位实际忽略） |
+| 权限由谁定 | 代码声明的 mode×agent 规则矩阵 | **用户在输入框选档位** |
+| 决策成本 | Product 要裁决「assistant 该不该给 write」等组合 | 只需定义档位，用户自行选择 |
+| 灵活性 | 固定矩阵，改一次动代码 | 会话级，临时切换 |
+| 安全边界 | 靠代码矩阵保证 | 默认 fail-closed + 抬权走 ask |
 
-现状注意：当前签名只有 `(mode: string)` 且未知 mode 返回 `allowed: true`（`packages/core/test/product-mode-agent-policy.test.ts:155` 有断言）。实施时必须改为 `(mode, tier)` 并把未知 mode 断言反转为 deny（fail-safe）；档位化与 fail-safe 属本计划 Phase 4 实施项，不是已合并行为。
+旧方案的根本问题：它替用户回答「这个模式该给多少写权限」，把产品决策固化成代码矩阵。新方案把决定权交还用户，代码只保证**默认安全**与**抬权需确认**。
 
-Chat 的 external CLI 在 `propose` 和 `full` 下都保持拒绝；已批准的直接写入范围不能由 external CLI 旁路扩大。
+### 1.2 三个现成资产（本方案复用，不新造）
+
+| 资产 | 位置 | 现状 | 本计划 |
+|---|---|---|---|
+| `session.permission` 列 | [session/sql.ts:52](../../packages/core/src/session/sql.ts) `text({mode:"json"}).$type<PermissionV1.Ruleset>()` | **已存在，projector/info 投影，但 V2 `configured()` 不读** | ⚠️ 见 §3 存储决策 |
+| `SessionPermissionDock` ask 弹窗 | [session-permission-dock.tsx](../../packages/app/src/pages/session/composer/session-permission-dock.tsx) | 完整（once/always/reject 三按钮） | 直接复用，零改动 |
+| ask 审批全链路 | [permission.ts](../../packages/core/src/permission.ts) assert→ask→Deferred→事件→弹窗→reply | 完整，build 智能体在用 | 直接复用，零改动 |
+
+### 1.3 档位定义（提案，取值见裁决 D2）
+
+**核心架构决策（用户 2026-08-15 定）**：`build` 锁死在 coding 模式；非 coding 模式（chat/work/assistant）下 **meta 就是 build 的等价体**——build 在 coding 能做的（写文件、跑命令、edit），meta 在这些模式也能做，**同样的能力范围**。区别只在授权方式：build 在 coding 免确认（allow），meta 在非 coding 要确认（ask）。
+
+档位因此只控制一件事：**meta 在非 coding 模式是否启用这份 build 级能力**。
+
+| 档位 | meta 的能力范围（非 coding）| 授权方式 | 语义 |
+|---|---|---|---|
+| `propose`（默认）| 只提议资产（`propose_*`）+ 领域写工具 | 写 **ask**（2026-08-16 裁决修订，原提案 deny，见文头） | 保守默认，写/命令逐次确认 |
+| `full` | **= build 级全工具**（`bash`/`edit`/`write`/`propose_*`/…）| 写 **ask** | meta 成为 build 等价体，每次写弹 dock；未知 action 基线由 deny 抬到 ask |
+
+**委派死路的根治**：meta 在非 coding 模式**不再需要派 build**——build 不跨模式，meta 自己就是 build（full 档下直接写，走 ask）。`checkPrimaryAgent` 保持现状（非 coding 拒绝 build 当主 agent），恰好与「build 锁死 coding」一致，**无需档位感知改造**。
+
+**为什么 meta 的写是 ask 而非 build 的 allow**：build 在 coding 免确认，是因为用户"进入 coding 模式"这个动作已经表达了"让 AI 写代码"的意图；meta 在 chat/assistant 模式是"跨界干活"，每次动手必须确认。能力范围相同，授权强度不同——这是有意的安全设计。
+
+**为什么只有 `ask` 没有 `allow` 档**：`allow` 档等于把 meta 的注入风险（P1-1/P1-11 描述的社交桥接直达面）重新打开。用户点 `always` 本身就是"对该动作永久授信"，与 `allow` 档等价且更细粒度、可撤销（走 `PermissionSaved`）。更彻底的"全放开"由 §1.5 第 1 层总闸提供，配二次弹窗。
+
+### 1.4 现有 agent 权限全景（2026-08-15 实测，档位设计的现状基线）
+
+共享基线 `defaults`（V1 与 V2 同形，**fail-open 根源**）：
+
+```
+*: allow                          ← 任何未知 action 默认放行
+external_directory: ask（白名单 dir → allow）
+question / plan_enter / plan_exit: deny
+doom_loop: ask
+read: *→allow, *.env→ask, *.env.*→ask, *.env.example→allow
+```
+
+11 个 agent 在 `defaults` 之上的有效信封：
+
+| Agent | mode | 有效写/执行能力 | 关键限制 |
+|---|---|---|---|
+| **build**（defaultID）| primary | 全开（继承 `*:allow`）| +question/plan_enter；唯一"什么都干"的 agent |
+| **meta** | primary | deny bash/edit/write；**allow task** | +list_assets/question/plan_enter；靠 task 委派间接写 |
+| **plan** | primary | deny edit（除 `.aigcfroge/plans/*.md`）| +plan_exit、external_directory plans |
+| **general** | subagent | 全开（继承 `*:allow`）| deny todowrite/taskwrite/task_*/task_schedule/task_spawn |
+| **explore** | subagent | **deny-all** | 只放行 grep/glob/read/webfetch/websearch |
+| **chat-orchestrator** | primary | **deny-all** | 只放行 7×propose_* + read/glob/grep/question |
+| **work-orchestrator** | primary | **deny-all** | 只放行 work-preset + task_create/task_update + read/glob/grep/question |
+| **assistant-orchestrator** | primary | **deny-all** | 只放行 reminder_*/memory_propose/kb_*/propose_note + read/glob/grep/websearch/webfetch/question |
+| **compaction / title / summary** | primary (hidden) | **deny-all** | 纯内部工具 agent |
+
+**结构规律**：`build` 与 `general` 是 fail-open（继承 `*:allow`）；三个 orchestrator 是 fail-closed（deny-all + 白名单）；`meta` 是"夹心"——fail-open 基线 + 手工 deny 三个写 action + allow task。档位开关正是要把 meta 从"夹心"改成"默认 fail-closed、用户可显式抬权"。
+
+**工具 action 全集（40 个，档位展开只涉及其中 3 个写 action）**：
+
+| 分类 | action |
+|---|---|
+| 写文件/执行 | `bash` `edit` `write` `apply_patch` |
+| 读 | `read` `glob` `grep` `list` |
+| 网络 | `webfetch` `websearch` |
+| 委派 | `task` |
+| 任务板 | `todowrite` `taskwrite` `task_create` `task_update` `task_delete` `task_reorder` `task_schedule` `task_spawn` |
+| 提议资产 | `propose_prompt_asset` `propose_skill_asset` `propose_mcp_asset` `propose_command_asset` `propose_agent_asset` `propose_workflow_asset` `propose_plugin_asset` |
+| 领域写 | `work-preset` `reminder_create` `reminder_update` `reminder_cancel` `memory_propose` `propose_note` |
+| 交互/状态 | `question` `plan_enter` `plan_exit` `list_assets` `skill` |
+| （统计标记）| `doom_loop`（非工具，重复调用拦截的 action 标记）|
+
+**说明**：assistant-orchestrator 的 `kb_search` / `kb_read` / `kb_list_dangling` 三个 action 对应工具已在 [core/src/tool/kb-tools.ts](../../packages/core/src/tool/kb-tools.ts) 完整实现并注册（[builtins.ts:88](../../packages/core/src/tool/builtins.ts) `KBTools.layer`），allow 条目是有效放行，非空转预留。
+
+### 1.5 五层权限控制链（总闸 → 档位 → 授权 → 裁决）
+
+权限请求从「发起到放行/拒绝」经过五层，**从外到内**编号，越靠外越先判断、越不可越过：
+
+| 层 | 名称 | 作用域 | 方向 | 位置 | 谁可越过谁 | Phase |
+|---|---|---|---|---|---|---|
+| **0** | unattended 兜底 | 会话 | 收窄（**硬兜底**）| 后端 `configured()` | **不可被任何开关越过**；无人值守时 ask→deny | 0 |
+| **1** | 最高权限总闸 | 全局 | 放开（逃生舱）| config + 后端 `evaluateInput` | 越过后面的档位/autoAccept/弹窗；**越不过第 0 层** | 7 |
+| **2** | 档位开关 | 会话（仅 meta）| 收窄/放开 | 输入框 + `configured()` | `full` 档的 ask 落到第 3/4 层处理 | 2/3/4 |
+| **3** | autoAccept | 会话/目录 | 放开（提前授权）| 设置 + `context/permission.tsx` | 短路第 4 层弹窗 | 现有 |
+| **4** | ask 弹窗 | 当场 | 裁决 | `SessionPermissionDock` | 最终兜底（有人值守时）| 现有 |
+
+**判断顺序（红线，不可写反）**：
+
+```
+configured() → 第 0 层：unattended？→ 无人值守：压 deny，结束
+            → 第 1 层：总闸开？→ 有人值守：全 allow，结束
+            → 第 2 层：档位展开（propose=deny 写 / full=ask 写）
+            → 第 3 层：autoAccept？→ 开：自动 allow，结束
+            → 第 4 层：ask 弹窗 → once/always/reject
+```
+
+**为什么第 0 层必须最外**：unattended 兜底是「没人看着时宁可拒绝」的安全底线。任何"放开"类开关（总闸/档位/autoAccept）都建立在"有人能点确认"的前提上，桥接/社交场景该前提不成立，故必须被第 0 层挡住。
+
+### 1.6 智能体 × 开关 逻辑关系表
+
+| agent | 固有信封 | 受总闸(层1) | 受档位(层2) | 受 autoAccept(层3) | 受弹窗(层4) |
+|---|---|---|---|---|---|
+| **meta** | 夹心（fail-open 基线 + deny 三写 + allow task）| ✅ 全 allow | ✅ **唯一受档位控制**：full 档 = build 级能力（写 ask），propose 档 = 只提议 | ✅ | ✅ |
+| **build** | fail-open（继承 `*:allow`）| ✅ 全 allow | ❌ 档位只管 meta | ✅ | ✅ |
+| **general** | fail-open | ✅ 全 allow | ❌ | ✅ | ✅ |
+| **explore** | fail-closed（deny-all + 只读白名单）| ✅ 全 allow（总闸放开后 explore 也能写，见下）| ❌ | ✅ | ✅ |
+| **chat-orchestrator** | fail-closed（deny-all + 7×propose）| ✅ 全 allow | ❌ | ✅ | ✅ |
+| **work-orchestrator** | fail-closed（deny-all + work-preset）| ✅ 全 allow | ❌ | ✅ | ✅ |
+| **assistant-orchestrator** | fail-closed（deny-all + reminder/memory/kb）| ✅ 全 allow | ❌ | ✅ | ✅ |
+| **compaction/title/summary** | deny-all（内部工具）| ⚠️ 也全 allow（无害：它们不调危险工具）| ❌ | ✅ | ✅ |
+
+**关键点 1**：档位开关（层 2）**只作用于 meta**——因为 meta 是唯一跨模式入口。build 锁死 coding（coding 内 meta 派它干活）；非 coding 模式 meta 自己就是 build 等价体（full 档）。其它 agent 要么是委派目标，要么是模式专属 orchestrator，各有固定信封，不受档位控制。
+
+**关键点 2**：总闸（层 1）是"核选项"——它连 fail-closed 的 explore/orchestrator 也一起放开。这是"自由度拉满"的字面含义，但代价是：总闸开时，chat 模式里的 chat-orchestrator 也获得写权限（其 deny-all 被总闸覆盖）。所以总闸必须靠「二次弹窗 + 第 0 层不可越」双重保险，才不算 P0 安全洞。
+
+**关键点 3**：autoAccept（层 3）和弹窗（层 4）是**所有 agent 共享**的——不管哪个 agent 的请求触发 ask，都走同一套授权/裁决链路。所以它们不需要 per-agent 配置。
 
 ---
 
-## 3. Session 数据与 API
+## 2. 五层代码追踪（执行前必读）
 
-### 3.1 领域字段
+### L1 Schema 层 — 类型基底
 
-新增 `packages/schema/src/permission-tier.ts`：
-
-```ts
-export const ID = Schema.Literals(["propose", "full"])
-export const Default = "propose"
-```
-
-字段命名：
-
-- 数据库：`permission_tier`
-- TypeScript/HTTP/SDK：`permissionTier`
-
-### 3.2 持久化规则
-
-- 新建根 Session：未传时为 `propose`。
-- 子 Session：默认 `propose`；不得继承 Chat 根 Session 的 `full` 例外。
-- fork：默认 `propose`；用户必须在新根 Session 再次主动开启 `full`。
-- 旧 Session：迁移默认 `propose`。
-- 更新已有 Session：允许通过 `session.update` 修改。
-- break-glass 不进入 Session Info、Event durable payload、数据库或 SDK Session 类型。
-
-### 3.3 数据往返清单
-
-实施必须按以下顺序完整覆盖（每项都有对应代码位点）：
-
-```text
-PermissionTier Schema（packages/schema/src/permission-tier.ts，新增）
-→ SessionTable.permission_tier（packages/core/src/session/sql.ts，新增列；现列见 :32 parent_id / :52 permission / :53 attended）
-→ schema.gen.ts（生成器）
-→ TypeScript migration（packages/core/src/database/migration/*.ts，由生成器产出）
-→ migration.gen.ts（生成器）
-→ SessionV1.SessionInfo（packages/core/src/v1/session.ts:546，含 permission :573 / attended :574）
-→ SessionSchema.Info（packages/schema/src/session.ts:34 mode / :63 attended）
-→ V1/V2 CreateInput（core v1/session.ts、packages/aigcfroge/src/session/session.ts:263-276、packages/core/src/session.ts:81 attended）
-→ Session Created/Updated event payload（v1/session.ts:585-601，携带完整 SessionInfo）
-→ projector.sessionRow（packages/core/src/session/projector.ts:44，permission :71 / attended :72）
-→ SessionInfo.fromRow（packages/core/src/session/info.ts:17，attended :50）
-→ V1 Session.Info/CreateInput/Patch（packages/aigcfroge/src/session/session.ts:245 Info permission / :263 CreateInput / :498 Patch 排除 permission 需复核）
-→ HTTP CreateInput/UpdatePayload（packages/aigcfroge/src/server/routes/instance/httpapi/groups/session.ts:53-62 UpdatePayload、:313-320 create、:337-345 update）
-→ handler create/update
-→ session adapter V2→V1（packages/aigcfroge/src/session/session.ts）
-→ SDK regeneration（./packages/sdk/js/script/build.ts）
-→ App Draft（packages/app/src/pages/session/composer/）
-→ new Session submit
-→ existing Session selector update
-→ fork/child reset-to-propose
-```
-
-迁移必须通过生成器产生：
-
-```bash
-bun --cwd packages/core script/migration.ts --name add_session_permission_tier
-```
-
-禁止手改 `schema.gen.ts`、`migration.gen.ts` 或 SDK generated 文件。
-
-**Phase 1 可用性门禁**：默认 V1 路径（HTTP `session.create` → aigcfroge V1 `Session.create`（`packages/aigcfroge/src/session/session.ts:694`）→ V2 适配）与同步 `session.prompt`（HTTP `POST /session/:sessionID/message` → `SessionPrompt`，`groups/session.ts:103/439`）接通且 round-trip 测试通过之前，不得宣称档位功能可用。
-
-### 3.4 attended 契约
-
-- 根 Session 的 `attended` owner 必须是 V1/V2 Session create adapter；不得从仅服务子代理的 `subagent_attended_default` 推导——该配置项（`packages/core/src/config.ts:114`）只被 task 委派子会话读取（`packages/core/src/tool/task.ts:156`），与根 Session 契约无关。
-- V2 `CreateInput.attended` 保持现有字段（`packages/core/src/session.ts:81/234`）。
-- V1 `Session.CreateInput`（`packages/aigcfroge/src/session/session.ts:263-276` 现无 attended）、HTTP CreateInput 和 V1 Session 创建实现补 `attended?: boolean`。
-- 桌面 App 不传，保持 `undefined`，视为有人值守。
-- Assistant M4 或其他无人值守桥接创建根 Session 时必须显式传 `false`。
-- 子 Session 的 attended 规则必须沿用现有子代理契约（`permission.ts:181` 仅对 `parentID !== undefined` 生效），并与根 Session 契约分开验证。
-
----
-
-## 4. Session 级 Break-Glass
-
-### 4.1 状态 Owner
-
-新增：
-
-`packages/core/src/permission/session-override.ts`
-
-职责：
-
-- Location-scoped `Map<SessionID, expiresAt>`。
-- `get`、`enable`、`renew`、`disable`、`clear`。
-- 只允许根 Session 激活。
-- Chat `full` 的危险 action 不受 override 静默放行，仍逐次 `ask`。
-- 每次 enable/renew 写入 60 秒 lease；过期后读取即视为关闭并清理。
-- Session 删除时清理。
-- Layer 释放或服务重启时自动清空。
-- 不读取/写入 config 或数据库。
-
-### 4.2 HTTP
-
-在 Session HTTP group/handler 增加认证后的 typed 端点（`packages/aigcfroge/src/server/routes/instance/httpapi/groups/session.ts`，现有 `SessionPaths.permissions`（:108，ask 响应端点）路径不变，不与新端点冲突）：
-
-```text
-GET    /session/:sessionID/permission-override
-PUT    /session/:sessionID/permission-override
-DELETE /session/:sessionID/permission-override
-```
-
-启用 payload 至少包含：
-
-```ts
-{ acknowledged: true }
-```
-
-约束：
-
-- child Session 返回 `InvalidRequestError`。
-- unattended 根 Session 返回 `InvalidRequestError`。
-- API 不注册为模型工具；普通 Session API（create/update/prompt）不得携带或修改 override 状态。
-- 状态变化发布非 durable 的 EventV2 definition（EventV2 `define` 的 `durable` 可省略，`packages/core/src/event.ts:23/36/128` 支持非持久投影），App 多窗口同步；不得写 durable EventV2。
-- SDK 在 endpoint 加入后重新生成，不能只生成 Session tier 字段。
-- `PUT` 同时承担 enable/renew；只有首次 enable 需要 `acknowledged:true`，未启用状态下缺确认必须拒绝。
-
-### 4.3 UI
-
-break-glass 位于 Session composer 权限区域，不放全局 Settings。
-
-打开时必须：
-
-1. 弹二次确认对话框。
-2. 明示将允许当前 Session 的所有 Agent 读取敏感文件、执行命令、写文件和访问网络；Chat `full` 的危险操作仍逐次确认。
-3. 要求显式勾选确认。
-4. 显示“服务重启自动关闭、不会应用到子会话或其他会话”。
-5. App 仅在页面可见且 Session 连接健康时续租；页面隐藏、断连或 60 秒无续租时服务端自动关闭。
-
-关闭无需二次确认。
-
----
-
-## 5. 动态 Permission Context
-
-静态 meta 提示词（V1/V2 共用，`packages/core/src/plugin/agent.ts` 内 prompt 常量，:145 处“bash/edit/write are denied for meta — every FILE write (create/edit) must go through task → build delegation”已与实现矛盾）不得继续声明任何绝对写路径指引。
-
-改为：
-
-1. 静态 prompt 只要求服从当前 Session Permission Context。
-2. 公共纯 renderer 根据 mode/agent/tier/override 生成短指令。
-3. V2 在 `SessionRunner.loadSystemContext`（`packages/core/src/session/runner/llm.ts:309`）组合一个 Session-owned Context Source（`packages/core/src/system-context/permission-state.ts`，注册进 registry，`builtins.ts` 同模式）。
-4. V1 在 provider turn 的 system 数组中追加同一 renderer 的文本（`LLMRequestPrep.prepare` 的 `input.system`，`packages/aigcfroge/src/session/llm/request.ts:28`）。
-
-必须表达：
-
-- Coding meta：写入继续委派 build。
-- 非 Coding meta + propose：只使用当前安全/领域工具，不尝试通用写入。
-- 非 Coding meta + full：可直接使用当前可见工具；ask 表示必须等待用户确认。
-- break-glass：当前 Session 已显式全开，但仍须遵守用户任务和安全协议。
-
-不得依赖模型自行猜测 mode 或 tier。
-
----
-
-## 6. TDD 实施阶段
-
-每个 Phase 严格执行：
-
-```text
-红：先写行为测试并确认按预期失败
-绿：最小实现使测试通过
-重构：去重并保持测试绿色
-回归：受影响包 typecheck/test + lint-changed
-复查：按 CLAUDE.md 改完即审输出结论
-```
-
-### Phase 0：基线与前置 Gate（已关闭，仅做切分支前复核）
-
-1. [已核验 2026-08-16] `chat-mode-audit` 已合入 `main`（merge `a4b0485aa`，PR #30）；`38de28529` 为 `main` 祖先；`checkCliDelegationAllowed` 已存在于 `packages/core/src/product-mode-agent-policy.ts:164`（当前单参 `(mode: string)`，未知 mode 放行——档位化与 fail-safe 是本计划 Phase 4 的实施项，不是已合并行为）。
-2. [已核验] Chat `full` 的 2026-08-15 人类裁决（方案 B）已同步进 ADR-13 Amendment-2 §1c 与 Chat PRD v4.8 §5.2（本分支工作区修订版）。
-3. 从当前 `main` 创建 `session-permission-tier`。
-4. 记录 core、aigcfroge、app、sdk 当前 typecheck/test 基线。
-5. 实施首日按最新代码重新核对 file:line；漂移时先修计划锚点。
-
-退出 Gate：实施分支从含前置提交的 `main` 切出，工作区无无关改动。
-
-### Phase 1：Schema、迁移与 Session 往返
-
-红：
-
-- PermissionTier decode/default。
-- 新旧数据库迁移。
-- V1/V2 create/get/update/fork/child round-trip。
-- V1 HTTP create 接收 `attended:false`。
-
-绿：
-
-- 新增 Schema。
-- 修改 Session SQL/Info/Event/Create/Patch。
-- 运行 migration generator。
-- 补 HTTP schema/handler/adapter。
-- 重新生成 SDK。
-
-退出 Gate：新旧数据库均解码 `permissionTier`；V1/V2/API/SDK 字段一致。
-
-### Phase 2：meta V1/V2 fail-closed parity
-
-现状核对（main 已实现部分，本 Phase 只做剩余缺口）：
-
-- V1 meta（`packages/aigcfroge/src/agent/agent.ts:227-250`）与 V2 meta（`packages/core/src/plugin/agent.ts:456-485`）的 `bash/edit/write → ask`、`task → allow` 已落地（提交 `a6321f20e`，2026-08-15 裁决实现）。
-- 剩余缺口：两个 meta 基线仍以 `defaults` 首条 `{ action: "*", resource: "*", effect: "allow" }` 开头（`plugin/agent.ts:229`），新增写能力工具默认对所有模式放行（fail-open）。本 Phase 需替换为 deny-first 基线 + 显式白名单，并保持 V1/V2 同构。
-
-红：
-
-- V1/V2 meta 均无 wildcard allow。
-- 已知安全工具可见。
-- 未知 action 默认 deny。
-- build/general 固有行为不变。
-
-绿：
-
-- 分别抽取 V1/V2 `metaDefaults`（deny-first）。
-- 保留共享 build/general defaults。
-- 补齐 propose 工具和 read 环境文件规则 parity。
-
-退出 Gate：meta fail-closed，其他 Agent 无回归。
-
-### Phase 3：有效权限 Owner + V2
-
-红：
-
-- mode×agent×tier×attended×override 矩阵。
-- propose 隐藏 edit/bash。
-- 已批准 `mode × agent × full` 组合物化 edit/bash 且执行结果为 ask。
-- master/override 物化并 allow；Chat `full` 危险 action 仍保持 ask。
-- unattended 压制 full/break-glass。
-- saved approval 优先级；Chat `full` 危险 action 仍逐次 ask，Work/Assistant 保持既有细粒度预授权语义。
-
-绿：
-
-- 实现 `PermissionEffective`。
-- `PermissionV2.Service.effectiveRules`。
-- runner 使用 effectiveRules 物化。
-- assert 使用同一 owner。
-
-退出 Gate：V2 定义过滤与执行授权无分叉。
-
-### Phase 4：V1 parity
-
-红：
-
-- 与 Phase 3 相同矩阵的 V1 parity。
-- V1 LLM request 和 tool context 收到同一 Ruleset。
-- work/assistant propose 下 external CLI 被拒。
-- 未知 mode 传 `checkCliDelegationAllowed` 返回 deny（当前 `packages/core/test/product-mode-agent-policy.test.ts:155` 断言 allow，需反转）。
-
-绿：
-
-- V1 provider turn 单次计算 effective Ruleset。
-- 接入 SessionTools、LLMRequestPrep、ctx.ask。
-- `checkCliDelegationAllowed(mode, tier)`（`product-mode-agent-policy.ts:164`，调用点 `task-driver.ts:625`）。
-
-退出 Gate：默认生产 V1 路径的档位行为与 V2 对齐。
-
-### Phase 5：App 档位与 Permission Context
-
-红：
-
-- selector 只在 `chat/work/assistant × meta` 显示；Coding 和非 meta Agent 不显示。
-- Draft 默认 propose。
-- 新 Session create 透传。
-- 已有 Session update 有 pending/error/rollback。
-- agent/mode 切换后显示规则正确。
-- V1/V2 Permission Context 文本一致。
-
-绿：
-
-- segmented selector + i18n en/zh/zht。
-- 接线 Draft、submit、session.update。
-- 删除 V2 meta 静态提示词中的错误绝对指引（`packages/core/src/plugin/agent.ts:145`：“bash/edit/write are denied for meta — every FILE write must go through task → build delegation”，与已实现的 ask 权限矛盾，且对 Coding/非 Coding 一律断言不成立）。
-- V1/V2 注入动态 Permission Context。
-
-退出 Gate：用户看到的档位与实际 mode/agent 生效范围一致。
-
-### Phase 6：Break-Glass
-
-红：
-
-- 仅根 Session 可启用。
-- unattended 不可启用。
-- 不落库、不继承 fork/child。
-- Layer 重建后关闭。
-- Session 删除清理。
-- 三个 HTTP endpoint 与非 durable event。
-- 二次确认 UI。
-
-绿：
-
-- SessionPermissionOverride service。
-- HTTP/API/App 接线。
-- effective owner 接入 override。
-- endpoint 加入后再次运行 SDK generator。
-
-退出 Gate：临时全开只作用于当前有人值守根 Session。
-
-### Phase 7：全量回归与文档收口
-
-1. 更新 ADR-13 Amendment-2、Chat PRD、ARCHITECTURE/CLAUDE 技术债，记录 Chat 默认 propose-only 与当前 Session `full` 例外。
-2. 删除已闭环债项，保留明确未做项。
-3. 执行全部命令门禁。
-4. 对 V1/V2 parity、工具物化、安全矩阵做最终差分审查。
-
----
-
-## 7. 测试矩阵
-
-### 7.1 纯函数
-
-至少覆盖：
-
-```text
-4 modes × 6 agents × 2 tiers
-+ attended true/false/undefined
-+ override on/off
-+ unknown mode/agent/tier
-```
-
-未知输入必须 fail-safe，不得产生 wildcard allow。
-
-### 7.2 工具物化与执行一致性
-
-| 场景 | 定义可见 | 执行效果 |
+| 文件 | 关键定义 | 本计划 |
 |---|---|---|
-| chat/meta/propose/edit | 否 | deny |
-| chat/meta/full/edit | 是 | ask |
-| chat/meta/full/edit + saved approval | 是 | ask（仍逐次确认） |
-| work/meta/propose/bash | 否 | deny |
-| work/meta/full/bash | 是 | ask |
-| assistant/assistant-orchestrator/full/edit | 否 | deny |
-| coding/meta/full/edit | 否 | meta 继续委派 build |
-| work/meta + attended root + override/edit | 是 | allow |
-| chat/meta + attended root + override/edit | 是 | ask（仍逐次确认） |
-| unattended root + override/edit | 否 | deny |
+| [schema/permission.ts](../../packages/schema/src/permission.ts) | `Effect = Literals(["allow","deny","ask"])`；V2 `Rule = {action, resource, effect}` | ❌ 不改 |
+| [core/v1/permission.ts:18-26](../../packages/core/src/v1/permission.ts) | **V1 `Rule = {permission, pattern, action}`**（字段名与 V2 不同） | ⚠️ 见 §3 桥接决策 |
+| [schema/product-mode.ts](../../packages/schema/src/product-mode.ts) | `ID = Literals(["chat","coding","work","assistant"])`；`Default = "coding"` | ❌ 不改 |
+| **新增** `schema/permission-tier.ts` | `ID = Literals(["propose","full"])`；`Default = "propose"` | ✅ Phase 2 新增 |
 
-### 7.3 数据与迁移
+**关键事实 1**：`ask` effect 已存在且在生产使用（`doom_loop: "ask"`、`external_directory: {"*":"ask"}`、`read: {"*.env":"ask"}`），「有权限但每次要人点头」无需新机制。
 
-- clean DB schema。
-- existing DB migration。
-- missing historical field decode 为 propose。
-- update 后重载仍为新档位。
-- fork/child 均回落 `propose`，不继承根 Session 的 `full` 例外。
-- break-glass 永不出现在 DB/Event/SDK。
+**关键事实 2**：V1 与 V2 的 `Rule` 字段名不同——V1 是 `{permission, pattern, action}`，V2 是 `{action, resource, effect}`。`session.permission` 列存的是 **V1 形状**。任何「直接读列拼进 V2 ruleset」的做法都必须先做形状桥接，不能盲目复用。
 
-### 7.4 UI
+### L2 Core 权限服务层 — 接入点
 
-- selector 显示条件。
-- pending/error/rollback。
-- break-glass confirm/disable。
-- light/dark。
-- en/zh/zht 文案和最长文本不溢出。
-- 键盘 focus 与可访问名称。
+[core/permission.ts](../../packages/core/src/permission.ts)（350 行）：
 
-### 7.5 禁止的测试
+| 位置 | 符号 | 作用 | 本计划 |
+|---|---|---|---|
+| :108 | `evaluate(action, resource, ...rulesets)` | `flat().findLast(match)`，后规则胜；无匹配回落 `{effect:"ask"}` | ❌ 不改 |
+| :169 | **`configured(sessionID, agentID)`** | 取 session（含 mode）→ 解析 agent → 取 `agent.permissions` → unattended 覆盖 | ✅ **主改动点**：追加档位展开规则 |
+| :177-182 | unattended 子会话降级 | ask→deny | ✅ Phase 0 扩展根会话兜底 |
+| :195 | `evaluateInput` | `denied()` 前置 + `[...rules, ...remembered]` | ❌ 不改（档位规则追加在规则列表，天然走 `findLast`） |
 
-- 不断言源码字符串代替行为。
-- 不复制 production 权限算法到测试 helper。
-- 不使用 `Effect.sleep(N)` 等待。
-- 不只测 `assert()` 而不测工具定义物化。
-- 不只测 V2 而遗漏默认 V1。
+**档位展开的插入语义**：
+
+```
+configured() 返回 = [ (unattendedFallback?) , ...agent.permissions , ...tierRules ]
+```
+
+- 档位规则**追加在 agent.permissions 之后** → `findLast` 使其覆盖基线
+- 档位的 **deny 参与 `denied()` 前置判定** → 覆盖 saved approval（默认档位的 deny-write 边界不可被"永久允许"绕过）
+- 档位的 **ask 仍可被 saved approval 预授权** → 与现有 configured ask 同等待遇，语义一致
+
+### L3 Agent 定义层 — 收窄对象
+
+| 文件 | 内容 | 本计划 |
+|---|---|---|
+| [core/plugin/agent.ts](../../packages/core/src/plugin/agent.ts) | V2 meta（deny bash/edit/write + allow task）· chat-orchestrator（:330 deny-all + 7×propose）· work-orchestrator · assistant-orchestrator | ⚠️ V2 meta 与 V1 同形 fail-open（defaults 首条 `{"*":"allow"}` + 手工 deny 三写 action），Phase 1 一并收敛 |
+| [aigcfroge/agent/agent.ts:129-149](../../packages/aigcfroge/src/agent/agent.ts) | **V1 `defaults` 首条 `{"*":"allow"}`**（fail-open 根源） | ✅ Phase 1 收窄 |
+
+**现状写通道全景**（档位设计不得破坏）：
+
+| 模式 | 主 agent | 落盘通道 |
+|---|---|---|
+| coding | `build`（宽） | 直接 `edit`/`write`/`bash` |
+| chat | meta / chat-orchestrator | propose → 用户 Apply → HTTP typed 事务 |
+| work | meta / work-orchestrator | work-artifact `/apply` |
+| assistant | meta / assistant-orchestrator | reminder/memory/kb 各自 typed service |
+
+### L4 模式策略层 — 档位展开的 owner
+
+[core/product-mode-agent-policy.ts](../../packages/core/src/product-mode-agent-policy.ts)：
+
+| 符号 | 作用 | 本计划 |
+|---|---|---|
+| `checkPrimaryAgent(mode, agent?)` | per-mode agent 白名单 | ✅ Phase 5 扩展错误信息 |
+| `checkCliDelegationAllowed(mode)` | chat 拒 external-cli | ❌ 不改（前置分支已加） |
+| `enforcePrimary` | resolve + check + `Effect.die` | ⚠️ Phase 5 评估（裁决 D4） |
+| **新增 `tierRuleset(tier, agentID)`** | 档位 → V2 `Ruleset` | ✅ Phase 2 新增 |
+
+**为什么归这个模块**：它已是全部 per-mode 规则的唯一 owner（三个 `check*` 函数），档位展开是同族纯函数。模块无 Effect 依赖、全纯函数，测试成本最低。
+
+### L5 消费者层 — 受影响的调用点（须逐个回归）
+
+| 文件:行 | 调用 | 影响 |
+|---|---|---|
+| [core/permission.ts:244](../../packages/core/src/permission.ts) | `assert` ← 所有工具执行 | 有效 ruleset 随档位变化 |
+| [aigcfroge/session/prompt.ts:1209](../../packages/aigcfroge/src/session/prompt.ts) | `enforcePrimary` | Phase 5 若改 typed failure，需处理错误通道 |
+| [aigcfroge/session/session.ts:709](../../packages/aigcfroge/src/session/session.ts) | `enforcePrimary` | 同上 |
+| [core/session.ts:203](../../packages/core/src/session.ts) | `enforcePrimary` + **子会话继承 mode 源头** | 同上 |
+| [core/session/runner/llm.ts:336 / :623](../../packages/core/src/session/runner/llm.ts) | `enforcePrimary` / `checkCommandAllowed` | 同上 |
+| [core/tool/task.ts](../../packages/core/src/tool/task.ts) | `checkPrimaryAgent` 前置分支 | Phase 5 扩展错误信息 |
+| [app 输入框](../../packages/app/src/pages/session/composer/session-composer-region.tsx) | 无（新增档位选择器） | Phase 4 新增 |
+| [app/context/permission.tsx](../../packages/app/src/context/permission.tsx) | autoAccept / `permission.asked` 监听 | ❌ 不改（ask 弹窗链路复用） |
+
+### L5 附：现有测试资产（复用，不新建脚手架）
+
+| 文件 | 规模 | 复用点 |
+|---|---|---|
+| [core/test/permission.test.ts](../../packages/core/test/permission.test.ts) | 426 行 / 19 个 `it.effect` | `setup(rules)` / `setRules` / `assertion` helper + `testEffect(layer)`；4 个 unattended 用例是本计划新用例模板 |
+| [core/test/product-mode-agent-policy.test.ts](../../packages/core/test/product-mode-agent-policy.test.ts) | 25 个 `test` | 纯函数测试模板 |
+| [app/src/context/permission.tsx](../../packages/app/src/context/permission.tsx) | 已接线 | `SessionPermissionDock` 的 `onDecide` → `respond` 全链路无需改 |
+
+⚠️ `setup()` 当前插入的 SessionTable 行不指定 `mode` 与档位列（走默认）。新用例需一个能指定 mode 与档位的变体，见 Phase 3 测试清单。
 
 ---
 
-## 8. 文件清单
+## 3. 设计决策与方案对冲
 
-### 8.1 新增
+### 3.1 档位存储：新增列 vs 复用 session.permission 列（裁决 D0）
 
-| 文件 | 内容 |
-|---|---|
-| `packages/schema/src/permission-tier.ts` | 档位 Schema |
-| `packages/core/src/permission/effective.ts` | V1/V2 唯一有效权限 owner |
-| `packages/core/src/permission/session-override.ts` | Session 临时 break-glass |
-| `packages/core/src/system-context/permission-state.ts` | V2 Permission Context |
-| `packages/app/src/pages/session/composer/permission-tier-selector.tsx` | 档位 segmented selector |
-| `packages/app/src/pages/session/composer/session-permission-override-dialog.tsx` | break-glass 二次确认 |
-| 对应 core/aigcfroge/app 测试文件 | 纯函数、服务、API、UI 与 parity |
+| 选项 | 说明 | 代价 |
+|---|---|---|
+| A（推荐）：新增 `permission_tier` 列 | `text().notNull().default("propose")`，一个 drizzle migration | 语义清晰，避免 V1/V2 形状纠缠 |
+| B：复用 `session.permission` 列 | 存档位标记 | ❌ 该列是 V1 形状 `{permission,pattern,action}`，塞档位枚举语义别扭；且需 V1↔V2 桥接，容易埋雷 |
 
-### 8.2 修改
+**推荐 A**：`session.permission` 是 V1 遗留的半接线字段（projector/info 投影但 V2 不读），复用它会引入「这个列既是 V1 ruleset 又是档位标记」的双重语义，违反「字段单一事实真源」。新增列一个 migration 即可，代价最小。
 
-| 区域 | 文件 |
-|---|---|
-| Session Schema/DB | `packages/core/src/session/{sql,info,projector}.ts`、`packages/schema/src/session.ts`、`packages/core/src/v1/session.ts`、数据库生成物 |
-| Session 服务 | `packages/core/src/session.ts`、`packages/aigcfroge/src/session/session.ts` |
-| V2 Permission | `packages/core/src/permission.ts`、`packages/core/src/session/runner/llm.ts`、`packages/core/src/plugin/agent.ts`（meta 基线） |
-| V1 Permission | `packages/aigcfroge/src/session/{prompt,tools,llm}.ts`、`packages/aigcfroge/src/session/llm/request.ts`、`packages/aigcfroge/src/agent/agent.ts`（meta 基线） |
-| Agent/Policy | `packages/core/src/plugin/agent.ts`、`packages/aigcfroge/src/agent/agent.ts`、`packages/core/src/product-mode-agent-policy.ts`、`packages/core/src/tool/task-driver.ts`（:625 调用点） |
-| HTTP | `packages/aigcfroge/src/server/routes/instance/httpapi/groups/session.ts`（:53-62 UpdatePayload、:313 create、:337 update）、handler 与 server tests |
-| App | Draft/submit/composer/global sync/i18n |
-| SDK | 通过 `./packages/sdk/js/script/build.ts` 生成 |
-| Docs | ADR-13 Amendment-2、Chat PRD、ARCHITECTURE、CLAUDE 债表 |
+### 3.2 档位展开：纯函数 vs Service（已定）
+
+`tierRuleset(tier, agentID): Permission.Ruleset` 是纯函数，无 Effect 依赖、无 IO。放 `product-mode-agent-policy.ts`，与 `checkCommandAllowed`/`checkCliDelegationAllowed` 同族。不做 Service/Layer——零依赖的纯函数上 Service 是过度设计。
+
+### 3.3 档位范围：写权限只到 ask（已定，见 §1.3）
+
+不提供 `allow` 档。用户点 `always` 即等价授信，且走 `PermissionSaved` 可撤销。给 `allow` 档等于重新打开 P1-1/P1-11 的注入面。
+
+### 3.4 Phase 0 的必要性（不可跳过）
+
+若跳过根会话 unattended 修补而直接上线 `full` 档：
+- 桌面端有人值守 → 弹窗，正常
+- Assistant M4 社交桥接（根会话、无人值守）→ `assert` 挂 Deferred 直到会话销毁 = **静默挂死**
+
+**Phase 0 必须先于 Phase 3（configured 接入档位）落地**，否则 `full` 档一上线，桥接场景第一次写就挂。
 
 ---
 
-## 9. 验证命令
+## 4. TDD 工作流总则
 
-按 Phase 从小到大执行，禁止从仓库根目录运行包测试：
+### 每步强制流程
+
+```
+1. 先写失败测试（红）——断言目标行为，不是断言实现
+2. 最小实现使其通过（绿）
+3. 跑受影响包 typecheck + test
+4. git diff 自查：Catch Everything / No Null Pointer / Security First / No Cheating / Reusability / Clean Logs
+5. 进入下一步
+```
+
+### 测试规范（对齐 [AGENTS.md](../../AGENTS.md) + `effect` skill）
+
+- Effect 服务测试用 `testEffect(layer)`，禁止手写 runtime
+- 纯函数测试用 `bun:test` 的 `test()`，不套 Effect
+- 禁止 `Effect.sleep(N)` 等待并发；用 `Deferred` / 就绪信号
+- 错误断言到 `_tag` 与 `message` 两级，不只断言"抛了"
+- 单包运行：`bun --cwd packages/core test <file>`，永不从根目录跑
+
+### 门禁（每 Phase 结束必跑）
 
 ```bash
 bun --cwd packages/core typecheck
-bun --cwd packages/core test --timeout 30000
-
-bun --cwd packages/aigcfroge typecheck
-bun --cwd packages/aigcfroge test --timeout 30000
-
-bun --cwd packages/app typecheck
-bun --cwd packages/app test:unit
-
-bun --cwd packages/sdk/js typecheck
-
+bun --cwd packages/core test
+bun --cwd packages/aigcfroge typecheck      # Phase 1 起
+bun --cwd packages/app typecheck            # Phase 4 起
 bun run script/lint-changed.ts
-bash .aigcfroge/skills/protocols/scripts/check-refs.sh
-git diff --check
 ```
-
-UI 实现完成后按 `packages/app/AGENTS.md` 启动本地 backend/app，使用浏览器验证桌面与窄视口、light/dark、三语和 Permission Dock 全链路。
 
 ---
 
-## 10. 风险与缓解
+## 5. 实施步骤
+
+### Phase 0：根会话 unattended 兜底（阻断项，必须先做）
+
+**问题**：`configured()` 的 ask→deny 降级只覆盖子会话；根会话的 `attended` 读回恒为 `undefined`，而代码假设"根会话总有人在场"。社交桥接会话是根会话，该假设不成立。
+
+**改动**：[core/permission.ts](../../packages/core/src/permission.ts) `configured()`
+
+**Step 0.1（调研，已完成 2026-08-15）**：结论如下，**原"路径 A 去掉 parentID 条件"已证伪**。
+
+实测 `attended` 的全链路取值：
+
+| 环节 | 代码 | 行为 |
+|---|---|---|
+| 列定义 | [session/sql.ts:53](../../packages/core/src/session/sql.ts) `integer().$type<0\|1>().default(0)` | 默认 0 |
+| 写入 | [session/projector.ts:72](../../packages/core/src/session/projector.ts) `info.attended === undefined ? null : info.attended ? 1 : 0` | undefined → **NULL**（不是 0） |
+| 读出 | [session/info.ts:50](../../packages/core/src/session/info.ts) `row.attended === null ? undefined : row.attended === 1` | NULL → **undefined** |
+| 谁显式传 | 仅子会话：[tool/task-driver.ts:389](../../packages/core/src/tool/task-driver.ts)、[session/scheduled-job-executor.ts:36](../../packages/core/src/session/scheduled-job-executor.ts) `attended: false` | **根会话从不传** |
+
+因此桌面端根会话的 `attended` 恒为 `undefined`，而 `!undefined === true`。**若去掉 `parentID !== undefined` 条件，所有根会话都会被判为无人值守，`doom_loop`/`external_directory`/`.env` 审批弹窗集体失效为静默拒绝——灾难性回归，路径 A 作废。**
+
+**Step 0.2（采纳方案）**：区分「未指定」与「显式声明无人值守」：
+
+```ts
+// 子会话：未指定即视为无人值守（保持现状 —— 委派默认不打扰用户）
+const unattendedChild = session.parentID !== undefined && !session.attended
+// 根会话：只有信道显式声明 attended:false 才降级（桌面端不传 → undefined → 不降级）
+const unattendedRoot = session.parentID === undefined && session.attended === false
+if (unattendedChild || unattendedRoot) {
+  return [unattendedFallback, ...rules.map((r) => (r.effect === "ask" ? { ...r, effect: "deny" as const } : r))]
+}
+```
+
+- `false` 能与 `undefined` 区分且可往返（projector 写 0，info 读回 `false`），无需新字段、无需 migration
+- 代价：Assistant M4 的信道网关须让桥接会话进入无人值守态。**落点已调研**：不硬编码 `attended: false`，而是复用既有配置 `subagent_attended_default`（[settings-v2/general.tsx:425](../../packages/app/src/components/settings-v2/general.tsx) 的开关，`updateConfig({ subagent_attended_default: false })`）。桥接会话创建时读该配置决定 `attended` 取值——桌面端默认 `true` 不受影响，桥接信道默认 `false` 进入降级。这是本 Phase 交付给 M4 的契约
+
+**Step 0.3（红）**：`permission.test.ts` 新增
+- `it.effect("root session with attended:false converts ask to deny")` — 新行为
+- `it.effect("root session with attended undefined preserves ask rules")` — **桌面端回归锚点，最重要**
+- `it.effect("root session with attended:true preserves ask rules")`
+- `it.effect("unattended child session still converts ask to deny")` — 现状不回归
+- `it.effect("root session with attended:false honors saved approvals over the catch-all deny")` — 与子会话同形
+
+**Step 0.4（绿）**：按 Step 0.2 实现；替换那句「A root session (no parentID) always has the user present」，改为说明两种判据差异及原因。
+
+**验收**：`ask` 在显式声明无人值守的会话下确定降级为 deny；桌面端根会话审批弹窗行为逐字节不变。
+
+### Phase 1：meta 默认信封收窄（fail-closed）
+
+**问题**：V1 `defaults` 首条 `{"*":"allow"}` 是 fail-open 根源（审计 P1-1/P1-11）。档位开关的地基是"默认安全"，否则 `propose` 档本身是漏的。
+
+**改动**：[aigcfroge/agent/agent.ts:129-149](../../packages/aigcfroge/src/agent/agent.ts)
+
+**Step 1.1（调研，已完成 2026-08-15）**：`defaults` 的共享面已实测确认——**V1 侧 4 个 agent 直接继承 `defaults` 的 `{"*":"allow"}`**：`build`（经 `buildDefaults`）、`meta`、`general`、`explore`（后三个在 `defaults` 之上再叠加 deny）。`plan` 也吃 `defaults` 但只在 `.aigcfroge/plans` 内写。
+
+**结论：直接收窄 `defaults` 会同时掐死 `build` 和 `general` 的全开能力，不可行。** 必须**新增一个 fail-closed 的 `metaDefaults`（deny-all + 白名单）只给 meta 用，`defaults` 原样保留给 build/general**。这是 Phase 1 的既定路径，不再是待定分叉。
+
+具体：
+```ts
+// V1 aigcfroge/agent/agent.ts
+const metaDefaults = Permission.fromConfig({
+  "*": "deny",
+  read: { "*": "allow", "*.env": "ask", "*.env.*": "ask", "*.env.example": "allow" },
+  glob: "allow", grep: "allow",
+  question: "allow", list_assets: "allow",
+  task: "allow",            // 委派保留（间接写，受 checkPrimaryAgent 白名单约束）
+  plan_enter: "allow",
+  propose_prompt_asset: "allow",  // 提议工具白名单（meta 在 propose 档可直接提议）
+  propose_skill_asset: "allow",
+  propose_mcp_asset: "allow",
+  propose_command_asset: "allow",
+  propose_agent_asset: "allow",
+  propose_workflow_asset: "allow",
+  propose_plugin_asset: "allow",
+  // bash/edit/write 不在白名单 → 默认 deny（fail-closed）
+})
+```
+V1/V2 侧 `meta` 同形 fail-open（`defaults` 首条 `{"*":"allow"}` + 手工 deny `bash`/`edit`/`write`）：已知写 action 被 deny 覆盖，**新增任何未知写工具默认放行**。Phase 1 对两侧一并收敛为 deny-all + 显式白名单。
+
+**Step 1.2（红）**：`meta-envelope-parity.test.ts` 或现有 agent 测试新增：
+- meta 的 `bash`/`edit`/`write` 为 deny（现有行为保持）
+- meta 的 `create_agent`/`configure_mcp` 为 deny（V1 已改，V2 保持）
+- **meta 的 `{"*": ...}` 不再是 allow**（fail-closed 断言）
+
+**Step 1.3（绿）**：抽 `metaDefaults`（deny-all + 白名单，见 Step 1.1 代码块），meta 用 `metaDefaults` 替代 `defaults`；`defaults` 原样保留给 build/general。V2 侧对齐 `propose_*` 白名单。
+
+**验收**：meta 的基线不再有 `{"*":"allow"}`；新增未知 action 默认 deny；现有提议工具与领域写工具不受影响。
+
+### Phase 2：档位 schema + 展开纯函数
+
+**改动**：[schema/permission-tier.ts](../../packages/schema/src/permission-tier.ts)（新增）· [product-mode-agent-policy.ts](../../packages/core/src/product-mode-agent-policy.ts)
+
+**Step 2.1（红）**：`product-mode-agent-policy.test.ts` 新增 `describe("tierRuleset")`
+```
+- tierRuleset("propose", "meta") 返回 deny bash/edit/write + allow propose_*（形状断言，非源码字符串匹配）
+- tierRuleset("full", "meta") 返回 bash/edit/write → ask
+- tierRuleset(未知档位, ...) 返回 []（fail-safe，不放宽）
+- tierRuleset(任一档位, 未知 agent) 返回 []
+- 返回值是新数组，不共享引用（Ruleset 是 mutable Array）
+```
+
+**Step 2.2（绿）**：新增 `schema/permission-tier.ts`（`ID = Literals(["propose","full"])` + `Default = "propose"`）；`product-mode-agent-policy.ts` 新增 `tierRuleset(tier, agentID)` 纯函数，返回 `Permission.Ruleset`。
+
+**Step 2.3**：`export` 走模块自导出（policy 文件顶部已有 `export * as ProductModeAgentPolicy`）。
+
+**验收**：`tierRuleset` 对全部 tier×agent 组合有确定返回，未知输入 fail-safe 返回空。
+
+### Phase 3：`configured()` 接入档位
+
+**改动**：[core/permission.ts](../../packages/core/src/permission.ts)
+
+**Step 3.1（调研，先做）**：确认档位列的读写链路。新增 `permission_tier` 列（裁决 D0 推荐 A）需要：
+- drizzle migration 一行
+- [session/projector.ts](../../packages/core/src/session/projector.ts) 投影（读）
+- [session/info.ts](../../packages/core/src/session/info.ts) 读出
+- 会话创建 input（[core/session.ts](../../packages/core/src/session.ts)）透传
+
+**Step 3.2（红）**：`permission.test.ts` 新增 `describe("permission tier")`，先加能指定档位的 setup 变体：
+```
+- propose 档下 agent 基线 allow edit，档位 deny 生效（档位覆盖基线）
+- full 档下同一 agent，edit 走 ask（档位切换可证）
+- propose 档的 deny 覆盖 saved approval（先 reply "always" 再 assert 仍 deny）
+- 档位为空/默认时行为与改动前逐字节一致（回归锚点）
+- full 档 + unattended 会话 → ask 降级为 deny（Phase 0 兜底覆盖档位 ask）
+```
+
+**Step 3.3（绿）**：`configured()` 在取 `agent.permissions` 后追加档位展开：
+```ts
+const tier = session.permissionTier ?? PermissionTier.Default
+const tierRules = ProductModeAgentPolicy.tierRuleset(tier, agentID ?? session.agent)
+const rules = [...base, ...tierRules]
+```
+然后 unattended 分支基于合并后 `rules` 处理（顺序：先叠加档位，再 unattended 降级——档位可能引入 ask，需被降级覆盖）。
+
+**Step 3.4**：确认 `denied()` 的 `rules.filter((rule) => rule !== unattendedFallback)` 仍正确——档位 deny 应当参与 deny 优先级，不加入过滤名单。
+
+**验收**：`permission.test.ts` 全绿；`bun --cwd packages/core test` 全绿。
+
+### Phase 4：输入框档位选择器
+
+**改动**：[session-composer-region.tsx](../../packages/app/src/pages/session/composer/session-composer-region.tsx) + 新组件
+
+**Step 4.1（调研，先做）**：读 composer 区域现有控件布局，确认档位选择器插入位置与现有 agent/mode 选择器的交互模式（`session-composer-state.ts` 已有 `permissionRequest` memo 与 `SessionPermissionDock` 渲染，复用其状态管理模式）。
+
+**Step 4.2（红）**：组件测试（happy-dom）——档位选择器：
+- 默认显示 `propose`
+- 切换到 `full` 触发会话档位更新调用
+- 档位切换有 pending/error 态
+- i18n 走 `language.t`（en/zh/zht 三语）
+
+**Step 4.3（绿）**：实现选择器组件 + 接线到会话创建/更新（写 `permission_tier` 列）。
+
+**Step 4.4**：确认 `full` 档触发写时，`SessionPermissionDock` 正常弹出（复用现有 `permission.asked` 事件链路，零新增 UI）。
+
+**验收**：桌面端可在输入框切换档位，切换即时生效；`full` 写操作弹现有 dock。
+
+### Phase 5：meta 非 coding 代 build + 拒绝可操作化
+
+**核心目标**：build 锁死 coding（`checkPrimaryAgent` 保持现状，无需档位感知改造）；非 coding 模式下 meta 自己就是 build 的等价体，full 档下直接写（走 ask，Phase 2 的 `tierRuleset` 已覆盖）。本 Phase 只做**提示词对齐 + 拒绝文案**，不动 `checkPrimaryAgent`、不动 `session.ts` 的 mode 继承。
+
+**Step 5.1（调研，先做）**：确认 `PROMPT_META` 里关于委派的指引。现有提示词写的是「every FILE write must go through task → build delegation」（[plugin/agent.ts:145](../../packages/core/src/plugin/agent.ts)）。这条在非 coding 模式是**错误指引**——build 不跨模式，meta 照做只会拿到拒绝。
+
+**Step 5.2（红）**：meta 提示词相关的断言（提示词是字符串，用「含/不含关键句」断言，非假测试）：
+- 提示词含「非 coding 模式下不要委派 build，你自己就是 build，直接执行（写走 ask）」
+- 提示词含「coding 模式下仍委派 build」
+- 不含「FILE write must go through task → build delegation」的绝对表述
+
+**Step 5.3（绿）**：更新 `PROMPT_META` 的委派段，改成模式感知的指引：
+
+```
+- coding 模式：写文件委派 build（build 是本模式的执行者）
+- 非 coding 模式（chat/work/assistant）：不要委派 build；你自己就是 build 的等价体，
+  直接执行（写文件走 ask，用户会确认 once/always/reject）
+```
+
+**Step 5.4（红）**：`product-mode-agent-policy.test.ts` 拒绝文案断言（`checkPrimaryAgent` 现状不变，只补文案）：
+- `checkPrimaryAgent("chat", "build")` 的 error.message 含「切换 coding 模式」指引
+- error.message 含该模式可用 agent 清单
+
+**Step 5.5（绿）**：给 `AgentNotAllowedError.reason` 补动作指引（"要执行代码修改请切到 coding 模式，或在当前模式抬 full 档让我直接做"）。
+
+**Step 5.6**：`enforcePrimary` 的 `Effect.die` 改 typed failure（裁决 D4）。影响 5 个调用点，**默认拆出独立立项**，本 Phase 只做文案。
+
+**验收**：meta 提示词不再误导非 coding 委派 build；拒绝信息可操作（切 coding / 抬 full 档）；无死路。
+
+### Phase 6：文档与架构决策 + 技术债清理
+
+**Step 6.1**：[ADR-13 Amendment-2](../architecture/adr/ADR-13-amendment-2-meta-agent-dispatch.md) 追加 **§1c — Session Permission Tier & Master Switch**
+- 声明档位机制：默认 `propose`（fail-closed），用户可切换 `full`；`full` 档 = meta 在非 coding 模式成为 build 等价体（`tierRuleset` 展开写 ask）
+- 声明 build 定位：build 锁死 coding；非 coding 模式 meta 代 build（`checkPrimaryAgent` 保持现状，无需档位感知）
+- 声明总闸：`master_permission_enabled`（逃生舱），开 = 有人值守会话全 allow；**越不过 unattended 兜底**
+- 声明优先级：档位规则覆盖 agent 基线；档位 deny 覆盖 saved approval；档位 ask 在无人值守下降级为 deny；五层控制链顺序（§1.5）
+- 声明 owner：`tierRuleset` 归 `product-mode-agent-policy.ts`
+- **只写代码实测成立的机制，附 file:line，不重蹈 §1b.3 的"声称但未实现"覆辙**
+
+**Step 6.2**：[CLAUDE.md](../../CLAUDE.md) 技术债表更新
+- 删除「chat 默认主 agent 为 meta（fail-open 权限信封）」（Phase 1 闭环，抽 `metaDefaults`）
+- 删除「meta 在非 coding 模式下无法委派 build，且无兜底出路」（Phase 5 闭环，meta 非 coding 代 build）
+- 若 D4 裁决为「拆出 `die`→typed failure」→ 新增一行记录该项技术债（影响 5 个调用点）
+
+**Step 6.3**：[effect skill](../../.aigcfroge/skills/effect/SKILL.md) 补吞错反模式条目（`Effect.catch(() => Effect.void)` / `orDie` / `ignore`）——与本计划弱耦合，可拆出，但审计 §9.3 已指出为覆盖缺口，建议本分支顺手补。
+
+**Step 6.4**：[ARCHITECTURE.md](../../ARCHITECTURE.md) §7 ADR 状态表加 Amendment-2 §1c 引用。
+
+**验收**：文档描述与代码逐条对应，无"声称但未实现"。
+
+### Phase 7：全局最高权限总闸（逃生舱）
+
+**问题**：高级用户需要一个"放开一切"的全局逃生舱——在受控的知情同意下，临时跳过所有权限检查，让所有智能体自由度拉满。这是与「默认 fail-closed」互补的另一极：默认安全，但可显式全开。
+
+**语义（红线在 Step 7.1 说明）**：
+
+- 配置项 `master_permission_enabled`（默认 `false`）
+- 打开时：**有人值守的会话**，所有 agent 的所有 action → allow，跳过档位、autoAccept、ask 弹窗
+- 打开动作本身触发**二次确认弹窗**（防误触，见 Step 7.4）
+- 关闭或会话结束恢复默认
+
+**Step 7.1（红线，先定）**：**总闸越不过 unattended 兜底。** 总闸的意图是"我在桌面端盯着时别烦我"，桥接/社交场景用户不在场，该意图不成立。故 `evaluateInput` 的判断顺序必须是：
+
+```
+1. 先判 unattended（Phase 0 兜底）→ 无人值守：ask/allow 压 deny，返回，结束
+2. 再判总闸           → 有人值守 + 总闸开：返回 allow，结束
+3. 才轮到档位/autoAccept/ask 弹窗
+```
+
+顺序写反（总闸先判、unattended 后判）= 一条微信消息 + 用户之前开过总闸 = 注入直通文件系统。这是 P0 级，Step 7.3 必测。
+
+**Step 7.2（红）**：`permission.test.ts` 新增
+- `it.effect("master switch allows a write that tier would deny")` — 总闸开 + propose 档 + write → allow
+- `it.effect("master switch does NOT bypass unattended")` — 总闸开 + 无人值守 + write → deny（**红线用例，最关键**）
+- `it.effect("master switch off preserves tier semantics")` — 总闸关 + 档位行为逐字节不变（回归锚点）
+
+**Step 7.3（绿）**：`core/config.ts` 加配置项；`evaluateInput` 按 Step 7.1 顺序插入总闸判断（在 `denied()` 之前、`configured()` 之后）。
+
+**Step 7.4（UI + 二次弹窗）**：`settings-v2/general.tsx` 加「最高权限」开关。打开时弹二次确认对话框——措辞须明确"放开所有智能体的所有权限（写文件/执行命令/读 .env/外发网络），仅当前有人值守会话生效"，要求显式勾选/输入确认，不单点即开。
+
+**Step 7.5**：总闸状态持久化（`config` 走 `updateConfig`，与 `subagent_attended_default` 同通道）；会话结束时是否自动复位写入 §6.1 文档（建议：全局配置持久，但每次打开都要二次弹窗，防"忘了关"）。
+
+**验收**：总闸开 + 有人值守 → 全 allow 无弹窗；总闸开 + 无人值守 → 仍 deny（红线不破）；总闸关 → 行为与改动前一致；打开动作必有二次确认。
+
+---
+
+## 6. 测试策略
+
+### 6.1 纯函数层（`product-mode-agent-policy.test.ts`）
+
+穷举 `2 档位 × {meta, chat-orchestrator, work-orchestrator, assistant-orchestrator, build, 未知}` = 12 组合的 `tierRuleset` 返回值。加"未知档位 / 未知 agent → 空"的 fail-safe 用例。
+
+### 6.2 服务层（`permission.test.ts`）
+
+复用 `testEffect(layer)` + `setup`/`setRules`/`assertion`，新增能指定档位的 setup 变体。必测矩阵：
+
+| 场景 | 期望 |
+|---|---|
+| 档位 deny × 基线 allow | deny（档位胜） |
+| 档位空/默认 × 基线 allow | allow（回归锚点） |
+| 档位 deny × saved approval | deny（边界不可被记忆绕过） |
+| 档位 ask × 根会话值守 | ask |
+| 档位 ask × 无人值守 | deny（Phase 0 兜底） |
+| 同 agent 跨两档位 | 判定不同（隔离性） |
+
+### 6.3 UI 层（组件测试，happy-dom）
+
+档位选择器渲染、切换回调、pending/error 态、i18n 三语。
+
+### 6.4 回归防护
+
+- `bun --cwd packages/core test`（基线 1808 pass / 2 skip）
+- `bun --cwd packages/aigcfroge test test/permission-task.test.ts`
+- `bun --cwd packages/app test:unit`
+
+### 6.5 禁止的测试写法（假测试）
+
+- ❌ 断言源码字符串包含某规则
+- ❌ 只断言"抛错"不断言 `_tag`/`message`
+- ❌ 用 `Effect.sleep` 等 permission ask 的 Deferred
+
+---
+
+## 7. 文件清单
+
+### 新增
+
+| 文件 | 内容 |
+|---|---|
+| `packages/schema/src/permission-tier.ts` | 档位枚举 + Default（Phase 2） |
+| `packages/core/test/product-mode-agent-policy.test.ts`（扩展） | `tierRuleset` 穷举 |
+| `packages/app/src/pages/session/composer/permission-tier-selector.tsx` | 档位选择器组件（Phase 4） |
+| `packages/app/src/components/settings-v2/master-permission-dialog.tsx` | 总闸二次确认弹窗（Phase 7） |
+
+### 修改
+
+| 文件 | Phase | 改动 |
+|---|---|---|
+| `packages/core/src/permission.ts` | 0, 3, 7 | 根会话 unattended 兜底 + 接入档位 + 总闸判断（`evaluateInput`）+ 注释更正 |
+| `packages/core/src/product-mode-agent-policy.ts` | 2, 5 | 新增 `tierRuleset`；`AgentNotAllowedError.reason` 补动作指引 |
+| `packages/core/src/config.ts` | 7 | 新增 `master_permission_enabled` 配置项 |
+| `packages/core/src/session/sql.ts` + projector + info | 3 | 新增 `permission_tier` 列（若裁决 A） |
+| `packages/core/src/session.ts` | 3 | 会话创建透传档位 |
+| `packages/core/src/plugin/agent.ts` | 5 | `PROMPT_META` 委派指引改模式感知 |
+| `packages/aigcfroge/src/agent/agent.ts` | 1 | meta 信封收窄（fail-closed） |
+| `packages/app/src/pages/session/composer/session-composer-region.tsx` | 4 | 接入档位选择器 |
+| `packages/app/src/components/settings-v2/general.tsx` | 7 | 总闸开关 + 二次弹窗接线 |
+| `packages/core/test/permission.test.ts` | 0, 3, 7 | 根会话 unattended + 档位矩阵 + 总闸矩阵 |
+| `packages/core/test/product-mode-agent-policy.test.ts` | 2, 5 | 档位穷举 + 文案断言 |
+| `docs/architecture/adr/ADR-13-amendment-2-meta-agent-dispatch.md` | 6 | 追加 §1c |
+| `CLAUDE.md` | 6 | 技术债表增删 |
+| `ARCHITECTURE.md` | 6 | ADR 状态表 |
+| `.aigcfroge/skills/effect/SKILL.md` | 6 | 补吞错反模式 |
+
+### 条件修改（取决于裁决）
+
+| 文件 | 触发条件 |
+|---|---|
+| `packages/core/src/session.ts`、`session/runner/llm.ts`、`aigcfroge/src/session/{prompt,session}.ts` | 裁决 D4 为"做 die→typed failure 改造" |
+| `packages/schema/src/session.ts` + migration | 裁决 D0 为"新增字段"（推荐 A） |
+| `packages/app/src/context/permission.tsx` | 若档位切换需联动 autoAccept（Phase 4 调研后确认） |
+
+---
+
+## 8. 风险与缓解
 
 | 风险 | 等级 | 缓解 |
 |---|---|---|
-| 工具物化与执行授权再次分叉 | P0 | 同一 effective owner；V1/V2 parity + materialization/assert 成对测试 |
-| Chat full 绕过默认产品边界 | 高 | 默认 propose；用户主动开启；危险 action 逐次 ask；unattended deny；资产写入仍走 typed propose/apply |
-| break-glass 被持久化或跨 Session 泄漏 | P0 | 独立临时 service；禁止 DB/config；重启/删除清理；不继承测试 |
-| V1 默认路径无档位 | P0 | Phase 4 阻断 Gate；V1/V2 同矩阵 |
-| wildcard ask 覆盖安全 allow 导致噪声 | 中 | full 后重新追加 meta baseline 的非 deny 规则 |
-| 档位切换与当前 turn 竞态 | 中 | 放宽下一 turn 生效；执行阶段重新裁决允许立即收窄 |
-| migration/generated 文件漂移 | 高 | 只运行 generator；clean/existing DB 双测试；SDK 只用脚本生成 |
-| Assistant 默认 orchestrator 显示无效 selector | 中 | 仅 `chat/work/assistant × meta` 显示 |
-| external CLI 形成第二写通道 | 高 | Chat 永久 deny；Work/Assistant propose deny、full 才 allow |
-| break-glass 在客户端断连后仍存活 | 高 | HTTP lease 每 60 秒续期；App 可见且连接健康时续租，断连或过期自动 disable |
+| Phase 1 收窄 `defaults` 波及其它共享 agent | **高** | Step 1.1 已调研关闭：`defaults` 被 4 个 agent 共享，故抽 `metaDefaults` 只给 meta，不碰 `defaults` |
+| 档位顺序写错导致默认 deny-write 失效 | **高** | §1 L2 已写明 `findLast` 语义；Phase 3 必测"档位 deny × 基线 allow"；回归锚点保证空档位行为不变 |
+| 档位 deny 被 saved approval 绕过 | **高** | 档位规则不加入 `denied()` 过滤名单；专门用例：先 reply "always" 再 assert 仍 deny |
+| Phase 0 改动影响所有现存会话的 ask 行为 | **高** | 已调研 `attended` 取值；三个回归用例锁定桌面端现有行为 |
+| V1/V2 权限形状桥接错误 | 中 | 裁决 D0 推荐新增独立列，避开复用 V1 形状的 `session.permission` 列 |
+| 档位与 `checkPrimaryAgent` 语义重叠 | 低 | build 锁死 coding（`checkPrimaryAgent` 现状恰好实现它，不改）；`tierRuleset` 管"meta 非 coding 直接写什么"；两者不再重叠 |
+| 循环依赖（permission → policy） | 低 | policy 模块只依赖 `effect`/`Schema`，无反向依赖 |
+| `full` 档上线后桥接会话挂死 | **高** | Phase 0 先落地，Phase 3 的 unattended 用例覆盖"档位 ask + 无人值守 → deny" |
+| **总闸判断顺序写反（总闸先于 unattended）** | **P0** | Step 7.1 红线：unattended 先判、总闸后判；Step 7.2 必测"总闸开 + 无人值守 → 仍 deny"，此用例失败即阻断合入 |
+| 总闸开时 fail-closed 的 explore/orchestrator 也获写权限 | **高** | §1.6 关键点 2 已明示；靠「二次弹窗 + 第 0 层不可越」双重保险，非 P0 但须在二次弹窗措辞中明示"放开所有智能体" |
 
 ---
 
-## 11. 验收标准
+## 9. 验收标准
 
-- [x] 前置权限安全提交已进入 `main`（merge `a4b0485aa`，PR #30；`38de28529` 为 `main` 祖先，2026-08-16 核验），实施分支来源正确
-- [x] Chat `full` 已于 2026-08-15 获人类裁决（方案 B），ADR-13 Amendment-2 §1c 与 Chat PRD v4.8 §5.2 已同步记录显式 Session 例外
-- [ ] meta V1/V2 基线 fail-closed，未知 action 默认 deny（现状：bash/edit/write=ask 已落地，`defaults` wildcard allow 待移除）
-- [ ] `PermissionEffective` 是 V1/V2 档位和 override 的唯一决策 owner
-- [ ] V1/V2 工具物化与执行裁决使用同一有效规则
-- [ ] Coding、非 meta Agent 不受档位影响
-- [ ] propose/full 在 V1/V2 上行为一致
-- [ ] Session permissionTier 完整往返，fork/child 明确回落 `propose`
-- [ ] V1 根 Session 可显式创建为 `attended:false`（V1 `Session.CreateInput` 补字段并接通 HTTP）
-- [ ] 默认 V1 `session.create` 与同步 `session.prompt` 接通（HTTP → V1 服务 → V2 适配 round-trip）后才宣称档位功能可用
-- [ ] break-glass 仅当前有人值守根 Session 生效、不持久化、断连过期自动关闭
-- [ ] Chat external CLI 在所有档位均拒绝
-- [ ] Work/Assistant external CLI 仅 full 可用；未知 mode fail-safe deny（`checkCliDelegationAllowed(mode, tier)` 档位化）
-- [ ] 动态 Permission Context 与实际 mode/tier/override 一致；静态 meta 提示词绝对指引（`plugin/agent.ts:145`）已删除
-- [ ] SDK、migration、schema generated 文件均由脚本生成
-- [ ] core/aigcfroge/app/sdk typecheck 与相关测试通过
-- [ ] lint-changed、协议引用检查、`git diff --check` 通过
-- [ ] CLAUDE.md 改完即审报告无未声明风险
+- [x] meta 基线不再含 `{"*":"allow"}`，未知 action 默认 deny
+- [x] `tierRuleset(tier, agentID)` 对 12 组合有确定返回，未知输入 fail-safe 返回空
+- [x] 同一 agent 在 `propose` 与 `full` 档下对 `edit` 判定不同（档位隔离可证；裁决修订后两档均为 ask，差异体现在未知 action 基线 deny vs ask，`permission-effective.test.ts` 覆盖）
+- [x] 档位 deny 覆盖 agent 基线 allow **且** 覆盖 saved approval（裁决修订后档位不再产生 deny-write；本条由「基线显式 deny 重放压过 saved approval」承接，`permission.test.ts` 覆盖）
+- [x] 空/默认档位时行为与改动前完全一致（回归锚点用例）
+- [x] 任何无人值守会话（根或子）的 `ask` 都不再挂起（unattended 全降 deny，红线 5）
+- [x] 输入框可切换档位，`full` 写操作弹现有 `SessionPermissionDock`（2026-08-16 桌面实测 + e2e `permission-tier.spec.ts`）
+- [x] 模式拒绝的错误信息含该模式可用替代路径与可操作指引
+- [x] `bun --cwd packages/core typecheck` PASS
+- [x] `bun --cwd packages/aigcfroge typecheck` PASS
+- [x] `bun --cwd packages/app typecheck` PASS
+- [x] `bun --cwd packages/core test` ≥ 基线 1808 pass / 0 fail（实测 1855 pass / 0 fail / 2 skip）
+- [x] `bun run script/lint-changed.ts` 0 违规
+- [x] ADR / CLAUDE.md / ARCHITECTURE.md 描述与代码逐条对应，无"声称但未实现"（2026-08-16 复核补齐本文件闭环）
+- [x] CLAUDE.md 债表删除 2 条已闭环债（fail-open 信封、委派死路）
+- [x] 总闸开 + 有人值守 → 全 allow 无弹窗；总闸开 + 无人值守 → 仍 deny（红线不破；以 Session 级 break-glass 形态落地，见 §10 D6 裁决修订）
+- [x] 总闸关 → 行为与改动前一致（回归锚点）
+- [x] 打开总闸必有二次确认弹窗（非单点即开；break-glass 需勾选「我已了解风险并确认」后才可启用，e2e + 实测覆盖）
 
 ---
 
-## 12. 审批记录
+## 10. 审批 Gate
 
-| 项目 | 结论 |
-|---|---|
-| 前置 Gate | 已关闭：`chat-mode-audit` 已合入 `main`（merge `a4b0485aa`，PR #30），`38de28529` 为 `main` 祖先（2026-08-16 核验） |
-| 架构冲突 | 已裁决：默认 propose-only；当前有人值守根 Session 可主动开启 `meta + full`（ADR-13 Amendment-2 §1c / Chat PRD v4.8 §5.2 已同步） |
-| 工具物化双轨 | 设计已指定唯一 effective owner（`PermissionEffective`，五类消费者同一输入）；代码待实施 |
-| V1/V2 双运行时 | 计划已要求双端强制实现；代码待实施 |
-| mode 维度 | 设计已限定 `chat/work/assistant × meta`；Coding 与非 meta Agent 忽略档位；未知 mode/agent/tier fail-safe |
-| 数据链 | 计划已补齐 Schema/DB/API/SDK/App/fork/child（§3.3 全链位点）；代码待实施 |
-| 总闸风险 | 设计已改为 Session 级临时 break-glass；Chat 危险 action 不免确认 |
-| unattended owner | 设计已改为创建方显式 `attended:false`；不复用 `subagent_attended_default` |
-| external CLI | 设计已同步为 Chat 全档拒绝、Work/Assistant full 才放行、未知 mode fail-safe；代码待实施 |
-| 无关 Effect skill 工作 | 已移出范围 |
+### 已定决策（讨论中已拍板，无需再裁决）
 
-> 最终批准条件：本修订版通过文档引用、事实一致性和独立读者复审后，将状态更新为“已批准”，再生成实施提示词施工。
+| 编号 | 决策 | 依据 |
+|---|---|---|
+| **D3** | build 锁死 coding；非 coding 模式 meta 代 build（同样的能力范围，写走 ask）；`checkPrimaryAgent` 保持现状不改造 | 用户明确确认（2026-08-15） |
+
+### 裁决结论（2026-08-16 实施收口时回填）
+
+| 编号 | 裁决 | 实施状态 |
+|---|---|---|
+| **D0** | **A：新增 `permission_tier` 列** | ✅ `session/sql.ts` + migration `20260815190311_add_session_permission_tier` |
+| **D1** | 接受（桥接会话复用 `subagent_attended_default`，不硬编码） | ✅ Phase 0 落地，unattended 兜底测试覆盖 |
+| **D2** | 两档够（`propose` 默认 / `full`），中间档待 Product 提出 | ✅ `schema/permission-tier.ts` |
+| **D2-amend** | **propose 档写/命令 = `ask`（逐次确认），修订原提案 deny**（人类裁决 2026-08-16，见文头「裁决修订」） | ✅ 实测确认（propose 档 edit 弹 dock） |
+| **D4** | `enforcePrimary` die→typed failure 改造**拆出** | ✅ 未做（保持 die 兜底 + 前置 typed 检查） |
+| **D5** | `effect` skill 补吞错反模式**拆出** | ⏸ 未做，技术债跟进 |
+| **D6** | **形态修订**：全局持久 config 总闸未实施；以 **Session 级 break-glass**（60s 租约、首启需 `acknowledged:true` 二次确认、不持久化、仅根会话 + 有人值守）落地，chat 危险 action 在 break-glass 下仍逐次确认（红线 4） | ✅ `core/src/permission/session-override.ts` + HTTP `PUT/DELETE /session/:id/permission-override` + App 控件（2026-08-16 e2e + 桌面实测） |
+
+### 审批记录
+
+> 2026-08-16：分支 `session-permission-tier` 实施完成并复审（含 core 五层链路代码审查、e2e 回归、桌面端真实模型实测）。裁决结论如上表；propose=ask 与 break-glass 形态两处对原计划的修订均经人类确认。遗留技术债（V2 系统提示 override 状态 M1、V1 每 turn 收权粒度 M2、break-glass 审计日志 M3、wildcard deny 语义 M5、effect skill 补充 D5）已在 PR 描述声明。
+
+---
+
+> **执行前必读**：本计划 §2 五层追踪的每个 file:line 均为 2026-08-15 实测。执行时若发现代码已变动，先更新 §2 再改代码，不要按过期的追踪表施工。

@@ -134,7 +134,7 @@ describe("checkCommandAllowed", () => {
 
 describe("checkCliDelegationAllowed", () => {
   test("denies external CLI delegation in chat mode", () => {
-    const r = checkCliDelegationAllowed("chat")
+    const r = checkCliDelegationAllowed("chat", "full")
     expect(r.allowed).toBe(false)
     if (!r.allowed) {
       expect(r.error._tag).toBe("CommandDeniedError")
@@ -142,16 +142,25 @@ describe("checkCliDelegationAllowed", () => {
     }
   })
 
-  test("allows external CLI delegation in coding mode", () => {
-    expect(checkCliDelegationAllowed("coding").allowed).toBe(true)
+  test("allows external CLI delegation in coding mode at every tier", () => {
+    expect(checkCliDelegationAllowed("coding", "propose").allowed).toBe(true)
+    expect(checkCliDelegationAllowed("coding", "full").allowed).toBe(true)
   })
 
-  test("allows external CLI delegation in work and assistant modes", () => {
-    expect(checkCliDelegationAllowed("work").allowed).toBe(true)
-    expect(checkCliDelegationAllowed("assistant").allowed).toBe(true)
+  test("work and assistant modes allow external CLI only at full", () => {
+    for (const mode of ["work", "assistant"] as const) {
+      expect(checkCliDelegationAllowed(mode, "propose").allowed).toBe(false)
+      expect(checkCliDelegationAllowed(mode, "full").allowed).toBe(true)
+    }
   })
 
-  test("unknown mode falls through to allowed (only chat is narrowed)", () => {
-    expect(checkCliDelegationAllowed("something-else").allowed).toBe(true)
+  test("chat denies external CLI at every tier", () => {
+    expect(checkCliDelegationAllowed("chat", "propose").allowed).toBe(false)
+    expect(checkCliDelegationAllowed("chat", "full").allowed).toBe(false)
+  })
+
+  test("unknown mode is fail-safe denied (plan §2.4)", () => {
+    expect(checkCliDelegationAllowed("something-else", "full").allowed).toBe(false)
+    expect(checkCliDelegationAllowed("something-else", "propose").allowed).toBe(false)
   })
 })

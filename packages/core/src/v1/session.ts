@@ -13,6 +13,7 @@ import { NamedError } from "../util/error"
 import { SessionSchema } from "../session/schema"
 import { WorkspaceV2 } from "../workspace"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 
 const Timestamp = Schema.Finite.check(Schema.isGreaterThanOrEqualTo(0))
 
@@ -572,6 +573,7 @@ export const SessionInfo = Schema.Struct({
   }),
   permission: optionalOmitUndefined(PermissionV1.Ruleset),
   attended: optionalOmitUndefined(Schema.Boolean),
+  permissionTier: optionalOmitUndefined(PermissionTier.ID),
   revert: optionalOmitUndefined(SessionRevert),
 }).annotate({ identifier: "Session" })
 export type SessionInfo = typeof SessionInfo.Type

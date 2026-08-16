@@ -349,6 +349,7 @@ export default {
           \`tokens_cache_write\` integer DEFAULT 0 NOT NULL,
           \`revert\` text,
           \`permission\` text,
+          \`permission_tier\` text DEFAULT 'propose' NOT NULL,
           \`attended\` integer DEFAULT 0,
           \`agent\` text,
           \`model\` text,

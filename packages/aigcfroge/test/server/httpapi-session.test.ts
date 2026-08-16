@@ -27,6 +27,7 @@ import { MessageID, PartID, SessionID, type SessionID as SessionIDType } from ".
 import { Database } from "@aigcfroge/core/database/database"
 import { SessionInputTable, SessionMessageTable, SessionTable, TodoTable } from "@aigcfroge/core/session/sql"
 import { SessionMessage } from "@aigcfroge/core/session/message"
+import { SessionPermissionOverride } from "@aigcfroge/core/permission/session-override"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { EventV2 } from "@aigcfroge/core/event"
 import { ModelV2 } from "@aigcfroge/core/model"
@@ -74,6 +75,7 @@ const it = testEffect(
     EventV2.defaultLayer,
     workspaceLayer,
     Database.defaultLayer,
+    SessionPermissionOverride.locationLayer,
     httpApiLayer,
   ).pipe(Layer.provide(Ripgrep.defaultLayer)),
 )
@@ -1613,6 +1615,196 @@ describe("session task HttpApi", () => {
           headers,
         })
         expect(afterDelete.map((task) => task.content)).toEqual(["two"])
+      }),
+  )
+})
+
+describe("session permission tier HttpApi", () => {
+  it.instance(
+    "creates with permissionTier and attended, updates the tier, and round-trips through get",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = { "x-aigcfroge-directory": encodeURIComponent(test.directory), "content-type": "application/json" }
+
+        const created = yield* requestJson<Session.Info>(SessionPaths.create, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ mode: "chat", permissionTier: "full", attended: false }),
+        })
+        expect(created).toMatchObject({ permissionTier: "full", attended: false })
+
+        const fetched = yield* requestJson<Session.Info>(pathFor(SessionPaths.get, { sessionID: created.id }), {
+          headers,
+        })
+        expect(fetched).toMatchObject({ id: created.id, permissionTier: "full", attended: false })
+
+        // M6 防护：unattended 会话不允许更新档位（创建契约仍保留）。
+        const rejected = yield* request(pathFor(SessionPaths.update, { sessionID: created.id }), {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify({ permissionTier: "propose" }),
+        })
+        expect(rejected.status).toBe(400)
+        expect(yield* responseJson(rejected)).toMatchObject({ _tag: "InvalidRequestError" })
+
+        const attended = yield* requestJson<Session.Info>(SessionPaths.create, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ mode: "chat", permissionTier: "full" }),
+        })
+        const updated = yield* requestJson<Session.Info>(pathFor(SessionPaths.update, { sessionID: attended.id }), {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify({ permissionTier: "propose" }),
+        })
+        expect(updated).toMatchObject({ id: attended.id, permissionTier: "propose" })
+
+        const defaulted = yield* requestJson<Session.Info>(SessionPaths.create, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ title: "default tier" }),
+        })
+        expect(defaulted.permissionTier).toBe("propose")
+      }),
+  )
+
+  it.live(
+    "round-trips permissionTier through the default V1 create + sync prompt path",
+    () =>
+      Effect.gen(function* () {
+        const llm = yield* TestLLMServer
+        yield* llm.text("ok", { usage: { input: 1, output: 1 } })
+
+        const config = testProviderConfig(llm.url)
+        const sessionDirectory = yield* tmpdirScoped({ git: true, config })
+        const headers = {
+          "x-aigcfroge-directory": encodeURIComponent(sessionDirectory),
+          "content-type": "application/json",
+        }
+
+        const created = yield* requestJson<Session.Info>(SessionPaths.create, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ mode: "chat", permissionTier: "full" }),
+        })
+        expect(created).toMatchObject({ permissionTier: "full" })
+
+        const response = yield* request(pathFor(SessionPaths.prompt, { sessionID: created.id }), {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            agent: "chat-orchestrator",
+            model: { providerID: "test", modelID: "test-model" },
+            parts: [{ type: "text", text: "hello" }],
+          }),
+        })
+        if (response.status !== 200) {
+          const body = yield* response.text
+          throw new Error(`prompt failed: ${response.status} ${body}`)
+        }
+        expect(response.status).toBe(200)
+        yield* responseJson(response)
+
+        const fetched = yield* requestJson<Session.Info>(pathFor(SessionPaths.get, { sessionID: created.id }), {
+          headers,
+        })
+        expect(fetched).toMatchObject({ id: created.id, permissionTier: "full" })
+      }).pipe(Effect.provide(TestLLMServer.layer), Effect.provide(CrossSpawnSpawner.defaultLayer)),
+    { timeout: 60_000 },
+  )
+})
+
+describe("session permission override HttpApi", () => {
+  it.instance(
+    "enables, renews, and disables the override for an attended root session",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = { "x-aigcfroge-directory": encodeURIComponent(test.directory), "content-type": "application/json" }
+        const session = yield* createSession({ mode: "chat", agent: "meta" })
+
+        const initial = yield* requestJson<{ enabled: boolean }>(
+          pathFor(SessionPaths.permissionOverride, { sessionID: session.id }),
+          { headers },
+        )
+        expect(initial).toEqual({ enabled: false })
+
+        const missingAck = yield* request(
+          pathFor(SessionPaths.permissionOverride, { sessionID: session.id }),
+          { method: "PUT", headers, body: JSON.stringify({}) },
+        )
+        expect(missingAck.status).toBe(400)
+
+        const enabled = yield* requestJson<{ enabled: boolean }>(
+          pathFor(SessionPaths.permissionOverride, { sessionID: session.id }),
+          { method: "PUT", headers, body: JSON.stringify({ acknowledged: true }) },
+        )
+        expect(enabled).toEqual({ enabled: true })
+
+        const renewed = yield* requestJson<{ enabled: boolean }>(
+          pathFor(SessionPaths.permissionOverride, { sessionID: session.id }),
+          { method: "PUT", headers, body: JSON.stringify({}) },
+        )
+        expect(renewed).toEqual({ enabled: true })
+
+        const disabled = yield* requestJson<{ enabled: boolean }>(
+          pathFor(SessionPaths.permissionOverride, { sessionID: session.id }),
+          { method: "DELETE", headers },
+        )
+        expect(disabled).toEqual({ enabled: false })
+      }),
+  )
+
+  it.instance(
+    "rejects override activation for child and unattended sessions",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = { "x-aigcfroge-directory": encodeURIComponent(test.directory), "content-type": "application/json" }
+        const parent = yield* createSession({ mode: "chat", agent: "meta" })
+        const child = yield* createSession({ parentID: parent.id, mode: "chat", agent: "meta" })
+        const unattended = yield* createSession({ mode: "chat", agent: "meta", attended: false })
+
+        for (const session of [child, unattended]) {
+          const response = yield* request(
+            pathFor(SessionPaths.permissionOverride, { sessionID: session.id }),
+            { method: "PUT", headers, body: JSON.stringify({ acknowledged: true }) },
+          )
+          expect(response.status).toBe(400)
+          expect(yield* responseJson(response)).toMatchObject({ _tag: "InvalidRequestError" })
+        }
+      }),
+  )
+})
+
+describe("session permission tier update guards (M6)", () => {
+  it.instance(
+    "rejects tier updates for child and unattended sessions with 400",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = { "x-aigcfroge-directory": encodeURIComponent(test.directory), "content-type": "application/json" }
+        const parent = yield* createSession({ mode: "chat", agent: "meta" })
+        const child = yield* createSession({ parentID: parent.id, mode: "chat", agent: "meta" })
+        const unattended = yield* createSession({ mode: "chat", agent: "meta", attended: false })
+
+        for (const session of [child, unattended]) {
+          const response = yield* request(pathFor(SessionPaths.update, { sessionID: session.id }), {
+            method: "PATCH",
+            headers,
+            body: JSON.stringify({ permissionTier: "full" }),
+          })
+          expect(response.status).toBe(400)
+          expect(yield* responseJson(response)).toMatchObject({ _tag: "InvalidRequestError" })
+        }
+
+        const ok = yield* requestJson<Session.Info>(pathFor(SessionPaths.update, { sessionID: parent.id }), {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify({ permissionTier: "full" }),
+        })
+        expect(ok).toMatchObject({ id: parent.id, permissionTier: "full" })
       }),
   )
 })
