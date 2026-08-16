@@ -23,7 +23,7 @@
 
 import { beforeEach, describe, expect } from "bun:test"
 import { and, eq } from "drizzle-orm"
-import { Effect, Layer, Sink, Stream } from "effect"
+import { Cause, Effect, Exit, Layer, Sink, Stream } from "effect"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { BackgroundJob } from "@aigcfroge/core/background-job"
 import { Database } from "@aigcfroge/core/database/database"
@@ -40,6 +40,7 @@ import { SessionProjector } from "@aigcfroge/core/session/projector"
 import { SessionStore } from "@aigcfroge/core/session/store"
 import { TaskDriverFill } from "@aigcfroge/core/session/task-driver-fill"
 import { TaskDriver } from "@aigcfroge/core/tool/task-driver"
+import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
 import { ExternalCliSessionTable } from "@aigcfroge/core/tool/cli-session.sql"
 import { registerCliAdapter, type CliAdapter } from "@aigcfroge/core/tool/cli-adapter"
 import { PermissionV2 } from "@aigcfroge/core/permission"
@@ -489,6 +490,41 @@ describe("TaskDriverFill executeCLI", () => {
       const parent = yield* seedParent
       const error = yield* runCLI({ parentID: parent.id }).pipe(Effect.flip)
       expect(error instanceof TaskDriverFill.CliUnavailableError).toBe(true)
+    }),
+  )
+})
+
+describe("TaskDriverFill executeCLI session-lookup failure (M4)", () => {
+  it.effect("denies external CLI delegation when the parent session lookup fails", () =>
+    Effect.gen(function* () {
+      const failing: TaskDriver.SessionFacade = {
+        get: () => Effect.fail(new Error("storage unavailable")),
+        create: () => Effect.fail(new Error("storage unavailable")),
+        prompt: () => Effect.fail(new Error("storage unavailable")),
+        resume: () => Effect.fail(new Error("storage unavailable")),
+        messages: () => Effect.fail(new Error("storage unavailable")),
+        injectSynthetic: () => Effect.fail(new Error("storage unavailable")),
+        interrupt: () => Effect.void,
+      }
+      TaskDriver.install(failing, {
+        start: () => Effect.fail(new Error("no background")),
+        wait: () => Effect.fail(new Error("no background")),
+        extend: () => Effect.fail(new Error("no background")),
+        cancel: () => Effect.fail(new Error("no background")),
+      })
+
+      const exit = yield* TaskDriver.executeCLI({
+        cliTarget: "test-cli",
+        prompt: "run the cli task",
+        description: "cli child title",
+        sessionID: SessionV2.ID.make("ses_missing_cli_gate"),
+        taskID: undefined,
+      }).pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      if (Exit.isFailure(exit)) {
+        expect(Cause.squash(exit.cause)).toBeInstanceOf(ProductModeAgentPolicy.CommandDeniedError)
+      }
     }),
   )
 })

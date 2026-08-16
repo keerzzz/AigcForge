@@ -441,6 +441,11 @@ export class BusyError extends Schema.TaggedErrorClass<BusyError>()("SessionBusy
   sessionID: SessionID,
 }) {}
 
+export class PermissionTierError extends Schema.TaggedErrorClass<PermissionTierError>()("Session.PermissionTierError", {
+  sessionID: SessionID,
+  reason: Schema.Literals(["child-session", "unattended"]),
+}) {}
+
 export type NotFound = NotFoundError
 
 export interface Interface {
@@ -469,7 +474,7 @@ export interface Interface {
   readonly setPermissionTier: (input: {
     sessionID: SessionID
     permissionTier: PermissionTier.ID
-  }) => Effect.Effect<void>
+  }) => Effect.Effect<void, NotFound | PermissionTierError>
   readonly setRevert: (input: {
     sessionID: SessionID
     revert: Info["revert"]
@@ -835,9 +840,17 @@ export const layer: Layer.Layer<
       sessionID: SessionID
       permissionTier: PermissionTier.ID
     }) {
+      const current = yield* get(input.sessionID)
+      // 档位是用户为根会话主动开启的契约：child 不继承、unattended 无确认者，
+      // 与 break-glass 的防护对称（M6）。
+      if (current.parentID !== undefined)
+        return yield* new PermissionTierError({ sessionID: input.sessionID, reason: "child-session" })
+      if (current.attended === false)
+        return yield* new PermissionTierError({ sessionID: input.sessionID, reason: "unattended" })
       yield* patch(input.sessionID, { permissionTier: input.permissionTier, time: { updated: Date.now() } }).pipe(
         Effect.orDie,
       )
+      return Effect.void
     })
 
     const setRevert = Effect.fn("Session.setRevert")(function* (input: {

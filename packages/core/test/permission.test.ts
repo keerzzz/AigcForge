@@ -479,3 +479,46 @@ describe("PermissionV2", () => {
     }),
   )
 })
+
+describe("PermissionV2 always auto-approval (H1)", () => {
+  it.effect("keeps chat full dangerous actions ask-gated when another request is saved", () =>
+    Effect.gen(function* () {
+      yield* setup()
+      yield* (yield* AgentV2.Service).transform((editor) =>
+        editor.update(AgentV2.ID.make("meta"), (agent) => {
+          agent.permissions = [
+            { action: "*", resource: "*", effect: "deny" },
+            { action: "read", resource: "*", effect: "allow" },
+            { action: "edit", resource: "*", effect: "ask" },
+          ]
+        }),
+      )
+      const { db } = yield* Database.Service
+      yield* db
+        .update(SessionTable)
+        .set({ mode: "chat", agent: "meta", permission_tier: "full" })
+        .where(eq(SessionTable.id, SessionV2.ID.make("ses_test")))
+        .run()
+        .pipe(Effect.orDie)
+
+      const service = yield* PermissionV2.Service
+      // 两个 edit 请求都 ask（chat full 危险 action 逐次确认）。
+      const first = yield* service.ask(
+        assertion({ id: PermissionV2.ID.create("per_always_a"), action: "edit", resources: ["src/a.ts"], save: ["*"] }),
+      )
+      const second = yield* service.ask(
+        assertion({ id: PermissionV2.ID.create("per_always_b"), action: "edit", resources: ["src/b.ts"] }),
+      )
+      expect(first.effect).toBe("ask")
+      expect(second.effect).toBe("ask")
+
+      // 对第一个 reply always → saved 产出 {edit, "*", allow}。
+      yield* service.reply({ requestID: first.id, reply: "always" })
+
+      // 第二个 edit 不得被自动放行（仍逐次确认）。
+      const remaining = yield* service.list()
+      expect(remaining.some((item) => item.resources[0] === "src/b.ts")).toBe(true)
+      expect(remaining.every((item) => item.resources[0] === "src/a.ts")).toBe(false)
+    }),
+  )
+})

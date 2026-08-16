@@ -68,10 +68,15 @@ function compute(input: Input, base: Permission.Ruleset): Permission.Ruleset {
   }
   if (chatDangerous) {
     // Chat full 逐次确认：无 master 时未知 action 已由 full 的 wildcard ask 覆盖；
-    // 有 master 时需再次压过 master 的全 allow。危险 action 始终压过
-    // master/saved 的 allow（红线 4）。
+    // 有 master 时需再次压过 master 的全 allow，并重放 base 的 allow 规则以
+    // 恢复 read/propose 等既有 allow（否则 wildcard ask 会盖掉它们，H2）。
+    // 只重放 allow 不重放 ask：override 语义是「放开一般动作，仅 Chat 危险
+    // action 逐次确认」（确认框文案明示可读敏感文件）；重放基线 ask 会让
+    // chat full 的 .env 读取在 override 下仍逐次确认，与文案及 work/
+    // assistant 模式的 override 行为不一致（实测发现 B）。
     if (input.masterPermissionEnabled && attended) {
       rules.push({ action: "*", resource: "*", effect: "ask" })
+      rules.push(...base.filter((rule) => rule.effect === "allow"))
     }
     rules.push(...DANGEROUS_ACTIONS.map((action): Permission.Rule => ({ action, resource: "*", effect: "ask" })))
   }

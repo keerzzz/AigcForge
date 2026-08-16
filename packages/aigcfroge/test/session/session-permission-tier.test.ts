@@ -1,5 +1,5 @@
 import { describe, expect } from "bun:test"
-import { Effect, Layer, Schema } from "effect"
+import { Cause, Effect, Exit, Layer, Schema } from "effect"
 import { Session as SessionNs } from "@/session/session"
 import { CrossSpawnSpawner } from "@aigcfroge/core/cross-spawn-spawner"
 import { Database } from "@aigcfroge/core/database/database"
@@ -82,6 +82,28 @@ describe("Session permission tier", () => {
       const session = yield* SessionNs.Service
       const created = yield* session.create({ attended: false })
       expect((yield* session.get(created.id)).attended).toBe(false)
+    }),
+  )
+})
+
+describe("Session permission tier guards (M6)", () => {
+  it.instance("rejects tier updates for child and unattended sessions", () =>
+    Effect.gen(function* () {
+      const session = yield* SessionNs.Service
+      const parent = yield* session.create({ mode: "chat", agent: "meta" })
+      const child = yield* session.create({ parentID: parent.id, mode: "chat", agent: "meta" })
+      const unattended = yield* session.create({ mode: "chat", agent: "meta", attended: false })
+
+      for (const target of [child, unattended]) {
+        const exit = yield* session.setPermissionTier({ sessionID: target.id, permissionTier: "full" }).pipe(Effect.exit)
+        expect(Exit.isFailure(exit)).toBe(true)
+        if (Exit.isFailure(exit)) {
+          expect(Cause.squash(exit.cause)).toBeInstanceOf(SessionNs.PermissionTierError)
+        }
+      }
+
+      yield* session.setPermissionTier({ sessionID: parent.id, permissionTier: "full" })
+      expect((yield* session.get(parent.id)).permissionTier).toBe("full")
     }),
   )
 })

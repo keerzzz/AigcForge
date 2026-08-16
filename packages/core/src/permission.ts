@@ -296,19 +296,17 @@ export const layer = Layer.effect(
           pending.delete(input.requestID)
           if (input.reply !== "always" || !existing.request.save?.length) return
 
-          const rememberedRules = yield* savedRules()
           for (const [id, item] of pending) {
-            const input = { ...item.request }
             const rules = yield* configured(item.request.sessionID, item.agent).pipe(
               EffectRuntime.catchTag("Session.NotFoundError", () => EffectRuntime.succeed(undefined)),
             )
             if (!rules) continue
-            if (input.resources.some((resource) => evaluate(input.action, resource, rules).effect === "deny"))
-              continue
-            const effective = [...rules, ...rememberedRules]
+            // configured 已含 saved approval（在 Chat full 危险 action 的 ask
+            // 之前）与显式 deny 重放；不再追加 remembered——追加会把 saved
+            // allow 放到危险 ask 之后，自动放行跳过逐次确认（H1）。
             if (
               !item.request.resources.every(
-                (resource) => evaluate(item.request.action, resource, effective).effect === "allow",
+                (resource) => evaluate(item.request.action, resource, rules).effect === "allow",
               )
             )
               continue

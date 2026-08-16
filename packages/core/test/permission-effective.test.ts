@@ -119,12 +119,26 @@ describe("PermissionEffective master/override", () => {
     expect(PermissionEffective.evaluate(rules, "some_future_tool", "*")).toBe("allow")
   })
 
-  test("chat × meta × full + override：危险 action 仍逐次 ask", () => {
+  test("chat × meta × full + override：危险 action 仍逐次 ask，既有 allow 不被降级", () => {
     const rules = v2(input({ tier: "full", attended: true, masterPermissionEnabled: true }))
     for (const action of ["bash", "edit", "write", "apply_patch"]) {
       expect(PermissionEffective.evaluate(rules, action, "*"), action).toBe("ask")
     }
     expect(PermissionEffective.evaluate(rules, "some_future_tool", "*")).toBe("ask")
+    // H2：break-glass 不得把 base 显式 allow（read/question/propose）降为 ask。
+    expect(PermissionEffective.evaluate(rules, "read", "src/index.ts")).toBe("allow")
+    expect(PermissionEffective.evaluate(rules, "question", "*")).toBe("allow")
+    expect(PermissionEffective.evaluate(rules, "propose_prompt_asset", "*")).toBe("allow")
+  })
+
+  test("chat × meta × full + override：基线敏感文件 ask 被放开（发现 B，与文案/work 模式一致）", () => {
+    const rules = v2(input({ tier: "full", attended: true, masterPermissionEnabled: true }))
+    // 确认框文案「允许…读取敏感文件」：override 需盖过基线 {read,*.env,ask}
+    expect(PermissionEffective.evaluate(rules, "read", ".env")).toBe("allow")
+    expect(PermissionEffective.evaluate(rules, "read", "config.env.production")).toBe("allow")
+    // 对照：无 override 的 full 档不放开敏感文件（档位本身不是提权通道）
+    const noOverride = v2(input({ tier: "full", attended: true, masterPermissionEnabled: false }))
+    expect(PermissionEffective.evaluate(noOverride, "read", ".env")).toBe("ask")
   })
 
   test("work × meta × full + override：危险 action 允许（非 Chat 保持预授权语义）", () => {

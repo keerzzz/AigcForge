@@ -619,16 +619,25 @@ export const install = (
         // External-CLI delegation never creates a child Session, so it bypasses
         // `enforcePrimary`'s mode-bound agent allowlist. Gate it on the mode here
         // or chat mode keeps an open write channel (ADR-13 Amendment-2 §1b).
+        // Session lookup failure is fail-closed（M4）：存储故障时不得按 coding
+        // 放行，否则 chat propose-first 不变量在瞬时 DB 错误下洞开。
         const parent = yield* sessions.get(input.sessionID).pipe(
           Effect.catch(() =>
-            Effect.logWarning(`task-driver: session lookup failed for CLI gate (${input.sessionID}), defaulting permissively`).pipe(
-              Effect.andThen(Effect.succeed(undefined)),
+            Effect.logWarning(`task-driver: session lookup failed for CLI gate (${input.sessionID}), denying`).pipe(
+              Effect.andThen(
+                Effect.fail(
+                  new ProductModeAgentPolicy.CommandDeniedError({
+                    mode: "unknown",
+                    reason: "Session lookup failed; external CLI delegation denied",
+                  }),
+                ),
+              ),
             ),
           ),
         )
         const verdict = ProductModeAgentPolicy.checkCliDelegationAllowed(
-          parent?.mode ?? "coding",
-          parent?.permissionTier ?? PermissionTier.Default,
+          parent.mode ?? "coding",
+          parent.permissionTier ?? PermissionTier.Default,
         )
         if (!verdict.allowed) return yield* Effect.fail(verdict.error)
         if (!cli) return yield* Effect.fail(new Error("CLI adapter registry not available"))

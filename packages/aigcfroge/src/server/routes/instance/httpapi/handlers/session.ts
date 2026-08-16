@@ -483,10 +483,27 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
         })
       }
       if (ctx.payload.permissionTier !== undefined) {
-        yield* session.setPermissionTier({
-          sessionID: ctx.params.sessionID,
-          permissionTier: ctx.payload.permissionTier,
-        })
+        yield* session
+          .setPermissionTier({
+            sessionID: ctx.params.sessionID,
+            permissionTier: ctx.payload.permissionTier,
+          })
+          .pipe(
+            Effect.catchTag("Session.PermissionTierError", (error) =>
+              Effect.fail(
+                new InvalidRequestError({
+                  message:
+                    error.reason === "child-session"
+                      ? "Permission tier is only available for root sessions"
+                      : "Permission tier is not available for unattended sessions",
+                  kind: "permission-tier",
+                }),
+              ),
+            ),
+            Effect.catchTag("NotFoundError", () =>
+              Effect.fail(notFound(`Session not found: ${ctx.params.sessionID}`)),
+            ),
+          )
       }
       if (ctx.payload.time?.archived !== undefined) {
         yield* session.setArchived({ sessionID: ctx.params.sessionID, time: ctx.payload.time.archived })
