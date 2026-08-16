@@ -4,7 +4,7 @@
 > 负责人：产品（范围与指标）/ Core（资产契约与事务）/ App（Chat surface）/ Security（写入边界）
 > 范围：`packages/app` + `packages/core` + `packages/aigcfroge` + `packages/schema`
 > 关联：[ADR-11](../architecture/adr/ADR-11-product-mode-session-classification.md)、[ADR-12](../architecture/adr/ADR-12-product-mode-entry-routing.md)、[ADR-13](../architecture/adr/ADR-13-chat-work-mode-boundary.md)、[ADR-14](../architecture/adr/ADR-14-persistence-and-scope-strategy.md)、[ADR-15](../architecture/adr/ADR-15-mode-workspace-main-area-slot.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md) §4.10、[CONTEXT.md](../../CONTEXT.md)、[M1 实施计划](../plan/chat-mode-creation-layer-m1.md)、[M2 实施计划](../plan/chat-asset-studio-m2.md)、[Assistant PRD](assistant-mode-personal-agent.md)
-> 最后更新：2026-07-27（v4.6：新增 §19 M6 实施状态 + §20 M7 实施状态；§10 开闸表更新至 M7 全部完成）
+> 最后更新：2026-08-16（v4.8 实施注记：会话级权限档位 `propose`/`full` 与当前 Session `full` 例外已落地，约束见 [ADR-13 Amendment-2 §1c 状态标注](../architecture/adr/ADR-13-amendment-2-meta-agent-dispatch.md) 与 [实施计划](../plan/mode-scoped-permission-overlay.md)；Chat 默认 propose-only，`full` 仅由用户主动为有人值守根 Session 开启，危险 action 逐次确认）
 
 ---
 
