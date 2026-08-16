@@ -2400,3 +2400,37 @@ it.instance(
     }),
   30_000,
 )
+
+it.instance(
+  "chat × meta × full session materializes unknown write tools on the V1 path",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig(providerCfg)
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const chat = yield* sessions.create({
+        title: "tier full",
+        mode: "chat",
+        agent: "meta",
+        permissionTier: "full",
+      })
+      yield* seed(chat.id, { finish: "stop" })
+
+      yield* llm.text("ok", { usage: { input: 1, output: 1 } })
+      yield* user(chat.id, "go")
+      yield* prompt.loop({ sessionID: chat.id })
+      yield* llm.wait(1)
+
+      const body = (yield* llm.inputs)[0]
+      // oxlint-disable-next-line no-unsafe-type-assertion -- LLM 请求体为 unknown，仅取工具名做行为断言
+      const rawTools = (body?.tools ?? []) as Array<{ function?: { name?: string }; name?: string }>
+      const names = new Set(rawTools.map((t) => t.function?.name ?? t.name))
+      // full 档位下基线 deny 的未知工具经 wildcard ask 物化可见（V2 语义）；
+      // V1 现状（agent 基线 deny 隐藏）将在 Phase 4 修复。apply_patch 受
+      // GPT 模型过滤约束，故用 todowrite（meta 基线 deny、full 抬起）。
+      expect(names.has("todowrite")).toBe(true)
+      expect(names.has("edit")).toBe(true)
+      expect(names.has("bash")).toBe(true)
+    }),
+  30_000,
+)

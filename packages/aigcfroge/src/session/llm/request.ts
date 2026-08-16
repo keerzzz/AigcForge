@@ -194,11 +194,10 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
   }
 })
 
-function resolveTools(input: Pick<PrepareInput, "tools" | "agent" | "permission" | "user">) {
-  const disabled = Permission.disabled(
-    Object.keys(input.tools),
-    Permission.merge(input.agent.permission, input.permission ?? []),
-  )
+function resolveTools(input: Pick<PrepareInput, "tools" | "permission" | "user">) {
+  // permission 已由 owner（PermissionEffective.effectiveV1）产出，含 Agent
+  // 基线 + 档位/attended 语义；此处不再二次拼接 agent 基线。
+  const disabled = Permission.disabled(Object.keys(input.tools), input.permission ?? [])
   return Record.filter(input.tools, (_, k) => input.user.tools?.[k] !== false && !disabled.has(k))
 }
 

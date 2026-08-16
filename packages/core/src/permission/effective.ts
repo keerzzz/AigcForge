@@ -101,3 +101,11 @@ export function effectiveV1(input: Input, base: PermissionV1.Ruleset): Permissio
     (rule): PermissionV1.Rule => ({ permission: rule.action, pattern: rule.resource, action: rule.effect }),
   )
 }
+
+// V1 `Permission.ask` 会把会话内 always 预授权（approved）追加在 ruleset 之后
+// （findLast 赢）。Chat full 的危险 action 必须逐次确认（红线 4：不接受
+// always 预授权），故调用方把返回值作为 ask 的 finalRules 追加在 approved 之后。
+export function v1FinalRules(input: Input): PermissionV1.Ruleset {
+  if (input.mode !== "chat" || input.agent !== "meta" || input.tier !== "full") return []
+  return DANGEROUS_ACTIONS.map((action): PermissionV1.Rule => ({ permission: action, pattern: "*", action: "ask" }))
+}

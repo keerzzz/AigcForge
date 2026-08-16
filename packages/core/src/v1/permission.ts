@@ -58,6 +58,9 @@ export const AskInput = Schema.Struct({
   ...Request.fields,
   id: ID.pipe(Schema.optional),
   ruleset: Ruleset,
+  // Chat full 危险 action 的逐次确认规则：追加在会话内 always 预授权之后，
+  // 覆盖 approved（红线 4 — 不接受 always 预授权）。
+  finalRules: Ruleset.pipe(Schema.optional),
 }).annotate({ identifier: "PermissionAskInput" })
 export type AskInput = typeof AskInput.Type
 

@@ -34,6 +34,8 @@ import { NamedError } from "@aigcfroge/core/util/error"
 import { SessionProcessor } from "./processor"
 import { Tool } from "@/tool/tool"
 import { Permission } from "@/permission"
+import { PermissionEffective } from "@aigcfroge/core/permission/effective"
+import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { SessionStatus } from "./status"
 import { LLM } from "./llm"
 import { Shell } from "@aigcfroge/core/shell"
@@ -350,6 +352,22 @@ export const layer = Layer.effect(
         throw error
       }
 
+      // 子代理工具审批回调：同一 owner 计算（session 档位语义 + 子代理基线）。
+      const subtaskInput: PermissionEffective.Input = {
+        mode: session.mode,
+        agent: taskAgent.name,
+        tier: session.permissionTier ?? PermissionTier.Default,
+        parentID: session.parentID,
+        attended: session.attended,
+        masterPermissionEnabled: false,
+        savedApprovals: [],
+      }
+      const subtaskRules = PermissionEffective.effectiveV1(
+        subtaskInput,
+        Permission.merge(taskAgent.permission, session.permission ?? []),
+      )
+      const subtaskFinalRules = PermissionEffective.v1FinalRules(subtaskInput)
+
       let error: Error | undefined
       const taskAbort = new AbortController()
       const result = yield* taskTool
@@ -374,7 +392,8 @@ export const layer = Layer.effect(
               .ask({
                 ...req,
                 sessionID,
-                ruleset: Permission.merge(taskAgent.permission, session.permission ?? []),
+                ruleset: subtaskRules,
+                ...(subtaskFinalRules.length ? { finalRules: subtaskFinalRules } : {}),
               })
               .pipe(Effect.orDie),
         })
@@ -1384,6 +1403,23 @@ export const layer = Layer.effect(
             const bypassAgentCheck = lastUserMsg?.parts.some((p) => p.type === "agent") ?? false
             const promptOps = yield* ops()
 
+            // V1 provider turn 只计算一次有效 Ruleset（唯一 owner），供工具
+            // 物化、LLM request 与 ctx.ask 共用（计划 §2.3）。
+            const effectiveInput: PermissionEffective.Input = {
+              mode: session.mode,
+              agent: agent.name,
+              tier: session.permissionTier ?? PermissionTier.Default,
+              parentID: session.parentID,
+              attended: session.attended,
+              masterPermissionEnabled: false,
+              savedApprovals: [],
+            }
+            const effectiveRules = PermissionEffective.effectiveV1(
+              effectiveInput,
+              Permission.merge(agent.permission, session.permission ?? []),
+            )
+            const finalRules = PermissionEffective.v1FinalRules(effectiveInput)
+
             const tools = yield* SessionTools.resolve({
               agent,
               session,
@@ -1392,6 +1428,8 @@ export const layer = Layer.effect(
               bypassAgentCheck,
               messages: msgs,
               promptOps,
+              ruleset: effectiveRules,
+              finalRules,
             }).pipe(
               Effect.provideService(Plugin.Service, plugin),
               Effect.provideService(Permission.Service, permission),
@@ -1426,7 +1464,7 @@ export const layer = Layer.effect(
             const result = yield* handle.process({
               user: lastUser,
               agent,
-              permission: session.permission,
+              permission: effectiveRules,
               sessionID,
               parentSessionID: session.parentID,
               system,

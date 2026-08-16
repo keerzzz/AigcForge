@@ -4,6 +4,7 @@ import { Cause, Effect, Exit, Schema } from "effect"
 import { AgentV2 } from "../agent"
 import { Location } from "../location"
 import { ProductModeAgentPolicy } from "../product-mode-agent-policy"
+import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { SessionMessage } from "../session/message"
 import { SessionSchema } from "../session/schema"
 import { generateSummary } from "../session/share-summary"
@@ -244,7 +245,10 @@ export const executeCLI = (input: {
 export interface SessionFacade {
   readonly get: (
     sessionID: SessionSchema.ID,
-  ) => Effect.Effect<{ location: Location.Ref; parentID?: SessionSchema.ID; mode?: string }, unknown>
+  ) => Effect.Effect<
+    { location: Location.Ref; parentID?: SessionSchema.ID; mode?: string; permissionTier?: PermissionTier.ID },
+    unknown
+  >
   readonly create: (input: {
     id?: SessionSchema.ID
     parentID: SessionSchema.ID
@@ -622,7 +626,10 @@ export const install = (
             ),
           ),
         )
-        const verdict = ProductModeAgentPolicy.checkCliDelegationAllowed(parent?.mode ?? "coding")
+        const verdict = ProductModeAgentPolicy.checkCliDelegationAllowed(
+          parent?.mode ?? "coding",
+          parent?.permissionTier ?? PermissionTier.Default,
+        )
         if (!verdict.allowed) return yield* Effect.fail(verdict.error)
         if (!cli) return yield* Effect.fail(new Error("CLI adapter registry not available"))
         return yield* cli.execute(input)
