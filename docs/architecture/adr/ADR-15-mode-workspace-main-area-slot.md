@@ -79,6 +79,19 @@ ModeSwitcher / SecondarySidebar / StatusBar / 路由 / 同步 / 通知 / 空 loa
 - Chat 会话降为次级，用户找会话路径需设计（SecondarySidebar 或主区 tab）
 - 跨模式 "存为资产" 入口需补（PRD §7.2，Coding 会话跳 Chat 工作台或就地弹预览）
 
+## 附录 A：Location/项目树 Owner 边界（mode-page-unification-v2 Phase 2，2026-08-17）
+
+记录当前真实 owner 边界（main 基线代码事实，非统一状态声称）：
+
+| 模式侧栏 | Location/项目树 owner | 说明 |
+|---|---|---|
+| Coding | `CodingProjectColumnSidebar`（构建于 `coding-project-column.tsx` 的 `HomeProjectColumn`/`HomeProjectRow`） | 拥有多 server/多项目选择、sandbox、项目操作、通知、Coding 新建会话；**不替换为 `ModeLocationNewSession`**，`ModeLocationNewSession` 也不读取 `CodingSelectionCtx` |
+| Work | `WorkProjectColumnSidebar` → `ModeLocationNewSession`（`mode="work"`） | 只负责 active directory、注册地址和新建入口 |
+| Assistant | `AssistantSidebar`（`assistant-feature-sidebar.tsx`）→ `ModeLocationNewSession`（`mode="assistant"`） | 同上 |
+| Chat | `ChatFeatureSidebar`（`mode-surfaces.tsx`）**内联** Location + 新建/添加项目逻辑 | 额外承载 7 类 feature tree/counts；**未消费** `ModeLocationNewSession`，不得将 Chat 误报为已统一 Location |
+
+`MODE_SURFACES` 契约不变：`coding/chat/work/assistant` 四 Sidebar 保持 render-all + `display:none` 挂载。Assistant `global|project` 知识库 scope 选择器不在本计划实现。进一步抽取更低层 Location primitive 需要行为等价测试前置，本附录不强制决定。
+
 ## 明确不决定
 
 - Work 工作流、Assistant 记忆的具体 slot 实现（各自 PRD + owner contract）

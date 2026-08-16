@@ -111,6 +111,7 @@
 2. 记录并测试当前事实：Work/Assistant 使用 `ModeLocationNewSession`；Chat 使用 `ChatFeatureSidebar` 内联的 Location + 新建/添加项目逻辑，并额外承载 Chat feature tree/counts。
 3. 不让 `ModeLocationNewSession` 读取 `CodingSelectionCtx` 或自行创建第二套 server/project selection。若要把 Chat 改为消费它，必须先证明 `ChatFeatureSidebar` 的功能树、计数、seed、目录注册和新建行为全部保持，并在同一 Phase 内完成 source-contract 与浏览器回归。
 4. 在本文和 ADR-15 附录记录 Location 决策：Coding 保留项目树；Work/Assistant 复用现有 Location owner；Chat 的 Location 仍由功能侧栏 owner 持有，是否继续抽取更低层 primitive 不在本 Phase 强制决定；Assistant `global|project` scope 不在本计划实现。
+   - **执行记录（Phase 2，2026-08-17）**：Coding 项目树已由 Phase 1 迁入 `coding-project-column.tsx`（`HomeProjectColumn`/`HomeProjectRow`，兼容名称 + Coding owner 注释）；Work/Assistant 仍消费 `ModeLocationNewSession`；Chat 的 `ChatFeatureSidebar` 内联 Location + 新建/添加项目 + 7 类 feature tree/counts，未消费 `ModeLocationNewSession`。Location 决策已记入 ADR-15 附录 A，并新增 `location-owner-contract.test.tsx` source-contract 测试断言真实 owner（不得以"Chat 已复用 ModeLocationNewSession"为断言）。
 5. 增加 source-contract 测试，证明 Coding 仍使用 Coding owner、Work/Assistant 仍使用 `ModeLocationNewSession`、Chat 仍挂载 `ChatFeatureSidebar`；测试不得用“Chat 已复用 `ModeLocationNewSession`”作为断言。
 
 验收：Coding server 切换、项目切换、多选注册、关闭/编辑项目和新建会话手工回归；Chat Location/功能树/计数/添加项目/新建会话回归；Work/Assistant Location 回归；相关 App tests/typecheck/lint 通过。若本 Phase 未改变 Chat 实现，不得把“Chat Location 统一”写入完成报告。
