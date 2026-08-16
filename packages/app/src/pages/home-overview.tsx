@@ -29,11 +29,11 @@ import {
   matchesHomeSessionSearch,
   type HomeSessionRecord,
   HomeSessionGroupHeader,
-  HomeProjectRow,
   HomeSessionRow,
   HomeSessionSearch,
   HomeSessionSkeleton,
-} from "@/pages/home"
+} from "@/pages/home-shared"
+import { HomeProjectRow } from "@/pages/coding-project-column"
 import { countByMode, countByProject, pinLastActive } from "@/pages/home-overview-model"
 import { SessionModeBadge } from "@/components/session-mode-badge"
 import { pathKey } from "@/utils/path-key"

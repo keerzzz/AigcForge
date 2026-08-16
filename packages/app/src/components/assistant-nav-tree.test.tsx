@@ -13,7 +13,7 @@ const sidebar = read("assistant-session-sidebar.tsx")
 const secondary = read("secondary-sidebar.tsx")
 const context = read("../pages/mode-workspace-context.ts")
 const workspace = read("../pages/mode-workspace.tsx")
-const home = read("../pages/home.tsx")
+const home = read("../pages/home-shared.tsx")
 const featureSidebar = read("assistant-feature-sidebar.tsx")
 
 describe("AssistantNavTree (entity nav tree, batch 2 G3)", () => {

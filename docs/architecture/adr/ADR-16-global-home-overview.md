@@ -20,7 +20,7 @@ ADR-15 将 Home 概念迁移为 "ModeWorkspace 在 persisted mode 下的呈现"�
 
 `/` 不再重定向，渲染**独立路由组件** `HomeOverview`（全局聚合首页）：跨项目会话列表 + 模式筛选 + 项目筛选 + 「继续上次」置顶 + 会话搜索。它**不是** ModeWorkspace slot、**不是** ADR-15 禁止的 "Home 自绘伪四区"：
 
-- 不复制共享 workspace：会话列表/搜索/分组头/项目行**复用** `home.tsx` 导出组件；打开会话走共享 `openSessionRecord`（helpers.ts），与 Coding 模式首页行为逐行一致。
+- 不复制共享 workspace：会话列表/搜索/分组头/项目行**复用** `home-shared.tsx` 导出组件（`HomeSessionRow`/`HomeSessionSearch`/`HomeSessionGroupHeader`/`HomeSessionSkeleton`，原 `home.tsx` 拆除后的共享 Session owner）与 `coding-project-column.tsx`（`HomeProjectRow`，Coding 项目树 owner）；打开会话走共享 `openSessionRecord`（helpers.ts），与 Coding 模式首页行为逐行一致。
 - 无 slot remount 闪烁：首页为路由级组件，进入/离开 remount 属路由正常语义（同 session/draft 路由），不涉及模式 slot 切换。
 - Chat 功能树无重复实例化：`ChatFeatureSidebar` 等模式专属组件仅在 `/mode/:mode` 的 ModeWorkspace 内存在，首页不实例化任何模式专属组件树。
 
@@ -68,7 +68,7 @@ V2 顶栏（Titlebar）左侧的既有 home 切换按钮（`grid-plus` icon，`t
 
 ## 接受条件
 
-1. 首页复用 home.tsx 导出组件与共享 `openSessionRecord`，无第二实现（计划红线 1）。
+1. 首页复用 home-shared.tsx/coding-project-column.tsx 导出组件与共享 `openSessionRecord`，无第二实现（计划红线 1；`home.tsx` 已按 `mode-page-unification-v2.md` Phase 1 拆除为 `home-shared.tsx` + `coding-project-column.tsx`）。
 2. SDK/core/server/DB 零改动（计划 §3 分层表）。
 3. i18n 新增 key 全语言补齐，parity 测试绿。
 4. `ARCHITECTURE.md` §4.10 Decisions 补引本 ADR。
@@ -89,7 +89,7 @@ V2 顶栏（Titlebar）左侧的既有 home 切换按钮（`grid-plus` icon，`t
 | 2. 框架契约 Core 评审 | PASS | 首页为独立路由组件（非 slot）；记忆为显式持久化（onSet 信号，不依赖 time.updated）；SDK/DB 零改动 | Core owner ✓ |
 | 3. 安全评审 | PASS | 无新 migration；无新网络/权限面；复用现有 sessionPlacement 持久化通道 | Security ✓ |
 | 4. 指标/埋点 | N/A | 本 ADR 不涉及指标 | - |
-| 5. App 评审 | PASS | 复用 home.tsx 导出组件 + 共享 openSessionRecord；组件测试对齐 mode-workspace.test.tsx 存在性断言风格 | App owner ✓ |
+| 5. App 评审 | PASS | 复用 home-shared.tsx/coding-project-column.tsx 导出组件 + 共享 openSessionRecord；组件测试对齐 mode-workspace.test.tsx 存在性断言风格 | App owner ✓ |
 
 ### 签字
 

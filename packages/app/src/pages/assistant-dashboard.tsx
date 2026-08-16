@@ -24,7 +24,7 @@ import {
   buildHomeSessionRecords,
   groupSessions,
   type HomeSessionRecord,
-} from "@/pages/home"
+} from "@/pages/home-shared"
 import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
 
 /** Assistant dashboard for reminders, deliveries, memory, notes, and Sessions. */

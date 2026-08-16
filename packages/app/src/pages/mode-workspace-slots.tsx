@@ -21,9 +21,10 @@ import { useQuery } from "@tanstack/solid-query"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { pathKey } from "@/utils/path-key"
 import { useDirectoryPicker } from "@/components/directory-picker"
-import { HomeProjectColumn, HOME_SESSION_LIMIT, HomeSessionSearch, HomeSessionRow, HomeSessionGroupHeader, HomeSessionSkeleton,
+import { HomeProjectColumn } from "@/pages/coding-project-column"
+import { HOME_SESSION_LIMIT, HomeSessionSearch, HomeSessionRow, HomeSessionGroupHeader, HomeSessionSkeleton,
   buildHomeSessionRecords, groupSessions, matchesHomeSessionSearch, type HomeSessionRecord,
-} from "@/pages/home"
+} from "@/pages/home-shared"
 import { useNotification } from "@/context/notification"
 import { useMarked } from "@aigcfroge/ui/context/marked"
 import { preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"

@@ -75,7 +75,7 @@ Fork → 继承 source.mode
 
 - `MODE_DEFINITIONS` / `modeHref(m)` — Home 卡片、ModeSwitcher、ModeRoute 与 Mode surface 的单一导航/展示契约（id、href、icon、i18n keys、surface slot）
 - `setCurrentMode(m)` — [mode.tsx](../../../packages/app/src/context/mode.tsx) 只接受 route/work item authority 的单向激活
-- `HomeModeCards` — [home.tsx](../../../packages/app/src/pages/home.tsx) 复用 Mode registry 并导航到 `/mode/:mode`
+- `ModeSwitcher` — [mode-switcher.tsx](../../../packages/app/src/components/mode-switcher.tsx) 全局 Icon 导航入口（`MODE_DEFINITIONS` href 直接 navigate；Home 模式卡片已随 home.tsx 拆除）
 - `ModeSwitcher` — [mode-switcher.tsx](../../../packages/app/src/components/mode-switcher.tsx) 全局 Icon 导航入口
 - `ModeSwitcher` utilities — 帮助打开反馈页；设置打开共享 `DialogSettings`
 - `ModeRoute` / `ModeWorkspace` — `/mode/:mode` 的参数化入口和共享工作区
