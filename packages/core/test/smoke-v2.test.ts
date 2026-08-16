@@ -82,6 +82,7 @@ const model = Model.make({ id: "smoke-model", provider: "smoke", route: OpenAICh
 const permission = Layer.succeed(
   PermissionV2.Service,
   PermissionV2.Service.of({
+    effectiveRules: () => Effect.succeed([]),
     assert: () => Effect.void,
     ask: () => Effect.die("unused"),
     reply: () => Effect.die("unused"),

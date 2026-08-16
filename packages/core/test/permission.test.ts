@@ -1,5 +1,5 @@
 import { describe, expect } from "bun:test"
-import { Deferred, Effect, Fiber, Layer } from "effect"
+import { Deferred, Effect, Fiber, Layer, Schema } from "effect"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
@@ -59,6 +59,9 @@ function setup(rules: PermissionV2.Ruleset = []) {
         title: "test",
         version: "test",
         agent: "test",
+        // 根会话默认有人值守（attended NULL），与计划 §3.4 契约一致；
+        // 列默认 0 仅为历史迁移兼容。
+        attended: null,
       })
       .onConflictDoNothing()
       .run()
@@ -403,10 +406,10 @@ describe("PermissionV2", () => {
     }),
   )
 
-  it.effect("unattended child Session honors saved approvals over the catch-all deny", () =>
+  it.effect("unattended child Session denies saved approvals (plan red-line 5)", () =>
     Effect.gen(function* () {
-      // Saved rules are appended after the catch-all (findLast wins), so a
-      // user pre-authorization still lets an unattended child through.
+      // 计划红线 5：unattended 将 ask 转 deny，saved approval 不得重新放开
+      // 无人值守调用（2026-08-16 计划反转）。
       yield* setup()
       const { db } = yield* Database.Service
       yield* db
@@ -419,8 +422,60 @@ describe("PermissionV2", () => {
       yield* saved.add({ projectID: Project.ID.global, action: "read", resources: ["src/*"] })
 
       const service = yield* PermissionV2.Service
-      yield* service.assert(assertion())
+      const denied = yield* service.assert(assertion()).pipe(Effect.flip)
+      expect(denied).toBeInstanceOf(PermissionV2.DeniedError)
       expect(yield* service.list()).toEqual([])
+    }),
+  )
+
+  it.effect("exposes effective rules through the session-backed owner", () =>
+    Effect.gen(function* () {
+      yield* setup([{ action: "read", resource: "*", effect: "allow" }])
+      const service = yield* PermissionV2.Service
+
+      // coding 模式默认忽略档位：owner 返回 Agent 固有信封。
+      const rules = yield* service.effectiveRules(SessionV2.ID.make("ses_test"))
+      expect(rules).toEqual([{ action: "read", resource: "*", effect: "allow" }])
+    }),
+  )
+
+  it.effect("effective rules honor the session tier and drive assert identically", () =>
+    Effect.gen(function* () {
+      yield* setup()
+      yield* (yield* AgentV2.Service).transform((editor) =>
+        editor.update(AgentV2.ID.make("meta"), (agent) => {
+          agent.permissions = [{ action: "read", resource: "*", effect: "allow" }]
+        }),
+      )
+      const { db } = yield* Database.Service
+      yield* db
+        .update(SessionTable)
+        .set({ mode: "chat", agent: "meta", permission_tier: "full" })
+        .where(eq(SessionTable.id, SessionV2.ID.make("ses_test")))
+        .run()
+        .pipe(Effect.orDie)
+
+      const service = yield* PermissionV2.Service
+      const rules = yield* service.effectiveRules(SessionV2.ID.make("ses_test"))
+      // full：未知 action 抬到 ask，read allow 保留。
+      expect(rules.some((rule) => rule.action === "*" && rule.effect === "ask")).toBe(true)
+      expect(PermissionV2.evaluate("some_future_tool", "*", rules).effect).toBe("ask")
+      expect(PermissionV2.evaluate("read", "src/index.ts", rules).effect).toBe("allow")
+
+      // 同一 owner 驱动执行授权：edit 为 ask → assert 进入 Permission Dock。
+      const fiber = yield* service
+        .assert({ ...assertion(), action: "edit", resources: ["foo.ts"] })
+        .pipe(Effect.forkScoped)
+      const asked = yield* Deferred.make<PermissionV2.Request>()
+      const unsubscribe = yield* (yield* EventV2.Service).listen((event) =>
+        event.type === PermissionV2.Event.Asked.type
+          ? Deferred.succeed(asked, Schema.decodeUnknownSync(PermissionV2.Request)(event.data)).pipe(Effect.asVoid)
+          : Effect.void,
+      )
+      yield* Effect.addFinalizer(() => unsubscribe)
+      const request = yield* Deferred.await(asked)
+      expect(request.action).toBe("edit")
+      yield* service.reply({ requestID: request.id, reply: "reject" })
     }),
   )
 })

@@ -137,6 +137,7 @@ registerCliAdapter("test-slow-sdk-cli", slowSdkAdapter)
 const permissionCalls: Array<PermissionV2.AssertInput> = []
 let permissionDecision: "allow" | "deny" = "deny"
 const mockPermission = PermissionV2.Service.of({
+  effectiveRules: () => Effect.succeed([]),
   ask: (_input) => Effect.succeed({ id: PermissionV2.ID.create(), effect: permissionDecision }),
   assert: (input) => {
     permissionCalls.push(input)

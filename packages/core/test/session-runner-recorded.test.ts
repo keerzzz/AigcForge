@@ -59,6 +59,7 @@ const client = LLMClient.layer.pipe(Layer.provide(executor))
 const permission = Layer.succeed(
   PermissionV2.Service,
   PermissionV2.Service.of({
+    effectiveRules: () => Effect.succeed([]),
     assert: () => Effect.die("unused"),
     ask: () => Effect.die("unused"),
     reply: () => Effect.die("unused"),

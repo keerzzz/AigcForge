@@ -119,6 +119,7 @@ export const layer = Layer.effect(
     const llm = yield* LLMClient.Service
     const agents = yield* AgentV2.Service
     const tools = yield* ToolRegistry.Service
+    const permission = yield* PermissionV2.Service
     const models = yield* SessionRunnerModel.Service
     const store = yield* SessionStore.Service
     const location = yield* Location.Service
@@ -384,7 +385,12 @@ export const layer = Layer.effect(
           Effect.catchTag("CorrectionExtractor.ExtractionError", () => Effect.void),
         )
       }
-      const toolMaterialization = isLastStep ? undefined : yield* tools.materialize(agent.info?.permissions, intent)
+      const toolMaterialization = isLastStep
+        ? undefined
+        : yield* permission.effectiveRules(session.id, AgentV2.ID.make(agentID)).pipe(
+            Effect.catchTag("Session.NotFoundError", () => Effect.succeed(undefined)),
+            Effect.flatMap((rules) => (rules ? tools.materialize(rules, intent) : Effect.succeed(undefined))),
+          )
       const promptCacheKey = /^ses_[0-9a-f]{64}$/.test(session.id) ? session.id.slice(4) : session.id
       const request = LLM.request({
         model,
