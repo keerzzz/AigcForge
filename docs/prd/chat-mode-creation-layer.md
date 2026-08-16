@@ -687,3 +687,19 @@ Plugin 作为第 7 类资产（`AssetKindId`）开闸：`.plugin.yaml` 格式，
 
 **不做的替代方案**：把 `sessionID` 改成可选参数——HttpApi 的路径参数不支持可选，会退化成两套路由，等价于本方案但语义更含糊。
 
+---
+
+## 21. Proposed：Custom Profile 第八类资产接入
+
+> 状态：等待 [ADR-17](../architecture/adr/ADR-17-custom-mode-composition-platform.md) 与 [Custom PRD](custom-mode-composition-platform.md) 批准；不属于已完成的 M1-M7 七类资产事实。
+
+若 ADR-17 获接受，Chat 继续作为资产生命周期中心，并增加第八类 `custom-profile` 的创建、编辑、冲突检查、apply/delete 和反向引用入口；Custom 模式只消费、解析、预览和运行组合。
+
+该接入必须遵守：
+
+- 复用 AssetKind、路径安全、revision、baseRevision CAS、typed registry、watcher、原子事务、reload/readback 和失败恢复；不得复制一套平行资产事务。
+- Profile 是组合定义，不是 Agent Asset，不执行工具，也不能把 `requestedCapabilities` 转换成 Permission allow。
+- M1 Profile 只允许当前 Location 的一个用户 Agent与可选 Prompt/Skill，presentation 固定为 native。
+- 删除 Profile 不级联删除引用资产或 Session；删除前显示反向引用，旧 Session 的历史与 Snapshot 始终可查看。
+- system/bridged 资产只能移除引用，不能由项目资产删除端点删除。
+- 旧客户端、SDK、AssetKind 列表和资产工作台必须通过显式 Schema/API 迁移接入第八类资产，不能靠未知类型兜底。

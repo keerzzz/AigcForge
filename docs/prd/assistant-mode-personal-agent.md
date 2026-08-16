@@ -5,7 +5,8 @@
 > 范围：`packages/app` + `packages/core` + `packages/aigcfroge`
 > 关联：[ADR-11](../architecture/adr/ADR-11-product-mode-session-classification.md)、[ADR-12](../architecture/adr/ADR-12-product-mode-entry-routing.md)、[ADR-13](../architecture/adr/ADR-13-chat-work-mode-boundary.md)、[ADR-14](../architecture/adr/ADR-14-persistence-and-scope-strategy.md)、[ADR-15](../architecture/adr/ADR-15-mode-workspace-main-area-slot.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md) §4.1/§4.10、[CONTEXT.md](../../CONTEXT.md)
 > 关联调研：[双向链接与防幻觉机制调研](../research/agent/AigcForge-双向链接与防幻觉机制调研.md)、[个人笔记与知识库竞品调研](../research/agent/个人笔记与知识库竞品调研.md)、[个人助手智能体功能调研](../research/agent/个人助手智能体功能调研.md)
-> 最后更新：2026-08-11
+> 最后更新：2026-08-16
+> Custom 关系更新（2026-08-16）：§21.2 的“动态注册自定义模式、不新增第五 Product Mode”是旧草案方向。当前目标以 [ADR-17](../architecture/adr/ADR-17-custom-mode-composition-platform.md) 和 [Custom PRD](custom-mode-composition-platform.md) 为准；ADR-17 接受前不改变现有 Assistant 或四模式运行契约。
 
 ---
 
@@ -514,7 +515,7 @@ deny   bash / edit / write / task_spawn / task_schedule
   -> kb_note 表 + <config>/knowledge-base/*.md 落盘
 ```
 
-参考：[capture-helpers.ts](../../../packages/app/src/components/chat/capture-helpers.ts)、[work-asset-capture.ts](../../../packages/app/src/pages/work-asset-capture.ts)、[prompt-asset-candidate.ts](../../../packages/app/src/components/chat/prompt-asset-candidate.ts)、[suggestion-bar.tsx](../../../packages/app/src/components/chat/suggestion-bar.tsx)
+参考：[capture-helpers.ts](../../packages/app/src/components/chat/capture-helpers.ts)、[work-asset-capture.ts](../../packages/app/src/pages/work-asset-capture.ts)、[prompt-asset-candidate.ts](../../packages/app/src/components/chat/prompt-asset-candidate.ts)、[suggestion-bar.tsx](../../packages/app/src/components/chat/suggestion-bar.tsx)
 
 ### 20.2 format 产物类型
 
@@ -559,4 +560,6 @@ Assistant 发现用户需要重度写代码或大文档交付时，自动发起�
 
 ### 21.2 自定义模式扩展契约（M3+）
 
-遵循 ADR-15 ModeWorkspace 主区插槽：Main Area Slot 与 Right Canvas Slot 采用 typed slot 设计。未来用户添加"自定义模式"时，只需注册新的 Typed Slot 组件 + Prompt 模板，即可复用底层 Session、Memory、知识库与 Scheduler 基础设施，不新增第五种 Product Mode 硬编码。
+本节由 ADR-17 提议取代。目标方案不是让用户动态注册任意模式，而是增加一个固定、持久、可迁移的第五 Product Mode `custom`。Custom 继续复用 ADR-15 的 ModeWorkspace typed slot、Session timeline、Composer 和右侧面板，但用户配置的是 Custom Profile，不是新的 Product Mode 或任意页面组件。
+
+Assistant 与 Custom 保持领域边界：Assistant 继续拥有个人提醒、记忆、知识库和主动投递；Custom 只能显式引用未来获准开放的能力，不能借组合绕过 Assistant owner、PermissionV2、Location 或持久调度真源。

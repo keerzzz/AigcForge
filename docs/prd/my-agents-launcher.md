@@ -1,10 +1,12 @@
-# PRD：我的智能体 - 用户 Agent 启动台
+# PRD：我的智能体 - 用户 Agent 启动台（Legacy Draft）
 
-> 状态：v3 草案，待架构前置条件通过后评审
+> 文档关系更新（2026-08-16）：本 PRD 记录四模式时期的独立启动台方案。当前目标产品契约已迁移到 [Custom PRD](custom-mode-composition-platform.md) 与 [ADR-17](../architecture/adr/ADR-17-custom-mode-composition-platform.md)：My Agents 的发现、详情和启动能力将并入 Custom 首页，不再与第五模式形成竞争入口。ADR-17 接受前，现有四模式代码和 Accepted ADR 仍保持不变；本 Legacy Draft 不应再单独进入实现。
+
+> 状态：Legacy Draft — 不再独立实施，待 ADR-17 决议后归档或按 Custom 子能力重写
 > 负责人：产品（范围与指标）/ Core（Agent provenance）/ App（启动台与 Draft 契约）
 > 范围：`packages/app` + `packages/core`
 > 关联：[ADR-09](../architecture/adr/ADR-09-mode-route-decoupling.md)、[ADR-11](../architecture/adr/ADR-11-product-mode-session-classification.md)、[ADR-12](../architecture/adr/ADR-12-product-mode-entry-routing.md)、[ADR-14](../architecture/adr/ADR-14-persistence-and-scope-strategy.md)（提出）、[ARCHITECTURE.md](../../ARCHITECTURE.md) §4.4/§4.10
-> 最后更新：2026-07-14
+> 最后更新：2026-08-16
 
 ---
 
@@ -20,13 +22,13 @@
 
 > 用户任务：我已经为这个项目配置了审查 Agent，希望从一个入口选择它，并用 Coding 模式开始新会话。
 
-“我的智能体”是**启动台**，不是第五个 Product Mode，也不是新的 Session 工作区。它负责选择 Location、Agent 和目标 Product Mode；创建 Draft 后立即进入现有 `/new-session`，提交后进入 canonical Session route。
+历史方案把“我的智能体”定义为独立启动台而非第五个 Product Mode。目标方案改为：其 Agent provenance、筛选、详情、最近会话和启动能力由 Custom 首页复用；Session 仍进入 canonical Draft/Session route，不创建第二套 Session identity。
 
 ## 3. 架构前提
 
 | 决策 | 当前状态 | 本 PRD 处理 |
 |---|---|---|
-| Product Mode 只有四类 | ADR-11 已接受 | 不新增 Custom mode，Session 只使用 Work/Coding |
+| 当前 Product Mode 只有四类 | ADR-11 已接受 | 当前实现保持四值；目标五值由 ADR-17 的 supersede/migration Gate 决定 |
 | Session route 不编码 Mode/入口来源 | ADR-09/12 已接受 | 禁止 Custom Session route |
 | Agent provenance | 公开 schema 不存在 | M0 扩展 registry producer 和公开 `Agent.Info` |
 | Draft Agent 身份 | `DraftTab` 当前仅冻结 `mode` | M0 新增独立 `agent` 字段并做前端持久状态迁移 |
@@ -47,10 +49,10 @@
 
 ### 4.2 非目标
 
-- M1 不新增 Product Mode，不进入全局四模式切换栏。
+- Legacy M1 不新增 Product Mode；目标实现不再推进此独立入口，改由 Custom PRD M0/M1 承接。
 - M1 不使用 `mode=chat` 承载用户 Agent 工作，也不让 Chat/Custom 重复显示同一 Session 集合。
 - M1 不创建、编辑、导入、导出或删除 Agent；创建与生命周期能力属于后续 Chat 资产计划。
-- M1 不支持全局 Agent、插件 Agent、内置 Agent、跨项目聚合或 Agent 组合。
+- Legacy M1 不支持全局 Agent、插件 Agent、内置 Agent、跨项目聚合或 Agent 组合；Custom M1 继续只允许当前 Location 与一个用户 Agent，组合范围为 Prompt/Skill。
 - M1 不新增 `/my-agents/:agentId/session/:id` 或任何第二套 Session URL。
 - M1 不复制 Coding/Work Session 页面，不创建新的 Session identity 或 Session 表字段。
 

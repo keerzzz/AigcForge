@@ -90,6 +90,7 @@ specs (1)
 | 写测试 | `*.test.ts`/`*.spec.ts` | `AGENTS.md`->Testing · `packages/aigcfroge/test/AGENTS.md` | `packages/aigcfroge/test/server/AGENTS.md` | `packages/aigcfroge/test/EFFECT_TEST_MIGRATION.md` |
 | 改 desktop | `packages/desktop/src/` | `packages/desktop/AGENTS.md` | `ARCHITECTURE.md` §6 | - |
 | 改 Product Mode | `mode`/`DraftTab.mode` | `ARCHITECTURE.md` §4.10 · `CONTEXT.md`->Product Mode | ADR-11~16 | `docs/plan/mode-module-switching-completion.md` |
+| 改 Custom 模式/组合平台 | `custom-profile`/`CompositionPlan`/`CompositionSnapshot`/`mode=custom` | `ARCHITECTURE.md` §4.1/§4.4/§4.6/§4.10 · `CONTEXT.md` | ADR-17 · `DESIGN.md` | `docs/prd/custom-mode-composition-platform.md` · `docs/roadmap/custom-mode-roadmap.md` · `specs/v2/session.md` · `specs/v2/tools.md` |
 | 改 Chat 模式/资产系统 | `prompt-asset`/`workflow-asset`/`chat-right-panel` | `DESIGN.md` · `ARCHITECTURE.md` §4.10 | ADR-13 · ADR-13-Amendment-1/2 | `docs/prd/chat-mode-creation-layer.md` |
 | 规范重构/代码标准 | 全仓代码重构/新增文件 | `CLAUDE.md` · `AGENTS.md` | `skills/enterprise-code-standard/SKILL.md` · `skills/reuse-first-refactor/SKILL.md` | - |
 | PR 交付/质量门禁 | 分支合并/PR 提交 | `CLAUDE.md` §改完即审 | `skills/quality-to-pr/SKILL.md` | `.aigcfroge/skills/quality-to-pr/references/delivery-gates.md` |

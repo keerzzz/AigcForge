@@ -4,6 +4,7 @@
 > Date: 2026-07-12
 > Extends: [ADR-09 Mode Route Decoupling](ADR-09-mode-route-decoupling.md)
 > Amended by: [ADR-12 Product Mode Entry Routing](ADR-12-product-mode-entry-routing.md)
+> Proposed extension: [ADR-17 Custom Mode Composition Platform](ADR-17-custom-mode-composition-platform.md) proposes a fifth fixed `custom` value. Until ADR-17 is Accepted, this ADR's four-value contract remains authoritative.
 
 ## Context
 
