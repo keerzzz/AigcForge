@@ -278,6 +278,11 @@ export const dict = {
   "prompt.action.attachFile": "附加檔案",
   "prompt.attachment.remove": "移除附件",
   "prompt.action.send": "傳送",
+  "permission.tier.label": "權限檔位",
+  "permission.tier.propose": "提議",
+  "permission.tier.full": "完整",
+  "permission.tier.propose.hint": "僅顯示安全工具；寫入與命令工具需逐次確認",
+  "permission.tier.full.hint": "寫入與命令工具可用；危險操作仍逐次確認",
   "prompt.action.stop": "停止",
 
   "prompt.toast.pasteUnsupported.title": "不支援的附件",

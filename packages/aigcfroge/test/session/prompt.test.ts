@@ -2434,3 +2434,52 @@ it.instance(
     }),
   30_000,
 )
+
+it.instance(
+  "injects the dynamic permission state into the V1 system prompt",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig(providerCfg)
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const chat = yield* sessions.create({ title: "perm state", mode: "chat", agent: "meta", permissionTier: "full" })
+      yield* seed(chat.id, { finish: "stop" })
+
+      yield* llm.text("ok", { usage: { input: 1, output: 1 } })
+      // 主 turn 消息使用会话 agent（meta），与 V2 的 session-owned 语义对齐。
+      const svc = yield* Session.Service
+      const goMsg = yield* svc.updateMessage({
+        id: MessageID.ascending(),
+        role: "user",
+        sessionID: chat.id,
+        agent: "meta",
+        model: ref,
+        time: { created: Date.now() },
+      })
+      yield* svc.updatePart({
+        id: PartID.ascending(),
+        messageID: goMsg.id,
+        sessionID: chat.id,
+        type: "text",
+        text: "go",
+      })
+      yield* prompt.loop({ sessionID: chat.id })
+      yield* pollWithTimeout(
+        Effect.gen(function* () {
+          const inputs = yield* llm.inputs
+          const hasTier = inputs.some((body) =>
+            String(JSON.stringify(body?.messages ?? [])).includes("Permission tier: full"),
+          )
+          return hasTier ? (true as const) : undefined
+        }),
+        "meta turn with permission tier never reached the LLM",
+      )
+
+      // 首个请求可能是标题生成（build agent）；主 turn（meta）请求才携带档位。
+      const inputs = yield* llm.inputs
+      const serialized = inputs.map((body) => JSON.stringify(body)).join("\n")
+      expect(serialized).toContain("<permission-state>")
+      expect(serialized).toContain("Permission tier: full")
+    }),
+  30_000,
+)

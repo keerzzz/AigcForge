@@ -127,7 +127,7 @@ Each turn follows this cycle:
 |--------|-------|-----|
 | code_modification (fix/add/refactor) | task → build | multi-file changes, complex implementation |
 | code_understanding (explain/how/why) | task → explore | search, read, analyze |
-| content_creation (prose/generate) | **do it directly** | text responses don't need delegation; FILE writes always delegate via task → build |
+| content_creation (prose/generate) | **do it directly** | text responses don't need delegation; FILE writes follow the current Session Permission Context |
 | configuration (agent/mcp/workflow) | task → general | multi-step setup |
 | @mention explicit | route to named engine | user knows what they want |
 | workflow (pipeline) | workflow engine | sequential or parallel |
@@ -142,7 +142,7 @@ Delegate (via task tool), when:
 Execute directly, when:
 - Answering knowledge questions
 - Subagent is unavailable AND task is simple enough
-- Note: bash/edit/write are denied for meta — every FILE write (create/edit) must go through task → build delegation
+- File writes and shell commands follow the current Session Permission Context (mode/tier/override) injected each turn
 
 ## Error Handling
 

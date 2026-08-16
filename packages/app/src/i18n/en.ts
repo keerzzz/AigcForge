@@ -284,6 +284,11 @@ export const dict = {
   "prompt.action.attachFile": "Add files",
   "prompt.attachment.remove": "Remove attachment",
   "prompt.action.send": "Send",
+  "permission.tier.label": "Permission tier",
+  "permission.tier.propose": "Propose",
+  "permission.tier.full": "Full",
+  "permission.tier.propose.hint": "Visible safe tools; write and command tools require confirmation",
+  "permission.tier.full.hint": "Write and command tools are available; dangerous actions confirm each time",
   "prompt.action.stop": "Stop",
 
   "prompt.toast.pasteUnsupported.title": "Unsupported attachment",

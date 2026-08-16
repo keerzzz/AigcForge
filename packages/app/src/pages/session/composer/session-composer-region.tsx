@@ -6,9 +6,11 @@ import { useLanguage } from "@/context/language"
 import { usePrompt } from "@/context/prompt"
 import { useSync } from "@/context/sync"
 import { Icon } from "@aigcfroge/ui/icon"
+import { showToast } from "@/utils/toast"
 import { getSessionHandoff, setSessionHandoff } from "@/pages/session/handoff"
 import { useSessionKey } from "@/pages/session/session-layout"
 import { SessionPermissionDock } from "@/pages/session/composer/session-permission-dock"
+import { PermissionTierSelector } from "@/pages/session/composer/permission-tier-selector"
 import { SessionQuestionDock } from "@/pages/session/composer/session-question-dock"
 import { SessionFollowupDock } from "@/pages/session/composer/session-followup-dock"
 import { SessionRevertDock } from "@/pages/session/composer/session-revert-dock"
@@ -160,6 +162,27 @@ export function SessionComposerRegion(props: {
   const child = createMemo(() => !!parentID())
   const showComposer = createMemo(() => !props.state.blocked() || child())
 
+  // 权限档位 selector：draft（new-session）与已有会话双场景；仅
+  // chat/work/assistant × meta 显示（组件内部判断）。
+  const tierMode = createMemo(() => draft()?.mode ?? info()?.mode)
+  const tierAgent = createMemo(() => draft()?.agent ?? info()?.agent)
+  const tierValue = createMemo<"propose" | "full" | undefined>(
+    () => draft()?.permissionTier ?? info()?.permissionTier,
+  )
+  const onTierChange = async (tier: "propose" | "full") => {
+    if (search.draftId) {
+      tabs.updateDraft(search.draftId, { permissionTier: tier })
+      return
+    }
+    const id = route.params.id
+    if (!id) return
+    await sdk()
+      .client.session.update({ sessionID: id, permissionTier: tier })
+      .catch(() => {
+        showToast({ title: language.t("common.requestFailed") })
+      })
+  }
+
   const previewPrompt = () =>
     prompt
       .current()
@@ -234,6 +257,8 @@ export function SessionComposerRegion(props: {
             </div>
           )}
         </Show>
+
+        <PermissionTierSelector mode={tierMode()} agent={tierAgent()} value={tierValue()} onChange={onTierChange} />
 
         <Show when={showComposer()}>
           <Show

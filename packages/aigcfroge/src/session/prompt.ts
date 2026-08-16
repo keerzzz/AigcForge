@@ -35,6 +35,7 @@ import { SessionProcessor } from "./processor"
 import { Tool } from "@/tool/tool"
 import { Permission } from "@/permission"
 import { PermissionEffective } from "@aigcfroge/core/permission/effective"
+import { PermissionStateContext } from "@aigcfroge/core/system-context/permission-state"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { SessionStatus } from "./status"
 import { LLM } from "./llm"
@@ -1458,7 +1459,12 @@ export const layer = Layer.effect(
               instruction.system().pipe(Effect.orDie),
               MessageV2.toModelMessagesEffect(msgs, model),
             ])
-            const system = [...env, ...instructions, ...(skills ? [skills] : [])]
+            const system = [
+              ...env,
+              ...instructions,
+              ...(skills ? [skills] : []),
+              PermissionStateContext.render(effectiveInput),
+            ]
             const format = lastUser.format ?? { type: "text" as const }
             if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
             const result = yield* handle.process({

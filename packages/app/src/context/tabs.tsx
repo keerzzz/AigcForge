@@ -28,6 +28,7 @@ export type DraftTab = {
   mode: Mode
   agent?: string
   presetCategoryId?: WorkPreset.Category
+  permissionTier?: "propose" | "full"
 }
 
 export type Tab = SessionTab | DraftTab

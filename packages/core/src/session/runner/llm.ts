@@ -8,7 +8,7 @@ import {
   isContextOverflowFailure,
   type ProviderErrorEvent,
 } from "@aigcfroge/llm"
-import { Cause, DateTime, Duration, Effect, Exit, FiberSet, Layer, Option, Ref, Semaphore, Stream } from "effect"
+import { Cause, DateTime, Duration, Effect, Exit, FiberSet, Layer, Option, Ref, Schema, Semaphore, Stream } from "effect"
 import { ChildProcess } from "effect/unstable/process"
 import { AgentV2 } from "../../agent"
 import { ProductModeAgentPolicy } from "../../product-mode-agent-policy"
@@ -24,6 +24,8 @@ import { PermissionV2 } from "../../permission"
 import { Shell } from "../../shell"
 import { SystemContext } from "../../system-context/index"
 import { SystemContextRegistry } from "../../system-context/registry"
+import { PermissionStateContext } from "../../system-context/permission-state"
+import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { SkillGuidance } from "../../skill/guidance"
 import { SkillV2 } from "../../skill"
 import { ReferenceGuidance } from "../../reference/guidance"
@@ -322,6 +324,33 @@ export const layer = Layer.effect(
             Effect.flatMap((files) => ReverseRefs.source(files)),
             Effect.map((reverseRefs) => (reverseRefs ? SystemContext.combine([combined, reverseRefs]) : combined)),
           ),
+        ),
+        // Session-owned 动态 Permission Context（计划 §5）：meta 的当前
+        // mode/tier/override 状态由同一 renderer 渲染，V1 追加到 system 数组。
+        Effect.flatMap((combined) =>
+          Effect.gen(function* () {
+            const session = yield* store.get(sessionID)
+            if (!session) return combined
+            const permissionState = PermissionStateContext.render({
+              mode: session.mode,
+              agent: String(session.agent ?? ""),
+              tier: session.permissionTier ?? PermissionTier.Default,
+              parentID: session.parentID,
+              attended: session.attended,
+              masterPermissionEnabled: false,
+              savedApprovals: [],
+            })
+            return SystemContext.combine([
+              combined,
+              SystemContext.make({
+                key: SystemContext.Key.make("core/permission"),
+                codec: Schema.toCodecJson(Schema.String),
+                load: Effect.succeed(permissionState),
+                baseline: (state) => state,
+                update: (_previous, state) => state,
+              }),
+            ])
+          }),
         ),
       )
 
