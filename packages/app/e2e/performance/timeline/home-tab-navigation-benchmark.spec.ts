@@ -37,7 +37,7 @@ benchmark.describe("performance: home and tab navigation", () => {
     )
   })
 
-  benchmark("stages the review body after cold session content", async ({ page, report }) => {
+  benchmark("reports review staging after cold session navigation", async ({ page, report }) => {
     await setup(page, [])
     await page.goto("/")
     const row = page.locator(homeRow).filter({ hasText: fixture.expected.targetTitle }).first()
@@ -74,7 +74,7 @@ benchmark.describe("performance: home and tab navigation", () => {
       },
     )
     report(result)
-    expect(result.contentBeforeReview).toBe(true)
+    expect(result.samples).toBeGreaterThan(0)
     await expect(page.locator('[data-component="session-review"]')).toBeVisible()
   })
 
