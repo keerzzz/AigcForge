@@ -55,7 +55,7 @@ jobs:
             if [[ "$AI_MODEL" == google/* ]] || [[ "$AI_MODEL" == gemini/* ]]; then
               MODEL="$AI_MODEL"
             else
-              MODEL="google/gemini-2.5-flash"
+              MODEL="google/gemini-3.7-flash"
             fi
           elif [ -n "$DEEPSEEK_API_KEY" ]; then
             if [[ "$AI_MODEL" == deepseek/* ]]; then
