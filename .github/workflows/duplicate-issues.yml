@@ -7,7 +7,7 @@ on:
 jobs:
   check-duplicates:
     if: github.event.action == 'opened'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       issues: write
@@ -19,13 +19,22 @@ jobs:
 
       - uses: ./.github/actions/setup-bun
 
-      - name: Install aigcfroge
-        run: bun i -g aigcfroge
+      - name: Install dependencies
+        run: bun install
+
+      - name: Link aigcfroge CLI
+        run: cd packages/aigcfroge && bun link
 
       - name: Check duplicates and compliance
         env:
           AIGCFROGE_API_KEY: ${{ secrets.AIGCFROGE_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY || secrets.GEMINI_API_KEY || secrets.GOOGLE_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AI_MODEL: ${{ vars.AI_ROBOT_MODEL }}
           AIGCFROGE_PERMISSION: |
             {
               "bash": {
@@ -35,7 +44,23 @@ jobs:
               "webfetch": "deny"
             }
         run: |
-          aigcfroge run -m aigcfroge/claude-sonnet-4-6 "A new issue has been created:
+          if [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$OPENAI_API_KEY" ] && [ -z "$DEEPSEEK_API_KEY" ] && [ -z "$AIGCFROGE_API_KEY" ] && [ -z "$OPENROUTER_API_KEY" ] && [ -z "$GOOGLE_GENERATIVE_AI_API_KEY" ]; then
+            echo "::notice::No LLM API key configured in GitHub Secrets (e.g. DEEPSEEK_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY). Skipping AI duplicate check."
+            exit 0
+          fi
+
+          MODEL="${AI_MODEL:-}"
+          if [ -z "$MODEL" ]; then
+            if [ -n "$DEEPSEEK_API_KEY" ]; then MODEL="deepseek/deepseek-chat";
+            elif [ -n "$OPENAI_API_KEY" ]; then MODEL="openai/gpt-4o";
+            elif [ -n "$ANTHROPIC_API_KEY" ]; then MODEL="anthropic/claude-3-5-sonnet";
+            elif [ -n "$GOOGLE_GENERATIVE_AI_API_KEY" ]; then MODEL="google/gemini-2.5-flash";
+            elif [ -n "$OPENROUTER_API_KEY" ]; then MODEL="openrouter/anthropic/claude-3.5-sonnet";
+            elif [ -n "$AIGCFROGE_API_KEY" ]; then MODEL="aigcfroge/claude-sonnet-4-6";
+            fi
+          fi
+
+          aigcfroge run -m "$MODEL" "A new issue has been created:
 
           Issue number: ${{ github.event.issue.number }}
 
@@ -119,7 +144,7 @@ jobs:
 
   recheck-compliance:
     if: github.event.action == 'edited' && contains(github.event.issue.labels.*.name, 'needs:compliance')
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       issues: write
@@ -131,13 +156,22 @@ jobs:
 
       - uses: ./.github/actions/setup-bun
 
-      - name: Install aigcfroge
-        run: bun i -g aigcfroge
+      - name: Install dependencies
+        run: bun install
+
+      - name: Link aigcfroge CLI
+        run: cd packages/aigcfroge && bun link
 
       - name: Recheck compliance
         env:
           AIGCFROGE_API_KEY: ${{ secrets.AIGCFROGE_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY || secrets.GEMINI_API_KEY || secrets.GOOGLE_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AI_MODEL: ${{ vars.AI_ROBOT_MODEL }}
           AIGCFROGE_PERMISSION: |
             {
               "bash": {
@@ -147,7 +181,23 @@ jobs:
               "webfetch": "deny"
             }
         run: |
-          aigcfroge run -m aigcfroge/claude-sonnet-4-6 "Issue #${{ github.event.issue.number }} was previously flagged as non-compliant and has been edited.
+          if [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$OPENAI_API_KEY" ] && [ -z "$DEEPSEEK_API_KEY" ] && [ -z "$AIGCFROGE_API_KEY" ] && [ -z "$OPENROUTER_API_KEY" ] && [ -z "$GOOGLE_GENERATIVE_AI_API_KEY" ]; then
+            echo "::notice::No LLM API key configured in GitHub Secrets. Skipping compliance re-check."
+            exit 0
+          fi
+
+          MODEL="${AI_MODEL:-}"
+          if [ -z "$MODEL" ]; then
+            if [ -n "$DEEPSEEK_API_KEY" ]; then MODEL="deepseek/deepseek-chat";
+            elif [ -n "$OPENAI_API_KEY" ]; then MODEL="openai/gpt-4o";
+            elif [ -n "$ANTHROPIC_API_KEY" ]; then MODEL="anthropic/claude-3-5-sonnet";
+            elif [ -n "$GOOGLE_GENERATIVE_AI_API_KEY" ]; then MODEL="google/gemini-2.5-flash";
+            elif [ -n "$OPENROUTER_API_KEY" ]; then MODEL="openrouter/anthropic/claude-3.5-sonnet";
+            elif [ -n "$AIGCFROGE_API_KEY" ]; then MODEL="aigcfroge/claude-sonnet-4-6";
+            fi
+          fi
+
+          aigcfroge run -m "$MODEL" "Issue #${{ github.event.issue.number }} was previously flagged as non-compliant and has been edited.
 
           Lookup this issue with gh issue view ${{ github.event.issue.number }}.
 

@@ -6,7 +6,7 @@ on:
 
 jobs:
   triage:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       issues: write
@@ -19,18 +19,43 @@ jobs:
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
 
-      - name: Install aigcfroge
-        run: bun i -g aigcfroge
+      - name: Install dependencies
+        run: bun install
+
+      - name: Link aigcfroge CLI
+        run: cd packages/aigcfroge && bun link
 
       - name: Triage issue
         env:
           AIGCFROGE_API_KEY: ${{ secrets.AIGCFROGE_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY || secrets.GEMINI_API_KEY || secrets.GOOGLE_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AI_MODEL: ${{ vars.AI_ROBOT_MODEL }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
-          aigcfroge run --agent triage "The following issue was just opened, triage it:
+          if [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$OPENAI_API_KEY" ] && [ -z "$DEEPSEEK_API_KEY" ] && [ -z "$AIGCFROGE_API_KEY" ] && [ -z "$OPENROUTER_API_KEY" ] && [ -z "$GOOGLE_GENERATIVE_AI_API_KEY" ]; then
+            echo "::notice::No LLM API key configured in GitHub Secrets. Skipping issue triage."
+            exit 0
+          fi
+
+          MODEL="${AI_MODEL:-}"
+          if [ -z "$MODEL" ]; then
+            if [ -n "$GOOGLE_GENERATIVE_AI_API_KEY" ]; then MODEL="google/gemini-2.5-flash";
+            elif [ -n "$DEEPSEEK_API_KEY" ]; then MODEL="deepseek/deepseek-chat";
+            elif [ -n "$OPENAI_API_KEY" ]; then MODEL="openai/gpt-4o";
+            elif [ -n "$ANTHROPIC_API_KEY" ]; then MODEL="anthropic/claude-3-5-sonnet";
+            elif [ -n "$OPENROUTER_API_KEY" ]; then MODEL="openrouter/anthropic/claude-3.5-sonnet";
+            elif [ -n "$AIGCFROGE_API_KEY" ]; then MODEL="aigcfroge/claude-sonnet-4-6";
+            fi
+          fi
+
+          aigcfroge run -m "$MODEL" "The following issue was just opened, triage it:
 
           Title: $ISSUE_TITLE
 

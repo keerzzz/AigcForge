@@ -10,7 +10,7 @@ jobs:
       github.event.issue.pull_request &&
       startsWith(github.event.comment.body, '/review') &&
       contains(fromJson('["OWNER","MEMBER"]'), github.event.comment.author_association)
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
@@ -31,8 +31,11 @@ jobs:
 
       - uses: ./.github/actions/setup-bun
 
-      - name: Install aigcfroge
-        run: bun i -g aigcfroge
+      - name: Install dependencies
+        run: bun install
+
+      - name: Link aigcfroge CLI
+        run: cd packages/aigcfroge && bun link
 
       - name: Get PR details
         id: pr-details
@@ -46,12 +49,34 @@ jobs:
       - name: Check PR guidelines compliance
         env:
           AIGCFROGE_API_KEY: ${{ secrets.AIGCFROGE_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY || secrets.GEMINI_API_KEY || secrets.GOOGLE_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AI_MODEL: ${{ vars.AI_ROBOT_MODEL }}
           AIGCFROGE_PERMISSION: '{ "bash": {  "*": "deny", "gh*": "allow", "gh pr review*": "deny" } }'
           PR_TITLE: ${{ steps.pr-details.outputs.title }}
         run: |
+          if [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$OPENAI_API_KEY" ] && [ -z "$DEEPSEEK_API_KEY" ] && [ -z "$AIGCFROGE_API_KEY" ] && [ -z "$OPENROUTER_API_KEY" ] && [ -z "$GOOGLE_GENERATIVE_AI_API_KEY" ]; then
+            echo "::notice::No LLM API key configured in GitHub Secrets. Skipping PR review."
+            exit 0
+          fi
+
+          MODEL="${AI_MODEL:-}"
+          if [ -z "$MODEL" ]; then
+            if [ -n "$DEEPSEEK_API_KEY" ]; then MODEL="deepseek/deepseek-chat";
+            elif [ -n "$OPENAI_API_KEY" ]; then MODEL="openai/gpt-4o";
+            elif [ -n "$ANTHROPIC_API_KEY" ]; then MODEL="anthropic/claude-3-5-sonnet";
+            elif [ -n "$GOOGLE_GENERATIVE_AI_API_KEY" ]; then MODEL="google/gemini-2.5-flash";
+            elif [ -n "$OPENROUTER_API_KEY" ]; then MODEL="openrouter/anthropic/claude-3.5-sonnet";
+            elif [ -n "$AIGCFROGE_API_KEY" ]; then MODEL="aigcfroge/gpt-5.5";
+            fi
+          fi
+
           PR_BODY=$(jq -r .body pr_data.json)
-          aigcfroge run -m aigcfroge/gpt-5.5 --variant medium "A new pull request has been created: '${PR_TITLE}'
+          aigcfroge run -m "$MODEL" "A new pull request has been created: '${PR_TITLE}'
 
           <pr-number>
           ${{ steps.pr-number.outputs.number }}
