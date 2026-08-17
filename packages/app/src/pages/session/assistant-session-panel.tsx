@@ -8,12 +8,10 @@ import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { useLanguage } from "@/context/language"
 import { useServerSDK } from "@/context/server-sdk"
 import { useCommand } from "@/context/command"
-import { useFile } from "@/context/file"
 import { useMode } from "@/context/mode"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { SessionRightPanel } from "@/components/session-right-panel"
 import { SessionContextTab, SessionContextTabTrigger } from "@/components/session"
-import FileTree from "@/components/file-tree"
 import { createSizing } from "@/pages/session/helpers"
 import { DeliveryList, MemoryInspector, ReminderList } from "@/components/assistant-entity-lists"
 import { AssistantNoteEditor } from "@/components/assistant-note-editor"
@@ -28,12 +26,11 @@ const ENTITY_TABS: ReadonlyArray<{ id: AssistantPanelTab; label: string }> = [
   { id: "editor", label: "assistant.panel.tab.editor" },
 ]
 
-/** Assistant session panel with dynamic entity tabs, a context tab, and a project file-tree. */
+/** Assistant session panel with dynamic entity tabs, a context tab, and the default project file-tree. */
 export function AssistantSessionPanel() {
   const language = useLanguage()
   const serverSDK = useServerSDK()
   const command = useCommand()
-  const file = useFile()
   const mode = useMode()
   const { params, assistant, tabs, view } = useSessionLayout()
   const size = createSizing()
@@ -154,11 +151,6 @@ export function AssistantSessionPanel() {
     <SessionRightPanel
       size={size}
       ariaLabel={language.t("assistant.panel.title")}
-      fileTree={
-        <div class="min-h-0 flex-1 overflow-y-auto px-3 pt-3">
-          <FileTree path="" class="pt-1" onFileClick={(node) => void file.load(node.path)} />
-        </div>
-      }
     >
       <TabsV2 value={activeTab()} onChange={selectTab} class="flex min-h-0 flex-1 flex-col">
         <TabsV2.List

@@ -111,6 +111,7 @@
 2. 记录并测试当前事实：Work/Assistant 使用 `ModeLocationNewSession`；Chat 使用 `ChatFeatureSidebar` 内联的 Location + 新建/添加项目逻辑，并额外承载 Chat feature tree/counts。
 3. 不让 `ModeLocationNewSession` 读取 `CodingSelectionCtx` 或自行创建第二套 server/project selection。若要把 Chat 改为消费它，必须先证明 `ChatFeatureSidebar` 的功能树、计数、seed、目录注册和新建行为全部保持，并在同一 Phase 内完成 source-contract 与浏览器回归。
 4. 在本文和 ADR-15 附录记录 Location 决策：Coding 保留项目树；Work/Assistant 复用现有 Location owner；Chat 的 Location 仍由功能侧栏 owner 持有，是否继续抽取更低层 primitive 不在本 Phase 强制决定；Assistant `global|project` scope 不在本计划实现。
+   - **执行记录（Phase 2，2026-08-17）**：Coding 项目树已由 Phase 1 迁入 `coding-project-column.tsx`（`HomeProjectColumn`/`HomeProjectRow`，兼容名称 + Coding owner 注释）；Work/Assistant 仍消费 `ModeLocationNewSession`；Chat 的 `ChatFeatureSidebar` 内联 Location + 新建/添加项目 + 7 类 feature tree/counts，未消费 `ModeLocationNewSession`。Location 决策已记入 ADR-15 附录 A，并新增 `location-owner-contract.test.tsx` source-contract 测试断言真实 owner（不得以"Chat 已复用 ModeLocationNewSession"为断言）。
 5. 增加 source-contract 测试，证明 Coding 仍使用 Coding owner、Work/Assistant 仍使用 `ModeLocationNewSession`、Chat 仍挂载 `ChatFeatureSidebar`；测试不得用“Chat 已复用 `ModeLocationNewSession`”作为断言。
 
 验收：Coding server 切换、项目切换、多选注册、关闭/编辑项目和新建会话手工回归；Chat Location/功能树/计数/添加项目/新建会话回归；Work/Assistant Location 回归；相关 App tests/typecheck/lint 通过。若本 Phase 未改变 Chat 实现，不得把“Chat Location 统一”写入完成报告。
@@ -195,6 +196,25 @@ Chat/Coding 各自保留 TabsV2 内容和 active state，只消费这个 surface
 3. 保留当前 `max-w-[1080px]` 和响应式规则，不宣称主列变为 960px；不修改 `MODE_DEFINITIONS` 或 `context/mode.tsx`。
 4. 如产品需要真正 960px 主列，停止本 Phase，另开 PRD/视觉变更并重新评审窄屏、Assistant 密度和容器宽度。
 
+#### Phase 6 执行记录（2026-08-17）
+
+命令：`cd packages/app && bunx playwright test --config e2e/performance/playwright.config.ts mode-layout-baseline.spec.ts`
+
+浏览器：Chromium。Viewport：desktop `1440x900`、narrow `640x900`。测量 spec：`packages/app/e2e/performance/mode-layout-baseline.spec.ts`。原始结果中的 `x/y/width/height` 单位均为 CSS px，scroll 值为 `scrollWidth x scrollHeight`：
+
+| Mode | Viewport | Grid columns | Workspace box / overflow / scroll | Sidebar box | Main box |
+|---|---|---|---|---|---|
+| chat | desktop | `280px 720px` | `(73,45) 1358x822`, hidden/hidden, `1358x822` | `(236,45) 280x758` | `(548,45) 720x758` |
+| coding | desktop | `280px 720px` | `(73,45) 1358x822`, hidden/hidden, `1358x822` | `(236,45) 280x758` | `(548,45) 720x758` |
+| work | desktop | `280px 720px` | `(73,45) 1358x822`, hidden/hidden, `1358x822` | `(236,45) 280x758` | `(548,45) 720x758` |
+| assistant | desktop | `280px 720px` | `(73,45) 1358x822`, hidden/hidden, `1358x822` | `(236,45) 280x758` | `(548,45) 720x758` |
+| chat | narrow | `534px` | `(73,45) 558x822`, visible/visible, `558x822` | `(85,45) 534x346.5` | `(85,407.5) 534x431.5` |
+| coding | narrow | `534px` | `(73,45) 558x822`, visible/visible, `558x822` | `(85,45) 534x116` | `(85,177) 534x662` |
+| work | narrow | `534px` | `(73,45) 558x822`, visible/visible, `558x822` | `(85,45) 534x93` | `(85,154) 534x685` |
+| assistant | narrow | `534px` | `(73,45) 558x822`, visible/visible, `558x822` | `(85,45) 534x271.5` | `(85,332.5) 534x506.5` |
+
+结论：**无安全可删分支**。desktop 的 computed 主轨虽最终均为 `720px`，narrow 的 sidebar/main 高度和纵向滚动几何随模式明显不同；保留当前条件分支、`max-w-[1080px]` 和响应式规则，不宣称主列为 `960px`。
+
 前置：G3 通过。验收：baseline 与变更后 computed-layout 结果逐项对比；只有全部适用几何保持才允许标记“清理完成”，否则以“分支保留且有证据”完成；typecheck/lint 通过。
 
 ### Phase 7：带 options 的新建会话 helper + 文档收尾
@@ -206,6 +226,13 @@ Chat/Coding 各自保留 TabsV2 内容和 active state，只消费这个 surface
 3. 需要抽取时，input 至少能表达 `mode`、`projects`、`server`、`directory`，以及可选 `initialPrompt`、可选 `draftOverrides`；普通入口使用默认 `modeDraft(mode)`，Chat seed/import、Work preset/workflow 必须保留原有 agent、presetCategoryId 和 prompt；资产选择器不强行迁移。
 4. 审计所有 `tabs.newDraft`/`openProjectNewSession` 调用点，逐一证明 Draft 字段和初始 prompt 未丢失。
 5. 更新 ADR-16、`docs/architecture/pages/home.md`、相关 plan 的当前 owner 路径；在 CLAUDE.md 技术债表中记录/销账时保留证据。
+
+#### Phase 7 执行记录（2026-08-17）
+
+- 新增 `launchModeSession` 于 `packages/app/src/pages/layout/helpers.ts`，复用 `openProjectNewSession` 作为唯一项目 open/touch owner；input 表达 `mode`、`projects`、`server`、`directory`，并支持 `initialPrompt` 与 `draftOverrides`。
+- 普通 Coding/Chat/Work/Assistant/Home/Titlebar/SecondarySidebar/Legacy redirect 入口已迁移；Chat seed/import 保留初始 prompt，Work workflow/preset 保留 `WORK_ORCHESTRATOR`、`presetCategoryId` 与 prompt。
+- 资产选择器保留自己的 `tabs.newDraft` 与资产 prompt 生命周期；session 内无 `ProjectActions.touch` 的命令/归档 fallback 保留直接 `newDraft`，并由 `mode-launch-contract.test.ts` 锁定其 mode/prompt 字段。
+- 当前 owner 文档路径已指向 `home-shared.tsx` 与 `coding-project-column.tsx`；未新增第二套项目打开逻辑、API、DB 或 Core 依赖。
 
 验收：逐场景验证普通新建、Chat 新建/导入、Work preset/workflow、Assistant 新建、Coding 新建；unit/typecheck/lint/Playwright 通过。
 

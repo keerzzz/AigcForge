@@ -69,7 +69,11 @@ export function create(prefix: string, direction: "descending" | "ascending", ti
   return prefix + "_" + timeBytes.toString("hex") + randomBase62(LENGTH - 12)
 }
 
-/** Extract timestamp from an ascending ID. Does not work with descending IDs. */
+/**
+ * Extract timestamp from an ascending ID. Does not work with descending IDs.
+ * The 6-byte encoding keeps only timestamp mod 2^36 (~2.2 years); callers must compare
+ * modular age, not raw decoded values.
+ */
 export function timestamp(id: string): number {
   const prefix = id.split("_")[0]
   const hex = id.slice(prefix.length + 1, prefix.length + 13)

@@ -243,6 +243,17 @@ describe("Truncate", () => {
   describe("cleanup", () => {
     const DAY_MS = 24 * 60 * 60 * 1000
 
+    test("expiry survives identifier timestamp wraparound", () => {
+      // Decoded timestamps wrap every 2^36 ms; simulate a "now" right after a boundary
+      // with files written days before it (the CI failure shape from 2026-08-17).
+      const wrap = 2 ** 36
+      const now = Identifier.timestamp(Identifier.create("tool", "ascending", wrap + DAY_MS))
+      const writtenDaysBeforeWrap = (days: number) => Identifier.create("tool", "ascending", wrap - days * DAY_MS)
+
+      expect(Truncate.isExpired(writtenDaysBeforeWrap(3), now)).toBe(false)
+      expect(Truncate.isExpired(writtenDaysBeforeWrap(8), now)).toBe(true)
+    })
+
     it.live("deletes files older than 7 days and preserves recent files", () =>
       Effect.gen(function* () {
         const svc = yield* Truncate.Service

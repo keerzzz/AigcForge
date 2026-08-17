@@ -55,13 +55,12 @@ benchmark("prefetches every open session tab", async ({ page, report }) => {
       if (!input.before && input.phase === "start") prefetched.add(input.sessionID)
     },
   })
-  await installStressSessionTabs(page, {
-    sessionIDs: [fixture.sourceID, fixture.targetID, fixture.childID],
-  })
+  const expectedSessionIDs = [fixture.sourceID, fixture.targetID]
+  await installStressSessionTabs(page, { sessionIDs: expectedSessionIDs })
   await installTimelineSettings(page)
   await page.goto(stressSessionHref(fixture.sourceID))
   await expectSessionTitle(page, fixture.expected.sourceTitle)
 
-  await expect.poll(() => prefetched.has(fixture.childID)).toBe(true)
+  await expect.poll(() => expectedSessionIDs.every((sessionID) => prefetched.has(sessionID))).toBe(true)
   report({ prefetched: [...prefetched] })
 })

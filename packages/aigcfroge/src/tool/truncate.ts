@@ -30,6 +30,20 @@ function hasTaskTool(agent?: Agent.Info) {
   return evaluate("task", "*", agent.permission).action !== "deny"
 }
 
+// Identifier packs timestamps into 48 bits (ms << 12 | counter), so decoded values wrap
+// every 2^36 ms (~2.2 years). Compare modular age: a raw decoded comparison marks fresh
+// files as expired for ~7 days after each wrap boundary.
+const TIMESTAMP_MODULUS = 2 ** 36
+
+/**
+ * Whether a tool-output file id is older than RETENTION. `now` must be the decoded
+ * timestamp of a freshly created id (already mod 2^36) so the subtraction wraps consistently.
+ */
+export function isExpired(id: string, now: number) {
+  const age = (now - Identifier.timestamp(id) + TIMESTAMP_MODULUS) % TIMESTAMP_MODULUS
+  return age >= Duration.toMillis(RETENTION)
+}
+
 export interface Interface {
   readonly cleanup: () => Effect.Effect<void>
   readonly write: (text: string) => Effect.Effect<string>
@@ -52,15 +66,13 @@ export const layer = Layer.effect(
     const fs = yield* FSUtil.Service
 
     const cleanup = Effect.fn("Truncate.cleanup")(function* () {
-      const cutoff = Identifier.timestamp(
-        Identifier.create("tool", "ascending", Date.now() - Duration.toMillis(RETENTION)),
-      )
+      const now = Identifier.timestamp(Identifier.create("tool", "ascending", Date.now()))
       const entries = yield* fs.readDirectory(TRUNCATION_DIR).pipe(
         Effect.map((all) => all.filter((name) => name.startsWith("tool_"))),
         Effect.catch(() => Effect.succeed([])),
       )
       for (const entry of entries) {
-        if (Identifier.timestamp(entry) >= cutoff) continue
+        if (!isExpired(entry, now)) continue
         yield* fs.remove(path.join(TRUNCATION_DIR, entry)).pipe(Effect.catch(() => Effect.void))
       }
     })

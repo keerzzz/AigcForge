@@ -33,7 +33,7 @@
 - app `DraftTab` 加 `presetCategoryId?` + `mode-workspace-slots.tsx:715` 调用处透传 `preset.category`（**presetLaunch 不改**）
 - 新建 `WorkSecondarySidebar` 组件（Location + New Session + 维度 Tab + 会话列表）
 - 新建 `computeWorkSidebarGroups` 纯函数（工种 4 大类分组）
-- 复用 SessionItem + groupSessions（`packages/app/src/pages/home.tsx:760`）
+- 复用 SessionItem + groupSessions（`packages/app/src/pages/home-shared.tsx`，原 home.tsx 拆除后的共享 owner）
 - 跨模式指示器（复用 `session.tsx:1626` sessionMode 路径）
 - i18n en/zh/zht（8 个新 key，见计划 §5.1）
 - 无障碍（@kobalte/core Tabs 或 TabsV2 + role=tablist + tabindex 管理）
@@ -85,7 +85,7 @@
 | PlaceholderSidebar 替换点 | `packages/app/src/components/secondary-sidebar.tsx:666-668` | 改：替换为 WorkSecondarySidebar |
 | WorkProjectColumnSidebar（复用顶部）| `packages/app/src/pages/mode-workspace-slots.tsx:521-590` | 不改，抽 Location+New Session 复用 |
 | SessionItem（复用行）| `packages/app/src/pages/layout/sidebar-items.tsx:147` | 不改，复用 |
-| groupSessions（复用分组）| `packages/app/src/pages/home.tsx:760` | 不改，复用 |
+| groupSessions（复用分组）| `packages/app/src/pages/home-shared.tsx` | 不改，复用 |
 | sessionMode（复用跨模式指示）| `packages/app/src/pages/session.tsx:1626` | 不改，复用读取路径 |
 | computeWorkSidebarGroups | 新建 `packages/app/src/pages/work-sidebar-groups.ts` | 新建：纯函数，参考 computeProgressLedger 模式 |
 | WorkSecondarySidebar | 新建 `packages/app/src/components/work-secondary-sidebar.tsx` | 新建组件 |

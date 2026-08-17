@@ -1,7 +1,7 @@
 # AigcForge Desktop Architecture Blueprint
 
 > 状态：草案 v2.0，基于 V2 纯代码重写
-> 代码基线：app.tsx, layout.tsx, session.tsx, home.tsx, titlebar.tsx
+> 代码基线：app.tsx, layout.tsx, session.tsx, home-overview.tsx, titlebar.tsx（原 home.tsx 已按 mode-page-unification-v2 Phase 1 拆除为 pages/home-shared.tsx + pages/coding-project-column.tsx）
 
 ---
 
@@ -101,10 +101,10 @@ Session 页面核心结构：
 
 ## 6. 首页
 
-Home 组件：
-- 项目选择 + 打开新项目
-- Session 全局搜索
-- 最近会话 (今天/昨天/更早 分组)
+`HomeOverview` 组件（ADR-16 全局聚合首页）：
+- 跨模式会话列表 + 模式/项目筛选 + 「继续上次」置顶 + 会话搜索
+- 复用 `home-shared.tsx`（Session 数据管线与展示组件）与 `coding-project-column.tsx`（项目行）
+- `/mode/:mode` 各模式首页由共享 ModeWorkspace typed slots 承载（ADR-15）
 
 ---
 

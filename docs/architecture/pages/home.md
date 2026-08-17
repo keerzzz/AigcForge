@@ -1,14 +1,18 @@
 # Home 页面架构
 
-> 状态：草案 v3.0，企业级架构文档
-> 代码基线：packages/app/src/pages/home.tsx
-> 路由：/
+> 状态：草案 v4.0，企业级架构文档
+> 代码基线：packages/app/src/pages/home-overview.tsx（全局聚合首页，ADR-16）+ packages/app/src/pages/home-shared.tsx（共享 Session 构件 owner）+ packages/app/src/pages/coding-project-column.tsx（Coding 项目树 owner）
+> 路由：/（HomeOverview，ADR-16）；/mode/:mode（ModeWorkspace，ADR-12/15）
+> 历史：v1-v3 描述 `pages/home.tsx` 单体 Home；该文件已按 `docs/plan/mode-page-unification-v2.md` Phase 1 拆除，共享构件迁入 `home-shared.tsx`，Coding 项目树迁入 `coding-project-column.tsx`。
 
 ---
 
 ## 1. 定位与职责
 
-Home 是应用入口页面——Product Mode 模块入口、项目发现、Mode-scoped Session 搜索和最近会话恢复的聚合中枢。所有路由均需经过 Home 确认活跃服务器连接。
+- `/` 渲染 `HomeOverview`（全局聚合首页）：跨模式会话列表 + 模式筛选 + 项目筛选 + 「继续上次」置顶 + 会话搜索（ADR-16）。
+- `/mode/:mode` 渲染共享 `ModeWorkspace`，各模式首页（Coding 会话列表 / Chat 资产工作台 / Work 预设 + 会话 / Assistant 实体 + 会话）通过 typed slot 承载（ADR-15）。
+- `home-shared.tsx` 是所有模式会话列表的共享数据管线与纯展示组件 owner，不持有页面外壳。
+- `coding-project-column.tsx` 是 Coding 项目/服务器树 owner（保留 `HomeProjectColumn`/`HomeProjectRow` 兼容名称，不再是 Home 页面 owner）。
 
 ---
 
@@ -16,153 +20,130 @@ Home 是应用入口页面——Product Mode 模块入口、项目发现、Mode-
 
 ```
 URL: /
-  -> app.tsx Routes: <Route path="/" component={Home} />
-  -> Home 组件直接渲染
+  -> app.tsx Routes: <Route path="/" component={HomeOverview} />
+  -> HomeOverview 直接渲染
   -> 已通过 ConnectionGate 门禁
   -> 无需额外 SDK/Sync Provider (使用全局 ServerSync)
+
+URL: /mode/:mode
+  -> ModeRoute 校验并激活 currentMode
+  -> ModeWorkspace render-all slots（display:none 保持状态，ADR-15 §4）
 ```
 
 ---
 
-## 3. 页面布局与组件树
+## 3. Owner 边界
 
-```
-Home
-├── HomeModeCards         — 导航到 /mode/:mode，不创建/恢复工作
-├── Header
-│   ├── SearchInput          — 搜索 Sessions (searchQuery signal)
-│   └── ServerPicker         — 服务器选择器
-│
-├── ProjectSection
-│   ├── ProjectCard[]        — 已打开项目列表
-│   │   ├── ProjectAvatar    — 项目图标/缩写
-│   │   ├── ProjectName      — 项目名称
-│   │   └── DirectoryPath    — 本地路径
-│   └── OpenProjectButton    — chooseProject() 触发
-│
-├── SessionSection
-│   ├── TodayGroup           — 今天创建的 Sessions
-│   │   └── SessionCard[]    — Session 卡片 (名称/时间/预览)
-│   ├── YesterdayGroup       — 昨天创建的 Sessions
-│   └── OlderGroup           — 更早的 Sessions
-```
+| Owner | 文件 | 职责 |
+|---|---|---|
+| Global Home 页面 | `home-overview.tsx` | all/mode/project 筛选、lastActive 置顶、badge、全量 Session 搜索、查询生命周期 |
+| Home Session 共享构件 | `home-shared.tsx` | `HOME_SESSION_LIMIT`、`HomeSessionRecord/Group`、`buildHomeSessionRecords`、`matchesHomeSessionSearch`、`homeSessionSearchKey`、`groupSessions`、`HomeSessionLeading/Search/SearchResultRow/GroupHeader/Row/Skeleton` |
+| Coding 项目树 | `coding-project-column.tsx` | `HomeProjectColumn`/`HomeProjectRow` + server/project 行、多 server/多项目选择、项目操作、通知、Coding 新建会话 |
+| 页面 owner 内联 | `mode-workspace-slots.tsx` | Coding 预取/搜索状态、Work 预设、各模式查询生命周期 |
 
-帮助和设置属于共享 `ModeSwitcher` 底部工具区，不由 Home 维护另一套桌面/窄屏入口。
+`home-shared.tsx` 不再拥有 Coding 项目树；`coding-project-column.tsx` 不是 Home 页面 owner，也不得替换为 `ModeLocationNewSession`（Work/Assistant 才消费后者；Chat 的 Location 由 `ChatFeatureSidebar` 内联持有）。
 
 ---
 
-## 4. Context 依赖图
+## 4. 页面布局与组件树（HomeOverview）
 
-| 层级 | Context | 用途 |
-|------|---------|------|
-| 全局 | useServerSync | 服务器 children() 目录列表 |
-| 全局 | useServer | 活跃服务器 + 连接列表 |
-| 全局 | useLayout | 项目元数据 (byDirectory / byID) |
-| 全局 | useTabs | Session Tab 生命周期 |
-| 全局 | useGlobal | sessionPlacement 缓存 |
-| 全局 | useDialog | 模态对话框堆栈 |
-| 全局 | useCommand | 键盘快捷键注册 |
-| 全局 | useLanguage | i18n 翻译 |
-| 全局 | useMarked | Markdown 渲染 |
-| 全局 | useMode | Product Mode 选择与 Session 过滤 |
-
----
+```
+HomeOverview
+├── 左列
+│   ├── ModeFilter        — 模式筛选（all/mode）
+│   └── ProjectFilter     — 项目维度（复用 HomeProjectRow 点击过滤）
+├── 主列
+│   ├── HomeSessionSearch — 全量 Session 搜索（home-shared）
+│   ├── ContinueGroup     — 「继续上次」置顶（pinLastActive）
+│   ├── SessionGroup[]    — HomeSessionGroupHeader + HomeSessionRow（home-shared）
+│   └── Empty/Loading     — HomeSessionSkeleton / 空态 + 新建按钮
+```
 
 ## 5. 数据流架构
 
-### 5.1 项目数据流
+### 5.1 会话数据流（各页面 owner 共享 `home-shared` 纯管线）
 
 ```
 ServerSyncProvider.children()
   -> projectDirectories createMemo
     -> layout.project.byDirectory -> projects createMemo
-      -> buildHomeSessionRecords(sync, projects, ...)
+      -> buildHomeSessionRecords(sync, projects, ...)   (home-shared)
         -> homeSessionRecords createMemo
-          -> buildHomeSessionGroups -> sessionGroups createMemo
+          -> filterSessionsByMode(...) (页面 owner)      -> groupSessions(...) (home-shared)
             -> For 组件渲染分组列表
 ```
+
+查询/预取生命周期由页面 owner（Coding/Work/Assistant/HomeOverview）各自持有，共享模块不持有 `useQuery`、prefetch 或 lastActive。
 
 ### 5.2 搜索流
 
 ```
-currentMode + searchQuery signal (用户输入)
-  -> modeRecords memo (session.mode === currentMode)
-  -> filteredRecords memo (query.trim().toLowerCase() 模糊匹配)
-    -> 搜索模式: 搜索框下方展示结果
-    -> 无结果: empty message
+query signal（用户输入）
+  -> 页面 owner 过滤（mode/project）
+  -> matchesHomeSessionSearch(record, query)  (home-shared)
+    -> HomeSessionSearch 展示结果（home-shared）
 ```
+
+Coding 项目搜索、Chat 资产/文件搜索为各自领域 owner，不复用 HomeSessionSearch。
 
 ### 5.3 路由跳转流
 
 ```text
 点击 Session 卡片
+  -> openSessionRecord（helpers.ts）
   -> navigate("/server/:serverKey/session/:rootID")
-  -> URL 中不编码 Mode (见 docs/architecture/adr/ADR-09-mode-route-decoupling.md)
+  -> URL 中不编码 Mode (ADR-09)
   -> TabsProvider.addSessionTab() 自动添加
   -> TargetSessionRoute 解析 placement
 ```
 
+普通新建入口通过 `launchModeSession`（`pages/layout/helpers.ts`）复用项目 open/touch 生命周期；页面 owner 仍负责 mode、初始 prompt 和 Draft overrides，资产选择器保留自己的资产 prompt 生命周期。
+
 ### 5.4 Product Mode 模块入口流
 
 ```text
-点击 HomeModeCard
+点击 ModeSwitcher / Home 模式卡片
   -> modeHref(mode)
   -> navigate("/mode/:mode")
   -> ModeRoute 校验并激活 currentMode
-  -> ModeWorkspace / Home / Sidebar 使用 mode-scoped selectors
+  -> ModeWorkspace / SecondarySidebar 使用 mode-scoped selectors
   -> 不调用 tabs.newDraft()，不创建/恢复 Session，不选择 Tab，不改变 Agent
 ```
 
-Project/Workspace 是跨 Mode 资源，不随 Mode 隐藏。无匹配 Session 时显示 Mode 名称、空状态和显式新建按钮。
-
 ---
 
-## 6. 项目选择生命周期
-
-```
-用户点击 Open Project
-  -> useDirectoryPicker().chooseProject()
-    -> directory-picker.tsx UI
-    -> onSelect(directory)
-      -> layout.project.open(directory)
-      -> ServerSync 加载新目录
-      -> projectSelections store 更新
-```
-
----
-
-## 7. 错误与边界处理
+## 6. 错误与边界处理
 
 | 场景 | 处理 |
 |------|------|
 | 无项目 | 引导 UI — 打开项目的提示 |
 | 搜索为空 | "No results found" 反馈 |
-| Session 加载中 | createResource loading 状态 |
+| Session 加载中 | createResource loading 状态（HomeSessionSkeleton） |
 | 当前 Mode 无 Session | Mode-scoped 空状态 + 显式新建入口，不自动创建 |
 | 当前 route Session 与 Mode 不一致 | 保留当前 Session，显示紧凑归属提示 |
 | 服务器断开 | ConnectionGate 401 门禁 |
 | settings 开关关闭 | showStatus / showFileTree 隐藏对应 UI |
 
----
-
-## 8. 性能考虑
+## 7. 性能考虑
 
 - sessions 列表 createMemo 缓存，仅依赖变化时重算
 - buildHomeSessionRecords 含去重逻辑
-- sessionGroups 过滤空组，避免空 header 渲染
+- groupSessions 过滤空组，避免空 header 渲染
 - filteredRecords memo 中仅匹配 name/directory，非深搜
+- render-all + display:none 保持模式 slot 状态（ADR-15 §4），切换不 remount
 
----
-
-## 9. 上下游文件索引
+## 8. 上下游文件索引
 
 | 层级 | 文件 |
 |------|------|
-| 路由定义 | app.tsx (Routes -> <Route path="/" component={Home} />) |
-| 组件实现 | pages/home.tsx |
+| 路由定义 | app.tsx (Routes -> <Route path="/" component={HomeOverview} />) |
+| 全局首页 | pages/home-overview.tsx |
+| 共享 Session 构件 | pages/home-shared.tsx |
+| Coding 项目树 | pages/coding-project-column.tsx |
 | 项目数据 | context/layout.tsx (useLayout) |
 | 数据同步 | context/server-sync.ts (useServerSync) |
-| Session 构建 | pages/home.tsx (buildHomeSessionRecords, buildHomeSessionGroups helpers) |
+| Session 构建 | pages/home-shared.tsx (buildHomeSessionRecords, groupSessions) |
+| 打开会话 | pages/layout/helpers.ts (openSessionRecord, openProjectNewSession) |
 | 目录选择器 | components/directory-picker.tsx (useDirectoryPicker) |
 | 对话框 | components/dialog-settings.tsx |
 | 持久化 | context/settings.tsx + utils/persist.ts |

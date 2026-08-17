@@ -11,7 +11,7 @@ import { Button } from "@aigcfroge/ui/button"
 import { DragDropProvider, DragDropSensors, DragOverlay, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd"
 import { ConstrainDragXAxis } from "@/utils/solid-dnd"
 import { useLanguage } from "@/context/language"
-import { modeDraft, useMode, type Mode } from "@/context/mode"
+import { useMode, type Mode } from "@/context/mode"
 import { ChatFeatureSidebar } from "@/components/mode-surfaces"
 import { ChatSessionList } from "@/components/chat/chat-session-list"
 import { WorkSecondarySidebar } from "@/components/work-secondary-sidebar"
@@ -30,7 +30,7 @@ import {
   displayName,
   errorMessage,
   homeProjectDirectories,
-  openProjectNewSession,
+  launchModeSession,
   sortedRootSessions,
 } from "@/pages/layout/helpers"
 import { SortableWorkspace, LocalWorkspace, WorkspaceDragOverlay } from "@/pages/layout/sidebar-workspace"
@@ -143,22 +143,24 @@ function SecondarySidebar() {
     const c = conn()
     if (!c) return
     const ctxInst = global.ensureServerCtx(c)
-    openProjectNewSession(
-      ctxInst.projects,
-      (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(mode.currentMode) }),
-      ServerConnection.key(c),
-      project.worktree,
-    )
+    launchModeSession({
+      mode: mode.currentMode,
+      projects: ctxInst.projects,
+      server: ServerConnection.key(c),
+      directory: project.worktree,
+      tabs,
+    })
   }
 
   function openProjectNewSessionFn(c: ServerConnection.Any, directory: string) {
     const ctxInst = global.ensureServerCtx(c)
-    openProjectNewSession(
-      ctxInst.projects,
-      (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(mode.currentMode) }),
-      ServerConnection.key(c),
+    launchModeSession({
+      mode: mode.currentMode,
+      projects: ctxInst.projects,
+      server: ServerConnection.key(c),
       directory,
-    )
+      tabs,
+    })
   }
 
   function addProject() {
@@ -664,7 +666,8 @@ function SecondarySidebar() {
           </For>
         </div>
       </Show>
-      {/* ADR-15 §4 option 1: render-all + display:none instead of Dynamic — slots stay mounted, no remount */}
+      {/* ADR-15 §4 option 1: this secondary-sidebar instance stays separate because
+          ModeWorkspace mounts the primary slot instance; both use render-all + display:none. */}
       <div style={{ display: mode.currentMode === "chat" ? "" : "none" }}>
         <ChatFeatureSidebar />
       </div>
@@ -747,12 +750,13 @@ function SecondaryProjectRow(props: {
     const c = conn()
     if (!c) return
     const cctx = global.ensureServerCtx(c)
-    openProjectNewSession(
-      cctx.projects,
-      (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(props.currentMode) }),
-      ServerConnection.key(c),
-      props.project.worktree,
-    )
+    launchModeSession({
+      mode: props.currentMode,
+      projects: cctx.projects,
+      server: ServerConnection.key(c),
+      directory: props.project.worktree,
+      tabs,
+    })
   }
 
   function newSessionInDir(directory: string) {
@@ -761,12 +765,13 @@ function SecondaryProjectRow(props: {
       if (!c) return
       const cctx = global.ensureServerCtx(c)
       props.ctx.setWorkspaceExpanded(directory, true)
-      openProjectNewSession(
-        cctx.projects,
-        (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(props.currentMode) }),
-        ServerConnection.key(c),
+      launchModeSession({
+        mode: props.currentMode,
+        projects: cctx.projects,
+        server: ServerConnection.key(c),
         directory,
-      )
+        tabs,
+      })
     }
   }
 

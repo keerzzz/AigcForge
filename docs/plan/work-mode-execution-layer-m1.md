@@ -174,7 +174,7 @@ export const ArtifactRecord = Schema.Struct({
 
 | 项 | 位置 |
 |---|---|
-| 继续工作区块 | `mode-workspace-slots.tsx`（复用 home.tsx 管道 + `focusedSync().project.loadSessions`） |
+| 继续工作区块 | `mode-workspace-slots.tsx`（复用 home-shared.tsx 管道 + `focusedSync().project.loadSessions`） |
 | 工作流资产卡片 | `mode-workspace-slots.tsx`（`useChatDirectory` → `workflowAsset.list()`） |
 | `workflowLaunch` | `work-preset-launch.ts` 新增纯函数（导出与渲染分离，可测） |
 | orchestrator 兜底 | `core/src/agent/prompt/work-orchestrator.ts` SYSTEM_PROMPT 增加无 preset 分支 |

@@ -18,7 +18,7 @@ import { Dynamic } from "solid-js/web"
 import { CommandProvider } from "@/context/command"
 import { CommentsProvider } from "@/context/comments"
 import { FileProvider } from "@/context/file"
-import { isMode, modeDraft, useMode } from "@/context/mode"
+import { isMode, useMode } from "@/context/mode"
 import { ChatWorkspaceProvider, DirtyDraftGuard } from "@/context/chat-workspace"
 import { ServerSDKProvider, useServerSDK } from "@/context/server-sdk"
 import { ServerSyncProvider } from "@/context/server-sync"
@@ -41,6 +41,7 @@ import Layout from "@/pages/layout"
 import { ErrorPage } from "./pages/error"
 import { useCheckServerHealth } from "./utils/server-health"
 import { requireServerKey, rootSession, sessionHref } from "./utils/session-route"
+import { launchModeSession } from "@/pages/layout/helpers"
 
 import Session from "@/pages/session"
 import { ModeWorkspace } from "@/pages/mode-workspace"
@@ -70,7 +71,15 @@ function LegacySessionRedirect() {
       const ctx = global.ensureServerCtx(conn)
       const projects = ctx.projects.list()
       const dir = projects[0]?.worktree
-      if (dir) tabs.newDraft({ server: key, directory: dir, ...modeDraft(mode.currentMode) })
+      if (dir) {
+        launchModeSession({
+          mode: mode.currentMode,
+          projects: ctx.projects,
+          server: key,
+          directory: dir,
+          tabs,
+        })
+      }
     } catch {}
   })
   return

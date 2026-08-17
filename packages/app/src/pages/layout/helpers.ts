@@ -3,7 +3,9 @@ import { type ProductMode, type Session } from "@aigcfroge/sdk/v2/client"
 import { startTransition } from "solid-js"
 import { pathKey } from "@/utils/path-key"
 import type { ServerConnection } from "@/context/server"
-import type { HomeSessionRecord } from "@/pages/home"
+import { modeDraft, type Mode } from "@/context/mode"
+import type { DraftTab } from "@/context/tabs"
+import type { HomeSessionRecord } from "@/pages/home-shared"
 import type { LocalProject } from "@/context/layout"
 import type { useGlobal } from "@/context/global"
 import type { useTabs } from "@/context/tabs"
@@ -191,6 +193,32 @@ export function openProjectNewSession(
   projects.open(projectWorktree)
   projects.touch(projectWorktree)
   newDraft(server, directory)
+}
+
+export function launchModeSession(input: {
+  mode: Mode
+  projects: ProjectActions
+  server: ServerConnection.Key
+  directory: string
+  tabs: Pick<ReturnType<typeof useTabs>, "newDraft">
+  initialPrompt?: string
+  draftOverrides?: Partial<Pick<DraftTab, "agent" | "presetCategoryId" | "permissionTier" | "worktree">>
+}) {
+  openProjectNewSession(
+    input.projects,
+    (server, directory) =>
+      input.tabs.newDraft(
+        {
+          server,
+          directory,
+          ...modeDraft(input.mode),
+          ...input.draftOverrides,
+        },
+        input.initialPrompt,
+      ),
+    input.server,
+    input.directory,
+  )
 }
 
 /**

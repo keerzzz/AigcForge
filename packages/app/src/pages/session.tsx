@@ -71,8 +71,7 @@ import { useChatWorkspace } from "@/context/chat-workspace"
 import { useGlobal } from "@/context/global"
 import { useServer, ServerConnection } from "@/context/server"
 import { useTabs } from "@/context/tabs"
-import { modeDraft } from "@/context/mode"
-import { openProjectNewSession } from "@/pages/layout/helpers"
+import { launchModeSession } from "@/pages/layout/helpers"
 import { extractMessageContent, captureSeedPrompt } from "@/components/chat/capture-helpers"
 import { countSimilarPrompts, extractUserPrompts, freshRepeatState } from "@/components/chat/repeat-detection"
 import { SuggestionBar } from "@/components/chat/suggestion-bar"
@@ -1621,13 +1620,14 @@ export default function Page() {
 
     const seedPrompt = captureSeedPrompt(content, { sessionID: params.id!, messageID: lastAssistant.id }, language.t)
 
-    openProjectNewSession(
-      global.ensureServerCtx(conn).projects,
-      (_server, draftDirectory) =>
-        appTabs.newDraft({ server: _server, directory: draftDirectory, ...modeDraft("chat") }, seedPrompt),
-      ServerConnection.key(conn),
+    launchModeSession({
+      mode: "chat",
+      projects: global.ensureServerCtx(conn).projects,
+      server: ServerConnection.key(conn),
       directory,
-    )
+      tabs: appTabs,
+      initialPrompt: seedPrompt,
+    })
   }
 
   const sessionMode = () => info()?.mode

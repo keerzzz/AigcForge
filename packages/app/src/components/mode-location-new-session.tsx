@@ -8,9 +8,9 @@ import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
 import { useDirectoryPicker } from "@/components/directory-picker"
 import { useModeDirectory } from "@/pages/mode-workspace-context"
-import { modeDraft, type Mode } from "@/context/mode"
+import type { Mode } from "@/context/mode"
 import { ServerConnection } from "@/context/server"
-import { openProjectNewSession, homeProjectDirectories } from "@/pages/layout/helpers"
+import { homeProjectDirectories, launchModeSession } from "@/pages/layout/helpers"
 
 /** Shared location and new-session controls for Chat, Work, and Assistant. */
 export function ModeLocationNewSession(props: { directory: Accessor<string | undefined>; mode: Mode }) {
@@ -25,13 +25,13 @@ export function ModeLocationNewSession(props: { directory: Accessor<string | und
     const currentCtx = ctx()
     const dir = props.directory()
     if (!c || !currentCtx || !dir) return
-    openProjectNewSession(
-      currentCtx.projects,
-      (serverKey, draftDirectory) =>
-        tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft(props.mode) }),
-      ServerConnection.key(c),
-      dir,
-    )
+    launchModeSession({
+      mode: props.mode,
+      projects: currentCtx.projects,
+      server: ServerConnection.key(c),
+      directory: dir,
+      tabs,
+    })
   }
 
   function addProject() {

@@ -12,18 +12,19 @@ import { AssetWorkbench } from "@/components/chat/asset-workbench"
 import { AssetSessionSelector } from "@/components/chat/asset-session-selector"
 import { ChatImportDialog, serializeImport, wrapImportContent } from "@/components/chat/chat-import-dialog"
 import { AssetDeleteDialog } from "@/components/chat/asset-delete-dialog"
-import { modeDraft, useMode } from "@/context/mode"
+import { useMode } from "@/context/mode"
 import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
-import { openProjectNewSession, openSessionRecord, closeHomeProject, homeProjectDirectories, filterSessionsByMode } from "@/pages/layout/helpers"
+import { launchModeSession, openSessionRecord, closeHomeProject, homeProjectDirectories, filterSessionsByMode } from "@/pages/layout/helpers"
 import { useServerSync } from "@/context/server-sync"
 import { useLayout, type LocalProject } from "@/context/layout"
 import { useQuery } from "@tanstack/solid-query"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { pathKey } from "@/utils/path-key"
 import { useDirectoryPicker } from "@/components/directory-picker"
-import { HomeProjectColumn, HOME_SESSION_LIMIT, HomeSessionSearch, HomeSessionRow, HomeSessionGroupHeader, HomeSessionSkeleton,
+import { HomeProjectColumn } from "@/pages/coding-project-column"
+import { HOME_SESSION_LIMIT, HomeSessionSearch, HomeSessionRow, HomeSessionGroupHeader, HomeSessionSkeleton,
   buildHomeSessionRecords, groupSessions, matchesHomeSessionSearch, type HomeSessionRecord,
-} from "@/pages/home"
+} from "@/pages/home-shared"
 import { useNotification } from "@/context/notification"
 import { useMarked } from "@aigcfroge/ui/context/marked"
 import { preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"
@@ -67,12 +68,13 @@ export function CodingProjectColumnSidebar() {
   }
   function openNewSession(conn: ServerConnection.Any, dir: string) {
     const ctx = global.ensureServerCtx(conn)
-    openProjectNewSession(
-      ctx.projects,
-      (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(mode.currentMode) }),
-      ServerConnection.key(conn),
-      dir,
-    )
+    launchModeSession({
+      mode: mode.currentMode,
+      projects: ctx.projects,
+      server: ServerConnection.key(conn),
+      directory: dir,
+      tabs,
+    })
   }
   function chooseProject(conn: ServerConnection.Any) {
     pickDirectory({
@@ -326,12 +328,13 @@ export function CodingSessionListMain() {
     const directory = newSessionDirectory()
     if (!directory) return
     const ctx = global.ensureServerCtx(conn)
-    openProjectNewSession(
-      ctx.projects,
-      (serverKey, draftDirectory) => tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft(mode.currentMode) }),
-      ServerConnection.key(conn),
+    launchModeSession({
+      mode: mode.currentMode,
+      projects: ctx.projects,
+      server: ServerConnection.key(conn),
       directory,
-    )
+      tabs,
+    })
   }
 
   return (
@@ -418,13 +421,14 @@ export function ChatAssetWorkbenchMain() {
     if (!c || !dir) return
     const ctx = global.ensureServerCtx(c)
     const seedPrompt = language.t("asset.panel.newSeed", { kind: chatFeature() })
-    openProjectNewSession(
-      ctx.projects,
-      (serverKey, draftDirectory) =>
-        tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft("chat") }, seedPrompt),
-      ServerConnection.key(c),
-      dir,
-    )
+    launchModeSession({
+      mode: "chat",
+      projects: ctx.projects,
+      server: ServerConnection.key(c),
+      directory: dir,
+      tabs,
+      initialPrompt: seedPrompt,
+    })
   }
 
   function onImportAsset() {
@@ -439,13 +443,14 @@ export function ChatAssetWorkbenchMain() {
           if (!content) return
           const ctx = global.ensureServerCtx(c)
           const prompt = wrapImportContent(content, language.t("chatImport.untrustedInstruction"))
-          openProjectNewSession(
-            ctx.projects,
-            (serverKey, draftDirectory) =>
-              tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft("chat") }, prompt),
-            ServerConnection.key(c),
-            dir,
-          )
+          launchModeSession({
+            mode: "chat",
+            projects: ctx.projects,
+            server: ServerConnection.key(c),
+            directory: dir,
+            tabs,
+            initialPrompt: prompt,
+          })
         }}
       />
     ))
@@ -514,6 +519,43 @@ export function ChatAssetWorkbenchMain() {
 export function WorkProjectColumnSidebar() {
   const { directory } = useModeDirectory()
   return <ModeLocationNewSession directory={directory} mode="work" />
+}
+
+type WorkPresetCardProps = {
+  variant: "workflow" | "preset" | "reserved"
+  title: string
+  description?: string
+  footer: string
+  disabled?: boolean
+  onClick?: () => void
+}
+
+/** Work-only display card for workflow, preset, and reserved entries. */
+function WorkPresetCard(props: WorkPresetCardProps) {
+  if (props.variant === "reserved") {
+    return (
+      <div
+        aria-disabled="true"
+        class="flex min-w-0 flex-col gap-2 rounded-lg border border-dashed border-v2-border-border-base bg-v2-background-bg-base p-4 opacity-60"
+      >
+        <span class="text-v2-text-text-muted text-13-medium">{props.title}</span>
+        <span class="text-v2-text-text-faint text-11-regular">{props.footer}</span>
+      </div>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      class="group flex min-w-0 flex-col gap-2 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-4 text-left transition-colors hover:border-v2-border-border-strong hover:bg-v2-background-bg-layer-03 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+      disabled={props.disabled}
+      onClick={() => props.onClick?.()}
+    >
+      <span class="text-v2-text-text-base text-13-medium">{props.title}</span>
+      <span class="text-v2-text-text-muted text-12-regular">{props.description}</span>
+      <span class="text-v2-text-text-faint text-11-regular">{props.footer}</span>
+    </button>
+  )
 }
 
 /** Work home surface for recent Sessions, workflows, and presets. */
@@ -597,29 +639,27 @@ export function WorkPresetCatalogMain() {
     void sdk.client.workflowAsset
       .content({ path: asset.relativePath })
       .then((res) =>
-        openProjectNewSession(
-          currentCtx.projects,
-          (serverKey, draftDirectory) =>
-            tabs.newDraft(
-              { server: serverKey, directory: draftDirectory, ...modeDraft("work"), agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR },
-              workflowLaunch({ name: asset.name, description: asset.description, steps: res.data?.steps ?? [] }),
-            ),
-          ServerConnection.key(c),
-          dir,
-        ),
+        launchModeSession({
+          mode: "work",
+          projects: currentCtx.projects,
+          server: ServerConnection.key(c),
+          directory: dir,
+          tabs,
+          initialPrompt: workflowLaunch({ name: asset.name, description: asset.description, steps: res.data?.steps ?? [] }),
+          draftOverrides: { agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR },
+        }),
       )
       .catch((error) => {
         console.error("[work-home] workflow content load failed", error)
-        openProjectNewSession(
-          currentCtx.projects,
-          (serverKey, draftDirectory) =>
-            tabs.newDraft(
-              { server: serverKey, directory: draftDirectory, ...modeDraft("work"), agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR },
-              workflowLaunch({ name: asset.name, description: asset.description, steps: [] }),
-            ),
-          ServerConnection.key(c),
-          dir,
-        )
+        launchModeSession({
+          mode: "work",
+          projects: currentCtx.projects,
+          server: ServerConnection.key(c),
+          directory: dir,
+          tabs,
+          initialPrompt: workflowLaunch({ name: asset.name, description: asset.description, steps: [] }),
+          draftOverrides: { agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR },
+        })
       })
   }
 
@@ -628,22 +668,18 @@ export function WorkPresetCatalogMain() {
     const currentCtx = ctx()
     const dir = directory()
     if (!c || !currentCtx || !dir) return
-    openProjectNewSession(
-      currentCtx.projects,
-      (serverKey, draftDirectory) =>
-        tabs.newDraft(
-          {
-            server: serverKey,
-            directory: draftDirectory,
-            ...modeDraft("work"),
-            agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR,
-            presetCategoryId: preset.category,
-          },
-          presetLaunch(preset),
-        ),
-      ServerConnection.key(c),
-      dir,
-    )
+    launchModeSession({
+      mode: "work",
+      projects: currentCtx.projects,
+      server: ServerConnection.key(c),
+      directory: dir,
+      tabs,
+      initialPrompt: presetLaunch(preset),
+      draftOverrides: {
+        agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR,
+        presetCategoryId: preset.category,
+      },
+    })
   }
 
   return (
@@ -685,16 +721,14 @@ export function WorkPresetCatalogMain() {
             <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               <For each={workflowAssets()}>
                 {(asset) => (
-                  <button
-                    type="button"
-                    class="group flex min-w-0 flex-col gap-2 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-4 text-left transition-colors hover:border-v2-border-border-strong hover:bg-v2-background-bg-layer-03 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+                  <WorkPresetCard
+                    variant="workflow"
+                    title={asset.name}
+                    description={asset.description}
+                    footer={language.t("work.asset.guidedBadge")}
                     disabled={!directory()}
                     onClick={() => startWorkflow(asset)}
-                  >
-                    <span class="text-v2-text-text-base text-13-medium">{asset.name}</span>
-                    <span class="text-v2-text-text-muted text-12-regular">{asset.description}</span>
-                    <span class="text-v2-text-text-faint text-11-regular">{language.t("work.asset.guidedBadge")}</span>
-                  </button>
+                  />
                 )}
               </For>
             </div>
@@ -708,29 +742,23 @@ export function WorkPresetCatalogMain() {
               <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                 <For each={category.presets}>
                   {(preset) => (
-                    <button
-                      type="button"
-                      class="group flex min-w-0 flex-col gap-2 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-4 text-left transition-colors hover:border-v2-border-border-strong hover:bg-v2-background-bg-layer-03 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+                    <WorkPresetCard
+                      variant="preset"
+                      title={preset.title}
+                      description={preset.description}
+                      footer={language.t("work.preset.questions", { count: preset.questions.length })}
                       disabled={!directory()}
                       onClick={() => startPreset(preset)}
-                    >
-                      <span class="text-v2-text-text-base text-13-medium">{preset.title}</span>
-                      <span class="text-v2-text-text-muted text-12-regular">{preset.description}</span>
-                      <span class="text-v2-text-text-faint text-11-regular">
-                        {language.t("work.preset.questions", { count: preset.questions.length })}
-                      </span>
-                    </button>
+                    />
                   )}
                 </For>
                 <For each={category.reserved}>
                   {(title) => (
-                    <div
-                      aria-disabled="true"
-                      class="flex min-w-0 flex-col gap-2 rounded-lg border border-dashed border-v2-border-border-base bg-v2-background-bg-base p-4 opacity-60"
-                    >
-                      <span class="text-v2-text-text-muted text-13-medium">{title}</span>
-                      <span class="text-v2-text-text-faint text-11-regular">{language.t("work.preset.comingSoon")}</span>
-                    </div>
+                    <WorkPresetCard
+                      variant="reserved"
+                      title={title}
+                      footer={language.t("work.preset.comingSoon")}
+                    />
                   )}
                 </For>
               </div>

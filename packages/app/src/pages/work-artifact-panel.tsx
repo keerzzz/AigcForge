@@ -1,4 +1,4 @@
-import { For, Show, createEffect, createMemo, createSignal } from "solid-js"
+import { Show, createMemo, createSignal } from "solid-js"
 import { useLanguage } from "@/context/language"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
@@ -6,7 +6,6 @@ import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
-import { useFile } from "@/context/file"
 import { useMode } from "@/context/mode"
 import { createSizing } from "@/pages/session/helpers"
 import { useSessionLayout } from "@/pages/session/session-layout"
@@ -15,7 +14,6 @@ import { HtmlArtifact } from "@aigcfroge/session-ui/html-artifact"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { SessionRightPanel } from "@/components/session-right-panel"
-import FileTree from "@/components/file-tree"
 import { SessionContextTab } from "@/components/session"
 import {
   applyContentForDisk,
@@ -27,33 +25,14 @@ import {
 import { captureWorkArtifactAsCandidate } from "@/pages/work-asset-capture"
 import { setProposeCandidate } from "@/components/chat/prompt-asset-store"
 import { showToast } from "@/utils/toast"
-import { diffTextLines } from "@/utils/text-diff"
+import { TextDiffView } from "@/pages/session/text-diff-view"
+import { createActiveTabWriteback } from "@/pages/session/file-tab-strip"
 import { describeApplyError, isConflictError } from "@/pages/work-artifact-error"
 import type { Message } from "@aigcfroge/sdk/v2/client"
 
 /** Read-only diff shown before confirming an overwrite. */
 function WorkDiffView(props: { oldText: string; newText: string }) {
-  const lines = createMemo(() => diffTextLines(props.oldText, props.newText))
-  return (
-    <div class="flex max-h-48 min-h-0 flex-col overflow-y-auto rounded-lg border border-v2-border-border-base">
-      <For each={lines()}>
-        {(line) => (
-          <div
-            class={[
-              "bg-v2-background-bg-base text-v2-text-text-muted text-12-regular",
-              line.type === "add" && "bg-v2-state-fg-success/10 text-v2-state-fg-success",
-              line.type === "del" && "bg-v2-state-fg-danger/10 text-v2-state-fg-danger",
-            ].join(" ")}
-          >
-            <span class="mr-2 inline-block w-6 select-none text-right opacity-50">
-              {line.type === "add" ? "+" : line.type === "del" ? "-" : " "}
-            </span>
-            <span class="whitespace-pre-wrap break-all">{line.text}</span>
-          </div>
-        )}
-      </For>
-    </div>
-  )
+  return <TextDiffView oldText={props.oldText} newText={props.newText} variant="work" />
 }
 
 /** Previews the latest Work artifact and applies it through the typed API. */
@@ -231,11 +210,10 @@ export function WorkArtifactContent() {
   )
 }
 
-/** Work session panel with Context, Artifact, and project file-tree regions. */
+/** Work session panel with Context, Artifact, and the default project file-tree. */
 export function WorkSessionPanel() {
   const language = useLanguage()
   const mode = useMode()
-  const file = useFile()
   const size = createSizing()
   const { tabs } = useSessionLayout()
   const activeTab = createMemo(() => {
@@ -246,12 +224,12 @@ export function WorkSessionPanel() {
   })
   // Keep the shared session tab store authoritative so the global context entry
   // points (stats bar / context usage) switch this panel too.
-  createEffect(() => {
-    if (mode.currentMode !== "work") return
-    const current = tabs()
-    const active = activeTab()
-    if (!current || current.active() === active) return
-    current.setActive(active)
+  createActiveTabWriteback({
+    enabled: () => mode.currentMode === "work",
+    activeTab,
+    fallbackTab: () => "artifact",
+    getActive: () => tabs()?.active(),
+    setActive: (tab) => tabs()?.setActive(tab),
   })
   const selectTab = (value: string | number) => {
     const tab = String(value)
@@ -262,11 +240,6 @@ export function WorkSessionPanel() {
     <SessionRightPanel
       size={size}
       ariaLabel={language.t("work.artifact.tab")}
-      fileTree={
-        <div class="min-h-0 flex-1 overflow-y-auto px-3 pt-3">
-          <FileTree path="" class="pt-1" onFileClick={(node) => void file.load(node.path)} />
-        </div>
-      }
     >
       <TabsV2 value={activeTab()} onChange={selectTab} class="flex min-h-0 flex-1 flex-col">
         <TabsV2.List class="shrink-0 border-b border-v2-border-border-base">
