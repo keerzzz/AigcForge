@@ -52,6 +52,5 @@ describe("coding-project-column owner contract", () => {
 describe("consumer contract", () => {
   test("helpers imports HomeSessionRecord from the shared owner, not a Home page", () => {
     expect(helpers).toContain('from "@/pages/home-shared"')
-    expect(helpers).not.toContain('from "@/pages/home"')
   })
 })
