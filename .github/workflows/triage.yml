@@ -35,6 +35,12 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AI_MODEL: ${{ vars.AI_ROBOT_MODEL || vars.AI_MODEL }}
+          AIGCFROGE_PERMISSION: |
+            {
+              "bash": {
+                "*": "allow"
+              }
+            }
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
