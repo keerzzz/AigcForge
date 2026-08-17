@@ -25,4 +25,10 @@ describe("ModeWorkspace", () => {
     expect(content).toContain("export function CodingSessionListMain")
     expect(content).toContain("export function ChatAssetWorkbenchMain")
   })
+
+  test("keeps WorkPresetCard local without adding a cross-mode Session list wrapper", () => {
+    const content = fs.readFileSync(path.resolve(__dirname, "mode-workspace-slots.tsx"), "utf-8")
+    expect(content).toContain("function WorkPresetCard")
+    expect(content).not.toContain("ModeSessionListSection")
+  })
 })

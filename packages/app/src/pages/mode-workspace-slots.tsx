@@ -517,6 +517,43 @@ export function WorkProjectColumnSidebar() {
   return <ModeLocationNewSession directory={directory} mode="work" />
 }
 
+type WorkPresetCardProps = {
+  variant: "workflow" | "preset" | "reserved"
+  title: string
+  description?: string
+  footer: string
+  disabled?: boolean
+  onClick?: () => void
+}
+
+/** Work-only display card for workflow, preset, and reserved entries. */
+function WorkPresetCard(props: WorkPresetCardProps) {
+  if (props.variant === "reserved") {
+    return (
+      <div
+        aria-disabled="true"
+        class="flex min-w-0 flex-col gap-2 rounded-lg border border-dashed border-v2-border-border-base bg-v2-background-bg-base p-4 opacity-60"
+      >
+        <span class="text-v2-text-text-muted text-13-medium">{props.title}</span>
+        <span class="text-v2-text-text-faint text-11-regular">{props.footer}</span>
+      </div>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      class="group flex min-w-0 flex-col gap-2 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-4 text-left transition-colors hover:border-v2-border-border-strong hover:bg-v2-background-bg-layer-03 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+      disabled={props.disabled}
+      onClick={() => props.onClick?.()}
+    >
+      <span class="text-v2-text-text-base text-13-medium">{props.title}</span>
+      <span class="text-v2-text-text-muted text-12-regular">{props.description}</span>
+      <span class="text-v2-text-text-faint text-11-regular">{props.footer}</span>
+    </button>
+  )
+}
+
 /** Work home surface for recent Sessions, workflows, and presets. */
 export function WorkPresetCatalogMain() {
   const language = useLanguage()
@@ -686,16 +723,14 @@ export function WorkPresetCatalogMain() {
             <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               <For each={workflowAssets()}>
                 {(asset) => (
-                  <button
-                    type="button"
-                    class="group flex min-w-0 flex-col gap-2 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-4 text-left transition-colors hover:border-v2-border-border-strong hover:bg-v2-background-bg-layer-03 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+                  <WorkPresetCard
+                    variant="workflow"
+                    title={asset.name}
+                    description={asset.description}
+                    footer={language.t("work.asset.guidedBadge")}
                     disabled={!directory()}
                     onClick={() => startWorkflow(asset)}
-                  >
-                    <span class="text-v2-text-text-base text-13-medium">{asset.name}</span>
-                    <span class="text-v2-text-text-muted text-12-regular">{asset.description}</span>
-                    <span class="text-v2-text-text-faint text-11-regular">{language.t("work.asset.guidedBadge")}</span>
-                  </button>
+                  />
                 )}
               </For>
             </div>
@@ -709,29 +744,23 @@ export function WorkPresetCatalogMain() {
               <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                 <For each={category.presets}>
                   {(preset) => (
-                    <button
-                      type="button"
-                      class="group flex min-w-0 flex-col gap-2 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-4 text-left transition-colors hover:border-v2-border-border-strong hover:bg-v2-background-bg-layer-03 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+                    <WorkPresetCard
+                      variant="preset"
+                      title={preset.title}
+                      description={preset.description}
+                      footer={language.t("work.preset.questions", { count: preset.questions.length })}
                       disabled={!directory()}
                       onClick={() => startPreset(preset)}
-                    >
-                      <span class="text-v2-text-text-base text-13-medium">{preset.title}</span>
-                      <span class="text-v2-text-text-muted text-12-regular">{preset.description}</span>
-                      <span class="text-v2-text-text-faint text-11-regular">
-                        {language.t("work.preset.questions", { count: preset.questions.length })}
-                      </span>
-                    </button>
+                    />
                   )}
                 </For>
                 <For each={category.reserved}>
                   {(title) => (
-                    <div
-                      aria-disabled="true"
-                      class="flex min-w-0 flex-col gap-2 rounded-lg border border-dashed border-v2-border-border-base bg-v2-background-bg-base p-4 opacity-60"
-                    >
-                      <span class="text-v2-text-text-muted text-13-medium">{title}</span>
-                      <span class="text-v2-text-text-faint text-11-regular">{language.t("work.preset.comingSoon")}</span>
-                    </div>
+                    <WorkPresetCard
+                      variant="reserved"
+                      title={title}
+                      footer={language.t("work.preset.comingSoon")}
+                    />
                   )}
                 </For>
               </div>
