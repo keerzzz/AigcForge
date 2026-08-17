@@ -664,7 +664,8 @@ function SecondarySidebar() {
           </For>
         </div>
       </Show>
-      {/* ADR-15 §4 option 1: render-all + display:none instead of Dynamic — slots stay mounted, no remount */}
+      {/* ADR-15 §4 option 1: this secondary-sidebar instance stays separate because
+          ModeWorkspace mounts the primary slot instance; both use render-all + display:none. */}
       <div style={{ display: mode.currentMode === "chat" ? "" : "none" }}>
         <ChatFeatureSidebar />
       </div>
