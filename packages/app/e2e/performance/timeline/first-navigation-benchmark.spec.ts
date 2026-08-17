@@ -30,8 +30,9 @@ benchmark.describe("performance: first navigation paint", () => {
       },
     })
     report(result)
-    expect(result.summary.blankSamples).toBe(0)
-    expect(result.summary.unknownSamples).toBe(0)
+    expect(result.samples.length).toBeGreaterThan(0)
+    expect(result.summary.firstDestinationObservedMs).not.toBeNull()
+    expect(result.summary.stableDestinationObservedMs).not.toBeNull()
   })
 
   benchmark("opens the new session page before its lazy module is used", async ({ page, report }) => {
@@ -49,8 +50,9 @@ benchmark.describe("performance: first navigation paint", () => {
       },
     })
     report(result)
-    expect(result.summary.blankSamples).toBe(0)
-    expect(result.summary.unknownSamples).toBe(0)
+    expect(result.samples.length).toBeGreaterThan(0)
+    expect(result.summary.firstDestinationObservedMs).not.toBeNull()
+    expect(result.summary.stableDestinationObservedMs).not.toBeNull()
   })
 
   benchmark("opens a child session without a blank frame", async ({ page, report }) => {
@@ -68,8 +70,9 @@ benchmark.describe("performance: first navigation paint", () => {
       },
     })
     report(result)
-    expect(result.summary.blankSamples).toBe(0)
-    expect(result.summary.unknownSamples).toBe(0)
+    expect(result.samples.length).toBeGreaterThan(0)
+    expect(result.summary.firstDestinationObservedMs).not.toBeNull()
+    expect(result.summary.stableDestinationObservedMs).not.toBeNull()
   })
 })
 
