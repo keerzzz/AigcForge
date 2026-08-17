@@ -1,7 +1,7 @@
 # Custom Mode 组合平台实施计划
 
-> 状态：**Draft v1.0 - 基于 `main@44912a774` 的代码实证，等待 ADR-17 / Custom PRD 审批后执行**
-> 日期：2026-08-17
+> 状态：**Draft v1.1 - 基于 `main@e0e0f970f` 的代码实证，等待 ADR-17 / Custom PRD 审批后执行**
+> 日期：2026-08-18
 > 目标阶段：M0 治理与契约 + M1 单 Agent 可恢复闭环；M2-M5 只定义准入 Gate，不提前实现
 > Owner：Product / Schema+SDK / Core / Security / App
 > 依据：[CLAUDE.md](../../CLAUDE.md)、[AGENTS.md](../../AGENTS.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md)、[CONTEXT.md](../../CONTEXT.md)、[DESIGN.md](../../DESIGN.md)、[ADR-17](../architecture/adr/ADR-17-custom-mode-composition-platform.md)、[Custom PRD](../prd/custom-mode-composition-platform.md)、[Custom Roadmap](../roadmap/custom-mode-roadmap.md)、[Session V2](../../specs/v2/session.md)、[V2 Tools](../../specs/v2/tools.md)
@@ -10,6 +10,19 @@
 ---
 
 ## 0. 执行结论
+
+### 0.0 M 节点实施计划
+
+| M   | 独立实施计划                                                             | 对应本计划切片       | 启动条件                                  |
+| --- | ------------------------------------------------------------------------ | -------------------- | ----------------------------------------- |
+| M0  | [治理与组合底座](custom-mode-m0-composition-foundation.md)               | PR 0-4               | ADR-17 / Custom PRD 正式批准              |
+| M1  | [单 Agent 可恢复运行闭环](custom-mode-m1-single-agent-runtime.md)        | PR 5-8               | M0 + G2/G3/G4                             |
+| M2  | [多 Agent 与 Workflow 编排](custom-mode-m2-multi-agent-workflow.md)      | 独立 ADR + gated PRs | M1 稳定 + Workflow Execution ADR          |
+| M3  | [MCP 与统一审批](custom-mode-m3-mcp-approval.md)                         | 独立 ADR + gated PRs | M1 稳定 + Registration/Grant ADR          |
+| M4  | [Trusted Runtime Extension](custom-mode-m4-trusted-runtime-extension.md) | 独立 ADR + gated PRs | M3 稳定 + Threat/Lifecycle/Capability ADR |
+| M5  | [Code Presentation](custom-mode-m5-code-presentation.md)                 | 独立 ADR + gated PRs | M3/M4 稳定 + Sandbox/Equivalence ADR      |
+
+可复制的执行入口见 [Custom Mode M0-M5 TDD 执行提示词](prompt-custom-mode-composition-platform.md)。M0/M1 的边界以表中 PR 映射为准，消除 Roadmap 中“Schema/Resolver 同时属于 M0/M1”的表达重叠：M0 交付可预览但不可运行的组合底座，M1 交付原子冻结后的真实运行闭环。
 
 ### 0.1 业务目标
 
@@ -98,6 +111,30 @@ Gate 只按证据通过，不以“feature flag 默认关闭”替代。flag 可
 | immutable system context                           | Context Epoch                                                   | 不存组合身份；只继续存实际模型可见上下文                                  |
 | tool execution                                     | canonical ToolRegistry                                          | 只扩展物化过滤，不新增 executable registry                                |
 | authorization                                      | PermissionEffective / PermissionV2                              | 运行时逐次判断；Snapshot digest 只审计，不授权                            |
+
+### 1.4 main 历史与基线结论
+
+Custom 不是在静态骨架上施工。以下 main 历史决定了实施顺序和可复用 owner：
+
+| 提交                                        | 已形成的基座                                                                  | 对 Custom 的影响                                                                        |
+| ------------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `660a00d31` / `eb9a683b4`                   | V2 canonical Tool architecture 与 hardening                                   | M1/M3/M5 必须扩现有 ToolRegistry，不能新增 executor registry                            |
+| `526257edf`                                 | Meta Agent V2、handoff、tool permission、Agent hot reload、MCP contributor    | root=`meta` 与 Agent bridge 有现成 owner，但 MCP contributor 不等于 scoped registration |
+| `63c7982f1` / `7c5b97469`                   | Product Mode 持久分类与统一导航 registry                                      | `custom` 必须扩固定枚举与同一 registry，并处理旧客户端                                  |
+| `6fa57a49a` 及后续 Chat 资产提交            | Prompt Asset typed owner、Chat 创建/管理资产闭环                              | Profile 复用 typed service/CAS/watcher 形态，不复制旧 handler 事务                      |
+| `0105b3649`                                 | ADR-15 ModeWorkspace typed slot                                               | Custom 复用共享 shell/timeline/composer，不建平行页面                                   |
+| `8d4f20398`                                 | ADR-17/PRD/Roadmap proposal 合入                                              | 当前只有提案和范围，不构成生产代码授权                                                  |
+| `42cf6d950` 前的 permission-tier 提交链     | PermissionEffective、Session override、fail-closed 修订                       | Custom ceiling 和未来 grant 必须进入唯一 Permission owner                               |
+| `c9d1a58ef`..`eb505210f`，merge `44912a774` | Mode 页面 Phase 1-7：home owner、Location owner、共享右栏、mode launch helper | App 计划必须以归一化后的 owner 为基座，旧路径锚点失效                                   |
+| `bdf821d0d` / `e0e0f970f`                   | CI/文档与 CLI wrapper 修订                                                    | 不改变 Custom domain，但证明开工前仍需审计 `main`/`origin/main` 差异                    |
+
+基线结论：
+
+1. 本计划的代码实证记录在 `main@e0e0f970f`；这是分析锚点，不是未来所有分支的固定起点。
+2. 只有 M0 Phase A 可以从当前最新 main 启动治理草案。M0 代码 PR 必须等待治理批准并包含已合入的前置文档。
+3. M1 必须从 M0 全部合入后的最新 main 开始；M2-M5 分别从其前置 M 合入并复审后的最新 main 开始，不能今天并行切六个长期分支。
+4. 同一 M 内的多个 PR 也默认逐个合入 main 后再开下一分支。只有 owner 明确批准 stacked branches 时可临时堆叠，且每层合并后必须同步 main 并重跑门禁。
+5. 文档/ADR 研究可以并行，但不能提前修改未批准的 runtime contract，也不能让并行文档产生互相竞争的 owner。
 
 ---
 
@@ -554,6 +591,14 @@ unsupported-server
 
 ## 8. 分阶段 PR 序列
 
+### 8.0 M0/M1 归属与 main 基线
+
+- M0 = PR 0-4；退出时 Custom 可被安全协商、管理和解析，但不能创建或执行 Custom Session。
+- M1 = PR 5-8；退出时完成 Snapshot、执行安全、App 和灰度闭环。
+- 每个 PR 从**前置 PR 已合入后当时最新、已同步、干净的 `main`**创建短分支；不是所有 PR 都从 `main@e0e0f970f` 并行切出。
+- 文档/ADR 研究可以并行，但涉及同一协议真源时也必须在提交前同步最新 main 并解决语义冲突。
+- 只有 owner 明确批准 stacked branches 时才允许临时堆叠；每层合并后必须 rebase/merge 最新 main 并重跑受影响门禁。
+
 每个 PR 必须可独立验证并保持未开入口；不要用一个巨型 PR 同时修改五层。
 
 ### PR 0 - 治理与兼容决策
@@ -874,9 +919,9 @@ M1 指标：Plan 成功率 >=98%，preview->start >=95%，Snapshot 一致率 100
 审批后的第一项工作不是创建实现分支，而是完成 **PR 0 治理与兼容决策**。PR 0 通过后：
 
 ```text
-branch: custom-mode
+branch: custom-contracts
 first code slice: PR 1 Schema + capable-client
 commit/PR title: feat(schema): add custom composition contracts
 ```
 
-每个后续 PR 都从最新 `main` 创建不超过三个词的短分支，使用 conventional commit；进入远程交付前按 `quality-to-pr` Gate 重新确认 issue、remote、最终 diff 和全部验证证据。
+`custom-mode` 可以作为历史路线图中的总称，但不建议作为承载 M0/M1 五层改动的长期巨型分支。每个后续 PR 都从前置提交合入后的最新 `main` 创建不超过三个词的短分支，使用 conventional commit；进入远程交付前按 `quality-to-pr` Gate 重新确认 issue、remote、最终 diff 和全部验证证据。

@@ -1,10 +1,10 @@
 # Custom 模式完整开发路线图
 
-> 状态：**Draft v1.1 — 已同步协议复核结论，待 ADR-17 与 Custom PRD 审批**
-> 日期：2026-08-16
+> 状态：**Draft v1.2 — 已补齐 M0-M5 独立 TDD 实施计划，待 ADR-17 与 Custom PRD 审批**
+> 日期：2026-08-18
 > Owner：产品 + Core + App + Security
 > 依据：[Custom PRD v1.1](../prd/custom-mode-composition-platform.md)、[ADR-17](../architecture/adr/ADR-17-custom-mode-composition-platform.md)、[Custom 研究稿](../research/agent/DeepSeek-Harness四模式借鉴与自定义模式思维风暴.md)、[Session V2 Spec](../../specs/v2/session.md)、[Tool Spec](../../specs/v2/tools.md)
-> 分支策略：ADR/契约先行；实现分支建议使用 `custom-mode`
+> 分支策略：ADR/契约先行；每个可独立合并的 PR 从前置提交合入后的最新 `main` 创建不超过三个词的短分支，不使用承载 M0-M5 的长期巨型分支
 
 ---
 
@@ -37,6 +37,19 @@ Custom 主线
 | **M3** | MCP 与审批                | scoped registration、凭证、健康、统一审批入口        | M1 + Tool Registry 扩展  | 远期   |
 | **M4** | Trusted Runtime Extension | Host/Agent/Client 分面、信任、停止、隔离、回滚       | M3 + Plugin 生命周期 ADR | 远期   |
 | **M5** | Code Presentation         | `run_code` + 受限 SDK，共用 Effective Tool Set       | M3/M4 稳定               | 远期   |
+
+### 独立实施计划
+
+| 阶段 | TDD 实施计划                                                                     | 关键停止点                                               |
+| ---- | -------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| M0   | [治理与组合底座](../plan/custom-mode-m0-composition-foundation.md)               | ADR/PRD 未批准不得进入生产代码                           |
+| M1   | [单 Agent 可恢复运行闭环](../plan/custom-mode-m1-single-agent-runtime.md)        | M0/G2/G3/G4 未过不得创建 Custom Session                  |
+| M2   | [多 Agent 与 Workflow 编排](../plan/custom-mode-m2-multi-agent-workflow.md)      | Workflow Execution ADR 未批准不得改 cardinality          |
+| M3   | [MCP 与统一审批](../plan/custom-mode-m3-mcp-approval.md)                         | canonical registration / scoped grant 未批准不得开放 MCP |
+| M4   | [Trusted Runtime Extension](../plan/custom-mode-m4-trusted-runtime-extension.md) | threat/lifecycle/capability ADR 未批准不得 mount code    |
+| M5   | [Code Presentation](../plan/custom-mode-m5-code-presentation.md)                 | sandbox/equivalence 证明未过不得实现 `run_code`          |
+
+总执行手册见 [Custom Mode M0-M5 TDD 执行提示词](../plan/prompt-custom-mode-composition-platform.md)。
 
 ## 2. 总体原则
 
@@ -75,7 +88,7 @@ Custom 主线
 | ADR 修订链                | 接受 ADR-17；明确 supersede ADR-11/12/15 和旧 PRD 条款                  |
 | Product Mode 契约         | `custom` Schema、路由、Draft/Session/child/fork 继承、旧客户端策略      |
 | `custom-profile` 资产契约 | AssetKind、Schema、路径、revision、CAS、registry、watcher、apply/delete |
-| Profile owner 边界       | 独立 owner；复用资产事务原语，不并入 Agent Asset、不复制平行事务       |
+| Profile owner 边界        | 独立 owner；复用资产事务原语，不并入 Agent Asset、不复制平行事务        |
 | `AssetRef`                | kind、Location/provenance、relativePath、revision、consumer binding     |
 | `CompositionPlan`         | 预览、诊断、health、freshness，不作为运行真源                           |
 | `CompositionSnapshot`     | Session 独立不可变快照、内容与运行依赖分层                              |
@@ -334,7 +347,7 @@ M4 稳定后：M5 Code Presentation
 2. M0 输出 Product Mode 五值迁移矩阵和 Snapshot 技术设计。
 3. 确认 `custom-profile` 的 AssetKind owner、目录和文件格式。
 4. 确认 M1 严格范围：一个用户 Agent、当前 Location、Prompt/Skill、native。
-5. M0 Approved 后再建立 `custom-mode` 实现分支与 M1 TDD 实施计划。
+5. M0 Approved 后按独立实施计划从当时最新 `main` 建立短生命周期实现分支；M1 只能在 M0 全部合入并复审后启动。
 
 ## 14. 关联文档
 

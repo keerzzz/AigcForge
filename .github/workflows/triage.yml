@@ -34,7 +34,7 @@ jobs:
           GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY || secrets.GEMINI_API_KEY || secrets.GOOGLE_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          AI_MODEL: ${{ vars.AI_ROBOT_MODEL }}
+          AI_MODEL: ${{ vars.AI_ROBOT_MODEL || vars.AI_MODEL }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
@@ -44,17 +44,42 @@ jobs:
             exit 0
           fi
 
-          MODEL="${AI_MODEL:-}"
-          if [ -z "$MODEL" ]; then
-            if [ -n "$GOOGLE_GENERATIVE_AI_API_KEY" ]; then MODEL="google/gemini-2.5-flash";
-            elif [ -n "$DEEPSEEK_API_KEY" ]; then MODEL="deepseek/deepseek-chat";
-            elif [ -n "$OPENAI_API_KEY" ]; then MODEL="openai/gpt-4o";
-            elif [ -n "$ANTHROPIC_API_KEY" ]; then MODEL="anthropic/claude-3-5-sonnet";
-            elif [ -n "$OPENROUTER_API_KEY" ]; then MODEL="openrouter/anthropic/claude-3.5-sonnet";
-            elif [ -n "$AIGCFROGE_API_KEY" ]; then MODEL="aigcfroge/claude-sonnet-4-6";
+          MODEL=""
+          if [ -n "$GOOGLE_GENERATIVE_AI_API_KEY" ]; then
+            if [[ "$AI_MODEL" == google/* ]] || [[ "$AI_MODEL" == gemini/* ]]; then
+              MODEL="$AI_MODEL"
+            else
+              MODEL="google/gemini-2.5-flash"
             fi
+          elif [ -n "$DEEPSEEK_API_KEY" ]; then
+            if [[ "$AI_MODEL" == deepseek/* ]]; then
+              MODEL="$AI_MODEL"
+            else
+              MODEL="deepseek/deepseek-chat"
+            fi
+          elif [ -n "$OPENAI_API_KEY" ]; then
+            if [[ "$AI_MODEL" == openai/* ]]; then
+              MODEL="$AI_MODEL"
+            else
+              MODEL="openai/gpt-4o"
+            fi
+          elif [ -n "$ANTHROPIC_API_KEY" ]; then
+            if [[ "$AI_MODEL" == anthropic/* ]]; then
+              MODEL="$AI_MODEL"
+            else
+              MODEL="anthropic/claude-3-5-sonnet"
+            fi
+          elif [ -n "$OPENROUTER_API_KEY" ]; then
+            if [[ "$AI_MODEL" == openrouter/* ]]; then
+              MODEL="$AI_MODEL"
+            else
+              MODEL="openrouter/anthropic/claude-3.5-sonnet"
+            fi
+          elif [ -n "$AIGCFROGE_API_KEY" ]; then
+            MODEL="${AI_MODEL:-aigcfroge/claude-sonnet-4-6}"
           fi
 
+          echo "Using model: $MODEL"
           bun ./packages/aigcfroge/src/index.ts run -m "$MODEL" "The following issue was just opened, triage it:
 
           Title: $ISSUE_TITLE
