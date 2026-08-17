@@ -196,6 +196,25 @@ Chat/Coding 各自保留 TabsV2 内容和 active state，只消费这个 surface
 3. 保留当前 `max-w-[1080px]` 和响应式规则，不宣称主列变为 960px；不修改 `MODE_DEFINITIONS` 或 `context/mode.tsx`。
 4. 如产品需要真正 960px 主列，停止本 Phase，另开 PRD/视觉变更并重新评审窄屏、Assistant 密度和容器宽度。
 
+#### Phase 6 执行记录（2026-08-17）
+
+命令：`cd packages/app && bunx playwright test --config e2e/performance/playwright.config.ts mode-layout-baseline.spec.ts`
+
+浏览器：Chromium。Viewport：desktop `1440x900`、narrow `640x900`。测量 spec：`packages/app/e2e/performance/mode-layout-baseline.spec.ts`。原始结果中的 `x/y/width/height` 单位均为 CSS px，scroll 值为 `scrollWidth x scrollHeight`：
+
+| Mode | Viewport | Grid columns | Workspace box / overflow / scroll | Sidebar box | Main box |
+|---|---|---|---|---|---|
+| chat | desktop | `280px 720px` | `(73,45) 1358x822`, hidden/hidden, `1358x822` | `(236,45) 280x758` | `(548,45) 720x758` |
+| coding | desktop | `280px 720px` | `(73,45) 1358x822`, hidden/hidden, `1358x822` | `(236,45) 280x758` | `(548,45) 720x758` |
+| work | desktop | `280px 720px` | `(73,45) 1358x822`, hidden/hidden, `1358x822` | `(236,45) 280x758` | `(548,45) 720x758` |
+| assistant | desktop | `280px 720px` | `(73,45) 1358x822`, hidden/hidden, `1358x822` | `(236,45) 280x758` | `(548,45) 720x758` |
+| chat | narrow | `534px` | `(73,45) 558x822`, visible/visible, `558x822` | `(85,45) 534x346.5` | `(85,407.5) 534x431.5` |
+| coding | narrow | `534px` | `(73,45) 558x822`, visible/visible, `558x822` | `(85,45) 534x116` | `(85,177) 534x662` |
+| work | narrow | `534px` | `(73,45) 558x822`, visible/visible, `558x822` | `(85,45) 534x93` | `(85,154) 534x685` |
+| assistant | narrow | `534px` | `(73,45) 558x822`, visible/visible, `558x822` | `(85,45) 534x271.5` | `(85,332.5) 534x506.5` |
+
+结论：**无安全可删分支**。desktop 的 computed 主轨虽最终均为 `720px`，narrow 的 sidebar/main 高度和纵向滚动几何随模式明显不同；保留当前条件分支、`max-w-[1080px]` 和响应式规则，不宣称主列为 `960px`。
+
 前置：G3 通过。验收：baseline 与变更后 computed-layout 结果逐项对比；只有全部适用几何保持才允许标记“清理完成”，否则以“分支保留且有证据”完成；typecheck/lint 通过。
 
 ### Phase 7：带 options 的新建会话 helper + 文档收尾
