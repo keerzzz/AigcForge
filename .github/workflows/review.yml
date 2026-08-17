@@ -76,7 +76,7 @@ jobs:
           fi
 
           PR_BODY=$(jq -r .body pr_data.json)
-          aigcfroge run -m "$MODEL" "A new pull request has been created: '${PR_TITLE}'
+          bun ./packages/aigcfroge/src/index.ts run -m "$MODEL" "A new pull request has been created: '${PR_TITLE}'
 
           <pr-number>
           ${{ steps.pr-number.outputs.number }}

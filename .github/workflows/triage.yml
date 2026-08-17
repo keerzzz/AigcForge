@@ -55,7 +55,7 @@ jobs:
             fi
           fi
 
-          aigcfroge run -m "$MODEL" "The following issue was just opened, triage it:
+          bun ./packages/aigcfroge/src/index.ts run -m "$MODEL" "The following issue was just opened, triage it:
 
           Title: $ISSUE_TITLE
 

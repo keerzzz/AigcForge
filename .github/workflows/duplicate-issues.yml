@@ -60,7 +60,7 @@ jobs:
             fi
           fi
 
-          aigcfroge run -m "$MODEL" "A new issue has been created:
+          bun ./packages/aigcfroge/src/index.ts run -m "$MODEL" "A new issue has been created:
 
           Issue number: ${{ github.event.issue.number }}
 
@@ -197,7 +197,7 @@ jobs:
             fi
           fi
 
-          aigcfroge run -m "$MODEL" "Issue #${{ github.event.issue.number }} was previously flagged as non-compliant and has been edited.
+          bun ./packages/aigcfroge/src/index.ts run -m "$MODEL" "Issue #${{ github.event.issue.number }} was previously flagged as non-compliant and has been edited.
 
           Lookup this issue with gh issue view ${{ github.event.issue.number }}.
 
