@@ -9,10 +9,9 @@ import { useTabs } from "@/context/tabs"
 import { useServer, ServerConnection } from "@/context/server"
 import { useServerSDK } from "@/context/server-sdk"
 import { useModeDirectory, useAssistantSelection } from "@/pages/mode-workspace-context"
-import { modeDraft } from "@/context/mode"
 import { useServerSync } from "@/context/server-sync"
 import { useLayout } from "@/context/layout"
-import { openProjectNewSession, openSessionRecord, filterSessionsByMode } from "@/pages/layout/helpers"
+import { launchModeSession, openSessionRecord, filterSessionsByMode } from "@/pages/layout/helpers"
 import { DeliveryList, MemoryInspector, ReminderList } from "@/components/assistant-entity-lists"
 import { sessionHighlightIDs } from "@/components/assistant-nav-model"
 import { assistantQueryKey } from "@/utils/assistant-query"
@@ -185,13 +184,13 @@ export function AssistantDashboardMain() {
     const currentCtx = ctx()
     const dir = directory()
     if (!c || !currentCtx || !dir) return
-    openProjectNewSession(
-      currentCtx.projects,
-      (serverKey, draftDirectory) =>
-        tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft("assistant") }),
-      ServerConnection.key(c),
-      dir,
-    )
+    launchModeSession({
+      mode: "assistant",
+      projects: currentCtx.projects,
+      server: ServerConnection.key(c),
+      directory: dir,
+      tabs,
+    })
   }
 
   function cancelReminder(id: string) {

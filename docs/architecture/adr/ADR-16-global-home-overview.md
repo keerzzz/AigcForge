@@ -21,6 +21,7 @@ ADR-15 将 Home 概念迁移为 "ModeWorkspace 在 persisted mode 下的呈现"�
 `/` 不再重定向，渲染**独立路由组件** `HomeOverview`（全局聚合首页）：跨项目会话列表 + 模式筛选 + 项目筛选 + 「继续上次」置顶 + 会话搜索。它**不是** ModeWorkspace slot、**不是** ADR-15 禁止的 "Home 自绘伪四区"：
 
 - 不复制共享 workspace：会话列表/搜索/分组头/项目行**复用** `home-shared.tsx` 导出组件（`HomeSessionRow`/`HomeSessionSearch`/`HomeSessionGroupHeader`/`HomeSessionSkeleton`，原 `home.tsx` 拆除后的共享 Session owner）与 `coding-project-column.tsx`（`HomeProjectRow`，Coding 项目树 owner）；打开会话走共享 `openSessionRecord`（helpers.ts），与 Coding 模式首页行为逐行一致。
+- 普通新建会话走 `launchModeSession`（`pages/layout/helpers.ts`），只复用项目 open/touch 生命周期；mode 专属初始 prompt、agent 和 Draft 字段仍由页面 owner 组装。
 - 无 slot remount 闪烁：首页为路由级组件，进入/离开 remount 属路由正常语义（同 session/draft 路由），不涉及模式 slot 切换。
 - Chat 功能树无重复实例化：`ChatFeatureSidebar` 等模式专属组件仅在 `/mode/:mode` 的 ModeWorkspace 内存在，首页不实例化任何模式专属组件树。
 

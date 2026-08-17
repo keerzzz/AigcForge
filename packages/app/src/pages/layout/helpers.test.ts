@@ -17,6 +17,7 @@ import {
   homeProjectNavigation,
   homeProjectDirectories,
   homeSessionServerStatus,
+  launchModeSession,
   latestRootSession,
   toggleHomeProjectSelection,
 } from "./helpers"
@@ -111,6 +112,40 @@ describe("layout deep links", () => {
 })
 
 describe("layout workspace helpers", () => {
+  test("launchModeSession opens the project and preserves default mode, prompt, and overrides", () => {
+    const opened: string[] = []
+    const touched: string[] = []
+    const drafts: Array<{ draft: unknown; prompt?: string }> = []
+    const projects = {
+      list: () => [{ worktree: "/root", sandboxes: ["/root/.sandbox"] }],
+      open: (directory: string) => opened.push(directory),
+      touch: (directory: string) => touched.push(directory),
+    }
+    const tabs = {
+      newDraft: (draft: unknown, prompt?: string) => drafts.push({ draft, prompt }),
+    }
+    const server = serverKey("server")
+
+    launchModeSession({
+      mode: "work",
+      projects,
+      server,
+      directory: "/root/.sandbox",
+      tabs,
+      initialPrompt: "run workflow",
+      draftOverrides: { agent: "work-orchestrator" },
+    })
+
+    expect(opened).toEqual(["/root"])
+    expect(touched).toEqual(["/root"])
+    expect(drafts).toEqual([
+      {
+        draft: { server, directory: "/root/.sandbox", mode: "work", agent: "work-orchestrator" },
+        prompt: "run workflow",
+      },
+    ])
+  })
+
   test("normalizes trailing slash in workspace key", () => {
     expect(String(pathKey("/tmp/demo///"))).toBe("/tmp/demo")
     expect(String(pathKey("C:\\tmp\\demo\\\\"))).toBe("C:/tmp/demo")

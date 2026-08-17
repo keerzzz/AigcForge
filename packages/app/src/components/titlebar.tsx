@@ -30,7 +30,7 @@ import { useLanguage } from "@/context/language"
 import { useSettings } from "@/context/settings"
 import { WindowsAppMenu } from "./windows-app-menu"
 import { applyPath, backPath, forwardPath } from "./titlebar-history"
-import { openProjectNewSession, projectForSession } from "@/pages/layout/helpers"
+import { launchModeSession, projectForSession } from "@/pages/layout/helpers"
 import { SessionTabAvatar } from "@/pages/layout/session-tab-avatar"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
@@ -343,7 +343,13 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                 const conn = server.list.find((item) => ServerConnection.key(item) === serverKey)
                 if (conn) {
                   const ctx = global.ensureServerCtx(conn)
-                  openProjectNewSession(ctx.projects, (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(mode.currentMode) }), serverKey, directory)
+                  launchModeSession({
+                    mode: mode.currentMode,
+                    projects: ctx.projects,
+                    server: serverKey,
+                    directory,
+                    tabs,
+                  })
                 } else {
                   tabs.newDraft({ server: serverKey, directory, ...modeDraft(mode.currentMode) })
                 }

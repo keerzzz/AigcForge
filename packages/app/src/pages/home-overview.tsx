@@ -11,14 +11,14 @@ import { useTabs } from "@/context/tabs"
 import { useServer, ServerConnection } from "@/context/server"
 import { useServerSync } from "@/context/server-sync"
 import { useLayout, type LocalProject } from "@/context/layout"
-import { modeDraft, useMode, type Mode } from "@/context/mode"
+import { useMode, type Mode } from "@/context/mode"
 import { useNotification } from "@/context/notification"
 import { useDirectoryPicker } from "@/components/directory-picker"
 import {
   closeHomeProject,
   filterSessionsByMode,
   homeProjectDirectories,
-  openProjectNewSession,
+  launchModeSession,
   openSessionRecord,
 } from "@/pages/layout/helpers"
 import {
@@ -159,13 +159,13 @@ export function HomeOverview() {
     if (!conn || !ctx) return
     const directory = newSessionDirectory()
     if (!directory) return
-    openProjectNewSession(
-      ctx.projects,
-      (serverKey, draftDirectory) =>
-        tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft(mode.currentMode) }),
-      ServerConnection.key(conn),
+    launchModeSession({
+      mode: mode.currentMode,
+      projects: ctx.projects,
+      server: ServerConnection.key(conn),
       directory,
-    )
+      tabs,
+    })
   }
 
   function closeSearch() {
@@ -298,12 +298,13 @@ export function HomeOverviewSidebar(props: {
 
   function openNewSession(conn: ServerConnection.Any, directory: string) {
     const ctx = global.ensureServerCtx(conn)
-    openProjectNewSession(
-      ctx.projects,
-      (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(mode.currentMode) }),
-      ServerConnection.key(conn),
+    launchModeSession({
+      mode: mode.currentMode,
+      projects: ctx.projects,
+      server: ServerConnection.key(conn),
       directory,
-    )
+      tabs,
+    })
   }
   function chooseProject(conn: ServerConnection.Any) {
     pickDirectory({

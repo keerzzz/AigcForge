@@ -97,6 +97,8 @@ Coding 项目搜索、Chat 资产/文件搜索为各自领域 owner，不复用 
   -> TargetSessionRoute 解析 placement
 ```
 
+普通新建入口通过 `launchModeSession`（`pages/layout/helpers.ts`）复用项目 open/touch 生命周期；页面 owner 仍负责 mode、初始 prompt 和 Draft overrides，资产选择器保留自己的资产 prompt 生命周期。
+
 ### 5.4 Product Mode 模块入口流
 
 ```text

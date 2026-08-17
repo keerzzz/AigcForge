@@ -1,6 +1,6 @@
 import type { Component } from "solid-js"
 import { For, Show, createEffect, createMemo, createResource, createSignal } from "solid-js"
-import { modeDefinition, modeDraft, type Mode, type ModeSurfaceSlot } from "@/context/mode"
+import { modeDefinition, type Mode, type ModeSurfaceSlot } from "@/context/mode"
 import { useChatFeature, type ChatFeatureID } from "@/context/chat-feature"
 import { type DirectorySDK } from "@/context/sdk"
 import { Icon } from "@aigcfroge/ui/v2/icon"
@@ -15,7 +15,7 @@ import { ServerConnection } from "@/context/server"
 import { useServerSync } from "@/context/server-sync"
 import { useTabs } from "@/context/tabs"
 import { useDirectoryPicker } from "@/components/directory-picker"
-import { homeProjectDirectories, openProjectNewSession } from "@/pages/layout/helpers"
+import { homeProjectDirectories, launchModeSession } from "@/pages/layout/helpers"
 import { getFilename } from "@aigcfroge/core/util/path"
 import { AssistantDashboardMain } from "@/pages/assistant-dashboard"
 import { AssistantSidebar } from "@/components/assistant-feature-sidebar"
@@ -118,13 +118,13 @@ export function ChatFeatureSidebar() {
     const currentCtx = ctx()
     const currentDirectory = directory()
     if (!current || !currentCtx || !currentDirectory) return
-    openProjectNewSession(
-      currentCtx.projects,
-      (serverKey, draftDirectory) =>
-        tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft("chat") }),
-      ServerConnection.key(current),
-      currentDirectory,
-    )
+    launchModeSession({
+      mode: "chat",
+      projects: currentCtx.projects,
+      server: ServerConnection.key(current),
+      directory: currentDirectory,
+      tabs,
+    })
   }
 
   function addProject() {

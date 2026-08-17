@@ -12,9 +12,9 @@ import { AssetWorkbench } from "@/components/chat/asset-workbench"
 import { AssetSessionSelector } from "@/components/chat/asset-session-selector"
 import { ChatImportDialog, serializeImport, wrapImportContent } from "@/components/chat/chat-import-dialog"
 import { AssetDeleteDialog } from "@/components/chat/asset-delete-dialog"
-import { modeDraft, useMode } from "@/context/mode"
+import { useMode } from "@/context/mode"
 import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
-import { openProjectNewSession, openSessionRecord, closeHomeProject, homeProjectDirectories, filterSessionsByMode } from "@/pages/layout/helpers"
+import { launchModeSession, openSessionRecord, closeHomeProject, homeProjectDirectories, filterSessionsByMode } from "@/pages/layout/helpers"
 import { useServerSync } from "@/context/server-sync"
 import { useLayout, type LocalProject } from "@/context/layout"
 import { useQuery } from "@tanstack/solid-query"
@@ -68,12 +68,13 @@ export function CodingProjectColumnSidebar() {
   }
   function openNewSession(conn: ServerConnection.Any, dir: string) {
     const ctx = global.ensureServerCtx(conn)
-    openProjectNewSession(
-      ctx.projects,
-      (s, d) => tabs.newDraft({ server: s, directory: d, ...modeDraft(mode.currentMode) }),
-      ServerConnection.key(conn),
-      dir,
-    )
+    launchModeSession({
+      mode: mode.currentMode,
+      projects: ctx.projects,
+      server: ServerConnection.key(conn),
+      directory: dir,
+      tabs,
+    })
   }
   function chooseProject(conn: ServerConnection.Any) {
     pickDirectory({
@@ -327,12 +328,13 @@ export function CodingSessionListMain() {
     const directory = newSessionDirectory()
     if (!directory) return
     const ctx = global.ensureServerCtx(conn)
-    openProjectNewSession(
-      ctx.projects,
-      (serverKey, draftDirectory) => tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft(mode.currentMode) }),
-      ServerConnection.key(conn),
+    launchModeSession({
+      mode: mode.currentMode,
+      projects: ctx.projects,
+      server: ServerConnection.key(conn),
       directory,
-    )
+      tabs,
+    })
   }
 
   return (
@@ -419,13 +421,14 @@ export function ChatAssetWorkbenchMain() {
     if (!c || !dir) return
     const ctx = global.ensureServerCtx(c)
     const seedPrompt = language.t("asset.panel.newSeed", { kind: chatFeature() })
-    openProjectNewSession(
-      ctx.projects,
-      (serverKey, draftDirectory) =>
-        tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft("chat") }, seedPrompt),
-      ServerConnection.key(c),
-      dir,
-    )
+    launchModeSession({
+      mode: "chat",
+      projects: ctx.projects,
+      server: ServerConnection.key(c),
+      directory: dir,
+      tabs,
+      initialPrompt: seedPrompt,
+    })
   }
 
   function onImportAsset() {
@@ -440,13 +443,14 @@ export function ChatAssetWorkbenchMain() {
           if (!content) return
           const ctx = global.ensureServerCtx(c)
           const prompt = wrapImportContent(content, language.t("chatImport.untrustedInstruction"))
-          openProjectNewSession(
-            ctx.projects,
-            (serverKey, draftDirectory) =>
-              tabs.newDraft({ server: serverKey, directory: draftDirectory, ...modeDraft("chat") }, prompt),
-            ServerConnection.key(c),
-            dir,
-          )
+          launchModeSession({
+            mode: "chat",
+            projects: ctx.projects,
+            server: ServerConnection.key(c),
+            directory: dir,
+            tabs,
+            initialPrompt: prompt,
+          })
         }}
       />
     ))
@@ -635,29 +639,27 @@ export function WorkPresetCatalogMain() {
     void sdk.client.workflowAsset
       .content({ path: asset.relativePath })
       .then((res) =>
-        openProjectNewSession(
-          currentCtx.projects,
-          (serverKey, draftDirectory) =>
-            tabs.newDraft(
-              { server: serverKey, directory: draftDirectory, ...modeDraft("work"), agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR },
-              workflowLaunch({ name: asset.name, description: asset.description, steps: res.data?.steps ?? [] }),
-            ),
-          ServerConnection.key(c),
-          dir,
-        ),
+        launchModeSession({
+          mode: "work",
+          projects: currentCtx.projects,
+          server: ServerConnection.key(c),
+          directory: dir,
+          tabs,
+          initialPrompt: workflowLaunch({ name: asset.name, description: asset.description, steps: res.data?.steps ?? [] }),
+          draftOverrides: { agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR },
+        }),
       )
       .catch((error) => {
         console.error("[work-home] workflow content load failed", error)
-        openProjectNewSession(
-          currentCtx.projects,
-          (serverKey, draftDirectory) =>
-            tabs.newDraft(
-              { server: serverKey, directory: draftDirectory, ...modeDraft("work"), agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR },
-              workflowLaunch({ name: asset.name, description: asset.description, steps: [] }),
-            ),
-          ServerConnection.key(c),
-          dir,
-        )
+        launchModeSession({
+          mode: "work",
+          projects: currentCtx.projects,
+          server: ServerConnection.key(c),
+          directory: dir,
+          tabs,
+          initialPrompt: workflowLaunch({ name: asset.name, description: asset.description, steps: [] }),
+          draftOverrides: { agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR },
+        })
       })
   }
 
@@ -666,22 +668,18 @@ export function WorkPresetCatalogMain() {
     const currentCtx = ctx()
     const dir = directory()
     if (!c || !currentCtx || !dir) return
-    openProjectNewSession(
-      currentCtx.projects,
-      (serverKey, draftDirectory) =>
-        tabs.newDraft(
-          {
-            server: serverKey,
-            directory: draftDirectory,
-            ...modeDraft("work"),
-            agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR,
-            presetCategoryId: preset.category,
-          },
-          presetLaunch(preset),
-        ),
-      ServerConnection.key(c),
-      dir,
-    )
+    launchModeSession({
+      mode: "work",
+      projects: currentCtx.projects,
+      server: ServerConnection.key(c),
+      directory: dir,
+      tabs,
+      initialPrompt: presetLaunch(preset),
+      draftOverrides: {
+        agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR,
+        presetCategoryId: preset.category,
+      },
+    })
   }
 
   return (

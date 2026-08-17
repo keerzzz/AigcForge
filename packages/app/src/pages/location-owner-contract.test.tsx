@@ -58,7 +58,7 @@ describe("Chat owns its inline Location + feature tree", () => {
   test("ChatFeatureSidebar inlines Location and new/add-project logic", () => {
     expect(chatSidebar).toContain("export function ChatFeatureSidebar()")
     expect(chatSidebar).toContain("language.t(\"chat.feature.project\")")
-    expect(chatSidebar).toContain("openProjectNewSession")
+    expect(chatSidebar).toContain("launchModeSession")
     expect(chatSidebar).toContain("addProject")
   })
 

@@ -227,6 +227,13 @@ Chat/Coding 各自保留 TabsV2 内容和 active state，只消费这个 surface
 4. 审计所有 `tabs.newDraft`/`openProjectNewSession` 调用点，逐一证明 Draft 字段和初始 prompt 未丢失。
 5. 更新 ADR-16、`docs/architecture/pages/home.md`、相关 plan 的当前 owner 路径；在 CLAUDE.md 技术债表中记录/销账时保留证据。
 
+#### Phase 7 执行记录（2026-08-17）
+
+- 新增 `launchModeSession` 于 `packages/app/src/pages/layout/helpers.ts`，复用 `openProjectNewSession` 作为唯一项目 open/touch owner；input 表达 `mode`、`projects`、`server`、`directory`，并支持 `initialPrompt` 与 `draftOverrides`。
+- 普通 Coding/Chat/Work/Assistant/Home/Titlebar/SecondarySidebar/Legacy redirect 入口已迁移；Chat seed/import 保留初始 prompt，Work workflow/preset 保留 `WORK_ORCHESTRATOR`、`presetCategoryId` 与 prompt。
+- 资产选择器保留自己的 `tabs.newDraft` 与资产 prompt 生命周期；session 内无 `ProjectActions.touch` 的命令/归档 fallback 保留直接 `newDraft`，并由 `mode-launch-contract.test.ts` 锁定其 mode/prompt 字段。
+- 当前 owner 文档路径已指向 `home-shared.tsx` 与 `coding-project-column.tsx`；未新增第二套项目打开逻辑、API、DB 或 Core 依赖。
+
 验收：逐场景验证普通新建、Chat 新建/导入、Work preset/workflow、Assistant 新建、Coding 新建；unit/typecheck/lint/Playwright 通过。
 
 ### Phase 8：Session Permission Tier
