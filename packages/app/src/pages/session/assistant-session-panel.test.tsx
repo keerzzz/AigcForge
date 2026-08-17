@@ -37,8 +37,9 @@ describe("AssistantSessionPanel (right panel, batch 1 G2)", () => {
     expect(panel).not.toContain('width: opened() ? "auto" : "0px"')
   })
 
-  test("renders a project FileTree in the B zone (matching work)", () => {
-    expect(panel).toContain("<FileTree")
+  test("B zone uses the shell default project FileTree (no explicit fileTree)", () => {
+    expect(panel).not.toContain("fileTree=")
+    expect(read("../../components/session-right-panel.tsx")).toContain("FileTree")
   })
 
   test("closes entity tabs individually (closeButton wiring)", () => {

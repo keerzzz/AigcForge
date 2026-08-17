@@ -38,10 +38,11 @@ describe("SessionRightPanel (unified A/B shell)", () => {
     expect(assistant).not.toContain('data-component="assistant-session-panel"')
   })
 
-  test("assistant B zone matches work (project FileTree, present but closed by default)", () => {
+  test("assistant B zone uses the shell default project FileTree (no explicit fileTree)", () => {
     const assistant = read("../pages/session/assistant-session-panel.tsx")
-    expect(assistant).toContain("fileTree=")
-    expect(assistant).toContain("<FileTree")
+    expect(assistant).not.toContain("fileTree=")
+    expect(read("session-right-panel.tsx")).toContain("FileTree")
+    expect(read("session-right-panel.tsx")).toContain('onFileClick={(node) => void file.load(node.path)}')
   })
 
   test("work regresses to the raised shell (no border-l plane style)", () => {

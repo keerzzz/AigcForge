@@ -1,7 +1,4 @@
 import { For, Show, createEffect, createMemo, createResource, createSignal, onCleanup } from "solid-js"
-import { createStore } from "solid-js/store"
-import { DragDropProvider, DragDropSensors, DragOverlay, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd"
-import type { DragEvent } from "@thisbeyond/solid-dnd"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
@@ -11,13 +8,12 @@ import { useSync } from "@/context/sync"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { useFile } from "@/context/file"
 import { useMode } from "@/context/mode"
-import { SessionContextTabPanel, SessionContextTabTrigger, SortableTab, FileVisual } from "@/components/session"
+import { SessionContextTabPanel, FileVisual } from "@/components/session"
 import FileTree from "@/components/file-tree"
 import { FileTabContent } from "@/pages/session/file-tabs"
-import { ConstrainDragYAxis, getDraggableId } from "@/utils/solid-dnd"
-import { diffTextLines } from "@/utils/text-diff"
 import { getTabReorderIndex, createSizing } from "@/pages/session/helpers"
-import { createFileTabListSync } from "@/pages/session/file-tab-scroll"
+import { SessionFileTabStrip, createActiveTabWriteback } from "@/pages/session/file-tab-strip"
+import { TextDiffView } from "@/pages/session/text-diff-view"
 import {
   bumpAssetVersion,
   clearProposeCandidate,
@@ -60,31 +56,14 @@ export function ChatRightPanel() {
     if (active === "preview" || active === "context" || active?.startsWith("file://")) return active
     return openedFileTabs()[0] ?? (contextOpen() ? "context" : "preview")
   })
-  createEffect(() => {
-    if (mode.currentMode !== "chat") return
-    const current = tabs()
-    const active = activeTab()
-    if (!current || current.active() === active) return
-    current.setActive(active)
+  createActiveTabWriteback({
+    enabled: () => mode.currentMode === "chat",
+    activeTab,
+    fallbackTab: () => "preview",
+    getActive: () => tabs()?.active(),
+    setActive: (tab) => tabs()?.setActive(tab),
   })
   const size = createSizing()
-  const [dragStore, setDragStore] = createStore({ activeDraggable: undefined as string | undefined })
-  const handleDragStart = (event: unknown) => {
-    const id = getDraggableId(event)
-    if (!id) return
-    setDragStore("activeDraggable", id)
-  }
-  const handleDragOver = (event: DragEvent) => {
-    const { draggable, droppable } = event
-    if (!draggable || !droppable) return
-    const currentTabs = tabs().all()
-    const toIndex = getTabReorderIndex(currentTabs, draggable.id.toString(), droppable.id.toString())
-    if (toIndex === undefined) return
-    tabs().move(draggable.id.toString(), toIndex)
-  }
-  const handleDragEnd = () => {
-    setDragStore("activeDraggable", undefined)
-  }
   const openFileTab = (path: string) => {
     void tabs().open(file.tab(path))
   }
@@ -162,7 +141,7 @@ export function ChatRightPanel() {
   )
   const diffLinesMemo = createMemo(() => {
     if (candidate.candidate?.status !== "exists") return null
-    return diffTextLines(oldContent() ?? "", candidate.candidate?.content ?? "")
+    return { oldText: oldContent() ?? "", newText: candidate.candidate?.content ?? "" }
   })
 
   const handleApply = async () => {
@@ -244,31 +223,20 @@ export function ChatRightPanel() {
         </>
       }
     >
-      <DragDropProvider
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDragOver={handleDragOver}
-        collisionDetector={closestCenter}
-      >
-        <DragDropSensors />
-        <ConstrainDragYAxis />
-        <TabsV2 value={activeTab()} onChange={(tab) => tabs().setActive(tab)} class="flex min-h-0 flex-1 flex-col">
-          <TabsV2.List
-            class="shrink-0"
-            ref={(el: HTMLDivElement) => {
-              const stop = createFileTabListSync({ el, contextOpen })
-              onCleanup(stop)
-            }}
-          >
-            <TabsV2.Trigger value="preview">{language.t("promptAsset.tab.preview")}</TabsV2.Trigger>
-            <SessionContextTabTrigger contextOpen={contextOpen} onClose={() => sessionLayout.tabs().close("context")} />
-            <SortableProvider ids={openedFileTabs()}>
-              <For each={openedFileTabs()}>
-                {(tab) => <SortableTab tab={tab} onTabClose={(item) => tabs().close(item)} />}
-              </For>
-            </SortableProvider>
-          </TabsV2.List>
-
+      <TabsV2 value={activeTab()} onChange={(tab) => tabs().setActive(tab)} class="flex min-h-0 flex-1 flex-col">
+        <SessionFileTabStrip
+          openedTabs={openedFileTabs}
+          contextOpen={contextOpen}
+          onClose={(tab) => tabs().close(tab)}
+          onMove={(from, to) => {
+            const currentTabs = tabs().all()
+            const toIndex = getTabReorderIndex(currentTabs, from, to)
+            if (toIndex === undefined) return
+            tabs().move(from, toIndex)
+          }}
+          renderLeading={() => <TabsV2.Trigger value="preview">{language.t("promptAsset.tab.preview")}</TabsV2.Trigger>}
+          renderOverlay={(tab) => <FileVisual active path={file.pathFromTab(tab) ?? ""} />}
+        >
           <TabsV2.Content value="preview" class="min-h-0 flex-1 overflow-y-auto">
             <Show
               when={candidate.candidate && !candidate.applied}
@@ -333,23 +301,11 @@ export function ChatRightPanel() {
                             </div>
                           }
                         >
-                          <For each={diffLinesMemo() ?? []}>
-                            {(line) => (
-                              <div
-                                class="flex px-1 font-mono text-12-regular"
-                                classList={{
-                                  "text-v2-state-fg-success": line.type === "add",
-                                  "text-v2-state-fg-warning": line.type === "del",
-                                  "text-v2-text-text-muted": line.type === "eq",
-                                }}
-                              >
-                                <span class="shrink-0 select-none">
-                                  {line.type === "add" ? "+" : line.type === "del" ? "-" : " "}
-                                </span>
-                                <span class="whitespace-pre-wrap break-all">{line.text}</span>
-                              </div>
+                          <Show when={diffLinesMemo()}>
+                            {(source) => (
+                              <TextDiffView oldText={source().oldText} newText={source().newText} variant="chat" />
                             )}
-                          </For>
+                          </Show>
                         </Show>
                       </div>
                       <div class="mt-2 shrink-0">
@@ -402,17 +358,8 @@ export function ChatRightPanel() {
           <Show when={activeTab().startsWith("file://") ? activeTab() : undefined} keyed>
             {(tab) => <FileTabContent tab={tab} />}
           </Show>
-        </TabsV2>
-        <DragOverlay>
-          <Show when={dragStore.activeDraggable} keyed>
-            {(tab) => (
-              <div data-component="tabs-drag-preview">
-                <FileVisual active path={file.pathFromTab(tab) ?? ""} />
-              </div>
-            )}
-          </Show>
-        </DragOverlay>
-      </DragDropProvider>
+        </SessionFileTabStrip>
+      </TabsV2>
     </SessionRightPanel>
   )
 }

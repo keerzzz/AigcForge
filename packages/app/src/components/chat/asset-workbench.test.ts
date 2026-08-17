@@ -1,5 +1,7 @@
 import { createRoot } from "solid-js"
 import { describe, expect, test } from "bun:test"
+import fs from "fs"
+import path from "path"
 import type { Agent, Command, PromptAssetInvalidEntry } from "@aigcfroge/sdk/v2/client"
 import type { AssetKindId } from "@aigcfroge/schema/asset"
 import {
@@ -261,5 +263,20 @@ describe("isNewButtonDisabled", () => {
 
   test("returns false when onNew callback is provided", () => {
     expect(isNewButtonDisabled(() => {})).toBe(false)
+  })
+})
+
+describe("Chat right panel shared detail mechanisms (Phase 3)", () => {
+  const panel = fs.readFileSync(path.resolve(__dirname, "chat-right-panel.tsx"), "utf-8")
+
+  test("uses the shared file-tab strip and Chat diff variant", () => {
+    expect(panel).toContain("<SessionFileTabStrip")
+    expect(panel).toContain("<TextDiffView")
+    expect(panel).toContain('variant="chat"')
+  })
+
+  test("keeps Chat asset file-tree ownership explicit", () => {
+    expect(panel).toContain('path=".aigcfroge"')
+    expect(panel).toContain("searchAllowed")
   })
 })

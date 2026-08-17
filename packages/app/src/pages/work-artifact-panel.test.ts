@@ -170,3 +170,17 @@ describe("work-sourced candidate through the Chat review chain (M2 Phase C)", ()
     expect(panel).not.toContain("tool.use")
   })
 })
+
+describe("Work right panel shared detail mechanisms (Phase 3)", () => {
+  const panel = fs.readFileSync(path.resolve(__dirname, "work-artifact-panel.tsx"), "utf-8")
+
+  test("uses the shared Work diff variant and active-tab writeback helper", () => {
+    expect(panel).toContain("<TextDiffView")
+    expect(panel).toContain('variant="work"')
+    expect(panel).toContain("createActiveTabWriteback")
+  })
+
+  test("uses the SessionRightPanel default file tree", () => {
+    expect(panel).not.toContain("fileTree=")
+  })
+})
