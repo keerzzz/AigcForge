@@ -1,6 +1,6 @@
 # Custom Mode 组合平台实施计划
 
-> 状态：**Draft v1.1 - 基于 `main@e0e0f970f` 的代码实证，等待 ADR-17 / Custom PRD 审批后执行**
+> 状态：**Approved for M0/M1 implementation v1.2 - 基于 `main@a4ffba0b3` 的代码实证；当前执行 M0 Phase A-F，完成后统一复审**
 > 日期：2026-08-18
 > 目标阶段：M0 治理与契约 + M1 单 Agent 可恢复闭环；M2-M5 只定义准入 Gate，不提前实现
 > Owner：Product / Schema+SDK / Core / Security / App
@@ -13,16 +13,16 @@
 
 ### 0.0 M 节点实施计划
 
-| M   | 独立实施计划                                                             | 对应本计划切片       | 启动条件                                  |
-| --- | ------------------------------------------------------------------------ | -------------------- | ----------------------------------------- |
-| M0  | [治理与组合底座](custom-mode-m0-composition-foundation.md)               | PR 0-4               | ADR-17 / Custom PRD 正式批准              |
-| M1  | [单 Agent 可恢复运行闭环](custom-mode-m1-single-agent-runtime.md)        | PR 5-8               | M0 + G2/G3/G4                             |
-| M2  | [多 Agent 与 Workflow 编排](custom-mode-m2-multi-agent-workflow.md)      | 独立 ADR + gated PRs | M1 稳定 + Workflow Execution ADR          |
-| M3  | [MCP 与统一审批](custom-mode-m3-mcp-approval.md)                         | 独立 ADR + gated PRs | M1 稳定 + Registration/Grant ADR          |
-| M4  | [Trusted Runtime Extension](custom-mode-m4-trusted-runtime-extension.md) | 独立 ADR + gated PRs | M3 稳定 + Threat/Lifecycle/Capability ADR |
-| M5  | [Code Presentation](custom-mode-m5-code-presentation.md)                 | 独立 ADR + gated PRs | M3/M4 稳定 + Sandbox/Equivalence ADR      |
+| M   | 独立实施计划                                                             | 对应本计划切片       | 启动条件                                        |
+| --- | ------------------------------------------------------------------------ | -------------------- | ----------------------------------------------- |
+| M0  | [治理与组合底座](custom-mode-m0-composition-foundation.md)               | PR 0-4               | ADR-17 / Custom PRD 已批准；当前从 Phase B 开始 |
+| M1  | [单 Agent 可恢复运行闭环](custom-mode-m1-single-agent-runtime.md)        | PR 5-8               | M0 + G2/G3/G4                                   |
+| M2  | [多 Agent 与 Workflow 编排](custom-mode-m2-multi-agent-workflow.md)      | 独立 ADR + gated PRs | M1 稳定 + Workflow Execution ADR                |
+| M3  | [MCP 与统一审批](custom-mode-m3-mcp-approval.md)                         | 独立 ADR + gated PRs | M1 稳定 + Registration/Grant ADR                |
+| M4  | [Trusted Runtime Extension](custom-mode-m4-trusted-runtime-extension.md) | 独立 ADR + gated PRs | M3 稳定 + Threat/Lifecycle/Capability ADR       |
+| M5  | [Code Presentation](custom-mode-m5-code-presentation.md)                 | 独立 ADR + gated PRs | M3/M4 稳定 + Sandbox/Equivalence ADR            |
 
-可复制的执行入口见 [Custom Mode M0-M5 TDD 执行提示词](prompt-custom-mode-composition-platform.md)。M0/M1 的边界以表中 PR 映射为准，消除 Roadmap 中“Schema/Resolver 同时属于 M0/M1”的表达重叠：M0 交付可预览但不可运行的组合底座，M1 交付原子冻结后的真实运行闭环。
+当前可复制执行入口见 [Custom Mode M0 全量 TDD 执行提示词](prompt-custom-mode-m0-composition-platform.md)。M0/M1 的边界以表中 PR 映射为准，消除 Roadmap 中“Schema/Resolver 同时属于 M0/M1”的表达重叠：M0 交付可预览但不可运行的组合底座，M1 交付原子冻结后的真实运行闭环。
 
 ### 0.1 业务目标
 
@@ -53,7 +53,7 @@ runtime = existing Session V2 + ToolRegistry + PermissionV2
 任何生产代码开始前必须满足：
 
 1. ADR-17 从 Proposed 变为 Accepted，并明确 supersede / amend ADR-11、ADR-12、ADR-13 §4、ADR-15 及旧 My Agents / Assistant PRD 条款。
-2. Product/Core/App/Security 审批本计划 §3 的 owner 与真源决策。
+2. Product/Core/App/Security/Schema+SDK 五方审批本计划 §3 的 owner 与真源决策。
 3. Schema/API/SDK 审批 §4 的旧客户端兼容矩阵。
 4. Product 确认 M1 严格范围，不把 MCP、Workflow execution、Plugin runtime、Code Presentation 或多 Agent 塞入 M1。
 
@@ -126,15 +126,18 @@ Custom 不是在静态骨架上施工。以下 main 历史决定了实施顺序�
 | `8d4f20398`                                 | ADR-17/PRD/Roadmap proposal 合入                                              | 当前只有提案和范围，不构成生产代码授权                                                  |
 | `42cf6d950` 前的 permission-tier 提交链     | PermissionEffective、Session override、fail-closed 修订                       | Custom ceiling 和未来 grant 必须进入唯一 Permission owner                               |
 | `c9d1a58ef`..`eb505210f`，merge `44912a774` | Mode 页面 Phase 1-7：home owner、Location owner、共享右栏、mode launch helper | App 计划必须以归一化后的 owner 为基座，旧路径锚点失效                                   |
-| `bdf821d0d` / `e0e0f970f`                   | CI/文档与 CLI wrapper 修订                                                    | 不改变 Custom domain，但证明开工前仍需审计 `main`/`origin/main` 差异                    |
+| `bdf821d0d` / `e0e0f970f`                   | CI/README 与 CLI wrapper 修订                                                 | 不改变 Custom domain；旧计划分析基线止于此                                              |
+| `d0738291e`                                 | M0-M5 计划文档进入 main；AI workflow 按可用 key 选择模型                      | 计划已成为 main 文档；未改变 Custom 五层代码、测试、ADR/PRD 或 spec                     |
+| `8a8d441cc` / `a4ffba0b3`                   | triage workflow 权限和默认 Google Gemini model 修订                           | 只影响 GitHub Actions；不改变 Custom domain                                             |
 
 基线结论：
 
-1. 本计划的代码实证记录在 `main@e0e0f970f`；这是分析锚点，不是未来所有分支的固定起点。
-2. 只有 M0 Phase A 可以从当前最新 main 启动治理草案。M0 代码 PR 必须等待治理批准并包含已合入的前置文档。
-3. M1 必须从 M0 全部合入后的最新 main 开始；M2-M5 分别从其前置 M 合入并复审后的最新 main 开始，不能今天并行切六个长期分支。
-4. 同一 M 内的多个 PR 也默认逐个合入 main 后再开下一分支。只有 owner 明确批准 stacked branches 时可临时堆叠，且每层合并后必须同步 main 并重跑门禁。
-5. 文档/ADR 研究可以并行，但不能提前修改未批准的 runtime contract，也不能让并行文档产生互相竞争的 owner。
+1. 2026-08-18 已执行 `git fetch origin main` 和 `git ls-remote --heads origin main`；本地 `main`、`origin/main` 与远端 `refs/heads/main` 均为 `a4ffba0b3d22bae564f6616f0f84fe8ead8342fc`，ahead/behind=`0/0`。后续开工统一使用 `git fetch --prune origin` 刷新远端跟踪引用。
+2. 本计划的最新代码实证记录在 `main@a4ffba0b3`；这是分析锚点，不是未来所有分支的固定起点。
+3. 只有 M0 Phase A 可以从当前最新 main 启动治理草案。M0 代码 PR 必须等待治理批准并包含已合入的前置文档。
+4. M1 必须从 M0 全部合入后的最新 main 开始；M2-M5 分别从其前置 M 合入并复审后的最新 main 开始，不能今天并行切六个长期分支。
+5. 同一 M 内的多个 PR 也默认逐个合入 main 后再开下一分支。只有 owner 明确批准 stacked branches 时可临时堆叠，且每层合并后必须同步 main 并重跑门禁。
+6. 文档/ADR 研究可以并行，但不能提前修改未批准的 runtime contract，也不能让并行文档产生互相竞争的 owner。
 
 ---
 
@@ -595,7 +598,7 @@ unsupported-server
 
 - M0 = PR 0-4；退出时 Custom 可被安全协商、管理和解析，但不能创建或执行 Custom Session。
 - M1 = PR 5-8；退出时完成 Snapshot、执行安全、App 和灰度闭环。
-- 每个 PR 从**前置 PR 已合入后当时最新、已同步、干净的 `main`**创建短分支；不是所有 PR 都从 `main@e0e0f970f` 并行切出。
+- 每个 PR 从**前置 PR 已合入后当时最新、已同步、干净的 `main`**创建短分支；不是所有 PR 都从 `main@a4ffba0b3` 并行切出。
 - 文档/ADR 研究可以并行，但涉及同一协议真源时也必须在提交前同步最新 main 并解决语义冲突。
 - 只有 owner 明确批准 stacked branches 时才允许临时堆叠；每层合并后必须 rebase/merge 最新 main 并重跑受影响门禁。
 
@@ -609,7 +612,7 @@ unsupported-server
 - 固化 Profile 路径/格式、Snapshot 表、capable-client、Custom ceiling、M1 scope。
 - 更新 technical debt 状态和 schema changelog 预告。
 
-退出：协议引用检查通过，四方 owner 签字，未修改运行时 enum。
+退出：协议引用检查通过，Product/Core/App/Security/Schema+SDK 五方 owner 签字，未修改运行时 enum。
 
 ### PR 1 - Schema 与 capable-client
 

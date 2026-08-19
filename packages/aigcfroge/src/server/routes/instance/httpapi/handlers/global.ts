@@ -10,6 +10,8 @@ import * as Stream from "effect/Stream"
 import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import * as Sse from "effect/unstable/encoding/Sse"
+import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
+import { SessionStore } from "@aigcfroge/core/session/store"
 import { RootHttpApi } from "../api"
 import { GlobalUpgradeInput } from "../groups/global"
 
@@ -46,6 +48,12 @@ function globalEventFromV2(event: EventV2.Payload): GlobalBusEvent {
 
 function eventResponse(events: EventV2.Interface) {
   return Effect.gen(function* () {
+    const req = yield* HttpServerRequest.HttpServerRequest
+    const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
+    // Complete custom-session membership set, captured once per connection.
+    const sessionModes = yield* SessionStore.sessionModes()
+    const isEventSupported = ProductModePolicy.eventFilter(capabilitiesHeader, sessionModes)
+
     yield* Effect.logInfo("global event connected")
     const globalEvents = Stream.callback<GlobalBusEvent>((queue) => {
       const handler = (event: GlobalBusEvent) => Queue.offerUnsafe(queue, event)
@@ -53,13 +61,17 @@ function eventResponse(events: EventV2.Interface) {
         Effect.sync(() => GlobalBus.on("event", handler)),
         () => Effect.sync(() => GlobalBus.off("event", handler)),
       )
-    })
+    }).pipe(
+      Stream.filter((e) => isEventSupported(e.payload.properties)),
+    )
     const v2Queue = yield* Queue.unbounded<GlobalBusEvent>()
     const unsubscribe = yield* events.listen((event) =>
       Effect.sync(() => Queue.offerUnsafe(v2Queue, globalEventFromV2(event))),
     )
     yield* Effect.addFinalizer(() => unsubscribe)
-    const v2Events = Stream.fromQueue(v2Queue)
+    const v2Events = Stream.fromQueue(v2Queue).pipe(
+      Stream.filter((e) => isEventSupported(e.payload.properties)),
+    )
     const heartbeat = Stream.tick("10 seconds").pipe(
       Stream.drop(1),
       Stream.map(() => ({

@@ -12,18 +12,21 @@ The target contract adds required `mode` to Session Info, optional `mode` to roo
 
 App module entry navigation is defined by ADR-12: Home cards and the global icon rail navigate to `/mode/:mode`, but that navigation never creates/restores a Session, creates a Draft, selects a Tab, changes Agent selection, or reclassifies the routed Session. Implementation and test sequencing are defined in `docs/plan/mode-module-switching-completion.md`.
 
-### Proposed Custom Extension
+### Accepted Custom Extension (ADR-17 v1.2; implementation not yet landed)
 
-ADR-17 and the Custom PRD propose adding one fixed `custom` Product Mode. That proposal is not part of the current approved four-value contract until its governance gate is complete. The target extension preserves the existing Session laws and adds these requirements:
+ADR-17 (Accepted for M0/M1 implementation) and the Custom PRD add one fixed `custom` Product Mode to the approved design contract. It is not yet an active production runtime value until M0 Phase B lands. The extension preserves existing Session laws and adds these requirements:
 
 - a Custom root Session uses `meta`; one M1 user Agent is a Snapshot-bound delegation target, not the root Agent;
-- the first submission freezes an immutable Composition Snapshot, while Context Epoch remains the truth for exact model-visible System Context;
+- the first submission atomically creates the Session and freezes an immutable `session_composition_snapshot` row in its own SQLite table (independent from `session.metadata` and Context Epoch);
+- Context Epoch remains the single source of truth for exact model-visible System Context, while Composition Snapshot preserves frozen asset references, versions, and allowlists;
+- Custom sessions are governed by a single V2-native runtime policy owner (no V1 fallback or scattered flag checks);
 - child Sessions and forks inherit the parent/source Custom Mode and the applicable Snapshot facts;
+- `task` tool execution and child Session creation enforce a dual-gate check against the Snapshot's authorized Agent allowlist;
 - profile or asset changes never rewrite a running Session; adopting new revisions requires a fork or new Session;
-- unsupported old clients fail explicitly for `custom` and never apply the historical Coding fallback;
+- client capability negotiation via `x-aigcfroge-capabilities: product-mode-custom-v1`; unsupported old clients fail explicitly for `custom` with a typed error and never apply the historical Coding fallback;
 - profile deletion preserves Session history; continuation fails explicitly when exact runtime dependencies are unavailable.
 
-Source of truth while proposed: `docs/architecture/adr/ADR-17-custom-mode-composition-platform.md`, `docs/prd/custom-mode-composition-platform.md`, and `docs/roadmap/custom-mode-roadmap.md`.
+Source of truth: `docs/architecture/adr/ADR-17-custom-mode-composition-platform.md` (Accepted for M0/M1 implementation v1.2), `docs/prd/custom-mode-composition-platform.md` (Approved for M0/M1 implementation v1.2), and `docs/roadmap/custom-mode-roadmap.md` (Approved for M0/M1 implementation v1.2).
 
 ## Current V2 Core Slice
 

@@ -11,6 +11,7 @@ import { Agent } from "./agent"
 import { Location } from "./location"
 import { Model } from "./model"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { ProductModePolicy } from "../product-mode-policy"
 
 export const ID = SessionV2.ID
 export type ID = SessionV2.ID
@@ -85,11 +86,11 @@ export interface EventsInput {
 }
 
 export interface Interface {
-  readonly create: (input: CreateInput) => Effect.Effect<Info>
+  readonly create: (input: CreateInput) => Effect.Effect<Info, ProductModePolicy.UnsupportedProductModeError>
   readonly get: (sessionID: ID) => Effect.Effect<Info, NotFoundError>
   readonly list: (input?: ListInput) => Effect.Effect<Info[]>
-  readonly prompt: (input: PromptInput) => Effect.Effect<Admission, NotFoundError | PromptConflictError>
-  readonly switchModel: (input: SwitchModelInput) => Effect.Effect<void, NotFoundError>
+  readonly prompt: (input: PromptInput) => Effect.Effect<Admission, NotFoundError | PromptConflictError | ProductModePolicy.UnsupportedProductModeError>
+  readonly switchModel: (input: SwitchModelInput) => Effect.Effect<void, NotFoundError | ProductModePolicy.UnsupportedProductModeError>
   /** Interrupt the active V2 execution chain for one Session on this process. Interrupting an idle or missing Session is a no-op. */
   readonly interrupt: (sessionID: ID) => Effect.Effect<void>
   readonly messages: (input: MessagesInput) => Effect.Effect<Message[], NotFoundError | MessageDecodeError>

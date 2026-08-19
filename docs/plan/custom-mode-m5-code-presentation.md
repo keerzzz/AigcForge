@@ -1,7 +1,7 @@
 # Custom Mode M5 实施计划：Code Presentation
 
 > 状态：**Future / Sandbox proof blocked - M3/M4 稳定后独立立项**
-> 分析基线：`main@e0e0f970f`（2026-08-17）；执行基线为 M4 合入并通过安全复审后的最新 `main`
+> 分析基线：`main@a4ffba0b3`（2026-08-18，本地/远端已同步）；执行基线为 M4 合入并通过安全复审后的最新 `main`
 > 范围：Native/Code presentation 等价、generated capability SDK、`run_code`、资源隔离、中断与审计
 > 前置：[Custom Mode M3](custom-mode-m3-mcp-approval.md)、[Custom Mode M4](custom-mode-m4-trusted-runtime-extension.md)
 > 上级计划：[Custom Mode 组合平台实施计划](custom-mode-composition-platform-implementation.md)

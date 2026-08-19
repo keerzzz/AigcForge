@@ -56,7 +56,7 @@ const locationLayer = (directory: string) =>
 const layerAt = (
   directory: string,
   meta: { enabled?: boolean; timeout_ms?: number } = {},
-  ripgrep: Layer.Layer<Ripgrep.Service, never, never> = Ripgrep.defaultLayer,
+  ripgrep: Layer.Layer<Ripgrep.Service> = Ripgrep.defaultLayer,
 ) =>
   ReferenceChecker.layer.pipe(
     Layer.provideMerge(CorrectionStore.layer.pipe(Layer.provide(configLayer(meta)))),
@@ -70,7 +70,7 @@ const layerAt = (
 const withFixture = (
   files: Record<string, string>,
   meta: { enabled?: boolean; timeout_ms?: number } = {},
-  ripgrep: Layer.Layer<Ripgrep.Service, never, never> = Ripgrep.defaultLayer,
+  ripgrep: Layer.Layer<Ripgrep.Service> = Ripgrep.defaultLayer,
 ) =>
   Effect.gen(function* () {
     const fs = yield* FSUtil.Service

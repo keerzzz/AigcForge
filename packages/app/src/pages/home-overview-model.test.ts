@@ -8,21 +8,21 @@ describe("countByMode", () => {
       { session: { mode: "chat" as const } },
       { session: { mode: "work" as const } },
     ]
-    expect(countByMode(records)).toEqual({ coding: 0, chat: 2, work: 1, assistant: 0 })
+    expect(countByMode(records)).toEqual({ coding: 0, chat: 2, work: 1, assistant: 0, custom: 0 })
   })
 
   test("undefined-mode sessions count as coding (D3)", () => {
     const records = [{ session: {} }, { session: { mode: "coding" as const } }]
-    expect(countByMode(records)).toEqual({ coding: 2, chat: 0, work: 0, assistant: 0 })
+    expect(countByMode(records)).toEqual({ coding: 2, chat: 0, work: 0, assistant: 0, custom: 0 })
   })
 
   test("counts assistant sessions independently from coding", () => {
     const records = [{ session: { mode: "assistant" as const } }, { session: {} }]
-    expect(countByMode(records)).toEqual({ coding: 1, chat: 0, work: 0, assistant: 1 })
+    expect(countByMode(records)).toEqual({ coding: 1, chat: 0, work: 0, assistant: 1, custom: 0 })
   })
 
   test("empty records yield zero counts", () => {
-    expect(countByMode([])).toEqual({ coding: 0, chat: 0, work: 0, assistant: 0 })
+    expect(countByMode([])).toEqual({ coding: 0, chat: 0, work: 0, assistant: 0, custom: 0 })
   })
 })
 

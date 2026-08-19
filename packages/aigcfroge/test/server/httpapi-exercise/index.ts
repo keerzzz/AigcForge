@@ -21,6 +21,7 @@ import { $ } from "bun"
 import {
   AGENTS_DIR,
   COMMANDS_DIR,
+  CUSTOM_PROFILES_DIR,
   MCPS_DIR,
   PLUGINS_DIR,
   PROMPTS_DIR,
@@ -276,6 +277,186 @@ function assetScenarios(fixture: AssetFixture): Scenario[] {
   ]
 }
 
+function seedCustomProfile(ctx: ScenarioContext) {
+  if (!ctx.directory) return Effect.die(new Error("custom-profile scenario needs a project directory"))
+  const target = path.join(ctx.directory, CUSTOM_PROFILES_DIR, "httpapi-profile.yaml")
+  const content = `kind: custom-profile
+name: httpapi-profile
+description: exerciser profile
+agents:
+  - kind: agent
+    relativePath: httpapi-agent.md
+    revision: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+bindings: {}
+presentation: native
+requestedCapabilities: []
+`
+  return Effect.promise(async () => {
+    await fs.mkdir(path.dirname(target), { recursive: true })
+    await Bun.write(target, content)
+    return target
+  })
+}
+
+function customProfileScenarios(): Scenario[] {
+  const root = "/custom-profile"
+  const sessionRoot = "/session/{sessionID}/custom-profile"
+  return [
+    http.protected
+      .get(root, "custom-profile.list")
+      .seeded(seedCustomProfile)
+      .json(200, (body) => {
+        object(body)
+        array(body.assets)
+        check(
+          body.assets.some((p: any) => isRecord(p) && p.name === "httpapi-profile"),
+          "custom profile list should include seeded profile",
+        )
+        array(body.invalid)
+      }),
+    http.protected
+      .get(`${root}/content`, "custom-profile.content")
+      .seeded(seedCustomProfile)
+      .at((ctx) => ({
+        path: `${root}/content?${new URLSearchParams({ path: "httpapi-profile.yaml" })}`,
+        headers: ctx.headers(),
+      }))
+      .json(200, (body) => {
+        object(body)
+        check(body.name === "httpapi-profile", "custom profile content should preserve name")
+        check(typeof body.rawYaml === "string", "custom profile content should return rawYaml")
+      }),
+    http.protected
+      .post(`${sessionRoot}/apply`, "custom-profile.apply")
+      .mutating()
+      .seeded((ctx) => ctx.session({ title: "custom profile apply" }))
+      .at((ctx) => ({
+        path: route(`${sessionRoot}/apply`, { sessionID: ctx.state.id }),
+        headers: ctx.headers(),
+        body: {
+          candidate: {
+            name: "httpapi-profile-apply",
+            description: "exerciser profile apply",
+            relativePath: "httpapi-profile-apply.yaml",
+            profile: {
+              kind: "custom-profile",
+              name: "httpapi-profile-apply",
+              description: "exerciser profile apply",
+              agents: [
+                {
+                  kind: "agent",
+                  relativePath: "httpapi-agent.md",
+                  revision: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                },
+              ],
+              bindings: {},
+              presentation: "native",
+              requestedCapabilities: [],
+            },
+          },
+          overwrite: false,
+        },
+      }))
+      .jsonEffect(
+        200,
+        (body, ctx) =>
+          Effect.gen(function* () {
+            object(body)
+            check(body.name === "httpapi-profile-apply", "custom profile apply should return profile name")
+            if (!ctx.directory) throw new Error("custom profile apply needs a project directory")
+            const exists = yield* Effect.promise(() =>
+              Bun.file(path.join(ctx.directory!, CUSTOM_PROFILES_DIR, "httpapi-profile-apply.yaml")).exists(),
+            )
+            check(exists, "custom profile apply should persist the file")
+          }),
+        "status",
+      ),
+    http.protected
+      .post(`${sessionRoot}/delete`, "custom-profile.delete")
+      .mutating()
+      .seeded((ctx) =>
+        Effect.gen(function* () {
+          const target = yield* seedCustomProfile(ctx)
+          const session = yield* ctx.session({ title: "custom profile delete" })
+          return { session, target }
+        }),
+      )
+      .at((ctx) => ({
+        path: route(`${sessionRoot}/delete`, { sessionID: ctx.state.session.id }),
+        headers: ctx.headers(),
+        body: { relativePath: "httpapi-profile.yaml" },
+      }))
+      .status(
+        200,
+        (ctx) =>
+          Effect.gen(function* () {
+            const exists = yield* Effect.promise(() => Bun.file(ctx.state.target).exists())
+            check(!exists, "custom profile delete should remove the file")
+          }),
+        "status",
+      ),
+  ]
+}
+
+function customCompositionScenarios(): Scenario[] {
+  const root = "/custom-composition"
+  return [
+    http.protected
+      .post(`${root}/plan`, "custom-composition.plan")
+      .seeded((ctx) =>
+        Effect.gen(function* () {
+          yield* seedAsset(ctx, assetFixtures.find((f) => f.kind === "agent")!)
+          yield* seedCustomProfile(ctx)
+        }),
+      )
+      .at((ctx) => ({
+        path: `${root}/plan`,
+        headers: ctx.headers(),
+        body: {
+          source: "temporary",
+          agents: [],
+          bindings: {},
+          presentation: "native",
+          requestedCapabilities: [],
+        },
+      }))
+      .json(200, (body) => {
+        object(body)
+        boolean(body.valid)
+        array(body.diagnostics)
+      }),
+    http.protected
+      .get(`${root}/health`, "custom-composition.health")
+      .seeded((ctx) =>
+        Effect.gen(function* () {
+          yield* seedAsset(ctx, assetFixtures.find((f) => f.kind === "agent")!)
+          yield* seedCustomProfile(ctx)
+        }),
+      )
+      .at((ctx) => ({
+        path: `${root}/health?${new URLSearchParams({ path: "httpapi-profile.yaml" })}`,
+        headers: ctx.headers(),
+      }))
+      .json(200, (body) => {
+        object(body)
+        check(typeof body.status === "string", "custom composition health should report status")
+        array(body.staleRevisions)
+        array(body.diagnostics)
+      }),
+    http.protected
+      .get(`${root}/references`, "custom-composition.references")
+      .seeded(seedCustomProfile)
+      .at((ctx) => ({
+        path: `${root}/references?${new URLSearchParams({ kind: "agent", path: "httpapi-agent.md" })}`,
+        headers: ctx.headers(),
+      }))
+      .json(200, (body) => {
+        object(body)
+        array(body.profiles)
+      }),
+  ]
+}
+
 const scenarios: Scenario[] = [
   http.protected
     .get("/global/health", "global.health")
@@ -444,6 +625,8 @@ const scenarios: Scenario[] = [
   http.protected.get("/agent", "app.agents").json(200, array, "status"),
   http.protected.get("/skill", "app.skills").json(200, array, "status"),
   ...assetFixtures.flatMap(assetScenarios),
+  ...customProfileScenarios(),
+  ...customCompositionScenarios(),
   // Assistant: knowledge base (kb_note/kb_link). Routes are project-scoped and
   // back onto KBService through the location layer.
   http.protected

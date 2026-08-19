@@ -48,6 +48,11 @@ import { CommandAsset } from "./command-asset"
 import { CommandAssetService } from "./command-asset-service"
 import { AgentAsset } from "./agent-asset"
 import { AgentAssetService } from "./agent-asset-service"
+import { CustomProfile } from "./custom-profile"
+import { CustomProfileService } from "./custom-profile-service"
+import { CompositionResolver } from "./composition-resolver"
+import { AssetKind } from "./asset-kind"
+import { AgentAssetBridge } from "./agent/asset-bridge"
 import { WorkflowAsset } from "./workflow-asset"
 import { PluginAsset } from "./plugin-asset"
 import { PluginBridge } from "./plugin-asset/bridge"
@@ -109,6 +114,8 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       MCPAsset.locationLayer.pipe(Layer.provide(config)),
       CommandAsset.locationLayer.pipe(Layer.provide(config)),
       AgentAsset.locationLayer,
+      CustomProfile.layer,
+      AssetKind.layer,
       WorkflowAsset.locationLayer,
       PluginAsset.locationLayer,
       PluginBridge.layer,
@@ -146,6 +153,13 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
     const agentAssetService = AgentAssetService.locationLayer.pipe(
       Layer.provide(services),
       Layer.provide(mutation),
+    )
+    const customProfileService = CustomProfileService.locationLayer.pipe(
+      Layer.provide(services),
+      Layer.provide(mutation),
+    )
+    const compositionResolver = CompositionResolver.locationLayer.pipe(
+      Layer.provide(services),
     )
     const skillGuidance = SkillGuidance.locationLayer.pipe(Layer.provide(services))
     const referenceGuidance = ReferenceGuidance.locationLayer.pipe(Layer.provide(services))
@@ -220,6 +234,8 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       mcpAssetService,
       commandAssetService,
       agentAssetService,
+      customProfileService,
+      compositionResolver,
       resources,
       todos,
       tasks,
@@ -230,6 +246,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       builtInTools,
       referenceGuidance,
       projectCopyRefresh,
+      AgentAssetBridge.layer.pipe(Layer.provide(services)),
     ).pipe(Layer.fresh, Layer.orDie)
   },
   idleTimeToLive: "60 minutes",

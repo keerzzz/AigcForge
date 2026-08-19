@@ -1,20 +1,17 @@
-/** Normalize V1/V2 propose_*_asset tool results into one UI shape. */
-
 import type {
   AgentAssetCandidate,
   CommandAssetCandidate,
+  CustomProfileCandidate,
   McpAssetCandidate,
   PromptAssetCandidate,
   SkillAssetCandidate,
 } from "@aigcfroge/sdk/v2/client"
-import type { AssetKindId } from "@aigcfroge/schema/asset"
-
-export type SupportedAssetKind = AssetKindId
+export type SupportedAssetKind = "prompt" | "skill" | "mcp" | "command" | "agent" | "workflow" | "plugin" | "custom-profile"
 
 type CandidateBase = {
   name: string
   description: string
-  /** 展示/diff 用统一文本（prompt=template、skill=content、mcp=configJson、command/agent=source）。 */
+  /** 展示/diff 用统一文本（prompt=template、skill=content、mcp=configJson、command/agent=source、custom-profile=rawYaml）。 */
   content: string
   relativePath: string
   exists: boolean
@@ -32,6 +29,7 @@ type CandidateByKind =
   | { kind: "agent"; candidate: Omit<AgentAssetCandidate, "relativePath"> }
   | { kind: "workflow"; candidate: { name: string; description: string; content: string } }
   | { kind: "plugin"; candidate: { name: string; description: string; content: string } }
+  | { kind: "custom-profile"; candidate: CustomProfileCandidate }
 
 export type CandidateInfo = CandidateBase & CandidateByKind
 
@@ -46,6 +44,8 @@ const PROPOSE_TOOL_KINDS: Record<string, SupportedAssetKind> = {
   propose_agent_asset: "agent",
   propose_workflow_asset: "workflow",
   propose_plugin_asset: "plugin",
+  propose_custom_profile_asset: "custom-profile",
+  propose_custom_profile: "custom-profile",
 }
 
 function isRecord(value: unknown): value is UnknownRecord {
@@ -80,6 +80,51 @@ function statusFrom(exists: boolean, nameConflict: boolean, pathConflict: boolea
   return "valid"
 }
 
+function profileFrom(name: string, description: string, value: unknown): CustomProfileCandidate["profile"] {
+  const rec = isRecord(value) ? value : {}
+  const agents = Array.isArray(rec.agents)
+    ? rec.agents.filter(isRecord).map((a) => ({
+        kind: "agent" as const,
+        relativePath: typeof a.relativePath === "string" ? a.relativePath : "",
+        revision: typeof a.revision === "string" ? a.revision : "",
+      }))
+    : []
+  const bindings: CustomProfileCandidate["profile"]["bindings"] = {}
+  if (isRecord(rec.bindings)) {
+    for (const [k, b] of Object.entries(rec.bindings)) {
+      if (isRecord(b)) {
+        bindings[k] = {
+          prompts: Array.isArray(b.prompts)
+            ? b.prompts.filter(isRecord).map((p) => ({
+                kind: "prompt" as const,
+                relativePath: typeof p.relativePath === "string" ? p.relativePath : "",
+                revision: typeof p.revision === "string" ? p.revision : "",
+              }))
+            : [],
+          skills: Array.isArray(b.skills)
+            ? b.skills.filter(isRecord).map((s) => ({
+                kind: "skill" as const,
+                relativePath: typeof s.relativePath === "string" ? s.relativePath : "",
+                revision: typeof s.revision === "string" ? s.revision : "",
+              }))
+            : [],
+        }
+      }
+    }
+  }
+  return {
+    kind: "custom-profile",
+    name,
+    description,
+    agents,
+    bindings,
+    presentation: "native",
+    requestedCapabilities: Array.isArray(rec.requestedCapabilities)
+      ? rec.requestedCapabilities.filter((c): c is string => typeof c === "string")
+      : [],
+  }
+}
+
 /** 按 kind 提取 apply candidate + 展示文本；必需字段缺失返回 null。 */
 function candidateFromInput(kind: SupportedAssetKind, raw: UnknownRecord): CandidateDraft | null {
   const name = stringField(raw, "name") ?? ""
@@ -96,6 +141,19 @@ function candidateFromInput(kind: SupportedAssetKind, raw: UnknownRecord): Candi
     const content = stringField(raw, "content") ?? ""
     if (!content) return null
     return { kind, name, description, candidate: { name, description, content }, content }
+  }
+
+  if (kind === "custom-profile") {
+    const rawYaml = stringField(raw, "rawYaml") ?? (isRecord(raw.profile) ? JSON.stringify(raw.profile, null, 2) : "")
+    const relPath = stringField(raw, "relativePath") ?? ""
+    const profile = profileFrom(name, description, raw.profile)
+    return {
+      kind,
+      name,
+      description,
+      candidate: { name, description, relativePath: relPath, profile },
+      content: rawYaml,
+    }
   }
 
   if (kind === "prompt") {
@@ -216,6 +274,7 @@ export function sameCandidateInfo(left: CandidateInfo, right: CandidateInfo) {
   if (left.kind === "agent" && right.kind === "agent") return left.candidate.config === right.candidate.config
   if (left.kind === "workflow" && right.kind === "workflow") return left.content === right.content
   if (left.kind === "plugin" && right.kind === "plugin") return left.content === right.content
+  if (left.kind === "custom-profile" && right.kind === "custom-profile") return left.content === right.content
   if (left.kind !== "mcp" || right.kind !== "mcp") return false
   if (left.candidate.command !== right.candidate.command) return false
   if (left.candidate.args.length !== right.candidate.args.length) return false

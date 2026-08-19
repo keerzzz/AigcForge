@@ -231,7 +231,7 @@ export default function () {
                             <div class="flex gap-4 items-center">
                               <div class="flex gap-2 items-center">
                                 <Show when={provider()}>
-                                  <ProviderIcon id={provider()!} class="size-3.5 shrink-0 text-icon-strong-base" />
+                                  {(p) => <ProviderIcon id={p()} class="size-3.5 shrink-0 text-icon-strong-base" />}
                                 </Show>
                                 <div class="text-12-regular text-text-base">{model()?.name ?? modelID()}</div>
                               </div>

@@ -4,7 +4,7 @@
 > Date: 2026-07-12
 > Amends: [ADR-11 Product Mode State and Session Classification](ADR-11-product-mode-session-classification.md)
 > Preserves: [ADR-09 Mode Route Decoupling](ADR-09-mode-route-decoupling.md)
-> Proposed extension: [ADR-17 Custom Mode Composition Platform](ADR-17-custom-mode-composition-platform.md) proposes `/mode/custom` through the same parameterized route and shared workspace. It does not authorize arbitrary string modes, and this ADR remains authoritative until ADR-17 is Accepted.
+> Accepted extension under implementation: [ADR-17 Custom Mode Composition Platform](ADR-17-custom-mode-composition-platform.md) adds `/mode/custom` through the same parameterized route and shared workspace. Until M0 Phase B and later App gates land, the 4-mode entry routing defined here remains active and authoritative in production runtime.
 
 ## Context
 
@@ -108,3 +108,13 @@ It would duplicate durable `Session.mode`, permit contradictory URLs, and compli
 ## Implementation Reference
 
 See [`docs/plan/mode-module-switching-completion.md`](../../plan/mode-module-switching-completion.md).
+
+## Amendment by ADR-17 (Accepted for M0/M1 implementation; runtime not yet landed)
+
+With ADR-17 accepted for M0/M1 implementation:
+
+1. **Route Expansion**: `/mode/:mode` parameter decoding admits `custom` as the fifth valid destination (`/mode/custom`).
+2. **Shared Workspace Slot**: `/mode/custom` renders the shared `ModeRoute`/`ModeWorkspace` structure with the `custom` typed main slot (Composition Builder, Profile list, Plan preview, and Custom Session lists).
+3. **Navigation Rails**: Home mode cards and the global mode rail add a 5th navigation control pointing to `/mode/custom` without mutating Session identity or creating work on selection.
+4. **Canonical Work Routes Preserved**: URLs for `/new-session?draftId=...` and `/server/:serverKey/session/:id` remain strictly independent of Product Mode.
+5. **Active Baseline**: Until M0 Phase B and the later App gate land, only the four destinations in §Decision 1 are active in production runtime.

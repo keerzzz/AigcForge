@@ -1,6 +1,15 @@
 import type { DirectorySDK } from "@/context/sdk"
 import type { AssetKindId } from "@aigcfroge/schema/asset"
-import { AGENTS_DIR, COMMANDS_DIR, MCPS_DIR, PLUGINS_DIR, PROMPTS_DIR, SKILLS_DIR, WORKFLOWS_DIR } from "@aigcfroge/core/constants"
+import {
+  AGENTS_DIR,
+  COMMANDS_DIR,
+  CUSTOM_PROFILES_DIR,
+  MCPS_DIR,
+  PLUGINS_DIR,
+  PROMPTS_DIR,
+  SKILLS_DIR,
+  WORKFLOWS_DIR,
+} from "@aigcfroge/core/constants"
 import type { CandidateInfo } from "./prompt-asset-candidate"
 
 /** kind → owner 目录（apply 后刷新文件树用）。 */
@@ -11,6 +20,7 @@ export function assetKindDir(kind: AssetKindId) {
   if (kind === "agent") return AGENTS_DIR
   if (kind === "workflow") return WORKFLOWS_DIR
   if (kind === "plugin") return PLUGINS_DIR
+  if (kind === "custom-profile") return CUSTOM_PROFILES_DIR
   return PROMPTS_DIR
 }
 
@@ -23,10 +33,11 @@ export async function fetchAssetInsertText(client: DirectorySDK["client"], kind:
   if (kind === "agent") return (await client.agentAsset.content({ path }, { throwOnError: true })).data?.source ?? ""
   if (kind === "workflow") return JSON.stringify((await client.workflowAsset.content({ path }, { throwOnError: true })).data, null, 2) ?? ""
   if (kind === "plugin") return JSON.stringify((await client.pluginAsset.content({ path }, { throwOnError: true })).data, null, 2) ?? ""
+  if (kind === "custom-profile") return (await client.customProfile.content({ path }, { throwOnError: true })).data?.rawYaml ?? ""
   return ""
 }
 
-/** URL search param 是外部输入：收窄到已实现 content() 的 7 种 kind。 */
+/** URL search param 是外部输入：收窄到已实现 content() 的 8 种 kind。 */
 export function parseInsertKind(value: string | undefined): AssetKindId | undefined {
   if (value === "prompt") return value
   if (value === "skill") return value
@@ -35,6 +46,7 @@ export function parseInsertKind(value: string | undefined): AssetKindId | undefi
   if (value === "agent") return value
   if (value === "workflow") return value
   if (value === "plugin") return value
+  if (value === "custom-profile") return value
   return undefined
 }
 
@@ -86,6 +98,12 @@ export async function applyAssetCandidate(
       { throwOnError: true },
     )
   }
+  if (candidate.kind === "custom-profile") {
+    return client.customProfile.apply(
+      { ...shared, candidate: candidate.candidate },
+      { throwOnError: true },
+    )
+  }
   return client.promptAsset.apply(
     { ...shared, candidate: { ...candidate.candidate, relativePath: candidate.relativePath } },
     { throwOnError: true },
@@ -100,5 +118,6 @@ export async function listAssets(client: DirectorySDK["client"], kind: AssetKind
   if (kind === "agent") return client.agentAsset.list(undefined, { throwOnError: true })
   if (kind === "workflow") return client.workflowAsset.list(undefined, { throwOnError: true })
   if (kind === "plugin") return client.pluginAsset.list(undefined, { throwOnError: true })
+  if (kind === "custom-profile") return client.customProfile.list(undefined, { throwOnError: true })
   return client.promptAsset.list(undefined, { throwOnError: true })
 }

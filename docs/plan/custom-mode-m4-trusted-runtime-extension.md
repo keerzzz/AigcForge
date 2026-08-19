@@ -1,7 +1,7 @@
 # Custom Mode M4 实施计划：Trusted Runtime Extension
 
 > 状态：**Future / Highest-risk ADR blocked - 禁止提前加载 Custom Plugin runtime**
-> 分析基线：`main@e0e0f970f`（2026-08-17）；执行基线为 M3 合入并完成安全复审后的最新 `main`
+> 分析基线：`main@a4ffba0b3`（2026-08-18，本地/远端已同步）；执行基线为 M3 合入并完成安全复审后的最新 `main`
 > 范围：Installed Extension、provenance/trust/revision、Host/Agent/Client 分面、mount/stop/quarantine/rollback、跨端降级
 > 前置：[Custom Mode M3](custom-mode-m3-mcp-approval.md)
 > 上级计划：[Custom Mode 组合平台实施计划](custom-mode-composition-platform-implementation.md)

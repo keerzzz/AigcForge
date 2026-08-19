@@ -99,3 +99,12 @@ export class PtyNotFoundError extends Schema.TaggedErrorClass<PtyNotFoundError>(
   },
   { httpApiStatus: 404 },
 ) {}
+
+export class UnsupportedProductModeError extends Schema.TaggedErrorClass<UnsupportedProductModeError>()(
+  "UnsupportedProductModeError",
+  {
+    mode: Schema.String,
+    message: Schema.String,
+  },
+  { httpApiStatus: 400 },
+) {}

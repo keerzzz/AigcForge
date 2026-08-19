@@ -1,7 +1,7 @@
 # Custom Mode M1 实施计划：单 Agent 可恢复运行闭环
 
 > 状态：**Blocked by M0 + G2/G3 - 不得提前实现**
-> 分析基线：`main@e0e0f970f`（2026-08-17）；执行基线为 M0 全部合入后的最新 `main`
+> 分析基线：`main@a4ffba0b3`（2026-08-18，本地/远端已同步）；执行基线为 M0 全部合入后的最新 `main`
 > 范围：`packages/schema` + `packages/core` + `packages/aigcfroge` + `packages/app` + `packages/sdk/js` + migrations/specs
 > 前置：[Custom Mode M0](custom-mode-m0-composition-foundation.md)
 > 上级计划：[Custom Mode 组合平台实施计划](custom-mode-composition-platform-implementation.md)

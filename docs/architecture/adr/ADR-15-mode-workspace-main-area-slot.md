@@ -4,7 +4,7 @@
 > Date: 2026-07-19
 > Amends: [ADR-12 §3](ADR-12-product-mode-entry-routing.md)
 > 关联：[ADR-11](ADR-11-product-mode-session-classification.md)、[ADR-13](ADR-13-chat-work-mode-boundary.md)（模式定位表）、[ADR-14](ADR-14-persistence-and-scope-strategy.md) §4（数据真源）、[Chat PRD §9](../../prd/chat-mode-creation-layer.md)
-> Proposed extension: [ADR-17](ADR-17-custom-mode-composition-platform.md) proposes a Custom typed slot using this same shared owner. It must not create a parallel workspace shell and is not implemented until ADR-17 is Accepted.
+> Accepted extension under implementation: [ADR-17](ADR-17-custom-mode-composition-platform.md) adds the fifth Custom typed main slot to `ModeWorkspace`. Until M0 Phase B and later App gates land, the 4-mode slot registry defined here remains active and authoritative in production runtime.
 
 ## 背景
 
@@ -131,3 +131,12 @@ ModeSwitcher / SecondarySidebar / StatusBar / 路由 / 同步 / 通知 / 空 loa
 ## 实现参考
 
 [`docs/plan/mode-module-switching-completion.md`](../../plan/mode-module-switching-completion.md)（C 方案实施步骤：ModeRoute 渲染 ModeWorkspace、Home 并入、slot 不 remount）。
+
+## 由 ADR-17 修订的条款（Accepted for M0/M1 implementation；运行时待后续 Gate）
+
+在 ADR-17 获准进入 M0/M1 实施后：
+
+1. **主区 Slot 扩充**：`ModeWorkspace` 主区 typed slot 扩充第五项：
+   - `Custom` | 组合工作台（Profile 列表 + 组合 Builder + 依赖/权限/指令预览） | ADR-17: Custom 核心对象=资产组合配置 (`custom-profile`)
+2. **保持外壳共享与零闪烁**：Custom slot 严格遵守本 ADR 的外壳共享、Resource 上提与 `render-all + display:none` 不 remount 原则，严禁为 Custom 创建平行的页面 Shell。
+3. **现行基准**：在 M0 Phase B 与后续 App gate 完成前，本 ADR §决策 1 的四模式 Slot 注册表仍为生产运行时的有效规范。

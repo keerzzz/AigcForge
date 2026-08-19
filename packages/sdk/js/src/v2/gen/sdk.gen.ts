@@ -37,6 +37,8 @@ import type {
   CommandAssetListResponses,
   CommandListErrors,
   CommandListResponses,
+  CompositionProfileInput,
+  CompositionTemporaryInput,
   Config as Config3,
   ConfigGetErrors,
   ConfigGetResponses,
@@ -44,6 +46,21 @@ import type {
   ConfigProvidersResponses,
   ConfigUpdateErrors,
   ConfigUpdateResponses,
+  CustomCompositionHealthErrors,
+  CustomCompositionHealthResponses,
+  CustomCompositionPlanErrors,
+  CustomCompositionPlanResponses,
+  CustomCompositionReferencesErrors,
+  CustomCompositionReferencesResponses,
+  CustomProfileApplyErrors,
+  CustomProfileApplyResponses,
+  CustomProfileCandidate,
+  CustomProfileContentErrors,
+  CustomProfileContentResponses,
+  CustomProfileDeleteErrors,
+  CustomProfileDeleteResponses,
+  CustomProfileListErrors,
+  CustomProfileListResponses,
   DeliveryInboxErrors,
   DeliveryInboxResponses,
   DeliveryReadErrors,
@@ -4401,6 +4418,279 @@ export class AgentAsset extends HeyApiClient {
         ...options?.headers,
         ...params.headers,
       },
+    })
+  }
+}
+
+export class CustomProfile extends HeyApiClient {
+  /**
+   * List custom profiles
+   *
+   * List all custom profile assets for the current Location, including invalid (skipped) entries.
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      search?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "search" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<CustomProfileListResponses, CustomProfileListErrors, ThrowOnError>({
+      url: "/custom-profile",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get custom profile content
+   *
+   * Get the full content of a custom profile asset by path.
+   */
+  public content<ThrowOnError extends boolean = false>(
+    parameters: {
+      directory?: string
+      workspace?: string
+      path: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "path" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<
+      CustomProfileContentResponses,
+      CustomProfileContentErrors,
+      ThrowOnError
+    >({
+      url: "/custom-profile/content",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Apply custom profile
+   *
+   * Apply a proposed custom profile candidate, persisting it to disk.
+   */
+  public apply<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      candidate?: CustomProfileCandidate
+      baseRevision?: string
+      overwrite?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "candidate" },
+            { in: "body", key: "baseRevision" },
+            { in: "body", key: "overwrite" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<CustomProfileApplyResponses, CustomProfileApplyErrors, ThrowOnError>({
+      url: "/session/{sessionID}/custom-profile/apply",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete custom profile
+   *
+   * Delete a custom profile by relative path with baseRevision CAS.
+   */
+  public delete<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      relativePath?: string
+      baseRevision?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "relativePath" },
+            { in: "body", key: "baseRevision" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<CustomProfileDeleteResponses, CustomProfileDeleteErrors, ThrowOnError>(
+      {
+        url: "/session/{sessionID}/custom-profile/delete",
+        ...options,
+        ...params,
+        headers: {
+          "Content-Type": "application/json",
+          ...options?.headers,
+          ...params.headers,
+        },
+      },
+    )
+  }
+}
+
+export class CustomComposition extends HeyApiClient {
+  /**
+   * Resolve custom composition plan
+   *
+   * Resolve a proposed composition input into a deterministic execution plan.
+   */
+  public plan<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      body?: CompositionTemporaryInput | CompositionProfileInput
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { key: "body", map: "body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      CustomCompositionPlanResponses,
+      CustomCompositionPlanErrors,
+      ThrowOnError
+    >({
+      url: "/custom-composition/plan",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Check profile health
+   *
+   * Check the health and asset freshness of a stored custom profile.
+   */
+  public health<ThrowOnError extends boolean = false>(
+    parameters: {
+      directory?: string
+      workspace?: string
+      path: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "path" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<
+      CustomCompositionHealthResponses,
+      CustomCompositionHealthErrors,
+      ThrowOnError
+    >({
+      url: "/custom-composition/health",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Find referencing profiles
+   *
+   * Find all custom profiles referencing a specific asset.
+   */
+  public references<ThrowOnError extends boolean = false>(
+    parameters: {
+      directory?: string
+      workspace?: string
+      kind: string
+      path: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "kind" },
+            { in: "query", key: "path" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<
+      CustomCompositionReferencesResponses,
+      CustomCompositionReferencesErrors,
+      ThrowOnError
+    >({
+      url: "/custom-composition/references",
+      ...options,
+      ...params,
     })
   }
 }
@@ -9439,6 +9729,16 @@ export class AigcfrogeClient extends HeyApiClient {
   private _agentAsset?: AgentAsset
   get agentAsset(): AgentAsset {
     return (this._agentAsset ??= new AgentAsset({ client: this.client }))
+  }
+
+  private _customProfile?: CustomProfile
+  get customProfile(): CustomProfile {
+    return (this._customProfile ??= new CustomProfile({ client: this.client }))
+  }
+
+  private _customComposition?: CustomComposition
+  get customComposition(): CustomComposition {
+    return (this._customComposition ??= new CustomComposition({ client: this.client }))
   }
 
   private _schedule?: Schedule

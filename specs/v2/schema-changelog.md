@@ -1,5 +1,38 @@
 # V2 Schema Changelog
 
+## Accepted for M0/M1 implementation / Not Implemented: Custom Mode Composition Platform (ADR-17 v1.2)
+
+> **Status: PROPOSED / NOT IMPLEMENTED**
+> **Scope:** Governance approved for M0 Phase B implementation by user-authorized AI-agent delegation; production code and generated contracts remain unchanged until the implementation PR lands.
+> **Production Baseline:** Active production runtime strictly maintains the 4-mode contract (`chat | coding | work | assistant`). The changes below describe the target design specifications and have NOT been implemented or applied to packages/schema, database migrations, HTTP endpoints, or generated SDKs.
+
+- **ProductMode Domain (Target: `packages/schema/src/product-mode.ts`)**:
+  - Proposes expanding the closed `ProductMode` union from four values (`chat | coding | work | assistant`) to five: `chat | coding | work | assistant | custom`.
+  - Compatibility & Decoding: Historical rows, omitted create inputs, and legacy event payloads continue decoding as `coding`. In contrast, `custom` mode is never defaulted or fallen back to `coding`; clients that do not negotiate custom capability receive a typed unsupported error.
+- **AssetKindId Domain (Target: `packages/schema/src/asset.ts`)**:
+  - Proposes registering `custom-profile` as the 8th asset kind alongside `prompt`, `skill`, `agent`, `mcp`, `command`, `workflow`, `plugin`.
+  - Canonical file location: `.aigcfroge/custom-profiles/*.yaml`.
+- **Composition Schemas (Target: `packages/schema/src/custom-profile.ts` + `packages/schema/src/composition.ts`)**:
+  - Proposes `CustomProfile` `Schema.Class` in `custom-profile.ts` (discrete profile schema; `ConfigAgent.Info` remains exclusive to `AgentAsset.config`).
+  - Proposes `CompositionPlan` in `composition.ts` (resolving assets, diagnostic errors, capabilities, effective ordering).
+  - Proposes `CompositionSnapshot` in `composition.ts` (immutable runtime record containing profile metadata, authorized agent allowlist, bound asset revisions, `ToolRegistrationFingerprint`, and `ToolCatalogDigest`).
+- **Snapshot Database Table (Target: `packages/core/src/database/schema.ts`)**:
+  - Proposes an independent SQLite table `session_composition_snapshot` (columns: `session_id text PK references session(id) on delete cascade`, `version integer not null`, `digest text not null`, `profile_path text null`, `profile_revision text null`, `data text(json) not null`, `time_created integer not null`).
+  - Strict isolation: Immutable, owned by Session, strictly separate from `session.metadata`, transcript, or Context Epoch.
+- **HTTP API & Capability Negotiation (Target: `packages/aigcfroge/src/server/routes/`)**:
+  - Proposes `x-aigcfroge-capabilities: product-mode-custom-v1` request header negotiation.
+  - Proposes typed error schema: `unsupported_mode` (HTTP status TBD; with machine-readable capability requirement code).
+  - Proposes `/custom-profile` API (`GET /custom-profile`, `GET /custom-profile/content`, `POST /custom-profile/apply`, `POST /custom-profile/delete`).
+  - Proposes `/custom-composition` API (`POST /custom-composition/plan`, `POST /custom-composition/start`).
+- **Tool Materialization & Stable Fingerprint (Target: `packages/core/src/tool/`)**:
+  - Proposes `ToolRegistry.materialize({ permissions, intent, allowlist? })` signature.
+  - Proposes minimal stable `ToolRegistrationFingerprint` (4 fields: `placement`, `name`, `digest` [normalized definition/schema digest], `installationVersion`).
+  - Proposes independent `ToolCatalogDigest` (aggregate catalog digest).
+  - Provider-turn before-execution re-verification of both fingerprint and catalog digest, with fail-closed mismatch handling.
+- **EventV2 & SDK Impact**:
+  - Proposes EventV2 lifecycle events (names TBD upon M0 Phase B).
+  - Proposes regenerating `@aigcfroge/sdk` with new types and client methods upon M0 Phase B.
+
 ## 2026-08-03: Task Spawn Fields, task_spawn Tool, and DAG Helpers (Todo/Task M5 Step 1 — recovered from wip)
 
 - Persist M5 spawn fields on the `task` table via the drizzle-kit pipeline (`20260802140709_add_task_spawn_fields`): nullable `spawned_from` (originating message id) and `depends_on` (JSON predecessor task ids); existing rows backfill null. Registered in `migration.gen.ts` between `add_task_schedule_fields` and `backfill_task_table`.
@@ -10,9 +43,9 @@
 
 ### 2026-08-03 (M5 Step 3): DAG gating on the scheduled-job trigger + write-side cycle rejection
 
-- `SessionTask.update`/`append` reject a `dependsOn` cycle via `findCycle` with a new `TaskWriteError` reason `depends_on_cycle` → HTTP 400. The write-side guard prevents a graph where no task in a cycle can ever be triggered. The `update` guard evaluates the *effective* `dependsOn` (`input ?? existing row`, the same preserve-omitted rule as the column write) so an omitted-preserve PATCH cannot close a cycle unseen.
+- `SessionTask.update`/`append` reject a `dependsOn` cycle via `findCycle` with a new `TaskWriteError` reason `depends_on_cycle` → HTTP 400. The write-side guard prevents a graph where no task in a cycle can ever be triggered. The `update` guard evaluates the _effective_ `dependsOn` (`input ?? existing row`, the same preserve-omitted rule as the column write) so an omitted-preserve PATCH cannot close a cycle unseen.
 - `scheduled-job.ts` trigger now runs a DAG gate before claiming a task: a scheduled/pending job whose `dependsOn` predecessors are not all terminal is skipped (left scheduled/pending, NOT claimed), and re-evaluated when a `task.updated` re-arms the queue — the existing B1 in_progress claim semantics are untouched (the gate sits before the claim).
-- `dag.ts blockedBy` semantics changed: a *deleted* predecessor (absent from the task set) is released instead of blocking — otherwise deleting a predecessor would permanently deadlock its dependents. A present non-terminal predecessor still blocks.
+- `dag.ts blockedBy` semantics changed: a _deleted_ predecessor (absent from the task set) is released instead of blocking — otherwise deleting a predecessor would permanently deadlock its dependents. A present non-terminal predecessor still blocks.
 - Compatibility: valid acyclic graphs are unaffected; a `depends_on_cycle` write now fails with 400, and a blocked trigger is skipped until its predecessors settle.
 
 ## 2026-08-03: Agent Task Cross-Session Aggregation Endpoint (Todo/Task M4 Step 3)

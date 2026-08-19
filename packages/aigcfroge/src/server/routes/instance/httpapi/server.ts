@@ -98,6 +98,8 @@ import { SkillAssetHandlers } from "./handlers/skill-asset"
 import { MCPAssetHandlers } from "./handlers/mcp-asset"
 import { CommandAssetHandlers } from "./handlers/command-asset"
 import { AgentAssetHandlers } from "./handlers/agent-asset"
+import { CustomProfileHandlers } from "./handlers/custom-profile"
+import { CustomCompositionHandlers } from "./handlers/custom-composition"
 import { WorkflowAssetHandlers } from "./handlers/workflow-asset"
 import { PluginAssetHandlers } from "./handlers/plugin-asset"
 import { ImportParserHandlers } from "./handlers/import-parser"
@@ -180,6 +182,8 @@ const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
     MCPAssetHandlers.mcpAssetHandlers,
     CommandAssetHandlers.commandAssetHandlers,
     AgentAssetHandlers.agentAssetHandlers,
+    CustomProfileHandlers.customProfileHandlers,
+    CustomCompositionHandlers.customCompositionHandlers,
     WorkflowAssetHandlers.workflowAssetHandlers,
     PluginAssetHandlers.pluginAssetHandlers,
     ImportParserHandlers.importParserHandlers,

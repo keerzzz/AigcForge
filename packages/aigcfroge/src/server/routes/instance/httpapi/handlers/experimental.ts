@@ -12,8 +12,10 @@ import { ToolJsonSchema } from "@/tool/json-schema"
 import { ToolRegistry } from "@/tool/registry"
 import { Worktree } from "@/worktree"
 import { Effect, Option } from "effect"
+import { HttpServerRequest } from "effect/unstable/http"
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse"
 import { HttpApiBuilder, HttpApiError } from "effect/unstable/httpapi"
+import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
 import { InstanceHttpApi } from "../api"
 import { ConsoleSwitchPayload, SessionListQuery, ToolListQuery, WorktreeApiError } from "../groups/experimental"
 
@@ -37,7 +39,13 @@ export const experimentalHandlers = HttpApiBuilder.group(InstanceHttpApi, "exper
     const flags = yield* RuntimeFlags.Service
 
     const capabilities = Effect.fn("ExperimentalHttpApi.capabilities")(function* () {
-      return { backgroundSubagents: flags.experimentalBackgroundSubagents, chatAsset: flags.experimentalChatAsset }
+      return {
+        backgroundSubagents: flags.experimentalBackgroundSubagents,
+        chatAsset: flags.experimentalChatAsset,
+        customMode: false,
+        productModes: ["chat", "coding", "work", "assistant", "custom"],
+        customCompositionVersion: 1,
+      }
     })
 
     const getConsole = Effect.fn("ExperimentalHttpApi.console")(function* () {
@@ -146,7 +154,10 @@ export const experimentalHandlers = HttpApiBuilder.group(InstanceHttpApi, "exper
         limit: limit + 1,
         archived: ctx.query.archived,
       })
-      const list = all.length > limit ? all.slice(0, limit) : all
+      const request = yield* HttpServerRequest.HttpServerRequest
+      const capabilitiesHeader = request.headers[ProductModePolicy.CAPABILITIES_HEADER]
+      const supported = ProductModePolicy.filterSupportedSessions(all, capabilitiesHeader)
+      const list = supported.length > limit ? supported.slice(0, limit) : supported
       return HttpServerResponse.jsonUnsafe(list, {
         headers:
           all.length > limit && list.length > 0

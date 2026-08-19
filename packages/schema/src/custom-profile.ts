@@ -1,0 +1,123 @@
+export * as CustomProfile from "./custom-profile"
+
+import { Schema } from "effect"
+import { Composition } from "./composition"
+
+export const Name = Schema.String.pipe(
+  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length >= 1, { message: "Name must be at least 1 code point" })),
+  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length <= 80, { message: "Name must be at most 80 code points" })),
+  Schema.brand("CustomProfile.Name"),
+)
+export type Name = typeof Name.Type
+
+export const Description = Schema.String.pipe(
+  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length <= 300, {
+    message: "Description must be at most 300 code points",
+  })),
+  Schema.brand("CustomProfile.Description"),
+)
+export type Description = typeof Description.Type
+
+export const Revision = Schema.String.pipe(
+  Schema.check(Schema.isMinLength(64)),
+  Schema.check(Schema.isMaxLength(64)),
+  Schema.check(Schema.isPattern(/^[0-9a-f]{64}$/)),
+  Schema.brand("CustomProfile.Revision"),
+)
+export type Revision = typeof Revision.Type
+
+export const BaseRevision = Schema.Union([Schema.Null, Revision])
+export type BaseRevision = typeof BaseRevision.Type
+
+export class Profile extends Schema.Class<Profile>("CustomProfile.Profile")({
+  kind: Schema.Literal("custom-profile"),
+  name: Name,
+  description: Description,
+  agents: Schema.Array(Composition.AgentRef).pipe(
+    Schema.check(
+      Schema.makeFilter<readonly unknown[]>((input) => input.length === 1, {
+        message: "Profile must contain exactly one agent in M1",
+      }),
+    ),
+  ),
+  bindings: Schema.Record(Composition.Consumer, Composition.Binding),
+  presentation: Composition.Presentation,
+  requestedCapabilities: Schema.Array(Schema.String),
+}) {}
+
+export class Summary extends Schema.Class<Summary>("CustomProfile.Summary")({
+  kind: Schema.Literal("custom-profile"),
+  name: Name,
+  description: Description,
+  relativePath: Schema.String,
+  revision: Revision,
+}) {}
+
+export class DeleteResult extends Schema.Class<DeleteResult>("CustomProfile.DeleteResult")({
+  relativePath: Schema.String,
+  referencingProfiles: Schema.Array(Summary),
+}) {}
+
+export class Info extends Schema.Class<Info>("CustomProfile.Info")({
+  kind: Schema.Literal("custom-profile"),
+  name: Name,
+  description: Description,
+  relativePath: Schema.String,
+  revision: Revision,
+  profile: Profile,
+  rawYaml: Schema.optional(Schema.String),
+}) {}
+
+export class Candidate extends Schema.Class<Candidate>("CustomProfile.Candidate")({
+  name: Name,
+  description: Description,
+  relativePath: Schema.String,
+  profile: Profile,
+}) {}
+
+export const InvalidErrorTag = Schema.Literals([
+  "parse_error",
+  "bad_yaml",
+  "name_conflict",
+  "invalid_cardinality",
+  "disallowed_kind",
+])
+export type InvalidErrorTag = typeof InvalidErrorTag.Type
+
+export class InvalidEntry extends Schema.Class<InvalidEntry>("CustomProfile.InvalidEntry")({
+  relativePath: Schema.String,
+  errorTag: InvalidErrorTag,
+}) {}
+
+// -- Errors --
+
+export class AssetNotFoundError extends Schema.TaggedErrorClass<AssetNotFoundError>()("CustomProfile.NotFound", {
+  relativePath: Schema.String,
+}) {}
+
+export class NameConflictError extends Schema.TaggedErrorClass<NameConflictError>()("CustomProfile.NameConflict", {
+  name: Name,
+}) {}
+
+export class PathConflictError extends Schema.TaggedErrorClass<PathConflictError>()("CustomProfile.PathConflict", {
+  relativePath: Schema.String,
+}) {}
+
+export class StaleRevisionError extends Schema.TaggedErrorClass<StaleRevisionError>()("CustomProfile.StaleRevision", {
+  relativePath: Schema.String,
+}) {}
+
+export class OverwriteRequiredError extends Schema.TaggedErrorClass<OverwriteRequiredError>()(
+  "CustomProfile.OverwriteRequired",
+  { relativePath: Schema.String },
+) {}
+
+export class InvalidCandidateError extends Schema.TaggedErrorClass<InvalidCandidateError>()(
+  "CustomProfile.InvalidCandidate",
+  { reason: Schema.String },
+) {}
+
+export class WriteFailedError extends Schema.TaggedErrorClass<WriteFailedError>()("CustomProfile.WriteFailed", {
+  relativePath: Schema.String,
+  reason: Schema.String,
+}) {}

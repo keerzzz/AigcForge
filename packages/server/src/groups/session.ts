@@ -14,6 +14,7 @@ import {
   ServiceUnavailableError,
   SessionNotFoundError,
   UnknownError,
+  UnsupportedProductModeError,
 } from "../errors"
 import { SessionLocationMiddleware } from "../middleware/session-location"
 import { AgentV2 } from "@aigcfroge/core/agent"
@@ -121,6 +122,7 @@ export const SessionGroup = HttpApiGroup.make("server.session")
         location: Location.Ref.pipe(Schema.optional),
       }),
       success: Schema.Struct({ data: SessionV2.Info }),
+      error: [UnsupportedProductModeError, InvalidRequestError],
     }).annotateMerge(
       OpenApi.annotations({
         identifier: "v2.session.create",
@@ -133,7 +135,7 @@ export const SessionGroup = HttpApiGroup.make("server.session")
     HttpApiEndpoint.get("session.get", "/api/session/:sessionID", {
       params: { sessionID: SessionV2.ID },
       success: Schema.Struct({ data: SessionV2.Info }),
-      error: SessionNotFoundError,
+      error: [SessionNotFoundError, InvalidRequestError, UnsupportedProductModeError],
     })
       .middleware(SessionLocationMiddleware)
       .annotateMerge(
@@ -149,7 +151,7 @@ export const SessionGroup = HttpApiGroup.make("server.session")
       params: { sessionID: SessionV2.ID },
       payload: Schema.Struct({ agent: AgentV2.ID }),
       success: HttpApiSchema.NoContent,
-      error: SessionNotFoundError,
+      error: [SessionNotFoundError, InvalidRequestError, UnsupportedProductModeError],
     })
       .middleware(SessionLocationMiddleware)
       .annotateMerge(
@@ -165,7 +167,7 @@ export const SessionGroup = HttpApiGroup.make("server.session")
       params: { sessionID: SessionV2.ID },
       payload: Schema.Struct({ model: ModelV2.Ref }),
       success: HttpApiSchema.NoContent,
-      error: SessionNotFoundError,
+      error: [SessionNotFoundError, InvalidRequestError, UnsupportedProductModeError],
     })
       .middleware(SessionLocationMiddleware)
       .annotateMerge(
@@ -186,7 +188,7 @@ export const SessionGroup = HttpApiGroup.make("server.session")
         resume: Schema.Boolean.pipe(Schema.optional),
       }),
       success: Schema.Struct({ data: SessionInput.Admitted }),
-      error: [ConflictError, SessionNotFoundError],
+      error: [ConflictError, SessionNotFoundError, InvalidRequestError, UnsupportedProductModeError],
     })
       .middleware(SessionLocationMiddleware)
       .annotateMerge(
@@ -201,7 +203,7 @@ export const SessionGroup = HttpApiGroup.make("server.session")
     HttpApiEndpoint.post("session.compact", "/api/session/:sessionID/compact", {
       params: { sessionID: SessionV2.ID },
       success: HttpApiSchema.NoContent,
-      error: [SessionNotFoundError, ServiceUnavailableError],
+      error: [SessionNotFoundError, ServiceUnavailableError, InvalidRequestError, UnsupportedProductModeError],
     })
       .middleware(SessionLocationMiddleware)
       .annotateMerge(
@@ -216,7 +218,7 @@ export const SessionGroup = HttpApiGroup.make("server.session")
     HttpApiEndpoint.post("session.wait", "/api/session/:sessionID/wait", {
       params: { sessionID: SessionV2.ID },
       success: HttpApiSchema.NoContent,
-      error: [SessionNotFoundError, ServiceUnavailableError],
+      error: [SessionNotFoundError, ServiceUnavailableError, InvalidRequestError, UnsupportedProductModeError],
     })
       .middleware(SessionLocationMiddleware)
       .annotateMerge(
@@ -231,7 +233,7 @@ export const SessionGroup = HttpApiGroup.make("server.session")
     HttpApiEndpoint.get("session.context", "/api/session/:sessionID/context", {
       params: { sessionID: SessionV2.ID },
       success: Schema.Struct({ data: Schema.Array(SessionMessage.Message) }),
-      error: [SessionNotFoundError, UnknownError],
+      error: [SessionNotFoundError, UnknownError, InvalidRequestError, UnsupportedProductModeError],
     })
       .middleware(SessionLocationMiddleware)
       .annotateMerge(
@@ -246,7 +248,7 @@ export const SessionGroup = HttpApiGroup.make("server.session")
     HttpApiEndpoint.get("session.children", "/api/session/:sessionID/children", {
       params: { sessionID: SessionV2.ID },
       success: Schema.Struct({ data: Schema.Array(SessionV2.Info) }),
-      error: SessionNotFoundError,
+      error: [SessionNotFoundError, InvalidRequestError, UnsupportedProductModeError],
     })
       .middleware(SessionLocationMiddleware)
       .annotateMerge(
@@ -266,7 +268,7 @@ export const SessionGroup = HttpApiGroup.make("server.session")
         resume: Schema.Boolean.pipe(Schema.optional),
       }),
       success: Schema.Struct({ data: SessionInput.Admitted }),
-      error: [ConflictError, SessionNotFoundError],
+      error: [ConflictError, SessionNotFoundError, InvalidRequestError, UnsupportedProductModeError],
     })
       .middleware(SessionLocationMiddleware)
       .annotateMerge(
@@ -287,7 +289,7 @@ export const SessionGroup = HttpApiGroup.make("server.session")
         resume: Schema.Boolean.pipe(Schema.optional),
       }),
       success: Schema.Struct({ data: SessionInput.Admitted }),
-      error: [ConflictError, SessionNotFoundError],
+      error: [ConflictError, SessionNotFoundError, InvalidRequestError, UnsupportedProductModeError],
     })
       .middleware(SessionLocationMiddleware)
       .annotateMerge(
@@ -303,7 +305,7 @@ export const SessionGroup = HttpApiGroup.make("server.session")
     HttpApiEndpoint.post("session.interrupt", "/api/session/:sessionID/interrupt", {
       params: { sessionID: SessionV2.ID },
       success: HttpApiSchema.NoContent,
-      error: SessionNotFoundError,
+      error: [SessionNotFoundError, InvalidRequestError, UnsupportedProductModeError],
     })
       .middleware(SessionLocationMiddleware)
       .annotateMerge(
@@ -323,7 +325,7 @@ export const SessionGroup = HttpApiGroup.make("server.session")
         trigger: Schema.Boolean.pipe(Schema.optional),
       }),
       success: HttpApiSchema.NoContent,
-      error: SessionNotFoundError,
+      error: [SessionNotFoundError, InvalidRequestError, UnsupportedProductModeError],
     })
       .middleware(SessionLocationMiddleware)
       .annotateMerge(
@@ -343,7 +345,7 @@ export const SessionGroup = HttpApiGroup.make("server.session")
         agent: Schema.String.pipe(Schema.optional),
       }),
       success: Schema.Struct({ sessionID: SessionV2.ID }),
-      error: SessionNotFoundError,
+      error: [SessionNotFoundError, InvalidRequestError, UnsupportedProductModeError],
     })
       .middleware(SessionLocationMiddleware)
       .annotateMerge(

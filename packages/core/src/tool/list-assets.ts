@@ -24,6 +24,7 @@ const KIND_DIRS: Record<string, { dir: string }> = {
   agent: { dir: ".aigcfroge/agents" },
   workflow: { dir: ".aigcfroge/workflows" },
   plugin: { dir: ".aigcfroge/plugins" },
+  "custom-profile": { dir: ".aigcfroge/custom-profiles" },
 }
 
 export const Input = Schema.Struct({

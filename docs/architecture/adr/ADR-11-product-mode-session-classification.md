@@ -4,7 +4,7 @@
 > Date: 2026-07-12
 > Extends: [ADR-09 Mode Route Decoupling](ADR-09-mode-route-decoupling.md)
 > Amended by: [ADR-12 Product Mode Entry Routing](ADR-12-product-mode-entry-routing.md)
-> Proposed extension: [ADR-17 Custom Mode Composition Platform](ADR-17-custom-mode-composition-platform.md) proposes a fifth fixed `custom` value. Until ADR-17 is Accepted, this ADR's four-value contract remains authoritative.
+> Amended/superseded by implementation gate: [ADR-17 Custom Mode Composition Platform](ADR-17-custom-mode-composition-platform.md) defines the five-value design contract (`chat | coding | work | assistant | custom`) and capable-client negotiation. Until M0 Phase B lands, this ADR's four-value contract remains active and authoritative in production runtime.
 
 ## Context
 
@@ -91,3 +91,12 @@ The database column is additive and non-null with a Coding default. Public creat
 ## Implementation Reference
 
 See [`docs/plan/mode-module-switching-completion.md`](../../plan/mode-module-switching-completion.md).
+
+## Amendment by ADR-17 (Accepted for M0/M1 implementation; runtime not yet landed)
+
+With ADR-17 accepted for M0/M1 implementation by user-authorized AI-agent delegation:
+
+1. **Domain Expansion**: `ProductMode` expands from four values to five: `chat | coding | work | assistant | custom`.
+2. **Compatibility & Non-Fallback**: Historical rows and omitted create inputs continue decoding as `coding`. However, `custom` mode is never defaulted or fallen back to `coding`. Old clients that do not support `custom` receive a typed unsupported error.
+3. **Root Orchestration**: A `custom` root Session is durably bound to `meta`, with exactly one user Agent as an authorized delegation target frozen in the immutable `session_composition_snapshot`.
+4. **Active Baseline**: Until M0 Phase B lands, the 4-value contract in §Decision 1 remains the authoritative production standard.

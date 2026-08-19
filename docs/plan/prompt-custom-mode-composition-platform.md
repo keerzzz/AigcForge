@@ -2,7 +2,7 @@
 
 > 对应总计划：[custom-mode-composition-platform-implementation.md](custom-mode-composition-platform-implementation.md)
 > M 计划： [M0](custom-mode-m0-composition-foundation.md) · [M1](custom-mode-m1-single-agent-runtime.md) · [M2](custom-mode-m2-multi-agent-workflow.md) · [M3](custom-mode-m3-mcp-approval.md) · [M4](custom-mode-m4-trusted-runtime-extension.md) · [M5](custom-mode-m5-code-presentation.md)
-> 分析基线：`main@e0e0f970f`（2026-08-17）；执行时不得把该 SHA 当成固定开工基线
+> 分析基线：`main@a4ffba0b3`（2026-08-18，本地/远端已同步）；执行时不得把该 SHA 当成固定开工基线
 > 生成日期：2026-08-18
 > 用途：复制 `PROMPT START` 与 `PROMPT END` 之间的正文到新的执行对话
 
@@ -10,7 +10,7 @@
 
 你是 AigcForge 仓库（`/media/win_data/aigcfroge`）的高级全栈工程师。你的目标是按仓库协议，以 TDD 小切片执行 Custom Mode 组合平台当前**第一个已获批准且前置 Gate 全部满足的 M 节点**。
 
-当前文档状态下，默认候选是 **M0 Phase A 治理修订链**。ADR-17 仍为 Proposed、Custom PRD 仍为 Draft 时，只能完成治理修订草案并停下请求 Product/Core/App/Security 批准；不得把 `custom` 加入生产运行时、创建 Custom Session 或开放 UI 入口。不得因为用户说“开始实施”就把 Proposed 自动改写成已批准。
+当前文档状态下，默认候选是 **M0 Phase A-F 全量执行**。ADR-17 已 Accepted for M0/M1 implementation，Custom PRD 已 Approved for M0/M1 implementation，审批记录注明由用户授权 AI 代理代签。用户已追加授权 M0 在一个本地实施窗口顺序执行；当前 `custom-governance` 可继续作为 M0 集成分支，但必须先证明脏文件全部属于 M0 且无用户无关改动。M0 内部小节验证全绿后自动继续；M0 Phase F 结束后统一停机等待高级全栈顾问审批。不得创建 Custom Session、开放 `/mode/custom` 或自动进入 M1。
 
 ## 0. 开工门禁
 
@@ -21,15 +21,18 @@ pwd
 git branch --show-current
 git status --short --branch
 git remote -v
+git fetch --prune origin
 git log -1 --format='%H %ad %s' --date=iso main
 git log -1 --format='%H %ad %s' --date=iso origin/main
+git rev-list --left-right --count main...origin/main
+git ls-remote --heads origin main
 git log --oneline --decorate -20 main
 ```
 
 规则：
 
-1. 分析文档使用过 `main@e0e0f970f`，但每个实现 PR 必须从**开工时最新、已同步、干净且已包含全部前置 PR 的 `main`**创建。若本地 main、origin/main 或计划基线不同，先审计差异对本 M 的影响；不要硬退到旧 SHA。
-2. 不覆盖、回滚、清理或提交用户已有改动。若当前 main 有无关脏改动，先报告并隔离本任务文件；禁止 `git reset --hard`、`git checkout --` 和盲目 clean。
+1. 本提示词刷新时，本地 `main`、`origin/main` 和 GitHub 远端 `refs/heads/main` 均为 `a4ffba0b3d22bae564f6616f0f84fe8ead8342fc`；但每个实现 PR 仍必须从**开工时最新、已同步、干净且已包含全部前置 PR 的 `main`**创建。若 fetch 后本地 main、origin/main、`ls-remote` 或计划基线不同，先审计差异对本 M 的影响；不要硬退到旧 SHA，也不要在含用户改动的工作树里强行移动 main。
+2. 不覆盖、回滚、清理或提交用户已有改动。若当前 main 有无关脏改动，先报告并隔离本任务文件；禁止 `git reset --hard`、`git checkout --` 和盲目 clean。若脏文件仅为本提示词及 `custom-mode-*` 总计划/M0-M5/路线图，且 `git diff` 证明只是 `e0e0f970f -> a4ffba0b3` 的本地/远端基线同步，则把它们视为 M0 Phase A 的在途文档，审阅后随 `custom-governance` 短分支保留，不得丢弃，也不把它们误报为生产实现阻塞。
 3. 每个 PR 使用不超过三个短词、无 slash 的分支名。后续 PR 在前置 PR 合入后从当时最新 main 新建，不要让 M0-M5 共用一个长期巨型分支。
 4. 未经用户确认 remote、issue、最终 diff、commit/PR title，不 push、不创建 PR。禁止 `--no-verify`。
 5. 测试永不从仓库根运行。使用 `bun --cwd packages/<name> test --timeout 30000` 或包内专用脚本。根目录只可运行 typecheck/lint/protocol/diff 等非 test 门禁。
@@ -82,21 +85,21 @@ docs/technical-debt.md
 
 按下表判断，只执行一个 M：
 
-| M   | 实施计划                                      | 进入条件                                                   | 当前未满足时的行为                     |
-| --- | --------------------------------------------- | ---------------------------------------------------------- | -------------------------------------- |
-| M0  | `custom-mode-m0-composition-foundation.md`    | ADR/PRD 治理正式批准后可进入代码；Phase A 可先写治理草案   | 完成/修订 Phase A 后停下等待批准       |
-| M1  | `custom-mode-m1-single-agent-runtime.md`      | M0 全部合入 + G2 V2 + G3 Security + G4 App                 | 停止，不提前写 Snapshot/runtime/UI     |
-| M2  | `custom-mode-m2-multi-agent-workflow.md`      | M1 稳定 + Workflow Execution ADR                           | 只允许研究/ADR，不改 Agent cardinality |
-| M3  | `custom-mode-m3-mcp-approval.md`              | M1 稳定 + Registration/Grant/Credential/Unattended ADR     | 只允许研究/ADR，不开放 MCP runtime     |
-| M4  | `custom-mode-m4-trusted-runtime-extension.md` | M3 稳定 + Threat/Lifecycle/Capability ADR                  | 不 mount Custom Plugin code            |
-| M5  | `custom-mode-m5-code-presentation.md`         | M3/M4 稳定 + Sandbox/Equivalence ADR + mature engine proof | 不实现 `run_code`                      |
+| M   | 实施计划                                      | 进入条件                                                          | 当前未满足时的行为                     |
+| --- | --------------------------------------------- | ----------------------------------------------------------------- | -------------------------------------- |
+| M0  | `custom-mode-m0-composition-foundation.md`    | ADR/PRD 已批准；当前分支只包含 M0 在途改动或治理已合入最新 `main` | 执行 Phase A-F，M0 结束后统一审批      |
+| M1  | `custom-mode-m1-single-agent-runtime.md`      | M0 全部合入 + G2 V2 + G3 Security + G4 App                        | 停止，不提前写 Snapshot/runtime/UI     |
+| M2  | `custom-mode-m2-multi-agent-workflow.md`      | M1 稳定 + Workflow Execution ADR                                  | 只允许研究/ADR，不改 Agent cardinality |
+| M3  | `custom-mode-m3-mcp-approval.md`              | M1 稳定 + Registration/Grant/Credential/Unattended ADR            | 只允许研究/ADR，不开放 MCP runtime     |
+| M4  | `custom-mode-m4-trusted-runtime-extension.md` | M3 稳定 + Threat/Lifecycle/Capability ADR                         | 不 mount Custom Plugin code            |
+| M5  | `custom-mode-m5-code-presentation.md`         | M3/M4 稳定 + Sandbox/Equivalence ADR + mature engine proof        | 不实现 `run_code`                      |
 
 选择规则：
 
 1. 以 ADR/PRD/Roadmap/main 代码与人类批准证据为真，不以计划中的目标状态为真。
 2. 选择第一个未完成且所有进入条件满足的 M；若只满足该 M 的 ADR/研究 Phase，就只做该 Phase。
 3. 开始前输出：`选择的 M / 当前 Phase / Gate 证据 / 被阻塞的后续 M / 本次非目标`。
-4. **同一 M 内**，每个小节验证全绿后可以继续下一小节；**跨 M** 必须停止并等待人类批准，不得自动连续实现 M0-M5。
+4. **同一 M0 内**，每个小节验证全绿后自动继续下一小节；M0 Phase F 统一停机审批。**跨 M** 必须停止并等待人类批准，不得自动进入 M1-M5。
 
 ## 3. 已确认的架构事实
 
@@ -268,7 +271,7 @@ bun run lint
 1. 运行该 M 实施计划的最终协议与测试矩阵。
 2. 对比完整 diff 与最新 `origin/main`，检查 scope creep、dead/duplicate code、generated churn、兼容、秘密、任意 sleep/cast/吞错。
 3. 同步 ADR/PRD/spec/schema changelog/Roadmap/technical debt 的实际状态。不能把 pending 写成 delivered。
-4. 输出 M 完成报告，然后**停止等待人类批准**；不要进入下一 M。
+4. 输出 M0 完成报告，然后**停止等待高级全栈顾问统一审批**；不要进入下一 M。
 5. 未经交付批准，不 commit/push/PR。获批后按 `quality-to-pr` 确认 issue、remote、base、branch、commit/PR title、最终 checks，再交付并 read back CI。
 
 建议完成报告：
@@ -304,11 +307,11 @@ M completion:
 
 ## 使用说明
 
-| 项           | 值                                                    |
-| ------------ | ----------------------------------------------------- |
-| 复制范围     | `<!-- PROMPT START -->` 到 `<!-- PROMPT END -->`      |
-| 当前安全起点 | M0 Phase A；ADR-17/PRD 未正式批准前只做治理草案       |
-| 自动继续范围 | 同一已批准 M 内，slice 验证全绿后继续                 |
-| 强制停止点   | 跨 M、Gate 未过、测试失败、owner/协议冲突、远程交付前 |
-| 分支原则     | 每个可合并 PR 从前置 PR 合入后的最新 main 新建短分支  |
-| 卡住时       | 输出停止报告，不绕过 Gate 或测试                      |
+| 项           | 值                                                       |
+| ------------ | -------------------------------------------------------- |
+| 复制范围     | `<!-- PROMPT START -->` 到 `<!-- PROMPT END -->`         |
+| 当前安全起点 | M0 Phase A-F；治理合入后的最新 `main`，M0 结束后统一审批 |
+| 自动继续范围 | 同一已批准 M 内，slice 验证全绿后继续                    |
+| 强制停止点   | 跨 M、Gate 未过、测试失败、owner/协议冲突、远程交付前    |
+| 分支原则     | 每个可合并 PR 从前置 PR 合入后的最新 main 新建短分支     |
+| 卡住时       | 输出停止报告，不绕过 Gate 或测试                         |
