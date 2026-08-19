@@ -75,9 +75,9 @@ describe("Custom Composition 50-Round Stability & Determinism Matrix", () => {
           expect(plan.digest).toBeDefined()
 
           if (firstDigest === undefined) {
-            firstDigest = plan.digest
+            firstDigest = String(plan.digest)
           } else {
-            expect(plan.digest).toBe(firstDigest)
+            expect(String(plan.digest)).toBe(firstDigest)
           }
         }
 
