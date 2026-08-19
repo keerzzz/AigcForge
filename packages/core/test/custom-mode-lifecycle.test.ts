@@ -1,9 +1,12 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
 import { sql } from "drizzle-orm"
+import fs from "fs/promises"
+import path from "path"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
+import { computeDigest } from "@aigcfroge/core/composition/digest"
 import { Location } from "@aigcfroge/core/location"
 import { PermissionV2 } from "@aigcfroge/core/permission"
 import { Project, ProjectV2 } from "@aigcfroge/core/project"
@@ -20,6 +23,7 @@ import { SessionTask } from "@aigcfroge/core/session/task"
 import { ToolRegistry } from "@aigcfroge/core/tool/registry"
 import { Config } from "@aigcfroge/core/config"
 import { Composition } from "@aigcfroge/schema/composition"
+import { tmpdir } from "./fixture/tmpdir"
 import { testEffect } from "./lib/effect"
 
 const location = Location.layer({ directory: AbsolutePath.make("/workspace") }).pipe(
@@ -78,6 +82,67 @@ const mockSnapshot = (sessionID: SessionV2.ID, allowedAgentID: string = "custom-
       }),
     }),
   })
+
+// Internally consistent snapshot for tests that exercise assertDependency:
+// catalogDigest recomputed over the fingerprints array, catalog equal to the
+// sorted fingerprint names. (The legacy mockSnapshot above is deliberately NOT
+// consistent — never run assertDependency against it.)
+const frozenDigest = Composition.Digest.make("4".repeat(64))
+const frozenFingerprints = [
+  { placement: "/workspace", name: "glob", digest: Composition.Digest.make("5".repeat(64)), installationVersion: "0.1.0" },
+  { placement: "/workspace", name: "read", digest: Composition.Digest.make("6".repeat(64)), installationVersion: "0.1.0" },
+]
+const frozenSnapshot = (sessionID: SessionV2.ID, profilePath?: string) =>
+  new Composition.Snapshot({
+    version: 1,
+    digest: frozenDigest,
+    sessionID,
+    profilePath,
+    createdAt: 1000,
+    data: new Composition.SnapshotData({
+      agentID: "custom-coder",
+      instructions: [new Composition.Instruction({ source: "custom.agent.md", content: "Frozen System Instructions" })],
+      prompts: [
+        new Composition.SnapshotPromptData({
+          relativePath: "prompts/review.md",
+          revision: Composition.Revision.make("3".repeat(64)),
+          content: "Frozen prompt content captured at freeze time.",
+        }),
+      ],
+      skills: [],
+      tools: new Composition.SnapshotToolInfo({
+        fingerprints: frozenFingerprints,
+        catalogDigest: computeDigest(frozenFingerprints),
+        catalog: frozenFingerprints.map((fingerprint) => fingerprint.name),
+      }),
+    }),
+  })
+
+const insertCustomSession = Effect.fnUntraced(function* (sessionID: SessionV2.ID, slug: string) {
+  const { db } = yield* Database.Service
+  yield* db
+    .insert(ProjectTable)
+    .values({ id: ProjectSchema.ID.make(`proj_${slug}`), worktree: AbsolutePath.make("/workspace"), sandboxes: [] })
+    .onConflictDoNothing()
+    .run()
+    .pipe(Effect.orDie)
+  yield* db
+    .insert(SessionTable)
+    .values({
+      id: sessionID,
+      slug,
+      version: "1.0.0",
+      project_id: ProjectV2.ID.make(`proj_${slug}`),
+      directory: AbsolutePath.make("/workspace"),
+      title: "Custom Session",
+      mode: "custom",
+      agent: AgentV2.ID.make("meta"),
+      time_created: Date.now(),
+      time_updated: Date.now(),
+    })
+    .run()
+    .pipe(Effect.orDie)
+})
 
 const sessions = SessionV2.layer.pipe(
   Layer.provide(
@@ -212,6 +277,55 @@ describe("Custom Mode Lifecycle: Resume, Fork, Move, & Drift Isolation", () => {
         }
       }),
     )
+
+    it.effect("resume rejects an orphaned custom session (no snapshot row) with typed SnapshotNotFoundError", () =>
+      Effect.gen(function* () {
+        const sessionService = yield* SessionV2.Service
+        const sessionID = SessionV2.ID.make("ses_orphan_resume")
+        yield* insertCustomSession(sessionID, "life-orphan-resume")
+
+        // Foreign resume id: a custom session without its frozen snapshot must
+        // fail closed with a typed error, never run with a widened tool set.
+        const err = yield* sessionService.resume(sessionID).pipe(Effect.flip)
+        expect(err).toBeInstanceOf(SessionComposition.SnapshotNotFoundError)
+      }),
+    )
+
+    it.effect("resume of a non-custom session never consults the snapshot store", () =>
+      Effect.gen(function* () {
+        const sessionService = yield* SessionV2.Service
+        const { db } = yield* Database.Service
+        const sessionID = SessionV2.ID.make("ses_plain_resume")
+
+        yield* db
+          .insert(ProjectTable)
+          .values({ id: ProjectSchema.ID.make("proj_life_plain"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] })
+          .onConflictDoNothing()
+          .run()
+          .pipe(Effect.orDie)
+        yield* db
+          .insert(SessionTable)
+          .values({
+            id: sessionID,
+            slug: "life-plain-resume",
+            version: "1.0.0",
+            project_id: ProjectV2.ID.make("proj_life_plain"),
+            directory: AbsolutePath.make("/workspace"),
+            title: "Plain Session",
+            mode: "coding",
+            agent: AgentV2.ID.make("coder"),
+            time_created: Date.now(),
+            time_updated: Date.now(),
+          })
+          .run()
+          .pipe(Effect.orDie)
+
+        // No snapshot row exists and none is required: the fail-closed gate is
+        // scoped to custom sessions (noop execution makes resume a pure gate
+        // check here).
+        yield* sessionService.resume(sessionID)
+      }),
+    )
   })
 
   describe("Child Session Snapshot Inheritance (Fork & Delegation)", () => {
@@ -289,6 +403,79 @@ describe("Custom Mode Lifecycle: Resume, Fork, Move, & Drift Isolation", () => {
         expect(snapshot1.digest).toBe(originalSnapshot.digest)
         expect(snapshot2.digest).toBe(originalSnapshot.digest)
         expect(snapshot1.createdAt).toBe(originalSnapshot.createdAt)
+      }),
+    )
+
+    it.live("serves the frozen snapshot and resume path from DB after the on-disk profile is deleted", () =>
+      Effect.gen(function* () {
+        const root = yield* Effect.acquireRelease(
+          Effect.promise(() => tmpdir()),
+          (dir) => Effect.promise(() => dir[Symbol.asyncDispose]()),
+        )
+        const profileDir = path.join(root.path, "custom-profiles")
+        const profilePath = path.join(profileDir, "reviewer.yaml")
+        yield* Effect.promise(() => fs.mkdir(path.join(profileDir, "prompts"), { recursive: true }))
+        yield* Effect.promise(() => fs.writeFile(profilePath, "agents: [reviewer]\n"))
+        yield* Effect.promise(() => fs.writeFile(path.join(profileDir, "prompts", "review.md"), "Review this diff."))
+
+        const comp = yield* SessionComposition.Service
+        const sessionService = yield* SessionV2.Service
+        const sessionID = SessionV2.ID.make("ses_profile_deleted")
+        yield* insertCustomSession(sessionID, "life-profile-deleted")
+        yield* comp.attach(sessionID, frozenSnapshot(sessionID, profilePath))
+
+        // Profile is gone from disk after the session started.
+        yield* Effect.promise(() => fs.rm(profileDir, { recursive: true, force: true }))
+        expect(yield* Effect.promise(() => Bun.file(profilePath).exists())).toBe(false)
+
+        // Snapshot is a DB row: reads are served from the freeze, not the disk.
+        const loaded = yield* comp.get(sessionID)
+        expect(loaded.digest).toBe(frozenDigest)
+        expect(loaded.profilePath).toBe(profilePath)
+        expect(loaded.data.prompts[0].content).toBe("Frozen prompt content captured at freeze time.")
+        expect(loaded.data.instructions[0].content).toBe("Frozen System Instructions")
+
+        // Session and history remain readable, and the resume admission gate
+        // validates the DB snapshot only (noop execution stops before the
+        // runner; the runner's own snapshot read is covered elsewhere).
+        expect((yield* sessionService.get(sessionID)).id).toBe(sessionID)
+        expect(yield* sessionService.messages({ sessionID })).toEqual([])
+        yield* sessionService.resume(sessionID)
+      }),
+    )
+
+    it.live("zero-drift: modifying the on-disk profile after start never alters the served snapshot", () =>
+      Effect.gen(function* () {
+        const root = yield* Effect.acquireRelease(
+          Effect.promise(() => tmpdir()),
+          (dir) => Effect.promise(() => dir[Symbol.asyncDispose]()),
+        )
+        const profileDir = path.join(root.path, "custom-profiles")
+        const profilePath = path.join(profileDir, "reviewer.yaml")
+        yield* Effect.promise(() => fs.mkdir(profileDir, { recursive: true }))
+        yield* Effect.promise(() => fs.writeFile(profilePath, "agents: [reviewer]\n"))
+
+        const comp = yield* SessionComposition.Service
+        const sessionService = yield* SessionV2.Service
+        const sessionID = SessionV2.ID.make("ses_profile_modified")
+        yield* insertCustomSession(sessionID, "life-profile-modified")
+        yield* comp.attach(sessionID, frozenSnapshot(sessionID, profilePath))
+
+        // Real on-disk modification after start: rewritten and new files.
+        yield* Effect.promise(() => fs.writeFile(profilePath, "agents: [someone-else]\n# rewritten"))
+        yield* Effect.promise(() => fs.writeFile(path.join(profileDir, "extra.md"), "late addition"))
+
+        // INTENTIONAL SEMANTICS (do not "fix"): a started custom session is a
+        // frozen replay. The served snapshot content and digest are pinned at
+        // freeze time, and assertDependency validates internal consistency of
+        // the stored row — never the on-disk state. Drift detection across
+        // freeze boundaries is a separate planned concern.
+        const loaded = yield* comp.get(sessionID)
+        expect(loaded.digest).toBe(frozenDigest)
+        expect(loaded.data.agentID).toBe("custom-coder")
+        expect(loaded.data.prompts[0].content).toBe("Frozen prompt content captured at freeze time.")
+        yield* comp.assertDependency(sessionID)
+        yield* sessionService.resume(sessionID)
       }),
     )
   })

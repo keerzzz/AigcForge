@@ -88,7 +88,14 @@ export interface EventsInput {
 import { SessionComposition } from "../session/composition"
 
 export interface Interface {
-  readonly create: (input: CreateInput) => Effect.Effect<Info, ProductModePolicy.UnsupportedProductModeError>
+  readonly create: (input: CreateInput) => Effect.Effect<
+    Info,
+    | ProductModePolicy.UnsupportedProductModeError
+    | PromptConflictError
+    | SessionComposition.SnapshotNotFoundError
+    | SessionComposition.SnapshotDecodeError
+    | SessionComposition.AgentDelegationForbiddenError
+  >
   readonly get: (sessionID: ID) => Effect.Effect<Info, NotFoundError>
   readonly list: (input?: ListInput) => Effect.Effect<Info[]>
   readonly prompt: (

@@ -122,14 +122,45 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         Effect.fn(function* (ctx) {
           yield* ProductModePolicy.assertCreationSupported(ctx.payload.mode)
           return {
-            data: yield* session.create({
-              id: ctx.payload.id,
-              parentID: ctx.payload.parentID,
-              mode: ctx.payload.mode,
-              agent: ctx.payload.agent,
-              model: ctx.payload.model,
-              location: ctx.payload.location ?? { directory: AbsolutePath.make(process.cwd()) },
-            }),
+            data: yield* session
+              .create({
+                id: ctx.payload.id,
+                parentID: ctx.payload.parentID,
+                mode: ctx.payload.mode,
+                agent: ctx.payload.agent,
+                model: ctx.payload.model,
+                location: ctx.payload.location ?? { directory: AbsolutePath.make(process.cwd()) },
+              })
+              .pipe(
+                Effect.catchTag("Session.PromptConflictError", (err) =>
+                  Effect.fail(
+                    new ConflictError({
+                      message: `Conflicting session or composition snapshot for session ${err.sessionID}`,
+                    }),
+                  ),
+                ),
+                Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", (err) =>
+                  Effect.fail(
+                    new InvalidRequestError({
+                      message: `Agent ${err.agentID} is not allowed in session ${err.sessionID} (allowed: ${err.allowedAgentID ?? "none"})`,
+                    }),
+                  ),
+                ),
+                Effect.catchTag("SessionComposition.SnapshotNotFoundError", (err) =>
+                  Effect.fail(
+                    new InvalidRequestError({
+                      message: `Missing composition snapshot for custom parent session ${err.sessionID}`,
+                    }),
+                  ),
+                ),
+                Effect.catchTag("SessionComposition.SnapshotDecodeError", (err) =>
+                  Effect.fail(
+                    new InvalidRequestError({
+                      message: `Failed to decode composition snapshot for session ${err.sessionID}: ${err.details}`,
+                    }),
+                  ),
+                ),
+              ),
           }
         }),
       )
@@ -558,6 +589,34 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
               new UnsupportedProductModeError({
                 mode: error.mode,
                 message: error.message,
+              }),
+            ),
+          ),
+          Effect.catchTag("Session.PromptConflictError", (error) =>
+            Effect.fail(
+              new InvalidRequestError({
+                message: `Conflicting composition snapshot for session ${error.sessionID}`,
+              }),
+            ),
+          ),
+          Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", (error) =>
+            Effect.fail(
+              new InvalidRequestError({
+                message: `Agent ${error.agentID} is not allowed in session ${error.sessionID} (allowed: ${error.allowedAgentID ?? "none"})`,
+              }),
+            ),
+          ),
+          Effect.catchTag("SessionComposition.SnapshotNotFoundError", (error) =>
+            Effect.fail(
+              new InvalidRequestError({
+                message: `Missing composition snapshot for custom parent session ${error.sessionID}`,
+              }),
+            ),
+          ),
+          Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
+            Effect.fail(
+              new InvalidRequestError({
+                message: `Failed to decode composition snapshot for session ${error.sessionID}: ${error.details}`,
               }),
             ),
           ),

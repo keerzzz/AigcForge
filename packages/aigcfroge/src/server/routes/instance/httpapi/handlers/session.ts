@@ -604,11 +604,26 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
         yield* ProductModePolicy.assertCreationSupported(parent.mode).pipe(
           Effect.mapError(unsupportedProductMode),
         )
-        const child = yield* v2s.create({
-          location: { directory: AbsolutePath.make(parent.directory) },
-          parentID: parent.id,
-          mode: parent.mode,
-        })
+        const child = yield* v2s
+          .create({
+            location: { directory: AbsolutePath.make(parent.directory) },
+            parentID: parent.id,
+            mode: parent.mode,
+          })
+          .pipe(
+            // Custom-parent delegation/snapshot rejections surface as a
+            // client-agnostic 400, mirroring the copyForkTasks precedent above.
+            Effect.catchTag("Session.PromptConflictError", () => Effect.fail(new HttpApiError.BadRequest({}))),
+            Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", () =>
+              Effect.fail(new HttpApiError.BadRequest({})),
+            ),
+            Effect.catchTag("SessionComposition.SnapshotNotFoundError", () =>
+              Effect.fail(new HttpApiError.BadRequest({})),
+            ),
+            Effect.catchTag("SessionComposition.SnapshotDecodeError", () =>
+              Effect.fail(new HttpApiError.BadRequest({})),
+            ),
+          )
         const shareSvc = yield* SessionShareV2.Service
         yield* shareSvc
           .share({

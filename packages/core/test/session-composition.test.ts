@@ -4,6 +4,7 @@ import { Database } from "@aigcfroge/core/database/database"
 import { Project } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
 import { AbsolutePath } from "@aigcfroge/core/schema"
+import { computeDigest } from "@aigcfroge/core/composition/digest"
 import { SessionV2 } from "@aigcfroge/core/session"
 import { SessionTable } from "@aigcfroge/core/session/sql"
 import { SessionComposition } from "@aigcfroge/core/session/composition"
@@ -92,6 +93,42 @@ const setup = Effect.gen(function* () {
     .run()
     .pipe(Effect.orDie)
 })
+
+const sortedFingerprints = [
+  { placement: "/project", name: "glob", digest: mockDigest, installationVersion: "0.1.0" },
+  { placement: "/project", name: "read", digest: mockDigest, installationVersion: "0.1.0" },
+]
+
+// Builds an internally consistent snapshot: catalogDigest recomputed over the
+// fingerprints array, catalog equal to the sorted fingerprint names.
+function makeConsistentSnapshot(options?: {
+  sid?: string
+  agentID?: string
+  fingerprints?: typeof sortedFingerprints
+  catalogDigest?: Composition.Digest
+  catalog?: string[]
+}): Composition.Snapshot {
+  const fingerprints = options?.fingerprints ?? sortedFingerprints
+  return new Composition.Snapshot({
+    version: 1,
+    digest: mockDigest,
+    sessionID: options?.sid ?? sessionID,
+    profilePath: "custom-profiles/reviewer.yaml",
+    profileRevision: mockRevision,
+    createdAt: 1700000000000,
+    data: new Composition.SnapshotData({
+      agentID: options?.agentID ?? "code-reviewer",
+      instructions: [],
+      prompts: [],
+      skills: [],
+      tools: new Composition.SnapshotToolInfo({
+        fingerprints,
+        catalogDigest: options?.catalogDigest ?? computeDigest(fingerprints),
+        catalog: options?.catalog ?? fingerprints.map((fingerprint) => fingerprint.name),
+      }),
+    }),
+  })
+}
 
 describe("SessionComposition", () => {
   it.effect("attaches and reads immutable snapshot for a session", () =>
@@ -269,5 +306,106 @@ describe("SessionComposition", () => {
       expect(verErr).toBeInstanceOf(SessionComposition.SnapshotDecodeError)
     }),
   )
+
+  describe("assertDependency", () => {
+    it.effect("passes and returns the snapshot for an internally consistent row", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const composition = yield* SessionComposition.Service
+        const snapshot = makeConsistentSnapshot()
+        yield* composition.attach(sessionID, snapshot)
+
+        const verified = yield* composition.assertDependency(sessionID)
+        expect(verified.digest).toBe(snapshot.digest)
+        expect(verified.data.tools.catalog).toEqual(["glob", "read"])
+      }),
+    )
+
+    it.effect("fails with SnapshotNotFoundError when no snapshot row exists", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const composition = yield* SessionComposition.Service
+        const err = yield* composition.assertDependency(SessionV2.ID.make("ses_no_snapshot_row")).pipe(Effect.flip)
+        expect(err).toBeInstanceOf(SessionComposition.SnapshotNotFoundError)
+      }),
+    )
+
+    it.effect("fails with DependencyMissingError naming empty_agent_id", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const composition = yield* SessionComposition.Service
+        yield* composition.attach(sessionID, makeConsistentSnapshot({ agentID: "" }))
+
+        const err = yield* composition.assertDependency(sessionID).pipe(Effect.flip)
+        expect(err).toBeInstanceOf(SessionComposition.DependencyMissingError)
+        if (err instanceof SessionComposition.DependencyMissingError) {
+          expect(err.reason).toBe("empty_agent_id")
+        }
+      }),
+    )
+
+    it.effect("fails with DependencyMissingError naming unsorted_tool_fingerprints", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const composition = yield* SessionComposition.Service
+        const fingerprints = [sortedFingerprints[1], sortedFingerprints[0]]
+        yield* composition.attach(
+          sessionID,
+          makeConsistentSnapshot({ fingerprints, catalog: fingerprints.map((fingerprint) => fingerprint.name) }),
+        )
+
+        const err = yield* composition.assertDependency(sessionID).pipe(Effect.flip)
+        expect(err).toBeInstanceOf(SessionComposition.DependencyMissingError)
+        if (err instanceof SessionComposition.DependencyMissingError) {
+          expect(err.reason).toBe("unsorted_tool_fingerprints")
+        }
+      }),
+    )
+
+    it.effect("fails with DependencyMissingError naming empty_tool_catalog", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const composition = yield* SessionComposition.Service
+        yield* composition.attach(sessionID, makeConsistentSnapshot({ catalog: [] }))
+
+        const err = yield* composition.assertDependency(sessionID).pipe(Effect.flip)
+        expect(err).toBeInstanceOf(SessionComposition.DependencyMissingError)
+        if (err instanceof SessionComposition.DependencyMissingError) {
+          expect(err.reason).toBe("empty_tool_catalog")
+        }
+      }),
+    )
+
+    it.effect("fails with DependencyMissingError naming tool_catalog_mismatch", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const composition = yield* SessionComposition.Service
+        yield* composition.attach(sessionID, makeConsistentSnapshot({ catalog: ["glob"] }))
+
+        const err = yield* composition.assertDependency(sessionID).pipe(Effect.flip)
+        expect(err).toBeInstanceOf(SessionComposition.DependencyMissingError)
+        if (err instanceof SessionComposition.DependencyMissingError) {
+          expect(err.reason).toBe("tool_catalog_mismatch")
+        }
+      }),
+    )
+
+    it.effect("fails with DependencyMissingError naming tool_catalog_digest_mismatch", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const composition = yield* SessionComposition.Service
+        const tamperedDigest = Schema.decodeUnknownSync(Composition.Digest)(
+          "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        )
+        yield* composition.attach(sessionID, makeConsistentSnapshot({ catalogDigest: tamperedDigest }))
+
+        const err = yield* composition.assertDependency(sessionID).pipe(Effect.flip)
+        expect(err).toBeInstanceOf(SessionComposition.DependencyMissingError)
+        if (err instanceof SessionComposition.DependencyMissingError) {
+          expect(err.reason).toBe("tool_catalog_digest_mismatch")
+        }
+      }),
+    )
+  })
 })
 

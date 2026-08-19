@@ -4,6 +4,7 @@ import { Context, Effect, Layer, Schema } from "effect"
 import { eq } from "drizzle-orm"
 import { Database } from "../database/database"
 import { Composition } from "@aigcfroge/schema/composition"
+import { computeDigest } from "../composition/digest"
 import type { SessionSchema } from "./schema"
 import { SessionCompositionSnapshotTable } from "./sql"
 
@@ -228,6 +229,40 @@ export const layer = Layer.effect(
       sessionID: SessionSchema.ID,
     ) {
       const snapshot = yield* get(sessionID)
+      const missing = (reason: string, details?: string) =>
+        new DependencyMissingError({ sessionID, reason, ...(details !== undefined ? { details } : {}) })
+
+      if (snapshot.data.agentID.trim().length === 0) {
+        return yield* missing("empty_agent_id", "snapshot data carries an empty agentID")
+      }
+      const names = snapshot.data.tools.fingerprints.map((fingerprint) => fingerprint.name)
+      if (!names.every((name, index) => index === 0 || names[index - 1].localeCompare(name) <= 0)) {
+        return yield* missing(
+          "unsorted_tool_fingerprints",
+          `tool fingerprints are not sorted by name: ${JSON.stringify(names)}`,
+        )
+      }
+      if (snapshot.data.tools.catalog.length === 0) {
+        return yield* missing("empty_tool_catalog", "tool catalog is empty")
+      }
+      if (
+        snapshot.data.tools.catalog.length !== names.length ||
+        snapshot.data.tools.catalog.some((name, index) => name !== names[index])
+      ) {
+        return yield* missing(
+          "tool_catalog_mismatch",
+          `tool catalog ${JSON.stringify(snapshot.data.tools.catalog)} does not equal the sorted fingerprint names ${JSON.stringify(names)}`,
+        )
+      }
+      // snapshot.digest is the PLAN digest, not a digest of snapshot.data; the
+      // tool catalog is the one sub-structure with its own recomputable digest.
+      const catalogDigest = computeDigest(snapshot.data.tools.fingerprints)
+      if (catalogDigest !== snapshot.data.tools.catalogDigest) {
+        return yield* missing(
+          "tool_catalog_digest_mismatch",
+          `recomputed catalog digest ${catalogDigest} does not match stored ${snapshot.data.tools.catalogDigest}`,
+        )
+      }
       return snapshot
     })
 

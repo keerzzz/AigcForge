@@ -124,7 +124,7 @@ export const SessionGroup = HttpApiGroup.make("server.session")
         location: Location.Ref.pipe(Schema.optional),
       }),
       success: Schema.Struct({ data: SessionV2.Info }),
-      error: [UnsupportedProductModeError, InvalidRequestError],
+      error: [UnsupportedProductModeError, InvalidRequestError, ConflictError],
     }).annotateMerge(
       OpenApi.annotations({
         identifier: "v2.session.create",

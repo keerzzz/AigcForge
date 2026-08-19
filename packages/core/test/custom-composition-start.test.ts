@@ -1,6 +1,6 @@
 import { describe, expect } from "bun:test"
-import { Effect, Layer, Schema } from "effect"
-import { eq } from "drizzle-orm"
+import { Cause, Effect, Exit, Layer, Result, Schema } from "effect"
+import { eq, sql } from "drizzle-orm"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { CompositionResolver } from "@aigcfroge/core/composition-resolver"
 import { Database } from "@aigcfroge/core/database/database"
@@ -109,6 +109,13 @@ const mockCompositionInput: Composition.CompositionInput = new Composition.Tempo
 })
 
 let nextFreezeDigest = mockDigest
+
+const assertTypedConflict = (exit: Exit.Exit<unknown, unknown>) => {
+  if (Exit.isSuccess(exit)) return
+  const found = Cause.findFail(exit.cause)
+  expect(Result.isSuccess(found)).toBe(true)
+  if (Result.isSuccess(found)) expect(found.success.error).toBeInstanceOf(SessionV2.PromptConflictError)
+}
 
 const mockResolver = Layer.succeed(
   CompositionResolver.Service,
@@ -375,6 +382,181 @@ describe("Phase B: Atomic Custom Session Start and V2 Runtime Policy", () => {
       expect(ProductModePolicy.isV2Mode("coding")).toBe(false)
       expect(ProductModePolicy.shouldUseV2Runtime("coding", false)).toBe(false)
       expect(ProductModePolicy.shouldUseV2Runtime("coding", true)).toBe(true)
+    }),
+  )
+})
+
+describe("Custom child delegation gate and snapshot reconciliation (MEDIUM-4)", () => {
+  it.effect("defaults an omitted child agent to the parent snapshot's frozen agentID", () =>
+    Effect.gen(function* () {
+      nextFreezeDigest = mockDigest
+      const sessionSvc = yield* SessionV2.Service
+      const sessionComposition = yield* SessionComposition.Service
+
+      const parent = yield* sessionSvc.createCustom({ location, composition: mockCompositionInput })
+      const child = yield* sessionSvc.create({ parentID: parent.session.id, location })
+
+      expect(child.parentID).toBe(parent.session.id)
+      expect(child.mode).toBe("custom")
+      expect(child.agent).toBe(AgentV2.ID.make("code-reviewer"))
+      const childSnapshot = yield* sessionComposition.get(child.id)
+      expect(childSnapshot.digest).toBe(parent.snapshot.digest)
+    }),
+  )
+
+  it.effect("accepts an explicit child agent matching the parent snapshot", () =>
+    Effect.gen(function* () {
+      nextFreezeDigest = mockDigest
+      const sessionSvc = yield* SessionV2.Service
+
+      const parent = yield* sessionSvc.createCustom({ location, composition: mockCompositionInput })
+      const child = yield* sessionSvc.create({
+        parentID: parent.session.id,
+        agent: AgentV2.ID.make("code-reviewer"),
+        location,
+      })
+
+      expect(child.mode).toBe("custom")
+      expect(child.agent).toBe(AgentV2.ID.make("code-reviewer"))
+    }),
+  )
+
+  it.effect("rejects a mismatching child agent with typed AgentDelegationForbiddenError", () =>
+    Effect.gen(function* () {
+      nextFreezeDigest = mockDigest
+      const sessionSvc = yield* SessionV2.Service
+
+      const parent = yield* sessionSvc.createCustom({ location, composition: mockCompositionInput })
+      const childID = SessionV2.ID.create()
+      const err = yield* sessionSvc
+        .create({
+          id: childID,
+          parentID: parent.session.id,
+          agent: AgentV2.ID.make("intruder-agent"),
+          location,
+        })
+        .pipe(Effect.flip)
+
+      // Effect.flip only observes typed failures; a defect would fail the test.
+      expect(err).toBeInstanceOf(SessionComposition.AgentDelegationForbiddenError)
+      if (err instanceof SessionComposition.AgentDelegationForbiddenError) {
+        expect(err.allowedAgentID).toBe("code-reviewer")
+      }
+
+      // The typed rejection happens before projection: no session row exists.
+      const missing = yield* sessionSvc.get(childID).pipe(Effect.flip)
+      expect(missing).toBeInstanceOf(SessionV2.NotFoundError)
+    }),
+  )
+
+  it.effect("fails typed with SnapshotNotFoundError when the custom parent lost its snapshot row", () =>
+    Effect.gen(function* () {
+      nextFreezeDigest = mockDigest
+      const sessionSvc = yield* SessionV2.Service
+      const { db } = yield* Database.Service
+
+      const parent = yield* sessionSvc.createCustom({ location, composition: mockCompositionInput })
+      yield* db
+        .delete(SessionCompositionSnapshotTable)
+        .where(eq(SessionCompositionSnapshotTable.session_id, parent.session.id))
+        .run()
+        .pipe(Effect.orDie)
+
+      const err = yield* sessionSvc.create({ parentID: parent.session.id, location }).pipe(Effect.flip)
+      expect(err).toBeInstanceOf(SessionComposition.SnapshotNotFoundError)
+    }),
+  )
+
+  it.effect("concurrent child create and custom start with identical digest reconcile to one session and snapshot", () =>
+    Effect.gen(function* () {
+      nextFreezeDigest = mockDigest
+      const sessionSvc = yield* SessionV2.Service
+      const sessionComposition = yield* SessionComposition.Service
+
+      const parent = yield* sessionSvc.createCustom({ location, composition: mockCompositionInput })
+      const childID = SessionV2.ID.create()
+
+      const [createExit, customExit] = yield* Effect.all(
+        [
+          sessionSvc.create({ id: childID, parentID: parent.session.id, location }).pipe(Effect.exit),
+          sessionSvc.createCustom({ id: childID, location, composition: mockCompositionInput }).pipe(Effect.exit),
+        ],
+        { concurrency: "unbounded" },
+      )
+
+      // Exact retry under the projection race: both calls reconcile.
+      expect(Exit.isSuccess(createExit)).toBe(true)
+      expect(Exit.isSuccess(customExit)).toBe(true)
+
+      const customSessions = yield* sessionSvc.list({ mode: "custom" })
+      expect(customSessions.filter((info) => info.id === childID)).toHaveLength(1)
+      const snapshot = yield* sessionComposition.get(childID)
+      expect(snapshot.digest).toBe(mockDigest)
+    }),
+  )
+
+  it.effect("concurrent child create and custom start with conflicting digests fail typed, never defective", () =>
+    Effect.gen(function* () {
+      nextFreezeDigest = mockDigest
+      const sessionSvc = yield* SessionV2.Service
+      const sessionComposition = yield* SessionComposition.Service
+
+      const parent = yield* sessionSvc.createCustom({ location, composition: mockCompositionInput })
+      nextFreezeDigest = otherDigest
+      const childID = SessionV2.ID.create()
+
+      const [createExit, customExit] = yield* Effect.all(
+        [
+          sessionSvc.create({ id: childID, parentID: parent.session.id, location }).pipe(Effect.exit),
+          sessionSvc.createCustom({ id: childID, location, composition: mockCompositionInput }).pipe(Effect.exit),
+        ],
+        { concurrency: "unbounded" },
+      )
+
+      // Whichever side loses the projection race must fail with a typed
+      // PromptConflictError — never a defect (the old orDie behavior), never
+      // SnapshotAlreadyExistsError. (A create that observes the recorded
+      // session adopts it per the Session ID reuse invariant, so both-succeed
+      // is a legal outcome too.)
+      assertTypedConflict(createExit)
+      assertTypedConflict(customExit)
+
+      const customSessions = yield* sessionSvc.list({ mode: "custom" })
+      expect(customSessions.filter((info) => info.id === childID)).toHaveLength(1)
+      const snapshot = yield* sessionComposition.get(childID)
+      expect([mockDigest, otherDigest]).toContain(snapshot.digest)
+    }),
+  )
+})
+
+describe("Same-profile session independence (MEDIUM-5)", () => {
+  it.effect("same profile started twice yields independent snapshot rows with equal digest", () =>
+    Effect.gen(function* () {
+      nextFreezeDigest = mockDigest
+      const sessionSvc = yield* SessionV2.Service
+      const sessionComposition = yield* SessionComposition.Service
+      const { db } = yield* Database.Service
+
+      const first = yield* sessionSvc.createCustom({ location, composition: mockCompositionInput, title: "First" })
+      const second = yield* sessionSvc.createCustom({ location, composition: mockCompositionInput, title: "Second" })
+
+      expect(first.session.id).not.toBe(second.session.id)
+      expect(first.snapshot.digest).toBe(second.snapshot.digest)
+
+      // Rows attach independently per session: re-attaching the first fails on
+      // its own row without touching the second.
+      const reattach = yield* sessionComposition.attach(first.session.id, first.snapshot).pipe(Effect.flip)
+      expect(reattach).toBeInstanceOf(SessionComposition.SnapshotAlreadyExistsError)
+
+      // Mutating one row out of band leaves the other row untouched.
+      yield* db.run(
+        sql`UPDATE session_composition_snapshot SET data = json_set(data, '$.agentID', 'tampered-agent') WHERE session_id = ${first.session.id}`,
+      )
+      const tampered = yield* sessionComposition.get(first.session.id)
+      expect(tampered.data.agentID).toBe("tampered-agent")
+      const untouched = yield* sessionComposition.get(second.session.id)
+      expect(untouched.data.agentID).toBe("code-reviewer")
+      expect(untouched.digest).toBe(first.snapshot.digest)
     }),
   )
 })
