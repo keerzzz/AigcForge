@@ -2,7 +2,7 @@ export * as Asset from "./asset"
 
 import { Schema } from "effect"
 
-export const AssetKindId = Schema.Literals(["prompt", "skill", "mcp", "command", "agent", "workflow", "plugin"])
+export const AssetKindId = Schema.Literals(["prompt", "skill", "mcp", "command", "agent", "workflow", "plugin", "custom-profile"])
 export type AssetKindId = typeof AssetKindId.Type
 
 export const Name = Schema.String.pipe(

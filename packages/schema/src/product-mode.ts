@@ -2,7 +2,7 @@ export * as ProductMode from "./product-mode"
 
 import { Schema } from "effect"
 
-export const ID = Schema.Literals(["chat", "coding", "work", "assistant"]).annotate({
+export const ID = Schema.Literals(["chat", "coding", "work", "assistant", "custom"]).annotate({
   identifier: "ProductMode",
 })
 export type ID = typeof ID.Type
