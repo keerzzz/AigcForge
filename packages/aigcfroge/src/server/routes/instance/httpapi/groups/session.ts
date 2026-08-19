@@ -29,6 +29,7 @@ import { SessionTask } from "@aigcfroge/core/session/task"
 import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task" // Schema namespace; the core SessionTask import above uses the unaliased name.
 import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
+import { Composition } from "@aigcfroge/schema/composition"
 
 const root = "/session"
 export const ListQuery = Schema.Struct({
@@ -114,6 +115,7 @@ export const SessionPaths = {
   updatePart: `${root}/:sessionID/message/:messageID/part/:partID`,
   cacheDiagnostics: `${root}/:sessionID/cache-diagnostics`,
   toolSummary: `${root}/:sessionID/tool-summary`,
+  composition: `${root}/:sessionID/composition`,
 } as const
 
 export const SessionApi = HttpApi.make("session")
@@ -617,6 +619,18 @@ export const SessionApi = HttpApi.make("session")
             identifier: "session.toolSummary",
             summary: "Get tool summary",
             description: "Retrieve aggregated tool call summary for a sub-agent session.",
+          }),
+        ),
+        HttpApiEndpoint.get("composition", SessionPaths.composition, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          success: described(Composition.Snapshot, "Session composition snapshot"),
+          error: [HttpApiError.BadRequest, ApiNotFoundError, UnsupportedProductModeError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.composition",
+            summary: "Get session composition snapshot",
+            description: "Retrieve the immutable composition snapshot for a custom session.",
           }),
         ),
       )

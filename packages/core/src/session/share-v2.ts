@@ -124,7 +124,9 @@ export const layer = Layer.effect(
   }),
 )
 
-export const defaultLayer = layer.pipe(
-  Layer.provideMerge(SessionV2.defaultLayer),
-  Layer.provideMerge(EventV2.defaultLayer),
+export const defaultLayer = Layer.suspend(() =>
+  layer.pipe(
+    Layer.provideMerge(SessionV2.defaultLayer),
+    Layer.provideMerge(EventV2.defaultLayer),
+  ),
 )

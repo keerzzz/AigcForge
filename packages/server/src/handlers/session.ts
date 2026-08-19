@@ -213,6 +213,21 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                     }),
                   ),
                 ),
+                Effect.catchTag("SessionComposition.SnapshotNotFoundError", (error) =>
+                  Effect.fail(
+                    new SessionNotFoundError({
+                      sessionID: error.sessionID,
+                      message: `Snapshot not found for custom session: ${error.sessionID}`,
+                    }),
+                  ),
+                ),
+                Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
+                  Effect.fail(
+                    new InvalidRequestError({
+                      message: `Invalid custom session snapshot: ${error.sessionID}`,
+                    }),
+                  ),
+                ),
               ),
           }
         }),
@@ -366,6 +381,21 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                     }),
                   ),
                 ),
+                Effect.catchTag("SessionComposition.SnapshotNotFoundError", (error) =>
+                  Effect.fail(
+                    new SessionNotFoundError({
+                      sessionID: error.sessionID,
+                      message: `Snapshot not found for custom session: ${error.sessionID}`,
+                    }),
+                  ),
+                ),
+                Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
+                  Effect.fail(
+                    new InvalidRequestError({
+                      message: `Invalid custom session snapshot: ${error.sessionID}`,
+                    }),
+                  ),
+                ),
               ),
           }
         }),
@@ -398,6 +428,21 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                     new ConflictError({
                       message: `Skill message ID conflicts with an existing durable record: ${error.messageID}`,
                       resource: error.messageID,
+                    }),
+                  ),
+                ),
+                Effect.catchTag("SessionComposition.SnapshotNotFoundError", (error) =>
+                  Effect.fail(
+                    new SessionNotFoundError({
+                      sessionID: error.sessionID,
+                      message: `Snapshot not found for custom session: ${error.sessionID}`,
+                    }),
+                  ),
+                ),
+                Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
+                  Effect.fail(
+                    new InvalidRequestError({
+                      message: `Invalid custom session snapshot: ${error.sessionID}`,
                     }),
                   ),
                 ),

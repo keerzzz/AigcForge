@@ -61,15 +61,30 @@ export function assertCreationSupported(mode: string | undefined): Effect.Effect
 
 export function assertRuntimeSupported(mode: string | undefined): Effect.Effect<void, UnsupportedProductModeError> {
   const resolved = mode ?? ProductMode.Default
-  if (resolved === "custom") {
-    return Effect.fail(
-      new UnsupportedProductModeError({
-        mode: resolved,
-        message: `Custom session runtime is not available before M1 composition snapshot support.`,
-      }),
-    )
+  if (
+    resolved === "custom" ||
+    resolved === "chat" ||
+    resolved === "coding" ||
+    resolved === "work" ||
+    resolved === "assistant"
+  ) {
+    return Effect.void
   }
-  return assertCreationSupported(resolved)
+  return Effect.fail(
+    new UnsupportedProductModeError({
+      mode: resolved,
+      message: `Unknown or unsupported product mode "${resolved}"`,
+    }),
+  )
+}
+
+export function isV2Mode(mode: string | undefined): boolean {
+  return mode === "custom"
+}
+
+export function shouldUseV2Runtime(mode: string | undefined, globalFlag: boolean): boolean {
+  if (mode === "custom") return true
+  return globalFlag
 }
 
 export function isSessionSupported(

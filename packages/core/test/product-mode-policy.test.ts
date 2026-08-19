@@ -25,7 +25,7 @@ describe("ProductModePolicy & AgentPolicy Governance", () => {
         Effect.catchTag("UnsupportedProductModeError", (err) => Effect.succeed(`error:${err.mode}`)),
       ),
     )
-    expect(runtimeRes).toBe("error:custom")
+    expect(runtimeRes).toBe("success")
   })
 
   test("ProductModeAgentPolicy fails closed for custom mode across primary, command, and CLI delegation", () => {

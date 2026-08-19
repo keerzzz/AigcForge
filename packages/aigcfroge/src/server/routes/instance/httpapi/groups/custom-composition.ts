@@ -29,6 +29,7 @@ export const ReferencesResponse = Schema.Struct({
 
 export const CustomCompositionPaths = {
   plan: `${root}/plan`,
+  start: `${root}/start`,
   health: `${root}/health`,
   references: `${root}/references`,
 } as const
@@ -46,6 +47,18 @@ export const CustomCompositionApi = HttpApi.make("custom-composition").add(
           identifier: "custom-composition.plan",
           summary: "Resolve custom composition plan",
           description: "Resolve a proposed composition input into a deterministic execution plan.",
+        }),
+      ),
+      HttpApiEndpoint.post("start", CustomCompositionPaths.start, {
+        query: Schema.Struct(WorkspaceRoutingQueryFields),
+        payload: Composition.StartInput,
+        success: described(Composition.StartResponse, "Started custom session and snapshot"),
+        error: InvalidRequestError,
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "custom-composition.start",
+          summary: "Start atomic custom composition session",
+          description: "Freeze latest facts, create atomic custom session and snapshot.",
         }),
       ),
       HttpApiEndpoint.get("health", CustomCompositionPaths.health, {

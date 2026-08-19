@@ -7,7 +7,11 @@ import { CustomProfile } from "@aigcfroge/core/custom-profile"
 import { Composition } from "@aigcfroge/schema/composition"
 import { Location } from "@aigcfroge/core/location"
 import { AbsolutePath } from "@aigcfroge/core/schema"
+import { SessionV2 } from "@aigcfroge/core/session"
+import { SessionSchema } from "@aigcfroge/core/session/schema"
+import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
 import { Effect, Layer } from "effect"
+import { HttpServerRequest } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
 import { InvalidRequestError } from "../errors"
@@ -24,6 +28,52 @@ export const customCompositionHandlers = HttpApiBuilder.group(InstanceHttpApi, "
       const resolver = yield* CompositionResolver.Service.pipe(Effect.provide(layer), Effect.orDie)
       const res = yield* resolver.resolve(ctx.payload)
       return res
+    })
+
+    const start = Effect.fn("CustomCompositionHttpApi.start")(function* (ctx: {
+      payload: Composition.StartInput
+    }) {
+      const request = yield* HttpServerRequest.HttpServerRequest
+      const caps = request.headers[ProductModePolicy.CAPABILITIES_HEADER]
+      if (!ProductModePolicy.isCustomCapable(caps)) {
+        return yield* Effect.fail(
+          new InvalidRequestError({
+            message: `Custom mode requires capability header '${ProductModePolicy.CAPABILITIES_HEADER}: ${ProductModePolicy.CAPABILITY_CUSTOM_V1}'`,
+          }),
+        )
+      }
+      const ctx2 = yield* InstanceState.context
+      const location = Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) })
+      const v2session = yield* SessionV2.Service
+      const res = yield* v2session
+        .createCustom({
+          id: ctx.payload.sessionID ? SessionSchema.ID.make(ctx.payload.sessionID) : undefined,
+          location,
+          composition: ctx.payload.composition,
+          expectedPlanDigest: ctx.payload.expectedPlanDigest,
+          title: ctx.payload.title,
+        })
+        .pipe(
+          Effect.catchTag("Composition.ResolveError", (err) =>
+            Effect.fail(new InvalidRequestError({ message: `${err.code}: ${err.message}` })),
+          ),
+          Effect.catchTag("Session.PromptConflictError", (err) =>
+            Effect.fail(new InvalidRequestError({ message: `Session conflict: ${err.sessionID}` })),
+          ),
+          Effect.catchTag("UnsupportedProductModeError", (err) =>
+            Effect.fail(new InvalidRequestError({ message: err.message })),
+          ),
+          Effect.catchTag("SessionComposition.SnapshotAlreadyExistsError", (err) =>
+            Effect.fail(new InvalidRequestError({ message: `Snapshot already exists for session ${err.sessionID}` })),
+          ),
+          Effect.catchTag("SessionComposition.SnapshotDecodeError", (err) =>
+            Effect.fail(new InvalidRequestError({ message: `Snapshot decode error: ${err.message}` })),
+          ),
+        )
+      return {
+        session: res.session,
+        snapshot: res.snapshot,
+      }
     })
 
     const health = Effect.fn("CustomCompositionHttpApi.health")(function* (ctx: {
@@ -54,6 +104,10 @@ export const customCompositionHandlers = HttpApiBuilder.group(InstanceHttpApi, "
       }
     })
 
-    return handlers.handle("plan", plan).handle("health", health).handle("references", references)
+    return handlers
+      .handle("plan", plan)
+      .handle("start", start)
+      .handle("health", health)
+      .handle("references", references)
   }),
 ).pipe(Layer.provide(LocationServiceMap.layer))
