@@ -12,7 +12,7 @@
 |---|---|---|
 | §1 权限档位遗留（PR #32） | M1/M2/M3/M5/D5 五项 | 待专项处理 |
 | §2 页面归一化延后（PR #34） | 960px 主列、Assistant scope、Chat Location 抽取、全仓 import 债 | 计划外延后 |
-| §3 Custom Mode 平台（PR #33） | ADR-17 评审 + Roadmap M0-M5 | 待审批/远期 |
+| §3 Custom Mode 平台（PR #33）   | ADR-17 评审 + Roadmap M0-M5                                     | M0 Phase A-F 已获准连续执行，M1 仍分阶段 |
 | §4 全局存量债（CLAUDE.md 迁移） | dompurify、doom_loop 统计、资产路由等 | 按到期日跟进 |
 
 ---
@@ -47,13 +47,13 @@
 
 ## 3. Custom Mode 平台任务（来源：PR #33 `custom-mode-docs`）
 
-> 文档：ADR-17 `docs/architecture/adr/ADR-17-custom-mode-composition-platform.md`（Proposed，待正式评审）、
-> PRD `docs/prd/custom-mode-composition-platform.md`、路线图 `docs/roadmap/custom-mode-roadmap.md`。
+> 文档：ADR-17 `docs/architecture/adr/ADR-17-custom-mode-composition-platform.md`（Accepted for M0/M1 implementation v1.2，由用户授权 AI 代理代签）、
+> PRD `docs/prd/custom-mode-composition-platform.md`（Approved for M0/M1 implementation v1.2）、路线图 `docs/roadmap/custom-mode-roadmap.md`（Approved for M0/M1 implementation v1.2）。
 
 | 阶段 | 名称 | 核心范围 | 关键依赖 | 状态 |
 |---|---|---|---|---|
-| — | **ADR-17 正式评审** | Product/Core/App/Security 四方评审通过 | — | 待评审 |
-| M0 | 治理与组合底座 | 第五 Mode、Profile/Plan/Snapshot、AssetRef、Resolver | ADR-17 | 待审批 |
+| —    | **ADR-17 正式评审**       | Product/Core/App/Security/Schema+SDK 五方评审与签字                                   | —                        | 已完成（用户授权 AI 代理代签，2026-08-18） |
+| M0   | 治理与组合底座            | 第五 Mode、Profile/Plan/Snapshot、AssetRef、Resolver                                  | ADR-17 批准              | Phase A-F 连续执行获准                     |
 | M1 | 单 Agent 可恢复闭环 | `meta` + 一个用户 Agent + Prompt/Skill + native | M0 | 待启动 |
 | M2 | 多 Agent 与编排 | Agent 池、Command、Workflow、进度、取消、部分成功 | M1 | 远期 |
 | M3 | MCP 与审批 | scoped registration、凭证、健康、统一审批入口（含 once/Session/Location grant model） | M1 + Tool Registry 扩展 | 远期 |
@@ -61,6 +61,8 @@
 | M5 | Code Presentation | `run_code` + 受限 SDK，共用 Effective Tool Set | M3/M4 稳定 | 远期 |
 
 > 与权限档位的接口约定：Custom M0/M1 必须定义 mode ceiling 与 Snapshot allowlist；应用级审批入口与 grant model 属 Custom M3（权限档位计划明确"不自动批准"）。
+
+> M0 de-scope（来源：M0 remediation re-review LOW-2，`docs/review/AigcForge_CUSTOM_M0_REMEDIATION_REREVIEW_2026-08-18.md`）：`packages/core/src/skill/composition-catalog.ts` 的 `createCompositionSkillCatalog` 是 M0 Phase D 声明的 composition-local Skill catalog seam，仅有测试引用、无生产 caller。评估结论：Resolver/Snapshot 的 skills 真源是带 revision 的 SkillAsset registry（精确 path 解析），而该 catalog 过滤的是 Runner 期无 revision 的 `SkillV2.Info` 视图，接进 resolve/freeze 只会对已精确解析的绑定集合做有损二次过滤，语义不成立；其真实消费点是 M1 Runner（实施计划 §5.3：Custom Session 的 Skill guidance 与 `skill` tool lookup 读取 Snapshot-local catalog）。**触发条件**：M1 Runner 接线 Snapshot skill catalog 时由 Runner 侧消费，并移除文件顶部 de-scope 注释；若 M1 设计放弃该 seam，则连测试一并删除。
 
 ---
 

@@ -1,7 +1,7 @@
 # Custom Mode M2 实施计划：多 Agent 与 Workflow 编排
 
 > 状态：**Future / Contract blocked - M1 通过后才允许启动**
-> 分析基线：`main@e0e0f970f`（2026-08-17）；执行基线为 M1 合入并复审后的最新 `main`
+> 分析基线：`main@a4ffba0b3`（2026-08-18，本地/远端已同步）；执行基线为 M1 合入并复审后的最新 `main`
 > 范围：多 Agent allowlist、Command binding、Workflow durable execution、进度/取消/部分成功、成本预览
 > 前置：[Custom Mode M1](custom-mode-m1-single-agent-runtime.md)
 > 上级计划：[Custom Mode 组合平台实施计划](custom-mode-composition-platform-implementation.md)
@@ -167,6 +167,6 @@ Workflow definition 保存在资产/Snapshot；run/step 状态保存在 DB；Ses
 
 ## 7. 分支策略
 
-- 只从 M1 合入后的最新 main 开始；不从当前 `main@e0e0f970f` 预建实现分支。
+- 只从 M1 合入后的最新 main 开始；不从当前分析锚点 `main@a4ffba0b3` 预建实现分支。
 - 推荐依次使用 `workflow-contract`、`workflow-runtime`、`workflow-security`、`workflow-surface`。
 - 每个 PR 合入后下一分支重新基于最新 main；跨 PR schema 依赖不靠长期 stacked branch 隐藏。

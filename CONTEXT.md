@@ -57,7 +57,7 @@ One process-local execution span that promotes eligible input and runs required 
 The durable product-module classification of a Session and the independently persisted App filtering selection, with values Chat, Coding, Work, or Assistant.
 _Avoid_: Agent mode, route mode, execution mode
 
-The four values above are the current Accepted runtime vocabulary. ADR-17 proposes one additional fixed value, Custom. Until that ADR and its schema/API compatibility plan are Accepted, Custom remains a design term rather than a valid Session value. If accepted, it must remain a durable immutable Product Mode; a Custom Profile is a separate composition asset and must never be inferred as Session identity.
+The four values above remain the current Accepted runtime vocabulary in production. ADR-17 (Accepted for M0/M1 implementation v1.2) adds one fixed value, Custom (`custom`), with an independent immutable `session_composition_snapshot` database table. Until M0 Phase B lands, Custom remains an approved design contract rather than an active production Session value. When implemented, it is a durable immutable Product Mode; a Custom Profile (`.aigcfroge/custom-profiles/*.yaml`) is a separate composition asset and is never Session identity.
 
 **Agent Execution Mode**:
 The Agent role classification Primary, Subagent, or All, used for Agent visibility and execution policy. It is orthogonal to **Product Mode**.
@@ -103,7 +103,8 @@ The host-supplied environment overlay applied by the server when creating a PTY,
 - Projects and Workspaces are shared across **Product Modes**; only their Session views are partitioned.
 - **Product Mode** must never be inferred from **Agent Execution Mode** or Assistant Message mode.
 - Historical Session rows and event payloads that predate Product Mode decode as Coding.
-- A future Custom extension must not reuse that compatibility fallback: an old client that does not understand `custom` must report an unsupported mode instead of decoding the Session as Coding.
+- The proposed Custom extension does not reuse that compatibility fallback: an old client that does not negotiate `x-aigcfroge-capabilities: product-mode-custom-v1` must receive an explicit typed unsupported mode error instead of decoding the Session as Coding.
+- In Custom mode (ADR-17 accepted design; runtime implementation gated), the root Session is bound to `meta` and frozen in an independent `session_composition_snapshot` table, separate from `session.metadata` and Context Epoch. `task` executions and child Session creations enforce a dual-gate check against the Snapshot's authorized Agent allowlist.
 - The first provider turn renders the latest complete **Baseline System Context** and initializes its **Context Snapshot** without emitting a redundant **Mid-Conversation System Message**; unavailable initial context blocks the turn instead of persisting an incomplete baseline.
 - Initial **System Context** preparation precedes the first durable input promotion so an unavailable baseline leaves that input pending and retryable; ordinary reconciliation remains after promotion.
 - Compaction starts a new **Context Epoch** with a freshly rendered **Baseline System Context** and **Context Snapshot**; prior **Mid-Conversation System Messages** remain durable audit history but leave projected model history.

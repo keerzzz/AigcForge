@@ -1,7 +1,7 @@
 # Custom Mode M3 实施计划：MCP 与统一审批
 
 > 状态：**Future / Security contract blocked - M1 后可研究，M3 Gate 通过后才能实现**
-> 分析基线：`main@e0e0f970f`（2026-08-17）；执行基线为前置里程碑合入后的最新 `main`
+> 分析基线：`main@a4ffba0b3`（2026-08-18，本地/远端已同步）；执行基线为前置里程碑合入后的最新 `main`
 > 范围：Session/Location scoped MCP canonical registration、credential refs、health/revocation、once/Session/Location grant、应用级审批入口
 > 前置：[Custom Mode M1](custom-mode-m1-single-agent-runtime.md)；M2 不是硬依赖，但若并存必须验证多 Agent scope
 > 上级计划：[Custom Mode 组合平台实施计划](custom-mode-composition-platform-implementation.md)

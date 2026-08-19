@@ -1,7 +1,7 @@
 # PRD：Custom 模式 - 用户资产组合与运行平台
 
-> 状态：**Draft v1.1 — 已同步协议复核结论，待 ADR-17 与 Product/Core/App/Security 评审**
-> 日期：2026-08-16
+> 状态：**Approved for M0/M1 implementation v1.2（2026-08-18；用户授权 AI 代理代行 Product / Core / App / Security / Schema+SDK 技术审批）**；M1 Rollout Exit 仍受 §17.2 门禁约束
+> 日期：2026-08-18
 > 负责人：产品（范围与指标）/ Core（Composition、Session、Permission）/ App（Custom surface）/ Security（能力与扩展边界）
 > 范围：`packages/schema` + `packages/core` + `packages/aigcfroge` + `packages/app` + `packages/sdk/js`
 > 关联：[ADR-17](../architecture/adr/ADR-17-custom-mode-composition-platform.md)、[Custom 研究稿](../research/agent/DeepSeek-Harness四模式借鉴与自定义模式思维风暴.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md) §4.1/§4.4/§4.6/§4.7/§4.10、[CONTEXT.md](../../CONTEXT.md)、[Session V2 Spec](../../specs/v2/session.md)、[Tool Spec](../../specs/v2/tools.md)
@@ -22,8 +22,8 @@
 ```text
 Product Mode: custom
 Root Orchestrator: meta
-Composition Profile: 可保存的组合定义
-Composition Snapshot: Session 启动时冻结的运行真值
+Composition Profile: 可保存的组合定义 (.aigcfroge/custom-profiles/*.yaml)
+Composition Snapshot: Session 启动时冻结的运行真值 (独立 session_composition_snapshot 表)
 ```
 
 本 PRD 采用“第五 Product Mode + 任意多个 Custom Profile”的双层模型，不再把 Custom 降级为 My Agents 启动台。
@@ -40,14 +40,18 @@ ADR-17 接受后需要正式修订：
 
 ### 2.1 协议复核后的范围裁决
 
-| 问题 | M1/M3/M4 正式口径 |
-|---|---|
-| `custom-profile` | 第八类资产的目标方向；必须复用 AssetKind/typed owner/CAS/registry/watcher 框架，ADR-17 接受前不算已实现类型 |
-| Agent 数量 | M1=`meta` 根 Session + 1 个用户 Agent 委派目标；零个或多个都阻断 |
-| 资产作用域 | M1 仅当前 Location 项目资产；不支持 Global/Cross-Location/绝对路径 |
-| Runtime Extension | M1 完全不执行；M4 只开放 Installed+Validated+Approved+Pinned 的 Trusted Extension |
-| 删除后恢复 | 历史与 Snapshot 始终可查看；继续执行依赖冻结内容和完全匹配的运行依赖，缺失时阻断 |
-| 审批中心 | M3 提供应用级可见入口；授权范围为 once/Session/Location，不存在默认应用级永久信任 |
+| 领域              | 裁决与正式口径                                                                                                                                |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `custom-profile`  | 第八类资产，固定路径 `.aigcfroge/custom-profiles/*.yaml`；复用 `AssetKind`/typed owner/CAS/registry/watcher 框架，ADR-17 接受前不算已实现类型 |
+| Snapshot 存储     | 独立 `session_composition_snapshot` 数据表与 typed owner，不可变且归属 Session；严禁写入 `session.metadata`、transcript 或 Context Epoch      |
+| Agent 数量        | M1=`meta` 根 Session + 1 个用户 Agent 委派目标；零个或多个都阻断                                                                              |
+| 资产作用域        | M1 仅当前 Location 项目资产；不支持 Global/Cross-Location/绝对路径                                                                            |
+| 客户端兼容        | `x-aigcfroge-capabilities: product-mode-custom-v1` 协商；旧客户端显式返回 typed unsupported，严禁 fallback Coding                             |
+| 运行策略          | 统一由 Runtime Policy Owner 强制走 V2-native，全仓禁止散落 `AIGCFROGE_V2_RUNTIME \|\| mode === "custom"`                                      |
+| 双层安全门禁      | `task` 工具执行点与子 Session 创建点双层校验 Snapshot allowlist                                                                               |
+| Runtime Extension | M1 完全不执行；M4 只开放 Installed+Validated+Approved+Pinned 的 Trusted Extension                                                             |
+| 删除后恢复        | 历史与 Snapshot 始终可查看；继续执行依赖冻结内容和完全匹配的运行依赖，缺失时阻断                                                              |
+| 审批中心          | M3 提供应用级可见入口；授权范围为 once/Session/Location，不存在默认应用级永久信任                                                             |
 
 ## 3. 问题与定位
 
@@ -106,9 +110,9 @@ Custom 是**用户资产的组合消费与运行层**：
 
 ### 5.2 Custom Profile
 
-Custom Profile 是第八类配置资产，由 Chat 管理、Custom 消费。它描述组合，不执行组合。
+Custom Profile 是第八类配置资产，存储于 `.aigcfroge/custom-profiles/*.yaml`，由 Chat 管理、Custom 消费。它描述组合，不执行组合。
 
-该类型必须拥有独立的 AssetKind owner、规范路径、Schema、revision、CAS、registry、watcher、invalid/health 投影、apply/delete 事务和反向引用查询。不得把 Profile 塞入 Agent Asset，也不得复制七类资产的事务实现形成平行 owner。
+该类型使用独立的 `CustomProfile` `Schema.Class`（与仅用于解码 `AgentAsset.config` 的 `ConfigAgent.Info` 严格隔离），拥有独立的 AssetKind owner、规范路径、Schema、revision、CAS、registry、watcher、invalid/health 投影、apply/delete 事务和反向引用查询。不得把 Profile 塞入 Agent Asset，也不得复制七类资产的事务实现形成平行 owner。
 
 最小产品字段：
 
@@ -138,14 +142,16 @@ Profile 不内嵌其他资产文件，也不能把资产请求转换成 Permissi
 
 ### 5.4 Composition Snapshot
 
-`CompositionSnapshot` 是每个 Session 独立拥有的不可变运行记录，至少冻结：
+`CompositionSnapshot` 是每个 Session 独立拥有的不可变运行记录，持久化在独立 `session_composition_snapshot` 数据表中，至少冻结：
 
 - `mode=custom` 和根 Agent=`meta`。
 - Profile id/revision，或临时组合 id/digest。
 - 用户 Agent id、provenance、revision 和允许委派集合。
 - Prompt/Skill 的规范引用、revision、消费者绑定和有效顺序。
 - 实际进入模型上下文的内容型输入或可重建记录。
-- 有效工具定义目录及注册 identity digest。
+- 有效工具目录的稳定 `ToolRegistrationFingerprint`（最小 4 字段集：`placement`、`name`、规范化 `definition / schema digest`、`installationVersion`）。
+- 独立的 `ToolCatalogDigest`（有效工具全量目录聚合摘要）。
+- 运行时在每个 Provider Turn 执行前由 `ToolRegistry` 同时重验 `ToolRegistrationFingerprint` 与 `ToolCatalogDigest`，若发生漂移或不匹配则 **fail-closed** 阻断执行。
 - Permission/Policy 计算摘要和当时的诊断结果。
 - 外部凭证只保存引用，不保存秘密内容。
 
@@ -206,7 +212,8 @@ Effective Capabilities
 - `meta` 的 `task` 调用必须在执行点检查 Snapshot allowlist。
 - 子 Session 创建必须再次检查相同 allowlist，不能只依赖 Prompt。
 - 外部 CLI 等不创建子 Session 的执行路径必须有独立模式与组合检查。
-- 工具是否展示给模型，与工具执行时是否获准，是两个不同阶段。
+- 工具是否展示给模型，与工具执行时是否获准，是两个不同阶段。统一通过 `ToolRegistry.materialize({ permissions, intent, allowlist })` 过滤展示给模型的工具定义集合。
+- `CompositionSnapshot` 记录有效工具目录的稳定 `ToolRegistrationFingerprint`（最小 4 字段：`placement`、`name`、规范化 `definition / schema digest`、`installationVersion`）与独立的 `ToolCatalogDigest`。在每个 Provider Turn 执行前必须由 `ToolRegistry` 同时重验两者，发生任何不匹配时 **fail-closed** 阻断执行。
 - Snapshot 中的 permission digest 只用于审计；每次工具调用仍由 canonical `PermissionV2` 判断。
 
 现有 `always` 保存审批以 Project 为作用域，不能直接冒充未来的 once/Session/Location grant model。M3 必须明确扩展 `PermissionSaved` 或引入唯一 scoped grant owner，并支持 Agent/revision/expiry/revocation；应用级审批中心只负责发现和裁决请求，不成为应用级权限真源。
@@ -344,36 +351,65 @@ ready | needs-recheck | degraded | broken | deleted | quarantined
 
 ## 16. 分阶段范围
 
-| 阶段 | 产品范围                                                                    |
-| ---- | --------------------------------------------------------------------------- |
-| M0   | 第五 Mode 治理、Profile/Plan/Snapshot/引用契约和 Resolver 设计              |
-| M1   | 一个用户 Agent + Prompt/Skill + native presentation + 可恢复 Snapshot       |
-| M2   | 多 Agent、Command、Workflow、并行/串行编排、进度和部分成功                  |
-| M3   | MCP、凭证引用、健康检查、Session/Location scoped registration、统一审批入口 |
+| 阶段 | 产品范围                                                                                |
+| ---- | --------------------------------------------------------------------------------------- |
+| M0   | 第五 Mode 治理、Profile/Plan/Snapshot/引用契约和 Resolver 设计                          |
+| M1   | 一个用户 Agent + Prompt/Skill + native presentation + 可恢复 Snapshot                   |
+| M2   | 多 Agent、Command、Workflow、并行/串行编排、进度和部分成功                              |
+| M3   | MCP、凭证引用、健康检查、Session/Location scoped registration、统一审批入口             |
 | M4   | Trusted Runtime Extension、Host/Agent/Client 分面、停止/隔离/回滚；禁止模型代码即时执行 |
-| M5   | Native/Code Presentation、`run_code` 受限 SDK                               |
+| M5   | Native/Code Presentation、`run_code` 受限 SDK                                           |
 
 详细依赖、准入和退出条件见 [Custom 模式完整开发路线图](../roadmap/custom-mode-roadmap.md)。
 
 ## 17. 批准 Gate
 
-本 PRD 从 Draft 转为 Approved 前必须全部满足：
+### 17.1 治理与实施准入 Gate (Approved for M0/M1 implementation)
 
-1. ADR-17 正式接受第五 Product Mode，并明确 supersede ADR-11/12/15 及旧 PRD 条款。
-2. Core 评审 Profile、AssetRef、Plan、Snapshot、Resolver 和 Context Epoch 的 owner/真源边界。
-3. Security 评审 capability intersection、task 双层 allowlist、权限重评估、凭证引用和删除恢复语义。
-4. App 评审 Custom 首页、Builder、预览、SessionSidePanel 和窄屏交互。
-5. Schema/API/SDK 评审 `custom` 兼容、旧客户端行为和迁移策略。
-6. 产品确认 M1 严格限制一个用户 Agent、当前 Location、Prompt/Skill 和 native presentation。
-7. 内部 50 次基线、埋点隐私和 Beta 停止规则就绪。
+本 PRD 从 Draft 转为 Approved for M0/M1 implementation 前必须全部满足：
 
-## 18. 开放问题
+1. **ADR-17 接受**：ADR-17 正式接受第五 Product Mode，并明确 supersede ADR-11/12/15 及旧 PRD 条款。
+2. **五方评审**：Product / Core / App / Security / Schema+SDK 五方评审 Profile、AssetRef、Plan、Snapshot、Resolver 和 Context Epoch 的 owner/真源边界。
+3. **安全评审**：Security 评审 capability intersection、`task` + child create 双层 allowlist、权限重评估、凭证引用和删除恢复语义。
+4. **App 评审**：App 评审 Custom 首页、Builder、预览、SessionSidePanel 和窄屏交互。
+5. **Schema+SDK 评审**：Schema+SDK 评审 `custom` 兼容、`x-aigcfroge-capabilities: product-mode-custom-v1` 协商与 typed unsupported 错误契约。
+6. **M1 范围锁定**：产品确认 M1 严格限制一个用户 Agent、当前 Location、Prompt/Skill 和 native presentation。
 
-| 问题                                                       | 负责人         | 默认建议                                        |
-| ---------------------------------------------------------- | -------------- | ----------------------------------------------- |
-| Snapshot 的物理存储采用 Session 表、独立表还是内容寻址记录 | Core           | 独立 typed owner；内容与运行依赖分层保存        |
-| Profile 文件扩展名和目录                                   | Core + Chat    | 复用 AssetKind 框架，由独立 owner 定义          |
-| 内容型资产快照保留多久                                     | 产品 + Core    | 至少覆盖 Session 可恢复生命周期                 |
-| Session move 后 Custom Snapshot 如何处理                   | Core           | 保留历史；目标 Location 缺依赖时阻断继续        |
-| 应用级审批中心何时交付                                     | App + Security | M3 与 MCP 一起交付；授权仍绑定 Session/Location |
-| Custom 是否允许覆盖 Agent 模型                             | 产品 + Core    | M1 不允许；后续按 Agent 明确声明开放            |
+### 17.2 发布与推出 Gate (M1 rollout exit)
+
+本 PRD 对应能力从开发完成进入 Beta/全量发布前必须满足：
+
+1. **真实启动基线**：内部完成 50 次真实启动基线测试（零未捕获异常、依赖完整校验、版本漂移诊断准确）。
+2. **合规审计**：埋点与用户隐私合规确认。
+3. **发布防护**：Beta 停止规则与快速回滚就绪。
+
+> **注**：50 次真实启动基线属于 **M1 Rollout Exit** 发布门禁，仅阻塞 M1 的 Beta 发布与全量上线，**不阻塞 M0 Phase B 的实施准入**。
+
+## 18. 决策收敛与批准裁决
+
+| 项                               | 负责人         | 正式建议与实施方案                                                                                                                                         | 状态               |
+| -------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| **Snapshot 物理存储**            | Core           | 建立独立的 `session_composition_snapshot` 数据表与 typed owner；内容型事实与精确运行依赖分层保存；严禁存入 `session.metadata`、transcript 或 Context Epoch | 已批准（治理范围） |
+| **Profile 文件格式与路径**       | Core + Chat    | 固定为 `.aigcfroge/custom-profiles/*.yaml`，采用结构化 YAML + Effect Schema 解码；复用 `AssetKind` 框架作为第八类资产                                      | 已批准（治理范围） |
+| **内容型资产快照生命周期**       | 产品 + Core    | 随 Session 生命周期持久保留，支持长久历史重放；运行依赖缺失时显式阻断                                                                                      | 已批准（治理范围） |
+| **Session move / fork / resume** | Core           | move 保留历史 Snapshot，目标 Location 缺少依赖时阻断继续；升级组合必须显式 fork/new Session 并生成新 Snapshot                                              | 已批准（治理范围） |
+| **应用级审批中心交付阶段**       | App + Security | M3 随 MCP 能力块交付；审批授权严格限定为 once / Session / Location，不存在默认应用级永久信任                                                               | 已批准（治理范围） |
+| **Custom Agent 模型覆盖**        | 产品 + Core    | M1 严禁覆盖 Agent 自身配置的模型，保持 Agent 定义一致性；后续阶段按 Agent 明确声明开放                                                                     | 已批准（治理范围） |
+
+## 19. 审批记录（用户授权 AI 代理代签）
+
+| 评审方           | 审批人              | 核心决策审批项（编号清单）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | 状态                  | 签字日期   | 意见 / 备忘                                                                                                |
+| ---------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- | ---------- | ---------------------------------------------------------------------------------------------------------- |
+| **Product**      | AI 代理（用户授权） | 1. 批准第五固定 Product Mode `custom`，定位为用户资产组合与运行平台；<br>2. 批准 M1 范围严格锁定：一个用户 Agent + 当前 Location + Prompt/Skill + native presentation；<br>3. 批准废止 `/my-agents` 独立伪模式启动台，将其组合能力并入 Custom 首页；<br>4. 批准 PRD 门禁拆分方案：§17.1 治理与实施准入 Gate 与 §17.2 发布与推出 Gate（50 次真实启动基线仅阻塞 M1 Rollout Exit，不阻塞 M0 Phase B）。                                                                                                                                                                                                                                                                                                                                            | 已批准（AI 代理代签） | 2026-08-18 | 用户明确授权 AI 代理代行本领域技术审批；不等同于真人负责人手签。                                           |
+| **Core**         | AI 代理（用户授权） | 1. 批准 `.aigcfroge/custom-profiles/*.yaml` 路径与 `CustomProfile` 独立 `Schema.Class`（`ConfigAgent.Info` 仅用于解码 `AgentAsset.config`）；<br>2. 批准独立 `session_composition_snapshot` 数据表与 typed owner（字段：`session_id` PK references session(id) on delete cascade, `version`, `digest`, `profile_path`, `profile_revision`, `data` text(json), `time_created`）；<br>3. 批准唯一 V2-native runtime policy owner，消除全仓散落的环境变量与 mode 分支；<br>4. 批准 Context Epoch 与 Composition Snapshot 严格分离（Snapshot 保存组合运行事实与 allowlist，Context Epoch 保存展示给模型的系统上下文）；<br>5. 批准 Session fork/move/resume 语义（move 保留快照，依赖缺失时阻断；组合升级必须通过 fork/new Session 并生成新快照）。 | 已批准（AI 代理代签） | 2026-08-18 | 用户明确授权 AI 代理代行本领域技术审批；不等同于真人负责人手签。                                           |
+| **App**          | AI 代理（用户授权） | 1. 批准 `/mode/custom` 参数化入口路由与定义注册；<br>2. 批准 `ModeWorkspace` Custom typed main slot（桌面端三列：资产目录 / 组合画布 / Plan 诊断预览；窄屏单列响应式抽屉）；<br>3. 批准 Draft 临时组合与 Profile 切换零闪烁与零 remount 原则（resource 上提至 ModeWorkspace provider + `render-all + display:none`）；<br>4. 批准只读 Snapshot 侧栏面板与版本漂移诊断提示。                                                                                                                                                                                                                                                                                                                                                                     | 已批准（AI 代理代签） | 2026-08-18 | 用户明确授权 AI 代理代行本领域技术审批；App 入口仍由后续 M1 Gate 控制。                                    |
+| **Security**     | AI 代理（用户授权） | 1. 批准 `task` 工具执行点与子 Session 创建点双层 Snapshot allowlist 校验门禁，阻断越权委派；<br>2. 批准 Custom ceiling 权限交集模型（`Mode ceiling ∩ Meta ∩ Executor ∩ Requested ∩ Location ∩ Session ∩ Approvals`）；<br>3. 批准 `ToolRegistrationFingerprint`（`placement`, `name`, `digest`, `installationVersion` 4 字段）与独立 `ToolCatalogDigest` 在每个 Provider Turn 前重验且 fail-closed 阻断机制；<br>4. 批准运行时逐次 `PermissionV2` leaf assert 判定，Snapshot 摘要仅用于审计；<br>5. 批准外部凭证脱敏与引用，严禁明文入库。                                                                                                                                                                                                      | 已批准（AI 代理代签） | 2026-08-18 | 用户明确授权 AI 代理代行本领域技术审批；执行顺序必须保持“物化前比对 + captured settlement + leaf assert”。 |
+| **Schema + SDK** | AI 代理（用户授权） | 1. 批准 `ProductMode` 五值扩展（owner 为 `packages/schema/src/product-mode.ts`）；<br>2. 批准 `AssetKindId` 第八类 `custom-profile` 注册；<br>3. 批准 `custom-profile.ts` 与 `composition.ts` 模式定义；<br>4. 批准 `x-aigcfroge-capabilities: product-mode-custom-v1` 协商与 typed unsupported 错误契约（严禁 fallback 为 Coding）；<br>5. 批准 `ToolRegistry.materialize({ permissions, intent, allowlist? })` 签名契约；<br>6. 批准 `/custom-profile`（GET list, GET content, POST apply, POST delete）与 `/custom-composition`（POST plan, POST start）API 契约及 SDK 生成策略（未定案 HTTP status / EventV2 names 标记 TBD）。                                                                                                             | 已批准（AI 代理代签） | 2026-08-18 | 用户明确授权 AI 代理代行本领域技术审批；HTTP status、EventV2 names 仍由 M0 Phase B contract review 定案。  |
+
+### 19.1 接受记录
+
+- **授权依据**：用户于 2026-08-18 明确要求“你给我签字吧，你审批的”，授权 AI 代理代行本次五方技术审批。
+- **审批范围**：批准本 PRD §17.1 的 M0/M1 实施准入，不代表 M1 Rollout Exit 已通过。
+- **追加执行授权**：用户后续明确要求 M0 Phase A-F 连续执行，中间只做验证和小结，不设置审批点；M0 完成后由高级全栈顾问统一复审。
+- **未批准范围**：M1 运行时、Custom UI 入口、Snapshot 持久化与 Tool allowlist 的 M1 执行集成、commit、push、PR 和 M1 rollout exit。
+- **状态约束**：生产运行时在 M0 Phase B 代码合入前仍严格保持四值 Product Mode；旧客户端不得将未来的 `custom` 解码为 Coding。

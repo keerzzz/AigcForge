@@ -1,10 +1,11 @@
 # Custom Mode M0 实施计划：治理与组合底座
 
-> 状态：**Draft v1.0 - 等待 ADR-17 / Custom PRD 正式批准后进入代码阶段**
-> 分析基线：`main@e0e0f970f`（2026-08-17）；执行基线必须是开工时最新、已同步并通过前置 Gate 的 `main`
+> 状态：**Approved for complete M0 execution v1.0 - Phase A-F 连续执行，M0 完成后统一复审**
+> 分析基线：`main@a4ffba0b3`（2026-08-18，本地/远端已同步）；执行基线必须是开工时最新、已同步并通过前置 Gate 的 `main`
 > 范围：治理协议 + `packages/schema` + `packages/core` + `packages/aigcfroge` + `packages/sdk/js`；不创建 Custom Session，不开放 App 入口
 > 上级计划：[Custom Mode 组合平台实施计划](custom-mode-composition-platform-implementation.md)
 > 后继计划：[Custom Mode M1](custom-mode-m1-single-agent-runtime.md)
+> 执行提示词：[Custom Mode M0 全量 TDD 执行提示词](prompt-custom-mode-m0-composition-platform.md)
 > 依据：[ADR-17](../architecture/adr/ADR-17-custom-mode-composition-platform.md)、[Custom PRD](../prd/custom-mode-composition-platform.md)、[Custom Roadmap](../roadmap/custom-mode-roadmap.md)、[Session V2](../../specs/v2/session.md)、[V2 Tools](../../specs/v2/tools.md)
 
 ---
@@ -31,14 +32,14 @@ M0 对应总计划的 `PR 0-PR 4`：治理、Schema/兼容、Profile owner、Age
 
 ## 1. Gate 与决策真源
 
-| Gate          | 条件                                                                     | 未通过时允许做什么               | 阻塞范围         |
-| ------------- | ------------------------------------------------------------------------ | -------------------------------- | ---------------- |
-| G0-A 产品治理 | ADR-17 Accepted；Custom PRD Approved；旧 ADR/PRD amend/supersede 完整    | 只改文档、测试设计和 Schema 草案 | 所有生产代码     |
-| G0-B 兼容     | Product/Core/App/Schema+SDK 接受 capable-client 与 unsupported-mode 矩阵 | 可写失败测试，不扩公开 enum      | Phase B-F        |
-| G0-C 真源     | Profile/Plan/Snapshot/Context Epoch owner 与 Profile YAML 契约批准       | 只完成 ADR 修订                  | Phase C-F        |
-| G0-D 范围     | M1 固定一个当前 Location 用户 Agent + Prompt/Skill + native              | 不接受长期模型字段               | Profile/Resolver |
+| Gate          | 条件                                                                                                                    | 未通过时允许做什么               | 阻塞范围         |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------- | ---------------- |
+| G0-A 产品治理 | ADR-17 Accepted for M0/M1 implementation；Custom PRD Approved for M0/M1 implementation；旧 ADR/PRD amend/supersede 完整 | 只改文档、测试设计和 Schema 草案 | 所有生产代码     |
+| G0-B 兼容     | Product/Core/App/Schema+SDK 接受 capable-client 与 unsupported-mode 矩阵                                                | 可写失败测试，不扩公开 enum      | Phase B-F        |
+| G0-C 真源     | Profile/Plan/Snapshot/Context Epoch owner 与 Profile YAML 契约批准                                                      | 只完成 ADR 修订                  | Phase C-F        |
+| G0-D 范围     | M1 固定一个当前 Location 用户 Agent + Prompt/Skill + native                                                             | 不接受长期模型字段               | Profile/Resolver |
 
-治理文档里的“建议”不等于签字。执行者必须记录批准证据；拿不到证据就完成 Phase A 的修订草案并停止。
+治理文档里的“建议”不等于签字。当前 G0-A 至 G0-D 已由用户授权 AI 代理按 ADR-17 / Custom PRD 五方审批项代签满足；生产代码仍须遵守当前 Phase 的范围、非目标和测试门禁。实现证据若推翻已批准假设，必须停止并回到对应 owner 裁决，不能用本次代签压过代码事实。
 
 ## 2. 五层影响与复用表
 
@@ -50,7 +51,7 @@ M0 对应总计划的 `PR 0-PR 4`：治理、Schema/兼容、Profile owner、Age
 | L4 App         | 当前只做兼容消费者                        | `isMode`、badge/list 的 unknown handling                         | 能识别 unsupported，不显示入口                                  | Builder/Custom slot               |
 | L5 runtime     | 只定义后继契约                            | Session V2、ToolRegistry、PermissionV2                           | Snapshot/runtime interfaces 的 Schema 与测试夹具                | 执行、委派、工具注册              |
 
-每个 Phase 开始前必须补一张局部 reuse table：`candidate / caller+test evidence / compatibility / decision / rejection reason`。
+每个 Phase 开始前必须补一张局部 reuse table：`candidate / caller+test evidence / compatibility / decision / rejection reason`。每个 slice 完成后只输出复查小结并自动继续，不设置中间审批点。
 
 ## 3. 分阶段实施
 
@@ -81,7 +82,7 @@ git diff --check
 
 `<changed-docs>` 必须替换为当前治理 PR 的明确文件列表；不要把用户无关的 Markdown 改动或全仓既有格式债混入本 PR。
 
-Phase A 结束必须输出复查结论并检查 G0-A；没有正式批准就停止，不进入 Phase B。
+Phase A 已完成并通过 G0-A。用户已授权在当前 M0 集成分支顺序继续 Phase B-F；进入 Phase B 前必须确认工作区改动全部属于本 M0、记录相对最新 main 的基线，并排除用户无关改动。
 
 ### Phase B：Schema 与 capable-client（总计划 PR 1）
 
@@ -185,7 +186,7 @@ git diff --check
 - 同步 schema changelog、technical debt、Roadmap 状态和 M1 输入契约。
 - 差异审查必须证明没有 Custom Session、Snapshot row、App 入口或运行时 allowlist 半成品。
 
-## 4. 每个小节的 TDD 与协议复查循环
+## 4. 每个小节的 TDD 与协议复查循环（不设中间审批）
 
 每个 Phase 内按最小 vertical slice 重复：
 
@@ -197,7 +198,7 @@ git diff --check
 5. 重构：去重、收敛 Layer/错误/分支，focused test 保持绿
 6. 执行 CLAUDE.md「改完即审」七项并输出复查结论
 7. 重读 CLAUDE.md、相关 AGENTS/skill 与本 slice 计划文本
-8. focused + package test/typecheck + lint/diff 全绿后，才继续下一 slice
+8. focused + package test/typecheck + lint/diff 全绿后，输出小结并继续下一 slice，不等待审批
 ```
 
 执行协议复查不是只读文件：复查结论必须逐项回答 Catch Everything、No Null Pointer、Security First、No Cheating、Reusability、Clean Logs 和五层数据流。
@@ -237,7 +238,7 @@ git diff --check
 ## 7. 分支与 main 策略
 
 - Phase A 治理 PR 从开工时最新、干净、已同步的 `main` 建短分支 `custom-governance`。
-- Phase B-F **不能都从今天的 `main@e0e0f970f` 并行切出**；每个 PR 在前一 PR 合入后，从当时最新 `main` 新建短分支。
-- 推荐分支：`custom-contracts`、`custom-profile`、`custom-bridges`、`custom-resolver`。
-- 如果同一执行窗口经 owner 明确批准采用 stacked branches，仍需在每层合并后 rebase 到最新 main 并重跑全部受影响门禁；不得让长期堆叠替代 Gate。
-- 本 M 完成后停止，等待 M0 评审和 M1 开工批准；不自动进入 M1。
+- 用户已明确批准 M0 Phase A-F 在一个本地实施窗口连续执行。当前 `custom-governance` 可作为 M0 集成分支继续使用，但开工前必须证明脏文件全部属于本 M0，且不得混入用户无关改动。
+- 每个 Phase 仍按原 PR 0-4 边界记录范围、diff、测试和复查小结；统一审批通过后，再决定拆分为 `custom-contracts`、`custom-profile`、`custom-bridges`、`custom-resolver` 等交付分支或提交。
+- 不允许并行执行有前置依赖的 Phase；Phase B-F 必须顺序执行，前一 Phase 全绿后才能继续。
+- 本 M 全部 Phase A-F 完成后只停止一次，输出 M0 completion report，等待统一总复审和 M1 开工批准；不自动进入 M1。

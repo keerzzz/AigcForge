@@ -184,3 +184,18 @@ Leaf tools translate only errors they deliberately classify as recoverable. Broa
 Location plugin installation should receive the same narrow `Tools` capability. That requires a separate Location-layer ordering change so built-ins register before plugins without introducing a `PluginBoot -> Tools -> PluginBoot` dependency cycle. The carrier, registrar, and plugin-owned Scope semantics are already suitable; no tool-specific plugin hook is needed.
 
 Session's current public result shape still exposes managed `outputPaths`. Extending storage encapsulation across the public Session API requires a separate opaque managed-output reference design; paths are not entirely internal today.
+
+## Accepted Custom Tool Materialization Extension (ADR-17 v1.2; implementation not yet landed)
+
+When Custom Mode (ADR-17) is formally Accepted:
+
+- `ToolRegistry.materialize({ permissions, intent, allowlist? })` accepts an object parameter with an optional effective allowlist computed from the Session's `CompositionSnapshot`.
+- Tool definition filtering controls which tools are advertised to the model; it is not authorization. The leaf `permission.assert` inside the tool executor remains the final authoritative security boundary.
+- Definitions and captured settlement must originate from the same effective Location registrations; no second executable registry is created.
+- `CompositionSnapshot` records a stable `ToolRegistrationFingerprint` for each advertised tool, consisting of the following minimal 4 fields:
+  1. `placement` (Location-scoped placement identity);
+  2. `name` (canonical tool name);
+  3. `digest` (normalized tool definition and argument schema digest);
+  4. `installationVersion` (tool package / built-in installation version).
+- `CompositionSnapshot` independently records `ToolCatalogDigest` (aggregate digest of the entire effective tool catalog).
+- At each safe provider-turn boundary before dispatching a tool execution, `ToolRegistry` simultaneously re-verifies `ToolRegistrationFingerprint` and `ToolCatalogDigest` against the active Location registrations. Any drift or mismatch triggers a **fail-closed** error that aborts execution.

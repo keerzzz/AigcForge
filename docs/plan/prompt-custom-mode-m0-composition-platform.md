@@ -1,16 +1,18 @@
-# Custom Mode M0-M5 TDD 执行提示词
+# Custom Mode M0 全量 TDD 执行提示词
 
 > 对应总计划：[custom-mode-composition-platform-implementation.md](custom-mode-composition-platform-implementation.md)
-> M 计划： [M0](custom-mode-m0-composition-foundation.md) · [M1](custom-mode-m1-single-agent-runtime.md) · [M2](custom-mode-m2-multi-agent-workflow.md) · [M3](custom-mode-m3-mcp-approval.md) · [M4](custom-mode-m4-trusted-runtime-extension.md) · [M5](custom-mode-m5-code-presentation.md)
+> M0 计划：[custom-mode-m0-composition-foundation.md](custom-mode-m0-composition-foundation.md)
 > 分析基线：`main@a4ffba0b3`（2026-08-18，本地/远端已同步）；执行时不得把该 SHA 当成固定开工基线
 > 生成日期：2026-08-18
 > 用途：复制 `PROMPT START` 与 `PROMPT END` 之间的正文到新的执行对话
 
 <!-- PROMPT START -->
 
-你是 AigcForge 仓库（`/media/win_data/aigcfroge`）的高级全栈工程师。你的目标是按仓库协议，以 TDD 小切片执行 Custom Mode 组合平台当前**第一个已获批准且前置 Gate 全部满足的 M 节点**。
+你是 AigcForge 仓库（`/media/win_data/aigcfroge`）的高级全栈工程师。你的唯一目标是按仓库协议，以 TDD 小切片完整执行 **Custom Mode M0 Phase A-F**。
 
 当前文档状态下，默认候选是 **M0 Phase A-F 全量执行**。ADR-17 已 Accepted for M0/M1 implementation，Custom PRD 已 Approved for M0/M1 implementation，审批记录注明由用户授权 AI 代理代签。用户已追加授权 M0 在一个本地实施窗口顺序执行；当前 `custom-governance` 可继续作为 M0 集成分支，但必须先证明脏文件全部属于 M0 且无用户无关改动。M0 内部小节验证全绿后自动继续；M0 Phase F 结束后统一停机等待高级全栈顾问审批。不得创建 Custom Session、开放 `/mode/custom` 或自动进入 M1。
+
+M0 的 G0-A 至 G0-D 已由本次代签满足，不得再次因“等待五方签字”停机。若实现代码和测试证明某项已批准假设不成立，则按代码事实停机并报告 owner 冲突。
 
 ## 0. 开工门禁
 
@@ -31,9 +33,9 @@ git log --oneline --decorate -20 main
 
 规则：
 
-1. 本提示词刷新时，本地 `main`、`origin/main` 和 GitHub 远端 `refs/heads/main` 均为 `a4ffba0b3d22bae564f6616f0f84fe8ead8342fc`；但每个实现 PR 仍必须从**开工时最新、已同步、干净且已包含全部前置 PR 的 `main`**创建。若 fetch 后本地 main、origin/main、`ls-remote` 或计划基线不同，先审计差异对本 M 的影响；不要硬退到旧 SHA，也不要在含用户改动的工作树里强行移动 main。
+1. 本提示词刷新时，本地 `main`、`origin/main` 和 GitHub 远端 `refs/heads/main` 均为 `a4ffba0b3d22bae564f6616f0f84fe8ead8342fc`。开工时重新 fetch 并审计最新 main；不要硬退到旧 SHA。当前 `custom-governance` 可作为用户授权的 M0 集成分支继续顺序执行 A-F，但必须记录其相对最新 main 的基线和完整 M0 diff。
 2. 不覆盖、回滚、清理或提交用户已有改动。若当前 main 有无关脏改动，先报告并隔离本任务文件；禁止 `git reset --hard`、`git checkout --` 和盲目 clean。若脏文件仅为本提示词及 `custom-mode-*` 总计划/M0-M5/路线图，且 `git diff` 证明只是 `e0e0f970f -> a4ffba0b3` 的本地/远端基线同步，则把它们视为 M0 Phase A 的在途文档，审阅后随 `custom-governance` 短分支保留，不得丢弃，也不把它们误报为生产实现阻塞。
-3. 每个 PR 使用不超过三个短词、无 slash 的分支名。后续 PR 在前置 PR 合入后从当时最新 main 新建，不要让 M0-M5 共用一个长期巨型分支。
+3. 用户已批准 M0 Phase A-F 在一个本地实施窗口顺序执行。当前 `custom-governance` 可作为 M0 集成分支继续使用，但每个 Phase 必须按原 PR 0-4 边界记录文件、diff 和测试证据；统一审批后再决定提交拆分。不得并行执行有依赖的 Phase。
 4. 未经用户确认 remote、issue、最终 diff、commit/PR title，不 push、不创建 PR。禁止 `--no-verify`。
 5. 测试永不从仓库根运行。使用 `bun --cwd packages/<name> test --timeout 30000` 或包内专用脚本。根目录只可运行 typecheck/lint/protocol/diff 等非 test 门禁。
 
@@ -62,13 +64,10 @@ docs/roadmap/custom-mode-roadmap.md
 docs/plan/custom-mode-composition-platform-implementation.md
 docs/plan/custom-mode-m0-composition-foundation.md
 docs/plan/custom-mode-m1-single-agent-runtime.md
-docs/plan/custom-mode-m2-multi-agent-workflow.md
-docs/plan/custom-mode-m3-mcp-approval.md
-docs/plan/custom-mode-m4-trusted-runtime-extension.md
-docs/plan/custom-mode-m5-code-presentation.md
 specs/v2/session.md
 specs/v2/tools.md
 docs/technical-debt.md
+docs/review/AigcForge_CUSTOM_GOVERNANCE_APPROVAL_2026-08-18.md
 ```
 
 随后只为当前 M 加载专题协议：
@@ -81,25 +80,20 @@ docs/technical-debt.md
 
 外部与仓库内 `CLAUDE.md` 在计划分析时内容一致，但开工时仍需确认，不得假定永远同步。
 
-## 2. 先选择唯一当前 M
+## 2. 锁定 M0
 
-按下表判断，只执行一个 M：
+只执行 M0：
 
-| M   | 实施计划                                      | 进入条件                                                          | 当前未满足时的行为                     |
-| --- | --------------------------------------------- | ----------------------------------------------------------------- | -------------------------------------- |
-| M0  | `custom-mode-m0-composition-foundation.md`    | ADR/PRD 已批准；当前分支只包含 M0 在途改动或治理已合入最新 `main` | 执行 Phase A-F，M0 结束后统一审批      |
-| M1  | `custom-mode-m1-single-agent-runtime.md`      | M0 全部合入 + G2 V2 + G3 Security + G4 App                        | 停止，不提前写 Snapshot/runtime/UI     |
-| M2  | `custom-mode-m2-multi-agent-workflow.md`      | M1 稳定 + Workflow Execution ADR                                  | 只允许研究/ADR，不改 Agent cardinality |
-| M3  | `custom-mode-m3-mcp-approval.md`              | M1 稳定 + Registration/Grant/Credential/Unattended ADR            | 只允许研究/ADR，不开放 MCP runtime     |
-| M4  | `custom-mode-m4-trusted-runtime-extension.md` | M3 稳定 + Threat/Lifecycle/Capability ADR                         | 不 mount Custom Plugin code            |
-| M5  | `custom-mode-m5-code-presentation.md`         | M3/M4 稳定 + Sandbox/Equivalence ADR + mature engine proof        | 不实现 `run_code`                      |
+```text
+Phase A  治理修订链
+Phase B  Schema 与 capable-client
+Phase C  Custom Profile typed owner
+Phase D  Agent/Skill runtime bridge
+Phase E  CompositionResolver 与 Plan API
+Phase F  M0 收口
+```
 
-选择规则：
-
-1. 以 ADR/PRD/Roadmap/main 代码与人类批准证据为真，不以计划中的目标状态为真。
-2. 选择第一个未完成且所有进入条件满足的 M；若只满足该 M 的 ADR/研究 Phase，就只做该 Phase。
-3. 开始前输出：`选择的 M / 当前 Phase / Gate 证据 / 被阻塞的后续 M / 本次非目标`。
-4. **同一 M0 内**，每个小节验证全绿后自动继续下一小节；M0 Phase F 统一停机审批。**跨 M** 必须停止并等待人类批准，不得自动进入 M1-M5。
+开始前输出：`M0 / 当前 Phase / Gate 证据 / 基线 / 分支 / 非目标`。Phase A-F 必须顺序执行；每个 slice 全绿后自动继续，不等待审批。Phase F 完成后统一停止，等待高级全栈顾问总复审。不得进入 M1-M5。
 
 ## 3. 已确认的架构事实
 
@@ -152,6 +146,17 @@ acceptance | layer | red test | expected failure | green evidence | final gate
 ```
 
 覆盖适用的 success、invalid、boundary、authorization、concurrency、interruption、idempotency、migration、old-client、reload/recovery、UI error/empty/loading。
+
+### 4.3 M0 Phase 范围
+
+- **Phase A**：ADR/PRD/旧 ADR/ARCHITECTURE/CONTEXT/DESIGN/Session/Tool spec/schema changelog/technical debt 状态与契约唯一化。
+- **Phase B**：ProductMode 五值、AssetKind 第八类、CustomProfile/Plan/Snapshot/Diagnostic/error Schema、capable-client、typed unsupported、OpenAPI/SDK。即使 wire Schema 已认识 `custom`，现有通用 V1/V2 Session create 仍必须明确拒绝 `custom`；只能由 M1 `/custom-composition/start` 在 Session+Snapshot 原子事务就绪后开放创建。
+- **Phase C**：Profile path/YAML/registry/watcher/invalid projection/CAS apply-delete/reverse refs/HTTP/SDK，不创建 Session。
+- **Phase D**：AgentAsset -> AgentV2 candidate 和 composition-local Skill catalog seam，不接 Runner、不替换 root `meta`。
+- **Phase E**：Location-scoped Resolver、deterministic digest、diagnostics、health/reverse refs、Plan API，不执行工具、不创建 Session、不信任客户端 Snapshot。
+- **Phase F**：新旧客户端矩阵、failure injection、deterministic digest、全套验证、文档状态和最终差异审查。
+
+M0 硬性非目标：Snapshot 表/migration、Custom Session/start/upgrade、Runner、Tool allowlist runtime、task/child runtime gate、`/mode/custom`、Custom UI、MCP/Workflow/Plugin/Code Presentation。
 
 ## 5. 每个小节强制 TDD 循环
 
@@ -307,11 +312,11 @@ M completion:
 
 ## 使用说明
 
-| 项           | 值                                                       |
-| ------------ | -------------------------------------------------------- |
-| 复制范围     | `<!-- PROMPT START -->` 到 `<!-- PROMPT END -->`         |
-| 当前安全起点 | M0 Phase A-F；治理合入后的最新 `main`，M0 结束后统一审批 |
-| 自动继续范围 | 同一已批准 M 内，slice 验证全绿后继续                    |
-| 强制停止点   | 跨 M、Gate 未过、测试失败、owner/协议冲突、远程交付前    |
-| 分支原则     | 每个可合并 PR 从前置 PR 合入后的最新 main 新建短分支     |
-| 卡住时       | 输出停止报告，不绕过 Gate 或测试                         |
+| 项           | 值                                                               |
+| ------------ | ---------------------------------------------------------------- |
+| 复制范围     | `<!-- PROMPT START -->` 到 `<!-- PROMPT END -->`                 |
+| 当前安全起点 | M0 Phase A-F；当前 M0 集成分支相对最新 `main` 完成基线审计后执行 |
+| 自动继续范围 | M0 Phase A-F 内，slice 验证全绿后自动继续                        |
+| 强制停止点   | 跨 M、Gate 未过、测试失败、owner/协议冲突、远程交付前            |
+| 分支原则     | 当前 M0 集成分支顺序执行；统一审批后决定提交拆分                 |
+| 卡住时       | 输出停止报告，不绕过 Gate 或测试                                 |
