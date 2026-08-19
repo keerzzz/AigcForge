@@ -2,7 +2,7 @@ import type { ProductMode } from "@aigcfroge/sdk/v2/client"
 import { pathKey } from "@/utils/path-key"
 
 export function countByMode(records: ReadonlyArray<{ session: { mode?: ProductMode } }>) {
-  const count: Record<ProductMode, number> = { coding: 0, chat: 0, work: 0, assistant: 0 }
+  const count: Record<ProductMode, number> = { coding: 0, chat: 0, work: 0, assistant: 0, custom: 0 }
   for (const record of records) {
     count[record.session.mode ?? "coding"] += 1
   }
