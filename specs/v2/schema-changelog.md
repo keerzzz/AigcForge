@@ -21,7 +21,7 @@
   - Strict isolation: Immutable, owned by Session, strictly separate from `session.metadata`, transcript, or Context Epoch.
 - **HTTP API & Capability Negotiation (Target: `packages/aigcfroge/src/server/routes/`)**:
   - Proposes `x-aigcfroge-capabilities: product-mode-custom-v1` request header negotiation.
-  - Proposes typed error schema: `unsupported_mode` (HTTP status TBD; with machine-readable capability requirement code).
+  - Implemented typed error schema: `UnsupportedProductModeError` is encoded with HTTP 400 and `{ _tag, mode, message }`; unsupported custom sessions remain hidden as `SessionNotFoundError` (HTTP 404) from clients without `product-mode-custom-v1`.
   - Proposes `/custom-profile` API (`GET /custom-profile`, `GET /custom-profile/content`, `POST /custom-profile/apply`, `POST /custom-profile/delete`).
   - Proposes `/custom-composition` API (`POST /custom-composition/plan`, `POST /custom-composition/start`).
 - **Tool Materialization & Stable Fingerprint (Target: `packages/core/src/tool/`)**:
@@ -30,8 +30,9 @@
   - Proposes independent `ToolCatalogDigest` (aggregate catalog digest).
   - Provider-turn before-execution re-verification of both fingerprint and catalog digest, with fail-closed mismatch handling.
 - **EventV2 & SDK Impact**:
-  - Proposes EventV2 lifecycle events (names TBD upon M0 Phase B).
-  - Proposes regenerating `@aigcfroge/sdk` with new types and client methods upon M0 Phase B.
+  - Implemented session lifecycle events are: `session.next.agent.switched`, `session.next.model.switched`, `session.next.moved`, `session.next.prompted`, `session.next.prompt.admitted`, `session.next.shell.admitted`, `session.next.skill.admitted`, `session.next.context.updated`, `session.next.synthetic`, `session.next.forked`, `session.next.shell.started`, `session.next.shell.ended`, `session.next.step.started`, `session.next.step.ended`, `session.next.step.failed`, `session.next.text.started`, `session.next.text.delta`, `session.next.text.ended`, `session.next.reasoning.started`, `session.next.reasoning.delta`, `session.next.reasoning.ended`, `session.next.tool.input.started`, `session.next.tool.input.delta`, `session.next.tool.input.ended`, `session.next.tool.called`, `session.next.tool.progress`, `session.next.tool.success`, `session.next.tool.failed`, `session.next.retried`, `session.next.compaction.started`, `session.next.compaction.delta`, `session.next.compaction.ended`, `session.next.compaction.soft-warning`, `session.next.compaction.stuck`, `session.next.verify.started`, `session.next.verify.passed`, `session.next.verify.failed`, and `session.next.cache.diagnostic`.
+  - Capable clients may use `session.children` and `session.context` as read endpoints; they return 200 for custom sessions, including an empty `{ data: [] }` result when no records exist.
+  - The generated `@aigcfroge/sdk` remains the contract surface for the implemented routes.
 
 ## 2026-08-03: Task Spawn Fields, task_spawn Tool, and DAG Helpers (Todo/Task M5 Step 1 — recovered from wip)
 

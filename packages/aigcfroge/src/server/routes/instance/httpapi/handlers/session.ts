@@ -68,6 +68,15 @@ const v2OperationUnavailable = () => new HttpApiError.BadRequest({})
 const unsupportedProductMode = (error: ProductModePolicy.UnsupportedProductModeError) =>
   new UnsupportedProductModeError({ mode: error.mode, message: error.message })
 
+// HIGH-4: custom sessions are V2-native. The V1 sync prompt/command/shell
+// endpoints run the legacy V1 prompt loop, which has no custom gating — reject
+// typed and point clients at the V2 async admission surface.
+const v1SyncUnsupportedForCustom = (mode: string) =>
+  new UnsupportedProductModeError({
+    mode,
+    message: `Mode "${mode}" does not support the V1 sync prompt/command/shell endpoints. Custom sessions are V2-native: use the async admission endpoints instead (POST /api/session/:sessionID/prompt, /api/session/:sessionID/shell, /api/session/:sessionID/skill, or session.prompt_async).`,
+  })
+
 export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", (handlers) =>
   Effect.gen(function* () {
     const session = yield* Session.Service
@@ -595,15 +604,24 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload?: typeof ForkPayload.Type
     }) {
       const original = yield* requireSession(ctx.params.sessionID)
-      yield* ProductModePolicy.assertCreationSupported(original.mode).pipe(
-        Effect.mapError(unsupportedProductMode),
-      )
+      // MEDIUM-5: the creation gate exists to block generic ROOT creation of
+      // custom sessions; fork is not root creation. A custom parent falls
+      // through to the V2 branch, where create({parentID}) copies the frozen
+      // snapshot (orphan custom parents fail typed via the SnapshotNotFound
+      // catchTag below). Root custom creation stays blocked on session.create.
+      if (original.mode !== "custom") {
+        yield* ProductModePolicy.assertCreationSupported(original.mode).pipe(
+          Effect.mapError(unsupportedProductMode),
+        )
+      }
       if (ProductModePolicy.shouldUseV2Runtime(original.mode, AIGCFROGE_V2_RUNTIME)) {
         const v2s = yield* SessionV2.Service
         const parent = yield* SessionError.mapStorageNotFound(session.get(ctx.params.sessionID))
-        yield* ProductModePolicy.assertCreationSupported(parent.mode).pipe(
-          Effect.mapError(unsupportedProductMode),
-        )
+        if (parent.mode !== "custom") {
+          yield* ProductModePolicy.assertCreationSupported(parent.mode).pipe(
+            Effect.mapError(unsupportedProductMode),
+          )
+        }
         const child = yield* v2s
           .create({
             location: { directory: AbsolutePath.make(parent.directory) },
@@ -773,7 +791,8 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       params: { sessionID: SessionID }
       payload: typeof PromptPayload.Type
     }) {
-      yield* requireRuntimeSession(ctx.params.sessionID)
+      const info = yield* requireRuntimeSession(ctx.params.sessionID)
+      if (info.mode === "custom") return yield* v1SyncUnsupportedForCustom(info.mode)
       // prompt/command/shell stay on the V1 path even when AIGCFROGE_V2_RUNTIME=true.
       // V2 v2s.prompt/v2s.skill/v2session.shell return SessionInput.Admitted (a flat
       // durable-inbox admission record) but the API success schema is SessionV1.WithParts
@@ -839,7 +858,8 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       params: { sessionID: SessionID }
       payload: typeof CommandPayload.Type
     }) {
-      yield* requireRuntimeSession(ctx.params.sessionID)
+      const info = yield* requireRuntimeSession(ctx.params.sessionID)
+      if (info.mode === "custom") return yield* v1SyncUnsupportedForCustom(info.mode)
       // command stays V1 - see prompt handler comment (V2 v2s.skill returns Admitted, API expects WithParts)
       return yield* promptSvc
         .command({ ...ctx.payload, sessionID: ctx.params.sessionID })
@@ -850,7 +870,8 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       params: { sessionID: SessionID }
       payload: typeof ShellPayload.Type
     }) {
-      yield* requireRuntimeSession(ctx.params.sessionID)
+      const info = yield* requireRuntimeSession(ctx.params.sessionID)
+      if (info.mode === "custom") return yield* v1SyncUnsupportedForCustom(info.mode)
       // shell stays V1 - see prompt handler comment (V2 v2session.shell returns Admitted, API expects WithParts)
       return yield* SessionError.mapBusy(promptSvc.shell({ ...ctx.payload, sessionID: ctx.params.sessionID }))
     })
