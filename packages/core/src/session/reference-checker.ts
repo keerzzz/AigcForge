@@ -86,7 +86,7 @@ const extractFiles = (toolName: string, toolInput: unknown): ReadonlyArray<strin
     if (typeof patchText !== "string") return []
     const files: string[] = []
     for (const match of patchText.matchAll(/^\+\+\+ b\/(.+)$/gm)) {
-      files.push(match[1]!.trim())
+      if (match[1]) files.push(match[1].trim())
     }
     return files
   }
@@ -102,13 +102,13 @@ const extractFiles = (toolName: string, toolInput: unknown): ReadonlyArray<strin
 const extractReferences = (line: string): ReadonlyArray<string> => {
   const references: string[] = []
   for (const match of line.matchAll(MARKDOWN_LINK)) {
-    references.push(match[1]!)
+    if (match[1]) references.push(match[1])
   }
   for (const match of line.matchAll(IMPORT_FROM)) {
-    references.push(match[2]!)
+    if (match[2]) references.push(match[2])
   }
   for (const match of line.matchAll(REQUIRE)) {
-    references.push(match[2]!)
+    if (match[2]) references.push(match[2])
   }
   return references
 }

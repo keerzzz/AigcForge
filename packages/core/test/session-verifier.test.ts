@@ -62,7 +62,7 @@ const makeAppProcess = (exitCodes: ReadonlyArray<number>, runs: number[] = []) =
       }),
   })
 
-const layerFor = (meta = {}, appProcess?: Layer.Layer<AppProcess.Service, never, never>) =>
+const layerFor = (meta = {}, appProcess?: Layer.Layer<AppProcess.Service>) =>
   Verifier.layer.pipe(
     Layer.provide(VerificationRouter.layer.pipe(Layer.provide(configLayer(meta)))),
     Layer.provideMerge(CorrectionStore.layer.pipe(Layer.provide(configLayer(meta)))),

@@ -108,6 +108,17 @@ export function checkPrimaryAgent(mode: string, agent?: string): PolicyVerdict {
     return { allowed: true }
   }
 
+  if (mode === "custom") {
+    return {
+      allowed: false,
+      error: new AgentNotAllowedError({
+        mode,
+        agent,
+        reason: "Custom mode execution requires an active M1 composition runtime with an immutable snapshot",
+      }),
+    }
+  }
+
   // Other modes: mode-bound orchestrators are not allowed as primary
   if (agent === CHAT_ORCHESTRATOR) {
     return {
@@ -144,6 +155,15 @@ export function checkCommandAllowed(mode: string): PolicyVerdict {
     return {
       allowed: false,
       error: new CommandDeniedError({ mode, reason: "Shell/command prompts are denied in work mode" }),
+    }
+  }
+  if (mode === "custom") {
+    return {
+      allowed: false,
+      error: new CommandDeniedError({
+        mode,
+        reason: "Shell/command prompts are denied in custom mode without an M1 composition snapshot",
+      }),
     }
   }
   return { allowed: true }
@@ -191,7 +211,7 @@ export function checkCliDelegationAllowed(
     allowed: false,
     error: new CommandDeniedError({
       mode,
-      reason: "External CLI delegation is denied for unknown modes",
+      reason: "External CLI delegation is denied for unknown or custom modes",
     }),
   }
 }

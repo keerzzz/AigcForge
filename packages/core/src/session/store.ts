@@ -1,7 +1,7 @@
 export * as SessionStore from "./store"
 
 import { eq } from "drizzle-orm"
-import { Context, Effect, Layer, Schema } from "effect"
+import { Context, Effect, Layer, Option, Schema } from "effect"
 import { LayerNode } from "../effect/layer-node"
 import { Database } from "../database/database"
 import { SessionHistory } from "./history"
@@ -115,5 +115,21 @@ export const layer = Layer.effect(
 )
 
 export const defaultLayer = layer.pipe(Layer.provide(Database.defaultLayer))
+
+/**
+ * Returns the complete persisted session mode map for one SSE connection.
+ * Unknown session IDs must remain distinguishable from ordinary sessions so
+ * event filtering can fail closed.
+ */
+export const sessionModes = Effect.fn("SessionStore.sessionModes")(function* () {
+  const database = yield* Effect.serviceOption(Database.Service)
+  if (Option.isNone(database)) return new Map<string, string>()
+  const rows = yield* database.value.db
+    .select({ id: SessionTable.id, mode: SessionTable.mode })
+    .from(SessionTable)
+    .all()
+    .pipe(Effect.orDie)
+  return new Map(rows.map((row) => [String(row.id), String(row.mode)]))
+})
 
 export const node = LayerNode.make(layer, [Database.node])

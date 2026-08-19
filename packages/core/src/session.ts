@@ -24,6 +24,7 @@ import { SessionV1 } from "./v1/session"
 import { InstallationVersion } from "./installation/version"
 import { Slug } from "./util/slug"
 import { ProductModeAgentPolicy } from "./product-mode-agent-policy"
+import { ProductModePolicy } from "./product-mode-policy"
 import { ProjectTable } from "./project/sql"
 import path from "path"
 import { fromRow } from "./session/info"
@@ -107,11 +108,11 @@ export class PromptConflictError extends Schema.TaggedErrorClass<PromptConflictE
   messageID: SessionMessage.ID,
 }) {}
 
-export type Error = NotFoundError | MessageDecodeError | OperationUnavailableError | PromptConflictError
+export type Error = NotFoundError | MessageDecodeError | OperationUnavailableError | PromptConflictError | ProductModePolicy.UnsupportedProductModeError
 
 export interface Interface {
   readonly list: (input?: ListInput) => Effect.Effect<SessionSchema.Info[]>
-  readonly create: (input: CreateInput) => Effect.Effect<SessionSchema.Info>
+  readonly create: (input: CreateInput) => Effect.Effect<SessionSchema.Info, ProductModePolicy.UnsupportedProductModeError>
   readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<SessionSchema.Info, NotFoundError>
   readonly children: (sessionID: SessionSchema.ID) => Effect.Effect<SessionSchema.Info[], NotFoundError>
   readonly messages: (input: {
@@ -134,11 +135,11 @@ export interface Interface {
     sessionID: SessionSchema.ID
     after?: number
   }) => Stream.Stream<SessionEvent.DurableEvent, NotFoundError>
-  readonly switchAgent: (input: { sessionID: SessionSchema.ID; agent: string }) => Effect.Effect<void, NotFoundError>
+  readonly switchAgent: (input: { sessionID: SessionSchema.ID; agent: string }) => Effect.Effect<void, NotFoundError | ProductModePolicy.UnsupportedProductModeError>
   readonly switchModel: (input: {
     sessionID: SessionSchema.ID
     model: ModelV2.Ref
-  }) => Effect.Effect<void, NotFoundError>
+  }) => Effect.Effect<void, NotFoundError | ProductModePolicy.UnsupportedProductModeError>
   readonly remove: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError>
   readonly removeMessage: (input: { sessionID: SessionSchema.ID; messageID: SessionMessage.ID }) => Effect.Effect<void, NotFoundError>
   readonly setTitle: (input: { sessionID: SessionSchema.ID; title: string }) => Effect.Effect<void, NotFoundError>
@@ -148,19 +149,19 @@ export interface Interface {
     prompt: Prompt
     delivery?: SessionInput.Delivery
     resume?: boolean
-  }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError>
+  }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError | ProductModePolicy.UnsupportedProductModeError>
   readonly shell: (input: {
     id?: SessionMessage.ID
     sessionID: SessionSchema.ID
     command: string
     resume?: boolean
-  }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError>
+  }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError | ProductModePolicy.UnsupportedProductModeError>
   readonly skill: (input: {
     id?: SessionMessage.ID
     sessionID: SessionSchema.ID
     skill: string
     resume?: boolean
-  }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError>
+  }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError | ProductModePolicy.UnsupportedProductModeError>
   readonly compact: (input: CompactInput) => Effect.Effect<void, NotFoundError | OperationUnavailableError>
   readonly wait: (id: SessionSchema.ID) => Effect.Effect<void, NotFoundError | OperationUnavailableError>
   readonly resume: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError | SessionRunner.RunError>
@@ -199,9 +200,13 @@ export const layer = Layer.effect(
       create: Effect.fn("V2Session.create")(function* (input) {
         const sessionID = input.id ?? SessionSchema.ID.create()
         const recorded = yield* store.get(sessionID)
-        if (recorded) return recorded
+        if (recorded) {
+          yield* ProductModePolicy.assertCreationSupported(recorded.mode)
+          return recorded
+        }
         const parent = input.parentID ? yield* store.get(input.parentID) : undefined
         const mode = parent?.mode ?? input.mode ?? ProductMode.Default
+        yield* ProductModePolicy.assertCreationSupported(mode)
         const agent = yield* ProductModeAgentPolicy.enforcePrimary(mode, input.agent ?? parent?.agent)
         const project = yield* projects.resolve(input.location.directory)
         yield* db
@@ -356,7 +361,8 @@ export const layer = Layer.effect(
       prompt: Effect.fn("V2Session.prompt")((input) =>
         Effect.uninterruptible(
           Effect.gen(function* () {
-            yield* result.get(input.sessionID)
+            const session = yield* result.get(input.sessionID)
+            yield* ProductModePolicy.assertRuntimeSupported(session.mode)
             const messageID = input.id ?? SessionMessage.ID.create()
             const delivery = input.delivery ?? "steer"
             const expected = { sessionID: input.sessionID, messageID, prompt: input.prompt, delivery }
@@ -383,6 +389,7 @@ export const layer = Layer.effect(
         Effect.uninterruptible(
           Effect.gen(function* () {
             const session = yield* result.get(input.sessionID)
+            yield* ProductModePolicy.assertRuntimeSupported(session.mode)
             // V2 shell policy guard: deny shell in chat mode
             const commandVerdict = ProductModeAgentPolicy.checkCommandAllowed(session.mode ?? "coding")
             if (!commandVerdict.allowed) return yield* Effect.die(commandVerdict.error)
@@ -410,7 +417,8 @@ export const layer = Layer.effect(
       skill: Effect.fn("V2Session.skill")((input) =>
         Effect.uninterruptible(
           Effect.gen(function* () {
-            yield* result.get(input.sessionID)
+            const session = yield* result.get(input.sessionID)
+            yield* ProductModePolicy.assertRuntimeSupported(session.mode)
             const messageID = input.id ?? SessionMessage.ID.create()
             const delivery: SessionInput.Delivery = "steer"
             const expected = { sessionID: input.sessionID, messageID, skill: input.skill, delivery }
@@ -433,7 +441,8 @@ export const layer = Layer.effect(
         ),
       ),
       switchAgent: Effect.fn("V2Session.switchAgent")(function* (input) {
-        yield* result.get(input.sessionID)
+        const session = yield* result.get(input.sessionID)
+        yield* ProductModePolicy.assertRuntimeSupported(session.mode)
         yield* events.publish(SessionEvent.AgentSwitched, {
           sessionID: input.sessionID,
           messageID: SessionMessage.ID.create(),
@@ -442,7 +451,8 @@ export const layer = Layer.effect(
         })
       }),
       switchModel: Effect.fn("V2Session.switchModel")(function* (input) {
-        yield* result.get(input.sessionID)
+        const session = yield* result.get(input.sessionID)
+        yield* ProductModePolicy.assertRuntimeSupported(session.mode)
         yield* events.publish(SessionEvent.ModelSwitched, {
           sessionID: input.sessionID,
           messageID: SessionMessage.ID.create(),
