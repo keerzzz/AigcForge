@@ -2468,7 +2468,7 @@ it.instance(
         Effect.gen(function* () {
           const inputs = yield* llm.inputs
           const hasTier = inputs.some((body) =>
-            String(JSON.stringify(body?.messages ?? [])).includes("Permission tier: full"),
+            JSON.stringify(body?.messages ?? []).includes("Permission tier: full"),
           )
           return hasTier ? (true as const) : undefined
         }),

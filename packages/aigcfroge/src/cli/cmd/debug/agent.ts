@@ -22,6 +22,6 @@ export const AgentCommand = effectCmd({
   handler: (args) =>
     Effect.gen(function* () {
       const { debugAgent } = yield* Effect.promise(() => import("./agent.handler"))
-      return yield* debugAgent(args)
+      return yield* debugAgent(args).pipe(Effect.orDie)
     }),
 })

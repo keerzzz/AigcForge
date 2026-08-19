@@ -43,6 +43,7 @@ import { Effect, Layer, Option, Context, Schema, Types } from "effect"
 import { NonNegativeInt, optionalOmitUndefined } from "@aigcfroge/core/schema"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
+import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
@@ -463,8 +464,11 @@ export interface Interface {
     permissionTier?: PermissionTier.ID
     attended?: boolean
     workspaceID?: WorkspaceV2.ID
-  }) => Effect.Effect<Info>
-  readonly fork: (input: { sessionID: SessionID; messageID?: MessageID }) => Effect.Effect<Info, NotFound>
+  }) => Effect.Effect<Info, ProductModePolicy.UnsupportedProductModeError>
+  readonly fork: (input: {
+    sessionID: SessionID
+    messageID?: MessageID
+  }) => Effect.Effect<Info, NotFound | ProductModePolicy.UnsupportedProductModeError>
   readonly touch: (sessionID: SessionID) => Effect.Effect<void>
   readonly get: (id: SessionID) => Effect.Effect<Info, NotFound>
   readonly setTitle: (input: { sessionID: SessionID; title: string }) => Effect.Effect<void>
@@ -731,6 +735,7 @@ export const layer: Layer.Layer<
       const workspace = yield* InstanceState.workspaceID
       const parent = input?.parentID ? Option.getOrUndefined(yield* Effect.option(get(input.parentID))) : undefined
       const mode = parent?.mode ?? input?.mode ?? ProductMode.Default
+      yield* ProductModePolicy.assertCreationSupported(mode)
       const agent = yield* ProductModeAgentPolicy.enforcePrimary(mode, input?.agent ?? parent?.agent)
       return yield* createNext({
         parentID: input?.parentID,
@@ -752,6 +757,7 @@ export const layer: Layer.Layer<
     const fork = Effect.fn("Session.fork")(function* (input: { sessionID: SessionID; messageID?: MessageID }) {
       const ctx = yield* InstanceState.context
       const original = yield* get(input.sessionID)
+      yield* ProductModePolicy.assertCreationSupported(original.mode)
       const title = getForkedTitle(original.title)
       const session = yield* createNext({
         directory: ctx.directory,

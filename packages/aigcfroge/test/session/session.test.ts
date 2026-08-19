@@ -230,16 +230,15 @@ describe("Session", () => {
     }),
   )
 
-  it.instance("omits metadata when not provided", () =>
+  it.instance("rejects creating session with custom mode in M0", () =>
     Effect.gen(function* () {
       const session = yield* SessionNs.Service
-      const created = yield* Effect.acquireRelease(session.create({ title: "empty-meta" }), (info) =>
-        session.remove(info.id).pipe(Effect.ignore),
-      )
-      const saved = yield* session.get(created.id)
-
-      expect(created.metadata).toBeUndefined()
-      expect(saved.metadata).toBeUndefined()
+      const createExit = yield* session.create({ mode: "custom" }).pipe(Effect.exit)
+      expect(Exit.isFailure(createExit)).toBe(true)
+      if (Exit.isFailure(createExit)) {
+        const error = createExit.cause
+        expect(String(error)).toContain("UnsupportedProductModeError")
+      }
     }),
   )
 })

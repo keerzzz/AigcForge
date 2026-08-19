@@ -28,6 +28,9 @@ const ConsoleStateResponse = Schema.Struct({
 const CapabilitiesResponse = Schema.Struct({
   backgroundSubagents: Schema.Boolean,
   chatAsset: Schema.Boolean,
+  customMode: Schema.optionalKey(Schema.Boolean),
+  productModes: Schema.optionalKey(Schema.Array(Schema.String)),
+  customCompositionVersion: Schema.optionalKey(Schema.Number),
 }).annotate({ identifier: "ExperimentalCapabilities" })
 
 const ConsoleOrgOption = Schema.Struct({

@@ -21,6 +21,8 @@ import { SkillAssetApiGroup } from "./groups/skill-asset"
 import { MCPAssetApiGroup } from "./groups/mcp-asset"
 import { CommandAssetApiGroup } from "./groups/command-asset"
 import { AgentAssetApiGroup } from "./groups/agent-asset"
+import { CustomProfileApiGroup } from "./groups/custom-profile"
+import { CustomCompositionApiGroup } from "./groups/custom-composition"
 import { AgentTaskApiGroup } from "./groups/agent-task"
 import { ScheduleApiGroup } from "./groups/schedule"
 import { MemoryApiGroup } from "./groups/memory"
@@ -81,6 +83,8 @@ export const InstanceHttpApi = HttpApi.make("aigcfroge-instance")
   .addHttpApi(MCPAssetApiGroup.MCPAssetApi)
   .addHttpApi(CommandAssetApiGroup.CommandAssetApi)
   .addHttpApi(AgentAssetApiGroup.AgentAssetApi)
+  .addHttpApi(CustomProfileApiGroup.CustomProfileApi)
+  .addHttpApi(CustomCompositionApiGroup.CustomCompositionApi)
   .addHttpApi(ScheduleApiGroup.ScheduleApi)
   .addHttpApi(MemoryApiGroup.MemoryApi)
   .addHttpApi(KBApiGroup.KBApi)
