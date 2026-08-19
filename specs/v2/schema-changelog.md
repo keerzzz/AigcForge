@@ -1,38 +1,37 @@
 # V2 Schema Changelog
 
-## Accepted for M0/M1 implementation / Not Implemented: Custom Mode Composition Platform (ADR-17 v1.2)
+## 2026-08-19: Custom Mode Composition Platform M1 (ADR-17 v1.2) — Implemented
 
-> **Status: PROPOSED / NOT IMPLEMENTED**
-> **Scope:** Governance approved for M0 Phase B implementation by user-authorized AI-agent delegation; production code and generated contracts remain unchanged until the implementation PR lands.
-> **Production Baseline:** Active production runtime strictly maintains the 4-mode contract (`chat | coding | work | assistant`). The changes below describe the target design specifications and have NOT been implemented or applied to packages/schema, database migrations, HTTP endpoints, or generated SDKs.
+> **Status: IMPLEMENTED (M1 Waves W1-W4)**
+> **Scope:** Full-stack implementation of Custom Mode M1 single-agent runtime: schema, SQLite snapshot table, HTTP APIs (plan, start, upgrade, health, references), SDK client capability injection (`x-aigcfroge-capabilities: product-mode-custom-v1`), kill-switch gate (`AIGCFROGE_CUSTOM_MODE`), Phase E full UI (3-column Builder, 4 preview tabs, draft persistence, snapshot panel, upgrade action, 18-locale i18n), and 50-round stability & determinism matrix.
 
-- **ProductMode Domain (Target: `packages/schema/src/product-mode.ts`)**:
-  - Proposes expanding the closed `ProductMode` union from four values (`chat | coding | work | assistant`) to five: `chat | coding | work | assistant | custom`.
-  - Compatibility & Decoding: Historical rows, omitted create inputs, and legacy event payloads continue decoding as `coding`. In contrast, `custom` mode is never defaulted or fallen back to `coding`; clients that do not negotiate custom capability receive a typed unsupported error.
-- **AssetKindId Domain (Target: `packages/schema/src/asset.ts`)**:
-  - Proposes registering `custom-profile` as the 8th asset kind alongside `prompt`, `skill`, `agent`, `mcp`, `command`, `workflow`, `plugin`.
+- **ProductMode Domain (`packages/schema/src/product-mode.ts`)**:
+  - Expanded the closed `ProductMode` union to five values: `chat | coding | work | assistant | custom`.
+  - Compatibility & Decoding: Historical rows, omitted create inputs, and legacy event payloads continue decoding as `coding`. In contrast, `custom` mode is never defaulted or fallen back to `coding`; clients that do not negotiate custom capability receive a typed unsupported error (`UnsupportedProductModeError`).
+- **AssetKindId Domain (`packages/schema/src/asset.ts`)**:
+  - Registered `custom-profile` as the 8th asset kind alongside `prompt`, `skill`, `agent`, `mcp`, `command`, `workflow`, `plugin`.
   - Canonical file location: `.aigcfroge/custom-profiles/*.yaml`.
-- **Composition Schemas (Target: `packages/schema/src/custom-profile.ts` + `packages/schema/src/composition.ts`)**:
-  - Proposes `CustomProfile` `Schema.Class` in `custom-profile.ts` (discrete profile schema; `ConfigAgent.Info` remains exclusive to `AgentAsset.config`).
-  - Proposes `CompositionPlan` in `composition.ts` (resolving assets, diagnostic errors, capabilities, effective ordering).
-  - Proposes `CompositionSnapshot` in `composition.ts` (immutable runtime record containing profile metadata, authorized agent allowlist, bound asset revisions, `ToolRegistrationFingerprint`, and `ToolCatalogDigest`).
-- **Snapshot Database Table (Target: `packages/core/src/database/schema.ts`)**:
-  - Proposes an independent SQLite table `session_composition_snapshot` (columns: `session_id text PK references session(id) on delete cascade`, `version integer not null`, `digest text not null`, `profile_path text null`, `profile_revision text null`, `data text(json) not null`, `time_created integer not null`).
+- **Composition Schemas (`packages/schema/src/custom-profile.ts` + `packages/schema/src/composition.ts`)**:
+  - `CustomProfile` `Schema.Class` in `custom-profile.ts` (discrete profile schema).
+  - `Plan` in `composition.ts` (resolving assets, diagnostic errors, effective capabilities, effective permissions, and deterministic digest).
+  - `Snapshot` in `composition.ts` (immutable runtime record containing profile metadata, authorized agent, bound asset revisions, `SnapshotToolInfo`, and `SnapshotData`).
+  - `StartInput`, `UpgradeInput`, `StartResponse` in `composition.ts`.
+- **Snapshot Database Table (`packages/core/src/database/schema.ts`)**:
+  - Independent SQLite table `session_composition_snapshot` (columns: `session_id text PK references session(id) on delete cascade`, `version integer not null`, `digest text not null`, `profile_path text null`, `profile_revision text null`, `data text(json) not null`, `time_created integer not null`).
   - Strict isolation: Immutable, owned by Session, strictly separate from `session.metadata`, transcript, or Context Epoch.
-- **HTTP API & Capability Negotiation (Target: `packages/aigcfroge/src/server/routes/`)**:
-  - Proposes `x-aigcfroge-capabilities: product-mode-custom-v1` request header negotiation.
-  - Implemented typed error schema: `UnsupportedProductModeError` is encoded with HTTP 400 and `{ _tag, mode, message }`; unsupported custom sessions remain hidden as `SessionNotFoundError` (HTTP 404) from clients without `product-mode-custom-v1`.
-  - Proposes `/custom-profile` API (`GET /custom-profile`, `GET /custom-profile/content`, `POST /custom-profile/apply`, `POST /custom-profile/delete`).
-  - Proposes `/custom-composition` API (`POST /custom-composition/plan`, `POST /custom-composition/start`).
-- **Tool Materialization & Stable Fingerprint (Target: `packages/core/src/tool/`)**:
-  - Proposes `ToolRegistry.materialize({ permissions, intent, allowlist? })` signature.
-  - Proposes minimal stable `ToolRegistrationFingerprint` (4 fields: `placement`, `name`, `digest` [normalized definition/schema digest], `installationVersion`).
-  - Proposes independent `ToolCatalogDigest` (aggregate catalog digest).
-  - Provider-turn before-execution re-verification of both fingerprint and catalog digest, with fail-closed mismatch handling.
-- **EventV2 & SDK Impact**:
-  - Implemented session lifecycle events are: `session.next.agent.switched`, `session.next.model.switched`, `session.next.moved`, `session.next.prompted`, `session.next.prompt.admitted`, `session.next.shell.admitted`, `session.next.skill.admitted`, `session.next.context.updated`, `session.next.synthetic`, `session.next.forked`, `session.next.shell.started`, `session.next.shell.ended`, `session.next.step.started`, `session.next.step.ended`, `session.next.step.failed`, `session.next.text.started`, `session.next.text.delta`, `session.next.text.ended`, `session.next.reasoning.started`, `session.next.reasoning.delta`, `session.next.reasoning.ended`, `session.next.tool.input.started`, `session.next.tool.input.delta`, `session.next.tool.input.ended`, `session.next.tool.called`, `session.next.tool.progress`, `session.next.tool.success`, `session.next.tool.failed`, `session.next.retried`, `session.next.compaction.started`, `session.next.compaction.delta`, `session.next.compaction.ended`, `session.next.compaction.soft-warning`, `session.next.compaction.stuck`, `session.next.verify.started`, `session.next.verify.passed`, `session.next.verify.failed`, and `session.next.cache.diagnostic`.
-  - Capable clients may use `session.children` and `session.context` as read endpoints; they return 200 for custom sessions, including an empty `{ data: [] }` result when no records exist.
-  - The generated `@aigcfroge/sdk` remains the contract surface for the implemented routes.
+- **HTTP API & Capability Negotiation (`packages/aigcfroge/src/server/routes/instance/httpapi/`)**:
+  - `x-aigcfroge-capabilities: product-mode-custom-v1` request header negotiation and kill-switch gate (`AIGCFROGE_CUSTOM_MODE`).
+  - `POST /custom-composition/plan`: resolves proposed composition into a deterministic plan.
+  - `POST /custom-composition/start`: atomic custom session creation and snapshot persistence.
+  - `POST /custom-composition/upgrade`: freeze new composition for idle custom session into a new session and snapshot without mutating source.
+  - `GET /custom-composition/health`: profile health check.
+  - `GET /custom-composition/references`: asset references list.
+- **App & UI Phase E (`packages/app/src/`)**:
+  - 3-column Custom Builder (`CustomProjectColumnSidebar`, `CustomCompositionConfig`, `CustomPlanPreviewColumn`).
+  - 4 Preview Tabs: Instructions, Capabilities, Permissions, Diagnostics.
+  - Draft persistence via `Persist` store (`createCustomDraftStore`).
+  - Session Side Panel: Snapshot read-only view + Upgrade action.
+  - 18-locale i18n support verified by `parity.test.ts`.
 
 ## 2026-08-03: Task Spawn Fields, task_spawn Tool, and DAG Helpers (Todo/Task M5 Step 1 — recovered from wip)
 
