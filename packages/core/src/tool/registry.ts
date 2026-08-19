@@ -48,8 +48,16 @@ export type ExecuteInput = {
   readonly call: ToolCall
 }
 
+export type MaterializeOptions = {
+  readonly allowlist?: ReadonlyArray<string>
+}
+
 export interface Interface {
-  readonly materialize: (permissions?: PermissionV2.Ruleset, intent?: string) => Effect.Effect<Materialization>
+  readonly materialize: (
+    permissions?: PermissionV2.Ruleset,
+    intent?: string,
+    options?: MaterializeOptions,
+  ) => Effect.Effect<Materialization>
   /** Internal registration capability exposed publicly only through Tools.Service. */
   readonly register: (tools: Readonly<Record<string, AnyTool>>) => Effect.Effect<void, RegistrationError, Scope.Scope>
 }
@@ -159,7 +167,11 @@ const registryLayer = Layer.effect(
           }),
         )
       }),
-      materialize: Effect.fn("ToolRegistry.materialize")(function* (permissions = [], intent?: string) {
+      materialize: Effect.fn("ToolRegistry.materialize")(function* (
+        permissions = [],
+        intent?: string,
+        options?: MaterializeOptions,
+      ) {
         const registrations = new Map(applications.entries())
         for (const [name, entries] of local) {
           const registration = entries.at(-1)?.registration
@@ -169,6 +181,13 @@ const registryLayer = Layer.effect(
         const filter = intent ? INTENT_TOOL_FILTERS[intent] : undefined
         for (const [name] of registrations) {
           if (filter && !filter(name)) registrations.delete(name)
+        }
+        // Custom Mode snapshot tool allowlist filtering
+        if (options?.allowlist) {
+          const allowedSet = new Set(options.allowlist)
+          for (const [name] of registrations) {
+            if (!allowedSet.has(name)) registrations.delete(name)
+          }
         }
         for (const [name, registration] of registrations)
           if (whollyDisabled(permission(registration.tool, name), permissions)) registrations.delete(name)

@@ -257,10 +257,11 @@ export const layer = Layer.effect(
 
     const resolveCompositionResolver = (locationRef: Location.Ref) =>
       Effect.gen(function* () {
-        const directResolver = yield* Effect.serviceOption(CompositionResolver.Service)
+        const context = yield* Effect.context<never>()
+        const directResolver = Context.getOption(context, CompositionResolver.Service)
         if (Option.isSome(directResolver)) return directResolver.value
 
-        const map = yield* Effect.serviceOption(LocationServiceMap)
+        const map = Context.getOption(context, LocationServiceMap)
         if (Option.isSome(map)) {
           const locLayer = map.value.get(locationRef)
           return yield* CompositionResolver.Service.pipe(Effect.provide(locLayer), Effect.orDie)

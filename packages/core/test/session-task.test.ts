@@ -30,6 +30,7 @@ import { ProjectTable } from "@aigcfroge/core/project/sql"
 import { QuestionV2 } from "@aigcfroge/core/question"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionV2 } from "@aigcfroge/core/session"
+import { SessionComposition } from "@aigcfroge/core/session/composition"
 import { Prompt } from "@aigcfroge/core/session/prompt"
 import { SessionProjector } from "@aigcfroge/core/session/projector"
 import { SessionExecution } from "@aigcfroge/core/session/execution"
@@ -272,7 +273,9 @@ const toolsRegister = Layer.effect(
 // the tool's AgentV2.resolve share the same State instance.
 const taskTool = TaskTool.layer.pipe(Layer.provide(toolsRegister), Layer.provide(config), Layer.provide(EventV2.defaultLayer))
 
+const sessionComposition = SessionComposition.layer.pipe(Layer.provide(Database.defaultLayer))
 const runner = SessionRunnerLLM.layer.pipe(
+  Layer.provide(sessionComposition),
   Layer.provide(appProcess),
   Layer.provide(skillV2),
   Layer.provide(Database.defaultLayer),
@@ -282,6 +285,7 @@ const runner = SessionRunnerLLM.layer.pipe(
   Layer.provide(registry),
   Layer.provide(models),
   Layer.provide(systemContext),
+).pipe(
   Layer.provide(location),
   Layer.provide(agents),
   Layer.provide(skillGuidance),
@@ -329,6 +333,7 @@ const sessions = SessionV2.layer.pipe(
   Layer.provide(Database.defaultLayer),
   Layer.provide(SessionStore.defaultLayer),
   Layer.provide(Project.defaultLayer),
+  Layer.provide(sessionComposition),
   Layer.provide(execution),
 )
 const it = testEffect(
@@ -338,6 +343,7 @@ const it = testEffect(
     questions,
     SessionProjector.defaultLayer,
     SessionStore.defaultLayer,
+    sessionComposition,
     client,
     permission,
     applications,

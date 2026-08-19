@@ -19,6 +19,7 @@ import { ProjectTable } from "@aigcfroge/core/project/sql"
 import { QuestionV2 } from "@aigcfroge/core/question"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionV2 } from "@aigcfroge/core/session"
+import { SessionComposition } from "@aigcfroge/core/session/composition"
 import { ContextSnapshotDecodeError } from "@aigcfroge/core/session/error"
 import { SessionEvent } from "@aigcfroge/core/session/event"
 import { SessionInput } from "@aigcfroge/core/session/input"
@@ -275,7 +276,9 @@ const skillV2 = Layer.succeed(
       ]),
   } as unknown as SkillV2.Interface),
 )
+const sessionComposition = SessionComposition.layer.pipe(Layer.provide(Database.defaultLayer))
 const runner = SessionRunnerLLM.layer.pipe(
+  Layer.provide(sessionComposition),
   Layer.provide(appProcess),
   Layer.provide(skillV2),
   Layer.provide(Database.defaultLayer),
@@ -285,6 +288,7 @@ const runner = SessionRunnerLLM.layer.pipe(
   Layer.provide(registry),
   Layer.provide(models),
   Layer.provide(systemContext),
+).pipe(
   Layer.provide(location),
   Layer.provide(agents),
   Layer.provide(skillGuidance),
@@ -333,8 +337,10 @@ const sessions = SessionV2.layer.pipe(
   Layer.provide(Database.defaultLayer),
   Layer.provide(SessionStore.defaultLayer),
   Layer.provide(Project.defaultLayer),
+  Layer.provide(sessionComposition),
   Layer.provide(execution),
 )
+
 const it = testEffect(
   Layer.mergeAll(
     Database.defaultLayer,
@@ -342,6 +348,7 @@ const it = testEffect(
     questions,
     SessionProjector.defaultLayer,
     SessionStore.defaultLayer,
+    sessionComposition,
     client,
     permission,
     applications,

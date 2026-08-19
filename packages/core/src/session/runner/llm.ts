@@ -47,6 +47,7 @@ import { Prompt } from "../prompt"
 import { SessionInput } from "../input"
 import { SessionSchema } from "../schema"
 import { SessionStore } from "../store"
+import { SessionComposition } from "../composition"
 import { type RunError, Service } from "./index"
 import { SessionRunnerModel } from "./model"
 import { createLLMEventPublisher } from "./publish-llm-event"
@@ -137,6 +138,7 @@ export const layer = Layer.effect(
     const correctionExtractor = yield* CorrectionExtractor.Service
     const referenceChecker = yield* ReferenceChecker.Service
     const verifier = yield* Verifier.Service
+    const sessionComposition = yield* SessionComposition.Service
     const changedFiles = yield* Ref.make(new Map<SessionSchema.ID, string[]>())
     const compaction = SessionCompaction.make({ events, llm, config: yield* config.entries() })
 
@@ -310,49 +312,59 @@ export const layer = Layer.effect(
       new TurnTransitionError({ _tag: "ContinueAfterOverflowCompaction", step })
 
     const loadSystemContext = (agent: AgentV2.Selection, sessionID: SessionSchema.ID) =>
-      Effect.all([systemContext.load(), skillGuidance.load(agent), referenceGuidance.load()], {
-        concurrency: "unbounded",
-      }).pipe(
-        Effect.map(SystemContext.combine),
-        Effect.map((combined) => {
-          const facts = CorrectionFacts.source(correctionStore, sessionID)
-          return facts ? SystemContext.combine([combined, facts]) : combined
-        }),
-        Effect.flatMap((combined) =>
-          Ref.get(changedFiles).pipe(
-            Effect.map((map) => map.get(sessionID) ?? []),
-            Effect.flatMap((files) => ReverseRefs.source(files)),
-            Effect.map((reverseRefs) => (reverseRefs ? SystemContext.combine([combined, reverseRefs]) : combined)),
-          ),
-        ),
-        // Session-owned 动态 Permission Context（计划 §5）：meta 的当前
-        // mode/tier/override 状态由同一 renderer 渲染，V1 追加到 system 数组。
-        Effect.flatMap((combined) =>
-          Effect.gen(function* () {
-            const session = yield* store.get(sessionID)
-            if (!session) return combined
-            const permissionState = PermissionStateContext.render({
-              mode: session.mode,
-              agent: String(session.agent ?? ""),
-              tier: session.permissionTier ?? PermissionTier.Default,
-              parentID: session.parentID,
-              attended: session.attended,
-              masterPermissionEnabled: false,
-              savedApprovals: [],
-            })
-            return SystemContext.combine([
-              combined,
-              SystemContext.make({
-                key: SystemContext.Key.make("core/permission"),
-                codec: Schema.toCodecJson(Schema.String),
-                load: Effect.succeed(permissionState),
-                baseline: (state) => state,
-                update: (_previous, state) => state,
-              }),
-            ])
-          }),
-        ),
-      )
+      Effect.gen(function* () {
+        const session = yield* store.get(sessionID)
+        const snapshot =
+          session?.mode === "custom" ? yield* sessionComposition.read(sessionID).pipe(Effect.orDie) : undefined
+        const [sysContext, skillCtx, refGuidance] = yield* Effect.all(
+          [systemContext.load(), skillGuidance.load(agent, { snapshot: snapshot ?? undefined }), referenceGuidance.load()],
+          { concurrency: "unbounded" },
+        )
+        let combined = SystemContext.combine([sysContext, skillCtx, refGuidance])
+        const facts = CorrectionFacts.source(correctionStore, sessionID)
+        if (facts) combined = SystemContext.combine([combined, facts])
+        const files = (yield* Ref.get(changedFiles)).get(sessionID) ?? []
+        const reverseRefs = yield* ReverseRefs.source(files)
+        if (reverseRefs) combined = SystemContext.combine([combined, reverseRefs])
+
+        if (session) {
+          const permissionState = PermissionStateContext.render({
+            mode: session.mode,
+            agent: String(session.agent ?? ""),
+            tier: session.permissionTier ?? PermissionTier.Default,
+            parentID: session.parentID,
+            attended: session.attended,
+            masterPermissionEnabled: false,
+            savedApprovals: [],
+          })
+          combined = SystemContext.combine([
+            combined,
+            SystemContext.make({
+              key: SystemContext.Key.make("core/permission"),
+              codec: Schema.toCodecJson(Schema.String),
+              load: Effect.succeed(permissionState),
+              baseline: (state) => state,
+              update: (_previous, state) => state,
+            }),
+          ])
+        }
+
+        if (snapshot && snapshot.data.instructions.length > 0) {
+          const customInstructions = snapshot.data.instructions.map((i) => i.content).join("\n\n")
+          combined = SystemContext.combine([
+            combined,
+            SystemContext.make({
+              key: SystemContext.Key.make("core/custom-instructions"),
+              codec: Schema.toCodecJson(Schema.String),
+              load: Effect.succeed(customInstructions),
+              baseline: (content) => `<custom_instructions>\n${content}\n</custom_instructions>`,
+              update: (_previous, content) => `<custom_instructions>\n${content}\n</custom_instructions>`,
+            }),
+          ])
+        }
+
+        return combined
+      })
 
     const runTurnAttempt = Effect.fn("SessionRunner.runTurn")(function* (
       state: CacheState,
@@ -414,11 +426,16 @@ export const layer = Layer.effect(
           Effect.catchTag("CorrectionExtractor.ExtractionError", () => Effect.void),
         )
       }
+      const snapshot =
+        session.mode === "custom" ? yield* sessionComposition.read(session.id).pipe(Effect.orDie) : undefined
+      const allowlist = snapshot?.data.tools.catalog
       const toolMaterialization = isLastStep
         ? undefined
         : yield* permission.effectiveRules(session.id, AgentV2.ID.make(agentID)).pipe(
             Effect.catchTag("Session.NotFoundError", () => Effect.succeed(undefined)),
-            Effect.flatMap((rules) => (rules ? tools.materialize(rules, intent) : Effect.succeed(undefined))),
+            Effect.flatMap((rules) =>
+              rules ? tools.materialize(rules, intent, { allowlist }) : Effect.succeed(undefined),
+            ),
           )
       const promptCacheKey = /^ses_[0-9a-f]{64}$/.test(session.id) ? session.id.slice(4) : session.id
       const request = LLM.request({
