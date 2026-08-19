@@ -36,6 +36,14 @@ export const MODE_DEFINITIONS = [
     descriptionKey: "mode.assistant.description",
     surface: "assistant",
   },
+  {
+    id: "custom",
+    href: "/mode/custom",
+    icon: "mode-custom",
+    labelKey: "mode.custom",
+    descriptionKey: "mode.custom.description",
+    surface: "custom",
+  },
 ] as const
 
 export type Mode = (typeof MODE_DEFINITIONS)[number]["id"]

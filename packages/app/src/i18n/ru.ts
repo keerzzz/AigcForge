@@ -1066,6 +1066,8 @@ export const dict = {
   "mode.coding.description": "Создание и редактирование проектов с кодом",
   "mode.work": "Работа",
   "mode.work.description": "Управление задачами и планирование",
+  "mode.custom": "Custom",
+  "mode.custom.description": "Custom agent and immutable snapshot compositions",
   "mode.assistant": "Ассистент",
   "mode.assistant.description": "Персональный ИИ-ассистент",
   "mode.switcher": "Переключатель режима",

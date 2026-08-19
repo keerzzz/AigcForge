@@ -55,18 +55,13 @@ export type Event =
   | EventSessionNextVerifyFailed
   | EventSessionNextCacheDiagnostic
   | EventFileWatcherUpdated
-  | EventMessagePartDelta
-  | EventSessionDiff
-  | EventSessionError
-  | EventInstallationUpdated
-  | EventInstallationUpdateAvailable
-  | EventFileEdited
   | EventReferenceUpdated
   | EventPermissionOverrideEnabled
   | EventPermissionOverrideDisabled
   | EventPermissionV2Asked
   | EventPermissionV2Replied
   | EventPluginAdded
+  | EventFileEdited
   | EventProjectDirectoriesUpdated
   | EventPtyCreated
   | EventPtyUpdated
@@ -93,6 +88,11 @@ export type Event =
   | EventAssistantKbSearched
   | EventWorkAssetSaved
   | EventWorkArtifactApplied
+  | EventMessagePartDelta
+  | EventSessionDiff
+  | EventSessionError
+  | EventInstallationUpdated
+  | EventInstallationUpdateAvailable
   | EventLspUpdated
   | EventPermissionAsked
   | EventPermissionReplied
@@ -1332,62 +1332,6 @@ export type GlobalEvent = {
       }
     | {
         id: string
-        type: "message.part.delta"
-        properties: {
-          sessionID: string
-          messageID: string
-          partID: string
-          field: string
-          delta: string
-        }
-      }
-    | {
-        id: string
-        type: "session.diff"
-        properties: {
-          sessionID: string
-          diff: Array<SnapshotFileDiff>
-        }
-      }
-    | {
-        id: string
-        type: "session.error"
-        properties: {
-          sessionID?: string
-          error?:
-            | ProviderAuthError
-            | UnknownError
-            | MessageOutputLengthError
-            | MessageAbortedError
-            | StructuredOutputError
-            | ContextOverflowError
-            | ContentFilterError
-            | ApiError
-        }
-      }
-    | {
-        id: string
-        type: "installation.updated"
-        properties: {
-          version: string
-        }
-      }
-    | {
-        id: string
-        type: "installation.update-available"
-        properties: {
-          version: string
-        }
-      }
-    | {
-        id: string
-        type: "file.edited"
-        properties: {
-          file: string
-        }
-      }
-    | {
-        id: string
         type: "reference.updated"
         properties: {
           [key: string]: unknown
@@ -1437,6 +1381,13 @@ export type GlobalEvent = {
         type: "plugin.added"
         properties: {
           id: string
+        }
+      }
+    | {
+        id: string
+        type: "file.edited"
+        properties: {
+          file: string
         }
       }
     | {
@@ -1644,6 +1595,55 @@ export type GlobalEvent = {
         properties: {
           sessionID: string
           artifactID: string
+        }
+      }
+    | {
+        id: string
+        type: "message.part.delta"
+        properties: {
+          sessionID: string
+          messageID: string
+          partID: string
+          field: string
+          delta: string
+        }
+      }
+    | {
+        id: string
+        type: "session.diff"
+        properties: {
+          sessionID: string
+          diff: Array<SnapshotFileDiff>
+        }
+      }
+    | {
+        id: string
+        type: "session.error"
+        properties: {
+          sessionID?: string
+          error?:
+            | ProviderAuthError
+            | UnknownError
+            | MessageOutputLengthError
+            | MessageAbortedError
+            | StructuredOutputError
+            | ContextOverflowError
+            | ContentFilterError
+            | ApiError
+        }
+      }
+    | {
+        id: string
+        type: "installation.updated"
+        properties: {
+          version: string
+        }
+      }
+    | {
+        id: string
+        type: "installation.update-available"
+        properties: {
+          version: string
         }
       }
     | {
@@ -3602,6 +3602,13 @@ export type InvalidCursorError = {
   message: string
 }
 
+export type CompositionResolveError = {
+  _tag: "CompositionResolveError"
+  code: string
+  message: string
+  diagnostics?: Array<CompositionDiagnostic>
+}
+
 export type SessionNotFoundError = {
   _tag: "SessionNotFoundError"
   sessionID: string
@@ -3685,18 +3692,13 @@ export type V2Event =
   | V2EventSessionNextVerifyFailed
   | V2EventSessionNextCacheDiagnostic
   | V2EventFileWatcherUpdated
-  | V2EventMessagePartDelta
-  | V2EventSessionDiff
-  | V2EventSessionError
-  | V2EventInstallationUpdated
-  | V2EventInstallationUpdateAvailable
-  | V2EventFileEdited
   | V2EventReferenceUpdated
   | V2EventPermissionOverrideEnabled
   | V2EventPermissionOverrideDisabled
   | V2EventPermissionV2Asked
   | V2EventPermissionV2Replied
   | V2EventPluginAdded
+  | V2EventFileEdited
   | V2EventProjectDirectoriesUpdated
   | V2EventPtyCreated
   | V2EventPtyUpdated
@@ -3723,6 +3725,11 @@ export type V2Event =
   | V2EventAssistantKbSearched
   | V2EventWorkAssetSaved
   | V2EventWorkArtifactApplied
+  | V2EventMessagePartDelta
+  | V2EventSessionDiff
+  | V2EventSessionError
+  | V2EventInstallationUpdated
+  | V2EventInstallationUpdateAvailable
   | V2EventLspUpdated
   | V2EventPermissionAsked
   | V2EventPermissionReplied
@@ -5112,6 +5119,103 @@ export type CompositionPlan = {
   diagnostics: Array<CompositionDiagnostic>
 }
 
+export type CompositionStartInput = {
+  sessionID?: string
+  composition: CompositionTemporaryInput | CompositionProfileInput
+  expectedPlanDigest?: string
+  title?: string
+}
+
+export type SessionV2Revert = {
+  messageID: string
+  snapshot?: string
+  diff?: string
+}
+
+export type SessionV2Summary = {
+  additions: number
+  deletions: number
+  files: number
+}
+
+export type SessionV2Info = {
+  id: string
+  mode?: ProductMode
+  presetCategoryId?: WorkPresetCategory
+  slug: string
+  version: string
+  parentID?: string
+  projectID: string
+  agent?: string
+  model?: {
+    id: string
+    providerID: string
+    variant?: string
+  }
+  cost: number
+  tokens: {
+    input: number
+    output: number
+    reasoning: number
+    cache: {
+      read: number
+      write: number
+    }
+  }
+  time: {
+    created: number
+    updated: number
+    archived?: number
+  }
+  title: string
+  location: LocationRef
+  subpath?: string
+  attended?: boolean
+  permissionTier?: PermissionTier
+  revert?: SessionV2Revert
+  summary?: SessionV2Summary
+}
+
+export type CompositionSnapshotPromptData = {
+  relativePath: string
+  revision: string
+  content: string
+}
+
+export type CompositionSnapshotToolInfo = {
+  fingerprints: Array<{
+    placement: string
+    name: string
+    digest: string
+    installationVersion: string
+  }>
+  catalogDigest: string
+  catalog: Array<string>
+}
+
+export type CompositionSnapshotData = {
+  agentID: string
+  instructions: Array<CompositionInstruction>
+  prompts: Array<CompositionSnapshotPromptData>
+  skills: Array<CompositionSkillInfo>
+  tools: CompositionSnapshotToolInfo
+}
+
+export type CompositionSnapshot = {
+  version: 1
+  digest: string
+  sessionID?: string
+  profilePath?: string
+  profileRevision?: string
+  createdAt: number
+  data: CompositionSnapshotData
+}
+
+export type CompositionStartResponse = {
+  session: SessionV2Info
+  snapshot: CompositionSnapshot
+}
+
 export type CompositionStaleRevision = {
   kind: string
   relativePath: string
@@ -5365,56 +5469,6 @@ export type AgentV2Info = {
   permissions: PermissionV2Ruleset
   attended?: boolean
   handoffs: Array<Handoff>
-}
-
-export type SessionV2Revert = {
-  messageID: string
-  snapshot?: string
-  diff?: string
-}
-
-export type SessionV2Summary = {
-  additions: number
-  deletions: number
-  files: number
-}
-
-export type SessionV2Info = {
-  id: string
-  mode?: ProductMode
-  presetCategoryId?: WorkPresetCategory
-  slug: string
-  version: string
-  parentID?: string
-  projectID: string
-  agent?: string
-  model?: {
-    id: string
-    providerID: string
-    variant?: string
-  }
-  cost: number
-  tokens: {
-    input: number
-    output: number
-    reasoning: number
-    cache: {
-      read: number
-      write: number
-    }
-  }
-  time: {
-    created: number
-    updated: number
-    archived?: number
-  }
-  title: string
-  location: LocationRef
-  subpath?: string
-  attended?: boolean
-  permissionTier?: PermissionTier
-  revert?: SessionV2Revert
-  summary?: SessionV2Summary
 }
 
 export type SessionInputAdmittedPrompt = {
@@ -6996,122 +7050,6 @@ export type V2EventFileWatcherUpdated = {
   }
 }
 
-export type V2EventMessagePartDelta = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  durable?: {
-    aggregateID: string
-    seq: number
-    version: number
-  }
-  location?: LocationRef
-  type: "message.part.delta"
-  data: {
-    sessionID: string
-    messageID: string
-    partID: string
-    field: string
-    delta: string
-  }
-}
-
-export type V2EventSessionDiff = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  durable?: {
-    aggregateID: string
-    seq: number
-    version: number
-  }
-  location?: LocationRef
-  type: "session.diff"
-  data: {
-    sessionID: string
-    diff: Array<SnapshotFileDiff>
-  }
-}
-
-export type V2EventSessionError = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  durable?: {
-    aggregateID: string
-    seq: number
-    version: number
-  }
-  location?: LocationRef
-  type: "session.error"
-  data: {
-    sessionID?: string
-    error?:
-      | ProviderAuthError
-      | UnknownError
-      | MessageOutputLengthError
-      | MessageAbortedError
-      | StructuredOutputError
-      | ContextOverflowError
-      | ContentFilterError
-      | ApiError
-  }
-}
-
-export type V2EventInstallationUpdated = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  durable?: {
-    aggregateID: string
-    seq: number
-    version: number
-  }
-  location?: LocationRef
-  type: "installation.updated"
-  data: {
-    version: string
-  }
-}
-
-export type V2EventInstallationUpdateAvailable = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  durable?: {
-    aggregateID: string
-    seq: number
-    version: number
-  }
-  location?: LocationRef
-  type: "installation.update-available"
-  data: {
-    version: string
-  }
-}
-
-export type V2EventFileEdited = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  durable?: {
-    aggregateID: string
-    seq: number
-    version: number
-  }
-  location?: LocationRef
-  type: "file.edited"
-  data: {
-    file: string
-  }
-}
-
 export type V2EventReferenceUpdated = {
   id: string
   metadata?: {
@@ -7222,6 +7160,23 @@ export type V2EventPluginAdded = {
   type: "plugin.added"
   data: {
     id: string
+  }
+}
+
+export type V2EventFileEdited = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "file.edited"
+  data: {
+    file: string
   }
 }
 
@@ -7689,6 +7644,105 @@ export type V2EventWorkArtifactApplied = {
   data: {
     sessionID: string
     artifactID: string
+  }
+}
+
+export type V2EventMessagePartDelta = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "message.part.delta"
+  data: {
+    sessionID: string
+    messageID: string
+    partID: string
+    field: string
+    delta: string
+  }
+}
+
+export type V2EventSessionDiff = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "session.diff"
+  data: {
+    sessionID: string
+    diff: Array<SnapshotFileDiff>
+  }
+}
+
+export type V2EventSessionError = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "session.error"
+  data: {
+    sessionID?: string
+    error?:
+      | ProviderAuthError
+      | UnknownError
+      | MessageOutputLengthError
+      | MessageAbortedError
+      | StructuredOutputError
+      | ContextOverflowError
+      | ContentFilterError
+      | ApiError
+  }
+}
+
+export type V2EventInstallationUpdated = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "installation.updated"
+  data: {
+    version: string
+  }
+}
+
+export type V2EventInstallationUpdateAvailable = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "installation.update-available"
+  data: {
+    version: string
   }
 }
 
@@ -8850,68 +8904,6 @@ export type EventFileWatcherUpdated = {
   }
 }
 
-export type EventMessagePartDelta = {
-  id: string
-  type: "message.part.delta"
-  properties: {
-    sessionID: string
-    messageID: string
-    partID: string
-    field: string
-    delta: string
-  }
-}
-
-export type EventSessionDiff = {
-  id: string
-  type: "session.diff"
-  properties: {
-    sessionID: string
-    diff: Array<SnapshotFileDiff>
-  }
-}
-
-export type EventSessionError = {
-  id: string
-  type: "session.error"
-  properties: {
-    sessionID?: string
-    error?:
-      | ProviderAuthError
-      | UnknownError
-      | MessageOutputLengthError
-      | MessageAbortedError
-      | StructuredOutputError
-      | ContextOverflowError
-      | ContentFilterError
-      | ApiError
-  }
-}
-
-export type EventInstallationUpdated = {
-  id: string
-  type: "installation.updated"
-  properties: {
-    version: string
-  }
-}
-
-export type EventInstallationUpdateAvailable = {
-  id: string
-  type: "installation.update-available"
-  properties: {
-    version: string
-  }
-}
-
-export type EventFileEdited = {
-  id: string
-  type: "file.edited"
-  properties: {
-    file: string
-  }
-}
-
 export type EventReferenceUpdated = {
   id: string
   type: "reference.updated"
@@ -8968,6 +8960,14 @@ export type EventPluginAdded = {
   type: "plugin.added"
   properties: {
     id: string
+  }
+}
+
+export type EventFileEdited = {
+  id: string
+  type: "file.edited"
+  properties: {
+    file: string
   }
 }
 
@@ -9287,6 +9287,60 @@ export type EventWorkArtifactApplied = {
   properties: {
     sessionID: string
     artifactID: string
+  }
+}
+
+export type EventMessagePartDelta = {
+  id: string
+  type: "message.part.delta"
+  properties: {
+    sessionID: string
+    messageID: string
+    partID: string
+    field: string
+    delta: string
+  }
+}
+
+export type EventSessionDiff = {
+  id: string
+  type: "session.diff"
+  properties: {
+    sessionID: string
+    diff: Array<SnapshotFileDiff>
+  }
+}
+
+export type EventSessionError = {
+  id: string
+  type: "session.error"
+  properties: {
+    sessionID?: string
+    error?:
+      | ProviderAuthError
+      | UnknownError
+      | MessageOutputLengthError
+      | MessageAbortedError
+      | StructuredOutputError
+      | ContextOverflowError
+      | ContentFilterError
+      | ApiError
+  }
+}
+
+export type EventInstallationUpdated = {
+  id: string
+  type: "installation.updated"
+  properties: {
+    version: string
+  }
+}
+
+export type EventInstallationUpdateAvailable = {
+  id: string
+  type: "installation.update-available"
+  properties: {
+    version: string
   }
 }
 
@@ -12757,6 +12811,34 @@ export type CustomCompositionPlanResponses = {
 
 export type CustomCompositionPlanResponse = CustomCompositionPlanResponses[keyof CustomCompositionPlanResponses]
 
+export type CustomCompositionStartData = {
+  body?: CompositionStartInput
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/custom-composition/start"
+}
+
+export type CustomCompositionStartErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type CustomCompositionStartError = CustomCompositionStartErrors[keyof CustomCompositionStartErrors]
+
+export type CustomCompositionStartResponses = {
+  /**
+   * Started custom session and snapshot
+   */
+  200: CompositionStartResponse
+}
+
+export type CustomCompositionStartResponse = CustomCompositionStartResponses[keyof CustomCompositionStartResponses]
+
 export type CustomCompositionHealthData = {
   body?: never
   path?: never
@@ -15282,6 +15364,40 @@ export type SessionToolSummaryResponses = {
 
 export type SessionToolSummaryResponse = SessionToolSummaryResponses[keyof SessionToolSummaryResponses]
 
+export type SessionCompositionData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/composition"
+}
+
+export type SessionCompositionErrors = {
+  /**
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionCompositionError = SessionCompositionErrors[keyof SessionCompositionErrors]
+
+export type SessionCompositionResponses = {
+  /**
+   * Session composition snapshot
+   */
+  200: CompositionSnapshot
+}
+
+export type SessionCompositionResponse = SessionCompositionResponses[keyof SessionCompositionResponses]
+
 export type SyncStartData = {
   body?: never
   path?: never
@@ -16221,6 +16337,52 @@ export type V2SessionCreateResponses = {
 }
 
 export type V2SessionCreateResponse = V2SessionCreateResponses[keyof V2SessionCreateResponses]
+
+export type V2SessionCustomData = {
+  body: {
+    id?: string
+    composition: CompositionTemporaryInput | CompositionProfileInput
+    expectedPlanDigest?: string
+    location?: LocationRef
+    title?: string
+  }
+  path?: never
+  query?: never
+  url: "/api/session/custom"
+}
+
+export type V2SessionCustomErrors = {
+  /**
+   * UnsupportedProductModeError | InvalidRequestError
+   */
+  400: UnsupportedProductModeError | InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+  /**
+   * CompositionResolveError
+   */
+  422: CompositionResolveError
+}
+
+export type V2SessionCustomError = V2SessionCustomErrors[keyof V2SessionCustomErrors]
+
+export type V2SessionCustomResponses = {
+  /**
+   * Success
+   */
+  200: {
+    data: SessionV2Info
+    snapshot: CompositionSnapshot
+  }
+}
+
+export type V2SessionCustomResponse = V2SessionCustomResponses[keyof V2SessionCustomResponses]
 
 export type V2SessionGetData = {
   body?: never

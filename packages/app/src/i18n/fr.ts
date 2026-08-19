@@ -1000,6 +1000,8 @@ export const dict = {
   "mode.coding.description": "Créer et modifier des projets de code",
   "mode.work": "Travail",
   "mode.work.description": "Gestion des tâches et planification",
+  "mode.custom": "Custom",
+  "mode.custom.description": "Custom agent and immutable snapshot compositions",
   "mode.assistant": "Assistant",
   "mode.assistant.description": "Assistant IA personnel",
   "mode.switcher": "Sélecteur de mode",

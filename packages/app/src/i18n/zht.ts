@@ -1075,6 +1075,8 @@ export const dict = {
   "mode.coding.description": "建置及編輯程式碼專案",
   "mode.work": "工作",
   "mode.work.description": "工作管理與規劃",
+  "mode.custom": "Custom",
+  "mode.custom.description": "Custom agent and immutable snapshot compositions",
   "work.preset.title": "工作預設",
   "work.preset.subtitle": "選擇一個預設，開始引導式文件工作階段",
   "work.preset.category.it-development": "IT 研發",

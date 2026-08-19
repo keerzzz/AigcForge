@@ -7,7 +7,7 @@ describe("product mode", () => {
       expect(isMode(definition.id)).toBe(true)
     }
 
-    expect(isMode("custom")).toBe(false)
+    expect(isMode("unknown-mode")).toBe(false)
     expect(isMode(undefined)).toBe(false)
   })
 
@@ -29,10 +29,11 @@ describe("product mode", () => {
     }
   })
 
-  test("binds chat/work/coding drafts to meta and assistant drafts to assistant-orchestrator (2026-08-11 + plan §3.3)", () => {
+  test("binds chat/work/coding/custom drafts to meta and assistant drafts to assistant-orchestrator (2026-08-11 + plan §3.3)", () => {
     expect(modeDraft("chat")).toEqual({ mode: "chat", agent: "meta" })
     expect(modeDraft("coding")).toEqual({ mode: "coding", agent: "meta" })
     expect(modeDraft("work")).toEqual({ mode: "work", agent: "meta" })
+    expect(modeDraft("custom")).toEqual({ mode: "custom", agent: "meta" })
     expect(modeDraft("assistant")).toEqual({ mode: "assistant", agent: "assistant-orchestrator" })
   })
 })

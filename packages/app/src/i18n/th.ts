@@ -1051,6 +1051,8 @@ export const dict = {
   "mode.coding.description": "สร้างและแก้ไขโปรเจกต์โค้ด",
   "mode.work": "งาน",
   "mode.work.description": "การจัดการงานและการวางแผน",
+  "mode.custom": "Custom",
+  "mode.custom.description": "Custom agent and immutable snapshot compositions",
   "mode.assistant": "ผู้ช่วย",
   "mode.assistant.description": "ผู้ช่วย AI ส่วนตัว",
   "mode.switcher": "สลับโหมด",

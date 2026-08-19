@@ -973,6 +973,8 @@ export const dict = {
   "mode.coding.description": "코드 프로젝트 만들기 및 편집",
   "mode.work": "작업",
   "mode.work.description": "작업 관리 및 계획",
+  "mode.custom": "Custom",
+  "mode.custom.description": "Custom agent and immutable snapshot compositions",
   "mode.assistant": "어시스턴트",
   "mode.assistant.description": "개인 AI 어시스턴트",
   "mode.switcher": "모드 전환기",

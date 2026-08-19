@@ -15,12 +15,14 @@ import {
   SessionNotFoundError,
   UnknownError,
   UnsupportedProductModeError,
+  CompositionResolveError,
 } from "../errors"
 import { SessionLocationMiddleware } from "../middleware/session-location"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { Location } from "@aigcfroge/core/location"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { Composition } from "@aigcfroge/schema/composition"
 
 const SessionsQueryFields = {
   workspace: WorkspaceV2.ID.pipe(Schema.optional),
@@ -128,6 +130,28 @@ export const SessionGroup = HttpApiGroup.make("server.session")
         identifier: "v2.session.create",
         summary: "Create session",
         description: "Create a session at the requested location.",
+      }),
+    ),
+  )
+  .add(
+    HttpApiEndpoint.post("session.custom", "/api/session/custom", {
+      payload: Schema.Struct({
+        id: SessionV2.ID.pipe(Schema.optional),
+        composition: Composition.CompositionInput,
+        expectedPlanDigest: Composition.Digest.pipe(Schema.optional),
+        location: Location.Ref.pipe(Schema.optional),
+        title: Schema.String.pipe(Schema.optional),
+      }),
+      success: Schema.Struct({
+        data: SessionV2.Info,
+        snapshot: Composition.Snapshot,
+      }),
+      error: [UnsupportedProductModeError, InvalidRequestError, ConflictError, CompositionResolveError],
+    }).annotateMerge(
+      OpenApi.annotations({
+        identifier: "v2.session.custom",
+        summary: "Create custom session",
+        description: "Atomically freeze composition into an immutable snapshot and create a custom session.",
       }),
     ),
   )

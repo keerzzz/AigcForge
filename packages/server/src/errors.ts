@@ -1,4 +1,5 @@
 import { Schema } from "effect"
+import { Composition } from "@aigcfroge/schema/composition"
 
 export class InvalidRequestError extends Schema.TaggedErrorClass<InvalidRequestError>()(
   "InvalidRequestError",
@@ -107,4 +108,14 @@ export class UnsupportedProductModeError extends Schema.TaggedErrorClass<Unsuppo
     message: Schema.String,
   },
   { httpApiStatus: 400 },
+) {}
+
+export class CompositionResolveError extends Schema.TaggedErrorClass<CompositionResolveError>()(
+  "CompositionResolveError",
+  {
+    code: Schema.String,
+    message: Schema.String,
+    diagnostics: Schema.optional(Schema.Array(Composition.Diagnostic)),
+  },
+  { httpApiStatus: 422 },
 ) {}

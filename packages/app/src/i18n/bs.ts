@@ -1063,6 +1063,8 @@ export const dict = {
   "mode.coding.description": "Kreiraj i uređuj projekte koda",
   "mode.work": "Rad",
   "mode.work.description": "Upravljanje zadacima i planiranje",
+  "mode.custom": "Custom",
+  "mode.custom.description": "Custom agent and immutable snapshot compositions",
   "mode.assistant": "Asistent",
   "mode.assistant.description": "Lični AI asistent",
   "mode.switcher": "Prebacivač modova",

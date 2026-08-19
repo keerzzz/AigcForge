@@ -14,6 +14,7 @@ import {
   SessionNotFoundError,
   UnsupportedProductModeError,
   UnknownError,
+  CompositionResolveError,
 } from "../errors"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 
@@ -129,6 +130,55 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
               model: ctx.payload.model,
               location: ctx.payload.location ?? { directory: AbsolutePath.make(process.cwd()) },
             }),
+          }
+        }),
+      )
+      .handle(
+        "session.custom",
+        Effect.fn(function* (ctx) {
+          const result = yield* session
+            .createCustom({
+              id: ctx.payload.id,
+              composition: ctx.payload.composition,
+              expectedPlanDigest: ctx.payload.expectedPlanDigest,
+              location: ctx.payload.location ?? { directory: AbsolutePath.make(process.cwd()) },
+              title: ctx.payload.title,
+            })
+            .pipe(
+              Effect.catchTag("Composition.ResolveError", (err) =>
+                Effect.fail(
+                  new CompositionResolveError({
+                    code: err.code,
+                    message: err.message,
+                    diagnostics: err.diagnostics,
+                  }),
+                ),
+              ),
+              Effect.catchTag("Session.PromptConflictError", (err) =>
+                Effect.fail(
+                  new ConflictError({
+                    message: `Prompt conflict in session ${err.sessionID}`,
+                  }),
+                ),
+              ),
+              Effect.catchTag("SessionComposition.SnapshotAlreadyExistsError", (err) =>
+                Effect.fail(
+                  new ConflictError({
+                    message: `Snapshot already exists for session ${err.sessionID}`,
+                  }),
+                ),
+              ),
+              Effect.catchTag("SessionComposition.SnapshotDecodeError", (err) =>
+                Effect.fail(
+                  new InvalidRequestError({
+                    message: `Failed to decode snapshot for session ${err.sessionID}: ${err.details}`,
+                  }),
+                ),
+              ),
+            )
+          return {
+            data: result.session,
+            snapshot: result.snapshot,
           }
         }),
       )

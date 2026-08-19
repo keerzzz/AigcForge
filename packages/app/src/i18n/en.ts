@@ -630,6 +630,8 @@ export const dict = {
   "mode.coding.description": "Build and edit code projects",
   "mode.work": "Work",
   "mode.work.description": "Task management and planning",
+  "mode.custom": "Custom",
+  "mode.custom.description": "Custom agent and immutable snapshot compositions",
   "work.preset.title": "Work presets",
   "work.preset.subtitle": "Pick a preset to start a guided document session",
   "work.preset.category.it-development": "IT Development",

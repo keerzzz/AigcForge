@@ -546,6 +546,8 @@ export const dict = {
   "mode.coding.description": "构建和编辑代码项目",
   "mode.work": "工作",
   "mode.work.description": "任务管理和规划",
+  "mode.custom": "自定义",
+  "mode.custom.description": "自定义智能体与不可变快照编排",
   "work.preset.title": "工作预设",
   "work.preset.subtitle": "选择一个预设，开始引导式文档会话",
   "work.preset.category.it-development": "IT 研发",

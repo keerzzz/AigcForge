@@ -1071,6 +1071,8 @@ export const dict = {
   "mode.coding.description": "Kod projeleri oluştur ve düzenle",
   "mode.work": "Work",
   "mode.work.description": "Görev yönetimi ve planlama",
+  "mode.custom": "Custom",
+  "mode.custom.description": "Custom agent and immutable snapshot compositions",
   "mode.assistant": "Assistant",
   "mode.assistant.description": "Kişisel yapay zekâ asistanı",
   "mode.switcher": "Mod değiştirici",

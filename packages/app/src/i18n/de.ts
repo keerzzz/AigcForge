@@ -999,6 +999,8 @@ export const dict = {
   "mode.coding.description": "Codeprojekte erstellen und bearbeiten",
   "mode.work": "Arbeit",
   "mode.work.description": "Aufgabenverwaltung und Planung",
+  "mode.custom": "Custom",
+  "mode.custom.description": "Custom agent and immutable snapshot compositions",
   "mode.assistant": "Assistent",
   "mode.assistant.description": "Persönlicher KI-Assistent",
   "mode.switcher": "Modusauswahl",

@@ -769,3 +769,104 @@ export function WorkPresetCatalogMain() {
     </ScrollView>
   )
 }
+
+/** Custom location and new-session controls. */
+export function CustomProjectColumnSidebar() {
+  const { directory } = useModeDirectory()
+  return <ModeLocationNewSession directory={directory} mode="custom" />
+}
+
+/** Custom mode home surface for recent Sessions. */
+export function CustomSessionListMain() {
+  const language = useLanguage()
+  const tabs = useTabs()
+  const layout = useLayout()
+  const sync = useServerSync()
+  const global = useGlobal()
+  const server = useServer()
+  const { conn, ctx, directory } = useModeDirectory()
+
+  const projects = createMemo(() => ctx()?.projects.list() ?? layout.projects.list())
+  const projectByID = createMemo(
+    () => new Map(projects().flatMap((project) => (project.id ? [[project.id, project] as const] : []))),
+  )
+  const projectDirectories = createMemo(() => {
+    const dir = directory()
+    return dir ? [dir] : []
+  })
+  const sessionLoad = useQuery(() => ({
+    queryKey: [ctx()?.sdk.scope, "home", "custom-sessions", ...projectDirectories()] as const,
+    queryFn: async () => {
+      await Promise.all(
+        projectDirectories().map((d) => sync().project.loadSessions(d, { limit: HOME_SESSION_LIMIT })),
+      )
+      return null
+    },
+  }))
+  const customRecords = createMemo(() => {
+    const records = buildHomeSessionRecords({ sync: sync(), projectDirectories, projects, projectByID })
+    return filterSessionsByMode(records, "custom").slice(0, HOME_SESSION_LIMIT)
+  })
+  const customGroups = createMemo(() => groupSessions(customRecords(), language))
+  const activeConnKey = createMemo(() => {
+    const c = conn()
+    return c ? ServerConnection.key(c) : server.key
+  })
+
+  function openCustomSession(record: HomeSessionRecord) {
+    const c = conn()
+    const currentCtx = ctx()
+    if (!c || !currentCtx) return
+    openSessionRecord({
+      record,
+      server: ServerConnection.key(c),
+      global,
+      tabs,
+      projects: currentCtx.projects,
+      projectByID: projectByID(),
+    })
+  }
+
+  return (
+    <ScrollView class="min-h-0 flex-1">
+      <div class="flex min-h-0 flex-col gap-6 px-6 py-5">
+        <div class="flex flex-col gap-1">
+          <h1 class="text-v2-text-text-base text-16-medium">{language.t("mode.custom")}</h1>
+          <p class="text-v2-text-text-muted text-13-regular">{language.t("mode.custom.description")}</p>
+        </div>
+
+        <Show
+          when={!sessionLoad.isLoading && customGroups().length > 0}
+          fallback={
+            <div class="flex flex-col items-center justify-center p-8 text-center text-v2-text-text-muted text-13-regular">
+              {language.t("home.sessionList.empty")}
+            </div>
+          }
+        >
+          <section class="flex min-w-0 flex-col gap-3">
+            <h2 class="text-v2-text-text-base text-13-medium">{language.t("work.home.continue")}</h2>
+            <div class="flex min-w-0 flex-col gap-px">
+              <For each={customGroups()}>
+                {(group) => (
+                  <div class="flex min-w-0 flex-col gap-2">
+                    <HomeSessionGroupHeader title={group.title} />
+                    <For each={group.sessions}>
+                      {(record) => (
+                        <HomeSessionRow
+                          record={record}
+                          server={activeConnKey()}
+                          activeServer={activeConnKey() === server.key}
+                          onClick={() => openCustomSession(record)}
+                        />
+                      )}
+                    </For>
+                  </div>
+                )}
+              </For>
+            </div>
+          </section>
+        </Show>
+      </div>
+    </ScrollView>
+  )
+}

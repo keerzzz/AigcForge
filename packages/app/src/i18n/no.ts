@@ -1063,6 +1063,8 @@ export const dict = {
   "mode.coding.description": "Bygg og rediger kodeprosjekter",
   "mode.work": "Arbeid",
   "mode.work.description": "Oppgavebehandling og planlegging",
+  "mode.custom": "Custom",
+  "mode.custom.description": "Custom agent and immutable snapshot compositions",
   "mode.assistant": "Assistent",
   "mode.assistant.description": "Personlig KI-assistent",
   "mode.switcher": "Modusvelger",
