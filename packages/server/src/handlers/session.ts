@@ -1,14 +1,18 @@
 import { SessionV2 } from "@aigcfroge/core/session"
 import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
-import { DateTime, Effect } from "effect"
+import { DateTime, Effect, Option, Schema } from "effect"
+import { HttpServerRequest } from "effect/unstable/http"
 import { HttpApiBuilder, HttpApiSchema } from "effect/unstable/httpapi"
+import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
 import { Api } from "../api"
 import { SessionsCursor } from "../groups/session"
 import {
   ConflictError,
   InvalidCursorError,
+  InvalidRequestError,
   ServiceUnavailableError,
   SessionNotFoundError,
+  UnsupportedProductModeError,
   UnknownError,
 } from "../errors"
 import { AbsolutePath } from "@aigcfroge/core/schema"
@@ -20,22 +24,69 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
     const session = yield* SessionV2.Service
     const share = yield* SessionShareV2.Service
 
+    const requireSessionAndCapability = (sessionID: string, capabilitiesHeader?: string | null) =>
+      Effect.gen(function* () {
+        const idOpt = Schema.decodeUnknownOption(SessionV2.SessionSchema.ID)(sessionID)
+        if (Option.isNone(idOpt)) {
+          return yield* Effect.fail(
+            new SessionNotFoundError({
+              sessionID,
+              message: `Session not found: ${sessionID}`,
+            }),
+          )
+        }
+        const info = yield* session.get(idOpt.value).pipe(
+          Effect.catchTag("Session.NotFoundError", (error) =>
+            Effect.fail(
+              new SessionNotFoundError({
+                sessionID: error.sessionID,
+                message: `Session not found: ${error.sessionID}`,
+              }),
+            ),
+          ),
+        )
+        if (!ProductModePolicy.isSessionSupported(info, capabilitiesHeader)) {
+          return yield* Effect.fail(
+            new SessionNotFoundError({
+              sessionID,
+              message: `Session not found: ${sessionID}`,
+            }),
+          )
+        }
+        return info
+      })
+
+    const requireRuntimeSession = (sessionID: string, capabilitiesHeader?: string | null) =>
+      requireSessionAndCapability(sessionID, capabilitiesHeader).pipe(
+        Effect.flatMap((info) =>
+          ProductModePolicy.assertRuntimeSupported(info.mode).pipe(
+            Effect.map(() => info),
+            Effect.mapError(
+              (error) => new UnsupportedProductModeError({ mode: error.mode, message: error.message }),
+            ),
+          ),
+        ),
+      )
+
     return handlers
       .handle(
         "session.list",
         Effect.fn(function* (ctx) {
+          const req = yield* HttpServerRequest.HttpServerRequest
+          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
           const query =
             ctx.query.cursor !== undefined
               ? yield* SessionsCursor.parse(ctx.query.cursor).pipe(
                   Effect.mapError(() => new InvalidCursorError({ message: "Invalid cursor" })),
                 )
               : ctx.query
-          const sessions = yield* session.list({
+          const rawSessions = yield* session.list({
             ...query,
             workspaceID: query.workspace,
             mode: query.mode,
             limit: ctx.query.limit ?? DefaultSessionsLimit,
           })
+          const sessions = ProductModePolicy.filterSupportedSessions(rawSessions, capabilitiesHeader)
           const first = sessions[0]
           const last = sessions.at(-1)
           return {
@@ -68,6 +119,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       .handle(
         "session.create",
         Effect.fn(function* (ctx) {
+          yield* ProductModePolicy.assertCreationSupported(ctx.payload.mode)
           return {
             data: yield* session.create({
               id: ctx.payload.id,
@@ -83,23 +135,20 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       .handle(
         "session.get",
         Effect.fn(function* (ctx) {
+          const req = yield* HttpServerRequest.HttpServerRequest
+          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
+          const info = yield* requireSessionAndCapability(ctx.params.sessionID, capabilitiesHeader)
           return {
-            data: yield* session.get(ctx.params.sessionID).pipe(
-              Effect.catchTag(
-                "Session.NotFoundError",
-                (error) =>
-                  new SessionNotFoundError({
-                    sessionID: error.sessionID,
-                    message: `Session not found: ${error.sessionID}`,
-                  }),
-              ),
-            ),
+            data: info,
           }
         }),
       )
       .handle(
         "session.switchAgent",
         Effect.fn(function* (ctx) {
+          const req = yield* HttpServerRequest.HttpServerRequest
+          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
+          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
           yield* session.switchAgent({ sessionID: ctx.params.sessionID, agent: ctx.payload.agent }).pipe(
             Effect.catchTag("Session.NotFoundError", (error) =>
               Effect.fail(
@@ -116,6 +165,9 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       .handle(
         "session.switchModel",
         Effect.fn(function* (ctx) {
+          const req = yield* HttpServerRequest.HttpServerRequest
+          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
+          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
           yield* session.switchModel({ sessionID: ctx.params.sessionID, model: ctx.payload.model }).pipe(
             Effect.catchTag("Session.NotFoundError", (error) =>
               Effect.fail(
@@ -132,6 +184,9 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       .handle(
         "session.prompt",
         Effect.fn(function* (ctx) {
+          const req = yield* HttpServerRequest.HttpServerRequest
+          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
+          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
           return {
             data: yield* session
               .prompt({
@@ -165,6 +220,9 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       .handle(
         "session.compact",
         Effect.fn(function* (ctx) {
+          const req = yield* HttpServerRequest.HttpServerRequest
+          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
+          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
           yield* session.compact({ sessionID: ctx.params.sessionID }).pipe(
             Effect.catchTag("Session.NotFoundError", (error) =>
               Effect.fail(
@@ -189,6 +247,9 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       .handle(
         "session.wait",
         Effect.fn(function* (ctx) {
+          const req = yield* HttpServerRequest.HttpServerRequest
+          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
+          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
           yield* session.wait(ctx.params.sessionID).pipe(
             Effect.catchTag("Session.NotFoundError", (error) =>
               Effect.fail(
@@ -213,6 +274,9 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       .handle(
         "session.context",
         Effect.fn(function* (ctx) {
+          const req = yield* HttpServerRequest.HttpServerRequest
+          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
+          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
           return {
             data: yield* session.context(ctx.params.sessionID).pipe(
               Effect.catchTag("Session.NotFoundError", (error) =>
@@ -244,6 +308,9 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       .handle(
         "session.children",
         Effect.fn(function* (ctx) {
+          const req = yield* HttpServerRequest.HttpServerRequest
+          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
+          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
           return {
             data: yield* session.children(ctx.params.sessionID).pipe(
               Effect.catchTag("Session.NotFoundError", (error) =>
@@ -261,6 +328,9 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       .handle(
         "session.interrupt",
         Effect.fn(function* (ctx) {
+          const req = yield* HttpServerRequest.HttpServerRequest
+          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
+          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
           yield* session.interrupt(ctx.params.sessionID)
           return HttpApiSchema.NoContent.make()
         }),
@@ -268,6 +338,9 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       .handle(
         "session.shell",
         Effect.fn(function* (ctx) {
+          const req = yield* HttpServerRequest.HttpServerRequest
+          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
+          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
           return {
             data: yield* session
               .shell({
@@ -300,6 +373,9 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       .handle(
         "session.skill",
         Effect.fn(function* (ctx) {
+          const req = yield* HttpServerRequest.HttpServerRequest
+          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
+          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
           return {
             data: yield* session
               .skill({
@@ -332,6 +408,9 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       .handle(
         "session.share",
         Effect.fn(function* (ctx) {
+          const req = yield* HttpServerRequest.HttpServerRequest
+          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
+          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
           yield* share
             .share({
               sourceSessionID: ctx.params.sessionID,
@@ -354,10 +433,14 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       )
       .handle("session.fork", function (ctx) {
         return Effect.gen(function* () {
-          const parent = yield* session.get(ctx.params.sessionID)
+          const req = yield* HttpServerRequest.HttpServerRequest
+          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
+          const parent = yield* requireSessionAndCapability(ctx.params.sessionID, capabilitiesHeader)
+          yield* ProductModePolicy.assertCreationSupported(parent.mode)
           const child = yield* session.create({
             location: parent.location,
             parentID: parent.id,
+            mode: parent.mode,
           })
           yield* share.share({
             sourceSessionID: ctx.params.sessionID,
@@ -372,6 +455,14 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
               new SessionNotFoundError({
                 sessionID: error.sessionID,
                 message: `Session not found: ${error.sessionID}`,
+              }),
+            ),
+          ),
+          Effect.catchTag("UnsupportedProductModeError", (error) =>
+            Effect.fail(
+              new UnsupportedProductModeError({
+                mode: error.mode,
+                message: error.message,
               }),
             ),
           ),
