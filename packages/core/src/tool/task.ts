@@ -1,7 +1,7 @@
 export * as TaskTool from "./task"
 
 import { ToolFailure } from "@aigcfroge/llm"
-import { Cause, Effect, Exit, Layer, Option, Ref, Schema, Stream } from "effect"
+import { Cause, Context, Effect, Exit, Layer, Option, Ref, Schema, Stream } from "effect"
 import { AgentV2 } from "../agent"
 import { Config } from "../config"
 import { EventV2 } from "../event"
@@ -9,6 +9,7 @@ import { PermissionV2 } from "../permission"
 import { ProductModeAgentPolicy } from "../product-mode-agent-policy"
 import { SessionSchema } from "../session/schema"
 import { SessionTask } from "../session/task"
+import { SessionComposition } from "../session/composition"
 import { Tool } from "./tool"
 import { TaskDriver } from "./task-driver"
 import { Tools } from "./tools"
@@ -181,15 +182,56 @@ export const layer = Layer.effectDiscard(
               // Non-CLI delegations assert on the subagent type. External-CLI mode
               // branches to its own assert (below) that carries the CLI target.
               const cliTarget = input.cli_target
+              const mode = yield* TaskDriver.sessionMode(context.sessionID)
+              if (mode === "custom") {
+                if (input.execution_type === "external-cli") {
+                  return yield* new ToolFailure({
+                    message: "External CLI execution is not permitted in Custom mode",
+                  })
+                }
+                if (input.execution_type === "judge") {
+                  return yield* new ToolFailure({
+                    message: "Judge execution is not permitted in Custom mode",
+                  })
+                }
+                if (input.background === true) {
+                  return yield* new ToolFailure({
+                    message: "Background subagent delegation is not permitted in Custom mode",
+                  })
+                }
+                const env = yield* Effect.context<never>()
+                const compOpt = Context.getOption(env, SessionComposition.Service)
+                if (compOpt._tag === "Some") {
+                  yield* compOpt.value.assertAgentAllowed(context.sessionID, input.subagent_type).pipe(
+                    Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", (err) =>
+                      Effect.fail(
+                        new ToolFailure({
+                          message: `Agent '${input.subagent_type}' is not permitted in this Custom session. Allowed agent is '${err.allowedAgentID}'.`,
+                        }),
+                      ),
+                    ),
+                    Effect.catchTag("SessionComposition.SnapshotNotFoundError", () =>
+                      Effect.fail(new ToolFailure({ message: "Custom session snapshot not found" })),
+                    ),
+                    Effect.catchTag("SessionComposition.SnapshotDecodeError", (err) =>
+                      Effect.fail(
+                        new ToolFailure({ message: `Failed to decode custom session snapshot: ${err.details}` }),
+                      ),
+                    ),
+                  )
+                }
+              }
+
               if (input.execution_type !== "external-cli") {
                 // The child Session inherits this Session's mode, and mode policy
                 // gates which agents may be primary there. Check it here so a
                 // disallowed delegation returns a readable tool failure instead of
                 // dying inside child-session creation (ADR-13 Amendment-2 §1b.3).
-                const mode = yield* TaskDriver.sessionMode(context.sessionID)
-                const verdict = ProductModeAgentPolicy.checkPrimaryAgent(mode ?? "coding", input.subagent_type)
-                if (!verdict.allowed) {
-                  return yield* new ToolFailure({ message: verdict.error.message })
+                if (mode !== "custom") {
+                  const verdict = ProductModeAgentPolicy.checkPrimaryAgent(mode ?? "coding", input.subagent_type)
+                  if (!verdict.allowed) {
+                    return yield* new ToolFailure({ message: verdict.error.message })
+                  }
                 }
                 yield* permission
                   .assert({

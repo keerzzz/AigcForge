@@ -130,6 +130,7 @@ export type Error =
   | SessionComposition.SnapshotNotFoundError
   | SessionComposition.SnapshotDecodeError
   | SessionComposition.SnapshotAlreadyExistsError
+  | SessionComposition.AgentDelegationForbiddenError
 
 export interface Interface {
   readonly list: (input?: ListInput) => Effect.Effect<SessionSchema.Info[]>
@@ -280,8 +281,24 @@ export const layer = Layer.effect(
         }
         const parent = input.parentID ? yield* store.get(input.parentID) : undefined
         const mode = parent?.mode ?? input.mode ?? ProductMode.Default
-        yield* ProductModePolicy.assertCreationSupported(mode)
-        const agent = yield* ProductModeAgentPolicy.enforcePrimary(mode, input.agent ?? parent?.agent)
+        if (mode === "custom") {
+          if (!parent) {
+            yield* ProductModePolicy.assertCreationSupported(mode)
+          }
+        } else {
+          yield* ProductModePolicy.assertCreationSupported(mode)
+        }
+        let agent: AgentV2.ID
+        if (mode === "custom") {
+          if (parent) {
+            yield* sessionComposition.assertAgentAllowed(parent.id, input.agent ?? "").pipe(Effect.orDie)
+            agent = AgentV2.ID.make(input.agent!)
+          } else {
+            agent = AgentV2.ID.make(yield* ProductModeAgentPolicy.enforcePrimary(mode, input.agent))
+          }
+        } else {
+          agent = AgentV2.ID.make(yield* ProductModeAgentPolicy.enforcePrimary(mode, input.agent ?? parent?.agent))
+        }
         const project = yield* projects.resolve(input.location.directory)
         yield* db
           .insert(ProjectTable)
@@ -335,6 +352,9 @@ export const layer = Layer.effect(
             }),
           )
         if (projected.type === "existing") return projected.session
+        if (parent?.mode === "custom") {
+          yield* sessionComposition.copy(parent.id, sessionID).pipe(Effect.orDie)
+        }
         // TODO: Restore recorded sessions onto replacement synchronized workspaces in a future API slice.
         return yield* result.get(sessionID).pipe(Effect.orDie)
       }),
