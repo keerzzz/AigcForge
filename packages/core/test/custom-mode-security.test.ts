@@ -3,6 +3,7 @@ import { Effect, Layer } from "effect"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
+import { FSUtil } from "@aigcfroge/core/fs-util"
 import { Location } from "@aigcfroge/core/location"
 import { PermissionV2 } from "@aigcfroge/core/permission"
 import { PermissionEffective } from "@aigcfroge/core/permission/effective"
@@ -20,10 +21,13 @@ import { SessionStore } from "@aigcfroge/core/session/store"
 import { SessionTable } from "@aigcfroge/core/session/sql"
 import { SessionExecution } from "@aigcfroge/core/session/execution"
 import { SessionTask } from "@aigcfroge/core/session/task"
+import { SkillV2 } from "@aigcfroge/core/skill"
 import { TaskDriver } from "@aigcfroge/core/tool/task-driver"
 import { TaskTool } from "@aigcfroge/core/tool/task"
 import { ToolRegistry } from "@aigcfroge/core/tool/registry"
+import { SkillTool } from "@aigcfroge/core/tool/skill"
 import { Config } from "@aigcfroge/core/config"
+import { computeDigest } from "@aigcfroge/core/composition/digest"
 import { Composition } from "@aigcfroge/schema/composition"
 import { testEffect } from "./lib/effect"
 
@@ -54,9 +58,42 @@ const permission = Layer.succeed(
 )
 
 const mockDigest = Composition.Digest.make("a".repeat(64))
-const mockCatalogDigest = Composition.Digest.make("b".repeat(64))
+const mockRevision = Composition.Revision.make("c".repeat(64))
 
-const mockSnapshot = (sessionID: SessionV2.ID, allowedAgentID: string = "custom-coder") =>
+// Self-consistent tool catalog fixture: assertDependency requires the catalog
+// to equal the sorted fingerprint names and the catalog digest to recompute.
+const mockToolFingerprints = ["glob", "grep", "read", "task"].map((name, index) => ({
+  placement: "/workspace",
+  name,
+  digest: Composition.Digest.make(String(index).repeat(64)),
+  installationVersion: "local",
+}))
+const mockCatalogDigest = computeDigest(mockToolFingerprints)
+
+let currentSkills: SkillV2.Info[] = []
+
+const skillsStub = Layer.succeed(
+  SkillV2.Service,
+  SkillV2.Service.of({
+    transform: () => Effect.die("unused"),
+    reload: () => Effect.die("unused"),
+    sources: () => Effect.die("unused"),
+    list: () => Effect.succeed(currentSkills),
+  }),
+)
+
+const skillTool = SkillTool.layer.pipe(
+  Layer.provide(ToolRegistry.defaultLayer),
+  Layer.provide(permission),
+  Layer.provide(FSUtil.defaultLayer),
+  Layer.provide(skillsStub),
+)
+
+const mockSnapshot = (
+  sessionID: SessionV2.ID,
+  allowedAgentID: string = "custom-coder",
+  skills: Composition.SkillInfo[] = [],
+) =>
   new Composition.Snapshot({
     version: 1,
     digest: mockDigest,
@@ -66,11 +103,11 @@ const mockSnapshot = (sessionID: SessionV2.ID, allowedAgentID: string = "custom-
       agentID: allowedAgentID,
       instructions: [],
       prompts: [],
-      skills: [],
+      skills,
       tools: new Composition.SnapshotToolInfo({
-        fingerprints: [],
+        fingerprints: mockToolFingerprints,
         catalogDigest: mockCatalogDigest,
-        catalog: ["read", "glob", "grep", "task"],
+        catalog: ["glob", "grep", "read", "task"],
       }),
     }),
   })
@@ -113,6 +150,7 @@ const it = testEffect(
     ToolRegistry.defaultLayer,
     sessions,
     taskTool,
+    skillTool,
   ),
 )
 
@@ -582,4 +620,325 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
       }),
     )
   })
+})
+
+const boundSkill: SkillV2.Info = {
+  name: "bound-skill",
+  description: "Bound skill",
+  location: AbsolutePath.make("/workspace/skills/bound.md"),
+  content: "BOUND SKILL CONTENT",
+}
+
+const outsideSkill: SkillV2.Info = {
+  name: "outside-skill",
+  description: "Outside skill",
+  location: AbsolutePath.make("/workspace/skills/outside.md"),
+  content: "OUTSIDE SKILL CONTENT",
+}
+
+const snapshotSkills = [
+  new Composition.SkillInfo({
+    name: "bound-skill",
+    description: "Bound skill",
+    relativePath: "skills/bound.md",
+    revision: mockRevision,
+  }),
+]
+
+describe("Skill Tool Snapshot-Local Lookup (MEDIUM-2a)", () => {
+  const installDriver = (sessionService: SessionV2.Interface) => {
+    TaskDriver.install(
+      {
+        get: (sessionID) => sessionService.get(sessionID),
+        create: (input) => sessionService.create(input),
+        prompt: (input) => sessionService.prompt(input),
+        resume: (sessionID) => sessionService.resume(sessionID),
+        messages: (input) => sessionService.messages(input),
+        injectSynthetic: (input) => sessionService.injectSynthetic(input),
+        interrupt: (sessionID) => sessionService.interrupt(sessionID),
+      },
+      {
+        start: () => Effect.void,
+        wait: () => Effect.succeed(undefined),
+        extend: () => Effect.succeed(false),
+        cancel: () => Effect.void,
+      },
+    )
+  }
+
+  it.effect("loads an in-snapshot skill in Custom mode", () =>
+    Effect.gen(function* () {
+      const sessionService = yield* SessionV2.Service
+      installDriver(sessionService)
+      const { db } = yield* Database.Service
+      const comp = yield* SessionComposition.Service
+      const sessionID = SessionV2.ID.make("ses_skill_snap_in")
+      currentSkills = [boundSkill, outsideSkill]
+
+      yield* db.insert(ProjectTable).values({ id: ProjectSchema.ID.make("proj_sk_1"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
+      yield* db.insert(SessionTable).values({
+        id: sessionID,
+        slug: "sk-slug-1",
+        version: "1.0.0",
+        project_id: ProjectV2.ID.make("proj_sk_1"),
+        directory: AbsolutePath.make("/workspace"),
+        title: "Custom Session",
+        mode: "custom",
+        agent: AgentV2.ID.make("meta"),
+        time_created: Date.now(),
+        time_updated: Date.now(),
+      }).run().pipe(Effect.orDie)
+      yield* comp.attach(sessionID, mockSnapshot(sessionID, "custom-coder", snapshotSkills))
+
+      const reg = yield* ToolRegistry.Service
+      const materialized = yield* reg.materialize()
+      const settlement = yield* materialized.settle({
+        sessionID,
+        agent: AgentV2.ID.make("meta"),
+        assistantMessageID: SessionMessage.ID.make("msg_sk_1"),
+        call: { type: "tool-call", id: "call-sk-1", name: "skill", input: { name: "bound-skill" } },
+      })
+
+      expect(settlement.result.type).toBe("text")
+      if (settlement.result.type === "text") {
+        expect(settlement.result.value).toContain("BOUND SKILL CONTENT")
+      }
+    }),
+  )
+
+  it.effect("rejects an out-of-snapshot skill in Custom mode", () =>
+    Effect.gen(function* () {
+      const sessionService = yield* SessionV2.Service
+      installDriver(sessionService)
+      const { db } = yield* Database.Service
+      const comp = yield* SessionComposition.Service
+      const sessionID = SessionV2.ID.make("ses_skill_snap_out")
+      currentSkills = [boundSkill, outsideSkill]
+
+      yield* db.insert(ProjectTable).values({ id: ProjectSchema.ID.make("proj_sk_2"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
+      yield* db.insert(SessionTable).values({
+        id: sessionID,
+        slug: "sk-slug-2",
+        version: "1.0.0",
+        project_id: ProjectV2.ID.make("proj_sk_2"),
+        directory: AbsolutePath.make("/workspace"),
+        title: "Custom Session",
+        mode: "custom",
+        agent: AgentV2.ID.make("meta"),
+        time_created: Date.now(),
+        time_updated: Date.now(),
+      }).run().pipe(Effect.orDie)
+      yield* comp.attach(sessionID, mockSnapshot(sessionID, "custom-coder", snapshotSkills))
+
+      const reg = yield* ToolRegistry.Service
+      const materialized = yield* reg.materialize()
+      const settlement = yield* materialized.settle({
+        sessionID,
+        agent: AgentV2.ID.make("meta"),
+        assistantMessageID: SessionMessage.ID.make("msg_sk_2"),
+        call: { type: "tool-call", id: "call-sk-2", name: "skill", input: { name: "outside-skill" } },
+      })
+
+      expect(settlement.result.type).toBe("error")
+      if (settlement.result.type === "error") {
+        expect(settlement.result.value).toContain("Unable to load skill outside-skill")
+      }
+    }),
+  )
+
+  it.effect("keeps the global skill catalog in Coding mode", () =>
+    Effect.gen(function* () {
+      const sessionService = yield* SessionV2.Service
+      installDriver(sessionService)
+      const { db } = yield* Database.Service
+      const sessionID = SessionV2.ID.make("ses_skill_coding")
+      currentSkills = [boundSkill, outsideSkill]
+
+      yield* db.insert(ProjectTable).values({ id: ProjectSchema.ID.make("proj_sk_3"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
+      yield* db.insert(SessionTable).values({
+        id: sessionID,
+        slug: "sk-slug-3",
+        version: "1.0.0",
+        project_id: ProjectV2.ID.make("proj_sk_3"),
+        directory: AbsolutePath.make("/workspace"),
+        title: "Coding Session",
+        mode: "coding",
+        agent: AgentV2.ID.make("build"),
+        time_created: Date.now(),
+        time_updated: Date.now(),
+      }).run().pipe(Effect.orDie)
+
+      const reg = yield* ToolRegistry.Service
+      const materialized = yield* reg.materialize()
+      const settlement = yield* materialized.settle({
+        sessionID,
+        agent: AgentV2.ID.make("build"),
+        assistantMessageID: SessionMessage.ID.make("msg_sk_3"),
+        call: { type: "tool-call", id: "call-sk-3", name: "skill", input: { name: "outside-skill" } },
+      })
+
+      expect(settlement.result.type).toBe("text")
+      if (settlement.result.type === "text") {
+        expect(settlement.result.value).toContain("OUTSIDE SKILL CONTENT")
+      }
+    }),
+  )
+
+  it.effect("fails closed when the Custom session snapshot row is missing", () =>
+    Effect.gen(function* () {
+      const sessionService = yield* SessionV2.Service
+      installDriver(sessionService)
+      const { db } = yield* Database.Service
+      const sessionID = SessionV2.ID.make("ses_skill_snap_missing")
+      currentSkills = [boundSkill, outsideSkill]
+
+      yield* db.insert(ProjectTable).values({ id: ProjectSchema.ID.make("proj_sk_4"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
+      yield* db.insert(SessionTable).values({
+        id: sessionID,
+        slug: "sk-slug-4",
+        version: "1.0.0",
+        project_id: ProjectV2.ID.make("proj_sk_4"),
+        directory: AbsolutePath.make("/workspace"),
+        title: "Custom Session",
+        mode: "custom",
+        agent: AgentV2.ID.make("meta"),
+        time_created: Date.now(),
+        time_updated: Date.now(),
+      }).run().pipe(Effect.orDie)
+
+      const reg = yield* ToolRegistry.Service
+      const materialized = yield* reg.materialize()
+      const settlement = yield* materialized.settle({
+        sessionID,
+        agent: AgentV2.ID.make("meta"),
+        assistantMessageID: SessionMessage.ID.make("msg_sk_4"),
+        call: { type: "tool-call", id: "call-sk-4", name: "skill", input: { name: "bound-skill" } },
+      })
+
+      expect(settlement.result.type).toBe("error")
+      if (settlement.result.type === "error") {
+        expect(settlement.result.value).toContain("Custom session snapshot not found")
+      }
+    }),
+  )
+})
+
+// Tier-1 fail-closed seam: when the TaskDriver bridge reports Custom mode but
+// SessionComposition is absent from the tool context, both gated tools must
+// fail instead of silently skipping the delegation/skill gates. A dedicated
+// harness is required because the shared one merges SessionComposition for the
+// other suites. The stub facade scopes "custom" to bareSessionID so the
+// process-global bridge stays permissive for every other Session (including
+// later test files in this process).
+const bareSessionID = SessionV2.ID.make("ses_bare_gate")
+
+const taskToolNoComposition = TaskTool.layer.pipe(
+  Layer.provide(ToolRegistry.defaultLayer),
+  Layer.provide(config),
+  Layer.provide(EventV2.defaultLayer),
+  Layer.provide(AgentV2.layer),
+  Layer.provide(permission),
+  Layer.provide(SessionTask.defaultLayer),
+)
+
+const skillToolNoComposition = SkillTool.layer.pipe(
+  Layer.provide(ToolRegistry.defaultLayer),
+  Layer.provide(permission),
+  Layer.provide(FSUtil.defaultLayer),
+  Layer.provide(skillsStub),
+)
+
+const itBare = testEffect(
+  Layer.mergeAll(
+    Database.defaultLayer,
+    EventV2.defaultLayer,
+    AgentV2.layer,
+    ToolRegistry.defaultLayer,
+    permission,
+    config,
+    SessionTask.defaultLayer,
+    taskToolNoComposition,
+    skillToolNoComposition,
+  ),
+)
+
+describe("Fail-Closed Without Snapshot Service", () => {
+  const installBareDriver = () => {
+    TaskDriver.install(
+      {
+        get: (sessionID) =>
+          Effect.succeed({
+            location: { directory: AbsolutePath.make("/workspace") },
+            mode: sessionID === bareSessionID ? "custom" : undefined,
+          }),
+        create: () => Effect.die("unused"),
+        prompt: () => Effect.die("unused"),
+        resume: () => Effect.die("unused"),
+        messages: () => Effect.die("unused"),
+        injectSynthetic: () => Effect.die("unused"),
+        interrupt: () => Effect.void,
+      },
+      {
+        start: () => Effect.void,
+        wait: () => Effect.succeed(undefined),
+        extend: () => Effect.succeed(false),
+        cancel: () => Effect.void,
+      },
+    )
+  }
+
+  itBare.effect("task tool fails closed when SessionComposition is unavailable", () =>
+    Effect.gen(function* () {
+      installBareDriver()
+      const agentService = yield* AgentV2.Service
+      yield* agentService.transform((draft) => {
+        draft.update(AgentV2.ID.make("custom-coder"), (a) => {
+          a.mode = "subagent"
+        })
+      })
+      const reg = yield* ToolRegistry.Service
+      const materialized = yield* reg.materialize()
+      const settlement = yield* materialized.settle({
+        sessionID: bareSessionID,
+        agent: AgentV2.ID.make("meta"),
+        assistantMessageID: SessionMessage.ID.make("msg_bare_task"),
+        call: {
+          type: "tool-call",
+          id: "call-bare-task",
+          name: "task",
+          input: { description: "delegate", prompt: "do something", subagent_type: "custom-coder" },
+        },
+      })
+
+      expect(settlement.result.type).toBe("error")
+      if (settlement.result.type === "error") {
+        expect(settlement.result.value).toContain("Custom session snapshot service unavailable")
+      }
+    }),
+  )
+
+  itBare.effect("skill tool fails closed when SessionComposition is unavailable", () =>
+    Effect.gen(function* () {
+      installBareDriver()
+      currentSkills = [boundSkill]
+      const reg = yield* ToolRegistry.Service
+      const materialized = yield* reg.materialize()
+      const settlement = yield* materialized.settle({
+        sessionID: bareSessionID,
+        agent: AgentV2.ID.make("meta"),
+        assistantMessageID: SessionMessage.ID.make("msg_bare_skill"),
+        call: {
+          type: "tool-call",
+          id: "call-bare-skill",
+          name: "skill",
+          input: { name: "bound-skill" },
+        },
+      })
+
+      expect(settlement.result.type).toBe("error")
+      if (settlement.result.type === "error") {
+        expect(settlement.result.value).toContain("Custom session snapshot service unavailable")
+      }
+    }),
+  )
 })

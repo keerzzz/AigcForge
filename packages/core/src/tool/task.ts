@@ -1,7 +1,7 @@
 export * as TaskTool from "./task"
 
 import { ToolFailure } from "@aigcfroge/llm"
-import { Cause, Context, Effect, Exit, Layer, Option, Ref, Schema, Stream } from "effect"
+import { Cause, Effect, Exit, Layer, Option, Ref, Schema, Stream } from "effect"
 import { AgentV2 } from "../agent"
 import { Config } from "../config"
 import { EventV2 } from "../event"
@@ -199,27 +199,30 @@ export const layer = Layer.effectDiscard(
                     message: "Background subagent delegation is not permitted in Custom mode",
                   })
                 }
-                const env = yield* Effect.context<never>()
-                const compOpt = Context.getOption(env, SessionComposition.Service)
-                if (compOpt._tag === "Some") {
-                  yield* compOpt.value.assertAgentAllowed(context.sessionID, input.subagent_type).pipe(
-                    Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", (err) =>
-                      Effect.fail(
-                        new ToolFailure({
-                          message: `Agent '${input.subagent_type}' is not permitted in this Custom session. Allowed agent is '${err.allowedAgentID}'.`,
-                        }),
-                      ),
-                    ),
-                    Effect.catchTag("SessionComposition.SnapshotNotFoundError", () =>
-                      Effect.fail(new ToolFailure({ message: "Custom session snapshot not found" })),
-                    ),
-                    Effect.catchTag("SessionComposition.SnapshotDecodeError", (err) =>
-                      Effect.fail(
-                        new ToolFailure({ message: `Failed to decode custom session snapshot: ${err.details}` }),
-                      ),
-                    ),
-                  )
+                const composition = yield* Effect.serviceOption(SessionComposition.Service)
+                // Tier-1 fail-closed: in Custom mode the delegation gate is
+                // mandatory — an unreachable SessionComposition service fails the
+                // tool instead of silently skipping the check.
+                if (Option.isNone(composition)) {
+                  return yield* new ToolFailure({ message: "Custom session snapshot service unavailable" })
                 }
+                yield* composition.value.assertAgentAllowed(context.sessionID, input.subagent_type).pipe(
+                  Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", (err) =>
+                    Effect.fail(
+                      new ToolFailure({
+                        message: `Agent '${input.subagent_type}' is not permitted in this Custom session. Allowed agent is '${err.allowedAgentID}'.`,
+                      }),
+                    ),
+                  ),
+                  Effect.catchTag("SessionComposition.SnapshotNotFoundError", () =>
+                    Effect.fail(new ToolFailure({ message: "Custom session snapshot not found" })),
+                  ),
+                  Effect.catchTag("SessionComposition.SnapshotDecodeError", (err) =>
+                    Effect.fail(
+                      new ToolFailure({ message: `Failed to decode custom session snapshot: ${err.details}` }),
+                    ),
+                  ),
+                )
               }
 
               if (input.execution_type !== "external-cli") {

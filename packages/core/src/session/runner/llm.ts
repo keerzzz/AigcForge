@@ -14,8 +14,10 @@ import { AgentV2 } from "../../agent"
 import { ProductModeAgentPolicy } from "../../product-mode-agent-policy"
 import { AppProcess } from "../../process"
 import { Config } from "../../config"
+import { CompositionDigest } from "../../composition/digest"
 import { Database } from "../../database/database"
 import { EventV2 } from "../../event"
+import { InstallationVersion } from "../../installation/version"
 import { Location } from "../../location"
 import { ModelV2 } from "../../model"
 import { ProviderV2 } from "../../provider"
@@ -26,7 +28,9 @@ import { SystemContext } from "../../system-context/index"
 import { SystemContextRegistry } from "../../system-context/registry"
 import { PermissionStateContext } from "../../system-context/permission-state"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
+import { Composition } from "@aigcfroge/schema/composition"
 import { SkillGuidance } from "../../skill/guidance"
+import { CompositionCatalog } from "../../skill/composition-catalog"
 import { SkillV2 } from "../../skill"
 import { ReferenceGuidance } from "../../reference/guidance"
 import { ToolRegistry } from "../../tool/registry"
@@ -48,7 +52,7 @@ import { SessionInput } from "../input"
 import { SessionSchema } from "../schema"
 import { SessionStore } from "../store"
 import { SessionComposition } from "../composition"
-import { type RunError, Service } from "./index"
+import { type RunError, Service, SnapshotDriftError } from "./index"
 import { SessionRunnerModel } from "./model"
 import { createLLMEventPublisher } from "./publish-llm-event"
 import { toLLMMessages } from "./to-llm-message"
@@ -171,6 +175,101 @@ export const layer = Layer.effect(
           })
         }
       }
+    })
+
+    // Custom Mode fail-closed snapshot read: a missing or undecodable row must
+    // never silently widen the tool catalog to the full registry (MEDIUM-3a).
+    const readCustomSnapshot = Effect.fnUntraced(function* (sessionID: SessionSchema.ID) {
+      const snapshot = yield* sessionComposition.read(sessionID).pipe(
+        Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
+          Effect.fail(
+            new SnapshotDriftError({
+              sessionID,
+              reason: "snapshot_decode_failed",
+              details: error.details,
+            }),
+          ),
+        ),
+      )
+      if (!snapshot) {
+        return yield* new SnapshotDriftError({ sessionID, reason: "snapshot_missing" })
+      }
+      return snapshot
+    })
+
+    // Provider-turn drift re-verification (MEDIUM-3b): recompute the freeze-time
+    // fingerprints exactly as CompositionResolver.freeze did — full
+    // materialization without permission rules or intent, narrowed to the
+    // snapshot catalog — and fail closed on any missing, extra, or divergent
+    // entry before the request is built.
+    const verifySnapshotTools = Effect.fnUntraced(function* (
+      sessionID: SessionSchema.ID,
+      snapshot: Composition.Snapshot,
+    ) {
+      const materialized = yield* tools.materialize(undefined, undefined, {
+        allowlist: snapshot.data.tools.catalog,
+      })
+      const placement = location.workspaceID
+        ? `${location.directory}#${location.workspaceID}`
+        : String(location.directory)
+      const fingerprints = materialized.definitions
+        .map((definition) => ({
+          placement,
+          name: definition.name,
+          digest: CompositionDigest.computeDigest({
+            description: definition.description,
+            inputSchema: definition.inputSchema,
+            outputSchema: definition.outputSchema,
+          }),
+          installationVersion: InstallationVersion,
+        }))
+        .toSorted((a, b) => a.name.localeCompare(b.name))
+      const live = new Set(fingerprints.map((fingerprint) => fingerprint.name))
+      for (const name of snapshot.data.tools.catalog) {
+        if (live.has(name)) continue
+        return yield* new SnapshotDriftError({
+          sessionID,
+          reason: "tool_missing",
+          details: `Snapshot catalog tool '${name}' is no longer registered`,
+        })
+      }
+      const stored = new Map(snapshot.data.tools.fingerprints.map((fingerprint) => [fingerprint.name, fingerprint]))
+      for (const fingerprint of fingerprints) {
+        const recorded = stored.get(fingerprint.name)
+        if (!recorded) {
+          return yield* new SnapshotDriftError({
+            sessionID,
+            reason: "tool_fingerprint_missing",
+            details: `No stored fingerprint for catalog tool '${fingerprint.name}'`,
+          })
+        }
+        if (
+          recorded.digest !== fingerprint.digest ||
+          recorded.placement !== fingerprint.placement ||
+          recorded.installationVersion !== fingerprint.installationVersion
+        ) {
+          return yield* new SnapshotDriftError({
+            sessionID,
+            reason: "tool_fingerprint_mismatch",
+            details: `Tool '${fingerprint.name}' definition diverged from the snapshot fingerprint`,
+          })
+        }
+      }
+      if (stored.size !== fingerprints.length) {
+        return yield* new SnapshotDriftError({
+          sessionID,
+          reason: "tool_fingerprint_extra",
+          details: "Snapshot fingerprints diverge from the snapshot catalog",
+        })
+      }
+      if (CompositionDigest.computeDigest(fingerprints) !== snapshot.data.tools.catalogDigest) {
+        return yield* new SnapshotDriftError({
+          sessionID,
+          reason: "catalog_digest_mismatch",
+          details: "Recomputed tool catalog digest diverges from the snapshot",
+        })
+      }
+      return yield* Effect.void
     })
 
     // Appends an advisory warning to a tool result value without changing the
@@ -311,13 +410,15 @@ export const layer = Layer.effect(
     const continueAfterOverflowCompaction = (step: number) =>
       new TurnTransitionError({ _tag: "ContinueAfterOverflowCompaction", step })
 
-    const loadSystemContext = (agent: AgentV2.Selection, sessionID: SessionSchema.ID) =>
+    const loadSystemContext = (
+      agent: AgentV2.Selection,
+      sessionID: SessionSchema.ID,
+      snapshot: Composition.Snapshot | undefined,
+    ) =>
       Effect.gen(function* () {
         const session = yield* store.get(sessionID)
-        const snapshot =
-          session?.mode === "custom" ? yield* sessionComposition.read(sessionID).pipe(Effect.orDie) : undefined
         const [sysContext, skillCtx, refGuidance] = yield* Effect.all(
-          [systemContext.load(), skillGuidance.load(agent, { snapshot: snapshot ?? undefined }), referenceGuidance.load()],
+          [systemContext.load(), skillGuidance.load(agent, { snapshot }), referenceGuidance.load()],
           { concurrency: "unbounded" },
         )
         let combined = SystemContext.combine([sysContext, skillCtx, refGuidance])
@@ -378,8 +479,16 @@ export const layer = Layer.effect(
       const agentID = yield* ProductModeAgentPolicy.enforcePrimary(session.mode, session.agent)
       if (session.location.directory !== location.directory || session.location.workspaceID !== location.workspaceID)
         return yield* Effect.interrupt
+      // Custom Mode fail-closed: a missing or drifted snapshot ends the turn with a
+      // typed error before any context, tool, or provider work (MEDIUM-3a/3b).
+      const snapshot = session.mode === "custom" ? yield* readCustomSnapshot(session.id) : undefined
+      if (snapshot) yield* verifySnapshotTools(session.id, snapshot)
       const agent = yield* agents.select(agentID)
-      const initialized = yield* SessionContextEpoch.initialize(db, loadSystemContext(agent, session.id), session.id)
+      const initialized = yield* SessionContextEpoch.initialize(
+        db,
+        loadSystemContext(agent, session.id, snapshot),
+        session.id,
+      )
       const toolFibers = yield* FiberSet.make<void, ToolOutputStore.Error>()
       let needsContinuation = false
       let currentStep = step
@@ -398,7 +507,8 @@ export const layer = Layer.effect(
         if (promoted > 0) currentStep = 1
       }
       const system =
-        initialized ?? (yield* SessionContextEpoch.prepare(db, events, loadSystemContext(agent, session.id), session.id))
+        initialized ??
+        (yield* SessionContextEpoch.prepare(db, events, loadSystemContext(agent, session.id, snapshot), session.id))
       const model = yield* models.resolve(session)
       const entries = yield* SessionHistory.entriesForRunner(db, session.id, system.baselineSeq)
       const context = entries.map((entry) => entry.message)
@@ -426,8 +536,6 @@ export const layer = Layer.effect(
           Effect.catchTag("CorrectionExtractor.ExtractionError", () => Effect.void),
         )
       }
-      const snapshot =
-        session.mode === "custom" ? yield* sessionComposition.read(session.id).pipe(Effect.orDie) : undefined
       const allowlist = snapshot?.data.tools.catalog
       const toolMaterialization = isLastStep
         ? undefined
@@ -647,7 +755,16 @@ export const layer = Layer.effect(
     ) {
       const pending = yield* SessionInput.pendingSkillSteers(db, sessionID, cutoff)
       if (pending.length === 0) return 0
-      const available = yield* skills.list()
+      // MEDIUM-2b: custom sessions resolve steers against the snapshot-bound skill
+      // catalog; out-of-snapshot names publish the standard not-found text.
+      const session = yield* store.get(sessionID)
+      const available =
+        session?.mode === "custom"
+          ? CompositionCatalog.createCompositionSkillCatalog(
+              (yield* readCustomSnapshot(sessionID)).data.skills,
+              yield* skills.list(),
+            )
+          : yield* skills.list()
       for (const admitted of pending) {
         if (admitted.kind !== "skill") continue
         const skill = available.find((candidate) => candidate.name === admitted.skill)

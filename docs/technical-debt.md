@@ -62,8 +62,6 @@
 
 > 与权限档位的接口约定：Custom M0/M1 必须定义 mode ceiling 与 Snapshot allowlist；应用级审批入口与 grant model 属 Custom M3（权限档位计划明确"不自动批准"）。
 
-> M0 de-scope（来源：M0 remediation re-review LOW-2，`docs/review/AigcForge_CUSTOM_M0_REMEDIATION_REREVIEW_2026-08-18.md`）：`packages/core/src/skill/composition-catalog.ts` 的 `createCompositionSkillCatalog` 是 M0 Phase D 声明的 composition-local Skill catalog seam，仅有测试引用、无生产 caller。评估结论：Resolver/Snapshot 的 skills 真源是带 revision 的 SkillAsset registry（精确 path 解析），而该 catalog 过滤的是 Runner 期无 revision 的 `SkillV2.Info` 视图，接进 resolve/freeze 只会对已精确解析的绑定集合做有损二次过滤，语义不成立；其真实消费点是 M1 Runner（实施计划 §5.3：Custom Session 的 Skill guidance 与 `skill` tool lookup 读取 Snapshot-local catalog）。**触发条件**：M1 Runner 接线 Snapshot skill catalog 时由 Runner 侧消费，并移除文件顶部 de-scope 注释；若 M1 设计放弃该 seam，则连测试一并删除。
-
 ---
 
 ## 4. 全局存量债（迁移自 CLAUDE.md 债表）
@@ -90,3 +88,4 @@
 |---|---|---|
 | Chat 模式下 meta 默认权限依赖前置拦截（fail-open 信封） | 2026-08-16 | `session-permission-tier`（meta V1/V2 基线 fail-closed + `PermissionEffective`） |
 | meta 非 coding 模式委派 build 死路 | 2026-08-16 | `session-permission-tier`（Phase 5） |
+| Custom M0 de-scope：`createCompositionSkillCatalog` seam 无生产 caller | 2026-08-19 | `custom-rollout`（M1 Runner 接线消费：skill tool lookup 与 skill steer 均走 Snapshot-local catalog，缺行/解码失败/漂移 fail-closed） |
