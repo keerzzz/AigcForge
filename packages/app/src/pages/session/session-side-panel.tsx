@@ -17,6 +17,7 @@ import { useMode } from "@/context/mode"
 import { ChatRightPanel } from "@/components/chat/chat-right-panel"
 import { AssistantSessionPanel } from "@/pages/session/assistant-session-panel"
 import { WorkSessionPanel } from "@/pages/work-artifact-panel"
+import { CustomSessionPanel } from "@/components/custom/custom-snapshot-panel"
 import { SessionRightPanel } from "@/components/session-right-panel"
 import { SessionFileTabStrip } from "@/pages/session/file-tab-strip"
 import { FileTabContent } from "@/pages/session/file-tabs"
@@ -316,6 +317,9 @@ export function SessionSidePanel(props: {
       </div>
       <div style={{ display: mode.currentMode === "assistant" ? "" : "none" }} class="flex-1 min-w-0">
         <AssistantSessionPanel />
+      </div>
+      <div style={{ display: mode.currentMode === "custom" ? "" : "none" }} class="flex-1 min-w-0">
+        <CustomSessionPanel sessionID={params.id} />
       </div>
     </Show>
   )

@@ -34,6 +34,10 @@ import { assetVersion } from "@/components/chat/prompt-asset-store"
 import { buildWorkPresetCatalog } from "@/pages/work-preset-catalog"
 import { presetLaunch, workflowLaunch } from "@/pages/work-preset-launch"
 import { ModeLocationNewSession } from "@/components/mode-location-new-session"
+import { CustomProjectColumnSidebar as CustomSidebar } from "@/components/custom/custom-sidebar"
+import { CustomCompositionConfig } from "@/components/custom/custom-builder-main"
+import { CustomPlanPreviewColumn } from "@/components/custom/custom-preview-column"
+import { CustomDraftProvider } from "@/context/custom-draft"
 
 /** Coding project and server navigation built on HomeProjectColumn. */
 export function CodingProjectColumnSidebar() {
@@ -770,103 +774,39 @@ export function WorkPresetCatalogMain() {
   )
 }
 
-/** Custom location and new-session controls. */
+/** Custom location and asset navigation sidebar. */
 export function CustomProjectColumnSidebar() {
-  const { directory } = useModeDirectory()
-  return <ModeLocationNewSession directory={directory} mode="custom" />
-}
-
-/** Custom mode home surface for recent Sessions. */
-export function CustomSessionListMain() {
-  const language = useLanguage()
-  const tabs = useTabs()
-  const layout = useLayout()
-  const sync = useServerSync()
-  const global = useGlobal()
-  const server = useServer()
-  const { conn, ctx, directory } = useModeDirectory()
-
-  const projects = createMemo(() => ctx()?.projects.list() ?? layout.projects.list())
-  const projectByID = createMemo(
-    () => new Map(projects().flatMap((project) => (project.id ? [[project.id, project] as const] : []))),
-  )
-  const projectDirectories = createMemo(() => {
+  const { directory, ctx } = useModeDirectory()
+  const dirSdk = createMemo(() => {
     const dir = directory()
-    return dir ? [dir] : []
-  })
-  const sessionLoad = useQuery(() => ({
-    queryKey: [ctx()?.sdk.scope, "home", "custom-sessions", ...projectDirectories()] as const,
-    queryFn: async () => {
-      await Promise.all(
-        projectDirectories().map((d) => sync().project.loadSessions(d, { limit: HOME_SESSION_LIMIT })),
-      )
-      return null
-    },
-  }))
-  const customRecords = createMemo(() => {
-    const records = buildHomeSessionRecords({ sync: sync(), projectDirectories, projects, projectByID })
-    return filterSessionsByMode(records, "custom").slice(0, HOME_SESSION_LIMIT)
-  })
-  const customGroups = createMemo(() => groupSessions(customRecords(), language))
-  const activeConnKey = createMemo(() => {
-    const c = conn()
-    return c ? ServerConnection.key(c) : server.key
-  })
-
-  function openCustomSession(record: HomeSessionRecord) {
-    const c = conn()
     const currentCtx = ctx()
-    if (!c || !currentCtx) return
-    openSessionRecord({
-      record,
-      server: ServerConnection.key(c),
-      global,
-      tabs,
-      projects: currentCtx.projects,
-      projectByID: projectByID(),
-    })
-  }
+    if (!dir || !currentCtx) return undefined
+    return currentCtx.sdk.ensureDirSdkContext(dir)
+  })
 
   return (
-    <ScrollView class="min-h-0 flex-1">
-      <div class="flex min-h-0 flex-col gap-6 px-6 py-5">
-        <div class="flex flex-col gap-1">
-          <h1 class="text-v2-text-text-base text-16-medium">{language.t("mode.custom")}</h1>
-          <p class="text-v2-text-text-muted text-13-regular">{language.t("mode.custom.description")}</p>
-        </div>
+    <CustomDraftProvider directory={() => directory() ?? ""}>
+      <CustomSidebar dirSdk={dirSdk} />
+    </CustomDraftProvider>
+  )
+}
 
-        <Show
-          when={!sessionLoad.isLoading && customGroups().length > 0}
-          fallback={
-            <div class="flex flex-col items-center justify-center p-8 text-center text-v2-text-text-muted text-13-regular">
-              {language.t("home.sessionList.empty")}
-            </div>
-          }
-        >
-          <section class="flex min-w-0 flex-col gap-3">
-            <h2 class="text-v2-text-text-base text-13-medium">{language.t("work.home.continue")}</h2>
-            <div class="flex min-w-0 flex-col gap-px">
-              <For each={customGroups()}>
-                {(group) => (
-                  <div class="flex min-w-0 flex-col gap-2">
-                    <HomeSessionGroupHeader title={group.title} />
-                    <For each={group.sessions}>
-                      {(record) => (
-                        <HomeSessionRow
-                          record={record}
-                          server={activeConnKey()}
-                          activeServer={activeConnKey() === server.key}
-                          onClick={() => openCustomSession(record)}
-                        />
-                      )}
-                    </For>
-                  </div>
-                )}
-              </For>
-            </div>
-          </section>
-        </Show>
+/** Custom mode builder main workspace. */
+export function CustomSessionListMain() {
+  const { directory, ctx } = useModeDirectory()
+  const dirSdk = createMemo(() => {
+    const dir = directory()
+    const currentCtx = ctx()
+    if (!dir || !currentCtx) return undefined
+    return currentCtx.sdk.ensureDirSdkContext(dir)
+  })
+
+  return (
+    <CustomDraftProvider directory={() => directory() ?? ""}>
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 h-full min-h-0 flex-1 overflow-y-auto px-4 pb-8">
+        <CustomCompositionConfig />
+        <CustomPlanPreviewColumn dirSdk={dirSdk} />
       </div>
-    </ScrollView>
+    </CustomDraftProvider>
   )
 }

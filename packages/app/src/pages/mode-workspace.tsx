@@ -12,7 +12,7 @@ import { useModeDirectory } from "@/pages/mode-workspace-context"
 import type { HomeProjectSelection } from "@/pages/layout/helpers"
 import type { AssistantNavSelection } from "@/components/assistant-nav-model"
 
-const ALL_SLOTS = ["chat", "coding", "work", "assistant"] as const
+const ALL_SLOTS = ["chat", "coding", "work", "assistant", "custom"] as const
 
 export function ModeWorkspace() {
   const mode = useMode()
