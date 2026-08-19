@@ -15,6 +15,7 @@ import type { SystemContext } from "../system-context/index"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task"
+import type { Composition } from "@aigcfroge/schema/composition"
 
 
 type SessionMessageData = Omit<(typeof SessionMessage.Message)["Encoded"], "type" | "id">
@@ -214,3 +215,19 @@ export const SessionContextEpochTable = sqliteTable("session_context_epoch", {
   snapshot: text({ mode: "json" }).notNull().$type<SystemContext.Snapshot>(),
   baseline_seq: integer().notNull(),
 })
+
+export const SessionCompositionSnapshotTable = sqliteTable("session_composition_snapshot", {
+  session_id: text()
+    .$type<SessionSchema.ID>()
+    .primaryKey()
+    .references(() => SessionTable.id, { onDelete: "cascade" }),
+  version: integer().notNull().default(1),
+  digest: text().notNull(),
+  profile_path: text(),
+  profile_revision: text(),
+  data: text({ mode: "json" }).notNull().$type<Composition.SnapshotData>(),
+  time_created: integer()
+    .notNull()
+    .$default(() => Date.now()),
+})
+

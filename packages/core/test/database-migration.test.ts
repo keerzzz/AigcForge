@@ -20,6 +20,7 @@ import backfillTaskTableMigration from "@aigcfroge/core/database/migration/20260
 import addTaskOutputDigestMigration from "@aigcfroge/core/database/migration/20260802043814_add_task_output_digest"
 import addTaskScheduleFieldsMigration from "@aigcfroge/core/database/migration/20260802093236_add_task_schedule_fields"
 import addTaskSpawnFieldsMigration from "@aigcfroge/core/database/migration/20260802140709_add_task_spawn_fields"
+import addSessionCompositionSnapshotMigration from "@aigcfroge/core/database/migration/20260819012541_add_session_composition_snapshot"
 import { EventV2 } from "@aigcfroge/core/event"
 import { ProjectV2 } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
@@ -78,6 +79,11 @@ describe("DatabaseMigration", () => {
         expect(
           yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'session_context_epoch'`),
         ).toEqual({ name: "session_context_epoch" })
+        expect(
+          yield* db.get(
+            sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'session_composition_snapshot'`,
+          ),
+        ).toEqual({ name: "session_composition_snapshot" })
         expect(
           yield* db.get(
             sql`SELECT name FROM pragma_table_info('session_context_epoch') WHERE name IN ('agent', 'replacement_seq', 'revision')`,
@@ -1024,6 +1030,49 @@ describe("DatabaseMigration", () => {
           spawned_from: "msg_1",
           depends_on: '["tsk_a","tsk_b"]',
         })
+      }),
+    )
+  })
+
+  test("adds session_composition_snapshot table with FK cascade on delete session", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`PRAGMA foreign_keys = ON`)
+        yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY)`)
+        yield* db.run(sql`INSERT INTO session (id) VALUES ('ses_test_1')`)
+        yield* db.run(sql`INSERT INTO session (id) VALUES ('ses_test_2')`)
+
+        yield* DatabaseMigration.applyOnly(db, [addSessionCompositionSnapshotMigration])
+
+        expect(
+          yield* db.get(
+            sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'session_composition_snapshot'`,
+          ),
+        ).toEqual({ name: "session_composition_snapshot" })
+
+        // Insert snapshot
+        yield* db.run(sql`
+          INSERT INTO session_composition_snapshot (session_id, version, digest, profile_path, profile_revision, data, time_created)
+          VALUES ('ses_test_1', 1, 'digest123', 'custom-profiles/test.yaml', 'rev123', '{"agentID":"agent-1"}', 1000)
+        `)
+
+        expect(
+          yield* db.get(sql`SELECT session_id, version, digest FROM session_composition_snapshot WHERE session_id = 'ses_test_1'`),
+        ).toEqual({
+          session_id: "ses_test_1",
+          version: 1,
+          digest: "digest123",
+        })
+
+        // Rerun idempotency check: running applyOnly with same migration is a no-op
+        yield* DatabaseMigration.applyOnly(db, [addSessionCompositionSnapshotMigration])
+
+        // FK cascade test: deleting session deletes snapshot
+        yield* db.run(sql`DELETE FROM session WHERE id = 'ses_test_1'`)
+        expect(
+          yield* db.get(sql`SELECT session_id FROM session_composition_snapshot WHERE session_id = 'ses_test_1'`),
+        ).toBeUndefined()
       }),
     )
   })
