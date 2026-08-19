@@ -2826,6 +2826,18 @@ export type ConflictError = {
   resource?: string
 }
 
+export type SessionNotFoundError = {
+  _tag: "SessionNotFoundError"
+  sessionID: string
+  message: string
+}
+
+export type SessionBusyError = {
+  _tag: "SessionBusyError"
+  sessionID: string
+  message: string
+}
+
 export type MemorySource = "explicit" | "derived"
 
 export type MemoryTrustLevel = "high" | "medium" | "low"
@@ -3369,12 +3381,6 @@ export type SubtaskPartInput = {
   command?: string
 }
 
-export type SessionBusyError = {
-  _tag: "SessionBusyError"
-  sessionID: string
-  message: string
-}
-
 export type Session8 = {
   id: string
   mode?: ProductMode
@@ -3607,12 +3613,6 @@ export type CompositionResolveError = {
   code: string
   message: string
   diagnostics?: Array<CompositionDiagnostic>
-}
-
-export type SessionNotFoundError = {
-  _tag: "SessionNotFoundError"
-  sessionID: string
-  message: string
 }
 
 export type ServiceUnavailableError = {
@@ -5214,6 +5214,13 @@ export type CompositionSnapshot = {
 export type CompositionStartResponse = {
   session: SessionV2Info
   snapshot: CompositionSnapshot
+}
+
+export type CompositionUpgradeInput = {
+  sessionID: string
+  composition: CompositionTemporaryInput | CompositionProfileInput
+  expectedPlanDigest?: string
+  title?: string
 }
 
 export type CompositionStaleRevision = {
@@ -12839,6 +12846,43 @@ export type CustomCompositionStartResponses = {
 
 export type CustomCompositionStartResponse = CustomCompositionStartResponses[keyof CustomCompositionStartResponses]
 
+export type CustomCompositionUpgradeData = {
+  body?: CompositionUpgradeInput
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/custom-composition/upgrade"
+}
+
+export type CustomCompositionUpgradeErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * SessionBusyError
+   */
+  409: SessionBusyError
+}
+
+export type CustomCompositionUpgradeError = CustomCompositionUpgradeErrors[keyof CustomCompositionUpgradeErrors]
+
+export type CustomCompositionUpgradeResponses = {
+  /**
+   * Upgraded custom session and snapshot
+   */
+  200: CompositionStartResponse
+}
+
+export type CustomCompositionUpgradeResponse =
+  CustomCompositionUpgradeResponses[keyof CustomCompositionUpgradeResponses]
+
 export type CustomCompositionHealthData = {
   body?: never
   path?: never
@@ -16323,6 +16367,10 @@ export type V2SessionCreateErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
 }
 
 export type V2SessionCreateError = V2SessionCreateErrors[keyof V2SessionCreateErrors]

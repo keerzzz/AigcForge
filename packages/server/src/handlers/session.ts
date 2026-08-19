@@ -183,6 +183,11 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       .handle(
         "session.custom",
         Effect.fn(function* (ctx) {
+          if (!ProductModePolicy.isCustomModeEnabled()) {
+            return yield* new InvalidRequestError({
+              message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
+            })
+          }
           // MEDIUM-1: symmetric with the instance custom-composition/start gate —
           // creating custom sessions requires the custom capability header.
           const req = yield* HttpServerRequest.HttpServerRequest

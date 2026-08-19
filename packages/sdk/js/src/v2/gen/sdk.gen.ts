@@ -40,6 +40,7 @@ import type {
   CompositionProfileInput,
   CompositionStartInput,
   CompositionTemporaryInput,
+  CompositionUpgradeInput,
   Config as Config3,
   ConfigGetErrors,
   ConfigGetResponses,
@@ -55,6 +56,8 @@ import type {
   CustomCompositionReferencesResponses,
   CustomCompositionStartErrors,
   CustomCompositionStartResponses,
+  CustomCompositionUpgradeErrors,
+  CustomCompositionUpgradeResponses,
   CustomProfileApplyErrors,
   CustomProfileApplyResponses,
   CustomProfileCandidate,
@@ -4658,6 +4661,47 @@ export class CustomComposition extends HeyApiClient {
       ThrowOnError
     >({
       url: "/custom-composition/start",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Upgrade custom session composition
+   *
+   * Freeze a new composition for an idle custom source session, creating a new custom session and snapshot without mutating the source.
+   */
+  public upgrade<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      compositionUpgradeInput?: CompositionUpgradeInput
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { key: "compositionUpgradeInput", map: "body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      CustomCompositionUpgradeResponses,
+      CustomCompositionUpgradeErrors,
+      ThrowOnError
+    >({
+      url: "/custom-composition/upgrade",
       ...options,
       ...params,
       headers: {

@@ -22,6 +22,29 @@ const CustomCreateResponse = Schema.toCodecJson(
 )
 const ForkResponse = Schema.Struct({ sessionID: SessionV2.ID })
 
+// Assigning undefined to process.env stores the string "undefined"; restore must delete instead.
+const enableCustomMode = Effect.gen(function* () {
+  const saved = process.env["AIGCFROGE_CUSTOM_MODE"]
+  process.env["AIGCFROGE_CUSTOM_MODE"] = "true"
+  yield* Effect.addFinalizer(() =>
+    Effect.sync(() => {
+      if (saved === undefined) delete process.env["AIGCFROGE_CUSTOM_MODE"]
+      else process.env["AIGCFROGE_CUSTOM_MODE"] = saved
+    }),
+  )
+})
+
+const disableCustomMode = Effect.gen(function* () {
+  const saved = process.env["AIGCFROGE_CUSTOM_MODE"]
+  delete process.env["AIGCFROGE_CUSTOM_MODE"]
+  yield* Effect.addFinalizer(() =>
+    Effect.sync(() => {
+      if (saved === undefined) delete process.env["AIGCFROGE_CUSTOM_MODE"]
+      else process.env["AIGCFROGE_CUSTOM_MODE"] = saved
+    }),
+  )
+})
+
 const endpoints = [
   { name: "session.get", method: "GET", path: (id: string) => `/api/session/${id}`, kind: "read" },
   { name: "session.children", method: "GET", path: (id: string) => `/api/session/${id}/children`, kind: "read" },
@@ -207,6 +230,7 @@ describe("V2 Session Capability Matrix", () => {
     "creates real custom sessions only for capable clients and preserves snapshots across fork",
     () =>
       Effect.gen(function* () {
+        yield* enableCustomMode
         const test = yield* TestInstance
         const fs = yield* FileSystem.FileSystem
         const assetDirectory = `${test.directory}/.aigcfroge/agents`
@@ -299,6 +323,115 @@ describe("V2 Session Capability Matrix", () => {
         expect(yield* get.json).toMatchObject({ data: { id: chat.id, mode: "chat" } })
         const prompt = yield* post(`/api/session/${chat.id}/prompt`, test.directory, { prompt: { text: "hello" }, resume: false }, false)
         expect(prompt.status).toBe(200)
+      }),
+    { git: true, config: { formatter: false, lsp: false } },
+  )
+
+  it.instance(
+    "rejects plan, start, upgrade, and session.custom with 400 when custom mode flag is disabled",
+    () =>
+      Effect.gen(function* () {
+        yield* disableCustomMode
+        const test = yield* TestInstance
+        const fs = yield* FileSystem.FileSystem
+        const assetDirectory = `${test.directory}/.aigcfroge/agents`
+        yield* fs.makeDirectory(assetDirectory, { recursive: true })
+        const asset = `---\nkind: agent\nname: coder\ndescription: Coder agent\n---\nYou write code.\n`
+        yield* fs.writeFileString(`${assetDirectory}/coder.md`, asset)
+
+        const comp = {
+          source: "temporary",
+          agents: [{ kind: "agent", relativePath: "coder.md", revision: Hash.sha256(Buffer.from(asset)) }],
+          bindings: {},
+          presentation: "native",
+          requestedCapabilities: [],
+        }
+
+        // 1. plan
+        const planRes = yield* post("/custom-composition/plan", test.directory, comp, true)
+        expect(planRes.status).toBe(400)
+        expect(yield* planRes.json).toMatchObject({
+          _tag: "InvalidRequestError",
+          message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
+        })
+
+        // 2. start
+        const startRes = yield* post("/custom-composition/start", test.directory, { composition: comp }, true)
+        expect(startRes.status).toBe(400)
+        expect(yield* startRes.json).toMatchObject({
+          _tag: "InvalidRequestError",
+          message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
+        })
+
+        // 3. upgrade
+        const upgradeRes = yield* post(
+          "/custom-composition/upgrade",
+          test.directory,
+          { sessionID: "ses_any", composition: comp },
+          true,
+        )
+        expect(upgradeRes.status).toBe(400)
+        expect(yield* upgradeRes.json).toMatchObject({
+          _tag: "InvalidRequestError",
+          message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
+        })
+
+        // 4. session.custom
+        const sessionCustomRes = yield* post(
+          "/api/session/custom",
+          test.directory,
+          { composition: comp, location: { directory: test.directory } },
+          true,
+        )
+        expect(sessionCustomRes.status).toBe(400)
+        expect(yield* sessionCustomRes.json).toMatchObject({
+          _tag: "InvalidRequestError",
+          message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
+        })
+      }),
+    { git: true, config: { formatter: false, lsp: false } },
+  )
+
+  it.instance(
+    "serves existing custom session get, children, and context when custom mode flag is disabled (history readable)",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const fs = yield* FileSystem.FileSystem
+        const assetDirectory = `${test.directory}/.aigcfroge/agents`
+        yield* fs.makeDirectory(assetDirectory, { recursive: true })
+        const asset = `---\nkind: agent\nname: coder\ndescription: Coder agent\n---\nYou write code.\n`
+        yield* fs.writeFileString(`${assetDirectory}/coder.md`, asset)
+
+        // Create with flag enabled
+        yield* enableCustomMode
+        const created = yield* createRealCustom(test.directory)
+
+        // Turn flag off
+        yield* disableCustomMode
+
+        // Existing session reads must still succeed (history readable)
+        const get = yield* requestInDirectory(`/api/session/${created.data.id}`, test.directory, {
+          headers: capableHeaders,
+        })
+        expect(get.status).toBe(200)
+        expect(yield* get.json).toMatchObject({ data: { id: created.data.id, mode: "custom" } })
+
+        const children = yield* requestInDirectory(
+          `/api/session/${created.data.id}/children`,
+          test.directory,
+          { headers: capableHeaders },
+        )
+        expect(children.status).toBe(200)
+        expect(yield* children.json).toEqual({ data: [] })
+
+        const context = yield* requestInDirectory(
+          `/api/session/${created.data.id}/context`,
+          test.directory,
+          { headers: capableHeaders },
+        )
+        expect(context.status).toBe(200)
+        expect(yield* context.json).toEqual({ data: [] })
       }),
     { git: true, config: { formatter: false, lsp: false } },
   )

@@ -33,6 +33,7 @@ export function createSdkForServer({
   return createAigcfrogeClient({
     ...config,
     headers: {
+      "x-aigcfroge-capabilities": "product-mode-custom-v1",
       ...(config.headers instanceof Headers
         ? Object.fromEntries(config.headers.entries())
         : Array.isArray(config.headers)

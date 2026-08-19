@@ -15,6 +15,15 @@ export interface Interface {
   readonly isActive: (sessionID: SessionSchema.ID) => Effect.Effect<boolean>
 }
 
+let busySeamForTesting: ((sessionID: SessionSchema.ID) => boolean) | undefined = undefined
+
+export const setBusySeamForTesting = (fn: ((sessionID: SessionSchema.ID) => boolean) | undefined): void => {
+  busySeamForTesting = fn
+}
+
+export const isBusySeamActive = (sessionID: SessionSchema.ID): boolean | undefined =>
+  busySeamForTesting ? busySeamForTesting(sessionID) : undefined
+
 /** Routes execution from a Session ID to the runner owned by that Session's Location. */
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionExecution") {}
 
@@ -25,6 +34,9 @@ export const noopLayer = Layer.succeed(
     resume: () => Effect.void,
     wake: () => Effect.void,
     interrupt: () => Effect.void,
-    isActive: () => Effect.succeed(false),
+    isActive: (sessionID) => {
+      const seam = isBusySeamActive(sessionID)
+      return seam !== undefined ? Effect.succeed(seam) : Effect.succeed(false)
+    },
   }),
 )

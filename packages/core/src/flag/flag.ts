@@ -71,6 +71,9 @@ export const Flag = {
   get AIGCFROGE_PURE() {
     return truthy("AIGCFROGE_PURE")
   },
+  get AIGCFROGE_CUSTOM_MODE() {
+    return truthy("AIGCFROGE_CUSTOM_MODE")
+  },
   get AIGCFROGE_PERMISSION() {
     return process.env["AIGCFROGE_PERMISSION"]
   },

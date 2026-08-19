@@ -205,6 +205,13 @@ export class StartInput extends Schema.Class<StartInput>("Composition.StartInput
   title: Schema.optional(Schema.String),
 }) {}
 
+export class UpgradeInput extends Schema.Class<UpgradeInput>("Composition.UpgradeInput")({
+  sessionID: Schema.String,
+  composition: CompositionInput,
+  expectedPlanDigest: Schema.optional(Digest),
+  title: Schema.optional(Schema.String),
+}) {}
+
 export class StartResponse extends Schema.Class<StartResponse>("Composition.StartResponse")({
   session: Session.Info,
   snapshot: Snapshot,

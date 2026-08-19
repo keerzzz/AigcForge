@@ -42,6 +42,7 @@ describe("createSdkForServer", () => {
     await client.app.agents()
 
     expect(request?.headers.get("x-custom")).toBe("value")
+    expect(request?.headers.get("x-aigcfroge-capabilities")).toBe("product-mode-custom-v1")
     expect(request?.headers.get("authorization")).toBe(`Basic ${btoa("kit:secret")}`)
     expect(new URL(request?.url ?? "http://localhost").searchParams.get("directory")).toBe("/tmp/project")
   })

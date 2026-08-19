@@ -23,6 +23,18 @@ const CustomCreateResponse = Schema.toCodecJson(
 )
 const ForkResponse = Schema.Struct({ sessionID: SessionV2.ID })
 
+// Assigning undefined to process.env stores the string "undefined"; restore must delete instead.
+const enableCustomMode = Effect.gen(function* () {
+  const saved = process.env["AIGCFROGE_CUSTOM_MODE"]
+  process.env["AIGCFROGE_CUSTOM_MODE"] = "true"
+  yield* Effect.addFinalizer(() =>
+    Effect.sync(() => {
+      if (saved === undefined) delete process.env["AIGCFROGE_CUSTOM_MODE"]
+      else process.env["AIGCFROGE_CUSTOM_MODE"] = saved
+    }),
+  )
+})
+
 function post(path: string, directory: string, body?: unknown, capable = false) {
   return requestInDirectory(path, directory, {
     method: "POST",
@@ -86,6 +98,7 @@ describe("Session Fork ProductMode Gate", () => {
     "V1 fork fails closed for orphan custom parents and forks real custom snapshots for capable clients",
     () =>
       Effect.gen(function* () {
+        yield* enableCustomMode
         const test = yield* TestInstance
         const asset = yield* prepareCustomAsset(test.directory)
         const orphan = yield* Session.use.create({ title: "legacy custom parent" })
@@ -116,6 +129,7 @@ describe("Session Fork ProductMode Gate", () => {
     "V2 fork hides orphan custom parents from old clients and reports missing snapshots to capable clients",
     () =>
       Effect.gen(function* () {
+        yield* enableCustomMode
         const test = yield* TestInstance
         const asset = yield* prepareCustomAsset(test.directory)
         const orphan = yield* Session.use.create({ title: "legacy custom parent" })
