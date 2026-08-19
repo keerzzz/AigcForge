@@ -174,7 +174,7 @@ export type MoveSessionError = {
   }
 }
 
-export type ProductMode = "chat" | "coding" | "work" | "assistant"
+export type ProductMode = "chat" | "coding" | "work" | "assistant" | "custom"
 
 export type SnapshotFileDiff = {
   file?: string
@@ -2424,6 +2424,9 @@ export type Provider = {
 export type ExperimentalCapabilities = {
   backgroundSubagents: boolean
   chatAsset: boolean
+  customMode?: boolean
+  productModes?: Array<string>
+  customCompositionVersion?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
 }
 
 export type ConsoleState = {
@@ -3003,6 +3006,12 @@ export type Session2 = {
     snapshot?: string
     diff?: string
   }
+}
+
+export type UnsupportedProductModeError = {
+  _tag: "UnsupportedProductModeError"
+  mode: string
+  message: string
 }
 
 export type NotFoundError = {
@@ -4967,6 +4976,153 @@ export type AgentAssetCandidate = {
   config: string
   source: string
   relativePath: string
+}
+
+export type CustomProfileSummary = {
+  kind: "custom-profile"
+  name: string
+  description: string
+  relativePath: string
+  revision: string
+}
+
+export type CustomProfileInvalidEntry = {
+  relativePath: string
+  errorTag: "parse_error" | "bad_yaml" | "name_conflict" | "invalid_cardinality" | "disallowed_kind"
+}
+
+export type CompositionAgentRef = {
+  kind: "agent"
+  relativePath: string
+  revision: string
+}
+
+export type CompositionPromptRef = {
+  kind: "prompt"
+  relativePath: string
+  revision: string
+}
+
+export type CompositionSkillRef = {
+  kind: "skill"
+  relativePath: string
+  revision: string
+}
+
+export type CompositionBinding = {
+  prompts: Array<CompositionPromptRef>
+  skills: Array<CompositionSkillRef>
+}
+
+export type CustomProfileProfile = {
+  kind: "custom-profile"
+  name: string
+  description: string
+  agents: Array<CompositionAgentRef>
+  bindings: {
+    [key: string]: CompositionBinding
+  }
+  presentation: "native"
+  requestedCapabilities: Array<string>
+}
+
+export type CustomProfileInfo = {
+  kind: "custom-profile"
+  name: string
+  description: string
+  relativePath: string
+  revision: string
+  profile: CustomProfileProfile
+  rawYaml?: string
+}
+
+export type CustomProfileCandidate = {
+  name: string
+  description: string
+  relativePath: string
+  profile: CustomProfileProfile
+}
+
+export type CustomProfileDeleteResult = {
+  relativePath: string
+  referencingProfiles: Array<CustomProfileSummary>
+}
+
+export type CompositionTemporaryInput = {
+  source: "temporary"
+  profilePath?: string
+  profileRevision?: string
+  agents: Array<CompositionAgentRef>
+  bindings: {
+    [key: string]: CompositionBinding
+  }
+  presentation: "native"
+  requestedCapabilities: Array<string>
+}
+
+export type CompositionProfileInput = {
+  source: "profile"
+  profilePath: string
+  profileRevision: string
+}
+
+export type CompositionAgentInfo = {
+  id: string
+  name: string
+  description: string
+  relativePath: string
+  revision: string
+}
+
+export type CompositionInstruction = {
+  source: string
+  content: string
+}
+
+export type CompositionSkillInfo = {
+  name: string
+  description: string
+  relativePath: string
+  revision: string
+}
+
+export type CompositionCapabilityInfo = {
+  id: string
+  status: "effective" | "denied" | "unsupported"
+  reason?: string
+}
+
+export type CompositionDiagnostic = {
+  severity: "info" | "warning" | "error" | "blocking"
+  code: string
+  message: string
+  path?: string
+  asset?: CompositionAgentRef | CompositionPromptRef | CompositionSkillRef
+}
+
+export type CompositionPlan = {
+  version: 1
+  digest: string
+  valid: boolean
+  input: CompositionTemporaryInput | CompositionProfileInput
+  agent?: CompositionAgentInfo
+  instructions: Array<CompositionInstruction>
+  skills: Array<CompositionSkillInfo>
+  capabilities: Array<CompositionCapabilityInfo>
+  diagnostics: Array<CompositionDiagnostic>
+}
+
+export type CompositionStaleRevision = {
+  kind: string
+  relativePath: string
+  expectedRevision: string
+  currentRevision: string
+}
+
+export type CompositionHealth = {
+  status: "healthy" | "degraded" | "broken"
+  diagnostics: Array<CompositionDiagnostic>
+  staleRevisions: Array<CompositionStaleRevision>
 }
 
 export type PersonalMemoryInfo = {
@@ -12437,6 +12593,233 @@ export type AgentAssetDeleteResponses = {
   200: unknown
 }
 
+export type CustomProfileListData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+    search?: string
+  }
+  url: "/custom-profile"
+}
+
+export type CustomProfileListErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type CustomProfileListError = CustomProfileListErrors[keyof CustomProfileListErrors]
+
+export type CustomProfileListResponses = {
+  /**
+   * List of custom profile assets with invalid entries
+   */
+  200: {
+    assets: Array<CustomProfileSummary>
+    invalid: Array<CustomProfileInvalidEntry>
+  }
+}
+
+export type CustomProfileListResponse = CustomProfileListResponses[keyof CustomProfileListResponses]
+
+export type CustomProfileContentData = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    workspace?: string
+    path: string
+  }
+  url: "/custom-profile/content"
+}
+
+export type CustomProfileContentErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type CustomProfileContentError = CustomProfileContentErrors[keyof CustomProfileContentErrors]
+
+export type CustomProfileContentResponses = {
+  /**
+   * Custom profile content
+   */
+  200: CustomProfileInfo
+}
+
+export type CustomProfileContentResponse = CustomProfileContentResponses[keyof CustomProfileContentResponses]
+
+export type CustomProfileApplyData = {
+  body?: {
+    candidate: CustomProfileCandidate
+    baseRevision?: string
+    overwrite: boolean
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/custom-profile/apply"
+}
+
+export type CustomProfileApplyErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type CustomProfileApplyError = CustomProfileApplyErrors[keyof CustomProfileApplyErrors]
+
+export type CustomProfileApplyResponses = {
+  /**
+   * Applied custom profile
+   */
+  200: CustomProfileInfo
+}
+
+export type CustomProfileApplyResponse = CustomProfileApplyResponses[keyof CustomProfileApplyResponses]
+
+export type CustomProfileDeleteData = {
+  body?: {
+    relativePath: string
+    baseRevision?: string
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/custom-profile/delete"
+}
+
+export type CustomProfileDeleteErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type CustomProfileDeleteError = CustomProfileDeleteErrors[keyof CustomProfileDeleteErrors]
+
+export type CustomProfileDeleteResponses = {
+  /**
+   * Delete result with referencing profiles
+   */
+  200: CustomProfileDeleteResult
+}
+
+export type CustomProfileDeleteResponse = CustomProfileDeleteResponses[keyof CustomProfileDeleteResponses]
+
+export type CustomCompositionPlanData = {
+  body?: CompositionTemporaryInput | CompositionProfileInput
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/custom-composition/plan"
+}
+
+export type CustomCompositionPlanErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type CustomCompositionPlanError = CustomCompositionPlanErrors[keyof CustomCompositionPlanErrors]
+
+export type CustomCompositionPlanResponses = {
+  /**
+   * Composition plan
+   */
+  200: CompositionPlan
+}
+
+export type CustomCompositionPlanResponse = CustomCompositionPlanResponses[keyof CustomCompositionPlanResponses]
+
+export type CustomCompositionHealthData = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    workspace?: string
+    path: string
+  }
+  url: "/custom-composition/health"
+}
+
+export type CustomCompositionHealthErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type CustomCompositionHealthError = CustomCompositionHealthErrors[keyof CustomCompositionHealthErrors]
+
+export type CustomCompositionHealthResponses = {
+  /**
+   * Profile health status
+   */
+  200: CompositionHealth
+}
+
+export type CustomCompositionHealthResponse = CustomCompositionHealthResponses[keyof CustomCompositionHealthResponses]
+
+export type CustomCompositionReferencesData = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    workspace?: string
+    kind: string
+    path: string
+  }
+  url: "/custom-composition/references"
+}
+
+export type CustomCompositionReferencesErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type CustomCompositionReferencesError =
+  CustomCompositionReferencesErrors[keyof CustomCompositionReferencesErrors]
+
+export type CustomCompositionReferencesResponses = {
+  /**
+   * Referencing profiles
+   */
+  200: {
+    profiles: Array<CustomProfileSummary>
+  }
+}
+
+export type CustomCompositionReferencesResponse =
+  CustomCompositionReferencesResponses[keyof CustomCompositionReferencesResponses]
+
 export type SchedulePendingData = {
   body?: never
   path?: never
@@ -13517,9 +13900,9 @@ export type SessionCreateData = {
 
 export type SessionCreateErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
 }
 
 export type SessionCreateError = SessionCreateErrors[keyof SessionCreateErrors]
@@ -13577,9 +13960,9 @@ export type SessionDeleteData = {
 
 export type SessionDeleteErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -13611,9 +13994,9 @@ export type SessionGetData = {
 
 export type SessionGetErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -13655,9 +14038,9 @@ export type SessionUpdateData = {
 
 export type SessionUpdateErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -13689,9 +14072,9 @@ export type SessionChildrenData = {
 
 export type SessionChildrenErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -13723,9 +14106,9 @@ export type SessionTodoData = {
 
 export type SessionTodoErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -13757,9 +14140,9 @@ export type SessionTaskGetData = {
 
 export type SessionTaskGetErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -13791,9 +14174,9 @@ export type SessionTaskUpdateData = {
 
 export type SessionTaskUpdateErrors = {
   /**
-   * InvalidRequestError
+   * InvalidRequestError | UnsupportedProductModeError
    */
-  400: InvalidRequestError
+  400: InvalidRequestError | UnsupportedProductModeError
   /**
    * NotFoundError
    */
@@ -13825,9 +14208,9 @@ export type SessionTaskCreateData = {
 
 export type SessionTaskCreateErrors = {
   /**
-   * InvalidRequestError
+   * InvalidRequestError | UnsupportedProductModeError
    */
-  400: InvalidRequestError
+  400: InvalidRequestError | UnsupportedProductModeError
   /**
    * NotFoundError
    */
@@ -13860,9 +14243,9 @@ export type SessionTaskDeleteData = {
 
 export type SessionTaskDeleteErrors = {
   /**
-   * InvalidRequestError
+   * InvalidRequestError | UnsupportedProductModeError
    */
-  400: InvalidRequestError
+  400: InvalidRequestError | UnsupportedProductModeError
   /**
    * NotFoundError
    */
@@ -13900,9 +14283,9 @@ export type SessionTaskPatchData = {
 
 export type SessionTaskPatchErrors = {
   /**
-   * InvalidRequestError
+   * InvalidRequestError | UnsupportedProductModeError
    */
-  400: InvalidRequestError
+  400: InvalidRequestError | UnsupportedProductModeError
   /**
    * NotFoundError
    */
@@ -13937,9 +14320,9 @@ export type SessionTaskReorderData = {
 
 export type SessionTaskReorderErrors = {
   /**
-   * InvalidRequestError
+   * InvalidRequestError | UnsupportedProductModeError
    */
-  400: InvalidRequestError
+  400: InvalidRequestError | UnsupportedProductModeError
   /**
    * NotFoundError
    */
@@ -13972,9 +14355,13 @@ export type SessionDiffData = {
 
 export type SessionDiffErrors = {
   /**
-   * Bad request
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: BadRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type SessionDiffError = SessionDiffErrors[keyof SessionDiffErrors]
@@ -14004,9 +14391,9 @@ export type SessionMessagesData = {
 
 export type SessionMessagesErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -14056,9 +14443,9 @@ export type SessionPromptData = {
 
 export type SessionPromptErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -14094,9 +14481,9 @@ export type SessionDeleteMessageData = {
 
 export type SessionDeleteMessageErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -14133,9 +14520,9 @@ export type SessionMessageData = {
 
 export type SessionMessageErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -14172,9 +14559,9 @@ export type SessionForkData = {
 
 export type SessionForkErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -14206,9 +14593,13 @@ export type SessionAbortData = {
 
 export type SessionAbortErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type SessionAbortError = SessionAbortErrors[keyof SessionAbortErrors]
@@ -14240,9 +14631,9 @@ export type SessionInitData = {
 
 export type SessionInitErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -14274,9 +14665,9 @@ export type SessionUnshareData = {
 
 export type SessionUnshareErrors = {
   /**
-   * Bad request
+   * UnsupportedProductModeError | InvalidRequestError
    */
-  400: BadRequestError
+  400: UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -14312,9 +14703,9 @@ export type SessionShareData = {
 
 export type SessionShareErrors = {
   /**
-   * Bad request
+   * UnsupportedProductModeError | InvalidRequestError
    */
-  400: BadRequestError
+  400: UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -14354,9 +14745,9 @@ export type SessionSummarizeData = {
 
 export type SessionSummarizeErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -14403,9 +14794,9 @@ export type SessionPromptAsyncData = {
 
 export type SessionPromptAsyncErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -14452,9 +14843,9 @@ export type SessionCommandData = {
 
 export type SessionCommandErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -14497,9 +14888,9 @@ export type SessionShellData = {
 
 export type SessionShellErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -14541,9 +14932,9 @@ export type SessionRevertData = {
 
 export type SessionRevertErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -14579,9 +14970,9 @@ export type SessionUnrevertData = {
 
 export type SessionUnrevertErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -14620,9 +15011,9 @@ export type PermissionRespondData = {
 
 export type PermissionRespondErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError | PermissionNotFoundError
    */
@@ -14654,9 +15045,9 @@ export type PermissionOverrideDeleteData = {
 
 export type PermissionOverrideDeleteErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -14691,9 +15082,9 @@ export type PermissionOverrideGetData = {
 
 export type PermissionOverrideGetErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -14729,9 +15120,9 @@ export type PermissionOverridePutData = {
 
 export type PermissionOverridePutErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | InvalidRequestError | UnsupportedProductModeError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError | UnsupportedProductModeError
   /**
    * NotFoundError
    */
@@ -14767,9 +15158,9 @@ export type PartDeleteData = {
 
 export type PartDeleteErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -14803,9 +15194,9 @@ export type PartUpdateData = {
 
 export type PartUpdateErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -14837,9 +15228,9 @@ export type SessionCacheDiagnosticsData = {
 
 export type SessionCacheDiagnosticsErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -14871,9 +15262,9 @@ export type SessionToolSummaryData = {
 
 export type SessionToolSummaryErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */
@@ -15809,9 +16200,9 @@ export type V2SessionCreateData = {
 
 export type V2SessionCreateErrors = {
   /**
-   * InvalidRequestError
+   * UnsupportedProductModeError | InvalidRequestError
    */
-  400: InvalidRequestError
+  400: UnsupportedProductModeError | InvalidRequestError
   /**
    * UnauthorizedError
    */
@@ -15842,9 +16233,9 @@ export type V2SessionGetData = {
 
 export type V2SessionGetErrors = {
   /**
-   * InvalidRequestError
+   * InvalidRequestError | UnsupportedProductModeError
    */
-  400: InvalidRequestError
+  400: InvalidRequestError | UnsupportedProductModeError
   /**
    * UnauthorizedError
    */
@@ -15881,9 +16272,9 @@ export type V2SessionSwitchAgentData = {
 
 export type V2SessionSwitchAgentErrors = {
   /**
-   * InvalidRequestError
+   * InvalidRequestError | UnsupportedProductModeError
    */
-  400: InvalidRequestError
+  400: InvalidRequestError | UnsupportedProductModeError
   /**
    * UnauthorizedError
    */
@@ -15922,9 +16313,9 @@ export type V2SessionSwitchModelData = {
 
 export type V2SessionSwitchModelErrors = {
   /**
-   * InvalidRequestError
+   * InvalidRequestError | UnsupportedProductModeError
    */
-  400: InvalidRequestError
+  400: InvalidRequestError | UnsupportedProductModeError
   /**
    * UnauthorizedError
    */
@@ -15962,9 +16353,9 @@ export type V2SessionPromptData = {
 
 export type V2SessionPromptErrors = {
   /**
-   * InvalidRequestError
+   * InvalidRequestError | UnsupportedProductModeError
    */
-  400: InvalidRequestError
+  400: InvalidRequestError | UnsupportedProductModeError
   /**
    * UnauthorizedError
    */
@@ -16003,9 +16394,9 @@ export type V2SessionCompactData = {
 
 export type V2SessionCompactErrors = {
   /**
-   * InvalidRequestError
+   * InvalidRequestError | UnsupportedProductModeError
    */
-  400: InvalidRequestError
+  400: InvalidRequestError | UnsupportedProductModeError
   /**
    * UnauthorizedError
    */
@@ -16042,9 +16433,9 @@ export type V2SessionWaitData = {
 
 export type V2SessionWaitErrors = {
   /**
-   * InvalidRequestError
+   * InvalidRequestError | UnsupportedProductModeError
    */
-  400: InvalidRequestError
+  400: InvalidRequestError | UnsupportedProductModeError
   /**
    * UnauthorizedError
    */
@@ -16081,9 +16472,9 @@ export type V2SessionContextData = {
 
 export type V2SessionContextErrors = {
   /**
-   * InvalidRequestError
+   * InvalidRequestError | UnsupportedProductModeError
    */
-  400: InvalidRequestError
+  400: InvalidRequestError | UnsupportedProductModeError
   /**
    * UnauthorizedError
    */
@@ -16122,9 +16513,9 @@ export type V2SessionChildrenData = {
 
 export type V2SessionChildrenErrors = {
   /**
-   * InvalidRequestError
+   * InvalidRequestError | UnsupportedProductModeError
    */
-  400: InvalidRequestError
+  400: InvalidRequestError | UnsupportedProductModeError
   /**
    * UnauthorizedError
    */
@@ -16163,9 +16554,9 @@ export type V2SessionSkillData = {
 
 export type V2SessionSkillErrors = {
   /**
-   * InvalidRequestError
+   * InvalidRequestError | UnsupportedProductModeError
    */
-  400: InvalidRequestError
+  400: InvalidRequestError | UnsupportedProductModeError
   /**
    * UnauthorizedError
    */
@@ -16208,9 +16599,9 @@ export type V2SessionShellData = {
 
 export type V2SessionShellErrors = {
   /**
-   * InvalidRequestError
+   * InvalidRequestError | UnsupportedProductModeError
    */
-  400: InvalidRequestError
+  400: InvalidRequestError | UnsupportedProductModeError
   /**
    * UnauthorizedError
    */
@@ -16249,9 +16640,9 @@ export type V2SessionInterruptData = {
 
 export type V2SessionInterruptErrors = {
   /**
-   * InvalidRequestError
+   * InvalidRequestError | UnsupportedProductModeError
    */
-  400: InvalidRequestError
+  400: InvalidRequestError | UnsupportedProductModeError
   /**
    * UnauthorizedError
    */
@@ -16288,9 +16679,9 @@ export type V2SessionShareData = {
 
 export type V2SessionShareErrors = {
   /**
-   * InvalidRequestError
+   * InvalidRequestError | UnsupportedProductModeError
    */
-  400: InvalidRequestError
+  400: InvalidRequestError | UnsupportedProductModeError
   /**
    * UnauthorizedError
    */
@@ -16326,9 +16717,9 @@ export type V2SessionForkData = {
 
 export type V2SessionForkErrors = {
   /**
-   * InvalidRequestError
+   * InvalidRequestError | UnsupportedProductModeError
    */
-  400: InvalidRequestError
+  400: InvalidRequestError | UnsupportedProductModeError
   /**
    * UnauthorizedError
    */
