@@ -79,6 +79,8 @@
 | 资产 apply/delete 缺非会话路由，工作台伪造 sessionID | aigcfroge / app | 路由为 `/session/:sessionID/<kind>-asset/...`，模式首页无会话上下文，前端填 `"ses-home-delete"`；`SessionID` 只校验 `startsWith("ses")` 故静默通过，审计归属链断裂（PRD §8.3.1 已声明 sessionID 非写边界前提，故非安全缺陷）。范围与决定见 [Chat PRD §20.6](../docs/prd/chat-mode-creation-layer.md) | TBD | 下次资产端点改动时 |
 | P1-10: `resolveSecurePath` 零调用者死代码 | core | `fs-util.ts:257` 的 `resolveSecurePath(worktree, target)` 全仓无调用者（2026-08-14 审计点名），是 fs 工具层的历史残留；可能误导后续路径安全实现去复用一个未经验证的封装。根治：确认无消费方后删除，或纳入统一路径安全封装 | TBD | 下次 fs 层清理时 |
 | 存量 `catch (e: any)` 3 处 | core / aigcfroge | main 既有（非分支新增，不违反 No Cheating 新增门禁）：`fs-util.ts:234` 用 `e?.code === "ENOENT"`（ErrnoException）；`session/llm.ts:143` 用 `e.message ?? String(e)`（LLM SDK 可能抛带 `.message` 的普通对象，`instanceof Error` 改写会变 `[object Object]`，须保留 `.message` 访问语义）；`cli/cmd/github.handler.ts:631` 本体已内部 instanceof 收窄，近乎免费。根治：逐 site 核对语义后改 `instanceof Error` + 类型守卫 | TBD | 下次各自模块清理时 |
+| `SessionExecution.setBusySeamForTesting` 全局测试 seam 位于生产模块 | core | `session/execution.ts` 模块级可变状态，`execution/local.ts` 真实 `isActive` 每次调用都经过该 seam；仅测试可设置且有 finalizer 复位，但生产代码路径携带测试后门，误用会让 busy 判定说谎。根治：实例 HttpApi 测试装配（`HttpApiApp.routes`）暴露 SessionExecution 注入点，或 busy 场景改用真实 drain 构造（挂起 LLM stub + busy 信号轮询） | TBD | 测试装配层改造时 |
+| Custom kill switch 仅覆盖创建面，无 drain 级执行阻断 | core / aigcfroge | `AIGCFROGE_CUSTOM_MODE` 关闭时 plan/start/upgrade/session.custom fail-closed、历史可读，但 flag-on 期间已创建的 custom 会话仍可 prompt 并继续 drain；M1 评审接受该语义（创建即授权，避免 mid-turn 搁浅），若运营需要"立即停跑"语义需补 runner/execution 层阻断 | TBD | 需要执行级 kill 语义时 |
 
 ---
 

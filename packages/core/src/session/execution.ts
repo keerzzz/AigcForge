@@ -15,6 +15,11 @@ export interface Interface {
   readonly isActive: (sessionID: SessionSchema.ID) => Effect.Effect<boolean>
 }
 
+// TEST-ONLY escape hatch: the instance HttpApi test assembly (HttpApiApp.routes)
+// bakes in the real SessionExecutionLocal, so per-test Layer overrides cannot
+// reach it. This seam lets a test force isActive for a specific Session.
+// Production code must never call setBusySeamForTesting; tracked in
+// docs/technical-debt.md (remove once the test assembly exposes an injection point).
 let busySeamForTesting: ((sessionID: SessionSchema.ID) => boolean) | undefined = undefined
 
 export const setBusySeamForTesting = (fn: ((sessionID: SessionSchema.ID) => boolean) | undefined): void => {

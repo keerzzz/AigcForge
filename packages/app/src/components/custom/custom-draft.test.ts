@@ -87,14 +87,14 @@ describe("custom-draft store", () => {
     const store = createCustomDraftState()
     const snapshot: Snapshot = {
       version: 1,
-      digest: Digest.make("sha256:abcd1234abcd1234"),
+      digest: Digest.make("a".repeat(64)),
       createdAt: Date.now(),
       data: {
         agentID: "reviewer",
         instructions: [],
-        prompts: [{ relativePath: "code-review.md", revision: Revision.make("revP"), content: "" }],
-        skills: [{ name: "git-diff", description: "", relativePath: "git-diff", revision: Revision.make("revS") }],
-        tools: { fingerprints: [], catalogDigest: Digest.make("sha256:1"), catalog: [] },
+        prompts: [{ relativePath: "code-review.md", revision: Revision.make("c".repeat(64)), content: "" }],
+        skills: [{ name: "git-diff", description: "", relativePath: "git-diff", revision: Revision.make("d".repeat(64)) }],
+        tools: { fingerprints: [], catalogDigest: Digest.make("b".repeat(64)), catalog: [] },
       },
     }
 
