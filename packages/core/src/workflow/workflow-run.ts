@@ -7,6 +7,7 @@ import { Composition } from "@aigcfroge/schema/composition"
 import type { Session as SessionSchema } from "@aigcfroge/schema/session"
 import { Database } from "../database/database"
 import { Identifier } from "../id/id"
+import { isRecord } from "../util/record"
 import { WorkflowRunTable, WorkflowStepRunTable } from "./sql"
 
 export class WorkflowNotFoundError extends Schema.TaggedErrorClass<WorkflowNotFoundError>()(
@@ -265,6 +266,55 @@ export const layer = Layer.effect(
         }
       }
 
+      // Check branch outputs for completed steps and skip non-selected branches
+      for (const def of stepsDef) {
+        if (def.branches) {
+          const stepRun = latestStepRuns.get(def.id)
+          if (stepRun && stepRun.status === "completed") {
+            let selectedTarget: string | undefined = undefined
+            if (stepRun.output && isRecord(stepRun.output)) {
+              const key =
+                typeof stepRun.output.branch === "string"
+                  ? stepRun.output.branch
+                  : typeof stepRun.output.result === "string"
+                    ? stepRun.output.result
+                    : typeof stepRun.output.next === "string"
+                      ? stepRun.output.next
+                      : undefined
+              if (key && def.branches[key]) {
+                selectedTarget = def.branches[key]
+              } else if (key && Object.values(def.branches).includes(key)) {
+                selectedTarget = key
+              }
+            }
+            if (!selectedTarget) {
+              selectedTarget = Object.values(def.branches)[0]
+            }
+
+            for (const branchTarget of Object.values(def.branches)) {
+              if (branchTarget !== "END" && branchTarget !== selectedTarget) {
+                const targetRun = latestStepRuns.get(branchTarget)
+                if (targetRun && targetRun.status === "pending") {
+                  yield* db
+                    .update(WorkflowStepRunTable)
+                    .set({ status: "skipped", time_completed: Date.now() })
+                    .where(eq(WorkflowStepRunTable.id, targetRun.id))
+                    .run()
+                    .pipe(Effect.orDie)
+                  latestStepRuns.set(
+                    branchTarget,
+                    new WorkflowAsset.StepRunInfo({
+                      ...targetRun,
+                      status: "skipped",
+                    }),
+                  )
+                }
+              }
+            }
+          }
+        }
+      }
+
       const readyList: WorkflowAsset.StepRunInfo[] = []
       for (const def of stepsDef) {
         const stepRun = latestStepRuns.get(def.id)
@@ -294,11 +344,11 @@ export const layer = Layer.effect(
             continue
           }
 
-          // Check if all predecessors are completed (or completed/failed if continue)
+          // Check if all predecessors are completed, skipped, or continue-failed
           const allPredsSatisfied = preds.every((predId) => {
             const predRun = latestStepRuns.get(predId)
             if (!predRun) return false
-            if (predRun.status === "completed") return true
+            if (predRun.status === "completed" || predRun.status === "skipped") return true
             // If predecessor failed and failurePolicy is continue, treat as satisfied (partial branch)
             const predDef = stepsDef.find((s) => s.id === predId)
             if (predRun.status === "failed" && predDef?.failurePolicy === "continue") {

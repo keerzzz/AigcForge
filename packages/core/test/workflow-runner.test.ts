@@ -357,5 +357,68 @@ describe("WorkflowRunner Service", () => {
       // Restore flag for subsequent tests
       process.env["AIGCFROGE_CUSTOM_MODE"] = "true"
     }))
+
+  it.effect("executes dynamic branching and skips non-selected branch", () =>
+    Effect.gen(function* () {
+      const sid = "ses_runner_branching"
+      const steps = [
+        new WorkflowAsset.StepDef({
+          id: "classifier",
+          name: "Classifier",
+          agent: "coder",
+          branches: {
+            bug: "step_fix",
+            feature: "step_feature",
+          },
+        }),
+        new WorkflowAsset.StepDef({
+          id: "step_fix",
+          name: "Fix Bug",
+          agent: "coder",
+          next: "join_step",
+        }),
+        new WorkflowAsset.StepDef({
+          id: "step_feature",
+          name: "Add Feature",
+          agent: "coder",
+          next: "join_step",
+        }),
+        new WorkflowAsset.StepDef({
+          id: "join_step",
+          name: "Join",
+          agent: "reviewer",
+          next: "END",
+        }),
+      ]
+
+      yield* seedSessionWithSnapshot(sid, steps)
+      const runner = yield* WorkflowRunner.Service
+      const workflowService = yield* WorkflowRun.Service
+
+      const executedSteps: string[] = []
+      const customExecutor: WorkflowRunner.StepExecutor = {
+        execute: (input) =>
+          Effect.gen(function* () {
+            executedSteps.push(input.stepDef.id)
+            if (input.stepDef.id === "classifier") {
+              return { output: { branch: "bug" } }
+            }
+            return { output: { done: input.stepDef.id } }
+          }),
+      }
+
+      const result = yield* runner.run(SessionV2.ID.make(sid), customExecutor)
+      expect(result?.status).toBe("completed")
+      expect(executedSteps).toEqual(["classifier", "step_fix", "join_step"])
+
+      const stepRuns = yield* workflowService.getSteps(result!.id)
+      const fixRun = stepRuns.find((s) => s.stepId === "step_fix")
+      const featRun = stepRuns.find((s) => s.stepId === "step_feature")
+      const joinRun = stepRuns.find((s) => s.stepId === "join_step")
+
+      expect(fixRun?.status).toBe("completed")
+      expect(featRun?.status).toBe("skipped")
+      expect(joinRun?.status).toBe("completed")
+    }))
 })
 
