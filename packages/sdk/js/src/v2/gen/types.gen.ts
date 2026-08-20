@@ -5517,6 +5517,39 @@ export type ToolSummarySummary = {
   totalTokens?: number
 }
 
+export type WorkflowAssetWorkflowRunInfo = {
+  id: string
+  sessionID: string
+  workflowName: string
+  workflowRevision: string
+  status: "pending" | "running" | "completed" | "failed" | "cancelled" | "partial_success"
+  currentStepId?: string
+  error?: string
+  timeCreated: number
+  timeUpdated: number
+  timeCompleted?: number
+}
+
+export type WorkflowAssetStepRunInfo = {
+  id: string
+  runId: string
+  stepId: string
+  agentId: string
+  status: "pending" | "ready" | "running" | "completed" | "failed" | "cancelled" | "skipped"
+  attempt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  input?: unknown
+  output?: unknown
+  error?: string
+  timeCreated: number
+  timeStarted?: number
+  timeCompleted?: number
+}
+
+export type WorkflowAssetWorkflowStatusResponse = {
+  run?: WorkflowAssetWorkflowRunInfo
+  steps: Array<WorkflowAssetStepRunInfo>
+}
+
 export type LocationInfo = {
   directory: string
   workspaceID?: string
@@ -15525,6 +15558,74 @@ export type SessionCompositionResponses = {
 }
 
 export type SessionCompositionResponse = SessionCompositionResponses[keyof SessionCompositionResponses]
+
+export type SessionWorkflowGetData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/workflow"
+}
+
+export type SessionWorkflowGetErrors = {
+  /**
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionWorkflowGetError = SessionWorkflowGetErrors[keyof SessionWorkflowGetErrors]
+
+export type SessionWorkflowGetResponses = {
+  /**
+   * Session workflow status
+   */
+  200: WorkflowAssetWorkflowStatusResponse
+}
+
+export type SessionWorkflowGetResponse = SessionWorkflowGetResponses[keyof SessionWorkflowGetResponses]
+
+export type SessionWorkflowRunData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/workflow/run"
+}
+
+export type SessionWorkflowRunErrors = {
+  /**
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionWorkflowRunError = SessionWorkflowRunErrors[keyof SessionWorkflowRunErrors]
+
+export type SessionWorkflowRunResponses = {
+  /**
+   * Executed workflow run info
+   */
+  200: WorkflowAssetWorkflowRunInfo
+}
+
+export type SessionWorkflowRunResponse = SessionWorkflowRunResponses[keyof SessionWorkflowRunResponses]
 
 export type SyncStartData = {
   body?: never

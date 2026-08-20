@@ -362,6 +362,10 @@ import type {
   SessionUnshareResponses,
   SessionUpdateErrors,
   SessionUpdateResponses,
+  SessionWorkflowGetErrors,
+  SessionWorkflowGetResponses,
+  SessionWorkflowRunErrors,
+  SessionWorkflowRunResponses,
   SkillAssetApplyErrors,
   SkillAssetApplyResponses,
   SkillAssetCandidate,
@@ -5974,6 +5978,72 @@ export class Task extends HeyApiClient {
   }
 }
 
+export class Workflow extends HeyApiClient {
+  /**
+   * Get session workflow status
+   *
+   * Retrieve workflow run and step run execution state for a session.
+   */
+  public get<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionWorkflowGetResponses, SessionWorkflowGetErrors, ThrowOnError>({
+      url: "/session/{sessionID}/workflow",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Execute session workflow
+   *
+   * Execute workflow runner for a custom session.
+   */
+  public run<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<SessionWorkflowRunResponses, SessionWorkflowRunErrors, ThrowOnError>({
+      url: "/session/{sessionID}/workflow/run",
+      ...options,
+      ...params,
+    })
+  }
+}
+
 export class Session2 extends HeyApiClient {
   /**
    * List sessions
@@ -7056,6 +7126,11 @@ export class Session2 extends HeyApiClient {
   private _task?: Task
   get task(): Task {
     return (this._task ??= new Task({ client: this.client }))
+  }
+
+  private _workflow?: Workflow
+  get workflow(): Workflow {
+    return (this._workflow ??= new Workflow({ client: this.client }))
   }
 }
 

@@ -30,6 +30,7 @@ import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task
 import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { Composition } from "@aigcfroge/schema/composition"
+import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
 
 const root = "/session"
 export const ListQuery = Schema.Struct({
@@ -116,6 +117,8 @@ export const SessionPaths = {
   cacheDiagnostics: `${root}/:sessionID/cache-diagnostics`,
   toolSummary: `${root}/:sessionID/tool-summary`,
   composition: `${root}/:sessionID/composition`,
+  workflow: `${root}/:sessionID/workflow`,
+  workflowRun: `${root}/:sessionID/workflow/run`,
 } as const
 
 export const SessionApi = HttpApi.make("session")
@@ -631,6 +634,30 @@ export const SessionApi = HttpApi.make("session")
             identifier: "session.composition",
             summary: "Get session composition snapshot",
             description: "Retrieve the immutable composition snapshot for a custom session.",
+          }),
+        ),
+        HttpApiEndpoint.get("workflow", SessionPaths.workflow, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          success: described(WorkflowAsset.WorkflowStatusResponse, "Session workflow status"),
+          error: [HttpApiError.BadRequest, ApiNotFoundError, UnsupportedProductModeError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.workflow.get",
+            summary: "Get session workflow status",
+            description: "Retrieve workflow run and step run execution state for a session.",
+          }),
+        ),
+        HttpApiEndpoint.post("workflowRun", SessionPaths.workflowRun, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          success: described(Schema.optional(WorkflowAsset.WorkflowRunInfo), "Executed workflow run info"),
+          error: [HttpApiError.BadRequest, ApiNotFoundError, UnsupportedProductModeError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.workflow.run",
+            summary: "Execute session workflow",
+            description: "Execute workflow runner for a custom session.",
           }),
         ),
       )

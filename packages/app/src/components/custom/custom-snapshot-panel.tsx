@@ -66,6 +66,10 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
   )
 
   const digest = createMemo(() => snapshot()?.digest ?? "")
+  const snapshotV2 = createMemo(() => {
+    const s = snapshot()
+    return s && s.version === 2 ? s : undefined
+  })
 
   function handleCopyDigest() {
     if (!digest()) return
@@ -192,6 +196,50 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
             })()}
           </span>
         </div>
+
+        {/* Workflow Info (v2) */}
+        <Show when={snapshotV2()?.data.workflow}>
+          <div class="flex flex-col gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
+            <div class="flex items-center justify-between">
+              <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
+                Workflow ({snapshotV2()?.data.workflow?.name})
+              </span>
+              <span class="rounded bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 font-mono text-10-regular text-amber-300">
+                {snapshotV2()?.data.workflow?.steps.length} steps
+              </span>
+            </div>
+            <div class="flex flex-col gap-1.5 mt-1">
+              <For each={snapshotV2()?.data.workflow?.steps ?? []}>
+                {(step) => (
+                  <div class="flex items-center justify-between rounded bg-v2-background-bg-layer-01 px-2 py-1 text-11-regular border border-v2-border-border-faint">
+                    <span class="font-medium text-v2-text-text-base">{step.name || step.id}</span>
+                    <span class="font-mono text-10-regular text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">
+                      {step.agent}
+                    </span>
+                  </div>
+                )}
+              </For>
+            </div>
+          </div>
+        </Show>
+
+        {/* Agent Pool list (v2) */}
+        <Show when={(snapshotV2()?.data.agents ?? []).length > 1}>
+          <div class="flex flex-col gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
+            <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
+              Agent Pool ({(snapshotV2()?.data.agents ?? []).length})
+            </span>
+            <div class="flex flex-wrap gap-1.5">
+              <For each={snapshotV2()?.data.agents ?? []}>
+                {(ag) => (
+                  <span class="rounded bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 font-mono text-11-regular text-blue-300">
+                    {ag.name || ag.id}
+                  </span>
+                )}
+              </For>
+            </div>
+          </div>
+        </Show>
 
         {/* Prompts list */}
         <div class="flex flex-col gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">

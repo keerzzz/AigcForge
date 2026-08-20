@@ -72,6 +72,13 @@ export class StepRunInfo extends Schema.Class<StepRunInfo>("WorkflowAsset.StepRu
   timeCompleted: Schema.optional(Schema.Finite),
 }) {}
 
+export class WorkflowStatusResponse extends Schema.Class<WorkflowStatusResponse>(
+  "WorkflowAsset.WorkflowStatusResponse",
+)({
+  run: Schema.optional(WorkflowRunInfo),
+  steps: Schema.Array(StepRunInfo),
+}) {}
+
 export class StepDef extends Schema.Class<StepDef>("WorkflowAsset.StepDef")({
   id: Schema.String,
   name: Schema.String,

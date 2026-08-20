@@ -32,6 +32,9 @@ import { LocationServiceMap } from "@aigcfroge/core/location-layer"
 import { getCacheDiagnostics } from "@aigcfroge/core/session/cache-diagnostics"
 import { Database } from "@aigcfroge/core/database/database"
 import { SessionComposition } from "@aigcfroge/core/session/composition"
+import { WorkflowRun } from "@aigcfroge/core/workflow/workflow-run"
+import { WorkflowRunner } from "@aigcfroge/core/workflow/workflow-runner"
+import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
 import { NamedError } from "@aigcfroge/core/util/error"
 import { Cause, Effect, Layer, Option, Schema, Scope } from "effect"
 import * as Stream from "effect/Stream"
@@ -1026,6 +1029,40 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       return snapshot
     })
 
+    const workflow = Effect.fn("SessionHttpApi.workflow")(function* (ctx: {
+      params: { sessionID: SessionID }
+    }) {
+      const info = yield* requireRuntimeSession(ctx.params.sessionID)
+      const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(info.directory) }))
+      const workflowService = yield* WorkflowRun.Service.pipe(Effect.provide(layer), Effect.orDie)
+      const run = yield* workflowService.getBySession(ctx.params.sessionID)
+      if (!run) {
+        return new WorkflowAsset.WorkflowStatusResponse({
+          run: undefined,
+          steps: [],
+        })
+      }
+      const steps = yield* workflowService.getSteps(run.id)
+      return new WorkflowAsset.WorkflowStatusResponse({
+        run,
+        steps,
+      })
+    })
+
+    const workflowRun = Effect.fn("SessionHttpApi.workflowRun")(function* (ctx: {
+      params: { sessionID: SessionID }
+    }) {
+      const info = yield* requireRuntimeSession(ctx.params.sessionID)
+      const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(info.directory) }))
+      const runner = yield* WorkflowRunner.Service.pipe(Effect.provide(layer), Effect.orDie)
+      const result = yield* runner.run(ctx.params.sessionID).pipe(
+        Effect.catchTag("WorkflowRunner.WorkflowExecutionError", () =>
+          Effect.fail(new HttpApiError.BadRequest({})),
+        ),
+      )
+      return result
+    })
+
     return handlers
       .handle("list", list)
       .handle("status", status)
@@ -1068,5 +1105,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       .handle("cacheDiagnostics", cacheDiagnostics)
       .handle("toolSummary", toolSummary)
       .handle("composition", composition)
+      .handle("workflow", workflow)
+      .handle("workflowRun", workflowRun)
   }).pipe(Effect.provide(LocationServiceMap.layer)),
 )

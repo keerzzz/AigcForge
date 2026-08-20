@@ -105,6 +105,61 @@ describe("custom-draft store", () => {
     expect(store.state.bindings["orchestrator"]?.skills[0]?.name).toBe("git-diff")
   })
 
+  test("loads from v2 snapshot with multi-agent pool and workflow", () => {
+    const store = createCustomDraftState()
+    const snapshot: Snapshot = {
+      version: 2,
+      digest: Digest.make("a".repeat(64)),
+      createdAt: Date.now(),
+      data: {
+        agents: [
+          {
+            id: "coder",
+            name: "coder",
+            description: "Coder agent",
+            relativePath: "coder.md",
+            revision: Revision.make("c".repeat(64)),
+          },
+          {
+            id: "reviewer",
+            name: "reviewer",
+            description: "Reviewer agent",
+            relativePath: "reviewer.md",
+            revision: Revision.make("d".repeat(64)),
+          },
+        ],
+        workflow: {
+          name: "ci-flow",
+          description: "CI workflow",
+          relativePath: "ci-flow.yaml",
+          revision: Revision.make("e".repeat(64)),
+          steps: [
+            {
+              id: "step_1",
+              name: "Code",
+              agent: "coder",
+              input: {},
+              failurePolicy: "abort",
+              maxRetries: 0,
+              timeoutMs: 60000,
+            },
+          ],
+        },
+        instructions: [],
+        prompts: [{ relativePath: "guide.md", revision: Revision.make("f".repeat(64)), content: "" }],
+        skills: [{ name: "bash", description: "", relativePath: "bash", revision: Revision.make("1".repeat(64)) }],
+        tools: { fingerprints: [], catalogDigest: Digest.make("b".repeat(64)), catalog: [] },
+      },
+    }
+
+    store.loadFromSnapshot(snapshot)
+    expect(store.state.source).toBe("temporary")
+    expect(store.state.primaryAgent).toBe("coder")
+    expect(store.state.agents.length).toBe(2)
+    expect(store.state.workflow?.name).toBe("ci-flow")
+    expect(store.state.bindings["orchestrator"]?.prompts[0]?.relativePath).toBe("guide.md")
+  })
+
   test("converts draft state to CompositionInput schema", () => {
     const tempState: CustomDraftState = {
       source: "temporary",
