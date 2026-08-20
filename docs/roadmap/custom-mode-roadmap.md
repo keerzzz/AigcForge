@@ -50,7 +50,7 @@ Custom 主线
 | M4   | [Trusted Runtime Extension](../plan/custom-mode-m4-trusted-runtime-extension.md) | threat/lifecycle/capability ADR 未批准不得 mount code    |
 | M5   | [Code Presentation](../plan/custom-mode-m5-code-presentation.md)                 | sandbox/equivalence 证明未过不得实现 `run_code`          |
 
-当前执行手册见 [Custom Mode M0 全量 TDD 执行提示词](../plan/prompt-custom-mode-m0-composition-platform.md)；M0 统一复审通过后再生成 M1 的独立提示词。
+当前执行手册：M0/M1 已完成并合入；M2 执行提示词见 [Custom Mode M2 全量 TDD 执行提示词](../plan/prompt-custom-mode-m2-multi-agent-workflow.md),M2 开工前提为 M1 PR 合入 main 且总复审通过。
 
 ## 2. 总体原则
 
