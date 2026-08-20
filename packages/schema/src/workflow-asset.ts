@@ -34,6 +34,44 @@ export type WorkflowRunStatus = typeof WorkflowRunStatus.Type
 export const StepRunStatus = Schema.Literals(["pending", "ready", "running", "completed", "failed", "cancelled", "skipped"])
 export type StepRunStatus = typeof StepRunStatus.Type
 
+export const WorkflowRunID = Schema.String.pipe(
+  Schema.brand("WorkflowRunID"),
+)
+export type WorkflowRunID = typeof WorkflowRunID.Type
+
+export const StepRunID = Schema.String.pipe(
+  Schema.brand("StepRunID"),
+)
+export type StepRunID = typeof StepRunID.Type
+
+export class WorkflowRunInfo extends Schema.Class<WorkflowRunInfo>("WorkflowAsset.WorkflowRunInfo")({
+  id: WorkflowRunID,
+  sessionID: Schema.String,
+  workflowName: Schema.String,
+  workflowRevision: Schema.String,
+  status: WorkflowRunStatus,
+  currentStepId: Schema.optional(Schema.String),
+  error: Schema.optional(Schema.String),
+  timeCreated: Schema.Finite,
+  timeUpdated: Schema.Finite,
+  timeCompleted: Schema.optional(Schema.Finite),
+}) {}
+
+export class StepRunInfo extends Schema.Class<StepRunInfo>("WorkflowAsset.StepRunInfo")({
+  id: StepRunID,
+  runId: WorkflowRunID,
+  stepId: Schema.String,
+  agentId: Schema.String,
+  status: StepRunStatus,
+  attempt: Schema.Number,
+  input: Schema.optional(Schema.Unknown),
+  output: Schema.optional(Schema.Unknown),
+  error: Schema.optional(Schema.String),
+  timeCreated: Schema.Finite,
+  timeStarted: Schema.optional(Schema.Finite),
+  timeCompleted: Schema.optional(Schema.Finite),
+}) {}
+
 export class StepDef extends Schema.Class<StepDef>("WorkflowAsset.StepDef")({
   id: Schema.String,
   name: Schema.String,

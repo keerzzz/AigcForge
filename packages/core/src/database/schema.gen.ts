@@ -417,6 +417,38 @@ export default {
           CONSTRAINT \`fk_session_share_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
         );
       `)
+      yield* tx.run(`
+        CREATE TABLE \`workflow_run\` (
+          \`id\` text PRIMARY KEY,
+          \`session_id\` text NOT NULL,
+          \`workflow_name\` text NOT NULL,
+          \`workflow_revision\` text NOT NULL,
+          \`status\` text NOT NULL,
+          \`current_step_id\` text,
+          \`error\` text,
+          \`time_created\` integer NOT NULL,
+          \`time_updated\` integer NOT NULL,
+          \`time_completed\` integer,
+          CONSTRAINT \`fk_workflow_run_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
+        );
+      `)
+      yield* tx.run(`
+        CREATE TABLE \`workflow_step_run\` (
+          \`id\` text PRIMARY KEY,
+          \`run_id\` text NOT NULL,
+          \`step_id\` text NOT NULL,
+          \`agent_id\` text NOT NULL,
+          \`status\` text NOT NULL,
+          \`attempt\` integer DEFAULT 1 NOT NULL,
+          \`input\` text,
+          \`output\` text,
+          \`error\` text,
+          \`time_created\` integer NOT NULL,
+          \`time_started\` integer,
+          \`time_completed\` integer,
+          CONSTRAINT \`fk_workflow_step_run_run_id_workflow_run_id_fk\` FOREIGN KEY (\`run_id\`) REFERENCES \`workflow_run\`(\`id\`) ON DELETE CASCADE
+        );
+      `)
       yield* tx.run(`CREATE INDEX \`kb_link_source_idx\` ON \`kb_link\` (\`source_note_id\`);`)
       yield* tx.run(`CREATE INDEX \`kb_link_target_idx\` ON \`kb_link\` (\`target_note_id\`);`)
       yield* tx.run(`CREATE INDEX \`kb_link_dangling_idx\` ON \`kb_link\` (\`dangling\`);`)
@@ -483,6 +515,13 @@ export default {
       )
       yield* tx.run(`CREATE INDEX \`task_session_idx\` ON \`task\` (\`session_id\`);`)
       yield* tx.run(`CREATE INDEX \`todo_session_idx\` ON \`todo\` (\`session_id\`);`)
+      yield* tx.run(`CREATE INDEX \`workflow_run_session_idx\` ON \`workflow_run\` (\`session_id\`);`)
+      yield* tx.run(`CREATE INDEX \`workflow_run_status_idx\` ON \`workflow_run\` (\`status\`);`)
+      yield* tx.run(`CREATE INDEX \`workflow_step_run_run_idx\` ON \`workflow_step_run\` (\`run_id\`);`)
+      yield* tx.run(`CREATE INDEX \`workflow_step_run_status_idx\` ON \`workflow_step_run\` (\`status\`);`)
+      yield* tx.run(
+        `CREATE UNIQUE INDEX \`workflow_step_run_run_step_attempt_idx\` ON \`workflow_step_run\` (\`run_id\`,\`step_id\`,\`attempt\`);`,
+      )
     })
   },
 } satisfies Omit<DatabaseMigration.Migration, "id">

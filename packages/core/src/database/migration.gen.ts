@@ -62,5 +62,6 @@ export const migrations = (
     import("./migration/20260815190311_add_session_permission_tier"),
     import("./migration/20260816030000_backfill_root_session_attended"),
     import("./migration/20260819012541_add_session_composition_snapshot"),
+    import("./migration/20260820093052_breezy_tarot"),
   ])
 ).map((module) => module.default) satisfies DatabaseMigration.Migration[]

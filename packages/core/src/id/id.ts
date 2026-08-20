@@ -12,6 +12,8 @@ const prefixes = {
   tool: "tool",
   workspace: "wrk",
   task: "tsk",
+  workflowRun: "wfr",
+  workflowStep: "stp",
 } as const
 
 export function ascending(prefix: keyof typeof prefixes, given?: string) {
