@@ -3,10 +3,14 @@ export * as CompositionResolver from "./composition-resolver"
 import { Context, Effect, Layer, Option, Schema } from "effect"
 import { Composition } from "@aigcfroge/schema/composition"
 import { CustomProfile as SchemaCustomProfile } from "@aigcfroge/schema/custom-profile"
+import { WorkflowAsset as SchemaWorkflowAsset, validateGraph } from "@aigcfroge/schema/workflow-asset"
+import { CommandAsset as SchemaCommandAsset } from "@aigcfroge/schema/command-asset"
 import { CustomProfile } from "./custom-profile"
 import { AgentAsset } from "./agent-asset"
 import { PromptAsset } from "./prompt-asset"
 import { SkillAsset } from "./skill-asset"
+import { WorkflowAsset } from "./workflow-asset"
+import { CommandAsset } from "./command-asset"
 import { computeCompositionDigest, computeDigest } from "./composition/digest"
 import { Location } from "./location"
 import { ToolRegistry } from "./tool/registry"
@@ -28,6 +32,17 @@ export interface Interface {
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/CompositionResolver") {}
 
+function computeMaxConcurrency(steps: readonly SchemaWorkflowAsset.StepDef[]): number {
+  if (steps.length === 0) return 1
+  let maxParallel = 1
+  for (const step of steps) {
+    if (step.parallel && step.parallel.length > 0) {
+      maxParallel = Math.max(maxParallel, step.parallel.length)
+    }
+  }
+  return Math.min(8, Math.max(1, maxParallel))
+}
+
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -35,18 +50,20 @@ export const layer = Layer.effect(
     const agentAssets = yield* AgentAsset.Service
     const promptAssets = yield* PromptAsset.Service
     const skillAssets = yield* SkillAsset.Service
+    const workflowAssets = yield* WorkflowAsset.Service
+    const commandAssets = yield* CommandAsset.Service
     const location = yield* Location.Service
     const tools = yield* ToolRegistry.Service
 
     const resolve = Effect.fn("CompositionResolver.resolve")(function* (input: Composition.CompositionInput) {
       const digest = computeCompositionDigest(input)
       const diagnostics: Composition.Diagnostic[] = []
-      let agentInfo: Composition.AgentInfo | undefined
       const instructions: Composition.Instruction[] = []
       const skills: Composition.SkillInfo[] = []
       const capabilities: Composition.CapabilityInfo[] = []
 
       let resolvedAgents: readonly Composition.AgentRef[] = []
+      let resolvedWorkflow: Composition.WorkflowRef | undefined
       let resolvedBindings: Record<string, Composition.Binding> = {}
       let resolvedCapabilities: readonly string[] = []
 
@@ -75,22 +92,22 @@ export const layer = Layer.effect(
             )
           }
           resolvedAgents = p.profile.agents
+          resolvedWorkflow = p.profile.workflow
           resolvedBindings = p.profile.bindings as Record<string, Composition.Binding>
           resolvedCapabilities = p.profile.requestedCapabilities
         }
       } else {
         resolvedAgents = input.agents
+        resolvedWorkflow = input.workflow
         resolvedBindings = input.bindings as Record<string, Composition.Binding>
         resolvedCapabilities = input.requestedCapabilities
       }
 
-      // 0.5 Duplicate declared assets fail closed per M0 plan Phase E
-      // ("duplicate/unconnected asset ... 全部 fail closed"). A duplicate ref would be
-      // materialized twice into instructions/skills/snapshot data, so it is a blocking
-      // input defect (same class as invalid_agent_cardinality).
+      // 0.5 Duplicate declared assets fail closed
       const seenAssetKeys = new Set<string>()
       const declaredAssets: Composition.AssetRef[] = [
         ...resolvedAgents,
+        ...(resolvedWorkflow ? [resolvedWorkflow] : []),
         ...Object.values(resolvedBindings).flatMap((binding) => [...binding.prompts, ...binding.skills]),
       ]
       for (const ref of declaredAssets) {
@@ -110,30 +127,40 @@ export const layer = Layer.effect(
         seenAssetKeys.add(key)
       }
 
-      // 1. Cardinality check (M1 requires exactly 1 agent)
-      if (resolvedAgents.length !== 1) {
+      // 1. Cardinality check (1..16 agents supported in M2)
+      const resolvedAgentInfos: Composition.AgentInfo[] = []
+      if (resolvedAgents.length < 1) {
         diagnostics.push(
           new Composition.Diagnostic({
             severity: "blocking",
             code: "invalid_agent_cardinality",
-            message: `Composition must contain exactly 1 agent in M1 (got ${resolvedAgents.length})`,
+            message: `Composition must contain at least 1 agent (got ${resolvedAgents.length})`,
+          }),
+        )
+      } else if (resolvedAgents.length > 16) {
+        diagnostics.push(
+          new Composition.Diagnostic({
+            severity: "blocking",
+            code: "invalid_agent_cardinality",
+            message: `Composition cannot contain more than 16 agents (got ${resolvedAgents.length})`,
           }),
         )
       } else {
-        const agentRef = resolvedAgents[0]
-        if ((agentRef as { kind?: string }).kind !== "agent") {
-          diagnostics.push(
-            new Composition.Diagnostic({
-              severity: "blocking",
-              code: "invalid_ref_kind",
-              message: `Expected agent asset ref but got kind '${String((agentRef as { kind?: string }).kind)}'`,
-              path: agentRef.relativePath,
-              asset: agentRef,
-            }),
-          )
-        } else {
-          const agentAssetOpt = yield* agentAssets.getByPath(agentRef.relativePath).pipe(Effect.option)
+        for (const agentRef of resolvedAgents) {
+          if ((agentRef as { kind?: string }).kind !== "agent") {
+            diagnostics.push(
+              new Composition.Diagnostic({
+                severity: "blocking",
+                code: "invalid_ref_kind",
+                message: `Expected agent asset ref but got kind '${String((agentRef as { kind?: string }).kind)}'`,
+                path: agentRef.relativePath,
+                asset: agentRef,
+              }),
+            )
+            continue
+          }
 
+          const agentAssetOpt = yield* agentAssets.getByPath(agentRef.relativePath).pipe(Effect.option)
           if (Option.isNone(agentAssetOpt)) {
             diagnostics.push(
               new Composition.Diagnostic({
@@ -144,183 +171,265 @@ export const layer = Layer.effect(
                 asset: agentRef,
               }),
             )
-          } else {
-            const a = agentAssetOpt.value
-            if (a.name === "meta") {
-              diagnostics.push(
-                new Composition.Diagnostic({
-                  severity: "blocking",
-                  code: "root_agent_forbidden",
-                  message: "Root meta agent cannot be bound in custom composition",
-                  path: agentRef.relativePath,
-                  asset: agentRef,
-                }),
-              )
-            } else if (a.revision !== agentRef.revision) {
-              diagnostics.push(
-                new Composition.Diagnostic({
-                  severity: "error",
-                  code: "agent_stale_revision",
-                  message: `Agent revision mismatch: expected ${agentRef.revision}, found ${a.revision}`,
-                  path: agentRef.relativePath,
-                  asset: agentRef,
-                }),
-              )
-            }
+            continue
+          }
 
-            agentInfo = new Composition.AgentInfo({
-              id: a.name,
-              name: a.name,
-              description: a.description,
-              relativePath: a.relativePath,
-              revision: Schema.decodeUnknownSync(Composition.Revision)(a.revision),
-            })
+          const a = agentAssetOpt.value
+          if (a.name === "meta") {
+            diagnostics.push(
+              new Composition.Diagnostic({
+                severity: "blocking",
+                code: "root_agent_forbidden",
+                message: "Root meta agent cannot be bound in custom composition",
+                path: agentRef.relativePath,
+                asset: agentRef,
+              }),
+            )
+          } else if (a.revision !== agentRef.revision) {
+            diagnostics.push(
+              new Composition.Diagnostic({
+                severity: "error",
+                code: "agent_stale_revision",
+                message: `Agent revision mismatch: expected ${agentRef.revision}, found ${a.revision}`,
+                path: agentRef.relativePath,
+                asset: agentRef,
+              }),
+            )
+          }
 
-            if (a.source && a.source.trim()) {
-              instructions.push(
-                new Composition.Instruction({
-                  source: `agent:${a.name}`,
-                  content: a.source.trim(),
-                }),
-              )
-            }
+          const agentInfo = new Composition.AgentInfo({
+            id: a.name,
+            name: a.name,
+            description: a.description,
+            relativePath: a.relativePath,
+            revision: Schema.decodeUnknownSync(Composition.Revision)(a.revision),
+          })
+          resolvedAgentInfos.push(agentInfo)
 
-            const allowedConsumerKeys = new Set(["orchestrator", `agents/${a.name}`])
-
-            // Validate consumer keys
-            if (resolvedBindings) {
-              for (const [consumerKey, binding] of Object.entries(resolvedBindings)) {
-                if (allowedConsumerKeys.has(consumerKey)) continue
-                diagnostics.push(
-                  new Composition.Diagnostic({
-                    severity: "error",
-                    code: "unknown_consumer_key",
-                    message: `Consumer key '${consumerKey}' is unrecognized for agent '${a.name}'`,
-                  }),
-                )
-                // Refs under an unrecognized consumer never reach a real consumer and are
-                // dropped from the plan. List each one explicitly instead of silently
-                // ignoring it. Severity "error" (not warning) because the M0 plan Phase E
-                // contract requires unconnected assets to fail closed.
-                for (const ref of [...binding.prompts, ...binding.skills]) {
-                  diagnostics.push(
-                    new Composition.Diagnostic({
-                      severity: "error",
-                      code: "unconnected_asset",
-                      message: `Asset ${ref.kind} ${ref.relativePath} is bound to unrecognized consumer '${consumerKey}' and stays unconnected`,
-                      path: ref.relativePath,
-                      asset: ref,
-                    }),
-                  )
-                }
-              }
-            }
-
-            for (const [consumer, binding] of Object.entries(resolvedBindings)) {
-              if (!allowedConsumerKeys.has(consumer)) continue
-              // Prompts in binding
-              for (const promptRef of binding.prompts) {
-                if ((promptRef as { kind?: string }).kind !== "prompt") {
-                  diagnostics.push(
-                    new Composition.Diagnostic({
-                      severity: "error",
-                      code: "invalid_ref_kind",
-                      message: `Expected prompt asset ref but got kind '${String((promptRef as { kind?: string }).kind)}'`,
-                      path: promptRef.relativePath,
-                      asset: promptRef,
-                    }),
-                  )
-                  continue
-                }
-                const pOpt = yield* promptAssets.getByPath(promptRef.relativePath).pipe(Effect.option)
-                if (Option.isNone(pOpt)) {
-                  diagnostics.push(
-                    new Composition.Diagnostic({
-                      severity: "error",
-                      code: "prompt_not_found",
-                      message: `Prompt asset not found: ${promptRef.relativePath}`,
-                      path: promptRef.relativePath,
-                      asset: promptRef,
-                    }),
-                  )
-                } else {
-                  const p = pOpt.value
-                  if (p.revision !== promptRef.revision) {
-                    diagnostics.push(
-                      new Composition.Diagnostic({
-                        severity: "error",
-                        code: "prompt_stale_revision",
-                        message: `Prompt revision mismatch: expected ${promptRef.revision}, found ${p.revision}`,
-                        path: promptRef.relativePath,
-                        asset: promptRef,
-                      }),
-                    )
-                  }
-                  if (p.template && p.template.trim()) {
-                    instructions.push(
-                      new Composition.Instruction({
-                        source: `prompt:${p.name}`,
-                        content: p.template.trim(),
-                      }),
-                    )
-                  }
-                }
-              }
-
-              // Skills in binding
-              for (const skillRef of binding.skills) {
-                if ((skillRef as { kind?: string }).kind !== "skill") {
-                  diagnostics.push(
-                    new Composition.Diagnostic({
-                      severity: "error",
-                      code: "invalid_ref_kind",
-                      message: `Expected skill asset ref but got kind '${String((skillRef as { kind?: string }).kind)}'`,
-                      path: skillRef.relativePath,
-                      asset: skillRef,
-                    }),
-                  )
-                  continue
-                }
-                const sOpt = yield* skillAssets.getByPath(skillRef.relativePath).pipe(Effect.option)
-                if (Option.isNone(sOpt)) {
-                  diagnostics.push(
-                    new Composition.Diagnostic({
-                      severity: "error",
-                      code: "skill_not_found",
-                      message: `Skill asset not found: ${skillRef.relativePath}`,
-                      path: skillRef.relativePath,
-                      asset: skillRef,
-                    }),
-                  )
-                } else {
-                  const s = sOpt.value
-                  if (s.revision !== skillRef.revision) {
-                    diagnostics.push(
-                      new Composition.Diagnostic({
-                        severity: "error",
-                        code: "skill_stale_revision",
-                        message: `Skill revision mismatch: expected ${skillRef.revision}, found ${s.revision}`,
-                        path: skillRef.relativePath,
-                        asset: skillRef,
-                      }),
-                    )
-                  }
-                  skills.push(
-                    new Composition.SkillInfo({
-                      name: s.name,
-                      description: s.description,
-                      relativePath: s.relativePath,
-                      revision: Schema.decodeUnknownSync(Composition.Revision)(s.revision),
-                    }),
-                  )
-                }
-              }
-            }
+          if (a.source && a.source.trim()) {
+            instructions.push(
+              new Composition.Instruction({
+                source: `agent:${a.name}`,
+                content: a.source.trim(),
+              }),
+            )
           }
         }
       }
 
-      // Capabilities evaluation
+      // 2. Workflow resolution
+      let workflowInfo: Composition.WorkflowInfo | undefined
+      if (resolvedWorkflow) {
+        if ((resolvedWorkflow as { kind?: string }).kind !== "workflow") {
+          diagnostics.push(
+            new Composition.Diagnostic({
+              severity: "blocking",
+              code: "invalid_ref_kind",
+              message: `Expected workflow asset ref but got kind '${String((resolvedWorkflow as { kind?: string }).kind)}'`,
+              path: resolvedWorkflow.relativePath,
+              asset: resolvedWorkflow,
+            }),
+          )
+        } else {
+          const workflowAssetOpt = yield* workflowAssets.getByPath(resolvedWorkflow.relativePath).pipe(Effect.option)
+          if (Option.isNone(workflowAssetOpt)) {
+            diagnostics.push(
+              new Composition.Diagnostic({
+                severity: "blocking",
+                code: "workflow_not_found",
+                message: `Workflow asset not found: ${resolvedWorkflow.relativePath}`,
+                path: resolvedWorkflow.relativePath,
+                asset: resolvedWorkflow,
+              }),
+            )
+          } else {
+            const w = workflowAssetOpt.value
+            if (w.revision !== resolvedWorkflow.revision) {
+              diagnostics.push(
+                new Composition.Diagnostic({
+                  severity: "error",
+                  code: "workflow_stale_revision",
+                  message: `Workflow revision mismatch: expected ${resolvedWorkflow.revision}, found ${w.revision}`,
+                  path: resolvedWorkflow.relativePath,
+                  asset: resolvedWorkflow,
+                }),
+              )
+            }
+
+            const rawSteps = w.steps as readonly SchemaWorkflowAsset.StepDef[]
+            const graphValidation = validateGraph(rawSteps)
+            if (!graphValidation.valid) {
+              const errorMessage = graphValidation.errors.map((e) => e.message).join("; ")
+              diagnostics.push(
+                new Composition.Diagnostic({
+                  severity: "blocking",
+                  code: "invalid_workflow_graph",
+                  message: `Invalid workflow graph: ${errorMessage}`,
+                  path: resolvedWorkflow.relativePath,
+                  asset: resolvedWorkflow,
+                }),
+              )
+            }
+
+            const knownAgents = new Set(["meta", ...resolvedAgentInfos.map((a) => a.name), ...resolvedAgentInfos.map((a) => a.id)])
+            for (const step of rawSteps) {
+              if (step.agent && !knownAgents.has(step.agent)) {
+                diagnostics.push(
+                  new Composition.Diagnostic({
+                    severity: "blocking",
+                    code: "workflow_unknown_agent",
+                    message: `Workflow step '${step.id}' references unknown agent '${step.agent}'`,
+                    path: resolvedWorkflow.relativePath,
+                    asset: resolvedWorkflow,
+                  }),
+                )
+              }
+            }
+
+            workflowInfo = new Composition.WorkflowInfo({
+              name: w.name,
+              description: w.description,
+              relativePath: w.relativePath,
+              revision: Schema.decodeUnknownSync(Composition.Revision)(w.revision),
+              steps: rawSteps as SchemaWorkflowAsset.StepDef[],
+            })
+          }
+        }
+      }
+
+      // 3. Bindings & Consumer keys validation
+      const allowedConsumerKeys = new Set([
+        "orchestrator",
+        ...resolvedAgentInfos.map((a) => `agents/${a.name}`),
+        ...(workflowInfo ? workflowInfo.steps.map((s) => `steps/${s.id}`) : []),
+      ])
+
+      if (resolvedBindings) {
+        for (const [consumerKey, binding] of Object.entries(resolvedBindings)) {
+          if (allowedConsumerKeys.has(consumerKey)) continue
+          diagnostics.push(
+            new Composition.Diagnostic({
+              severity: "error",
+              code: "unknown_consumer_key",
+              message: `Consumer key '${consumerKey}' is unrecognized for composition`,
+            }),
+          )
+          for (const ref of [...binding.prompts, ...binding.skills]) {
+            diagnostics.push(
+              new Composition.Diagnostic({
+                severity: "error",
+                code: "unconnected_asset",
+                message: `Asset ${ref.kind} ${ref.relativePath} is bound to unrecognized consumer '${consumerKey}' and stays unconnected`,
+                path: ref.relativePath,
+                asset: ref,
+              }),
+            )
+          }
+        }
+      }
+
+      for (const [consumer, binding] of Object.entries(resolvedBindings)) {
+        if (!allowedConsumerKeys.has(consumer)) continue
+        // Prompts in binding
+        for (const promptRef of binding.prompts) {
+          if ((promptRef as { kind?: string }).kind !== "prompt") {
+            diagnostics.push(
+              new Composition.Diagnostic({
+                severity: "error",
+                code: "invalid_ref_kind",
+                message: `Expected prompt asset ref but got kind '${String((promptRef as { kind?: string }).kind)}'`,
+                path: promptRef.relativePath,
+                asset: promptRef,
+              }),
+            )
+            continue
+          }
+          const pOpt = yield* promptAssets.getByPath(promptRef.relativePath).pipe(Effect.option)
+          if (Option.isNone(pOpt)) {
+            diagnostics.push(
+              new Composition.Diagnostic({
+                severity: "error",
+                code: "prompt_not_found",
+                message: `Prompt asset not found: ${promptRef.relativePath}`,
+                path: promptRef.relativePath,
+                asset: promptRef,
+              }),
+            )
+          } else {
+            const p = pOpt.value
+            if (p.revision !== promptRef.revision) {
+              diagnostics.push(
+                new Composition.Diagnostic({
+                  severity: "error",
+                  code: "prompt_stale_revision",
+                  message: `Prompt revision mismatch: expected ${promptRef.revision}, found ${p.revision}`,
+                  path: promptRef.relativePath,
+                  asset: promptRef,
+                }),
+              )
+            }
+            if (p.template && p.template.trim()) {
+              instructions.push(
+                new Composition.Instruction({
+                  source: `prompt:${p.name}`,
+                  content: p.template.trim(),
+                }),
+              )
+            }
+          }
+        }
+
+        // Skills in binding
+        for (const skillRef of binding.skills) {
+          if ((skillRef as { kind?: string }).kind !== "skill") {
+            diagnostics.push(
+              new Composition.Diagnostic({
+                severity: "error",
+                code: "invalid_ref_kind",
+                message: `Expected skill asset ref but got kind '${String((skillRef as { kind?: string }).kind)}'`,
+                path: skillRef.relativePath,
+                asset: skillRef,
+              }),
+            )
+            continue
+          }
+          const sOpt = yield* skillAssets.getByPath(skillRef.relativePath).pipe(Effect.option)
+          if (Option.isNone(sOpt)) {
+            diagnostics.push(
+              new Composition.Diagnostic({
+                severity: "error",
+                code: "skill_not_found",
+                message: `Skill asset not found: ${skillRef.relativePath}`,
+                path: skillRef.relativePath,
+                asset: skillRef,
+              }),
+            )
+          } else {
+            const s = sOpt.value
+            if (s.revision !== skillRef.revision) {
+              diagnostics.push(
+                new Composition.Diagnostic({
+                  severity: "error",
+                  code: "skill_stale_revision",
+                  message: `Skill revision mismatch: expected ${skillRef.revision}, found ${s.revision}`,
+                  path: skillRef.relativePath,
+                  asset: skillRef,
+                }),
+              )
+            }
+            skills.push(
+              new Composition.SkillInfo({
+                name: s.name,
+                description: s.description,
+                relativePath: s.relativePath,
+                revision: Schema.decodeUnknownSync(Composition.Revision)(s.revision),
+              }),
+            )
+          }
+        }
+      }
+
+      // 4. Capabilities evaluation
       for (const cap of resolvedCapabilities) {
         if (SUPPORTED_CAPABILITIES.has(cap)) {
           capabilities.push(
@@ -341,18 +450,45 @@ export const layer = Layer.effect(
         }
       }
 
+      // 5. Cost preview calculation
+      const materialized = yield* tools.materialize()
+      let estimatedTokens = instructions.reduce((sum, i) => sum + Math.ceil(i.content.length / 4), 0)
+      if (workflowInfo) {
+        for (const step of workflowInfo.steps) {
+          const inputLen = typeof step.input === "string" ? step.input.length : JSON.stringify(step.input ?? {}).length
+          estimatedTokens += 500 + Math.ceil(inputLen / 4)
+        }
+      }
+      estimatedTokens = Math.max(100, estimatedTokens)
+
+      const maxConcurrency = workflowInfo ? computeMaxConcurrency(workflowInfo.steps) : 1
+      const effectiveToolCount = materialized.definitions.length
+      const costPreview = new Composition.CostPreview({
+        estimatedTokens,
+        maxConcurrency,
+        effectiveToolCount,
+        agentCount: resolvedAgentInfos.length,
+      })
+
       const hasBlockingOrError = diagnostics.some((d) => d.severity === "blocking" || d.severity === "error")
       const valid = !hasBlockingOrError
 
+      const isV2 = resolvedAgentInfos.length > 1 || workflowInfo !== undefined
+      const planVersion = isV2 ? 2 : 1
+
       return new Composition.Plan({
-        version: 1,
+        version: planVersion,
         digest,
         valid,
         input,
-        agent: agentInfo,
+        agent: resolvedAgentInfos[0],
+        agents: resolvedAgentInfos,
+        workflow: workflowInfo,
+        commands: [],
         instructions,
         skills,
         capabilities,
+        costPreview,
         diagnostics,
       })
     })
@@ -361,6 +497,7 @@ export const layer = Layer.effect(
       const input = new Composition.TemporaryInput({
         source: "temporary",
         agents: profile.agents,
+        workflow: profile.workflow,
         bindings: profile.bindings,
         presentation: profile.presentation,
         requestedCapabilities: profile.requestedCapabilities,
@@ -381,6 +518,9 @@ export const layer = Layer.effect(
           } else if (d.asset.kind === "skill") {
             const s = yield* skillAssets.getByPath(d.asset.relativePath).pipe(Effect.option)
             currentRev = Option.getOrUndefined(s)?.revision
+          } else if (d.asset.kind === "workflow") {
+            const w = yield* workflowAssets.getByPath(d.asset.relativePath).pipe(Effect.option)
+            currentRev = Option.getOrUndefined(w)?.revision
           }
           if (currentRev) {
             staleRevisions.push(
@@ -423,6 +563,11 @@ export const layer = Layer.effect(
           if (agentRef.kind === kind && agentRef.relativePath === relativePath) {
             matched = true
             break
+          }
+        }
+        if (!matched && p.profile.workflow) {
+          if (p.profile.workflow.kind === kind && p.profile.workflow.relativePath === relativePath) {
+            matched = true
           }
         }
         if (!matched) {
@@ -512,6 +657,35 @@ export const layer = Layer.effect(
         .toSorted((a, b) => a.name.localeCompare(b.name))
       const toolNames = fingerprints.map((fingerprint) => fingerprint.name)
       const catalogDigest = computeDigest(fingerprints)
+
+      const isV2 = plan.version === 2 || (plan.agents && plan.agents.length > 1) || plan.workflow !== undefined
+
+      if (isV2) {
+        const snapshotData = new Composition.SnapshotDataV2({
+          agents: plan.agents ?? (plan.agent ? [plan.agent] : []),
+          workflow: plan.workflow,
+          commands: plan.commands ?? [],
+          instructions: plan.instructions,
+          prompts: promptData,
+          skills: plan.skills,
+          tools: new Composition.SnapshotToolInfo({
+            fingerprints,
+            catalogDigest,
+            catalog: toolNames,
+          }),
+        })
+
+        return new Composition.SnapshotV2({
+          version: 2,
+          digest: plan.digest,
+          sessionID: input.sessionID,
+          profilePath: plan.input.source === "profile" ? plan.input.profilePath : undefined,
+          profileRevision: plan.input.source === "profile" ? plan.input.profileRevision : undefined,
+          createdAt: Date.now(),
+          data: snapshotData,
+        })
+      }
+
       const snapshotData = new Composition.SnapshotDataV1({
         agentID: plan.agent?.id ?? "default",
         instructions: plan.instructions,
