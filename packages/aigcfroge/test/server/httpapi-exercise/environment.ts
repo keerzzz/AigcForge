@@ -21,6 +21,11 @@ export const exerciseDatabasePath =
 process.env.AIGCFROGE_DB = exerciseDatabasePath
 Flag.AIGCFROGE_DB = exerciseDatabasePath
 
+// The custom composition routes are flag-gated at the HTTP layer (default off).
+// The exerciser covers the enabled path; the disabled 400 behavior is asserted
+// by the capability-matrix unit tests, so enable the flag for the whole run.
+process.env.AIGCFROGE_CUSTOM_MODE = "true"
+
 export const original = {
   AIGCFROGE_SERVER_PASSWORD: Flag.AIGCFROGE_SERVER_PASSWORD,
   AIGCFROGE_SERVER_USERNAME: Flag.AIGCFROGE_SERVER_USERNAME,

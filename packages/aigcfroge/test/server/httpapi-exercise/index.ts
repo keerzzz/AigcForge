@@ -33,6 +33,7 @@ import { OpenApi } from "effect/unstable/httpapi"
 import fs from "fs/promises"
 import { TestLLMServer } from "../../lib/llm-server"
 import path from "path"
+import { Hash } from "@aigcfroge/core/util/hash"
 import { array, boolean, check, isRecord, message, object, stable } from "./assertions"
 import { controlledPtyInput, http, route } from "./dsl"
 import {
@@ -400,6 +401,8 @@ function customProfileScenarios(): Scenario[] {
 
 function customCompositionScenarios(): Scenario[] {
   const root = "/custom-composition"
+  const agentFixture = assetFixtures.find((f) => f.kind === "agent")!
+  const capabilitiesHeaders = { "x-aigcfroge-capabilities": "product-mode-custom-v1" }
   return [
     http.protected
       .post(`${root}/plan`, "custom-composition.plan")
@@ -424,6 +427,65 @@ function customCompositionScenarios(): Scenario[] {
         object(body)
         boolean(body.valid)
         array(body.diagnostics)
+      }),
+    http.protected
+      .post(`${root}/start`, "custom-composition.start")
+      .seeded((ctx) =>
+        Effect.gen(function* () {
+          yield* seedAsset(ctx, agentFixture)
+          const revision = yield* Effect.promise(() => Hash.sha256(Buffer.from(agentFixture.content)))
+          return { revision }
+        }),
+      )
+      .at((ctx) => ({
+        path: `${root}/start`,
+        headers: { ...ctx.headers(), ...capabilitiesHeaders },
+        body: {
+          composition: {
+            source: "temporary",
+            agents: [{ kind: "agent", relativePath: agentFixture.relativePath, revision: ctx.state.revision }],
+            bindings: {},
+            presentation: "native",
+            requestedCapabilities: [],
+          },
+          title: "httpapi custom start",
+        },
+      }))
+      .json(200, (body) => {
+        object(body)
+        check(isRecord(body.session) && body.session.mode === "custom", "custom start should create a custom session")
+        check(isRecord(body.snapshot) && typeof body.snapshot.digest === "string", "custom start should return a snapshot")
+      }),
+    http.protected
+      .post(`${root}/upgrade`, "custom-composition.upgrade")
+      .seeded((ctx) =>
+        Effect.gen(function* () {
+          yield* seedAsset(ctx, agentFixture)
+          const revision = yield* Effect.promise(() => Hash.sha256(Buffer.from(agentFixture.content)))
+          const custom = yield* ctx.customSession({ title: "httpapi upgrade source" })
+          return { sessionID: custom.session.id, revision }
+        }),
+      )
+      .at((ctx) => ({
+        path: `${root}/upgrade`,
+        headers: { ...ctx.headers(), ...capabilitiesHeaders },
+        body: {
+          sessionID: ctx.state.sessionID,
+          composition: {
+            source: "temporary",
+            agents: [{ kind: "agent", relativePath: agentFixture.relativePath, revision: ctx.state.revision }],
+            bindings: {},
+            presentation: "native",
+            requestedCapabilities: [],
+          },
+          title: "httpapi upgraded session",
+        },
+      }))
+      .json(200, (body, ctx) => {
+        object(body)
+        check(isRecord(body.session) && body.session.mode === "custom", "custom upgrade should create a custom session")
+        check(isRecord(body.snapshot) && typeof body.snapshot.digest === "string", "custom upgrade should return a snapshot")
+        check(isRecord(body.session) && body.session.id !== ctx.state.sessionID, "custom upgrade should not reuse the source session id")
       }),
     http.protected
       .get(`${root}/health`, "custom-composition.health")
@@ -1830,6 +1892,43 @@ const scenarios: Scenario[] = [
     }))
     .json(200, data(object)),
   http.protected
+    .post("/api/session/custom", "v2.session.custom")
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        yield* seedAsset(ctx, assetFixtures.find((f) => f.kind === "agent")!)
+        const revision = yield* Effect.promise(() =>
+          Hash.sha256(Buffer.from(assetFixtures.find((f) => f.kind === "agent")!.content)),
+        )
+        return { revision }
+      }),
+    )
+    .at((ctx) => ({
+      path: "/api/session/custom",
+      headers: { ...ctx.headers(), "content-type": "application/json", "x-aigcfroge-capabilities": "product-mode-custom-v1" },
+      body: {
+        location: { directory: ctx.directory },
+        title: "httpapi v2 custom",
+        composition: {
+          source: "temporary",
+          agents: [
+            {
+              kind: "agent",
+              relativePath: assetFixtures.find((f) => f.kind === "agent")!.relativePath,
+              revision: ctx.state.revision,
+            },
+          ],
+          bindings: {},
+          presentation: "native",
+          requestedCapabilities: [],
+        },
+      },
+    }))
+    .json(200, (body) => {
+      object(body)
+      check(isRecord(body.data) && body.data.mode === "custom", "v2 session.custom should create a custom session")
+      check(isRecord(body.snapshot) && typeof body.snapshot.digest === "string", "v2 session.custom should return a snapshot")
+    }),
+  http.protected
     .get("/api/session/{sessionID}", "v2.session.get")
     .seeded((ctx) => ctx.session({ title: "Session get" }))
     .at((ctx) => ({
@@ -2156,6 +2255,23 @@ const scenarios: Scenario[] = [
         body.some((item) => isRecord(item) && item.id === ctx.state.child.id && item.parentID === ctx.state.parent.id),
         "children should include seeded child",
       )
+    }),
+  http.protected
+    .get("/session/{sessionID}/composition", "session.composition")
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const custom = yield* ctx.customSession({ title: "Composition snapshot session" })
+        return custom.session.id
+      }),
+    )
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/composition", { sessionID: ctx.state }),
+      headers: ctx.headers(),
+    }))
+    .json(200, (body) => {
+      object(body)
+      check(body.version === 1, "composition snapshot should be version 1")
+      check(typeof body.digest === "string", "composition snapshot should carry a digest")
     }),
   http.protected
     .get("/session/{sessionID}/cache-diagnostics", "session.cacheDiagnostics")
