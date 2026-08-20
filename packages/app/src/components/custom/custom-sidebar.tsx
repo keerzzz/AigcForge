@@ -201,15 +201,15 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
                       onClick={() => {
                         if (isIncluded()) {
                           draft.removeAgent(agent.relativePath)
-                        } else {
-                          draft.addAgent({
-                            kind: "agent",
-                            relativePath: agent.relativePath,
-                            revision: agent.revision,
-                            name: agent.name,
-                            description: agent.description,
-                          })
+                          return
                         }
+                        draft.addAgent({
+                          kind: "agent",
+                          relativePath: agent.relativePath,
+                          revision: agent.revision,
+                          name: agent.name,
+                          description: agent.description,
+                        })
                       }}
                     >
                       <div class="flex items-center gap-1.5 min-w-0">

@@ -35,11 +35,12 @@ export class Profile extends Schema.Class<Profile>("CustomProfile.Profile")({
   description: Description,
   agents: Schema.Array(Composition.AgentRef).pipe(
     Schema.check(
-      Schema.makeFilter<readonly unknown[]>((input) => input.length === 1, {
-        message: "Profile must contain exactly one agent in M1",
+      Schema.makeFilter<readonly unknown[]>((input) => input.length >= 1 && input.length <= 16, {
+        message: "Profile must contain between 1 and 16 agents",
       }),
     ),
   ),
+  workflow: Schema.optional(Composition.WorkflowRef),
   bindings: Schema.Record(Composition.Consumer, Composition.Binding),
   presentation: Composition.Presentation,
   requestedCapabilities: Schema.Array(Schema.String),

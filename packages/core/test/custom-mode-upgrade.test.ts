@@ -26,14 +26,14 @@ const mockRevision = Schema.decodeUnknownSync(Composition.Revision)(
 )
 
 function makeMockSnapshot(sessionID: string, digest = mockDigest): Composition.Snapshot {
-  return new Composition.Snapshot({
+  return new Composition.SnapshotV1({
     version: 1,
     digest,
     sessionID,
     profilePath: "custom-profiles/reviewer.yaml",
     profileRevision: mockRevision,
     createdAt: 1700000000000,
-    data: new Composition.SnapshotData({
+    data: new Composition.SnapshotDataV1({
       agentID: "code-reviewer",
       instructions: [
         new Composition.Instruction({

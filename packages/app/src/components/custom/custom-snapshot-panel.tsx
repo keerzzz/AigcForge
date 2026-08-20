@@ -118,9 +118,9 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
       const msg = message ?? String(err)
       if (status === 409 || msg.includes("busy") || msg.includes("SessionBusyError")) {
         setUpgradeError(language.t("custom.snapshot.busyError"))
-      } else {
-        setUpgradeError(msg)
+        return
       }
+      setUpgradeError(msg)
     } finally {
       setUpgrading(false)
     }
@@ -184,7 +184,12 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
             {language.t("custom.builder.primaryAgent")}
           </span>
           <span class="font-mono text-12-medium text-blue-400">
-            {snapshot()?.data.agentID ?? draft.state.primaryAgent ?? "coder"}
+            {(() => {
+              const snap = snapshot()
+              if (!snap) return draft.state.primaryAgent ?? "coder"
+              if (snap.version === 1) return snap.data.agentID
+              return snap.data.agents[0]?.name ?? snap.data.agents[0]?.id ?? draft.state.primaryAgent ?? "coder"
+            })()}
           </span>
         </div>
 

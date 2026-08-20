@@ -94,12 +94,12 @@ const mockSnapshot = (
   allowedAgentID: string = "custom-coder",
   skills: Composition.SkillInfo[] = [],
 ) =>
-  new Composition.Snapshot({
+  new Composition.SnapshotV1({
     version: 1,
     digest: mockDigest,
     sessionID,
     createdAt: Date.now(),
-    data: new Composition.SnapshotData({
+    data: new Composition.SnapshotDataV1({
       agentID: allowedAgentID,
       instructions: [],
       prompts: [],
@@ -521,7 +521,9 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
         // Snapshot was copied to child
         const childSnapshot = yield* comp.get(childSession.id)
         expect(childSnapshot.digest).toBe(mockSnapshot(rootSessionID).digest)
-        expect(childSnapshot.data.agentID).toBe("custom-coder")
+        if (childSnapshot.version === 1) {
+          expect(childSnapshot.data.agentID).toBe("custom-coder")
+        }
 
         // Child session with forbidden agent fails
         const forbiddenChild = yield* sessionService
@@ -615,7 +617,9 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
         yield* comp.attach(sessionID, mockSnapshot(sessionID, "custom-coder"))
 
         const validated = yield* comp.assertDependency(sessionID)
-        expect(validated.data.agentID).toBe("custom-coder")
+        if (validated.version === 1) {
+          expect(validated.data.agentID).toBe("custom-coder")
+        }
         expect(validated.digest).toBe(mockSnapshot(sessionID).digest)
       }),
     )

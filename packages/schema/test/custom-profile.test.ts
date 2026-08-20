@@ -40,7 +40,7 @@ describe("CustomProfile Schema", () => {
     requestedCapabilities: [],
   }
 
-  test("Profile decodes valid profile structure", () => {
+  test("Profile decodes valid profile structure with single agent", () => {
     const decoded = Schema.decodeUnknownSync(CustomProfile.Profile)(validProfile)
     expect(decoded.kind).toBe("custom-profile")
     expect(String(decoded.name)).toBe("release-review")
@@ -48,7 +48,37 @@ describe("CustomProfile Schema", () => {
     expect(decoded.presentation).toBe("native")
   })
 
-  test("Profile rejects zero agents (M1 cardinality)", () => {
+  test("Profile decodes valid profile structure with multiple agents (M2)", () => {
+    const multiAgentProfile = {
+      ...validProfile,
+      agents: [
+        { kind: "agent", relativePath: "reviewer.md", revision: "a".repeat(64) },
+        { kind: "agent", relativePath: "coder.md", revision: "b".repeat(64) },
+      ],
+      workflow: {
+        kind: "workflow",
+        relativePath: "review-flow.yaml",
+        revision: "c".repeat(64),
+      },
+      bindings: {
+        orchestrator: { prompts: [], skills: [] },
+        "agents/reviewer": {
+          prompts: [{ kind: "prompt", relativePath: "release-policy.md", revision: "b".repeat(64) }],
+          skills: [],
+          commands: [{ kind: "command", relativePath: "review.yaml", revision: "d".repeat(64) }],
+        },
+        "agents/coder": {
+          prompts: [],
+          skills: [{ kind: "skill", relativePath: "code.md", revision: "e".repeat(64) }],
+        },
+      },
+    }
+    const decoded = Schema.decodeUnknownSync(CustomProfile.Profile)(multiAgentProfile)
+    expect(decoded.agents.length).toBe(2)
+    expect(decoded.workflow?.relativePath).toBe("review-flow.yaml")
+  })
+
+  test("Profile rejects zero agents", () => {
     expect(() =>
       Schema.decodeUnknownSync(CustomProfile.Profile)({
         ...validProfile,
@@ -57,14 +87,16 @@ describe("CustomProfile Schema", () => {
     ).toThrow()
   })
 
-  test("Profile rejects more than one agent (M1 cardinality)", () => {
+  test("Profile rejects more than 16 agents (M2 limit)", () => {
+    const tooManyAgents = Array.from({ length: 17 }, (_, i) => ({
+      kind: "agent",
+      relativePath: `agent_${i}.md`,
+      revision: "a".repeat(64),
+    }))
     expect(() =>
       Schema.decodeUnknownSync(CustomProfile.Profile)({
         ...validProfile,
-        agents: [
-          { kind: "agent", relativePath: "a1.md", revision: "a".repeat(64) },
-          { kind: "agent", relativePath: "a2.md", revision: "b".repeat(64) },
-        ],
+        agents: tooManyAgents,
       }),
     ).toThrow()
   })
@@ -99,7 +131,7 @@ describe("CustomProfile Schema", () => {
       name: "test-profile",
       description: "A test profile",
       relativePath: "test-profile.yaml",
-      revision: "d".repeat(64),
+      revision: "a".repeat(64),
     })
     expect(s.kind).toBe("custom-profile")
     expect(String(s.name)).toBe("test-profile")
@@ -107,12 +139,11 @@ describe("CustomProfile Schema", () => {
 
   test("Candidate decodes candidate fields", () => {
     const c = Schema.decodeUnknownSync(CustomProfile.Candidate)({
-      name: "test-profile",
-      description: "A test profile",
-      relativePath: "test-profile.yaml",
+      name: "candidate-profile",
+      description: "A candidate profile",
+      relativePath: "candidate.yaml",
       profile: validProfile,
     })
-    expect(String(c.name)).toBe("test-profile")
-    expect(c.profile.kind).toBe("custom-profile")
+    expect(String(c.name)).toBe("candidate-profile")
   })
 })

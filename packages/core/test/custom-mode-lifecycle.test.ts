@@ -56,12 +56,12 @@ const mockDigest = Composition.Digest.make("1".repeat(64))
 const mockCatalogDigest = Composition.Digest.make("2".repeat(64))
 
 const mockSnapshot = (sessionID: SessionV2.ID, allowedAgentID: string = "custom-coder") =>
-  new Composition.Snapshot({
+  new Composition.SnapshotV1({
     version: 1,
     digest: mockDigest,
     sessionID,
     createdAt: 1000,
-    data: new Composition.SnapshotData({
+    data: new Composition.SnapshotDataV1({
       agentID: allowedAgentID,
       instructions: [
         new Composition.Instruction({ source: "custom.agent.md", content: "Custom System Instructions" }),
@@ -93,13 +93,13 @@ const frozenFingerprints = [
   { placement: "/workspace", name: "read", digest: Composition.Digest.make("6".repeat(64)), installationVersion: "0.1.0" },
 ]
 const frozenSnapshot = (sessionID: SessionV2.ID, profilePath?: string) =>
-  new Composition.Snapshot({
+  new Composition.SnapshotV1({
     version: 1,
     digest: frozenDigest,
     sessionID,
     profilePath,
     createdAt: 1000,
-    data: new Composition.SnapshotData({
+    data: new Composition.SnapshotDataV1({
       agentID: "custom-coder",
       instructions: [new Composition.Instruction({ source: "custom.agent.md", content: "Frozen System Instructions" })],
       prompts: [
@@ -202,12 +202,14 @@ describe("Custom Mode Lifecycle: Resume, Fork, Move, & Drift Isolation", () => {
         // Read snapshot back from store
         const loaded = yield* comp.get(sessionID)
         expect(loaded.digest).toBe(snapshot.digest)
-        expect(loaded.data.agentID).toBe("custom-coder")
-        expect(loaded.data.instructions.length).toBe(1)
-        expect(loaded.data.instructions[0].content).toBe("Custom System Instructions")
-        expect(loaded.data.skills.length).toBe(1)
-        expect(loaded.data.skills[0].name).toBe("test-skill")
-        expect(loaded.data.tools.catalog).toEqual(["read", "glob", "grep"])
+        if (loaded.version === 1) {
+          expect(loaded.data.agentID).toBe("custom-coder")
+          expect(loaded.data.instructions.length).toBe(1)
+          expect(loaded.data.instructions[0].content).toBe("Custom System Instructions")
+          expect(loaded.data.skills.length).toBe(1)
+          expect(loaded.data.skills[0].name).toBe("test-skill")
+          expect(loaded.data.tools.catalog).toEqual(["read", "glob", "grep"])
+        }
       }),
     )
 
@@ -364,10 +366,12 @@ describe("Custom Mode Lifecycle: Resume, Fork, Move, & Drift Isolation", () => {
         // Child session inherits identical snapshot digest and data
         const childSnapshot = yield* comp.get(childSession.id)
         expect(childSnapshot.digest).toBe(parentSnapshot.digest)
-        expect(childSnapshot.data.agentID).toBe("custom-coder")
-        expect(childSnapshot.data.skills).toEqual(parentSnapshot.data.skills)
-        expect(childSnapshot.data.instructions).toEqual(parentSnapshot.data.instructions)
-        expect(childSnapshot.data.tools.catalog).toEqual(parentSnapshot.data.tools.catalog)
+        if (childSnapshot.version === 1 && parentSnapshot.version === 1) {
+          expect(childSnapshot.data.agentID).toBe("custom-coder")
+          expect(childSnapshot.data.skills).toEqual(parentSnapshot.data.skills)
+          expect(childSnapshot.data.instructions).toEqual(parentSnapshot.data.instructions)
+          expect(childSnapshot.data.tools.catalog).toEqual(parentSnapshot.data.tools.catalog)
+        }
       }),
     )
   })
@@ -472,8 +476,10 @@ describe("Custom Mode Lifecycle: Resume, Fork, Move, & Drift Isolation", () => {
         // freeze boundaries is a separate planned concern.
         const loaded = yield* comp.get(sessionID)
         expect(loaded.digest).toBe(frozenDigest)
-        expect(loaded.data.agentID).toBe("custom-coder")
-        expect(loaded.data.prompts[0].content).toBe("Frozen prompt content captured at freeze time.")
+        if (loaded.version === 1) {
+          expect(loaded.data.agentID).toBe("custom-coder")
+          expect(loaded.data.prompts[0].content).toBe("Frozen prompt content captured at freeze time.")
+        }
         yield* comp.assertDependency(sessionID)
         yield* sessionService.resume(sessionID)
       }),

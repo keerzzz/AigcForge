@@ -318,10 +318,11 @@ export const layer = Layer.effect(
     ) =>
       Effect.gen(function* () {
         if (parent && parentSnapshot) {
-          // A custom child inherits the parent's frozen composition. An omitted
-          // agent defaults to the snapshot's frozen agentID — the only identity
-          // the delegation gate allows; any other value is a typed rejection.
-          const agentID: string = input.agent ?? parentSnapshot.data.agentID
+          const defaultAgentID =
+            parentSnapshot.version === 1
+              ? parentSnapshot.data.agentID
+              : parentSnapshot.data.agents[0]?.id ?? "meta"
+          const agentID: string = input.agent ?? defaultAgentID
           yield* sessionComposition.assertAgentAllowed(parent.id, agentID)
           return AgentV2.ID.make(agentID)
         }

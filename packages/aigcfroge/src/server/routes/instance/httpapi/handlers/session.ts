@@ -1026,18 +1026,6 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       return snapshot
     })
 
-    const compositionRaw = Effect.fn("SessionHttpApi.compositionRaw")(function* (ctx: {
-      params: { sessionID: SessionID }
-      request: HttpServerRequest.HttpServerRequest
-    }) {
-      // Use the raw handler to bypass HttpApi's automatic response encoding
-      // for the top-level Snapshot class, which has a known Effect Schema
-      // encode issue in the current version.
-      const snapshot = yield* composition({ params: ctx.params })
-      const encoded = Schema.encodeUnknownSync(Composition.Snapshot)(snapshot)
-      return yield* HttpServerResponse.json(encoded).pipe(Effect.orDie)
-    })
-
     return handlers
       .handle("list", list)
       .handle("status", status)
@@ -1079,6 +1067,6 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       .handle("updatePart", updatePart)
       .handle("cacheDiagnostics", cacheDiagnostics)
       .handle("toolSummary", toolSummary)
-      .handleRaw("composition", compositionRaw)
+      .handle("composition", composition)
   }).pipe(Effect.provide(LocationServiceMap.layer)),
 )

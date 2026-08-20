@@ -31,14 +31,14 @@ const mockRevision = Schema.decodeUnknownSync(Composition.Revision)(
 )
 
 function makeMockSnapshot(sessionID: string, digest = mockDigest): Composition.Snapshot {
-  return new Composition.Snapshot({
+  return new Composition.SnapshotV1({
     version: 1,
     digest,
     sessionID,
     profilePath: "custom-profiles/reviewer.yaml",
     profileRevision: mockRevision,
     createdAt: 1700000000000,
-    data: new Composition.SnapshotData({
+    data: new Composition.SnapshotDataV1({
       agentID: "code-reviewer",
       instructions: [
         new Composition.Instruction({
@@ -186,7 +186,9 @@ describe("Phase B: Atomic Custom Session Start and V2 Runtime Policy", () => {
       // Check snapshot
       expect(snapshot.sessionID).toBe(sid)
       expect(snapshot.digest).toBe(mockDigest)
-      expect(snapshot.data.agentID).toBe("code-reviewer")
+      if (snapshot.version === 1) {
+        expect(snapshot.data.agentID).toBe("code-reviewer")
+      }
 
       // Verify DB rows exist for both session and snapshot
       const sessionRow = yield* db.select().from(SessionTable).where(eq(SessionTable.id, sid)).get().pipe(Effect.orDie)
@@ -553,9 +555,13 @@ describe("Same-profile session independence (MEDIUM-5)", () => {
         sql`UPDATE session_composition_snapshot SET data = json_set(data, '$.agentID', 'tampered-agent') WHERE session_id = ${first.session.id}`,
       )
       const tampered = yield* sessionComposition.get(first.session.id)
-      expect(tampered.data.agentID).toBe("tampered-agent")
+      if (tampered.version === 1) {
+        expect(tampered.data.agentID).toBe("tampered-agent")
+      }
       const untouched = yield* sessionComposition.get(second.session.id)
-      expect(untouched.data.agentID).toBe("code-reviewer")
+      if (untouched.version === 1) {
+        expect(untouched.data.agentID).toBe("code-reviewer")
+      }
       expect(untouched.digest).toBe(first.snapshot.digest)
     }),
   )

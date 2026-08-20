@@ -313,8 +313,10 @@ requestedCapabilities: []
           const snapshot = yield* resolver.freeze(new Composition.FreezeInput({ input, sessionID: "session-123" }))
           expect(snapshot.version).toBe(1)
           expect(snapshot.sessionID).toBe("session-123")
-          expect(snapshot.data.agentID).toBe("coder")
-          expect(snapshot.data.skills).toHaveLength(1)
+          if (snapshot.version === 1) {
+            expect(snapshot.data.agentID).toBe("coder")
+            expect(snapshot.data.skills).toHaveLength(1)
+          }
           expect(snapshot.data.tools.catalog).toEqual(["read"])
           expect(snapshot.data.tools.catalogDigest).toHaveLength(64)
           expect(snapshot.data.tools.fingerprints).toHaveLength(1)

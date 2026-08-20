@@ -5004,6 +5004,12 @@ export type CompositionAgentRef = {
   revision: string
 }
 
+export type CompositionWorkflowRef = {
+  kind: "workflow"
+  relativePath: string
+  revision: string
+}
+
 export type CompositionPromptRef = {
   kind: "prompt"
   relativePath: string
@@ -5019,6 +5025,11 @@ export type CompositionSkillRef = {
 export type CompositionBinding = {
   prompts: Array<CompositionPromptRef>
   skills: Array<CompositionSkillRef>
+  commands?: Array<{
+    kind: "command"
+    relativePath: string
+    revision: string
+  }>
 }
 
 export type CustomProfileProfile = {
@@ -5026,6 +5037,7 @@ export type CustomProfileProfile = {
   name: string
   description: string
   agents: Array<CompositionAgentRef>
+  workflow?: CompositionWorkflowRef
   bindings: {
     [key: string]: CompositionBinding
   }
@@ -5060,6 +5072,7 @@ export type CompositionTemporaryInput = {
   profilePath?: string
   profileRevision?: string
   agents: Array<CompositionAgentRef>
+  workflow?: CompositionWorkflowRef
   bindings: {
     [key: string]: CompositionBinding
   }
@@ -5081,6 +5094,29 @@ export type CompositionAgentInfo = {
   revision: string
 }
 
+export type WorkflowAssetStepDef = {
+  id: string
+  name: string
+  agent: string
+  input?: unknown
+  next?: string
+  branches?: {
+    [key: string]: string
+  }
+  parallel?: Array<string>
+  failurePolicy?: "abort" | "continue" | "retry"
+  maxAttempts?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  timeoutSeconds?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+}
+
+export type CompositionWorkflowInfo = {
+  name: string
+  description: string
+  relativePath: string
+  revision: string
+  steps: Array<WorkflowAssetStepDef>
+}
+
 export type CompositionInstruction = {
   source: string
   content: string
@@ -5099,23 +5135,57 @@ export type CompositionCapabilityInfo = {
   reason?: string
 }
 
+export type CompositionCostPreview = {
+  estimatedTokens: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  maxConcurrency: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  effectiveToolCount: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  agentCount: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+}
+
+export type CompositionCommandRef = {
+  kind: "command"
+  relativePath: string
+  revision: string
+}
+
 export type CompositionDiagnostic = {
   severity: "info" | "warning" | "error" | "blocking"
   code: string
   message: string
   path?: string
-  asset?: CompositionAgentRef | CompositionPromptRef | CompositionSkillRef
+  asset?:
+    | CompositionAgentRef
+    | CompositionPromptRef
+    | CompositionSkillRef
+    | CompositionWorkflowRef
+    | CompositionCommandRef
 }
 
 export type CompositionPlan = {
-  version: 1
+  version: 1 | 2
   digest: string
   valid: boolean
   input: CompositionTemporaryInput | CompositionProfileInput
   agent?: CompositionAgentInfo
+  agents?: Array<{
+    id: string
+    name: string
+    description: string
+    relativePath: string
+    revision: string
+  }>
+  workflow?: CompositionWorkflowInfo
+  commands?: Array<{
+    name: string
+    description: string
+    relativePath: string
+    revision: string
+    template: string
+  }>
   instructions: Array<CompositionInstruction>
   skills: Array<CompositionSkillInfo>
   capabilities: Array<CompositionCapabilityInfo>
+  costPreview?: CompositionCostPreview
   diagnostics: Array<CompositionDiagnostic>
 }
 
@@ -5193,7 +5263,7 @@ export type CompositionSnapshotToolInfo = {
   catalog: Array<string>
 }
 
-export type CompositionSnapshotData = {
+export type CompositionSnapshotDataV1 = {
   agentID: string
   instructions: Array<CompositionInstruction>
   prompts: Array<CompositionSnapshotPromptData>
@@ -5201,19 +5271,45 @@ export type CompositionSnapshotData = {
   tools: CompositionSnapshotToolInfo
 }
 
-export type CompositionSnapshot = {
+export type CompositionSnapshotV1 = {
   version: 1
   digest: string
   sessionID?: string
   profilePath?: string
   profileRevision?: string
   createdAt: number
-  data: CompositionSnapshotData
+  data: CompositionSnapshotDataV1
+}
+
+export type CompositionSnapshotDataV2 = {
+  agents: Array<CompositionAgentInfo>
+  workflow?: CompositionWorkflowInfo
+  commands?: Array<{
+    name: string
+    description: string
+    relativePath: string
+    revision: string
+    template: string
+  }>
+  instructions: Array<CompositionInstruction>
+  prompts: Array<CompositionSnapshotPromptData>
+  skills: Array<CompositionSkillInfo>
+  tools: CompositionSnapshotToolInfo
+}
+
+export type CompositionSnapshotV2 = {
+  version: 2
+  digest: string
+  sessionID?: string
+  profilePath?: string
+  profileRevision?: string
+  createdAt: number
+  data: CompositionSnapshotDataV2
 }
 
 export type CompositionStartResponse = {
   session: SessionV2Info
-  snapshot: CompositionSnapshot
+  snapshot: CompositionSnapshotV1 | CompositionSnapshotV2
 }
 
 export type CompositionUpgradeInput = {
@@ -5286,18 +5382,6 @@ export type WorkflowAssetSummary = {
 export type WorkflowAssetInvalidEntry = {
   relativePath: string
   errorTag: "parse_error" | "bad_frontmatter" | "name_conflict"
-}
-
-export type WorkflowAssetStepDef = {
-  id: string
-  name: string
-  agent: string
-  input: unknown
-  next?: string
-  branches?: {
-    [key: string]: string
-  }
-  parallel?: Array<string>
 }
 
 export type WorkflowAssetInfo = {
@@ -15437,7 +15521,7 @@ export type SessionCompositionResponses = {
   /**
    * Session composition snapshot
    */
-  200: CompositionSnapshot
+  200: CompositionSnapshotV1 | CompositionSnapshotV2
 }
 
 export type SessionCompositionResponse = SessionCompositionResponses[keyof SessionCompositionResponses]
@@ -16426,7 +16510,7 @@ export type V2SessionCustomResponses = {
    */
   200: {
     data: SessionV2Info
-    snapshot: CompositionSnapshot
+    snapshot: CompositionSnapshotV1 | CompositionSnapshotV2
   }
 }
 

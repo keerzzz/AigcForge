@@ -26,6 +26,14 @@ export interface CustomDraftSkill {
   name?: string
 }
 
+export interface CustomDraftWorkflow {
+  kind: "workflow"
+  relativePath: string
+  revision: string
+  name?: string
+  description?: string
+}
+
 export interface CustomDraftBinding {
   prompts: CustomDraftPrompt[]
   skills: CustomDraftSkill[]
@@ -38,6 +46,7 @@ export interface CustomDraftState {
   title: string
   primaryAgent: string
   agents: CustomDraftAgent[]
+  workflow?: CustomDraftWorkflow
   bindings: Record<string, CustomDraftBinding>
   requestedCapabilities: string[]
   presentation: "native"
@@ -156,9 +165,10 @@ export function createCustomDraftState(
           const exists = binding.prompts.some((p) => p.relativePath === prompt.relativePath)
           if (exists) {
             binding.prompts = binding.prompts.filter((p) => p.relativePath !== prompt.relativePath)
-          } else {
-            binding.prompts.push(prompt)
+            draft.bindings[consumer] = binding
+            return
           }
+          binding.prompts.push(prompt)
           draft.bindings[consumer] = binding
         }),
       )
@@ -170,9 +180,10 @@ export function createCustomDraftState(
           const exists = binding.skills.some((s) => s.relativePath === skill.relativePath)
           if (exists) {
             binding.skills = binding.skills.filter((s) => s.relativePath !== skill.relativePath)
-          } else {
-            binding.skills.push(skill)
+            draft.bindings[consumer] = binding
+            return
           }
+          binding.skills.push(skill)
           draft.bindings[consumer] = binding
         }),
       )
@@ -183,9 +194,9 @@ export function createCustomDraftState(
           const idx = draft.requestedCapabilities.indexOf(cap)
           if (idx >= 0) {
             draft.requestedCapabilities.splice(idx, 1)
-          } else {
-            draft.requestedCapabilities.push(cap)
+            return
           }
+          draft.requestedCapabilities.push(cap)
         }),
       )
     },
@@ -196,15 +207,35 @@ export function createCustomDraftState(
       setState(
         produce((draft) => {
           draft.source = "temporary"
-          draft.primaryAgent = snapshot.data.agentID
-          draft.agents = [
-            {
+          if (snapshot.version === 1) {
+            draft.primaryAgent = snapshot.data.agentID
+            draft.agents = [
+              {
+                kind: "agent",
+                relativePath: `${snapshot.data.agentID}.md`,
+                revision: "",
+                name: snapshot.data.agentID,
+              },
+            ]
+          } else {
+            draft.primaryAgent = snapshot.data.agents[0]?.name ?? snapshot.data.agents[0]?.id ?? "coder"
+            draft.agents = snapshot.data.agents.map((a) => ({
               kind: "agent",
-              relativePath: `${snapshot.data.agentID}.md`,
-              revision: "",
-              name: snapshot.data.agentID,
-            },
-          ]
+              relativePath: a.relativePath,
+              revision: a.revision,
+              name: a.name,
+              description: a.description,
+            }))
+            if (snapshot.data.workflow) {
+              draft.workflow = {
+                kind: "workflow",
+                relativePath: snapshot.data.workflow.relativePath,
+                revision: snapshot.data.workflow.revision,
+                name: snapshot.data.workflow.name,
+                description: snapshot.data.workflow.description,
+              }
+            }
+          }
           const prompts: CustomDraftPrompt[] = snapshot.data.prompts.map((p) => ({
             kind: "prompt",
             relativePath: p.relativePath,

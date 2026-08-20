@@ -512,7 +512,7 @@ export const layer = Layer.effect(
         .toSorted((a, b) => a.name.localeCompare(b.name))
       const toolNames = fingerprints.map((fingerprint) => fingerprint.name)
       const catalogDigest = computeDigest(fingerprints)
-      const snapshotData = new Composition.SnapshotData({
+      const snapshotData = new Composition.SnapshotDataV1({
         agentID: plan.agent?.id ?? "default",
         instructions: plan.instructions,
         prompts: promptData,
@@ -524,7 +524,7 @@ export const layer = Layer.effect(
         }),
       })
 
-      return new Composition.Snapshot({
+      return new Composition.SnapshotV1({
         version: 1,
         digest: plan.digest,
         sessionID: input.sessionID,

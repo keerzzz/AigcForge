@@ -280,12 +280,12 @@ const makeSnapshot = (
   tools: Composition.SnapshotToolInfo,
   skills: Composition.SkillInfo[] = [],
 ) =>
-  new Composition.Snapshot({
+  new Composition.SnapshotV1({
     version: 1,
     digest: mockDigest,
     sessionID,
     createdAt: Date.now(),
-    data: new Composition.SnapshotData({
+    data: new Composition.SnapshotDataV1({
       agentID: "meta",
       instructions: [],
       prompts: [],
