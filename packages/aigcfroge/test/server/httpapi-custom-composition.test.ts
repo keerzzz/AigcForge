@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test"
+import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import fs from "fs/promises"
 import path from "path"
 import { Context, Schema } from "effect"
@@ -10,6 +10,8 @@ import { resetDatabase } from "../fixture/db"
 import { disposeAllInstances, tmpdir } from "../fixture/fixture"
 
 const context = Context.makeUnsafe<unknown>(new Map())
+
+let savedCustomMode: string | undefined
 
 function request(route: string, directory: string, init?: RequestInit) {
   const headers = new Headers(init?.headers)
@@ -26,9 +28,16 @@ function request(route: string, directory: string, init?: RequestInit) {
   )
 }
 
+beforeEach(() => {
+  savedCustomMode = process.env["AIGCFROGE_CUSTOM_MODE"]
+  process.env["AIGCFROGE_CUSTOM_MODE"] = "true"
+})
+
 afterEach(async () => {
   await disposeAllInstances()
   await resetDatabase()
+  if (savedCustomMode === undefined) delete process.env["AIGCFROGE_CUSTOM_MODE"]
+  else process.env["AIGCFROGE_CUSTOM_MODE"] = savedCustomMode
 })
 
 describe("custom composition HttpApi", () => {

@@ -85,11 +85,29 @@ export interface EventsInput {
   readonly after?: number
 }
 
+import { SessionComposition } from "../session/composition"
+
 export interface Interface {
-  readonly create: (input: CreateInput) => Effect.Effect<Info, ProductModePolicy.UnsupportedProductModeError>
+  readonly create: (input: CreateInput) => Effect.Effect<
+    Info,
+    | ProductModePolicy.UnsupportedProductModeError
+    | PromptConflictError
+    | SessionComposition.SnapshotNotFoundError
+    | SessionComposition.SnapshotDecodeError
+    | SessionComposition.AgentDelegationForbiddenError
+  >
   readonly get: (sessionID: ID) => Effect.Effect<Info, NotFoundError>
   readonly list: (input?: ListInput) => Effect.Effect<Info[]>
-  readonly prompt: (input: PromptInput) => Effect.Effect<Admission, NotFoundError | PromptConflictError | ProductModePolicy.UnsupportedProductModeError>
+  readonly prompt: (
+    input: PromptInput,
+  ) => Effect.Effect<
+    Admission,
+    | NotFoundError
+    | PromptConflictError
+    | ProductModePolicy.UnsupportedProductModeError
+    | SessionComposition.SnapshotNotFoundError
+    | SessionComposition.SnapshotDecodeError
+  >
   readonly switchModel: (input: SwitchModelInput) => Effect.Effect<void, NotFoundError | ProductModePolicy.UnsupportedProductModeError>
   /** Interrupt the active V2 execution chain for one Session on this process. Interrupting an idle or missing Session is a no-op. */
   readonly interrupt: (sessionID: ID) => Effect.Effect<void>

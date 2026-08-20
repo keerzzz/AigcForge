@@ -6,7 +6,7 @@ import { WorkspaceRoutingMiddleware, WorkspaceRoutingQueryFields } from "../midd
 import { described } from "./metadata"
 import { Composition } from "@aigcfroge/schema/composition"
 import { CustomProfile } from "@aigcfroge/schema/custom-profile"
-import { InvalidRequestError } from "../errors"
+import { InvalidRequestError, SessionBusyError, SessionNotFoundError } from "../errors"
 import { Authorization } from "../middleware/authorization"
 import { InstanceContextMiddleware } from "../middleware/instance-context"
 
@@ -29,6 +29,8 @@ export const ReferencesResponse = Schema.Struct({
 
 export const CustomCompositionPaths = {
   plan: `${root}/plan`,
+  start: `${root}/start`,
+  upgrade: `${root}/upgrade`,
   health: `${root}/health`,
   references: `${root}/references`,
 } as const
@@ -46,6 +48,31 @@ export const CustomCompositionApi = HttpApi.make("custom-composition").add(
           identifier: "custom-composition.plan",
           summary: "Resolve custom composition plan",
           description: "Resolve a proposed composition input into a deterministic execution plan.",
+        }),
+      ),
+      HttpApiEndpoint.post("start", CustomCompositionPaths.start, {
+        query: Schema.Struct(WorkspaceRoutingQueryFields),
+        payload: Composition.StartInput,
+        success: described(Composition.StartResponse, "Started custom session and snapshot"),
+        error: InvalidRequestError,
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "custom-composition.start",
+          summary: "Start atomic custom composition session",
+          description: "Freeze latest facts, create atomic custom session and snapshot.",
+        }),
+      ),
+      HttpApiEndpoint.post("upgrade", CustomCompositionPaths.upgrade, {
+        query: Schema.Struct(WorkspaceRoutingQueryFields),
+        payload: Composition.UpgradeInput,
+        success: described(Composition.StartResponse, "Upgraded custom session and snapshot"),
+        error: [InvalidRequestError, SessionNotFoundError, SessionBusyError],
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "custom-composition.upgrade",
+          summary: "Upgrade custom session composition",
+          description:
+            "Freeze a new composition for an idle custom source session, creating a new custom session and snapshot without mutating the source.",
         }),
       ),
       HttpApiEndpoint.get("health", CustomCompositionPaths.health, {

@@ -31,6 +31,10 @@ export const layer = Layer.effect(
       interrupt: coordinator.interrupt,
       resume: coordinator.run,
       wake: coordinator.wake,
+      isActive: (sessionID) => {
+        const seam = SessionExecution.isBusySeamActive(sessionID)
+        return seam !== undefined ? Effect.succeed(seam) : coordinator.isActive(sessionID)
+      },
     })
   }),
 )

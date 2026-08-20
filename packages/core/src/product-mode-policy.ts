@@ -2,6 +2,7 @@ export * as ProductModePolicy from "./product-mode-policy"
 
 import { Effect, Schema } from "effect"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { Flag } from "./flag/flag"
 
 export const CAPABILITY_CUSTOM_V1 = "product-mode-custom-v1"
 export const CAPABILITIES_HEADER = "x-aigcfroge-capabilities"
@@ -29,6 +30,18 @@ export function isCustomCapable(header: string | undefined | null): boolean {
   const caps = parseCapabilities(header)
   return caps.has(CAPABILITY_CUSTOM_V1)
 }
+
+/**
+ * Server-side kill switch for custom mode, read at access time so tests and
+ * tooling can toggle it at runtime. Fail-closed: default off. Consumed only at
+ * HTTP gates; the domain layer (createCustom/upgradeCustom) stays flag-free.
+ */
+export function isCustomModeEnabled(): boolean {
+  return Flag.AIGCFROGE_CUSTOM_MODE
+}
+
+export const CUSTOM_MODE_DISABLED_MESSAGE =
+  "Custom mode is disabled on this server. Set AIGCFROGE_CUSTOM_MODE=true to enable it."
 
 export function isModeSupported(mode: string | undefined, header?: string | null): boolean {
   const resolved = mode ?? ProductMode.Default
@@ -61,15 +74,30 @@ export function assertCreationSupported(mode: string | undefined): Effect.Effect
 
 export function assertRuntimeSupported(mode: string | undefined): Effect.Effect<void, UnsupportedProductModeError> {
   const resolved = mode ?? ProductMode.Default
-  if (resolved === "custom") {
-    return Effect.fail(
-      new UnsupportedProductModeError({
-        mode: resolved,
-        message: `Custom session runtime is not available before M1 composition snapshot support.`,
-      }),
-    )
+  if (
+    resolved === "custom" ||
+    resolved === "chat" ||
+    resolved === "coding" ||
+    resolved === "work" ||
+    resolved === "assistant"
+  ) {
+    return Effect.void
   }
-  return assertCreationSupported(resolved)
+  return Effect.fail(
+    new UnsupportedProductModeError({
+      mode: resolved,
+      message: `Unknown or unsupported product mode "${resolved}"`,
+    }),
+  )
+}
+
+export function isV2Mode(mode: string | undefined): boolean {
+  return mode === "custom"
+}
+
+export function shouldUseV2Runtime(mode: string | undefined, globalFlag: boolean): boolean {
+  if (mode === "custom") return true
+  return globalFlag
 }
 
 export function isSessionSupported(

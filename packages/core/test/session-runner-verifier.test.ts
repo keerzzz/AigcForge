@@ -21,6 +21,7 @@ import { SessionExecution } from "../src/session/execution"
 import { SessionRunCoordinator } from "../src/session/run-coordinator"
 import { Prompt } from "../src/session/prompt"
 import { SessionV2 } from "../src/session"
+import { SessionComposition } from "../src/session/composition"
 import { SessionTable } from "../src/session/sql"
 import { EventTable } from "../src/event/sql"
 import { SessionEvent } from "../src/session/event"
@@ -135,7 +136,9 @@ const appProcess = Layer.mock(AppProcess.Service, {
       stderrTruncated: false,
     }),
 })
+const sessionComposition = SessionComposition.layer.pipe(Layer.provide(Database.defaultLayer))
 const runner = SessionRunnerLLM.defaultLayer.pipe(
+  Layer.provide(sessionComposition),
   Layer.provide(appProcess),
   Layer.provide(skillV2),
   Layer.provide(Database.defaultLayer),
@@ -145,6 +148,7 @@ const runner = SessionRunnerLLM.defaultLayer.pipe(
   Layer.provide(registry),
   Layer.provide(models),
   Layer.provide(systemContext),
+).pipe(
   Layer.provide(location),
   Layer.provide(agents),
   Layer.provide(skillGuidance),
@@ -185,6 +189,7 @@ const execution = Layer.effect(
       resume: coordinator.run,
       wake: coordinator.wake,
       interrupt: coordinator.interrupt,
+      isActive: coordinator.isActive,
     })
   }),
 ).pipe(Layer.provide(runner))
@@ -193,6 +198,7 @@ const sessions = SessionV2.layer.pipe(
   Layer.provide(Database.defaultLayer),
   Layer.provide(SessionStore.defaultLayer),
   Layer.provide(Project.defaultLayer),
+  Layer.provide(sessionComposition),
   Layer.provide(execution),
 )
 const it = testEffect(
@@ -202,6 +208,7 @@ const it = testEffect(
     questions,
     SessionProjector.defaultLayer,
     SessionStore.defaultLayer,
+    sessionComposition,
     client,
     permission,
     applications,

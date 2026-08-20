@@ -23,6 +23,7 @@ const execution = Layer.succeed(
   SessionExecution.Service.of({
     resume: () => Effect.void,
     interrupt: () => Effect.void,
+    isActive: () => Effect.succeed(false),
     wake: (sessionID) =>
       Effect.sync(() => {
         wakeCalls.push(sessionID)

@@ -23,6 +23,7 @@ import { PermissionV2 } from "@aigcfroge/core/permission"
 import { Project } from "@aigcfroge/core/project"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionV2 } from "@aigcfroge/core/session"
+import { SessionComposition } from "@aigcfroge/core/session/composition"
 import { SessionExecution } from "@aigcfroge/core/session/execution"
 import { SessionProjector } from "@aigcfroge/core/session/projector"
 import { SessionRunCoordinator } from "@aigcfroge/core/session/run-coordinator"
@@ -176,7 +177,9 @@ const skillV2 = Layer.succeed(
   SkillV2.Service,
   SkillV2.Service.of({ list: () => Effect.succeed([]) } as unknown as SkillV2.Interface),
 )
+const sessionComposition = SessionComposition.layer.pipe(Layer.provide(Database.defaultLayer))
 const runner = SessionRunnerLLM.layer.pipe(
+  Layer.provide(sessionComposition),
   Layer.provide(appProcess),
   Layer.provide(skillV2),
   Layer.provide(Database.defaultLayer),
@@ -186,6 +189,7 @@ const runner = SessionRunnerLLM.layer.pipe(
   Layer.provide(registry),
   Layer.provide(models),
   Layer.provide(systemContext),
+).pipe(
   Layer.provide(location),
   Layer.provide(agents),
   Layer.provide(skillGuidance),
@@ -228,6 +232,7 @@ const execution = Layer.effect(
       resume: coordinator.run,
       wake: coordinator.wake,
       interrupt: coordinator.interrupt,
+      isActive: coordinator.isActive,
     })
   }),
 ).pipe(Layer.provide(runner))
@@ -238,6 +243,7 @@ const sessions = SessionV2.layer.pipe(
   Layer.provide(Database.defaultLayer),
   Layer.provide(SessionStore.defaultLayer),
   Layer.provide(Project.defaultLayer),
+  Layer.provide(sessionComposition),
   Layer.provide(execution),
 )
 
@@ -248,6 +254,7 @@ const it = testEffect(
     EventV2.defaultLayer,
     SessionProjector.defaultLayer,
     SessionStore.defaultLayer,
+    sessionComposition,
     client,
     permission,
     applications,

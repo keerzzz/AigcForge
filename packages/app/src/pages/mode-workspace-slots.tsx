@@ -34,6 +34,10 @@ import { assetVersion } from "@/components/chat/prompt-asset-store"
 import { buildWorkPresetCatalog } from "@/pages/work-preset-catalog"
 import { presetLaunch, workflowLaunch } from "@/pages/work-preset-launch"
 import { ModeLocationNewSession } from "@/components/mode-location-new-session"
+import { CustomProjectColumnSidebar as CustomSidebar } from "@/components/custom/custom-sidebar"
+import { CustomCompositionConfig } from "@/components/custom/custom-builder-main"
+import { CustomPlanPreviewColumn } from "@/components/custom/custom-preview-column"
+import { CustomDraftProvider } from "@/context/custom-draft"
 
 /** Coding project and server navigation built on HomeProjectColumn. */
 export function CodingProjectColumnSidebar() {
@@ -767,5 +771,42 @@ export function WorkPresetCatalogMain() {
         </For>
       </div>
     </ScrollView>
+  )
+}
+
+/** Custom location and asset navigation sidebar. */
+export function CustomProjectColumnSidebar() {
+  const { directory, ctx } = useModeDirectory()
+  const dirSdk = createMemo(() => {
+    const dir = directory()
+    const currentCtx = ctx()
+    if (!dir || !currentCtx) return undefined
+    return currentCtx.sdk.ensureDirSdkContext(dir)
+  })
+
+  return (
+    <CustomDraftProvider directory={() => directory() ?? ""}>
+      <CustomSidebar dirSdk={dirSdk} />
+    </CustomDraftProvider>
+  )
+}
+
+/** Custom mode builder main workspace. */
+export function CustomSessionListMain() {
+  const { directory, ctx } = useModeDirectory()
+  const dirSdk = createMemo(() => {
+    const dir = directory()
+    const currentCtx = ctx()
+    if (!dir || !currentCtx) return undefined
+    return currentCtx.sdk.ensureDirSdkContext(dir)
+  })
+
+  return (
+    <CustomDraftProvider directory={() => directory() ?? ""}>
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 h-full min-h-0 flex-1 overflow-y-auto px-4 pb-8">
+        <CustomCompositionConfig />
+        <CustomPlanPreviewColumn dirSdk={dirSdk} />
+      </div>
+    </CustomDraftProvider>
   )
 }

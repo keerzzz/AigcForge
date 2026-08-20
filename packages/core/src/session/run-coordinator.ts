@@ -10,6 +10,8 @@ export interface Coordinator<Key, E> {
   readonly wake: (key: Key) => Effect.Effect<void>
   /** Stops active execution and waits for its cleanup. */
   readonly interrupt: (key: Key) => Effect.Effect<void>
+  /** Reports whether the key has in-flight or scheduled work in this process. */
+  readonly isActive: (key: Key) => Effect.Effect<boolean>
 }
 
 type Entry<E> = {
@@ -98,5 +100,7 @@ export const make = <Key, E>(options: {
         return Fiber.interrupt(entry.owner)
       })
 
-    return { run, wake, interrupt }
+    const isActive = (key: Key) => Effect.sync(() => active.has(key))
+
+    return { run, wake, interrupt, isActive }
   })

@@ -109,12 +109,13 @@ export function checkPrimaryAgent(mode: string, agent?: string): PolicyVerdict {
   }
 
   if (mode === "custom") {
+    if (agent === META) return { allowed: true }
     return {
       allowed: false,
       error: new AgentNotAllowedError({
         mode,
         agent,
-        reason: "Custom mode execution requires an active M1 composition runtime with an immutable snapshot",
+        reason: "Only meta is allowed as root agent in custom mode",
       }),
     }
   }

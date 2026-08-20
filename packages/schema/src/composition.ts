@@ -1,6 +1,5 @@
-export * as Composition from "./composition"
-
 import { Schema } from "effect"
+import { Session } from "./session"
 
 // Branded types
 export const Digest = Schema.String.pipe(
@@ -199,8 +198,29 @@ export class Snapshot extends Schema.Class<Snapshot>("Composition.Snapshot")({
   data: SnapshotData,
 }) {}
 
+export class StartInput extends Schema.Class<StartInput>("Composition.StartInput")({
+  sessionID: Schema.optional(Schema.String),
+  composition: CompositionInput,
+  expectedPlanDigest: Schema.optional(Digest),
+  title: Schema.optional(Schema.String),
+}) {}
+
+export class UpgradeInput extends Schema.Class<UpgradeInput>("Composition.UpgradeInput")({
+  sessionID: Schema.String,
+  composition: CompositionInput,
+  expectedPlanDigest: Schema.optional(Digest),
+  title: Schema.optional(Schema.String),
+}) {}
+
+export class StartResponse extends Schema.Class<StartResponse>("Composition.StartResponse")({
+  session: Session.Info,
+  snapshot: Snapshot,
+}) {}
+
 export class ResolveError extends Schema.TaggedErrorClass<ResolveError>()("Composition.ResolveError", {
   code: Schema.String,
   message: Schema.String,
   diagnostics: Schema.optional(Schema.Array(Diagnostic)),
 }) {}
+
+export * as Composition from "./composition"

@@ -38,7 +38,9 @@ import type {
   CommandListErrors,
   CommandListResponses,
   CompositionProfileInput,
+  CompositionStartInput,
   CompositionTemporaryInput,
+  CompositionUpgradeInput,
   Config as Config3,
   ConfigGetErrors,
   ConfigGetResponses,
@@ -52,6 +54,10 @@ import type {
   CustomCompositionPlanResponses,
   CustomCompositionReferencesErrors,
   CustomCompositionReferencesResponses,
+  CustomCompositionStartErrors,
+  CustomCompositionStartResponses,
+  CustomCompositionUpgradeErrors,
+  CustomCompositionUpgradeResponses,
   CustomProfileApplyErrors,
   CustomProfileApplyResponses,
   CustomProfileCandidate,
@@ -297,6 +303,8 @@ import type {
   SessionChildrenResponses,
   SessionCommandErrors,
   SessionCommandResponses,
+  SessionCompositionErrors,
+  SessionCompositionResponses,
   SessionCreateErrors,
   SessionCreateResponses,
   SessionDeleteErrors,
@@ -483,6 +491,8 @@ import type {
   V2SessionContextResponses,
   V2SessionCreateErrors,
   V2SessionCreateResponses,
+  V2SessionCustomErrors,
+  V2SessionCustomResponses,
   V2SessionForkErrors,
   V2SessionForkResponses,
   V2SessionGetErrors,
@@ -4621,6 +4631,88 @@ export class CustomComposition extends HeyApiClient {
   }
 
   /**
+   * Start atomic custom composition session
+   *
+   * Freeze latest facts, create atomic custom session and snapshot.
+   */
+  public start<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      compositionStartInput?: CompositionStartInput
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { key: "compositionStartInput", map: "body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      CustomCompositionStartResponses,
+      CustomCompositionStartErrors,
+      ThrowOnError
+    >({
+      url: "/custom-composition/start",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Upgrade custom session composition
+   *
+   * Freeze a new composition for an idle custom source session, creating a new custom session and snapshot without mutating the source.
+   */
+  public upgrade<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      compositionUpgradeInput?: CompositionUpgradeInput
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { key: "compositionUpgradeInput", map: "body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      CustomCompositionUpgradeResponses,
+      CustomCompositionUpgradeErrors,
+      ThrowOnError
+    >({
+      url: "/custom-composition/upgrade",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
    * Check profile health
    *
    * Check the health and asset freshness of a stored custom profile.
@@ -6929,6 +7021,38 @@ export class Session2 extends HeyApiClient {
     })
   }
 
+  /**
+   * Get session composition snapshot
+   *
+   * Retrieve the immutable composition snapshot for a custom session.
+   */
+  public composition<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionCompositionResponses, SessionCompositionErrors, ThrowOnError>({
+      url: "/session/{sessionID}/composition",
+      ...options,
+      ...params,
+    })
+  }
+
   private _task?: Task
   get task(): Task {
     return (this._task ??= new Task({ client: this.client }))
@@ -7941,6 +8065,47 @@ export class Session3 extends HeyApiClient {
     )
     return (options?.client ?? this.client).post<V2SessionCreateResponses, V2SessionCreateErrors, ThrowOnError>({
       url: "/api/session",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Create custom session
+   *
+   * Atomically freeze composition into an immutable snapshot and create a custom session.
+   */
+  public custom<ThrowOnError extends boolean = false>(
+    parameters?: {
+      id?: string
+      composition?: CompositionTemporaryInput | CompositionProfileInput
+      expectedPlanDigest?: string
+      location?: LocationRef
+      title?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "id" },
+            { in: "body", key: "composition" },
+            { in: "body", key: "expectedPlanDigest" },
+            { in: "body", key: "location" },
+            { in: "body", key: "title" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<V2SessionCustomResponses, V2SessionCustomErrors, ThrowOnError>({
+      url: "/api/session/custom",
       ...options,
       ...params,
       headers: {

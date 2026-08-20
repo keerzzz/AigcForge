@@ -53,16 +53,14 @@
 | 阶段 | 名称 | 核心范围 | 关键依赖 | 状态 |
 |---|---|---|---|---|
 | —    | **ADR-17 正式评审**       | Product/Core/App/Security/Schema+SDK 五方评审与签字                                   | —                        | 已完成（用户授权 AI 代理代签，2026-08-18） |
-| M0   | 治理与组合底座            | 第五 Mode、Profile/Plan/Snapshot、AssetRef、Resolver                                  | ADR-17 批准              | Phase A-F 连续执行获准                     |
-| M1 | 单 Agent 可恢复闭环 | `meta` + 一个用户 Agent + Prompt/Skill + native | M0 | 待启动 |
+| M0   | 治理与组合底座            | 第五 Mode、Profile/Plan/Snapshot、AssetRef、Resolver                                  | ADR-17 批准              | 已完成（Phase A-F） |
+| M1 | 单 Agent 可恢复闭环 | `meta` + 一个用户 Agent + Prompt/Skill + native + Upgrade + UI Phase E + 50 轮稳定性矩阵 | M0 | 已完成（Waves W1-W4，2026-08-19） |
 | M2 | 多 Agent 与编排 | Agent 池、Command、Workflow、进度、取消、部分成功 | M1 | 远期 |
 | M3 | MCP 与审批 | scoped registration、凭证、健康、统一审批入口（含 once/Session/Location grant model） | M1 + Tool Registry 扩展 | 远期 |
 | M4 | Trusted Runtime Extension | Host/Agent/Client 分面、信任、停止、隔离、回滚 | M3 + Plugin 生命周期 ADR | 远期 |
 | M5 | Code Presentation | `run_code` + 受限 SDK，共用 Effective Tool Set | M3/M4 稳定 | 远期 |
 
 > 与权限档位的接口约定：Custom M0/M1 必须定义 mode ceiling 与 Snapshot allowlist；应用级审批入口与 grant model 属 Custom M3（权限档位计划明确"不自动批准"）。
-
-> M0 de-scope（来源：M0 remediation re-review LOW-2，`docs/review/AigcForge_CUSTOM_M0_REMEDIATION_REREVIEW_2026-08-18.md`）：`packages/core/src/skill/composition-catalog.ts` 的 `createCompositionSkillCatalog` 是 M0 Phase D 声明的 composition-local Skill catalog seam，仅有测试引用、无生产 caller。评估结论：Resolver/Snapshot 的 skills 真源是带 revision 的 SkillAsset registry（精确 path 解析），而该 catalog 过滤的是 Runner 期无 revision 的 `SkillV2.Info` 视图，接进 resolve/freeze 只会对已精确解析的绑定集合做有损二次过滤，语义不成立；其真实消费点是 M1 Runner（实施计划 §5.3：Custom Session 的 Skill guidance 与 `skill` tool lookup 读取 Snapshot-local catalog）。**触发条件**：M1 Runner 接线 Snapshot skill catalog 时由 Runner 侧消费，并移除文件顶部 de-scope 注释；若 M1 设计放弃该 seam，则连测试一并删除。
 
 ---
 
@@ -81,6 +79,8 @@
 | 资产 apply/delete 缺非会话路由，工作台伪造 sessionID | aigcfroge / app | 路由为 `/session/:sessionID/<kind>-asset/...`，模式首页无会话上下文，前端填 `"ses-home-delete"`；`SessionID` 只校验 `startsWith("ses")` 故静默通过，审计归属链断裂（PRD §8.3.1 已声明 sessionID 非写边界前提，故非安全缺陷）。范围与决定见 [Chat PRD §20.6](../docs/prd/chat-mode-creation-layer.md) | TBD | 下次资产端点改动时 |
 | P1-10: `resolveSecurePath` 零调用者死代码 | core | `fs-util.ts:257` 的 `resolveSecurePath(worktree, target)` 全仓无调用者（2026-08-14 审计点名），是 fs 工具层的历史残留；可能误导后续路径安全实现去复用一个未经验证的封装。根治：确认无消费方后删除，或纳入统一路径安全封装 | TBD | 下次 fs 层清理时 |
 | 存量 `catch (e: any)` 3 处 | core / aigcfroge | main 既有（非分支新增，不违反 No Cheating 新增门禁）：`fs-util.ts:234` 用 `e?.code === "ENOENT"`（ErrnoException）；`session/llm.ts:143` 用 `e.message ?? String(e)`（LLM SDK 可能抛带 `.message` 的普通对象，`instanceof Error` 改写会变 `[object Object]`，须保留 `.message` 访问语义）；`cli/cmd/github.handler.ts:631` 本体已内部 instanceof 收窄，近乎免费。根治：逐 site 核对语义后改 `instanceof Error` + 类型守卫 | TBD | 下次各自模块清理时 |
+| `SessionExecution.setBusySeamForTesting` 全局测试 seam 位于生产模块 | core | `session/execution.ts` 模块级可变状态，`execution/local.ts` 真实 `isActive` 每次调用都经过该 seam；仅测试可设置且有 finalizer 复位，但生产代码路径携带测试后门，误用会让 busy 判定说谎。根治：实例 HttpApi 测试装配（`HttpApiApp.routes`）暴露 SessionExecution 注入点，或 busy 场景改用真实 drain 构造（挂起 LLM stub + busy 信号轮询） | TBD | 测试装配层改造时 |
+| Custom kill switch 仅覆盖创建面，无 drain 级执行阻断 | core / aigcfroge | `AIGCFROGE_CUSTOM_MODE` 关闭时 plan/start/upgrade/session.custom fail-closed、历史可读，但 flag-on 期间已创建的 custom 会话仍可 prompt 并继续 drain；M1 评审接受该语义（创建即授权，避免 mid-turn 搁浅），若运营需要"立即停跑"语义需补 runner/execution 层阻断 | TBD | 需要执行级 kill 语义时 |
 
 ---
 
@@ -90,3 +90,4 @@
 |---|---|---|
 | Chat 模式下 meta 默认权限依赖前置拦截（fail-open 信封） | 2026-08-16 | `session-permission-tier`（meta V1/V2 基线 fail-closed + `PermissionEffective`） |
 | meta 非 coding 模式委派 build 死路 | 2026-08-16 | `session-permission-tier`（Phase 5） |
+| Custom M0 de-scope：`createCompositionSkillCatalog` seam 无生产 caller | 2026-08-19 | `custom-rollout`（M1 Runner 接线消费：skill tool lookup 与 skill steer 均走 Snapshot-local catalog，缺行/解码失败/漂移 fail-closed） |

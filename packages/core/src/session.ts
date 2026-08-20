@@ -1,8 +1,9 @@
 export * as SessionV2 from "./session"
 export * from "./session/schema"
 
-import { DateTime, Effect, Layer, Schema, Context, Stream } from "effect"
+import { DateTime, Effect, Layer, Schema, Context, Stream, Option } from "effect"
 import { ListAnchor } from "@aigcfroge/schema/session"
+import { Composition } from "@aigcfroge/schema/composition"
 import { and, asc, desc, eq, gt, like, lt, or, type SQL } from "drizzle-orm"
 import { ProjectV2 } from "./project"
 import { WorkspaceV2 } from "./workspace"
@@ -26,10 +27,13 @@ import { Slug } from "./util/slug"
 import { ProductModeAgentPolicy } from "./product-mode-agent-policy"
 import { ProductModePolicy } from "./product-mode-policy"
 import { ProjectTable } from "./project/sql"
+import { SessionComposition } from "./session/composition"
+import { CompositionResolver } from "./composition-resolver"
+import { LocationServiceMap } from "./location-layer"
 import path from "path"
 import { fromRow } from "./session/info"
-import { SessionRunner } from "./session/runner/index"
 import { SessionStore } from "./session/store"
+import type { SessionRunner } from "./session/runner/index"
 import { SessionExecution } from "./session/execution"
 import { MessageDecodeError } from "./session/error"
 import { SessionEvent } from "./session/event"
@@ -85,6 +89,21 @@ type CreateInput = {
   title?: string
 }
 
+export class CreateCustomInput extends Schema.Class<CreateCustomInput>("Session.CreateCustomInput")({
+  id: Schema.optional(SessionSchema.ID),
+  location: Location.Ref,
+  composition: Composition.CompositionInput,
+  expectedPlanDigest: Schema.optional(Composition.Digest),
+  title: Schema.optional(Schema.String),
+}) {}
+
+export class UpgradeCustomInput extends Schema.Class<UpgradeCustomInput>("Session.UpgradeCustomInput")({
+  sessionID: SessionSchema.ID,
+  composition: Composition.CompositionInput,
+  expectedPlanDigest: Schema.optional(Composition.Digest),
+  title: Schema.optional(Schema.String),
+}) {}
+
 type CompactInput = {
   sessionID: SessionSchema.ID
   prompt?: Prompt
@@ -108,11 +127,61 @@ export class PromptConflictError extends Schema.TaggedErrorClass<PromptConflictE
   messageID: SessionMessage.ID,
 }) {}
 
-export type Error = NotFoundError | MessageDecodeError | OperationUnavailableError | PromptConflictError | ProductModePolicy.UnsupportedProductModeError
+export class UpgradeSourceModeError extends Schema.TaggedErrorClass<UpgradeSourceModeError>()(
+  "Session.UpgradeSourceModeError",
+  {
+    sessionID: SessionSchema.ID,
+    mode: ProductMode.ID,
+  },
+) {}
+
+export class SessionBusyError extends Schema.TaggedErrorClass<SessionBusyError>()("Session.SessionBusyError", {
+  sessionID: SessionSchema.ID,
+}) {}
+
+export type Error =
+  | NotFoundError
+  | MessageDecodeError
+  | OperationUnavailableError
+  | PromptConflictError
+  | UpgradeSourceModeError
+  | SessionBusyError
+  | ProductModePolicy.UnsupportedProductModeError
+  | Composition.ResolveError
+  | SessionComposition.SnapshotNotFoundError
+  | SessionComposition.SnapshotDecodeError
+  | SessionComposition.SnapshotAlreadyExistsError
+  | SessionComposition.AgentDelegationForbiddenError
 
 export interface Interface {
   readonly list: (input?: ListInput) => Effect.Effect<SessionSchema.Info[]>
-  readonly create: (input: CreateInput) => Effect.Effect<SessionSchema.Info, ProductModePolicy.UnsupportedProductModeError>
+  readonly create: (input: CreateInput) => Effect.Effect<
+    SessionSchema.Info,
+    | ProductModePolicy.UnsupportedProductModeError
+    | PromptConflictError
+    | SessionComposition.SnapshotNotFoundError
+    | SessionComposition.SnapshotDecodeError
+    | SessionComposition.AgentDelegationForbiddenError
+  >
+  readonly createCustom: (input: CreateCustomInput) => Effect.Effect<
+    { session: SessionSchema.Info; snapshot: Composition.Snapshot },
+    | Composition.ResolveError
+    | PromptConflictError
+    | ProductModePolicy.UnsupportedProductModeError
+    | SessionComposition.SnapshotAlreadyExistsError
+    | SessionComposition.SnapshotDecodeError
+  >
+  readonly upgradeCustom: (input: UpgradeCustomInput) => Effect.Effect<
+    { session: SessionSchema.Info; snapshot: Composition.Snapshot },
+    | NotFoundError
+    | UpgradeSourceModeError
+    | SessionBusyError
+    | Composition.ResolveError
+    | PromptConflictError
+    | ProductModePolicy.UnsupportedProductModeError
+    | SessionComposition.SnapshotAlreadyExistsError
+    | SessionComposition.SnapshotDecodeError
+  >
   readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<SessionSchema.Info, NotFoundError>
   readonly children: (sessionID: SessionSchema.ID) => Effect.Effect<SessionSchema.Info[], NotFoundError>
   readonly messages: (input: {
@@ -149,22 +218,51 @@ export interface Interface {
     prompt: Prompt
     delivery?: SessionInput.Delivery
     resume?: boolean
-  }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError | ProductModePolicy.UnsupportedProductModeError>
+  }) => Effect.Effect<
+    SessionInput.Admitted,
+    | NotFoundError
+    | PromptConflictError
+    | ProductModePolicy.UnsupportedProductModeError
+    | SessionComposition.SnapshotNotFoundError
+    | SessionComposition.SnapshotDecodeError
+  >
   readonly shell: (input: {
     id?: SessionMessage.ID
     sessionID: SessionSchema.ID
     command: string
     resume?: boolean
-  }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError | ProductModePolicy.UnsupportedProductModeError>
+  }) => Effect.Effect<
+    SessionInput.Admitted,
+    | NotFoundError
+    | PromptConflictError
+    | ProductModePolicy.UnsupportedProductModeError
+    | SessionComposition.SnapshotNotFoundError
+    | SessionComposition.SnapshotDecodeError
+  >
   readonly skill: (input: {
     id?: SessionMessage.ID
     sessionID: SessionSchema.ID
     skill: string
     resume?: boolean
-  }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError | ProductModePolicy.UnsupportedProductModeError>
+  }) => Effect.Effect<
+    SessionInput.Admitted,
+    | NotFoundError
+    | PromptConflictError
+    | ProductModePolicy.UnsupportedProductModeError
+    | SessionComposition.SnapshotNotFoundError
+    | SessionComposition.SnapshotDecodeError
+  >
   readonly compact: (input: CompactInput) => Effect.Effect<void, NotFoundError | OperationUnavailableError>
   readonly wait: (id: SessionSchema.ID) => Effect.Effect<void, NotFoundError | OperationUnavailableError>
-  readonly resume: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError | SessionRunner.RunError>
+  readonly resume: (
+    sessionID: SessionSchema.ID,
+  ) => Effect.Effect<
+    void,
+    | NotFoundError
+    | SessionRunner.RunError
+    | SessionComposition.SnapshotNotFoundError
+    | SessionComposition.SnapshotDecodeError
+  >
   readonly injectSynthetic: (input: {
     sessionID: SessionSchema.ID
     text: string
@@ -183,6 +281,7 @@ export const layer = Layer.effect(
     const projects = yield* ProjectV2.Service
     const execution = yield* SessionExecution.Service
     const store = yield* SessionStore.Service
+    const sessionComposition = yield* SessionComposition.Service
     const decodeMessage = Schema.decodeUnknownEffect(SessionMessage.Message)
     const isDurableSessionEvent = Schema.is(SessionEvent.Durable)
     const decode = (row: typeof SessionMessageTable.$inferSelect) =>
@@ -196,6 +295,42 @@ export const layer = Layer.effect(
         ),
       )
 
+    const resolveCompositionResolver = (locationRef: Location.Ref) =>
+      Effect.gen(function* () {
+        const context = yield* Effect.context<never>()
+        const directResolver = Context.getOption(context, CompositionResolver.Service)
+        if (Option.isSome(directResolver)) return directResolver.value
+
+        const map = Context.getOption(context, LocationServiceMap)
+        if (Option.isSome(map)) {
+          const locLayer = map.value.get(locationRef)
+          return yield* CompositionResolver.Service.pipe(Effect.provide(locLayer), Effect.orDie)
+        }
+
+        return yield* Effect.die("No CompositionResolver or LocationServiceMap available in context")
+      })
+
+    const resolveAgent = (
+      input: CreateInput,
+      mode: ProductMode.ID,
+      parent: SessionSchema.Info | undefined,
+      parentSnapshot: Composition.Snapshot | undefined,
+    ) =>
+      Effect.gen(function* () {
+        if (parent && parentSnapshot) {
+          // A custom child inherits the parent's frozen composition. An omitted
+          // agent defaults to the snapshot's frozen agentID — the only identity
+          // the delegation gate allows; any other value is a typed rejection.
+          const agentID: string = input.agent ?? parentSnapshot.data.agentID
+          yield* sessionComposition.assertAgentAllowed(parent.id, agentID)
+          return AgentV2.ID.make(agentID)
+        }
+        if (mode === "custom") {
+          return AgentV2.ID.make(yield* ProductModeAgentPolicy.enforcePrimary(mode, input.agent))
+        }
+        return AgentV2.ID.make(yield* ProductModeAgentPolicy.enforcePrimary(mode, input.agent ?? parent?.agent))
+      })
+
     const result = Service.of({
       create: Effect.fn("V2Session.create")(function* (input) {
         const sessionID = input.id ?? SessionSchema.ID.create()
@@ -206,8 +341,18 @@ export const layer = Layer.effect(
         }
         const parent = input.parentID ? yield* store.get(input.parentID) : undefined
         const mode = parent?.mode ?? input.mode ?? ProductMode.Default
-        yield* ProductModePolicy.assertCreationSupported(mode)
-        const agent = yield* ProductModeAgentPolicy.enforcePrimary(mode, input.agent ?? parent?.agent)
+        if (mode === "custom") {
+          if (!parent) {
+            yield* ProductModePolicy.assertCreationSupported(mode)
+          }
+        } else {
+          yield* ProductModePolicy.assertCreationSupported(mode)
+        }
+        // A custom parent freezes its composition once; fetch the snapshot up
+        // front as the delegation contract (agent identity) and the digest
+        // baseline for child snapshot reconciliation after projection.
+        const parentSnapshot = parent?.mode === "custom" ? yield* sessionComposition.get(parent.id) : undefined
+        const agent = yield* resolveAgent(input, mode, parent, parentSnapshot)
         const project = yield* projects.resolve(input.location.directory)
         yield* db
           .insert(ProjectTable)
@@ -260,9 +405,138 @@ export const layer = Layer.effect(
                 )
             }),
           )
-        if (projected.type === "existing") return projected.session
+        if (projected.type === "existing") {
+          if (parentSnapshot) {
+            // Lost the projection race for a custom child: only an identical
+            // frozen digest reconciles the retry, anything else is a conflict.
+            const existing = yield* sessionComposition.read(sessionID)
+            if (!existing || existing.digest !== parentSnapshot.digest) {
+              return yield* new PromptConflictError({ sessionID, messageID: SessionMessage.ID.create() })
+            }
+          }
+          return projected.session
+        }
+        if (parent && parentSnapshot) {
+          const existing = yield* sessionComposition.read(sessionID)
+          if (existing && existing.digest !== parentSnapshot.digest) {
+            return yield* new PromptConflictError({ sessionID, messageID: SessionMessage.ID.create() })
+          }
+          if (!existing) {
+            yield* sessionComposition.copy(parent.id, sessionID).pipe(
+              Effect.catchTag(
+                "SessionComposition.SnapshotAlreadyExistsError",
+                () => new PromptConflictError({ sessionID, messageID: SessionMessage.ID.create() }),
+              ),
+            )
+          }
+        }
         // TODO: Restore recorded sessions onto replacement synchronized workspaces in a future API slice.
         return yield* result.get(sessionID).pipe(Effect.orDie)
+      }),
+      createCustom: Effect.fn("V2Session.createCustom")(function* (input) {
+        const sessionID = input.id ?? SessionSchema.ID.create()
+        const resolver = yield* resolveCompositionResolver(input.location)
+        const snapshot = yield* resolver.freeze({ input: input.composition, sessionID })
+
+        if (input.expectedPlanDigest && snapshot.digest !== input.expectedPlanDigest) {
+          return yield* new Composition.ResolveError({
+            code: "stale_composition_plan",
+            message: `Composition plan digest mismatch: expected ${input.expectedPlanDigest}, got ${snapshot.digest}`,
+          })
+        }
+
+        const recorded = yield* store.get(sessionID)
+        if (recorded) {
+          if (recorded.mode !== "custom") {
+            return yield* new PromptConflictError({ sessionID, messageID: SessionMessage.ID.create() })
+          }
+          const recordedSnapshot = yield* sessionComposition.read(sessionID)
+          if (recordedSnapshot && recordedSnapshot.digest === snapshot.digest) {
+            return { session: recorded, snapshot: recordedSnapshot }
+          }
+          return yield* new PromptConflictError({ sessionID, messageID: SessionMessage.ID.create() })
+        }
+
+        const project = yield* projects.resolve(input.location.directory)
+        yield* db
+          .insert(ProjectTable)
+          .values({ id: project.id, worktree: project.directory, vcs: project.vcs?.type, sandboxes: [] })
+          .onConflictDoNothing()
+          .run()
+          .pipe(Effect.orDie)
+
+        const now = Date.now()
+        const info = SessionV1.SessionInfo.make({
+          id: sessionID,
+          slug: Slug.create(),
+          version: InstallationVersion,
+          projectID: project.id,
+          mode: "custom",
+          directory: input.location.directory,
+          path: path.relative(project.directory, input.location.directory).replaceAll("\\", "/"),
+          workspaceID: input.location.workspaceID ? WorkspaceV2.ID.make(input.location.workspaceID) : undefined,
+          title: input.title ?? `Custom session - ${new Date(now).toISOString()}`,
+          agent: AgentV2.ID.make("meta"),
+          cost: 0,
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          time: { created: now, updated: now },
+          permissionTier: PermissionTier.Default,
+        })
+
+        const projected = yield* events
+          .publish(
+            SessionV1.Event.Created,
+            { sessionID, info },
+            {
+              location: input.location,
+              commit: () => sessionComposition.attach(sessionID, snapshot).pipe(Effect.orDie),
+            },
+          )
+          .pipe(
+            Effect.as({ type: "created" } as const),
+            Effect.catchDefect((defect) => {
+              if (!(defect instanceof SessionProjector.SessionAlreadyProjected)) {
+                return Effect.die(defect)
+              }
+              return store
+                .get(sessionID)
+                .pipe(
+                  Effect.flatMap((session) =>
+                    session ? Effect.succeed({ type: "existing", session } as const) : Effect.die(defect),
+                  ),
+                )
+            }),
+          )
+
+        if (projected.type === "existing") {
+          const existingSnapshot = yield* sessionComposition.read(sessionID)
+          if (existingSnapshot && existingSnapshot.digest === snapshot.digest) {
+            return { session: projected.session, snapshot: existingSnapshot }
+          }
+          return yield* new PromptConflictError({ sessionID, messageID: SessionMessage.ID.create() })
+        }
+
+        const createdSession = yield* result.get(sessionID).pipe(Effect.orDie)
+        return { session: createdSession, snapshot }
+      }),
+      upgradeCustom: Effect.fn("V2Session.upgradeCustom")(function* (input) {
+        const source = yield* result.get(input.sessionID)
+        if (source.mode !== "custom") {
+          return yield* new UpgradeSourceModeError({ sessionID: input.sessionID, mode: source.mode })
+        }
+        if (yield* execution.isActive(input.sessionID)) {
+          return yield* new SessionBusyError({ sessionID: input.sessionID })
+        }
+        // Upgrading never mutates the source session or its snapshot row: the
+        // new composition is frozen fresh at the source's location and attached
+        // to a newly created session, leaving the source readable for frozen
+        // replay.
+        return yield* result.createCustom({
+          location: source.location,
+          composition: input.composition,
+          expectedPlanDigest: input.expectedPlanDigest,
+          title: input.title,
+        })
       }),
       get: Effect.fn("V2Session.get")(function* (sessionID) {
         const session = yield* store.get(sessionID)
@@ -363,6 +637,9 @@ export const layer = Layer.effect(
           Effect.gen(function* () {
             const session = yield* result.get(input.sessionID)
             yield* ProductModePolicy.assertRuntimeSupported(session.mode)
+            if (session.mode === "custom") {
+              yield* sessionComposition.get(input.sessionID)
+            }
             const messageID = input.id ?? SessionMessage.ID.create()
             const delivery = input.delivery ?? "steer"
             const expected = { sessionID: input.sessionID, messageID, prompt: input.prompt, delivery }
@@ -390,6 +667,9 @@ export const layer = Layer.effect(
           Effect.gen(function* () {
             const session = yield* result.get(input.sessionID)
             yield* ProductModePolicy.assertRuntimeSupported(session.mode)
+            if (session.mode === "custom") {
+              yield* sessionComposition.get(input.sessionID)
+            }
             // V2 shell policy guard: deny shell in chat mode
             const commandVerdict = ProductModeAgentPolicy.checkCommandAllowed(session.mode ?? "coding")
             if (!commandVerdict.allowed) return yield* Effect.die(commandVerdict.error)
@@ -419,6 +699,9 @@ export const layer = Layer.effect(
           Effect.gen(function* () {
             const session = yield* result.get(input.sessionID)
             yield* ProductModePolicy.assertRuntimeSupported(session.mode)
+            if (session.mode === "custom") {
+              yield* sessionComposition.get(input.sessionID)
+            }
             const messageID = input.id ?? SessionMessage.ID.create()
             const delivery: SessionInput.Delivery = "steer"
             const expected = { sessionID: input.sessionID, messageID, skill: input.skill, delivery }
@@ -488,7 +771,10 @@ export const layer = Layer.effect(
         return yield* new OperationUnavailableError({ operation: "wait" })
       }),
       resume: Effect.fn("V2Session.resume")(function* (sessionID) {
-        yield* result.get(sessionID)
+        const session = yield* result.get(sessionID)
+        if (session.mode === "custom") {
+          yield* sessionComposition.get(sessionID)
+        }
         yield* execution.resume(sessionID)
       }),
       injectSynthetic: Effect.fn("V2Session.injectSynthetic")(function* (input) {
@@ -525,7 +811,7 @@ export const layer = Layer.effect(
 
     return result
   }),
-)
+).pipe(Layer.provide(SessionComposition.layer))
 
 export const defaultLayer = layer.pipe(
   Layer.provide(SessionExecution.noopLayer),

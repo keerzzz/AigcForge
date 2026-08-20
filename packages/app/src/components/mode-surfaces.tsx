@@ -19,7 +19,15 @@ import { homeProjectDirectories, launchModeSession } from "@/pages/layout/helper
 import { getFilename } from "@aigcfroge/core/util/path"
 import { AssistantDashboardMain } from "@/pages/assistant-dashboard"
 import { AssistantSidebar } from "@/components/assistant-feature-sidebar"
-import { ChatAssetWorkbenchMain, CodingProjectColumnSidebar, CodingSessionListMain, WorkPresetCatalogMain, WorkProjectColumnSidebar } from "@/pages/mode-workspace-slots"
+import {
+  ChatAssetWorkbenchMain,
+  CodingProjectColumnSidebar,
+  CodingSessionListMain,
+  CustomProjectColumnSidebar,
+  CustomSessionListMain,
+  WorkPresetCatalogMain,
+  WorkProjectColumnSidebar,
+} from "@/pages/mode-workspace-slots"
 
 export type ModeSurface = {
   Sidebar: Component
@@ -216,6 +224,10 @@ const MODE_SURFACES: Record<ModeSurfaceSlot, ModeSurface> = {
   assistant: {
     Sidebar: AssistantSidebar,
     Main: AssistantDashboardMain,
+  },
+  custom: {
+    Sidebar: CustomProjectColumnSidebar,
+    Main: CustomSessionListMain,
   },
 }
 

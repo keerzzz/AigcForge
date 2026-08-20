@@ -56,6 +56,7 @@ import { AgentAssetBridge } from "./agent/asset-bridge"
 import { WorkflowAsset } from "./workflow-asset"
 import { PluginAsset } from "./plugin-asset"
 import { PluginBridge } from "./plugin-asset/bridge"
+import { SessionComposition } from "./session/composition"
 
 import { Image } from "./image"
 import { ToolRegistry } from "./tool/registry"
@@ -119,6 +120,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       WorkflowAsset.locationLayer,
       PluginAsset.locationLayer,
       PluginBridge.layer,
+      SessionComposition.layer,
       systemContext,
       LocationMutation.locationLayer.pipe(Layer.orDie),
       CrossSpawnSpawner.defaultLayer,

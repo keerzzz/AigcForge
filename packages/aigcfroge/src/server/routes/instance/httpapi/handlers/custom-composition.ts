@@ -7,10 +7,14 @@ import { CustomProfile } from "@aigcfroge/core/custom-profile"
 import { Composition } from "@aigcfroge/schema/composition"
 import { Location } from "@aigcfroge/core/location"
 import { AbsolutePath } from "@aigcfroge/core/schema"
+import { SessionV2 } from "@aigcfroge/core/session"
+import { SessionSchema } from "@aigcfroge/core/session/schema"
+import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
 import { Effect, Layer } from "effect"
+import { HttpServerRequest } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
-import { InvalidRequestError } from "../errors"
+import { InvalidRequestError, SessionBusyError, SessionNotFoundError } from "../errors"
 
 export const customCompositionHandlers = HttpApiBuilder.group(InstanceHttpApi, "custom-composition", (handlers) =>
   Effect.gen(function* () {
@@ -19,11 +23,130 @@ export const customCompositionHandlers = HttpApiBuilder.group(InstanceHttpApi, "
     const plan = Effect.fn("CustomCompositionHttpApi.plan")(function* (ctx: {
       payload: Composition.CompositionInput
     }) {
+      if (!ProductModePolicy.isCustomModeEnabled()) {
+        return yield* new InvalidRequestError({ message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE })
+      }
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const resolver = yield* CompositionResolver.Service.pipe(Effect.provide(layer), Effect.orDie)
       const res = yield* resolver.resolve(ctx.payload)
       return res
+    })
+
+    const start = Effect.fn("CustomCompositionHttpApi.start")(function* (ctx: {
+      payload: Composition.StartInput
+    }) {
+      if (!ProductModePolicy.isCustomModeEnabled()) {
+        return yield* new InvalidRequestError({ message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE })
+      }
+      const request = yield* HttpServerRequest.HttpServerRequest
+      const caps = request.headers[ProductModePolicy.CAPABILITIES_HEADER]
+      if (!ProductModePolicy.isCustomCapable(caps)) {
+        return yield* Effect.fail(
+          new InvalidRequestError({
+            message: `Custom mode requires capability header '${ProductModePolicy.CAPABILITIES_HEADER}: ${ProductModePolicy.CAPABILITY_CUSTOM_V1}'`,
+          }),
+        )
+      }
+      const ctx2 = yield* InstanceState.context
+      const location = Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) })
+      const v2session = yield* SessionV2.Service
+      const res = yield* v2session
+        .createCustom({
+          id: ctx.payload.sessionID ? SessionSchema.ID.make(ctx.payload.sessionID) : undefined,
+          location,
+          composition: ctx.payload.composition,
+          expectedPlanDigest: ctx.payload.expectedPlanDigest,
+          title: ctx.payload.title,
+        })
+        .pipe(
+          Effect.catchTag("Composition.ResolveError", (err) =>
+            Effect.fail(new InvalidRequestError({ message: `${err.code}: ${err.message}` })),
+          ),
+          Effect.catchTag("Session.PromptConflictError", (err) =>
+            Effect.fail(new InvalidRequestError({ message: `Session conflict: ${err.sessionID}` })),
+          ),
+          Effect.catchTag("UnsupportedProductModeError", (err) =>
+            Effect.fail(new InvalidRequestError({ message: err.message })),
+          ),
+          Effect.catchTag("SessionComposition.SnapshotAlreadyExistsError", (err) =>
+            Effect.fail(new InvalidRequestError({ message: `Snapshot already exists for session ${err.sessionID}` })),
+          ),
+          Effect.catchTag("SessionComposition.SnapshotDecodeError", (err) =>
+            Effect.fail(new InvalidRequestError({ message: `Snapshot decode error: ${err.message}` })),
+          ),
+        )
+      return new Composition.StartResponse({
+        session: res.session,
+        snapshot: res.snapshot,
+      })
+    })
+
+    const upgrade = Effect.fn("CustomCompositionHttpApi.upgrade")(function* (ctx: {
+      payload: Composition.UpgradeInput
+    }) {
+      if (!ProductModePolicy.isCustomModeEnabled()) {
+        return yield* new InvalidRequestError({ message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE })
+      }
+      const request = yield* HttpServerRequest.HttpServerRequest
+      const caps = request.headers[ProductModePolicy.CAPABILITIES_HEADER]
+      if (!ProductModePolicy.isCustomCapable(caps)) {
+        return yield* new InvalidRequestError({
+          message: `Custom mode requires capability header '${ProductModePolicy.CAPABILITIES_HEADER}: ${ProductModePolicy.CAPABILITY_CUSTOM_V1}'`,
+        })
+      }
+      const v2session = yield* SessionV2.Service
+      const res = yield* v2session
+        .upgradeCustom({
+          sessionID: SessionSchema.ID.make(ctx.payload.sessionID),
+          composition: ctx.payload.composition,
+          expectedPlanDigest: ctx.payload.expectedPlanDigest,
+          title: ctx.payload.title,
+        })
+        .pipe(
+          Effect.catchTag("Session.NotFoundError", (err) =>
+            Effect.fail(
+              new SessionNotFoundError({
+                sessionID: err.sessionID,
+                message: `Session not found: ${err.sessionID}`,
+              }),
+            ),
+          ),
+          Effect.catchTag("Session.UpgradeSourceModeError", (err) =>
+            Effect.fail(
+              new InvalidRequestError({
+                message: `Session ${err.sessionID} has mode "${err.mode}"; upgrade requires a custom source session`,
+              }),
+            ),
+          ),
+          Effect.catchTag("Session.SessionBusyError", (err) =>
+            Effect.fail(
+              new SessionBusyError({
+                sessionID: err.sessionID,
+                message: `Session is busy: ${err.sessionID}`,
+              }),
+            ),
+          ),
+          Effect.catchTag("Composition.ResolveError", (err) =>
+            Effect.fail(new InvalidRequestError({ message: `${err.code}: ${err.message}` })),
+          ),
+          Effect.catchTag("Session.PromptConflictError", (err) =>
+            Effect.fail(new InvalidRequestError({ message: `Session conflict: ${err.sessionID}` })),
+          ),
+          Effect.catchTag("UnsupportedProductModeError", (err) =>
+            Effect.fail(new InvalidRequestError({ message: err.message })),
+          ),
+          Effect.catchTag("SessionComposition.SnapshotAlreadyExistsError", (err) =>
+            Effect.fail(new InvalidRequestError({ message: `Snapshot already exists for session ${err.sessionID}` })),
+          ),
+          Effect.catchTag("SessionComposition.SnapshotDecodeError", (err) =>
+            Effect.fail(new InvalidRequestError({ message: `Snapshot decode error: ${err.message}` })),
+          ),
+        )
+      return new Composition.StartResponse({
+        session: res.session,
+        snapshot: res.snapshot,
+      })
     })
 
     const health = Effect.fn("CustomCompositionHttpApi.health")(function* (ctx: {
@@ -54,6 +177,11 @@ export const customCompositionHandlers = HttpApiBuilder.group(InstanceHttpApi, "
       }
     })
 
-    return handlers.handle("plan", plan).handle("health", health).handle("references", references)
+    return handlers
+      .handle("plan", plan)
+      .handle("start", start)
+      .handle("upgrade", upgrade)
+      .handle("health", health)
+      .handle("references", references)
   }),
 ).pipe(Layer.provide(LocationServiceMap.layer))

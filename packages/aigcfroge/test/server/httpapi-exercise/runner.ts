@@ -4,12 +4,15 @@ import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { Location } from "@aigcfroge/core/location"
 import { LocationServiceMap } from "@aigcfroge/core/location-layer"
 import { AbsolutePath } from "@aigcfroge/core/schema"
+import { SessionV2 } from "@aigcfroge/core/session"
+import { Hash } from "@aigcfroge/core/util/hash"
+import { Composition } from "@aigcfroge/schema/composition"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { KBService } from "@aigcfroge/core/session/kb-service"
 import { PersonalMemory } from "@aigcfroge/core/session/personal-memory"
 import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
 import { LayerNode } from "@aigcfroge/core/effect/layer-node"
-import { Cause, Duration, Effect, Layer, Scope } from "effect"
+import { Cause, Duration, Effect, Layer, Scope, Schema } from "effect"
 import { TestLLMServer } from "../../lib/llm-server"
 
 import { MessageID, PartID } from "../../../src/session/schema"
@@ -148,6 +151,38 @@ function withContext<A, E>(
           sessionGet: (sessionID) =>
             run(modules.Session.Service.use((svc) => svc.get(sessionID))).pipe(
               Effect.catchCause(() => Effect.succeed(undefined)),
+            ),
+          customSession: (input) =>
+            run(
+              Effect.gen(function* () {
+                // M1 requires exactly one agent, so seed a minimal agent asset
+                // and reference it with its content hash before freezing.
+                const agentPath = ".aigcfroge/agents/httpapi-seed.md"
+                const agentContent = '---\nkind: agent\nname: httpapi-seed\ndescription: exerciser seed\nconfig: "{}"\n---\nSeed instructions'
+                yield* Effect.promise(() => Bun.write(`${directory()}/${agentPath}`, agentContent))
+                const revision = yield* Effect.sync(() =>
+                  Schema.decodeUnknownSync(Composition.Revision)(Hash.sha256(Buffer.from(agentContent))),
+                )
+                // Decode through the schema (like the HTTP payload boundary) so the
+                // resolver can re-encode the input when building its plan.
+                const composition = yield* Effect.sync(() =>
+                  Schema.decodeUnknownSync(Composition.CompositionInput)({
+                    source: "temporary",
+                    agents: [{ kind: "agent", relativePath: "httpapi-seed.md", revision }],
+                    bindings: {},
+                    presentation: "native",
+                    requestedCapabilities: [],
+                  }),
+                )
+                const v2session = yield* SessionV2.Service
+                return yield* v2session
+                  .createCustom({
+                    location: Location.Ref.make({ directory: AbsolutePath.make(directory()) }),
+                    composition,
+                    title: input?.title,
+                  })
+                  .pipe(Effect.orDie)
+              }),
             ),
           project: () =>
             Effect.sync(() => {

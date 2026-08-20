@@ -32,8 +32,8 @@ Custom 主线
 
 | 阶段   | 名称                      | 核心范围                                             | 关键依赖                 | 状态                |
 | ------ | ------------------------- | ---------------------------------------------------- | ------------------------ | ------------------- |
-| **M0** | 治理与组合底座            | 第五 Mode、Profile/Plan/Snapshot、AssetRef、Resolver | ADR-17 已批准            | Phase A-F 执行获准  |
-| **M1** | 单 Agent 可恢复闭环       | `meta` + 一个用户 Agent + Prompt/Skill + native      | M0                       | 被 M0/G2/G3/G4 阻塞 |
+| **M0** | 治理与组合底座            | 第五 Mode、Profile/Plan/Snapshot、AssetRef、Resolver | ADR-17 已批准            | 已完成（Phase A-F） |
+| **M1** | 单 Agent 可恢复闭环       | `meta` + 一个用户 Agent + Prompt/Skill + native + Upgrade + UI Phase E + 50 轮稳定性矩阵 | M0                       | 已完成（Waves W1-W4） |
 | **M2** | 多 Agent 与编排           | Agent 池、Command、Workflow、进度、取消、部分成功    | M1                       | 远期                |
 | **M3** | MCP 与审批                | scoped registration、凭证、健康、统一审批入口        | M1 + Tool Registry 扩展  | 远期                |
 | **M4** | Trusted Runtime Extension | Host/Agent/Client 分面、信任、停止、隔离、回滚       | M3 + Plugin 生命周期 ADR | 远期                |
@@ -50,7 +50,7 @@ Custom 主线
 | M4   | [Trusted Runtime Extension](../plan/custom-mode-m4-trusted-runtime-extension.md) | threat/lifecycle/capability ADR 未批准不得 mount code    |
 | M5   | [Code Presentation](../plan/custom-mode-m5-code-presentation.md)                 | sandbox/equivalence 证明未过不得实现 `run_code`          |
 
-当前执行手册见 [Custom Mode M0 全量 TDD 执行提示词](../plan/prompt-custom-mode-m0-composition-platform.md)；M0 统一复审通过后再生成 M1 的独立提示词。
+当前执行手册：M0/M1 已完成并合入；M2 执行提示词见 [Custom Mode M2 全量 TDD 执行提示词](../plan/prompt-custom-mode-m2-multi-agent-workflow.md),M2 开工前提为 M1 PR 合入 main 且总复审通过。
 
 ## 2. 总体原则
 

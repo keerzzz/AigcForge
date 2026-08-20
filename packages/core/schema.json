@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "25859293-0ea4-400e-85a4-d9c389d7e902",
+  "id": "68c2ef45-b5bc-41fb-9d66-45fe79f9a8f3",
   "prevIds": [
-    "87649e48-40ae-418f-b127-2fe4b81ac931"
+    "25859293-0ea4-400e-85a4-d9c389d7e902"
   ],
   "ddl": [
     {
@@ -96,6 +96,10 @@
     },
     {
       "name": "part",
+      "entityType": "tables"
+    },
+    {
+      "name": "session_composition_snapshot",
       "entityType": "tables"
     },
     {
@@ -1864,6 +1868,76 @@
       "generated": null,
       "name": "session_id",
       "entityType": "columns",
+      "table": "session_composition_snapshot"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "name": "version",
+      "entityType": "columns",
+      "table": "session_composition_snapshot"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "digest",
+      "entityType": "columns",
+      "table": "session_composition_snapshot"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "profile_path",
+      "entityType": "columns",
+      "table": "session_composition_snapshot"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "profile_revision",
+      "entityType": "columns",
+      "table": "session_composition_snapshot"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "data",
+      "entityType": "columns",
+      "table": "session_composition_snapshot"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "time_created",
+      "entityType": "columns",
+      "table": "session_composition_snapshot"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "session_id",
+      "entityType": "columns",
       "table": "session_context_epoch"
     },
     {
@@ -2912,6 +2986,21 @@
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
+      "name": "fk_session_composition_snapshot_session_id_session_id_fk",
+      "entityType": "fks",
+      "table": "session_composition_snapshot"
+    },
+    {
+      "columns": [
+        "session_id"
+      ],
+      "tableTo": "session",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
       "name": "fk_session_context_epoch_session_id_session_id_fk",
       "entityType": "fks",
       "table": "session_context_epoch"
@@ -3215,6 +3304,15 @@
       "nameExplicit": false,
       "name": "part_pk",
       "table": "part",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "session_id"
+      ],
+      "nameExplicit": false,
+      "name": "session_composition_snapshot_pk",
+      "table": "session_composition_snapshot",
       "entityType": "pks"
     },
     {

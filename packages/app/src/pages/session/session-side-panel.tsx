@@ -14,9 +14,12 @@ import { useFile, type SelectedLineRange } from "@/context/file"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { useMode } from "@/context/mode"
+import { useSDK } from "@/context/sdk"
+import { CustomDraftProvider } from "@/context/custom-draft"
 import { ChatRightPanel } from "@/components/chat/chat-right-panel"
 import { AssistantSessionPanel } from "@/pages/session/assistant-session-panel"
 import { WorkSessionPanel } from "@/pages/work-artifact-panel"
+import { CustomSessionPanel } from "@/components/custom/custom-snapshot-panel"
 import { SessionRightPanel } from "@/components/session-right-panel"
 import { SessionFileTabStrip } from "@/pages/session/file-tab-strip"
 import { FileTabContent } from "@/pages/session/file-tabs"
@@ -49,6 +52,7 @@ export function SessionSidePanel(props: {
   const mode = useMode()
   const command = useCommand()
   const dialog = useDialog()
+  const sdk = useSDK()
   const { sessionKey, tabs, view, params } = useSessionLayout()
 
   const isDesktop = createMediaQuery("(min-width: 768px)")
@@ -316,6 +320,11 @@ export function SessionSidePanel(props: {
       </div>
       <div style={{ display: mode.currentMode === "assistant" ? "" : "none" }} class="flex-1 min-w-0">
         <AssistantSessionPanel />
+      </div>
+      <div style={{ display: mode.currentMode === "custom" ? "" : "none" }} class="flex-1 min-w-0">
+        <CustomDraftProvider directory={() => sdk()?.directory ?? ""}>
+          <CustomSessionPanel sessionID={params.id} />
+        </CustomDraftProvider>
       </div>
     </Show>
   )

@@ -6,6 +6,7 @@ import { Git } from "../git"
 import { Location } from "../location"
 import { ProjectV2 } from "../project"
 import { SessionV2 } from "../session"
+import { SessionComposition } from "../session/composition"
 import { SessionExecution } from "../session/execution"
 import { SessionEvent } from "../session/event"
 import { SessionSchema } from "../session/schema"
@@ -58,6 +59,9 @@ export type Error =
   | CaptureChangesError
   | ApplyChangesError
   | ResetSourceChangesError
+  | SessionComposition.SnapshotNotFoundError
+  | SessionComposition.SnapshotDecodeError
+  | SessionComposition.DependencyMissingError
 
 export interface Interface {
   readonly moveSession: (input: Input) => Effect.Effect<void, Error>
@@ -72,11 +76,19 @@ export const layer = Layer.effect(
     const events = yield* EventV2.Service
     const project = yield* ProjectV2.Service
     const session = yield* SessionV2.Service
+    const sessionComposition = yield* SessionComposition.Service
 
     const moveSession = Effect.fn("MoveSession.moveSession")(function* (input: Input) {
       const current = yield* session.get(input.sessionID)
       const directory = AbsolutePath.make(input.destination.directory)
       if (current.location.directory === directory) return
+
+      if (current.mode === "custom") {
+        // A custom session is movable only while its frozen composition
+        // snapshot is intact; fail closed before any directory or event side
+        // effect. Snapshot rows are keyed by sessionID and survive the move.
+        yield* sessionComposition.assertDependency(input.sessionID)
+      }
 
       const source = yield* project.resolve(current.location.directory)
       const destination = yield* project.resolve(directory)
@@ -126,5 +138,6 @@ export const defaultLayer = layer.pipe(
   Layer.provide(EventV2.defaultLayer),
   Layer.provide(ProjectV2.defaultLayer),
   Layer.provide(SessionExecution.noopLayer),
+  Layer.provide(SessionComposition.defaultLayer),
   Layer.provide(SessionV2.defaultLayer),
 )

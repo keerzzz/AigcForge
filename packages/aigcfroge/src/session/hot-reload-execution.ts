@@ -38,6 +38,7 @@ export const layer = Layer.effect(
         return yield* base.wake(sessionID)
       }),
       interrupt: base.interrupt,
+      isActive: base.isActive,
     })
   }),
 ).pipe(

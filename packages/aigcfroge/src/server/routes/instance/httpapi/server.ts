@@ -61,6 +61,7 @@ import { ProjectCopy } from "@aigcfroge/core/project/copy"
 import { PtyTicket } from "@aigcfroge/core/pty/ticket"
 import { Ripgrep } from "@aigcfroge/core/ripgrep"
 import { SessionProjector } from "@aigcfroge/core/session/projector"
+import { v2RuntimeLayer, v2ShareLayer } from "@aigcfroge/core/session/v2-runtime"
 import { ScheduledJob } from "@aigcfroge/core/session/scheduled-job"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { SessionTodo } from "@aigcfroge/core/session/todo"
@@ -200,6 +201,8 @@ const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
 )
 
 const instanceRoutes = instanceApiRoutes.pipe(
+  Layer.provide(v2RuntimeLayer),
+  Layer.provide(v2ShareLayer),
   Layer.provide(httpApiAuthLayer),
   Layer.provide(workspaceRoutingLive),
   Layer.provide(instanceContextLayer),

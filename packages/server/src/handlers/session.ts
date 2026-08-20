@@ -14,6 +14,7 @@ import {
   SessionNotFoundError,
   UnsupportedProductModeError,
   UnknownError,
+  CompositionResolveError,
 } from "../errors"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 
@@ -68,6 +69,22 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         ),
       )
 
+    const requireRuntimeControlSession = (
+      sessionID: string,
+      operation: string,
+      capabilitiesHeader?: string | null,
+    ) =>
+      Effect.gen(function* () {
+        const info = yield* requireRuntimeSession(sessionID, capabilitiesHeader)
+        if (info.mode === "custom") {
+          return yield* new UnsupportedProductModeError({
+            mode: info.mode,
+            message: `Mode "${info.mode}" does not support session.${operation} in Custom Mode M1.`,
+          })
+        }
+        return info
+      })
+
     return handlers
       .handle(
         "session.list",
@@ -121,14 +138,107 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         Effect.fn(function* (ctx) {
           yield* ProductModePolicy.assertCreationSupported(ctx.payload.mode)
           return {
-            data: yield* session.create({
+            data: yield* session
+              .create({
+                id: ctx.payload.id,
+                parentID: ctx.payload.parentID,
+                mode: ctx.payload.mode,
+                agent: ctx.payload.agent,
+                model: ctx.payload.model,
+                location: ctx.payload.location ?? { directory: AbsolutePath.make(process.cwd()) },
+              })
+              .pipe(
+                Effect.catchTag("Session.PromptConflictError", (err) =>
+                  Effect.fail(
+                    new ConflictError({
+                      message: `Conflicting session or composition snapshot for session ${err.sessionID}`,
+                    }),
+                  ),
+                ),
+                Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", (err) =>
+                  Effect.fail(
+                    new InvalidRequestError({
+                      message: `Agent ${err.agentID} is not allowed in session ${err.sessionID} (allowed: ${err.allowedAgentID ?? "none"})`,
+                    }),
+                  ),
+                ),
+                Effect.catchTag("SessionComposition.SnapshotNotFoundError", (err) =>
+                  Effect.fail(
+                    new InvalidRequestError({
+                      message: `Missing composition snapshot for custom parent session ${err.sessionID}`,
+                    }),
+                  ),
+                ),
+                Effect.catchTag("SessionComposition.SnapshotDecodeError", (err) =>
+                  Effect.fail(
+                    new InvalidRequestError({
+                      message: `Failed to decode composition snapshot for session ${err.sessionID}: ${err.details}`,
+                    }),
+                  ),
+                ),
+              ),
+          }
+        }),
+      )
+      .handle(
+        "session.custom",
+        Effect.fn(function* (ctx) {
+          if (!ProductModePolicy.isCustomModeEnabled()) {
+            return yield* new InvalidRequestError({
+              message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
+            })
+          }
+          // MEDIUM-1: symmetric with the instance custom-composition/start gate —
+          // creating custom sessions requires the custom capability header.
+          const req = yield* HttpServerRequest.HttpServerRequest
+          if (!ProductModePolicy.isCustomCapable(req.headers[ProductModePolicy.CAPABILITIES_HEADER])) {
+            return yield* new InvalidRequestError({
+              message: `Custom mode requires capability header '${ProductModePolicy.CAPABILITIES_HEADER}: ${ProductModePolicy.CAPABILITY_CUSTOM_V1}'`,
+            })
+          }
+          const result = yield* session
+            .createCustom({
               id: ctx.payload.id,
-              parentID: ctx.payload.parentID,
-              mode: ctx.payload.mode,
-              agent: ctx.payload.agent,
-              model: ctx.payload.model,
+              composition: ctx.payload.composition,
+              expectedPlanDigest: ctx.payload.expectedPlanDigest,
               location: ctx.payload.location ?? { directory: AbsolutePath.make(process.cwd()) },
-            }),
+              title: ctx.payload.title,
+            })
+            .pipe(
+              Effect.catchTag("Composition.ResolveError", (err) =>
+                Effect.fail(
+                  new CompositionResolveError({
+                    code: err.code,
+                    message: err.message,
+                    diagnostics: err.diagnostics,
+                  }),
+                ),
+              ),
+              Effect.catchTag("Session.PromptConflictError", (err) =>
+                Effect.fail(
+                  new ConflictError({
+                    message: `Prompt conflict in session ${err.sessionID}`,
+                  }),
+                ),
+              ),
+              Effect.catchTag("SessionComposition.SnapshotAlreadyExistsError", (err) =>
+                Effect.fail(
+                  new ConflictError({
+                    message: `Snapshot already exists for session ${err.sessionID}`,
+                  }),
+                ),
+              ),
+              Effect.catchTag("SessionComposition.SnapshotDecodeError", (err) =>
+                Effect.fail(
+                  new InvalidRequestError({
+                    message: `Failed to decode snapshot for session ${err.sessionID}: ${err.details}`,
+                  }),
+                ),
+              ),
+            )
+          return {
+            data: result.session,
+            snapshot: result.snapshot,
           }
         }),
       )
@@ -148,7 +258,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         Effect.fn(function* (ctx) {
           const req = yield* HttpServerRequest.HttpServerRequest
           const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
+          yield* requireRuntimeControlSession(ctx.params.sessionID, "switchAgent", capabilitiesHeader)
           yield* session.switchAgent({ sessionID: ctx.params.sessionID, agent: ctx.payload.agent }).pipe(
             Effect.catchTag("Session.NotFoundError", (error) =>
               Effect.fail(
@@ -167,7 +277,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         Effect.fn(function* (ctx) {
           const req = yield* HttpServerRequest.HttpServerRequest
           const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
+          yield* requireRuntimeControlSession(ctx.params.sessionID, "switchModel", capabilitiesHeader)
           yield* session.switchModel({ sessionID: ctx.params.sessionID, model: ctx.payload.model }).pipe(
             Effect.catchTag("Session.NotFoundError", (error) =>
               Effect.fail(
@@ -213,6 +323,21 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                     }),
                   ),
                 ),
+                Effect.catchTag("SessionComposition.SnapshotNotFoundError", (error) =>
+                  Effect.fail(
+                    new SessionNotFoundError({
+                      sessionID: error.sessionID,
+                      message: `Snapshot not found for custom session: ${error.sessionID}`,
+                    }),
+                  ),
+                ),
+                Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
+                  Effect.fail(
+                    new InvalidRequestError({
+                      message: `Invalid custom session snapshot: ${error.sessionID}`,
+                    }),
+                  ),
+                ),
               ),
           }
         }),
@@ -222,7 +347,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         Effect.fn(function* (ctx) {
           const req = yield* HttpServerRequest.HttpServerRequest
           const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
+          yield* requireRuntimeControlSession(ctx.params.sessionID, "compact", capabilitiesHeader)
           yield* session.compact({ sessionID: ctx.params.sessionID }).pipe(
             Effect.catchTag("Session.NotFoundError", (error) =>
               Effect.fail(
@@ -249,7 +374,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         Effect.fn(function* (ctx) {
           const req = yield* HttpServerRequest.HttpServerRequest
           const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
+          yield* requireRuntimeControlSession(ctx.params.sessionID, "wait", capabilitiesHeader)
           yield* session.wait(ctx.params.sessionID).pipe(
             Effect.catchTag("Session.NotFoundError", (error) =>
               Effect.fail(
@@ -330,7 +455,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         Effect.fn(function* (ctx) {
           const req = yield* HttpServerRequest.HttpServerRequest
           const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
+          yield* requireRuntimeControlSession(ctx.params.sessionID, "interrupt", capabilitiesHeader)
           yield* session.interrupt(ctx.params.sessionID)
           return HttpApiSchema.NoContent.make()
         }),
@@ -363,6 +488,21 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                     new ConflictError({
                       message: `Shell message ID conflicts with an existing durable record: ${error.messageID}`,
                       resource: error.messageID,
+                    }),
+                  ),
+                ),
+                Effect.catchTag("SessionComposition.SnapshotNotFoundError", (error) =>
+                  Effect.fail(
+                    new SessionNotFoundError({
+                      sessionID: error.sessionID,
+                      message: `Snapshot not found for custom session: ${error.sessionID}`,
+                    }),
+                  ),
+                ),
+                Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
+                  Effect.fail(
+                    new InvalidRequestError({
+                      message: `Invalid custom session snapshot: ${error.sessionID}`,
                     }),
                   ),
                 ),
@@ -401,6 +541,21 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                     }),
                   ),
                 ),
+                Effect.catchTag("SessionComposition.SnapshotNotFoundError", (error) =>
+                  Effect.fail(
+                    new SessionNotFoundError({
+                      sessionID: error.sessionID,
+                      message: `Snapshot not found for custom session: ${error.sessionID}`,
+                    }),
+                  ),
+                ),
+                Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
+                  Effect.fail(
+                    new InvalidRequestError({
+                      message: `Invalid custom session snapshot: ${error.sessionID}`,
+                    }),
+                  ),
+                ),
               ),
           }
         }),
@@ -410,7 +565,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         Effect.fn(function* (ctx) {
           const req = yield* HttpServerRequest.HttpServerRequest
           const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
+          yield* requireRuntimeControlSession(ctx.params.sessionID, "share", capabilitiesHeader)
           yield* share
             .share({
               sourceSessionID: ctx.params.sessionID,
@@ -436,7 +591,13 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
           const req = yield* HttpServerRequest.HttpServerRequest
           const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
           const parent = yield* requireSessionAndCapability(ctx.params.sessionID, capabilitiesHeader)
-          yield* ProductModePolicy.assertCreationSupported(parent.mode)
+          // MEDIUM-5: the creation gate exists to block generic ROOT creation of
+          // custom sessions; fork is not root creation. A custom parent routes to
+          // V2 create({parentID}), which copies the frozen snapshot (orphan custom
+          // parents fail typed below: SnapshotNotFound -> InvalidRequestError).
+          if (parent.mode !== "custom") {
+            yield* ProductModePolicy.assertCreationSupported(parent.mode)
+          }
           const child = yield* session.create({
             location: parent.location,
             parentID: parent.id,
@@ -463,6 +624,34 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
               new UnsupportedProductModeError({
                 mode: error.mode,
                 message: error.message,
+              }),
+            ),
+          ),
+          Effect.catchTag("Session.PromptConflictError", (error) =>
+            Effect.fail(
+              new InvalidRequestError({
+                message: `Conflicting composition snapshot for session ${error.sessionID}`,
+              }),
+            ),
+          ),
+          Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", (error) =>
+            Effect.fail(
+              new InvalidRequestError({
+                message: `Agent ${error.agentID} is not allowed in session ${error.sessionID} (allowed: ${error.allowedAgentID ?? "none"})`,
+              }),
+            ),
+          ),
+          Effect.catchTag("SessionComposition.SnapshotNotFoundError", (error) =>
+            Effect.fail(
+              new InvalidRequestError({
+                message: `Missing composition snapshot for custom parent session ${error.sessionID}`,
+              }),
+            ),
+          ),
+          Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
+            Effect.fail(
+              new InvalidRequestError({
+                message: `Failed to decode composition snapshot for session ${error.sessionID}: ${error.details}`,
               }),
             ),
           ),
