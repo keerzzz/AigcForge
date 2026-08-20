@@ -230,4 +230,3 @@ export const SessionCompositionSnapshotTable = sqliteTable("session_composition_
     .notNull()
     .$default(() => Date.now()),
 })
-

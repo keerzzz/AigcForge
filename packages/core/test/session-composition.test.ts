@@ -408,4 +408,3 @@ describe("SessionComposition", () => {
     )
   })
 })
-

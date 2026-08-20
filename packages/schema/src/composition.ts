@@ -224,4 +224,3 @@ export class ResolveError extends Schema.TaggedErrorClass<ResolveError>()("Compo
 }) {}
 
 export * as Composition from "./composition"
-
