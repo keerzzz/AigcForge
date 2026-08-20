@@ -433,7 +433,7 @@ function customCompositionScenarios(): Scenario[] {
       .seeded((ctx) =>
         Effect.gen(function* () {
           yield* seedAsset(ctx, agentFixture)
-          const revision = yield* Effect.promise(() => Hash.sha256(Buffer.from(agentFixture.content)))
+          const revision = yield* Effect.sync(() => Hash.sha256(Buffer.from(agentFixture.content)))
           return { revision }
         }),
       )
@@ -461,7 +461,7 @@ function customCompositionScenarios(): Scenario[] {
       .seeded((ctx) =>
         Effect.gen(function* () {
           yield* seedAsset(ctx, agentFixture)
-          const revision = yield* Effect.promise(() => Hash.sha256(Buffer.from(agentFixture.content)))
+          const revision = yield* Effect.sync(() => Hash.sha256(Buffer.from(agentFixture.content)))
           const custom = yield* ctx.customSession({ title: "httpapi upgrade source" })
           return { sessionID: custom.session.id, revision }
         }),
@@ -1896,7 +1896,7 @@ const scenarios: Scenario[] = [
     .seeded((ctx) =>
       Effect.gen(function* () {
         yield* seedAsset(ctx, assetFixtures.find((f) => f.kind === "agent")!)
-        const revision = yield* Effect.promise(() =>
+        const revision = yield* Effect.sync(() =>
           Hash.sha256(Buffer.from(assetFixtures.find((f) => f.kind === "agent")!.content)),
         )
         return { revision }
@@ -2266,7 +2266,7 @@ const scenarios: Scenario[] = [
     )
     .at((ctx) => ({
       path: route("/session/{sessionID}/composition", { sessionID: ctx.state }),
-      headers: ctx.headers(),
+      headers: { ...ctx.headers(), "x-aigcfroge-capabilities": "product-mode-custom-v1" },
     }))
     .json(200, (body) => {
       object(body)

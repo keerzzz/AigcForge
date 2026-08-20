@@ -6,6 +6,7 @@ import { SessionMessage } from "@aigcfroge/core/session/message"
 import { SessionTodo } from "@aigcfroge/core/session/todo"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task" // Schema namespace; the core SessionTask import above uses the unaliased name.
+import { Composition } from "@aigcfroge/schema/composition"
 import { PermissionV2 } from "@aigcfroge/core/permission"
 import { SessionPermissionOverride } from "@aigcfroge/core/permission/session-override"
 import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
@@ -26,11 +27,13 @@ import { SessionStatus } from "@/session/status"
 import { SessionSummary } from "@/session/summary"
 import { MessageID, PartID, SessionID } from "@/session/schema"
 import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Location } from "@aigcfroge/core/location"
+import { LocationServiceMap } from "@aigcfroge/core/location-layer"
 import { getCacheDiagnostics } from "@aigcfroge/core/session/cache-diagnostics"
 import { Database } from "@aigcfroge/core/database/database"
 import { SessionComposition } from "@aigcfroge/core/session/composition"
 import { NamedError } from "@aigcfroge/core/util/error"
-import { Cause, Effect, Option, Schema, Scope } from "effect"
+import { Cause, Effect, Layer, Option, Schema, Scope } from "effect"
 import * as Stream from "effect/Stream"
 import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder, HttpApiError, HttpApiSchema } from "effect/unstable/httpapi"
@@ -93,6 +96,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const { db } = yield* Database.Service
     const scope = yield* Scope.Scope
     const permissionOverrideSvc = yield* SessionPermissionOverride.Service
+    const locations = yield* LocationServiceMap
 
     const list = Effect.fn("SessionHttpApi.list")(function* (ctx: { query: typeof ListQuery.Type }) {
       const all = yield* session.list({
@@ -1006,8 +1010,11 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const composition = Effect.fn("SessionHttpApi.composition")(function* (ctx: {
       params: { sessionID: SessionID }
     }) {
-      yield* requireRuntimeSession(ctx.params.sessionID)
-      const sessionComp = yield* SessionComposition.Service
+      const info = yield* requireRuntimeSession(ctx.params.sessionID)
+      // SessionComposition is Location-scoped and resolved through the
+      // LocationServiceMap for the session's directory.
+      const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(info.directory) }))
+      const sessionComp = yield* SessionComposition.Service.pipe(Effect.provide(layer), Effect.orDie)
       const snapshot = yield* sessionComp.get(ctx.params.sessionID).pipe(
         Effect.catchTag("SessionComposition.SnapshotNotFoundError", () =>
           Effect.fail(notFound(`Snapshot not found for session ${ctx.params.sessionID}`)),
@@ -1017,6 +1024,18 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
         ),
       )
       return snapshot
+    })
+
+    const compositionRaw = Effect.fn("SessionHttpApi.compositionRaw")(function* (ctx: {
+      params: { sessionID: SessionID }
+      request: HttpServerRequest.HttpServerRequest
+    }) {
+      // Use the raw handler to bypass HttpApi's automatic response encoding
+      // for the top-level Snapshot class, which has a known Effect Schema
+      // encode issue in the current version.
+      const snapshot = yield* composition({ params: ctx.params })
+      const encoded = Schema.encodeUnknownSync(Composition.Snapshot)(snapshot)
+      return yield* HttpServerResponse.json(encoded).pipe(Effect.orDie)
     })
 
     return handlers
@@ -1060,6 +1079,6 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       .handle("updatePart", updatePart)
       .handle("cacheDiagnostics", cacheDiagnostics)
       .handle("toolSummary", toolSummary)
-      .handle("composition", composition)
-  }),
+      .handleRaw("composition", compositionRaw)
+  }).pipe(Effect.provide(LocationServiceMap.layer)),
 )
