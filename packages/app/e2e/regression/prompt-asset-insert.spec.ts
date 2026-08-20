@@ -82,7 +82,7 @@ test("full insert flow: table row insert -> popover -> session redirect -> compo
 
   // 导航到 chat 首页
   await page.goto("/mode/chat")
-  await expectAppVisible(page.getByText("code-review-prompt").first())
+  await expect(page.locator('[data-component="asset-row"]', { hasText: "code-review-prompt" }).first()).toBeVisible({ timeout: 120000 })
 
   // 验证 AssetWorkbenchTable 渲染两个资产行
   const assetRows = page.locator('[data-component="asset-row"]')
