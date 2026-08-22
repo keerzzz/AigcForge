@@ -475,8 +475,16 @@ export const layer = Layer.effect(
       recoverOverflow?: typeof compaction.compactAfterOverflow,
     ) {
       const session = yield* getSession(sessionID)
-      // Enforce Product Mode × Agent policy on each provider turn.
-      const agentID = yield* ProductModeAgentPolicy.enforcePrimary(session.mode, session.agent)
+      // Enforce Product Mode × Agent policy on each provider turn. The primary
+      // gate is a root-only invariant (e.g. custom roots are always `meta`);
+      // child Sessions were already authorized at creation against their
+      // parent's Snapshot allowlist (`SessionComposition.assertAgentAllowed`)
+      // and again before dispatch, so applying the root verdict here would kill
+      // every legitimate delegated turn.
+      const agentID =
+        session.parentID !== undefined
+          ? ProductModeAgentPolicy.resolvePrimaryAgent(session.mode, session.agent)
+          : yield* ProductModeAgentPolicy.enforcePrimary(session.mode, session.agent)
       if (session.location.directory !== location.directory || session.location.workspaceID !== location.workspaceID)
         return yield* Effect.interrupt
       // Custom Mode fail-closed: a missing or drifted snapshot ends the turn with a

@@ -21,6 +21,7 @@ export type Input = {
 
 // Chat full 必须逐次确认的危险 action（红线 4）。未知 action 由 wildcard ask 兜底。
 const DANGEROUS_ACTIONS = ["bash", "edit", "write", "apply_patch"] as const
+const dangerousAction = new Set<string>(DANGEROUS_ACTIONS)
 
 export function evaluate(rules: Permission.Ruleset, action: string, resource: string): Permission.Effect {
   return (
@@ -84,6 +85,23 @@ function compute(input: Input, base: Permission.Ruleset): Permission.Ruleset {
   rules.push(...base.filter((rule) => rule.effect === "deny" && !(rule.action === "*" && rule.resource === "*")))
 
   if (!attended) {
+    // Deny-first custom ceiling（M2 遗留 §4.5-1）：资产 ruleset 由作者可控，
+    // 尾部通配 allow 与显式危险动作 allow 不得为 unattended 扇出预授权执行
+    // 能力。读取类显式 allow 存活，保住委派 child 的只读预授权；其余一律
+    // 落入头部 fallback deny。非 custom 模式维持 2026-08-02 scheduled-job
+    // 裁决：显式 allow 不被 unattended clamp 改写。
+    if (input.mode === "custom") {
+      const ceilingAllows = rules.filter(
+        (rule) => rule.effect === "allow" && rule.action !== "*" && !dangerousAction.has(rule.action),
+      )
+      return [
+        { action: "*", resource: "*", effect: "deny" },
+        ...rules.flatMap((rule) =>
+          rule.effect === "ask" ? [{ action: rule.action, resource: rule.resource, effect: "deny" as const }] : [],
+        ),
+        ...ceilingAllows,
+      ]
+    }
     // unattended 最高拒绝（红线 5）：saved/master 不放开（上方未追加），
     // 全部 ask → deny，头部 fallback deny 兜底未匹配 action。
     return [
