@@ -62,14 +62,24 @@ describe("HttpApi CORS", () => {
 
   it.live("adds CORS headers to unauthorized responses", () =>
     Effect.gen(function* () {
-      const handler = HttpRouter.toWebHandler(
-        HttpApiApp.createRoutes().pipe(
-          Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ AIGCFROGE_SERVER_PASSWORD: "secret" }))),
+      // This builds a second composition root (own memoMap) so the ConfigProvider
+      // override applies. Its scope must be closed, or its TaskDriver registration
+      // leaks and wins `installations.at(-1)` for the rest of the process.
+      const web = yield* Effect.acquireRelease(
+        Effect.sync(() =>
+          HttpRouter.toWebHandler(
+            HttpApiApp.createRoutes().pipe(
+              Layer.provide(
+                ConfigProvider.layer(ConfigProvider.fromUnknown({ AIGCFROGE_SERVER_PASSWORD: "secret" })),
+              ),
+            ),
+            { disableLogger: true },
+          ),
         ),
-        { disableLogger: true },
-      ).handler
+        (web) => Effect.promise(() => web.dispose()),
+      )
       const response = yield* Effect.promise(() =>
-        handler(
+        web.handler(
           new Request(new URL("/global/config", "http://localhost"), {
             headers: { origin: "https://app.aigcfroge.ai" },
           }),

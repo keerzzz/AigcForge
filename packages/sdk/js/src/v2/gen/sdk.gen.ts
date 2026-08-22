@@ -362,8 +362,14 @@ import type {
   SessionUnshareResponses,
   SessionUpdateErrors,
   SessionUpdateResponses,
+  SessionWorkflowCancelRunErrors,
+  SessionWorkflowCancelRunResponses,
+  SessionWorkflowCancelStepErrors,
+  SessionWorkflowCancelStepResponses,
   SessionWorkflowGetErrors,
   SessionWorkflowGetResponses,
+  SessionWorkflowRetryStepErrors,
+  SessionWorkflowRetryStepResponses,
   SessionWorkflowRunErrors,
   SessionWorkflowRunResponses,
   SkillAssetApplyErrors,
@@ -6012,15 +6018,17 @@ export class Workflow extends HeyApiClient {
   }
 
   /**
-   * Execute session workflow
+   * Admit session workflow
    *
-   * Execute workflow runner for a custom session.
+   * Atomically admit a custom workflow run and wake its process-local asynchronous owner.
    */
   public run<ThrowOnError extends boolean = false>(
     parameters: {
       sessionID: string
       directory?: string
       workspace?: string
+      requestID?: string
+      expectedSnapshotDigest?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -6032,6 +6040,8 @@ export class Workflow extends HeyApiClient {
             { in: "path", key: "sessionID" },
             { in: "query", key: "directory" },
             { in: "query", key: "workspace" },
+            { in: "body", key: "requestID" },
+            { in: "body", key: "expectedSnapshotDigest" },
           ],
         },
       ],
@@ -6040,6 +6050,156 @@ export class Workflow extends HeyApiClient {
       url: "/session/{sessionID}/workflow/run",
       ...options,
       ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Cancel session workflow run
+   *
+   * Persist the cancelling intent under run-revision CAS, interrupt the process-local owner and return the settled terminal state.
+   */
+  public cancelRun<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      runID: string
+      directory?: string
+      workspace?: string
+      expectedRunRevision?: number
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "path", key: "runID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "expectedRunRevision" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      SessionWorkflowCancelRunResponses,
+      SessionWorkflowCancelRunErrors,
+      ThrowOnError
+    >({
+      url: "/session/{sessionID}/workflow/{runID}/cancel",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Cancel session workflow step
+   *
+   * Explicitly cancel a single step run under run and step revision CAS without triggering automatic retry.
+   */
+  public cancelStep<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      runID: string
+      stepRunID: string
+      directory?: string
+      workspace?: string
+      expectedRunRevision?: number
+      expectedStepRevision?: number
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "path", key: "runID" },
+            { in: "path", key: "stepRunID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "expectedRunRevision" },
+            { in: "body", key: "expectedStepRevision" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      SessionWorkflowCancelStepResponses,
+      SessionWorkflowCancelStepErrors,
+      ThrowOnError
+    >({
+      url: "/session/{sessionID}/workflow/{runID}/step/{stepRunID}/cancel",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Retry session workflow step
+   *
+   * Create a new lineage run that replays the target step and its downstream closure, leaving the terminal run immutable.
+   */
+  public retryStep<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      runID: string
+      stepRunID: string
+      directory?: string
+      workspace?: string
+      requestID?: string
+      expectedRunRevision?: number
+      expectedStepRevision?: number
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "path", key: "runID" },
+            { in: "path", key: "stepRunID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "requestID" },
+            { in: "body", key: "expectedRunRevision" },
+            { in: "body", key: "expectedStepRevision" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      SessionWorkflowRetryStepResponses,
+      SessionWorkflowRetryStepErrors,
+      ThrowOnError
+    >({
+      url: "/session/{sessionID}/workflow/{runID}/step/{stepRunID}/retry",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
     })
   }
 }

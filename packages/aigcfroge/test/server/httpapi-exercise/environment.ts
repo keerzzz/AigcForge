@@ -11,6 +11,7 @@ process.env.XDG_CONFIG_HOME = path.join(exerciseGlobalRoot, "config")
 process.env.XDG_STATE_HOME = path.join(exerciseGlobalRoot, "state")
 process.env.XDG_CACHE_HOME = path.join(exerciseGlobalRoot, "cache")
 process.env.AIGCFROGE_DISABLE_SHARE = "true"
+process.env.AIGCFROGE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT = "true"
 export const exerciseConfigDirectory = path.join(exerciseGlobalRoot, "config", "aigcfroge")
 export const exerciseDataDirectory = path.join(exerciseGlobalRoot, "data", "aigcfroge")
 
@@ -20,6 +21,13 @@ export const exerciseDatabasePath =
   path.join(process.env.TMPDIR ?? "/tmp", `aigcfroge-httpapi-exercise-${process.pid}.db`)
 process.env.AIGCFROGE_DB = exerciseDatabasePath
 Flag.AIGCFROGE_DB = exerciseDatabasePath
+
+// Keep the standalone exerciser deterministic like the package test preload.
+// Without the local catalog, legacy session scenarios query models.dev while
+// resolving the configured test provider and turn an offline run into a 500.
+const exerciseModelsPath = path.join(import.meta.dir, "../../tool/fixtures/models-api.json")
+process.env.AIGCFROGE_MODELS_PATH = exerciseModelsPath
+Flag.AIGCFROGE_MODELS_PATH = exerciseModelsPath
 
 // The custom composition routes are flag-gated at the HTTP layer (default off).
 // The exerciser covers the enabled path; the disabled 400 behavior is asserted

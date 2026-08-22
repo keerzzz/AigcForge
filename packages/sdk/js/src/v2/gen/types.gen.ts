@@ -25,6 +25,7 @@ export type Event =
   | EventSessionNextSkillAdmitted
   | EventSessionNextContextUpdated
   | EventSessionNextSynthetic
+  | EventSessionNextSyntheticAdmitted
   | EventSessionNextForked
   | EventSessionNextShellStarted
   | EventSessionNextShellEnded
@@ -87,6 +88,7 @@ export type Event =
   | EventAssistantNoteRemoved
   | EventAssistantKbSearched
   | EventWorkAssetSaved
+  | EventWorkflowRunUpdated
   | EventWorkArtifactApplied
   | EventMessagePartDelta
   | EventSessionDiff
@@ -949,6 +951,17 @@ export type GlobalEvent = {
       }
     | {
         id: string
+        type: "session.next.synthetic.admitted"
+        properties: {
+          timestamp: number
+          sessionID: string
+          messageID: string
+          text: string
+          delivery: "steer" | "queue"
+        }
+      }
+    | {
+        id: string
         type: "session.next.forked"
         properties: {
           timestamp: number
@@ -1591,6 +1604,38 @@ export type GlobalEvent = {
       }
     | {
         id: string
+        type: "workflow.run.updated"
+        properties: {
+          runID: string
+          sessionID: string
+          status:
+            | "pending"
+            | "running"
+            | "cancelling"
+            | "completed"
+            | "partial_success"
+            | "failed"
+            | "cancelled"
+            | "recovery_required"
+          revision: number
+          currentStepId?: string
+          errorCategory?:
+            | "invalid_branch_output"
+            | "step_timeout"
+            | "step_failed"
+            | "step_cancelled"
+            | "max_attempts_exceeded"
+            | "custom_mode_disabled"
+            | "agent_not_allowed"
+            | "executor_unavailable"
+            | "root_handoff_failed"
+            | "execution_unknown"
+            | "unknown_error"
+          timeUpdated: number
+        }
+      }
+    | {
+        id: string
         type: "work.artifact_applied"
         properties: {
           sessionID: string
@@ -1910,6 +1955,7 @@ export type GlobalEvent = {
     | SyncEventSessionNextSkillAdmitted
     | SyncEventSessionNextContextUpdated
     | SyncEventSessionNextSynthetic
+    | SyncEventSessionNextSyntheticAdmitted
     | SyncEventSessionNextForked
     | SyncEventSessionNextShellStarted
     | SyncEventSessionNextShellEnded
@@ -1932,6 +1978,7 @@ export type GlobalEvent = {
     | SyncEventSessionNextVerifyStarted
     | SyncEventSessionNextVerifyPassed
     | SyncEventSessionNextVerifyFailed
+    | SyncEventWorkflowRunUpdated
 }
 
 /**
@@ -3662,6 +3709,7 @@ export type V2Event =
   | V2EventSessionNextSkillAdmitted
   | V2EventSessionNextContextUpdated
   | V2EventSessionNextSynthetic
+  | V2EventSessionNextSyntheticAdmitted
   | V2EventSessionNextForked
   | V2EventSessionNextShellStarted
   | V2EventSessionNextShellEnded
@@ -3724,6 +3772,7 @@ export type V2Event =
   | V2EventAssistantNoteRemoved
   | V2EventAssistantKbSearched
   | V2EventWorkAssetSaved
+  | V2EventWorkflowRunUpdated
   | V2EventWorkArtifactApplied
   | V2EventMessagePartDelta
   | V2EventSessionDiff
@@ -4306,6 +4355,24 @@ export type SyncEventSessionNextSynthetic = {
   }
 }
 
+export type SyncEventSessionNextSyntheticAdmitted = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "session.next.synthetic.admitted.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      timestamp: number
+      sessionID: string
+      messageID: string
+      text: string
+      delivery: "steer" | "queue"
+    }
+  }
+}
+
 export type SyncEventSessionNextForked = {
   type: "sync"
   id: string
@@ -4757,6 +4824,45 @@ export type SyncEventSessionNextVerifyFailed = {
   }
 }
 
+export type SyncEventWorkflowRunUpdated = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "workflow.run.updated.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      runID: string
+      sessionID: string
+      status:
+        | "pending"
+        | "running"
+        | "cancelling"
+        | "completed"
+        | "partial_success"
+        | "failed"
+        | "cancelled"
+        | "recovery_required"
+      revision: number
+      currentStepId?: string
+      errorCategory?:
+        | "invalid_branch_output"
+        | "step_timeout"
+        | "step_failed"
+        | "step_cancelled"
+        | "max_attempts_exceeded"
+        | "custom_mode_disabled"
+        | "agent_not_allowed"
+        | "executor_unavailable"
+        | "root_handoff_failed"
+        | "execution_unknown"
+        | "unknown_error"
+      timeUpdated: number
+    }
+  }
+}
+
 export type ConfigV2ReferenceGit = {
   repository: string
   branch?: string
@@ -5098,15 +5204,17 @@ export type WorkflowAssetStepDef = {
   id: string
   name: string
   agent: string
-  input?: unknown
+  input?: {
+    [key: string]: unknown
+  }
   next?: string
   branches?: {
     [key: string]: string
   }
   parallel?: Array<string>
   failurePolicy?: "abort" | "continue" | "retry"
-  maxAttempts?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
-  timeoutSeconds?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  maxAttempts?: number
+  timeoutSeconds?: number
 }
 
 export type CompositionWorkflowInfo = {
@@ -5136,10 +5244,10 @@ export type CompositionCapabilityInfo = {
 }
 
 export type CompositionCostPreview = {
-  estimatedTokens: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
-  maxConcurrency: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
-  effectiveToolCount: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
-  agentCount: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  estimatedTokens: number
+  maxConcurrency: number
+  effectiveToolCount: number
+  agentCount: number
 }
 
 export type CompositionCommandRef = {
@@ -5284,6 +5392,29 @@ export type CompositionSnapshotV1 = {
 export type CompositionSnapshotDataV2 = {
   agents: Array<CompositionAgentInfo>
   workflow?: CompositionWorkflowInfo
+  bindings?: {
+    [key: string]: {
+      prompts: Array<{
+        relativePath: string
+        revision: string
+        content: string
+      }>
+      skills: Array<{
+        name: string
+        description: string
+        relativePath: string
+        revision: string
+      }>
+      commands: Array<{
+        name: string
+        description: string
+        relativePath: string
+        revision: string
+        template: string
+      }>
+    }
+  }
+  maxConcurrency?: number
   commands?: Array<{
     name: string
     description: string
@@ -5520,11 +5651,35 @@ export type ToolSummarySummary = {
 export type WorkflowAssetWorkflowRunInfo = {
   id: string
   sessionID: string
+  snapshotDigest: string
   workflowName: string
   workflowRevision: string
-  status: "pending" | "running" | "completed" | "failed" | "cancelled" | "partial_success"
+  status:
+    | "pending"
+    | "running"
+    | "cancelling"
+    | "completed"
+    | "partial_success"
+    | "failed"
+    | "cancelled"
+    | "recovery_required"
+  revision: number
+  parentRunID?: string
+  rootRunID?: string
+  retryOfStepRunID?: string
   currentStepId?: string
-  error?: string
+  errorCategory?:
+    | "invalid_branch_output"
+    | "step_timeout"
+    | "step_failed"
+    | "step_cancelled"
+    | "max_attempts_exceeded"
+    | "custom_mode_disabled"
+    | "agent_not_allowed"
+    | "executor_unavailable"
+    | "root_handoff_failed"
+    | "execution_unknown"
+    | "unknown_error"
   timeCreated: number
   timeUpdated: number
   timeCompleted?: number
@@ -5535,11 +5690,36 @@ export type WorkflowAssetStepRunInfo = {
   runId: string
   stepId: string
   agentId: string
-  status: "pending" | "ready" | "running" | "completed" | "failed" | "cancelled" | "skipped"
-  attempt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
-  input?: unknown
-  output?: unknown
-  error?: string
+  status:
+    | "pending"
+    | "ready"
+    | "dispatching"
+    | "running"
+    | "cancelling"
+    | "completed"
+    | "failed"
+    | "cancelled"
+    | "skipped"
+    | "execution_unknown"
+  attempt: number
+  revision: number
+  taskId?: string
+  childSessionId?: string
+  inputDigest?: string
+  outputDigest?: string
+  branchTarget?: string
+  errorCategory?:
+    | "invalid_branch_output"
+    | "step_timeout"
+    | "step_failed"
+    | "step_cancelled"
+    | "max_attempts_exceeded"
+    | "custom_mode_disabled"
+    | "agent_not_allowed"
+    | "executor_unavailable"
+    | "root_handoff_failed"
+    | "execution_unknown"
+    | "unknown_error"
   timeCreated: number
   timeStarted?: number
   timeCompleted?: number
@@ -5628,7 +5808,22 @@ export type SessionInputAdmittedSkill = {
   skill: string
 }
 
-export type SessionInputAdmitted = SessionInputAdmittedPrompt | SessionInputAdmittedShell | SessionInputAdmittedSkill
+export type SessionInputAdmittedSynthetic = {
+  kind: "synthetic"
+  admittedSeq: number
+  id: string
+  sessionID: string
+  delivery: "steer" | "queue"
+  timeCreated: number
+  promotedSeq?: number
+  text: string
+}
+
+export type SessionInputAdmitted =
+  | SessionInputAdmittedPrompt
+  | SessionInputAdmittedShell
+  | SessionInputAdmittedSkill
+  | SessionInputAdmittedSynthetic
 
 export type SessionMessageAgentSwitched = {
   id: string
@@ -6488,6 +6683,27 @@ export type V2EventSessionNextSynthetic = {
     sessionID: string
     messageID: string
     text: string
+  }
+}
+
+export type V2EventSessionNextSyntheticAdmitted = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "session.next.synthetic.admitted"
+  data: {
+    timestamp: number
+    sessionID: string
+    messageID: string
+    text: string
+    delivery: "steer" | "queue"
   }
 }
 
@@ -7753,6 +7969,48 @@ export type V2EventWorkAssetSaved = {
   }
 }
 
+export type V2EventWorkflowRunUpdated = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "workflow.run.updated"
+  data: {
+    runID: string
+    sessionID: string
+    status:
+      | "pending"
+      | "running"
+      | "cancelling"
+      | "completed"
+      | "partial_success"
+      | "failed"
+      | "cancelled"
+      | "recovery_required"
+    revision: number
+    currentStepId?: string
+    errorCategory?:
+      | "invalid_branch_output"
+      | "step_timeout"
+      | "step_failed"
+      | "step_cancelled"
+      | "max_attempts_exceeded"
+      | "custom_mode_disabled"
+      | "agent_not_allowed"
+      | "executor_unavailable"
+      | "root_handoff_failed"
+      | "execution_unknown"
+      | "unknown_error"
+    timeUpdated: number
+  }
+}
+
 export type V2EventWorkArtifactApplied = {
   id: string
   metadata?: {
@@ -8615,6 +8873,18 @@ export type EventSessionNextSynthetic = {
   }
 }
 
+export type EventSessionNextSyntheticAdmitted = {
+  id: string
+  type: "session.next.synthetic.admitted"
+  properties: {
+    timestamp: number
+    sessionID: string
+    messageID: string
+    text: string
+    delivery: "steer" | "queue"
+  }
+}
+
 export type EventSessionNextForked = {
   id: string
   type: "session.next.forked"
@@ -9402,6 +9672,39 @@ export type EventWorkAssetSaved = {
   type: "work.asset_saved"
   properties: {
     relativePath: string
+  }
+}
+
+export type EventWorkflowRunUpdated = {
+  id: string
+  type: "workflow.run.updated"
+  properties: {
+    runID: string
+    sessionID: string
+    status:
+      | "pending"
+      | "running"
+      | "cancelling"
+      | "completed"
+      | "partial_success"
+      | "failed"
+      | "cancelled"
+      | "recovery_required"
+    revision: number
+    currentStepId?: string
+    errorCategory?:
+      | "invalid_branch_output"
+      | "step_timeout"
+      | "step_failed"
+      | "step_cancelled"
+      | "max_attempts_exceeded"
+      | "custom_mode_disabled"
+      | "agent_not_allowed"
+      | "executor_unavailable"
+      | "root_handoff_failed"
+      | "execution_unknown"
+      | "unknown_error"
+    timeUpdated: number
   }
 }
 
@@ -15594,7 +15897,10 @@ export type SessionWorkflowGetResponses = {
 export type SessionWorkflowGetResponse = SessionWorkflowGetResponses[keyof SessionWorkflowGetResponses]
 
 export type SessionWorkflowRunData = {
-  body?: never
+  body?: {
+    requestID: string
+    expectedSnapshotDigest: string
+  }
   path: {
     sessionID: string
   }
@@ -15614,18 +15920,153 @@ export type SessionWorkflowRunErrors = {
    * NotFoundError
    */
   404: NotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
 }
 
 export type SessionWorkflowRunError = SessionWorkflowRunErrors[keyof SessionWorkflowRunErrors]
 
 export type SessionWorkflowRunResponses = {
   /**
-   * Executed workflow run info
+   * Accepted workflow status
    */
-  200: WorkflowAssetWorkflowRunInfo
+  202: WorkflowAssetWorkflowStatusResponse
 }
 
 export type SessionWorkflowRunResponse = SessionWorkflowRunResponses[keyof SessionWorkflowRunResponses]
+
+export type SessionWorkflowCancelRunData = {
+  body?: {
+    expectedRunRevision: number
+  }
+  path: {
+    sessionID: string
+    runID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/workflow/{runID}/cancel"
+}
+
+export type SessionWorkflowCancelRunErrors = {
+  /**
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type SessionWorkflowCancelRunError = SessionWorkflowCancelRunErrors[keyof SessionWorkflowCancelRunErrors]
+
+export type SessionWorkflowCancelRunResponses = {
+  /**
+   * Cancelled workflow status
+   */
+  200: WorkflowAssetWorkflowStatusResponse
+}
+
+export type SessionWorkflowCancelRunResponse =
+  SessionWorkflowCancelRunResponses[keyof SessionWorkflowCancelRunResponses]
+
+export type SessionWorkflowCancelStepData = {
+  body?: {
+    expectedRunRevision: number
+    expectedStepRevision: number
+  }
+  path: {
+    sessionID: string
+    runID: string
+    stepRunID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/workflow/{runID}/step/{stepRunID}/cancel"
+}
+
+export type SessionWorkflowCancelStepErrors = {
+  /**
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type SessionWorkflowCancelStepError = SessionWorkflowCancelStepErrors[keyof SessionWorkflowCancelStepErrors]
+
+export type SessionWorkflowCancelStepResponses = {
+  /**
+   * Step cancellation workflow status
+   */
+  200: WorkflowAssetWorkflowStatusResponse
+}
+
+export type SessionWorkflowCancelStepResponse =
+  SessionWorkflowCancelStepResponses[keyof SessionWorkflowCancelStepResponses]
+
+export type SessionWorkflowRetryStepData = {
+  body?: {
+    requestID: string
+    expectedRunRevision: number
+    expectedStepRevision: number
+  }
+  path: {
+    sessionID: string
+    runID: string
+    stepRunID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/workflow/{runID}/step/{stepRunID}/retry"
+}
+
+export type SessionWorkflowRetryStepErrors = {
+  /**
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type SessionWorkflowRetryStepError = SessionWorkflowRetryStepErrors[keyof SessionWorkflowRetryStepErrors]
+
+export type SessionWorkflowRetryStepResponses = {
+  /**
+   * Accepted retry workflow status
+   */
+  202: WorkflowAssetWorkflowStatusResponse
+}
+
+export type SessionWorkflowRetryStepResponse =
+  SessionWorkflowRetryStepResponses[keyof SessionWorkflowRetryStepResponses]
 
 export type SyncStartData = {
   body?: never

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto"
-import { describe, expect } from "bun:test"
+import { afterEach, describe, expect } from "bun:test"
 import { Flag } from "@aigcfroge/core/flag/flag"
 import { ConfigProvider, Effect, Layer } from "effect"
 import {
@@ -49,8 +49,17 @@ function restoreEnv(key: string, value: string | undefined) {
   process.env[key] = value
 }
 
+// app() builds a second composition root (own memoMap) so the ConfigProvider
+// override applies. Its scope must be closed, or its TaskDriver registration leaks
+// and wins `installations.at(-1)` for the rest of the process.
+const pendingDisposals: Array<() => Promise<void>> = []
+
+afterEach(async () => {
+  await Promise.all(pendingDisposals.splice(0).map((dispose) => dispose()))
+})
+
 function app(input?: { password?: string; username?: string }) {
-  const handler = HttpRouter.toWebHandler(
+  const web = HttpRouter.toWebHandler(
     HttpApiApp.routes.pipe(
       Layer.provide(
         ConfigProvider.layer(
@@ -62,12 +71,13 @@ function app(input?: { password?: string; username?: string }) {
       ),
     ),
     { disableLogger: true },
-  ).handler
+  )
+  pendingDisposals.push(web.dispose)
   return {
     request(input: string | URL | Request, init?: RequestInit) {
       return Effect.promise(() =>
         Promise.resolve(
-          handler(
+          web.handler(
             input instanceof Request ? input : new Request(new URL(input, "http://localhost"), init),
             HttpApiApp.context,
           ),

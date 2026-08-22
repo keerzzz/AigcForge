@@ -9,8 +9,13 @@ import { PtyID } from "@aigcfroge/core/pty/schema"
 import { resetDatabase } from "../fixture/db"
 import { disposeAllInstances, tmpdir } from "../fixture/fixture"
 
+// Each app() builds a second composition root (own memoMap) so the ConfigProvider
+// override applies. Its scope is closed after every test so failures cannot leak
+// resources into the next composition root.
+const pendingDisposals: Array<() => Promise<void>> = []
+
 function app(input: { password?: string; username?: string }) {
-  const handler = HttpRouter.toWebHandler(
+  const web = HttpRouter.toWebHandler(
     HttpApiApp.routes.pipe(
       Layer.provide(
         ConfigProvider.layer(
@@ -22,10 +27,11 @@ function app(input: { password?: string; username?: string }) {
       ),
     ),
     { disableLogger: true },
-  ).handler
+  )
+  pendingDisposals.push(web.dispose)
 
   return {
-    fetch: (request: Request) => handler(request, HttpApiApp.context),
+    fetch: (request: Request) => web.handler(request, HttpApiApp.context),
     request(input: string | URL | Request, init?: RequestInit) {
       return this.fetch(input instanceof Request ? input : new Request(new URL(input, "http://localhost"), init))
     },
@@ -37,10 +43,12 @@ function basic(username: string, password: string) {
 }
 
 async function cancelBody(response: Response) {
-  await response.body?.cancel().catch(() => {})
+  await response.body?.cancel()
 }
 
 afterEach(async () => {
+  const disposals = pendingDisposals.splice(0)
+  await Promise.all(disposals.map((dispose) => dispose()))
   await disposeAllInstances()
   await resetDatabase()
 })

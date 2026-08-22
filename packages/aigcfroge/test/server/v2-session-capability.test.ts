@@ -149,7 +149,7 @@ const createRealCustom = Effect.fnUntraced(function* (directory: string) {
   return yield* Schema.decodeUnknownEffect(CustomCreateResponse)(yield* response.json)
 })
 
-describe("V2 Session Capability Matrix", () => {
+describe.serial("V2 Session Capability Matrix", () => {
   it.instance(
     "hides every custom-session endpoint from clients without the custom capability",
     () =>
@@ -203,8 +203,8 @@ describe("V2 Session Capability Matrix", () => {
           if (endpoint.kind === "admission") {
             expect({ endpoint: endpoint.name, status: response.status, body }).toMatchObject({
               endpoint: endpoint.name,
-              status: 404,
-              body: { _tag: "SessionNotFoundError", sessionID: custom.id },
+              status: 400,
+              body: { _tag: "UnsupportedProductModeError", mode: "custom" },
             })
             return
           }
@@ -219,7 +219,10 @@ describe("V2 Session Capability Matrix", () => {
           expect({ endpoint: endpoint.name, status: response.status, body }).toMatchObject({
             endpoint: endpoint.name,
             status: 400,
-            body: { _tag: "InvalidRequestError" },
+            body:
+              endpoint.name === "session.fork"
+                ? { _tag: "UnsupportedProductModeError", mode: "custom" }
+                : { _tag: "InvalidRequestError" },
           })
         }))
       }),

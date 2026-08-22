@@ -62,6 +62,10 @@ import { PtyTicket } from "@aigcfroge/core/pty/ticket"
 import { Ripgrep } from "@aigcfroge/core/ripgrep"
 import { SessionProjector } from "@aigcfroge/core/session/projector"
 import { v2RuntimeLayer, v2ShareLayer } from "@aigcfroge/core/session/v2-runtime"
+import { TaskDriverFill } from "@aigcfroge/core/session/task-driver-fill"
+import { TaskDriver } from "@aigcfroge/core/tool/task-driver"
+import * as WorkflowExecutionLocal from "@aigcfroge/core/workflow/execution/local"
+import { LocationServiceMap } from "@aigcfroge/core/location-layer"
 import { ScheduledJob } from "@aigcfroge/core/session/scheduled-job"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { SessionTodo } from "@aigcfroge/core/session/todo"
@@ -200,9 +204,26 @@ const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
   ]),
 )
 
+const v2TaskDriverRuntimeLayer = TaskDriver.runtimeLayer
+const v2RuntimeWithTaskDriver = v2RuntimeLayer.pipe(Layer.provideMerge(v2TaskDriverRuntimeLayer))
+const v2ShareWithTaskDriver = v2ShareLayer.pipe(Layer.provideMerge(v2TaskDriverRuntimeLayer))
+const v2TaskDriverFillLayer = TaskDriverFill.layer.pipe(
+  Layer.provideMerge(v2RuntimeWithTaskDriver),
+  Layer.provide(BackgroundJob.defaultLayer),
+  Layer.provide(EventV2.defaultLayer),
+  Layer.provideMerge(v2TaskDriverRuntimeLayer),
+)
+
+const workflowExecutionLayer = WorkflowExecutionLocal.defaultLayer.pipe(
+  Layer.provide(LocationServiceMap.layer),
+  Layer.provideMerge(v2TaskDriverRuntimeLayer),
+)
+
 const instanceRoutes = instanceApiRoutes.pipe(
-  Layer.provide(v2RuntimeLayer),
-  Layer.provide(v2ShareLayer),
+  Layer.provide(v2RuntimeWithTaskDriver),
+  Layer.provide(v2ShareWithTaskDriver),
+  Layer.provideMerge(v2TaskDriverFillLayer),
+  Layer.provide(workflowExecutionLayer),
   Layer.provide(httpApiAuthLayer),
   Layer.provide(workspaceRoutingLive),
   Layer.provide(instanceContextLayer),

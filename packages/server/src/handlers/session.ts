@@ -69,6 +69,9 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         ),
       )
 
+    const requireReadableSession = (sessionID: string, capabilitiesHeader?: string | null) =>
+      requireSessionAndCapability(sessionID, capabilitiesHeader)
+
     const requireRuntimeControlSession = (
       sessionID: string,
       operation: string,
@@ -401,7 +404,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         Effect.fn(function* (ctx) {
           const req = yield* HttpServerRequest.HttpServerRequest
           const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
+          yield* requireReadableSession(ctx.params.sessionID, capabilitiesHeader)
           return {
             data: yield* session.context(ctx.params.sessionID).pipe(
               Effect.catchTag("Session.NotFoundError", (error) =>
@@ -435,7 +438,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         Effect.fn(function* (ctx) {
           const req = yield* HttpServerRequest.HttpServerRequest
           const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
+          yield* requireReadableSession(ctx.params.sessionID, capabilitiesHeader)
           return {
             data: yield* session.children(ctx.params.sessionID).pipe(
               Effect.catchTag("Session.NotFoundError", (error) =>

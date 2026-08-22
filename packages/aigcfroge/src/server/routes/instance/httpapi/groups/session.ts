@@ -20,7 +20,7 @@ import {
   WorkspaceRoutingQuery,
   WorkspaceRoutingQueryFields,
 } from "../middleware/workspace-routing"
-import { ApiNotFoundError, PermissionNotFoundError, SessionBusyError, InvalidRequestError, UnsupportedProductModeError } from "../errors"
+import { ApiNotFoundError, ConflictError, PermissionNotFoundError, SessionBusyError, InvalidRequestError, UnsupportedProductModeError } from "../errors"
 import { described } from "./metadata"
 import { QueryBoolean } from "./query"
 import { ProviderV2 } from "@aigcfroge/core/provider"
@@ -82,6 +82,24 @@ export const RevertPayload = Schema.Struct(Struct.omit(SessionRevert.RevertInput
 export const PermissionResponsePayload = Schema.Struct({
   response: PermissionV1.Reply,
 })
+/** Idempotency key: bounded because it is persisted under a unique index. */
+const WorkflowRequestID = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(128))
+export const WorkflowRunPayload = Schema.Struct({
+  requestID: WorkflowRequestID,
+  expectedSnapshotDigest: Composition.Digest,
+})
+export const WorkflowCancelRunPayload = Schema.Struct({
+  expectedRunRevision: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+})
+export const WorkflowCancelStepPayload = Schema.Struct({
+  expectedRunRevision: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+  expectedStepRevision: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+})
+export const WorkflowRetryStepPayload = Schema.Struct({
+  requestID: WorkflowRequestID,
+  expectedRunRevision: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+  expectedStepRevision: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+})
 
 export const SessionPaths = {
   list: root,
@@ -119,6 +137,9 @@ export const SessionPaths = {
   composition: `${root}/:sessionID/composition`,
   workflow: `${root}/:sessionID/workflow`,
   workflowRun: `${root}/:sessionID/workflow/run`,
+  workflowCancelRun: `${root}/:sessionID/workflow/:runID/cancel`,
+  workflowCancelStep: `${root}/:sessionID/workflow/:runID/step/:stepRunID/cancel`,
+  workflowRetryStep: `${root}/:sessionID/workflow/:runID/step/:stepRunID/retry`,
 } as const
 
 export const SessionApi = HttpApi.make("session")
@@ -651,13 +672,69 @@ export const SessionApi = HttpApi.make("session")
         HttpApiEndpoint.post("workflowRun", SessionPaths.workflowRun, {
           params: { sessionID: SessionID },
           query: WorkspaceRoutingQuery,
-          success: described(Schema.optional(WorkflowAsset.WorkflowRunInfo), "Executed workflow run info"),
-          error: [HttpApiError.BadRequest, ApiNotFoundError, UnsupportedProductModeError],
+          payload: WorkflowRunPayload,
+          success: described(
+            WorkflowAsset.WorkflowStatusResponse.pipe(HttpApiSchema.status("Accepted")),
+            "Accepted workflow status",
+          ),
+          error: [HttpApiError.BadRequest, ApiNotFoundError, ConflictError, UnsupportedProductModeError],
         }).annotateMerge(
           OpenApi.annotations({
             identifier: "session.workflow.run",
-            summary: "Execute session workflow",
-            description: "Execute workflow runner for a custom session.",
+            summary: "Admit session workflow",
+            description: "Atomically admit a custom workflow run and wake its process-local asynchronous owner.",
+          }),
+        ),
+        HttpApiEndpoint.post("workflowCancelRun", SessionPaths.workflowCancelRun, {
+          params: { sessionID: SessionID, runID: WorkflowAsset.WorkflowRunID },
+          query: WorkspaceRoutingQuery,
+          payload: WorkflowCancelRunPayload,
+          success: described(WorkflowAsset.WorkflowStatusResponse, "Cancelled workflow status"),
+          error: [HttpApiError.BadRequest, ApiNotFoundError, ConflictError, UnsupportedProductModeError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.workflow.cancelRun",
+            summary: "Cancel session workflow run",
+            description:
+              "Persist the cancelling intent under run-revision CAS, interrupt the process-local owner and return the settled terminal state.",
+          }),
+        ),
+        HttpApiEndpoint.post("workflowCancelStep", SessionPaths.workflowCancelStep, {
+          params: {
+            sessionID: SessionID,
+            runID: WorkflowAsset.WorkflowRunID,
+            stepRunID: WorkflowAsset.StepRunID,
+          },
+          query: WorkspaceRoutingQuery,
+          payload: WorkflowCancelStepPayload,
+          success: described(WorkflowAsset.WorkflowStatusResponse, "Step cancellation workflow status"),
+          error: [HttpApiError.BadRequest, ApiNotFoundError, ConflictError, UnsupportedProductModeError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.workflow.cancelStep",
+            summary: "Cancel session workflow step",
+            description: "Explicitly cancel a single step run under run and step revision CAS without triggering automatic retry.",
+          }),
+        ),
+        HttpApiEndpoint.post("workflowRetryStep", SessionPaths.workflowRetryStep, {
+          params: {
+            sessionID: SessionID,
+            runID: WorkflowAsset.WorkflowRunID,
+            stepRunID: WorkflowAsset.StepRunID,
+          },
+          query: WorkspaceRoutingQuery,
+          payload: WorkflowRetryStepPayload,
+          success: described(
+            WorkflowAsset.WorkflowStatusResponse.pipe(HttpApiSchema.status("Accepted")),
+            "Accepted retry workflow status",
+          ),
+          error: [HttpApiError.BadRequest, ApiNotFoundError, ConflictError, UnsupportedProductModeError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.workflow.retryStep",
+            summary: "Retry session workflow step",
+            description:
+              "Create a new lineage run that replays the target step and its downstream closure, leaving the terminal run immutable.",
           }),
         ),
       )

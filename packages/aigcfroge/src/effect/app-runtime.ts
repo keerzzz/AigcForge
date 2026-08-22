@@ -70,6 +70,7 @@ import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
 import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
 import { McpV2 } from "@aigcfroge/core/mcp/mcp-v2"
 import { TaskDriverFill } from "@aigcfroge/core/session/task-driver-fill"
+import { TaskDriver } from "@aigcfroge/core/tool/task-driver"
 import { CrossSpawnSpawner } from "@aigcfroge/core/cross-spawn-spawner"
 import { Credential } from "@aigcfroge/core/credential"
 import { AppProcess } from "@aigcfroge/core/process"
@@ -120,9 +121,11 @@ const V1_ONLY_LAYERS = AIGCFROGE_V2_RUNTIME
     ]
 
 const v2SessionStoreLayer = SessionStore.layer.pipe(Layer.provide(Database.defaultLayer))
+const v2TaskDriverRuntimeLayer = TaskDriver.runtimeLayer
 
 const v2SessionExecutionLayer = HotReloadSessionExecution.layer.pipe(
   Layer.provide(Layer.mergeAll(v2SessionStoreLayer, LocationServiceMap.layer)),
+  Layer.provideMerge(v2TaskDriverRuntimeLayer),
 )
 
 const v2SessionLayer = SessionV2.layer.pipe(
@@ -165,12 +168,13 @@ const v2SessionShareLayer = SessionShareV2.layer.pipe(
 )
 
 const v2TaskDriverFillLayer = TaskDriverFill.layer.pipe(
-  Layer.provide(v2SessionLayer),
+  Layer.provideMerge(v2SessionLayer),
   Layer.provide(BackgroundJob.defaultLayer),
   Layer.provide(CrossSpawnSpawner.defaultLayer),
   // The fill writes child messages through EventV2; v2SessionLayer consumes its
   // own EventV2 internally, so provide the shared default explicitly.
   Layer.provide(EventV2.defaultLayer),
+  Layer.provideMerge(v2TaskDriverRuntimeLayer),
 )
 
 const V2_LAYERS = Layer.mergeAll(
@@ -188,9 +192,8 @@ const V2_LAYERS = Layer.mergeAll(
   MetaAgentService.defaultLayer,
   MetaPromptFiller.layer,
   v2SessionShareLayer,
-  v2TaskDriverFillLayer,
   McpV2.noopLayer,
-)
+).pipe(Layer.provideMerge(v2TaskDriverFillLayer))
 
 export const AppLayer = Layer.mergeAll(
   // ── Shared (always provided) ────────────────────────────────────

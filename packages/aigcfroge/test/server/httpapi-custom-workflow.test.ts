@@ -2,15 +2,21 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import fs from "fs/promises"
 import path from "path"
 import { Context, Schema } from "effect"
-import { CustomCompositionApiGroup } from "../../src/server/routes/instance/httpapi/groups/custom-composition"
+import { OpenApi } from "effect/unstable/httpapi"
 import { Composition } from "@aigcfroge/schema/composition"
 import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
+// `server` must be imported before `api`: both sit on the same module cycle as
+// `@aigcfroge/core/plugin`, and only the server entry initialises the Location
+// layers in an order that does not trip `Cannot access 'locationLayer'`.
 import { HttpApiApp } from "../../src/server/routes/instance/httpapi/server"
+import { AigcfrogeHttpApi } from "../../src/server/routes/instance/httpapi/api"
 import { Hash } from "@aigcfroge/core/util/hash"
 import { resetDatabase } from "../fixture/db"
 import { disposeAllInstances, tmpdir } from "../fixture/fixture"
 
 const context = Context.makeUnsafe<unknown>(new Map())
+const StartResponseJson = Schema.toCodecJson(Composition.StartResponse)
+const WorkflowStatusResponseJson = Schema.toCodecJson(WorkflowAsset.WorkflowStatusResponse)
 
 let savedCustomMode: string | undefined
 
@@ -43,7 +49,7 @@ afterEach(async () => {
 })
 
 describe("custom workflow HttpApi", () => {
-  test("starts workflow session, queries workflow status, and executes workflow", async () => {
+  test("admits workflow asynchronously and rejects a stale snapshot digest", async () => {
     await using tmp = await tmpdir({ git: true })
 
     // 1. Create agent asset
@@ -99,7 +105,7 @@ describe("custom workflow HttpApi", () => {
       }),
     })
     expect(startRes.status).toBe(200)
-    const started = (await startRes.json()) as { session: { id: string }; snapshot: { version: number } }
+    const started = Schema.decodeUnknownSync(StartResponseJson)(await startRes.json())
     expect(started.snapshot.version).toBe(2)
 
     const sessionID = started.session.id
@@ -107,23 +113,65 @@ describe("custom workflow HttpApi", () => {
     // 5. Query workflow status before execution
     const workflowGetRes = await request(`/session/${sessionID}/workflow`, tmp.path)
     expect(workflowGetRes.status).toBe(200)
-    const statusBefore = (await workflowGetRes.json()) as { run?: { status: string }; steps: unknown[] }
+    const statusBefore = Schema.decodeUnknownSync(WorkflowStatusResponseJson)(await workflowGetRes.json())
     expect(statusBefore.run).toBeFalsy()
 
-    // 6. Execute workflow run
+    // 6. Admit workflow ownership without waiting for child/provider execution.
     const runRes = await request(`/session/${sessionID}/workflow/run`, tmp.path, {
       method: "POST",
+      body: JSON.stringify({
+        requestID: "workflow-http-admission-1",
+        expectedSnapshotDigest: started.snapshot.digest,
+      }),
     })
-    expect(runRes.status).toBe(200)
-    const runResult = (await runRes.json()) as { status: string }
-    expect(runResult.status).toBe("completed")
+    expect(runRes.status, await runRes.clone().text()).toBe(202)
+    const admitted = Schema.decodeUnknownSync(WorkflowStatusResponseJson)(await runRes.json())
+    expect(admitted.run?.snapshotDigest).toBe(started.snapshot.digest)
+    expect(admitted.steps).toHaveLength(1)
 
-    // 7. Query workflow status after execution
+    const conflictRes = await request(`/session/${sessionID}/workflow/run`, tmp.path, {
+      method: "POST",
+      body: JSON.stringify({
+        requestID: "workflow-http-admission-2",
+        expectedSnapshotDigest: "0".repeat(64),
+      }),
+    })
+    expect(conflictRes.status).toBe(409)
+    expect(await conflictRes.json()).toMatchObject({
+      _tag: "ConflictError",
+      resource: sessionID,
+    })
+
+    // 7. Query the authoritative durable state after admission.
     const workflowPostRes = await request(`/session/${sessionID}/workflow`, tmp.path)
     expect(workflowPostRes.status).toBe(200)
-    const statusAfter = (await workflowPostRes.json()) as { run?: { status: string }; steps: Array<{ status: string }> }
-    expect(statusAfter.run?.status).toBe("completed")
+    const statusAfter = Schema.decodeUnknownSync(WorkflowStatusResponseJson)(await workflowPostRes.json())
+    expect(statusAfter.run?.id).toBe(admitted.run?.id)
     expect(statusAfter.steps).toHaveLength(1)
-    expect(statusAfter.steps[0].status).toBe("completed")
   })
+})
+
+describe("custom workflow OpenAPI operation identity", () => {
+  // The generated JavaScript SDK derives its client namespace from operationId:
+  // `session.workflow.cancelRun` becomes `client.session.workflow.cancelRun()`.
+  // An endpoint without an explicit identifier falls back to its bare endpoint
+  // name and lands flat on the parent `Session` class, which silently breaks
+  // every consumer that reaches for `client.session.workflow.*`.
+  const spec = OpenApi.fromApi(AigcfrogeHttpApi) as {
+    paths: Record<string, Record<string, { operationId?: string } | undefined>>
+  }
+
+  const expected = [
+    ["get", "/session/{sessionID}/workflow", "session.workflow.get"],
+    ["post", "/session/{sessionID}/workflow/run", "session.workflow.run"],
+    ["post", "/session/{sessionID}/workflow/{runID}/cancel", "session.workflow.cancelRun"],
+    ["post", "/session/{sessionID}/workflow/{runID}/step/{stepRunID}/cancel", "session.workflow.cancelStep"],
+    ["post", "/session/{sessionID}/workflow/{runID}/step/{stepRunID}/retry", "session.workflow.retryStep"],
+  ] as const
+
+  for (const [method, route, operationId] of expected) {
+    test(`${method.toUpperCase()} ${route} keeps the session.workflow SDK namespace`, () => {
+      expect(spec.paths[route]?.[method]?.operationId).toBe(operationId)
+    })
+  }
 })

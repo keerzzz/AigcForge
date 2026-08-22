@@ -2274,6 +2274,88 @@ const scenarios: Scenario[] = [
       check(typeof body.digest === "string", "composition snapshot should carry a digest")
     }),
   http.protected
+    .get("/session/{sessionID}/workflow", "session.workflow.get")
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const custom = yield* ctx.customSession({ title: "Workflow status session" })
+        return custom.session.id
+      }),
+    )
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/workflow", { sessionID: ctx.state }),
+      headers: { ...ctx.headers(), "x-aigcfroge-capabilities": "product-mode-custom-v1" },
+    }))
+    .json(200, (body) => {
+      object(body)
+      array(body.steps)
+    }),
+  http.protected
+    .post("/session/{sessionID}/workflow/run", "session.workflow.run")
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const custom = yield* ctx.customSession({ title: "Workflow run session", workflow: true })
+        if (!isRecord(custom.snapshot) || typeof custom.snapshot.digest !== "string") {
+          return yield* Effect.die("workflow custom session did not return a snapshot digest")
+        }
+        return { sessionID: custom.session.id, snapshotDigest: custom.snapshot.digest }
+      }),
+    )
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/workflow/run", { sessionID: ctx.state.sessionID }),
+      headers: { ...ctx.headers(), "x-aigcfroge-capabilities": "product-mode-custom-v1" },
+      body: {
+        requestID: "httpapi-exercise-workflow-run",
+        expectedSnapshotDigest: ctx.state.snapshotDigest,
+      },
+    }))
+    .json(202, (body) => {
+      object(body)
+      object(body.run)
+      array(body.steps)
+    }),
+  http.protected
+    .post("/session/{sessionID}/workflow/{runID}/cancel", "session.workflow.cancelRun.missing")
+    .seeded((ctx) => ctx.customSession({ title: "Missing workflow run cancel", workflow: true }))
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/workflow/{runID}/cancel", {
+        sessionID: ctx.state.session.id,
+        runID: "workflowRun_missing",
+      }),
+      headers: { ...ctx.headers(), "x-aigcfroge-capabilities": "product-mode-custom-v1" },
+      body: { expectedRunRevision: 1 },
+    }))
+    .json(404),
+  http.protected
+    .post("/session/{sessionID}/workflow/{runID}/step/{stepRunID}/cancel", "session.workflow.cancelStep.missing")
+    .seeded((ctx) => ctx.customSession({ title: "Missing workflow step cancel", workflow: true }))
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/workflow/{runID}/step/{stepRunID}/cancel", {
+        sessionID: ctx.state.session.id,
+        runID: "workflowRun_missing",
+        stepRunID: "workflowStep_missing",
+      }),
+      headers: { ...ctx.headers(), "x-aigcfroge-capabilities": "product-mode-custom-v1" },
+      body: { expectedRunRevision: 1, expectedStepRevision: 1 },
+    }))
+    .json(404),
+  http.protected
+    .post("/session/{sessionID}/workflow/{runID}/step/{stepRunID}/retry", "session.workflow.retryStep.missing")
+    .seeded((ctx) => ctx.customSession({ title: "Missing workflow step retry", workflow: true }))
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/workflow/{runID}/step/{stepRunID}/retry", {
+        sessionID: ctx.state.session.id,
+        runID: "workflowRun_missing",
+        stepRunID: "workflowStep_missing",
+      }),
+      headers: { ...ctx.headers(), "x-aigcfroge-capabilities": "product-mode-custom-v1" },
+      body: {
+        requestID: "httpapi-exercise-workflow-retry-missing",
+        expectedRunRevision: 1,
+        expectedStepRevision: 1,
+      },
+    }))
+    .json(404),
+  http.protected
     .get("/session/{sessionID}/cache-diagnostics", "session.cacheDiagnostics")
     .seeded((ctx) => ctx.session({ title: "Cache diagnostics session" }))
     .at((ctx) => ({
