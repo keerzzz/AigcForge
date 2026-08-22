@@ -1,5 +1,17 @@
 # V2 Schema Changelog
 
+## 2026-08-21: Custom Mode M2 Workflow Contract Slice
+
+> **Status: IMPLEMENTED (Schema/Resolver contract only)**
+> **Scope:** Workflow lifecycle schemas, retry lineage, structured step input/branch output, consumer-scoped Snapshot v2 bindings, frozen concurrency, and Command resolution. Runtime owner, migration, HTTP, SDK, and App adoption remain separate slices.
+
+- `WorkflowRunStatus` adds `cancelling` and `recovery_required`; `StepRunStatus` adds `dispatching`, `cancelling`, and `execution_unknown`.
+- `WorkflowRunInfo` exposes optional `parentRunID`, `rootRunID`, and `retryOfStepRunID` lineage identifiers for terminal retry runs.
+- `StepDef.input` now accepts JSON objects only. Branch results use strict `{ branch, summary? }`, with summary limited to 2,000 code points; branch nodes reject `failurePolicy: continue`.
+- Snapshot v2 adds consumer-scoped Prompt/Skill/Command bindings keyed by `orchestrator` or `agents/<agent>`, plus frozen `maxConcurrency` constrained to `1..8`.
+- Existing Snapshot v2 rows remain readable: omitted `bindings`, `commands`, and `maxConcurrency` decode to `{}`, `[]`, and `1`. Existing flat Prompt/Skill/Command arrays remain as compatibility projections until downstream consumers adopt scoped bindings.
+- `CompositionResolver` resolves Command assets into static templates, validates missing/stale refs, and includes Command refs in health/reference queries. Commands do not add instructions, capabilities, tools, or executors.
+
 ## 2026-08-19: Custom Mode Composition Platform M1 (ADR-17 v1.2) — Implemented
 
 > **Status: IMPLEMENTED (M1 Waves W1-W4)**

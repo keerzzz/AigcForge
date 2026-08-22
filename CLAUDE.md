@@ -133,6 +133,6 @@
 ## 已知技术负债
 
 技术债与后期任务统一归档在 [docs/technical-debt.md](docs/technical-debt.md)（单一真源），涵盖：
-权限档位遗留（M1/M2/M3/M5/D5）、4 模式页面归一化延后项、Custom Mode 平台任务（ADR-17 + Roadmap M0-M5）与全局存量债（dompurify、doom_loop 统计、资产路由、Prettier、`catch (e: any)` 等）。
+权限档位遗留（M1/M2/M3/M5/D5）、4 模式页面归一化延后项、Custom Mode 平台任务（ADR-17 + Roadmap M0-M5，§3.1 为 Custom M2 遗留项）与全局存量债（dompurify、doom_loop 统计、资产路由、Prettier、`catch (e: any)` 等）。
 
 > 更新规则：闭环一项即在 docs/technical-debt.md 中移入「已闭环」表并记录日期与提交；新增债必须写来源与触发条件。
