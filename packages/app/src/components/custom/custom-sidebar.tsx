@@ -6,10 +6,11 @@ import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { useDirectoryPicker } from "@/components/directory-picker"
 import { useModeDirectory } from "@/pages/mode-workspace-context"
 import { useGlobal } from "@/context/global"
-import { ServerConnection } from "@/context/server"
 import { getFilename } from "@aigcfroge/core/util/path"
 import { useCustomDraft } from "@/context/custom-draft"
 import type { DirectorySDK } from "@/context/sdk"
+
+type AssetCategory = "all" | "agents" | "workflows" | "prompts" | "skills" | "commands"
 
 export interface CustomSidebarProps {
   dirSdk: () => DirectorySDK | undefined
@@ -23,24 +24,29 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
   const { conn, ctx, directory } = useModeDirectory()
   const draft = useCustomDraft()
   const [search, setSearch] = createSignal("")
-  const [activeCategory, setActiveCategory] = createSignal<"all" | "agents" | "prompts" | "skills">("all")
+  const [activeCategory, setActiveCategory] = createSignal<AssetCategory>("all")
+  const [commandConsumer, setCommandConsumer] = createSignal("orchestrator")
 
   const [discovered, { refetch }] = createResource(props.dirSdk, async (sdk) => {
-    if (!sdk) return { agents: [], prompts: [], skills: [] }
+    if (!sdk) return { agents: [], workflows: [], prompts: [], skills: [], commands: [] }
     try {
-      const [agentsRes, promptsRes, skillsRes] = await Promise.all([
+      const [agentsRes, workflowsRes, promptsRes, skillsRes, commandsRes] = await Promise.all([
         sdk.client.agentAsset.list().catch(() => ({ data: { assets: [] } })),
+        sdk.client.workflowAsset.list().catch(() => ({ data: { assets: [] } })),
         sdk.client.promptAsset.list().catch(() => ({ data: { assets: [] } })),
         sdk.client.skillAsset.list().catch(() => ({ data: { assets: [] } })),
+        sdk.client.commandAsset.list().catch(() => ({ data: { assets: [] } })),
       ])
 
       return {
         agents: agentsRes.data?.assets ?? [],
+        workflows: workflowsRes.data?.assets ?? [],
         prompts: promptsRes.data?.assets ?? [],
         skills: skillsRes.data?.assets ?? [],
+        commands: commandsRes.data?.assets ?? [],
       }
     } catch {
-      return { agents: [], prompts: [], skills: [] }
+      return { agents: [], workflows: [], prompts: [], skills: [], commands: [] }
     }
   })
 
@@ -60,11 +66,29 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
     return list.filter((p) => p.name.toLowerCase().includes(q) || (p.description ?? "").toLowerCase().includes(q))
   })
 
+  const filteredWorkflows = createMemo(() => {
+    const list = discovered()?.workflows ?? []
+    const q = query()
+    if (!q) return list
+    return list.filter((workflow) =>
+      workflow.name.toLowerCase().includes(q) || (workflow.description ?? "").toLowerCase().includes(q),
+    )
+  })
+
   const filteredSkills = createMemo(() => {
     const list = discovered()?.skills ?? []
     const q = query()
     if (!q) return list
     return list.filter((s) => s.name.toLowerCase().includes(q) || (s.description ?? "").toLowerCase().includes(q))
+  })
+
+  const filteredCommands = createMemo(() => {
+    const list = discovered()?.commands ?? []
+    const q = query()
+    if (!q) return list
+    return list.filter((command) =>
+      command.name.toLowerCase().includes(q) || (command.description ?? "").toLowerCase().includes(q),
+    )
   })
 
   function addProject() {
@@ -159,6 +183,13 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
         </button>
         <button
           type="button"
+          class={`rounded px-2 py-0.5 text-11-medium transition-colors ${activeCategory() === "workflows" ? "bg-v2-background-bg-layer-03 text-v2-text-text-base" : "text-v2-text-text-muted hover:text-v2-text-text-base"}`}
+          onClick={() => setActiveCategory("workflows")}
+        >
+          {language.t("custom.sidebar.workflows")} ({discovered()?.workflows.length ?? 0})
+        </button>
+        <button
+          type="button"
           class={`rounded px-2 py-0.5 text-11-medium transition-colors ${activeCategory() === "prompts" ? "bg-v2-background-bg-layer-03 text-v2-text-text-base" : "text-v2-text-text-muted hover:text-v2-text-text-base"}`}
           onClick={() => setActiveCategory("prompts")}
         >
@@ -170,6 +201,13 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
           onClick={() => setActiveCategory("skills")}
         >
           {language.t("custom.sidebar.skills")} ({discovered()?.skills.length ?? 0})
+        </button>
+        <button
+          type="button"
+          class={`rounded px-2 py-0.5 text-11-medium transition-colors ${activeCategory() === "commands" ? "bg-v2-background-bg-layer-03 text-v2-text-text-base" : "text-v2-text-text-muted hover:text-v2-text-text-base"}`}
+          onClick={() => setActiveCategory("commands")}
+        >
+          {language.t("custom.sidebar.commands")} ({discovered()?.commands.length ?? 0})
         </button>
       </div>
 
@@ -234,6 +272,50 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
           </div>
         </Show>
 
+        <Show when={activeCategory() === "all" || activeCategory() === "workflows"}>
+          <div class="flex flex-col gap-1">
+            <span class="px-2 text-10-medium uppercase tracking-wider text-v2-text-text-faint">
+              {language.t("custom.sidebar.workflows")}
+            </span>
+            <Show
+              when={filteredWorkflows().length > 0}
+              fallback={
+                <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
+                  {language.t("custom.sidebar.noWorkflows")}
+                </div>
+              }
+            >
+              <For each={filteredWorkflows()}>
+                {(workflow) => {
+                  const isSelected = () => draft.state.workflow?.relativePath === workflow.relativePath
+                  return (
+                    <button
+                      type="button"
+                      aria-pressed={isSelected()}
+                      class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline focus-visible:outline-1 focus-visible:outline-v2-border-border-active"
+                      onClick={() => draft.toggleWorkflow({
+                        kind: "workflow",
+                        relativePath: workflow.relativePath,
+                        revision: workflow.revision,
+                        name: workflow.name,
+                        description: workflow.description,
+                      })}
+                    >
+                      <div class="flex min-w-0 items-center gap-1.5">
+                        <Icon name="mode-custom" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+                        <span class="truncate text-v2-text-text-base text-12-regular">{workflow.name}</span>
+                      </div>
+                      <Show when={isSelected()}>
+                        <Icon name="check" size="small" class="shrink-0 text-v2-state-fg-success" />
+                      </Show>
+                    </button>
+                  )
+                }}
+              </For>
+            </Show>
+          </div>
+        </Show>
+
         {/* Prompts */}
         <Show when={activeCategory() === "all" || activeCategory() === "prompts"}>
           <div class="flex flex-col gap-1">
@@ -272,6 +354,70 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
                       </div>
                       <Show when={isBound()}>
                         <Icon name="check" size="small" class="text-emerald-400 shrink-0" />
+                      </Show>
+                    </button>
+                  )
+                }}
+              </For>
+            </Show>
+          </div>
+        </Show>
+
+        <Show when={activeCategory() === "all" || activeCategory() === "commands"}>
+          <div class="flex flex-col gap-2">
+            <div class="flex items-center justify-between gap-2 px-2">
+              <span class="text-10-medium uppercase tracking-wider text-v2-text-text-faint">
+                {language.t("custom.sidebar.commands")}
+              </span>
+              <label class="flex min-w-0 items-center gap-1.5 text-v2-text-text-muted text-10-regular">
+                <span class="shrink-0">{language.t("custom.sidebar.consumer")}</span>
+                <select
+                  aria-label={language.t("custom.sidebar.consumer")}
+                  class="min-w-0 max-w-32 rounded border border-v2-border-border-base bg-v2-background-bg-layer-02 px-1.5 py-0.5 text-v2-text-text-base text-10-regular focus:border-v2-border-border-focus focus:outline-none"
+                  value={commandConsumer()}
+                  onChange={(event) => setCommandConsumer(event.currentTarget.value)}
+                >
+                  <option value="orchestrator">{language.t("custom.sidebar.consumerOrchestrator")}</option>
+                  <For each={draft.state.agents}>
+                    {(agent) => {
+                      const name = agent.name ?? agent.relativePath.replace(/\.md$/, "")
+                      return <option value={`agents/${name}`}>{name}</option>
+                    }}
+                  </For>
+                </select>
+              </label>
+            </div>
+            <Show
+              when={filteredCommands().length > 0}
+              fallback={
+                <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
+                  {language.t("custom.sidebar.noCommands")}
+                </div>
+              }
+            >
+              <For each={filteredCommands()}>
+                {(command) => {
+                  const isBound = () => (draft.state.bindings[commandConsumer()]?.commands ?? [])
+                    .some((item) => item.relativePath === command.relativePath)
+                  return (
+                    <button
+                      type="button"
+                      aria-pressed={isBound()}
+                      class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline focus-visible:outline-1 focus-visible:outline-v2-border-border-active"
+                      onClick={() => draft.toggleCommand(commandConsumer(), {
+                        kind: "command",
+                        relativePath: command.relativePath,
+                        revision: command.revision,
+                        name: command.name,
+                        description: command.description,
+                      })}
+                    >
+                      <div class="flex min-w-0 items-center gap-1.5">
+                        <Icon name="settings-gear" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+                        <span class="truncate text-v2-text-text-base text-12-regular">{command.name}</span>
+                      </div>
+                      <Show when={isBound()}>
+                        <Icon name="check" size="small" class="shrink-0 text-v2-state-fg-success" />
                       </Show>
                     </button>
                   )

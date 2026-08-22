@@ -11,6 +11,7 @@ import { useCustomDraft } from "@/context/custom-draft"
 import { showToast } from "@/utils/toast"
 import { Schema } from "effect"
 import { Snapshot } from "@aigcfroge/schema/composition"
+import { WorkflowRuntimePanel } from "@/pages/session/workflow-runtime-panel"
 
 export interface CustomSessionPanelProps {
   sessionID?: string
@@ -30,9 +31,13 @@ const decodeSnapshot = Schema.decodeUnknownOption(Snapshot)
 
 function extractSnapshot(data: unknown): Snapshot | undefined {
   if (typeof data !== "object" || data === null) return undefined
-  if (!("snapshot" in data)) return undefined
-  const decoded = decodeSnapshot(data.snapshot)
-  return decoded._tag === "Some" ? decoded.value : undefined
+  const directDecoded = decodeSnapshot(data)
+  if (directDecoded._tag === "Some") return directDecoded.value
+  if ("snapshot" in data) {
+    const nestedDecoded = decodeSnapshot((data as { snapshot: unknown }).snapshot)
+    if (nestedDecoded._tag === "Some") return nestedDecoded.value
+  }
+  return undefined
 }
 
 export function CustomSessionPanel(props: CustomSessionPanelProps) {
@@ -54,7 +59,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
       if (!source.sessionID) return undefined
       try {
         const s = sdk()
-        const res = await s.client.session.get(
+        const res = await s.client.session.composition(
           { sessionID: source.sessionID },
           { throwOnError: false },
         )
@@ -159,6 +164,8 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
           </button>
         </div>
       </Show>
+
+      <WorkflowRuntimePanel sessionID={props.sessionID} />
 
       {/* Snapshot Metadata Cards */}
       <div class="flex flex-col gap-3">

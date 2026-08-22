@@ -72,6 +72,61 @@ describe("custom-draft store", () => {
     expect(store.state.bindings["orchestrator"]?.skills.length).toBe(1)
   })
 
+  test("toggles command bindings per consumer and serializes them", () => {
+    const store = createCustomDraftState()
+    store.reset()
+
+    store.toggleCommand("agents/reviewer", {
+      kind: "command",
+      relativePath: "commands/review.md",
+      revision: "rev-command",
+      name: "review",
+    })
+
+    expect(store.state.bindings["agents/reviewer"]?.commands).toEqual([
+      {
+        kind: "command",
+        relativePath: "commands/review.md",
+        revision: "rev-command",
+        name: "review",
+      },
+    ])
+    expect(store.composition).toMatchObject({
+      source: "temporary",
+      bindings: {
+        "agents/reviewer": {
+          prompts: [],
+          skills: [],
+          commands: [{ kind: "command", relativePath: "commands/review.md", revision: "rev-command" }],
+        },
+      },
+    })
+
+    store.toggleCommand("agents/reviewer", {
+      kind: "command",
+      relativePath: "commands/review.md",
+      revision: "rev-command",
+      name: "review",
+    })
+    expect(store.state.bindings["agents/reviewer"]?.commands).toEqual([])
+  })
+
+  test("removes agent-scoped bindings when the agent leaves the pool", () => {
+    const store = createCustomDraftState()
+    store.reset()
+    store.addAgent({ kind: "agent", relativePath: "reviewer.md", revision: "rev-agent", name: "reviewer" })
+    store.toggleCommand("agents/reviewer", {
+      kind: "command",
+      relativePath: "commands/review.md",
+      revision: "rev-command",
+      name: "review",
+    })
+
+    store.removeAgent("reviewer.md")
+
+    expect(store.state.bindings["agents/reviewer"]).toBeUndefined()
+  })
+
   test("toggles requested capabilities", () => {
     const store = createCustomDraftState()
     store.reset()
@@ -145,6 +200,15 @@ describe("custom-draft store", () => {
             },
           ],
         },
+        bindings: {
+          orchestrator: {
+            prompts: [{ relativePath: "guide.md", revision: Revision.make("f".repeat(64)), content: "" }],
+            skills: [{ name: "bash", description: "", relativePath: "bash", revision: Revision.make("1".repeat(64)) }],
+            commands: [],
+          },
+        },
+        maxConcurrency: 2,
+        commands: [],
         instructions: [],
         prompts: [{ relativePath: "guide.md", revision: Revision.make("f".repeat(64)), content: "" }],
         skills: [{ name: "bash", description: "", relativePath: "bash", revision: Revision.make("1".repeat(64)) }],
@@ -160,6 +224,67 @@ describe("custom-draft store", () => {
     expect(store.state.bindings["orchestrator"]?.prompts[0]?.relativePath).toBe("guide.md")
   })
 
+  test("loads consumer-scoped v2 snapshot command bindings", () => {
+    const store = createCustomDraftState()
+    const snapshot: Snapshot = {
+      version: 2,
+      digest: Digest.make("a".repeat(64)),
+      createdAt: Date.now(),
+      data: {
+        agents: [
+          {
+            id: "coder",
+            name: "coder",
+            description: "Coder agent",
+            relativePath: "coder.md",
+            revision: Revision.make("c".repeat(64)),
+          },
+        ],
+        workflow: null,
+        bindings: {
+          "agents/coder": {
+            prompts: [],
+            skills: [],
+            commands: [
+              {
+                name: "review",
+                description: "Review changes",
+                relativePath: "commands/review.md",
+                revision: Revision.make("e".repeat(64)),
+                template: "/review",
+              },
+            ],
+          },
+        },
+        maxConcurrency: 1,
+        commands: [
+          {
+            name: "review",
+            description: "Review changes",
+            relativePath: "commands/review.md",
+            revision: Revision.make("e".repeat(64)),
+            template: "/review",
+          },
+        ],
+        instructions: [],
+        prompts: [],
+        skills: [],
+        tools: { fingerprints: [], catalogDigest: Digest.make("b".repeat(64)), catalog: [] },
+      },
+    }
+
+    store.loadFromSnapshot(snapshot)
+    expect(store.state.bindings["agents/coder"]?.commands).toEqual([
+      {
+        kind: "command",
+        relativePath: "commands/review.md",
+        revision: Revision.make("e".repeat(64)),
+        name: "review",
+        description: "Review changes",
+      },
+    ])
+  })
+
   test("converts draft state to CompositionInput schema", () => {
     const tempState: CustomDraftState = {
       source: "temporary",
@@ -170,6 +295,7 @@ describe("custom-draft store", () => {
         orchestrator: {
           prompts: [{ kind: "prompt", relativePath: "p1.md", revision: "revP" }],
           skills: [{ kind: "skill", relativePath: "s1.md", revision: "revS" }],
+          commands: [{ kind: "command", relativePath: "c1.md", revision: "revC" }],
         },
       },
       requestedCapabilities: ["cap1"],
@@ -181,6 +307,9 @@ describe("custom-draft store", () => {
     if (comp.source === "temporary") {
       expect(comp.bindings["orchestrator"]?.prompts.length).toBe(1)
       expect(comp.bindings["orchestrator"]?.skills.length).toBe(1)
+      expect(comp.bindings["orchestrator"]?.commands).toEqual([
+        { kind: "command", relativePath: "c1.md", revision: "revC" },
+      ])
       expect(comp.requestedCapabilities).toEqual(["cap1"])
     }
 

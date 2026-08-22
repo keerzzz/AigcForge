@@ -13,6 +13,131 @@ export interface CustomPreviewTabsProps {
   loading?: boolean
 }
 
+export function planPreviewSummary(plan: Partial<CompositionPlan> | undefined) {
+  const steps = plan?.workflow?.steps ?? []
+  return {
+    workflowName: plan?.workflow?.name,
+    stepCount: steps.length,
+    agentCount: plan?.agents?.length ?? plan?.costPreview?.agentCount ?? 0,
+    maxConcurrency: plan?.costPreview?.maxConcurrency,
+    estimatedTokens: plan?.costPreview?.estimatedTokens,
+    effectiveToolCount: plan?.costPreview?.effectiveToolCount,
+    edgeCount: steps.reduce(
+      (count, step) => count + (step.next ? 1 : 0) + (step.parallel?.length ?? 0) + Object.keys(step.branches ?? {}).length,
+      0,
+    ),
+  }
+}
+
+export function WorkflowTab(props: { plan: CompositionPlan | undefined }) {
+  const language = useLanguage()
+  const summary = createMemo(() => planPreviewSummary(props.plan))
+  const agents = createMemo(() => props.plan?.agents ?? [])
+  const workflow = createMemo(() => props.plan?.workflow)
+
+  return (
+    <div class="flex flex-col gap-5">
+      <div class="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-v2-border-border-base bg-v2-border-border-base sm:grid-cols-4">
+        <For each={[
+          { label: language.t("custom.builder.plan.agentPool"), value: summary().agentCount },
+          { label: language.t("custom.builder.plan.steps"), value: summary().stepCount },
+          { label: language.t("custom.builder.plan.maxConcurrency"), value: summary().maxConcurrency ?? "-" },
+          { label: language.t("custom.builder.plan.estimatedTokens"), value: summary().estimatedTokens?.toLocaleString() ?? "-" },
+        ]}>
+          {(metric) => (
+            <div class="flex min-w-0 flex-col gap-1 bg-v2-background-bg-layer-02 px-3 py-2.5">
+              <span class="truncate text-v2-text-text-faint text-10-medium uppercase tracking-wider">{metric.label}</span>
+              <span class="font-mono text-v2-text-text-base text-14-medium">{metric.value}</span>
+            </div>
+          )}
+        </For>
+      </div>
+
+      <div class="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
+        <section class="flex min-w-0 flex-col gap-2">
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="text-v2-text-text-base text-12-medium">{language.t("custom.builder.plan.agentPool")}</h3>
+            <span class="text-v2-text-text-faint text-10-regular">{agents().length}</span>
+          </div>
+          <Show
+            when={agents().length > 0}
+            fallback={<div class="rounded-md border border-dashed border-v2-border-border-base p-4 text-center text-v2-text-text-muted text-11-regular">{language.t("custom.builder.plan.noAgents")}</div>}
+          >
+            <div class="flex flex-col gap-1">
+              <For each={agents()}>
+                {(agent) => (
+                  <div class="flex min-w-0 items-center gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 px-2.5 py-2">
+                    <Icon name="mode-assistant" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+                    <div class="min-w-0">
+                      <span class="block truncate font-mono text-v2-text-text-base text-11-medium">{agent.name}</span>
+                      <Show when={agent.description}>
+                        <span class="block truncate text-v2-text-text-faint text-10-regular">{agent.description}</span>
+                      </Show>
+                    </div>
+                  </div>
+                )}
+              </For>
+            </div>
+          </Show>
+        </section>
+
+        <section class="flex min-w-0 flex-col gap-2">
+          <div class="flex items-center justify-between gap-2">
+            <div class="min-w-0">
+              <h3 class="truncate text-v2-text-text-base text-12-medium">{workflow()?.name ?? language.t("custom.builder.plan.dag")}</h3>
+              <Show when={workflow()?.description}>
+                <p class="truncate text-v2-text-text-faint text-10-regular">{workflow()?.description}</p>
+              </Show>
+            </div>
+            <span class="shrink-0 text-v2-text-text-faint text-10-regular">
+              {language.t("custom.builder.plan.edges", { count: summary().edgeCount })}
+            </span>
+          </div>
+          <Show
+            when={(workflow()?.steps.length ?? 0) > 0}
+            fallback={<div class="rounded-md border border-dashed border-v2-border-border-base p-4 text-center text-v2-text-text-muted text-11-regular">{language.t("custom.builder.plan.noWorkflow")}</div>}
+          >
+            <ol class="flex flex-col gap-1.5">
+              <For each={workflow()?.steps ?? []}>
+                {(step, index) => {
+                  const targets = () => [
+                    ...(step.next ? [step.next] : []),
+                    ...(step.parallel ?? []),
+                    ...Object.values(step.branches ?? {}),
+                  ]
+                  return (
+                    <li class="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-2.5">
+                      <span class="flex h-7 w-7 items-center justify-center rounded border border-v2-border-border-base bg-v2-background-bg-layer-03 font-mono text-v2-text-text-muted text-10-medium">
+                        {index() + 1}
+                      </span>
+                      <div class="min-w-0">
+                        <div class="flex min-w-0 items-center justify-between gap-2">
+                          <span class="truncate text-v2-text-text-base text-11-medium">{step.name}</span>
+                          <span class="shrink-0 font-mono text-v2-text-text-faint text-10-regular">{step.agent}</span>
+                        </div>
+                        <Show when={targets().length > 0}>
+                          <p class="mt-1 truncate font-mono text-v2-text-text-muted text-10-regular">
+                            {step.id} -&gt; {targets().join(", ")}
+                          </p>
+                        </Show>
+                      </div>
+                    </li>
+                  )
+                }}
+              </For>
+            </ol>
+          </Show>
+        </section>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-v2-border-border-base pt-3 text-v2-text-text-muted text-10-regular">
+        <span>{language.t("custom.builder.plan.effectiveTools", { count: summary().effectiveToolCount ?? 0 })}</span>
+        <span>{language.t("custom.builder.plan.serverCalculated")}</span>
+      </div>
+    </div>
+  )
+}
+
 export function InstructionsTab(props: { plan: CompositionPlan | undefined }) {
   const language = useLanguage()
   const instructions = createMemo<readonly CompositionInstruction[]>(() => props.plan?.instructions ?? [])

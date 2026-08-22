@@ -1,7 +1,40 @@
 import { describe, expect, test } from "bun:test"
-import type { Plan, Digest, Instruction } from "@aigcfroge/schema/composition"
+import type { Plan, Instruction } from "@aigcfroge/schema/composition"
+import type { CompositionPlan } from "@aigcfroge/sdk/v2/client"
+import { planPreviewSummary } from "./custom-preview-tabs"
 
 describe("custom-preview-tabs model logic", () => {
+  test("summarizes the server plan's workflow, agent pool, concurrency, and cost", () => {
+    const plan: Partial<CompositionPlan> = {
+      agents: [
+        { id: "coder", name: "Coder", description: "", relativePath: "coder.md", revision: "" },
+        { id: "reviewer", name: "Reviewer", description: "", relativePath: "reviewer.md", revision: "" },
+      ],
+      workflow: {
+        name: "Release",
+        description: "",
+        relativePath: "release.yaml",
+        revision: "",
+        steps: [
+          { id: "build", name: "Build", agent: "coder", input: {} },
+          { id: "review", name: "Review", agent: "reviewer", next: "publish", input: {} },
+          { id: "publish", name: "Publish", agent: "coder", input: {} },
+        ],
+      },
+      costPreview: { estimatedTokens: 4200, maxConcurrency: 2, effectiveToolCount: 4, agentCount: 2 },
+    }
+
+    expect(planPreviewSummary(plan)).toEqual({
+      workflowName: "Release",
+      stepCount: 3,
+      agentCount: 2,
+      maxConcurrency: 2,
+      estimatedTokens: 4200,
+      effectiveToolCount: 4,
+      edgeCount: 1,
+    })
+  })
+
   test("calculates instruction stats accurately", () => {
     const plan: Partial<Plan> = {
       instructions: [
