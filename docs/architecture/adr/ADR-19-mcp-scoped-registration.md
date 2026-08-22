@@ -71,7 +71,7 @@ sanitized-server-name ::= [a-z0-9_-]+ （≤64 字符，来自 McpServerBinding.
 
 ### 2.6 Fingerprint 契约：与 Snapshot 四字段同形，drift 由既有重验兜住
 
-- **Registration fingerprint** 复用 Snapshot fingerprint 的四字段 shape（placement/name/digest/installationVersion，`specs/v2/tools.md` §Accepted Extension）：MCP 工具经 `register` 进入 registry 后，resolver freeze 与 runner turn 重验（`llm.ts:205-273`）**无需感知 MCP 特殊性**即可覆盖它们——materialize 自然包含已注册条目。
+- **Registration fingerprint** 复用 Snapshot fingerprint 的四字段 shape（placement/name/digest/installationVersion；形状真源：`composition-resolver.ts:742-758` + `packages/schema/src/composition.ts:221-232`）：MCP 工具经 `register` 进入 registry 后，resolver freeze 与 runner turn 重验（`llm.ts:205-273`）**无需感知 MCP 特殊性**即可覆盖它们——materialize 自然包含已注册条目。
 - **Server-level fingerprint（新增契约）**：`{ serverName, refRevision, configDigest, toolsCatalogDigest }`，其中 configDigest 是规范化 server 定义（binding + transport 参数，不含任何 secret）的内容 digest，toolsCatalogDigest 是该 server 当前工具目录聚合 digest。它用于 health 投影与 reconnect drift 判定，不进入 Snapshot（Snapshot 仍只见四字段工具指纹）。
 - **Reconnect drift**：重连后重新 listTools，definitions 变化 ⇒ registry 条目更新 ⇒ 下一 provider turn 的既有重验报 `tool_fingerprint_mismatch` / `catalog_digest_mismatch` fail-closed。**无需新增漂移检测机制**——这正是把 MCP 接进同一 materialize 路径的红利。
 - 运行中 Snapshot 不可变不变量维持：升级只能 fork/new Session（ADR-17 §10）。
@@ -123,4 +123,6 @@ sanitized-server-name ::= [a-z0-9_-]+ （≤64 字符，来自 McpServerBinding.
 ### 批准条件（Phase B 开工前必须处理）
 
 - **C1（Core）**：`materialize` 的 `sessionID` 过滤必须与 §2.7「definitions ≡ captured settle」同时成立——settle 侧的 placement 校验要和 definitions 侧用**同一次**物化结果，不得二次查询 registry。否则会重新打开 stale 窗口，而 stale rejection 正是 §2.7 用来证明一致性的既有 Law（`registry.ts:96-97`）。红测试：同一 Session 在物化后、settle 前发生 Location 注册变化，settle 必须仍绑定物化时的 identity。
+  - **状态：守卫已落地**（`custom-child-turn` 分支 `test/core/tool-registry-stale.test.ts`："settle keeps the materialized identity across a mid-flight registration change"）——该测试钉死既有 Law 的四个相位（物化前 settle 成功 / 重注册后 stale / 关闭新注册露出旧赢家后同一物化恢复 settle / 全部关闭后 stale）。因 Law 今日已成立，测试即时通过而非红先行；其角色是 Phase B sessionID 过滤实现期间的回归守卫。
 - **C2（文档）**：§2.6 引用的「`specs/v2/tools.md` §Accepted Extension」**该小节名不存在**（Laws 在 `:178-179`，无此标题）。四字段指纹形状的真源是 `composition-resolver.ts:742-758` + `packages/schema/src/composition.ts:221-232`，改引这两处。这是引用不实，不影响决策实质，但必须修正后才能作为 Phase B 的施工依据。
+  - **状态：已修正**（本提交，§2.6 首条改引两处真源）。

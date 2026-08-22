@@ -65,11 +65,21 @@ SQLite 新表 `scoped_grant`（列含 snake_case 全维度 + revision + issued_a
 
 Snapshot 冻结的权限摘要（ADR-17 §2.4「有效权限摘要 digest」）只是 **freeze 时点的审计投影**；运行时授权只看 grant store 实时状态 + leaf assert。二者永不互为真源：grant 变更不改 Snapshot（bytes/digest 写入后不可 update 的不变量不动），Snapshot 重放也不重建 grants。
 
-### 2.6 尾部 allow 缺口的收口路径（§4.5-1 attended 残留裁决）
+### 2.6 尾部 allow 缺口的收口路径（§4.5-1；R6-1/R6-2 整改后 v1.1）
 
-- **unattended custom**：已由 hotfix deny-first 天花板封顶（剥离通配/危险动作 allow，保留读取类显式 allow；非 custom 模式的 2026-08-02 scheduled-job 裁决不回退）。
-- **attended custom（本 ADR 提案收口）**：资产来源的通配/危险动作 allow 天花板扩展到全量 `mode === "custom"`（与 attended 无关）——用户在场 ≠ 用户同意，静默放行使审批框永不出现。用户显式 saved approval（真实点过 always 的）不受天花板影响；实现上须区分 base 来源与 saved 追加来源。若批准，随 Phase D 落地并同步修订 hotfix 在 `permission-effective.test.ts` 钉下的范围界定测试。
-- **provenance 校验（新增契约）**：grant 咨询与 base 解析前置校验「注册表名为 X 的条目来自被绑定资产的 relativePath+revision」，不一致 fail closed——堵同名碰撞变体在 attended 路径的残留暴露。
+> **状态**：unattended 部分已按本节整改落地（分支 `custom-child-turn`，提交 `a508eca43`），**待 Security 复审确认白名单成员后本节转 Accepted**；attended 扩展仍为提案。
+
+- **unattended custom：只读白名单制（R6-2 整改，取代原黑名单表述）**。天花板不再「排除危险四项、其余放行」，改为**只有显式只读类 allow 可为无人值守扇出预授权，未收录 action（含未来新工具）一律默认 deny**。白名单成员逐一取自 `packages/core/src/tool/builtins.ts` 注册清单：
+
+  ```text
+  READONLY_CEILING_ACTIONS = glob | grep | list_assets | read
+  ```
+
+  刻意排除的代表性注册（同一清单可查）：`task_spawn`/`task`（扇出放大）、`webfetch`/`websearch`（外发通道）、`bash`/`edit`/`write`/`apply_patch`（执行/写）、`taskschedule`（延时扇出）、7 个 `propose_*_asset` 与 memory/note（资产与持久态写入）、`skill`/`kb_search`（内容注入，非纯只读——是否纳入由 Security 复审裁定）。
+- **显式非通配 deny 的位序保证（R6-1 整改）**。base 的资源级 deny（如 `{read,.env,deny}`）必须保留，且在结果集中排在白名单 allow **之后**——`evaluate` 是 `findLast`，位序即语义；custom 在显式 deny 上不得弱于其它模式。实现顺序：头部 fallback deny → ask→deny 重写 → 白名单 allow → 显式非通配 deny。
+- **非 custom 模式不回退**：2026-08-02 scheduled-job 裁决（显式 allow 不被 unattended clamp 改写）维持不变，并以 custom/coding 配对断言防再分叉。
+- **attended custom（提案维持，随 Phase D 裁决）**：资产来源的通配/执行类 allow 天花板扩展到全量 `mode === "custom"`（用户在场 ≠ 用户同意）。用户显式 saved approval 不受天花板影响；实现须区分 base 来源与 saved 追加来源，并同步修订 `permission-effective.test.ts` 的范围界定用例。
+- **provenance 校验（新增契约，随 Phase D 落地）**：grant 咨询与 base 解析前置校验「注册表名为 X 的条目来自被绑定资产的 relativePath+revision」，不一致 fail closed——堵同名碰撞变体在 attended 路径的残留暴露。
 
 ### 2.7 Ask 超时策略（回答 G3-4 ①）
 
