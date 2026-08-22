@@ -477,12 +477,13 @@ export const layer = Layer.effect(
       const session = yield* getSession(sessionID)
       // Enforce Product Mode × Agent policy on each provider turn. The primary
       // gate is a root-only invariant (e.g. custom roots are always `meta`);
-      // child Sessions were already authorized at creation against their
-      // parent's Snapshot allowlist (`SessionComposition.assertAgentAllowed`)
-      // and again before dispatch, so applying the root verdict here would kill
-      // every legitimate delegated turn.
+      // the exemption is custom-scoped because that is the only mode whose
+      // children legitimately hold non-primary agents: they were authorized at
+      // creation against their parent's Snapshot allowlist
+      // (`SessionComposition.assertAgentAllowed`) and again before dispatch.
+      // Children of every other mode keep the per-turn gate (R6-3).
       const agentID =
-        session.parentID !== undefined
+        session.mode === "custom" && session.parentID !== undefined
           ? ProductModeAgentPolicy.resolvePrimaryAgent(session.mode, session.agent)
           : yield* ProductModeAgentPolicy.enforcePrimary(session.mode, session.agent)
       if (session.location.directory !== location.directory || session.location.workspaceID !== location.workspaceID)

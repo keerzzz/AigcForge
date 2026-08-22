@@ -3,6 +3,7 @@ import { LLMClient, LLMEvent, Model, type LLMRequest } from "@aigcfroge/llm"
 import { route } from "@aigcfroge/llm/protocols/openai-chat"
 import { Cause, Effect, Exit, Layer, Schema, Stream } from "effect"
 import { AgentV2 } from "@aigcfroge/core/agent"
+import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
 import { AppProcess } from "@aigcfroge/core/process"
 import { ApplicationTools } from "@aigcfroge/core/tool/application-tools"
 import { Composition } from "@aigcfroge/schema/composition"
@@ -328,6 +329,68 @@ describe("Custom Mode non-meta child provider turn (Phase A probe)", () => {
         throw Cause.squash(exit.cause)
       }
       expect(requests).toHaveLength(1)
+    }),
+  )
+
+  it.effect("non-custom children stay subject to the per-turn primary gate (R6-3)", () =>
+    Effect.gen(function* () {
+      reset()
+      response = textResponse("text-probe-gate", "Done")
+      const { db } = yield* Database.Service
+      const parentID = SessionV2.ID.make("ses_probe_gate_root")
+      yield* db
+        .insert(ProjectTable)
+        .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
+        .onConflictDoNothing()
+        .run()
+        .pipe(Effect.orDie)
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: parentID,
+          project_id: Project.ID.global,
+          slug: parentID,
+          directory: AbsolutePath.make("/project"),
+          title: "gate root",
+          version: "test",
+          mode: "chat",
+          agent: AgentV2.ID.make("meta"),
+          time_created: Date.now(),
+          time_updated: Date.now(),
+        })
+        .run()
+        .pipe(Effect.orDie)
+      // work-orchestrator is invalid as a chat primary; a child row carrying it
+      // must still die at the per-turn gate now that the exemption narrows to
+      // custom mode.
+      const childID = SessionV2.ID.make("ses_probe_gate_child")
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: childID,
+          parent_id: parentID,
+          project_id: Project.ID.global,
+          slug: childID,
+          directory: AbsolutePath.make("/project"),
+          title: "gate child",
+          version: "test",
+          mode: "chat",
+          agent: AgentV2.ID.make("work-orchestrator"),
+          time_created: Date.now(),
+          time_updated: Date.now(),
+        })
+        .run()
+        .pipe(Effect.orDie)
+
+      const sessionRunner = yield* SessionRunner.Service
+      const exit = yield* sessionRunner.run({ sessionID: childID, force: true }).pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      if (Exit.isFailure(exit)) {
+        const error = Cause.squash(exit.cause)
+        expect(error instanceof ProductModeAgentPolicy.AgentNotAllowedError).toBe(true)
+      }
+      expect(requests).toHaveLength(0)
     }),
   )
 })
