@@ -109,22 +109,12 @@ export const layer = Layer.effect(
 
       if (!row) return undefined
 
-      if (row.version !== 1) {
+      if (row.version !== 1 && row.version !== 2) {
         return yield* new SnapshotDecodeError({
           sessionID,
           details: `Unsupported snapshot version: ${row.version}`,
         })
       }
-
-      const decodedData = yield* Schema.decodeUnknownEffect(Composition.SnapshotData)(row.data).pipe(
-        Effect.mapError(
-          (error) =>
-            new SnapshotDecodeError({
-              sessionID,
-              details: `Failed to decode snapshot data: ${String(error)}`,
-            }),
-        ),
-      )
 
       const digest = yield* Schema.decodeUnknownEffect(Composition.Digest)(row.digest).pipe(
         Effect.mapError(
@@ -149,8 +139,38 @@ export const layer = Layer.effect(
         )
       }
 
-      return new Composition.Snapshot({
-        version: 1,
+      if (row.version === 1) {
+        const decodedData = yield* Schema.decodeUnknownEffect(Composition.SnapshotDataV1)(row.data).pipe(
+          Effect.mapError(
+            (error) =>
+              new SnapshotDecodeError({
+                sessionID,
+                details: `Failed to decode snapshot v1 data: ${String(error)}`,
+              }),
+          ),
+        )
+        return new Composition.SnapshotV1({
+          version: 1,
+          digest,
+          sessionID: row.session_id,
+          profilePath: row.profile_path ?? undefined,
+          profileRevision,
+          createdAt: row.time_created,
+          data: decodedData,
+        })
+      }
+
+      const decodedData = yield* Schema.decodeUnknownEffect(Composition.SnapshotDataV2)(row.data).pipe(
+        Effect.mapError(
+          (error) =>
+            new SnapshotDecodeError({
+              sessionID,
+              details: `Failed to decode snapshot v2 data: ${String(error)}`,
+            }),
+        ),
+      )
+      return new Composition.SnapshotV2({
+        version: 2,
         digest,
         sessionID: row.session_id,
         profilePath: row.profile_path ?? undefined,
@@ -197,15 +217,26 @@ export const layer = Layer.effect(
       targetSessionID: SessionSchema.ID,
     ) {
       const sourceSnapshot = yield* get(sourceSessionID)
-      const targetSnapshot = new Composition.Snapshot({
-        version: sourceSnapshot.version,
-        digest: sourceSnapshot.digest,
-        sessionID: targetSessionID,
-        profilePath: sourceSnapshot.profilePath,
-        profileRevision: sourceSnapshot.profileRevision,
-        createdAt: sourceSnapshot.createdAt,
-        data: sourceSnapshot.data,
-      })
+      const targetSnapshot =
+        sourceSnapshot.version === 1
+          ? new Composition.SnapshotV1({
+              version: 1,
+              digest: sourceSnapshot.digest,
+              sessionID: targetSessionID,
+              profilePath: sourceSnapshot.profilePath,
+              profileRevision: sourceSnapshot.profileRevision,
+              createdAt: sourceSnapshot.createdAt,
+              data: sourceSnapshot.data,
+            })
+          : new Composition.SnapshotV2({
+              version: 2,
+              digest: sourceSnapshot.digest,
+              sessionID: targetSessionID,
+              profilePath: sourceSnapshot.profilePath,
+              profileRevision: sourceSnapshot.profileRevision,
+              createdAt: sourceSnapshot.createdAt,
+              data: sourceSnapshot.data,
+            })
 
       yield* attach(targetSessionID, targetSnapshot)
       return targetSnapshot
@@ -216,11 +247,18 @@ export const layer = Layer.effect(
       agentID: string,
     ) {
       const snapshot = yield* get(sessionID)
-      if (snapshot.data.agentID !== agentID) {
+      const allowed =
+        snapshot.version === 1
+          ? snapshot.data.agentID === agentID
+          : snapshot.data.agents.some((a) => a.id === agentID || a.name === agentID)
+
+      if (!allowed) {
+        const allowedAgentID =
+          snapshot.version === 1 ? snapshot.data.agentID : snapshot.data.agents.map((a) => a.id).join(", ")
         yield* new AgentDelegationForbiddenError({
           sessionID,
           agentID,
-          allowedAgentID: snapshot.data.agentID,
+          allowedAgentID,
         })
       }
     })
@@ -232,8 +270,14 @@ export const layer = Layer.effect(
       const missing = (reason: string, details?: string) =>
         new DependencyMissingError({ sessionID, reason, ...(details !== undefined ? { details } : {}) })
 
-      if (snapshot.data.agentID.trim().length === 0) {
-        return yield* missing("empty_agent_id", "snapshot data carries an empty agentID")
+      if (snapshot.version === 1) {
+        if (snapshot.data.agentID.trim().length === 0) {
+          return yield* missing("empty_agent_id", "snapshot data carries an empty agentID")
+        }
+      } else {
+        if (snapshot.data.agents.length === 0) {
+          return yield* missing("empty_agents", "snapshot data carries an empty agents list")
+        }
       }
       const names = snapshot.data.tools.fingerprints.map((fingerprint) => fingerprint.name)
       if (!names.every((name, index) => index === 0 || names[index - 1].localeCompare(name) <= 0)) {

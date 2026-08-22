@@ -23,7 +23,7 @@
 
 import { beforeEach, describe, expect } from "bun:test"
 import { and, eq } from "drizzle-orm"
-import { Cause, Effect, Exit, Layer, Sink, Stream } from "effect"
+import { Cause, Context, Effect, Exit, Layer, Sink, Stream } from "effect"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { BackgroundJob } from "@aigcfroge/core/background-job"
 import { Database } from "@aigcfroge/core/database/database"
@@ -36,6 +36,7 @@ import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionV2 } from "@aigcfroge/core/session"
 import { SessionMessage } from "@aigcfroge/core/session/message"
 import { SessionExecution } from "@aigcfroge/core/session/execution"
+import { SessionComposition } from "@aigcfroge/core/session/composition"
 import { SessionProjector } from "@aigcfroge/core/session/projector"
 import { SessionStore } from "@aigcfroge/core/session/store"
 import { TaskDriverFill } from "@aigcfroge/core/session/task-driver-fill"
@@ -44,6 +45,7 @@ import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-polic
 import { ExternalCliSessionTable } from "@aigcfroge/core/tool/cli-session.sql"
 import { registerCliAdapter, type CliAdapter } from "@aigcfroge/core/tool/cli-adapter"
 import { PermissionV2 } from "@aigcfroge/core/permission"
+import { WorkspaceV2 } from "@aigcfroge/core/workspace"
 import { testEffect } from "./lib/effect"
 
 const encoder = new TextEncoder()
@@ -203,6 +205,7 @@ function makeSpawner() {
   })
 }
 const spawnerLayer = Layer.succeed(ChildProcessSpawner.ChildProcessSpawner, makeSpawner())
+const taskDriverRuntime = TaskDriver.runtimeLayer
 
 // TaskDriverFill must have its deps provided explicitly: Layer.mergeAll does not
 // bubble requirements across Layer.provide boundaries, so a bare
@@ -210,17 +213,19 @@ const spawnerLayer = Layer.succeed(ChildProcessSpawner.ChildProcessSpawner, make
 const makeFillLayer = (withSpawner: boolean) =>
   withSpawner
     ? TaskDriverFill.layer.pipe(
-        Layer.provide(sessions),
+        Layer.provideMerge(sessions),
         Layer.provide(BackgroundJob.defaultLayer),
         Layer.provide(EventV2.defaultLayer),
         Layer.provide(metaAgent),
         Layer.provide(spawnerLayer),
+        Layer.provideMerge(taskDriverRuntime),
       )
     : TaskDriverFill.layer.pipe(
-        Layer.provide(sessions),
+        Layer.provideMerge(sessions),
         Layer.provide(BackgroundJob.defaultLayer),
         Layer.provide(EventV2.defaultLayer),
         Layer.provide(metaAgent),
+        Layer.provideMerge(taskDriverRuntime),
       )
 
 const makeTestLayer = (withSpawner: boolean) =>
@@ -237,6 +242,7 @@ const makeTestLayer = (withSpawner: boolean) =>
     // PermissionV2 must be in the SESSION-drain context: the fill's executeCLI
     // runs on the caller's (task tool's) fiber, which is the session context.
     permissionLayer,
+    taskDriverRuntime,
     makeFillLayer(withSpawner),
   )
 
@@ -506,7 +512,7 @@ describe("TaskDriverFill executeCLI session-lookup failure (M4)", () => {
         injectSynthetic: () => Effect.fail(new Error("storage unavailable")),
         interrupt: () => Effect.void,
       }
-      TaskDriver.install(failing, {
+      const runtime = yield* TaskDriver.installForTesting(failing, {
         start: () => Effect.fail(new Error("no background")),
         wait: () => Effect.fail(new Error("no background")),
         extend: () => Effect.fail(new Error("no background")),
@@ -519,12 +525,151 @@ describe("TaskDriverFill executeCLI session-lookup failure (M4)", () => {
         description: "cli child title",
         sessionID: SessionV2.ID.make("ses_missing_cli_gate"),
         taskID: undefined,
-      }).pipe(Effect.exit)
+      }).pipe(Effect.provideService(TaskDriver.Runtime, runtime), Effect.exit)
 
       expect(Exit.isFailure(exit)).toBe(true)
       if (Exit.isFailure(exit)) {
         expect(Cause.squash(exit.cause)).toBeInstanceOf(ProductModeAgentPolicy.CommandDeniedError)
       }
+    }),
+  )
+})
+
+describe("TaskDriver composition-root ownership", () => {
+  const makeIsolatedRoot = () => {
+    const database = Database.layerFromPath(":memory:")
+    const events = EventV2.layer.pipe(Layer.provide(database))
+    const projector = SessionProjector.layer.pipe(Layer.provide(events), Layer.provide(database))
+    const store = SessionStore.layer.pipe(Layer.provide(database))
+    const composition = SessionComposition.layer.pipe(Layer.provide(database))
+    const rootSessions = SessionV2.layer.pipe(
+      Layer.provide(events),
+      Layer.provide(database),
+      Layer.provide(store),
+      Layer.provide(projects),
+      Layer.provide(SessionExecution.noopLayer),
+      Layer.provide(composition),
+      Layer.provideMerge(TaskDriver.runtimeLayer),
+    )
+    const initializer = Layer.effectDiscard(
+      Effect.gen(function* () {
+        const sessions = yield* SessionV2.Service
+        yield* TaskDriver.initialize(
+          TaskDriver.make(sessions, {
+            start: () => Effect.die("unused"),
+            wait: () => Effect.die("unused"),
+            extend: () => Effect.die("unused"),
+            cancel: () => Effect.void,
+          }),
+        )
+      }),
+    )
+    const services = Layer.mergeAll(
+      database,
+      events,
+      projector,
+      store,
+      composition,
+      rootSessions,
+      TaskDriver.runtimeLayer,
+    )
+    return initializer.pipe(Layer.provideMerge(services))
+  }
+
+  it.effect("isolates identical Session IDs across two databases and explicit workspaces", () =>
+    Effect.gen(function* () {
+      const rootA = yield* Layer.build(Layer.fresh(makeIsolatedRoot()))
+      const rootB = yield* Layer.build(Layer.fresh(makeIsolatedRoot()))
+      const sessionsA = Context.get(rootA, SessionV2.Service)
+      const sessionsB = Context.get(rootB, SessionV2.Service)
+      const runtimeA = Context.get(rootA, TaskDriver.Runtime)
+      const runtimeB = Context.get(rootB, TaskDriver.Runtime)
+      const parentID = SessionV2.ID.make("ses_isolated_parent")
+      const childID = SessionV2.ID.make("ses_isolated_child")
+      const locationA = Location.Ref.make({
+        directory: AbsolutePath.make("/project-a"),
+        workspaceID: WorkspaceV2.ID.make("wrk_a"),
+      })
+      const locationB = Location.Ref.make({
+        directory: AbsolutePath.make("/project-b"),
+        workspaceID: WorkspaceV2.ID.make("wrk_b"),
+      })
+
+      yield* Effect.all(
+        [
+          sessionsA.create({ id: parentID, location: locationA }),
+          sessionsB.create({ id: parentID, location: locationB }),
+        ],
+        { concurrency: "unbounded" },
+      )
+      yield* Effect.all(
+        [
+          TaskDriver.createChild({ parentID, id: childID }).pipe(
+            Effect.provideService(TaskDriver.Runtime, runtimeA),
+          ),
+          TaskDriver.createChild({ parentID, id: childID }).pipe(
+            Effect.provideService(TaskDriver.Runtime, runtimeB),
+          ),
+        ],
+        { concurrency: "unbounded" },
+      )
+
+      expect((yield* sessionsA.get(childID)).location).toEqual(locationA)
+      expect((yield* sessionsB.get(childID)).location).toEqual(locationB)
+    }),
+  )
+
+  it.effect("isolates simultaneous composition roots through the runtime context", () =>
+    Effect.gen(function* () {
+      const facade = (mode: string): TaskDriver.SessionFacade => ({
+        get: () => Effect.succeed({ location, mode }),
+        create: () => Effect.die("unused"),
+        prompt: () => Effect.die("unused"),
+        resume: () => Effect.die("unused"),
+        messages: () => Effect.die("unused"),
+        injectSynthetic: () => Effect.die("unused"),
+        interrupt: () => Effect.void,
+      })
+      const background: TaskDriver.BackgroundRunner = {
+        start: () => Effect.die("unused"),
+        wait: () => Effect.die("unused"),
+        extend: () => Effect.die("unused"),
+        cancel: () => Effect.void,
+      }
+      const outer = TaskDriver.make(facade("outer"), background)
+      const inner = TaskDriver.make(facade("inner"), background)
+      const sessionID = SessionV2.ID.make("ses_registration_lifetime")
+
+      expect(yield* TaskDriver.sessionMode(sessionID).pipe(Effect.provideService(TaskDriver.Runtime, outer))).toBe("outer")
+      expect(yield* TaskDriver.sessionMode(sessionID).pipe(Effect.provideService(TaskDriver.Runtime, inner))).toBe("inner")
+    }),
+  )
+
+  it.effect("fails closed when no composition root runtime is provided", () =>
+    Effect.gen(function* () {
+      const facade = (mode: string): TaskDriver.SessionFacade => ({
+        get: () => Effect.succeed({ location, mode }),
+        create: () => Effect.die("unused"),
+        prompt: () => Effect.die("unused"),
+        resume: () => Effect.die("unused"),
+        messages: () => Effect.die("unused"),
+        injectSynthetic: () => Effect.die("unused"),
+        interrupt: () => Effect.void,
+      })
+      const background: TaskDriver.BackgroundRunner = {
+        start: () => Effect.die("unused"),
+        wait: () => Effect.die("unused"),
+        extend: () => Effect.die("unused"),
+        cancel: () => Effect.void,
+      }
+      yield* TaskDriver.installForTesting(facade("outer"), background)
+      yield* TaskDriver.installForTesting(facade("inner"), background)
+      const sessionID = SessionV2.ID.make("ses_registration_restore")
+      const withoutContext = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+        effect.pipe(Effect.provideService(TaskDriver.Runtime, undefined))
+
+      const result = yield* withoutContext(TaskDriver.sessionMode(sessionID)).pipe(Effect.exit)
+      expect(result._tag).toBe("Failure")
     }),
   )
 })

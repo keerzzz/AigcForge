@@ -4,8 +4,8 @@ import { Effect, Schema } from "effect"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { Flag } from "./flag/flag"
 
-export const CAPABILITY_CUSTOM_V1 = "product-mode-custom-v1"
-export const CAPABILITIES_HEADER = "x-aigcfroge-capabilities"
+export const CAPABILITY_CUSTOM_V1 = ProductMode.CAPABILITY_CUSTOM_V1
+export const CAPABILITIES_HEADER = ProductMode.CAPABILITIES_HEADER
 
 export class UnsupportedProductModeError extends Schema.TaggedErrorClass<UnsupportedProductModeError>()(
   "UnsupportedProductModeError",
@@ -74,6 +74,14 @@ export function assertCreationSupported(mode: string | undefined): Effect.Effect
 
 export function assertRuntimeSupported(mode: string | undefined): Effect.Effect<void, UnsupportedProductModeError> {
   const resolved = mode ?? ProductMode.Default
+  if (resolved === "custom" && !isCustomModeEnabled()) {
+    return Effect.fail(
+      new UnsupportedProductModeError({
+        mode: resolved,
+        message: CUSTOM_MODE_DISABLED_MESSAGE,
+      }),
+    )
+  }
   if (
     resolved === "custom" ||
     resolved === "chat" ||

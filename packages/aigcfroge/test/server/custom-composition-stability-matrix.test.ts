@@ -67,6 +67,8 @@ describe("Custom Composition 50-Round Stability & Determinism Matrix", () => {
         const comp = composition("coder.md", revision(CODER_AGENT))
         let firstDigest: string | undefined
 
+        const memStart = process.memoryUsage()
+
         for (let i = 0; i < 50; i++) {
           const res = yield* post("/custom-composition/plan", test.directory, comp)
           expect(res.status).toBe(200)
@@ -81,17 +83,29 @@ describe("Custom Composition 50-Round Stability & Determinism Matrix", () => {
           }
         }
 
+        if (typeof Bun !== "undefined" && typeof Bun.gc === "function") {
+          Bun.gc(true)
+        }
+        const memEnd = process.memoryUsage()
+        const heapGrowthMb = (memEnd.heapUsed - memStart.heapUsed) / (1024 * 1024)
+        // Memory growth across 50 plan rounds should remain strictly bounded (< 250MB)
+        expect(heapGrowthMb).toBeLessThan(250)
         expect(firstDigest).toBeDefined()
       }),
   )
 
   it.instance(
-    "runs 50 rounds of start and upgrade transitions with 100% success",
+    "runs 50 rounds of start and upgrade transitions with 100% success and bounded memory",
     () =>
       Effect.gen(function* () {
         yield* enableCustomMode
         const test = yield* TestInstance
         yield* writeAgentAssets(test.directory)
+
+        if (typeof Bun !== "undefined" && typeof Bun.gc === "function") {
+          Bun.gc(true)
+        }
+        const memStart = process.memoryUsage()
 
         const startRes = yield* post("/custom-composition/start", test.directory, {
           composition: composition("coder.md", revision(CODER_AGENT)),
@@ -115,6 +129,14 @@ describe("Custom Composition 50-Round Stability & Determinism Matrix", () => {
           expect(upgraded.session.id).not.toBe(currentSessionID)
           currentSessionID = upgraded.session.id
         }
+
+        if (typeof Bun !== "undefined" && typeof Bun.gc === "function") {
+          Bun.gc(true)
+        }
+        const memEnd = process.memoryUsage()
+        const heapGrowthMb = (memEnd.heapUsed - memStart.heapUsed) / (1024 * 1024)
+        // Memory growth across 50 start/upgrade transitions should remain strictly bounded (< 250MB)
+        expect(heapGrowthMb).toBeLessThan(250)
       }),
   )
 })

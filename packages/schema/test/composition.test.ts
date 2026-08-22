@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { Schema } from "effect"
+import { Effect, Schema } from "effect"
 import { Composition } from "../src/composition"
 
 describe("Composition Schema", () => {
@@ -21,17 +21,39 @@ describe("Composition Schema", () => {
     revision: "c".repeat(64),
   }
 
-  test("AssetRef decodes valid agent, prompt, and skill refs", () => {
+  const workflowRef = {
+    kind: "workflow" as const,
+    relativePath: "review-flow.yaml",
+    revision: "d".repeat(64),
+  }
+
+  const commandRef = {
+    kind: "command" as const,
+    relativePath: "lint.yaml",
+    revision: "e".repeat(64),
+  }
+
+  test("AssetRef decodes valid agent, prompt, skill, workflow, and command refs", () => {
     expect(Schema.decodeUnknownSync(Composition.AssetRef)(agentRef).kind).toBe("agent")
     expect(Schema.decodeUnknownSync(Composition.AssetRef)(promptRef).kind).toBe("prompt")
     expect(Schema.decodeUnknownSync(Composition.AssetRef)(skillRef).kind).toBe("skill")
+    expect(Schema.decodeUnknownSync(Composition.AssetRef)(workflowRef).kind).toBe("workflow")
+    expect(Schema.decodeUnknownSync(Composition.AssetRef)(commandRef).kind).toBe("command")
   })
 
-  test("AssetRef rejects disallowed asset kind in M1", () => {
+  test("AssetRef rejects disallowed asset kinds in M2 (e.g. mcp, plugin)", () => {
     expect(() =>
       Schema.decodeUnknownSync(Composition.AssetRef)({
         kind: "mcp",
         relativePath: "mcp.json",
+        revision: "a".repeat(64),
+      }),
+    ).toThrow()
+
+    expect(() =>
+      Schema.decodeUnknownSync(Composition.AssetRef)({
+        kind: "plugin",
+        relativePath: "plugin.json",
         revision: "a".repeat(64),
       }),
     ).toThrow()
@@ -113,7 +135,71 @@ describe("Composition Schema", () => {
     expect(String(plan.digest)).toBe("e".repeat(64))
   })
 
-  test("Snapshot decodes with version=1 and data", () => {
+  test("Plan decodes full plan record with version=2 and costPreview", () => {
+    const plan = Schema.decodeUnknownSync(Composition.Plan)({
+      version: 2,
+      digest: "e".repeat(64),
+      valid: true,
+      input: {
+        source: "temporary",
+        agents: [agentRef, { kind: "agent", relativePath: "coder.md", revision: "f".repeat(64) }],
+        workflow: workflowRef,
+        bindings: {
+          orchestrator: { prompts: [], skills: [] },
+          "agents/reviewer": { prompts: [promptRef], skills: [skillRef], commands: [commandRef] },
+        },
+        presentation: "native",
+        requestedCapabilities: [],
+      },
+      agents: [
+        {
+          id: "reviewer",
+          name: "reviewer",
+          description: "A code reviewer",
+          relativePath: "reviewer.md",
+          revision: "a".repeat(64),
+        },
+      ],
+      workflow: {
+        name: "review-flow",
+        description: "Review workflow",
+        relativePath: "review-flow.yaml",
+        revision: "d".repeat(64),
+        steps: [
+          { id: "step_1", name: "Step 1", agent: "reviewer", failurePolicy: "abort", maxAttempts: 1 },
+        ],
+      },
+      commands: [
+        {
+          name: "lint",
+          description: "Run linter",
+          relativePath: "lint.yaml",
+          revision: "e".repeat(64),
+          template: "bun run lint --filter {target}",
+        },
+      ],
+      instructions: [
+        { source: "platform", content: "Platform baseline" },
+      ],
+      skills: [],
+      capabilities: [
+        { id: "product-mode-custom-v1", status: "effective" },
+      ],
+      costPreview: {
+        estimatedTokens: 12000,
+        maxConcurrency: 4,
+        effectiveToolCount: 10,
+        agentCount: 2,
+      },
+      diagnostics: [],
+    })
+    expect(plan.version).toBe(2)
+    expect(plan.valid).toBe(true)
+    expect(plan.costPreview?.estimatedTokens).toBe(12000)
+    expect(plan.workflow?.name).toBe("review-flow")
+  })
+
+  test("Snapshot decodes with version=1 and data (M1 backwards compatibility)", () => {
     const snap = Schema.decodeUnknownSync(Composition.Snapshot)({
       version: 1,
       digest: "f".repeat(64),
@@ -145,5 +231,169 @@ describe("Composition Schema", () => {
     })
     expect(snap.version).toBe(1)
     expect(String(snap.digest)).toBe("f".repeat(64))
+  })
+
+  test("Snapshot decodes with version=2 and multi-agent + workflow data", () => {
+    const snap = Schema.decodeUnknownSync(Composition.Snapshot)({
+      version: 2,
+      digest: "f".repeat(64),
+      createdAt: 10000,
+      data: {
+        agents: [
+          {
+            id: "reviewer",
+            name: "reviewer",
+            description: "Desc",
+            relativePath: "reviewer.md",
+            revision: "a".repeat(64),
+          },
+        ],
+        workflow: {
+          name: "review-flow",
+          description: "Review workflow",
+          relativePath: "review-flow.yaml",
+          revision: "d".repeat(64),
+          steps: [
+            { id: "step_1", name: "Step 1", agent: "reviewer", failurePolicy: "abort", maxAttempts: 1 },
+          ],
+        },
+        commands: [
+          {
+            name: "lint",
+            description: "Run linter",
+            relativePath: "lint.yaml",
+            revision: "e".repeat(64),
+            template: "bun run lint",
+          },
+        ],
+        bindings: {
+          orchestrator: {
+            prompts: [
+              { relativePath: "prompt.md", revision: "b".repeat(64), content: "Prompt content" },
+            ],
+            skills: [],
+            commands: [
+              {
+                name: "lint",
+                description: "Run linter",
+                relativePath: "lint.yaml",
+                revision: "e".repeat(64),
+                template: "bun run lint",
+              },
+            ],
+          },
+          "agents/reviewer": {
+            prompts: [],
+            skills: [
+              { name: "review-skill", description: "Desc", relativePath: "skill.md", revision: "c".repeat(64) },
+            ],
+            commands: [],
+          },
+        },
+        maxConcurrency: 4,
+        instructions: [
+          { source: "platform", content: "Platform baseline" },
+        ],
+        prompts: [
+          { relativePath: "prompt.md", revision: "b".repeat(64), content: "Prompt content" },
+        ],
+        skills: [
+          { name: "review-skill", description: "Desc", relativePath: "skill.md", revision: "c".repeat(64) },
+        ],
+        tools: {
+          fingerprints: [
+            {
+              placement: "location",
+              name: "read",
+              digest: "a".repeat(64),
+              installationVersion: "test",
+            },
+          ],
+          catalogDigest: "b".repeat(64),
+          catalog: ["read", "write"],
+        },
+      },
+    })
+    expect(snap.version).toBe(2)
+    expect(String(snap.digest)).toBe("f".repeat(64))
+    if (snap.version === 2) {
+      expect(snap.data.agents.length).toBe(1)
+      expect(snap.data.workflow?.name).toBe("review-flow")
+      expect(snap.data.bindings.orchestrator.commands[0].name).toBe("lint")
+      expect(snap.data.bindings["agents/reviewer"].skills[0].name).toBe("review-skill")
+      expect(snap.data.maxConcurrency).toBe(4)
+    }
+  })
+
+  test("Snapshot v2 freezes maxConcurrency within 1..8", () => {
+    const base = {
+      agents: [],
+      bindings: {},
+      instructions: [],
+      prompts: [],
+      skills: [],
+      tools: {
+        fingerprints: [],
+        catalogDigest: "b".repeat(64),
+        catalog: [],
+      },
+    }
+
+    expect(() => Schema.decodeUnknownSync(Composition.SnapshotDataV2)({ ...base, maxConcurrency: 0 })).toThrow()
+    expect(() => Schema.decodeUnknownSync(Composition.SnapshotDataV2)({ ...base, maxConcurrency: 9 })).toThrow()
+    expect(() =>
+      Schema.decodeUnknownSync(Composition.SnapshotDataV2)({
+        ...base,
+        bindings: { "steps/legacy": { prompts: [], skills: [], commands: [] } },
+      }),
+    ).toThrow()
+    expect(Schema.decodeUnknownSync(Composition.SnapshotDataV2)({ ...base, maxConcurrency: 8 }).maxConcurrency).toBe(8)
+  })
+
+  test("Snapshot rejects unknown version (fail-closed)", () => {
+    expect(() =>
+      Schema.decodeUnknownSync(Composition.Snapshot)({
+        version: 3,
+        digest: "f".repeat(64),
+        createdAt: 10000,
+        data: {},
+      }),
+    ).toThrow()
+  })
+
+  test("Snapshot encodes cleanly via Schema.encodeUnknownSync and Schema.encodeUnknownEffect", async () => {
+    const rawData = {
+      version: 2 as const,
+      digest: "f".repeat(64),
+      createdAt: 10000,
+      data: {
+        agents: [
+          {
+            id: "reviewer",
+            name: "reviewer",
+            description: "Desc",
+            relativePath: "reviewer.md",
+            revision: "a".repeat(64),
+          },
+        ],
+        instructions: [{ source: "platform", content: "Platform baseline" }],
+        prompts: [{ relativePath: "prompt.md", revision: "b".repeat(64), content: "Prompt content" }],
+        skills: [],
+        tools: {
+          fingerprints: [],
+          catalogDigest: "b".repeat(64),
+          catalog: [],
+        },
+      },
+    }
+
+    const decoded = Schema.decodeUnknownSync(Composition.Snapshot)(rawData)
+    const encodedSync = Schema.encodeUnknownSync(Composition.Snapshot)(decoded)
+    expect(encodedSync).toBeDefined()
+    expect((encodedSync as { version: number }).version).toBe(2)
+
+    const encodedEffect = await Effect.runPromise(Schema.encodeUnknownEffect(Composition.Snapshot)(decoded))
+    expect(encodedEffect).toBeDefined()
+    expect((encodedEffect as { version: number }).version).toBe(2)
   })
 })

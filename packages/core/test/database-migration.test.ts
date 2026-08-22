@@ -21,6 +21,7 @@ import addTaskOutputDigestMigration from "@aigcfroge/core/database/migration/202
 import addTaskScheduleFieldsMigration from "@aigcfroge/core/database/migration/20260802093236_add_task_schedule_fields"
 import addTaskSpawnFieldsMigration from "@aigcfroge/core/database/migration/20260802140709_add_task_spawn_fields"
 import addSessionCompositionSnapshotMigration from "@aigcfroge/core/database/migration/20260819012541_add_session_composition_snapshot"
+import workflowDurableProjectionMigration from "@aigcfroge/core/database/migration/20260820130142_cynical_sasquatch"
 import { EventV2 } from "@aigcfroge/core/event"
 import { ProjectV2 } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
@@ -61,7 +62,7 @@ describe("DatabaseMigration", () => {
         .nothrow()
       expect(result.exitCode, result.stderr.toString()).toBe(0)
       expect(result.stdout.toString()).toContain("No schema changes, nothing to migrate")
-    }, 30_000)
+    }, 90_000)
   }
 
   test("applies tracked migrations to an empty database", async () => {
@@ -103,6 +104,165 @@ describe("DatabaseMigration", () => {
           { name: "session_message_session_seq_idx" },
           { name: "session_message_session_time_created_id_idx" },
           { name: "session_message_session_type_seq_idx" },
+        ])
+      }),
+    )
+  })
+
+  test("migrates legacy workflow rows to the safe durable projection", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY)`)
+        yield* db.run(
+          sql`CREATE TABLE session_composition_snapshot (session_id text PRIMARY KEY, digest text NOT NULL)`,
+        )
+        yield* db.run(sql`INSERT INTO session (id) VALUES ('ses_legacy_workflow')`)
+        yield* db.run(
+          sql`INSERT INTO session_composition_snapshot (session_id, digest) VALUES ('ses_legacy_workflow', 'snapshot-digest')`,
+        )
+        yield* db.run(sql`
+          CREATE TABLE workflow_run (
+            id text PRIMARY KEY,
+            session_id text NOT NULL,
+            workflow_name text NOT NULL,
+            workflow_revision text NOT NULL,
+            status text NOT NULL,
+            current_step_id text,
+            error text,
+            time_created integer NOT NULL,
+            time_updated integer NOT NULL,
+            time_completed integer,
+            FOREIGN KEY (session_id) REFERENCES session(id) ON DELETE CASCADE
+          )
+        `)
+        yield* db.run(sql`
+          CREATE TABLE workflow_step_run (
+            id text PRIMARY KEY,
+            run_id text NOT NULL,
+            step_id text NOT NULL,
+            agent_id text NOT NULL,
+            status text NOT NULL,
+            attempt integer DEFAULT 1 NOT NULL,
+            input text,
+            output text,
+            error text,
+            time_created integer NOT NULL,
+            time_started integer,
+            time_completed integer,
+            FOREIGN KEY (run_id) REFERENCES workflow_run(id) ON DELETE CASCADE
+          )
+        `)
+        yield* db.run(
+          sql`INSERT INTO workflow_run (id, session_id, workflow_name, workflow_revision, status, error, time_created, time_updated) VALUES ('wfr_legacy', 'ses_legacy_workflow', 'legacy', 'workflow-revision', 'failed', 'raw failure', 1, 1)`,
+        )
+        yield* db.run(
+          sql`INSERT INTO workflow_step_run (id, run_id, step_id, agent_id, status, input, output, error, time_created) VALUES ('wfs_legacy', 'wfr_legacy', 'step', 'coder', 'failed', '{"prompt":"secret"}', '{"answer":"secret"}', 'raw failure', 1)`,
+        )
+
+        yield* DatabaseMigration.applyOnly(db, [workflowDurableProjectionMigration])
+
+        const runColumns = yield* db.all<{ name: string }>(sql`PRAGMA table_info(workflow_run)`)
+        const stepColumns = yield* db.all<{ name: string }>(sql`PRAGMA table_info(workflow_step_run)`)
+        expect(runColumns.map((column) => column.name)).not.toContain("error")
+        expect(stepColumns.map((column) => column.name)).not.toEqual(
+          expect.arrayContaining(["input", "output", "error"]),
+        )
+        expect(stepColumns.map((column) => column.name)).toEqual(
+          expect.arrayContaining(["revision", "input_digest", "output_digest", "error_category"]),
+        )
+
+        // The legacy run keeps a per-row sentinel digest, never the session's live
+        // snapshot digest: run identity is (session, snapshot digest, workflow
+        // revision), so stamping the live digest here would make the next submit
+        // dedupe onto this old `failed` run instead of starting a fresh one.
+        expect(
+          yield* db.get<{ snapshot_digest: string; error_category: string }>(
+            sql`SELECT snapshot_digest, error_category FROM workflow_run WHERE id = 'wfr_legacy'`,
+          ),
+        ).toEqual({ snapshot_digest: "legacy:wfr_legacy", error_category: "unknown_error" })
+        const liveDigest = yield* db.get<{ digest: string }>(
+          sql`SELECT digest FROM session_composition_snapshot WHERE session_id = 'ses_legacy_workflow'`,
+        )
+        expect(liveDigest?.digest).toBe("snapshot-digest")
+        expect(
+          yield* db.all(
+            sql`SELECT id FROM workflow_run WHERE session_id = 'ses_legacy_workflow' AND snapshot_digest = 'snapshot-digest'`,
+          ),
+        ).toEqual([])
+        expect(
+          yield* db.get<{ input_digest: string | null; output_digest: string | null; error_category: string }>(
+            sql`SELECT input_digest, output_digest, error_category FROM workflow_step_run WHERE id = 'wfs_legacy'`,
+          ),
+        ).toEqual({ input_digest: null, output_digest: null, error_category: "unknown_error" })
+      }),
+    )
+  })
+
+  test("migrates a session that already holds two legacy workflow runs", async () => {
+    // Two runs of one workflow in one session was the normal legacy shape (the
+    // old `create` was an unconditional insert). A unique index over
+    // (session_id, snapshot_digest, workflow_revision) would abort the whole
+    // migration here, and `DatabaseMigration.apply` is `orDie` on the Database
+    // layer — i.e. the app would fail to start on every launch.
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY)`)
+        yield* db.run(
+          sql`CREATE TABLE session_composition_snapshot (session_id text PRIMARY KEY, digest text NOT NULL)`,
+        )
+        yield* db.run(sql`INSERT INTO session (id) VALUES ('ses_two_legacy')`)
+        yield* db.run(
+          sql`INSERT INTO session_composition_snapshot (session_id, digest) VALUES ('ses_two_legacy', 'same-digest')`,
+        )
+        yield* db.run(sql`
+          CREATE TABLE workflow_run (
+            id text PRIMARY KEY,
+            session_id text NOT NULL,
+            workflow_name text NOT NULL,
+            workflow_revision text NOT NULL,
+            status text NOT NULL,
+            current_step_id text,
+            error text,
+            time_created integer NOT NULL,
+            time_updated integer NOT NULL,
+            time_completed integer,
+            FOREIGN KEY (session_id) REFERENCES session(id) ON DELETE CASCADE
+          )
+        `)
+        yield* db.run(sql`
+          CREATE TABLE workflow_step_run (
+            id text PRIMARY KEY,
+            run_id text NOT NULL,
+            step_id text NOT NULL,
+            agent_id text NOT NULL,
+            status text NOT NULL,
+            attempt integer DEFAULT 1 NOT NULL,
+            input text,
+            output text,
+            error text,
+            time_created integer NOT NULL,
+            time_started integer,
+            time_completed integer,
+            FOREIGN KEY (run_id) REFERENCES workflow_run(id) ON DELETE CASCADE
+          )
+        `)
+        for (const id of ["wfr_first", "wfr_second"]) {
+          yield* db.run(
+            sql`INSERT INTO workflow_run (id, session_id, workflow_name, workflow_revision, status, time_created, time_updated) VALUES (${id}, 'ses_two_legacy', 'same', 'same-revision', 'failed', 1, 1)`,
+          )
+        }
+
+        yield* DatabaseMigration.applyOnly(db, [workflowDurableProjectionMigration])
+
+        expect(
+          yield* db.all<{ id: string; snapshot_digest: string }>(
+            sql`SELECT id, snapshot_digest FROM workflow_run ORDER BY id`,
+          ),
+        ).toEqual([
+          { id: "wfr_first", snapshot_digest: "legacy:wfr_first" },
+          { id: "wfr_second", snapshot_digest: "legacy:wfr_second" },
         ])
       }),
     )

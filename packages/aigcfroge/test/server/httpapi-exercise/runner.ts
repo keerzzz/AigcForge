@@ -22,6 +22,7 @@ import { runtime } from "./runtime"
 import type { ActiveScenario, Options, ProjectOptions, Result, Scenario, ScenarioContext, SeededContext } from "./types"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
+import { WORKFLOWS_DIR } from "@aigcfroge/core/constants"
 
 export function runScenario(options: Options) {
   return (scenario: Scenario) => {
@@ -163,25 +164,41 @@ function withContext<A, E>(
                 const revision = yield* Effect.sync(() =>
                   Schema.decodeUnknownSync(Composition.Revision)(Hash.sha256(Buffer.from(agentContent))),
                 )
+                const workflow = input?.workflow
+                  ? yield* Effect.gen(function* () {
+                      const workflowContent =
+                        'kind: workflow\nname: httpapi-workflow\ndescription: exerciser\nversion: "1.0.0"\ntriggers: []\nsteps:\n  - id: review\n    name: Review\n    agent: httpapi-seed\n    input: {}\n    next: END\n'
+                      yield* Effect.promise(() => Bun.write(`${directory()}/${WORKFLOWS_DIR}/httpapi-workflow.yaml`, workflowContent))
+                      return {
+                        kind: "workflow" as const,
+                        relativePath: "httpapi-workflow.yaml",
+                        revision: Schema.decodeUnknownSync(Composition.Revision)(
+                          Hash.sha256(Buffer.from(workflowContent)),
+                        ),
+                      }
+                    })
+                  : undefined
                 // Decode through the schema (like the HTTP payload boundary) so the
                 // resolver can re-encode the input when building its plan.
                 const composition = yield* Effect.sync(() =>
                   Schema.decodeUnknownSync(Composition.CompositionInput)({
                     source: "temporary",
                     agents: [{ kind: "agent", relativePath: "httpapi-seed.md", revision }],
+                    ...(workflow ? { workflow } : {}),
                     bindings: {},
                     presentation: "native",
                     requestedCapabilities: [],
                   }),
                 )
                 const v2session = yield* SessionV2.Service
-                return yield* v2session
+                const created = yield* v2session
                   .createCustom({
                     location: Location.Ref.make({ directory: AbsolutePath.make(directory()) }),
                     composition,
                     title: input?.title,
                   })
                   .pipe(Effect.orDie)
+                return created
               }),
             ),
           project: () =>

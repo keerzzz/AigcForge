@@ -24,14 +24,14 @@ const mockRevision = Schema.decodeUnknownSync(Composition.Revision)(
 )
 
 function makeMockSnapshot(sid: string = sessionID): Composition.Snapshot {
-  return new Composition.Snapshot({
+  return new Composition.SnapshotV1({
     version: 1,
     digest: mockDigest,
     sessionID: sid,
     profilePath: "custom-profiles/reviewer.yaml",
     profileRevision: mockRevision,
     createdAt: 1700000000000,
-    data: new Composition.SnapshotData({
+    data: new Composition.SnapshotDataV1({
       agentID: "code-reviewer",
       instructions: [
         new Composition.Instruction({
@@ -109,14 +109,14 @@ function makeConsistentSnapshot(options?: {
   catalog?: string[]
 }): Composition.Snapshot {
   const fingerprints = options?.fingerprints ?? sortedFingerprints
-  return new Composition.Snapshot({
+  return new Composition.SnapshotV1({
     version: 1,
     digest: mockDigest,
     sessionID: options?.sid ?? sessionID,
     profilePath: "custom-profiles/reviewer.yaml",
     profileRevision: mockRevision,
     createdAt: 1700000000000,
-    data: new Composition.SnapshotData({
+    data: new Composition.SnapshotDataV1({
       agentID: options?.agentID ?? "code-reviewer",
       instructions: [],
       prompts: [],
@@ -145,11 +145,13 @@ describe("SessionComposition", () => {
       expect(retrieved?.digest).toBe(mockDigest)
       expect(retrieved?.profilePath).toBe("custom-profiles/reviewer.yaml")
       expect(retrieved?.profileRevision).toBe(mockRevision)
-      expect(retrieved?.data.agentID).toBe("code-reviewer")
-      expect(retrieved?.data.prompts.length).toBe(1)
-      expect(retrieved?.data.prompts[0].content).toBe("Review this diff carefully.")
-      expect(retrieved?.data.skills.length).toBe(1)
-      expect(retrieved?.data.tools.catalog).toEqual(["read"])
+      if (retrieved?.version === 1) {
+        expect(retrieved?.data.agentID).toBe("code-reviewer")
+        expect(retrieved?.data.prompts.length).toBe(1)
+        expect(retrieved?.data.prompts[0].content).toBe("Review this diff carefully.")
+        expect(retrieved?.data.skills.length).toBe(1)
+        expect(retrieved?.data.tools.catalog).toEqual(["read"])
+      }
 
       const exists = yield* composition.exists(sessionID)
       expect(exists).toBe(true)

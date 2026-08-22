@@ -271,7 +271,7 @@ const execution = Layer.effect(
       isActive: coordinator.isActive,
     })
   }),
-).pipe(Layer.provide(runner))
+).pipe(Layer.provide(runner), Layer.provideMerge(TaskDriver.runtimeLayer))
 const sessions = SessionV2.layer.pipe(
   Layer.provide(EventV2.defaultLayer),
   Layer.provide(Database.defaultLayer),
@@ -280,35 +280,51 @@ const sessions = SessionV2.layer.pipe(
   Layer.provide(sessionComposition),
   Layer.provide(execution),
 )
-const it = testEffect(
-  Layer.mergeAll(
-    Database.defaultLayer,
-    EventV2.defaultLayer,
-    questions,
-    SessionProjector.defaultLayer,
-    SessionStore.defaultLayer,
-    sessionComposition,
-    client,
-    permission,
-    applications,
-    agents,
-    registry,
-    models,
-    systemContext,
-    location,
-    skillGuidance,
-    referenceGuidance,
-    config,
-    runner,
-    execution,
-    sessions,
-    taskTool,
-  ).pipe(
-    Layer.provideMerge(
-      Layer.mergeAll(agents, permission, SessionTask.defaultLayer, BackgroundJob.defaultLayer),
-    ),
-  ),
+const taskDriverInitializer = Layer.effectDiscard(
+  Effect.gen(function* () {
+    const sessions = yield* SessionV2.Service
+    const background = yield* BackgroundJob.Service
+    yield* TaskDriver.initialize(yield* TaskDriver.installForTesting(sessions, {
+      start: (sessionID, work) => background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
+      wait: (sessionID) =>
+        background.wait({ id: sessionID }).pipe(
+          Effect.map(({ info }) =>
+            info && info.status !== "running"
+              ? { status: info.status, ...(info.error ? { error: info.error } : {}) }
+              : undefined,
+          ),
+        ),
+      cancel: (sessionID) => background.cancel(sessionID).pipe(Effect.asVoid),
+      extend: (sessionID, work) => background.extend({ id: sessionID, run: work.pipe(Effect.as("")) }),
+    }))
+  }),
 )
+const rootServices = Layer.mergeAll(
+  TaskDriver.runtimeLayer,
+  Database.defaultLayer,
+  EventV2.defaultLayer,
+  questions,
+  SessionProjector.defaultLayer,
+  SessionStore.defaultLayer,
+  sessionComposition,
+  client,
+  permission,
+  applications,
+  agents,
+  registry,
+  models,
+  systemContext,
+  location,
+  skillGuidance,
+  referenceGuidance,
+  config,
+  runner,
+  execution,
+  sessions,
+  taskTool,
+).pipe(Layer.provideMerge(Layer.mergeAll(agents, permission, SessionTask.defaultLayer, BackgroundJob.defaultLayer)))
+
+const it = testEffect(taskDriverInitializer.pipe(Layer.provideMerge(rootServices)))
 
 const setup = Effect.gen(function* () {
   const { db } = yield* Database.Service
@@ -320,21 +336,6 @@ const setup = Effect.gen(function* () {
   backgroundMode = false
   streamGate = undefined
   streamStarted = undefined
-  const sessions = yield* SessionV2.Service
-  const background = yield* BackgroundJob.Service
-  TaskDriver.install(sessions, {
-    start: (sessionID, work) => background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
-    wait: (sessionID) =>
-      background.wait({ id: sessionID }).pipe(
-        Effect.map(({ info }) =>
-          info && info.status !== "running"
-            ? { status: info.status, ...(info.error ? { error: info.error } : {}) }
-            : undefined,
-        ),
-      ),
-    cancel: (sessionID) => background.cancel(sessionID).pipe(Effect.asVoid),
-    extend: (sessionID, work) => background.extend({ id: sessionID, run: work.pipe(Effect.as("")) }),
-  }, undefined)
   const agentsService = yield* AgentV2.Service
   yield* agentsService.transform((editor) => {
     editor.update(AgentV2.ID.make("build"), (draft) => {

@@ -270,12 +270,12 @@ describe("MoveSession", () => {
         { placement: "/project", name: "glob", digest: customDigest, installationVersion: "0.1.0" },
         { placement: "/project", name: "read", digest: customDigest, installationVersion: "0.1.0" },
       ]
-      return new Composition.Snapshot({
+      return new Composition.SnapshotV1({
         version: 1,
         digest: customDigest,
         sessionID,
         createdAt: 1000,
-        data: new Composition.SnapshotData({
+        data: new Composition.SnapshotDataV1({
           agentID: "custom-coder",
           instructions: [],
           prompts: [],
@@ -389,7 +389,9 @@ describe("MoveSession", () => {
         // the move byte-for-byte and still passes internal consistency checks.
         const moved = yield* composition.get(sessionID)
         expect(moved.digest).toBe(snapshot.digest)
-        expect(moved.data.agentID).toBe(snapshot.data.agentID)
+        if (moved.version === 1 && snapshot.version === 1) {
+          expect(moved.data.agentID).toBe(snapshot.data.agentID)
+        }
         expect(moved.data.tools).toEqual(snapshot.data.tools)
         yield* composition.assertDependency(sessionID)
 

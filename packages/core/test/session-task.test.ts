@@ -328,7 +328,7 @@ const execution = Layer.effect(
       isActive: coordinator.isActive,
     })
   }),
-).pipe(Layer.provide(runner))
+).pipe(Layer.provide(runner), Layer.provideMerge(TaskDriver.runtimeLayer))
 const sessions = SessionV2.layer.pipe(
   Layer.provide(EventV2.defaultLayer),
   Layer.provide(Database.defaultLayer),
@@ -337,35 +337,66 @@ const sessions = SessionV2.layer.pipe(
   Layer.provide(sessionComposition),
   Layer.provide(execution),
 )
-const it = testEffect(
-  Layer.mergeAll(
-    Database.defaultLayer,
-    EventV2.defaultLayer,
-    questions,
-    SessionProjector.defaultLayer,
-    SessionStore.defaultLayer,
-    sessionComposition,
-    client,
-    permission,
-    applications,
-    agents,
-    registry,
-    models,
-    systemContext,
-    location,
-    skillGuidance,
-    referenceGuidance,
-    config,
-    runner,
-    execution,
-    sessions,
-    taskTool,
-  ).pipe(
-    Layer.provideMerge(
-      Layer.mergeAll(agents, permission, SessionTask.defaultLayer, BackgroundJob.defaultLayer),
-    ),
-  ),
+const taskDriverInitializer = Layer.effectDiscard(
+  Effect.gen(function* () {
+    const sessions = yield* SessionV2.Service
+    const background = yield* BackgroundJob.Service
+    yield* TaskDriver.initialize(yield* TaskDriver.installForTesting(
+      sessions,
+      {
+        start: (sessionID, work) => background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
+        wait: (sessionID) =>
+          background.wait({ id: sessionID }).pipe(
+            Effect.map(({ info }) =>
+              info && info.status !== "running"
+                ? { status: info.status, ...(info.error ? { error: info.error } : {}) }
+                : undefined,
+            ),
+          ),
+        cancel: (sessionID) => background.cancel(sessionID).pipe(Effect.asVoid),
+        extend: (sessionID, work) => background.extend({ id: sessionID, run: work.pipe(Effect.as("")) }),
+      },
+      {
+        execute: (input) => {
+          cliReceived.push(input)
+          if (cliError) return Effect.fail(cliError)
+          const done = Effect.succeed({ text: cliResultText, sessionID: cliResultSessionID, status: cliResultStatus })
+          if (!cliGate) return done
+          return (cliStarted ? Deferred.succeed(cliStarted, undefined) : Effect.void).pipe(
+            Effect.andThen(Deferred.await(cliGate)),
+            Effect.andThen(done),
+          )
+        },
+      },
+    ))
+  }),
 )
+const rootServices = Layer.mergeAll(
+  TaskDriver.runtimeLayer,
+  Database.defaultLayer,
+  EventV2.defaultLayer,
+  questions,
+  SessionProjector.defaultLayer,
+  SessionStore.defaultLayer,
+  sessionComposition,
+  client,
+  permission,
+  applications,
+  agents,
+  registry,
+  models,
+  systemContext,
+  location,
+  skillGuidance,
+  referenceGuidance,
+  config,
+  runner,
+  execution,
+  sessions,
+  taskTool,
+).pipe(Layer.provideMerge(Layer.mergeAll(agents, permission, SessionTask.defaultLayer, BackgroundJob.defaultLayer)))
+
+const it = testEffect(taskDriverInitializer.pipe(Layer.provideMerge(rootServices)))
 
 const setup = Effect.gen(function* () {
   const { db } = yield* Database.Service
@@ -390,39 +421,6 @@ const setup = Effect.gen(function* () {
   judgeParentTaskID = undefined
   cliReceived.length = 0
   permissionCalls.length = 0
-  // Install the seam with the test's own SessionV2 so the tool's child Session
-  // lands in the same in-memory db the test body reads. Register the default
-  // agent so the tool can resolve subagent_type "build". Mirrors TaskDriverFill.
-  const sessions = yield* SessionV2.Service
-  const background = yield* BackgroundJob.Service
-  TaskDriver.install(
-    sessions,
-    {
-      start: (sessionID, work) => background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
-      wait: (sessionID) =>
-        background.wait({ id: sessionID }).pipe(
-          Effect.map(({ info }) =>
-            info && info.status !== "running"
-              ? { status: info.status, ...(info.error ? { error: info.error } : {}) }
-              : undefined,
-          ),
-        ),
-      cancel: (sessionID) => background.cancel(sessionID).pipe(Effect.asVoid),
-      extend: (sessionID, work) => background.extend({ id: sessionID, run: work.pipe(Effect.as("")) }),
-    },
-    {
-      execute: (input) => {
-        cliReceived.push(input)
-        if (cliError) return Effect.fail(cliError)
-        const done = Effect.succeed({ text: cliResultText, sessionID: cliResultSessionID, status: cliResultStatus })
-        if (!cliGate) return done
-        return (cliStarted ? Deferred.succeed(cliStarted, undefined) : Effect.void).pipe(
-          Effect.andThen(Deferred.await(cliGate)),
-          Effect.andThen(done),
-        )
-      },
-    },
-  )
   const agents = yield* AgentV2.Service
   yield* agents.transform((editor) => {
     editor.update(AgentV2.ID.make("build"), (draft) => {

@@ -114,7 +114,8 @@ export const layer = Layer.effectDiscard(
       }).pipe(Effect.orDie)
     }
     const metaAgent = yield* Effect.serviceOption(MetaAgentService.Service)
-    TaskDriver.install(
+    yield* TaskDriver.initialize(
+      TaskDriver.make(
       {
         get: sessions.get,
         create: (input) =>
@@ -364,6 +365,7 @@ export const layer = Layer.effectDiscard(
             return { text: result.summary, sessionID: childSession.id, status: result.status }
           }),
       },
+      ),
     )
   }),
 )

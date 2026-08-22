@@ -57,6 +57,9 @@ import { WorkflowAsset } from "./workflow-asset"
 import { PluginAsset } from "./plugin-asset"
 import { PluginBridge } from "./plugin-asset/bridge"
 import { SessionComposition } from "./session/composition"
+import { WorkflowRun } from "./workflow/workflow-run"
+import { WorkflowRunner } from "./workflow/workflow-runner"
+import { CredentialScanner } from "./credential-scanner"
 
 import { Image } from "./image"
 import { ToolRegistry } from "./tool/registry"
@@ -84,6 +87,7 @@ import { VerificationRouter } from "./session/verification-router"
 import { Verifier } from "./session/verifier"
 import { SystemContextBuiltIns } from "./system-context/builtins"
 import { FetchHttpClient } from "effect/unstable/http"
+import { Flag } from "./flag/flag"
 
 export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("@aigcfroge/example/LocationServiceMap", {
   lookup: (ref: Location.Ref) => {
@@ -166,6 +170,13 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
     const skillGuidance = SkillGuidance.locationLayer.pipe(Layer.provide(services))
     const referenceGuidance = ReferenceGuidance.locationLayer.pipe(Layer.provide(services))
     const tasks = SessionTask.layer.pipe(Layer.provide(services))
+    const workflowRun = WorkflowRun.layer.pipe(Layer.provide(services))
+    const workflowRunner = WorkflowRunner.layer.pipe(
+      Layer.provide(workflowRun),
+      Layer.provide(tasks),
+      Layer.provide(CredentialScanner.layer),
+      Layer.provide(services),
+    )
     const todos = SessionTodo.layer.pipe(Layer.provide(tasks), Layer.provide(services))
     const questions = QuestionV2.locationLayer.pipe(Layer.provide(services))
     const workArtifact = WorkArtifact.locationLayer.pipe(Layer.provide(services), Layer.provide(mutation))
@@ -224,7 +235,9 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
 
     // Kick off a background project copy refresh to update locations now that we
     // have a location
-    const projectCopyRefresh = Layer.effectDiscard(ProjectCopy.refreshAfterBoot).pipe(Layer.provide(services))
+    const projectCopyRefresh = Flag.AIGCFROGE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT
+      ? Layer.effectDiscard(Effect.void)
+      : Layer.effectDiscard(ProjectCopy.refreshAfterBoot).pipe(Layer.provide(services))
 
     return Layer.mergeAll(
       boot,
@@ -241,6 +254,8 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       resources,
       todos,
       tasks,
+      workflowRun,
+      workflowRunner,
       questions,
       workArtifact,
       model,

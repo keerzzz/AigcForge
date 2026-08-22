@@ -144,6 +144,18 @@ export const Synthetic = EventV2.define({
 })
 export type Synthetic = typeof Synthetic.Type
 
+export const SyntheticAdmitted = EventV2.define({
+  type: "session.next.synthetic.admitted",
+  ...options,
+  schema: {
+    ...Base,
+    messageID: SessionMessageID.ID,
+    text: Schema.String,
+    delivery: Delivery,
+  },
+})
+export type SyntheticAdmitted = typeof SyntheticAdmitted.Type
+
 export const Forked = EventV2.define({
   type: "session.next.forked",
   ...options,

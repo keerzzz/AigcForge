@@ -498,11 +498,13 @@ export const layer = Layer.effect(
         if (promotion === "steer") {
           promoted = yield* SessionInput.promoteSteers(db, events, session.id, cutoff)
           promoted += yield* promoteSkills(session.id, cutoff)
+          promoted += yield* promoteSynthetics(session.id, cutoff)
         }
         if (promotion === "queue") {
           promoted += Number(yield* SessionInput.promoteNextQueued(db, events, session.id))
           promoted += yield* SessionInput.promoteSteers(db, events, session.id, cutoff)
           promoted += yield* promoteSkills(session.id, cutoff)
+          promoted += yield* promoteSynthetics(session.id, cutoff)
         }
         if (promoted > 0) currentStep = 1
       }
@@ -783,6 +785,23 @@ export const layer = Layer.effect(
       return pending.length
     })
 
+    const promoteSynthetics = Effect.fn("SessionRunner.promoteSynthetics")(function* (
+      sessionID: SessionSchema.ID,
+      cutoff: number,
+    ) {
+      const pending = yield* SessionInput.pendingSyntheticSteers(db, sessionID, cutoff)
+      for (const admitted of pending) {
+        if (admitted.kind !== "synthetic") continue
+        yield* events.publish(SessionEvent.Synthetic, {
+          sessionID,
+          messageID: admitted.id,
+          timestamp: admitted.timeCreated,
+          text: admitted.text,
+        })
+      }
+      return pending.length
+    })
+
     const drainShell = Effect.fn("SessionRunner.drainShell")(function* (admitted: SessionInput.Admitted) {
       if (admitted.kind !== "shell") return
       // Fence shell execution to the session's owning Location, mirroring runTurnAttempt.
@@ -874,7 +893,10 @@ export const layer = Layer.effect(
       const hasSkillSteer = hasPromptSteer
         ? false
         : yield* SessionInput.hasPending(db, input.sessionID, "steer", "skill")
-      const hasSteer = hasPromptSteer || hasSkillSteer
+      const hasSyntheticSteer = hasPromptSteer || hasSkillSteer
+        ? false
+        : yield* SessionInput.hasPending(db, input.sessionID, "steer", "synthetic")
+      const hasSteer = hasPromptSteer || hasSkillSteer || hasSyntheticSteer
       const hasQueue = hasSteer ? false : yield* SessionInput.hasPending(db, input.sessionID, "queue")
       const hasShell = hasQueue ? false : (yield* SessionInput.nextPendingShell(db, input.sessionID)) !== undefined
       if (!input.force && !hasSteer && !hasQueue && !hasShell) return
@@ -897,7 +919,8 @@ export const layer = Layer.effect(
             if (!needsContinuation)
               needsContinuation =
                 (yield* SessionInput.hasPending(db, input.sessionID, "steer", "prompt")) ||
-                (yield* SessionInput.hasPending(db, input.sessionID, "steer", "skill"))
+                (yield* SessionInput.hasPending(db, input.sessionID, "steer", "skill")) ||
+                (yield* SessionInput.hasPending(db, input.sessionID, "steer", "synthetic"))
           }
         }
         // Drain queued shell inputs at the idle boundary.

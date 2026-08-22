@@ -35,6 +35,10 @@ const fromRow = (row: typeof SessionInputTable.$inferSelect): Admitted => {
     if (row.skill === null) throw new Error(`Skill input ${row.id} is missing its skill name`)
     return Admitted.make({ kind: "skill", ...base, skill: row.skill })
   }
+  if (row.kind === "synthetic") {
+    if (row.prompt === null) throw new Error(`Synthetic input ${row.id} is missing its text`)
+    return Admitted.make({ kind: "synthetic", ...base, text: decodePrompt(row.prompt).text })
+  }
   if (row.prompt === null) throw new Error(`Prompt input ${row.id} is missing its prompt`)
   return Admitted.make({ kind: "prompt", ...base, prompt: decodePrompt(row.prompt) })
 }
@@ -177,6 +181,54 @@ export const admitSkill = Effect.fn("SessionInput.admitSkill")(function* (
     )
 })
 
+export const admitSynthetic = Effect.fn("SessionInput.admitSynthetic")(function* (
+  db: DatabaseService,
+  events: EventV2.Interface,
+  input: {
+    readonly id: SessionMessage.ID
+    readonly sessionID: SessionSchema.ID
+    readonly text: string
+  },
+) {
+  const existing = yield* find(db, input.id)
+  if (existing !== undefined) return { admitted: existing, created: false } as const
+  const timestamp = yield* DateTime.now
+  const delivery: Delivery = "steer"
+  return yield* events
+    .publish(SessionEvent.SyntheticAdmitted, {
+      messageID: input.id,
+      sessionID: input.sessionID,
+      timestamp,
+      text: input.text,
+      delivery,
+    })
+    .pipe(
+      Effect.flatMap((event) =>
+        event.durable === undefined
+          ? Effect.die("Synthetic admission event is missing aggregate sequence")
+          : Effect.succeed({
+              admitted: Admitted.make({
+                kind: "synthetic",
+                admittedSeq: event.durable.seq,
+                id: input.id,
+                sessionID: input.sessionID,
+                text: input.text,
+                delivery,
+                timeCreated: timestamp,
+              }),
+              created: true,
+            } as const),
+      ),
+      Effect.catchDefect((defect) =>
+        find(db, input.id).pipe(
+          Effect.flatMap((stored) =>
+            stored ? Effect.succeed({ admitted: stored, created: false } as const) : Effect.die(defect),
+          ),
+        ),
+      ),
+    )
+})
+
 export const projectAdmitted = Effect.fn("SessionInput.projectAdmitted")(function* (
   db: DatabaseService,
   input: {
@@ -194,7 +246,7 @@ export const projectAdmitted = Effect.fn("SessionInput.projectAdmitted")(functio
     .where(eq(SessionMessageTable.id, input.id))
     .get()
     .pipe(Effect.orDie)
-  if (message !== undefined) return yield* Effect.die(new LifecycleConflict({ id: input.id }))
+  if (message !== undefined) yield* Effect.die(new LifecycleConflict({ id: input.id }))
   const stored = yield* db
     .insert(SessionInputTable)
     .values({
@@ -210,7 +262,8 @@ export const projectAdmitted = Effect.fn("SessionInput.projectAdmitted")(functio
     .returning({ id: SessionInputTable.id })
     .get()
     .pipe(Effect.orDie)
-  if (!stored) return yield* Effect.die(new LifecycleConflict({ id: input.id }))
+  if (!stored) yield* Effect.die(new LifecycleConflict({ id: input.id }))
+  return undefined
 })
 
 export const projectShellAdmitted = Effect.fn("SessionInput.projectShellAdmitted")(function* (
@@ -230,7 +283,7 @@ export const projectShellAdmitted = Effect.fn("SessionInput.projectShellAdmitted
     .where(eq(SessionMessageTable.id, input.id))
     .get()
     .pipe(Effect.orDie)
-  if (message !== undefined) return yield* Effect.die(new LifecycleConflict({ id: input.id }))
+  if (message !== undefined) yield* Effect.die(new LifecycleConflict({ id: input.id }))
   const stored = yield* db
     .insert(SessionInputTable)
     .values({
@@ -246,7 +299,8 @@ export const projectShellAdmitted = Effect.fn("SessionInput.projectShellAdmitted
     .returning({ id: SessionInputTable.id })
     .get()
     .pipe(Effect.orDie)
-  if (!stored) return yield* Effect.die(new LifecycleConflict({ id: input.id }))
+  if (!stored) yield* Effect.die(new LifecycleConflict({ id: input.id }))
+  return undefined
 })
 
 export const projectSkillAdmitted = Effect.fn("SessionInput.projectSkillAdmitted")(function* (
@@ -283,6 +337,66 @@ export const projectSkillAdmitted = Effect.fn("SessionInput.projectSkillAdmitted
     .get()
     .pipe(Effect.orDie)
   if (!stored) return yield* Effect.die(new LifecycleConflict({ id: input.id }))
+})
+
+export const projectSyntheticAdmitted = Effect.fn("SessionInput.projectSyntheticAdmitted")(function* (
+  db: DatabaseService,
+  input: {
+    readonly admittedSeq: number
+    readonly id: SessionMessage.ID
+    readonly sessionID: SessionSchema.ID
+    readonly text: string
+    readonly delivery: Delivery
+    readonly timeCreated: DateTime.Utc
+  },
+) {
+  const message = yield* db
+    .select({ id: SessionMessageTable.id })
+    .from(SessionMessageTable)
+    .where(eq(SessionMessageTable.id, input.id))
+    .get()
+    .pipe(Effect.orDie)
+  if (message !== undefined) yield* Effect.die(new LifecycleConflict({ id: input.id }))
+  const stored = yield* db
+    .insert(SessionInputTable)
+    .values({
+      id: input.id,
+      session_id: input.sessionID,
+      kind: "synthetic",
+      admitted_seq: input.admittedSeq,
+      prompt: encodePrompt(Prompt.make({ text: input.text })),
+      delivery: input.delivery,
+      time_created: DateTime.toEpochMillis(input.timeCreated),
+    })
+    .onConflictDoNothing()
+    .returning({ id: SessionInputTable.id })
+    .get()
+    .pipe(Effect.orDie)
+  if (!stored) yield* Effect.die(new LifecycleConflict({ id: input.id }))
+  return undefined
+})
+
+export const pendingSyntheticSteers = Effect.fn("SessionInput.pendingSyntheticSteers")(function* (
+  db: DatabaseService,
+  sessionID: SessionSchema.ID,
+  cutoff: number,
+) {
+  const rows = yield* db
+    .select()
+    .from(SessionInputTable)
+    .where(
+      and(
+        eq(SessionInputTable.session_id, sessionID),
+        isNull(SessionInputTable.promoted_seq),
+        eq(SessionInputTable.kind, "synthetic"),
+        eq(SessionInputTable.delivery, "steer"),
+        lte(SessionInputTable.admitted_seq, cutoff),
+      ),
+    )
+    .orderBy(asc(SessionInputTable.admitted_seq))
+    .all()
+    .pipe(Effect.orDie)
+  return rows.map(fromRow)
 })
 
 export const pendingSkillSteers = Effect.fn("SessionInput.pendingSkillSteers")(function* (
@@ -418,6 +532,15 @@ export const equivalentSkill = (
   input.delivery === expected.delivery &&
   input.sessionID === expected.sessionID &&
   input.skill === expected.skill
+
+export const equivalentSynthetic = (
+  input: Admitted,
+  expected: { readonly sessionID: SessionSchema.ID; readonly text: string },
+) =>
+  input.kind === "synthetic" &&
+  input.sessionID === expected.sessionID &&
+  input.delivery === "steer" &&
+  input.text === expected.text
 
 const matchesPrompt = (input: Admitted, expected: { readonly sessionID: SessionSchema.ID; readonly prompt: Prompt }) =>
   input.kind === "prompt" &&

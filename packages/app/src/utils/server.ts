@@ -1,4 +1,5 @@
 import { createAigcfrogeClient } from "@aigcfroge/sdk/v2/client"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 import type { ServerConnection } from "@/context/server"
 import { decode64 } from "@/utils/base64"
 
@@ -33,7 +34,7 @@ export function createSdkForServer({
   return createAigcfrogeClient({
     ...config,
     headers: {
-      "x-aigcfroge-capabilities": "product-mode-custom-v1",
+      [ProductMode.CAPABILITIES_HEADER]: ProductMode.CAPABILITY_CUSTOM_V1,
       ...(config.headers instanceof Headers
         ? Object.fromEntries(config.headers.entries())
         : Array.isArray(config.headers)

@@ -1,10 +1,13 @@
 import { describe, expect } from "bun:test"
-import { Effect, Schema } from "effect"
+import { DateTime, Effect, Layer, Schema } from "effect"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { Location } from "@aigcfroge/core/location"
+import { ModelV2 } from "@aigcfroge/core/model"
 import { Project } from "@aigcfroge/core/project"
+import { ProviderV2 } from "@aigcfroge/core/provider"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionV2 } from "@aigcfroge/core/session"
+import { SessionMessage } from "@aigcfroge/core/session/message"
 import { ScheduledJob } from "@aigcfroge/core/session/scheduled-job"
 import { ScheduledJobExecutor } from "@aigcfroge/core/session/scheduled-job-executor"
 import { SessionSchema } from "@aigcfroge/core/session/schema"
@@ -27,6 +30,23 @@ const childInfo = Schema.decodeUnknownSync(SessionSchema.Info)({
   title: "scheduled child",
   location: { directory: "/project" },
 })
+const childResult = SessionMessage.Assistant.make({
+  id: SessionMessage.ID.make("msg_scheduled_result"),
+  type: "assistant",
+  agent: "build",
+  model: {
+    id: ModelV2.ID.make("test-model"),
+    providerID: ProviderV2.ID.make("test-provider"),
+  },
+  content: [
+    SessionMessage.AssistantText.make({
+      type: "text",
+      id: "text_scheduled_result",
+      text: "Scheduled child completed",
+    }),
+  ],
+  time: { created: DateTime.makeUnsafe(0), completed: DateTime.makeUnsafe(0) },
+})
 
 type WaitOutcome = TaskDriver.BackgroundOutcome
 const state: {
@@ -41,10 +61,10 @@ const state: {
   getDies: false,
 }
 
-// Install a fake TaskDriver cell: createChild/delegate capture their inputs,
+// Explicit test runtime: createChild/delegate capture their inputs, while
 // background.wait steers the delegation outcome (completed / error / cancelled).
 const installStub = () =>
-  TaskDriver.install(
+  TaskDriver.installForTesting(
     {
       get: () =>
         state.getDies ? Effect.die("facade unavailable") : Effect.succeed({ location }),
@@ -58,7 +78,7 @@ const installStub = () =>
           state.prompts.push(input.prompt.text)
         }),
       resume: () => Effect.void,
-      messages: () => Effect.succeed([]),
+      messages: () => Effect.succeed([childResult]),
       injectSynthetic: () => Effect.void,
       interrupt: () => Effect.void,
     } satisfies TaskDriver.SessionFacade,
@@ -70,7 +90,11 @@ const installStub = () =>
     } satisfies TaskDriver.BackgroundRunner,
   )
 
-const it = testEffect(ScheduledJobExecutor.layer)
+const it = testEffect(
+  ScheduledJobExecutor.layer.pipe(
+    Layer.provideMerge(Layer.effect(TaskDriver.Runtime, installStub())),
+  ),
+)
 
 const run = (input: { agent?: string; prompt?: string }) =>
   Effect.gen(function* () {
@@ -85,8 +109,6 @@ describe("ScheduledJobExecutor", () => {
       state.prompts = []
       state.wait = { status: "completed" }
       state.getDies = false
-      installStub()
-
       const result = yield* run({ agent: "build" })
       expect(result).toEqual({ outcome: "completed", childSessionID: childID })
 
@@ -107,8 +129,6 @@ describe("ScheduledJobExecutor", () => {
       state.createChild = []
       state.wait = { status: "completed" }
       state.getDies = false
-      installStub()
-
       const result = yield* run({})
       expect(result.outcome).toBe("completed")
       expect(state.createChild[0]?.agent).toBeUndefined()
@@ -119,8 +139,6 @@ describe("ScheduledJobExecutor", () => {
     Effect.gen(function* () {
       state.wait = { status: "error", error: "provider exploded" }
       state.getDies = false
-      installStub()
-
       const result = yield* run({})
       expect(result).toEqual({ outcome: "failed" })
     }),
@@ -130,8 +148,6 @@ describe("ScheduledJobExecutor", () => {
     Effect.gen(function* () {
       state.wait = { status: "cancelled" }
       state.getDies = false
-      installStub()
-
       const result = yield* run({})
       expect(result).toEqual({ outcome: "cancelled" })
     }),
@@ -140,8 +156,6 @@ describe("ScheduledJobExecutor", () => {
   it.effect("an infrastructure defect (seam missing/broken) maps to failed instead of dying", () =>
     Effect.gen(function* () {
       state.getDies = true
-      installStub()
-
       const result = yield* run({})
       expect(result).toEqual({ outcome: "failed" })
     }),

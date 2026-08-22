@@ -1,5 +1,5 @@
-import { describe, expect } from "bun:test"
-import { Effect, Layer } from "effect"
+import { afterAll, beforeAll, describe, expect } from "bun:test"
+import { Cause, Effect, Layer } from "effect"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
@@ -94,12 +94,12 @@ const mockSnapshot = (
   allowedAgentID: string = "custom-coder",
   skills: Composition.SkillInfo[] = [],
 ) =>
-  new Composition.Snapshot({
+  new Composition.SnapshotV1({
     version: 1,
     digest: mockDigest,
     sessionID,
     createdAt: Date.now(),
-    data: new Composition.SnapshotData({
+    data: new Composition.SnapshotDataV1({
       agentID: allowedAgentID,
       instructions: [],
       prompts: [],
@@ -135,6 +135,33 @@ const taskTool = TaskTool.layer.pipe(
   Layer.provide(SessionTask.defaultLayer),
 )
 
+const taskDriverRuntime = Layer.effect(
+  TaskDriver.Runtime,
+  Effect.gen(function* () {
+    const sessionService = yield* SessionV2.Service
+    return yield* TaskDriver.installForTesting(
+      {
+        get: sessionService.get,
+        create: (input) => sessionService.create(input),
+        prompt: (input) => sessionService.prompt(input),
+        resume: sessionService.resume,
+        messages: sessionService.messages,
+        injectSynthetic: sessionService.injectSynthetic,
+        interrupt: sessionService.interrupt,
+      },
+      {
+        start: () => Effect.void,
+        wait: () => Effect.succeed(undefined),
+        extend: () => Effect.succeed(false),
+        cancel: () => Effect.void,
+      },
+      {
+        execute: () => Effect.succeed({ text: "", sessionID: SessionSchema.ID.make("s"), status: "success" as const }),
+      },
+    )
+  }),
+).pipe(Layer.provide(sessions))
+
 const it = testEffect(
   Layer.mergeAll(
     Database.defaultLayer,
@@ -151,7 +178,7 @@ const it = testEffect(
     sessions,
     taskTool,
     skillTool,
-  ),
+  ).pipe(Layer.provideMerge(taskDriverRuntime)),
 )
 
 describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
@@ -199,7 +226,7 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
         injectSynthetic: sessionService.injectSynthetic,
         interrupt: sessionService.interrupt,
       }
-      TaskDriver.install(
+      return TaskDriver.installForTesting(
         facade,
         {
           start: () => Effect.void,
@@ -215,8 +242,6 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
 
     it.effect("rejects external-cli execution in Custom mode", () =>
       Effect.gen(function* () {
-        const sessionService = yield* SessionV2.Service
-        installDriver(sessionService)
         const agentService = yield* AgentV2.Service
         yield* agentService.transform((draft) => {
           draft.update(AgentV2.ID.make("custom-coder"), (a) => {
@@ -273,8 +298,6 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
 
     it.effect("rejects judge execution in Custom mode", () =>
       Effect.gen(function* () {
-        const sessionService = yield* SessionV2.Service
-        installDriver(sessionService)
         const agentService = yield* AgentV2.Service
         yield* agentService.transform((draft) => {
           draft.update(AgentV2.ID.make("custom-coder"), (a) => {
@@ -331,8 +354,6 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
 
     it.effect("rejects background subagent execution in Custom mode", () =>
       Effect.gen(function* () {
-        const sessionService = yield* SessionV2.Service
-        installDriver(sessionService)
         const agentService = yield* AgentV2.Service
         yield* agentService.transform((draft) => {
           draft.update(AgentV2.ID.make("custom-coder"), (a) => {
@@ -388,8 +409,6 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
 
     it.effect("rejects delegation to unauthorized agent in Custom mode", () =>
       Effect.gen(function* () {
-        const sessionService = yield* SessionV2.Service
-        installDriver(sessionService)
         const agentService = yield* AgentV2.Service
         yield* agentService.transform((draft) => {
           draft.update(AgentV2.ID.make("forbidden-agent"), (a) => {
@@ -444,6 +463,19 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
   })
 
   describe("assertAgentAllowed and Snapshot Delegation (Tier 2 Gate)", () => {
+    // Child Session creation now asserts the runtime kill switch, so this block
+    // needs Custom mode enabled. The switch itself is covered by the dedicated
+    // "Custom Mode Runtime Kill Switch" block below, which keeps it disabled.
+    let savedFlag: string | undefined
+    beforeAll(() => {
+      savedFlag = process.env["AIGCFROGE_CUSTOM_MODE"]
+      process.env["AIGCFROGE_CUSTOM_MODE"] = "true"
+    })
+    afterAll(() => {
+      if (savedFlag === undefined) delete process.env["AIGCFROGE_CUSTOM_MODE"]
+      else process.env["AIGCFROGE_CUSTOM_MODE"] = savedFlag
+    })
+
     it.effect("assertAgentAllowed succeeds for matching snapshot agent and fails for other agents", () =>
       Effect.gen(function* () {
         const comp = yield* SessionComposition.Service
@@ -521,7 +553,9 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
         // Snapshot was copied to child
         const childSnapshot = yield* comp.get(childSession.id)
         expect(childSnapshot.digest).toBe(mockSnapshot(rootSessionID).digest)
-        expect(childSnapshot.data.agentID).toBe("custom-coder")
+        if (childSnapshot.version === 1) {
+          expect(childSnapshot.data.agentID).toBe("custom-coder")
+        }
 
         // Child session with forbidden agent fails
         const forbiddenChild = yield* sessionService
@@ -534,6 +568,69 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
           .pipe(Effect.exit)
 
         expect(forbiddenChild._tag).toBe("Failure")
+      }),
+    )
+  })
+
+  describe("Custom Mode Runtime Kill Switch", () => {
+    it.effect("child Session creation fails closed while the runtime switch is off", () =>
+      Effect.gen(function* () {
+        const savedFlag = process.env["AIGCFROGE_CUSTOM_MODE"]
+        delete process.env["AIGCFROGE_CUSTOM_MODE"]
+        yield* Effect.addFinalizer(() =>
+          Effect.sync(() => {
+            if (savedFlag === undefined) delete process.env["AIGCFROGE_CUSTOM_MODE"]
+            else process.env["AIGCFROGE_CUSTOM_MODE"] = savedFlag
+          }),
+        )
+        const sessionService = yield* SessionV2.Service
+        const comp = yield* SessionComposition.Service
+        const { db } = yield* Database.Service
+
+        const rootSessionID = SessionV2.ID.make("ses_root_custom_killswitch")
+        yield* db
+          .insert(ProjectTable)
+          .values({
+            id: ProjectSchema.ID.make("proj_test_killswitch"),
+            worktree: AbsolutePath.make("/workspace"),
+            sandboxes: [],
+          })
+          .onConflictDoNothing()
+          .run()
+          .pipe(Effect.orDie)
+        yield* db
+          .insert(SessionTable)
+          .values({
+            id: rootSessionID,
+            slug: "root-slug-killswitch",
+            version: "1.0.0",
+            project_id: ProjectV2.ID.make("proj_test_killswitch"),
+            directory: AbsolutePath.make("/workspace"),
+            title: "Custom Session",
+            mode: "custom",
+            agent: AgentV2.ID.make("meta"),
+            time_created: Date.now(),
+            time_updated: Date.now(),
+          })
+          .run()
+          .pipe(Effect.orDie)
+        yield* comp.attach(rootSessionID, mockSnapshot(rootSessionID, "custom-coder"))
+
+        // The agent is inside the snapshot allowlist, so only the disabled
+        // runtime switch can reject this child.
+        const blocked = yield* sessionService
+          .create({
+            id: SessionV2.ID.make("ses_child_custom_killswitch"),
+            parentID: rootSessionID,
+            agent: AgentV2.ID.make("custom-coder"),
+            location: { directory: AbsolutePath.make("/workspace") },
+          })
+          .pipe(Effect.exit)
+
+        expect(blocked._tag).toBe("Failure")
+        if (blocked._tag === "Failure") {
+          expect(Cause.squash(blocked.cause)).toMatchObject({ _tag: "UnsupportedProductModeError" })
+        }
       }),
     )
   })
@@ -615,7 +712,9 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
         yield* comp.attach(sessionID, mockSnapshot(sessionID, "custom-coder"))
 
         const validated = yield* comp.assertDependency(sessionID)
-        expect(validated.data.agentID).toBe("custom-coder")
+        if (validated.version === 1) {
+          expect(validated.data.agentID).toBe("custom-coder")
+        }
         expect(validated.digest).toBe(mockSnapshot(sessionID).digest)
       }),
     )
@@ -646,30 +745,8 @@ const snapshotSkills = [
 ]
 
 describe("Skill Tool Snapshot-Local Lookup (MEDIUM-2a)", () => {
-  const installDriver = (sessionService: SessionV2.Interface) => {
-    TaskDriver.install(
-      {
-        get: (sessionID) => sessionService.get(sessionID),
-        create: (input) => sessionService.create(input),
-        prompt: (input) => sessionService.prompt(input),
-        resume: (sessionID) => sessionService.resume(sessionID),
-        messages: (input) => sessionService.messages(input),
-        injectSynthetic: (input) => sessionService.injectSynthetic(input),
-        interrupt: (sessionID) => sessionService.interrupt(sessionID),
-      },
-      {
-        start: () => Effect.void,
-        wait: () => Effect.succeed(undefined),
-        extend: () => Effect.succeed(false),
-        cancel: () => Effect.void,
-      },
-    )
-  }
-
   it.effect("loads an in-snapshot skill in Custom mode", () =>
     Effect.gen(function* () {
-      const sessionService = yield* SessionV2.Service
-      installDriver(sessionService)
       const { db } = yield* Database.Service
       const comp = yield* SessionComposition.Service
       const sessionID = SessionV2.ID.make("ses_skill_snap_in")
@@ -708,8 +785,6 @@ describe("Skill Tool Snapshot-Local Lookup (MEDIUM-2a)", () => {
 
   it.effect("rejects an out-of-snapshot skill in Custom mode", () =>
     Effect.gen(function* () {
-      const sessionService = yield* SessionV2.Service
-      installDriver(sessionService)
       const { db } = yield* Database.Service
       const comp = yield* SessionComposition.Service
       const sessionID = SessionV2.ID.make("ses_skill_snap_out")
@@ -748,8 +823,6 @@ describe("Skill Tool Snapshot-Local Lookup (MEDIUM-2a)", () => {
 
   it.effect("keeps the global skill catalog in Coding mode", () =>
     Effect.gen(function* () {
-      const sessionService = yield* SessionV2.Service
-      installDriver(sessionService)
       const { db } = yield* Database.Service
       const sessionID = SessionV2.ID.make("ses_skill_coding")
       currentSkills = [boundSkill, outsideSkill]
@@ -786,8 +859,6 @@ describe("Skill Tool Snapshot-Local Lookup (MEDIUM-2a)", () => {
 
   it.effect("fails closed when the Custom session snapshot row is missing", () =>
     Effect.gen(function* () {
-      const sessionService = yield* SessionV2.Service
-      installDriver(sessionService)
       const { db } = yield* Database.Service
       const sessionID = SessionV2.ID.make("ses_skill_snap_missing")
       currentSkills = [boundSkill, outsideSkill]
@@ -848,6 +919,31 @@ const skillToolNoComposition = SkillTool.layer.pipe(
   Layer.provide(skillsStub),
 )
 
+const bareTaskDriverRuntime = Layer.effect(
+  TaskDriver.Runtime,
+  TaskDriver.installForTesting(
+    {
+      get: (sessionID) =>
+        Effect.succeed({
+          location: { directory: AbsolutePath.make("/workspace") },
+          mode: sessionID === bareSessionID ? "custom" : undefined,
+        }),
+      create: () => Effect.die("unused"),
+      prompt: () => Effect.die("unused"),
+      resume: () => Effect.die("unused"),
+      messages: () => Effect.die("unused"),
+      injectSynthetic: () => Effect.die("unused"),
+      interrupt: () => Effect.void,
+    },
+    {
+      start: () => Effect.void,
+      wait: () => Effect.succeed(undefined),
+      extend: () => Effect.succeed(false),
+      cancel: () => Effect.void,
+    },
+  ),
+)
+
 const itBare = testEffect(
   Layer.mergeAll(
     Database.defaultLayer,
@@ -859,37 +955,12 @@ const itBare = testEffect(
     SessionTask.defaultLayer,
     taskToolNoComposition,
     skillToolNoComposition,
-  ),
+  ).pipe(Layer.provideMerge(bareTaskDriverRuntime)),
 )
 
 describe("Fail-Closed Without Snapshot Service", () => {
-  const installBareDriver = () => {
-    TaskDriver.install(
-      {
-        get: (sessionID) =>
-          Effect.succeed({
-            location: { directory: AbsolutePath.make("/workspace") },
-            mode: sessionID === bareSessionID ? "custom" : undefined,
-          }),
-        create: () => Effect.die("unused"),
-        prompt: () => Effect.die("unused"),
-        resume: () => Effect.die("unused"),
-        messages: () => Effect.die("unused"),
-        injectSynthetic: () => Effect.die("unused"),
-        interrupt: () => Effect.void,
-      },
-      {
-        start: () => Effect.void,
-        wait: () => Effect.succeed(undefined),
-        extend: () => Effect.succeed(false),
-        cancel: () => Effect.void,
-      },
-    )
-  }
-
   itBare.effect("task tool fails closed when SessionComposition is unavailable", () =>
     Effect.gen(function* () {
-      installBareDriver()
       const agentService = yield* AgentV2.Service
       yield* agentService.transform((draft) => {
         draft.update(AgentV2.ID.make("custom-coder"), (a) => {
@@ -919,7 +990,6 @@ describe("Fail-Closed Without Snapshot Service", () => {
 
   itBare.effect("skill tool fails closed when SessionComposition is unavailable", () =>
     Effect.gen(function* () {
-      installBareDriver()
       currentSkills = [boundSkill]
       const reg = yield* ToolRegistry.Service
       const materialized = yield* reg.materialize()

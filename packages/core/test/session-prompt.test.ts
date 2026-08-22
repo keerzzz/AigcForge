@@ -81,7 +81,6 @@ const setup = Effect.gen(function* () {
     .run()
     .pipe(Effect.orDie)
 })
-
 const admitted = (id: SessionMessage.ID) => Database.Service.use(({ db }) => SessionInput.find(db, id))
 const admittedCount = Database.Service.use(({ db }) =>
   db
@@ -559,6 +558,55 @@ describe("SessionV2.prompt", () => {
 
       expect(executionCalls).toEqual([])
       expect(wakeCalls).toEqual([])
+    }),
+  )
+})
+
+describe("SessionV2.injectSynthetic", () => {
+  it.effect("admits one durable synthetic input and does not wake an exact retry twice", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* SessionV2.Service
+      const id = SessionMessage.ID.make("msg_synthetic_exact_retry")
+      executionCalls.length = 0
+      wakeCalls.length = 0
+
+      yield* session.injectSynthetic({ id, sessionID, text: "Workflow result" })
+      yield* session.injectSynthetic({ id, sessionID, text: "Workflow result" })
+
+      expect(
+        yield* eventCount(
+          EventV2.versionedType(
+            SessionEvent.SyntheticAdmitted.type,
+            SessionEvent.SyntheticAdmitted.durable?.version ?? 1,
+          ),
+        ),
+      ).toBe(1)
+      expect(executionCalls).toEqual([])
+      expect(wakeCalls).toEqual([sessionID])
+    }),
+  )
+
+  it.effect("rejects conflicting reuse of a deterministic synthetic message ID", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* SessionV2.Service
+      const id = SessionMessage.ID.make("msg_synthetic_conflict")
+      yield* session.injectSynthetic({ id, sessionID, text: "Original result" })
+
+      const failure = yield* session
+        .injectSynthetic({ id, sessionID, text: "Different result" })
+        .pipe(Effect.flip)
+
+      expect(failure).toMatchObject({ _tag: "Session.SyntheticConflictError", sessionID, messageID: id })
+      expect(
+        yield* eventCount(
+          EventV2.versionedType(
+            SessionEvent.SyntheticAdmitted.type,
+            SessionEvent.SyntheticAdmitted.durable?.version ?? 1,
+          ),
+        ),
+      ).toBe(1)
     }),
   )
 })

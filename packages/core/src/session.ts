@@ -1,7 +1,7 @@
 export * as SessionV2 from "./session"
 export * from "./session/schema"
 
-import { DateTime, Effect, Layer, Schema, Context, Stream, Option } from "effect"
+import { DateTime, Effect, Exit, Layer, Schema, Context, Stream, Option } from "effect"
 import { ListAnchor } from "@aigcfroge/schema/session"
 import { Composition } from "@aigcfroge/schema/composition"
 import { and, asc, desc, eq, gt, like, lt, or, type SQL } from "drizzle-orm"
@@ -127,6 +127,18 @@ export class PromptConflictError extends Schema.TaggedErrorClass<PromptConflictE
   messageID: SessionMessage.ID,
 }) {}
 
+export class SyntheticConflictError extends Schema.TaggedErrorClass<SyntheticConflictError>()(
+  "Session.SyntheticConflictError",
+  {
+    sessionID: SessionSchema.ID,
+    messageID: SessionMessage.ID,
+  },
+) {
+  override get message() {
+    return `Synthetic message ${this.messageID} conflicts with existing Session history`
+  }
+}
+
 export class UpgradeSourceModeError extends Schema.TaggedErrorClass<UpgradeSourceModeError>()(
   "Session.UpgradeSourceModeError",
   {
@@ -144,6 +156,7 @@ export type Error =
   | MessageDecodeError
   | OperationUnavailableError
   | PromptConflictError
+  | SyntheticConflictError
   | UpgradeSourceModeError
   | SessionBusyError
   | ProductModePolicy.UnsupportedProductModeError
@@ -264,9 +277,10 @@ export interface Interface {
     | SessionComposition.SnapshotDecodeError
   >
   readonly injectSynthetic: (input: {
+    id?: SessionMessage.ID
     sessionID: SessionSchema.ID
     text: string
-  }) => Effect.Effect<void, NotFoundError | SessionRunner.RunError>
+  }) => Effect.Effect<void, NotFoundError | SyntheticConflictError | SessionRunner.RunError>
   readonly interrupt: (sessionID: SessionSchema.ID) => Effect.Effect<void>
   readonly toolSummary: (sessionID: SessionSchema.ID) => Effect.Effect<ToolSummary.Summary[], NotFoundError | MessageDecodeError>
 }
@@ -318,10 +332,11 @@ export const layer = Layer.effect(
     ) =>
       Effect.gen(function* () {
         if (parent && parentSnapshot) {
-          // A custom child inherits the parent's frozen composition. An omitted
-          // agent defaults to the snapshot's frozen agentID — the only identity
-          // the delegation gate allows; any other value is a typed rejection.
-          const agentID: string = input.agent ?? parentSnapshot.data.agentID
+          const defaultAgentID =
+            parentSnapshot.version === 1
+              ? parentSnapshot.data.agentID
+              : parentSnapshot.data.agents[0]?.id ?? "meta"
+          const agentID: string = input.agent ?? defaultAgentID
           yield* sessionComposition.assertAgentAllowed(parent.id, agentID)
           return AgentV2.ID.make(agentID)
         }
@@ -342,9 +357,8 @@ export const layer = Layer.effect(
         const parent = input.parentID ? yield* store.get(input.parentID) : undefined
         const mode = parent?.mode ?? input.mode ?? ProductMode.Default
         if (mode === "custom") {
-          if (!parent) {
-            yield* ProductModePolicy.assertCreationSupported(mode)
-          }
+          if (!parent) yield* ProductModePolicy.assertCreationSupported(mode)
+          yield* ProductModePolicy.assertRuntimeSupported(mode)
         } else {
           yield* ProductModePolicy.assertCreationSupported(mode)
         }
@@ -779,15 +793,16 @@ export const layer = Layer.effect(
       }),
       injectSynthetic: Effect.fn("V2Session.injectSynthetic")(function* (input) {
         yield* result.get(input.sessionID)
-        yield* events.publish(SessionEvent.Synthetic, {
+        const messageID = input.id ?? SessionMessage.ID.create()
+        const admission = yield* SessionInput.admitSynthetic(db, events, {
+          id: messageID,
           sessionID: input.sessionID,
-          messageID: SessionMessage.ID.create(),
-          timestamp: yield* DateTime.now,
           text: input.text,
         })
-        // Force a drain so the agent runs a turn that observes the synthetic
-        // message; resume is a force drain (coordinator.run starts with force).
-        yield* execution.resume(input.sessionID)
+        if (!SessionInput.equivalentSynthetic(admission.admitted, input)) {
+          return yield* new SyntheticConflictError({ sessionID: input.sessionID, messageID })
+        }
+        if (admission.created) yield* execution.wake(input.sessionID)
       }),
       interrupt: Effect.fn("V2Session.interrupt")((sessionID) =>
         Effect.uninterruptible(

@@ -8,6 +8,8 @@ import { CustomProfile } from "@aigcfroge/core/custom-profile"
 import { AgentAsset } from "@aigcfroge/core/agent-asset"
 import { PromptAsset } from "@aigcfroge/core/prompt-asset"
 import { SkillAsset } from "@aigcfroge/core/skill-asset"
+import { WorkflowAsset } from "@aigcfroge/core/workflow-asset"
+import { CommandAsset } from "@aigcfroge/core/command-asset"
 import { FSUtil } from "@aigcfroge/core/fs-util"
 import { Location } from "@aigcfroge/core/location"
 import { AbsolutePath } from "@aigcfroge/core/schema"
@@ -33,6 +35,8 @@ function fullResolverLayer(dir: string) {
     AgentAsset.locationLayer,
     PromptAsset.locationLayer,
     SkillAsset.locationLayer,
+    WorkflowAsset.locationLayer,
+    CommandAsset.locationLayer,
   ).pipe(Layer.provide(location), Layer.provide(FSUtil.defaultLayer))
   const tools = Layer.mock(ToolRegistry.Service, {
     materialize: () =>
@@ -313,8 +317,10 @@ requestedCapabilities: []
           const snapshot = yield* resolver.freeze(new Composition.FreezeInput({ input, sessionID: "session-123" }))
           expect(snapshot.version).toBe(1)
           expect(snapshot.sessionID).toBe("session-123")
-          expect(snapshot.data.agentID).toBe("coder")
-          expect(snapshot.data.skills).toHaveLength(1)
+          if (snapshot.version === 1) {
+            expect(snapshot.data.agentID).toBe("coder")
+            expect(snapshot.data.skills).toHaveLength(1)
+          }
           expect(snapshot.data.tools.catalog).toEqual(["read"])
           expect(snapshot.data.tools.catalogDigest).toHaveLength(64)
           expect(snapshot.data.tools.fingerprints).toHaveLength(1)
@@ -407,7 +413,7 @@ requestedCapabilities: []
         source: "temporary",
         agents: [{ kind: "agent", relativePath: "coder.md", revision: agentRev }],
         bindings: {
-          // Same prompt listed twice within one binding, and again for the agent consumer
+          // Same prompt listed twice within one binding, and again for another consumer.
           orchestrator: { prompts: [promptRef, promptRef], skills: [] },
           "agents/coder": { prompts: [promptRef], skills: [] },
         },
@@ -421,8 +427,8 @@ requestedCapabilities: []
           const plan = yield* resolver.resolve(input)
           expect(plan.valid).toBe(false)
           const duplicates = plan.diagnostics.filter((d) => d.code === "duplicate_asset")
-          // One diagnostic per duplicate occurrence (2nd and 3rd listing)
-          expect(duplicates).toHaveLength(2)
+          // Assets are consumer-scoped, so only the duplicate within orchestrator is invalid.
+          expect(duplicates).toHaveLength(1)
           expect(duplicates[0].severity).toBe("blocking")
           expect(duplicates[0].path).toBe("system-prompt.md")
         }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
@@ -532,6 +538,430 @@ requestedCapabilities:
           expect(plan.capabilities[0].status).toBe("denied")
         }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
       )
+    })
+  })
+
+  describe("M2 Multi-Agent and Workflow Resolution", () => {
+    test("successfully resolves multi-agent composition plan with cost preview", async () => {
+      await withTmp(async (dir) => {
+        const agentDir = path.join(dir, ".aigcfroge", "agents")
+        await fs.mkdir(agentDir, { recursive: true })
+
+        const coderRaw = `---\nkind: agent\nname: coder\ndescription: Primary coder\n---\nWrite code.\n`
+        await fs.writeFile(path.join(agentDir, "coder.md"), coderRaw)
+        const coderRev = Hash.sha256(Buffer.from(coderRaw))
+
+        const reviewerRaw = `---\nkind: agent\nname: reviewer\ndescription: Code reviewer\n---\nReview code.\n`
+        await fs.writeFile(path.join(agentDir, "reviewer.md"), reviewerRaw)
+        const reviewerRev = Hash.sha256(Buffer.from(reviewerRaw))
+
+        await Effect.runPromise(
+          Effect.gen(function* () {
+            const resolver = yield* CompositionResolver.Service
+            const input = Schema.decodeUnknownSync(Composition.CompositionInput)({
+              source: "temporary",
+              agents: [
+                { kind: "agent", relativePath: "coder.md", revision: coderRev },
+                { kind: "agent", relativePath: "reviewer.md", revision: reviewerRev },
+              ],
+              bindings: {
+                "agents/coder": { prompts: [], skills: [] },
+                "agents/reviewer": { prompts: [], skills: [] },
+              },
+              presentation: "native",
+              requestedCapabilities: ["workspace.read"],
+            })
+
+            const plan = yield* resolver.resolve(input)
+            expect(plan.valid).toBe(true)
+            expect(plan.version).toBe(2)
+            expect(plan.agents).toHaveLength(2)
+            expect(plan.agents?.[0].name).toBe("coder")
+            expect(plan.agents?.[1].name).toBe("reviewer")
+            expect(plan.costPreview).toBeDefined()
+            expect(plan.costPreview?.agentCount).toBe(2)
+            expect(plan.costPreview?.effectiveToolCount).toBe(1)
+            expect(plan.costPreview?.maxConcurrency).toBe(1)
+            expect(plan.costPreview?.estimatedTokens).toBeGreaterThan(0)
+          }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
+        )
+      })
+    })
+
+    test("successfully resolves workflow asset, validates DAG, and checks step agents", async () => {
+      await withTmp(async (dir) => {
+        const agentDir = path.join(dir, ".aigcfroge", "agents")
+        await fs.mkdir(agentDir, { recursive: true })
+        const coderRaw = `---\nkind: agent\nname: coder\ndescription: Coder\n---\nWrite code.\n`
+        await fs.writeFile(path.join(agentDir, "coder.md"), coderRaw)
+        const coderRev = Hash.sha256(Buffer.from(coderRaw))
+
+        const reviewerRaw = `---\nkind: agent\nname: reviewer\ndescription: Reviewer\n---\nReview.\n`
+        await fs.writeFile(path.join(agentDir, "reviewer.md"), reviewerRaw)
+        const reviewerRev = Hash.sha256(Buffer.from(reviewerRaw))
+
+        const workflowDir = path.join(dir, ".aigcfroge", "workflows")
+        await fs.mkdir(workflowDir, { recursive: true })
+        const workflowYaml = `kind: workflow
+name: code-and-review
+description: Code then review workflow
+version: "1.0.0"
+triggers:
+  - manual
+steps:
+  - id: step_code
+    name: Code Implementation
+    agent: coder
+    next: step_review
+  - id: step_review
+    name: Code Review
+    agent: reviewer
+    next: END
+`
+        await fs.writeFile(path.join(workflowDir, "pipeline.yaml"), workflowYaml)
+        const workflowRev = Hash.sha256(Buffer.from(workflowYaml))
+
+        await Effect.runPromise(
+          Effect.gen(function* () {
+            const resolver = yield* CompositionResolver.Service
+            const input = Schema.decodeUnknownSync(Composition.CompositionInput)({
+              source: "temporary",
+              agents: [
+                { kind: "agent", relativePath: "coder.md", revision: coderRev },
+                { kind: "agent", relativePath: "reviewer.md", revision: reviewerRev },
+              ],
+              workflow: {
+                kind: "workflow",
+                relativePath: "pipeline.yaml",
+                revision: workflowRev,
+              },
+              bindings: {
+                "agents/coder": { prompts: [], skills: [] },
+                "agents/reviewer": { prompts: [], skills: [] },
+              },
+              presentation: "native",
+              requestedCapabilities: [],
+            })
+
+            const plan = yield* resolver.resolve(input)
+            expect(plan.valid).toBe(true)
+            expect(plan.version).toBe(2)
+            expect(plan.workflow).toBeDefined()
+            expect(plan.workflow?.name).toBe("code-and-review")
+            expect(plan.workflow?.steps).toHaveLength(2)
+            expect(plan.workflow?.steps[0].id).toBe("step_code")
+            expect(plan.workflow?.steps[0].next).toBe("step_review")
+            expect(plan.workflow?.steps[1].id).toBe("step_review")
+            expect(plan.workflow?.steps[1].next).toBe("END")
+          }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
+        )
+      })
+    })
+
+    test("rejects workflow with unknown agent or cyclic DAG", async () => {
+      await withTmp(async (dir) => {
+        const agentDir = path.join(dir, ".aigcfroge", "agents")
+        await fs.mkdir(agentDir, { recursive: true })
+        const coderRaw = `---\nkind: agent\nname: coder\ndescription: Coder\n---\nWrite code.\n`
+        await fs.writeFile(path.join(agentDir, "coder.md"), coderRaw)
+        const coderRev = Hash.sha256(Buffer.from(coderRaw))
+
+        const workflowDir = path.join(dir, ".aigcfroge", "workflows")
+        await fs.mkdir(workflowDir, { recursive: true })
+        const cyclicYaml = `kind: workflow
+name: cyclic-flow
+description: Cyclic workflow
+version: "1.0.0"
+steps:
+  - id: a
+    name: Step A
+    agent: coder
+    next: b
+  - id: b
+    name: Step B
+    agent: ghost-agent
+    next: a
+`
+        await fs.writeFile(path.join(workflowDir, "cyclic.yaml"), cyclicYaml)
+        const cyclicRev = Hash.sha256(Buffer.from(cyclicYaml))
+
+        await Effect.runPromise(
+          Effect.gen(function* () {
+            const resolver = yield* CompositionResolver.Service
+            const input = Schema.decodeUnknownSync(Composition.CompositionInput)({
+              source: "temporary",
+              agents: [{ kind: "agent", relativePath: "coder.md", revision: coderRev }],
+              workflow: {
+                kind: "workflow",
+                relativePath: "cyclic.yaml",
+                revision: cyclicRev,
+              },
+              bindings: { "agents/coder": { prompts: [], skills: [] } },
+              presentation: "native",
+              requestedCapabilities: [],
+            })
+
+            const plan = yield* resolver.resolve(input)
+            expect(plan.valid).toBe(false)
+            expect(plan.diagnostics.some((d) => d.code === "invalid_workflow_graph")).toBe(true)
+            expect(plan.diagnostics.some((d) => d.code === "workflow_unknown_agent")).toBe(true)
+          }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
+        )
+      })
+    })
+
+    test("freezes multi-agent and workflow plan into SnapshotV2", async () => {
+      await withTmp(async (dir) => {
+        const agentDir = path.join(dir, ".aigcfroge", "agents")
+        await fs.mkdir(agentDir, { recursive: true })
+        const coderRaw = `---\nkind: agent\nname: coder\ndescription: Coder\n---\nWrite code.\n`
+        await fs.writeFile(path.join(agentDir, "coder.md"), coderRaw)
+        const coderRev = Hash.sha256(Buffer.from(coderRaw))
+
+        const reviewerRaw = `---\nkind: agent\nname: reviewer\ndescription: Reviewer\n---\nReview.\n`
+        await fs.writeFile(path.join(agentDir, "reviewer.md"), reviewerRaw)
+        const reviewerRev = Hash.sha256(Buffer.from(reviewerRaw))
+
+        const workflowDir = path.join(dir, ".aigcfroge", "workflows")
+        await fs.mkdir(workflowDir, { recursive: true })
+        const workflowYaml = `kind: workflow
+name: multi-flow
+description: Multi flow
+version: "1.0.0"
+steps:
+  - id: s1
+    name: S1
+    agent: coder
+`
+        await fs.writeFile(path.join(workflowDir, "flow.yaml"), workflowYaml)
+        const workflowRev = Hash.sha256(Buffer.from(workflowYaml))
+
+        await Effect.runPromise(
+          Effect.gen(function* () {
+            const resolver = yield* CompositionResolver.Service
+            const input = Schema.decodeUnknownSync(Composition.CompositionInput)({
+              source: "temporary",
+              agents: [
+                { kind: "agent", relativePath: "coder.md", revision: coderRev },
+                { kind: "agent", relativePath: "reviewer.md", revision: reviewerRev },
+              ],
+              workflow: {
+                kind: "workflow",
+                relativePath: "flow.yaml",
+                revision: workflowRev,
+              },
+              bindings: {
+                "agents/coder": { prompts: [], skills: [] },
+                "agents/reviewer": { prompts: [], skills: [] },
+              },
+              presentation: "native",
+              requestedCapabilities: [],
+            })
+
+            const snapshot = yield* resolver.freeze(
+              new Composition.FreezeInput({ input, sessionID: "ses-multi-123" }),
+            )
+            expect(snapshot.version).toBe(2)
+            expect(snapshot.sessionID).toBe("ses-multi-123")
+            if (snapshot.version === 2) {
+              expect(snapshot.data.agents).toHaveLength(2)
+              expect(snapshot.data.agents[0].name).toBe("coder")
+              expect(snapshot.data.agents[1].name).toBe("reviewer")
+              expect(snapshot.data.workflow).toBeDefined()
+              expect(snapshot.data.workflow?.name).toBe("multi-flow")
+            }
+          }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
+        )
+      })
+    })
+
+    test("resolves and freezes consumer-scoped commands without granting execution authority", async () => {
+      await withTmp(async (dir) => {
+        const agentDir = path.join(dir, ".aigcfroge", "agents")
+        await fs.mkdir(agentDir, { recursive: true })
+        const coderRaw = `---\nkind: agent\nname: coder\ndescription: Coder\n---\nWrite code.\n`
+        await fs.writeFile(path.join(agentDir, "coder.md"), coderRaw)
+        const coderRev = Hash.sha256(Buffer.from(coderRaw))
+
+        const promptDir = path.join(dir, ".aigcfroge", "prompts")
+        await fs.mkdir(promptDir, { recursive: true })
+        const promptRaw = `---\nkind: prompt\nname: review-context\ndescription: Review context\n---\nReview carefully.\n`
+        await fs.writeFile(path.join(promptDir, "review.md"), promptRaw)
+        const promptRev = Hash.sha256(Buffer.from(promptRaw))
+
+        const skillDir = path.join(dir, ".aigcfroge", "skills", "review")
+        await fs.mkdir(skillDir, { recursive: true })
+        const skillRaw = `---\nname: review\ndescription: Review checklist\n---\nCheck correctness.\n`
+        await fs.writeFile(path.join(skillDir, "SKILL.md"), skillRaw)
+        const skillRev = Hash.sha256(Buffer.from(skillRaw))
+
+        const commandDir = path.join(dir, ".aigcfroge", "commands")
+        await fs.mkdir(commandDir, { recursive: true })
+        const commandRaw = `---\nkind: command\nname: review\ndescription: Review the current change\ninvocation: /review\n---\nReview the supplied change without executing it.\n`
+        await fs.writeFile(path.join(commandDir, "review.md"), commandRaw)
+        const commandRev = Hash.sha256(Buffer.from(commandRaw))
+
+        const workflowDir = path.join(dir, ".aigcfroge", "workflows")
+        await fs.mkdir(workflowDir, { recursive: true })
+        const workflowYaml = `kind: workflow
+name: review-flow
+description: Review workflow
+version: "1.0.0"
+steps:
+  - id: review
+    name: Review
+    agent: coder
+`
+        await fs.writeFile(path.join(workflowDir, "review.yaml"), workflowYaml)
+        const workflowRev = Hash.sha256(Buffer.from(workflowYaml))
+
+        await Effect.runPromise(
+          Effect.gen(function* () {
+            const resolver = yield* CompositionResolver.Service
+            const commandRef = { kind: "command" as const, relativePath: "review.md", revision: commandRev }
+            const input = Schema.decodeUnknownSync(Composition.CompositionInput)({
+              source: "temporary",
+              agents: [{ kind: "agent", relativePath: "coder.md", revision: coderRev }],
+              workflow: { kind: "workflow", relativePath: "review.yaml", revision: workflowRev },
+              bindings: {
+                orchestrator: {
+                  prompts: [{ kind: "prompt", relativePath: "review.md", revision: promptRev }],
+                  skills: [],
+                  commands: [commandRef],
+                },
+                "agents/coder": {
+                  prompts: [],
+                  skills: [{ kind: "skill", relativePath: "review/SKILL.md", revision: skillRev }],
+                  commands: [commandRef],
+                },
+              },
+              presentation: "native",
+              requestedCapabilities: [],
+            })
+
+            const plan = yield* resolver.resolve(input)
+            expect(plan.valid).toBe(true)
+            expect(plan.commands).toHaveLength(1)
+            expect(plan.commands[0].name).toBe("review")
+            expect(plan.commands[0].template).toContain("without executing it")
+            expect(plan.capabilities).toEqual([])
+            expect(plan.costPreview?.effectiveToolCount).toBe(1)
+            expect(plan.instructions.some((instruction) => instruction.content.includes("without executing it"))).toBe(false)
+
+            const snapshot = yield* resolver.freeze(new Composition.FreezeInput({ input }))
+            expect(snapshot.version).toBe(2)
+            if (snapshot.version === 2) {
+              expect(snapshot.data.maxConcurrency).toBe(1)
+              expect(snapshot.data.bindings.orchestrator.prompts).toHaveLength(1)
+              expect(snapshot.data.bindings.orchestrator.skills).toEqual([])
+              expect(snapshot.data.bindings.orchestrator.commands[0].name).toBe("review")
+              expect(snapshot.data.bindings["agents/coder"].prompts).toEqual([])
+              expect(snapshot.data.bindings["agents/coder"].skills[0].name).toBe("review")
+              expect(snapshot.data.bindings["agents/coder"].commands[0].name).toBe("review")
+              expect(snapshot.data.tools.catalog).toEqual(["read"])
+            }
+          }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
+        )
+      })
+    })
+
+    test("rejects composition with > 16 agents", async () => {
+      await withTmp(async (dir) => {
+        const agentDir = path.join(dir, ".aigcfroge", "agents")
+        await fs.mkdir(agentDir, { recursive: true })
+        const coderRaw = `---\nkind: agent\nname: coder\ndescription: Coder\n---\nWrite code.\n`
+        await fs.writeFile(path.join(agentDir, "coder.md"), coderRaw)
+        const coderRev = Hash.sha256(Buffer.from(coderRaw))
+
+        await Effect.runPromise(
+          Effect.gen(function* () {
+            const resolver = yield* CompositionResolver.Service
+            const agents = Array.from({ length: 17 }, (_, i) => ({
+              kind: "agent" as const,
+              relativePath: "coder.md",
+              revision: coderRev,
+            }))
+            const input = Schema.decodeUnknownSync(Composition.CompositionInput)({
+              source: "temporary",
+              agents,
+              bindings: {},
+              presentation: "native",
+              requestedCapabilities: [],
+            })
+
+            const plan = yield* resolver.resolve(input)
+            expect(plan.valid).toBe(false)
+            expect(plan.diagnostics.some((d) => d.code === "invalid_agent_cardinality")).toBe(true)
+          }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
+        )
+      })
+    })
+
+    test("computes maxConcurrency correctly for parallel workflow DAG", async () => {
+      await withTmp(async (dir) => {
+        const agentDir = path.join(dir, ".aigcfroge", "agents")
+        await fs.mkdir(agentDir, { recursive: true })
+        const coderRaw = `---\nkind: agent\nname: coder\ndescription: Coder\n---\nWrite code.\n`
+        await fs.writeFile(path.join(agentDir, "coder.md"), coderRaw)
+        const coderRev = Hash.sha256(Buffer.from(coderRaw))
+
+        const workflowDir = path.join(dir, ".aigcfroge", "workflows")
+        await fs.mkdir(workflowDir, { recursive: true })
+        const workflowYaml = `kind: workflow
+name: parallel-flow
+description: Parallel workflow
+version: "1.0.0"
+steps:
+  - id: start
+    name: Start
+    agent: coder
+    parallel:
+      - branch_a
+      - branch_b
+      - branch_c
+  - id: branch_a
+    name: Branch A
+    agent: coder
+    next: merge
+  - id: branch_b
+    name: Branch B
+    agent: coder
+    next: merge
+  - id: branch_c
+    name: Branch C
+    agent: coder
+    next: merge
+  - id: merge
+    name: Merge
+    agent: coder
+    next: END
+`
+        await fs.writeFile(path.join(workflowDir, "parallel.yaml"), workflowYaml)
+        const workflowRev = Hash.sha256(Buffer.from(workflowYaml))
+
+        await Effect.runPromise(
+          Effect.gen(function* () {
+            const resolver = yield* CompositionResolver.Service
+            const input = Schema.decodeUnknownSync(Composition.CompositionInput)({
+              source: "temporary",
+              agents: [{ kind: "agent", relativePath: "coder.md", revision: coderRev }],
+              workflow: {
+                kind: "workflow",
+                relativePath: "parallel.yaml",
+                revision: workflowRev,
+              },
+              bindings: { "agents/coder": { prompts: [], skills: [] } },
+              presentation: "native",
+              requestedCapabilities: [],
+            })
+
+            const plan = yield* resolver.resolve(input)
+            expect(plan.valid).toBe(true)
+            expect(plan.costPreview?.maxConcurrency).toBe(3)
+            expect(plan.costPreview?.agentCount).toBe(1)
+          }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
+        )
+      })
     })
   })
 })

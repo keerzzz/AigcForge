@@ -103,21 +103,15 @@ describe("CustomProfile Registry", () => {
       const profilesDir = path.join(dir, ".aigcfroge", "custom-profiles")
       await fs.mkdir(profilesDir, { recursive: true })
       await fs.writeFile(path.join(profilesDir, "corrupt.yaml"), ": bad : yaml :")
-      const multiAgentYaml = `kind: custom-profile
-name: Multi Agent
-description: Invalid because 2 agents
-agents:
-  - kind: agent
-    relativePath: agent-1.md
-    revision: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-  - kind: agent
-    relativePath: agent-2.md
-    revision: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      const emptyAgentYaml = `kind: custom-profile
+name: Empty Agent
+description: Invalid because 0 agents
+agents: []
 bindings: {}
 presentation: native
 requestedCapabilities: []
 `
-      await fs.writeFile(path.join(profilesDir, "multi.yaml"), multiAgentYaml)
+      await fs.writeFile(path.join(profilesDir, "empty.yaml"), emptyAgentYaml)
 
       await Effect.runPromise(
         Effect.gen(function* () {
@@ -130,7 +124,7 @@ requestedCapabilities: []
           expect(invalid).toHaveLength(2)
           const tags = new Map(invalid.map((i) => [i.relativePath, i.errorTag]))
           expect(tags.get("corrupt.yaml")).toBe("parse_error")
-          expect(tags.get("multi.yaml")).toBe("bad_yaml")
+          expect(tags.get("empty.yaml")).toBe("bad_yaml")
         }).pipe(Effect.provide(profileLayer(dir)), Effect.scoped),
       )
     })

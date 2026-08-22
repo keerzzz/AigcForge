@@ -14,6 +14,9 @@ import { SessionStore } from "@aigcfroge/core/session/store"
 import { Prompt } from "@aigcfroge/core/session/prompt"
 import { Composition } from "@aigcfroge/schema/composition"
 import { testEffect } from "./lib/effect"
+import { withCustomModeEnabled } from "./lib/product-mode"
+
+withCustomModeEnabled()
 
 const mockDigest = Schema.decodeUnknownSync(Composition.Digest)(
   "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -26,14 +29,14 @@ const mockRevision = Schema.decodeUnknownSync(Composition.Revision)(
 )
 
 function makeMockSnapshot(sessionID: string, digest = mockDigest): Composition.Snapshot {
-  return new Composition.Snapshot({
+  return new Composition.SnapshotV1({
     version: 1,
     digest,
     sessionID,
     profilePath: "custom-profiles/reviewer.yaml",
     profileRevision: mockRevision,
     createdAt: 1700000000000,
-    data: new Composition.SnapshotData({
+    data: new Composition.SnapshotDataV1({
       agentID: "code-reviewer",
       instructions: [
         new Composition.Instruction({
@@ -133,6 +136,7 @@ const it = testEffect(
 const location = Location.Ref.make({ directory: AbsolutePath.make("/project") })
 
 describe("Custom Mode Upgrade", () => {
+
   it.effect("freezes the new composition into a fresh session and leaves the source untouched", () =>
     Effect.gen(function* () {
       nextFreezeDigest = mockDigest

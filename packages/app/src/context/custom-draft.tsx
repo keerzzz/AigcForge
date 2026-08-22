@@ -26,9 +26,26 @@ export interface CustomDraftSkill {
   name?: string
 }
 
+export interface CustomDraftWorkflow {
+  kind: "workflow"
+  relativePath: string
+  revision: string
+  name?: string
+  description?: string
+}
+
+export interface CustomDraftCommand {
+  kind: "command"
+  relativePath: string
+  revision: string
+  name?: string
+  description?: string
+}
+
 export interface CustomDraftBinding {
   prompts: CustomDraftPrompt[]
   skills: CustomDraftSkill[]
+  commands: CustomDraftCommand[]
 }
 
 export interface CustomDraftState {
@@ -38,6 +55,7 @@ export interface CustomDraftState {
   title: string
   primaryAgent: string
   agents: CustomDraftAgent[]
+  workflow?: CustomDraftWorkflow
   bindings: Record<string, CustomDraftBinding>
   requestedCapabilities: string[]
   presentation: "native"
@@ -67,6 +85,7 @@ export function toCompositionInput(state: CustomDraftState): CompositionTemporar
     {
       prompts: Array<{ kind: "prompt"; relativePath: string; revision: string }>
       skills: Array<{ kind: "skill"; relativePath: string; revision: string }>
+      commands: Array<{ kind: "command"; relativePath: string; revision: string }>
     }
   > = {}
 
@@ -82,6 +101,11 @@ export function toCompositionInput(state: CustomDraftState): CompositionTemporar
         relativePath: s.relativePath,
         revision: s.revision,
       })),
+      commands: (binding.commands ?? []).map((command) => ({
+        kind: "command",
+        relativePath: command.relativePath,
+        revision: command.revision,
+      })),
     }
   }
 
@@ -91,9 +115,18 @@ export function toCompositionInput(state: CustomDraftState): CompositionTemporar
     revision: a.revision,
   }))
 
+  const workflow = state.workflow
+    ? {
+        kind: "workflow" as const,
+        relativePath: state.workflow.relativePath,
+        revision: state.workflow.revision,
+      }
+    : undefined
+
   return {
     source: "temporary",
     agents,
+    workflow,
     bindings,
     presentation: state.presentation,
     requestedCapabilities: state.requestedCapabilities,
@@ -104,7 +137,15 @@ export function createCustomDraftState(
   initial: CustomDraftState = DEFAULT_DRAFT,
   customStore?: [get: CustomDraftState, set: SetStoreFunction<CustomDraftState>],
 ) {
-  const [state, setState] = customStore ?? createStore<CustomDraftState>({ ...initial })
+  const [state, setState] = customStore ?? createStore<CustomDraftState>({
+    ...initial,
+    bindings: Object.fromEntries(
+      Object.entries(initial.bindings).map(([consumer, binding]) => [
+        consumer,
+        { ...binding, commands: binding.commands ?? [] },
+      ]),
+    ),
+  })
 
   return {
     state,
@@ -123,6 +164,12 @@ export function createCustomDraftState(
     setPrimaryAgent(agent: string) {
       setState("primaryAgent", agent)
     },
+    setWorkflow(workflow: CustomDraftWorkflow | undefined) {
+      setState("workflow", workflow)
+    },
+    toggleWorkflow(workflow: CustomDraftWorkflow) {
+      setState("workflow", state.workflow?.relativePath === workflow.relativePath ? undefined : workflow)
+    },
     addAgent(agent: CustomDraftAgent) {
       setState(
         produce((draft) => {
@@ -138,7 +185,12 @@ export function createCustomDraftState(
     removeAgent(relativePath: string) {
       setState(
         produce((draft) => {
+          const removed = draft.agents.find((agent) => agent.relativePath === relativePath)
           draft.agents = draft.agents.filter((a) => a.relativePath !== relativePath)
+          if (removed) {
+            const consumer = `agents/${removed.name ?? removed.relativePath.replace(/\.md$/, "")}`
+            delete draft.bindings[consumer]
+          }
           if (
             draft.agents.length > 0 &&
             !draft.agents.some((a) => (a.name ?? a.relativePath.replace(/\.md$/, "")) === draft.primaryAgent)
@@ -152,13 +204,15 @@ export function createCustomDraftState(
     togglePrompt(consumer: string, prompt: CustomDraftPrompt) {
       setState(
         produce((draft) => {
-          const binding = draft.bindings[consumer] ?? { prompts: [], skills: [] }
+          const binding = draft.bindings[consumer] ?? { prompts: [], skills: [], commands: [] }
+          binding.commands ??= []
           const exists = binding.prompts.some((p) => p.relativePath === prompt.relativePath)
           if (exists) {
             binding.prompts = binding.prompts.filter((p) => p.relativePath !== prompt.relativePath)
-          } else {
-            binding.prompts.push(prompt)
+            draft.bindings[consumer] = binding
+            return
           }
+          binding.prompts.push(prompt)
           draft.bindings[consumer] = binding
         }),
       )
@@ -166,13 +220,31 @@ export function createCustomDraftState(
     toggleSkill(consumer: string, skill: CustomDraftSkill) {
       setState(
         produce((draft) => {
-          const binding = draft.bindings[consumer] ?? { prompts: [], skills: [] }
+          const binding = draft.bindings[consumer] ?? { prompts: [], skills: [], commands: [] }
+          binding.commands ??= []
           const exists = binding.skills.some((s) => s.relativePath === skill.relativePath)
           if (exists) {
             binding.skills = binding.skills.filter((s) => s.relativePath !== skill.relativePath)
-          } else {
-            binding.skills.push(skill)
+            draft.bindings[consumer] = binding
+            return
           }
+          binding.skills.push(skill)
+          draft.bindings[consumer] = binding
+        }),
+      )
+    },
+    toggleCommand(consumer: string, command: CustomDraftCommand) {
+      setState(
+        produce((draft) => {
+          const binding = draft.bindings[consumer] ?? { prompts: [], skills: [], commands: [] }
+          binding.commands ??= []
+          const exists = binding.commands.some((item) => item.relativePath === command.relativePath)
+          if (exists) {
+            binding.commands = binding.commands.filter((item) => item.relativePath !== command.relativePath)
+            draft.bindings[consumer] = binding
+            return
+          }
+          binding.commands.push(command)
           draft.bindings[consumer] = binding
         }),
       )
@@ -183,9 +255,9 @@ export function createCustomDraftState(
           const idx = draft.requestedCapabilities.indexOf(cap)
           if (idx >= 0) {
             draft.requestedCapabilities.splice(idx, 1)
-          } else {
-            draft.requestedCapabilities.push(cap)
+            return
           }
+          draft.requestedCapabilities.push(cap)
         }),
       )
     },
@@ -196,15 +268,36 @@ export function createCustomDraftState(
       setState(
         produce((draft) => {
           draft.source = "temporary"
-          draft.primaryAgent = snapshot.data.agentID
-          draft.agents = [
-            {
+          draft.workflow = undefined
+          if (snapshot.version === 1) {
+            draft.primaryAgent = snapshot.data.agentID
+            draft.agents = [
+              {
+                kind: "agent",
+                relativePath: `${snapshot.data.agentID}.md`,
+                revision: "",
+                name: snapshot.data.agentID,
+              },
+            ]
+          } else {
+            draft.primaryAgent = snapshot.data.agents[0]?.name ?? snapshot.data.agents[0]?.id ?? "coder"
+            draft.agents = snapshot.data.agents.map((a) => ({
               kind: "agent",
-              relativePath: `${snapshot.data.agentID}.md`,
-              revision: "",
-              name: snapshot.data.agentID,
-            },
-          ]
+              relativePath: a.relativePath,
+              revision: a.revision,
+              name: a.name,
+              description: a.description,
+            }))
+            if (snapshot.data.workflow) {
+              draft.workflow = {
+                kind: "workflow",
+                relativePath: snapshot.data.workflow.relativePath,
+                revision: snapshot.data.workflow.revision,
+                name: snapshot.data.workflow.name,
+                description: snapshot.data.workflow.description,
+              }
+            }
+          }
           const prompts: CustomDraftPrompt[] = snapshot.data.prompts.map((p) => ({
             kind: "prompt",
             relativePath: p.relativePath,
@@ -217,9 +310,46 @@ export function createCustomDraftState(
             revision: "",
             name: s.name,
           }))
-          draft.bindings = {
-            orchestrator: { prompts, skills },
-          }
+          const commands: CustomDraftCommand[] = snapshot.version === 2
+            ? (snapshot.data.commands ?? []).map((command) => ({
+                kind: "command",
+                relativePath: command.relativePath,
+                revision: command.revision,
+                name: command.name,
+                description: command.description,
+              }))
+            : []
+          const bindings = snapshot.version === 2
+            ? Object.fromEntries(
+                Object.entries(snapshot.data.bindings).map(([consumer, binding]) => [
+                  consumer,
+                  {
+                    prompts: binding.prompts.map((prompt) => ({
+                      kind: "prompt" as const,
+                      relativePath: prompt.relativePath,
+                      revision: prompt.revision,
+                      name: prompt.relativePath,
+                    })),
+                    skills: binding.skills.map((skill) => ({
+                      kind: "skill" as const,
+                      relativePath: skill.relativePath,
+                      revision: skill.revision,
+                      name: skill.name,
+                    })),
+                    commands: binding.commands.map((command) => ({
+                      kind: "command" as const,
+                      relativePath: command.relativePath,
+                      revision: command.revision,
+                      name: command.name,
+                      description: command.description,
+                    })),
+                  },
+                ]),
+              )
+            : {}
+          draft.bindings = Object.keys(bindings).length > 0
+            ? bindings
+            : { orchestrator: { prompts, skills, commands } }
           draft.requestedCapabilities = []
         }),
       )
@@ -227,12 +357,19 @@ export function createCustomDraftState(
   }
 }
 
-export function createCustomDraftStore(_directory: () => string) {
+const sharedStores = new Map<string, ReturnType<typeof createCustomDraftState>>()
+
+export function createCustomDraftStore(directory: () => string) {
+  const key = directory()
+  const existing = sharedStores.get(key)
+  if (existing) return existing
   const [state, setState] = persisted(
     Persist.global("custom-draft", ["custom-draft.v1"]),
     createStore<CustomDraftState>({ ...DEFAULT_DRAFT }),
   )
-  return createCustomDraftState(DEFAULT_DRAFT, [state, setState])
+  const store = createCustomDraftState(DEFAULT_DRAFT, [state, setState])
+  sharedStores.set(key, store)
+  return store
 }
 
 export type CustomDraftStore = ReturnType<typeof createCustomDraftState>

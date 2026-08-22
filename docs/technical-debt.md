@@ -12,7 +12,7 @@
 |---|---|---|
 | §1 权限档位遗留（PR #32） | M1/M2/M3/M5/D5 五项 | 待专项处理 |
 | §2 页面归一化延后（PR #34） | 960px 主列、Assistant scope、Chat Location 抽取、全仓 import 债 | 计划外延后 |
-| §3 Custom Mode 平台（PR #33）   | ADR-17 评审 + Roadmap M0-M5                                     | M0 Phase A-F 已获准连续执行，M1 仍分阶段 |
+| §3 Custom Mode 平台（PR #33） | ADR-17 评审 + Roadmap M0-M5；§3.1 Custom M2 遗留 7 项 | M0/M1 已完成；M2 已实现待合并（CONDITIONAL PASS）；M3-M5 远期 |
 | §4 全局存量债（CLAUDE.md 迁移） | dompurify、doom_loop 统计、资产路由等 | 按到期日跟进 |
 
 ---
@@ -55,12 +55,33 @@
 | —    | **ADR-17 正式评审**       | Product/Core/App/Security/Schema+SDK 五方评审与签字                                   | —                        | 已完成（用户授权 AI 代理代签，2026-08-18） |
 | M0   | 治理与组合底座            | 第五 Mode、Profile/Plan/Snapshot、AssetRef、Resolver                                  | ADR-17 批准              | 已完成（Phase A-F） |
 | M1 | 单 Agent 可恢复闭环 | `meta` + 一个用户 Agent + Prompt/Skill + native + Upgrade + UI Phase E + 50 轮稳定性矩阵 | M0 | 已完成（Waves W1-W4，2026-08-19） |
-| M2 | 多 Agent 与编排 | Agent 池、Command、Workflow、进度、取消、部分成功 | M1 | 远期 |
+| M2 | 多 Agent 与编排 | Agent 池、Command、Workflow、进度、取消、部分成功 | M1 | 已实现待合并（`workflow-surface`，Phase A-H 完成；R5 独立专项复审已取得并整改，复审 APPROVED，见 [Custom M2 复审报告](../review/AigcForge_CUSTOM_M2_REVIEW.md)，遗留项见 §3.1） |
 | M3 | MCP 与审批 | scoped registration、凭证、健康、统一审批入口（含 once/Session/Location grant model） | M1 + Tool Registry 扩展 | 远期 |
 | M4 | Trusted Runtime Extension | Host/Agent/Client 分面、信任、停止、隔离、回滚 | M3 + Plugin 生命周期 ADR | 远期 |
 | M5 | Code Presentation | `run_code` + 受限 SDK，共用 Effective Tool Set | M3/M4 稳定 | 远期 |
 
 > 与权限档位的接口约定：Custom M0/M1 必须定义 mode ceiling 与 Snapshot allowlist；应用级审批入口与 grant model 属 Custom M3（权限档位计划明确"不自动批准"）。
+
+### 3.1 Custom M2 遗留项（来源：[Custom M2 复审报告](../review/AigcForge_CUSTOM_M2_REVIEW.md) R4 + R5，2026-08-22）
+
+分支 `workflow-surface`。以下为判定为「部分闭环」或「已知残留」的项；全部 P0/P1 阻断项的闭环证据见复审报告 §2（R5 的 3 项 P0 与 8 项 P1 见 §2.5）。
+
+| 负债 | 包 | 说明与根治方向 | Owner | 触发条件 |
+|---|---|---|---|---|
+| Custom kill switch 无「关闭即中断在飞 child」的进程内通知 | core / aigcfroge | 已实现：`assertRuntimeSupported()` 对 custom 关时 fail-closed（`product-mode-policy.ts:77`，覆盖 `session.ts` 6 处入口 + `handlers/session.ts:146`）；`WorkflowRunner` 每轮调度前与每个 step dispatch 前各查一次，落 `custom_mode_disabled`（R5-3 已修正该检查用过期 revision 做 CAS 的缺陷）。仍缺：`isCustomModeEnabled()` 只读环境值，无「开关变化」通知入口，关闭开关无法中断已在 Provider 请求中途的 child，最坏多跑到当前 step 结束。根治：加显式进程内 disable 通知，调用 `WorkflowExecution.interrupt` 与 `SessionExecution` 中断并等 finalizer settle 后返回 | TBD | 运营级 kill switch 实装时 |
+| durable handoff 状态未持久化，「已投递 / 已丢失」不可区分 | core | R5-18 已删除 `WorkflowRunInfo` 上恒缺的 `handoffDigest` / `handoffStatus` / `handoffErrorCategory` 与 `WorkflowHandoffStatus`（契约谎报），但根因未解：`injectSynthetic` 失败只落一条带 `defectTag` 的 `Effect.logError`，run 仍报 `completed`，无持久状态、无重试。根治需要为终态 run 的 handoff 记账在 ADR-18 §2.2「终态不可变」上开一个显式例外，并新增列 + 迁移 | TBD | 需要 handoff 可观测性时 |
+| Agent 资产可自授权限，且 workflow child 无人值守 | core | 允许清单以 author 可控的 `name` 为身份，但真正生效的权限来自全局 `AgentV2` 注册表：资产 frontmatter 的 `config.permissions` 可写 `{action:"*",resource:"*",effect:"allow"}`，而 `permission.ts` 的 `evaluate` 用 `findLast`，尾部通配 allow 胜出；child 以 `attended: false` 创建，`ask` 被压成 `deny` 但尾部 allow 不受影响，于是 bash/edit/write 无审批执行。另一变体：与内置 agent 同名（如 `build`）使资产被 `asset-bridge` 丢弃、内置 allow-all ruleset 生效，而 Plan/Snapshot 仍显示已绑定资产且能力标 denied。**该权限机制早于本分支**，本分支新增的是无人值守的 workflow 扇出（最多 64 step × 8 attempt）。根治：为 `mode === "custom"` 的 child 用 deny-first 的 custom 基线与解析出的 ruleset 求交，并在 agent provenance 与绑定 `relativePath` 不一致时 fail closed | TBD | Custom M3 权限/审批入口时 |
+| `MAX_STEPS` 等图不变量不在解码期与资产写入期强制 | core / schema | `validateGraph` 唯一非测试调用方是 `composition-resolver.ts:257`，因此 YAML 加载（`workflow-asset.ts loadDir`）与 `workflow-asset/apply`（`propose-workflow-asset.ts validateContent`）会接受超大 step 数组、环、重复 id、悬空 `next`、`branches`+`continue`，资产还会被报成 valid；只有 `freeze` 才拒绝。ADR-18 §2.5.3 写的是「解析期拒绝」，需对齐实现（改代码，不是改 ADR）。另 `Schema.Array(StepDef)` 在三处解码点均无长度上界 | TBD | 资产写入面加固时 |
+| `timeoutSeconds` 省略即无超时 | schema / core | `StepDef.timeoutSeconds` 没有 `withDecodingDefaultKey`（相邻 `maxAttempts` / `failurePolicy` 都有），`workflow-runner.ts` 字段缺失时直接 `return yield* delegated`，于是 `failurePolicy: retry` + `maxAttempts: 8` 每次 attempt 都无墙钟上限——比 ADR 宣传的 86400 上限严格更差。加默认值会静默截断合法长任务，属产品决策 | TBD | 需要资源上限硬保证时 |
+| `packages/app/e2e` 不在 typecheck 项目内，且带 29 个存量类型错误 | app | `app/tsconfig.json` 的 `include` 只有 `["src"]`，`e2e/tsconfig.json` 从不被 `tsgo -b` 或 CI 执行。实测 `tsgo --noEmit -p e2e/tsconfig.json` 报 29 个错误，全为存量。这直接放大了 R4 P0-B 的潜伏期——e2e 是当时唯一能发现浏览器白屏的手段，却因门禁缺位而长期不跑。根治：修完 29 个错误后把 e2e 纳入 `tsgo -b` 与 CI | TBD | e2e 门禁强化时 |
+| Storybook 构建 OOM | storybook | `bun run build` 在 Vite transform 阶段 OOM，`--max-old-space-size` 4096 与 6144 均崩。移除新增 story 后照样 OOM，属分支既有。后果：Custom M2 的视觉截图门禁无法取得。根治：拆分 stories 入口或降低 preview 构建期内存占用（参考 `manualChunks` 边界既有约束） | TBD | 需要视觉回归证据时 |
+| `packages/sdk/openapi.json` 长期未随路由再生成 | sdk | 该文件由 `script/generate.ts` 第 2 步写出，最后一次更新在品牌迁移期；2026-08-22 实测与实际 spec 差 **72 个 path / 172 个 schema**，绝大多数来自 M2 之前已合并的里程碑。无代码消费方（`packages/sdk/js/script/build.ts` 自己写临时 `openapi.json` 并在结束时删除），故只是发布/参考产物过期，不造成运行时或类型漂移。故意不在 `workflow-surface` 上再生成：会把约 470KB 与 M2 无关的产物混进 M2 diff。注意 `script/generate.ts` 末步会 prettier 格式化全仓，不能整体跑。根治：单独一次提交刷新，并给 CI 加 spec drift 门禁 | TBD | 独立产物刷新提交时 |
+| spawn 子进程 / 实例引导测试对机器负载敏感 | aigcfroge | `test/project/instance-bootstrap.test.ts`、`test/cli/acp/initialize-auth.test.ts`、`test/cli/acp/skills.test.ts`、`test/cli/run/run-process.test.ts` 在并行跑 lint / typecheck / 子代理时集体 `TimeoutError`（单例 15–59s），空载单独重跑全绿。同类现象还见于 Playwright `session-timeline.spec.ts:33`（全量 59 例失败 1 例，单跑 5 passed）与 exerciser auth（重负载 282/2，空载 284/0）。CI 上表现为间歇失败，容易被误判为回归。根治：为这些文件设更宽的独立超时，或在 CI 中与重负载步骤串行化 | TBD | CI 稳定性专项时 |
+| exerciser 对 3 个 workflow mutation 端点只覆盖 404 路径 | aigcfroge | `cancelRun` / `cancelStep` / `retryStep` 在 exerciser 里只注册了「run 不存在 -> 404」场景，没有 200/202 成功路径与 409 stale revision。覆盖门禁按 `METHOD path` 计数，故 `.missing` 场景名同样满足门禁——「已覆盖」不等于「行为已测」。成功路径当前由 core 单测与 Playwright（mock server）覆盖。根治：补三条成功路径与一条 409 场景 | TBD | exerciser 场景扩充时 |
+| Custom Builder 资产列表把失败渲染成空态 | app | `custom-sidebar.tsx:32-50` 对 5 个资产 list 同时用 per-call `.catch(() => ({data:{assets:[]}}))` 与外层 `catch {}`，任何失败都渲染成与「0 个资产」无法区分的空态，无错误提示也无重试，违反「禁止静默失败」。该模式在 `main` 上对 agents/prompts/skills 已存在，`workflow-surface` 只是扩展到 workflows/commands，按「不顺手修无关代码」未在 M2 范围内修。根治：区分 loading / empty / error 三态并提供重试 | TBD | Custom Builder 下次改动时 |
+| Custom 快照面板与 Builder 的 token / i18n 残留 | app | `custom-snapshot-panel.tsx` 新增的 Workflow / Agent Pool 卡片硬编码 Tailwind 调色板（`bg-amber-500/10`、`text-blue-300` 等）并直出英文字面量（`Workflow (...)`、`{n} steps`、`Agent Pool (...)`），违反「颜色走 `--v2-*` token、文案走 i18n」；`workflowStatusKey()` 用服务端状态拼动态 i18n key 且无兜底，超出契约的状态会渲染空 badge 文案。`custom-draft` 的 store 按目录 memo 但 persist 用单一 global key，跨项目会互相覆盖，且 SDK 未就绪时全部落在 `""` key 上 | TBD | Custom Builder 下次改动时 |
+| `createChild` defect 收敛为 `executor_unavailable`，丢失原因分类 | core | allowlist 拒绝已修为 `agent_not_allowed`（dispatch 前 + 创建后 parent 不匹配），但 `TaskDriver.createChild` 的 defect 仍无差别归 `executor_unavailable`，与「driver 真的缺失」不可区分。当前靠 `defectTag` 日志保留可诊断性；`TaskDriver` 改 root-scoped 后「走错 root」这一主要成因已消除，故降级为诊断质量问题。根治：为 createChild 定义 typed failure 而非 defect | TBD | TaskDriver seam 再次改动时 |
+
 
 ---
 
@@ -80,7 +101,6 @@
 | P1-10: `resolveSecurePath` 零调用者死代码 | core | `fs-util.ts:257` 的 `resolveSecurePath(worktree, target)` 全仓无调用者（2026-08-14 审计点名），是 fs 工具层的历史残留；可能误导后续路径安全实现去复用一个未经验证的封装。根治：确认无消费方后删除，或纳入统一路径安全封装 | TBD | 下次 fs 层清理时 |
 | 存量 `catch (e: any)` 3 处 | core / aigcfroge | main 既有（非分支新增，不违反 No Cheating 新增门禁）：`fs-util.ts:234` 用 `e?.code === "ENOENT"`（ErrnoException）；`session/llm.ts:143` 用 `e.message ?? String(e)`（LLM SDK 可能抛带 `.message` 的普通对象，`instanceof Error` 改写会变 `[object Object]`，须保留 `.message` 访问语义）；`cli/cmd/github.handler.ts:631` 本体已内部 instanceof 收窄，近乎免费。根治：逐 site 核对语义后改 `instanceof Error` + 类型守卫 | TBD | 下次各自模块清理时 |
 | `SessionExecution.setBusySeamForTesting` 全局测试 seam 位于生产模块 | core | `session/execution.ts` 模块级可变状态，`execution/local.ts` 真实 `isActive` 每次调用都经过该 seam；仅测试可设置且有 finalizer 复位，但生产代码路径携带测试后门，误用会让 busy 判定说谎。根治：实例 HttpApi 测试装配（`HttpApiApp.routes`）暴露 SessionExecution 注入点，或 busy 场景改用真实 drain 构造（挂起 LLM stub + busy 信号轮询） | TBD | 测试装配层改造时 |
-| Custom kill switch 仅覆盖创建面，无 drain 级执行阻断 | core / aigcfroge | `AIGCFROGE_CUSTOM_MODE` 关闭时 plan/start/upgrade/session.custom fail-closed、历史可读，但 flag-on 期间已创建的 custom 会话仍可 prompt 并继续 drain；M1 评审接受该语义（创建即授权，避免 mid-turn 搁浅），若运营需要"立即停跑"语义需补 runner/execution 层阻断 | TBD | 需要执行级 kill 语义时 |
 
 ---
 
@@ -91,3 +111,4 @@
 | Chat 模式下 meta 默认权限依赖前置拦截（fail-open 信封） | 2026-08-16 | `session-permission-tier`（meta V1/V2 基线 fail-closed + `PermissionEffective`） |
 | meta 非 coding 模式委派 build 死路 | 2026-08-16 | `session-permission-tier`（Phase 5） |
 | Custom M0 de-scope：`createCompositionSkillCatalog` seam 无生产 caller | 2026-08-19 | `custom-rollout`（M1 Runner 接线消费：skill tool lookup 与 skill steer 均走 Snapshot-local catalog，缺行/解码失败/漂移 fail-closed） |
+| `TaskDriver.active()` 用进程全局「最后写入者胜」选实现，可跨 composition root 误选 | 2026-08-22 | `workflow-surface`（未提交）：`tool/task-driver.ts` 删除进程级注册栈，改 `Context.Reference` `Runtime` + 私有 `RuntimeState` Ref，`active()` 只解析当前 Context，缺失即 `Effect.die` fail-closed；`installForTesting` 仅返回值、须由测试自行 `provide`，不再改全局选择。证据：`packages/core/test/task-driver-fill.test.ts:622` "isolates simultaneous composition roots through the runtime context"、`:648` "fails closed when no composition root runtime is provided" |

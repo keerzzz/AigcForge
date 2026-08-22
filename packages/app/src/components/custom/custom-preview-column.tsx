@@ -4,7 +4,7 @@ import { Icon } from "@aigcfroge/ui/v2/icon"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { useCustomDraft } from "@/context/custom-draft"
-import { InstructionsTab, CapabilitiesTab, PermissionsTab, DiagnosticsTab } from "./custom-preview-tabs"
+import { WorkflowTab, InstructionsTab, CapabilitiesTab, PermissionsTab, DiagnosticsTab } from "./custom-preview-tabs"
 import { useModeDirectory } from "@/pages/mode-workspace-context"
 import { useTabs } from "@/context/tabs"
 import { ServerConnection } from "@/context/server"
@@ -30,7 +30,7 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
   const tabs = useTabs()
   const { conn, ctx, directory } = useModeDirectory()
   const draft = useCustomDraft()
-  const [activeTab, setActiveTab] = createSignal("instructions")
+  const [activeTab, setActiveTab] = createSignal("workflow")
   const [starting, setStarting] = createSignal(false)
   const [errorMessage, setErrorMessage] = createSignal<string | undefined>()
 
@@ -184,10 +184,13 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
         </div>
       </Show>
 
-      {/* 4 Preview Tabs */}
+      {/* Plan preview tabs */}
       <div class="flex-1 min-h-0 flex flex-col rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 overflow-hidden">
         <TabsV2 value={activeTab()} onChange={setActiveTab} class="flex flex-col h-full">
-          <div class="flex items-center border-b border-v2-border-border-base px-2 bg-v2-background-bg-layer-03">
+          <div class="flex items-center overflow-x-auto border-b border-v2-border-border-base px-2 bg-v2-background-bg-layer-03">
+            <TabsV2.Trigger value="workflow">
+              {language.t("custom.builder.tab.workflow")}
+            </TabsV2.Trigger>
             <TabsV2.Trigger value="instructions">
               {language.t("custom.builder.tab.instructions")}
             </TabsV2.Trigger>
@@ -212,6 +215,9 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
           </div>
 
           <div class="flex-1 min-h-0 overflow-y-auto p-4">
+            <TabsV2.Content value="workflow">
+              <WorkflowTab plan={plan()} />
+            </TabsV2.Content>
             <TabsV2.Content value="instructions">
               <InstructionsTab plan={plan()} />
             </TabsV2.Content>
