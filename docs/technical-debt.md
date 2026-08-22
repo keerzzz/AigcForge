@@ -12,7 +12,7 @@
 |---|---|---|
 | §1 权限档位遗留（PR #32） | M1/M2/M3/M5/D5 五项 | 待专项处理 |
 | §2 页面归一化延后（PR #34） | 960px 主列、Assistant scope、Chat Location 抽取、全仓 import 债 | 计划外延后 |
-| §3 Custom Mode 平台（PR #33） | ADR-17 评审 + Roadmap M0-M5；§3.1 Custom M2 遗留 7 项 | M0/M1 已完成；M2 已实现待合并（CONDITIONAL PASS）；M3-M5 远期 |
+| §3 Custom Mode 平台（PR #33） | ADR-17 评审 + Roadmap M0-M5；§3.1 Custom M2 遗留 12 项 | M0/M1/M2 已完成并合入（M2 = PR #46 / `a11b50020`）；M3 待 G3-1/G3-2 ADR；M4-M5 远期 |
 | §4 全局存量债（CLAUDE.md 迁移） | dompurify、doom_loop 统计、资产路由等 | 按到期日跟进 |
 
 ---
@@ -55,22 +55,22 @@
 | —    | **ADR-17 正式评审**       | Product/Core/App/Security/Schema+SDK 五方评审与签字                                   | —                        | 已完成（用户授权 AI 代理代签，2026-08-18） |
 | M0   | 治理与组合底座            | 第五 Mode、Profile/Plan/Snapshot、AssetRef、Resolver                                  | ADR-17 批准              | 已完成（Phase A-F） |
 | M1 | 单 Agent 可恢复闭环 | `meta` + 一个用户 Agent + Prompt/Skill + native + Upgrade + UI Phase E + 50 轮稳定性矩阵 | M0 | 已完成（Waves W1-W4，2026-08-19） |
-| M2 | 多 Agent 与编排 | Agent 池、Command、Workflow、进度、取消、部分成功 | M1 | 已实现待合并（`workflow-surface`，Phase A-H 完成；R5 独立专项复审已取得并整改，复审 APPROVED，见 [Custom M2 复审报告](../review/AigcForge_CUSTOM_M2_REVIEW.md)，遗留项见 §3.1） |
-| M3 | MCP 与审批 | scoped registration、凭证、健康、统一审批入口（含 once/Session/Location grant model） | M1 + Tool Registry 扩展 | 远期 |
+| M2 | 多 Agent 与编排 | Agent 池、Command、Workflow、进度、取消、部分成功 | M1 | 已完成并合入 `main`（PR #46，合并提交 `a11b50020`，2026-08-22；R5 独立专项复审已取得并整改，复审 APPROVED，见 [Custom M2 复审报告](review/AigcForge_CUSTOM_M2_REVIEW.md)，遗留项见 §3.1） |
+| M3 | MCP 与审批 | scoped registration、凭证、健康、统一审批入口（含 once/Session/Location grant model） | M2 + Tool Registry 扩展 | 待开工：G3-0 已随 M2 满足；**G3-1 Registration ADR 与 G3-2 Grant ADR 尚未起草**，只能先做研究/ADR。计划 [custom-mode-m3-mcp-approval.md](plan/custom-mode-m3-mcp-approval.md)，执行提示词 [prompt-custom-mode-m3-mcp-approval.md](plan/prompt-custom-mode-m3-mcp-approval.md) |
 | M4 | Trusted Runtime Extension | Host/Agent/Client 分面、信任、停止、隔离、回滚 | M3 + Plugin 生命周期 ADR | 远期 |
 | M5 | Code Presentation | `run_code` + 受限 SDK，共用 Effective Tool Set | M3/M4 稳定 | 远期 |
 
 > 与权限档位的接口约定：Custom M0/M1 必须定义 mode ceiling 与 Snapshot allowlist；应用级审批入口与 grant model 属 Custom M3（权限档位计划明确"不自动批准"）。
 
-### 3.1 Custom M2 遗留项（来源：[Custom M2 复审报告](../review/AigcForge_CUSTOM_M2_REVIEW.md) R4 + R5，2026-08-22）
+### 3.1 Custom M2 遗留项（来源：[Custom M2 复审报告](review/AigcForge_CUSTOM_M2_REVIEW.md) R4 + R5，2026-08-22）
 
-分支 `workflow-surface`。以下为判定为「部分闭环」或「已知残留」的项；全部 P0/P1 阻断项的闭环证据见复审报告 §2（R5 的 3 项 P0 与 8 项 P1 见 §2.5）。
+M2 已合入 `main`（PR #46 / `a11b50020`）。以下为判定为「部分闭环」或「已知残留」的项；全部 P0/P1 阻断项的闭环证据见复审报告 §2（R5 的 3 项 P0 与 8 项 P1 见 §2.5）。标注「M3 范围」的两项是 M3 开工 Gate 的输入，见 [M3 计划](plan/custom-mode-m3-mcp-approval.md) §1。
 
 | 负债 | 包 | 说明与根治方向 | Owner | 触发条件 |
 |---|---|---|---|---|
 | Custom kill switch 无「关闭即中断在飞 child」的进程内通知 | core / aigcfroge | 已实现：`assertRuntimeSupported()` 对 custom 关时 fail-closed（`product-mode-policy.ts:77`，覆盖 `session.ts` 6 处入口 + `handlers/session.ts:146`）；`WorkflowRunner` 每轮调度前与每个 step dispatch 前各查一次，落 `custom_mode_disabled`（R5-3 已修正该检查用过期 revision 做 CAS 的缺陷）。仍缺：`isCustomModeEnabled()` 只读环境值，无「开关变化」通知入口，关闭开关无法中断已在 Provider 请求中途的 child，最坏多跑到当前 step 结束。根治：加显式进程内 disable 通知，调用 `WorkflowExecution.interrupt` 与 `SessionExecution` 中断并等 finalizer settle 后返回 | TBD | 运营级 kill switch 实装时 |
 | durable handoff 状态未持久化，「已投递 / 已丢失」不可区分 | core | R5-18 已删除 `WorkflowRunInfo` 上恒缺的 `handoffDigest` / `handoffStatus` / `handoffErrorCategory` 与 `WorkflowHandoffStatus`（契约谎报），但根因未解：`injectSynthetic` 失败只落一条带 `defectTag` 的 `Effect.logError`，run 仍报 `completed`，无持久状态、无重试。根治需要为终态 run 的 handoff 记账在 ADR-18 §2.2「终态不可变」上开一个显式例外，并新增列 + 迁移 | TBD | 需要 handoff 可观测性时 |
-| Agent 资产可自授权限，且 workflow child 无人值守 | core | 允许清单以 author 可控的 `name` 为身份，但真正生效的权限来自全局 `AgentV2` 注册表：资产 frontmatter 的 `config.permissions` 可写 `{action:"*",resource:"*",effect:"allow"}`，而 `permission.ts` 的 `evaluate` 用 `findLast`，尾部通配 allow 胜出；child 以 `attended: false` 创建，`ask` 被压成 `deny` 但尾部 allow 不受影响，于是 bash/edit/write 无审批执行。另一变体：与内置 agent 同名（如 `build`）使资产被 `asset-bridge` 丢弃、内置 allow-all ruleset 生效，而 Plan/Snapshot 仍显示已绑定资产且能力标 denied。**该权限机制早于本分支**，本分支新增的是无人值守的 workflow 扇出（最多 64 step × 8 attempt）。根治：为 `mode === "custom"` 的 child 用 deny-first 的 custom 基线与解析出的 ruleset 求交，并在 agent provenance 与绑定 `relativePath` 不一致时 fail closed | TBD | Custom M3 权限/审批入口时 |
+| Agent 资产可自授权限，且 workflow child 无人值守（**M3 范围**） | core | 允许清单以 author 可控的 `name` 为身份，但真正生效的权限来自全局 `AgentV2` 注册表：资产 frontmatter 的 `config.permissions` 可写 `{action:"*",resource:"*",effect:"allow"}`，而 `permission.ts` 的 `evaluate` 用 `findLast`，尾部通配 allow 胜出；child 以 `attended: false` 创建，`ask` 被压成 `deny` 但尾部 allow 不受影响，于是 bash/edit/write 无审批执行。另一变体：与内置 agent 同名（如 `build`）使资产被 `asset-bridge` 丢弃、内置 allow-all ruleset 生效，而 Plan/Snapshot 仍显示已绑定资产且能力标 denied。**该权限机制早于本分支**，本分支新增的是无人值守的 workflow 扇出（最多 64 step × 8 attempt）。根治：为 `mode === "custom"` 的 child 用 deny-first 的 custom 基线与解析出的 ruleset 求交，并在 agent provenance 与绑定 `relativePath` 不一致时 fail closed | TBD | Custom M3 权限/审批入口时 |
 | `MAX_STEPS` 等图不变量不在解码期与资产写入期强制 | core / schema | `validateGraph` 唯一非测试调用方是 `composition-resolver.ts:257`，因此 YAML 加载（`workflow-asset.ts loadDir`）与 `workflow-asset/apply`（`propose-workflow-asset.ts validateContent`）会接受超大 step 数组、环、重复 id、悬空 `next`、`branches`+`continue`，资产还会被报成 valid；只有 `freeze` 才拒绝。ADR-18 §2.5.3 写的是「解析期拒绝」，需对齐实现（改代码，不是改 ADR）。另 `Schema.Array(StepDef)` 在三处解码点均无长度上界 | TBD | 资产写入面加固时 |
 | `timeoutSeconds` 省略即无超时 | schema / core | `StepDef.timeoutSeconds` 没有 `withDecodingDefaultKey`（相邻 `maxAttempts` / `failurePolicy` 都有），`workflow-runner.ts` 字段缺失时直接 `return yield* delegated`，于是 `failurePolicy: retry` + `maxAttempts: 8` 每次 attempt 都无墙钟上限——比 ADR 宣传的 86400 上限严格更差。加默认值会静默截断合法长任务，属产品决策 | TBD | 需要资源上限硬保证时 |
 | `packages/app/e2e` 不在 typecheck 项目内，且带 29 个存量类型错误 | app | `app/tsconfig.json` 的 `include` 只有 `["src"]`，`e2e/tsconfig.json` 从不被 `tsgo -b` 或 CI 执行。实测 `tsgo --noEmit -p e2e/tsconfig.json` 报 29 个错误，全为存量。这直接放大了 R4 P0-B 的潜伏期——e2e 是当时唯一能发现浏览器白屏的手段，却因门禁缺位而长期不跑。根治：修完 29 个错误后把 e2e 纳入 `tsgo -b` 与 CI | TBD | e2e 门禁强化时 |

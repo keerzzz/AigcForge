@@ -1,8 +1,8 @@
 # Custom Mode 组合平台实施计划
 
-> 状态：**Approved for M0/M1 implementation v1.2 - 基于 `main@a4ffba0b3` 的代码实证；当前执行 M0 Phase A-F，完成后统一复审**
-> 日期：2026-08-18
-> 目标阶段：M0 治理与契约 + M1 单 Agent 可恢复闭环；M2-M5 只定义准入 Gate，不提前实现
+> 状态：**M0/M1/M2 已完成并合入 `main`（M2 = PR #46，合并提交 `a11b50020`，2026-08-22）；下一节点 M3 被 G3-1/G3-2 ADR 阻塞，只能先做研究/ADR**
+> 日期：2026-08-18（状态更新 2026-08-22）
+> 目标阶段：M0 治理与契约 + M1 单 Agent 可恢复闭环 + M2 多 Agent 与 Workflow 编排（均已交付）；M3-M5 只定义准入 Gate，不提前实现
 > Owner：Product / Schema+SDK / Core / Security / App
 > 依据：[CLAUDE.md](../../CLAUDE.md)、[AGENTS.md](../../AGENTS.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md)、[CONTEXT.md](../../CONTEXT.md)、[DESIGN.md](../../DESIGN.md)、[ADR-17](../architecture/adr/ADR-17-custom-mode-composition-platform.md)、[Custom PRD](../prd/custom-mode-composition-platform.md)、[Custom Roadmap](../roadmap/custom-mode-roadmap.md)、[Session V2](../../specs/v2/session.md)、[V2 Tools](../../specs/v2/tools.md)
 > 命中 skills：`protocols`、`effect`、`database`、`frontend-theming`、`enterprise-code-standard`、`reuse-first-refactor`、`quality-to-pr`

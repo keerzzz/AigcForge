@@ -34,8 +34,8 @@ Custom 主线
 | ------ | ------------------------- | ---------------------------------------------------- | ------------------------ | ------------------- |
 | **M0** | 治理与组合底座            | 第五 Mode、Profile/Plan/Snapshot、AssetRef、Resolver | ADR-17 已批准            | 已完成（Phase A-F） |
 | **M1** | 单 Agent 可恢复闭环       | `meta` + 一个用户 Agent + Prompt/Skill + native + Upgrade + UI Phase E + 50 轮稳定性矩阵 | M0                       | 已完成（Waves W1-W4） |
-| **M2** | 多 Agent 与编排           | Agent 池、Command、Workflow、进度、取消、部分成功    | M1                       | 远期                |
-| **M3** | MCP 与审批                | scoped registration、凭证、健康、统一审批入口        | M1 + Tool Registry 扩展  | 远期                |
+| **M2** | 多 Agent 与编排           | Agent 池、Command、Workflow、进度、取消、部分成功    | M1                       | 已完成（PR #46 合入 `main@a11b50020`） |
+| **M3** | MCP 与审批                | scoped registration、凭证、健康、统一审批入口        | M2 + Tool Registry 扩展  | 待开工（G3-1/G3-2 ADR 阻塞） |
 | **M4** | Trusted Runtime Extension | Host/Agent/Client 分面、信任、停止、隔离、回滚       | M3 + Plugin 生命周期 ADR | 远期                |
 | **M5** | Code Presentation         | `run_code` + 受限 SDK，共用 Effective Tool Set       | M3/M4 稳定               | 远期                |
 
@@ -46,11 +46,11 @@ Custom 主线
 | M0   | [治理与组合底座](../plan/custom-mode-m0-composition-foundation.md)               | ADR/PRD 未批准不得进入生产代码                           |
 | M1   | [单 Agent 可恢复运行闭环](../plan/custom-mode-m1-single-agent-runtime.md)        | M0/G2/G3/G4 未过不得创建 Custom Session                  |
 | M2   | [多 Agent 与 Workflow 编排](../plan/custom-mode-m2-multi-agent-workflow.md)      | Workflow Execution ADR 未批准不得改 cardinality          |
-| M3   | [MCP 与统一审批](../plan/custom-mode-m3-mcp-approval.md)                         | canonical registration / scoped grant 未批准不得开放 MCP |
+| M3   | [MCP 与统一审批](../plan/custom-mode-m3-mcp-approval.md)（含 [执行提示词](../plan/prompt-custom-mode-m3-mcp-approval.md)） | canonical registration / scoped grant 未批准不得开放 MCP |
 | M4   | [Trusted Runtime Extension](../plan/custom-mode-m4-trusted-runtime-extension.md) | threat/lifecycle/capability ADR 未批准不得 mount code    |
 | M5   | [Code Presentation](../plan/custom-mode-m5-code-presentation.md)                 | sandbox/equivalence 证明未过不得实现 `run_code`          |
 
-当前执行手册：M0/M1 已完成并合入；M2 执行提示词见 [Custom Mode M2 全量 TDD 执行提示词](../plan/prompt-custom-mode-m2-multi-agent-workflow.md),M2 开工前提为 M1 PR 合入 main 且总复审通过。
+当前执行手册：M0/M1/M2 已完成并合入 `main`（M2 = PR #46，合并提交 `a11b50020`，复审报告 [Custom M2 复审报告](../review/AigcForge_CUSTOM_M2_REVIEW.md) 结论 APPROVED）；下一节点 M3 执行提示词见 [Custom Mode M3 全量 TDD 执行提示词](../plan/prompt-custom-mode-m3-mcp-approval.md)。**M3 开工前提是 G3-1（Registration ADR）与 G3-2（Grant ADR）已批准**——两份 ADR 尚未起草，因此 M3 当前只能执行研究/ADR 阶段，不得进入生产实现。
 
 ## 2. 总体原则
 
