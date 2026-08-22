@@ -3,8 +3,7 @@ export * as CompositionResolver from "./composition-resolver"
 import { Context, Effect, Layer, Option, Schema } from "effect"
 import { Composition } from "@aigcfroge/schema/composition"
 import { CustomProfile as SchemaCustomProfile } from "@aigcfroge/schema/custom-profile"
-import { WorkflowAsset as SchemaWorkflowAsset, validateGraph } from "@aigcfroge/schema/workflow-asset"
-import { CommandAsset as SchemaCommandAsset } from "@aigcfroge/schema/command-asset"
+import { computeMaxConcurrency, validateGraph } from "@aigcfroge/schema/workflow-asset"
 import { CustomProfile } from "./custom-profile"
 import { AgentAsset } from "./agent-asset"
 import { PromptAsset } from "./prompt-asset"
@@ -32,17 +31,6 @@ export interface Interface {
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/CompositionResolver") {}
 
-function computeMaxConcurrency(steps: readonly SchemaWorkflowAsset.StepDef[]): number {
-  if (steps.length === 0) return 1
-  let maxParallel = 1
-  for (const step of steps) {
-    if (step.parallel && step.parallel.length > 0) {
-      maxParallel = Math.max(maxParallel, step.parallel.length)
-    }
-  }
-  return Math.min(8, Math.max(1, maxParallel))
-}
-
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -60,6 +48,7 @@ export const layer = Layer.effect(
       const diagnostics: Composition.Diagnostic[] = []
       const instructions: Composition.Instruction[] = []
       const skills: Composition.SkillInfo[] = []
+      const commands: Composition.CommandInfo[] = []
       const capabilities: Composition.CapabilityInfo[] = []
 
       let resolvedAgents: readonly Composition.AgentRef[] = []
@@ -105,13 +94,21 @@ export const layer = Layer.effect(
 
       // 0.5 Duplicate declared assets fail closed
       const seenAssetKeys = new Set<string>()
-      const declaredAssets: Composition.AssetRef[] = [
-        ...resolvedAgents,
-        ...(resolvedWorkflow ? [resolvedWorkflow] : []),
-        ...Object.values(resolvedBindings).flatMap((binding) => [...binding.prompts, ...binding.skills]),
+      const declaredAssets = [
+        ...resolvedAgents.map((ref) => ({ key: `${ref.kind}:${ref.relativePath}`, ref })),
+        ...(resolvedWorkflow
+          ? [{ key: `${resolvedWorkflow.kind}:${resolvedWorkflow.relativePath}`, ref: resolvedWorkflow }]
+          : []),
+        ...Object.entries(resolvedBindings).flatMap(([consumer, binding]) =>
+          [...binding.prompts, ...binding.skills, ...binding.commands].map((ref) => ({
+            key: `${consumer}:${ref.kind}:${ref.relativePath}`,
+            ref,
+          })),
+        ),
       ]
-      for (const ref of declaredAssets) {
-        const key = `${ref.kind}:${ref.relativePath}`
+      for (const declared of declaredAssets) {
+        const ref = declared.ref
+        const key = declared.key
         if (seenAssetKeys.has(key)) {
           diagnostics.push(
             new Composition.Diagnostic({
@@ -256,7 +253,7 @@ export const layer = Layer.effect(
               )
             }
 
-            const rawSteps = w.steps as readonly SchemaWorkflowAsset.StepDef[]
+            const rawSteps = w.steps
             const graphValidation = validateGraph(rawSteps)
             if (!graphValidation.valid) {
               const errorMessage = graphValidation.errors.map((e) => e.message).join("; ")
@@ -271,9 +268,16 @@ export const layer = Layer.effect(
               )
             }
 
-            const knownAgents = new Set(["meta", ...resolvedAgentInfos.map((a) => a.name), ...resolvedAgentInfos.map((a) => a.id)])
+            // `meta` is the root orchestrator, never a delegation target: it is
+            // kept out of the Snapshot pool by `root_agent_forbidden`, so accepting
+            // it here would let a plan freeze as valid and only fail at dispatch.
+            // An empty agent is equally unroutable.
+            const knownAgents = new Set([
+              ...resolvedAgentInfos.map((a) => a.name),
+              ...resolvedAgentInfos.map((a) => a.id),
+            ])
             for (const step of rawSteps) {
-              if (step.agent && !knownAgents.has(step.agent)) {
+              if (!knownAgents.has(step.agent)) {
                 diagnostics.push(
                   new Composition.Diagnostic({
                     severity: "blocking",
@@ -291,7 +295,7 @@ export const layer = Layer.effect(
               description: w.description,
               relativePath: w.relativePath,
               revision: Schema.decodeUnknownSync(Composition.Revision)(w.revision),
-              steps: rawSteps as SchemaWorkflowAsset.StepDef[],
+              steps: rawSteps,
             })
           }
         }
@@ -301,7 +305,6 @@ export const layer = Layer.effect(
       const allowedConsumerKeys = new Set([
         "orchestrator",
         ...resolvedAgentInfos.map((a) => `agents/${a.name}`),
-        ...(workflowInfo ? workflowInfo.steps.map((s) => `steps/${s.id}`) : []),
       ])
 
       if (resolvedBindings) {
@@ -314,7 +317,7 @@ export const layer = Layer.effect(
               message: `Consumer key '${consumerKey}' is unrecognized for composition`,
             }),
           )
-          for (const ref of [...binding.prompts, ...binding.skills]) {
+          for (const ref of [...binding.prompts, ...binding.skills, ...binding.commands]) {
             diagnostics.push(
               new Composition.Diagnostic({
                 severity: "error",
@@ -427,6 +430,56 @@ export const layer = Layer.effect(
             )
           }
         }
+
+        for (const commandRef of binding.commands) {
+          if ((commandRef as { kind?: string }).kind !== "command") {
+            diagnostics.push(
+              new Composition.Diagnostic({
+                severity: "error",
+                code: "invalid_ref_kind",
+                message: `Expected command asset ref but got kind '${String((commandRef as { kind?: string }).kind)}'`,
+                path: commandRef.relativePath,
+                asset: commandRef,
+              }),
+            )
+            continue
+          }
+          const commandOpt = yield* commandAssets.getByPath(commandRef.relativePath).pipe(Effect.option)
+          if (Option.isNone(commandOpt)) {
+            diagnostics.push(
+              new Composition.Diagnostic({
+                severity: "error",
+                code: "command_not_found",
+                message: `Command asset not found: ${commandRef.relativePath}`,
+                path: commandRef.relativePath,
+                asset: commandRef,
+              }),
+            )
+            continue
+          }
+          const command = commandOpt.value
+          if (command.revision !== commandRef.revision) {
+            diagnostics.push(
+              new Composition.Diagnostic({
+                severity: "error",
+                code: "command_stale_revision",
+                message: `Command revision mismatch: expected ${commandRef.revision}, found ${command.revision}`,
+                path: commandRef.relativePath,
+                asset: commandRef,
+              }),
+            )
+          }
+          if (commands.some((item) => item.relativePath === command.relativePath)) continue
+          commands.push(
+            new Composition.CommandInfo({
+              name: command.name,
+              description: command.description,
+              relativePath: command.relativePath,
+              revision: Schema.decodeUnknownSync(Composition.Revision)(command.revision),
+              template: command.source,
+            }),
+          )
+        }
       }
 
       // 4. Capabilities evaluation
@@ -455,7 +508,7 @@ export const layer = Layer.effect(
       let estimatedTokens = instructions.reduce((sum, i) => sum + Math.ceil(i.content.length / 4), 0)
       if (workflowInfo) {
         for (const step of workflowInfo.steps) {
-          const inputLen = typeof step.input === "string" ? step.input.length : JSON.stringify(step.input ?? {}).length
+          const inputLen = JSON.stringify(step.input).length
           estimatedTokens += 500 + Math.ceil(inputLen / 4)
         }
       }
@@ -473,7 +526,7 @@ export const layer = Layer.effect(
       const hasBlockingOrError = diagnostics.some((d) => d.severity === "blocking" || d.severity === "error")
       const valid = !hasBlockingOrError
 
-      const isV2 = resolvedAgentInfos.length > 1 || workflowInfo !== undefined
+      const isV2 = resolvedAgentInfos.length > 1 || workflowInfo !== undefined || commands.length > 0
       const planVersion = isV2 ? 2 : 1
 
       return new Composition.Plan({
@@ -484,7 +537,7 @@ export const layer = Layer.effect(
         agent: resolvedAgentInfos[0],
         agents: resolvedAgentInfos,
         workflow: workflowInfo,
-        commands: [],
+        commands,
         instructions,
         skills,
         capabilities,
@@ -521,6 +574,9 @@ export const layer = Layer.effect(
           } else if (d.asset.kind === "workflow") {
             const w = yield* workflowAssets.getByPath(d.asset.relativePath).pipe(Effect.option)
             currentRev = Option.getOrUndefined(w)?.revision
+          } else if (d.asset.kind === "command") {
+            const command = yield* commandAssets.getByPath(d.asset.relativePath).pipe(Effect.option)
+            currentRev = Option.getOrUndefined(command)?.revision
           }
           if (currentRev) {
             staleRevisions.push(
@@ -587,6 +643,13 @@ export const layer = Layer.effect(
               }
             }
             if (matched) break
+          for (const commandRef of binding.commands) {
+              if (commandRef.kind === kind && commandRef.relativePath === relativePath) {
+                matched = true
+                break
+              }
+            }
+            if (matched) break
           }
         }
 
@@ -616,7 +679,8 @@ export const layer = Layer.effect(
         })
       }
 
-      const promptData: Composition.SnapshotPromptData[] = []
+      const promptData = new Map<string, Composition.SnapshotPromptData>()
+      const snapshotBindings: Record<string, Composition.SnapshotBindingData> = {}
       let bindingsObj: Record<string, Composition.Binding> = {}
       if (plan.input.source === "temporary") {
         bindingsObj = plan.input.bindings as Record<string, Composition.Binding>
@@ -627,17 +691,52 @@ export const layer = Layer.effect(
         }
       }
 
-      for (const binding of Object.values(bindingsObj)) {
+      for (const [consumer, binding] of Object.entries(bindingsObj)) {
+        const bindingPrompts: Composition.SnapshotPromptData[] = []
+        const bindingSkills: Composition.SkillInfo[] = []
+        const bindingCommands: Composition.CommandInfo[] = []
         for (const p of binding.prompts) {
           const pInfo = yield* promptAssets.getByPath(p.relativePath).pipe(Effect.option)
-          promptData.push(
-            new Composition.SnapshotPromptData({
-              relativePath: p.relativePath,
-              revision: p.revision,
-              content: Option.getOrUndefined(pInfo)?.template ?? "",
+          const prompt = new Composition.SnapshotPromptData({
+            relativePath: p.relativePath,
+            revision: p.revision,
+            content: Option.getOrUndefined(pInfo)?.template ?? "",
+          })
+          bindingPrompts.push(prompt)
+          promptData.set(`${p.relativePath}:${p.revision}`, prompt)
+        }
+        for (const skillRef of binding.skills) {
+          const skillOpt = yield* skillAssets.getByPath(skillRef.relativePath).pipe(Effect.option)
+          const skill = Option.getOrUndefined(skillOpt)
+          if (!skill) continue
+          bindingSkills.push(
+            new Composition.SkillInfo({
+              name: skill.name,
+              description: skill.description,
+              relativePath: skill.relativePath,
+              revision: Schema.decodeUnknownSync(Composition.Revision)(skill.revision),
             }),
           )
         }
+        for (const commandRef of binding.commands) {
+          const commandOpt = yield* commandAssets.getByPath(commandRef.relativePath).pipe(Effect.option)
+          const command = Option.getOrUndefined(commandOpt)
+          if (!command) continue
+          bindingCommands.push(
+            new Composition.CommandInfo({
+              name: command.name,
+              description: command.description,
+              relativePath: command.relativePath,
+              revision: Schema.decodeUnknownSync(Composition.Revision)(command.revision),
+              template: command.source,
+            }),
+          )
+        }
+        snapshotBindings[consumer] = new Composition.SnapshotBindingData({
+          prompts: bindingPrompts,
+          skills: bindingSkills,
+          commands: bindingCommands,
+        })
       }
 
       const materialized = yield* tools.materialize()
@@ -658,15 +757,17 @@ export const layer = Layer.effect(
       const toolNames = fingerprints.map((fingerprint) => fingerprint.name)
       const catalogDigest = computeDigest(fingerprints)
 
-      const isV2 = plan.version === 2 || (plan.agents && plan.agents.length > 1) || plan.workflow !== undefined
+      const isV2 = plan.version === 2 || (plan.agents && plan.agents.length > 1) || plan.workflow != null
 
       if (isV2) {
         const snapshotData = new Composition.SnapshotDataV2({
           agents: plan.agents ?? (plan.agent ? [plan.agent] : []),
           workflow: plan.workflow,
+          bindings: snapshotBindings,
+          maxConcurrency: plan.costPreview?.maxConcurrency ?? 1,
           commands: plan.commands ?? [],
           instructions: plan.instructions,
-          prompts: promptData,
+          prompts: Array.from(promptData.values()),
           skills: plan.skills,
           tools: new Composition.SnapshotToolInfo({
             fingerprints,
@@ -689,7 +790,7 @@ export const layer = Layer.effect(
       const snapshotData = new Composition.SnapshotDataV1({
         agentID: plan.agent?.id ?? "default",
         instructions: plan.instructions,
-        prompts: promptData,
+        prompts: Array.from(promptData.values()),
         skills: plan.skills,
         tools: new Composition.SnapshotToolInfo({
           fingerprints,

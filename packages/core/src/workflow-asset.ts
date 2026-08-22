@@ -25,7 +25,7 @@ export interface Info {
   readonly relativePath: string
   readonly version: string
   readonly triggers: ReadonlyArray<string>
-  readonly steps: ReadonlyArray<unknown>
+  readonly steps: ReadonlyArray<SchemaWorkflowAsset.StepDef>
   readonly revision: string
 }
 

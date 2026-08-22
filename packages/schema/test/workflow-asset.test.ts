@@ -44,20 +44,120 @@ describe("WorkflowAsset Schema M2", () => {
     ).toThrow()
   })
 
-  test("WorkflowRunStatus decodes all 6 statuses", () => {
-    const statuses = ["pending", "running", "completed", "failed", "cancelled", "partial_success"] as const
+  test("bounds retry and timeout resources", () => {
+    expect(() =>
+      Schema.decodeUnknownSync(WorkflowAsset.StepDef)({
+        id: "step_1",
+        name: "Build",
+        agent: "builder",
+        maxAttempts: WorkflowAsset.MAX_ATTEMPTS + 1,
+      }),
+    ).toThrow()
+    expect(() =>
+      Schema.decodeUnknownSync(WorkflowAsset.StepDef)({
+        id: "step_1",
+        name: "Build",
+        agent: "builder",
+        timeoutSeconds: WorkflowAsset.MAX_TIMEOUT_SECONDS + 1,
+      }),
+    ).toThrow()
+  })
+
+  test("WorkflowRunStatus decodes the durable owner lifecycle", () => {
+    const statuses = [
+      "pending",
+      "running",
+      "cancelling",
+      "completed",
+      "partial_success",
+      "failed",
+      "cancelled",
+      "recovery_required",
+    ] as const
     for (const s of statuses) {
       expect(Schema.decodeSync(WorkflowAsset.WorkflowRunStatus)(s)).toBe(s)
     }
     expect(() => Schema.decodeUnknownSync(WorkflowAsset.WorkflowRunStatus)("unknown_status")).toThrow()
   })
 
-  test("StepRunStatus decodes all 7 statuses", () => {
-    const statuses = ["pending", "ready", "running", "completed", "failed", "cancelled", "skipped"] as const
+  test("StepRunStatus distinguishes preparation, cancellation, and unknown execution", () => {
+    const statuses = [
+      "pending",
+      "ready",
+      "dispatching",
+      "running",
+      "cancelling",
+      "completed",
+      "failed",
+      "cancelled",
+      "skipped",
+      "execution_unknown",
+    ] as const
     for (const s of statuses) {
       expect(Schema.decodeSync(WorkflowAsset.StepRunStatus)(s)).toBe(s)
     }
     expect(() => Schema.decodeUnknownSync(WorkflowAsset.StepRunStatus)("unknown_status")).toThrow()
+  })
+
+  test("WorkflowRunInfo carries retry lineage without exposing payloads", () => {
+    const run = Schema.decodeUnknownSync(WorkflowAsset.WorkflowRunInfo)({
+      id: "run-retry",
+      sessionID: "session-1",
+      snapshotDigest: "a".repeat(64),
+      workflowName: "review-flow",
+      workflowRevision: "b".repeat(64),
+      status: "recovery_required",
+      revision: 3,
+      parentRunID: Schema.decodeUnknownSync(WorkflowAsset.WorkflowRunID)("run-parent"),
+      rootRunID: Schema.decodeUnknownSync(WorkflowAsset.WorkflowRunID)("run-root"),
+      retryOfStepRunID: Schema.decodeUnknownSync(WorkflowAsset.StepRunID)("step-failed"),
+      timeCreated: 1,
+      timeUpdated: 2,
+    })
+
+    expect(String(run.parentRunID)).toBe("run-parent")
+    expect(String(run.rootRunID)).toBe("run-root")
+    expect(String(run.retryOfStepRunID)).toBe("step-failed")
+  })
+
+  test("StepDef input accepts only JSON objects", () => {
+    const step = Schema.decodeUnknownSync(WorkflowAsset.StepDef)({
+      id: "step_1",
+      name: "Build",
+      agent: "builder",
+      input: { nested: { enabled: true }, values: [1, "two", null] },
+    })
+    expect(step.input).toEqual({ nested: { enabled: true }, values: [1, "two", null] })
+
+    for (const input of ["prompt", ["array"], null, 1]) {
+      expect(() =>
+        Schema.decodeUnknownSync(WorkflowAsset.StepDef)({
+          id: "step_1",
+          name: "Build",
+          agent: "builder",
+          input,
+        }),
+      ).toThrow()
+    }
+    expect(() =>
+      Schema.decodeUnknownSync(WorkflowAsset.StepDef)({
+        id: "step_1",
+        name: "Build",
+        agent: "builder",
+        input: { callback: () => "not-json" },
+      }),
+    ).toThrow()
+  })
+
+  test("BranchOutput is a strict structured result", () => {
+    const decode = Schema.decodeUnknownSync(WorkflowAsset.BranchOutput, { onExcessProperty: "error" })
+    expect(decode({ branch: "approved", summary: "Checks passed" })).toEqual({
+      branch: "approved",
+      summary: "Checks passed",
+    })
+    expect(() => decode({ branch: "approved", result: "legacy" })).toThrow()
+    expect(() => decode({ branch: 1 })).toThrow()
+    expect(() => decode({ branch: "approved", summary: "x".repeat(2_001) })).toThrow()
   })
 
   describe("Graph Validation", () => {
@@ -86,6 +186,25 @@ describe("WorkflowAsset Schema M2", () => {
       const result = WorkflowAsset.validateGraph(steps.map((s) => Schema.decodeUnknownSync(WorkflowAsset.StepDef)(s)))
       expect(result.valid).toBe(true)
       expect(result.errors).toHaveLength(0)
+    })
+
+    test("rejects continue on a branch node so unresolved routing fails closed", () => {
+      const steps = [
+        {
+          id: "step_1",
+          name: "Classify",
+          agent: "agent1",
+          failurePolicy: "continue",
+          branches: { success: "step_good", failure: "step_bad" },
+        },
+        { id: "step_good", name: "Good", agent: "agent2" },
+        { id: "step_bad", name: "Bad", agent: "agent3" },
+      ]
+      const result = WorkflowAsset.validateGraph(
+        steps.map((step) => Schema.decodeUnknownSync(WorkflowAsset.StepDef)(step)),
+      )
+      expect(result.valid).toBe(false)
+      expect(result.errors.some((error) => error.code === "branch_continue_forbidden")).toBe(true)
     })
 
     test("validates a valid parallel workflow", () => {

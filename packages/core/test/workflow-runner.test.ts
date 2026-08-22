@@ -1,5 +1,6 @@
-import { afterAll, beforeAll, describe, expect } from "bun:test"
+import { afterAll, beforeAll, describe, expect, test } from "bun:test"
 import { Effect, Layer, Schema } from "effect"
+import { sql } from "drizzle-orm"
 import { Database } from "@aigcfroge/core/database/database"
 import { Project } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
@@ -47,6 +48,17 @@ function seedSessionWithSnapshot(
 ) {
   return Effect.gen(function* () {
     const { db } = yield* Database.Service
+    const columns = new Set(
+      (yield* db.all<{ name: string }>(sql`PRAGMA table_info(workflow_run)`)).map((column) => column.name),
+    )
+    for (const name of ["request_id", "request_digest", "parent_run_id", "root_run_id", "retry_of_step_run_id"]) {
+      if (!columns.has(name)) yield* db.run(sql.raw(`ALTER TABLE workflow_run ADD COLUMN ${name} text`))
+    }
+    yield* db.run(sql`DROP INDEX IF EXISTS workflow_run_identity_idx`)
+    yield* db.run(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS workflow_run_request_idx
+      ON workflow_run (session_id, request_id)
+    `)
     const composition = yield* SessionComposition.Service
     const projectID = Project.ID.make("prj_wfr_runner_test")
     const sessionID = SessionV2.ID.make(sid)
@@ -122,7 +134,7 @@ function seedSessionWithSnapshot(
   })
 }
 
-describe("WorkflowRunner Service", () => {
+describe.serial("WorkflowRunner Service", () => {
   it.effect("executes a multi-step linear workflow to completion", () =>
     Effect.gen(function* () {
       const sid = "ses_runner_linear"
@@ -237,7 +249,7 @@ describe("WorkflowRunner Service", () => {
 
       let attempts = 0
       const customExecutor: WorkflowRunner.StepExecutor = {
-        execute: (input) =>
+        execute: () =>
           Effect.gen(function* () {
             attempts++
             if (attempts === 1) {
@@ -329,7 +341,33 @@ describe("WorkflowRunner Service", () => {
 
       const result = yield* runner.run(SessionV2.ID.make(sid), customExecutor)
       expect(result?.status).toBe("failed")
-      expect(result?.error).toContain("Fatal compilation error")
+      expect(result?.errorCategory).toBe("step_failed")
+    }))
+
+  it.effect("settles executor defects as a fixed step failure", () =>
+    Effect.gen(function* () {
+      const sid = "ses_runner_executor_defect"
+      yield* seedSessionWithSnapshot(sid, [
+        new WorkflowAsset.StepDef({
+          id: "step_defect",
+          name: "Defect",
+          agent: "coder",
+          next: "END",
+        }),
+      ])
+      const runner = yield* WorkflowRunner.Service
+      const workflowService = yield* WorkflowRun.Service
+
+      const result = yield* runner.run(SessionV2.ID.make(sid), {
+        execute: () => Effect.die("executor storage closed"),
+      })
+
+      expect(result?.status).toBe("failed")
+      expect(result?.errorCategory).toBe("step_failed")
+      const steps = yield* workflowService.getSteps(result!.id)
+      expect(steps).toHaveLength(1)
+      expect(steps[0].status).toBe("failed")
+      expect(steps[0].errorCategory).toBe("step_failed")
     }))
 
   it.effect("cancels workflow run when custom mode kill-switch is triggered", () =>
@@ -352,10 +390,43 @@ describe("WorkflowRunner Service", () => {
 
       const result = yield* runner.run(SessionV2.ID.make(sid))
       expect(result?.status).toBe("cancelled")
-      expect(result?.error).toBe("custom_mode_disabled")
+      expect(result?.errorCategory).toBe("custom_mode_disabled")
 
       // Restore flag for subsequent tests
       process.env["AIGCFROGE_CUSTOM_MODE"] = "true"
+    }))
+
+  it.effect("cancels mid-drain when the kill-switch flips after the first round", () =>
+    Effect.gen(function* () {
+      const sid = "ses_runner_killswitch_mid"
+      const steps = [
+        new WorkflowAsset.StepDef({ id: "step_1", name: "Step 1", agent: "coder", next: "step_2" }),
+        new WorkflowAsset.StepDef({ id: "step_2", name: "Step 2", agent: "coder", next: "END" }),
+      ]
+      yield* seedSessionWithSnapshot(sid, steps)
+      const runner = yield* WorkflowRunner.Service
+      const workflowService = yield* WorkflowRun.Service
+
+      // Round 1 dispatches and settles `step_1`, which bumps the run revision
+      // several times. The flag check on round 2 must CAS against the *current*
+      // revision, not the one `admit` returned before the loop.
+      const flippingExecutor: WorkflowRunner.StepExecutor = {
+        execute: (input) =>
+          Effect.sync(() => {
+            if (input.stepDef.id === "step_1") delete process.env["AIGCFROGE_CUSTOM_MODE"]
+            return { output: `done:${input.stepDef.id}` }
+          }),
+      }
+      try {
+        const result = yield* runner.run(SessionV2.ID.make(sid), flippingExecutor)
+        expect(result?.status).toBe("cancelled")
+        expect(result?.errorCategory).toBe("custom_mode_disabled")
+        const stepRuns = yield* workflowService.getSteps(result!.id)
+        expect(stepRuns.find((step) => step.stepId === "step_1")?.status).toBe("completed")
+        expect(stepRuns.find((step) => step.stepId === "step_2")?.status).toBe("skipped")
+      } finally {
+        process.env["AIGCFROGE_CUSTOM_MODE"] = "true"
+      }
     }))
 
   it.effect("executes dynamic branching and skips non-selected branch", () =>
@@ -420,5 +491,69 @@ describe("WorkflowRunner Service", () => {
       expect(featRun?.status).toBe("skipped")
       expect(joinRun?.status).toBe("completed")
     }))
+
+  it.effect("fails a branch step closed when the child answers with unroutable text", () =>
+    Effect.gen(function* () {
+      const sid = "ses_runner_branch_fail_closed"
+      const steps = [
+        new WorkflowAsset.StepDef({
+          id: "classifier",
+          name: "Classifier",
+          agent: "coder",
+          branches: { bug: "step_fix" },
+        }),
+        new WorkflowAsset.StepDef({ id: "step_fix", name: "Fix Bug", agent: "coder", next: "END" }),
+      ]
+      yield* seedSessionWithSnapshot(sid, steps)
+      const runner = yield* WorkflowRunner.Service
+      const workflowService = yield* WorkflowRun.Service
+
+      // The production executor hands back the child's raw text. Prose that does
+      // not decode into `{ branch }` must settle `invalid_branch_output`, never
+      // pick a default arm (ADR-18 §2.5.3).
+      const proseExecutor: WorkflowRunner.StepExecutor = {
+        execute: (input) => Effect.succeed({ output: `I think it is a ${input.stepDef.id} thing.` }),
+      }
+      const result = yield* runner.run(SessionV2.ID.make(sid), proseExecutor)
+      expect(result?.status).toBe("failed")
+      expect(result?.errorCategory).toBe("invalid_branch_output")
+      const stepRuns = yield* workflowService.getSteps(result!.id)
+      expect(stepRuns.find((step) => step.stepId === "classifier")?.errorCategory).toBe("invalid_branch_output")
+      expect(stepRuns.find((step) => step.stepId === "step_fix")?.status).toBe("skipped")
+    }))
 })
 
+describe("WorkflowRunner branch output contract", () => {
+  const step = new WorkflowAsset.StepDef({
+    id: "classifier",
+    name: "Classifier",
+    agent: "coder",
+    branches: { bug: "step_fix", feature: "step_feature" },
+  })
+
+  test("decodes the declared JSON contract out of the child's text", () => {
+    expect(WorkflowRunner.decodeBranchOutput('{"branch":"bug"}')).toMatchObject({ branch: "bug" })
+    expect(WorkflowRunner.decodeBranchOutput('```json\n{"branch":"feature","summary":"add it"}\n```')).toMatchObject({
+      branch: "feature",
+      summary: "add it",
+    })
+    expect(
+      WorkflowRunner.decodeBranchOutput('Here you go:\n{"branch":"bug","summary":"crash on boot"}\nThanks!'),
+    ).toMatchObject({ branch: "bug" })
+  })
+
+  test("leaves undecodable text as a string so the step fails closed", () => {
+    for (const text of ["it is a bug", "{not json}", "", '{"branch":42}', '["bug"]', `{"summary":"no branch"}`]) {
+      expect(typeof WorkflowRunner.decodeBranchOutput(text)).toBe("string")
+    }
+  })
+
+  test("resolves only own branch keys, never the prototype chain", () => {
+    expect(WorkflowRunner.branchTarget(step, { branch: "bug" })).toBe("step_fix")
+    for (const branch of ["constructor", "__proto__", "toString", "valueOf", "hasOwnProperty"]) {
+      expect(WorkflowRunner.branchTarget(step, { branch })).toBeUndefined()
+    }
+    expect(WorkflowRunner.branchTarget(step, "step_fix")).toBeUndefined()
+    expect(WorkflowRunner.branchTarget(step, { branch: "missing" })).toBeUndefined()
+  })
+})

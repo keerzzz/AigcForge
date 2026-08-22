@@ -1,6 +1,6 @@
 export * as TaskDriver from "./task-driver"
 
-import { Cause, Effect, Exit, Schema } from "effect"
+import { Cause, Context, Effect, Exit, Layer, Ref, Schema } from "effect"
 import { AgentV2 } from "../agent"
 import { Location } from "../location"
 import { ProductModeAgentPolicy } from "../product-mode-agent-policy"
@@ -34,14 +34,11 @@ export class DelegateError extends Schema.TaggedErrorClass<DelegateError>()("Tas
  * cycle at the type level, and tool `execute` carries `R = never`, so a tool
  * cannot request services at call time.
  *
- * The bridge is a process-global cell rather than a Layer service on purpose.
- * `BuiltInTools` sits deep inside a widely-shared `LayerMap` (`LocationServiceMap`
- * and the aigcfroge Agent/System maps). Modelling the seam as a `Context.Service`
- * forces that requirement to surface at every one of the ~40 call sites that
- * build those maps (LayerMap rejects an unsatisfied `lookup` requirement with a
- * "Missing dependencies" type error). A module-level cell keeps the seam
- * dependency-free: the tool reads it at call time, and the composition root
- * installs the concrete implementation once `SessionV2` exists.
+ * The concrete implementation is carried by a Context Reference. References
+ * have a default value and therefore do not add a Layer requirement to the
+ * opaque Tool executor, while an App/public/server composition root can still
+ * provide its own isolated Session runtime. This keeps the dependency cycle
+ * open without a process-global "last registration wins" cell.
  *
  * This is the V2 formalization of V1's runtime `ctx.extra.promptOps` injection.
  */
@@ -152,6 +149,12 @@ export interface Interface {
    * delegation surfaces as a typed tool failure instead of a child-session defect.
    */
   readonly sessionMode: (sessionID: SessionSchema.ID) => Effect.Effect<string | undefined>
+  /** Append a synthetic handoff to a Session and run its owning agent. */
+  readonly injectSynthetic: (input: {
+    id?: SessionMessage.ID
+    sessionID: SessionSchema.ID
+    text: string
+  }) => Effect.Effect<void>
   /**
    * Execute a prompt against an external CLI tool (claude-code, gemini, codex,
    * opencode, etc.). The adapter is resolved through the installed CLI adapter
@@ -167,12 +170,75 @@ export interface Interface {
   }) => Effect.Effect<{ text: string; sessionID: SessionSchema.ID; status: DelegationStatus }, Error>
 }
 
-// The process-global bridge cell. `install` replaces it; the accessors read it
-// lazily at call time so a re-install (e.g. a fresh test runtime) takes effect.
-let installed: Interface | undefined
+export const Runtime = Context.Reference<Interface | undefined>("@aigcfroge/v2/TaskDriver/Runtime", {
+  defaultValue: () => undefined,
+})
+
+const RuntimeState = Context.Reference<Ref.Ref<Interface | undefined> | undefined>(
+  "@aigcfroge/v2/TaskDriver/RuntimeState",
+  { defaultValue: () => undefined },
+)
+
+const resolve = (state: Ref.Ref<Interface | undefined>) =>
+  Ref.get(state).pipe(
+    Effect.flatMap((implementation) =>
+      implementation
+        ? Effect.succeed(implementation)
+        : Effect.die("TaskDriver runtime must be initialized by the current composition root"),
+    ),
+  )
+
+const proxy = (state: Ref.Ref<Interface | undefined>): Interface => ({
+  createChild: (input) => resolve(state).pipe(Effect.flatMap((implementation) => implementation.createChild(input))),
+  delegate: (input) => resolve(state).pipe(Effect.flatMap((implementation) => implementation.delegate(input))),
+  delegateJudge: (input) => resolve(state).pipe(Effect.flatMap((implementation) => implementation.delegateJudge(input))),
+  cancel: (sessionID) => resolve(state).pipe(Effect.flatMap((implementation) => implementation.cancel(sessionID))),
+  delegateBackground: (input) =>
+    resolve(state).pipe(Effect.flatMap((implementation) => implementation.delegateBackground(input))),
+  extendBackground: (input) =>
+    resolve(state).pipe(Effect.flatMap((implementation) => implementation.extendBackground(input))),
+  interrupt: (sessionID) => resolve(state).pipe(Effect.flatMap((implementation) => implementation.interrupt(sessionID))),
+  isChildSession: (sessionID) =>
+    resolve(state).pipe(Effect.flatMap((implementation) => implementation.isChildSession(sessionID))),
+  sessionMode: (sessionID) => resolve(state).pipe(Effect.flatMap((implementation) => implementation.sessionMode(sessionID))),
+  injectSynthetic: (input) =>
+    resolve(state).pipe(Effect.flatMap((implementation) => implementation.injectSynthetic(input))),
+  executeCLI: (input) => resolve(state).pipe(Effect.flatMap((implementation) => implementation.executeCLI(input))),
+})
+
+/** Creates the root-local runtime proxy and its private initialization state. */
+export const runtimeLayer = Layer.effect(
+  Runtime,
+  Effect.gen(function* () {
+    const state = yield* RuntimeState
+    if (state === undefined) return yield* Effect.die("TaskDriver runtime state is not provided")
+    return proxy(state)
+  }),
+).pipe(Layer.provideMerge(Layer.effect(RuntimeState, Ref.make<Interface | undefined>(undefined))))
+
+/** Initializes the runtime captured by the current composition root. */
+export const initialize = (implementation: Interface) =>
+  Effect.gen(function* () {
+    const state = yield* RuntimeState
+    if (state === undefined) return yield* Effect.die("TaskDriver runtime state is not provided")
+    yield* Ref.set(state, implementation)
+    return undefined
+  })
+
+/** Check whether the current composition root provides a TaskDriver runtime. */
+export const isInstalled = () =>
+  Runtime.pipe(
+    Effect.map((implementation) => implementation !== undefined),
+  )
 
 const active = () =>
-  installed ? Effect.succeed(installed) : Effect.die("TaskDriver.install must run before the task tool executes")
+  Runtime.pipe(
+    Effect.flatMap((implementation) =>
+      implementation
+        ? Effect.succeed(implementation)
+        : Effect.die("TaskDriver runtime must be provided by the current composition root"),
+    ),
+  )
 
 /** Create a child Session through the installed implementation. */
 export const createChild = (input: {
@@ -232,6 +298,13 @@ export const isChildSession = (sessionID: SessionSchema.ID) =>
 export const sessionMode = (sessionID: SessionSchema.ID) =>
   active().pipe(Effect.flatMap((impl) => impl.sessionMode(sessionID)))
 
+/** Append a synthetic handoff through the current composition root. */
+export const injectSynthetic = (input: {
+  id?: SessionMessage.ID
+  sessionID: SessionSchema.ID
+  text: string
+}) => active().pipe(Effect.flatMap((impl) => impl.injectSynthetic(input)))
+
 /** Execute a prompt against an external CLI tool through the installed adapter. */
 export const executeCLI = (input: {
   cliTarget: string
@@ -269,7 +342,11 @@ export interface SessionFacade {
    * V2 injection path for background task results. Backed by
    * `SessionV2.injectSynthetic` at the composition root.
    */
-  readonly injectSynthetic: (input: { sessionID: SessionSchema.ID; text: string }) => Effect.Effect<void, unknown>
+  readonly injectSynthetic: (input: {
+    id?: SessionMessage.ID
+    sessionID: SessionSchema.ID
+    text: string
+  }) => Effect.Effect<void, unknown>
   readonly interrupt: (sessionID: SessionSchema.ID) => Effect.Effect<void>
 }
 
@@ -334,9 +411,9 @@ const renderBackgroundResult = (input: { sessionID: SessionSchema.ID; descriptio
   ].join("\n")
 
 /**
- * Installs the concrete seam implementation from a `SessionV2`-shaped facade plus
- * an off-fiber `background` runner. Call this once at each composition root that
- * runs Sessions (public API, server, app runtime), after `SessionV2` exists.
+ * Builds the concrete seam implementation from a `SessionV2`-shaped facade plus
+ * an off-fiber `background` runner. Composition roots provide the result through
+ * {@link Runtime} after `SessionV2` exists.
  * Importing `SessionV2` here would reintroduce the cycle the seam exists to
  * break, so the facade is passed in structurally. `SessionV2` is a leaf at the
  * call site; nothing depends back on the seam, so this closes no cycle.
@@ -346,7 +423,7 @@ const renderBackgroundResult = (input: { sessionID: SessionSchema.ID; descriptio
  * `delegateBackground` schedules the same drain plus a result injection into the
  * parent, then returns immediately without awaiting it.
  */
-export const install = (
+export const make = (
   sessions: SessionFacade,
   background: BackgroundRunner,
   cli?: {
@@ -381,7 +458,7 @@ export const install = (
       Effect.catch(() => Effect.succeed("")),
     )
 
-  installed = {
+  return {
     createChild: (input) =>
       sessions.get(input.parentID).pipe(
         Effect.flatMap((parent) =>
@@ -422,7 +499,13 @@ export const install = (
               ...(outcome.error ? { message: outcome.error } : {}),
             })
           }
-          return yield* readResult(input.sessionID).pipe(Effect.orDie)
+          const text = yield* readResult(input.sessionID).pipe(Effect.orDie)
+          if (text.trim()) return text
+          return yield* new DelegateError({
+            sessionID: input.sessionID,
+            reason: "error",
+            message: "Child Session completed without assistant output",
+          })
         }).pipe(Effect.exit)
         // Dual-track writeback always fires, regardless of exit status.
         // Sanitised outputDigest: the raw cause may embed Authorization headers,
@@ -614,6 +697,7 @@ export const install = (
           ),
         ),
       ),
+    injectSynthetic: (input) => sessions.injectSynthetic(input).pipe(Effect.orDie),
     executeCLI: (input) =>
       Effect.gen(function* () {
         // External-CLI delegation never creates a child Session, so it bypasses
@@ -643,5 +727,16 @@ export const install = (
         if (!cli) return yield* Effect.fail(new Error("CLI adapter registry not available"))
         return yield* cli.execute(input)
       }),
-  }
+  } satisfies Interface
 }
+
+/**
+ * Builds a test runtime for effects that do not construct a full composition
+ * root. Tests must provide the returned value through {@link Runtime}; this
+ * helper never mutates process-global selection state.
+ */
+export const installForTesting = (
+  sessions: SessionFacade,
+  background: BackgroundRunner,
+  cli?: Parameters<typeof make>[2],
+) => Effect.succeed(make(sessions, background, cli))

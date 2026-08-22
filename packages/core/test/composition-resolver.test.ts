@@ -413,7 +413,7 @@ requestedCapabilities: []
         source: "temporary",
         agents: [{ kind: "agent", relativePath: "coder.md", revision: agentRev }],
         bindings: {
-          // Same prompt listed twice within one binding, and again for the agent consumer
+          // Same prompt listed twice within one binding, and again for another consumer.
           orchestrator: { prompts: [promptRef, promptRef], skills: [] },
           "agents/coder": { prompts: [promptRef], skills: [] },
         },
@@ -427,8 +427,8 @@ requestedCapabilities: []
           const plan = yield* resolver.resolve(input)
           expect(plan.valid).toBe(false)
           const duplicates = plan.diagnostics.filter((d) => d.code === "duplicate_asset")
-          // One diagnostic per duplicate occurrence (2nd and 3rd listing)
-          expect(duplicates).toHaveLength(2)
+          // Assets are consumer-scoped, so only the duplicate within orchestrator is invalid.
+          expect(duplicates).toHaveLength(1)
           expect(duplicates[0].severity).toBe("blocking")
           expect(duplicates[0].path).toBe("system-prompt.md")
         }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
@@ -769,6 +769,96 @@ steps:
               expect(snapshot.data.agents[1].name).toBe("reviewer")
               expect(snapshot.data.workflow).toBeDefined()
               expect(snapshot.data.workflow?.name).toBe("multi-flow")
+            }
+          }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
+        )
+      })
+    })
+
+    test("resolves and freezes consumer-scoped commands without granting execution authority", async () => {
+      await withTmp(async (dir) => {
+        const agentDir = path.join(dir, ".aigcfroge", "agents")
+        await fs.mkdir(agentDir, { recursive: true })
+        const coderRaw = `---\nkind: agent\nname: coder\ndescription: Coder\n---\nWrite code.\n`
+        await fs.writeFile(path.join(agentDir, "coder.md"), coderRaw)
+        const coderRev = Hash.sha256(Buffer.from(coderRaw))
+
+        const promptDir = path.join(dir, ".aigcfroge", "prompts")
+        await fs.mkdir(promptDir, { recursive: true })
+        const promptRaw = `---\nkind: prompt\nname: review-context\ndescription: Review context\n---\nReview carefully.\n`
+        await fs.writeFile(path.join(promptDir, "review.md"), promptRaw)
+        const promptRev = Hash.sha256(Buffer.from(promptRaw))
+
+        const skillDir = path.join(dir, ".aigcfroge", "skills", "review")
+        await fs.mkdir(skillDir, { recursive: true })
+        const skillRaw = `---\nname: review\ndescription: Review checklist\n---\nCheck correctness.\n`
+        await fs.writeFile(path.join(skillDir, "SKILL.md"), skillRaw)
+        const skillRev = Hash.sha256(Buffer.from(skillRaw))
+
+        const commandDir = path.join(dir, ".aigcfroge", "commands")
+        await fs.mkdir(commandDir, { recursive: true })
+        const commandRaw = `---\nkind: command\nname: review\ndescription: Review the current change\ninvocation: /review\n---\nReview the supplied change without executing it.\n`
+        await fs.writeFile(path.join(commandDir, "review.md"), commandRaw)
+        const commandRev = Hash.sha256(Buffer.from(commandRaw))
+
+        const workflowDir = path.join(dir, ".aigcfroge", "workflows")
+        await fs.mkdir(workflowDir, { recursive: true })
+        const workflowYaml = `kind: workflow
+name: review-flow
+description: Review workflow
+version: "1.0.0"
+steps:
+  - id: review
+    name: Review
+    agent: coder
+`
+        await fs.writeFile(path.join(workflowDir, "review.yaml"), workflowYaml)
+        const workflowRev = Hash.sha256(Buffer.from(workflowYaml))
+
+        await Effect.runPromise(
+          Effect.gen(function* () {
+            const resolver = yield* CompositionResolver.Service
+            const commandRef = { kind: "command" as const, relativePath: "review.md", revision: commandRev }
+            const input = Schema.decodeUnknownSync(Composition.CompositionInput)({
+              source: "temporary",
+              agents: [{ kind: "agent", relativePath: "coder.md", revision: coderRev }],
+              workflow: { kind: "workflow", relativePath: "review.yaml", revision: workflowRev },
+              bindings: {
+                orchestrator: {
+                  prompts: [{ kind: "prompt", relativePath: "review.md", revision: promptRev }],
+                  skills: [],
+                  commands: [commandRef],
+                },
+                "agents/coder": {
+                  prompts: [],
+                  skills: [{ kind: "skill", relativePath: "review/SKILL.md", revision: skillRev }],
+                  commands: [commandRef],
+                },
+              },
+              presentation: "native",
+              requestedCapabilities: [],
+            })
+
+            const plan = yield* resolver.resolve(input)
+            expect(plan.valid).toBe(true)
+            expect(plan.commands).toHaveLength(1)
+            expect(plan.commands[0].name).toBe("review")
+            expect(plan.commands[0].template).toContain("without executing it")
+            expect(plan.capabilities).toEqual([])
+            expect(plan.costPreview?.effectiveToolCount).toBe(1)
+            expect(plan.instructions.some((instruction) => instruction.content.includes("without executing it"))).toBe(false)
+
+            const snapshot = yield* resolver.freeze(new Composition.FreezeInput({ input }))
+            expect(snapshot.version).toBe(2)
+            if (snapshot.version === 2) {
+              expect(snapshot.data.maxConcurrency).toBe(1)
+              expect(snapshot.data.bindings.orchestrator.prompts).toHaveLength(1)
+              expect(snapshot.data.bindings.orchestrator.skills).toEqual([])
+              expect(snapshot.data.bindings.orchestrator.commands[0].name).toBe("review")
+              expect(snapshot.data.bindings["agents/coder"].prompts).toEqual([])
+              expect(snapshot.data.bindings["agents/coder"].skills[0].name).toBe("review")
+              expect(snapshot.data.bindings["agents/coder"].commands[0].name).toBe("review")
+              expect(snapshot.data.tools.catalog).toEqual(["read"])
             }
           }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
         )

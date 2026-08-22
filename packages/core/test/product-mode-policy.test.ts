@@ -5,6 +5,7 @@ import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-polic
 
 describe("ProductModePolicy & AgentPolicy Governance", () => {
   test("assertCreationSupported fails closed for custom mode without snapshot", async () => {
+    process.env["AIGCFROGE_CUSTOM_MODE"] = "true"
     const res = await Effect.runPromise(
       ProductModePolicy.assertCreationSupported("custom").pipe(
         Effect.map(() => "success"),

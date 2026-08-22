@@ -13,13 +13,20 @@ export const WorkflowRunTable = sqliteTable(
       .notNull()
       .$type<SessionSchema.ID>()
       .references(() => SessionTable.id, { onDelete: "cascade" }),
+    snapshot_digest: text().notNull(),
     workflow_name: text().notNull(),
     workflow_revision: text().notNull(),
+    request_id: text(),
+    request_digest: text(),
+    parent_run_id: text().$type<WorkflowAsset.WorkflowRunID>(),
+    root_run_id: text().$type<WorkflowAsset.WorkflowRunID>(),
+    retry_of_step_run_id: text().$type<WorkflowAsset.StepRunID>(),
     status: text()
       .notNull()
       .$type<WorkflowAsset.WorkflowRunStatus>(),
+    revision: integer().notNull().default(1),
     current_step_id: text(),
-    error: text(),
+    error_category: text().$type<WorkflowAsset.ErrorCategory>(),
     time_created: integer()
       .notNull()
       .$default(() => Date.now()),
@@ -31,6 +38,7 @@ export const WorkflowRunTable = sqliteTable(
   (table) => [
     index("workflow_run_session_idx").on(table.session_id),
     index("workflow_run_status_idx").on(table.status),
+    uniqueIndex("workflow_run_request_idx").on(table.session_id, table.request_id),
   ],
 )
 
@@ -50,9 +58,13 @@ export const WorkflowStepRunTable = sqliteTable(
       .notNull()
       .$type<WorkflowAsset.StepRunStatus>(),
     attempt: integer().notNull().default(1),
-    input: text({ mode: "json" }),
-    output: text({ mode: "json" }),
-    error: text(),
+    revision: integer().notNull().default(1),
+    task_id: text(),
+    child_session_id: text(),
+    input_digest: text(),
+    output_digest: text(),
+    branch_target: text(),
+    error_category: text().$type<WorkflowAsset.ErrorCategory>(),
     time_created: integer()
       .notNull()
       .$default(() => Date.now()),

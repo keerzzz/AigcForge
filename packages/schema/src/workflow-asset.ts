@@ -28,10 +28,30 @@ export type Revision = typeof Revision.Type
 export const FailurePolicy = Schema.Literals(["abort", "continue", "retry"])
 export type FailurePolicy = typeof FailurePolicy.Type
 
-export const WorkflowRunStatus = Schema.Literals(["pending", "running", "completed", "failed", "cancelled", "partial_success"])
+export const WorkflowRunStatus = Schema.Literals([
+  "pending",
+  "running",
+  "cancelling",
+  "completed",
+  "partial_success",
+  "failed",
+  "cancelled",
+  "recovery_required",
+])
 export type WorkflowRunStatus = typeof WorkflowRunStatus.Type
 
-export const StepRunStatus = Schema.Literals(["pending", "ready", "running", "completed", "failed", "cancelled", "skipped"])
+export const StepRunStatus = Schema.Literals([
+  "pending",
+  "ready",
+  "dispatching",
+  "running",
+  "cancelling",
+  "completed",
+  "failed",
+  "cancelled",
+  "skipped",
+  "execution_unknown",
+])
 export type StepRunStatus = typeof StepRunStatus.Type
 
 export const WorkflowRunID = Schema.String.pipe(
@@ -44,14 +64,34 @@ export const StepRunID = Schema.String.pipe(
 )
 export type StepRunID = typeof StepRunID.Type
 
+export const ErrorCategory = Schema.Literals([
+  "invalid_branch_output",
+  "step_timeout",
+  "step_failed",
+  "step_cancelled",
+  "max_attempts_exceeded",
+  "custom_mode_disabled",
+  "agent_not_allowed",
+  "executor_unavailable",
+  "root_handoff_failed",
+  "execution_unknown",
+  "unknown_error",
+])
+export type ErrorCategory = typeof ErrorCategory.Type
+
 export class WorkflowRunInfo extends Schema.Class<WorkflowRunInfo>("WorkflowAsset.WorkflowRunInfo")({
   id: WorkflowRunID,
   sessionID: Schema.String,
+  snapshotDigest: Schema.String,
   workflowName: Schema.String,
   workflowRevision: Schema.String,
   status: WorkflowRunStatus,
+  revision: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+  parentRunID: Schema.optional(WorkflowRunID),
+  rootRunID: Schema.optional(WorkflowRunID),
+  retryOfStepRunID: Schema.optional(StepRunID),
   currentStepId: Schema.optional(Schema.String),
-  error: Schema.optional(Schema.String),
+  errorCategory: Schema.optional(ErrorCategory),
   timeCreated: Schema.Finite,
   timeUpdated: Schema.Finite,
   timeCompleted: Schema.optional(Schema.Finite),
@@ -63,10 +103,14 @@ export class StepRunInfo extends Schema.Class<StepRunInfo>("WorkflowAsset.StepRu
   stepId: Schema.String,
   agentId: Schema.String,
   status: StepRunStatus,
-  attempt: Schema.Number,
-  input: Schema.optional(Schema.Unknown),
-  output: Schema.optional(Schema.Unknown),
-  error: Schema.optional(Schema.String),
+  attempt: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+  revision: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+  taskId: Schema.optional(Schema.String),
+  childSessionId: Schema.optional(Schema.String),
+  inputDigest: Schema.optional(Schema.String),
+  outputDigest: Schema.optional(Schema.String),
+  branchTarget: Schema.optional(Schema.String),
+  errorCategory: Schema.optional(ErrorCategory),
   timeCreated: Schema.Finite,
   timeStarted: Schema.optional(Schema.Finite),
   timeCompleted: Schema.optional(Schema.Finite),
@@ -79,11 +123,34 @@ export class WorkflowStatusResponse extends Schema.Class<WorkflowStatusResponse>
   steps: Schema.Array(StepRunInfo),
 }) {}
 
+// Graph and execution bounds are part of the persisted workflow contract.
+export const MAX_STEPS = 64
+export const MAX_PARALLEL = 8
+export const MAX_ATTEMPTS = 8
+export const MAX_TIMEOUT_SECONDS = 86_400
+export const MAX_BRANCH_SUMMARY_CODE_POINTS = 2_000
+
+export const StepInput = Schema.Record(Schema.String, Schema.Json)
+export type StepInput = typeof StepInput.Type
+
+export class BranchOutput extends Schema.Class<BranchOutput>("WorkflowAsset.BranchOutput")({
+  branch: Schema.String,
+  summary: Schema.optional(
+    Schema.String.pipe(
+      Schema.check(
+        Schema.makeFilter<string>((input) => Array.from(input).length <= MAX_BRANCH_SUMMARY_CODE_POINTS, {
+          message: `Branch summary must be at most ${MAX_BRANCH_SUMMARY_CODE_POINTS} code points`,
+        }),
+      ),
+    ),
+  ),
+}) {}
+
 export class StepDef extends Schema.Class<StepDef>("WorkflowAsset.StepDef")({
   id: Schema.String,
   name: Schema.String,
   agent: Schema.String,
-  input: Schema.optional(Schema.Unknown).pipe(
+  input: Schema.optional(StepInput).pipe(
     Schema.withDecodingDefaultKey(Effect.succeed({})),
     Schema.withConstructorDefault(Effect.succeed({})),
   ),
@@ -94,11 +161,21 @@ export class StepDef extends Schema.Class<StepDef>("WorkflowAsset.StepDef")({
     Schema.withDecodingDefaultKey(Effect.succeed("abort" as const)),
     Schema.withConstructorDefault(Effect.succeed("abort" as const)),
   ),
-  maxAttempts: Schema.optional(Schema.Number).pipe(
+  maxAttempts: Schema.optional(
+    Schema.Int.check(
+      Schema.isGreaterThanOrEqualTo(1),
+      Schema.isLessThanOrEqualTo(MAX_ATTEMPTS),
+    ),
+  ).pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(1)),
     Schema.withConstructorDefault(Effect.succeed(1)),
   ),
-  timeoutSeconds: Schema.optional(Schema.Number),
+  timeoutSeconds: Schema.optional(
+    Schema.Int.check(
+      Schema.isGreaterThanOrEqualTo(1),
+      Schema.isLessThanOrEqualTo(MAX_TIMEOUT_SECONDS),
+    ),
+  ),
 }) {}
 
 export class Summary extends Schema.Class<Summary>("WorkflowAsset.Summary")({
@@ -140,9 +217,15 @@ export class InvalidEntry extends Schema.Class<InvalidEntry>("WorkflowAsset.Inva
   errorTag: InvalidErrorTag,
 }) {}
 
-// Graph validation
-export const MAX_STEPS = 64
-export const MAX_PARALLEL = 8
+export function computeMaxConcurrency(steps: readonly StepDef[]): number {
+  return Math.min(
+    MAX_PARALLEL,
+    steps.reduce(
+      (maximum, step) => Math.max(maximum, step.parallel?.length ?? 1),
+      1,
+    ),
+  )
+}
 
 export type GraphErrorCode =
   | "duplicate_step_id"
@@ -153,6 +236,9 @@ export type GraphErrorCode =
   | "unreachable_step"
   | "max_steps_exceeded"
   | "max_parallel_exceeded"
+  | "branch_continue_forbidden"
+  | "max_attempts_exceeded"
+  | "timeout_exceeded"
 
 export interface GraphError {
   readonly code: GraphErrorCode
@@ -234,6 +320,14 @@ export function validateGraph(steps: readonly StepDef[]): GraphValidationResult 
           })
         }
       }
+    }
+
+    if (step.branches && step.failurePolicy === "continue") {
+      errors.push({
+        code: "branch_continue_forbidden",
+        message: `Branch step ${step.id} cannot use failurePolicy=continue; an unresolved branch must fail closed`,
+        stepId: step.id,
+      })
     }
   }
 

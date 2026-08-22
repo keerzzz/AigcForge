@@ -11,6 +11,7 @@ import * as SessionExecutionLocal from "../session/execution/local"
 import { SessionProjector } from "../session/projector"
 import { SessionStore } from "../session/store"
 import { ApplicationTools } from "../tool/application-tools"
+import { TaskDriver } from "../tool/task-driver"
 import { TaskDriverFill } from "../session/task-driver-fill"
 import { Session } from "./session"
 import { Tool } from "./tool"
@@ -23,6 +24,8 @@ export interface Interface {
 /** Intentional public native API for Effect applications embedding Aigcfroge. */
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/public/Aigcfroge") {}
 
+const TaskDriverRuntimeLayer = TaskDriver.runtimeLayer
+
 const SessionsLayer = SessionV2.layer.pipe(
   Layer.provide(SessionProjector.layer),
   Layer.provide(SessionExecutionLocal.layer),
@@ -32,6 +35,7 @@ const SessionsLayer = SessionV2.layer.pipe(
   Layer.provide(ProjectV2.defaultLayer),
   Layer.provide(LocationServiceMap.layer.pipe(Layer.provide(ApplicationTools.layer))),
   Layer.orDie,
+  Layer.provideMerge(TaskDriverRuntimeLayer),
 )
 
 // Installs the SessionV2-backed TaskDriver bridge so the `task` built-in can
@@ -41,7 +45,7 @@ const SessionsLayer = SessionV2.layer.pipe(
 // EventV2 internally — so the fill must be given the shared EventV2.defaultLayer
 // explicitly, or its `yield* EventV2.Service` dies with "Service not found".
 const FillerLayer = TaskDriverFill.layer.pipe(
-  Layer.provide(SessionsLayer),
+  Layer.provideMerge(SessionsLayer),
   Layer.provide(BackgroundJob.defaultLayer),
   Layer.provide(EventV2.defaultLayer),
 )
@@ -85,6 +89,6 @@ export const layer = Layer.effect(
       },
     })
   }),
-).pipe(Layer.provide(Layer.mergeAll(ApplicationTools.layer, SessionsLayer, FillerLayer)))
+).pipe(Layer.provideMerge(Layer.mergeAll(ApplicationTools.layer, SessionsLayer, FillerLayer)))
 
 // TODO: Add Aigcfroge.create(...) as the Promise facade over the same native API semantics.

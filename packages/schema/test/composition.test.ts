@@ -266,6 +266,31 @@ describe("Composition Schema", () => {
             template: "bun run lint",
           },
         ],
+        bindings: {
+          orchestrator: {
+            prompts: [
+              { relativePath: "prompt.md", revision: "b".repeat(64), content: "Prompt content" },
+            ],
+            skills: [],
+            commands: [
+              {
+                name: "lint",
+                description: "Run linter",
+                relativePath: "lint.yaml",
+                revision: "e".repeat(64),
+                template: "bun run lint",
+              },
+            ],
+          },
+          "agents/reviewer": {
+            prompts: [],
+            skills: [
+              { name: "review-skill", description: "Desc", relativePath: "skill.md", revision: "c".repeat(64) },
+            ],
+            commands: [],
+          },
+        },
+        maxConcurrency: 4,
         instructions: [
           { source: "platform", content: "Platform baseline" },
         ],
@@ -294,7 +319,35 @@ describe("Composition Schema", () => {
     if (snap.version === 2) {
       expect(snap.data.agents.length).toBe(1)
       expect(snap.data.workflow?.name).toBe("review-flow")
+      expect(snap.data.bindings.orchestrator.commands[0].name).toBe("lint")
+      expect(snap.data.bindings["agents/reviewer"].skills[0].name).toBe("review-skill")
+      expect(snap.data.maxConcurrency).toBe(4)
     }
+  })
+
+  test("Snapshot v2 freezes maxConcurrency within 1..8", () => {
+    const base = {
+      agents: [],
+      bindings: {},
+      instructions: [],
+      prompts: [],
+      skills: [],
+      tools: {
+        fingerprints: [],
+        catalogDigest: "b".repeat(64),
+        catalog: [],
+      },
+    }
+
+    expect(() => Schema.decodeUnknownSync(Composition.SnapshotDataV2)({ ...base, maxConcurrency: 0 })).toThrow()
+    expect(() => Schema.decodeUnknownSync(Composition.SnapshotDataV2)({ ...base, maxConcurrency: 9 })).toThrow()
+    expect(() =>
+      Schema.decodeUnknownSync(Composition.SnapshotDataV2)({
+        ...base,
+        bindings: { "steps/legacy": { prompts: [], skills: [], commands: [] } },
+      }),
+    ).toThrow()
+    expect(Schema.decodeUnknownSync(Composition.SnapshotDataV2)({ ...base, maxConcurrency: 8 }).maxConcurrency).toBe(8)
   })
 
   test("Snapshot rejects unknown version (fail-closed)", () => {

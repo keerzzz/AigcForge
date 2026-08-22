@@ -61,12 +61,15 @@ export class McpRef extends Schema.Class<McpRef>("Composition.McpRef")({
 export const AssetRef = Schema.Union([AgentRef, PromptRef, SkillRef, WorkflowRef, CommandRef])
 export type AssetRef = typeof AssetRef.Type
 
-export const Consumer = Schema.String.pipe(
+export const ConsumerKey = Schema.String.pipe(
   Schema.check(
     Schema.makeFilter<string>((input) => /^(orchestrator|agents\/[a-zA-Z0-9_-]+)$/.test(input), {
       message: "Consumer must be 'orchestrator' or 'agents/<agentId>'",
     }),
   ),
+)
+
+export const Consumer = ConsumerKey.pipe(
   Schema.brand("Composition.Consumer"),
 )
 export type Consumer = typeof Consumer.Type
@@ -74,7 +77,7 @@ export type Consumer = typeof Consumer.Type
 export class Binding extends Schema.Class<Binding>("Composition.Binding")({
   prompts: Schema.Array(PromptRef),
   skills: Schema.Array(SkillRef),
-  commands: Schema.optional(Schema.Array(CommandRef)).pipe(
+  commands: Schema.Array(CommandRef).pipe(
     Schema.withDecodingDefaultKey(Effect.succeed([])),
     Schema.withConstructorDefault(Effect.succeed([])),
   ),
@@ -184,10 +187,13 @@ export class CapabilityInfo extends Schema.Class<CapabilityInfo>("Composition.Ca
 }) {}
 
 export class CostPreview extends Schema.Class<CostPreview>("Composition.CostPreview")({
-  estimatedTokens: Schema.Number,
-  maxConcurrency: Schema.Number,
-  effectiveToolCount: Schema.Number,
-  agentCount: Schema.Number,
+  estimatedTokens: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  maxConcurrency: Schema.Int.check(
+    Schema.isGreaterThanOrEqualTo(1),
+    Schema.isLessThanOrEqualTo(WorkflowAsset.MAX_PARALLEL),
+  ),
+  effectiveToolCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  agentCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
 }) {}
 
 export class Plan extends Schema.Class<Plan>("Composition.Plan")({
@@ -200,8 +206,8 @@ export class Plan extends Schema.Class<Plan>("Composition.Plan")({
     Schema.withDecodingDefaultKey(Effect.succeed([])),
     Schema.withConstructorDefault(Effect.succeed([])),
   ),
-  workflow: Schema.optional(WorkflowInfo),
-  commands: Schema.optional(Schema.Array(CommandInfo)).pipe(
+  workflow: Schema.optional(Schema.NullOr(WorkflowInfo)),
+  commands: Schema.Array(CommandInfo).pipe(
     Schema.withDecodingDefaultKey(Effect.succeed([])),
     Schema.withConstructorDefault(Effect.succeed([])),
   ),
@@ -231,6 +237,12 @@ export class SnapshotPromptData extends Schema.Class<SnapshotPromptData>("Compos
   content: Schema.String,
 }) {}
 
+export class SnapshotBindingData extends Schema.Class<SnapshotBindingData>("Composition.SnapshotBindingData")({
+  prompts: Schema.Array(SnapshotPromptData),
+  skills: Schema.Array(SkillInfo),
+  commands: Schema.Array(CommandInfo),
+}) {}
+
 export class SnapshotDataV1 extends Schema.Class<SnapshotDataV1>("Composition.SnapshotDataV1")({
   agentID: Schema.String,
   instructions: Schema.Array(Instruction),
@@ -241,8 +253,19 @@ export class SnapshotDataV1 extends Schema.Class<SnapshotDataV1>("Composition.Sn
 
 export class SnapshotDataV2 extends Schema.Class<SnapshotDataV2>("Composition.SnapshotDataV2")({
   agents: Schema.Array(AgentInfo),
-  workflow: Schema.optional(WorkflowInfo),
-  commands: Schema.optional(Schema.Array(CommandInfo)).pipe(
+  workflow: Schema.optional(Schema.NullOr(WorkflowInfo)),
+  bindings: Schema.Record(ConsumerKey, SnapshotBindingData).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed({})),
+    Schema.withConstructorDefault(Effect.succeed({})),
+  ),
+  maxConcurrency: Schema.Int.check(
+    Schema.isGreaterThanOrEqualTo(1),
+    Schema.isLessThanOrEqualTo(WorkflowAsset.MAX_PARALLEL),
+  ).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed(1)),
+    Schema.withConstructorDefault(Effect.succeed(1)),
+  ),
+  commands: Schema.Array(CommandInfo).pipe(
     Schema.withDecodingDefaultKey(Effect.succeed([])),
     Schema.withConstructorDefault(Effect.succeed([])),
   ),

@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "f8be2add-1820-4190-8d0e-f186dc017448",
+  "id": "2285c92a-3086-4ab2-91cb-29c88f29c5cf",
   "prevIds": [
-    "68c2ef45-b5bc-41fb-9d66-45fe79f9a8f3"
+    "60725334-efa7-487b-9516-8e7c43c3e0a6"
   ],
   "ddl": [
     {
@@ -2784,6 +2784,16 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
+      "name": "snapshot_digest",
+      "entityType": "columns",
+      "table": "workflow_run"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
       "name": "workflow_name",
       "entityType": "columns",
       "table": "workflow_run"
@@ -2800,11 +2810,71 @@
     },
     {
       "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "request_id",
+      "entityType": "columns",
+      "table": "workflow_run"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "request_digest",
+      "entityType": "columns",
+      "table": "workflow_run"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "parent_run_id",
+      "entityType": "columns",
+      "table": "workflow_run"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "root_run_id",
+      "entityType": "columns",
+      "table": "workflow_run"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "retry_of_step_run_id",
+      "entityType": "columns",
+      "table": "workflow_run"
+    },
+    {
+      "type": "text",
       "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
       "name": "status",
+      "entityType": "columns",
+      "table": "workflow_run"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "name": "revision",
       "entityType": "columns",
       "table": "workflow_run"
     },
@@ -2824,7 +2894,7 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "error",
+      "name": "error_category",
       "entityType": "columns",
       "table": "workflow_run"
     },
@@ -2919,12 +2989,12 @@
       "table": "workflow_step_run"
     },
     {
-      "type": "text",
-      "notNull": false,
+      "type": "integer",
+      "notNull": true,
       "autoincrement": false,
-      "default": null,
+      "default": "1",
       "generated": null,
-      "name": "input",
+      "name": "revision",
       "entityType": "columns",
       "table": "workflow_step_run"
     },
@@ -2934,7 +3004,7 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "output",
+      "name": "task_id",
       "entityType": "columns",
       "table": "workflow_step_run"
     },
@@ -2944,7 +3014,47 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "error",
+      "name": "child_session_id",
+      "entityType": "columns",
+      "table": "workflow_step_run"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "input_digest",
+      "entityType": "columns",
+      "table": "workflow_step_run"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "output_digest",
+      "entityType": "columns",
+      "table": "workflow_step_run"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "branch_target",
+      "entityType": "columns",
+      "table": "workflow_step_run"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "error_category",
       "entityType": "columns",
       "table": "workflow_step_run"
     },
@@ -4330,6 +4440,24 @@
       "where": null,
       "origin": "manual",
       "name": "workflow_run_status_idx",
+      "entityType": "indexes",
+      "table": "workflow_run"
+    },
+    {
+      "columns": [
+        {
+          "value": "session_id",
+          "isExpression": false
+        },
+        {
+          "value": "request_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "workflow_run_request_idx",
       "entityType": "indexes",
       "table": "workflow_run"
     },
