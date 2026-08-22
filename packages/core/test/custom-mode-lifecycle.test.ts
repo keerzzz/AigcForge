@@ -25,6 +25,9 @@ import { Config } from "@aigcfroge/core/config"
 import { Composition } from "@aigcfroge/schema/composition"
 import { tmpdir } from "./fixture/tmpdir"
 import { testEffect } from "./lib/effect"
+import { withCustomModeEnabled } from "./lib/product-mode"
+
+withCustomModeEnabled()
 
 const location = Location.layer({ directory: AbsolutePath.make("/workspace") }).pipe(
   Layer.provide(Project.defaultLayer),
@@ -175,6 +178,7 @@ const it = testEffect(
 )
 
 describe("Custom Mode Lifecycle: Resume, Fork, Move, & Drift Isolation", () => {
+
   describe("Resume & Snapshot Reconstitution", () => {
     it.effect("reconstitutes snapshot accurately from database on session reload", () =>
       Effect.gen(function* () {

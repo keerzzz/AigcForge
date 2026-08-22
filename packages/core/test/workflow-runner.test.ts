@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test"
+import { describe, expect, test } from "bun:test"
 import { Effect, Layer, Schema } from "effect"
 import { sql } from "drizzle-orm"
 import { Database } from "@aigcfroge/core/database/database"
@@ -13,6 +13,7 @@ import { WorkflowRunner } from "@aigcfroge/core/workflow/workflow-runner"
 import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
 import { Composition } from "@aigcfroge/schema/composition"
 import { testEffect } from "./lib/effect"
+import { withCustomModeEnabled } from "./lib/product-mode"
 
 const it = testEffect(
   Layer.mergeAll(
@@ -23,17 +24,7 @@ const it = testEffect(
   ),
 )
 
-let savedFlag: string | undefined
-
-beforeAll(() => {
-  savedFlag = process.env["AIGCFROGE_CUSTOM_MODE"]
-  process.env["AIGCFROGE_CUSTOM_MODE"] = "true"
-})
-
-afterAll(() => {
-  if (savedFlag === undefined) delete process.env["AIGCFROGE_CUSTOM_MODE"]
-  else process.env["AIGCFROGE_CUSTOM_MODE"] = savedFlag
-})
+withCustomModeEnabled()
 
 const mockDigest = Schema.decodeUnknownSync(Composition.Digest)(
   "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",

@@ -42,6 +42,9 @@ import { Tool } from "@aigcfroge/core/tool/tool"
 import { ToolOutputStore } from "@aigcfroge/core/tool-output-store"
 import { ToolRegistry } from "@aigcfroge/core/tool/registry"
 import { testEffect } from "./lib/effect"
+import { withCustomModeEnabled } from "./lib/product-mode"
+
+withCustomModeEnabled()
 
 const requests: LLMRequest[] = []
 let response: LLMEvent[] = []
@@ -323,6 +326,7 @@ const reset = () => {
 }
 
 describe("Custom Mode Runner Drift Fail-Closed (MEDIUM-3)", () => {
+
   it.effect("missing snapshot row fails the turn closed before any provider or tool work", () =>
     Effect.gen(function* () {
       reset()

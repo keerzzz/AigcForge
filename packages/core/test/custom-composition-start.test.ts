@@ -19,6 +19,9 @@ import { SessionStore } from "@aigcfroge/core/session/store"
 import { Prompt } from "@aigcfroge/core/session/prompt"
 import { Composition } from "@aigcfroge/schema/composition"
 import { testEffect } from "./lib/effect"
+import { withCustomModeEnabled } from "./lib/product-mode"
+
+withCustomModeEnabled()
 
 const mockDigest = Schema.decodeUnknownSync(Composition.Digest)(
   "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -162,6 +165,7 @@ const it = testEffect(
 const location = Location.Ref.make({ directory: AbsolutePath.make("/project") })
 
 describe("Phase B: Atomic Custom Session Start and V2 Runtime Policy", () => {
+
   it.effect("creates an atomic custom session and persists snapshot in transaction", () =>
     Effect.gen(function* () {
       nextFreezeDigest = mockDigest
