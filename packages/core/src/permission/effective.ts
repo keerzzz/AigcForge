@@ -21,7 +21,12 @@ export type Input = {
 
 // Chat full 必须逐次确认的危险 action（红线 4）。未知 action 由 wildcard ask 兜底。
 const DANGEROUS_ACTIONS = ["bash", "edit", "write", "apply_patch"] as const
-const dangerousAction = new Set<string>(DANGEROUS_ACTIONS)
+
+// custom unattended 天花板白名单（ADR-20 §2.6，R6-2 整改）：只读类 action 才可
+// 为无人值守扇出预授权；成员逐一取自 builtins.ts 注册清单，新工具默认不在
+// 名单内即 deny。task_spawn/webfetch 等扇出与外发原语被刻意排除。
+const READONLY_CEILING_ACTIONS = ["glob", "grep", "list_assets", "read"] as const
+const readonlyCeilingAction = new Set<string>(READONLY_CEILING_ACTIONS)
 
 export function evaluate(rules: Permission.Ruleset, action: string, resource: string): Permission.Effect {
   return (
@@ -85,21 +90,25 @@ function compute(input: Input, base: Permission.Ruleset): Permission.Ruleset {
   rules.push(...base.filter((rule) => rule.effect === "deny" && !(rule.action === "*" && rule.resource === "*")))
 
   if (!attended) {
-    // Deny-first custom ceiling（M2 遗留 §4.5-1）：资产 ruleset 由作者可控，
-    // 尾部通配 allow 与显式危险动作 allow 不得为 unattended 扇出预授权执行
-    // 能力。读取类显式 allow 存活，保住委派 child 的只读预授权；其余一律
-    // 落入头部 fallback deny。非 custom 模式维持 2026-08-02 scheduled-job
-    // 裁决：显式 allow 不被 unattended clamp 改写。
+    // Deny-first custom ceiling（M2 遗留 §4.5-1；R6-1/R6-2 整改）：白名单制。
+    // 只有显式只读类 allow（READONLY_CEILING_ACTIONS）可为无人值守扇出预授权，
+    // 未收录 action（含未来新工具）一律默认 deny。base 的显式非通配 deny
+    // 必须保留且排在白名单 allow 之后——evaluate 是 findLast，否则通配 allow
+    // 会压过 {read,.env,deny} 这类资源级 deny，使 custom 弱于其它模式。
+    // 非 custom 维持 2026-08-02 scheduled-job 裁决：显式 allow 不被 clamp 改写。
     if (input.mode === "custom") {
-      const ceilingAllows = rules.filter(
-        (rule) => rule.effect === "allow" && rule.action !== "*" && !dangerousAction.has(rule.action),
+      const clampedAsks = rules.flatMap((rule) =>
+        rule.effect === "ask" ? [{ action: rule.action, resource: rule.resource, effect: "deny" as const }] : [],
+      )
+      const ceilingAllows = rules.filter((rule) => rule.effect === "allow" && readonlyCeilingAction.has(rule.action))
+      const explicitDenies = rules.filter(
+        (rule) => rule.effect === "deny" && !(rule.action === "*" && rule.resource === "*"),
       )
       return [
         { action: "*", resource: "*", effect: "deny" },
-        ...rules.flatMap((rule) =>
-          rule.effect === "ask" ? [{ action: rule.action, resource: rule.resource, effect: "deny" as const }] : [],
-        ),
+        ...clampedAsks,
         ...ceilingAllows,
+        ...explicitDenies,
       ]
     }
     // unattended 最高拒绝（红线 5）：saved/master 不放开（上方未追加），

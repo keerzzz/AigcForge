@@ -291,3 +291,35 @@ describe("PermissionEffective unattended custom deny-first 基线（§4.5-1）",
     expect(PermissionEffective.evaluate(rules, "read", "src/index.ts")).toBe("allow")
   })
 })
+
+describe("PermissionEffective R6 整改（custom unattended 天花板）", () => {
+  // 复审方纯函数探针的实测 base（R6-1/R6-2 的证据输入，勿改形状）。
+  const probeBase: Permission.Ruleset = [
+    { action: "read", resource: "*", effect: "allow" },
+    { action: "read", resource: ".env", effect: "deny" },
+    { action: "task_spawn", resource: "*", effect: "allow" },
+    { action: "webfetch", resource: "*", effect: "allow" },
+    { action: "bash", resource: "*", effect: "allow" },
+    { action: "*", resource: "*", effect: "allow" },
+  ]
+  const unattended = (mode: ProductMode.ID) => input({ mode, agent: "workflow-worker", attended: false })
+
+  test("R6-1 custom unattended 的显式资源级 deny 压过通配 allow，且与 coding 配对防再分叉", () => {
+    const customRules = v2(unattended("custom"), probeBase)
+    expect(PermissionEffective.evaluate(customRules, "read", ".env")).toBe("deny")
+    expect(PermissionEffective.evaluate(customRules, "read", "src/index.ts")).toBe("allow")
+    const codingRules = v2(unattended("coding"), probeBase)
+    expect(PermissionEffective.evaluate(codingRules, "read", ".env")).toBe("deny")
+  })
+
+  test("R6-2 白名单制：扇出与外发通道在 custom unattended 默认 deny", () => {
+    const rules = v2(unattended("custom"), probeBase)
+    expect(PermissionEffective.evaluate(rules, "task_spawn", "*")).toBe("deny")
+    expect(PermissionEffective.evaluate(rules, "webfetch", "*")).toBe("deny")
+  })
+
+  test("R6-2 守卫：未列入只读白名单的 action 默认 deny（新工具不自动获得预授权）", () => {
+    const rules = v2(unattended("custom"), [{ action: "some_future_tool", resource: "*", effect: "allow" }])
+    expect(PermissionEffective.evaluate(rules, "some_future_tool", "*")).toBe("deny")
+  })
+})
