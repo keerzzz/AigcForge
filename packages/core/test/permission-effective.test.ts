@@ -248,3 +248,78 @@ describe("PermissionEffective 边界", () => {
     }
   })
 })
+
+describe("PermissionEffective unattended custom deny-first 基线（§4.5-1）", () => {
+  // 资产作者可控的 ruleset 形状：尾部通配 allow 是 §4.5-1 的攻击面。
+  const assetBase: Permission.Ruleset = [
+    { action: "read", resource: "*", effect: "allow" },
+    { action: "bash", resource: "*", effect: "ask" },
+    { action: "edit", resource: "src/*", effect: "ask" },
+    { action: "*", resource: "*", effect: "allow" },
+  ]
+
+  test("unattended custom：尾部通配 allow 不越过 clamp，危险动作 deny、读取 allow 存活", () => {
+    const rules = v2(input({ mode: "custom", agent: "workflow-worker", attended: false }), assetBase)
+    expect(PermissionEffective.evaluate(rules, "bash", "*")).toBe("deny")
+    expect(PermissionEffective.evaluate(rules, "edit", "src/index.ts")).toBe("deny")
+    expect(PermissionEffective.evaluate(rules, "write", "*")).toBe("deny")
+    expect(PermissionEffective.evaluate(rules, "apply_patch", "*")).toBe("deny")
+    expect(PermissionEffective.evaluate(rules, "some_future_tool", "*")).toBe("deny")
+    expect(PermissionEffective.evaluate(rules, "read", "src/index.ts")).toBe("allow")
+  })
+
+  test("unattended custom：显式资源级危险 allow 一并封顶", () => {
+    const explicitBase: Permission.Ruleset = [
+      { action: "read", resource: "*", effect: "allow" },
+      { action: "bash", resource: "/safe/*", effect: "allow" },
+    ]
+    const rules = v2(input({ mode: "custom", agent: "workflow-worker", attended: false }), explicitBase)
+    expect(PermissionEffective.evaluate(rules, "bash", "/safe/cmd.sh")).toBe("deny")
+    expect(PermissionEffective.evaluate(rules, "read", "docs/a.md")).toBe("allow")
+  })
+
+  test("非 custom unattended 维持既有语义（2026-08-02 scheduled-job 裁决不回退）", () => {
+    const rules = v2(input({ mode: "coding", agent: "worker", attended: false }), assetBase)
+    expect(PermissionEffective.evaluate(rules, "bash", "*")).toBe("allow")
+    expect(PermissionEffective.evaluate(rules, "read", "src/index.ts")).toBe("allow")
+  })
+
+  test("attended custom 不在本基线范围（G3-2 grant 模型裁决）", () => {
+    const rules = v2(input({ mode: "custom", agent: "workflow-worker", attended: true }), assetBase)
+    // 仅锁定读取预授权；尾部通配 allow 在 attended 路径的处置属 G3-2 grant
+    // 模型，不在本修复范围内钉契约。
+    expect(PermissionEffective.evaluate(rules, "read", "src/index.ts")).toBe("allow")
+  })
+})
+
+describe("PermissionEffective R6 整改（custom unattended 天花板）", () => {
+  // 复审方纯函数探针的实测 base（R6-1/R6-2 的证据输入，勿改形状）。
+  const probeBase: Permission.Ruleset = [
+    { action: "read", resource: "*", effect: "allow" },
+    { action: "read", resource: ".env", effect: "deny" },
+    { action: "task_spawn", resource: "*", effect: "allow" },
+    { action: "webfetch", resource: "*", effect: "allow" },
+    { action: "bash", resource: "*", effect: "allow" },
+    { action: "*", resource: "*", effect: "allow" },
+  ]
+  const unattended = (mode: ProductMode.ID) => input({ mode, agent: "workflow-worker", attended: false })
+
+  test("R6-1 custom unattended 的显式资源级 deny 压过通配 allow，且与 coding 配对防再分叉", () => {
+    const customRules = v2(unattended("custom"), probeBase)
+    expect(PermissionEffective.evaluate(customRules, "read", ".env")).toBe("deny")
+    expect(PermissionEffective.evaluate(customRules, "read", "src/index.ts")).toBe("allow")
+    const codingRules = v2(unattended("coding"), probeBase)
+    expect(PermissionEffective.evaluate(codingRules, "read", ".env")).toBe("deny")
+  })
+
+  test("R6-2 白名单制：扇出与外发通道在 custom unattended 默认 deny", () => {
+    const rules = v2(unattended("custom"), probeBase)
+    expect(PermissionEffective.evaluate(rules, "task_spawn", "*")).toBe("deny")
+    expect(PermissionEffective.evaluate(rules, "webfetch", "*")).toBe("deny")
+  })
+
+  test("R6-2 守卫：未列入只读白名单的 action 默认 deny（新工具不自动获得预授权）", () => {
+    const rules = v2(unattended("custom"), [{ action: "some_future_tool", resource: "*", effect: "allow" }])
+    expect(PermissionEffective.evaluate(rules, "some_future_tool", "*")).toBe("deny")
+  })
+})
