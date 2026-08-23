@@ -1,8 +1,8 @@
 # Custom Mode M3 实施计划：MCP 与统一审批
 
-> 状态：**待开工 — G3-0 已随 M2 满足；G3-1 Registration ADR 与 G3-2 Grant ADR 尚未起草，只能先执行 Phase A（研究 + ADR + Schema 契约）**
+> 状态：**进行中** —— Phase A（`7a2804624`）、Phase B（`99dce8906`）、Phase D（`38d82e2b3`）已交付、经独立复审整改并合入本地 main。当前可开工：**Phase F0**（审批中心前置切片）；**Phase C** 待 [ADR-21](../architecture/adr/ADR-21-mcp-credential-custody.md) 复核 + G3-3 裁定。Phase E 依赖 C，Phase F 本体需产品定界面
 > 执行提示词：[Custom Mode M3 全量 TDD 执行提示词](prompt-custom-mode-m3-mcp-approval.md)
-> 分析基线：`main@a11b50020`（2026-08-22，M2 = PR #46 合入后；本地/远端已同步）；执行基线为开工时最新 `main`
+> 分析基线：§0 写于 `main@a11b50020`（2026-08-22），已按 Phase A/B/D 复核逐条更正；执行基线为开工时最新**本地** `main`（现 `178987459`，领先 origin 35 提交，M3 全部结束后统一开一个 PR）
 > 范围：Session/Location scoped MCP canonical registration、credential refs、health/revocation、once/Session/Location grant、应用级审批入口
 > 前置：[Custom Mode M2](custom-mode-m2-multi-agent-workflow.md) 已完成并合入（复审 [APPROVED](../review/AigcForge_CUSTOM_M2_REVIEW.md)）
 > 上级计划：[Custom Mode 组合平台实施计划](custom-mode-composition-platform-implementation.md)
@@ -82,10 +82,10 @@ M3 的根问题不是「让 Profile 能选 MCP」，而是让外部工具在一�
 | G3-0 前置             | M1 Tool allowlist/fingerprint/Permission 运行稳定；M2 已上线，Agent scope 已可表达            | **已满足**（M2 = PR #46 / `a11b50020`，复审 APPROVED） | 全部        |
 | G3-1 Registration ADR | Session/Location registration、owner Scope、name collision、fingerprint、cleanup、reconnect 批准 | **已通过** —— [ADR-19](../architecture/adr/ADR-19-mcp-scoped-registration.md) Accepted v1.0（2026-08-23），条件 C1/C2 均已闭合 | MCP runtime |
 | G3-2 Grant ADR        | once/Session/Location + action/resource/agent/revision/expiry/revocation 的唯一真源批准，且回答 §0.2 第 1 项 | **已通过** —— [ADR-20](../architecture/adr/ADR-20-scoped-grant-model.md) Accepted v1.2（2026-08-23），§0.2 第 1 项由 §2.6 回答（unattended 只读白名单已落地；attended 重写为 `ask` 已裁定） | 审批/执行    |
-| G3-3 Credential       | secret owner、opaque ref、rotation/revocation、日志脱敏和跨 Location 隔离批准。**注意起点比旧计划记的差**：秘密明文存储、凭据全局无 scope 列、存在第二个绕开 Credential service 的存储（`auth.json`/`mcp-auth.json`）、Snapshot 无字段可装 ref、`CredentialScanner` 只有 1 个生产调用点。「唯一 secret owner」与「跨 Location 隔离」都是**待建**而非待批准 | **未起草 —— 阻塞 Phase C** | 连接        |
+| G3-3 Credential       | secret owner、opaque ref、rotation/revocation、日志脱敏和跨 Location 隔离批准 | **已有草案，待批准** —— [ADR-21](../architecture/adr/ADR-21-mcp-credential-custody.md) 状态 Proposed（2026-08-24 起草）。由复审方起草，故**不得自批**：需执行方独立事实复核（8 条起点事实逐条复跑）+ 人类裁定后转 Accepted。ADR-21 明确把**静态加密排除在 M3 之外**（另立专项），M3 只做两项止血：DB 文件权限与既有 `0o600` 对齐、`McpServerBinding` 解码期拒绝秘密字面量 | 连接 |
 | G3-4 Unattended       | **表述已按事实修正**：unattended **已经** fail-closed（`ask`→`deny`）。本 Gate 真正要批的是 ① 「有人值守但无客户端」的 ask 超时策略（今天无 timeout，永久挂到 Location 60 分钟驱逐）② §0.2 第 1 项的尾部 allow 绕过 clamp 该如何堵 ③ 审批中心必须带 `product-mode-custom-v1` 能力头否则收不到 custom 的 `permission.v2.asked` | **已通过** —— 三项均由 ADR-20 回答（① §2.7 ② §2.6 ③ §2.8） | Beta        |
 
-**当前可开工阶段是 Phase D**（ScopedGrant + PermissionEffective + attended 天花板 + 导入警示），分支 `scoped-grants`。Phase A 已合入 `main`（`7a2804624`）；Phase B 已交付并经独立复审整改（分支 `mcp-registration`，未推送，按安排与后续阶段统一开 PR）。**Phase C 仍被 G3-3 阻塞**，其 Credential ADR 尚未起草——不得因为「D 做完了顺手做 C」而跳过 Gate。Phase E 依赖 Phase C，Phase F 依赖 Phase D。
+**当前可开工阶段是 Phase F0**（审批中心前置切片：grant 保留期+读路径、资产导入通配 allow 警示），分支 `approval-preflight`。Phase A（`7a2804624`）、Phase B（`99dce8906`）、Phase D（`38d82e2b3`）均已交付、经独立复审整改并合入本地 main。**Phase C 待 G3-3 裁定**：[ADR-21](../architecture/adr/ADR-21-mcp-credential-custody.md) 已起草但状态为 Proposed，且**由复审方起草故不得自批**——需执行方独立事实复核 + 人类裁定后转 Accepted，不得因为「F0 做完了顺手做 C」而跳过 Gate。Phase E 依赖 Phase C，Phase F 本体需产品定界面。
 
 应用级审批入口只聚合 pending request；它不成为“应用级永久 allow”。
 
@@ -125,7 +125,7 @@ M3 的根问题不是「让 Profile 能选 MCP」，而是让外部工具在一�
 
 **绿**：**写第一个能跑的 typed MCPConnection owner**——`v2-bridge.ts` 是零消费方的死代码（§0.1），可以当参考但不要假设它「在服役」；同时决定 V1 `mcp/index.ts`（979 行、按 instance 目录 scope、已有 HTTP 面）是收敛进来还是并存。凭证只经 Credential/Integration service 解析；health=`connecting|ready|degraded|offline|auth-required|revoked`；Snapshot 只存 ref/fingerprint（**该字段在 Snapshot v2 里还不存在，是新 schema**）。
 
-**重构**：移除新增路径里的宽 `any`/raw console（`v2-bridge.ts` 的 `cfg: any` 掩盖了两处真实的键名不匹配，见 §0.1）；expected failures 用 tagged errors，外部 SDK callback 经 Effect 边界兜底。**`CredentialScanner` 今天只有 1 个生产调用点，secret redaction 不能当既有层倚靠。**
+**重构**：移除新增路径里的宽 `any`/raw console（`v2-bridge.ts` 的 `cfg: any` 掩盖了两处真实的键名不匹配，见 §0.1）；expected failures 用 tagged errors，外部 SDK callback 经 Effect 边界兜底。**`CredentialScanner` 有 2 个生产调用点（`location-layer.ts:178` 提供 layer、`workflow-runner.ts:205` 调用），且是正则文本扫描器而非密钥管理，secret redaction 不能当既有安全层倚靠。**
 
 ### Phase D：ScopedGrant 与 PermissionEffective
 

@@ -4,8 +4,8 @@
 > M3 计划：[custom-mode-m3-mcp-approval.md](custom-mode-m3-mcp-approval.md)
 > 前置：M2 总复审 APPROVED（R5）+ R6 整改（`b9c6d1077`）；**M3 Phase A**（`7a2804624`）、**Phase B**（`99dce8906`）、**Phase D**（`38d82e2b3`）均已交付、经独立复审整改并合入本地 main——ADR-19 Accepted v1.0（C1/C2 已闭合）、ADR-20 Accepted v1.2（§2.6 两半均已 Accepted，attended 裁定为 `ask`）
 > 分析基线：**本地 `main@38d82e2b3`**（2026-08-24）。**本地 main 领先 origin/main 34 个提交**：按用户安排 M3 全部 Phase 完成后统一开一个 PR，因此以**本地 main** 为基线，不要因落后 origin 而回退
-> 生成日期：2026-08-22（2026-08-24 第四次校准：Phase D 已交付并复审整改，当前为 Phase F0 前置切片）
-> 当前开工阶段：**Phase F0 — 审批中心前置切片（grant 保留期+读路径、资产导入通配 allow 警示）**，分支 `approval-preflight`
+> 生成日期：2026-08-22（2026-08-24 第五次校准：Phase D 已合入；新增 ADR-21 草案，任务扩为 F0 + Phase C）
+> 当前开工阶段：**两个大任务合并交付** —— ① **Phase F0** 审批中心前置切片（分支 `approval-preflight`）② **Phase C** connection / credential / health（分支 `mcp-connection`，**前置：ADR-21 复核通过 + G3-3 批准**）
 > 用途：复制 `PROMPT START` 与 `PROMPT END` 之间的正文到新的执行对话
 
 <!-- PROMPT START -->
@@ -23,33 +23,54 @@ Location -> Profile/composition (MCP binding = ref + fingerprint, 永不含 secr
 -> 撤销/断线/schema drift 立即使新调用失败
 ```
 
-## 0. 最重要的一条：现在只做 Phase F0 这两件事
+## 0. 最重要的一条：两个任务，中间有一道硬门
 
-**Phase A / B / D 都已完成并合入本地 `main`。G3-1 / G3-2 / G3-4 均已通过。** ADR-19 Accepted v1.0（C1/C2 已闭合）、ADR-20 Accepted v1.2（§2.6 unattended 与 attended 两半均 Accepted，attended 裁定为重写成 **`ask`**）。
+**Phase A / B / D 都已合入本地 `main`，G3-1 / G3-2 / G3-4 均已通过。** 本次要交付两个任务，**顺序不可颠倒**：
 
-本次任务是 **Phase F0：审批中心前置切片**，分支 `approval-preflight`，从最新**本地** `main` 起。范围就是两项，登记在 [technical-debt](../technical-debt.md) §3.2，触发条件原写「Phase F 开工时」：
+```text
+任务 1  Phase F0  审批中心前置切片          分支 approval-preflight   ← 立刻可开工
+        ├─ Slice 1  grant 保留期与读路径
+        └─ Slice 2  资产导入通配 allow 警示
+────────── 硬门：ADR-21 复核 + G3-3 批准 ──────────
+任务 2  Phase C   connection / credential / health   分支 mcp-connection
+        ├─ Slice 0  ADR-21 独立事实复核（先做，见 §0.3）
+        ├─ Slice 1  typed MCPConnection owner + stdio
+        ├─ Slice 2  credential binding + 跨 Location 拒绝
+        ├─ Slice 3  remote / OAuth + health 状态机
+        └─ Slice 4  disconnect / reconnect / drift
+```
 
-1. **grant 保留期与读路径**——把「签发时清扫全表已结算行」这个破坏性耦合拆掉，让审批中心将来查得到历史。
-2. **资产导入/apply 通配 allow 警示**——不阻断，只揭示。
+**任务 1 与任务 2 不得混在同一分支、同一提交。** 任务 1 完成 → 停机报告 → 复审通过并合入 main → 才从新 main 开任务 2 的分支。
 
-**这不是 Phase F 本体。** 明确的非目标（碰到就停机报告）：
+### 0.1 关于那道硬门：ADR-21 是**草案**，不是批准
 
-- 不做审批中心本体：不新增/改动 pending / reply / grant / revoke 端点，不做 pending 聚合 UI、不做 revoke 交互、不接 `permission.v2.*` 的客户端消费。那些是 Phase F，且需要产品定界面。
-- 不做 MCP connection / transport / OAuth / credential——那是 Phase C，**G3-3 ADR 尚未起草**，是「设计待建」不是「批准待办」。
-- 不动 unattended 天花板白名单（`glob | grep | list_assets | read` 是已裁定项，`skill`/`kb_search`/`question` 明确不纳入），不动 attended 改判逻辑本身（已交付并复审通过）。
-- 不动 `PermissionSaved`（`saved.ts` / `permission/sql.ts` 本次必须 diff = 0 行，红线）。
+[ADR-21 MCP Credential Custody](../architecture/adr/ADR-21-mcp-credential-custody.md) 已起草（状态 **Proposed**），它回答 G3-3 的五个问题。但：
 
-### 0.1 头号陷阱：保留已结算行**不得**让它们重新可用
+- **它由复审方起草。** 按仓库既有做法，起草方与批准方必须分离——Phase A 的 ADR-19/ADR-20 由执行方起草、复审方批准，正是这个分离抓出了「引用不实」（C2）与整个 §2.6 BLOCK（R6-1/R6-2/R6-3 三项）。所以 ADR-21 **不能由起草方自己接受**。
+- **闭门方式**：你先做 **Slice 0 的独立事实复核**（§0.3），把结论交给人类与复审方；G3-3 由人类裁定后才转 Accepted。
+- **未转 Accepted 前，任务 2 的生产代码一行都不许写。** 你可以读代码、写复核报告、写红测试骨架，但不许写 connection / credential 的实现。
 
-任务 1 要让已消费/已撤销/已过期的 grant 行**留下来可查**。这直接顶在安全边界上：`findValid` 是授权咨询路径，它必须**继续**看不到这些行。今天它靠 SQL `and(isNull(consumed_at), isNull(revoked_at))` + JS 侧 `isExpired` 过滤；一旦你改了行的生命周期，就必须有一条测试证明「行还在、但咨询查不到、once 也不会被二次兑现」。
+### 0.2 Phase F0 的两个陷阱（任务 1）
 
-**只测「已结算行还在」不算。** 必须成对：留存断言 + 咨询不可见断言 + `once` 二次消费仍失败。这一条写反了就是「撤销了的授权又能用」，是本切片唯一能造成越权的地方。
+**陷阱 A —— 保留已结算行**不得**让它们重新可用。** Slice 1 要让已消费/已撤销/已过期的 grant 行留下来可查，这直接顶在授权边界上：`findValid` 必须**继续**看不到它们（今天靠 SQL `and(isNull(consumed_at), isNull(revoked_at))` + JS 侧 `isExpired`）。
 
-### 0.2 第二个陷阱：警示不能变成「每份资产都报警」
+**只测「已结算行还在」不算。** 必须三条成对：留存断言 + 咨询不可见断言 + `once` 二次消费仍失败。写反了就是「撤销过的授权又能用」，这是任务 1 唯一能造成越权的地方。
 
-任务 2 的价值全在信噪比。它要挡的是**导入别人的资产夹带 allow-all**这条路径，不是给每份正常资产贴标签。所以必须成对测试：夹带 `{*,*,allow}` 或危险动作 allow 的资产**报**，一份正常的 `tools: [read, grep]` 资产**不报**。
+**陷阱 B —— 警示不能变成「每份资产都报警」。** Slice 2 的价值全在信噪比，它挡的是**导入别人的资产夹带 allow-all**，不是给每份正常资产贴标签。必须成对：夹带 `{*,*,allow}` 或危险动作 allow 的**报**，一份正常的 `tools: [read, grep]` **不报**。
 
-并且**不要自己再抄一份危险动作清单**。`DANGEROUS_ACTIONS`（bash/edit/write/apply_patch）与只读白名单都已在 `packages/core/src/permission/effective.ts` 里，是裁定过的单一真源；复制一份就等于埋下两份会漂移的清单。
+并且**不要自己再抄一份危险动作清单**：`DANGEROUS_ACTIONS` 与只读白名单都在 `packages/core/src/permission/effective.ts`，是裁定过的单一真源，复制一份就是两份会漂移的清单。
+
+### 0.3 Slice 0：ADR-21 独立事实复核（任务 2 的第一件事）
+
+ADR-21 §1.1 列了 8 条起点事实，每条带 file:line。**逐条独立复跑，不采信转述**，并明确回答：
+
+1. 8 条事实是否全部成立？（起草方已自查过一轮并修正了 2 处行号，但**它自己核自己不算**）
+2. §1.2 三个结论是否被事实支撑？特别是结论 2「跨 Location 隔离今天结构上不可能」——`Credential` 真的在 `LocationServiceMap.dependencies` 而非 lookup 内吗？
+3. §2.2 新增 `mcp_credential_binding` 是否真的必要，**还是有既有表/服务可以复用**（极致减法：复用 → 删除 → 归并 → 重构 → 新增）？特别核 `Integration` 与 `IntegrationConnection` 是否已能表达「Location × server → credential」。
+4. §2.5「DB 文件无 chmod、两个 JSON 文件是 0o600」是否成立？若成立，`0o600` 补齐是否真的一行可done、有无跨平台坑（Windows 上 chmod 语义不同）？
+5. **有没有 ADR-21 漏掉的绿地？** 例如：`Credential.remove` 被调用时，指向它的 binding 会不会变成悬空引用？OAuth `expires` 过期后连接 owner 该失败还是该触发 refresh，由谁负责？
+
+**任一条事实被证伪 → 停机报告，不要在错误前提上施工。** 这正是 Phase A 复核抓出 C2 的方式。
 
 ## 1. 开工门禁
 
@@ -71,7 +92,7 @@ git log --oneline --decorate -20 main
 
 1. **开工前提：Phase A / B / D 都已合入本地 main。** 先 fetch 并审计最新 main，确认 `7a2804624`（Phase A）、`99dce8906`（Phase B）、`38d82e2b3`（Phase D，含复审整改）都在 main 上；`packages/core/src/grant/store.ts`、`packages/core/src/permission/approval-presence.ts`、`packages/core/test/permission-ask-bounds.test.ts` 必须存在。**注意本地 main 领先 origin/main 34 个提交**（按用户安排，M3 全部完成后统一开一个 PR），所以以本地 main 为基线、不要因为落后 origin 而回退。若上述提交或文件缺失，说明你在另一个克隆里，停止并报告。
 2. 不覆盖、回滚、清理或提交用户已有改动。若 main 有无关脏改动，先报告并隔离本任务文件；禁止 `git reset --hard`、`git checkout --`、盲目 `clean`。**已知无关在途文件：`docs/research/agent/Codex Harness 深度调研.md`（用户资料，保留原样，不要提交进本任务的 commit）。**
-3. 分支策略（M3 计划 §7）：`mcp-scope-adr`（Phase A，已合入）→ `mcp-registration`（Phase B，已合入）→ `scoped-grants`（Phase D，已合入）→ **`approval-preflight`（Phase F0，你在这里）** → `approval-center`（Phase F 本体）、`mcp-composition`（Phase E，待 Phase C）；Phase C 待 G3-3 批准后另开。分支名不超过三个短词、无 slash。M3 各阶段在本地依次合入 main 成链，**不逐阶段推送、不逐阶段开 PR**。
+3. 分支策略（M3 计划 §7）：`mcp-scope-adr`（Phase A，已合入）→ `mcp-registration`（Phase B，已合入）→ `scoped-grants`（Phase D，已合入）→ **`approval-preflight`（任务 1 = Phase F0）** → **`mcp-connection`（任务 2 = Phase C，需 ADR-21 转 Accepted）** → `mcp-composition`（Phase E，待 Phase C）、`approval-center`（Phase F 本体，需产品定界面）。**任务 1 与任务 2 必须是两个独立分支、两次独立停机报告。** 分支名不超过三个短词、无 slash。M3 各阶段在本地依次合入 main 成链，**不逐阶段推送、不逐阶段开 PR**。
 4. 未经用户确认 remote、issue、最终 diff、commit/PR title，不 push、不创建 PR。禁止 `--no-verify`。
 5. 测试永不从仓库根运行。用 `bun --cwd packages/<name> test --timeout 30000`。根目录只跑 typecheck/lint/protocol/diff 等非 test 门禁。
 6. **创建 custom session 的新测试文件必须自己拿 kill switch**：在文件作用域调用 `withCustomModeEnabled()`（`packages/core/test/lib/product-mode.ts`），并用 `env -u AIGCFROGE_CUSTOM_MODE bun --cwd packages/core test <file>` 单跑验证。放进 `describe` 里只覆盖那一个 block，不够；靠别的测试文件泄漏的 env 通过 = 本地绿 CI 红（M2 实际踩过）。
@@ -119,18 +140,18 @@ packages/core/src/tool/AGENTS.md
 只执行 M3（对应 M3 计划 §3）：
 
 ```text
-Phase A  Registration/Grant ADR 与 Schema 契约            分支 mcp-scope-adr     ✅ 已合入 main（7a2804624）
-Phase B  canonical scoped registration                   分支 mcp-registration  ✅ 已合入 main（99dce8906）
-Phase D  ScopedGrant 与 PermissionEffective               分支 scoped-grants     ✅ 已合入 main（38d82e2b3）
-Phase F0 审批中心前置切片（本次）                        分支 approval-preflight ← 当前可开工
+Phase A  Registration/Grant ADR 与 Schema 契约            分支 mcp-scope-adr      ✅ 已合入 main（7a2804624）
+Phase B  canonical scoped registration                   分支 mcp-registration   ✅ 已合入 main（99dce8906）
+Phase D  ScopedGrant 与 PermissionEffective               分支 scoped-grants      ✅ 已合入 main（38d82e2b3）
+Phase F0 审批中心前置切片                                分支 approval-preflight ← 任务 1，立刻可开工
+Phase C  connection、credential 与 health                 分支 mcp-connection     ← 任务 2，需 ADR-21 转 Accepted
 --- 以下不得开工 ---
-Phase C  connection、credential 与 health                 分支另开              （需 G3-3，ADR 尚未起草）
-Phase E  Resolver/Snapshot 与运行依赖                     分支 mcp-composition  （依赖 Phase C 的连接实体）
-Phase F  HTTP/SDK/App 审批中心本体                       分支 approval-center  （需产品定界面；F0 只做它的前置）
+Phase E  Resolver/Snapshot 与运行依赖                     分支 mcp-composition   （依赖 Phase C 交付的连接实体）
+Phase F  HTTP/SDK/App 审批中心本体                       分支 approval-center   （需产品定界面；F0 只做它的前置）
 Phase G  故障注入与灰度
 ```
 
-执行顺序与计划 §3 的字母序不同（D 先于 C，F0 先于 F 本体），因为排程按 Gate 与依赖的实际状态，不按字母。
+执行顺序与计划 §3 的字母序不同（D 先于 C，F0 先于 F 本体），因为排程按 Gate 与依赖的实际状态，不按字母。**Phase C 的 Gate 是 ADR-21，它今天还是 Proposed** —— 见 §0.1。
 
 开始前输出：`M3 / 当前 Phase / Gate 状态 / 基线 / 分支 / 非目标`。
 
@@ -183,16 +204,17 @@ Phase G  故障注入与灰度
 - 运行状态只进 DB，不回写 Profile/资产文件，不在 Profile/Task/Session 三处复制再靠事件猜测同步。
 - UI 只投影服务端状态；不在客户端推演授权、frontier 或成功语义。
 
-### 4.3 Gate 现状：三过一缺（本切片不重新讨论任何已定案项）
+### 4.3 Gate 现状：三过一待（本次不重新讨论任何已定案项）
 
 - **G3-1 已通过**（ADR-19 Accepted v1.0），**G3-2 已通过**（ADR-20 Accepted v1.2），**G3-4 已通过**（三问由 ADR-20 §2.7 / §2.6 / §2.8 回答）。
-- **G3-3 Credential 未起草，阻塞 Phase C。** 本切片零 credential/connection 代码。
+- **G3-3 已有草案，尚未批准** —— [ADR-21](../architecture/adr/ADR-21-mcp-credential-custody.md) 状态 Proposed。它回答 secret owner / opaque ref / rotation-revocation / 日志脱敏 / 跨 Location 隔离五问，并**明确把静态加密排除在 M3 之外**（只做 DB 文件权限对齐与解码期秘密拒绝两项止血）。任务 2 开工前必须先过 §0.3 的独立事实复核 + 人类裁定。
 - 与本切片直接相关的已定案项，**照做不改**：
   - ADR-20 §2.2：deny 恒胜出；grant 只存 allow（Schema 钉死 `Literal("allow")`）；仅 `ask` 才查 grant。
   - ADR-20 §2.4：`scoped_grant` 单一 CAS 写入者 + 同事务事件 + 0 行必抛。**保留期改动不得破坏这三条。**
   - ADR-20 §2.5：grant 与 Snapshot audit digest 永不互为真源。
   - ADR-20 §2.8：**不存在应用级永久 allow**；浏览器侧既有 auto-accept 存储不是服务端 grant，禁止混入。
 - 定案结果同步 `specs/v2/schema-changelog.md`。**只允许追加/更新状态**；删除既有定案段落必须显式说明理由。Phase A/B/D 三条条目已在其中，注意 Phase D 那条刚被复审修正过三处不实陈述——不要改回去。
+- 与任务 2 直接相关的 ADR-21 已写决策，**照做不改**（除非 Slice 0 证伪）：§2.1 不新建第二个 secret owner、MCP 侧只持 opaque ref；§2.2 隔离的是「哪个 Location 被授权用哪条秘密」而非秘密本身；§2.3 撤销绑定不删 `Credential` 行、不中断在飞连接（诚实边界，**不得虚称即时生效**）；§2.4 先扫描后裁剪、scanner 不是密钥保护层；§2.6 不为「统一凭据」去改 V1 `mcp-auth.json`。
 
 ### 4.4 M4/M5 硬缺口（M3 不得提前实现）
 
@@ -256,11 +278,11 @@ acceptance | layer | red test | expected failure | green evidence | final gate
 - **Phase B**（`99dce8906`）：ToolRegistry placement 维度（materialization 绑定 placement，ADR-19 条件 C1）、`registeredNames(sessionID?)` 按 placement 求值、`McpRegistration` 命名空间 + 全或无 + typed 冲突/超长错误、四个守卫测试文件。
 - **Phase D**（`38d82e2b3`）：`ScopedGrantStore` durable owner + 迁移 `20260823072731_wakeful_lady_bullseye`、`PermissionV2` 仅 `ask` 时咨询 grant、ask TTL + 无应答方即时拒绝、`ApprovalPresence` 连接事实服务（进程级单例 + 两个 SSE 面绑定 + 硬依赖）、attended 天花板改判为 `ask`、provenance 校验。复审整改了两个 P0（presence 未接线致全模式 ask 硬拒；grant store 用 `provideMerge` 导出第二个 Database 实例）。
 
-### 5.4 Phase F0 详细范围（当前任务）
+### 5.4 两个任务的详细范围
 
-两个 slice，**独立红绿，不要一把梭**。
+任务 1 的两个 slice 见下；任务 2 的 slice 划分见 §5.5。每个 slice 独立红绿，不要一把梭。
 
-#### Slice 1：grant 保留期与读路径
+#### 任务 1 · Slice 1：grant 保留期与读路径
 
 **现状与缺陷**：`issue()` 在插入新 grant 前无条件 `DELETE` 全表所有 `consumed_at`/`revoked_at` 非空与已过期行。这与 ADR-20 §2.4「durable 事件是记录源」一致、不丢数据，但两个后果：① 任何「按 grant 查历史」的读路径都查不到，审批中心要列「最近使用 / 已撤销」只能自己折叠事件流；② 它把「查一个已结算 grant」变成常规路径（Phase D 复审据此修掉了一个读路径 defect）。**破坏性清扫耦合在一次无关写入上，这是缺陷；保留多久是产品决策。**
 
@@ -277,7 +299,7 @@ acceptance | layer | red test | expected failure | green evidence | final gate
 - 新 `list` 返回 settled 行且坏行被跳过并记日志（喂一条 `asset_revision` 畸形的行）。
 - CAS 与同事务事件不受影响：`consume`/`revoke` 的 0 行仍抛 typed error，`seq + 1 === grantRevision` 守卫仍在。
 
-#### Slice 2：资产导入/apply 通配 allow 警示（不阻断，只揭示）
+#### 任务 1 · Slice 2：资产导入/apply 通配 allow 警示（不阻断，只揭示）
 
 **注入点**：`AgentAssetService.propose`（`agent-asset-service.ts:146`）与 `apply`（`:198`），在 `parseAgentAssetConfig` 解码之后。
 
@@ -293,6 +315,68 @@ acceptance | layer | red test | expected failure | green evidence | final gate
 - App 侧：三语文案存在、警示区在 empty/loading/error 三态下不崩、窄屏与 dark 下可读。
 
 **明确不做**：不改资产解码的拒绝语义（不把警示升级成校验失败）、不动 `agent-asset.ts` 存 `config` 的形态、不做其它资产类型（prompt/skill/command/workflow/plugin）的同类警示——先把 agent 这条唯一有 `permissions` 的路径做对。
+
+### 5.5 任务 2（Phase C）详细范围 —— ADR-21 转 Accepted 后才可写生产代码
+
+**先认清起点**：产品今天**完全不连接任何 MCP server**。生产装配是 `McpV2.noopLayer`，`McpV2.Service` 零消费方，`packages/aigcfroge/src/mcp/v2-bridge.ts` 是死代码（全仓唯一引用是它自己的 barrel 行）。所以 Phase C 是**写第一个能跑的实现**，不是重构现有 bridge。`v2-bridge.ts` 可以当参考，但**不要假设它在服役**——它的 `cfg: any` 曾掩盖两处真实键名不匹配，照抄就是把两个 bug 一起搬进第一个真实实现。
+
+**同时在役、不许动的两套**：① V1 MCP 在跑且已有 HTTP 面（`packages/aigcfroge/src/mcp/index.ts`，979 行，按 instance 目录 scope，`/mcp/*` 端点在服役），ADR-19 §2.1 已裁定 V1 与 canonical **并存不合并**，迁移归 M4；② Location-scoped 的 MCP 资产子系统在服役（`packages/core/src/mcp-asset*.ts`），其 `configJson` 是不解码的 opaque 串（≤100000 字节），ADR-19 §2.9 裁定写入面必须经 `McpScope.McpServerBinding` 解码校验。
+
+**Phase B 已交付的接缝，Phase C 是它的首个生产消费者**：`McpRegistration`（`packages/core/src/tool/mcp-registration.ts`）已有 `mcp_<server>_<tool>` 命名空间、全或无语义、typed `McpNameCollisionError` / `InvalidServerNameError` / `McpToolNameTooLongError`。它**今天只有测试消费方**；Phase C 的 connection owner 是第一个生产消费者。禁止新增第二个 registry / executor。
+
+**Phase B 遗留、Phase C 必须处理的两项（technical-debt §3.2）**：
+
+1. **canonical 工具名 64 字符共享预算无截断策略**：`mcp_`（4）+ server + `_`（1）+ tool 共享 `Tool.validateName` 的 64 上限；实测 server 23 字符 + tool 38 字符 = 66 即越界，报 typed `McpToolNameTooLongError`。Phase C 拿到真实 server 目录后定策略。
+2. **ADR-19 §2.7 隔离矩阵 #1（跨 Location）与 #4（V1 单向隔离）的连接期集成断言**：Phase B 时无连接实体无法断言，Phase C 有了连接实体就要补。
+
+**两条贯穿全 slice 的装配约束**：connection owner layer 必须排在 `Tools.Service` 可用**之后**，禁止形成 `PluginBoot -> Tools -> PluginBoot` 循环；新增任何 location 层一律 `Layer.provide`，**不是** `provideMerge`——Phase D 因 `provideMerge` 导出第二个内存 SQLite 并遮蔽共享实例，产生 9 个实例 HTTP 回归。
+
+**health 状态集合**（六态，Slice 3 的状态机就是它）：`connecting | ready | degraded | offline | auth-required | revoked`。
+
+#### 任务 2 · Slice 0：ADR-21 独立事实复核
+
+清单见 §0.3，逐条独立复跑并回答那五个问题，把结论交给人类与复审方。**结论未获人类裁定前不得进入 Slice 1。**
+
+#### 任务 2 · Slice 1：typed MCPConnection owner + stdio
+
+**红**：invalid command / invalid config 被 typed 拒绝；进程启动失败（可执行文件不存在、非零退出）typed fail；stdio 握手超时；process interruption；**owner Scope 关闭必须杀掉子进程且不留孤儿**。
+
+**绿**：第一个能跑的 typed connection owner；发现的工具经 `McpRegistration` 注册（**首个生产消费者**），不新增第二个 registry / executor。
+
+**重构**：expected failure 全部走 tagged errors（`Schema.TaggedErrorClass`），外部 SDK 的 callback 一律经 Effect 边界 Catch Everything；不留宽 `any`（`v2-bridge.ts` 的 `cfg: any` 是反面教材）、不留 raw `console`。
+
+**装配**：必须在本 slice 解决 Layer ordering——owner 在 `Tools.Service` 之后可用，且不成 `PluginBoot -> Tools -> PluginBoot` 环。环无法避免就是停机项，不许靠延迟初始化绕过。
+
+#### 任务 2 · Slice 2：credential binding + 跨 Location 拒绝
+
+依 ADR-21 §2.2 / §2.3（若 Slice 0 复核推翻了「必须新增 `mcp_credential_binding`」，先按复核结论改 ADR 再施工）。
+
+**红**：跨 Location 的 credential ref 解析必须 typed **fail closed**；撤销绑定后下次解析失败；`Credential.remove` 之后的悬空 ref 有确定行为（typed 失败，不是解出 `undefined` 继续连）；绑定表 0 行更新必抛；CAS `expectedRevision` 不匹配必抛。
+
+**绿**：只存 ref、不存材料；**连接建立那一刻**才换取材料，用完即弃，不驻留在服务对象、缓存或闭包里。
+
+**红线**：材料不得进 Snapshot / event / log / 绑定表；日志经 `CredentialScanner`，且**先扫描后裁剪**（先截断再扫描等于把秘密切成扫不出来的碎片放过去）。
+
+#### 任务 2 · Slice 3：remote / OAuth + health 状态机
+
+**红**：invalid URL；credential missing / expired / revoked 三种各自 typed；auth-required 流（缺凭据时进 `auth-required` 而非静默 offline）；六态转换（`connecting | ready | degraded | offline | auth-required | revoked`）；secret redaction。
+
+**绿**：health 投影**只读服务端状态**，App 不自行推演（M0-M2 固定裁决：UI 只投影，不在客户端推演授权或成功语义）。
+
+**未定项**：OAuth `expires` 过期时「该失败还是该 refresh、由谁负责」是 §0.3 第 5 问要回答的问题之一。**答案未定就不要硬编**——先把它作为 Slice 0 的输出交给人类裁定，裁定前该路径只允许 typed fail，不允许悄悄实现一套 refresh。
+
+#### 任务 2 · Slice 4：disconnect / reconnect / drift
+
+**红**：断线重连后 server 的 `listTools` 发生变化 ⇒ 下一个 provider turn 报 `tool_fingerprint_mismatch` / `catalog_digest_mismatch` 并 fail closed（**复用既有重验路径，不新增第三套漂移检测**）；kill switch 关闭时新连接在 admission 处即拒（不是连上再断），pending request 由 owner finalizer 释放、不留悬挂 Deferred。
+
+**本 slice 必须补上的两笔欠账**：ADR-19 §2.7 隔离矩阵 **#1（跨 Location）与 #4（V1 单向隔离）的连接期集成断言**；technical-debt §3.2 的**工具名 64 字符截断策略**（拿真实 server 目录定，写进 changelog 并给依据）。
+
+#### 任务 2 明确不做
+
+- 不动 V1 `mcp/index.ts` 与 `mcp-auth.json` 的在役语义（ADR-19 §2.1 并存裁定，迁移归 M4）。
+- 不做静态加密（ADR-21 §2.5 已排除），只做两项止血：DB 文件权限对齐 + 解码期秘密拒绝。
+- 不扩 Snapshot version（Phase E）。
+- 不做审批中心 UI（Phase F 本体）。
 
 ## 6. 每个 slice 强制 TDD 循环
 
@@ -409,7 +493,7 @@ git diff --check
 
 ## 9. 停止与交付
 
-**Phase F0 完成后（你的停机点）：**
+**任务 1（Phase F0）完成后 —— 第一个停机点：**
 
 1. 运行 §8 里 Core/Schema/HTTP/SDK/App 受影响门禁 + protocol refs + incremental lint + diff check；**迁移必须给 clean / existing / rerun 三份证据**；跨包改动再跑 `bun turbo typecheck` 与 `bun run lint`。基线（低于即回归）：
    - **core 2101 pass / 2 skip / 0 fail**
@@ -429,8 +513,26 @@ git diff --check
    - SDK 重新生成后的**真实 diff 审查**（不手改生成结果）；
    - App 三语 key 存在性与 desktop/narrow/dark 覆盖说明；
    - `PermissionSaved`（`saved.ts` / `permission/sql.ts`）**diff = 0 行**的证明。
-4. **停机等待复审。不得顺手进入 Phase F 本体**（pending 聚合 / revoke 交互 / 客户端消费 `permission.v2.*` 需产品定界面）**或 Phase C**（G3-3 未起草）。
+4. **停机等待复审。不得顺手进入 Phase F 本体**（pending 聚合 / revoke 交互 / 客户端消费 `permission.v2.*` 需产品定界面）**或任务 2 = Phase C**（ADR-21 仍是 Proposed，G3-3 未裁定）。
 5. 未经交付批准，不 commit/push/PR。**本地 main 领先 origin/main 34 个提交**：按用户安排 M3 全部 Phase 完成后统一开一个 PR，所以本切片只在本地成链，不单独开 PR。
+
+**任务 2（Phase C）完成后 —— 第二个停机点：**
+
+1. 门禁：core 全量 + `bun --cwd packages/aigcfroge test test/server/` **必须真跑并贴数字**（基线：**core 2101 pass / 2 skip / 0 fail**、**aigcfroge server 378 pass / 0 fail**）；迁移给 clean / existing / rerun 三份证据；SDK 重新生成并审查**真实 diff**；跨包改动再跑 `bun turbo typecheck` 与 `bun run lint`。
+2. 以下守卫必须全程绿，**变红都不是「测试要改」**：
+   - `packages/core/test/tool-registry-stale.test.ts`
+   - `packages/core/test/tool-registry-placement.test.ts`
+   - `packages/core/test/tool-mcp-registration.test.ts`
+   - `packages/aigcfroge/test/session/v1-canonical-registry-boundary.test.ts`
+3. 输出 Phase C 报告，必须包含：
+   - 真实 stdio 子进程被 owner Scope 杀掉、**无孤儿**的实跑证据；
+   - 跨 Location credential ref 被拒绝的实跑输出；
+   - 材料未出现在 Snapshot / event / log 的**证明方式**（怎么验的，不是「已确认」）；
+   - ADR-19 §2.7 隔离矩阵 **#1 / #4** 的连接期断言；
+   - 工具名 64 字符截断策略的**决定与依据**；
+   - OAuth `expires` 处置的**裁定来源**（谁裁的、裁的是失败还是 refresh）。
+4. **停机等待复审。不进 Phase E（Resolver/Snapshot）、不进 Phase F 本体（审批中心 UI）。**
+5. 未经交付批准，不 commit/push/PR。**本地 main 领先 origin/main**：M3 全部 Phase 结束后统一开一个 PR。
 
 **Phase C-G 各自 Gate 过后同理**：完成即停机等复审。**M3 全部 Phase 完成后**按 M3 计划 §5 跑完整测试矩阵，输出 M 完成报告，统一开一个 PR，不进入 M4。
 
