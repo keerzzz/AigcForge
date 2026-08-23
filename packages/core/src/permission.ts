@@ -15,6 +15,8 @@ import { PermissionSaved } from "./permission/saved"
 import { PermissionEffective } from "./permission/effective"
 import { SessionPermissionOverride } from "./permission/session-override"
 import { ScopedGrantStore } from "./grant/store"
+import { ApprovalPresence } from "./permission/approval-presence"
+import { Duration } from "effect"
 
 export { Effect, Rule, Ruleset } from "@aigcfroge/schema/permission"
 const missingAgentPermissions: Permission.Ruleset = [{ action: "*", resource: "*", effect: "deny" }]
@@ -84,7 +86,18 @@ export const Event = {
   }),
 }
 
-export class RejectedError extends Schema.TaggedErrorClass<RejectedError>()("PermissionV2.RejectedError", {}) {}
+export class RejectedError extends Schema.TaggedErrorClass<RejectedError>()("PermissionV2.RejectedError", {
+  reason: Schema.optional(Schema.Literals(["no_responder"])),
+}) {}
+
+export class AskExpiredError extends Schema.TaggedErrorClass<AskExpiredError>()("PermissionV2.AskExpiredError", {
+  requestID: ID,
+  ttlMs: Schema.Int.check(Schema.isGreaterThan(0)),
+}) {
+  override get message() {
+    return `Approval request ${this.requestID} expired after ${this.ttlMs}ms without an answer`
+  }
+}
 
 export class CorrectedError extends Schema.TaggedErrorClass<CorrectedError>()("PermissionV2.CorrectedError", {
   feedback: Schema.String,
@@ -146,13 +159,12 @@ export const layer = Layer.effect(
     const sessions = yield* SessionStore.Service
     const saved = yield* PermissionSaved.Service
     const override = yield* SessionPermissionOverride.Service
-    // ADR-20 §2.2: candidate grants are consulted only when the policy
-    // verdict is `ask`. The store is an optional dependency so hosts without
-    // grant wiring keep their existing behavior unchanged.
-    const grantsOption = yield* EffectRuntime.serviceOption(ScopedGrantStore.Service)
     const pending = new Map<ID, Pending>()
 
     const consultGrant = EffectRuntime.fn("PermissionV2.consultGrant")(function* (input: AssertInput) {
+      // Read per-call: layer-construction-time capture would miss providers
+      // composed outside this layer.
+      const grantsOption = yield* EffectRuntime.serviceOption(ScopedGrantStore.Service)
       if (Option.isNone(grantsOption)) return false
       const store = grantsOption.value
       const hit = yield* store
@@ -275,12 +287,45 @@ export const layer = Layer.effect(
           if (result.effect === "allow") return
           if (yield* consultGrant(input)) return
           const item = yield* create(request(input), input.agent)
+          // ADR-20 §2.7: bounded ask. Responder facts come only from wired
+          // connection sources; without them the default TTL still bounds the
+          // wait so no attended prompt can hang indefinitely.
+          const presenceOption = yield* EffectRuntime.serviceOption(ApprovalPresence.Service)
+          const presence = ApprovalPresence.current()
+          const ttlMs = presence.ttlMs
+          const releasePending = EffectRuntime.sync(() => {
+            pending.delete(item.request.id)
+          })
+          {
+            const hasResponder = yield* presence.hasResponder()
+            if (!hasResponder) {
+              yield* events
+                .publish(Event.Replied, {
+                  sessionID: item.request.sessionID,
+                  requestID: item.request.id,
+                  reply: "reject",
+                })
+                .pipe(EffectRuntime.ignore)
+              pending.delete(item.request.id)
+              return yield* new RejectedError({ reason: "no_responder" })
+            }
+          }
           return yield* restore(Deferred.await(item.deferred)).pipe(
-            EffectRuntime.ensuring(
-              EffectRuntime.sync(() => {
-                pending.delete(item.request.id)
-              }),
-            ),
+            EffectRuntime.timeoutOrElse({
+              duration: Duration.millis(ttlMs),
+              orElse: () =>
+                EffectRuntime.gen(function* () {
+                  yield* events
+                    .publish(Event.Replied, {
+                      sessionID: item.request.sessionID,
+                      requestID: item.request.id,
+                      reply: "reject",
+                    })
+                    .pipe(EffectRuntime.ignore)
+                  return yield* new AskExpiredError({ requestID: item.request.id, ttlMs })
+                }),
+            }),
+            EffectRuntime.ensuring(releasePending),
           )
         }),
       ),
