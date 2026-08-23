@@ -93,6 +93,12 @@ Snapshot 冻结的权限摘要（ADR-17 §2.4「有效权限摘要 digest」）�
 - **attended 但无客户端连接**（新增契约，提案默认值待产品确认）：pending request 携带 `expiresAt = created + ASK_TTL_MS`，默认 **300,000ms（5 分钟）**；到期由 permission owner 以 typed `AskExpiredError` 自动拒绝并发布 replied 事件（reply 语义 = reject），客户端可见「已超时」。TTL 经 config 可调但必须 > 0 且 ≤ Location idle TTL（60 分钟）——保证永不出现「只能靠驱逐兜底」的挂起。
 - **无应答方即时拒绝（2026-08-23 新增，attended 天花板的前置条件）**：TTL 只把无限挂起收敛成 5 分钟挂起，不足以支撑 §2.6 的 attended 重写。`attended` 今天的判据是 `input.attended !== false`（`effective.ts:48`），即**默认值**而非「真有人能答」。因此 owner 在挂起 `Deferred.await` 前必须先判定「是否存在能应答本请求的订阅方」（对 custom 会话＝存在带 `product-mode-custom-v1` 能力头的活跃连接）：不存在则**即时按 reject 结束**，与 unattended 同构，不进入等待。这既满足 M3 计划 §6 停止条件，也让 attended 天花板在审批中心落地前就是安全且可用的。判据必须来自连接/订阅事实，不得用「flag 没被显式设成 false」冒充。
 
+  **落地形态（Phase D，2026-08-23）**：`ApprovalPresence`（`core/src/permission/approval-presence.ts`）是**进程级单例**（`LocationServiceMap` dependencies，与 `ApplicationTools` 同位），事件流连接在自己的连接 Scope 存活期内 `bindResponder()` 计数 +1，断开自动 -1；`hasResponder()` 读实时计数，**无任何「默认有人」兜底**。两个 SSE 面都必须绑定：实例 `event` 路由与 `packages/server` 的 `server.event`（实例服务器也挂载后者）。`PermissionV2` 以**硬依赖**取用它——首版用 `Effect.serviceOption` 导致「无人提供 ⇒ 静默变成全模式硬拒」出厂，改硬依赖后缺提供方是 Layer/类型错误。
+
+  **presence 是粗粒度存活提示，不是授权事实**，其失效方向不对称决定了这个形状：多报（绑着的应答方其实看不到本 Location/本 mode 的请求）代价是**一次有界 TTL 等待后 typed 拒绝，永不放行**；少报（有人在看却报 0）会把每个 `ask` 变成硬拒。所以按最粗但诚实的粒度取（HTTP 层知道连接、不知道会问哪个 Location），授权本身从不咨询它——`reply` 仍走所属 Location 的 PermissionV2，leaf `assert` 仍是最终边界。
+
+  **已申报的行为变更（待产品裁决）**：未接事件流的宿主（脚本 / CI 直驱 V2 会话）现在 attended `ask` 会即时 `no_responder` 拒绝，而非等 300s。TUI 与 App 都订阅事件流（`tui/src/context/sync.tsx` 等），交互路径不受影响。这是本节 fail-closed 取向的直接结果，且满足 M3 计划 §6 停止条件（既不无限等待也不默认 allow）。若产品要求 headless 也走 TTL，需要一个显式「默认在线」开关，**不得以恢复默认 `true` 的方式实现**——那正是首版的缺陷。
+
 ### 2.8 审批中心边界（回答 G3-4 ③，Phase F 约束）
 
 应用级入口只聚合 pending request 展示与回复（V2 端点 `packages/server/src/groups/permission.ts` 与 `permission.v2.*` 事件均已存在并挂载，缺的是客户端消费）；入口**必须带** `x-aigcfroge-capabilities: product-mode-custom-v1` 能力头否则 SSE 过滤掉 custom 会话请求（`product-mode-policy.ts:183-198`）；入口产生的任何授权都落成显式 once/Session/Location grant 并明示 scope，**不存在应用级永久 allow**。浏览器侧既有的 auto-accept 存储不是服务端 grant，禁止混入本模型。

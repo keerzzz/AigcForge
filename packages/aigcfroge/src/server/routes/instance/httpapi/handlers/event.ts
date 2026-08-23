@@ -6,6 +6,7 @@ import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import * as Sse from "effect/unstable/encoding/Sse"
 import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
+import { ApprovalPresence } from "@aigcfroge/core/permission/approval-presence"
 import { SessionStore } from "@aigcfroge/core/session/store"
 import { EventApi } from "../groups/event"
 
@@ -37,6 +38,10 @@ function eventResponse(events: EventV2.Interface) {
     const queue = yield* Queue.unbounded<EventV2.Payload>()
     const unsubscribe = yield* events.listen((event) => Effect.sync(() => Queue.offerUnsafe(queue, event)))
     yield* Effect.addFinalizer(() => unsubscribe)
+    // ADR-20 §2.7: this connection can answer approval prompts, so it counts as
+    // a responder for as long as it is attached. Without at least one bound
+    // responder every `ask` is rejected immediately instead of prompting.
+    yield* (yield* ApprovalPresence.Service).bindResponder()
     const stream = Stream.fromQueue(queue).pipe(
       Stream.filter(
         (event) =>

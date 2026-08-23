@@ -21,6 +21,7 @@ import addTaskOutputDigestMigration from "@aigcfroge/core/database/migration/202
 import addTaskScheduleFieldsMigration from "@aigcfroge/core/database/migration/20260802093236_add_task_schedule_fields"
 import addTaskSpawnFieldsMigration from "@aigcfroge/core/database/migration/20260802140709_add_task_spawn_fields"
 import addSessionCompositionSnapshotMigration from "@aigcfroge/core/database/migration/20260819012541_add_session_composition_snapshot"
+import scopedGrantMigration from "@aigcfroge/core/database/migration/20260823072731_wakeful_lady_bullseye"
 import workflowDurableProjectionMigration from "@aigcfroge/core/database/migration/20260820130142_cynical_sasquatch"
 import { EventV2 } from "@aigcfroge/core/event"
 import { ProjectV2 } from "@aigcfroge/core/project"
@@ -1233,6 +1234,44 @@ describe("DatabaseMigration", () => {
         expect(
           yield* db.get(sql`SELECT session_id FROM session_composition_snapshot WHERE session_id = 'ses_test_1'`),
         ).toBeUndefined()
+      }),
+    )
+  })
+
+  // Existing-DB leg for the Phase D migration (CLAUDE.md requires clean +
+  // existing + rerun). `scoped_grant` is a pure CREATE TABLE with no backfill,
+  // so "existing" means: applied onto a database that already carries prior
+  // state, it adds the table, leaves that state untouched, and re-running is a
+  // no-op. Mirrors the session_composition_snapshot case above.
+  test("adds scoped_grant to an existing database, preserves prior rows and reruns clean", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY)`)
+        yield* db.run(sql`INSERT INTO session (id) VALUES ('ses_pre_existing')`)
+
+        yield* DatabaseMigration.applyOnly(db, [scopedGrantMigration])
+
+        expect(
+          yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'scoped_grant'`),
+        ).toEqual({ name: "scoped_grant" })
+        // Pre-existing state is untouched.
+        expect(yield* db.all(sql`SELECT id FROM session`)).toEqual([{ id: "ses_pre_existing" }])
+
+        // grant_revision defaults to 1 so the CAS counter starts where the store expects.
+        yield* db.run(sql`
+          INSERT INTO scoped_grant (id, level, action, resources, issued_at, time_created, time_updated)
+          VALUES ('grt_test', 'once', 'bash', '["*"]', 1000, 1000, 1000)
+        `)
+        expect(yield* db.get(sql`SELECT id, level, grant_revision FROM scoped_grant WHERE id = 'grt_test'`)).toEqual({
+          id: "grt_test",
+          level: "once",
+          grant_revision: 1,
+        })
+
+        // Rerun is a no-op and does not drop the row.
+        yield* DatabaseMigration.applyOnly(db, [scopedGrantMigration])
+        expect(yield* db.all(sql`SELECT id FROM scoped_grant`)).toEqual([{ id: "grt_test" }])
       }),
     )
   })
