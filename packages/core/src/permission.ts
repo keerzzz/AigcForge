@@ -289,31 +289,22 @@ export const layer = Layer.effect(
           }
           if (result.effect === "allow") return
           if (yield* consultGrant(input)) return
-          const item = yield* create(request(input), input.agent)
           // ADR-20 §2.7: bounded ask. Responder facts come only from wired
           // connection sources; without them the default TTL still bounds the
           // wait so no attended prompt can hang indefinitely.
-          const releasePending = EffectRuntime.sync(() => {
-            pending.delete(item.request.id)
-          })
-          const presence = ApprovalPresence.current()
-          const ttlMs = presence.ttlMs
+          const presenceOption = yield* EffectRuntime.serviceOption(ApprovalPresence.Service)
+          // ADR-20 §2.7: prompts wait only while a capable responder is
+          // attached (connection fact, never the attended flag). With no
+          // facts the request is rejected immediately — nothing is parked.
+          if (Option.isNone(presenceOption)) return yield* new RejectedError({ reason: "no_responder" })
+          const presence = presenceOption.value
           if (!(yield* presence.hasResponder())) {
-            yield* events
-              .publish(Event.Replied, {
-                sessionID: item.request.sessionID,
-                requestID: item.request.id,
-                reply: "reject",
-              })
-              .pipe(EffectRuntime.ignore)
-            pending.delete(item.request.id)
-            yield* new RejectedError({ reason: "no_responder" })
-            return
-            return
+            return yield* new RejectedError({ reason: "no_responder" })
           }
+          const item = yield* create(request(input), input.agent)
           yield* restore(Deferred.await(item.deferred)).pipe(
             EffectRuntime.timeoutOrElse({
-              duration: Duration.millis(ttlMs),
+              duration: Duration.millis(presence.ttlMs),
               orElse: () =>
                 EffectRuntime.gen(function* () {
                   yield* events
@@ -324,29 +315,14 @@ export const layer = Layer.effect(
                     })
                     .pipe(EffectRuntime.ignore)
                   pending.delete(item.request.id)
-                  yield* new AskExpiredError({ requestID: item.request.id, ttlMs })
+                  yield* new AskExpiredError({ requestID: item.request.id, ttlMs: presence.ttlMs })
                 }),
             }),
-          )
-          pending.delete(item.request.id)
-
-
-          return yield* restore(Deferred.await(item.deferred)).pipe(
-            EffectRuntime.timeoutOrElse({
-              duration: Duration.millis(ttlMs),
-              orElse: () =>
-                EffectRuntime.gen(function* () {
-                  yield* events
-                    .publish(Event.Replied, {
-                      sessionID: item.request.sessionID,
-                      requestID: item.request.id,
-                      reply: "reject",
-                    })
-                    .pipe(EffectRuntime.ignore)
-                  return yield* new AskExpiredError({ requestID: item.request.id, ttlMs })
-                }),
-            }),
-            EffectRuntime.ensuring(releasePending),
+            EffectRuntime.ensuring(
+              EffectRuntime.sync(() => {
+                pending.delete(item.request.id)
+              }),
+            ),
           )
         }),
       ),

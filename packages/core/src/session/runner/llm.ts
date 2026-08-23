@@ -52,7 +52,7 @@ import { SessionInput } from "../input"
 import { SessionSchema } from "../schema"
 import { SessionStore } from "../store"
 import { SessionComposition } from "../composition"
-import { type RunError, Service, SnapshotDriftError } from "./index"
+import { AgentProvenanceError, type RunError, Service, SnapshotDriftError } from "./index"
 import { SessionRunnerModel } from "./model"
 import { createLLMEventPublisher } from "./publish-llm-event"
 import { toLLMMessages } from "./to-llm-message"
@@ -493,6 +493,26 @@ export const layer = Layer.effect(
       const snapshot = session.mode === "custom" ? yield* readCustomSnapshot(session.id) : undefined
       if (snapshot) yield* verifySnapshotTools(session.id, snapshot)
       const agent = yield* agents.select(agentID)
+      // ADR-20 §2.6 provenance: a pool agent must originate from the bound
+      // asset revision; a same-name registry impostor fails the turn closed.
+      if (snapshot && snapshot.version === 2) {
+        const bound = snapshot.data.agents.find(
+          (entry) => entry.id === String(agentID) || entry.name === String(agentID),
+        )
+        if (
+          bound &&
+          (!agent.info ||
+            agent.info.origin_relative_path !== bound.relativePath ||
+            agent.info.origin_revision !== bound.revision)
+        ) {
+          return yield* new AgentProvenanceError({
+            sessionID,
+            agent: String(agentID),
+            expectedRelativePath: bound.relativePath,
+            expectedRevision: bound.revision,
+          })
+        }
+      }
       const initialized = yield* SessionContextEpoch.initialize(
         db,
         loadSystemContext(agent, session.id, snapshot),

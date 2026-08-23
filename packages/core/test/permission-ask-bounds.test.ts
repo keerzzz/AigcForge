@@ -21,13 +21,6 @@ import { testEffect } from "./lib/effect"
 // and never longer than the configured TTL. Both bounds fail typed and clear
 // the pending request.
 
-const presenceState = {
-  has: true,
-  ttlMs: ApprovalPresence.DEFAULT_TTL_MS as number,
-}
-const wirePresence = () =>
-  ApprovalPresence.wire({ ttlMs: presenceState.ttlMs, hasResponder: () => Effect.succeed(presenceState.has) })
-
 const current = Layer.succeed(
   Location.Service,
   Location.Service.of(location({ directory: AbsolutePath.make("/project") })),
@@ -39,7 +32,8 @@ const sessions = SessionV2.layer.pipe(
   Layer.provide(Project.defaultLayer),
   Layer.provide(SessionExecution.noopLayer),
 )
-const layer = PermissionV2.locationLayer.pipe(
+const harness = (presence: Layer.Layer<ApprovalPresence.Service> = ApprovalPresence.locationLayer) =>
+  PermissionV2.locationLayer.pipe(
   Layer.provideMerge(Database.defaultLayer),
   Layer.provideMerge(SessionStore.defaultLayer),
   Layer.provideMerge(EventV2.defaultLayer),
@@ -47,8 +41,9 @@ const layer = PermissionV2.locationLayer.pipe(
   Layer.provideMerge(sessions),
   Layer.provideMerge(SessionExecution.noopLayer),
   Layer.provideMerge(PermissionSaved.defaultLayer),
+  Layer.provideMerge(presence),
 )
-const it = testEffect(layer)
+const it = testEffect(harness())
 
 const setup = (rules: PermissionV2.Ruleset) =>
   Effect.gen(function* () {
@@ -89,12 +84,9 @@ const setup = (rules: PermissionV2.Ruleset) =>
 describe("ApprovalPresence × ask bounds (ADR-20 §2.7)", () => {
   it.effect("rejects the ask immediately when no capable responder is attached", () =>
     Effect.gen(function* () {
-      presenceState.has = false
-      presenceState.ttlMs = 60_000
-      wirePresence()
+      const presence = yield* ApprovalPresence.Service
+      // No responder is bound for this runtime: the fact source reports zero.
       const sessionID = yield* setup([{ action: "bash", resource: "*", effect: "ask" }])
-      const probeOpt = yield* Effect.serviceOption(ApprovalPresence.Service)
-      console.log("TEST_FIBER_PRESENCE", Option.isSome(probeOpt))
       const service = yield* PermissionV2.Service
 
       const exit = yield* service
@@ -109,11 +101,30 @@ describe("ApprovalPresence × ask bounds (ADR-20 §2.7)", () => {
     }),
   )
 
-  it.live("expires the ask with a typed error once the TTL elapses unanswered", () =>
+  // Short-TTL variant runs on its own runtime (real clock, 10ms bound).
+  it.effect("still resolves through reply while inside the TTL window", () =>
     Effect.gen(function* () {
-      presenceState.has = true
-      presenceState.ttlMs = 10
-      wirePresence()
+      const presence = yield* ApprovalPresence.Service
+      yield* presence.bindResponder()
+      const sessionID = yield* setup([{ action: "bash", resource: "*", effect: "ask" }])
+      const service = yield* PermissionV2.Service
+
+      yield* service.ask({ sessionID, action: "bash", resources: ["/tmp/run.sh"], agent: AgentV2.ID.make("test") })
+      const pending = yield* service.forSession(sessionID)
+      expect(pending).toHaveLength(1)
+      yield* service.reply({ requestID: pending[0]!.id, reply: "once" })
+      expect(yield* service.forSession(sessionID)).toHaveLength(0)
+    }),
+  )
+})
+
+describe("ApprovalPresence × ask TTL (short, live clock)", () => {
+  const itTtl = testEffect(harness(ApprovalPresence.make(10)))
+  itTtl.live("expires the ask with a typed error once the TTL elapses unanswered", () =>
+    Effect.gen(function* () {
+      const presence = yield* ApprovalPresence.Service
+      yield* presence.bindResponder() // attached but never answers
+      expect(presence.ttlMs).toBe(10)
       const sessionID = yield* setup([{ action: "bash", resource: "*", effect: "ask" }])
       const service = yield* PermissionV2.Service
 
@@ -125,22 +136,6 @@ describe("ApprovalPresence × ask bounds (ADR-20 §2.7)", () => {
       if (Exit.isFailure(exit)) {
         expect(Cause.squash(exit.cause) instanceof PermissionV2.AskExpiredError).toBe(true)
       }
-      expect(yield* service.forSession(sessionID)).toHaveLength(0)
-    }),
-  )
-
-  it.effect("still resolves through reply while inside the TTL window", () =>
-    Effect.gen(function* () {
-      presenceState.has = true
-      presenceState.ttlMs = ApprovalPresence.MAX_TTL_MS
-      wirePresence()
-      const sessionID = yield* setup([{ action: "bash", resource: "*", effect: "ask" }])
-      const service = yield* PermissionV2.Service
-
-      yield* service.ask({ sessionID, action: "bash", resources: ["/tmp/run.sh"], agent: AgentV2.ID.make("test") })
-      const pending = yield* service.forSession(sessionID)
-      expect(pending).toHaveLength(1)
-      yield* service.reply({ requestID: pending[0]!.id, reply: "once" })
       expect(yield* service.forSession(sessionID)).toHaveLength(0)
     }),
   )

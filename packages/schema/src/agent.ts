@@ -30,6 +30,9 @@ export const Info = Schema.Struct({
   permissions: Permission.Ruleset,
   attended: Schema.Boolean.pipe(Schema.optional),
   handoffs: Schema.mutable(Schema.Array(Handoff)),
+  /** Asset provenance (ADR-20 §2.6): which bound file/revision produced this entry. */
+  origin_relative_path: Schema.String.pipe(Schema.optional),
+  origin_revision: Schema.String.pipe(Schema.optional),
 })
   .annotate({ identifier: "AgentV2.Info" })
   .pipe(
