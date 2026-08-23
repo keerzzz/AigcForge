@@ -1,5 +1,17 @@
 # V2 Schema Changelog
 
+## 2026-08-23: Custom Mode M3 Phase B Registration Placement and MCP Namespace
+
+> **Status: IMPLEMENTED (core registry contracts; connection owner deferred to Phase C behind G3-3)**
+
+- `ToolRegistry` gains the ADR-19 §2.2 placement dimension: registrations carry an optional owning `sessionID`, and **one visibility predicate** (Location entries visible to every Session, a Session entry only to its own) serves all three consumers — `materialize`, settle and the §2.4 collision input.
+- `materialize({ sessionID? })` filters Location∪own-Session entries, and the returned `Materialization` **binds that placement**: settle resolves the winner through the materialization's placement, never the call's, and a Session-placed materialization settled by another Session fails closed with a placement mismatch. This is ADR-19 approval condition C1 — definitions and settle must read one source, otherwise a Session registration can fake staleness against the Location-wide view the runner materializes (`session/runner/llm.ts:209`/`:556` pass no `sessionID`). Guard `tool-registry-stale.test.ts` (four phases) stays green.
+- New `registerSession(sessionID, tools)` on both `ToolRegistry` and the narrow `Tools.Service` capability; owner-Scope close removes exactly that registration and reveals any prior winner (session or location).
+- New read-only probe `registeredNames(sessionID?)` on `ToolRegistry`: names a new registration **at that placement** would collide with. Omitting `sessionID` (Location placement) sees every occupied name, because a Location registration shadows whatever any placement serves; a Session placement does not see sibling Sessions — so two child Sessions of one composition can bind the same MCP server independently.
+- New owner `McpRegistration` (`packages/core/src/tool/mcp-registration.ts`): namespaces external tools under `mcp_<server>_<tool>` ([a-z0-9_-]{1,64} server segment), validates every final name, and fails closed at its own placement with typed errors (`McpNameCollisionError` / `InvalidServerNameError` / `McpToolNameTooLongError` / `Tool.RegistrationError`) — all-or-nothing per server, so last-wins is never exercised by MCP producers.
+- `McpToolNameTooLongError` (new): the prefixed name shares `Tool.validateName`'s 64-character bound across `mcp_` + server + `_` + tool, so a 23-char server plus a 38-char tool already overflows. Raised instead of a bare `RegistrationError` because the operator controls neither segment's length. A truncation/hash policy is deliberately deferred to Phase C — canonical names enter Snapshot catalogs and tool fingerprints, so it is a one-off naming contract (see ADR-19 §2.5).
+- Compatibility: existing callers unchanged (omitted `sessionID` keeps pure Location-wide semantics; prior single-placement behavior identical).
+
 ## 2026-08-23: Custom Mode M3 Phase A Scope Contract (McpScope)
 
 > **Status: PROPOSED（Phase A 契约层；运行时实现被 ADR-19/ADR-20 接受阻塞）**

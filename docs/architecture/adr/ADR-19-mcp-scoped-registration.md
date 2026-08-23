@@ -49,13 +49,20 @@ placement ::= { kind: "location" }
 
 每条注册路径恰好拥有一个 Effect `Scope`，其 finalizer 负责：unregister 本路径工具（registry 已有按 token 过滤的 finalizer，`registry.ts:158-166`）→ 关闭传输连接 → 以 typed 错误释放该路径产生的全部 pending request。**不存在任何绕过 owner Scope 的手工 Map 删除路径**（停止条件红线）。
 
-反面教材钉进验收：`ApplicationTools.Service.register` 要求 `Scope` 却无 finalizer（`application-tools.ts:42-50`），Phase B 顺路补齐；`cli-adapter.ts:71` 的模块级 `Map` 是禁止形态。
+> **Phase B 事实修正（2026-08-23）**：原起草时断言「`ApplicationTools.Service.register` 要求 `Scope` 却无 finalizer」——**该断言有误**。清理由 `State.transform` 内建提供：它在调用方 Scope 上挂 finalizer 并通过重放剩余 transform 恢复状态（`state.ts:88-93` 的 `Scope.addFinalizer(scope, dispose)` + materialize 重放），因此 scope 关闭移除自身注册且揭示前一个赢家，与 §2.3 语义一致；钉死测试见 `application-tools.test.ts` "reveals the previously registered tool after an overlay scope closes"。真正的禁止形态仍是 `cli-adapter.ts:71` 的模块级 `Map`（无 Scope、无 Location 归属）。
 
 ### 2.4 Name collision 规则：typed error，fail closed（新增契约，收窄通用 last-wins）
 
-MCP 生产者注册遇到**任意已生效同名注册**（内建、应用工具、其他 MCP server）→ typed `RegistrationError`，注册失败，绝不静默遮蔽。
+MCP 生产者注册遇到**任意在该注册自身 placement 上已生效的同名注册**（内建、应用工具、Location 注册、同 Session 的其他注册）→ typed error，注册失败，绝不静默遮蔽。
 
 理由：MCP 工具名是外部输入，last-wins 允许恶意 server 用 `read`/`bash` 覆盖内建工具（现机制 `.at(-1)` 直接生效，`registry.ts:88/:177`）。通用 registry 机制不改（其他生产者仍 last-wins）；canonical MCP 注册器在注册前做占用检查并失败。
+
+> **Phase B 收窄（2026-08-23）**：占用检查必须在**注册自身的 placement 上**求值，与 §2.2 的可见性用同一个谓词。
+>
+> - Location 注册（无 sessionID）：对全部 Session 可见，会遮蔽任何 placement 当前的赢家 → 与**全部**已占用名冲突（含某个 Session 自己的注册）。
+> - Session 注册：只与应用工具、Location 注册、**本 Session 自己的**注册冲突。**兄弟 Session 的注册在此不可见，不构成冲突**——否则一个组合里的多个子会话无法各自绑定同一个 server，直接废掉 §2.2 的 Session placement。
+>
+> 首版实现的占用探针 placement-盲（`registeredNames()` 无参），复审探针实测兄弟会话绑同一 server 时第二个会话拿到零工具，已修正为 `registeredNames(sessionID?)`。证据：`tool-mcp-registration.test.ts` "lets sibling sessions bind the same server independently" 与 "fails closed when a Location registration would shadow a session-placed server"。
 
 ### 2.5 工具命名空间（新增契约）
 
@@ -66,8 +73,12 @@ name ::= "mcp_" <sanitized-server-name> "_" <tool-name>
 sanitized-server-name ::= [a-z0-9_-]+ （≤64 字符，来自 McpServerBinding.serverName 校验）
 ```
 
-- 前缀使 collision 域收缩到同 server 内部（同 server 重名 tool 由 MCP 协议本身禁止），且 allowlist/Snapshot catalog 中来源可读；
+- 前缀把外部工具名与内建名分域，且 allowlist/Snapshot catalog 中来源可读；
 - 名称整体仍须通过 `validateName` 的 provider-neutral grammar（`registry.ts:152`）。
+
+> **Phase B 事实修正（2026-08-23）**：原文「前缀使 collision 域收缩到同 server 内部」**不成立**。`_` 在 server 段与 tool 段内均合法，前缀化后**不是单射**：server `a_b` + tool `c` 与 server `a` + tool `b_c` 同为 `mcp_a_b_c`（复审探针实测：注册前者后，后者报 collision）。后果由 §2.4 fail-closed 兜住（无遮蔽风险），代价是跨 server 可能出现**伪冲突**。不改分隔符：改用 `__` 既不能恢复单射（`_` 仍在两段内合法），又把固定开销从 4 字符抬到 6，进一步压缩下面的名称预算。
+>
+> **共享名称预算（Phase B 新增契约）**：真正的约束不是 server 段的 `≤64`，而是 `validateName` 对**最终名**的 64 字符上限（`tool.ts:116`），由 `mcp_`(4) + server + `_`(1) + tool **共享**。所以 server 段取到 64 时必然无法注册（`4+64+1+≥1 ≥ 70`），语法在其上端永不可兑现。实测：server `azure-devops-work-items`(23) + tool `list_work_item_comments_with_expansion`(38) = 66 字符即越界。越界报 typed `McpToolNameTooLongError`（消息含预算与越界名）而非裸 `RegistrationError`——**server 选定后两段长度都不在运维方控制内**，错误必须可行动。**截断/哈希策略刻意不在此拍定**：canonical 名进 Snapshot catalog 与工具指纹，是一次性命名契约，留 Phase C 拿真实 server 目录决定（登记 technical-debt）。
 
 ### 2.6 Fingerprint 契约：与 Snapshot 四字段同形，drift 由既有重验兜住
 
@@ -78,13 +89,13 @@ sanitized-server-name ::= [a-z0-9_-]+ （≤64 字符，来自 McpServerBinding.
 
 ### 2.7 隔离与一致性证明（测试钉死）
 
-| 不变量 | 证明方式 |
-|---|---|
-| 跨 Location 隔离 | Location A 注册的 server 在 Location B 的 materialize/settle 中不存在（registry 本就 Location-scoped，`ARCHITECTURE.md` §4.4） |
-| 跨 Session 隔离 | Session placement 注册对同 Location 其他 Session 的 materialize 不可见 |
-| definitions ≡ captured settle | 引用 `specs/v2/tools.md` Laws（Captured execution / Stale rejection）：settle 绑定物化时的 registration.identity，漂移即 stale error（`registry.ts:96-97`） |
-| V1 单向隔离 | Custom Session 的 materialize 结果中不出现任何 V1 InstanceState 来源的工具；V1 HTTP 面改动不影响 canonical 路径 |
-| 安全成对覆盖 | 每条「模型看到定义」测试必有对应「settle 真执行」负向测试（计划 §4） |
+| 不变量 | 证明方式 | Phase B 状态 |
+|---|---|---|
+| 跨 Location 隔离 | Location A 注册的 server 在 Location B 的 materialize/settle 中不存在（registry 本就 Location-scoped，`ARCHITECTURE.md` §4.4） | ✅ 结构性成立：`location-layer.ts:267` 整个 lookup 组合以 `Layer.fresh` 收尾，绕过 MemoMap 按 Layer 对象引用的记忆化，每 Location 一份独立 registry 闭包。**例外须知**：`ApplicationTools.layer` 在 LayerMap `dependencies`（`location-layer.ts:289`）→ 进程全局单实例，而它并入 §2.4 占用域，故**冲突域不是 Location-scoped**（A 的应用工具会占掉 B 的 MCP 名）。存量设计，fail-closed，登记 technical-debt |
+| 跨 Session 隔离 | Session placement 注册对同 Location 其他 Session 的 materialize 不可见 | ✅ `tool-registry-placement.test.ts` 三例（含 close 后消失 + 跨会话 settle 负向） |
+| definitions ≡ captured settle | settle 绑定物化时的 registration.identity，漂移即 stale error（`registry.ts:96-97`；Laws 见 `specs/v2/tools.md:178-179`） | ✅ 见 §4 条件 C1 状态 |
+| V1 单向隔离 | Custom Session 的 materialize 结果中不出现任何 V1 InstanceState 来源的工具；V1 HTTP 面改动不影响 canonical 路径 | ✅ 结构性成立并已钉死：V1 用**另一个** registry（`aigcfroge/src/session/tools.ts:10` 的 `@/tool/registry`），V1 MCP 工具落在本地 `Record`（`:386` 的 `mcp.tools()`），从不进 canonical `local`。因两个 registry 同名不同包、边界离「被 refactor 抹掉」只差一行 import 且抹掉后无任何别的测试会红，故补 source contract：`aigcfroge/test/session/v1-canonical-registry-boundary.test.ts` |
+| 安全成对覆盖 | 每条「模型看到定义」测试必有对应「settle 真执行」负向测试（计划 §4） | ✅ placement 与 MCP 命名两套测试均为「定义可见 + settle 真执行 text」成对 |
 
 ### 2.8 Kill-switch 与 disable 通知（§4.5-2 的 registration 部分）
 
@@ -124,5 +135,6 @@ sanitized-server-name ::= [a-z0-9_-]+ （≤64 字符，来自 McpServerBinding.
 
 - **C1（Core）**：`materialize` 的 `sessionID` 过滤必须与 §2.7「definitions ≡ captured settle」同时成立——settle 侧的 placement 校验要和 definitions 侧用**同一次**物化结果，不得二次查询 registry。否则会重新打开 stale 窗口，而 stale rejection 正是 §2.7 用来证明一致性的既有 Law（`registry.ts:96-97`）。红测试：同一 Session 在物化后、settle 前发生 Location 注册变化，settle 必须仍绑定物化时的 identity。
   - **状态：守卫已落地**（`custom-child-turn` 分支 `test/core/tool-registry-stale.test.ts`："settle keeps the materialized identity across a mid-flight registration change"）——该测试钉死既有 Law 的四个相位（物化前 settle 成功 / 重注册后 stale / 关闭新注册露出旧赢家后同一物化恢复 settle / 全部关闭后 stale）。因 Law 今日已成立，测试即时通过而非红先行；其角色是 Phase B sessionID 过滤实现期间的回归守卫。
+  - **状态：已闭合（2026-08-23 复审整改后）**。首版实现的 settle 侧 placement 取自 `input.sessionID`（调用方）而 definitions 侧取自 `options.sessionID`（物化）——**两个独立来源，无任何不变量保证相等**，正是 C1 禁止的「二次查询」。复审探针实测两处后果：① 生产路径上唯一两个 materialize 调用点（`session/runner/llm.ts:209`、`:556`）都不传 sessionID，故一旦出现 Session 注册，该 Session 自己的注册会成为比已公布 definitions 更新的赢家 → 每次调用回 `Stale tool call`，即一条 session 注册可静默废掉该会话的内建工具；② 为 Session A 物化的结果在 Session B 身上照样执行。两者均 fail-closed（无 fail-open），但都是 Phase C 地雷。整改：`Materialization` 携带自身 placement，settle 用捕获值做可见性过滤，且 Session 物化被非本 Session settle 时以 placement mismatch 失败。证据：`tool-registry-placement.test.ts` "a Location-wide materialization is not perturbed by a session registration"（红先行已验证）+ 跨会话 mismatch 断言；`tool-registry-stale.test.ts` 四相位保持全绿。
 - **C2（文档）**：§2.6 引用的「`specs/v2/tools.md` §Accepted Extension」**该小节名不存在**（Laws 在 `:178-179`，无此标题）。四字段指纹形状的真源是 `composition-resolver.ts:742-758` + `packages/schema/src/composition.ts:221-232`，改引这两处。这是引用不实，不影响决策实质，但必须修正后才能作为 Phase B 的施工依据。
   - **状态：已修正**（本提交，§2.6 首条改引两处真源）。

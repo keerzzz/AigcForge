@@ -68,7 +68,7 @@
 | 1 | `register` 本来就是运行时动态：闭包内 `local` Map 在调用时 mutate（同名入栈，不抛错） | `packages/core/src/tool/registry.ts:149-169`（写入 `:157`） |
 | 2 | Scope 清理已有：finalizer 按 token 过滤，只移除自己的注册 | `registry.ts:158-166` |
 | 3 | 冲突语义是 last-wins：settle 与 materialize 都取 `.at(-1)`，关掉赢家露出次新 | `registry.ts:88`（settle）、`:177`（materialize） |
-| 4 | 反面教材：`ApplicationTools.Service.register` 签名要求 `Scope.Scope` 却从不 `Effect.addFinalizer`，条目永久存活 | `application-tools.ts:21-23`（签名）vs `:42-50`（无 finalizer） |
+| 4 | ~~反面教材：`ApplicationTools.Service.register` 签名要求 `Scope.Scope` 却从不 `Effect.addFinalizer`~~ **Phase B 更正：断言有误**——清理由 `State.transform` 内建提供（调用方 Scope finalizer + 重放恢复，`state.ts:88-93`），scope 关闭移除自身注册并揭示前一赢家；Phase B 已以 overlay-reveal 测试钉死 | `application-tools.ts:47-50`（经 state.transform）+ `state.ts:88-93` |
 | 5 | fingerprint 在 registry 内 0 命中——它是 resolver/schema 的概念：freeze 用无参 `materialize()` 后对 definitions 计算 placement/name/digest/installationVersion 四字段 + catalogDigest | `rg fingerprint packages/core/src/tool/` = 0；`composition-resolver.ts:742-758`；schema 侧 `SnapshotToolInfo`（`composition.ts:221-232`） |
 | 6 | 运行期每轮 provider turn 以 snapshot catalog 为 allowlist 重物化，并重验五类漂移（tool_missing / fingerprint_missing / fingerprint_mismatch / fingerprint_extra / catalog_digest_mismatch），fail-closed via `SessionRunner.SnapshotDriftError` | `session/runner/llm.ts:205-273`；allowlist 物化 `:541`/`:547` |
 | 7 | version union 只有 V1\|V2，未知版本硬失败；消费方各自 switch，v3 = 每站点加第三分支 | `packages/schema/src/composition.ts:301-302`；`session/composition.ts:112-117` |

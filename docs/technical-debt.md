@@ -12,7 +12,7 @@
 |---|---|---|
 | §1 权限档位遗留（PR #32） | M1/M2/M3/M5/D5 五项 | 待专项处理 |
 | §2 页面归一化延后（PR #34） | 960px 主列、Assistant scope、Chat Location 抽取、全仓 import 债 | 计划外延后 |
-| §3 Custom Mode 平台（PR #33） | ADR-17 评审 + Roadmap M0-M5；§3.1 Custom M2 遗留 12 项 | M0/M1/M2 已完成并合入（M2 = PR #46 / `a11b50020`）；M3 待 G3-1/G3-2 ADR；M4-M5 远期 |
+| §3 Custom Mode 平台（PR #33） | ADR-17 评审 + Roadmap M0-M5；§3.1 Custom M2 遗留 12 项；§3.2 Custom M3 Phase B 遗留 2 项 | M0/M1/M2 已完成并合入（M2 = PR #46 / `a11b50020`）；M3 Phase A/B 已交付，Phase C 待 G3-3；M4-M5 远期 |
 | §4 全局存量债（CLAUDE.md 迁移） | dompurify、doom_loop 统计、资产路由等 | 按到期日跟进 |
 
 ---
@@ -56,7 +56,7 @@
 | M0   | 治理与组合底座            | 第五 Mode、Profile/Plan/Snapshot、AssetRef、Resolver                                  | ADR-17 批准              | 已完成（Phase A-F） |
 | M1 | 单 Agent 可恢复闭环 | `meta` + 一个用户 Agent + Prompt/Skill + native + Upgrade + UI Phase E + 50 轮稳定性矩阵 | M0 | 已完成（Waves W1-W4，2026-08-19） |
 | M2 | 多 Agent 与编排 | Agent 池、Command、Workflow、进度、取消、部分成功 | M1 | 已完成并合入 `main`（PR #46，合并提交 `a11b50020`，2026-08-22；R5 独立专项复审已取得并整改，复审 APPROVED，见 [Custom M2 复审报告](review/AigcForge_CUSTOM_M2_REVIEW.md)，遗留项见 §3.1） |
-| M3 | MCP 与审批 | scoped registration、凭证、健康、统一审批入口（含 once/Session/Location grant model） | M2 + Tool Registry 扩展 | 待开工：G3-0 已随 M2 满足；**G3-1 Registration ADR 与 G3-2 Grant ADR 尚未起草**，只能先做研究/ADR。计划 [custom-mode-m3-mcp-approval.md](plan/custom-mode-m3-mcp-approval.md)，执行提示词 [prompt-custom-mode-m3-mcp-approval.md](plan/prompt-custom-mode-m3-mcp-approval.md) |
+| M3 | MCP 与审批 | scoped registration、凭证、健康、统一审批入口（含 once/Session/Location grant model） | M2 + Tool Registry 扩展 | 进行中：G3-1（[ADR-19](architecture/adr/ADR-19-mcp-scoped-registration.md) Accepted v1.0）与 G3-2（[ADR-20](architecture/adr/ADR-20-scoped-grant-model.md) Accepted v1.1）已批准，Phase A 已合入 `main`（`7a2804624`）；Phase B（placement + MCP 命名/冲突 owner）已交付并经独立复审整改。**Phase C 仍被 G3-3 Credential ADR 阻塞**，Phase D 遗留见 §3.1 两项、Phase C 输入见 §3.2。计划 [custom-mode-m3-mcp-approval.md](plan/custom-mode-m3-mcp-approval.md)，执行提示词 [prompt-custom-mode-m3-mcp-approval.md](plan/prompt-custom-mode-m3-mcp-approval.md) |
 | M4 | Trusted Runtime Extension | Host/Agent/Client 分面、信任、停止、隔离、回滚 | M3 + Plugin 生命周期 ADR | 远期 |
 | M5 | Code Presentation | `run_code` + 受限 SDK，共用 Effective Tool Set | M3/M4 稳定 | 远期 |
 
@@ -83,6 +83,14 @@ M2 已合入 `main`（PR #46 / `a11b50020`）。以下为判定为「部分闭�
 | Custom 快照面板与 Builder 的 token / i18n 残留 | app | `custom-snapshot-panel.tsx` 新增的 Workflow / Agent Pool 卡片硬编码 Tailwind 调色板（`bg-amber-500/10`、`text-blue-300` 等）并直出英文字面量（`Workflow (...)`、`{n} steps`、`Agent Pool (...)`），违反「颜色走 `--v2-*` token、文案走 i18n」；`workflowStatusKey()` 用服务端状态拼动态 i18n key 且无兜底，超出契约的状态会渲染空 badge 文案。`custom-draft` 的 store 按目录 memo 但 persist 用单一 global key，跨项目会互相覆盖，且 SDK 未就绪时全部落在 `""` key 上 | TBD | Custom Builder 下次改动时 |
 | `createChild` defect 收敛为 `executor_unavailable`，丢失原因分类 | core | allowlist 拒绝已修为 `agent_not_allowed`（dispatch 前 + 创建后 parent 不匹配），但 `TaskDriver.createChild` 的 defect 仍无差别归 `executor_unavailable`，与「driver 真的缺失」不可区分。当前靠 `defectTag` 日志保留可诊断性；`TaskDriver` 改 root-scoped 后「走错 root」这一主要成因已消除，故降级为诊断质量问题。根治：为 createChild 定义 typed failure 而非 defect | TBD | TaskDriver seam 再次改动时 |
 
+### 3.2 Custom M3 Phase B 遗留（来源：Phase B 独立复审，2026-08-23，分支 `mcp-registration`）
+
+Phase B 的 placement 维度与 MCP 命名/冲突 owner 已交付，两项 P1（占用检查 placement-盲、settle 与 definitions 的 placement 未绑定）已在复审中整改并红先行验证。以下两项**刻意不在 Phase B 拍定**。
+
+| 负债 | 包 | 说明与根治方向 | Owner | 触发条件 |
+|---|---|---|---|---|
+| canonical 工具名共享 64 字符预算，无截断/哈希策略 | core | `mcp_`(4) + server + `_`(1) + tool 共享 `validateName` 的 64 字符上限（`tool.ts:116`），实测 server `azure-devops-work-items`(23) + tool `list_work_item_comments_with_expansion`(38) = 66 即越界；`SERVER_NAME` 的 `≤64` 在其上端永不可兑现。现状已 fail-closed 且报 typed `McpToolNameTooLongError`（消息含预算），但**运维方无法自行解决**——server 选定后两段长度都不由其控制。**刻意不在 Phase B 定截断/哈希方案**：canonical 名进 Snapshot catalog 与工具指纹（ADR-17 §2.4 / ADR-19 §2.6），一旦定下就是不可变命名契约，必须拿真实 server 目录数据决定一次。根治：Phase C 连接真实 server 后定策略（候选：保留可读前缀 + 尾部内容哈希；或对 server 段设可兑现上界并在 Builder 绑定期即校验） | TBD | **Custom M3 Phase C 开工时**（与 connection owner 同一 slice） |
+| MCP 冲突域不是 Location-scoped（`ApplicationTools` 进程全局） | core | `registry` 的 `local` 闭包按 Location 隔离（`location-layer.ts:267` 以 `Layer.fresh` 收尾，绕过 MemoMap 按 Layer 对象引用的记忆化，已复核），但 `ApplicationTools.layer` 位于 LayerMap `dependencies`（`location-layer.ts:289`）→ 进程全局单实例，而它并入 ADR-19 §2.4 的占用域。后果：Location A 注册的应用工具会占掉 Location B 的同名 MCP 工具名，报 collision。方向是 fail-closed（不会遮蔽、不会跨 Location 泄漏工具），且应用工具本就是 app 级全局概念，故非安全缺陷；但它让 §2.7「跨 Location 隔离」对冲突域不成立，多 Location 并用同一 MCP server 时可能出现无法解释的伪冲突。根治：占用检查区分「Location-scoped 域」与「全局应用工具域」，或把 ApplicationTools 收敛为 per-Location | TBD | 多 Location 并发绑定同一 MCP server 出现伪冲突时 |
 
 ---
 
