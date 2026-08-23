@@ -194,6 +194,24 @@ describe("ApplicationTools", () => {
     }),
   )
 
+  it.effect("reveals the previously registered tool after an overlay scope closes", () =>
+    Effect.gen(function* () {
+      const applications = yield* ApplicationTools.Service
+      const registry = yield* ToolRegistry.Service
+      const baseScope = yield* Scope.make()
+      const overlayScope = yield* Scope.make()
+      yield* applications.register({ overlay_tool: contextual([]) }).pipe(Scope.provide(baseScope))
+      yield* applications.register({ overlay_tool: contextual([]) }).pipe(Scope.provide(overlayScope))
+      expect((yield* toolDefinitions(registry)).map((tool) => tool.name)).toEqual(["overlay_tool"])
+
+      yield* Scope.close(overlayScope, Exit.void)
+      expect((yield* toolDefinitions(registry)).map((tool) => tool.name)).toEqual(["overlay_tool"])
+
+      yield* Scope.close(baseScope, Exit.void)
+      expect(yield* toolDefinitions(registry)).toEqual([])
+    }),
+  )
+
   it.effect("preserves an interrupted application registration until its scope closes", () =>
     Effect.gen(function* () {
       const applications = yield* ApplicationTools.Service
