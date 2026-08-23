@@ -31,7 +31,7 @@ M3 的根问题不是「让 Profile 能选 MCP」，而是让外部工具在一�
 #### ToolRegistry：机制已有，缺的是身份契约
 
 - **旧计划「Session-scoped registrations 仍缺设计」仍然成立**（`packages/core/src/tool/AGENTS.md:58`），但要说准：`register` **本来就是运行时动态的**（闭包 `Map` 在调用时 mutate，`registry.ts:157`）且**已有 Scope 清理**（`:158-166`）；同名冲突是**入栈后 last-wins、不抛错不丢失**（`:157`、读 `:177`）。缺的不是机制，是 identity/placement 契约。
-- 反例警示：`ApplicationTools` 要求 `Scope` 却**根本没装 finalizer**（`application-tools.ts:42-50`）。
+- 反例警示：`ApplicationTools` 要求 `Scope` 却**根本没装 finalizer**（`application-tools.ts:42-50`）。〔Phase B 更正 2026-08-23：此条有误——清理由 `State.transform` 内建（调用方 Scope finalizer + 重放恢复，`state.ts:88-93`）提供，overlay 关闭后正确揭示前一注册；证据测试 `application-tools.test.ts` "reveals the previously registered tool after an overlay scope closes"。保留原文仅作记录，缺口不存在〕
 - **fingerprint 不在 registry**（`packages/core/src/tool/` 内 `fingerprint` 0 命中），它在 resolver/schema（`composition-resolver.ts:742-758`、`packages/schema/src/composition.ts:221-232`）。所以 Phase B 的「registration fingerprint」是**新概念**，不是扩展既有。
 - Snapshot 冻结用的是 `tools.materialize()` 无参调用（`composition-resolver.ts:742`），源是**活的 registry**，所以 MCP 工具在结构上能进冻结集——只是今天没有任何路径注册它。运行期每轮 provider turn 会拿 `snapshot.data.tools.catalog` 当 allowlist 并重验 fingerprint，fail-closed（`session/runner/llm.ts:205-273/:541/:547`）。
 - **旧计划 Phase E 说「扩 composition v3/version union」需修正**：union 是 V1|V2（`composition.ts:301-302`），**没有 v1→v2 升级**，未知版本硬失败（`session/composition.ts:112-117`），消费方各自 `switch version`（如 `session.ts:335-338`）。v3 = 每个这类站点都要加第三分支。
@@ -117,7 +117,7 @@ M3 的根问题不是「让 Profile 能选 MCP」，而是让外部工具在一�
 
 **重构**：不增加 MCP registry/executor；ToolRegistry 仍是唯一执行入口。先解决 Location-layer ordering，不能形成 `PluginBoot -> Tools -> PluginBoot` 循环。
 
-> 事实校准（§0.1）：`register` 已是运行时动态且有 Scope 清理，冲突已是入栈 last-wins，所以本 Phase 要建的是 **identity/placement 契约**而非注册机制。**registration fingerprint 是新概念**（fingerprint 今天只在 resolver/schema，registry 内 0 命中）。今天**没有 reconnect 也没有 health 轮询**，「reconnect 产生 drift」没有可扩展的既有机制。顺路修 `ApplicationTools` 要求 `Scope` 却无 finalizer 的缺口。
+> 事实校准（§0.1）：`register` 已是运行时动态且有 Scope 清理，冲突已是入栈 last-wins，所以本 Phase 要建的是 **identity/placement 契约**而非注册机制。**registration fingerprint 是新概念**（fingerprint 今天只在 resolver/schema，registry 内 0 命中）。今天**没有 reconnect 也没有 health 轮询**，「reconnect 产生 drift」没有可扩展的既有机制。~~顺路修 `ApplicationTools` 要求 `Scope` 却无 finalizer 的缺口~~〔Phase B 更正：该缺口不存在，见 §0.1 反例警示处的更正〕。
 
 ### Phase C：Connection、credential 与 health
 

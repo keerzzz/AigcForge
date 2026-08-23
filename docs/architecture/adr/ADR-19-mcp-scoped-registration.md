@@ -49,7 +49,7 @@ placement ::= { kind: "location" }
 
 每条注册路径恰好拥有一个 Effect `Scope`，其 finalizer 负责：unregister 本路径工具（registry 已有按 token 过滤的 finalizer，`registry.ts:158-166`）→ 关闭传输连接 → 以 typed 错误释放该路径产生的全部 pending request。**不存在任何绕过 owner Scope 的手工 Map 删除路径**（停止条件红线）。
 
-反面教材钉进验收：`ApplicationTools.Service.register` 要求 `Scope` 却无 finalizer（`application-tools.ts:42-50`），Phase B 顺路补齐；`cli-adapter.ts:71` 的模块级 `Map` 是禁止形态。
+> **Phase B 事实修正（2026-08-23）**：原起草时断言「`ApplicationTools.Service.register` 要求 `Scope` 却无 finalizer」——**该断言有误**。清理由 `State.transform` 内建提供：它在调用方 Scope 上挂 finalizer 并通过重放剩余 transform 恢复状态（`state.ts:88-93` 的 `Scope.addFinalizer(scope, dispose)` + materialize 重放），因此 scope 关闭移除自身注册且揭示前一个赢家，与 §2.3 语义一致；钉死测试见 `application-tools.test.ts` "reveals the previously registered tool after an overlay scope closes"。真正的禁止形态仍是 `cli-adapter.ts:71` 的模块级 `Map`（无 Scope、无 Location 归属）。
 
 ### 2.4 Name collision 规则：typed error，fail closed（新增契约，收窄通用 last-wins）
 
