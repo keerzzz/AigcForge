@@ -1,6 +1,6 @@
 # ADR-20: Scoped Grant Model
 
-> **状态**：**Accepted for M3 implementation v1.0，§2.6 除外**（2026-08-23 批准；用户授权 AI 代理代行五方技术审批）—— Phase D/E/F 阻塞解除，但 **§2.6 仍为 Proposed**：其事实基础 `custom-child-turn@c0de66899` 复审 **BLOCK**（见 §4 与 [M2 复审报告](../../review/AigcForge_CUSTOM_M2_REVIEW.md) §2.6/R6），未整改前不得按 §2.6 施工
+> **状态**：**Accepted for M3 implementation v1.1**（2026-08-23 批准；用户授权 AI 代理代行五方技术审批）—— Phase D/E/F 阻塞解除。§2.6 的 **unattended 部分已转 Accepted**（R6-1/R6-2/R6-3 整改经复审实证闭环，白名单成员已裁定，见 §2.6 与 §4）；**attended 扩展仍为提案**，随 Phase D 与产品一并裁决，未批准前不得提前实现。
 > **日期**：2026-08-23
 > **Gate**：G3-2（M3 计划 §1）；**已通过**（G3-4 的 ①③ 两项一并回答；② 待 §2.6 整改后闭环）
 > **关联**：[ADR-17](ADR-17-custom-mode-composition-platform.md)、[ADR-18](ADR-18-custom-mode-workflow-execution.md)、[ADR-19](ADR-19-mcp-scoped-registration.md)、[M3 计划](../../plan/custom-mode-m3-mcp-approval.md)、[Phase A 调研报告](../../plan/custom-mode-m3-phase-a-research.md)
@@ -67,7 +67,9 @@ Snapshot 冻结的权限摘要（ADR-17 §2.4「有效权限摘要 digest」）�
 
 ### 2.6 尾部 allow 缺口的收口路径（§4.5-1；R6-1/R6-2 整改后 v1.1）
 
-> **状态**：unattended 部分已按本节整改落地（分支 `custom-child-turn`，提交 `a508eca43`），**待 Security 复审确认白名单成员后本节转 Accepted**；attended 扩展仍为提案。
+> **状态**：unattended 部分已按本节整改落地并**经 Security 复审确认白名单成员，本节 unattended 部分转 Accepted**（分支 `custom-child-turn`，提交 `a508eca43`；复审实证见 §4）；attended 扩展仍为提案，随 Phase D 裁决。
+>
+> **白名单裁定（2026-08-23，Security 代行）**：成员固定为 `glob | grep | list_assets | read` 四项，**`skill` / `kb_search` / `question` 不纳入**。理由是三者都不是纯只读语义——`skill` 把技能资产内容注入模型上下文，属「改变模型行为」而非读文件；`kb_search`（及 `kb_read`）读的是知识库而非工作区，是外部内容入口；`question` 在无人值守下无人可答，而 unattended clamp 本就把 `ask` 压成 `deny`，纳入自相矛盾。**关键区分**：天花板管的是「资产作者能否自己预授权」，ScopedGrant 管的是「用户能否显式授权一次」——授权主体不同，不可互相替代。将来无人值守 step 确需 `skill`/`kb_search`，**走 grant 签发，不得放宽本白名单**；任何成员变更须重新过 Security 复审并同步 `permission-effective.test.ts` 的范围界定测试。
 
 - **unattended custom：只读白名单制（R6-2 整改，取代原黑名单表述）**。天花板不再「排除危险四项、其余放行」，改为**只有显式只读类 allow 可为无人值守扇出预授权，未收录 action（含未来新工具）一律默认 deny**。白名单成员逐一取自 `packages/core/src/tool/builtins.ts` 注册清单：
 
@@ -110,7 +112,7 @@ Snapshot 冻结的权限摘要（ADR-17 §2.4「有效权限摘要 digest」）�
 |---|---|---|
 | Product | **Approved** | §2.7 TTL 默认 300,000ms 采纳（须 > 0 且 ≤ Location idle TTL 60 分钟，config 可调）。§2.6 的产品确认**暂缓**，见 R6-1/R6-2 |
 | Core | **Approved** | §2.4 照抄 `WorkflowRun` durable owner + CAS + 同事务事件，不发明第二套一致性方案。§2.2 咨询顺序接入点定在 `PermissionEffective.compute` 的新增 grants 输入，leaf assert 不动 |
-| Security | **Approved except §2.6** | §2.2 deny 恒胜出 + grant 只存 allow（Schema 钉死 `Literal("allow")`）是正确的单向性。§2.8 能力头与「不存在应用级永久 allow」通过。**§2.6 不予批准**：其声称已落地的 unattended 天花板经实测有 2 项缺陷，见下 |
+| Security | **Approved**（§2.6 unattended 部分含白名单裁定；attended 扩展留 Phase D） | §2.2 deny 恒胜出 + grant 只存 allow（Schema 钉死 `Literal("allow")`）是正确的单向性。§2.8 能力头与「不存在应用级永久 allow」通过。§2.6 首轮判 BLOCK 的 R6-1/R6-2/R6-3 三项已整改，复审方用同一支纯函数探针复跑实证闭环（见下）；白名单成员裁定为 `glob\|grep\|list_assets\|read`，`skill`/`kb_search`/`question` 不纳入，理由与「天花板 vs grant 授权主体不同」的区分见 §2.6 状态注 |
 | App | **Approved** | §2.8 入口必须带 `product-mode-custom-v1` 能力头，否则 SSE 过滤掉 custom 请求 |
 | Schema+SDK | **Approved** | `mcp-scope.ts` 作为 grant/pending 编码真源，17 例用例实跑通过 |
 

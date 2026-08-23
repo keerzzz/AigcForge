@@ -20,7 +20,7 @@
 | R3 | 2026-08-21 | FOCUSED differential review | **REJECT / BLOCK MERGE** — 4 项 P0、7 项 P1、3 项 P2 |
 | R4 | 2026-08-22 | 整改验收 + 全门禁实跑 | **CONDITIONAL PASS** — 全部阻断项闭环；另新增并修复 2 个此前无门禁可发现的 P0 |
 | R5 | 2026-08-22 | **独立 differential + security 专项复审（R3/R4 两轮未取得，本轮补齐）** | **BLOCK -> 整改后 APPROVED** — 4 份独立复审共 3 项 P0、8 项 P1，全部整改，见 §2.5 |
-| R6 | 2026-08-23 | 合并后由 M3 Phase A 第一个红测试触发 | **APPROVED 部分作废** — R5 标为 UNVERIFIED 的那条是真的：main 上 custom 委派 child 在真实 provider turn 上跑不起来（P0）；拟修复自身另有 1 P0 + 2 P1，见 §2.6 |
+| R6 | 2026-08-23 | 合并后由 M3 Phase A 第一个红测试触发 + 整改复审 | **P0 已闭环** — R5 标为 UNVERIFIED 的那条是真的：main 上 custom 委派 child 在真实 provider turn 上跑不起来（R6-0）；拟修复自身另有 1 P0 + 2 P1，四项均已整改并经复审实证。**修复未合入 main**，attended 缺口留 Phase D，见 §2.6 |
 
 R4 曾因 API 额度耗尽两轮未能启动独立专项复审，并如实标注为「未取得」。R5 取得了 4 份独立复审（core 运行时、security、schema 边界、HTTP/SDK/App 表层），结论一致为 **BLOCK**，且找到了 R1–R4 五轮自审全部漏掉的 3 个 P0。这印证 R2 的判词：
 
@@ -153,7 +153,11 @@ R5 的 schema 边界复审把这条标为 **UNVERIFIED**（「代码路径已核
 
 详细复审与实测输出见 [ADR-20 §4](../architecture/adr/ADR-20-scoped-grant-model.md#4-审批与授权记录)。
 
-**当前风险敞口**：`main@1d5c51f6c` 上 custom workflow 委派不可用（R6-0），修复分支 `custom-child-turn` 因 R6-1/R6-2/R6-3 被判 BLOCK。R6-0 的修复优先级高于 M3 任何 Phase。
+**当前风险敞口（2026-08-23 复审后更新）**：R6-0/R6-1/R6-2/R6-3 **全部闭环并经复审实证**——复审方用发现 R6-1/R6-2 的同一支纯函数探针复跑（`read .env → deny`、`task_spawn`/`webfetch`/未知工具 → deny、只读 `read` 存活、coding 分支逐字未变），白名单四个成员逐一核对为真实工具名，R6-3 收窄经 `resolveAgent` create 期判定确认无新断路；门禁实跑 core 全量 **2061 pass / 2 skip / 0 fail**（`env -u` 复现 CI）、定向 30 pass、typecheck / lint-changed / `diff --check` 全绿。
+
+修复位于 `custom-child-turn`（5 提交），**尚未合入 main**——因此 `main@1d5c51f6c` 上 custom workflow 委派仍不可用，合并优先级高于 M3 任何 Phase。合并顺序必须是 `custom-child-turn` → `mcp-scope-adr`（后者引用前者的提交哈希与测试名）。
+
+**唯一残留**：attended custom 的尾部通配 allow 缺口仍开放（实测 `attended=true` 时 allow-all 资产的 `bash`/`edit`/`write` 全部 `allow`，且因判定为 `allow` 而**永不弹审批框**）。ADR-20 §2.6 的 attended 扩展为提案，随 Phase D 与产品一并裁决，不提前实现。
 
 ## 3. 遗留项
 
