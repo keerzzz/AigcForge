@@ -71,6 +71,8 @@ export interface Interface {
     sessionID: SessionSchema.ID,
     tools: Readonly<Record<string, AnyTool>>,
   ) => Effect.Effect<void, RegistrationError, Scope.Scope>
+  /** Every occupied tool name across all placements plus application tools (ADR-19 §2.4 collision input). */
+  readonly registeredNames: () => ReadonlySet<string>
 }
 
 export interface Materialization {
@@ -199,6 +201,11 @@ const registryLayer = Layer.effect(
     return Service.of({
       register,
       registerSession: (sessionID, tools) => registerEntries(sessionID)(tools),
+      registeredNames: () => {
+        const names = new Set<string>(applications.entries().keys())
+        for (const name of local.keys()) names.add(name)
+        return names
+      },
       materialize: Effect.fn("ToolRegistry.materialize")(function* (
         permissions = [],
         intent?: string,

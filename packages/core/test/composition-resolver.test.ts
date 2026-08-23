@@ -39,6 +39,7 @@ function fullResolverLayer(dir: string) {
     CommandAsset.locationLayer,
   ).pipe(Layer.provide(location), Layer.provide(FSUtil.defaultLayer))
   const tools = Layer.mock(ToolRegistry.Service, {
+    registeredNames: () => new Set<string>(),
     materialize: () =>
       Effect.succeed({
         definitions: [

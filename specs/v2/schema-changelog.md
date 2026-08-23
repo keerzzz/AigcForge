@@ -1,5 +1,15 @@
 # V2 Schema Changelog
 
+## 2026-08-23: Custom Mode M3 Phase B Registration Placement and MCP Namespace
+
+> **Status: IMPLEMENTED (core registry contracts; connection owner deferred to Phase C behind G3-3)**
+
+- `ToolRegistry` gains the ADR-19 §2.2 placement dimension: registrations carry an optional owning `sessionID`; `materialize({ sessionID? })` filters Location∪own-Session entries, and settle resolves the current winner through **the same placement predicate** before identity comparison — so a foreign session's shadow registration can neither execute nor fake staleness for the owning session (single-materialization Law preserved; guard `tool-registry-stale.test.ts` stays green).
+- New `registerSession(sessionID, tools)` on both `ToolRegistry` and the narrow `Tools.Service` capability; owner-Scope close removes exactly that registration and reveals any prior winner (session or location).
+- New read-only probe `registeredNames()` on `ToolRegistry`: every occupied name across all placements plus application tools.
+- New owner `McpRegistration` (`packages/core/src/tool/mcp-registration.ts`): namespaces external tools under `mcp_<server>_<tool>` ([a-z0-9_-]{1,64} server segment), validates every final name against the provider-neutral grammar, and fails closed on any cross-placement name collision with typed errors (`McpNameCollisionError` / `InvalidServerNameError` / `Tool.RegistrationError`) — all-or-nothing per server, so last-wins is never exercised by MCP producers.
+- Compatibility: existing callers unchanged (omitted `sessionID` keeps pure Location-wide semantics; prior single-placement behavior identical).
+
 ## 2026-08-23: Custom Mode M3 Phase A Scope Contract (McpScope)
 
 > **Status: PROPOSED（Phase A 契约层；运行时实现被 ADR-19/ADR-20 接受阻塞）**
