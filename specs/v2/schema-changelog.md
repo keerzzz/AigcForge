@@ -1,5 +1,14 @@
 # V2 Schema Changelog
 
+## 2026-08-23: Custom Mode M3 Phase D Scoped Grants and Ask Bounds
+
+> **Status: IMPLEMENTED (store + consultation + ask bounds + attended ceiling rewrite); provenance check and import warning deferred (see Phase D report)**
+
+- New durable owner `ScopedGrantStore` (`packages/core/src/grant/`): SQLite `scoped_grant` table (migration `20260823040000_scoped_grant`), single CAS writer whose state transitions are committed inside the same transaction as the new durable event family `grant.updated.1` (aggregate `grantID`, `seq+1 === grantRevision`). Consume/revoke use RETURNING-based CAS; 0 affected rows raise typed `ScopedGrant.StateError`. Consultation (`findValid`) re-reads live state every call — expiry/revocation/consumption apply immediately, no cached copy.
+- `PermissionV2` consults candidate grants only when the policy verdict is `ask` (ADR-20 §2.2): deny rejects outright, allow passes outright. A hit skips the prompt; a `once` grant is consumed atomically so the next identical call asks again. The store is an optional dependency read per-call — hosts without grant wiring keep prior behavior.
+- Approval asks are bounded (ADR-20 §2.7): typed `AskExpiredError` after `ttlMs` (default 300,000, clamped ≤60min), and immediate typed rejection with reason `no_responder` when a wired `ApprovalPresence` source reports no capable subscriber. Presence is registered through a process-local host seam (`ApprovalPresence.wire`, auth-seam pattern); unwired hosts keep the bounded default wait.
+- Attended custom ceiling rewritten to **ask** (ADR-20 §2.6 attended half): asset-sourced non-whitelist allows become `ask` so the approval prompt actually surfaces; whitelist actions stay `allow`; saved always-approvals are appended independently and survive; unattended behavior unchanged (custom/coding paired assertions kept green).
+
 ## 2026-08-23: Custom Mode M3 Phase B Registration Placement and MCP Namespace
 
 > **Status: IMPLEMENTED (core registry contracts; connection owner deferred to Phase C behind G3-3)**

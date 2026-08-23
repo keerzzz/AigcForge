@@ -37,5 +37,5 @@ export const wire = (impl: Interface): void => {
   wired = impl
 }
 
-export const current = (): Interface | undefined =>
+export const current = (): Interface =>
   wired ?? { ttlMs: DEFAULT_TTL_MS, hasResponder: () => Effect.succeed(true) }

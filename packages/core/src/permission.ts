@@ -111,7 +111,7 @@ export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("Per
   requestID: ID,
 }) {}
 
-export type Error = DeniedError | RejectedError | CorrectedError
+export type Error = DeniedError | RejectedError | CorrectedError | AskExpiredError
 
 export function evaluate(action: string, resource: string, ...rulesets: Permission.Ruleset[]): Permission.Rule {
   return (
@@ -181,6 +181,7 @@ export const layer = Layer.effect(
       const consumed = yield* store.consume(hit.grant.id).pipe(
         EffectRuntime.catchTag("ScopedGrant.StateError", () => EffectRuntime.succeed(undefined)),
         EffectRuntime.catchTag("ScopedGrant.NotFoundError", () => EffectRuntime.succeed(undefined)),
+        Effect.catch(() => EffectRuntime.succeed(undefined)),
       )
       return consumed !== undefined
     })
@@ -269,8 +270,9 @@ export const layer = Layer.effect(
       const value = request(input)
       if (result.effect === "ask") {
         const granted = yield* consultGrant(input)
-        if (granted) return { id: value.id, effect: "allow" as const }
-        yield* create(value, input.agent)
+        const effect = granted ? ("allow" as const) : result.effect
+        if (!granted) yield* create(value, input.agent)
+        return { id: value.id, effect }
       }
       return { id: value.id, effect: result.effect }
     })
@@ -280,9 +282,10 @@ export const layer = Layer.effect(
         EffectRuntime.gen(function* () {
           const result = yield* evaluateInput(input)
           if (result.effect === "deny") {
-            return yield* new DeniedError({
+            yield* new DeniedError({
               rules: relevant(input, result.rules),
             })
+            return
           }
           if (result.effect === "allow") return
           if (yield* consultGrant(input)) return
@@ -290,26 +293,44 @@ export const layer = Layer.effect(
           // ADR-20 §2.7: bounded ask. Responder facts come only from wired
           // connection sources; without them the default TTL still bounds the
           // wait so no attended prompt can hang indefinitely.
-          const presenceOption = yield* EffectRuntime.serviceOption(ApprovalPresence.Service)
-          const presence = ApprovalPresence.current()
-          const ttlMs = presence.ttlMs
           const releasePending = EffectRuntime.sync(() => {
             pending.delete(item.request.id)
           })
-          {
-            const hasResponder = yield* presence.hasResponder()
-            if (!hasResponder) {
-              yield* events
-                .publish(Event.Replied, {
-                  sessionID: item.request.sessionID,
-                  requestID: item.request.id,
-                  reply: "reject",
-                })
-                .pipe(EffectRuntime.ignore)
-              pending.delete(item.request.id)
-              return yield* new RejectedError({ reason: "no_responder" })
-            }
+          const presence = ApprovalPresence.current()
+          const ttlMs = presence.ttlMs
+          if (!(yield* presence.hasResponder())) {
+            yield* events
+              .publish(Event.Replied, {
+                sessionID: item.request.sessionID,
+                requestID: item.request.id,
+                reply: "reject",
+              })
+              .pipe(EffectRuntime.ignore)
+            pending.delete(item.request.id)
+            yield* new RejectedError({ reason: "no_responder" })
+            return
+            return
           }
+          yield* restore(Deferred.await(item.deferred)).pipe(
+            EffectRuntime.timeoutOrElse({
+              duration: Duration.millis(ttlMs),
+              orElse: () =>
+                EffectRuntime.gen(function* () {
+                  yield* events
+                    .publish(Event.Replied, {
+                      sessionID: item.request.sessionID,
+                      requestID: item.request.id,
+                      reply: "reject",
+                    })
+                    .pipe(EffectRuntime.ignore)
+                  pending.delete(item.request.id)
+                  yield* new AskExpiredError({ requestID: item.request.id, ttlMs })
+                }),
+            }),
+          )
+          pending.delete(item.request.id)
+
+
           return yield* restore(Deferred.await(item.deferred)).pipe(
             EffectRuntime.timeoutOrElse({
               duration: Duration.millis(ttlMs),

@@ -2,11 +2,12 @@ export * as ScopedGrantStore from "./store"
 
 import { Context, Effect, Layer, Schema } from "effect"
 import { and, eq, isNull } from "drizzle-orm"
+import { Composition } from "@aigcfroge/schema/composition"
 import { McpScope } from "@aigcfroge/schema/mcp-scope"
 import { Database } from "../database/database"
 import { EventV2 } from "../event"
 import { Wildcard } from "../util/wildcard"
-import { GrantEvent } from "./event"
+import { GrantEvent, type CommitRejected } from "./event"
 import { ScopedGrantTable } from "./sql"
 
 export type GrantStatus = "active" | "consumed" | "revoked"
@@ -60,7 +61,9 @@ const toInfo = (row: Row): Info => {
     resources: row.resources,
     effect: "allow",
     ...(row.agent ? { agent: row.agent } : {}),
-    ...(row.asset_revision ? { revision: row.asset_revision as McpScope.ScopedGrant["revision"] } : {}),
+    ...(row.asset_revision !== null
+        ? { revision: Schema.decodeUnknownSync(Composition.Revision)(row.asset_revision) }
+        : {}),
     issuedAt: row.issued_at,
     ...(row.expires_at !== null ? { expiresAt: row.expires_at } : {}),
     ...(row.revoked_at !== null ? { revokedAt: row.revoked_at } : {}),
@@ -77,7 +80,16 @@ const isExpired = (row: Row, now: number) => row.expires_at !== null && row.expi
 
 interface Interface {
   /** Creates one active grant and publishes its durable creation event. */
-  readonly issue: (input: Omit<McpScope.ScopedGrant, "id" | "effect"> & { readonly id?: string }) => Effect.Effect<Info>
+  readonly issue: (input: {
+    readonly scope: McpScope.ScopedGrant["scope"]
+    readonly action: string
+    readonly resources: ReadonlyArray<string>
+    readonly agent?: string
+    readonly revision?: McpScope.ScopedGrant["revision"]
+    readonly issuedAt?: number
+    readonly expiresAt?: number
+    readonly id?: string
+  }) => Effect.Effect<Info, CommitRejected>
   readonly get: (id: string) => Effect.Effect<Info | undefined>
   /**
    * Live consultation (ADR-20 §2.2/§2.3): expiry/revocation/consumption are
@@ -85,9 +97,9 @@ interface Interface {
    */
   readonly findValid: (input: ConsultInput) => Effect.Effect<Info | undefined>
   /** Marks a `once` grant consumed. Concurrent consumers: exactly one wins. */
-  readonly consume: (id: string) => Effect.Effect<Info, NotFoundError | StateError>
+  readonly consume: (id: string) => Effect.Effect<Info, NotFoundError | StateError | CommitRejected>
   /** Revokes under CAS; 0 affected rows raises instead of returning quietly. */
-  readonly revoke: (id: string, expectedRevision: number) => Effect.Effect<Info, NotFoundError | StateError>
+  readonly revoke: (id: string, expectedRevision: number) => Effect.Effect<Info, NotFoundError | StateError | CommitRejected>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/ScopedGrantStore") {}
@@ -133,7 +145,7 @@ export const layer = Layer.effect(
                 consumed_at: null,
                 grant_revision: 1,
               })
-              .run()
+              .run().pipe(Effect.orDie)
             return true
           }),
         )
@@ -142,11 +154,13 @@ export const layer = Layer.effect(
 
       get: Effect.fn("ScopedGrantStore.get")(function* (id) {
         const rows = yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.id, id)).all()
+          .pipe(Effect.orDie)
         return rowToInfo(rows)[0]
       }),
 
       findValid: Effect.fn("ScopedGrantStore.findValid")(function* (input) {
         const rows = yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.action, input.action)).all()
+          .pipe(Effect.orDie)
         const now = Date.now()
         const valid = rows
           .filter((row) => row.revoked_at === null && row.consumed_at === null && !isExpired(row, now))
@@ -166,6 +180,7 @@ export const layer = Layer.effect(
 
       consume: Effect.fn("ScopedGrantStore.consume")(function* (id) {
         const current = yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.id, id)).all()
+          .pipe(Effect.orDie)
         const row = current[0]
         if (!row) return yield* new NotFoundError({ grantID: id })
         if (row.revoked_at !== null) return yield* new StateError({ grantID: id, reason: "already_revoked" })
@@ -191,15 +206,17 @@ export const layer = Layer.effect(
                 )
                 .returning()
                 .get()
+                .pipe(Effect.orDie)
               return updated !== undefined
             }),
         )
-        const updated = (yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.id, id)).all())[0]
+        const updated = (yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.id, id)).all().pipe(Effect.orDie))[0]
         return toInfo(updated)
       }),
 
       revoke: Effect.fn("ScopedGrantStore.revoke")(function* (id, expectedRevision) {
         const current = yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.id, id)).all()
+          .pipe(Effect.orDie)
         const row = current[0]
         if (!row) return yield* new NotFoundError({ grantID: id })
         if (row.grant_revision !== expectedRevision)
@@ -224,10 +241,11 @@ export const layer = Layer.effect(
                 )
                 .returning()
                 .get()
+                .pipe(Effect.orDie)
               return updated !== undefined
             }),
         )
-        const updated = (yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.id, id)).all())[0]
+        const updated = (yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.id, id)).all().pipe(Effect.orDie))[0]
         return toInfo(updated)
       }),
     })

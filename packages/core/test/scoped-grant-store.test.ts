@@ -1,5 +1,5 @@
 import { describe, expect } from "bun:test"
-import { Effect, Exit, Layer } from "effect"
+import { Effect, Exit, Layer, Schema } from "effect"
 import { eq } from "drizzle-orm"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventTable } from "@aigcfroge/core/event/sql"
@@ -7,13 +7,14 @@ import { EventV2 } from "@aigcfroge/core/event"
 import { ScopedGrantStore } from "@aigcfroge/core/grant/store"
 import { ScopedGrantTable } from "@aigcfroge/core/grant/sql"
 import { SessionV2 } from "@aigcfroge/core/session"
+import { Composition } from "@aigcfroge/schema/composition"
 import { testEffect } from "./lib/effect"
 
 const it = testEffect(Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer, ScopedGrantStore.locationLayer))
 
 const sessionA = SessionV2.ID.make("ses_grant_a")
 const sessionB = SessionV2.ID.make("ses_grant_b")
-const revision = "c".repeat(64)
+const revision = Schema.decodeUnknownSync(Composition.Revision)("c".repeat(64))
 
 describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
   it.effect("issues an active grant whose row, info and durable event agree", () =>
@@ -114,7 +115,7 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
         action: "webfetch",
         resources: ["https://api.example.com/v1"],
         agent: "custom-coder",
-        snapshotRevision: "d".repeat(64),
+        snapshotRevision: Schema.decodeUnknownSync(Composition.Revision)("d".repeat(64)),
       })
       expect(wrongRevision).toBeUndefined()
     }),
@@ -160,8 +161,8 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
       const events = yield* db.select().from(EventTable).where(eq(EventTable.aggregate_id, grant.grant.id)).all()
       expect(events.length).toBe(3)
       const revisions = events.map((event) => {
-        const raw: unknown = event.data
-        return (raw as { revision: number }).revision
+        const raw = event.data as { revision?: unknown }
+        return typeof raw.revision === "number" ? raw.revision : -1
       })
       expect(revisions).toEqual([1, 2, 3])
 
