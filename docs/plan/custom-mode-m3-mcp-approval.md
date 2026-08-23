@@ -80,12 +80,12 @@ M3 的根问题不是「让 Profile 能选 MCP」，而是让外部工具在一�
 | Gate                  | 通过标准                                                                                         | 状态 | 阻塞范围    |
 | --------------------- | ------------------------------------------------------------------------------------------------ | --- | ----------- |
 | G3-0 前置             | M1 Tool allowlist/fingerprint/Permission 运行稳定；M2 已上线，Agent scope 已可表达            | **已满足**（M2 = PR #46 / `a11b50020`，复审 APPROVED） | 全部        |
-| G3-1 Registration ADR | Session/Location registration、owner Scope、name collision、fingerprint、cleanup、reconnect 批准 | **未起草 —— 阻塞 Phase B/C/E** | MCP runtime |
-| G3-2 Grant ADR        | once/Session/Location + action/resource/agent/revision/expiry/revocation 的唯一真源批准，且回答 §0.2 第 1 项 | **未起草 —— 阻塞 Phase D/E/F** | 审批/执行    |
-| G3-3 Credential       | secret owner、opaque ref、rotation/revocation、日志脱敏和跨 Location 隔离批准。**注意起点比旧计划记的差**：秘密明文存储、凭据全局无 scope 列、存在第二个绕开 Credential service 的存储（`auth.json`/`mcp-auth.json`）、Snapshot 无字段可装 ref、`CredentialScanner` 只有 1 个生产调用点。「唯一 secret owner」与「跨 Location 隔离」都是**待建**而非待批准 | 未批准 | 连接        |
-| G3-4 Unattended       | **表述已按事实修正**：unattended **已经** fail-closed（`ask`→`deny`）。本 Gate 真正要批的是 ① 「有人值守但无客户端」的 ask 超时策略（今天无 timeout，永久挂到 Location 60 分钟驱逐）② §0.2 第 1 项的尾部 allow 绕过 clamp 该如何堵 ③ 审批中心必须带 `product-mode-custom-v1` 能力头否则收不到 custom 的 `permission.v2.asked` | 未批准 | Beta        |
+| G3-1 Registration ADR | Session/Location registration、owner Scope、name collision、fingerprint、cleanup、reconnect 批准 | **已通过** —— [ADR-19](../architecture/adr/ADR-19-mcp-scoped-registration.md) Accepted v1.0（2026-08-23），条件 C1/C2 均已闭合 | MCP runtime |
+| G3-2 Grant ADR        | once/Session/Location + action/resource/agent/revision/expiry/revocation 的唯一真源批准，且回答 §0.2 第 1 项 | **已通过** —— [ADR-20](../architecture/adr/ADR-20-scoped-grant-model.md) Accepted v1.2（2026-08-23），§0.2 第 1 项由 §2.6 回答（unattended 只读白名单已落地；attended 重写为 `ask` 已裁定） | 审批/执行    |
+| G3-3 Credential       | secret owner、opaque ref、rotation/revocation、日志脱敏和跨 Location 隔离批准。**注意起点比旧计划记的差**：秘密明文存储、凭据全局无 scope 列、存在第二个绕开 Credential service 的存储（`auth.json`/`mcp-auth.json`）、Snapshot 无字段可装 ref、`CredentialScanner` 只有 1 个生产调用点。「唯一 secret owner」与「跨 Location 隔离」都是**待建**而非待批准 | **未起草 —— 阻塞 Phase C** | 连接        |
+| G3-4 Unattended       | **表述已按事实修正**：unattended **已经** fail-closed（`ask`→`deny`）。本 Gate 真正要批的是 ① 「有人值守但无客户端」的 ask 超时策略（今天无 timeout，永久挂到 Location 60 分钟驱逐）② §0.2 第 1 项的尾部 allow 绕过 clamp 该如何堵 ③ 审批中心必须带 `product-mode-custom-v1` 能力头否则收不到 custom 的 `permission.v2.asked` | **已通过** —— 三项均由 ADR-20 回答（① §2.7 ② §2.6 ③ §2.8） | Beta        |
 
-**当前唯一可开工阶段是 Phase A**（研究 + 起草 ADR + Schema 契约），分支 `mcp-scope-adr`。Phase A 结束后停机等待 ADR 裁决；不得自行接受自己起草的 ADR 然后继续。
+**当前可开工阶段是 Phase D**（ScopedGrant + PermissionEffective + attended 天花板 + 导入警示），分支 `scoped-grants`。Phase A 已合入 `main`（`7a2804624`）；Phase B 已交付并经独立复审整改（分支 `mcp-registration`，未推送，按安排与后续阶段统一开 PR）。**Phase C 仍被 G3-3 阻塞**，其 Credential ADR 尚未起草——不得因为「D 做完了顺手做 C」而跳过 Gate。Phase E 依赖 Phase C，Phase F 依赖 Phase D。
 
 应用级审批入口只聚合 pending request；它不成为“应用级永久 allow”。
 
@@ -137,7 +137,9 @@ M3 的根问题不是「让 Profile 能选 MCP」，而是让外部工具在一�
 
 > **Phase D 必须一并处理的两项 R6 残留**（technical-debt §3.1 已独立登记，触发条件即「Phase D 开工时」；它们与 grant 注入点是同一处代码，不单开 slice）：
 >
-> 1. **attended custom 的资产自授权限尾部 allow**（[ADR-20 §2.6](../architecture/adr/ADR-20-scoped-grant-model.md) 的 attended 提案，**未批准，须先取得产品裁决**）。unattended 半边已由 R6-1/R6-2 封住（只读白名单 `glob|grep|list_assets|read` + 显式 deny 位序保证），attended 半边仍开放：天花板只在 `attended === false` 启动，所以 attended custom 会话里 `bash`/`edit`/`write` 判定为 `allow`，而**审批框只在判定为 `ask` 时才弹**——直接 allow 意味着框根本不出现，「用户在场 ≠ 用户同意」。实测同一 allow-all 资产：`attended=false → 全 deny`，`attended=true → 全 allow`。落地时**必须区分「base 来源」与「saved 追加来源」**：用户真实点过 always 的 saved approval 不受天花板影响，否则会把用户自己的显式授权一起削掉。并加 provenance 校验（注册表条目须来自被绑定资产的 `relativePath`+`revision`，不一致 fail closed）。**白名单成员是已裁定项**（ADR-20 §2.6 状态行）：`skill` / `kb_search` / `question` 不纳入，需要时走 grant 签发而非放宽天花板——授权主体不同，不可互替；任何成员变更须重新过 Security 复审并同步 `permission-effective.test.ts` 的范围界定测试。
+> 1. **attended custom 的资产自授权限尾部 allow**（[ADR-20 §2.6](../architecture/adr/ADR-20-scoped-grant-model.md) attended 条目，**2026-08-23 已裁定：重写为 `ask`，非 `deny`**）。unattended 半边已由 R6-1/R6-2 封住（只读白名单 `glob|grep|list_assets|read` + 显式 deny 位序保证），attended 半边仍开放：天花板只在 `attended === false` 启动（`effective.ts:92`），所以 attended custom 会话里 `bash`/`edit`/`write` 判定为 `allow`，而**审批框只在判定为 `ask` 时才弹**——直接 allow 意味着框根本不出现，「用户在场 ≠ 用户同意」。实测同一 allow-all 资产：`attended=false → 全 deny`，`attended=true → 全 allow`。裁定为 `ask` 而非 `deny` 的理由：缺陷本质是框不弹，压成 deny 会连带废掉合法的写文件类 custom agent 且用户没有在场放行途径；与 2026-08-16 对 meta 的既有裁决同型。落地要点：① 生效位序为 头部 fallback deny → 非白名单资产 allow 重写为 ask → 白名单 allow → 显式非通配 deny（`evaluate` 是 `findLast`）；② **必须区分「base 来源」与「saved 追加来源」**，用户真实点过 always 的 saved approval 不受天花板影响，否则会把用户自己的显式授权一起削掉；③ 加 provenance 校验（注册表条目须来自被绑定资产的 `relativePath`+`revision`，不一致 fail closed）；④ **白名单成员是已裁定项**：`skill` / `kb_search` / `question` 不纳入，需要时走 grant 签发而非放宽天花板——授权主体不同，不可互替；任何成员变更须重新过 Security 复审并同步 `permission-effective.test.ts` 的范围界定测试。
+>
+>    **⚠ 不可分割的时序约束**：今天 app/tui/session-ui/ui 对 `permission.v2.*` **零消费**，且 custom 会话的 `permission.v2.asked` 对未带 `product-mode-custom-v1` 能力头的连接会被 SSE 过滤掉。因此在审批中心（Phase F）落地前，attended custom 的每一个 `ask` 实际处于**无人可答**状态。只做重写而不做 [ADR-20 §2.7](../architecture/adr/ADR-20-scoped-grant-model.md) 的「无应答方即时拒绝」，会把一个安全洞换成「每次工具调用挂到 TTL 再失败」的可用性事故，并直接触犯本计划 §6 停止条件「ask 在 unattended/headless 状态可能无限等待」。**重写与无应答方快速拒绝必须同一 slice 交付**；且判据必须来自连接/订阅事实，不得用「`attended` flag 没被显式设成 false」冒充（`effective.ts:48` 的 `input.attended !== false` 是默认值，不是「真有人能答」）。
 > 2. **资产导入/apply 警示通配 allow**（缓解措施，成本低）。上一项最真实的触发路径不是作者粗心，而是**导入别人的资产夹带 allow-all**；仓库已有导入/分享链路，导入时零提示。在 `propose`/`apply` 解码 `config.permissions` 之后，若含通配 allow 或 `DANGEROUS_ACTIONS` allow，于 diff 预览与 apply 结果显式标注（**不阻断，只揭示**）。注意 `agent-asset.ts` 目前把 `config` 当字符串原样存，警示须在 `parseAgentAssetConfig` 解码后做。
 
 ### Phase E：Resolver/Snapshot 与运行依赖
@@ -188,7 +190,7 @@ M3 的根问题不是「让 Profile 能选 MCP」，而是让外部工具在一�
 
 ## 7. 分支策略
 
-- 研究/ADR 走 `mcp-scope-adr`（**当前可开工**）；生产实现必须等 G3-1/G3-2 批准。
-- 推荐实现分支：`mcp-registration`、`scoped-grants`、`mcp-composition`、`approval-center`。
-- 每个 PR 合入后从最新 main 开下一分支，不与 M4 Plugin 生命周期修改混在同一 PR。
+- 研究/ADR 走 `mcp-scope-adr`（Phase A，**已合入 main `7a2804624`**）；Phase B 走 `mcp-registration`（**已交付，复审整改完成，未推送**）。
+- 剩余实现分支：`scoped-grants`（Phase D，**当前可开工**）、`mcp-composition`（Phase E，待 Phase C）、`approval-center`（Phase F，待 Phase D）；Phase C 待 G3-3 起草并批准后另开。
+- 按现行安排：M3 各阶段分支在本地依次叠加，**全部阶段结束后统一开一个 PR**，不逐阶段推送。不与 M4 Plugin 生命周期修改混在同一 PR。
 - 执行细则、必读清单、TDD 循环与停止条件见 [执行提示词](prompt-custom-mode-m3-mcp-approval.md)。

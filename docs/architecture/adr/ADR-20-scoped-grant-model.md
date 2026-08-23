@@ -1,8 +1,8 @@
 # ADR-20: Scoped Grant Model
 
-> **状态**：**Accepted for M3 implementation v1.1**（2026-08-23 批准；用户授权 AI 代理代行五方技术审批）—— Phase D/E/F 阻塞解除。§2.6 的 **unattended 部分已转 Accepted**（R6-1/R6-2/R6-3 整改经复审实证闭环，白名单成员已裁定，见 §2.6 与 §4）；**attended 扩展仍为提案**，随 Phase D 与产品一并裁决，未批准前不得提前实现。
+> **状态**：**Accepted for M3 implementation v1.2**（2026-08-23 批准；用户授权 AI 代理代行五方技术审批）—— Phase D/E/F 阻塞解除。§2.6 **unattended 与 attended 两半均已转 Accepted**（unattended：R6-1/R6-2/R6-3 整改经复审实证闭环，白名单已裁定；attended：2026-08-23 产品裁定「非白名单 → **ask**」，见 §2.6）。**attended 半边带一条不可分割的时序约束**，见 §2.6 末与 §2.7。
 > **日期**：2026-08-23
-> **Gate**：G3-2（M3 计划 §1）；**已通过**（G3-4 的 ①③ 两项一并回答；② 待 §2.6 整改后闭环）
+> **Gate**：G3-2（M3 计划 §1）；**已通过**。G3-4 三项一并回答并闭环：① ask 超时策略 = §2.7（TTL 300,000ms + 无应答方即时拒绝）；② 尾部 allow 绕过 clamp = §2.6（unattended 只读白名单已落地；attended 重写为 ask 已裁定）；③ 审批中心能力头 = §2.8
 > **关联**：[ADR-17](ADR-17-custom-mode-composition-platform.md)、[ADR-18](ADR-18-custom-mode-workflow-execution.md)、[ADR-19](ADR-19-mcp-scoped-registration.md)、[M3 计划](../../plan/custom-mode-m3-mcp-approval.md)、[Phase A 调研报告](../../plan/custom-mode-m3-phase-a-research.md)
 > **事实基础**：每条决策指向调研报告复核过的代码事实（`main@1d5c51f6c` + hotfix `custom-child-turn@c0de66899`）或显式标注为**新增契约**。
 
@@ -67,7 +67,7 @@ Snapshot 冻结的权限摘要（ADR-17 §2.4「有效权限摘要 digest」）�
 
 ### 2.6 尾部 allow 缺口的收口路径（§4.5-1；R6-1/R6-2 整改后 v1.1）
 
-> **状态**：unattended 部分已按本节整改落地并**经 Security 复审确认白名单成员，本节 unattended 部分转 Accepted**（分支 `custom-child-turn`，提交 `a508eca43`；复审实证见 §4）；attended 扩展仍为提案，随 Phase D 裁决。
+> **状态**：unattended 部分已按本节整改落地并**经 Security 复审确认白名单成员，转 Accepted**（分支 `custom-child-turn`，提交 `a508eca43`，已合入 main `b9c6d1077`；复审实证见 §4）。**attended 扩展已于 2026-08-23 由产品裁定为 Accepted，重写目标是 `ask`**（理由与不可分割的时序约束见下方 attended 条目）。
 >
 > **白名单裁定（2026-08-23，Security 代行）**：成员固定为 `glob | grep | list_assets | read` 四项，**`skill` / `kb_search` / `question` 不纳入**。理由是三者都不是纯只读语义——`skill` 把技能资产内容注入模型上下文，属「改变模型行为」而非读文件；`kb_search`（及 `kb_read`）读的是知识库而非工作区，是外部内容入口；`question` 在无人值守下无人可答，而 unattended clamp 本就把 `ask` 压成 `deny`，纳入自相矛盾。**关键区分**：天花板管的是「资产作者能否自己预授权」，ScopedGrant 管的是「用户能否显式授权一次」——授权主体不同，不可互相替代。将来无人值守 step 确需 `skill`/`kb_search`，**走 grant 签发，不得放宽本白名单**；任何成员变更须重新过 Security 复审并同步 `permission-effective.test.ts` 的范围界定测试。
 
@@ -80,13 +80,18 @@ Snapshot 冻结的权限摘要（ADR-17 §2.4「有效权限摘要 digest」）�
   刻意排除的代表性注册（同一清单可查）：`task_spawn`/`task`（扇出放大）、`webfetch`/`websearch`（外发通道）、`bash`/`edit`/`write`/`apply_patch`（执行/写）、`taskschedule`（延时扇出）、7 个 `propose_*_asset` 与 memory/note（资产与持久态写入）、`skill`/`kb_search`（内容注入，非纯只读——是否纳入由 Security 复审裁定）。
 - **显式非通配 deny 的位序保证（R6-1 整改）**。base 的资源级 deny（如 `{read,.env,deny}`）必须保留，且在结果集中排在白名单 allow **之后**——`evaluate` 是 `findLast`，位序即语义；custom 在显式 deny 上不得弱于其它模式。实现顺序：头部 fallback deny → ask→deny 重写 → 白名单 allow → 显式非通配 deny。
 - **非 custom 模式不回退**：2026-08-02 scheduled-job 裁决（显式 allow 不被 unattended clamp 改写）维持不变，并以 custom/coding 配对断言防再分叉。
-- **attended custom（提案维持，随 Phase D 裁决）**：资产来源的通配/执行类 allow 天花板扩展到全量 `mode === "custom"`（用户在场 ≠ 用户同意）。用户显式 saved approval 不受天花板影响；实现须区分 base 来源与 saved 追加来源，并同步修订 `permission-effective.test.ts` 的范围界定用例。
+- **attended custom（2026-08-23 产品裁定：Accepted，语义为 `ask` 而非 `deny`）**：天花板扩展到全量 `mode === "custom"`（用户在场 ≠ 用户同意），但**重写目标是 `ask`，不是 `deny`**——真正的缺陷是「审批框根本不弹」，而框只在判定为 `ask` 时出现；把它压成 `deny` 会连带废掉合法的写文件类 custom agent，且用户没有任何在场途径可以放行。裁定与 2026-08-16 对 meta 的既有裁决同型（meta 在非 coding 模式下 `bash`/`edit`/`write` 走 ask，非 deny 非 allow），保持权限模型一致。
+  - 生效顺序：头部 fallback deny → **非白名单的资产来源 allow 重写为 ask** → 白名单 allow → 显式非通配 deny（`evaluate` 是 `findLast`，位序即语义）。
+  - **用户显式 saved approval 不受天花板影响**；实现须区分 base 来源与 saved 追加来源，否则会把用户自己点过 always 的授权一起削掉。
+  - 与 §2.2 天然衔接：ask 命中 grant 即免问，用户答一次即签一张 once/Session/Location grant。
+  - **不可分割的时序约束（Phase D 落地前必须满足）**：今天 app/tui/session-ui/ui 对 `permission.v2.*` **零消费**（§2.8），且 custom 会话的 `permission.v2.asked` 对未带 `product-mode-custom-v1` 能力头的连接会被 SSE 过滤掉。因此在审批中心（Phase F）落地前，attended custom 的每一个 `ask` 实际处于**无人可答**状态——若只做重写而不做 §2.7 的 no-subscriber 快速失败，本条会把一个安全洞换成「每次工具调用挂到 TTL 再失败」的可用性事故，并直接触犯 M3 计划 §6 停止条件「ask 在 unattended/headless 状态可能无限等待」。**重写与 §2.7 的无应答方快速拒绝必须同一 slice 交付**。
 - **provenance 校验（新增契约，随 Phase D 落地）**：grant 咨询与 base 解析前置校验「注册表名为 X 的条目来自被绑定资产的 relativePath+revision」，不一致 fail closed——堵同名碰撞变体在 attended 路径的残留暴露。
 
 ### 2.7 Ask 超时策略（回答 G3-4 ①）
 
 - unattended：维持现状即时 deny（已 fail-closed），不引入等待。
 - **attended 但无客户端连接**（新增契约，提案默认值待产品确认）：pending request 携带 `expiresAt = created + ASK_TTL_MS`，默认 **300,000ms（5 分钟）**；到期由 permission owner 以 typed `AskExpiredError` 自动拒绝并发布 replied 事件（reply 语义 = reject），客户端可见「已超时」。TTL 经 config 可调但必须 > 0 且 ≤ Location idle TTL（60 分钟）——保证永不出现「只能靠驱逐兜底」的挂起。
+- **无应答方即时拒绝（2026-08-23 新增，attended 天花板的前置条件）**：TTL 只把无限挂起收敛成 5 分钟挂起，不足以支撑 §2.6 的 attended 重写。`attended` 今天的判据是 `input.attended !== false`（`effective.ts:48`），即**默认值**而非「真有人能答」。因此 owner 在挂起 `Deferred.await` 前必须先判定「是否存在能应答本请求的订阅方」（对 custom 会话＝存在带 `product-mode-custom-v1` 能力头的活跃连接）：不存在则**即时按 reject 结束**，与 unattended 同构，不进入等待。这既满足 M3 计划 §6 停止条件，也让 attended 天花板在审批中心落地前就是安全且可用的。判据必须来自连接/订阅事实，不得用「flag 没被显式设成 false」冒充。
 
 ### 2.8 审批中心边界（回答 G3-4 ③，Phase F 约束）
 
@@ -110,7 +115,7 @@ Snapshot 冻结的权限摘要（ADR-17 §2.4「有效权限摘要 digest」）�
 
 | 评审方 | 结论 | 备注 |
 |---|---|---|
-| Product | **Approved** | §2.7 TTL 默认 300,000ms 采纳（须 > 0 且 ≤ Location idle TTL 60 分钟，config 可调）。§2.6 的产品确认**暂缓**，见 R6-1/R6-2 |
+| Product | **Approved** | §2.7 TTL 默认 300,000ms 采纳（须 > 0 且 ≤ Location idle TTL 60 分钟，config 可调）。**§2.6 attended 已于 2026-08-23 裁定**：非白名单的资产来源 allow 重写为 **`ask`**（非 `deny`）——缺陷本质是审批框不弹，压成 deny 会废掉合法的写文件 custom agent 且用户无在场放行途径；与 2026-08-16 meta 裁决同型。裁定同时接受 §2.7 的「无应答方即时拒绝」为该重写的前置条件 |
 | Core | **Approved** | §2.4 照抄 `WorkflowRun` durable owner + CAS + 同事务事件，不发明第二套一致性方案。§2.2 咨询顺序接入点定在 `PermissionEffective.compute` 的新增 grants 输入，leaf assert 不动 |
 | Security | **Approved**（§2.6 unattended 部分含白名单裁定；attended 扩展留 Phase D） | §2.2 deny 恒胜出 + grant 只存 allow（Schema 钉死 `Literal("allow")`）是正确的单向性。§2.8 能力头与「不存在应用级永久 allow」通过。§2.6 首轮判 BLOCK 的 R6-1/R6-2/R6-3 三项已整改，复审方用同一支纯函数探针复跑实证闭环（见下）；白名单成员裁定为 `glob\|grep\|list_assets\|read`，`skill`/`kb_search`/`question` 不纳入，理由与「天花板 vs grant 授权主体不同」的区分见 §2.6 状态注 |
 | App | **Approved** | §2.8 入口必须带 `product-mode-custom-v1` 能力头，否则 SSE 过滤掉 custom 请求 |
