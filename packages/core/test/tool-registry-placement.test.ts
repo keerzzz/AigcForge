@@ -67,9 +67,12 @@ describe("ToolRegistry placement (ADR-19 §2.2)", () => {
       const locationWide = yield* registry.materialize()
       expect(locationWide.definitions).toEqual([])
 
-      // Settle honors the same placement predicate: B cannot execute A's tool.
+      // Settle resolves placement from the materialization, not from the call:
+      // a Session-placed materialization is only settleable by its own Session.
+      const before = executed.length
       const crossSettle = yield* forA.settle(callFor(sessionB, "call-cross"))
-      expect(crossSettle.result.type).toBe("error")
+      expect(crossSettle.result).toMatchObject({ type: "error", value: "Tool call placement mismatch: echo" })
+      expect(executed.length).toBe(before)
 
       const ownSettle = yield* forA.settle(callFor(sessionA, "call-own"))
       expect(ownSettle.result.type).toBe("text")
@@ -133,6 +136,35 @@ describe("ToolRegistry placement (ADR-19 §2.2)", () => {
       expect(settled.result.type).toBe("text")
 
       yield* Scope.close(scopeB, Exit.void)
+      yield* Scope.close(locationScope, Exit.void)
+    }),
+  )
+
+  // C1 (ADR-19 approval condition). The production materialize callers
+  // (`session/runner/llm.ts:209` and `:556`) pass no sessionID, i.e. they take
+  // the Location-wide view. If settle re-derived placement from the call
+  // instead of from the materialization, the calling Session's OWN registration
+  // would become a newer winner than the one advertised and every call would
+  // come back `Stale tool call` — a session-placed registration could silently
+  // disable a built-in for that session. definitions ≡ captured settle must
+  // hold for the Location-wide view too.
+  it.effect("a Location-wide materialization is not perturbed by a session registration", () =>
+    Effect.gen(function* () {
+      const registry = yield* ToolRegistry.Service
+      const locationScope = yield* Scope.make()
+      yield* registry.register({ echo: echo("loc") }).pipe(Scope.provide(locationScope))
+
+      const wide = yield* registry.materialize()
+      expect(wide.definitions.map((definition) => definition.name)).toEqual(["echo"])
+
+      const sessionScope = yield* Scope.make()
+      yield* registry.registerSession(sessionA, { echo: echo("sess") }).pipe(Scope.provide(sessionScope))
+
+      const settled = yield* wide.settle(callFor(sessionA, "call-wide"))
+      expect(settled.result.type).toBe("text")
+      expect(executed.at(-1)).toBe("loc")
+
+      yield* Scope.close(sessionScope, Exit.void)
       yield* Scope.close(locationScope, Exit.void)
     }),
   )

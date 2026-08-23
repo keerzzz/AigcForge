@@ -71,8 +71,16 @@ export interface Interface {
     sessionID: SessionSchema.ID,
     tools: Readonly<Record<string, AnyTool>>,
   ) => Effect.Effect<void, RegistrationError, Scope.Scope>
-  /** Every occupied tool name across all placements plus application tools (ADR-19 §2.4 collision input). */
-  readonly registeredNames: () => ReadonlySet<string>
+  /**
+   * Names a new registration at `placement` would collide with (ADR-19 §2.4
+   * collision input): application tools plus the `local` entries visible at
+   * that placement. Omit `sessionID` for a Location registration — it becomes
+   * visible to every Session and would shadow any existing winner, so it
+   * collides with every occupied name. A Session registration only collides
+   * with application tools, Location entries and its own Session's entries;
+   * a sibling Session's registration is invisible to it and is not a conflict.
+   */
+  readonly registeredNames: (sessionID?: SessionSchema.ID) => ReadonlySet<string>
 }
 
 export interface Materialization {
@@ -95,26 +103,34 @@ const registryLayer = Layer.effect(
     const resources = yield* ToolOutputStore.Service
     type Registration = { readonly identity: object; readonly tool: AnyTool; readonly sessionId?: SessionSchema.ID }
     const local = new Map<string, Array<{ readonly token: object; readonly registration: Registration }>>()
-    // ADR-19 §2.2: one placement predicate for both phases. Location
-    // registrations (sessionId undefined) are visible to every session; a
-    // session registration only to its own. Applying the same filter before
-    // the fresh settle lookup keeps definitions ≡ captured settle (C1) — a
-    // foreign session's shadow can neither execute nor fake staleness.
+    // ADR-19 §2.2: ONE placement predicate, used by every consumer — settle,
+    // materialize and the §2.4 collision input. Location registrations
+    // (sessionId undefined) are visible to every Session; a Session
+    // registration only to its own.
+    const visibleTo = (registration: Registration, sessionId: SessionSchema.ID | undefined) =>
+      registration.sessionId === undefined || registration.sessionId === sessionId
     const visibleWinner = (
       name: string,
       sessionId: SessionSchema.ID | undefined,
     ): Registration | undefined => {
       const entries = local.get(name)
       if (!entries) return undefined
-      const visible = entries.filter(
-        (entry) => entry.registration.sessionId === undefined || entry.registration.sessionId === sessionId,
-      )
+      const visible = entries.filter((entry) => visibleTo(entry.registration, sessionId))
       return visible.at(-1)?.registration
     }
 
-    const settleWith = Effect.fn("ToolRegistry.settle")(function* (input: ExecuteInput, advertised?: object) {
+    // C1 (ADR-19 approval condition): `placement` is the materialization's own
+    // placement, never the call's — definitions and settle must read one
+    // source. Applying the same filter before the fresh winner lookup keeps
+    // definitions ≡ captured settle: no registration at another placement can
+    // execute, nor fake staleness, against this materialization.
+    const settleWith = Effect.fn("ToolRegistry.settle")(function* (
+      input: ExecuteInput,
+      placement: SessionSchema.ID | undefined,
+      advertised?: object,
+    ) {
       const registration =
-        visibleWinner(input.call.name, input.sessionID) ?? applications.entries().get(input.call.name)
+        visibleWinner(input.call.name, placement) ?? applications.entries().get(input.call.name)
       if (!registration)
         return {
           result: {
@@ -174,36 +190,44 @@ const registryLayer = Layer.effect(
         : { result, output: bounded.output }
     })
 
-    const registerEntries = (sessionId: SessionSchema.ID | undefined) =>
-      Effect.fn("ToolRegistry.register")(function* (tools: Readonly<Record<string, AnyTool>>) {
-        const entries = Object.entries(tools)
-        if (entries.length === 0) return
-        yield* Effect.forEach(entries, ([name]) => validateName(name), { discard: true })
-        yield* Effect.uninterruptible(
-          Effect.gen(function* () {
-            const token = {}
-            for (const [name, tool] of entries)
-              local.set(name, [...(local.get(name) ?? []), { token, registration: { identity: {}, tool, sessionId } }])
-            yield* Effect.addFinalizer(() =>
-              Effect.sync(() => {
-                for (const [name] of entries) {
-                  const registrations = local.get(name)?.filter((registration) => registration.token !== token) ?? []
-                  if (registrations.length > 0) local.set(name, registrations)
-                  else local.delete(name)
-                }
-              }),
-            )
-          }),
-        )
-      })
-    const register = registerEntries(undefined)
+    const registerEntries = Effect.fn("ToolRegistry.register")(function* (
+      sessionId: SessionSchema.ID | undefined,
+      tools: Readonly<Record<string, AnyTool>>,
+    ) {
+      const entries = Object.entries(tools)
+      if (entries.length === 0) return
+      yield* Effect.forEach(entries, ([name]) => validateName(name), { discard: true })
+      yield* Effect.uninterruptible(
+        Effect.gen(function* () {
+          const token = {}
+          for (const [name, tool] of entries)
+            local.set(name, [...(local.get(name) ?? []), { token, registration: { identity: {}, tool, sessionId } }])
+          yield* Effect.addFinalizer(() =>
+            Effect.sync(() => {
+              for (const [name] of entries) {
+                const registrations = local.get(name)?.filter((registration) => registration.token !== token) ?? []
+                if (registrations.length > 0) local.set(name, registrations)
+                else local.delete(name)
+              }
+            }),
+          )
+        }),
+      )
+    })
+    const register = (tools: Readonly<Record<string, AnyTool>>) => registerEntries(undefined, tools)
 
     return Service.of({
       register,
-      registerSession: (sessionID, tools) => registerEntries(sessionID)(tools),
-      registeredNames: () => {
+      registerSession: (sessionID, tools) => registerEntries(sessionID, tools),
+      registeredNames: (sessionID?: SessionSchema.ID) => {
         const names = new Set<string>(applications.entries().keys())
-        for (const name of local.keys()) names.add(name)
+        for (const [name, entries] of local) {
+          // A Location registration (no sessionID) would shadow whatever any
+          // placement currently serves, so every occupied name is a conflict.
+          // A Session registration only conflicts within its own visibility.
+          if (sessionID === undefined || entries.some((entry) => visibleTo(entry.registration, sessionID)))
+            names.add(name)
+        }
         return names
       },
       materialize: Effect.fn("ToolRegistry.materialize")(function* (
@@ -211,9 +235,10 @@ const registryLayer = Layer.effect(
         intent?: string,
         options?: MaterializeOptions,
       ) {
+        const placement = options?.sessionID
         const registrations = new Map(applications.entries())
         for (const [name] of local) {
-          const registration = visibleWinner(name, options?.sessionID)
+          const registration = visibleWinner(name, placement)
           if (registration) registrations.set(name, registration)
         }
         // Phase 4: intent-based tool filtering
@@ -233,8 +258,15 @@ const registryLayer = Layer.effect(
         return {
           definitions: Array.from(registrations, ([name, registration]) => definition(name, registration.tool)),
           settle: (input) => {
+            // A Session-placed materialization may only be settled by its own
+            // Session (C1): otherwise the definitions it advertised and the
+            // winner settle would resolve come from two different placements.
+            if (placement !== undefined && input.sessionID !== placement)
+              return Effect.succeed({
+                result: { type: "error", value: `Tool call placement mismatch: ${input.call.name}` },
+              })
             const registration = registrations.get(input.call.name)
-            if (registration) return settleWith(input, registration.identity)
+            if (registration) return settleWith(input, placement, registration.identity)
             return Effect.succeed({ result: { type: "error", value: `Unknown tool: ${input.call.name}` } })
           },
         }

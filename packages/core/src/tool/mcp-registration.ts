@@ -29,9 +29,32 @@ export class McpNameCollisionError extends Schema.TaggedErrorClass<McpNameCollis
   }
 }
 
-// Conservative provider-neutral grammar; the final prefixed name must also
-// pass Tool.validateName, so this guards the variable middle segment only.
+/**
+ * The prefixed name must fit `Tool.validateName`'s 64-character bound
+ * (`tool.ts:116`), which the server and tool segments share. Raised instead of
+ * a bare `RegistrationError` because the operator controls neither segment's
+ * length once a server is chosen — the message has to name the budget.
+ * A truncation/hash policy is deliberately NOT invented here: canonical names
+ * enter Snapshot catalogs and tool fingerprints, so it is a one-off naming
+ * contract to be decided in Phase C against real server catalogs.
+ */
+export class McpToolNameTooLongError extends Schema.TaggedErrorClass<McpToolNameTooLongError>()(
+  "McpRegistration.McpToolNameTooLongError",
+  { serverName: Schema.String, toolName: Schema.String, name: Schema.String },
+) {
+  override get message() {
+    return `MCP tool name too long: '${this.name}' is ${this.name.length} characters (limit ${MAX_TOOL_NAME}); server '${this.serverName}' and tool '${this.toolName}' share the budget`
+  }
+}
+
+// Conservative provider-neutral grammar for the variable middle segment. The
+// binding constraint is not this bound but MAX_TOOL_NAME below, which the
+// prefix, server and tool segments share — a server name near 64 characters is
+// only registrable with a very short tool name (ADR-19 §2.5).
 const SERVER_NAME = /^[a-z0-9_-]{1,64}$/
+
+/** `Tool.validateName` bound (`tool.ts:116`); the whole prefixed name must fit. */
+const MAX_TOOL_NAME = 64
 
 export type RegisterServerInput = {
   readonly serverName: string
@@ -43,7 +66,11 @@ export type RegisterServerInput = {
 export interface Interface {
   readonly registerServer: (
     input: RegisterServerInput,
-  ) => Effect.Effect<void, RegistrationError | InvalidServerNameError | McpNameCollisionError, Scope.Scope>
+  ) => Effect.Effect<
+    void,
+    RegistrationError | InvalidServerNameError | McpNameCollisionError | McpToolNameTooLongError,
+    Scope.Scope
+  >
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/McpRegistration") {}
@@ -62,12 +89,19 @@ export const layer = Layer.effect(
         const mangled: Record<string, AnyTool> = {}
         for (const [toolName, tool] of Object.entries(input.tools)) {
           const name = `mcp_${input.serverName}_${toolName}`
+          if (name.length > MAX_TOOL_NAME) {
+            yield* new McpToolNameTooLongError({ serverName: input.serverName, toolName, name })
+            return
+          }
           yield* validateName(name)
           mangled[name] = tool
         }
-        // Cross-placement occupancy check: a failed registration must leave
-        // the previous winner untouched, so last-wins is never exercised.
-        const taken = registry.registeredNames()
+        // Occupancy check at this registration's own placement (ADR-19 §2.2 +
+        // §2.4): a failed registration must leave the previous winner
+        // untouched, so last-wins is never exercised. A sibling Session's
+        // registration is invisible here and is not a conflict — otherwise two
+        // child Sessions of one composition could not bind the same server.
+        const taken = registry.registeredNames(input.sessionID)
         for (const name of Object.keys(mangled)) {
           if (taken.has(name)) {
             yield* new McpNameCollisionError({ serverName: input.serverName, name })

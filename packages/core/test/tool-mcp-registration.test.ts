@@ -97,7 +97,7 @@ describe("McpRegistration namespace and collision (ADR-19 §2.4/§2.5)", () => {
     }),
   )
 
-  it.effect("fails closed on a same-server re-registration across placements (no silent last-wins)", () =>
+  it.effect("fails closed when a Location registration would shadow a session-placed server (no silent last-wins)", () =>
     Effect.gen(function* () {
       const mcp = yield* McpRegistration.Service
       const sessionID = SessionV2.ID.make("ses_mcp_cross")
@@ -106,6 +106,8 @@ describe("McpRegistration namespace and collision (ADR-19 §2.4/§2.5)", () => {
         Scope.provide(firstScope),
       )
 
+      // A Location registration is visible to every session, so it would become
+      // the newer winner for this session too — that is a real conflict.
       const secondScope = yield* Scope.make()
       const exit = yield* mcp
         .registerServer({ serverName: "dup", tools: { echo: echo() } })
@@ -122,6 +124,66 @@ describe("McpRegistration namespace and collision (ADR-19 §2.4/§2.5)", () => {
 
       yield* Scope.close(firstScope, Exit.void)
       yield* Scope.close(secondScope, Exit.void)
+    }),
+  )
+
+  // ADR-19 §2.2: two child Sessions of one composition binding the same server
+  // is the ordinary multi-agent shape, not a conflict — a sibling's
+  // registration is invisible at this placement, so the collision input
+  // (§2.4) must be evaluated at the registering placement.
+  it.effect("lets sibling sessions bind the same server independently", () =>
+    Effect.gen(function* () {
+      const mcp = yield* McpRegistration.Service
+      const a = SessionV2.ID.make("ses_mcp_sib_a")
+      const b = SessionV2.ID.make("ses_mcp_sib_b")
+      const scopeA = yield* Scope.make()
+      const scopeB = yield* Scope.make()
+      yield* mcp.registerServer({ serverName: "github", sessionID: a, tools: { search: echo() } }).pipe(
+        Scope.provide(scopeA),
+      )
+      yield* mcp.registerServer({ serverName: "github", sessionID: b, tools: { search: echo() } }).pipe(
+        Scope.provide(scopeB),
+      )
+
+      const view = yield* ToolRegistry.Service
+      for (const sessionID of [a, b]) {
+        const materialized = yield* view.materialize(undefined, undefined, { sessionID })
+        expect(materialized.definitions.map((definition) => definition.name)).toEqual(["mcp_github_search"])
+      }
+      // Still isolated: closing A leaves B serving its own registration.
+      yield* Scope.close(scopeA, Exit.void)
+      const afterA = yield* view.materialize(undefined, undefined, { sessionID: a })
+      expect(afterA.definitions).toEqual([])
+      const stillB = yield* view.materialize(undefined, undefined, { sessionID: b })
+      expect(stillB.definitions.map((definition) => definition.name)).toEqual(["mcp_github_search"])
+      yield* Scope.close(scopeB, Exit.void)
+    }),
+  )
+
+  it.effect("fails closed with the shared name budget when the prefixed name overflows", () =>
+    Effect.gen(function* () {
+      const mcp = yield* McpRegistration.Service
+      const scope = yield* Scope.make()
+      // Realistic server + tool names: the prefixed name is 66 characters, so
+      // the 64-character bound the two segments share rejects it.
+      const exit = yield* mcp
+        .registerServer({
+          serverName: "azure-devops-work-items",
+          tools: { list_work_item_comments_with_expansion: echo() },
+        })
+        .pipe(Scope.provide(scope), Effect.exit)
+      expect(Exit.isFailure(exit)).toBe(true)
+      if (Exit.isFailure(exit)) {
+        const error = Cause.squash(exit.cause)
+        expect(error).toBeInstanceOf(McpRegistration.McpToolNameTooLongError)
+        // The message must name the budget: the operator controls neither
+        // segment's length once a server is chosen.
+        if (error instanceof McpRegistration.McpToolNameTooLongError) {
+          expect(error.message).toContain("limit 64")
+        }
+      }
+      expect(yield* (yield* ToolRegistry.Service).materialize()).toMatchObject({ definitions: [] })
+      yield* Scope.close(scope, Exit.void)
     }),
   )
 

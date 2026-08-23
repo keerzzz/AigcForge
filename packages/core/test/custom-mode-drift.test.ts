@@ -90,7 +90,7 @@ const countedRegistry = Layer.effect(
     return ToolRegistry.Service.of({
       register: (tools) => inner.register(tools),
       registerSession: (sessionID, tools) => inner.registerSession(sessionID, tools),
-      registeredNames: () => inner.registeredNames(),
+      registeredNames: (sessionID) => inner.registeredNames(sessionID),
       materialize: (permissions, intent, options) =>
         Effect.sync(() => {
           materializeCalls++

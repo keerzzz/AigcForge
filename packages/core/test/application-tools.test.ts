@@ -198,14 +198,31 @@ describe("ApplicationTools", () => {
     Effect.gen(function* () {
       const applications = yield* ApplicationTools.Service
       const registry = yield* ToolRegistry.Service
+      // Distinguishable handlers: asserting the name alone cannot tell "the
+      // base entry was revealed" from "the overlay entry is still serving".
+      // State.transform cleans up by dropping the transform and replaying the
+      // rest, so the base registration must come back as the live handler.
+      const baseContexts: Tool.Context[] = []
+      const overlayContexts: Tool.Context[] = []
       const baseScope = yield* Scope.make()
       const overlayScope = yield* Scope.make()
-      yield* applications.register({ overlay_tool: contextual([]) }).pipe(Scope.provide(baseScope))
-      yield* applications.register({ overlay_tool: contextual([]) }).pipe(Scope.provide(overlayScope))
+      yield* applications.register({ overlay_tool: contextual(baseContexts) }).pipe(Scope.provide(baseScope))
+      yield* applications.register({ overlay_tool: contextual(overlayContexts) }).pipe(Scope.provide(overlayScope))
       expect((yield* toolDefinitions(registry)).map((tool) => tool.name)).toEqual(["overlay_tool"])
+
+      const call = (id: string) => ({
+        sessionID,
+        agent,
+        assistantMessageID,
+        call: { type: "tool-call" as const, id, name: "overlay_tool", input: { query: "x" } },
+      })
+      yield* executeTool(registry, call("call-overlay"))
+      expect([baseContexts.length, overlayContexts.length]).toEqual([0, 1])
 
       yield* Scope.close(overlayScope, Exit.void)
       expect((yield* toolDefinitions(registry)).map((tool) => tool.name)).toEqual(["overlay_tool"])
+      yield* executeTool(registry, call("call-revealed"))
+      expect([baseContexts.length, overlayContexts.length]).toEqual([1, 1])
 
       yield* Scope.close(baseScope, Exit.void)
       expect(yield* toolDefinitions(registry)).toEqual([])
