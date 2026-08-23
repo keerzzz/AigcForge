@@ -20,6 +20,7 @@
 | R3 | 2026-08-21 | FOCUSED differential review | **REJECT / BLOCK MERGE** — 4 项 P0、7 项 P1、3 项 P2 |
 | R4 | 2026-08-22 | 整改验收 + 全门禁实跑 | **CONDITIONAL PASS** — 全部阻断项闭环；另新增并修复 2 个此前无门禁可发现的 P0 |
 | R5 | 2026-08-22 | **独立 differential + security 专项复审（R3/R4 两轮未取得，本轮补齐）** | **BLOCK -> 整改后 APPROVED** — 4 份独立复审共 3 项 P0、8 项 P1，全部整改，见 §2.5 |
+| R6 | 2026-08-23 | 合并后由 M3 Phase A 第一个红测试触发 + 整改复审 | **P0 已闭环** — R5 标为 UNVERIFIED 的那条是真的：main 上 custom 委派 child 在真实 provider turn 上跑不起来（R6-0）；拟修复自身另有 1 P0 + 2 P1，四项均已整改并经复审实证。**修复未合入 main**，attended 缺口留 Phase D，见 §2.6 |
 
 R4 曾因 API 额度耗尽两轮未能启动独立专项复审，并如实标注为「未取得」。R5 取得了 4 份独立复审（core 运行时、security、schema 边界、HTTP/SDK/App 表层），结论一致为 **BLOCK**，且找到了 R1–R4 五轮自审全部漏掉的 3 个 P0。这印证 R2 的判词：
 
@@ -136,6 +137,27 @@ R4 曾因 API 额度耗尽两轮未能启动独立专项复审，并如实标注
 | R5-20 | P2 | Playwright spec 的 `trackPageErrors` 只累积数组、从不参与断言，仅在标题定位超时的 catch 里插值 —— 面板内的未捕获 rejection 只要标题渲染出来就不会让测试失败 | 挂载断言后补 `expect(pageErrors).toEqual([])` |
 | R5-21 | P2 | resolver 的第一层委派门禁把 `"meta"` 播进 allowlist，且 `step.agent &&` 跳过空串 —— `agent: meta` / `agent: ""` 能冻结成 valid plan，直指 `root_agent_forbidden` 要挡的根编排器（第二层仍 fail closed，故为坏门禁而非活越权） | `knownAgents` 移除 `"meta"`，守卫改为无条件 `!knownAgents.has(step.agent)` |
 | R5-22 | 架构 | `location-layer.ts` 的 LayerMap lookup 里新增了 `Flag.AIGCFROGE_DB === ":memory:" ? Layer.empty : Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer)` —— 按环境变量分叉 Layer 拓扑，测试与生产各走一套；且 `Layer.empty` 的 ROut 是 `never`，联合类型里 `never \| X = X`，类型系统会**谎报**两个服务恒被提供 | 整段删除。依据：LayerMap 的 `dependencies` 数组本就已含 `EventV2.defaultLayer`（`:272`）与 `Database.defaultLayer`（`:281`）；另用一次性探针实测 `LayerMap` 经 `Layer.CurrentMemoMap.getOrCreate` 共享父层 MemoMap、且 MemoMap 按**叶子 Layer 对象引用**去重，`database instance shared: true` / `eventv2 instance shared: true`。删除后 typecheck 15/15、core workflow 定向 40 pass、exerciser coverage 284 pass |
+
+### 2.6 R6 合并后发现的 P0（2026-08-23，M3 Phase A 触发）
+
+**M2 已合入 main 后才暴露：`main` 上 custom 模式的委派 child 在真实 provider turn 上是坏的。**
+
+R5 的 schema 边界复审把这条标为 **UNVERIFIED**（「代码路径已核实，但没有任何测试驱动这种 child 跑真实 turn」）。我把它写成 M3 执行提示词 §4.6 的**第一个红测试**，M3 Phase A 执行时打出来了——确实是死路，提交 `custom-child-turn@c0de66899` 标题即 "unbrick delegated custom child turns"。
+
+| 编号 | 级别 | 发现 | 状态 |
+| --- | --- | --- | --- |
+| R6-0 | **P0（M2 漏网）** | 每轮 provider turn 调 `ProductModeAgentPolicy.enforcePrimary(session.mode, session.agent)`（`session/runner/llm.ts:479`）且无 parent/child 豁免，而 `checkPrimaryAgent("custom", agent)` **只允许 `meta`**，否则 `Effect.die`。但 custom child 合法地持有非 meta agent（`resolveAgent` 的 `parent && parentSnapshot` 分支绕过 create 期 `enforcePrimary`，`session.ts:334-342`），workflow child 又走同一个 runner。**结论：M2 的多 Agent 委派在真实 Provider 上跑不起来；R1–R5 五轮复审 + 全套门禁全部没发现，因为没有测试驱动真实 turn。** 这是我在 R5 判 APPROVED 时漏掉的——门禁绿 ≠ 功能能跑，R2 的判词再次成立 | **修复已整改、待复审合入**：分支 `custom-child-turn`（`c0de66899` + 整改 `a508eca43`/`607194cb4`/`34d99ccd4`），探针绿证据 `custom-child-provider-turn.test.ts` "non-meta custom child completes one real provider turn without dying"；R6-1/R6-2/R6-3 见下 |
+| R6-1 | P0 | 拟修复 `c0de66899` 的 deny-first custom 天花板**丢弃 base 的显式非通配 `deny`**：custom 分支用 `flatMap` 只保留 ask→deny，`ceilingAllows` 追加在尾部，而 `evaluate` 是 `findLast`。实测（纯函数探针）：同一 base 下 `read .env` 在 **custom unattended → allow**、在 coding unattended → deny。加固补丁使 custom 在显式 deny 上弱于其它所有模式 | 闭环（`custom-child-turn@a508eca43`）：显式非通配 deny 保留且排在白名单 allow 之后（头部 deny → ask→deny → 白名单 allow → 显式 deny）。测试：`permission-effective.test.ts` R6 整改块 "R6-1 custom unattended 的显式资源级 deny 压过通配 allow，且与 coding 配对防再分叉"（红：修前 read .env=allow；绿：deny 且 read src/=allow、coding 同断言 deny） |
+| R6-2 | P1 | 同一天花板是**黑名单**（仅排除 `*` 与 bash/edit/write/apply_patch），实测 `task_spawn` 与 `webfetch` 仍 allow。`task_spawn` 正是天花板要抑制的扇出放大原语。应改为只读类 action 白名单，新工具默认 deny | 闭环（同提交）：改只读白名单 `glob/grep/list_assets/read`（成员逐一取自 `builtins.ts` 注册清单，Security 复审确认项已写入 ADR-20 §2.6 v1.1）。测试：同块 "R6-2 白名单制：扇出与外发通道在 custom unattended 默认 deny"（task_spawn/webfetch deny）+ "R6-2 守卫：未列入只读白名单的 action 默认 deny" |
+| R6-3 | P1 | 豁免范围宽于缺陷：以 `session.parentID !== undefined` 对**所有模式所有 child** 跳过 `checkPrimaryAgent`，但理由是 custom 专属的 `assertAgentAllowed`；`product-mode-agent-policy.ts` 无 delegation 专用门禁，非 custom child 豁免后每轮 mode×agent 门禁全空。要么收窄到 `mode === "custom"`，要么举证替代门禁 | 闭环（`custom-child-turn@607194cb4`）：采纳方案①收窄至 `mode === "custom"`——依据是该 mode 独有的 create 期 `assertAgentAllowed`（session.ts:341）与派发期 allowlist 双门禁；非 custom child 恢复 per-turn 主 agent 门禁。测试：`custom-child-provider-turn.test.ts` "non-custom children stay subject to the per-turn primary gate (R6-3)"（红：修前 chat+work-orchestrator child turn 不被拦；绿：die AgentNotAllowedError 且零 provider 请求） |
+
+详细复审与实测输出见 [ADR-20 §4](../architecture/adr/ADR-20-scoped-grant-model.md#4-审批与授权记录)。
+
+**当前风险敞口（2026-08-23 复审后更新）**：R6-0/R6-1/R6-2/R6-3 **全部闭环并经复审实证**——复审方用发现 R6-1/R6-2 的同一支纯函数探针复跑（`read .env → deny`、`task_spawn`/`webfetch`/未知工具 → deny、只读 `read` 存活、coding 分支逐字未变），白名单四个成员逐一核对为真实工具名，R6-3 收窄经 `resolveAgent` create 期判定确认无新断路；门禁实跑 core 全量 **2061 pass / 2 skip / 0 fail**（`env -u` 复现 CI）、定向 30 pass、typecheck / lint-changed / `diff --check` 全绿。
+
+修复位于 `custom-child-turn`（5 提交），**尚未合入 main**——因此 `main@1d5c51f6c` 上 custom workflow 委派仍不可用，合并优先级高于 M3 任何 Phase。合并顺序必须是 `custom-child-turn` → `mcp-scope-adr`（后者引用前者的提交哈希与测试名）。
+
+**唯一残留**：attended custom 的尾部通配 allow 缺口仍开放（实测 `attended=true` 时 allow-all 资产的 `bash`/`edit`/`write` 全部 `allow`，且因判定为 `allow` 而**永不弹审批框**）。ADR-20 §2.6 的 attended 扩展为提案，随 Phase D 与产品一并裁决，不提前实现。
 
 ## 3. 遗留项
 

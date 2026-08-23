@@ -1,5 +1,18 @@
 # V2 Schema Changelog
 
+## 2026-08-23: Custom Mode M3 Phase A Scope Contract (McpScope)
+
+> **Status: PROPOSED（Phase A 契约层；运行时实现被 ADR-19/ADR-20 接受阻塞）**
+> **Scope:** MCP binding/ref/health、ScopedGrant scope 语法与 decode 边界。无运行时 owner、无迁移、无 HTTP 面。
+
+- 新增 `packages/schema/src/mcp-scope.ts`（namespace `McpScope`，已入 barrel）：
+  - `McpConnectionHealth`：封闭六值 `connecting | ready | degraded | offline | auth-required | revoked`。
+  - `McpServerBinding`：冻结身份事实（serverName / ref{relativePath, revision} / transport stdio⇒command、remote⇒http(s) url / 可选 opaque `credentialRef`）。**不含任何 secret 物料**；canonical 解码器以 `onExcessProperty:"error"` 钉死——token/clientSecret/env/headers 等多余键即解码失败，绝不静默剥离。全部字符串与集合字段解码期上界（§4.5-3 教训：不留 opaque 串、不等 freeze 拒绝）。
+  - `GrantScope`：`once | session(sessionID) | location` 封闭 union；location scope 无法携带外来 location 身份（多余键失败）。
+  - `ScopedGrant`：id(`grt_`) / action / resources(≤32) / effect 钉死 `"allow"`（grant 永不表达 deny）/ agent? / revision? / issuedAt / expiresAt?(必须晚于签发) / revokedAt?。
+- 兼容性：纯新增模块，不改任何既有 schema；既有 Snapshot V1/V2 行为不受影响。
+- 关联提案：[ADR-19](../../docs/architecture/adr/ADR-19-mcp-scoped-registration.md)、[ADR-20](../../docs/architecture/adr/ADR-20-scoped-grant-model.md)（均 Proposed 待裁决）；代码事实基础见 [Phase A 调研报告](../../docs/plan/custom-mode-m3-phase-a-research.md)。
+
 ## 2026-08-21: Custom Mode M2 Workflow Contract Slice
 
 > **Status: IMPLEMENTED (Schema/Resolver contract only)**
