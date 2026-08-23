@@ -135,6 +135,11 @@ M3 的根问题不是「让 Profile 能选 MCP」，而是让外部工具在一�
 
 **重构**：审批 UI、Resolver、ToolRegistry 不计算授权；统一走 Permission owner。
 
+> **Phase D 必须一并处理的两项 R6 残留**（technical-debt §3.1 已独立登记，触发条件即「Phase D 开工时」；它们与 grant 注入点是同一处代码，不单开 slice）：
+>
+> 1. **attended custom 的资产自授权限尾部 allow**（[ADR-20 §2.6](../architecture/adr/ADR-20-scoped-grant-model.md) 的 attended 提案，**未批准，须先取得产品裁决**）。unattended 半边已由 R6-1/R6-2 封住（只读白名单 `glob|grep|list_assets|read` + 显式 deny 位序保证），attended 半边仍开放：天花板只在 `attended === false` 启动，所以 attended custom 会话里 `bash`/`edit`/`write` 判定为 `allow`，而**审批框只在判定为 `ask` 时才弹**——直接 allow 意味着框根本不出现，「用户在场 ≠ 用户同意」。实测同一 allow-all 资产：`attended=false → 全 deny`，`attended=true → 全 allow`。落地时**必须区分「base 来源」与「saved 追加来源」**：用户真实点过 always 的 saved approval 不受天花板影响，否则会把用户自己的显式授权一起削掉。并加 provenance 校验（注册表条目须来自被绑定资产的 `relativePath`+`revision`，不一致 fail closed）。**白名单成员是已裁定项**（ADR-20 §2.6 状态行）：`skill` / `kb_search` / `question` 不纳入，需要时走 grant 签发而非放宽天花板——授权主体不同，不可互替；任何成员变更须重新过 Security 复审并同步 `permission-effective.test.ts` 的范围界定测试。
+> 2. **资产导入/apply 警示通配 allow**（缓解措施，成本低）。上一项最真实的触发路径不是作者粗心，而是**导入别人的资产夹带 allow-all**；仓库已有导入/分享链路，导入时零提示。在 `propose`/`apply` 解码 `config.permissions` 之后，若含通配 allow 或 `DANGEROUS_ACTIONS` allow，于 diff 预览与 apply 结果显式标注（**不阻断，只揭示**）。注意 `agent-asset.ts` 目前把 `config` 当字符串原样存，警示须在 `parseAgentAssetConfig` 解码后做。
+
 ### Phase E：Resolver/Snapshot 与运行依赖
 
 **红**：只有 Profile 显式绑定 MCP 被解析；Plan 显示 requested/effective/denied + credential/health；start re-freeze；运行中定义变化不改 Snapshot；新 provider turn fingerprint mismatch 阻断；撤销后新调用失败。

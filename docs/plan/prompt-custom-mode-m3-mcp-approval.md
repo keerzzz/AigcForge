@@ -2,9 +2,10 @@
 
 > 对应总计划：[custom-mode-composition-platform-implementation.md](custom-mode-composition-platform-implementation.md)
 > M3 计划：[custom-mode-m3-mcp-approval.md](custom-mode-m3-mcp-approval.md)
-> 前置：M2 总复审 **APPROVED**（[Custom M2 复审报告](../review/AigcForge_CUSTOM_M2_REVIEW.md) R5）；M2 已合入 `main`（PR #46，合并提交 `a11b50020`，2026-08-22）
-> 分析基线：`main@a11b50020`（2026-08-22，本地/远端已同步）；执行基线为开工时最新 `main`，不得把该 SHA 当成固定开工基线
-> 生成日期：2026-08-22
+> 前置：M2 总复审 APPROVED（R5）+ **R6 合并后 P0 已整改**（`b9c6d1077`）；**M3 Phase A 已完成并合入**（`7a2804624`）——ADR-19 Accepted v1.0、ADR-20 Accepted v1.1
+> 分析基线：`main@7a2804624`（2026-08-23）。**本地 main 领先 origin/main**：按用户安排 M3 全部 Phase 完成后统一开一个 PR，因此以**本地 main** 为基线，不要因落后 origin 而回退
+> 生成日期：2026-08-22（2026-08-23 按 Phase A 完成与 R6 整改校准）
+> 当前开工阶段：**Phase B — canonical scoped registration**，分支 `mcp-registration`
 > 用途：复制 `PROMPT START` 与 `PROMPT END` 之间的正文到新的执行对话
 
 <!-- PROMPT START -->
@@ -22,15 +23,14 @@ Location -> Profile/composition (MCP binding = ref + fingerprint, 永不含 secr
 -> 撤销/断线/schema drift 立即使新调用失败
 ```
 
-## 0. 最重要的一条：M3 当前被 ADR 阻塞
+## 0. 最重要的一条：现在只能做 Phase B
 
-**G3-1（Registration ADR）与 G3-2（Grant ADR）尚未起草。** 这不是「文档待补」，而是 M3 计划 §1 明确的开工阻塞项与 §6 的停止条件。因此：
+**Phase A 已完成，G3-1 / G3-2 均已批准（2026-08-23）。** ADR-19 Accepted v1.0（条件 C1/C2 已闭合）、ADR-20 Accepted v1.1（§2.6 unattended 部分已转 Accepted 并整改落地；attended 扩展仍为提案，随 Phase D 与产品裁决）。两者与 `packages/schema/src/mcp-scope.ts` 契约已合入 `main`。因此：
 
-- **允许立即执行的只有 Phase A**：调研 + 起草两份 ADR + 定义 Schema 契约，分支 `mcp-scope-adr`。
-- **Phase B 及之后一律不得开工**，直到两份 ADR 被接受并记录审批（沿用 M0/M2 先例：五方技术审批由用户授权 AI 代理代行并写入 ADR 正文，不冒充真人手签）。
-- 如果你发现自己在没有已接受 ADR 的情况下写 registration/grant 生产代码，立刻停止并报告。
-
-Phase A 内部 slice 全绿后可自动继续；**Phase A 结束后必须停机**，等待用户与高级全栈顾问对两份 ADR 的裁决。不得自动进入 Phase B-G，不得进入 M4-M5。
+- **当前可开工阶段：Phase B**（canonical scoped registration），分支 `mcp-registration`，从最新 `main` 起。
+- **Phase C 及之后仍不得开工**：Phase C 需 G3-3（Credential）、Phase D/F 需 G3-4（Unattended），二者**均未批准**。Phase B 结束即停机等复审。
+- **不得触碰 unattended 天花板**：R6 已整改并经复审实证闭环，白名单成员为已裁定项；改动需重新过 Security 复审（见 §4.5-1）。
+- 若你发现自己在写 credential 连接、ask TTL 或 attended 天花板的生产代码，立刻停止并报告——那是 Phase C/D 且 Gate 未过。
 
 ## 1. 开工门禁
 
@@ -50,9 +50,9 @@ git log --oneline --decorate -20 main
 
 规则：
 
-1. **开工前提：M2 已合入 main 且本地/远端同步。** 先 fetch 并审计最新 main，确认 `a11b50020`（或更新的 M2 merge commit）在 main 上。若 M2 不在 main 上，停止并报告。
+1. **开工前提：Phase A 已合入 main。** 先 fetch 并审计最新 main，确认合并提交 `b9c6d1077`（R6 整改）与 `7a2804624`（Phase A ADR + mcp-scope 契约）都在 main 上；`packages/schema/src/mcp-scope.ts` 与 `packages/core/test/tool-registry-stale.test.ts` 必须存在。**注意本地 main 可能领先 origin/main**（按用户安排，M3 全部完成后统一开一个 PR），所以以本地 main 为基线、不要因为落后 origin 而回退。若上述提交或文件缺失，停止并报告。
 2. 不覆盖、回滚、清理或提交用户已有改动。若 main 有无关脏改动，先报告并隔离本任务文件；禁止 `git reset --hard`、`git checkout --`、盲目 `clean`。**已知无关在途文件：`docs/research/agent/Codex Harness 深度调研.md`（用户资料，保留原样，不要提交进本任务的 commit）。**
-3. 分支策略（M3 计划 §7）：研究/ADR 用 `mcp-scope-adr`；生产实现等 Gate 过后依次 `mcp-registration`、`scoped-grants`、`mcp-composition`、`approval-center`。分支名不超过三个短词、无 slash。每个 PR 合入后从最新 main 开下一分支。
+3. 分支策略（M3 计划 §7）：`mcp-scope-adr`（Phase A，已合入）→ **`mcp-registration`（Phase B，你在这里）** → `scoped-grants`、`mcp-composition`、`approval-center`（各自 Gate 过后才开）。分支名不超过三个短词、无 slash。每个 PR 合入后从最新 main 开下一分支。
 4. 未经用户确认 remote、issue、最终 diff、commit/PR title，不 push、不创建 PR。禁止 `--no-verify`。
 5. 测试永不从仓库根运行。用 `bun --cwd packages/<name> test --timeout 30000`。根目录只跑 typecheck/lint/protocol/diff 等非 test 门禁。
 6. **创建 custom session 的新测试文件必须自己拿 kill switch**：在文件作用域调用 `withCustomModeEnabled()`（`packages/core/test/lib/product-mode.ts`），并用 `env -u AIGCFROGE_CUSTOM_MODE bun --cwd packages/core test <file>` 单跑验证。放进 `describe` 里只覆盖那一个 block，不够；靠别的测试文件泄漏的 env 通过 = 本地绿 CI 红（M2 实际踩过）。
@@ -100,10 +100,10 @@ packages/core/src/tool/AGENTS.md
 只执行 M3（对应 M3 计划 §3）：
 
 ```text
-Phase A  Registration/Grant ADR 与 Schema 契约            分支 mcp-scope-adr    ← 当前唯一可开工阶段
---- 以下全部被 G3-1/G3-2 阻塞，ADR 未接受不得开工 ---
-Phase B  canonical scoped registration                   分支 mcp-registration （需 G3-1）
-Phase C  connection、credential 与 health                 分支 mcp-registration （需 G3-1/G3-3）
+Phase A  Registration/Grant ADR 与 Schema 契约            分支 mcp-scope-adr    ✅ 已完成并合入 main
+Phase B  canonical scoped registration                   分支 mcp-registration ← 当前可开工（G3-1 已批准）
+--- 以下仍被 Gate 阻塞，不得开工 ---
+Phase C  connection、credential 与 health                 分支 mcp-registration （需 G3-3，未批准）
 Phase D  ScopedGrant 与 PermissionEffective               分支 scoped-grants    （需 G3-2/G3-4）
 Phase E  Resolver/Snapshot 与运行依赖                     分支 mcp-composition  （需 G3-1/G3-2）
 Phase F  HTTP/SDK/App 审批中心                            分支 approval-center  （需 G3-2/G3-4）
@@ -125,7 +125,7 @@ Phase G  故障注入与灰度
 
 ## 4. 已确认的架构事实
 
-以下事实来自 `main@a11b50020` 的五层代码、测试与复审报告，并经独立事实核查落到 `file:line`。**[M3 计划 §0](custom-mode-m3-mcp-approval.md) 是完整版，开工必读**；本节只列会直接约束你设计的部分。若最新 main 已改变，必须用代码/测试证据更新计划后再施工，不能静默偏离。
+以下事实来自 `main@7a2804624` 的五层代码、测试与复审报告，并经独立事实核查落到 `file:line`（§4.0/§4.5 已按 R6 整改与 Phase A 结论校准）。**[M3 计划 §0](custom-mode-m3-mcp-approval.md) 是完整版，开工必读**；本节只列会直接约束你设计的部分。若最新 main 已改变，必须用代码/测试证据更新计划后再施工，不能静默偏离。
 
 ### 4.0 先记住这六条反直觉事实（否则你会照着不存在的东西写代码）
 
@@ -175,15 +175,21 @@ Phase G  故障注入与灰度
 
 这三条是 M2 复审登记、**明确划给 M3** 的：
 
-1. **Agent 资产可自授权限 + workflow child 无人值守（G3-2/G3-4 的真实动机）。** 允许清单以 author 可控的 `name` 为身份，但真正生效的权限来自全局 `AgentV2` 注册表：资产 frontmatter 的 `config.permissions` 可写 `{action:"*",resource:"*",effect:"allow"}`，而 `permission.ts` 的 `evaluate` 用 `findLast`，尾部通配 allow 胜出；child 以 `attended: false` 创建，无人值守 clamp 把 `ask` 压成 `deny` 但**尾部 allow 不受影响**，于是 bash/edit/write 无审批执行。另一变体：与内置 agent 同名（如 `build`）使资产被 `asset-bridge` 丢弃、内置 allow-all ruleset 生效，而 Plan/Snapshot 仍显示已绑定资产且能力标 denied。该机制早于 M2，但 M2 新增了最多 64 step × 8 attempt 的无人值守扇出，放大了它。**Grant ADR 必须给出裁决**：为 `mode === "custom"` 的 child 用 deny-first 的 custom 基线与解析出的 ruleset 求交，并在 agent provenance 与绑定 `relativePath` 不一致时 fail closed。
+1. **Agent 资产可自授权限（unattended 半边已修，attended 半边仍开放 —— Phase D 处理）。** 机制：允许清单以 author 可控的 `name` 为身份，但真正生效的权限来自全局 `AgentV2` 注册表——资产 frontmatter 的 `config.permissions` 可写 `{action:"*",resource:"*",effect:"allow"}`，而 `permission.ts` 的 `evaluate` 用 `findLast`，尾部通配 allow 胜出。
+
+   **已修（2026-08-23，R6-1/R6-2，合并提交 `b9c6d1077`，不要重做）**：unattended custom 现在过 deny-first 只读白名单天花板——白名单固定 `glob | grep | list_assets | read`，未收录 action（含未来新工具）默认 deny；base 的显式非通配 deny 保留并排在白名单 allow **之后**（`evaluate` 是 `findLast`，位序即语义）。**白名单成员是已裁定项**：`skill` / `kb_search` / `question` 不纳入（三者都不是纯只读：`skill` 注入内容改变模型行为、`kb_search` 是外部内容入口、`question` 在无人值守下无人可答）。需要时走 **grant 签发**而非放宽天花板——天花板管「资产作者能否自己预授权」，grant 管「用户能否显式授权一次」，授权主体不同不可互替。任何成员变更须重新过 Security 复审并同步 `permission-effective.test.ts` 的范围界定测试。
+
+   **仍开放（Phase D 范围，非本 Phase）**：天花板只在 `attended === false` 启动，所以 attended custom 会话里 `bash`/`edit`/`write` 判定为 `allow`，而**审批框只在判定为 `ask` 时才弹** —— 直接 allow 意味着框根本不出现，「用户在场 ≠ 用户同意」。另一变体：与内置 agent 同名（如 `build`）使资产被 `asset-bridge` 丢弃、内置 allow-all ruleset 生效，而 Plan/Snapshot 仍显示已绑定资产且能力标 denied。根治方案见 [ADR-20 §2.6](../architecture/adr/ADR-20-scoped-grant-model.md) 的 attended 提案（**未批准，须先取得产品裁决**）+ provenance 校验；连带「资产导入/apply 警示通配 allow」一并在 Phase D 落地（technical-debt §3.1 两行）。**Phase B 不要碰这块。**
 2. **Custom kill switch 无「关闭即中断在飞 child」的进程内通知。** 现状只保证「不再派发新工作」。M3 引入外部连接后，运营关闭开关必须同时能停掉 MCP 连接与 pending request；Registration ADR 需要定义 disable 通知与 owner Scope 的关系。
 3. **`MAX_STEPS` 等图不变量不在解码期与资产写入期强制**（ADR-18 §2.5.3 写「解析期拒绝」而代码在 freeze 期）。M3 若给 MCP 资产加写入面，**不要复制这个错误**：解码期就要有上界与结构校验。注意 **MCP 资产已经踩了同一个坑**——`configJson` 是不解码的 ≤100000 字节 opaque 串。
 
-### 4.6 一个未登记的矛盾，Phase A 第一个红测试就该打它
+### 4.6 已确认并修复的 M2 P0（不要重做，但要知道它存在）
 
 每轮 provider turn 都调 `ProductModeAgentPolicy.enforcePrimary(session.mode, session.agent)`，**无 parent/child 豁免**，而 `checkPrimaryAgent("custom", agent)` **只允许 `"meta"`**，否则 `Effect.die(AgentNotAllowedError)`。但 custom 的 child 本来就该拿非 meta 的 agent——`resolveAgent` 的 `parent && parentSnapshot` 分支在 `assertAgentAllowed` 后直接返回 `input.agent`，绕过了 create 期的 `enforcePrimary`，测试也断言了 `agent: "custom-coder"` + `mode: "custom"` 的 child 能建成。而 M2 的 workflow child 走的正是同一个 runner。
 
-**事实核查未能证伪这条**——没有任何测试驱动一个非 meta 的 custom child 跑真实 turn。所以 Phase A 的第一个红测试就是：驱动这样一个 child 跑一轮，确认它是死路还是有别处兜住。**如果是死路，那是 M2 的 P0 而不是 M3 的新工作——立刻停下报告，不要顺手改。**
+**已于 2026-08-23 证实为死路并修复（合并提交 `b9c6d1077`，不要重做）。** 修法是把每轮门禁的豁免**收窄**到 `session.mode === "custom" && session.parentID !== undefined`——依据是 custom 独有的双门禁（create 期 `assertAgentAllowed` + 派发期 allowlist）；其它模式的 child 保留每轮门禁，因为它们没有替代门禁可举证。已核实这不引入新断路：非 custom 的 child 在 `resolveAgent` 的 create 期本来就走 `enforcePrimary`，chat/work/assistant 只委派给自己的 orchestrator（policy 允许），coding 分支对普通 agent 本来放行——收窄后的每轮判定与 create 期一致。
+
+**这条给你的教训比结论重要**：R1–R5 五轮复审 + 全套门禁（typecheck / 单测 / lint / exerciser / e2e）全绿的情况下，M2 带着「多 Agent 委派在真实 Provider 上跑不起来」这个 P0 合并进了 main。原因只有一个——**没有任何测试驱动一个真实的 provider turn**。所以 Phase B 的 registration 一旦接上，**必须有一条测试真的物化并 settle 一个 MCP 工具**，不能只测 register 调用成功、也不能只测 definitions 里出现了名字。
 
 M3 硬性非目标：Plugin runtime（M4）、Code Presentation（M5）、external CLI、judge、Workflow 语义改造。
 
@@ -211,7 +217,7 @@ acceptance | layer | red test | expected failure | green evidence | final gate
 
 **安全测试必须成对覆盖「模型看到定义」和「settle 真执行」**——只测 permission assert 或只测 UI 隐藏均不合格（M3 计划 §4）。
 
-### 5.3 Phase A 的具体交付物（当前唯一可开工阶段）
+### 5.3 Phase A 交付物（已完成，仅供追溯）
 
 分支 `mcp-scope-adr`，产物：
 
@@ -223,7 +229,7 @@ acceptance | layer | red test | expected failure | green evidence | final gate
 
 Phase A 不写 registration/connection/grant 的生产实现，不接真实 MCP server。Schema + ADR 定案即停机。
 
-### 5.4 Phase B-G 范围（ADR 接受后才展开，详见 M3 计划 §3）
+### 5.4 Phase B 详细范围（当前任务）与 C-G 概览（详见 M3 计划 §3）
 
 - **Phase B** `mcp-registration`：Location/Session register/unregister；owner Scope close 只移除自己的工具；同名 collision；definitions/settle 捕获一致；reconnect 产生 fingerprint drift；A/B Location 隔离。给 MCP producer 注入窄 capability，不新增 registry/executor。先解决 Location-layer ordering，不能形成 `PluginBoot -> Tools -> PluginBoot` 循环。
 - **Phase C** `mcp-registration` 继续：stdio/remote/OAuth connect；invalid URL/command/config；credential missing/expired/revoked；disconnect/reconnect/timeout/process interruption；secret redaction；跨 Location ref 拒绝。health = `connecting|ready|degraded|offline|auth-required|revoked`。expected failure 用 tagged errors，外部 SDK callback 经 Effect 边界兜底。
@@ -347,14 +353,15 @@ git diff --check
 
 ## 9. 停止与交付
 
-**Phase A 完成后：**
+**Phase B 完成后（你的停机点）：**
 
-1. 运行 Schema/Core 受影响门禁 + protocol refs + incremental lint + diff check。
-2. 输出 Phase A 报告：两份 ADR 的决策清单、Schema 契约与负向用例、对 M3 计划 §0 代码事实的修正、以及每个 G3 Gate 的当前状态。
-3. **停机等待用户与高级全栈顾问对 ADR-19/ADR-20 的裁决。不得自行接受自己起草的 ADR 然后继续。**
-4. 未经交付批准，不 commit/push/PR。获批后按 `quality-to-pr` 确认 issue、remote、base、branch、commit/PR title、最终 checks，再交付并 read back CI。
+1. 运行 §8 里 Core/Schema 受影响门禁 + protocol refs + incremental lint + diff check；跨包改动再跑 `bun turbo typecheck` 与 `bun run lint`。**core 全量基线 2061 pass / 2 skip / 0 fail**，低于此数即回归。
+2. `packages/core/test/tool-registry-stale.test.ts`（C1 守卫，四相位）必须全程绿。**它变红说明你破了 stale rejection Law，不是测试要改。**
+3. 输出 Phase B 报告：§2.7 隔离矩阵五条各自的测试名与实跑输出、collision fail-closed 的红证据、owner Scope finalizer 的清理证明（含 `ApplicationTools` 补齐）、以及「真的物化并 settle 了一个 MCP 工具」那条测试（见 §4.6 教训——只测 register 成功不算）。
+4. **停机等待复审。不得自行进入 Phase C**（需 G3-3 Credential，未批准）。
+5. 未经交付批准，不 commit/push/PR。**注意本地 main 领先 origin/main**：按用户安排 M3 全部 Phase 完成后统一开一个 PR，所以 Phase B 只在本地成链，不单独开 PR。
 
-**Phase B-G 全部完成后**按 M3 计划 §5 跑完整测试矩阵，输出 M 完成报告，停止等待总复审，不进入 M4。
+**Phase C-G 各自 Gate 过后同理**：完成即停机等复审。**M3 全部 Phase 完成后**按 M3 计划 §5 跑完整测试矩阵，输出 M 完成报告，统一开一个 PR，不进入 M4。
 
 ```text
 M completion:
@@ -374,7 +381,7 @@ M completion:
 
 ## 10. 必须立即停止的情况
 
-- G3-1/G3-2 未批准却要写 registration/grant 生产代码。
+- G3-3 未批准却要写 credential/connection 生产代码，或 G3-4 未批准却要写 ask TTL / attended 天花板。
 - canonical Session/Location registration 或唯一 grant owner 未批准。
 - 方案要求把 executor/client/secret 存入 Snapshot。
 - Location/Session cleanup 只能依赖手工 Map 删除而无 owner Scope。
@@ -396,9 +403,9 @@ M completion:
 | 项 | 值 |
 | --- | --- |
 | 复制范围 | `<!-- PROMPT START -->` 到 `<!-- PROMPT END -->` |
-| 当前安全起点 | **只有 Phase A（研究 + ADR-19/ADR-20 + Schema 契约），分支 `mcp-scope-adr`**；从最新 `main` 建分支 |
-| 自动继续范围 | Phase A 内部 slice 全绿后自动继续 |
-| 强制停止点 | Phase A 结束（等 ADR 裁决）、Gate 证据缺失、跨 M、测试失败、owner/协议冲突、每个 slice 交付前 |
+| 当前安全起点 | **Phase B（canonical scoped registration），分支 `mcp-registration`**；从最新**本地** `main`（`7a2804624`）建分支 |
+| 自动继续范围 | Phase B 内部 slice 全绿后自动继续；不跨 Phase |
+| 强制停止点 | Phase B 结束（等复审）、G3-3/G3-4 未批准而需要其范围、跨 M、测试失败、owner/协议冲突、`tool-registry-stale.test.ts` 变红 |
 | 分支原则 | 每个可合并 slice 从前置合入后的最新 main 新建短分支，不用 M3 巨型分支 |
 | 卡住时 | 输出停止报告，不绕过 Gate 或测试 |
 
