@@ -179,4 +179,26 @@ describe("PermissionV2 × ScopedGrant consultation (ADR-20 §2.2)", () => {
       ])
     }),
   )
+  it.effect("attended custom allow-all asset really surfaces the ask prompt (full chain)", () =>
+    Effect.gen(function* () {
+      const sessionID = yield* setup([{ action: "bash", resource: "*", effect: "allow" }])
+      const service = yield* PermissionV2.Service
+
+      // Pre-fix this assert returned silently (allow). The rewrite must make
+      // the approval request actually appear.
+      const result = yield* service.ask({
+        sessionID,
+        action: "bash",
+        resources: ["/workspace/build.sh"],
+        agent: AgentV2.ID.make("test"),
+      })
+      expect(result.effect).toBe("ask")
+      const pending = yield* service.forSession(sessionID)
+      expect(pending).toHaveLength(1)
+
+      // Replying settles the surfaced prompt.
+      yield* service.reply({ requestID: pending[0]!.id, reply: "reject" })
+      expect(yield* service.forSession(sessionID)).toHaveLength(0)
+    }),
+  )
 })
