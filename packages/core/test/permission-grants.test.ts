@@ -11,6 +11,7 @@ import { SessionStore } from "@aigcfroge/core/session/store"
 import { SessionV2 } from "@aigcfroge/core/session"
 import { PermissionSaved } from "@aigcfroge/core/permission/saved"
 import { PermissionV2 } from "@aigcfroge/core/permission"
+import { ApprovalPresence } from "@aigcfroge/core/permission/approval-presence"
 import { ScopedGrantStore } from "@aigcfroge/core/grant/store"
 import { Effect, Exit, Layer, Schema } from "effect"
 import { SessionTable } from "@aigcfroge/core/session/sql"
@@ -45,6 +46,7 @@ const layer = PermissionV2.locationLayer.pipe(
   Layer.provideMerge(SessionExecution.noopLayer),
   Layer.provideMerge(PermissionSaved.defaultLayer),
   Layer.provideMerge(ScopedGrantStore.locationLayer),
+  Layer.provideMerge(ApprovalPresence.defaultLayer),
 )
 const it = testEffect(layer)
 

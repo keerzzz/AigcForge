@@ -343,8 +343,8 @@ describe("Custom Mode non-meta child provider turn (Phase A probe)", () => {
       const agents = yield* AgentV2.Service
       yield* agents.transform((editor) =>
         editor.update(AgentV2.ID.make(CHILD_AGENT), (agent) => {
-          agent.origin_relative_path = "agents/coder.yaml"
-          agent.origin_revision = Schema.decodeUnknownSync(Composition.Revision)("e".repeat(64))
+          agent.originRelativePath = "agents/coder.yaml"
+          agent.originRevision = Schema.decodeUnknownSync(Composition.Revision)("e".repeat(64))
         }),
       )
       const parentID = SessionV2.ID.make("ses_prov_ok_root")

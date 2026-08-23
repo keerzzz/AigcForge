@@ -9,12 +9,34 @@ export const MAX_TTL_MS = 60 * 60 * 1000
 const clampTtl = (ttlMs: number) => Math.min(Math.max(Math.floor(ttlMs), 1), MAX_TTL_MS)
 
 /**
- * Connection-fact source for approval prompts (ADR-20 §2.7). Responders are
- * HTTP/SSE connections carrying the custom-capability header; each one binds
- * itself for the lifetime of its connection Scope. Zero bound responders
- * means nobody can answer — prompts are rejected immediately instead of
- * parking until a TTL. There is intentionally no default "yes someone is
- * there": absence of facts is absence of an approver.
+ * Connection-fact source for approval prompts (ADR-20 §2.7): can anyone answer
+ * a prompt right now? Event-stream connections bind themselves for the lifetime
+ * of their connection Scope; zero bound responders means nobody can answer, so
+ * the prompt is rejected immediately instead of parking until a TTL. There is
+ * deliberately no default "yes someone is there" — absence of facts must never
+ * be read as presence of an approver.
+ *
+ * This is a **coarse liveness hint, not an authorization fact**, and the
+ * asymmetry of its failure modes is what fixes its shape:
+ *
+ * - Over-reporting (a responder is bound that cannot actually see this
+ *   Location's or this mode's prompts) costs one bounded TTL wait and then a
+ *   typed rejection. Nothing is ever granted.
+ * - Under-reporting (no responder bound while a client is in fact watching)
+ *   turns every `ask` into a hard denial with no path to approval.
+ *
+ * So it is provided once per process (`LocationServiceMap` dependencies) rather
+ * than per Location: the HTTP layer knows about connections, not about which
+ * Locations they may end up asking about, and being coarser is the safe
+ * direction. Authorization itself never consults this — `reply` still routes
+ * through the owning Location's PermissionV2, and the leaf `assert` remains the
+ * final boundary.
+ *
+ * `PermissionV2` takes this as a **hard dependency on purpose**: an optional
+ * lookup let a build ship where nothing provided it, and every `ask` in every
+ * mode silently became `RejectedError(no_responder)` while tests stayed green
+ * because each harness provided the layer itself. A missing provider must be a
+ * layer/type error, not a runtime policy change.
  */
 export interface Interface {
   /** Registers one capable responder; released when the connection Scope closes. */
@@ -47,12 +69,7 @@ export const make = (ttlMs: number) =>
     }),
   )
 
-export const locationLayer = make(DEFAULT_TTL_MS)
-
-/** Test convenience: a layer with a permanently bound responder and fixed TTL. */
-export const testLayerWithResponder = (ttlMs: number) =>
-  Layer.mergeAll(make(ttlMs), Layer.effectDiscard(Effect.gen(function* () {
-    yield* (yield* Service).bindResponder()
-  })))
+/** Process-wide instance; belongs in `LocationServiceMap` dependencies, not inside a Location. */
+export const defaultLayer = make(DEFAULT_TTL_MS)
 
 export const Reason = Schema.Literals(["no_responder"])

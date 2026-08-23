@@ -502,8 +502,8 @@ export const layer = Layer.effect(
         if (
           bound &&
           (!agent.info ||
-            agent.info.origin_relative_path !== bound.relativePath ||
-            agent.info.origin_revision !== bound.revision)
+            agent.info.originRelativePath !== bound.relativePath ||
+            agent.info.originRevision !== bound.revision)
         ) {
           return yield* new AgentProvenanceError({
             sessionID,

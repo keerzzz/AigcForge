@@ -56,16 +56,32 @@ const decodeRevision = (value: string): McpScope.ScopedGrant["revision"] | undef
   }
 }
 
-/** Tolerant row decode: corrupt rows are skipped with a classified log, never a defect on a read path. */
-const toInfoSafe = (row: Row): Info | undefined => {
+/**
+ * Tolerant row decode: a missing row and a corrupt row both yield `undefined`
+ * rather than a defect. `rows[0]` is `Row | undefined` at every call site (the
+ * repo does not enable `noUncheckedIndexedAccess`), and the settled-row sweep
+ * makes "look up a grant that is already gone" an ordinary path.
+ */
+const toInfoSafe = (row: Row | undefined): Info | undefined => {
+  if (!row) return undefined
   if (row.asset_revision !== null && decodeRevision(row.asset_revision) === undefined) {
-    void Effect.runPromise(
-      Effect.logWarning("Scoped grant row has invalid revision; skipping", { grantID: row.id }),
-    ).catch(() => {})
     return undefined
   }
   return toInfo(row)
 }
+
+/**
+ * Decode inside the Effect so a skipped row is reported rather than silently
+ * dropped — the log stays on the caller's fiber instead of a detached one.
+ */
+const decodeRow = (row: Row | undefined) =>
+  Effect.gen(function* () {
+    if (!row) return undefined
+    const info = toInfoSafe(row)
+    if (!info)
+      yield* Effect.logWarning("Scoped grant row failed to decode; skipping", { grantID: row.id })
+    return info
+  })
 
 const toInfo = (row: Row): Info => {
   const grant = new McpScope.ScopedGrant({
@@ -185,14 +201,21 @@ export const layer = Layer.effect(
       get: Effect.fn("ScopedGrantStore.get")(function* (id) {
         const rows = yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.id, id)).all()
           .pipe(Effect.orDie)
-        return toInfoSafe(rows[0])
+        return yield* decodeRow(rows[0])
       }),
 
       findValid: Effect.fn("ScopedGrantStore.findValid")(function* (input) {
-        const rows = yield* db.select().from(ScopedGrantTable).all().pipe(Effect.orDie)
         const now = Date.now()
+        // Status predicate belongs in SQL; action/resource matching cannot,
+        // because a grant may carry a wildcard pattern rather than a literal.
+        const rows = yield* db
+          .select()
+          .from(ScopedGrantTable)
+          .where(and(isNull(ScopedGrantTable.consumed_at), isNull(ScopedGrantTable.revoked_at)))
+          .all()
+          .pipe(Effect.orDie)
         const valid = rows
-          .filter((row) => row.revoked_at === null && row.consumed_at === null && !isExpired(row, now))
+          .filter((row) => !isExpired(row, now))
           .filter((row) => (row.level === "session" ? row.session_id === input.sessionID : true))
           .filter((row) => (row.agent !== null ? row.agent === input.agent : true))
           .filter((row) =>
@@ -205,7 +228,7 @@ export const layer = Layer.effect(
           )
           .toSorted((a, b) => b.issued_at - a.issued_at)
         for (const row of valid) {
-          const info = toInfoSafe(row)
+          const info = yield* decodeRow(row)
           if (info) return info
         }
         return undefined
@@ -244,7 +267,7 @@ export const layer = Layer.effect(
             }),
         )
         const updated = (yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.id, id)).all().pipe(Effect.orDie))[0]
-        return toInfoSafe(updated) ?? (yield* new NotFoundError({ grantID: id }))
+        return (yield* decodeRow(updated)) ?? (yield* new NotFoundError({ grantID: id }))
       }),
 
       revoke: Effect.fn("ScopedGrantStore.revoke")(function* (id, expectedRevision) {
@@ -279,10 +302,20 @@ export const layer = Layer.effect(
             }),
         )
         const updated = (yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.id, id)).all().pipe(Effect.orDie))[0]
-        return toInfoSafe(updated) ?? (yield* new NotFoundError({ grantID: id }))
+        return (yield* decodeRow(updated)) ?? (yield* new NotFoundError({ grantID: id }))
       }),
     })
   }),
 )
 
-export const locationLayer = layer.pipe(Layer.provideMerge(Database.defaultLayer), Layer.provideMerge(EventV2.defaultLayer))
+/**
+ * `provide`, not `provideMerge`: merging would re-export Database/EventV2 into
+ * the consuming composition, and since the Location lookup is `Layer.fresh`
+ * that export is a *second* in-memory SQLite instance which then shadows the
+ * shared one from `LocationServiceMap` dependencies. Writes and reads land in
+ * different databases (observed: session tasks read back as `[]` and
+ * "task is not owned by session" 500s across the instance HTTP surface).
+ * Every sibling module (`permission/saved.ts:87`, `session/task.ts:1102`) uses
+ * `provide` for exactly this reason.
+ */
+export const locationLayer = layer.pipe(Layer.provide(Database.defaultLayer), Layer.provide(EventV2.defaultLayer))

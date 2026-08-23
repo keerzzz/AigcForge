@@ -36,12 +36,6 @@ const sessions = SessionV2.layer.pipe(
   Layer.provide(Project.defaultLayer),
   Layer.provide(SessionExecution.noopLayer),
 )
-const responderAttached = Layer.effectDiscard(
-  Effect.gen(function* () {
-    const presence = yield* ApprovalPresence.Service
-    yield* presence.bindResponder()
-  }).pipe(Effect.provide(ApprovalPresence.locationLayer)),
-)
 const layer = PermissionV2.locationLayer.pipe(
   Layer.provideMerge(Database.defaultLayer),
   Layer.provideMerge(SessionStore.defaultLayer),
@@ -50,7 +44,7 @@ const layer = PermissionV2.locationLayer.pipe(
   Layer.provideMerge(sessions),
   Layer.provideMerge(SessionExecution.noopLayer),
   Layer.provideMerge(PermissionSaved.defaultLayer),
-  Layer.provideMerge(ApprovalPresence.locationLayer),
+  Layer.provideMerge(ApprovalPresence.defaultLayer),
   )
 const it = testEffect(layer)
 

@@ -23,6 +23,7 @@ import { Database } from "./database/database"
 import { PermissionV2 } from "./permission"
 import { SessionPermissionOverride } from "./permission/session-override"
 import { PermissionSaved } from "./permission/saved"
+import { ApprovalPresence } from "./permission/approval-presence"
 import { FileSystem } from "./filesystem"
 import { Ripgrep } from "./ripgrep"
 import { Watcher } from "./filesystem/watcher"
@@ -287,5 +288,8 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
     FetchHttpClient.layer,
     ToolOutputStore.defaultCleanupLayer,
     ApplicationTools.layer,
+    // Approval responder facts are connection-scoped, so one process-wide
+    // instance: the HTTP layer binds connections, not Locations (ADR-20 §2.7).
+    ApprovalPresence.defaultLayer,
   ],
 }) {}

@@ -1,5 +1,5 @@
 import { describe, expect } from "bun:test"
-import { Cause, Effect, Exit, Layer, Option } from "effect"
+import { Cause, Context, Effect, Exit, Layer, Option, Scope } from "effect"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { ApprovalPresence } from "@aigcfroge/core/permission/approval-presence"
@@ -32,7 +32,7 @@ const sessions = SessionV2.layer.pipe(
   Layer.provide(Project.defaultLayer),
   Layer.provide(SessionExecution.noopLayer),
 )
-const harness = (presence: Layer.Layer<ApprovalPresence.Service> = ApprovalPresence.locationLayer) =>
+const harness = (presence: Layer.Layer<ApprovalPresence.Service> = ApprovalPresence.defaultLayer) =>
   PermissionV2.locationLayer.pipe(
   Layer.provideMerge(Database.defaultLayer),
   Layer.provideMerge(SessionStore.defaultLayer),
@@ -113,6 +113,105 @@ describe("ApprovalPresence × ask bounds (ADR-20 §2.7)", () => {
       const pending = yield* service.forSession(sessionID)
       expect(pending).toHaveLength(1)
       yield* service.reply({ requestID: pending[0]!.id, reply: "once" })
+      expect(yield* service.forSession(sessionID)).toHaveLength(0)
+    }),
+  )
+})
+
+// The SSE route layer and `LocationServiceMap` dependencies each provide
+// `ApprovalPresence.defaultLayer` independently, under one shared MemoMap. If
+// that ever yields two instances, connections bind a counter the Locations
+// cannot see and every prompt is rejected again — the same P0 in a subtler
+// shape, invisible to any single-composition test.
+describe("ApprovalPresence instance sharing", () => {
+  it.live("shares one responder counter across independently provided compositions", () =>
+    Effect.gen(function* () {
+      const memoMap = Layer.makeMemoMapUnsafe()
+      const scope = yield* Scope.make()
+      const first = yield* Layer.buildWithMemoMap(ApprovalPresence.defaultLayer, memoMap, scope)
+      const second = yield* Layer.buildWithMemoMap(ApprovalPresence.defaultLayer, memoMap, scope)
+      const viaRoute = Context.get(first, ApprovalPresence.Service)
+      const viaLocation = Context.get(second, ApprovalPresence.Service)
+
+      expect(yield* viaLocation.hasResponder()).toBe(false)
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          yield* viaRoute.bindResponder()
+          // Bound through one composition, observed through the other.
+          expect(yield* viaLocation.hasResponder()).toBe(true)
+        }),
+      )
+      expect(yield* viaLocation.hasResponder()).toBe(false)
+      yield* Scope.close(scope, Exit.void)
+    }),
+  )
+})
+
+// The two halves of Phase D composed. Every other case in this file hands
+// `effect: "ask"` to the evaluator directly, so none of them exercise the path
+// that actually ships: an ordinary asset-declared `allow` rewritten to `ask` by
+// the custom ceiling, then meeting the responder-fact gate. That gap is how a
+// build shipped where the rewrite was live and the fact source was not, turning
+// every prompt into a hard denial (ADR-20 §2.6 + §2.7).
+describe("custom ceiling × responder facts (composed)", () => {
+  it.effect("a rewritten allow reaches a real prompt while a responder is attached", () =>
+    Effect.gen(function* () {
+      const presence = yield* ApprovalPresence.Service
+      yield* presence.bindResponder()
+      // Exactly what `tools: [bash]` in an agent file compiles to — no author
+      // wrote "ask" anywhere.
+      const sessionID = yield* setup([{ action: "bash", resource: "*", effect: "allow" }])
+      const service = yield* PermissionV2.Service
+
+      const verdict = yield* service.ask({
+        sessionID,
+        action: "bash",
+        resources: ["/tmp/run.sh"],
+        agent: AgentV2.ID.make("test"),
+      })
+      expect(verdict.effect).toBe("ask")
+      const pending = yield* service.forSession(sessionID)
+      expect(pending).toHaveLength(1)
+
+      // And it is answerable: the ceiling restores the approval surface rather
+      // than removing the capability.
+      yield* service.reply({ requestID: pending[0]!.id, reply: "once" })
+      expect(yield* service.forSession(sessionID)).toHaveLength(0)
+    }),
+  )
+
+  it.effect("a whitelisted readonly allow is untouched by the ceiling and never prompts", () =>
+    Effect.gen(function* () {
+      const presence = yield* ApprovalPresence.Service
+      yield* presence.bindResponder()
+      const sessionID = yield* setup([{ action: "read", resource: "*", effect: "allow" }])
+      const service = yield* PermissionV2.Service
+
+      yield* service.assert({
+        sessionID,
+        action: "read",
+        resources: ["src/index.ts"],
+        agent: AgentV2.ID.make("test"),
+      })
+      expect(yield* service.forSession(sessionID)).toHaveLength(0)
+    }),
+  )
+
+  it.effect("a rewritten allow is denied with no prompt when nothing can answer", () =>
+    Effect.gen(function* () {
+      const sessionID = yield* setup([{ action: "bash", resource: "*", effect: "allow" }])
+      const service = yield* PermissionV2.Service
+
+      const exit = yield* service
+        .assert({ sessionID, action: "bash", resources: ["/tmp/run.sh"], agent: AgentV2.ID.make("test") })
+        .pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      if (Exit.isFailure(exit)) {
+        const failure = Cause.squash(exit.cause)
+        expect(failure instanceof PermissionV2.RejectedError).toBe(true)
+        if (failure instanceof PermissionV2.RejectedError) expect(failure.reason).toBe("no_responder")
+      }
       expect(yield* service.forSession(sessionID)).toHaveLength(0)
     }),
   )

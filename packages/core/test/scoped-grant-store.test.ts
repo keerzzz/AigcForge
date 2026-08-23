@@ -17,6 +17,18 @@ const sessionB = SessionV2.ID.make("ses_grant_b")
 const revision = Schema.decodeUnknownSync(Composition.Revision)("c".repeat(64))
 
 describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
+  // `rows[0]` is `Row | undefined` at every read site and the settled-row sweep
+  // makes "look up a grant that is already gone" an ordinary path, so a missing
+  // row must be `undefined`, not a defect.
+  it.effect("returns undefined for an unknown grant instead of dying", () =>
+    Effect.gen(function* () {
+      const store = yield* ScopedGrantStore.Service
+      const exit = yield* store.get("grt_does_not_exist").pipe(Effect.exit)
+      expect(Exit.isSuccess(exit)).toBe(true)
+      expect(yield* store.get("grt_does_not_exist")).toBeUndefined()
+    }),
+  )
+
   it.effect("issues an active grant whose row, info and durable event agree", () =>
     Effect.gen(function* () {
       const store = yield* ScopedGrantStore.Service

@@ -65,8 +65,8 @@ export function agentAssetToAgentInfo(asset: AgentAsset.Info): AgentV2.Info | un
     steps: config?.steps,
     permissions: config?.permissions ? Array.from(config.permissions) : [],
     handoffs: config?.handoffs ? Array.from(config.handoffs) : [],
-    origin_relative_path: asset.relativePath,
-    origin_revision: asset.revision,
+    originRelativePath: asset.relativePath,
+    originRevision: asset.revision,
   }
 }
 

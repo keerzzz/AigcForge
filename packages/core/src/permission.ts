@@ -160,6 +160,10 @@ export const layer = Layer.effect(
     const sessions = yield* SessionStore.Service
     const saved = yield* PermissionSaved.Service
     const override = yield* SessionPermissionOverride.Service
+    // Hard dependency (ADR-20 §2.7): an optional lookup here is what let a
+    // build ship with no provider, turning every `ask` in every mode into a
+    // silent no_responder rejection. A missing provider must fail the layer.
+    const presence = yield* ApprovalPresence.Service
     const pending = new Map<ID, Pending>()
 
     const consultGrant = EffectRuntime.fn("PermissionV2.consultGrant")(function* (input: AssertInput) {
@@ -295,18 +299,9 @@ export const layer = Layer.effect(
           }
           if (result.effect === "allow") return
           if (yield* consultGrant(input)) return
-          // ADR-20 §2.7: bounded ask. Responder facts come only from wired
-          // connection sources; without them the default TTL still bounds the
-          // wait so no attended prompt can hang indefinitely.
-          const presenceOption = yield* EffectRuntime.serviceOption(ApprovalPresence.Service)
-          // ADR-20 §2.7: prompts wait only while a capable responder is
-          // attached (connection fact, never the attended flag). With no
-          // facts the request is rejected immediately — nothing is parked.
-          if (Option.isNone(presenceOption)) {
-            yield* new RejectedError({ reason: "no_responder" })
-            return
-          }
-          const presence = presenceOption.value
+          // ADR-20 §2.7: a prompt may wait only while a capable responder is
+          // attached — a connection fact, never the `attended` flag. With no
+          // responder the request is rejected before anything is parked.
           if (!(yield* presence.hasResponder())) {
             yield* new RejectedError({ reason: "no_responder" })
             return
