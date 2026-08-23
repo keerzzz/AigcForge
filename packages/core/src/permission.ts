@@ -302,10 +302,14 @@ export const layer = Layer.effect(
           // ADR-20 §2.7: prompts wait only while a capable responder is
           // attached (connection fact, never the attended flag). With no
           // facts the request is rejected immediately — nothing is parked.
-          if (Option.isNone(presenceOption)) return yield* new RejectedError({ reason: "no_responder" })
+          if (Option.isNone(presenceOption)) {
+            yield* new RejectedError({ reason: "no_responder" })
+            return
+          }
           const presence = presenceOption.value
           if (!(yield* presence.hasResponder())) {
-            return yield* new RejectedError({ reason: "no_responder" })
+            yield* new RejectedError({ reason: "no_responder" })
+            return
           }
           const item = yield* create(request(input), input.agent)
           yield* restore(Deferred.await(item.deferred)).pipe(
