@@ -50,6 +50,8 @@ export type ExecuteInput = {
 
 export type MaterializeOptions = {
   readonly allowlist?: ReadonlyArray<string>
+  /** Placement filter (ADR-19 §2.2): omit for Location-wide, or scope to one Session. */
+  readonly sessionID?: SessionSchema.ID
 }
 
 export interface Interface {
@@ -60,6 +62,15 @@ export interface Interface {
   ) => Effect.Effect<Materialization>
   /** Internal registration capability exposed publicly only through Tools.Service. */
   readonly register: (tools: Readonly<Record<string, AnyTool>>) => Effect.Effect<void, RegistrationError, Scope.Scope>
+  /**
+   * Registers tools visible only to one Session (ADR-19 §2.2). Same scoped
+   * cleanup semantics as `register`; the owner Scope close removes exactly
+   * this registration.
+   */
+  readonly registerSession: (
+    sessionID: SessionSchema.ID,
+    tools: Readonly<Record<string, AnyTool>>,
+  ) => Effect.Effect<void, RegistrationError, Scope.Scope>
 }
 
 export interface Materialization {
@@ -80,12 +91,28 @@ const registryLayer = Layer.effect(
   Effect.gen(function* () {
     const applications = yield* ApplicationTools.Service
     const resources = yield* ToolOutputStore.Service
-    type Registration = { readonly identity: object; readonly tool: AnyTool }
+    type Registration = { readonly identity: object; readonly tool: AnyTool; readonly sessionId?: SessionSchema.ID }
     const local = new Map<string, Array<{ readonly token: object; readonly registration: Registration }>>()
+    // ADR-19 §2.2: one placement predicate for both phases. Location
+    // registrations (sessionId undefined) are visible to every session; a
+    // session registration only to its own. Applying the same filter before
+    // the fresh settle lookup keeps definitions ≡ captured settle (C1) — a
+    // foreign session's shadow can neither execute nor fake staleness.
+    const visibleWinner = (
+      name: string,
+      sessionId: SessionSchema.ID | undefined,
+    ): Registration | undefined => {
+      const entries = local.get(name)
+      if (!entries) return undefined
+      const visible = entries.filter(
+        (entry) => entry.registration.sessionId === undefined || entry.registration.sessionId === sessionId,
+      )
+      return visible.at(-1)?.registration
+    }
 
     const settleWith = Effect.fn("ToolRegistry.settle")(function* (input: ExecuteInput, advertised?: object) {
       const registration =
-        local.get(input.call.name)?.at(-1)?.registration ?? applications.entries().get(input.call.name)
+        visibleWinner(input.call.name, input.sessionID) ?? applications.entries().get(input.call.name)
       if (!registration)
         return {
           result: {
@@ -145,8 +172,8 @@ const registryLayer = Layer.effect(
         : { result, output: bounded.output }
     })
 
-    return Service.of({
-      register: Effect.fn("ToolRegistry.register")(function* (tools) {
+    const registerEntries = (sessionId: SessionSchema.ID | undefined) =>
+      Effect.fn("ToolRegistry.register")(function* (tools: Readonly<Record<string, AnyTool>>) {
         const entries = Object.entries(tools)
         if (entries.length === 0) return
         yield* Effect.forEach(entries, ([name]) => validateName(name), { discard: true })
@@ -154,7 +181,7 @@ const registryLayer = Layer.effect(
           Effect.gen(function* () {
             const token = {}
             for (const [name, tool] of entries)
-              local.set(name, [...(local.get(name) ?? []), { token, registration: { identity: {}, tool } }])
+              local.set(name, [...(local.get(name) ?? []), { token, registration: { identity: {}, tool, sessionId } }])
             yield* Effect.addFinalizer(() =>
               Effect.sync(() => {
                 for (const [name] of entries) {
@@ -166,15 +193,20 @@ const registryLayer = Layer.effect(
             )
           }),
         )
-      }),
+      })
+    const register = registerEntries(undefined)
+
+    return Service.of({
+      register,
+      registerSession: (sessionID, tools) => registerEntries(sessionID)(tools),
       materialize: Effect.fn("ToolRegistry.materialize")(function* (
         permissions = [],
         intent?: string,
         options?: MaterializeOptions,
       ) {
         const registrations = new Map(applications.entries())
-        for (const [name, entries] of local) {
-          const registration = entries.at(-1)?.registration
+        for (const [name] of local) {
+          const registration = visibleWinner(name, options?.sessionID)
           if (registration) registrations.set(name, registration)
         }
         // Phase 4: intent-based tool filtering
@@ -206,7 +238,11 @@ const registryLayer = Layer.effect(
 
 export const layer = Layer.effect(
   Tools.Service,
-  Service.use((registry) => Effect.succeed(Tools.Service.of({ register: registry.register }))),
+  Service.use((registry) =>
+    Effect.succeed(
+      Tools.Service.of({ register: registry.register, registerSession: registry.registerSession }),
+    ),
+  ),
 ).pipe(Layer.provideMerge(registryLayer))
 
 function whollyDisabled(action: string, rules: PermissionV2.Ruleset) {
