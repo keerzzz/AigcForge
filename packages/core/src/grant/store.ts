@@ -1,7 +1,7 @@
 export * as ScopedGrantStore from "./store"
 
 import { Context, Effect, Layer, Schema } from "effect"
-import { and, eq, isNull } from "drizzle-orm"
+import { and, eq, isNull, isNotNull, lte, or } from "drizzle-orm"
 import { Composition } from "@aigcfroge/schema/composition"
 import { McpScope } from "@aigcfroge/schema/mcp-scope"
 import { Database } from "../database/database"
@@ -47,6 +47,25 @@ export type ConsultInput = {
 }
 
 type Row = typeof ScopedGrantTable.$inferSelect
+
+const decodeRevision = (value: string): McpScope.ScopedGrant["revision"] | undefined => {
+  try {
+    return Schema.decodeUnknownSync(Composition.Revision)(value)
+  } catch {
+    return undefined
+  }
+}
+
+/** Tolerant row decode: corrupt rows are skipped with a classified log, never a defect on a read path. */
+const toInfoSafe = (row: Row): Info | undefined => {
+  if (row.asset_revision !== null && decodeRevision(row.asset_revision) === undefined) {
+    void Effect.runPromise(
+      Effect.logWarning("Scoped grant row has invalid revision; skipping", { grantID: row.id }),
+    ).catch(() => {})
+    return undefined
+  }
+  return toInfo(row)
+}
 
 const toInfo = (row: Row): Info => {
   const grant = new McpScope.ScopedGrant({
@@ -110,12 +129,23 @@ export const layer = Layer.effect(
     const { db } = yield* Database.Service
     const events = yield* EventV2.Service
 
-    const rowToInfo = (rows: Row[]) => rows.map(toInfo)
-
-    return Service.of({
+        return Service.of({
       issue: Effect.fn("ScopedGrantStore.issue")(function* (input) {
         const id = input.id ?? "grt_" + crypto.randomUUID().replaceAll("-", "")
         const now = Date.now()
+        // Live-state table: settled rows live on only as durable events. Sweep
+        // them here so the table cannot grow without bound.
+        yield* db
+          .delete(ScopedGrantTable)
+          .where(
+            or(
+              isNotNull(ScopedGrantTable.consumed_at),
+              isNotNull(ScopedGrantTable.revoked_at),
+              and(isNotNull(ScopedGrantTable.expires_at), lte(ScopedGrantTable.expires_at, now)),
+            ),
+          )
+          .run()
+          .pipe(Effect.orDie)
         const grant = new McpScope.ScopedGrant({
           id,
           scope: input.scope,
@@ -155,12 +185,11 @@ export const layer = Layer.effect(
       get: Effect.fn("ScopedGrantStore.get")(function* (id) {
         const rows = yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.id, id)).all()
           .pipe(Effect.orDie)
-        return rowToInfo(rows)[0]
+        return toInfoSafe(rows[0])
       }),
 
       findValid: Effect.fn("ScopedGrantStore.findValid")(function* (input) {
-        const rows = yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.action, input.action)).all()
-          .pipe(Effect.orDie)
+        const rows = yield* db.select().from(ScopedGrantTable).all().pipe(Effect.orDie)
         const now = Date.now()
         const valid = rows
           .filter((row) => row.revoked_at === null && row.consumed_at === null && !isExpired(row, now))
@@ -175,7 +204,11 @@ export const layer = Layer.effect(
               input.resources.every((resource) => row.resources.some((pattern) => Wildcard.match(resource, pattern))),
           )
           .toSorted((a, b) => b.issued_at - a.issued_at)
-        return valid.length > 0 ? toInfo(valid[0]) : undefined
+        for (const row of valid) {
+          const info = toInfoSafe(row)
+          if (info) return info
+        }
+        return undefined
       }),
 
       consume: Effect.fn("ScopedGrantStore.consume")(function* (id) {
@@ -211,7 +244,7 @@ export const layer = Layer.effect(
             }),
         )
         const updated = (yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.id, id)).all().pipe(Effect.orDie))[0]
-        return toInfo(updated)
+        return toInfoSafe(updated) ?? (yield* new NotFoundError({ grantID: id }))
       }),
 
       revoke: Effect.fn("ScopedGrantStore.revoke")(function* (id, expectedRevision) {
@@ -246,7 +279,7 @@ export const layer = Layer.effect(
             }),
         )
         const updated = (yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.id, id)).all().pipe(Effect.orDie))[0]
-        return toInfo(updated)
+        return toInfoSafe(updated) ?? (yield* new NotFoundError({ grantID: id }))
       }),
     })
   }),

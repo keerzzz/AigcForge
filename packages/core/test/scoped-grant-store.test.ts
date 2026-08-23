@@ -171,4 +171,28 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
       expect(rows[0]?.grant_revision).toBe(3)
     }),
   )
+  it.effect("wildcard-action grants are discoverable and cover concrete actions", () =>
+    Effect.gen(function* () {
+      const store = yield* ScopedGrantStore.Service
+      yield* store.issue({ scope: { level: "location" }, action: "web*", resources: ["*"] })
+      const hit = yield* store.findValid({ action: "webfetch", resources: ["https://x.test"] })
+      expect(hit?.status).toBe("active")
+      expect(hit?.grant.action).toBe("web*")
+    }),
+  )
+
+  it.effect("settled grants are pruned so the table does not grow forever", () =>
+    Effect.gen(function* () {
+      const store = yield* ScopedGrantStore.Service
+      const { db } = yield* Database.Service
+      const a = yield* store.issue({ scope: { level: "once" }, action: "bash", resources: ["*"] })
+      yield* store.consume(a.grant.id)
+      yield* store.issue({ scope: { level: "location" }, action: "read", resources: ["*"], expiresAt: Date.now() - 1 })
+      // A new issuance sweeps settled/expired rows.
+      yield* store.issue({ scope: { level: "location" }, action: "grep", resources: ["*"] })
+      const rows = yield* db.select().from(ScopedGrantTable).all()
+      expect(rows).toHaveLength(1)
+      expect(rows[0]?.action).toBe("grep")
+    }),
+  )
 })

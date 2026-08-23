@@ -16,6 +16,7 @@ import { PermissionEffective } from "./permission/effective"
 import { SessionPermissionOverride } from "./permission/session-override"
 import { ScopedGrantStore } from "./grant/store"
 import { ApprovalPresence } from "./permission/approval-presence"
+import { GrantEvent } from "./grant/event"
 import { Duration } from "effect"
 
 export { Effect, Rule, Ruleset } from "@aigcfroge/schema/permission"
@@ -111,7 +112,7 @@ export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("Per
   requestID: ID,
 }) {}
 
-export type Error = DeniedError | RejectedError | CorrectedError | AskExpiredError
+export type Error = DeniedError | RejectedError | CorrectedError | AskExpiredError | GrantEvent.CommitRejected
 
 export function evaluate(action: string, resource: string, ...rulesets: Permission.Ruleset[]): Permission.Rule {
   return (
@@ -130,7 +131,7 @@ export function merge(...rulesets: Permission.Ruleset[]): Permission.Ruleset {
 }
 
 export interface Interface {
-  readonly ask: (input: AssertInput) => EffectRuntime.Effect<AskResult, SessionV2.NotFoundError>
+  readonly ask: (input: AssertInput) => EffectRuntime.Effect<AskResult, SessionV2.NotFoundError | GrantEvent.CommitRejected>
   readonly assert: (input: AssertInput) => EffectRuntime.Effect<void, Error | SessionV2.NotFoundError>
   readonly reply: (input: ReplyInput) => EffectRuntime.Effect<void, NotFoundError>
   readonly get: (id: ID) => EffectRuntime.Effect<Request | undefined>
@@ -174,14 +175,19 @@ export const layer = Layer.effect(
           sessionID: input.sessionID,
           ...(input.agent !== undefined ? { agent: input.agent } : {}),
         })
-        .pipe(Effect.catch(() => EffectRuntime.succeed(undefined)))
+        .pipe(
+          EffectRuntime.catchCause((cause) =>
+            EffectRuntime.logWarning("Scoped grant consultation failed; degrading to ask", { cause }).pipe(
+              EffectRuntime.as(undefined),
+            ),
+          ),
+        )
       if (!hit) return false
       if (hit.grant.scope.level !== "once") return true
       // Racing consumers: losing the consume falls back to the ask flow.
       const consumed = yield* store.consume(hit.grant.id).pipe(
         EffectRuntime.catchTag("ScopedGrant.StateError", () => EffectRuntime.succeed(undefined)),
         EffectRuntime.catchTag("ScopedGrant.NotFoundError", () => EffectRuntime.succeed(undefined)),
-        Effect.catch(() => EffectRuntime.succeed(undefined)),
       )
       return consumed !== undefined
     })
