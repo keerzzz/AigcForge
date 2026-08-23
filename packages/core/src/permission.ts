@@ -1,6 +1,6 @@
 export * as PermissionV2 from "./permission"
 
-import { Context, Deferred, Effect as EffectRuntime, Layer, Schema } from "effect"
+import { Context, Deferred, Effect, Effect as EffectRuntime, Layer, Option, Schema } from "effect"
 import { Permission } from "@aigcfroge/schema/permission"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { EventV2 } from "./event"
@@ -14,6 +14,7 @@ import { Wildcard } from "./util/wildcard"
 import { PermissionSaved } from "./permission/saved"
 import { PermissionEffective } from "./permission/effective"
 import { SessionPermissionOverride } from "./permission/session-override"
+import { ScopedGrantStore } from "./grant/store"
 
 export { Effect, Rule, Ruleset } from "@aigcfroge/schema/permission"
 const missingAgentPermissions: Permission.Ruleset = [{ action: "*", resource: "*", effect: "deny" }]
@@ -145,7 +146,32 @@ export const layer = Layer.effect(
     const sessions = yield* SessionStore.Service
     const saved = yield* PermissionSaved.Service
     const override = yield* SessionPermissionOverride.Service
+    // ADR-20 §2.2: candidate grants are consulted only when the policy
+    // verdict is `ask`. The store is an optional dependency so hosts without
+    // grant wiring keep their existing behavior unchanged.
+    const grantsOption = yield* EffectRuntime.serviceOption(ScopedGrantStore.Service)
     const pending = new Map<ID, Pending>()
+
+    const consultGrant = EffectRuntime.fn("PermissionV2.consultGrant")(function* (input: AssertInput) {
+      if (Option.isNone(grantsOption)) return false
+      const store = grantsOption.value
+      const hit = yield* store
+        .findValid({
+          action: input.action,
+          resources: input.resources,
+          sessionID: input.sessionID,
+          ...(input.agent !== undefined ? { agent: input.agent } : {}),
+        })
+        .pipe(Effect.catch(() => EffectRuntime.succeed(undefined)))
+      if (!hit) return false
+      if (hit.grant.scope.level !== "once") return true
+      // Racing consumers: losing the consume falls back to the ask flow.
+      const consumed = yield* store.consume(hit.grant.id).pipe(
+        EffectRuntime.catchTag("ScopedGrant.StateError", () => EffectRuntime.succeed(undefined)),
+        EffectRuntime.catchTag("ScopedGrant.NotFoundError", () => EffectRuntime.succeed(undefined)),
+      )
+      return consumed !== undefined
+    })
 
     yield* EffectRuntime.addFinalizer(() =>
       EffectRuntime.forEach(pending.values(), (item) => Deferred.fail(item.deferred, new RejectedError()), {
@@ -229,7 +255,11 @@ export const layer = Layer.effect(
     const ask = EffectRuntime.fn("PermissionV2.ask")(function* (input: AssertInput) {
       const result = yield* evaluateInput(input)
       const value = request(input)
-      if (result.effect === "ask") yield* create(value, input.agent)
+      if (result.effect === "ask") {
+        const granted = yield* consultGrant(input)
+        if (granted) return { id: value.id, effect: "allow" as const }
+        yield* create(value, input.agent)
+      }
       return { id: value.id, effect: result.effect }
     })
 
@@ -243,6 +273,7 @@ export const layer = Layer.effect(
             })
           }
           if (result.effect === "allow") return
+          if (yield* consultGrant(input)) return
           const item = yield* create(request(input), input.agent)
           return yield* restore(Deferred.await(item.deferred)).pipe(
             EffectRuntime.ensuring(
@@ -341,4 +372,5 @@ export const layer = Layer.effect(
 export const locationLayer = layer.pipe(
   Layer.provideMerge(AgentV2.locationLayer),
   Layer.provideMerge(SessionPermissionOverride.locationLayer),
+  Layer.provideMerge(ScopedGrantStore.locationLayer),
 )
