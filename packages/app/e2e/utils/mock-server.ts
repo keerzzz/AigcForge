@@ -31,6 +31,9 @@ export interface MockServerConfig {
   /** Optional three-field todo projection served by GET /session/:id/todo
    * (reload-recovery source when task.updated is not re-delivered). */
   todoList?: unknown[]
+  /** Optional response for the Agent Asset apply route used by browser regression tests. */
+  agentAssetApply?: unknown
+  agentAssetApplyStatus?: number
 }
 
 export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) {
@@ -64,6 +67,9 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     const path = url.pathname
     if (path === "/global/event" || path === "/event") return sse(route, config.events?.(), config.eventRetry)
     if (path === "/global/health") return json(route, { healthy: true })
+    if (/^\/session\/[^/]+\/agent-asset\/apply$/.test(path) && route.request().method() === "POST") {
+      return json(route, config.agentAssetApply ?? {}, undefined, config.agentAssetApplyStatus ?? 200)
+    }
     if (path === "/vcs/diff" && config.vcsDiff) return json(route, config.vcsDiff)
     if (emptyObject.has(path)) return json(route, {})
     if (emptyList.has(path)) return json(route, [])

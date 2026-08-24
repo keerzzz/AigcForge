@@ -1,10 +1,10 @@
 # ADR-21: MCP Credential Custody
 
-> **状态**：**Proposed**（2026-08-24 起草）—— G3-3 待五方评审。**未批准前 Phase C 不得开工**。
+> **状态**：**Accepted for M3 Phase C implementation v1.0**（2026-08-24 起草；2026-08-24 人类裁定 §2.5，G3-3 通过）—— Phase C 阻塞解除，**但带一条不可分割的前置条件**：Phase C 的第一件事必须是 Slice 0 的**独立事实复核**（本 ADR 由复审方起草，起草方不自批，Slice 0 是其补偿控制）。§1.1 任一条事实被证伪 → 停机并先修本 ADR，不在错误前提上施工。
 > **日期**：2026-08-24
-> **Gate**：G3-3（M3 计划 §1）
+> **Gate**：G3-3（M3 计划 §1）；**已通过**。裁定内容 = §2.5：静态加密**不在 M3 范围**，M3 只做两项止血（DB 文件 chmod `0o600`、`McpServerBinding` 解码期拒绝秘密字面量）；加密另立专项，已登记 [technical-debt](../../technical-debt.md) §3.2。
 > **关联**：[ADR-17](ADR-17-custom-mode-composition-platform.md)、[ADR-19](ADR-19-mcp-scoped-registration.md)、[ADR-20](ADR-20-scoped-grant-model.md)、[M3 计划](../../plan/custom-mode-m3-mcp-approval.md)、[Phase A 调研报告](../../plan/custom-mode-m3-phase-a-research.md)
-> **事实基础**：每条决策指向 `main@178987459` 复核过的代码事实（file:line）或显式标注为**新增契约**。起草时逐项实读了 `credential.ts`、`credential/sql.ts`、`schema/src/credential.ts`、`mcp/v2-auth.ts`、`auth/index.ts`、`credential-scanner.ts`、`schema/src/mcp-scope.ts`、`schema/src/composition.ts`、`location-layer.ts`。
+> **事实基础**：每条决策指向 `main@178987459` 复核过的代码事实（file:line）或显式标注为**新增契约**。起草时逐项实读了 `credential.ts`、`credential/sql.ts`、`schema/src/credential.ts`、`mcp/v2-auth.ts`、`auth/index.ts`、`credential-scanner.ts`、`schema/src/mcp-scope.ts`、`schema/src/composition.ts`、`location-layer.ts`。事实 7 已于 2026-08-24 由执行方复核修正（生产 `scan()` 取用点 1 个 + Layer 装配点 2 个），修正经复审方独立复跑确认。
 
 ---
 
@@ -22,7 +22,7 @@ G3-3 与 G3-1/G3-2 性质不同：**它不是「待批准」，是「待建」**
 | 4 | **存在两个绕开 `Credential.Service` 的文件存储。** `auth.json`（provider API keys，`auth/index.ts:10`）与 `mcp-auth.json`（MCP OAuth token / clientInfo / codeVerifier / oauthState，`mcp/v2-auth.ts:36`）。两者**都是明文 JSON**，但**都以 `0o600` 落盘**（`auth/index.ts:79`、`mcp/v2-auth.ts:81`），而 SQLite 库文件**无任何 chmod**（`global.ts:36-42` 只 mkdir，`database.ts:44-54` 只算路径）。**即：今天文件存储比数据库存储更严** |
 | 5 | **Snapshot 没有任何字段能装 credential ref。** `schema/src/composition.ts` 内 `credential` 0 命中 | `rg credential packages/schema/src/composition.ts` = 0 |
 | 6 | **Phase A 已定义 `McpScope.CredentialRef` 契约，但零消费方。** `Schema.String` + `isStartsWith("cred_")` + 长度上界 + brand，且 `McpServerBinding.credentialRef` 为 optional | `schema/src/mcp-scope.ts:51-56`、`:89` |
-| 7 | **`CredentialScanner` 有 2 个生产调用点，不是 1 个。** M3 计划 §1 记的「只有 1 个」已过期：`location-layer.ts:178` 提供 layer，`workflow/workflow-runner.ts:205` 在 handoff 上调用。它是**正则文本扫描器**（api_key / bearer_token / private_key / env_line 四类），用于**输出侧脱敏**，不是密钥管理 | `credential-scanner.ts:9-30`、`workflow-runner.ts:205` |
+| 7 | **`CredentialScanner` 有 1 个生产 Service 取用点，另有 2 处 Layer 提供/装配点。** 唯一生产取用点是 `workflow/workflow-runner.ts:205`；`location-layer.ts:178` 与 `workflow/workflow-runner.ts:763` 只提供或装配 `CredentialScanner` Layer，不是调用点。它是**正则文本扫描器**（api_key / bearer_token / private_key / env_line 四类），仅作为**输出侧脱敏兜底**，不是密钥管理层 | `credential-scanner.ts:9-30`、`workflow/workflow-runner.ts:205`、`location-layer.ts:178`、`workflow/workflow-runner.ts:763` |
 | 8 | **`credential.active` 列在 V2 服务里零引用。** `credential.ts` 内 `active` 0 命中；该列与 `credential_connector_active_idx` 唯一索引来自 V1 时代迁移 | `credential.ts`（0 命中）、`migration/20260611035744_credential.ts:21` |
 
 ### 1.2 由这些事实决定的三个结论
@@ -71,10 +71,10 @@ unique(directory, workspace_id, server_name)
 
 ### 2.4 日志脱敏：复用 `CredentialScanner`，并纠正计划里的过期事实
 
-- `CredentialScanner` 是**输出侧文本扫描器**（四类正则，`credential-scanner.ts:9-30`），已有 2 个生产调用点（事实 7）。MCP 连接的 **stderr / 握手错误 / server 响应**必须经它扫描后再落日志。
+- `CredentialScanner` 是**输出侧文本扫描器**（四类正则，`credential-scanner.ts:9-30`），有 1 个生产 Service 取用点（`workflow/workflow-runner.ts:205`），1 个实际 `scan()` 调用点（`workflow/workflow-runner.ts:436`），另有 2 处 Layer 提供/装配点（`location-layer.ts:178`、`workflow/workflow-runner.ts:763`；事实 7）。它仅作为输出侧兜底；MCP 连接的 **stderr / 握手错误 / server 响应**必须经它扫描后再落日志。
 - **顺序不可颠倒**：先扫描后裁剪。M2 在 `<workflow_result>` handoff 上的调用点已证明反序会让跨切点的凭据只剩不足以匹配的前缀（`workflow-runner.ts:205`）。
 - **它不是密钥管理，不能当既有安全层倚靠**：正则四类覆盖不了任意 server 自定义 header 名。所以本 ADR 的主防线是 §2.1 的「连接侧永不接触字面量」，scanner 只是外部文本入口的兜底。
-- **计划 §1 的「`CredentialScanner` 只有 1 个生产调用点」需更正为 2 个**（改文档，不改代码）。
+- **计划 §1 的「`CredentialScanner` 只有 1 个生产 Service 取用点」在数量上准确。** 需补充的是当前另有 2 处 Layer 提供/装配点（`location-layer.ts:178`、`workflow/workflow-runner.ts:763`）；唯一生产取用点仍是 `workflow/workflow-runner.ts:205`。这进一步说明 scanner 仅是输出侧兜底，不能被误认为完整的密钥保护层。
 
 ### 2.5 静态加密：**明确不在 M3 范围**，但必须做两件止血
 
@@ -101,13 +101,15 @@ unique(directory, workspace_id, server_name)
 | L4 App | Builder 里选择既有凭据并绑定到 server（不新建凭据录入面，复用 Integration 既有流）；显示 ref 与 label，**不显示材料** |
 | L5 Security | 连接侧零字面量、跨 Location ref 拒绝、绑定层可撤销、解码期秘密拒绝、日志经 scanner、DB 文件权限对齐 |
 
-## 4. 待评审要点（五方需明确回答）
+## 4. 评审要点与结论
 
-1. **Product**：§2.5 静态加密另立专项、M3 只做两项止血 —— 是否接受？若要求 M3 内加密，需先定密钥来源与「忘记即丢」语义。
-2. **Core**：§2.2 新增绑定表而非改 `Credential` 作用域 —— 是否同意「隔离授权关系而非隔离秘密」这个定义？
-3. **Security**：§2.3「撤销不中断在飞连接」是诚实边界还是不可接受缺口？§2.4 scanner 的正则覆盖不全，主防线放在 §2.1 是否足够？
-4. **App**：§3 L4 只做绑定不做凭据录入，是否满足 Builder 的 MCP 配置需求？
-5. **Schema+SDK**：`McpCredentialBinding` 是否复用 `mcp-scope.ts` 作为编码真源（与 Phase A 一致）？
+1. **Product — 已裁定（2026-08-24，人类）**：§2.5 静态加密另立专项、M3 只做两项止血 —— **接受**。加密专项须先定密钥来源（用户口令 / OS keychain / KMS）与「忘记口令即丢全部凭据」的产品语义，已登记 [technical-debt](../../technical-debt.md) §3.2。**M3 内不得实现任何加密。**
+2. **Core — 已采纳，待 Slice 0 证实**：§2.2 新增绑定表而非改 `Credential` 作用域，定义为「隔离授权关系而非隔离秘密」。**Slice 0 必须先证明无既有表/服务可复用**（重点核 `Integration` / `IntegrationConnection` 是否已能表达「Location × server → credential」）；能复用则改 ADR 再施工（极致减法：复用 → 删除 → 归并 → 重构 → 新增）。
+3. **Security — 已采纳为诚实边界**：§2.3「撤销不中断在飞连接」是**如实声明的边界**，与 ADR-19 §2.8 及 kill-switch 通知共用同一未建机制；Phase C 报告**不得宣称即时生效**。§2.4 scanner 正则覆盖不全属已知，主防线是 §2.1「连接侧永不接触字面量」，scanner 只是外部文本入口的兜底。
+4. **App — 已采纳**：§3 L4 只做绑定、不做凭据录入，复用 Integration 既有流；响应体与界面只显示 ref 与 `label`，永不显示材料。
+5. **Schema+SDK — 已采纳**：`McpCredentialBinding` 复用 `mcp-scope.ts` 作为编码真源，与 Phase A 一致。
+
+**第 2 条是 Slice 0 唯一可推翻的一条**；第 1 / 3 / 4 / 5 条为定案，Phase C 照做不改。
 
 ## 5. 停止条件（本 ADR 特有，补充 M3 计划 §6）
 
@@ -116,13 +118,16 @@ unique(directory, workspace_id, server_name)
 - 任何方案宣称「撤销即中断在飞连接」而无进程内通知机制支撑。
 - 任何方案为了「统一凭据」去改 V1 `mcp-auth.json` 或 `auth.json` 的在役语义（违反 ADR-19 §2.1 的并存裁定）。
 - 任何方案把 `CredentialScanner` 当作充分的密钥保护层。
+- **Slice 0 未完成、或 §1.1 任一事实被证伪，却继续写 connection / credential 生产代码。**
 
 ## 6. 审批与授权记录
 
 | 评审方 | 结论 | 备注 |
 |---|---|---|
-| Product | 待评审 | |
-| Core | 待评审 | |
-| Security | 待评审 | |
-| App | 待评审 | |
-| Schema+SDK | 待评审 | |
+| Product | **Accepted**（2026-08-24） | 人类直接裁定 §2.5：加密排除在 M3 之外，只做两项止血 |
+| Core | **Accepted with condition**（2026-08-24） | 用户授权 AI 代理代行技术审批；§2.2 的「必须新增绑定表」由 Phase C Slice 0 复核，可推翻 |
+| Security | **Accepted**（2026-08-24） | §2.3 为如实边界；主防线 §2.1，scanner 仅兜底 |
+| App | **Accepted**（2026-08-24） | 只做绑定，不做凭据录入 |
+| Schema+SDK | **Accepted**（2026-08-24） | 复用 `mcp-scope.ts` 为编码真源 |
+
+> **起草/批准分离说明**：本 ADR 由复审方起草，故不由起草方自批。§2.5 由人类裁定；其余四条以「Accepted + Slice 0 独立事实复核」形式闭门——Slice 0 就是起草方不自批的补偿控制，**不是可选步骤**。

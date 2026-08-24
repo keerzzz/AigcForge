@@ -1,6 +1,6 @@
 # Custom Mode M3 实施计划：MCP 与统一审批
 
-> 状态：**进行中** —— Phase A（`7a2804624`）、Phase B（`99dce8906`）、Phase D（`38d82e2b3`）已交付、经独立复审整改并合入本地 main。当前可开工：**Phase F0**（审批中心前置切片）；**Phase C** 待 [ADR-21](../architecture/adr/ADR-21-mcp-credential-custody.md) 复核 + G3-3 裁定。Phase E 依赖 C，Phase F 本体需产品定界面
+> 状态：**进行中** —— Phase A（`7a2804624`）、Phase B（`99dce8906`）、Phase D（`38d82e2b3`）已交付、经独立复审整改并合入本地 main。当前可开工：**Phase F0**（审批中心前置切片，已交付待合入）与 **Phase C**（[ADR-21](../architecture/adr/ADR-21-mcp-credential-custody.md) 已 Accepted v1.0、G3-3 于 2026-08-24 通过；**Slice 0 独立事实复核为不可跳过的前置**）。Phase E 依赖 C，Phase F 本体需产品定界面
 > 执行提示词：[Custom Mode M3 全量 TDD 执行提示词](prompt-custom-mode-m3-mcp-approval.md)
 > 分析基线：§0 写于 `main@a11b50020`（2026-08-22），已按 Phase A/B/D 复核逐条更正；执行基线为开工时最新**本地** `main`（现 `178987459`，领先 origin 35 提交，M3 全部结束后统一开一个 PR）
 > 范围：Session/Location scoped MCP canonical registration、credential refs、health/revocation、once/Session/Location grant、应用级审批入口
@@ -82,10 +82,10 @@ M3 的根问题不是「让 Profile 能选 MCP」，而是让外部工具在一�
 | G3-0 前置             | M1 Tool allowlist/fingerprint/Permission 运行稳定；M2 已上线，Agent scope 已可表达            | **已满足**（M2 = PR #46 / `a11b50020`，复审 APPROVED） | 全部        |
 | G3-1 Registration ADR | Session/Location registration、owner Scope、name collision、fingerprint、cleanup、reconnect 批准 | **已通过** —— [ADR-19](../architecture/adr/ADR-19-mcp-scoped-registration.md) Accepted v1.0（2026-08-23），条件 C1/C2 均已闭合 | MCP runtime |
 | G3-2 Grant ADR        | once/Session/Location + action/resource/agent/revision/expiry/revocation 的唯一真源批准，且回答 §0.2 第 1 项 | **已通过** —— [ADR-20](../architecture/adr/ADR-20-scoped-grant-model.md) Accepted v1.2（2026-08-23），§0.2 第 1 项由 §2.6 回答（unattended 只读白名单已落地；attended 重写为 `ask` 已裁定） | 审批/执行    |
-| G3-3 Credential       | secret owner、opaque ref、rotation/revocation、日志脱敏和跨 Location 隔离批准 | **已有草案，待批准** —— [ADR-21](../architecture/adr/ADR-21-mcp-credential-custody.md) 状态 Proposed（2026-08-24 起草）。由复审方起草，故**不得自批**：需执行方独立事实复核（8 条起点事实逐条复跑）+ 人类裁定后转 Accepted。ADR-21 明确把**静态加密排除在 M3 之外**（另立专项），M3 只做两项止血：DB 文件权限与既有 `0o600` 对齐、`McpServerBinding` 解码期拒绝秘密字面量 | 连接 |
+| G3-3 Credential       | secret owner、opaque ref、rotation/revocation、日志脱敏和跨 Location 隔离批准 | **已通过** —— [ADR-21](../architecture/adr/ADR-21-mcp-credential-custody.md) Accepted for M3 Phase C implementation v1.0（2026-08-24 人类裁定 §2.5：静态加密**排除在 M3 之外**，另立专项；M3 只做两项止血 —— DB 文件权限与既有 `0o600` 对齐、`McpServerBinding` 解码期拒绝秘密字面量）。**带前置条件**：ADR 由复审方起草，故 Phase C 第一件事必须是 Slice 0 独立事实复核（§1.1 的 8 条事实逐条复跑）；§2.2「必须新增 `mcp_credential_binding`」是**唯一可被 Slice 0 推翻**的一条 | 连接 |
 | G3-4 Unattended       | **表述已按事实修正**：unattended **已经** fail-closed（`ask`→`deny`）。本 Gate 真正要批的是 ① 「有人值守但无客户端」的 ask 超时策略（今天无 timeout，永久挂到 Location 60 分钟驱逐）② §0.2 第 1 项的尾部 allow 绕过 clamp 该如何堵 ③ 审批中心必须带 `product-mode-custom-v1` 能力头否则收不到 custom 的 `permission.v2.asked` | **已通过** —— 三项均由 ADR-20 回答（① §2.7 ② §2.6 ③ §2.8） | Beta        |
 
-**当前可开工阶段是 Phase F0**（审批中心前置切片：grant 保留期+读路径、资产导入通配 allow 警示），分支 `approval-preflight`。Phase A（`7a2804624`）、Phase B（`99dce8906`）、Phase D（`38d82e2b3`）均已交付、经独立复审整改并合入本地 main。**Phase C 待 G3-3 裁定**：[ADR-21](../architecture/adr/ADR-21-mcp-credential-custody.md) 已起草但状态为 Proposed，且**由复审方起草故不得自批**——需执行方独立事实复核 + 人类裁定后转 Accepted，不得因为「F0 做完了顺手做 C」而跳过 Gate。Phase E 依赖 Phase C，Phase F 本体需产品定界面。
+**当前可开工阶段是 Phase F0**（审批中心前置切片：grant 保留期+读路径、资产导入通配 allow 警示），分支 `approval-preflight`。Phase A（`7a2804624`）、Phase B（`99dce8906`）、Phase D（`38d82e2b3`）均已交付、经独立复审整改并合入本地 main。**G3-3 已于 2026-08-24 通过**（[ADR-21](../architecture/adr/ADR-21-mcp-credential-custody.md) Accepted v1.0），Phase C 解锁；但因 ADR 由复审方起草，**Slice 0 独立事实复核是不可跳过的前置**，任一事实被证伪即停机改 ADR，不得因为「F0 做完了顺手做 C」而跳过它。Phase E 依赖 Phase C，Phase F 本体需产品定界面。
 
 应用级审批入口只聚合 pending request；它不成为“应用级永久 allow”。
 
@@ -191,6 +191,6 @@ M3 的根问题不是「让 Profile 能选 MCP」，而是让外部工具在一�
 ## 7. 分支策略
 
 - 研究/ADR 走 `mcp-scope-adr`（Phase A，**已合入 main `7a2804624`**）；Phase B 走 `mcp-registration`（**已交付，复审整改完成，未推送**）。
-- 剩余实现分支：`scoped-grants`（Phase D，**当前可开工**）、`mcp-composition`（Phase E，待 Phase C）、`approval-center`（Phase F，待 Phase D）；Phase C 待 G3-3 起草并批准后另开。
+- 剩余实现分支：`approval-preflight`（Phase F0，已交付待合入）、`mcp-connection`（Phase C，**G3-3 已通过，Slice 0 复核为前置**）、`mcp-composition`（Phase E，待 Phase C）、`approval-center`（Phase F 本体，需产品定界面）。
 - 按现行安排：M3 各阶段分支在本地依次叠加，**全部阶段结束后统一开一个 PR**，不逐阶段推送。不与 M4 Plugin 生命周期修改混在同一 PR。
 - 执行细则、必读清单、TDD 循环与停止条件见 [执行提示词](prompt-custom-mode-m3-mcp-approval.md)。

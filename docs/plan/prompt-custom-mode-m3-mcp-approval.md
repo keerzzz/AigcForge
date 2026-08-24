@@ -5,7 +5,7 @@
 > 前置：M2 总复审 APPROVED（R5）+ R6 整改（`b9c6d1077`）；**M3 Phase A**（`7a2804624`）、**Phase B**（`99dce8906`）、**Phase D**（`38d82e2b3`）均已交付、经独立复审整改并合入本地 main——ADR-19 Accepted v1.0（C1/C2 已闭合）、ADR-20 Accepted v1.2（§2.6 两半均已 Accepted，attended 裁定为 `ask`）
 > 分析基线：**本地 `main@38d82e2b3`**（2026-08-24）。**本地 main 领先 origin/main 34 个提交**：按用户安排 M3 全部 Phase 完成后统一开一个 PR，因此以**本地 main** 为基线，不要因落后 origin 而回退
 > 生成日期：2026-08-22（2026-08-24 第五次校准：Phase D 已合入；新增 ADR-21 草案，任务扩为 F0 + Phase C）
-> 当前开工阶段：**两个大任务合并交付** —— ① **Phase F0** 审批中心前置切片（分支 `approval-preflight`）② **Phase C** connection / credential / health（分支 `mcp-connection`，**前置：ADR-21 复核通过 + G3-3 批准**）
+> 当前开工阶段：**两个大任务合并交付** —— ① **Phase F0** 审批中心前置切片（分支 `approval-preflight`）② **Phase C** connection / credential / health（分支 `mcp-connection`，**G3-3 已于 2026-08-24 通过；前置改为 Slice 0 独立事实复核**）
 > 用途：复制 `PROMPT START` 与 `PROMPT END` 之间的正文到新的执行对话
 
 <!-- PROMPT START -->
@@ -31,7 +31,7 @@ Location -> Profile/composition (MCP binding = ref + fingerprint, 永不含 secr
 任务 1  Phase F0  审批中心前置切片          分支 approval-preflight   ← 立刻可开工
         ├─ Slice 1  grant 保留期与读路径
         └─ Slice 2  资产导入通配 allow 警示
-────────── 硬门：ADR-21 复核 + G3-3 批准 ──────────
+────────── 硬门：Slice 0 独立事实复核（G3-3 已通过）──────────
 任务 2  Phase C   connection / credential / health   分支 mcp-connection
         ├─ Slice 0  ADR-21 独立事实复核（先做，见 §0.3）
         ├─ Slice 1  typed MCPConnection owner + stdio
@@ -44,11 +44,12 @@ Location -> Profile/composition (MCP binding = ref + fingerprint, 永不含 secr
 
 ### 0.1 关于那道硬门：ADR-21 是**草案**，不是批准
 
-[ADR-21 MCP Credential Custody](../architecture/adr/ADR-21-mcp-credential-custody.md) 已起草（状态 **Proposed**），它回答 G3-3 的五个问题。但：
+[ADR-21 MCP Credential Custody](../architecture/adr/ADR-21-mcp-credential-custody.md) 已 **Accepted for M3 Phase C implementation v1.0**（2026-08-24 人类裁定 §2.5：静态加密排除在 M3 之外，只做两项止血）。**G3-3 已通过，Phase C 解锁。** 但它带一条不可分割的前置条件：
 
 - **它由复审方起草。** 按仓库既有做法，起草方与批准方必须分离——Phase A 的 ADR-19/ADR-20 由执行方起草、复审方批准，正是这个分离抓出了「引用不实」（C2）与整个 §2.6 BLOCK（R6-1/R6-2/R6-3 三项）。所以 ADR-21 **不能由起草方自己接受**。
-- **闭门方式**：你先做 **Slice 0 的独立事实复核**（§0.3），把结论交给人类与复审方；G3-3 由人类裁定后才转 Accepted。
-- **未转 Accepted 前，任务 2 的生产代码一行都不许写。** 你可以读代码、写复核报告、写红测试骨架，但不许写 connection / credential 的实现。
+- **补偿控制 = Slice 0**：Phase C 的第一件事必须是 §0.3 的**独立事实复核**，把结论交给人类与复审方。它不是可选步骤，是「起草方不自批」的替代门禁。
+- **Slice 0 完成并通过前，任务 2 的生产代码一行都不许写。** 你可以读代码、写复核报告、写红测试骨架，但不许写 connection / credential 的实现。
+- **§2.2「必须新增 `mcp_credential_binding`」是唯一可被 Slice 0 推翻的一条**（ADR-21 §4 第 2 条）；§2.5 加密排除、§2.3 撤销不中断在飞连接、§3 L4 只做绑定、Schema 复用 `mcp-scope.ts` 均为定案，照做不改。
 
 ### 0.2 Phase F0 的两个陷阱（任务 1）
 
@@ -204,10 +205,10 @@ Phase G  故障注入与灰度
 - 运行状态只进 DB，不回写 Profile/资产文件，不在 Profile/Task/Session 三处复制再靠事件猜测同步。
 - UI 只投影服务端状态；不在客户端推演授权、frontier 或成功语义。
 
-### 4.3 Gate 现状：三过一待（本次不重新讨论任何已定案项）
+### 4.3 Gate 现状：四项全过（本次不重新讨论任何已定案项）
 
-- **G3-1 已通过**（ADR-19 Accepted v1.0），**G3-2 已通过**（ADR-20 Accepted v1.2），**G3-4 已通过**（三问由 ADR-20 §2.7 / §2.6 / §2.8 回答）。
-- **G3-3 已有草案，尚未批准** —— [ADR-21](../architecture/adr/ADR-21-mcp-credential-custody.md) 状态 Proposed。它回答 secret owner / opaque ref / rotation-revocation / 日志脱敏 / 跨 Location 隔离五问，并**明确把静态加密排除在 M3 之外**（只做 DB 文件权限对齐与解码期秘密拒绝两项止血）。任务 2 开工前必须先过 §0.3 的独立事实复核 + 人类裁定。
+- **G3-1 已通过**（ADR-19 Accepted v1.0），**G3-2 已通过**（ADR-20 Accepted v1.2），**G3-3 已通过**（ADR-21 Accepted v1.0，2026-08-24；**带 Slice 0 前置**），**G3-4 已通过**（三问由 ADR-20 §2.7 / §2.6 / §2.8 回答）。
+- **G3-3 已通过**（[ADR-21](../architecture/adr/ADR-21-mcp-credential-custody.md) Accepted v1.0，2026-08-24）。它回答 secret owner / opaque ref / rotation-revocation / 日志脱敏 / 跨 Location 隔离五问，并**明确把静态加密排除在 M3 之外**（只做 DB 文件权限对齐与解码期秘密拒绝两项止血）。任务 2 开工前仍必须先过 §0.3 的 Slice 0 独立事实复核。
 - 与本切片直接相关的已定案项，**照做不改**：
   - ADR-20 §2.2：deny 恒胜出；grant 只存 allow（Schema 钉死 `Literal("allow")`）；仅 `ask` 才查 grant。
   - ADR-20 §2.4：`scoped_grant` 单一 CAS 写入者 + 同事务事件 + 0 行必抛。**保留期改动不得破坏这三条。**
@@ -513,7 +514,7 @@ git diff --check
    - SDK 重新生成后的**真实 diff 审查**（不手改生成结果）；
    - App 三语 key 存在性与 desktop/narrow/dark 覆盖说明；
    - `PermissionSaved`（`saved.ts` / `permission/sql.ts`）**diff = 0 行**的证明。
-4. **停机等待复审。不得顺手进入 Phase F 本体**（pending 聚合 / revoke 交互 / 客户端消费 `permission.v2.*` 需产品定界面）**或任务 2 = Phase C**（ADR-21 仍是 Proposed，G3-3 未裁定）。
+4. **停机等待复审。不得顺手进入 Phase F 本体**（pending 聚合 / revoke 交互 / 客户端消费 `permission.v2.*` 需产品定界面）**或任务 2 = Phase C**（G3-3 虽已通过，任务 1 与任务 2 仍必须两个分支、两次独立停机报告）。
 5. 未经交付批准，不 commit/push/PR。**本地 main 领先 origin/main 34 个提交**：按用户安排 M3 全部 Phase 完成后统一开一个 PR，所以本切片只在本地成链，不单独开 PR。
 
 **任务 2（Phase C）完成后 —— 第二个停机点：**
@@ -554,7 +555,7 @@ M completion:
 
 ## 10. 必须立即停止的情况
 
-- G3-3 未批准却要写 credential/connection/transport 生产代码。
+- Slice 0 未完成或结论未获裁定，却要写 credential/connection/transport 生产代码。
 - 保留已结算 grant 行之后，`findValid` 能查到它们，或 `once` 能被二次兑现（§0.1）——这是本切片唯一能造成越权的失误，出现即停机。
 - 需要新增/改动 pending / reply / grant / revoke 端点，或需要客户端消费 `permission.v2.*`，才能完成本切片——那说明范围滑进 Phase F 本体了。
 - 需要自己再抄一份危险动作清单或只读白名单（真源在 `permission/effective.ts`）。

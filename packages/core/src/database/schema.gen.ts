@@ -502,6 +502,10 @@ export default {
       )
       yield* tx.run(`CREATE UNIQUE INDEX \`event_aggregate_seq_idx\` ON \`event\` (\`aggregate_id\`,\`seq\`);`)
       yield* tx.run(`CREATE INDEX \`event_aggregate_type_seq_idx\` ON \`event\` (\`aggregate_id\`,\`type\`,\`seq\`);`)
+      yield* tx.run(
+        `CREATE INDEX \`scoped_grant_session_issued_idx\` ON \`scoped_grant\` (\`session_id\`,\`issued_at\`);`,
+      )
+      yield* tx.run(`CREATE INDEX \`scoped_grant_level_issued_idx\` ON \`scoped_grant\` (\`level\`,\`issued_at\`);`)
       yield* tx.run(`CREATE INDEX \`meta_agent_memory_project_idx\` ON \`meta_agent_memory\` (\`project_id\`);`)
       yield* tx.run(`CREATE INDEX \`meta_agent_session_meta_agent_idx\` ON \`meta_agent_session\` (\`meta_agent_id\`);`)
       yield* tx.run(`CREATE INDEX \`meta_agent_session_session_idx\` ON \`meta_agent_session\` (\`session_id\`);`)

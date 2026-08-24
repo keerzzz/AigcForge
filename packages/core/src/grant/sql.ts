@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
 
 /**
  * One user-granted approval (ADR-20 §2.3/§2.4). Encoded contract lives in
@@ -24,4 +24,7 @@ export const ScopedGrantTable = sqliteTable("scoped_grant", {
   time_updated: integer()
     .notNull()
     .$onUpdate(() => Date.now()),
-})
+}, (table) => [
+  index("scoped_grant_session_issued_idx").on(table.session_id, table.issued_at),
+  index("scoped_grant_level_issued_idx").on(table.level, table.issued_at),
+])

@@ -34,6 +34,7 @@ export const Output = Schema.Struct({
   revision: Schema.optional(Schema.String),
   nameConflict: Schema.Boolean,
   pathConflict: Schema.Boolean,
+  warnings: Schema.Array(AgentAsset.Warning),
 })
 
 export const layer = Layer.effectDiscard(
@@ -57,6 +58,7 @@ export const layer = Layer.effectDiscard(
             revision: result.revision ?? undefined,
             nameConflict: result.nameConflict,
             pathConflict: result.pathConflict,
+            warnings: result.warnings.map((warning) => new AgentAsset.Warning(warning)),
           }
         }).pipe(
           Effect.catch((err) =>

@@ -1,7 +1,7 @@
 export * as ScopedGrantStore from "./store"
 
-import { Context, Effect, Layer, Schema } from "effect"
-import { and, eq, isNull, isNotNull, lte, or } from "drizzle-orm"
+import { Cause, Context, Duration, Effect, Layer, Schedule, Schema } from "effect"
+import { and, eq, gte, isNull, isNotNull, lt, lte, or } from "drizzle-orm"
 import { Composition } from "@aigcfroge/schema/composition"
 import { McpScope } from "@aigcfroge/schema/mcp-scope"
 import { Database } from "../database/database"
@@ -10,7 +10,12 @@ import { Wildcard } from "../util/wildcard"
 import { GrantEvent, type CommitRejected } from "./event"
 import { ScopedGrantTable } from "./sql"
 
-export type GrantStatus = "active" | "consumed" | "revoked"
+export type GrantStatus = "active" | "consumed" | "revoked" | "expired"
+
+/** Settled grant history is retained for 30 days by default. Callers may pass a shorter window to prune/list. */
+export const DEFAULT_SETTLED_GRANT_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000
+/** Retention pruning runs once immediately, then once per hour per Location owner Scope. */
+export const SETTLED_GRANT_PRUNE_INTERVAL = Duration.hours(1)
 
 export interface Info {
   readonly grant: McpScope.ScopedGrant
@@ -46,6 +51,21 @@ export type ConsultInput = {
   readonly snapshotRevision?: string
 }
 
+export type ListInput = {
+  readonly sessionID?: string
+  readonly agent?: string
+  readonly status?: GrantStatus
+  readonly since?: number
+  readonly until?: number
+  readonly retentionMs?: number
+  readonly now?: number
+}
+
+export type PruneInput = {
+  readonly retentionMs?: number
+  readonly now?: number
+}
+
 type Row = typeof ScopedGrantTable.$inferSelect
 
 const decodeRevision = (value: string): McpScope.ScopedGrant["revision"] | undefined => {
@@ -62,28 +82,28 @@ const decodeRevision = (value: string): McpScope.ScopedGrant["revision"] | undef
  * repo does not enable `noUncheckedIndexedAccess`), and the settled-row sweep
  * makes "look up a grant that is already gone" an ordinary path.
  */
-const toInfoSafe = (row: Row | undefined): Info | undefined => {
+const toInfoSafe = (row: Row | undefined, now = Date.now()): Info | undefined => {
   if (!row) return undefined
   if (row.asset_revision !== null && decodeRevision(row.asset_revision) === undefined) {
     return undefined
   }
-  return toInfo(row)
+  return toInfo(row, now)
 }
 
 /**
  * Decode inside the Effect so a skipped row is reported rather than silently
  * dropped — the log stays on the caller's fiber instead of a detached one.
  */
-const decodeRow = (row: Row | undefined) =>
+const decodeRow = (row: Row | undefined, now = Date.now()) =>
   Effect.gen(function* () {
     if (!row) return undefined
-    const info = toInfoSafe(row)
+    const info = toInfoSafe(row, now)
     if (!info)
       yield* Effect.logWarning("Scoped grant row failed to decode; skipping", { grantID: row.id })
     return info
   })
 
-const toInfo = (row: Row): Info => {
+const toInfo = (row: Row, now = Date.now()): Info => {
   const grant = new McpScope.ScopedGrant({
     id: row.id,
     scope:
@@ -105,13 +125,62 @@ const toInfo = (row: Row): Info => {
   })
   return {
     grant,
-    status: row.revoked_at !== null ? "revoked" : row.consumed_at !== null ? "consumed" : "active",
+    status:
+      row.revoked_at !== null
+        ? "revoked"
+        : row.consumed_at !== null
+          ? "consumed"
+          : isExpired(row, now)
+            ? "expired"
+            : "active",
     ...(row.consumed_at !== null ? { consumedAt: row.consumed_at } : {}),
     grantRevision: row.grant_revision,
   }
 }
 
 const isExpired = (row: Row, now: number) => row.expires_at !== null && row.expires_at <= now
+
+/** Retention cutoff shared by `list` and `prune` so both agree on "in window". */
+export const retentionCutoff = (now: number, retentionMs?: number) =>
+  now - Math.max(0, retentionMs ?? DEFAULT_SETTLED_GRANT_RETENTION_MS)
+
+/**
+ * The `list` read filter as one exported pure builder, so a query-plan assertion
+ * can run against the *same* predicate production uses. Hand-copying it into the
+ * test would let a future edit silently stop using
+ * `scoped_grant_session_issued_idx` / `scoped_grant_level_issued_idx` while the
+ * EXPLAIN test stayed green on the stale copy.
+ *
+ * Window rule: a settled row is in-window when its latest transition is at or
+ * after `cutoff`; an unsettled row is in-window unless it expired before
+ * `cutoff`. Wildcard action/resource matching stays in JS — it cannot be pushed
+ * into SQL; `findValid` splits the same way.
+ */
+export const listFilter = (input: ListInput, cutoff: number) =>
+  and(
+    ...(input.sessionID !== undefined
+      ? [or(eq(ScopedGrantTable.session_id, input.sessionID), eq(ScopedGrantTable.level, "location"))]
+      : []),
+    ...(input.agent !== undefined ? [or(isNull(ScopedGrantTable.agent), eq(ScopedGrantTable.agent, input.agent))] : []),
+    ...(input.since !== undefined ? [gte(ScopedGrantTable.issued_at, input.since)] : []),
+    ...(input.until !== undefined ? [lte(ScopedGrantTable.issued_at, input.until)] : []),
+    or(
+      and(isNull(ScopedGrantTable.consumed_at), isNull(ScopedGrantTable.revoked_at), isNull(ScopedGrantTable.expires_at)),
+      and(
+        isNull(ScopedGrantTable.consumed_at),
+        isNull(ScopedGrantTable.revoked_at),
+        isNotNull(ScopedGrantTable.expires_at),
+        gte(ScopedGrantTable.expires_at, cutoff),
+      ),
+      and(
+        or(isNotNull(ScopedGrantTable.consumed_at), isNotNull(ScopedGrantTable.revoked_at)),
+        or(
+          and(isNotNull(ScopedGrantTable.consumed_at), gte(ScopedGrantTable.consumed_at, cutoff)),
+          and(isNotNull(ScopedGrantTable.revoked_at), gte(ScopedGrantTable.revoked_at, cutoff)),
+        ),
+      ),
+    ),
+  )
 
 interface Interface {
   /** Creates one active grant and publishes its durable creation event. */
@@ -126,6 +195,10 @@ interface Interface {
     readonly id?: string
   }) => Effect.Effect<Info, CommitRejected>
   readonly get: (id: string) => Effect.Effect<Info | undefined>
+  /** Returns active rows and settled rows inside the bounded history window. */
+  readonly list: (input?: ListInput) => Effect.Effect<ReadonlyArray<Info>>
+  /** Deletes only settled rows older than the bounded history window. */
+  readonly prune: (input?: PruneInput) => Effect.Effect<void>
   /**
    * Live consultation (ADR-20 §2.2/§2.3): expiry/revocation/consumption are
    * evaluated against the store on every call; no cached copy exists.
@@ -145,23 +218,10 @@ export const layer = Layer.effect(
     const { db } = yield* Database.Service
     const events = yield* EventV2.Service
 
-        return Service.of({
+        const service = Service.of({
       issue: Effect.fn("ScopedGrantStore.issue")(function* (input) {
         const id = input.id ?? "grt_" + crypto.randomUUID().replaceAll("-", "")
         const now = Date.now()
-        // Live-state table: settled rows live on only as durable events. Sweep
-        // them here so the table cannot grow without bound.
-        yield* db
-          .delete(ScopedGrantTable)
-          .where(
-            or(
-              isNotNull(ScopedGrantTable.consumed_at),
-              isNotNull(ScopedGrantTable.revoked_at),
-              and(isNotNull(ScopedGrantTable.expires_at), lte(ScopedGrantTable.expires_at, now)),
-            ),
-          )
-          .run()
-          .pipe(Effect.orDie)
         const grant = new McpScope.ScopedGrant({
           id,
           scope: input.scope,
@@ -202,6 +262,46 @@ export const layer = Layer.effect(
         const rows = yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.id, id)).all()
           .pipe(Effect.orDie)
         return yield* decodeRow(rows[0])
+      }),
+
+      list: Effect.fn("ScopedGrantStore.list")(function* (input: ListInput = {}) {
+        const now = input.now ?? Date.now()
+        const rows = yield* db
+          .select()
+          .from(ScopedGrantTable)
+          .where(listFilter(input, retentionCutoff(now, input.retentionMs)))
+          .all()
+          .pipe(Effect.orDie)
+        const filtered = rows.toSorted((a, b) => b.issued_at - a.issued_at)
+        const result: Info[] = []
+        for (const row of filtered) {
+          const info = yield* decodeRow(row, now)
+          if (info && (input.status === undefined || info.status === input.status)) result.push(info)
+        }
+        return result
+      }),
+
+      prune: Effect.fn("ScopedGrantStore.prune")(function* (input: PruneInput = {}) {
+        const cutoff = retentionCutoff(input.now ?? Date.now(), input.retentionMs)
+        yield* db
+          .delete(ScopedGrantTable)
+          .where(
+            or(
+              and(
+                isNull(ScopedGrantTable.consumed_at),
+                isNull(ScopedGrantTable.revoked_at),
+                isNotNull(ScopedGrantTable.expires_at),
+                lt(ScopedGrantTable.expires_at, cutoff),
+              ),
+              and(
+                or(isNotNull(ScopedGrantTable.consumed_at), isNotNull(ScopedGrantTable.revoked_at)),
+                or(isNull(ScopedGrantTable.consumed_at), lt(ScopedGrantTable.consumed_at, cutoff)),
+                or(isNull(ScopedGrantTable.revoked_at), lt(ScopedGrantTable.revoked_at, cutoff)),
+              ),
+            ),
+          )
+          .run()
+          .pipe(Effect.orDie)
       }),
 
       findValid: Effect.fn("ScopedGrantStore.findValid")(function* (input) {
@@ -305,17 +405,42 @@ export const layer = Layer.effect(
         return (yield* decodeRow(updated)) ?? (yield* new NotFoundError({ grantID: id }))
       }),
     })
+
+    return service
+  }),
+)
+
+export const cleanupLayer = Layer.effectDiscard(
+  Effect.gen(function* () {
+    const store = yield* Service
+    yield* store
+      .prune()
+      .pipe(
+        Effect.catchCause((cause) =>
+          Cause.hasInterruptsOnly(cause)
+            ? Effect.failCause(cause)
+            : Effect.logWarning("Scoped grant retention cleanup failed", { source: "scheduled_prune", cause }),
+        ),
+        Effect.repeat(Schedule.spaced(SETTLED_GRANT_PRUNE_INTERVAL)),
+        Effect.forkScoped({ startImmediately: true }),
+      )
   }),
 )
 
 /**
- * `provide`, not `provideMerge`: merging would re-export Database/EventV2 into
- * the consuming composition, and since the Location lookup is `Layer.fresh`
- * that export is a *second* in-memory SQLite instance which then shadows the
- * shared one from `LocationServiceMap` dependencies. Writes and reads land in
- * different databases (observed: session tasks read back as `[]` and
- * "task is not owned by session" 500s across the instance HTTP surface).
- * Every sibling module (`permission/saved.ts:87`, `session/task.ts:1102`) uses
- * `provide` for exactly this reason.
+ * Database/EventV2 are **requirements**, not provided here: the Location
+ * composition already owns the shared instances, so this layer must resolve
+ * them from the ambient context rather than build its own.
+ *
+ * Never reintroduce `Layer.provideMerge(Database…)` here. Merging re-exports
+ * Database/EventV2 into the consuming composition, and because the Location
+ * lookup ends in `Layer.fresh` that export is a *second* in-memory SQLite which
+ * then shadows the shared instance — writes and reads land in different
+ * databases (observed in Phase D: session tasks read back as `[]` plus
+ * "task is not owned by session" 500s across 9 instance HTTP tests). Sibling
+ * modules (`permission/saved.ts`, `session/task.ts`) follow the same rule.
+ *
+ * Guarded by `test/scoped-grant-store.test.ts`
+ * "uses the Location-provided Database and EventV2 instances".
  */
-export const locationLayer = layer.pipe(Layer.provide(Database.defaultLayer), Layer.provide(EventV2.defaultLayer))
+export const locationLayer = Layer.merge(layer, cleanupLayer.pipe(Layer.provide(layer)))

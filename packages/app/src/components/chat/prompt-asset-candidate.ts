@@ -18,6 +18,7 @@ type CandidateBase = {
   revision: string | null
   nameConflict: boolean
   pathConflict: boolean
+  warnings?: ReadonlyArray<{ code: "wildcard_allow" | "dangerous_allow"; action: string; resource: string }>
   status: "valid" | "conflict" | "exists"
 }
 
@@ -239,6 +240,16 @@ export function normalizeProposeCandidate(input: { tool: string; state: unknown 
   const nameConflict = booleanField(result, "nameConflict") ?? false
   const pathConflict = booleanField(result, "pathConflict") ?? false
   const revision = result?.revision
+  const warnings: CandidateBase["warnings"] = Array.isArray(result?.warnings)
+    ? result.warnings.filter(isRecord).flatMap((warning) => {
+        const code = stringField(warning, "code")
+        const action = stringField(warning, "action")
+        const resource = stringField(warning, "resource")
+        return (code === "wildcard_allow" || code === "dangerous_allow") && action && resource
+          ? [{ code, action, resource }]
+          : []
+      })
+    : []
 
   const common = {
     relativePath: stringField(result ?? rawInput, "relativePath") ?? stringField(rawInput, "relativePath") ?? "",
@@ -246,6 +257,7 @@ export function normalizeProposeCandidate(input: { tool: string; state: unknown 
     revision: typeof revision === "string" ? revision : null,
     nameConflict,
     pathConflict,
+    warnings,
     status: statusFrom(exists, nameConflict, pathConflict),
   }
 
@@ -261,6 +273,7 @@ export function sameCandidateInfo(left: CandidateInfo, right: CandidateInfo) {
   if (left.name !== right.name || left.description !== right.description || left.content !== right.content) return false
   if (left.relativePath !== right.relativePath || left.revision !== right.revision || left.status !== right.status) return false
   if (left.exists !== right.exists || left.nameConflict !== right.nameConflict || left.pathConflict !== right.pathConflict) return false
+  if (JSON.stringify(left.warnings ?? []) !== JSON.stringify(right.warnings ?? [])) return false
 
   if (left.kind === "prompt" && right.kind === "prompt") return left.candidate.template === right.candidate.template
   if (left.kind === "skill" && right.kind === "skill") {

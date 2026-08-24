@@ -2,11 +2,18 @@ import { createSignal } from "solid-js"
 import { createStore } from "solid-js/store"
 import { sameCandidateInfo, type CandidateInfo } from "./prompt-asset-candidate"
 
+export type ApplyWarning = {
+  code: "wildcard_allow" | "dangerous_allow"
+  action: string
+  resource: string
+}
+
 export type ProposeCandidateState = {
   candidate: CandidateInfo | null
   sessionID: string | null
   applying: boolean
   applied: boolean
+  appliedWarnings: ReadonlyArray<ApplyWarning>
 }
 
 const [state, setState] = createStore<ProposeCandidateState>({
@@ -14,25 +21,26 @@ const [state, setState] = createStore<ProposeCandidateState>({
   sessionID: null,
   applying: false,
   applied: false,
+  appliedWarnings: [],
 })
 
 export function setProposeCandidate(sessionID: string, candidate: CandidateInfo) {
   // sync poll can emit equivalent objects repeatedly; skip the update only when the full
   // candidate (path, conflicts, per-kind config) is identical.
   if (state.sessionID === sessionID && state.candidate !== null && sameCandidateInfo(state.candidate, candidate)) return
-  setState({ candidate, sessionID, applying: false, applied: false })
+  setState({ candidate, sessionID, applying: false, applied: false, appliedWarnings: [] })
 }
 
 export function clearProposeCandidate() {
-  setState({ candidate: null, sessionID: null, applying: false, applied: false })
+  setState({ candidate: null, sessionID: null, applying: false, applied: false, appliedWarnings: [] })
 }
 
 export function setApplying(value: boolean) {
   setState("applying", value)
 }
 
-export function setApplied() {
-  setState({ applying: false, applied: true })
+export function setApplied(warnings: ReadonlyArray<ApplyWarning> = []) {
+  setState({ applying: false, applied: true, appliedWarnings: warnings })
 }
 
 export function useProposeCandidate() {

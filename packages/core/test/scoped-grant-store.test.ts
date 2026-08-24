@@ -1,6 +1,7 @@
 import { describe, expect } from "bun:test"
-import { Effect, Exit, Layer, Schema } from "effect"
-import { eq } from "drizzle-orm"
+import { Context, Deferred, Duration, Effect, Exit, Layer, Ref, Schema, Scope } from "effect"
+import * as TestClock from "effect/testing/TestClock"
+import { eq, sql } from "drizzle-orm"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventTable } from "@aigcfroge/core/event/sql"
 import { EventV2 } from "@aigcfroge/core/event"
@@ -10,7 +11,9 @@ import { SessionV2 } from "@aigcfroge/core/session"
 import { Composition } from "@aigcfroge/schema/composition"
 import { testEffect } from "./lib/effect"
 
-const it = testEffect(Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer, ScopedGrantStore.locationLayer))
+const dependencies = Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer)
+const grants = ScopedGrantStore.locationLayer.pipe(Layer.provide(dependencies))
+const it = testEffect(Layer.merge(dependencies, grants))
 
 const sessionA = SessionV2.ID.make("ses_grant_a")
 const sessionB = SessionV2.ID.make("ses_grant_b")
@@ -193,18 +196,197 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
     }),
   )
 
-  it.effect("settled grants are pruned so the table does not grow forever", () =>
+  it.effect("settled rows remain after later issuance but stay unavailable and once cannot be consumed twice", () =>
+    Effect.gen(function* () {
+      const store = yield* ScopedGrantStore.Service
+      const consumed = yield* store.issue({ scope: { level: "once" }, action: "bash", resources: ["*"] })
+      yield* store.consume(consumed.grant.id)
+
+      yield* store.issue({ scope: { level: "location" }, action: "grep", resources: ["*"] })
+
+      const retained = yield* store.get(consumed.grant.id)
+      expect(retained?.status).toBe("consumed")
+      expect(yield* store.findValid({ action: "bash", resources: ["/workspace/run.sh"] })).toBeUndefined()
+      expect(Exit.isFailure(yield* store.consume(consumed.grant.id).pipe(Effect.exit))).toBe(true)
+    }),
+  )
+
+  it.effect("lists once, session, and location grants with explicit session filtering", () =>
+    Effect.gen(function* () {
+      const store = yield* ScopedGrantStore.Service
+      const once = yield* store.issue({ scope: { level: "once" }, action: "bash", resources: ["*"] })
+      const sessionAGrant = yield* store.issue({ scope: { level: "session", sessionID: sessionA }, action: "edit", resources: ["*"] })
+      const sessionBGrant = yield* store.issue({ scope: { level: "session", sessionID: sessionB }, action: "write", resources: ["*"] })
+      const locationGrant = yield* store.issue({ scope: { level: "location" }, action: "read", resources: ["*"] })
+
+      const all = yield* store.list({ retentionMs: 60_000 })
+      expect(all.map((item) => item.grant.id).sort()).toEqual(
+        [once.grant.id, sessionAGrant.grant.id, sessionBGrant.grant.id, locationGrant.grant.id].sort(),
+      )
+
+      const forA = yield* store.list({ sessionID: sessionA, retentionMs: 60_000 })
+      expect(forA.map((item) => item.grant.id).sort()).toEqual([sessionAGrant.grant.id, locationGrant.grant.id].sort())
+      expect(forA.some((item) => item.grant.id === once.grant.id)).toBe(false)
+      expect(forA.some((item) => item.grant.id === sessionBGrant.grant.id)).toBe(false)
+    }),
+  )
+
+  // Retention makes "read a settled row" an ordinary path, so `toInfoSafe`'s
+  // corrupt-revision branch is load-bearing (Phase D review fixed a defect
+  // there). The discriminating assertion is that a healthy row in the *same*
+  // table still comes back — asserting only `[]` would also pass if `list`
+  // returned nothing at all.
+  it.effect("skips a corrupt historical row while still returning its healthy siblings", () =>
     Effect.gen(function* () {
       const store = yield* ScopedGrantStore.Service
       const { db } = yield* Database.Service
-      const a = yield* store.issue({ scope: { level: "once" }, action: "bash", resources: ["*"] })
-      yield* store.consume(a.grant.id)
-      yield* store.issue({ scope: { level: "location" }, action: "read", resources: ["*"], expiresAt: Date.now() - 1 })
-      // A new issuance sweeps settled/expired rows.
-      yield* store.issue({ scope: { level: "location" }, action: "grep", resources: ["*"] })
-      const rows = yield* db.select().from(ScopedGrantTable).all()
-      expect(rows).toHaveLength(1)
-      expect(rows[0]?.action).toBe("grep")
+      const healthy = yield* store.issue({ scope: { level: "location" }, action: "grep", resources: ["*"] })
+      const now = Date.now()
+      yield* db.run(sql`
+        INSERT INTO scoped_grant (id, level, action, resources, asset_revision, issued_at, grant_revision, time_created, time_updated)
+        VALUES ('grt_corrupt_history', 'location', 'read', '["*"]', 'not-a-revision', ${now}, 1, ${now}, ${now})
+      `)
+
+      const listed = yield* store.list()
+      expect(listed.map((item) => item.grant.id)).toEqual([healthy.grant.id])
+      expect(yield* store.get("grt_corrupt_history")).toBeUndefined()
+      // The row is skipped on read, not deleted: retention owns row lifetime.
+      expect(yield* db.all(sql`SELECT id FROM scoped_grant WHERE id = 'grt_corrupt_history'`)).toHaveLength(1)
+    }),
+  )
+
+  // EXPLAIN the *production* predicate, not a hand-written copy of it: retention
+  // keeps rows around, so a future edit that drops index usage has to fail here.
+  it.effect("the real list filter resolves through the session and level indexes", () =>
+    Effect.gen(function* () {
+      const { db } = yield* Database.Service
+      const now = Date.now()
+      const input = { sessionID: sessionA, since: now - 60_000, until: now, retentionMs: 60_000 }
+      const query = db
+        .select()
+        .from(ScopedGrantTable)
+        .where(ScopedGrantStore.listFilter(input, ScopedGrantStore.retentionCutoff(now, input.retentionMs)))
+      const { sql: text } = query.toSQL()
+      const plan = yield* db.all<{ detail: string }>(sql.raw(`EXPLAIN QUERY PLAN ${text.replaceAll("?", "1")}`))
+      const details = plan.map((row) => row.detail)
+      expect(details.some((detail) => detail.includes("scoped_grant_session_issued_idx"))).toBe(true)
+      expect(details.some((detail) => detail.includes("scoped_grant_level_issued_idx"))).toBe(true)
+      // A full scan would mean the indexes exist but serve nothing.
+      expect(details.some((detail) => detail.includes("SCAN scoped_grant"))).toBe(false)
+    }),
+  )
+
+  it.effect("uses the Location-provided Database and EventV2 instances", () =>
+    Effect.gen(function* () {
+      const scope = yield* Scope.make()
+      const context = yield* Layer.buildWithScope(Layer.fresh(ScopedGrantStore.locationLayer), scope)
+      const store = Context.get(context, ScopedGrantStore.Service)
+      const issued = yield* store.issue({ scope: { level: "once" }, action: "read", resources: ["*"] })
+      const { db } = yield* Database.Service
+      expect(yield* db.all(sql`SELECT id FROM scoped_grant WHERE id = ${issued.grant.id}`)).toHaveLength(1)
+      yield* Scope.close(scope, Exit.void)
+    }),
+  )
+
+  it.effect("continues scheduled pruning after a non-interrupting failure", () =>
+    Effect.gen(function* () {
+      const calls = yield* Ref.make(0)
+      const recovered = yield* Deferred.make<void>()
+      const cleanupScope = yield* Scope.make()
+      const store = Layer.mock(ScopedGrantStore.Service, {
+        prune: () =>
+          Ref.updateAndGet(calls, (count) => count + 1).pipe(
+            Effect.flatMap((count) =>
+              count === 1 ? Effect.die("injected prune defect") : Deferred.succeed(recovered, void 0),
+            ),
+            Effect.asVoid,
+          ),
+      })
+      yield* Layer.buildWithScope(
+        Layer.fresh(ScopedGrantStore.cleanupLayer.pipe(Layer.provide(Layer.fresh(store)))),
+        cleanupScope,
+      )
+      yield* Effect.yieldNow
+      expect(yield* Ref.get(calls)).toBe(1)
+      yield* TestClock.adjust(Duration.hours(1))
+      yield* Effect.yieldNow
+      yield* Deferred.await(recovered)
+      expect(yield* Ref.get(calls)).toBe(2)
+      yield* Scope.close(cleanupScope, Exit.void)
+    }),
+  )
+
+  it.effect("runs scheduled pruning in its owner scope and stops when that scope closes", () =>
+    Effect.gen(function* () {
+      const calls = yield* Ref.make(0)
+      const firstRun = yield* Deferred.make<void>()
+      const cleanupScope = yield* Scope.make()
+      const store = Layer.mock(ScopedGrantStore.Service, {
+        prune: () =>
+          Ref.updateAndGet(calls, (count) => count + 1).pipe(
+            Effect.tap((count) => (count === 1 ? Deferred.succeed(firstRun, void 0) : Effect.void)),
+            Effect.asVoid,
+          ),
+      })
+      yield* Layer.buildWithScope(
+        Layer.fresh(ScopedGrantStore.cleanupLayer.pipe(Layer.provide(Layer.fresh(store)))),
+        cleanupScope,
+      )
+      yield* Effect.yieldNow
+      yield* Deferred.await(firstRun)
+      expect(yield* Ref.get(calls)).toBe(1)
+
+      yield* TestClock.adjust(Duration.hours(1))
+      yield* Effect.yieldNow
+      expect(yield* Ref.get(calls)).toBe(2)
+
+      yield* Scope.close(cleanupScope, Exit.void)
+      yield* TestClock.adjust(Duration.hours(1))
+      yield* Effect.yieldNow
+      expect(yield* Ref.get(calls)).toBe(2)
+    }),
+  )
+
+  it.effect("prunes only settled rows outside the retention window and is reentrant", () =>
+    Effect.gen(function* () {
+      const store = yield* ScopedGrantStore.Service
+      const { db } = yield* Database.Service
+      const now = Date.now()
+      const recent = yield* store.issue({ scope: { level: "once" }, action: "bash", resources: ["*"], issuedAt: now - 1_000 })
+      const old = yield* store.issue({ scope: { level: "once" }, action: "edit", resources: ["*"], issuedAt: now - 20_000 })
+      yield* db.run(sql`UPDATE scoped_grant SET consumed_at = ${now - 1_000}, grant_revision = 2 WHERE id = ${recent.grant.id}`)
+      yield* db.run(sql`UPDATE scoped_grant SET consumed_at = ${now - 20_000}, grant_revision = 2 WHERE id = ${old.grant.id}`)
+      const expired = yield* store.issue({
+        scope: { level: "location" },
+        action: "read",
+        resources: ["*"],
+        issuedAt: now - 20_000,
+        expiresAt: now - 20_000,
+      })
+      const boundary = yield* store.issue({ scope: { level: "location" }, action: "grep", resources: ["*"], issuedAt: now - 5_000 })
+      yield* db.run(sql`UPDATE scoped_grant SET consumed_at = ${now - 5_000}, grant_revision = 2 WHERE id = ${boundary.grant.id}`)
+      const transitionedWithFutureExpiry = yield* store.issue({
+        scope: { level: "once" },
+        action: "write",
+        resources: ["*"],
+        issuedAt: now - 20_000,
+        expiresAt: now + 60_000,
+      })
+      yield* db.run(
+        sql`UPDATE scoped_grant SET consumed_at = ${now - 20_000}, grant_revision = 2 WHERE id = ${transitionedWithFutureExpiry.grant.id}`,
+      )
+
+      const retainedHistory = yield* store.list({ now, retentionMs: 5_000 })
+      expect(retainedHistory.some((item) => item.grant.id === transitionedWithFutureExpiry.grant.id)).toBe(false)
+
+      yield* store.prune({ now, retentionMs: 5_000 })
+      expect(yield* store.get(recent.grant.id)).toBeDefined()
+      expect(yield* store.get(old.grant.id)).toBeUndefined()
+      expect(yield* store.get(expired.grant.id)).toBeUndefined()
+      expect(yield* store.get(boundary.grant.id)).toBeDefined()
+      expect(yield* store.get(transitionedWithFutureExpiry.grant.id)).toBeUndefined()
+      yield* store.prune({ now, retentionMs: 5_000 })
+      expect(yield* db.all(sql`SELECT id FROM scoped_grant`)).toHaveLength(2)
     }),
   )
 })

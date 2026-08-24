@@ -120,14 +120,17 @@ export const agentAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "agent-a
         baseRevision: ctx.payload.baseRevision ?? null,
         overwrite: ctx.payload.overwrite,
       }).pipe(Effect.catch(toApplyError))
-      return Schema.decodeUnknownSync(SchemaAgentAsset.Info)({
-        kind: info.kind,
-        name: info.name,
-        description: info.description,
-        relativePath: info.relativePath,
-        revision: info.revision,
-        config: info.config,
-        source: info.source,
+      return Schema.decodeUnknownSync(SchemaAgentAsset.ApplyResult)({
+        asset: {
+          kind: info.asset.kind,
+          name: info.asset.name,
+          description: info.asset.description,
+          relativePath: info.asset.relativePath,
+          revision: info.asset.revision,
+          config: info.asset.config,
+          source: info.asset.source,
+        },
+        warnings: info.warnings,
       })
     })
 

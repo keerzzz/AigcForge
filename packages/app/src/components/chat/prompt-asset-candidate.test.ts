@@ -37,6 +37,28 @@ describe("normalizeProposeCandidate", () => {
     })
   })
 
+  test("preserves agent permission warnings from proposal metadata", () => {
+    const agent = normalizeProposeCandidate({
+      tool: "propose_agent_asset",
+      state: {
+        input: { name: "a", description: "d", config: "", source: "AGENT BODY" },
+        metadata: {
+          relativePath: "a.md",
+          exists: false,
+          warnings: [
+            { code: "wildcard_allow", action: "*", resource: "*" },
+            { code: "dangerous_allow", action: "bash", resource: "*" },
+          ],
+        },
+      },
+    })
+
+    expect(agent?.warnings).toEqual([
+      { code: "wildcard_allow", action: "*", resource: "*" },
+      { code: "dangerous_allow", action: "bash", resource: "*" },
+    ])
+  })
+
   test("normalizes per-kind candidates with unified content", () => {
     const skill = normalizeProposeCandidate({
       tool: "propose_skill_asset",
