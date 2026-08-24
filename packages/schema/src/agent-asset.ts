@@ -49,6 +49,15 @@ export class Summary extends Schema.Class<Summary>("AgentAsset.Summary")({
   revision: Revision,
 }) {}
 
+export const WarningCode = Schema.Literals(["wildcard_allow", "dangerous_allow"])
+export type WarningCode = typeof WarningCode.Type
+
+export class Warning extends Schema.Class<Warning>("AgentAsset.Warning")({
+  code: WarningCode,
+  action: Schema.String,
+  resource: Schema.String,
+}) {}
+
 export class Info extends Schema.Class<Info>("AgentAsset.Info")({
   kind: Schema.Literal("agent"),
   name: Name,
@@ -57,6 +66,11 @@ export class Info extends Schema.Class<Info>("AgentAsset.Info")({
   revision: Revision,
   config: Config,
   source: Source,
+}) {}
+
+export class ApplyResult extends Schema.Class<ApplyResult>("AgentAsset.ApplyResult")({
+  asset: Info,
+  warnings: Schema.Array(Warning),
 }) {}
 
 export class Frontmatter extends Schema.Class<Frontmatter>("AgentAsset.Frontmatter")({

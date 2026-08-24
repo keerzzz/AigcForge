@@ -10,6 +10,8 @@ import { FSUtil } from "./fs-util"
 import { LocationMutation } from "./location-mutation"
 import { Hash } from "./util/hash"
 import { KeyedMutex } from "./effect/keyed-mutex"
+import { PermissionEffective } from "./permission/effective"
+import { parseAgentAssetConfig } from "./agent/asset-bridge"
 import { yamlEscape } from "./util/yaml-escape"
 
 function failureMessage(error: unknown) {
@@ -88,12 +90,26 @@ export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()(
   }
 }
 
+export type WarningCode = "wildcard_allow" | "dangerous_allow"
+
+export interface Warning {
+  readonly code: WarningCode
+  readonly action: string
+  readonly resource: string
+}
+
 export interface ProposeResult {
   readonly relativePath: string
   readonly exists: boolean
   readonly revision: string | null
   readonly nameConflict: boolean
   readonly pathConflict: boolean
+  readonly warnings: ReadonlyArray<Warning>
+}
+
+export interface ApplyResult {
+  readonly asset: AgentAsset.Info
+  readonly warnings: ReadonlyArray<Warning>
 }
 
 export interface ApplyInput {
@@ -127,7 +143,7 @@ export type DeleteError =
 
 export interface Interface {
   readonly propose: (input: SchemaAgentAsset.Candidate) => Effect.Effect<ProposeResult, InvalidCandidateError | FSUtil.Error>
-  readonly apply: (input: ApplyInput) => Effect.Effect<AgentAsset.Info, ApplyError>
+  readonly apply: (input: ApplyInput) => Effect.Effect<ApplyResult, ApplyError>
   readonly delete: (input: DeleteInput) => Effect.Effect<void, DeleteError>
 }
 
@@ -142,6 +158,28 @@ export const locationLayer = Layer.effect(
     const fileMutation = yield* FileMutation.Service
 
     const locks = KeyedMutex.makeUnsafe<string>()
+
+    // Import-time disclosure, never a rejection. The judgement is "how broad is
+    // the declaration", not "is the action read-only": a `{read, "*"}` allow is
+    // the one asset-declared allow the attended custom ceiling still honours
+    // verbatim (ADR-20 §2.6 rewrites only non-whitelist allows to `ask`), so
+    // silencing it would warn exactly where the runtime already protects and
+    // stay quiet where it does not. Narrow allows (`{read, "src/**"}`) do not
+    // warn. Both action lists come from `permission/effective.ts` — the ruled
+    // single source; never copy them here.
+    const warningsFor = (config: string): ReadonlyArray<Warning> => {
+      const permissions = parseAgentAssetConfig(config)?.permissions ?? []
+      return permissions.flatMap((rule): ReadonlyArray<Warning> => {
+        if (rule.effect !== "allow") return []
+        if (PermissionEffective.isDangerousAction(rule.action)) {
+          return [{ code: "dangerous_allow" as const, action: rule.action, resource: rule.resource } satisfies Warning]
+        }
+        if (rule.action === "*" || rule.resource === "*") {
+          return [{ code: "wildcard_allow" as const, action: rule.action, resource: rule.resource } satisfies Warning]
+        }
+        return []
+      })
+    }
 
     const propose = Effect.fn("AgentAssetService.propose")(function* (input: SchemaAgentAsset.Candidate) {
       let filename: string
@@ -174,6 +212,7 @@ export const locationLayer = Layer.effect(
             revision: null,
             nameConflict,
             pathConflict,
+            warnings: warningsFor(input.config),
           } satisfies ProposeResult
         }
         const currentRevision = Hash.sha256(Buffer.from(bytes))
@@ -183,6 +222,7 @@ export const locationLayer = Layer.effect(
           revision: currentRevision,
           nameConflict,
           pathConflict,
+          warnings: warningsFor(input.config),
         } satisfies ProposeResult
       }
 
@@ -192,6 +232,7 @@ export const locationLayer = Layer.effect(
         revision: null,
         nameConflict,
         pathConflict,
+        warnings: warningsFor(input.config),
       } satisfies ProposeResult
     })
 
@@ -289,7 +330,7 @@ export const locationLayer = Layer.effect(
               return yield* new ReadbackMismatchError({ relativePath })
             }
 
-            return info
+            return { asset: info, warnings: warningsFor(input.candidate.config) }
           }),
         ),
       )

@@ -37,6 +37,9 @@ const sessions = SessionV2.layer.pipe(
   Layer.provide(Project.defaultLayer),
   Layer.provide(SessionExecution.noopLayer),
 )
+const grantDependencies = Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer)
+const grants = ScopedGrantStore.locationLayer.pipe(Layer.provide(grantDependencies))
+
 const layer = PermissionV2.locationLayer.pipe(
   Layer.provideMerge(Database.defaultLayer),
   Layer.provideMerge(SessionStore.defaultLayer),
@@ -45,7 +48,7 @@ const layer = PermissionV2.locationLayer.pipe(
   Layer.provideMerge(sessions),
   Layer.provideMerge(SessionExecution.noopLayer),
   Layer.provideMerge(PermissionSaved.defaultLayer),
-  Layer.provideMerge(ScopedGrantStore.locationLayer),
+  Layer.provideMerge(grants),
   Layer.provideMerge(ApprovalPresence.defaultLayer),
 )
 const it = testEffect(layer)

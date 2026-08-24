@@ -22,6 +22,11 @@ export type Input = {
 // Chat full 必须逐次确认的危险 action（红线 4）。未知 action 由 wildcard ask 兜底。
 const DANGEROUS_ACTIONS = ["bash", "edit", "write", "apply_patch"] as const
 
+/** 单一真源出口：资产导入期的危险动作披露复用同一清单，禁止另抄一份。 */
+export function isDangerousAction(action: string) {
+  return (DANGEROUS_ACTIONS as ReadonlyArray<string>).includes(action)
+}
+
 // custom unattended 天花板白名单（ADR-20 §2.6，R6-2 整改）：只读类 action 才可
 // 为无人值守扇出预授权；成员逐一取自 builtins.ts 注册清单，新工具默认不在
 // 名单内即 deny。task_spawn/webfetch 等扇出与外发原语被刻意排除。

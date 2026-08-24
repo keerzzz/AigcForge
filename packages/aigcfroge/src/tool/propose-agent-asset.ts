@@ -22,6 +22,7 @@ type Metadata = {
   revision?: string
   nameConflict: boolean
   pathConflict: boolean
+  warnings: ReadonlyArray<{ code: "wildcard_allow" | "dangerous_allow"; action: string; resource: string }>
 }
 
 export const ProposeAgentAssetV1 = define<typeof Parameters, Metadata, LocationServiceMap>(
@@ -51,6 +52,7 @@ export const ProposeAgentAssetV1 = define<typeof Parameters, Metadata, LocationS
               revision: result.revision ?? undefined,
               nameConflict: result.nameConflict,
               pathConflict: result.pathConflict,
+              warnings: result.warnings,
             },
             output: lines.join("\n") || "Valid and ready for review.",
           }

@@ -22,6 +22,8 @@ import addTaskScheduleFieldsMigration from "@aigcfroge/core/database/migration/2
 import addTaskSpawnFieldsMigration from "@aigcfroge/core/database/migration/20260802140709_add_task_spawn_fields"
 import addSessionCompositionSnapshotMigration from "@aigcfroge/core/database/migration/20260819012541_add_session_composition_snapshot"
 import scopedGrantMigration from "@aigcfroge/core/database/migration/20260823072731_wakeful_lady_bullseye"
+import scopedGrantRetentionIndexMigration from "@aigcfroge/core/database/migration/20260823210409_scoped_grant_retention_index"
+import scopedGrantLevelIndexMigration from "@aigcfroge/core/database/migration/20260824010035_scoped_grant_level_issued_index"
 import workflowDurableProjectionMigration from "@aigcfroge/core/database/migration/20260820130142_cynical_sasquatch"
 import { EventV2 } from "@aigcfroge/core/event"
 import { ProjectV2 } from "@aigcfroge/core/project"
@@ -94,11 +96,13 @@ describe("DatabaseMigration", () => {
         expect(yield* db.get(sql`SELECT count(*) as count FROM migration`)).toEqual({ count: migrations.length })
         expect(
           yield* db.all(
-            sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('event_aggregate_seq_idx', 'event_aggregate_type_seq_idx', 'session_input_session_pending_seq_idx', 'session_input_session_pending_delivery_seq_idx', 'session_input_session_admitted_seq_idx', 'session_input_session_promoted_seq_idx', 'session_message_session_idx', 'session_message_session_type_idx', 'session_message_session_seq_idx', 'session_message_session_type_seq_idx', 'session_message_session_time_created_id_idx') ORDER BY name`,
+            sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('event_aggregate_seq_idx', 'event_aggregate_type_seq_idx', 'session_input_session_pending_seq_idx', 'session_input_session_pending_delivery_seq_idx', 'session_input_session_admitted_seq_idx', 'session_input_session_promoted_seq_idx', 'session_message_session_idx', 'session_message_session_type_idx', 'session_message_session_seq_idx', 'session_message_session_type_seq_idx', 'session_message_session_time_created_id_idx', 'scoped_grant_session_issued_idx', 'scoped_grant_level_issued_idx') ORDER BY name`,
           ),
         ).toEqual([
           { name: "event_aggregate_seq_idx" },
           { name: "event_aggregate_type_seq_idx" },
+          { name: "scoped_grant_level_issued_idx" },
+          { name: "scoped_grant_session_issued_idx" },
           { name: "session_input_session_admitted_seq_idx" },
           { name: "session_input_session_pending_delivery_seq_idx" },
           { name: "session_input_session_promoted_seq_idx" },
@@ -1250,7 +1254,7 @@ describe("DatabaseMigration", () => {
         yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY)`)
         yield* db.run(sql`INSERT INTO session (id) VALUES ('ses_pre_existing')`)
 
-        yield* DatabaseMigration.applyOnly(db, [scopedGrantMigration])
+        yield* DatabaseMigration.applyOnly(db, [scopedGrantMigration, scopedGrantRetentionIndexMigration, scopedGrantLevelIndexMigration])
 
         expect(
           yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'scoped_grant'`),
@@ -1270,7 +1274,17 @@ describe("DatabaseMigration", () => {
         })
 
         // Rerun is a no-op and does not drop the row.
-        yield* DatabaseMigration.applyOnly(db, [scopedGrantMigration])
+        yield* DatabaseMigration.applyOnly(db, [scopedGrantMigration, scopedGrantRetentionIndexMigration, scopedGrantLevelIndexMigration])
+        expect(yield* db.all(sql`SELECT id FROM scoped_grant`)).toEqual([{ id: "grt_test" }])
+        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'scoped_grant_session_issued_idx'`)).toEqual({
+          name: "scoped_grant_session_issued_idx",
+        })
+        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'scoped_grant_level_issued_idx'`)).toEqual({
+          name: "scoped_grant_level_issued_idx",
+        })
+
+        // Rerunning both migrations keeps the row and index intact.
+        yield* DatabaseMigration.applyOnly(db, [scopedGrantMigration, scopedGrantRetentionIndexMigration, scopedGrantLevelIndexMigration])
         expect(yield* db.all(sql`SELECT id FROM scoped_grant`)).toEqual([{ id: "grt_test" }])
       }),
     )

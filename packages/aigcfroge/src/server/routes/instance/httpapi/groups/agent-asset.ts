@@ -74,7 +74,7 @@ export const AgentAssetApi = HttpApi.make("agent-asset").add(
         params: { sessionID: SessionID },
         query: Schema.Struct(WorkspaceRoutingQueryFields),
         payload: ApplyPayload,
-        success: described(AgentAsset.Info, "Applied agent asset"),
+        success: described(AgentAsset.ApplyResult, "Applied agent asset with import warnings"),
         error: [InvalidRequestError, ConflictError],
       }).annotateMerge(
         OpenApi.annotations({

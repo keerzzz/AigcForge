@@ -27,6 +27,25 @@ import { applyAssetCandidate, assetKindDir, fetchAssetInsertText, listAssets } f
 import { SessionRightPanel } from "@/components/session-right-panel"
 import type { AssetKindId } from "@aigcfroge/schema/asset"
 
+type ApplyWarning = {
+  readonly code: "wildcard_allow" | "dangerous_allow"
+  readonly action: string
+  readonly resource: string
+}
+
+function readApplyWarnings(value: unknown): ReadonlyArray<ApplyWarning> {
+  if (!value || typeof value !== "object" || !("warnings" in value) || !Array.isArray(value.warnings)) return []
+  return value.warnings.filter((warning): warning is ApplyWarning => {
+    if (!warning || typeof warning !== "object") return false
+    if (!("code" in warning) || !("action" in warning) || !("resource" in warning)) return false
+    return (
+      (warning.code === "wildcard_allow" || warning.code === "dangerous_allow") &&
+      typeof warning.action === "string" &&
+      typeof warning.resource === "string"
+    )
+  })
+}
+
 export function ChatRightPanel() {
   const language = useLanguage()
   const sdk = useSDK()
@@ -150,12 +169,12 @@ export function ChatRightPanel() {
     setApplying(true)
     setApplyError(null)
     try {
-      await applyAssetCandidate(sdk().client, {
+      const result = await applyAssetCandidate(sdk().client, {
         sessionID: candidate.sessionID,
         candidate: c,
         overwrite: false,
       })
-      setApplied()
+      setApplied(c.kind === "agent" ? readApplyWarnings(result.data) : [])
       void refetch()
       const kindDir = assetKindDir(c.kind)
       void file.tree.refresh(kindDir)
@@ -176,12 +195,12 @@ export function ChatRightPanel() {
     setApplying(true)
     setApplyError(null)
     try {
-      await applyAssetCandidate(sdk().client, {
+      const result = await applyAssetCandidate(sdk().client, {
         sessionID: candidate.sessionID,
         candidate: c,
         overwrite: true,
       })
-      setApplied()
+      setApplied(c.kind === "agent" ? readApplyWarnings(result.data) : [])
       void refetch()
       const kindDir = assetKindDir(c.kind)
       void file.tree.refresh(kindDir)
@@ -253,6 +272,25 @@ export function ChatRightPanel() {
                     <span class="text-v2-state-fg-success text-12-semibold">
                       {language.t("promptAsset.candidate.applied")}
                     </span>
+                    <Show when={candidate.appliedWarnings.length > 0}>
+                      <div class="mt-2 rounded-[6px] border border-v2-state-border-warning bg-v2-state-bg-warning p-2 text-v2-state-fg-warning text-12-regular">
+                        <div class="mb-1 font-semibold">{language.t("promptAsset.candidate.appliedWarningTitle")}</div>
+                        <ul class="list-disc pl-4">
+                          <For each={candidate.appliedWarnings}>
+                            {(warning) => (
+                              <li>
+                                {warning.code === "dangerous_allow"
+                                  ? language.t("promptAsset.candidate.warningDangerous", { action: warning.action })
+                                  : language.t("promptAsset.candidate.warningWildcard", {
+                                      action: warning.action,
+                                      resource: warning.resource,
+                                    })}
+                              </li>
+                            )}
+                          </For>
+                        </ul>
+                      </div>
+                    </Show>
                   </div>
                 </Show>
               }
@@ -265,6 +303,25 @@ export function ChatRightPanel() {
                 <Show when={applyError()}>
                   <div class="mb-2 rounded-[4px] border border-v2-state-border-danger bg-v2-state-bg-danger p-2 text-v2-state-fg-danger text-12-regular">
                     {applyError()}
+                  </div>
+                </Show>
+                <Show when={candidate.candidate?.kind === "agent" && (candidate.candidate.warnings?.length ?? 0) > 0}>
+                  <div class="mb-2 rounded-[4px] border border-v2-state-border-warning bg-v2-state-bg-warning p-2 text-v2-state-fg-warning text-12-regular">
+                    <div class="mb-1 font-semibold">{language.t("promptAsset.candidate.warningTitle")}</div>
+                    <ul class="list-disc pl-4">
+                      <For each={candidate.candidate?.warnings ?? []}>
+                        {(warning) => (
+                          <li>
+                            {warning.code === "dangerous_allow"
+                              ? language.t("promptAsset.candidate.warningDangerous", { action: warning.action })
+                              : language.t("promptAsset.candidate.warningWildcard", {
+                                  action: warning.action,
+                                  resource: warning.resource,
+                                })}
+                          </li>
+                        )}
+                      </For>
+                    </ul>
                   </div>
                 </Show>
                 <Show

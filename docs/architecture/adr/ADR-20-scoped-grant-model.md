@@ -61,6 +61,8 @@ scope ::= { level: "once" }
 
 SQLite 新表 `scoped_grant`（列含 snake_case 全维度 + revision + issued_at/expires_at/revoked_at/consumed_at），**唯一 CAS 写入者** `ScopedGrantStore.Service`；状态变更写入 `EventV2.publish(..., { commit })` 的 commit 回调、与事件行同事务；revision 不匹配抛 typed error；0 行更新必须抛错。durable 事件族 `grant.updated`（按 grantID 聚合，durable version 1），客户端视为失效通知、以读取为准（ADR-18 §2.7.2 同构）。**不发明第二套一致性方案**。
 
+当前实现保留 active 与 settled grant 行；settled 行默认保留 30 天（`DEFAULT_SETTLED_GRANT_RETENTION_MS`），由 `ScopedGrantStore` owner Scope 立即执行一次、随后每小时（`SETTLED_GRANT_PRUNE_INTERVAL`）执行 `prune`。清理失败记录分类 warning 后继续调度，Scope 关闭时回收清理 fiber。`list` 读路径只返回窗口内历史，`findValid` 继续在 SQL 层排除 consumed/revoked，`once` 的 CAS 二次消费仍失败。无 `sessionID` 的 `list()` 返回当前 Location 内 once/session/location 三类 grant；带 `sessionID` 时只返回匹配 session grant 与 location grant，once 因不携带签发会话身份而不归因到具体 Session。该窗口是存储保留策略，不是审批中心展示裁定；若 Phase F 需要会话级 once 历史，须另行裁定归属列或“未归属”展示。
+
 ### 2.5 Grant 与 Snapshot audit digest 分离
 
 Snapshot 冻结的权限摘要（ADR-17 §2.4「有效权限摘要 digest」）只是 **freeze 时点的审计投影**；运行时授权只看 grant store 实时状态 + leaf assert。二者永不互为真源：grant 变更不改 Snapshot（bytes/digest 写入后不可 update 的不变量不动），Snapshot 重放也不重建 grants。

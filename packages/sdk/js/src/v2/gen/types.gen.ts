@@ -59,6 +59,7 @@ export type Event =
   | EventReferenceUpdated
   | EventPermissionOverrideEnabled
   | EventPermissionOverrideDisabled
+  | EventGrantUpdated
   | EventPermissionV2Asked
   | EventPermissionV2Replied
   | EventPluginAdded
@@ -1367,6 +1368,16 @@ export type GlobalEvent = {
       }
     | {
         id: string
+        type: "grant.updated"
+        properties: {
+          grantID: string
+          status: "active" | "consumed" | "revoked"
+          revision: number
+          timeUpdated: number
+        }
+      }
+    | {
+        id: string
         type: "permission.v2.asked"
         properties: {
           id: string
@@ -1978,6 +1989,7 @@ export type GlobalEvent = {
     | SyncEventSessionNextVerifyStarted
     | SyncEventSessionNextVerifyPassed
     | SyncEventSessionNextVerifyFailed
+    | SyncEventGrantUpdated
     | SyncEventWorkflowRunUpdated
 }
 
@@ -3743,6 +3755,7 @@ export type V2Event =
   | V2EventReferenceUpdated
   | V2EventPermissionOverrideEnabled
   | V2EventPermissionOverrideDisabled
+  | V2EventGrantUpdated
   | V2EventPermissionV2Asked
   | V2EventPermissionV2Replied
   | V2EventPluginAdded
@@ -4824,6 +4837,23 @@ export type SyncEventSessionNextVerifyFailed = {
   }
 }
 
+export type SyncEventGrantUpdated = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "grant.updated.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      grantID: string
+      status: "active" | "consumed" | "revoked"
+      revision: number
+      timeUpdated: number
+    }
+  }
+}
+
 export type SyncEventWorkflowRunUpdated = {
   type: "sync"
   id: string
@@ -5089,6 +5119,17 @@ export type AgentAssetCandidate = {
   config: string
   source: string
   relativePath: string
+}
+
+export type AgentAssetWarning = {
+  code: "wildcard_allow" | "dangerous_allow"
+  action: string
+  resource: string
+}
+
+export type AgentAssetApplyResult = {
+  asset: AgentAssetInfo
+  warnings: Array<AgentAssetWarning>
 }
 
 export type CustomProfileSummary = {
@@ -5773,6 +5814,8 @@ export type AgentV2Info = {
   permissions: PermissionV2Ruleset
   attended?: boolean
   handoffs: Array<Handoff>
+  originRelativePath?: string
+  originRevision?: string
 }
 
 export type SessionInputAdmittedPrompt = {
@@ -7439,6 +7482,26 @@ export type V2EventPermissionOverrideDisabled = {
   type: "permission.override.disabled"
   data: {
     sessionID: string
+  }
+}
+
+export type V2EventGrantUpdated = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "grant.updated"
+  data: {
+    grantID: string
+    status: "active" | "consumed" | "revoked"
+    revision: number
+    timeUpdated: number
   }
 }
 
@@ -9320,6 +9383,17 @@ export type EventPermissionOverrideDisabled = {
   type: "permission.override.disabled"
   properties: {
     sessionID: string
+  }
+}
+
+export type EventGrantUpdated = {
+  id: string
+  type: "grant.updated"
+  properties: {
+    grantID: string
+    status: "active" | "consumed" | "revoked"
+    revision: number
+    timeUpdated: number
   }
 }
 
@@ -13032,9 +13106,9 @@ export type AgentAssetApplyError = AgentAssetApplyErrors[keyof AgentAssetApplyEr
 
 export type AgentAssetApplyResponses = {
   /**
-   * Applied agent asset
+   * Applied agent asset with import warnings
    */
-  200: AgentAssetInfo
+  200: AgentAssetApplyResult
 }
 
 export type AgentAssetApplyResponse = AgentAssetApplyResponses[keyof AgentAssetApplyResponses]
