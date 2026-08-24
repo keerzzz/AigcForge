@@ -35,7 +35,7 @@ Custom 主线
 | **M0** | 治理与组合底座            | 第五 Mode、Profile/Plan/Snapshot、AssetRef、Resolver | ADR-17 已批准            | 已完成（Phase A-F） |
 | **M1** | 单 Agent 可恢复闭环       | `meta` + 一个用户 Agent + Prompt/Skill + native + Upgrade + UI Phase E + 50 轮稳定性矩阵 | M0                       | 已完成（Waves W1-W4） |
 | **M2** | 多 Agent 与编排           | Agent 池、Command、Workflow、进度、取消、部分成功    | M1                       | 已完成（PR #46 合入 `main@a11b50020`） |
-| **M3** | MCP 与审批                | scoped registration、凭证、健康、统一审批入口        | M2 + Tool Registry 扩展  | 进行中（G3-1/G3-2/G3-3/G3-4 全过；Phase A/B/D 已合入本地 `main`，F0 待合入；余 C/E/F/G） |
+| **M3** | MCP 与审批                | scoped registration、凭证、健康、统一审批入口        | M2 + Tool Registry 扩展  | 进行中（G3-1/G3-2/G3-3/G3-4 全过；Phase A/B/D/F0 已合入本地 `main@229e3eb7d`；当前 Phase C，余 E/F/G） |
 | **M4** | Trusted Runtime Extension | Host/Agent/Client 分面、信任、停止、隔离、回滚       | M3 + Plugin 生命周期 ADR | 远期                |
 | **M5** | Code Presentation         | `run_code` + 受限 SDK，共用 Effective Tool Set       | M3/M4 稳定               | 远期                |
 
