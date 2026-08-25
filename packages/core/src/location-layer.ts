@@ -61,6 +61,8 @@ import { SessionComposition } from "./session/composition"
 import { WorkflowRun } from "./workflow/workflow-run"
 import { WorkflowRunner } from "./workflow/workflow-runner"
 import { CredentialScanner } from "./credential-scanner"
+import { McpConnection } from "./mcp/connection"
+import { McpRegistration } from "./tool/mcp-registration"
 
 import { Image } from "./image"
 import { ToolRegistry } from "./tool/registry"
@@ -139,6 +141,13 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       Layer.provide(base),
     )
     const services = Layer.mergeAll(base, resources, permissionsAndTools)
+    // Canonical MCP connection owner (ADR-21 v1.1 / Phase C Slice 1): sits
+    // after ToolRegistry availability, registers through McpRegistration into
+    // the SAME memoized registry instance — provide(), never provideMerge.
+    const mcpConnections = McpConnection.layer.pipe(
+      Layer.provide(McpRegistration.layer),
+      Layer.provide(services),
+    )
     const image = Image.layer.pipe(Layer.provide(services))
     const mutation = FileMutation.locationLayer.pipe(Layer.provide(services))
     const promptAssetService = PromptAssetService.locationLayer.pipe(
@@ -265,6 +274,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("
       referenceGuidance,
       projectCopyRefresh,
       AgentAssetBridge.layer.pipe(Layer.provide(services)),
+      mcpConnections,
     ).pipe(Layer.fresh, Layer.orDie)
   },
   idleTimeToLive: "60 minutes",
