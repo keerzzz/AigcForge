@@ -176,7 +176,10 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
         Layer.provide(services),
         Layer.provide(mutation),
       )
-      const compositionResolver = CompositionResolver.locationLayer.pipe(Layer.provide(services))
+      const compositionResolver = CompositionResolver.locationLayer.pipe(
+        Layer.provide(mcpConnections),
+        Layer.provide(services),
+      )
       const skillGuidance = SkillGuidance.locationLayer.pipe(Layer.provide(services))
       const referenceGuidance = ReferenceGuidance.locationLayer.pipe(Layer.provide(services))
       const tasks = SessionTask.layer.pipe(Layer.provide(services))
@@ -229,6 +232,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
         Layer.provide(services),
       )
       const runner = SessionRunnerLLM.defaultLayer.pipe(
+        Layer.provide(mcpConnections),
         Layer.provide(services),
         Layer.provide(model),
         Layer.provide(doomLoop),

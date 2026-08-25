@@ -10,6 +10,9 @@ import { PromptAsset } from "./prompt-asset"
 import { SkillAsset } from "./skill-asset"
 import { WorkflowAsset } from "./workflow-asset"
 import { CommandAsset } from "./command-asset"
+import { MCPAsset } from "./mcp-asset"
+import { McpConnection } from "./mcp/connection"
+import { McpScope } from "@aigcfroge/schema/mcp-scope"
 import { computeCompositionDigest, computeDigest } from "./composition/digest"
 import { Location } from "./location"
 import { ToolRegistry } from "./tool/registry"
@@ -40,6 +43,8 @@ export const layer = Layer.effect(
     const skillAssets = yield* SkillAsset.Service
     const workflowAssets = yield* WorkflowAsset.Service
     const commandAssets = yield* CommandAsset.Service
+    const mcpAssets = yield* MCPAsset.Service
+    const mcpConnections = yield* McpConnection.Service
     const location = yield* Location.Service
     const tools = yield* ToolRegistry.Service
 
@@ -54,6 +59,7 @@ export const layer = Layer.effect(
       let resolvedAgents: readonly Composition.AgentRef[] = []
       let resolvedWorkflow: Composition.WorkflowRef | undefined
       let resolvedBindings: Record<string, Composition.Binding> = {}
+      let resolvedMcpBindings: readonly McpScope.McpServerBinding[] = []
       let resolvedCapabilities: readonly string[] = []
 
       // 0. Profile source validation
@@ -83,6 +89,7 @@ export const layer = Layer.effect(
           resolvedAgents = p.profile.agents
           resolvedWorkflow = p.profile.workflow
           resolvedBindings = p.profile.bindings as Record<string, Composition.Binding>
+          resolvedMcpBindings = p.profile.mcpBindings
           resolvedCapabilities = p.profile.requestedCapabilities
         }
       } else {
@@ -482,6 +489,120 @@ export const layer = Layer.effect(
         }
       }
 
+      const mcpRequested: Composition.McpRequestedInfo[] = []
+      const mcpEffective: Composition.McpEffectiveInfo[] = []
+      const mcpDenied: Composition.McpDeniedInfo[] = []
+      const mcpFacts = yield* mcpConnections.facts()
+      for (const binding of resolvedMcpBindings) {
+        const ref = new Composition.McpRef({ kind: "mcp", ...binding.ref })
+        mcpRequested.push(
+          new Composition.McpRequestedInfo({
+            serverName: binding.serverName,
+            ref,
+            credentialRef: binding.credentialRef,
+          }),
+        )
+        const asset = Option.getOrUndefined(yield* mcpAssets.getByPath(binding.ref.relativePath).pipe(Effect.option))
+        if (asset === undefined) {
+          diagnostics.push(
+            new Composition.Diagnostic({
+              severity: "error",
+              code: "mcp_asset_not_found",
+              message: `MCP asset not found: ${binding.ref.relativePath}`,
+              path: binding.ref.relativePath,
+              asset: ref,
+            }),
+          )
+          mcpDenied.push(new Composition.McpDeniedInfo({ serverName: binding.serverName, ref, credentialRef: binding.credentialRef, reason: "mcp_asset_not_found" }))
+          continue
+        }
+        if (asset.revision !== binding.ref.revision) {
+          diagnostics.push(
+            new Composition.Diagnostic({
+              severity: "error",
+              code: "mcp_asset_stale_revision",
+              message: `MCP asset revision mismatch: expected ${binding.ref.revision}, found ${asset.revision}`,
+              path: binding.ref.relativePath,
+              asset: ref,
+            }),
+          )
+          mcpDenied.push(new Composition.McpDeniedInfo({ serverName: binding.serverName, ref, credentialRef: binding.credentialRef, reason: "mcp_asset_stale_revision" }))
+          continue
+        }
+        const fact = mcpFacts.find(
+          (candidate) =>
+            candidate.serverName === binding.serverName &&
+            candidate.ref.relativePath === binding.ref.relativePath &&
+            candidate.ref.revision === binding.ref.revision &&
+            candidate.credentialRef === binding.credentialRef,
+        )
+        if (fact === undefined) {
+          const sameServer = mcpFacts.find((candidate) => candidate.serverName === binding.serverName)
+          const reason = sameServer === undefined ? "not_connected" : "binding_mismatch"
+          diagnostics.push(
+            new Composition.Diagnostic({
+              severity: "error",
+              code: `mcp_${reason}`,
+              message: `MCP server '${binding.serverName}' is ${reason.replaceAll("_", " ")}`,
+              path: binding.ref.relativePath,
+              asset: ref,
+            }),
+          )
+          mcpDenied.push(
+            new Composition.McpDeniedInfo({
+              serverName: binding.serverName,
+              ref,
+              credentialRef: binding.credentialRef,
+              reason,
+              health: sameServer?.health,
+              credentialStatus: binding.credentialRef === undefined ? "not-required" : undefined,
+            }),
+          )
+          continue
+        }
+        if (fact.health !== "ready") {
+          const credentialStatus =
+            fact.health === "revoked"
+              ? "revoked"
+              : fact.health === "auth-required"
+                ? "missing"
+                : binding.credentialRef === undefined
+                  ? "not-required"
+                  : "available"
+          diagnostics.push(
+            new Composition.Diagnostic({
+              severity: "error",
+              code: "mcp_not_ready",
+              message: `MCP server '${binding.serverName}' is ${fact.health}`,
+              path: binding.ref.relativePath,
+              asset: ref,
+            }),
+          )
+          mcpDenied.push(
+            new Composition.McpDeniedInfo({
+              serverName: binding.serverName,
+              ref,
+              credentialRef: binding.credentialRef,
+              reason: "not_ready",
+              health: fact.health,
+              credentialStatus,
+            }),
+          )
+          continue
+        }
+        mcpEffective.push(
+          new Composition.McpEffectiveInfo({
+            serverName: binding.serverName,
+            ref,
+            credentialRef: binding.credentialRef,
+            credentialStatus: binding.credentialRef === undefined ? "not-required" : "available",
+            health: fact.health,
+            tools: fact.tools,
+          }),
+        )
+      }
+      const mcp = new Composition.McpPlan({ requested: mcpRequested, effective: mcpEffective, denied: mcpDenied })
+
       // 4. Capabilities evaluation
       for (const cap of resolvedCapabilities) {
         if (SUPPORTED_CAPABILITIES.has(cap)) {
@@ -505,6 +626,10 @@ export const layer = Layer.effect(
 
       // 5. Cost preview calculation
       const materialized = yield* tools.materialize()
+      const effectiveMcpTools = new Set(mcp.effective.flatMap((entry) => entry.tools))
+      const definitions = materialized.definitions.filter(
+        (definition) => !definition.name.startsWith("mcp_") || effectiveMcpTools.has(definition.name),
+      )
       let estimatedTokens = instructions.reduce((sum, i) => sum + Math.ceil(i.content.length / 4), 0)
       if (workflowInfo) {
         for (const step of workflowInfo.steps) {
@@ -515,7 +640,7 @@ export const layer = Layer.effect(
       estimatedTokens = Math.max(100, estimatedTokens)
 
       const maxConcurrency = workflowInfo ? computeMaxConcurrency(workflowInfo.steps) : 1
-      const effectiveToolCount = materialized.definitions.length
+      const effectiveToolCount = definitions.length
       const costPreview = new Composition.CostPreview({
         estimatedTokens,
         maxConcurrency,
@@ -542,6 +667,7 @@ export const layer = Layer.effect(
         skills,
         capabilities,
         costPreview,
+        mcp,
         diagnostics,
       })
     })
@@ -620,6 +746,9 @@ export const layer = Layer.effect(
             matched = true
             break
           }
+        }
+        if (!matched && p.profile.mcpBindings.some((binding) => binding.ref.relativePath === relativePath && kind === "mcp")) {
+          matched = true
         }
         if (!matched && p.profile.workflow) {
           if (p.profile.workflow.kind === kind && p.profile.workflow.relativePath === relativePath) {
@@ -740,7 +869,10 @@ export const layer = Layer.effect(
       }
 
       const materialized = yield* tools.materialize()
-      const fingerprints = materialized.definitions
+      const effectiveMcpTools = new Set(plan.mcp.effective.flatMap((entry) => entry.tools))
+      const fingerprints = materialized.definitions.filter(
+        (definition) => !definition.name.startsWith("mcp_") || effectiveMcpTools.has(definition.name),
+      )
         .map((definition) => ({
           placement: location.workspaceID
             ? `${location.directory}#${location.workspaceID}`
@@ -757,7 +889,8 @@ export const layer = Layer.effect(
       const toolNames = fingerprints.map((fingerprint) => fingerprint.name)
       const catalogDigest = computeDigest(fingerprints)
 
-      const isV2 = plan.version === 2 || (plan.agents && plan.agents.length > 1) || plan.workflow != null
+      const isV2 =
+        plan.version === 2 || (plan.agents && plan.agents.length > 1) || plan.workflow != null || plan.mcp.requested.length > 0
 
       if (isV2) {
         const snapshotData = new Composition.SnapshotDataV2({
@@ -773,6 +906,26 @@ export const layer = Layer.effect(
             fingerprints,
             catalogDigest,
             catalog: toolNames,
+          }),
+          mcp: new Composition.SnapshotMcpInfo({
+            bindings: plan.mcp.effective.map(
+              (entry) =>
+                new Composition.SnapshotMcpBinding({
+                  serverName: entry.serverName,
+                  ref: entry.ref,
+                  credentialRef: entry.credentialRef,
+                }),
+            ),
+            tools: plan.mcp.effective.flatMap((entry) =>
+              entry.tools.map(
+                (canonicalName) =>
+                  new Composition.SnapshotMcpTool({
+                    canonicalName,
+                    serverName: entry.serverName,
+                    ref: entry.ref,
+                  }),
+              ),
+            ),
           }),
         })
 

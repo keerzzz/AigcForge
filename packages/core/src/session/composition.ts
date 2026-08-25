@@ -307,6 +307,34 @@ export const layer = Layer.effect(
           `recomputed catalog digest ${catalogDigest} does not match stored ${snapshot.data.tools.catalogDigest}`,
         )
       }
+      if (snapshot.version === 2) {
+        const catalogMcpTools = snapshot.data.tools.catalog.filter((name) => name.startsWith("mcp_"))
+        const auditMcpTools = snapshot.data.mcp.tools
+          .map((tool) => tool.canonicalName)
+          .toSorted((a, b) => a.localeCompare(b))
+        if (
+          catalogMcpTools.length !== auditMcpTools.length ||
+          catalogMcpTools.some((name, index) => name !== auditMcpTools[index])
+        ) {
+          return yield* missing(
+            "mcp_audit_catalog_mismatch",
+            `MCP catalog ${JSON.stringify(catalogMcpTools)} does not equal MCP audit tools ${JSON.stringify(auditMcpTools)}`,
+          )
+        }
+        for (const tool of snapshot.data.mcp.tools) {
+          const binding = snapshot.data.mcp.bindings.find(
+            (entry) =>
+              entry.serverName === tool.serverName &&
+              entry.ref.relativePath === tool.ref.relativePath &&
+              entry.ref.revision === tool.ref.revision,
+          )
+          if (binding !== undefined) continue
+          return yield* missing(
+            "mcp_audit_binding_missing",
+            `MCP audit tool '${tool.canonicalName}' has no matching binding identity`,
+          )
+        }
+      }
       return snapshot
     })
 

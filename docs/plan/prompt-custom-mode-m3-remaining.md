@@ -164,6 +164,14 @@ M3 计划 §3 Phase E 的事实校准是本 Phase 最重要的一条：
 - 说明未知版本硬失败的语义在 v3 引入后如何不破坏既有 Snapshot 的可恢复性
 - **这是一次独立评估，不是一个字段**。评估结论进 ADR 或计划，人类裁定后再施工。
 
+### Phase E 实际收口事实（2026-08-26）
+
+- 不开 v3：`Plan.mcp` 与 `SnapshotDataV2.mcp` 是 optional/default 投影，旧 V1/V2 数据仍可解码。
+- Resolver/freeze 不 connect；它们只消费唯一 `McpConnection.Service.facts()` 的成功 registration fact。Profile 显式绑定、asset revision、binding identity 和 runtime ready health 全部满足后才进入 effective/catalog/Snapshot。
+- `MCPAsset.configJson` 不被解码为连接真源；当前只做 asset path/revision provenance。Snapshot 只保留 ref/revision、opaque credentialRef、server 与 canonical registration identity。
+- Runner 的 MCP audit 校验和 connection owner 的每次 credential binding revalidation 都是实际调用链，不是孤立 helper。撤销保证新 admission 失败，不中断已开始的 provider/HTTP/child 调用。
+- 四组红证必须随复审报告记录：Resolver filter、Runner audit guard、requestOn revoke revalidation、Profile canonical decoder；每组都必须写拆除点、红用例和恢复后的绿结果。
+
 ### 陷阱
 
 Snapshot 只存 **ref / fingerprint**，永不存材料、executor、client（M3 计划 §6 停止条件）。MCP tool catalog 进 Snapshot audit facts 时，**catalog 里的每一项都要能追回 registration identity**，否则漂移检测无从比对。

@@ -1,7 +1,8 @@
 export * as CustomProfile from "./custom-profile"
 
-import { Schema } from "effect"
+import { Effect, Option, Schema, SchemaIssue } from "effect"
 import { Composition } from "./composition"
+import { McpScope } from "./mcp-scope"
 
 export const Name = Schema.String.pipe(
   Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length >= 1, { message: "Name must be at least 1 code point" })),
@@ -29,6 +30,22 @@ export type Revision = typeof Revision.Type
 export const BaseRevision = Schema.Union([Schema.Null, Revision])
 export type BaseRevision = typeof BaseRevision.Type
 
+const McpBinding = Schema.declareConstructor<McpScope.McpServerBinding>()(
+  [],
+  () => (input) => {
+    try {
+      return Effect.succeed(McpScope.decodeBinding(input))
+    } catch (error) {
+      return Effect.fail(
+        new SchemaIssue.InvalidValue(Option.some(input), {
+          message: error instanceof Error ? error.message : "Invalid MCP binding",
+        }),
+      )
+    }
+  },
+  { identifier: "CustomProfile.McpBinding" },
+)
+
 export class Profile extends Schema.Class<Profile>("CustomProfile.Profile")({
   kind: Schema.Literal("custom-profile"),
   name: Name,
@@ -44,7 +61,20 @@ export class Profile extends Schema.Class<Profile>("CustomProfile.Profile")({
   bindings: Schema.Record(Composition.Consumer, Composition.Binding),
   presentation: Composition.Presentation,
   requestedCapabilities: Schema.Array(Schema.String),
+  mcpBindings: Schema.Array(McpBinding).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed([])),
+    Schema.withConstructorDefault(Effect.succeed([])),
+  ),
 }) {}
+
+const strictOptions = { errors: "all", onExcessProperty: "error" } as const
+
+/**
+ * Profile persistence boundary: each MCP entry delegates to the canonical strict
+ * decoder, so secret-bearing or structurally invalid fields fail before a
+ * Profile/Candidate/HTTP boundary can normalize or silently strip them.
+ */
+export const decodeProfile = Schema.decodeUnknownSync(Profile, strictOptions)
 
 export class Summary extends Schema.Class<Summary>("CustomProfile.Summary")({
   kind: Schema.Literal("custom-profile"),

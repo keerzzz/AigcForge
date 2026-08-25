@@ -42,6 +42,7 @@ import { Tool } from "@aigcfroge/core/tool/tool"
 import { ToolOutputStore } from "@aigcfroge/core/tool-output-store"
 import { ToolRegistry } from "@aigcfroge/core/tool/registry"
 import { McpRegistration } from "@aigcfroge/core/tool/mcp-registration"
+import { McpConnection } from "@aigcfroge/core/mcp/connection"
 import { testEffect } from "./lib/effect"
 import { withCustomModeEnabled } from "./lib/product-mode"
 
@@ -51,6 +52,7 @@ const requests: LLMRequest[] = []
 let response: LLMEvent[] = []
 let materializeCalls = 0
 let currentSkills: SkillV2.Info[] = []
+let currentMcpFacts: ReadonlyArray<McpConnection.Fact> = []
 
 const client = Layer.succeed(
   LLMClient.Service,
@@ -146,6 +148,15 @@ const config = Layer.succeed(
       ]),
   }),
 )
+const mcpConnection = Layer.mock(McpConnection.Service, {
+  connect: () => Effect.die("unused"),
+  disconnect: () => Effect.die("unused"),
+  connections: () => Effect.succeed([]),
+  facts: () => Effect.succeed(currentMcpFacts),
+  health: () => Effect.succeed(undefined),
+  callTool: () => Effect.die("unused"),
+  shutdown: () => Effect.void,
+})
 const sessionComposition = SessionComposition.layer.pipe(Layer.provide(Database.defaultLayer))
 const runner = runnerLayer.pipe(
   Layer.provide(sessionComposition),
@@ -156,6 +167,7 @@ const runner = runnerLayer.pipe(
   Layer.provide(EventV2.defaultLayer),
   Layer.provide(client),
   Layer.provide(countedRegistry),
+  Layer.provide(mcpConnection),
   Layer.provide(models),
   Layer.provide(SystemContextRegistry.layer),
 ).pipe(
@@ -202,6 +214,7 @@ const it = testEffect(
     appProcess,
     runner,
     sessions,
+    mcpConnection,
   ),
 )
 
@@ -306,6 +319,37 @@ const makeSnapshot = (
     }),
   })
 
+const makeMcpSnapshot = (sessionID: SessionV2.ID, tools: Composition.SnapshotToolInfo) =>
+  new Composition.SnapshotV2({
+    version: 2,
+    digest: mockDigest,
+    sessionID,
+    createdAt: Date.now(),
+    data: new Composition.SnapshotDataV2({
+      agents: [],
+      bindings: {},
+      instructions: [],
+      prompts: [],
+      skills: [],
+      tools,
+      mcp: new Composition.SnapshotMcpInfo({
+        bindings: [
+          new Composition.SnapshotMcpBinding({
+            serverName: "snapshot-mcp",
+            ref: new Composition.McpRef({ kind: "mcp", relativePath: "snapshot-mcp.md", revision: mockRevision }),
+          }),
+        ],
+        tools: [
+          new Composition.SnapshotMcpTool({
+            canonicalName: "mcp_snapshot-mcp_echo",
+            serverName: "snapshot-mcp",
+            ref: new Composition.McpRef({ kind: "mcp", relativePath: "snapshot-mcp.md", revision: mockRevision }),
+          }),
+        ],
+      }),
+    }),
+  })
+
 const expectDrift = (exit: Exit.Exit<void, SessionRunner.RunError>, reason: string) => {
   expect(Exit.isFailure(exit)).toBe(true)
   const error = Exit.isFailure(exit) ? Option.getOrUndefined(Cause.findErrorOption(exit.cause)) : undefined
@@ -332,6 +376,7 @@ const reset = () => {
   response = []
   materializeCalls = 0
   currentSkills = []
+  currentMcpFacts = []
 }
 
 describe("Custom Mode Runner Drift Fail-Closed (MEDIUM-3)", () => {
@@ -348,6 +393,136 @@ describe("Custom Mode Runner Drift Fail-Closed (MEDIUM-3)", () => {
       expectDrift(exit, "snapshot_missing")
       expect(requests).toHaveLength(0)
       expect(materializeCalls).toBe(0)
+    }),
+  )
+
+  it.effect("fails before provider dispatch when MCP registration identity no longer matches the frozen binding", () =>
+    Effect.gen(function* () {
+      reset()
+      const sessionID = SessionV2.ID.make("ses_drift_mcp_identity")
+      yield* insertCustomSession(sessionID)
+      const mcp = yield* McpRegistration.Service
+      const scope = yield* Scope.make()
+      yield* mcp
+        .registerServer({
+          serverName: "snapshot-mcp",
+          tools: {
+            echo: Tool.make({
+              description: "Snapshot MCP echo",
+              input: Schema.Struct({}),
+              output: Schema.Struct({}),
+              execute: () => Effect.succeed({}),
+            }),
+          },
+        })
+        .pipe(Effect.provideService(Scope.Scope, scope))
+      currentMcpFacts = [
+        new McpConnection.Fact({
+          serverName: "snapshot-mcp",
+          ref: { relativePath: "replacement.md", revision: mockRevision },
+          health: "ready",
+          tools: ["mcp_snapshot-mcp_echo"],
+        }),
+      ]
+      const composition = yield* SessionComposition.Service
+      yield* composition.attach(sessionID, makeMcpSnapshot(sessionID, yield* buildToolInfo()))
+      const sessionRunner = yield* SessionRunner.Service
+
+      const exit = yield* sessionRunner.run({ sessionID, force: true }).pipe(Effect.exit)
+
+      expectDrift(exit, "mcp_binding_missing")
+      expect(requests).toHaveLength(0)
+      yield* Scope.close(scope, Exit.void)
+    }),
+  )
+
+  it.effect("fails before provider dispatch when a frozen MCP binding becomes revoked", () =>
+    Effect.gen(function* () {
+      reset()
+      const sessionID = SessionV2.ID.make("ses_drift_mcp_revoked")
+      yield* insertCustomSession(sessionID)
+      const mcp = yield* McpRegistration.Service
+      const scope = yield* Scope.make()
+      yield* mcp
+        .registerServer({
+          serverName: "snapshot-mcp",
+          tools: {
+            echo: Tool.make({
+              description: "Snapshot MCP echo",
+              input: Schema.Struct({}),
+              output: Schema.Struct({}),
+              execute: () => Effect.succeed({}),
+            }),
+          },
+        })
+        .pipe(Effect.provideService(Scope.Scope, scope))
+      currentMcpFacts = [
+        new McpConnection.Fact({
+          serverName: "snapshot-mcp",
+          ref: { relativePath: "snapshot-mcp.md", revision: mockRevision },
+          health: "revoked",
+          tools: ["mcp_snapshot-mcp_echo"],
+        }),
+      ]
+      const composition = yield* SessionComposition.Service
+      yield* composition.attach(sessionID, makeMcpSnapshot(sessionID, yield* buildToolInfo()))
+      const sessionRunner = yield* SessionRunner.Service
+
+      const exit = yield* sessionRunner.run({ sessionID, force: true }).pipe(Effect.exit)
+
+      expectDrift(exit, "mcp_connection_not_ready")
+      expect(requests).toHaveLength(0)
+      yield* Scope.close(scope, Exit.void)
+    }),
+  )
+
+  it.effect("rejects a snapshot MCP catalog entry that lacks registration audit identity", () =>
+    Effect.gen(function* () {
+      reset()
+      const sessionID = SessionV2.ID.make("ses_drift_mcp_audit")
+      yield* insertCustomSession(sessionID)
+      const mcp = yield* McpRegistration.Service
+      const scope = yield* Scope.make()
+      yield* mcp
+        .registerServer({
+          serverName: "audit-mcp",
+          tools: {
+            echo: Tool.make({
+              description: "Audit MCP echo",
+              input: Schema.Struct({}),
+              output: Schema.Struct({}),
+              execute: () => Effect.succeed({}),
+            }),
+          },
+        })
+        .pipe(Effect.provideService(Scope.Scope, scope))
+      const tools = yield* buildToolInfo()
+      const composition = yield* SessionComposition.Service
+      yield* composition.attach(
+        sessionID,
+        new Composition.SnapshotV2({
+          version: 2,
+          digest: mockDigest,
+          sessionID,
+          createdAt: Date.now(),
+          data: new Composition.SnapshotDataV2({
+            agents: [],
+            bindings: {},
+            instructions: [],
+            prompts: [],
+            skills: [],
+            tools,
+            mcp: new Composition.SnapshotMcpInfo({ bindings: [], tools: [] }),
+          }),
+        }),
+      )
+      const sessionRunner = yield* SessionRunner.Service
+
+      const exit = yield* sessionRunner.run({ sessionID, force: true }).pipe(Effect.exit)
+
+      expectDrift(exit, "mcp_audit_catalog_mismatch")
+      expect(requests).toHaveLength(0)
+      yield* Scope.close(scope, Exit.void)
     }),
   )
 

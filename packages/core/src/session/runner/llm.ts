@@ -34,6 +34,7 @@ import { CompositionCatalog } from "../../skill/composition-catalog"
 import { SkillV2 } from "../../skill"
 import { ReferenceGuidance } from "../../reference/guidance"
 import { ToolRegistry } from "../../tool/registry"
+import { McpConnection } from "../../mcp/connection"
 import { CacheShape } from "../../cache/cache-shape"
 import { ToolOutputStore } from "../../tool-output-store"
 import { classify, type IntentCategory } from "../../agent/meta/intent"
@@ -126,6 +127,7 @@ export const layer = Layer.effect(
     const llm = yield* LLMClient.Service
     const agents = yield* AgentV2.Service
     const tools = yield* ToolRegistry.Service
+    const mcpConnections = yield* Effect.serviceOption(McpConnection.Service)
     const permission = yield* PermissionV2.Service
     const models = yield* SessionRunnerModel.Service
     const store = yield* SessionStore.Service
@@ -267,6 +269,70 @@ export const layer = Layer.effect(
           sessionID,
           reason: "catalog_digest_mismatch",
           details: "Recomputed tool catalog digest diverges from the snapshot",
+        })
+      }
+      return yield* Effect.void
+    })
+
+    // MCP audit facts are deliberately separate from generic fingerprints: the
+    // latter prove definition equality, while this proves the exact Profile
+    // binding (asset revision + opaque credential ref) still owns each canonical
+    // MCP name. Without it, a same-shaped reconnection could inherit a Snapshot.
+    const verifySnapshotMcp = Effect.fnUntraced(function* (
+      sessionID: SessionSchema.ID,
+      snapshot: Composition.Snapshot,
+    ) {
+      if (snapshot.version !== 2) return yield* Effect.void
+      const catalogMcpTools = snapshot.data.tools.catalog.filter((name) => name.startsWith("mcp_"))
+      const auditMcpTools = snapshot.data.mcp.tools.map((tool) => tool.canonicalName)
+      if (
+        catalogMcpTools.length !== auditMcpTools.length ||
+        catalogMcpTools.some((name, index) => name !== auditMcpTools.toSorted()[index])
+      )
+        return yield* new SnapshotDriftError({
+          sessionID,
+          reason: "mcp_audit_catalog_mismatch",
+          details: "Snapshot MCP catalog entries do not have a matching registration identity",
+        })
+      if (auditMcpTools.length === 0) return yield* Effect.void
+      if (Option.isNone(mcpConnections))
+        return yield* new SnapshotDriftError({
+          sessionID,
+          reason: "mcp_connection_unavailable",
+          details: "MCP snapshot audit facts require the canonical connection owner",
+        })
+      const facts = yield* mcpConnections.value.facts()
+      for (const binding of snapshot.data.mcp.bindings) {
+        const active = facts.find(
+          (fact) =>
+            fact.serverName === binding.serverName &&
+            fact.ref.relativePath === binding.ref.relativePath &&
+            fact.ref.revision === binding.ref.revision &&
+            fact.credentialRef === binding.credentialRef,
+        )
+        if (active?.health === "ready") continue
+        yield* new SnapshotDriftError({
+          sessionID,
+          reason: active === undefined ? "mcp_binding_missing" : "mcp_connection_not_ready",
+          details:
+            active === undefined
+              ? `MCP binding '${binding.serverName}' no longer matches the snapshot identity`
+              : `MCP binding '${binding.serverName}' is ${active.health}`,
+        })
+      }
+      for (const tool of snapshot.data.mcp.tools) {
+        const active = facts.find(
+          (fact) =>
+            fact.serverName === tool.serverName &&
+            fact.ref.relativePath === tool.ref.relativePath &&
+            fact.ref.revision === tool.ref.revision &&
+            fact.tools.includes(tool.canonicalName),
+        )
+        if (active !== undefined && snapshot.data.tools.catalog.includes(tool.canonicalName)) continue
+        yield* new SnapshotDriftError({
+          sessionID,
+          reason: "mcp_registration_mismatch",
+          details: `MCP tool '${tool.canonicalName}' no longer belongs to its snapshot binding`,
         })
       }
       return yield* Effect.void
@@ -491,7 +557,10 @@ export const layer = Layer.effect(
       // Custom Mode fail-closed: a missing or drifted snapshot ends the turn with a
       // typed error before any context, tool, or provider work (MEDIUM-3a/3b).
       const snapshot = session.mode === "custom" ? yield* readCustomSnapshot(session.id) : undefined
-      if (snapshot) yield* verifySnapshotTools(session.id, snapshot)
+      if (snapshot) {
+        yield* verifySnapshotMcp(session.id, snapshot)
+        yield* verifySnapshotTools(session.id, snapshot)
+      }
       const agent = yield* agents.select(agentID)
       // ADR-20 §2.6 provenance: a pool agent must originate from the bound
       // asset revision; a same-name registry impostor fails the turn closed.

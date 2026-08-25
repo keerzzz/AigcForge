@@ -19,7 +19,7 @@ export const Revision = Schema.String.pipe(
 )
 export type Revision = typeof Revision.Type
 
-export const AllowedKind = Schema.Literals(["agent", "prompt", "skill", "workflow", "command"])
+export const AllowedKind = Schema.Literals(["agent", "prompt", "skill", "workflow", "command", "mcp"])
 export type AllowedKind = typeof AllowedKind.Type
 
 export class AgentRef extends Schema.Class<AgentRef>("Composition.AgentRef")({
@@ -58,7 +58,7 @@ export class McpRef extends Schema.Class<McpRef>("Composition.McpRef")({
   revision: Revision,
 }) {}
 
-export const AssetRef = Schema.Union([AgentRef, PromptRef, SkillRef, WorkflowRef, CommandRef])
+export const AssetRef = Schema.Union([AgentRef, PromptRef, SkillRef, WorkflowRef, CommandRef, McpRef])
 export type AssetRef = typeof AssetRef.Type
 
 export const ConsumerKey = Schema.String.pipe(
@@ -196,6 +196,50 @@ export class CostPreview extends Schema.Class<CostPreview>("Composition.CostPrev
   agentCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
 }) {}
 
+/** Runtime MCP connection projection; never persisted in a Snapshot. */
+export const McpConnectionHealth = Schema.Literals([
+  "connecting",
+  "ready",
+  "degraded",
+  "offline",
+  "auth-required",
+  "revoked",
+])
+export type McpConnectionHealth = typeof McpConnectionHealth.Type
+
+export class McpRequestedInfo extends Schema.Class<McpRequestedInfo>("Composition.McpRequestedInfo")({
+  serverName: Schema.String,
+  ref: McpRef,
+  credentialRef: Schema.optional(Schema.String),
+}) {}
+
+export const McpCredentialStatus = Schema.Literals(["not-required", "available", "missing", "expired", "revoked"])
+export type McpCredentialStatus = typeof McpCredentialStatus.Type
+
+export class McpEffectiveInfo extends Schema.Class<McpEffectiveInfo>("Composition.McpEffectiveInfo")({
+  serverName: Schema.String,
+  ref: McpRef,
+  credentialRef: Schema.optional(Schema.String),
+  credentialStatus: McpCredentialStatus,
+  health: McpConnectionHealth,
+  tools: Schema.Array(Schema.String),
+}) {}
+
+export class McpDeniedInfo extends Schema.Class<McpDeniedInfo>("Composition.McpDeniedInfo")({
+  serverName: Schema.String,
+  ref: McpRef,
+  credentialRef: Schema.optional(Schema.String),
+  reason: Schema.String,
+  health: Schema.optional(McpConnectionHealth),
+  credentialStatus: Schema.optional(McpCredentialStatus),
+}) {}
+
+export class McpPlan extends Schema.Class<McpPlan>("Composition.McpPlan")({
+  requested: Schema.Array(McpRequestedInfo),
+  effective: Schema.Array(McpEffectiveInfo),
+  denied: Schema.Array(McpDeniedInfo),
+}) {}
+
 export class Plan extends Schema.Class<Plan>("Composition.Plan")({
   version: Schema.Union([Schema.Literal(1), Schema.Literal(2)]),
   digest: Digest,
@@ -215,6 +259,10 @@ export class Plan extends Schema.Class<Plan>("Composition.Plan")({
   skills: Schema.Array(SkillInfo),
   capabilities: Schema.Array(CapabilityInfo),
   costPreview: Schema.optional(CostPreview),
+  mcp: McpPlan.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed(new McpPlan({ requested: [], effective: [], denied: [] }))),
+    Schema.withConstructorDefault(Effect.succeed(new McpPlan({ requested: [], effective: [], denied: [] }))),
+  ),
   diagnostics: Schema.Array(Diagnostic),
 }) {}
 
@@ -241,6 +289,23 @@ export class SnapshotBindingData extends Schema.Class<SnapshotBindingData>("Comp
   prompts: Schema.Array(SnapshotPromptData),
   skills: Schema.Array(SkillInfo),
   commands: Schema.Array(CommandInfo),
+}) {}
+
+export class SnapshotMcpBinding extends Schema.Class<SnapshotMcpBinding>("Composition.SnapshotMcpBinding")({
+  serverName: Schema.String,
+  ref: McpRef,
+  credentialRef: Schema.optional(Schema.String),
+}) {}
+
+export class SnapshotMcpTool extends Schema.Class<SnapshotMcpTool>("Composition.SnapshotMcpTool")({
+  canonicalName: Schema.String,
+  serverName: Schema.String,
+  ref: McpRef,
+}) {}
+
+export class SnapshotMcpInfo extends Schema.Class<SnapshotMcpInfo>("Composition.SnapshotMcpInfo")({
+  bindings: Schema.Array(SnapshotMcpBinding),
+  tools: Schema.Array(SnapshotMcpTool),
 }) {}
 
 export class SnapshotDataV1 extends Schema.Class<SnapshotDataV1>("Composition.SnapshotDataV1")({
@@ -273,6 +338,10 @@ export class SnapshotDataV2 extends Schema.Class<SnapshotDataV2>("Composition.Sn
   prompts: Schema.Array(SnapshotPromptData),
   skills: Schema.Array(SkillInfo),
   tools: SnapshotToolInfo,
+  mcp: SnapshotMcpInfo.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed(new SnapshotMcpInfo({ bindings: [], tools: [] }))),
+    Schema.withConstructorDefault(Effect.succeed(new SnapshotMcpInfo({ bindings: [], tools: [] }))),
+  ),
 }) {}
 
 export const SnapshotData = Schema.Union([SnapshotDataV1, SnapshotDataV2])

@@ -14,6 +14,7 @@ import { Tool } from "@aigcfroge/core/tool/tool"
 import { Tools } from "@aigcfroge/core/tool/tools"
 import { ToolOutputStore } from "@aigcfroge/core/tool-output-store"
 import { McpServerBinding } from "@aigcfroge/schema/mcp-scope"
+import { Composition } from "@aigcfroge/schema/composition"
 import { Credential } from "@aigcfroge/core/credential"
 import { Integration } from "@aigcfroge/schema/integration"
 import { McpCredentialBindingStore } from "@aigcfroge/core/mcp/binding/store"
@@ -113,7 +114,7 @@ const TestLayer = Layer.mergeAll(
 )
 const it = testEffect(TestLayer)
 
-const REVISION = "a".repeat(64)
+const REVISION = Schema.decodeUnknownSync(Composition.Revision)("a".repeat(64))
 
 const binding = (
   over: {
@@ -300,6 +301,51 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
       yield* waitDead(info.pid)
       expect(yield* conn.connections()).toHaveLength(0)
       yield* Effect.promise(() => Bun.file(marker).delete()).pipe(Effect.ignore)
+    }),
+  )
+
+  it.live("revoking a bound credential fails the next tool admission before the server observes it", () =>
+    Effect.gen(function* () {
+      const marker = path.join("/tmp", `aigcfroge-mcp-revoked-${randomUUID()}`)
+      const credential = yield* Credential.Service
+      const bindings = yield* McpCredentialBindingStore.Service
+      const conn = yield* McpConnection.Service
+      const stored = yield* credential.create({
+        integrationID: Integration.ID.make("int_mcp_call_revoke"),
+        value: Schema.decodeUnknownSync(Credential.Key)({ type: "key", key: "key" }),
+        label: "revoke-before-call",
+      })
+      const storedBinding = yield* bindings.bind({ serverName: "revoke-call", credentialRef: String(stored.id) })
+      yield* conn.connect({
+        binding: binding({
+          serverName: "revoke-call",
+          credentialRef: String(stored.id),
+          command: [process.execPath, FIXTURE, "pendingcall", marker],
+        }),
+      })
+      yield* bindings.revoke(storedBinding.id, storedBinding.bindingRevision)
+
+      const result = yield* probe(conn.callTool({ name: "mcp_revoke-call_echo", args: {} }))
+      expect(result.failed).toBe(true)
+      expect(result.tag).toBe("McpBinding.RevokedRefError")
+      expect(yield* conn.health("revoke-call")).toBe("revoked")
+      expect((yield* conn.facts()).find((fact) => fact.serverName === "revoke-call")?.health).toBe("revoked")
+      expect(yield* Effect.promise(() => Bun.file(marker).exists())).toBe(false)
+      yield* conn.disconnect("revoke-call")
+    }),
+  )
+
+  it.live("connection facts expose only successful canonical registration identity", () =>
+    Effect.gen(function* () {
+      const conn = yield* McpConnection.Service
+      yield* conn.connect({ binding: binding({ serverName: "fact-server" }) })
+      const facts = yield* conn.facts()
+      expect(facts).toHaveLength(1)
+      expect(facts[0]?.serverName).toBe("fact-server")
+      expect(facts[0]?.ref).toEqual({ relativePath: "mcp/fake.json", revision: REVISION })
+      expect(facts[0]?.tools).toEqual(["mcp_fact-server_echo", "mcp_fact-server_desc"])
+      expect("command" in (facts[0] ?? {})).toBe(false)
+      yield* conn.disconnect("fact-server")
     }),
   )
 
@@ -646,6 +692,7 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
         ["ready", "connecting"],
         ["ready", "degraded"],
         ["ready", "offline"],
+        ["ready", "revoked"],
         ["degraded", "connecting"],
         ["degraded", "ready"],
         ["degraded", "offline"],
