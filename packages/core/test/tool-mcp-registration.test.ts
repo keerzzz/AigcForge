@@ -160,29 +160,26 @@ describe("McpRegistration namespace and collision (ADR-19 §2.4/§2.5)", () => {
     }),
   )
 
-  it.effect("fails closed with the shared name budget when the prefixed name overflows", () =>
+  it.effect("keeps short canonical names stable and deterministically compacts long catalog identities", () =>
     Effect.gen(function* () {
+      const longServer = "azure-devops-work-items"
+      const firstTool = "list_work_item_comments_with_expansion"
+      const secondTool = "list_work_item_comments_with_expansions"
+      const first = McpRegistration.canonicalToolName(longServer, firstTool)
+      const second = McpRegistration.canonicalToolName(longServer, secondTool)
+
+      expect(McpRegistration.canonicalToolName("github", "search")).toBe("mcp_github_search")
+      expect(first).toHaveLength(McpRegistration.MAX_TOOL_NAME)
+      expect(first).toStartWith("mcp_azure-devops-work-ite_list_work_item_commen_")
+      expect(first).not.toBe(second)
+
       const mcp = yield* McpRegistration.Service
       const scope = yield* Scope.make()
-      // Realistic server + tool names: the prefixed name is 66 characters, so
-      // the 64-character bound the two segments share rejects it.
-      const exit = yield* mcp
-        .registerServer({
-          serverName: "azure-devops-work-items",
-          tools: { list_work_item_comments_with_expansion: echo() },
-        })
-        .pipe(Scope.provide(scope), Effect.exit)
-      expect(Exit.isFailure(exit)).toBe(true)
-      if (Exit.isFailure(exit)) {
-        const error = Cause.squash(exit.cause)
-        expect(error).toBeInstanceOf(McpRegistration.McpToolNameTooLongError)
-        // The message must name the budget: the operator controls neither
-        // segment's length once a server is chosen.
-        if (error instanceof McpRegistration.McpToolNameTooLongError) {
-          expect(error.message).toContain("limit 64")
-        }
-      }
-      expect(yield* (yield* ToolRegistry.Service).materialize()).toMatchObject({ definitions: [] })
+      yield* mcp.registerServer({ serverName: longServer, tools: { [firstTool]: echo(), [secondTool]: echo() } }).pipe(
+        Scope.provide(scope),
+      )
+      const definitions = (yield* (yield* ToolRegistry.Service).materialize()).definitions
+      expect(definitions.map((definition) => definition.name).toSorted()).toEqual([first, second].toSorted())
       yield* Scope.close(scope, Exit.void)
     }),
   )

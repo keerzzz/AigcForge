@@ -4,6 +4,7 @@ import { Context, Effect, Layer, Schema, Scope } from "effect"
 import { SessionSchema } from "../session/schema"
 import { RegistrationError, validateName, type AnyTool } from "./tool"
 import { ToolRegistry } from "./registry"
+import { Hash } from "../util/hash"
 
 /**
  * Owner for canonical MCP tool registration (ADR-19 §2.4/§2.5): namespaces
@@ -29,24 +30,6 @@ export class McpNameCollisionError extends Schema.TaggedErrorClass<McpNameCollis
   }
 }
 
-/**
- * The prefixed name must fit `Tool.validateName`'s 64-character bound
- * (`tool.ts:116`), which the server and tool segments share. Raised instead of
- * a bare `RegistrationError` because the operator controls neither segment's
- * length once a server is chosen — the message has to name the budget.
- * A truncation/hash policy is deliberately NOT invented here: canonical names
- * enter Snapshot catalogs and tool fingerprints, so it is a one-off naming
- * contract to be decided in Phase C against real server catalogs.
- */
-export class McpToolNameTooLongError extends Schema.TaggedErrorClass<McpToolNameTooLongError>()(
-  "McpRegistration.McpToolNameTooLongError",
-  { serverName: Schema.String, toolName: Schema.String, name: Schema.String },
-) {
-  override get message() {
-    return `MCP tool name too long: '${this.name}' is ${this.name.length} characters (limit ${MAX_TOOL_NAME}); server '${this.serverName}' and tool '${this.toolName}' share the budget`
-  }
-}
-
 // Conservative provider-neutral grammar for the variable middle segment. The
 // binding constraint is not this bound but MAX_TOOL_NAME below, which the
 // prefix, server and tool segments share — a server name near 64 characters is
@@ -56,15 +39,27 @@ const SERVER_NAME = /^[a-z0-9_-]{1,64}$/
 /** Shared grammar so connection-time validation matches registration-time exactly. */
 export const SERVER_NAME_PATTERN = SERVER_NAME
 
-/**
- * Single source of the canonical `mcp_<server>_<tool>` namespace shape;
- * connection owners derive their routing keys from the same function so the
- * two can never drift.
- */
-export const canonicalToolName = (serverName: string, toolName: string) => `mcp_${serverName}_${toolName}`
-
 /** `Tool.validateName` bound (`tool.ts:116`); the whole prefixed name must fit. */
-const MAX_TOOL_NAME = 64
+export const MAX_TOOL_NAME = 64
+
+const HASH_LENGTH = 16
+const PREFIX_LENGTH = "mcp_".length
+const SEPARATOR_LENGTH = 2
+const READABLE_BUDGET = MAX_TOOL_NAME - PREFIX_LENGTH - SEPARATOR_LENGTH - HASH_LENGTH
+
+/**
+ * Single source of the canonical `mcp_<server>_<tool>` namespace shape.
+ * Short names remain byte-for-byte stable. Longer names preserve bounded
+ * readable prefixes and append a deterministic digest of the complete source
+ * pair, so independent reconnects cannot silently rename a catalog entry.
+ */
+export const canonicalToolName = (serverName: string, toolName: string) => {
+  const direct = `mcp_${serverName}_${toolName}`
+  if (direct.length <= MAX_TOOL_NAME) return direct
+  const server = serverName.slice(0, Math.min(serverName.length, Math.floor(READABLE_BUDGET / 2)))
+  const tool = toolName.slice(0, READABLE_BUDGET - server.length)
+  return `mcp_${server}_${tool}_${Hash.sha256(`${serverName}\u0000${toolName}`).slice(0, HASH_LENGTH)}`
+}
 
 export type RegisterServerInput = {
   readonly serverName: string
@@ -78,7 +73,7 @@ export interface Interface {
     input: RegisterServerInput,
   ) => Effect.Effect<
     void,
-    RegistrationError | InvalidServerNameError | McpNameCollisionError | McpToolNameTooLongError,
+    RegistrationError | InvalidServerNameError | McpNameCollisionError,
     Scope.Scope
   >
 }
@@ -99,10 +94,6 @@ export const layer = Layer.effect(
         const mangled: Record<string, AnyTool> = {}
         for (const [toolName, tool] of Object.entries(input.tools)) {
           const name = canonicalToolName(input.serverName, toolName)
-          if (name.length > MAX_TOOL_NAME) {
-            yield* new McpToolNameTooLongError({ serverName: input.serverName, toolName, name })
-            return
-          }
           yield* validateName(name)
           mangled[name] = tool
         }

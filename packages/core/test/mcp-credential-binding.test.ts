@@ -21,30 +21,30 @@ const makeStore = (ref: { directory: string; workspaceID?: string }) => {
   return McpCredentialBindingStore.layer.pipe(Layer.provide(Layer.succeed(Location.Service, location(locRef))))
 }
 
+const failureError = (exit: Exit.Exit<unknown, unknown>) => {
+  if (!Exit.isFailure(exit)) throw new Error("expected a typed failure")
+  const error = Option.getOrThrow(Cause.findErrorOption(exit.cause))
+  if (typeof error !== "object" || error === null || !("_tag" in error)) throw new Error("expected a tagged failure")
+  return error
+}
+
 const expectStateError = (
   exit: Exit.Exit<unknown, unknown>,
   expectedReason: McpCredentialBindingStore.StateError["reason"],
 ) => {
-  expect(Exit.isFailure(exit)).toBe(true)
-  if (Exit.isFailure(exit)) {
-    const errOpt = Cause.findErrorOption(exit.cause)
-    expect(Option.isSome(errOpt)).toBe(true)
-    if (Option.isSome(errOpt) && errOpt.value instanceof McpCredentialBindingStore.StateError) {
-      expect(errOpt.value.reason).toBe(expectedReason)
-    }
-  }
+  const error = failureError(exit)
+  if (!(error instanceof McpCredentialBindingStore.StateError)) throw new Error(`unexpected tag ${String(error._tag)}`)
+  expect(error._tag).toBe("McpBinding.StateError")
+  expect(error.reason).toBe(expectedReason)
 }
 
 const expectCrossLocation = (exit: Exit.Exit<unknown, unknown>) => {
-  expect(Exit.isFailure(exit)).toBe(true)
-  if (Exit.isFailure(exit)) {
-    const errOpt = Cause.findErrorOption(exit.cause)
-    expect(Option.isSome(errOpt)).toBe(true)
-    if (Option.isSome(errOpt) && errOpt.value instanceof McpCredentialBindingStore.CrossLocationRefError) {
-      expect(errOpt.value._tag).toBe("McpBinding.CrossLocationRefError")
-    }
-  }
+  const error = failureError(exit)
+  if (!(error instanceof McpCredentialBindingStore.CrossLocationRefError))
+    throw new Error(`unexpected tag ${String(error._tag)}`)
+  expect(error._tag).toBe("McpBinding.CrossLocationRefError")
 }
+
 
 describe("McpCredentialBindingStore (ADR-21 §2.2/§2.3 v1.2)", () => {
   it.effect("bind succeeds and duplicate server in same Location fails via unique constraint", () =>
@@ -106,20 +106,50 @@ describe("McpCredentialBindingStore (ADR-21 §2.2/§2.3 v1.2)", () => {
           const revoked = yield* store.revoke(found.id, found.bindingRevision)
           expect(revoked.revokedAt).toBeDefined()
           const after = yield* store.resolve({ serverName: "git", credentialRef: "cred_cross" }).pipe(Effect.exit)
-          expectCrossLocation(after)
+          const afterError = failureError(after)
+          if (!(afterError instanceof McpCredentialBindingStore.RevokedRefError))
+            throw new Error(`unexpected tag ${String(afterError._tag)}`)
+          expect(afterError._tag).toBe("McpBinding.RevokedRefError")
         }).pipe(Effect.provide(makeStore({ directory: "/tmp/cross-a" })))
       }),
   )
 
-  it.effect("resolve fails with CrossLocationRefError when ref not bound in this Location", () =>
+  it.effect("resolve reports missing refs when no active binding exists in any Location", () =>
     Effect.gen(function* () {
       const store = yield* McpCredentialBindingStore.Service
       yield* store.bind({ serverName: "git", credentialRef: "cred_ok" })
       const missing = yield* store.resolve({ serverName: "git", credentialRef: "cred_missing" }).pipe(Effect.exit)
-      expectCrossLocation(missing)
+      const missingError = failureError(missing)
+      if (!(missingError instanceof McpCredentialBindingStore.DanglingRefError))
+        throw new Error(`unexpected tag ${String(missingError._tag)}`)
+      expect(missingError._tag).toBe("McpBinding.DanglingRefError")
       const wrongServer = yield* store.resolve({ serverName: "other", credentialRef: "cred_ok" }).pipe(Effect.exit)
-      expectCrossLocation(wrongServer)
+      const wrongServerError = failureError(wrongServer)
+      if (!(wrongServerError instanceof McpCredentialBindingStore.DanglingRefError))
+        throw new Error(`unexpected tag ${String(wrongServerError._tag)}`)
+      expect(wrongServerError._tag).toBe("McpBinding.DanglingRefError")
     }).pipe(Effect.provide(makeStore({ directory: "/tmp/resolve" }))),
+  )
+
+  it.effect("resolve distinguishes a missing ref from a revoked ref in the current Location", () =>
+    Effect.gen(function* () {
+      const store = yield* McpCredentialBindingStore.Service
+      const missing = yield* store.resolve({ serverName: "missing", credentialRef: "cred_missing" }).pipe(Effect.exit)
+      const missingError = failureError(missing)
+      if (!(missingError instanceof McpCredentialBindingStore.DanglingRefError))
+        throw new Error(`unexpected tag ${String(missingError._tag)}`)
+      expect(missingError._tag).toBe("McpBinding.DanglingRefError")
+      expect(missingError.serverName).toBe("missing")
+
+      const bound = yield* store.bind({ serverName: "revoked", credentialRef: "cred_revoked" })
+      yield* store.revoke(bound.id, bound.bindingRevision)
+      const revoked = yield* store.resolve({ serverName: "revoked", credentialRef: "cred_revoked" }).pipe(Effect.exit)
+      const revokedError = failureError(revoked)
+      if (!(revokedError instanceof McpCredentialBindingStore.RevokedRefError))
+        throw new Error(`unexpected tag ${String(revokedError._tag)}`)
+      expect(revokedError._tag).toBe("McpBinding.RevokedRefError")
+      expect(revokedError.credentialRef).toBe("cred_revoked")
+    }).pipe(Effect.provide(makeStore({ directory: "/tmp/resolve-state" }))),
   )
 
   it.effect("revoke succeeds, second revoke fails already_revoked, wrong revision fails revision_mismatch", () =>

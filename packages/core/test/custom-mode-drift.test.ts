@@ -1,7 +1,7 @@
 import { describe, expect } from "bun:test"
 import { LLMClient, LLMEvent, Model, type LLMRequest } from "@aigcfroge/llm"
 import { route } from "@aigcfroge/llm/protocols/openai-chat"
-import { Cause, Effect, Exit, Layer, Option, Schema, Stream } from "effect"
+import { Cause, Effect, Exit, Layer, Option, Schema, Scope, Stream } from "effect"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { AppProcess } from "@aigcfroge/core/process"
 import { ApplicationTools } from "@aigcfroge/core/tool/application-tools"
@@ -41,6 +41,7 @@ import { SystemContextRegistry } from "@aigcfroge/core/system-context/registry"
 import { Tool } from "@aigcfroge/core/tool/tool"
 import { ToolOutputStore } from "@aigcfroge/core/tool-output-store"
 import { ToolRegistry } from "@aigcfroge/core/tool/registry"
+import { McpRegistration } from "@aigcfroge/core/tool/mcp-registration"
 import { testEffect } from "./lib/effect"
 import { withCustomModeEnabled } from "./lib/product-mode"
 
@@ -83,6 +84,11 @@ const outputStore = Layer.mock(ToolOutputStore.Service, {
 const registry = ToolRegistry.layer.pipe(Layer.provide(applications), Layer.provide(outputStore))
 // Counts runner-side materialize calls so fail-closed tests can assert no tool
 // definitions were ever built (or exactly one verification pass happened).
+const mcpRegistration = McpRegistration.layer.pipe(
+  Layer.provide(registry),
+  Layer.provide(applications),
+  Layer.provide(outputStore),
+)
 const countedRegistry = Layer.effect(
   ToolRegistry.Service,
   Effect.gen(function* () {
@@ -185,6 +191,7 @@ const it = testEffect(
     applications,
     agents,
     registry,
+    mcpRegistration,
     echo,
     models,
     location,
@@ -341,6 +348,42 @@ describe("Custom Mode Runner Drift Fail-Closed (MEDIUM-3)", () => {
       expectDrift(exit, "snapshot_missing")
       expect(requests).toHaveLength(0)
       expect(materializeCalls).toBe(0)
+    }),
+  )
+
+  it.effect("a reconnected MCP definition fails the next provider turn through the existing fingerprint guard", () =>
+    Effect.gen(function* () {
+      reset()
+      const sessionID = SessionV2.ID.make("ses_drift_mcp_reconnect")
+      yield* insertCustomSession(sessionID)
+      const mcp = yield* McpRegistration.Service
+      const firstScope = yield* Scope.make()
+      const makeRemoteEcho = (description: string) =>
+        Tool.make({
+          description,
+          input: Schema.Struct({ text: Schema.String }),
+          output: Schema.Struct({ text: Schema.String }),
+          toModelOutput: ({ output }) => [{ type: "text", text: output.text }],
+          execute: ({ text }) => Effect.succeed({ text }),
+        })
+      yield* mcp.registerServer({ serverName: "reconnect", tools: { echo: makeRemoteEcho("First remote echo") } }).pipe(
+        Scope.provide(firstScope),
+      )
+      const tools = yield* buildToolInfo()
+      yield* Scope.close(firstScope, Exit.void)
+      const secondScope = yield* Scope.make()
+      yield* mcp.registerServer({ serverName: "reconnect", tools: { echo: makeRemoteEcho("Changed remote echo") } }).pipe(
+        Scope.provide(secondScope),
+      )
+      const composition = yield* SessionComposition.Service
+      yield* composition.attach(sessionID, makeSnapshot(sessionID, tools))
+      const sessionRunner = yield* SessionRunner.Service
+
+      const exit = yield* sessionRunner.run({ sessionID, force: true }).pipe(Effect.exit)
+
+      expectDrift(exit, "tool_fingerprint_mismatch")
+      expect(requests).toHaveLength(0)
+      yield* Scope.close(secondScope, Exit.void)
     }),
   )
 

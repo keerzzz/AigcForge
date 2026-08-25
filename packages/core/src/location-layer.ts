@@ -159,6 +159,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
         // Provided here, not left to the ambient context — a requirement that only
         // the test harness satisfies is the Phase D presence defect (§4.6 trap 3).
         Layer.provide(CredentialScanner.layer),
+        Layer.provide(FetchHttpClient.layer),
         Layer.provide(services),
       )
       const image = Image.layer.pipe(Layer.provide(services))
