@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
+import { AbsolutePath } from "../src/schema"
 import { McpScope } from "../src/mcp-scope"
 
 const revision = "a".repeat(64)
@@ -110,6 +111,76 @@ describe("McpScope.GrantScope", () => {
 
   test("a location scope cannot smuggle foreign location identity (excess keys fail)", () => {
     expect(() => McpScope.decodeGrantScope({ level: "location", locationID: "/other/location" })).toThrow()
+  })
+})
+
+describe("McpScope.McpCredentialBinding", () => {
+  test("round-trips a valid binding with sentinel workspace", () => {
+    const decoded = new McpScope.McpCredentialBinding({
+      id: "mcb_" + "a".repeat(24),
+      directory: AbsolutePath.make("/tmp/a"),
+      workspaceID: "",
+      serverName: "git",
+      credentialRef: McpScope.CredentialRef.make("cred_" + "b".repeat(32)),
+      bindingRevision: 1,
+      timeCreated: 1000,
+      timeUpdated: 1000,
+    })
+    expect(decoded.workspaceID).toBe("")
+    expect(McpScope.normalizeWorkspaceId(undefined)).toBe("")
+    expect(McpScope.normalizeWorkspaceId("wrk_123")).toBe("wrk_123")
+    expect(McpScope.denormalizeWorkspaceId("")).toBeUndefined()
+    expect(McpScope.denormalizeWorkspaceId("wrk_123")).toBe("wrk_123")
+  })
+
+  test("rejects invalid mcb_ prefix and credentialRef brand", () => {
+    expect(
+      () =>
+        new McpScope.McpCredentialBinding({
+          id: "bad_" + "a".repeat(24),
+          directory: AbsolutePath.make("/tmp/a"),
+          workspaceID: "",
+          serverName: "git",
+          credentialRef: McpScope.CredentialRef.make("cred_" + "b".repeat(32)),
+          bindingRevision: 1,
+          timeCreated: 1000,
+          timeUpdated: 1000,
+        }),
+    ).toThrow()
+    expect(
+      () =>
+        new McpScope.McpCredentialBinding({
+          id: "mcb_" + "a".repeat(24),
+          directory: AbsolutePath.make("/tmp/a"),
+          workspaceID: "",
+          serverName: "git",
+          // Type-negative on purpose: an unbranded ref must be rejected at
+          // construction, so the compile error is the premise of the assertion.
+          // @ts-expect-error credentialRef requires the CredentialRef brand
+          credentialRef: "badref",
+          bindingRevision: 1,
+          timeCreated: 1000,
+          timeUpdated: 1000,
+        }),
+    ).toThrow()
+  })
+
+  test("decodeBinding rejects command containing secret-like material (stopgap 2)", () => {
+    const base = {
+      serverName: "git",
+      ref: { relativePath: "mcp/git.yaml", revision },
+      transport: "stdio" as const,
+      command: ["echo", "api_key=sk-12345678901234567890"],
+    }
+    expect(() => McpScope.decodeBinding(base)).toThrow()
+    expect(() =>
+      McpScope.decodeBinding({
+        serverName: "git",
+        ref: { relativePath: "mcp/git.yaml", revision },
+        transport: "remote" as const,
+        url: "https://example.com?token=Bearer eyJ12345678901234567890.eyJ1234567890.abc",
+      }),
+    ).toThrow()
   })
 })
 

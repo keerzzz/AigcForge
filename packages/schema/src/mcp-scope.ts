@@ -2,6 +2,8 @@ export * as McpScope from "./mcp-scope"
 
 import { Schema } from "effect"
 import { Composition } from "./composition"
+import { AbsolutePath } from "./schema"
+import { containsSecret } from "./credential-scan"
 
 // Decode-time bounds: every string and collection field fails closed at the
 // boundary instead of admitting oversized payloads (the workflow-asset lesson
@@ -79,10 +81,9 @@ export class McpServerBinding extends Schema.Class<McpServerBinding>("McpScope.M
   url: Schema.optional(
     bounded(MAX_URL_LENGTH).pipe(
       Schema.check(
-        Schema.makeFilter<string>(
-          (input) => input.startsWith("http://") || input.startsWith("https://"),
-          { message: "MCP remote url must be http(s)" },
-        ),
+        Schema.makeFilter<string>((input) => input.startsWith("http://") || input.startsWith("https://"), {
+          message: "MCP remote url must be http(s)",
+        }),
       ),
     ),
   ),
@@ -131,17 +132,51 @@ export class ScopedGrant extends Schema.Class<ScopedGrant>("McpScope.ScopedGrant
   revokedAt: Schema.optional(Schema.Finite),
 }) {}
 
+/**
+ * One Location-scoped credential binding (ADR-21 §2.2 v1.2). Only the opaque
+ * ref is stored; material never enters Snapshot/event/log. `workspaceID` is
+ * `""` (empty sentinel) when the Location has no workspace — the DB column
+ * is `NOT NULL` so `UNIQUE(directory, workspace_id, server_name)` actually
+ * enforces uniqueness for the common workspace-less case. The sentinel
+ * conversion is centralized here (and mirrored only in the binding store's
+ * single codec), never scattered at call sites.
+ */
+export class McpCredentialBinding extends Schema.Class<McpCredentialBinding>("McpScope.McpCredentialBinding")({
+  id: Schema.String.pipe(
+    Schema.check(Schema.isStartsWith("mcb_")),
+    Schema.check(Schema.isMaxLength(MAX_GRANT_ID_LENGTH)),
+  ),
+  directory: AbsolutePath,
+  workspaceID: Schema.String,
+  serverName: bounded(MAX_SERVER_NAME),
+  credentialRef: CredentialRef,
+  bindingRevision: Schema.Int.pipe(Schema.check(Schema.isGreaterThanOrEqualTo(1))),
+  revokedAt: Schema.optional(Schema.Finite),
+  timeCreated: Schema.Finite,
+  timeUpdated: Schema.Finite,
+}) {}
+
+/** Single-point sentinel codec for `workspaceID` (ADR-21 §2.2 v1.2). */
+export const normalizeWorkspaceId = (id: string | undefined): string => id ?? ""
+export const denormalizeWorkspaceId = (id: string): string | undefined => (id === "" ? undefined : id)
+
 const decodeBindingStrict = Schema.decodeUnknownSync(McpServerBinding, strictOptions)
 const decodeGrantStrict = Schema.decodeUnknownSync(ScopedGrant, strictOptions)
 const decodeGrantScopeStrict = Schema.decodeUnknownSync(GrantScope, strictOptions)
 
-/** Canonical binding decode: rejects excess keys, then enforces transport shape. */
+/** Canonical binding decode: rejects excess keys, then enforces transport shape and secret redaction. */
 export const decodeBinding = (input: unknown): McpServerBinding => {
   const binding = decodeBindingStrict(input)
   if (binding.transport === "stdio" && (binding.command === undefined || binding.command.length === 0))
     throw new Error(`MCP stdio binding '${binding.serverName}' requires command`)
   if (binding.transport === "remote" && binding.url === undefined)
     throw new Error(`MCP remote binding '${binding.serverName}' requires url`)
+  const checkSecret = (value: string, label: string) => {
+    if (containsSecret(value))
+      throw new Error(`MCP binding '${binding.serverName}' ${label} contains secret-like material`)
+  }
+  if (binding.command) for (const entry of binding.command) checkSecret(entry, "command")
+  if (binding.url) checkSecret(binding.url, "url")
   return binding
 }
 

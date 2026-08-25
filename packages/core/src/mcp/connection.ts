@@ -16,15 +16,19 @@ import {
 } from "effect"
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
-import { McpServerBinding } from "@aigcfroge/schema/mcp-scope"
+import { McpScope, McpServerBinding } from "@aigcfroge/schema/mcp-scope"
 import { canonicalToolName, McpRegistration, SERVER_NAME_PATTERN } from "../tool/mcp-registration"
 import { RegistrationError, Tool } from "../tool/tool"
+import { McpCredentialBindingStore } from "./binding/store"
+import { Credential } from "../credential"
+import { Location } from "../location"
+import { CredentialScanner } from "../credential-scanner"
 
-// Phase C Slice 1 (ADR-21 v1.1): the typed MCP connection owner. Each
-// connection lives in its own owner Scope that terminates the child process;
-// discovered tools enter the ONE canonical ToolRegistry through
-// McpRegistration. Secrets are never touched on this path — a binding carrying
-// credentialRef fails closed until Slice 2 delivers binding resolution.
+// Phase C Slice 2: typed credential binding resolution. A binding carrying
+// credentialRef is resolved via McpCredentialBindingStore (Location-scoped,
+// directory-partitioned) and the material is fetched via Credential.Service
+// at connect time, used once, and discarded — never cached, logged, or
+// stored in the binding table.
 
 export const HANDSHAKE_TIMEOUT = Duration.seconds(10)
 
@@ -96,6 +100,14 @@ export type ConnectError =
   | McpRegistration.McpNameCollisionError
   | McpRegistration.McpToolNameTooLongError
   | RegistrationError
+  /**
+   * ADR-21 §2.2: a credentialRef that is not bound in THIS Location is rejected
+   * fail closed, and the rejection is part of `connect`'s public contract — the
+   * caller has to be able to tell "not authorized here" from "bad config".
+   * Leaving it out of this union widened the inferred error channel to `unknown`
+   * and silently voided every other typed guarantee on `connect`.
+   */
+  | McpCredentialBindingStore.CrossLocationRefError
 
 export type CallToolError = UnknownToolError | NotConnectedError | ProtocolError | ProcessStartError
 
@@ -133,13 +145,65 @@ export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
 
-const decodeBinding = Schema.decodeUnknownSync(McpServerBinding)
+/**
+ * Ceiling for one redacted stderr line in the log. Applied AFTER scanning —
+ * exported so the ordering test binds to the real constant instead of a copy
+ * that could silently drift from it.
+ */
+export const MAX_STDERR_LOG = 2000
+
+/**
+ * The one place stderr text becomes log text (ADR-21 §2.4). Scan the FULL line,
+ * then truncate what survives — never the reverse. Truncating first would slice
+ * a secret that straddles the boundary into a prefix no pattern can match, and
+ * the intact secret would go to the log. M2 proved this on the workflow handoff
+ * (`workflow-runner.ts:205`).
+ *
+ * Extracted rather than inlined in the pump so the ordering is directly
+ * assertable — same reason `lookupFilter` / `rebindFilter` are exported from the
+ * binding store: a security-relevant step that no assertion can reach is a step
+ * nobody is guarding.
+ */
+export const redactStderrLine = (scanner: CredentialScanner.Interface, line: string) =>
+  Effect.gen(function* () {
+    const scanned = yield* scanner.scan(line)
+    return { redacted: scanned.stripped.slice(0, MAX_STDERR_LOG), secretHits: scanned.hits.length }
+  })
+
+/**
+ * The canonical binding decoder, NOT a local `Schema.decodeUnknownSync`.
+ * `McpScope.decodeBinding` is where three rules live that a bare schema decode
+ * skips: excess-key rejection (`strictOptions`), the transport/command/url shape
+ * contract, and ADR-21 §2.5 止血 2 — rejecting a binding whose `command` or
+ * `url` carries secret-like material. A local decoder here left all three
+ * unenforced on the only production path that decodes bindings.
+ */
+const decodeBinding = McpScope.decodeBinding
+
+/**
+ * Map credential material to the child's environment (ADR-21 §2.1). This is the
+ * ONLY place material is read, and the result is handed straight to the spawn.
+ *
+ * The names are deliberately generic and stable: an MCP stdio server reads its
+ * secret from the environment, and a per-server naming scheme would become an
+ * immutable contract the same way canonical tool names are (ADR-19 §2.6). Until
+ * a real server catalog says otherwise, one name per credential shape.
+ *
+ * `metadata` is NOT forwarded — it is caller-supplied and could carry anything,
+ * so it stays out of the child environment.
+ */
+const credentialEnvFor = (value: Credential.Value): Record<string, string> =>
+  value.type === "oauth" ? { MCP_CREDENTIAL_ACCESS_TOKEN: value.access } : { MCP_CREDENTIAL_API_KEY: value.key }
 
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const spawner = yield* ChildProcessSpawner
     const registration = yield* McpRegistration.Service
+    const bindingStore = yield* McpCredentialBindingStore.Service
+    const credentialService = yield* Credential.Service
+    const scanner = yield* CredentialScanner.Service
+    const currentLocation = yield* Location.Service
 
     const conns = new Map<string, Wire>()
     const routes = new Map<string, { readonly server: string; readonly tool: string }>()
@@ -151,6 +215,13 @@ export const layer = Layer.effect(
       readonly serverName: string
       readonly command: readonly [string, ...string[]]
       readonly scope: Scope.Closeable
+      /**
+       * ADR-21 §2.1: the material arrives here and goes straight into the child
+       * env. It is never stored on the wire, the ConnInfo, the registry or any
+       * closure that outlives this call — `credentialEnvFor` builds it, the
+       * spawn consumes it, and it falls out of scope immediately.
+       */
+      readonly env?: Record<string, string>
     }) {
       const { serverName, command } = input
       const pending = new Map<number, Pending>()
@@ -173,6 +244,7 @@ export const layer = Layer.effect(
         .spawn(
           ChildProcess.make(command[0], command.slice(1), {
             extendEnv: true,
+            ...(input.env !== undefined ? { env: input.env } : {}),
             stdin: { stream: "pipe", endOnDone: false },
             stdout: "pipe",
             stderr: "pipe",
@@ -227,6 +299,28 @@ export const layer = Layer.effect(
                   }
                 }
               }
+            }),
+          ),
+          Effect.ignore,
+        ),
+      )
+
+      // stderr pump (ADR-21 §2.4): server stderr is external, untrusted text and
+      // the last place a secret can still surface. The order below is the whole
+      // point — scan the FULL line, then truncate what is left. Truncating first
+      // would cut a secret that straddles the boundary into a prefix too short
+      // for any pattern to match, and it would go to the log intact. M2 proved
+      // this on the workflow handoff (`workflow-runner.ts:205`).
+      yield* Effect.forkScoped(
+        handle.stderr.pipe(
+          Stream.decodeText,
+          Stream.splitLines,
+          Stream.runForEach((line) =>
+            Effect.gen(function* () {
+              const trimmed = line.trim()
+              if (trimmed.length === 0) return
+              const redacted = yield* redactStderrLine(scanner, trimmed)
+              yield* Effect.logDebug("mcp server stderr", { serverName, ...redacted })
             }),
           ),
           Effect.ignore,
@@ -308,18 +402,35 @@ export const layer = Layer.effect(
         })
       if (binding.command === undefined || binding.command.length === 0)
         return yield* new InvalidConfigError({ serverName, reason: "stdio transport requires a command" })
-      if (binding.credentialRef !== undefined)
-        return yield* new InvalidConfigError({
-          serverName,
-          reason: "credentialRef resolution arrives with credential binding (Slice 2)",
-        })
+      let credentialEnv: Record<string, string> | undefined = undefined
+      if (binding.credentialRef !== undefined) {
+        const resolved = yield* bindingStore.resolve({ serverName, credentialRef: binding.credentialRef }).pipe(
+          // The annotation is required, not decorative: without it TS pins the
+          // handler's return type to the first branch, the second branch stops
+          // fitting, and the whole `connect` error channel collapses to
+          // `unknown` — voiding every typed guarantee on it at once.
+          Effect.catch(
+            (e): Effect.Effect<never, McpCredentialBindingStore.CrossLocationRefError | InvalidConfigError> => {
+              if (e instanceof McpCredentialBindingStore.CrossLocationRefError) return Effect.fail(e)
+              return Effect.fail(new InvalidConfigError({ serverName, reason: e.message }))
+            },
+          ),
+        )
+        const credID = Credential.ID.make(resolved.credentialRef)
+        const cred = yield* credentialService.get(credID).pipe(Effect.orDie)
+        if (!cred)
+          return yield* new InvalidConfigError({ serverName, reason: "credential dangling, requires rebinding" })
+        credentialEnv = credentialEnvFor(cred.value)
+      }
       const commandTuple: readonly [string, ...string[]] = [binding.command[0], ...binding.command.slice(1)]
 
       const connScope = yield* Scope.make()
-      const wireExit = yield* buildWire({ serverName, command: commandTuple, scope: connScope }).pipe(
-        Effect.provideService(Scope.Scope, connScope),
-        Effect.exit,
-      )
+      const wireExit = yield* buildWire({
+        serverName,
+        command: commandTuple,
+        scope: connScope,
+        ...(credentialEnv !== undefined ? { env: credentialEnv } : {}),
+      }).pipe(Effect.provideService(Scope.Scope, connScope), Effect.exit)
       if (Exit.isFailure(wireExit)) {
         yield* Scope.close(connScope, Exit.void).pipe(Effect.ignore)
         const failure = Cause.findErrorOption(wireExit.cause)
