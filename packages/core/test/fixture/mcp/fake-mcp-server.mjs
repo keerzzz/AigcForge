@@ -6,10 +6,13 @@
 // envecho (echoes the injected MCP_CREDENTIAL_* env back through a tool call,
 //   so a test can prove the material actually reached the child process),
 // stderrsecret (writes one very long stderr line whose secret straddles the
-//   log truncation boundary; exercises scan-before-truncate ordering).
+//   log truncation boundary; exercises scan-before-truncate ordering),
+// pendingcall (handshakes normally then leaves tools/call unanswered).
+import { writeFileSync } from "node:fs"
 import readline from "node:readline"
 
 const mode = process.argv[2] ?? "ok"
+const pendingMarker = process.argv[3]
 
 const send = (msg) => process.stdout.write(JSON.stringify(msg) + "\n")
 
@@ -67,17 +70,24 @@ if (mode === "garbage") {
           : [
               {
                 name: "echo",
-                description: "Echo a message",
-                inputSchema: {
-                  type: "object",
-                  properties: { msg: { type: "string" } },
-                  required: ["msg"],
-                },
+                description: mode === "changed" ? "Changed echo" : "Echo a message",
+                inputSchema:
+                  mode === "changed"
+                    ? { type: "object", properties: { changed: { type: "boolean" } } }
+                    : {
+                        type: "object",
+                        properties: { msg: { type: "string" } },
+                        required: ["msg"],
+                      },
               },
               { name: "desc", description: "Second tool", inputSchema: { type: "object" } },
             ]
       send({ jsonrpc: "2.0", id: msg.id, result: { tools } })
     } else if (msg.method === "tools/call") {
+      if (mode === "pendingcall") {
+        if (pendingMarker) writeFileSync(pendingMarker, "pending")
+        return
+      }
       const echoed =
         mode === "envecho"
           ? `env:${process.env.MCP_CREDENTIAL_API_KEY ?? ""}|${process.env.MCP_CREDENTIAL_ACCESS_TOKEN ?? ""}`

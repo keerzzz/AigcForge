@@ -36,10 +36,20 @@ export class CrossLocationRefError extends Schema.TaggedErrorClass<CrossLocation
 }
 
 export class DanglingRefError extends Schema.TaggedErrorClass<DanglingRefError>()("McpBinding.DanglingRefError", {
+  serverName: Schema.String,
   credentialRef: Schema.String,
 }) {
   override get message() {
-    return `Credential ${this.credentialRef} not found — binding is dangling and requires rebinding`
+    return `Credential ref ${this.credentialRef} for server '${this.serverName}' is not bound`
+  }
+}
+
+export class RevokedRefError extends Schema.TaggedErrorClass<RevokedRefError>()("McpBinding.RevokedRefError", {
+  serverName: Schema.String,
+  credentialRef: Schema.String,
+}) {
+  override get message() {
+    return `Credential ref ${this.credentialRef} for server '${this.serverName}' was revoked and requires rebinding`
   }
 }
 
@@ -142,7 +152,7 @@ interface Interface {
   /** Resolve and validate that the requested ref is bound in this Location. */
   readonly resolve: (
     input: GetInput & { readonly credentialRef: string },
-  ) => Effect.Effect<Info, CrossLocationRefError | StateError>
+  ) => Effect.Effect<Info, CrossLocationRefError | DanglingRefError | RevokedRefError | StateError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/McpCredentialBindingStore") {}
@@ -345,20 +355,48 @@ export const layer = Layer.effect(
           .all()
           .pipe(Effect.orDie)
         const row = rows[0]
-        if (!row)
+        if (row) {
+          const info = toInfoSafe(row)
+          if (info) return info
+        }
+
+        const revoked = (yield* db
+          .select()
+          .from(McpCredentialBindingTable)
+          .where(
+            and(
+              eq(McpCredentialBindingTable.directory, directory),
+              eq(McpCredentialBindingTable.workspace_id, normalizeWorkspaceId(workspaceID)),
+              eq(McpCredentialBindingTable.server_name, input.serverName),
+              eq(McpCredentialBindingTable.credential_ref, input.credentialRef),
+              isNotNull(McpCredentialBindingTable.revoked_at),
+            ),
+          )
+          .all()
+          .pipe(Effect.orDie))[0]
+        if (revoked)
+          return yield* new RevokedRefError({ serverName: input.serverName, credentialRef: input.credentialRef })
+
+        const foreign = (yield* db
+          .select()
+          .from(McpCredentialBindingTable)
+          .where(
+            and(
+              eq(McpCredentialBindingTable.server_name, input.serverName),
+              eq(McpCredentialBindingTable.credential_ref, input.credentialRef),
+              isNull(McpCredentialBindingTable.revoked_at),
+            ),
+          )
+          .all()
+          .pipe(Effect.orDie))[0]
+        if (foreign)
           return yield* new CrossLocationRefError({
             directory,
             serverName: input.serverName,
             credentialRef: input.credentialRef,
           })
-        const info = toInfoSafe(row)
-        if (!info)
-          return yield* new CrossLocationRefError({
-            directory,
-            serverName: input.serverName,
-            credentialRef: input.credentialRef,
-          })
-        return info
+
+        return yield* new DanglingRefError({ serverName: input.serverName, credentialRef: input.credentialRef })
       }),
     })
 

@@ -42,6 +42,7 @@ G3-3 与 G3-1/G3-2 性质不同：**它不是「待批准」，是「待建」**
 - `Credential.Service` 保持唯一秘密读写入口，**语义、列、作用域一字不改**（红线，与 ADR-20 §2.1 对 `PermissionSaved` 同构）。
 - MCP 连接侧**永不接触秘密字面量**：`McpServerBinding.credentialRef` 是 `cred_` 前缀的 opaque ref（已落地，`mcp-scope.ts:51-56`），连接 owner 在建立连接的那一刻向 `Credential.Service` 换取材料，**用完即弃，不缓存、不落 Snapshot、不进 event、不进 log**。
 - **不新增 `McpCredential` 表**。新增表就是新增 secret owner，直接违反停止条件。
+- **传输映射定案（Phase C Slice 4，2026-08-25）**：`MCP_CREDENTIAL_API_KEY`（key）与 `MCP_CREDENTIAL_ACCESS_TOKEN`（OAuth access token）是**仅 stdio 子进程**的稳定环境变量契约；两者都已由真实 child fixture 读取并受测试守护。remote 只接受 OAuth credential，并在每次 HTTP request 发送 `Authorization: Bearer <access>`；不把 key 猜成某个服务器私有 header，避免将一个不可验证的命名假设冻结为跨 server 契约。`metadata` 一律不转发。该裁定同时关闭 Phase C 对 env 命名的复核欠账。
 
 ### 2.2 Location 隔离由新增 `mcp_credential_binding` 承担，不动 `Credential`
 

@@ -14,6 +14,7 @@ import {
   Schema,
   Stream,
 } from "effect"
+import { HttpClient, HttpClientError, HttpClientRequest } from "effect/unstable/http"
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import { McpScope, McpServerBinding } from "@aigcfroge/schema/mcp-scope"
@@ -23,6 +24,7 @@ import { McpCredentialBindingStore } from "./binding/store"
 import { Credential } from "../credential"
 import { Location } from "../location"
 import { CredentialScanner } from "../credential-scanner"
+import { ProductModePolicy } from "../product-mode-policy"
 
 // Phase C Slice 2: typed credential binding resolution. A binding carrying
 // credentialRef is resolved via McpCredentialBindingStore (Location-scoped,
@@ -84,11 +86,101 @@ export class UnknownToolError extends Schema.TaggedErrorClass<UnknownToolError>(
   }
 }
 
+export class CredentialMissingError extends Schema.TaggedErrorClass<CredentialMissingError>()(
+  "McpConnection.CredentialMissingError",
+  { serverName: Schema.String, credentialRef: Schema.optional(Schema.String) },
+) {
+  override get message() {
+    return `MCP server '${this.serverName}' requires a credential binding`
+  }
+}
+
+export class CredentialExpiredError extends Schema.TaggedErrorClass<CredentialExpiredError>()(
+  "McpConnection.CredentialExpiredError",
+  { serverName: Schema.String, credentialRef: Schema.String },
+) {
+  override get message() {
+    return `Credential ${this.credentialRef} for MCP server '${this.serverName}' has expired`
+  }
+}
+
+export class RemoteDnsError extends Schema.TaggedErrorClass<RemoteDnsError>()("McpConnection.RemoteDnsError", {
+  serverName: Schema.String,
+  url: Schema.String,
+}) {}
+
+export class RemoteConnectionRefusedError extends Schema.TaggedErrorClass<RemoteConnectionRefusedError>()(
+  "McpConnection.RemoteConnectionRefusedError",
+  { serverName: Schema.String, url: Schema.String },
+) {}
+
+export class RemoteTlsError extends Schema.TaggedErrorClass<RemoteTlsError>()("McpConnection.RemoteTlsError", {
+  serverName: Schema.String,
+  url: Schema.String,
+}) {}
+
+export class RemoteUnavailableError extends Schema.TaggedErrorClass<RemoteUnavailableError>()(
+  "McpConnection.RemoteUnavailableError",
+  { serverName: Schema.String, url: Schema.String, status: Schema.optional(Schema.Number) },
+) {}
+
+export class ConnectionClosedError extends Schema.TaggedErrorClass<ConnectionClosedError>()(
+  "McpConnection.ConnectionClosedError",
+  { serverName: Schema.String, reason: Schema.Literals(["disconnect", "owner_scope_closed", "kill_switch_disabled"]) },
+) {}
+
+export class McpDisabledError extends Schema.TaggedErrorClass<McpDisabledError>()("McpConnection.McpDisabledError", {
+  operation: Schema.Literals(["connect", "call"]),
+}) {}
+
+export class HealthTransitionError extends Schema.TaggedErrorClass<HealthTransitionError>()(
+  "McpConnection.HealthTransitionError",
+  {
+    from: McpScope.McpConnectionHealth,
+    to: McpScope.McpConnectionHealth,
+    requiresRebind: Schema.Boolean,
+  },
+) {
+  override get message() {
+    return `MCP health transition '${this.from}' -> '${this.to}' is not allowed`
+  }
+}
+
+export const classifyRemoteFailure = (input: { readonly serverName: string; readonly url: string; readonly cause: unknown }) => {
+  const cause = input.cause instanceof HttpClientError.HttpClientError ? input.cause.reason.cause : input.cause
+  const text = String(cause).toLowerCase()
+  if (text.includes("enotfound") || text.includes("getaddrinfo") || text.includes("dns"))
+    return new RemoteDnsError({ serverName: input.serverName, url: input.url })
+  if (text.includes("econnrefused") || text.includes("connection refused"))
+    return new RemoteConnectionRefusedError({ serverName: input.serverName, url: input.url })
+  if (text.includes("tls") || text.includes("ssl") || text.includes("cert"))
+    return new RemoteTlsError({ serverName: input.serverName, url: input.url })
+  return new RemoteUnavailableError({ serverName: input.serverName, url: input.url })
+}
+
+export const transitionHealth = (input: {
+  readonly from: McpScope.McpConnectionHealth
+  readonly to: McpScope.McpConnectionHealth
+  readonly rebound?: boolean
+}) => {
+  const allowed =
+    (input.from === "connecting" && ["ready", "degraded", "offline", "auth-required", "revoked"].includes(input.to)) ||
+    (input.from === "ready" && ["connecting", "degraded", "offline"].includes(input.to)) ||
+    (input.from === "degraded" && ["connecting", "ready", "offline"].includes(input.to)) ||
+    (input.from === "offline" && input.to === "connecting") ||
+    (input.from === "auth-required" && input.to === "connecting") ||
+    (input.from === "revoked" && input.to === "connecting" && input.rebound === true)
+  if (allowed) return Effect.succeed(input.to)
+  return Effect.fail(
+    new HealthTransitionError({ from: input.from, to: input.to, requiresRebind: input.from === "revoked" }),
+  )
+}
+
 /** Projection of one owned connection; health is runtime state, never frozen. */
 export class ConnInfo extends Schema.Class<ConnInfo>("McpConnection.ConnInfo")({
   serverName: Schema.String,
-  pid: Schema.Number,
-  health: Schema.Literals(["connecting", "ready"]),
+  pid: Schema.optional(Schema.Number),
+  health: McpScope.McpConnectionHealth,
 }) {}
 
 export type ConnectError =
@@ -98,7 +190,6 @@ export type ConnectError =
   | ProtocolError
   | McpRegistration.InvalidServerNameError
   | McpRegistration.McpNameCollisionError
-  | McpRegistration.McpToolNameTooLongError
   | RegistrationError
   /**
    * ADR-21 §2.2: a credentialRef that is not bound in THIS Location is rejected
@@ -108,20 +199,43 @@ export type ConnectError =
    * and silently voided every other typed guarantee on `connect`.
    */
   | McpCredentialBindingStore.CrossLocationRefError
+  | McpCredentialBindingStore.RevokedRefError
+  | CredentialMissingError
+  | CredentialExpiredError
+  | RemoteDnsError
+  | RemoteConnectionRefusedError
+  | RemoteTlsError
+  | RemoteUnavailableError
+  | ConnectionClosedError
+  | McpDisabledError
+  | HealthTransitionError
 
-export type CallToolError = UnknownToolError | NotConnectedError | ProtocolError | ProcessStartError
+export type CallToolError =
+  | UnknownToolError
+  | NotConnectedError
+  | ProtocolError
+  | ProcessStartError
+  | CredentialMissingError
+  | CredentialExpiredError
+  | RemoteDnsError
+  | RemoteConnectionRefusedError
+  | RemoteTlsError
+  | RemoteUnavailableError
+  | ConnectionClosedError
+  | McpDisabledError
 
-type WireError = ProtocolError | ProcessStartError
+type WireError = Exclude<CallToolError, UnknownToolError | NotConnectedError>
 type Pending = Deferred.Deferred<unknown, WireError>
 
 interface Wire {
   readonly serverName: string
-  readonly pid: number
+  readonly pid?: number
   /** Owner scope of this connection: spawn handle + pump fibers die with it. */
   readonly scope: Scope.Closeable
   readonly request: (method: string, params?: unknown) => Effect.Effect<unknown, WireError>
   readonly sendOnly: (payload: unknown) => Effect.Effect<void>
-  health: "connecting" | "ready"
+  readonly stop: (error: ConnectionClosedError) => Effect.Effect<void>
+  health: McpScope.McpConnectionHealth
 }
 
 export interface Interface {
@@ -131,6 +245,8 @@ export interface Interface {
   readonly disconnect: (serverName: string) => Effect.Effect<void, NotConnectedError>
   /** Runtime projection of every owned connection. */
   readonly connections: () => Effect.Effect<readonly ConnInfo[]>
+  /** Last observed health for one server, including failed admissions. */
+  readonly health: (serverName: string) => Effect.Effect<McpScope.McpConnectionHealth | undefined>
   /** Execute a tool by canonical name through the owning connection. */
   readonly callTool: (input: {
     readonly name: string
@@ -195,6 +311,24 @@ const decodeBinding = McpScope.decodeBinding
 const credentialEnvFor = (value: Credential.Value): Record<string, string> =>
   value.type === "oauth" ? { MCP_CREDENTIAL_ACCESS_TOKEN: value.access } : { MCP_CREDENTIAL_API_KEY: value.key }
 
+const credentialHeadersFor = (value: Credential.OAuth): Record<string, string> => ({
+  Authorization: `Bearer ${value.access}`,
+})
+
+export const redactRemoteResponse = (
+  scanner: CredentialScanner.Interface,
+  input: { readonly headers: Readonly<Record<string, string>>; readonly body: string },
+) =>
+  Effect.forEach(
+    [...Object.entries(input.headers).map(([name, value]) => `${name}: ${value}`), input.body],
+    (text) => redactStderrLine(scanner, text),
+  ).pipe(
+    Effect.map((entries) => ({
+      entries: entries.map((entry) => entry.redacted),
+      secretHits: entries.reduce((total, entry) => total + entry.secretHits, 0),
+    })),
+  )
+
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -203,10 +337,28 @@ export const layer = Layer.effect(
     const bindingStore = yield* McpCredentialBindingStore.Service
     const credentialService = yield* Credential.Service
     const scanner = yield* CredentialScanner.Service
+    const http = yield* HttpClient.HttpClient
     const currentLocation = yield* Location.Service
 
     const conns = new Map<string, Wire>()
+    const health = new Map<string, McpScope.McpConnectionHealth>()
     const routes = new Map<string, { readonly server: string; readonly tool: string }>()
+
+    const setHealth = (input: {
+      readonly serverName: string
+      readonly to: McpScope.McpConnectionHealth
+      readonly rebound?: boolean
+    }) =>
+      Effect.gen(function* () {
+        const current = health.get(input.serverName)
+        if (current === undefined || current === input.to) {
+          health.set(input.serverName, input.to)
+          return input.to
+        }
+        const next = yield* transitionHealth({ from: current, to: input.to, rebound: input.rebound })
+        health.set(input.serverName, next)
+        return next
+      })
 
     // Spawns the child and wires the newline-delimited JSON-RPC protocol
     // around it. Runs inside the caller-provided Scope so the spawn handle
@@ -356,23 +508,109 @@ export const layer = Layer.effect(
         scope: input.scope,
         request,
         sendOnly: (payload) => sendRaw(payload).pipe(Effect.ignore),
+        stop: failAll,
         health: "connecting",
       }
       return wire
     })
 
-    const killConn = (serverName: string) =>
+    const redactRemoteFailure = (input: {
+      readonly serverName: string
+      readonly headers: Readonly<Record<string, string>>
+      readonly body: string
+    }) =>
+      redactRemoteResponse(scanner, { headers: input.headers, body: input.body }).pipe(
+        Effect.tap((redacted) =>
+          Effect.logDebug("mcp remote response rejected", { serverName: input.serverName, secretHits: redacted.secretHits }),
+        ),
+      )
+
+    const buildRemoteWire = Effect.fn("McpConnection.buildRemoteWire")(function* (input: {
+      readonly serverName: string
+      readonly url: string
+      readonly scope: Scope.Closeable
+      readonly headers?: Record<string, string>
+    }) {
+      let nextId = 0
+      const pending = new Map<number, Pending>()
+      const post = (payload: unknown) =>
+        HttpClientRequest.post(input.url).pipe(
+          HttpClientRequest.setHeaders(input.headers ?? {}),
+          HttpClientRequest.bodyJson(payload),
+          Effect.flatMap(http.execute),
+          Effect.catch((cause) => Effect.fail(classifyRemoteFailure({ ...input, cause }))),
+        )
+      const stop = (error: ConnectionClosedError) =>
+        Effect.gen(function* () {
+          const entries = [...pending.values()]
+          pending.clear()
+          yield* Effect.forEach(entries, (deferred) => Deferred.fail(deferred, error), { discard: true })
+        })
+      const request = (method: string, params?: unknown): Effect.Effect<unknown, WireError> =>
+        Effect.gen(function* () {
+          const id = ++nextId
+          const deferred = yield* Deferred.make<unknown, WireError>()
+          pending.set(id, deferred)
+          const complete = post({ jsonrpc: "2.0", id, method, params }).pipe(
+            Effect.flatMap((response) =>
+              Effect.gen(function* () {
+                const body = yield* response.text.pipe(
+                  Effect.mapError(
+                    () => new ProtocolError({ serverName: input.serverName, reason: "remote response body could not be read" }),
+                  ),
+                )
+                yield* redactRemoteFailure({ serverName: input.serverName, headers: response.headers, body })
+                if (response.status === 401 || response.status === 403)
+                  return yield* new CredentialMissingError({ serverName: input.serverName })
+                if (response.status < 200 || response.status >= 300)
+                  return yield* new RemoteUnavailableError({ serverName: input.serverName, url: input.url, status: response.status })
+                const message = yield* Effect.try({
+                  try: () => JSON.parse(body),
+                  catch: () => new ProtocolError({ serverName: input.serverName, reason: "remote response was not JSON" }),
+                })
+                if (!isRecord(message) || !("result" in message))
+                  return yield* new ProtocolError({ serverName: input.serverName, reason: "remote response lacked result" })
+                return message.result
+              }),
+            ),
+            Effect.matchEffect({
+              onFailure: (error) => Deferred.fail(deferred, error),
+              onSuccess: (result) => Deferred.succeed(deferred, result),
+            }),
+            Effect.ensuring(Effect.sync(() => pending.delete(id))),
+          )
+          yield* complete.pipe(Effect.forkIn(input.scope))
+          return yield* Deferred.await(deferred)
+        })
+      return {
+        serverName: input.serverName,
+        scope: input.scope,
+        request,
+        sendOnly: (payload: unknown) => post(payload).pipe(Effect.asVoid, Effect.ignore),
+        stop,
+        health: "connecting" as const,
+      } satisfies Wire
+    })
+
+    const killConn = (
+      serverName: string,
+      reason: ConnectionClosedError["reason"] = "disconnect",
+    ) =>
       Effect.gen(function* () {
         const wire = conns.get(serverName)
         if (!wire) return
         conns.delete(serverName)
         // Canonical-name routes stay: a known name whose server died must fail
         // as NotConnectedError, not degrade into UnknownToolError.
+        yield* wire.stop(new ConnectionClosedError({ serverName, reason }))
         yield* Scope.close(wire.scope, Exit.void).pipe(Effect.ignore)
       })
 
+    const shutdownConnections = (reason: ConnectionClosedError["reason"]) =>
+      Effect.forEach([...conns.keys()], (name) => killConn(name, reason), { discard: true })
+
     const shutdown = Effect.fn("McpConnection.shutdown")(function* () {
-      for (const name of [...conns.keys()]) yield* killConn(name)
+      yield* shutdownConnections("owner_scope_closed")
     })
 
     yield* Effect.addFinalizer(shutdown)
@@ -381,13 +619,29 @@ export const layer = Layer.effect(
       Effect.gen(function* () {
         const wire = conns.get(server)
         if (wire === undefined) return yield* new NotConnectedError({ serverName: server })
-        return yield* wire.request(method, params)
+        return yield* wire.request(method, params).pipe(
+          Effect.tapError((error) =>
+            setHealth({
+              serverName: server,
+              to:
+                error instanceof CredentialMissingError || error instanceof CredentialExpiredError
+                  ? "auth-required"
+                  : error instanceof ProtocolError
+                    ? "degraded"
+                    : "offline",
+            }).pipe(Effect.catch(() => Effect.void)),
+          ),
+        )
       })
 
     const callServer = (server: string, tool: string, args: unknown): Effect.Effect<unknown, CallToolError> =>
       requestOn(server, "tools/call", { name: tool, arguments: args ?? {} })
 
     const connect = Effect.fn("McpConnection.connect")(function* (input: { readonly binding: unknown }) {
+      if (!ProductModePolicy.isCustomModeEnabled()) {
+        yield* shutdownConnections("kill_switch_disabled")
+        return yield* new McpDisabledError({ operation: "connect" })
+      }
       const binding = yield* Effect.try({
         try: () => decodeBinding(input.binding),
         catch: () =>
@@ -395,14 +649,11 @@ export const layer = Layer.effect(
       })
       const serverName = binding.serverName
       if (!SERVER_NAME_PATTERN.test(serverName)) yield* new McpRegistration.InvalidServerNameError({ serverName })
-      if (binding.transport !== "stdio")
-        return yield* new InvalidConfigError({
-          serverName,
-          reason: `transport '${String(binding.transport)}' arrives with remote/OAuth (Slice 3)`,
-        })
-      if (binding.command === undefined || binding.command.length === 0)
+      if (binding.transport === "stdio" && (binding.command === undefined || binding.command.length === 0))
         return yield* new InvalidConfigError({ serverName, reason: "stdio transport requires a command" })
-      let credentialEnv: Record<string, string> | undefined = undefined
+      if (binding.transport === "remote" && binding.url === undefined)
+        return yield* new InvalidConfigError({ serverName, reason: "remote transport requires a url" })
+      let credential: Credential.Value | undefined = undefined
       if (binding.credentialRef !== undefined) {
         const resolved = yield* bindingStore.resolve({ serverName, credentialRef: binding.credentialRef }).pipe(
           // The annotation is required, not decorative: without it TS pins the
@@ -410,29 +661,61 @@ export const layer = Layer.effect(
           // fitting, and the whole `connect` error channel collapses to
           // `unknown` — voiding every typed guarantee on it at once.
           Effect.catch(
-            (e): Effect.Effect<never, McpCredentialBindingStore.CrossLocationRefError | InvalidConfigError> => {
+            (e): Effect.Effect<
+              never,
+              | McpCredentialBindingStore.CrossLocationRefError
+              | McpCredentialBindingStore.RevokedRefError
+              | CredentialMissingError
+              | InvalidConfigError
+              | HealthTransitionError
+            > => {
               if (e instanceof McpCredentialBindingStore.CrossLocationRefError) return Effect.fail(e)
+              if (e instanceof McpCredentialBindingStore.DanglingRefError)
+                return setHealth({ serverName, to: "auth-required" }).pipe(
+                  Effect.andThen(Effect.fail(new CredentialMissingError({ serverName, credentialRef: e.credentialRef }))),
+                )
+              if (e instanceof McpCredentialBindingStore.RevokedRefError)
+                return setHealth({ serverName, to: "revoked" }).pipe(Effect.andThen(Effect.fail(e)))
               return Effect.fail(new InvalidConfigError({ serverName, reason: e.message }))
             },
           ),
         )
         const credID = Credential.ID.make(resolved.credentialRef)
         const cred = yield* credentialService.get(credID).pipe(Effect.orDie)
-        if (!cred)
-          return yield* new InvalidConfigError({ serverName, reason: "credential dangling, requires rebinding" })
-        credentialEnv = credentialEnvFor(cred.value)
+        if (!cred) {
+          yield* setHealth({ serverName, to: "auth-required" })
+          return yield* new CredentialMissingError({ serverName, credentialRef: resolved.credentialRef })
+        }
+        if (cred.value.type === "oauth" && cred.value.expires <= Date.now() / 1000) {
+          yield* setHealth({ serverName, to: "auth-required" })
+          return yield* new CredentialExpiredError({ serverName, credentialRef: resolved.credentialRef })
+        }
+        credential = cred.value
       }
-      const commandTuple: readonly [string, ...string[]] = [binding.command[0], ...binding.command.slice(1)]
-
+      if (binding.transport === "remote" && credential?.type === "key")
+        return yield* new InvalidConfigError({ serverName, reason: "remote transport requires an OAuth credential" })
+      if (conns.has(serverName)) yield* killConn(serverName, "disconnect")
+      yield* setHealth({ serverName, to: "connecting", rebound: health.get(serverName) === "revoked" })
       const connScope = yield* Scope.make()
-      const wireExit = yield* buildWire({
-        serverName,
-        command: commandTuple,
-        scope: connScope,
-        ...(credentialEnv !== undefined ? { env: credentialEnv } : {}),
-      }).pipe(Effect.provideService(Scope.Scope, connScope), Effect.exit)
+      const wireExit = yield* (binding.transport === "stdio"
+        ? buildWire({
+            serverName,
+            command: [binding.command![0], ...binding.command!.slice(1)],
+            scope: connScope,
+            ...(credential !== undefined ? { env: credentialEnvFor(credential) } : {}),
+          })
+        : buildRemoteWire({
+            serverName,
+            url: binding.url!,
+            scope: connScope,
+            ...(credential?.type === "oauth" ? { headers: credentialHeadersFor(credential) } : {}),
+          })).pipe(
+        Effect.provideService(Scope.Scope, connScope),
+        Effect.exit,
+      )
       if (Exit.isFailure(wireExit)) {
         yield* Scope.close(connScope, Exit.void).pipe(Effect.ignore)
+        yield* setHealth({ serverName, to: "offline" }).pipe(Effect.catch(() => Effect.void))
         const failure = Cause.findErrorOption(wireExit.cause)
         if (Option.isSome(failure)) return yield* Effect.fail(failure.value)
         return yield* Effect.die(Cause.squash(wireExit.cause))
@@ -497,28 +780,44 @@ export const layer = Layer.effect(
         // registration behind it.
         for (const toolName of Object.keys(wrapped))
           routes.set(canonicalToolName(serverName, toolName), { server: serverName, tool: toolName })
-        wire.health = "ready"
-        return new ConnInfo({ serverName, pid: wire.pid, health: "ready" })
+        wire.health = yield* setHealth({ serverName, to: "ready" })
+        return new ConnInfo({ serverName, pid: wire.pid, health: wire.health })
       })
 
-      return yield* established.pipe(Effect.onError(() => killConn(serverName)))
+      return yield* established.pipe(
+        Effect.tapError((error) =>
+          setHealth({
+            serverName,
+            to: error instanceof CredentialMissingError || error instanceof CredentialExpiredError ? "auth-required" : "offline",
+          }).pipe(Effect.catch(() => Effect.void)),
+        ),
+        Effect.onError(() => killConn(serverName, "owner_scope_closed")),
+      )
     })
 
     return Service.of({
       connect,
       disconnect: Effect.fn("McpConnection.disconnect")(function* (serverName: string) {
-        if (!conns.has(serverName)) return yield* new NotConnectedError({ serverName })
-        return yield* killConn(serverName)
+        if (!health.has(serverName)) return yield* new NotConnectedError({ serverName })
+        yield* killConn(serverName)
+        health.delete(serverName)
       }),
       connections: Effect.fn("McpConnection.connections")(function* () {
         return [...conns.values()].map(
           (wire) => new ConnInfo({ serverName: wire.serverName, pid: wire.pid, health: wire.health }),
         )
       }),
+      health: Effect.fn("McpConnection.health")(function* (serverName: string) {
+        return health.get(serverName)
+      }),
       callTool: Effect.fn("McpConnection.callTool")(function* (input: {
         readonly name: string
         readonly args: Record<string, unknown>
       }) {
+        if (!ProductModePolicy.isCustomModeEnabled()) {
+          yield* shutdownConnections("kill_switch_disabled")
+          return yield* new McpDisabledError({ operation: "call" })
+        }
         const route = routes.get(input.name)
         if (route === undefined) return yield* new UnknownToolError({ name: input.name })
         return yield* callServer(route.server, route.tool, input.args)

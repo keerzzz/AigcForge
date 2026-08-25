@@ -78,7 +78,9 @@ sanitized-server-name ::= [a-z0-9_-]+ （≤64 字符，来自 McpServerBinding.
 
 > **Phase B 事实修正（2026-08-23）**：原文「前缀使 collision 域收缩到同 server 内部」**不成立**。`_` 在 server 段与 tool 段内均合法，前缀化后**不是单射**：server `a_b` + tool `c` 与 server `a` + tool `b_c` 同为 `mcp_a_b_c`（复审探针实测：注册前者后，后者报 collision）。后果由 §2.4 fail-closed 兜住（无遮蔽风险），代价是跨 server 可能出现**伪冲突**。不改分隔符：改用 `__` 既不能恢复单射（`_` 仍在两段内合法），又把固定开销从 4 字符抬到 6，进一步压缩下面的名称预算。
 >
-> **共享名称预算（Phase B 新增契约）**：真正的约束不是 server 段的 `≤64`，而是 `validateName` 对**最终名**的 64 字符上限（`tool.ts:116`），由 `mcp_`(4) + server + `_`(1) + tool **共享**。所以 server 段取到 64 时必然无法注册（`4+64+1+≥1 ≥ 70`），语法在其上端永不可兑现。实测：server `azure-devops-work-items`(23) + tool `list_work_item_comments_with_expansion`(38) = 66 字符即越界。越界报 typed `McpToolNameTooLongError`（消息含预算与越界名）而非裸 `RegistrationError`——**server 选定后两段长度都不在运维方控制内**，错误必须可行动。**截断/哈希策略刻意不在此拍定**：canonical 名进 Snapshot catalog 与工具指纹，是一次性命名契约，留 Phase C 拿真实 server 目录决定（登记 technical-debt）。
+> **共享名称预算（Phase C Slice 4 定案，2026-08-25）**：最终名仍受 `validateName` 的 64 字符上限（`tool.ts:116`）约束。对 `mcp_<server>_<tool>` 不超过 64 字符的既有输入，名称**保持逐字不变**；这保护了已冻结 Snapshot catalog / tool fingerprint 的不可变契约。超过预算时，canonical 名固定为 `mcp_<server-prefix>_<tool-prefix>_<hash16>`：`hash16` 是完整原始 `(serverName, toolName)` 以 NUL 分隔后的 SHA-256 前 16 个十六进制字符（64-bit），两段前缀共享其余 42 个可读字符预算。实现仍对最终名做 `validateName`，并保留既有占用检查；极低概率哈希碰撞也会 **typed fail closed**，绝不发生静默覆盖。
+>
+> 定案依据是 Slice 4 对实际已安装 MCP 目录的结构化盘点：12 个 server key 中最长为 `openai-api-key-local-confirmation`（33 字符），其余可见实例包括 `cloudflare-api`、`codex-security`、`xcodebuildmcp`、`github`、`linear`、`notion`、`figma`；该目录没有一个现有 canonical 名越界。另一方面，已有真实样例 `azure-devops-work-items`(23) + `list_work_item_comments_with_expansion`(38) 会产生 66 字符，证明仅靠「目录当前没撞」不足以维持未来兼容。因此选择“短名恒定 + 长名带内容哈希的稳定压缩”，不采用纯截断（会把不同尾部工具折叠为同名），也不收紧 server 上界（会在 Builder/现存来源上制造无行动的拒绝）。
 
 ### 2.6 Fingerprint 契约：与 Snapshot 四字段同形，drift 由既有重验兜住
 
@@ -99,7 +101,7 @@ sanitized-server-name ::= [a-z0-9_-]+ （≤64 字符，来自 McpServerBinding.
 
 ### 2.8 Kill-switch 与 disable 通知（§4.5-2 的 registration 部分）
 
-- `AIGCFROGE_CUSTOM_MODE` 关闭时：新连接 admission 即拒（typed error，接入 `assertRuntimeSupported("custom")` 同一 flag owner）；已 ready 连接不再接受新的 tool 调用授权请求，pending request 由 owner finalizer 释放。
+- `AIGCFROGE_CUSTOM_MODE` 被关闭后：下一次 canonical MCP `connect` 或 `callTool` admission 会读取同一 flag owner 并 typed reject；该 admission 同时关闭当前 owner 的 MCP connections，pending request 由 owner finalizer 释放。**这不是环境变量变化的异步通知**：没有后续 MCP admission 的在飞 Provider/child 中断仍属于 technical-debt 的进程内通知缺口，Phase C 不得宣称即时中断。
 - 「关闭即中断在飞 child/Provider 请求」的进程内完整通知，与 workflow kill-switch 根治项共用同一机制（technical-debt §3.1 第 1 项：disable 通知 → `WorkflowExecution.interrupt` + `SessionExecution` 中断），本 ADR 只承诺 registration 资源随 flag fail-closed，不虚称能中断任意在飞 Provider 流。
 
 ### 2.9 Layer ordering 与资产写入面
