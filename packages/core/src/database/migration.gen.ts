@@ -68,5 +68,6 @@ export const migrations = (
     import("./migration/20260823072731_wakeful_lady_bullseye"),
     import("./migration/20260823210409_scoped_grant_retention_index"),
     import("./migration/20260824010035_scoped_grant_level_issued_index"),
+    import("./migration/20260825033229_secret_rachel_grey"),
   ])
 ).map((module) => module.default) satisfies DatabaseMigration.Migration[]

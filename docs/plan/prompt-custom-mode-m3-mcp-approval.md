@@ -25,26 +25,38 @@ Location -> Profile/composition (MCP binding = ref + fingerprint, 永不含 secr
 
 **Phase C 在这条链里的位置**：它交付上面第 3 行的**连接实体本身**——今天这一行完全不存在（生产装配是 `McpV2.noopLayer`，零消费方）。Phase B 交付了注册契约但只有测试消费方；Phase C 是它的**首个生产消费者**。Phase E（Snapshot/Resolver）与 Phase F（审批中心 UI）都要等 Phase C 交付的连接实体，所以本 Phase 的形状会被后两个 Phase 直接继承——**这里定错，后面两个 Phase 一起返工**。
 
-## 0. 最重要的一条：Slice 0 是不可跳过的硬门
+## 0. 最重要的一条：Slice 0 已履行，从 Slice 1 开工
 
 **Phase A / B / D / F0 都已合入本地 `main`，G3-1 / G3-2 / G3-3 / G3-4 四个 Gate 全过。** 本次只交付一个任务：
 
 ```text
 Phase C   connection / credential / health        分支 mcp-connection
-├─ Slice 0  ADR-21 独立事实复核        ← 先做，未获裁定前不许写生产代码
-├─ Slice 1  typed MCPConnection owner + stdio
+├─ Slice 0  ADR-21 独立事实复核        ✅ 已完成并经人类裁定（2026-08-24，ADR-21 → v1.1）
+├─ Slice 1  typed MCPConnection owner + stdio     ← 从这里开工
 ├─ Slice 2  credential binding + 跨 Location 拒绝
 ├─ Slice 3  remote / OAuth + health 状态机
 └─ Slice 4  disconnect / reconnect / drift
 ```
+
+### 0.0 Slice 0 的结论与四条新裁定（照做，不重新论证）
+
+**八条事实 8/8 全部成立，无一被证伪；§2.2「必须新增 `mcp_credential_binding`」经逐候选否决后保留。** 复核另外抓出三处 ADR 自身缺陷 + 一处未定项，人类已于 2026-08-24 全部裁定，**已写进 ADR-21 v1.1，施工照 v1.1 不照初稿**：
+
+1. **绑定表 `workspace_id` 改 `not null default ''`（空串哨兵），不用 `COALESCE` 表达式索引。** 初稿 `unique(directory, workspace_id, server_name)` 里 `workspace_id` 可空，而 SQLite 把 `NULL` 视为互异 → `(dir, NULL, server)` 可无限重复插入，唯一约束在「未绑定 workspace」这一最常见情形下完全失效。裁定理由见 ADR-21 §2.2 v1.1（仓库无表达式索引先例、迁移走生成器快照管线、哨兵把不变量前移到列上）。**代价**：`Location.Ref` 侧 `workspace_id` 可空，写入需 `?? ""` 归一——**该转换必须集中在绑定 store 的单一编解码处**，散落到调用方就会出现两套表示。**必写断言**：workspace 缺省下同一 `(directory, server_name)` 第二次插入**必须抛唯一约束错误**。
+2. **「轮换对绑定完全透明」是过度声明，已收窄。** `Credential.update` 原地改值保 ID（`credential.ts:121-129`），OAuth 主动刷新走这条（`integration.ts:436`）——这半透明。但 `Credential.create` 是 **delete-then-insert 且换新 ID**（`credential.ts:93-119`），而 key 录入与重新 authorize 都走它，**于是重新授权同一 integration 会让所有指向旧 `cred_` 的 binding 集体悬空**。裁定契约：解析悬空 ref **一律 typed fail closed + 要求 rebinding**，不得解出 `undefined` 继续连接（`Credential.get` 返回 `Info | undefined`，`remove` 删 0 行也静默返回 `void`，两条路径都不自报错，判空是连接 owner 的责任）。**必写断言两条成对**：`update` 路径透明 + `create` 路径悬空 typed fail。**只测前者恰好绕开会出事的那条。**
+3. **止血 1 扩展到 WAL/SHM 侧车 + Windows best-effort 声明。** WAL 是强制启用的（`database/database.ts:27`、`packages/effect-sqlite-node/src/index.ts:69`），**最新提交的凭据行先落在 `-wal` 里**，只 chmod 主库等于把最新的秘密留在没收紧的文件里。实现为 open 后对主库/`-wal`/`-shm` 三路径**幂等 chmod 并容忍 `ENOENT`**。Windows 上 `chmod` 只能切 read-only 位，退化为依赖目录 ACL（先例写法 `ripgrep/binary.ts:88` 的 `if (process.platform !== "win32")`）——**报告不得声称跨平台等效**。open 到 chmod 之间的时序小窗如实记录、不追求消除。
+4. **OAuth `expires` 过期 = typed fail 进 `auth-required`，Phase C 不实现 refresh。** 取 V1 MCP 的被动判定形状（`mcp/v2-auth.ts:139-144`），不取 provider 侧的主动 refresh（`integration.ts:432-437`）。理由见 ADR-21 §4.1 第 6 条，核心是：自动 refresh 会让连接 owner 顺带变成凭据生命周期 owner，违反 §2.1。**该路径只允许 typed fail，不允许悄悄实现 refresh。**
+
+**这四条都不是起草方发现的。** 起草方是复审方，Slice 0 是「起草方不自批」的补偿控制——它生效了。**同理适用于你**：下面每一条施工事实，怀疑就去验，不要因为它写在提示词里就当真。
 
 ### 0.1 为什么 Gate 全过了还有一道门
 
 [ADR-21 MCP Credential Custody](../architecture/adr/ADR-21-mcp-credential-custody.md) 已 **Accepted v1.0**（2026-08-24 人类裁定 §2.5：静态加密排除在 M3 之外，只做两项止血）。**G3-3 已通过，Phase C 解锁。** 但它带一条不可分割的前置条件：
 
 - **它由复审方起草。** 按仓库既有做法，起草方与批准方必须分离——Phase A 的 ADR-19/ADR-20 由执行方起草、复审方批准，正是这个分离抓出了「引用不实」（C2）与整个 §2.6 BLOCK（R6-1/R6-2/R6-3 三项）。ADR-21 反过来了，所以它**不能由起草方自己核自己**。
-- **补偿控制 = Slice 0。** 它不是可选的尽职调查，是「起草方不自批」的**替代门禁**。Slice 0 完成并把结论交给人类与复审方、获得裁定之前，**connection / credential 的生产代码一行都不许写**。你可以读代码、写复核报告、写红测试骨架。
-- **§2.2「必须新增 `mcp_credential_binding`」是唯一可被 Slice 0 推翻的一条**（ADR-21 §4 第 2 条）。§2.1 不新建第二个 secret owner、§2.3 撤销不中断在飞连接、§2.4 先扫描后裁剪、§2.5 加密排除、§2.6 不动 V1 `mcp-auth.json`、§3 L4 只做绑定、Schema 复用 `mcp-scope.ts` 均为定案，照做不改。
+- **补偿控制 = Slice 0，已于 2026-08-24 履行完毕。** 复核结论与由此产生的四条新裁定见 **§0.0**，全部已写入 ADR-21 v1.1。**施工照 v1.1，不照初稿。**
+- **§2.2 经复核后保留**（逐候选否决：`credential` 加列违反 §2.1、`scoped_grant` 授权语义≠配置绑定语义、`IntegrationConnection` 是 12 行类型转发垫片且不落库、`workspace` 语义不符）。§2.1 不新建第二个 secret owner、§2.3 撤销不中断在飞连接、§2.4 先扫描后裁剪、§2.5 加密排除、§2.6 不动 V1 `mcp-auth.json`、§3 L4 只做绑定、Schema 复用 `mcp-scope.ts` 均为定案，照做不改。
+- **这道门留在提示词里的意义已经变了**：它不再是你要过的门，而是一份证据——**四条缺陷全部由复核发现，起草方自己一条都没看见**。所以下面 §4 的每一条事实，怀疑就去验，不要因为写在提示词里就当真。
 
 ### 0.2 Phase C 的三个陷阱
 
@@ -54,17 +66,12 @@ Phase C   connection / credential / health        分支 mcp-connection
 
 **陷阱 C —— secret 的「不泄漏」必须给出验证方式，不是给出结论。** 报告里写「已确认材料未进 log」等于没做。必须说清**怎么验的**：喂一个可识别的哨兵值进凭据，然后在 Snapshot bytes / event 行 / 日志输出三处分别断言它不出现。并且日志经 `CredentialScanner` 时**必须先扫描后裁剪**——先截断再扫描等于把秘密切成扫不出来的碎片放过去。注意 `CredentialScanner` 是正则文本扫描器（1 个生产 `.scan()` 调用点：`packages/core/src/workflow/workflow-runner.ts:436`），**它不是密钥保护层，不能当既有安全层倚靠**。
 
-### 0.3 Slice 0 复核清单
+### 0.3 Slice 0 已履行的复核记录（追溯用，勿重做）
 
-ADR-21 §1.1 列了 8 条起点事实，每条带 file:line。**逐条独立复跑，不采信任何转述（包括本提示词 §4 的转述）**，并明确回答：
+复核方逐条独立复跑了 ADR-21 §1.1 的 8 条事实，结论 **8/8 成立**；§1.2 三个结论均被事实支撑；§2.2 保留。**不要重做这项复核**，但下面两条留给你直接用：
 
-1. **8 条事实是否全部成立？** 起草方已自查一轮并修正过 2 处行号，但它自己核自己不算。
-2. **§1.2 三个结论是否被事实支撑？** 特别是结论 2「跨 Location 隔离今天结构上不可能」——`Credential.defaultLayer` 真的在 `LocationServiceMap` 的 `dependencies` 数组里、而不在 lookup 内吗？（本提示词 §4.0 给了一个 file:line，**去验它，不要引用它**。）
-3. **§2.2 新增 `mcp_credential_binding` 是否真的必要，还是有既有表/服务可复用？**（极致减法：复用 → 删除 → 归并 → 重构 → 新增。）特别核 `Integration` 与 `IntegrationConnection` 是否已能表达「Location × server → credential」。**这是唯一可被你推翻的一条，值得花时间。** 复核方式：把 `packages/core/src/database/schema.gen.ts` 里的表名全列出来，再看 `packages/core/src/integration/connection.ts` 到底持有什么、是否落库。
-4. **§2.5「DB 文件无 chmod、两个 JSON 文件是 0o600」是否成立？** 若成立，`0o600` 补齐是否真的一行可 done、有无跨平台坑（Windows 上 chmod 语义不同）？还要问：WAL / SHM 侧车文件怎么办——只 chmod 主库文件是否等于没做？
-5. **有没有 ADR-21 漏掉的绿地？** 至少回答两个：① `Credential.remove` 被调用时，指向它的 binding 会不会变成悬空引用、确定行为是什么？② OAuth `expires` 过期后连接 owner 该失败还是该触发 refresh、由谁负责？（第 ② 条是 Slice 3 的前置，**裁定前那条路径只允许 typed fail，不许悄悄实现一套 refresh**。）
-
-**任一条事实被证伪 → 停机报告，不要在错误前提上施工。** 这正是 Phase A 复核抓出 C2 的方式。**Slice 0 的产出是一份复核报告 + 人类裁定，不是代码。**
+- **可以当已验事实用的**：凭据明文入库无 scope 列（`credential/sql.ts:5-14`）、`Credential` 是进程级单例（`location-layer.ts:274` 在 `dependencies` 内，lookup 于 `:268` 以 `Layer.fresh` 收尾）、`auth.json`/`mcp-auth.json` 均 `0o600` 而库文件无 chmod、`CredentialRef` 契约已定义但零生产消费方（`mcp-scope.ts:51-56`、`:89`）、Snapshot 无 credential 字段、`credential.active` 零引用。
+- **复核过程里两条对施工有直接价值的额外发现**：① `mcp-auth.json` 有 **V1 与 v2 两代并存文件**（`mcp/auth.ts:81`、`mcp/v2-auth.ts:81`），都是 `0o600`，**都不许动**（ADR-19 §2.1 并存裁定）；② `CredentialScanner` 的 `workflow-runner.ts:70` 那处 `input.scan(...)` 是 handoff 渲染入参，**不是** scanner 的第二个调用点——唯一生产调用点仍是 `:436`，且该处已有「先扫描后裁剪」的正确实现与注释（`:66-72`），**新日志面照抄那个形状即可，不需要修复动作**。
 
 ## 1. 开工门禁
 

@@ -53,6 +53,16 @@ export class McpToolNameTooLongError extends Schema.TaggedErrorClass<McpToolName
 // only registrable with a very short tool name (ADR-19 §2.5).
 const SERVER_NAME = /^[a-z0-9_-]{1,64}$/
 
+/** Shared grammar so connection-time validation matches registration-time exactly. */
+export const SERVER_NAME_PATTERN = SERVER_NAME
+
+/**
+ * Single source of the canonical `mcp_<server>_<tool>` namespace shape;
+ * connection owners derive their routing keys from the same function so the
+ * two can never drift.
+ */
+export const canonicalToolName = (serverName: string, toolName: string) => `mcp_${serverName}_${toolName}`
+
 /** `Tool.validateName` bound (`tool.ts:116`); the whole prefixed name must fit. */
 const MAX_TOOL_NAME = 64
 
@@ -88,7 +98,7 @@ export const layer = Layer.effect(
         // All-or-nothing: validate every prefixed name before touching state.
         const mangled: Record<string, AnyTool> = {}
         for (const [toolName, tool] of Object.entries(input.tools)) {
-          const name = `mcp_${input.serverName}_${toolName}`
+          const name = canonicalToolName(input.serverName, toolName)
           if (name.length > MAX_TOOL_NAME) {
             yield* new McpToolNameTooLongError({ serverName: input.serverName, toolName, name })
             return

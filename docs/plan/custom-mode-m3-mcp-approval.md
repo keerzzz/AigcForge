@@ -191,6 +191,6 @@ M3 的根问题不是「让 Profile 能选 MCP」，而是让外部工具在一�
 ## 7. 分支策略
 
 - 研究/ADR 走 `mcp-scope-adr`（Phase A，**已合入 main `7a2804624`**）；Phase B 走 `mcp-registration`（**已交付，复审整改完成，未推送**）。
-- 剩余实现分支：**`mcp-connection`（Phase C，当前任务，G3-3 已通过、Slice 0 复核为前置）**、`mcp-composition`（Phase E，待 Phase C 交付连接实体）、`approval-center`（Phase F 本体，需产品定界面）。已合入：`approval-preflight`（Phase F0，`f66f93d8c` → `229e3eb7d`）。
+- 剩余实现分支：**`mcp-connection`（Phase C；Slice 0-2 已交付并合入本地 `main`，当前 Slice 3-4）**、`mcp-composition`（Phase E，待 Phase C 交付连接实体）、`approval-center`（Phase F 本体，需产品定界面）。已合入：`approval-preflight`（Phase F0，`f66f93d8c` → `229e3eb7d`）。
 - 按现行安排：M3 各阶段分支在本地依次叠加，**全部阶段结束后统一开一个 PR**，不逐阶段推送。不与 M4 Plugin 生命周期修改混在同一 PR。
 - 执行细则、必读清单、TDD 循环与停止条件见 [执行提示词](prompt-custom-mode-m3-mcp-approval.md)。

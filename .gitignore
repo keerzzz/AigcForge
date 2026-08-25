@@ -61,3 +61,9 @@ tsconfig.tsbuildinfo
 .command-asset-migration-*
 **/.command-asset-migration-*
 
+# FUSE unlink placeholders — the editor regenerates these on mounted volumes
+# (/media/win_data) every time a still-open file is deleted, so they must never
+# be picked up by `git add -A`.
+.fuse_hidden*
+**/.fuse_hidden*
+

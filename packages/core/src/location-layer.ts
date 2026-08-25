@@ -61,6 +61,9 @@ import { SessionComposition } from "./session/composition"
 import { WorkflowRun } from "./workflow/workflow-run"
 import { WorkflowRunner } from "./workflow/workflow-runner"
 import { CredentialScanner } from "./credential-scanner"
+import { McpConnection } from "./mcp/connection"
+import { McpCredentialBindingStore } from "./mcp/binding/store"
+import { McpRegistration } from "./tool/mcp-registration"
 
 import { Image } from "./image"
 import { ToolRegistry } from "./tool/registry"
@@ -90,206 +93,211 @@ import { SystemContextBuiltIns } from "./system-context/builtins"
 import { FetchHttpClient } from "effect/unstable/http"
 import { Flag } from "./flag/flag"
 
-export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()("@aigcfroge/example/LocationServiceMap", {
-  lookup: (ref: Location.Ref) => {
-    const boot = Layer.effectDiscard(
-      Effect.logInfo("booting location services", { directory: ref.directory, workspaceID: ref.workspaceID }),
-    )
-    const location = Location.layer(ref)
-    const systemContext = SystemContextBuiltIns.locationLayer
-    const config = Config.locationLayer
-    const agentV2Layer = AgentV2.fileLayer.pipe(Layer.provide(AgentFileLoader.layer))
-    const base = Layer.mergeAll(
-      location,
-      Policy.locationLayer,
-      config,
-      Reference.locationLayer,
-      PluginV2.locationLayer,
-      Catalog.locationLayer,
-      Integration.locationLayer,
-      CommandV2.locationLayer,
-      agentV2Layer,
-      PluginInternal.locationLayer,
-      ProjectCopy.locationLayer,
-      FileSystem.locationLayer,
-      Watcher.locationLayer,
-      Pty.locationLayer,
-      SkillV2.locationLayer,
-      PromptAsset.locationLayer,
-      SkillAsset.locationLayer,
-      MCPAsset.locationLayer.pipe(Layer.provide(config)),
-      CommandAsset.locationLayer.pipe(Layer.provide(config)),
-      AgentAsset.locationLayer,
-      CustomProfile.layer,
-      AssetKind.layer,
-      WorkflowAsset.locationLayer,
-      PluginAsset.locationLayer,
-      PluginBridge.layer,
-      SessionComposition.layer,
-      systemContext,
-      LocationMutation.locationLayer.pipe(Layer.orDie),
-      CrossSpawnSpawner.defaultLayer,
+export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
+  "@aigcfroge/example/LocationServiceMap",
+  {
+    lookup: (ref: Location.Ref) => {
+      const boot = Layer.effectDiscard(
+        Effect.logInfo("booting location services", { directory: ref.directory, workspaceID: ref.workspaceID }),
+      )
+      const location = Location.layer(ref)
+      const systemContext = SystemContextBuiltIns.locationLayer
+      const config = Config.locationLayer
+      const agentV2Layer = AgentV2.fileLayer.pipe(Layer.provide(AgentFileLoader.layer))
+      const base = Layer.mergeAll(
+        location,
+        Policy.locationLayer,
+        config,
+        Reference.locationLayer,
+        PluginV2.locationLayer,
+        Catalog.locationLayer,
+        Integration.locationLayer,
+        CommandV2.locationLayer,
+        agentV2Layer,
+        PluginInternal.locationLayer,
+        ProjectCopy.locationLayer,
+        FileSystem.locationLayer,
+        Watcher.locationLayer,
+        Pty.locationLayer,
+        SkillV2.locationLayer,
+        PromptAsset.locationLayer,
+        SkillAsset.locationLayer,
+        MCPAsset.locationLayer.pipe(Layer.provide(config)),
+        CommandAsset.locationLayer.pipe(Layer.provide(config)),
+        AgentAsset.locationLayer,
+        CustomProfile.layer,
+        AssetKind.layer,
+        WorkflowAsset.locationLayer,
+        PluginAsset.locationLayer,
+        PluginBridge.layer,
+        SessionComposition.layer,
+        systemContext,
+        LocationMutation.locationLayer.pipe(Layer.orDie),
+        CrossSpawnSpawner.defaultLayer,
+        FSUtil.defaultLayer,
+      ).pipe(Layer.provideMerge(location))
+      const resources = ToolOutputStore.layer.pipe(Layer.provide(base))
+      const permissionsAndTools = ToolRegistry.layer.pipe(
+        Layer.provideMerge(PermissionV2.locationLayer),
+        Layer.provideMerge(SessionPermissionOverride.locationLayer),
+        Layer.provide(resources),
+        Layer.provide(base),
+      )
+      const services = Layer.mergeAll(base, resources, permissionsAndTools)
+      // Canonical MCP credential binding store (ADR-21 §2.2 v1.2): Location-scoped
+      // but data partitioned by directory; reads Location.Service internally, never
+      // trusts caller-supplied directory.
+      const mcpBindingStore = McpCredentialBindingStore.locationLayer.pipe(Layer.provide(services))
+      // Canonical MCP connection owner (ADR-21 v1.2 / Phase C Slice 1): sits
+      // after ToolRegistry availability, registers through McpRegistration into
+      // the SAME memoized registry instance — provide(), never provideMerge.
+      const mcpConnections = McpConnection.layer.pipe(
+        Layer.provide(McpRegistration.layer),
+        Layer.provide(mcpBindingStore),
+        Layer.provide(Credential.defaultLayer),
+        // ADR-21 §2.4: the connection owner scans server stderr before logging it.
+        // Provided here, not left to the ambient context — a requirement that only
+        // the test harness satisfies is the Phase D presence defect (§4.6 trap 3).
+        Layer.provide(CredentialScanner.layer),
+        Layer.provide(services),
+      )
+      const image = Image.layer.pipe(Layer.provide(services))
+      const mutation = FileMutation.locationLayer.pipe(Layer.provide(services))
+      const promptAssetService = PromptAssetService.locationLayer.pipe(Layer.provide(services), Layer.provide(mutation))
+      const skillAssetService = SkillAssetService.locationLayer.pipe(Layer.provide(services), Layer.provide(mutation))
+      const mcpAssetService = MCPAssetService.locationLayer.pipe(Layer.provide(services), Layer.provide(mutation))
+      const commandAssetService = CommandAssetService.locationLayer.pipe(
+        Layer.provide(services),
+        Layer.provide(mutation),
+      )
+      const agentAssetService = AgentAssetService.locationLayer.pipe(Layer.provide(services), Layer.provide(mutation))
+      const customProfileService = CustomProfileService.locationLayer.pipe(
+        Layer.provide(services),
+        Layer.provide(mutation),
+      )
+      const compositionResolver = CompositionResolver.locationLayer.pipe(Layer.provide(services))
+      const skillGuidance = SkillGuidance.locationLayer.pipe(Layer.provide(services))
+      const referenceGuidance = ReferenceGuidance.locationLayer.pipe(Layer.provide(services))
+      const tasks = SessionTask.layer.pipe(Layer.provide(services))
+      const workflowRun = WorkflowRun.layer.pipe(Layer.provide(services))
+      const workflowRunner = WorkflowRunner.layer.pipe(
+        Layer.provide(workflowRun),
+        Layer.provide(tasks),
+        Layer.provide(CredentialScanner.layer),
+        Layer.provide(services),
+      )
+      const todos = SessionTodo.layer.pipe(Layer.provide(tasks), Layer.provide(services))
+      const questions = QuestionV2.locationLayer.pipe(Layer.provide(services))
+      const workArtifact = WorkArtifact.locationLayer.pipe(Layer.provide(services), Layer.provide(mutation))
+      // The `task` built-in reaches child Sessions through the TaskDriver module
+      // bridge (a plain Deferred filled by the composition root), not a Layer, so
+      // BuiltInTools carries no extra requirement here. See tool/task-driver.ts.
+      const memoryTools = MemoryTool.layer.pipe(
+        Layer.provide(MetaAgentMemory.layer.pipe(Layer.provide(MetaAgentService.layer))),
+        Layer.provide(services),
+      )
+      const builtInTools = BuiltInTools.locationLayer.pipe(
+        Layer.provide(services),
+        Layer.provide(ScheduleService.layer),
+        Layer.provide(PersonalMemory.layer),
+        Layer.provide(KBService.layer),
+        Layer.provide(mutation),
+        Layer.provide(promptAssetService),
+        Layer.provide(skillAssetService),
+        Layer.provide(mcpAssetService),
+        Layer.provide(commandAssetService),
+        Layer.provide(agentAssetService),
+        Layer.provide(resources),
+        Layer.provide(todos),
+        Layer.provide(tasks),
+        Layer.provide(questions),
+        Layer.provide(image),
+        Layer.provide(memoryTools),
+      )
+      const model = SessionRunnerModel.locationLayer.pipe(Layer.provide(services))
+      const doomLoop = DoomLoop.layer.pipe(Layer.provide(services))
+      const correctionStore = CorrectionStore.layer.pipe(Layer.provide(services))
+      const correctionExtractor = CorrectionExtractor.layer.pipe(
+        Layer.provide(correctionStore),
+        Layer.provide(services),
+      )
+      const referenceChecker = ReferenceChecker.layer.pipe(Layer.provide(correctionStore), Layer.provide(services))
+      const verifier = Verifier.layer.pipe(
+        Layer.provide(VerificationRouter.layer.pipe(Layer.provide(services))),
+        Layer.provide(correctionStore),
+        Layer.provide(services),
+      )
+      const runner = SessionRunnerLLM.defaultLayer.pipe(
+        Layer.provide(services),
+        Layer.provide(model),
+        Layer.provide(doomLoop),
+        Layer.provide(correctionStore),
+        Layer.provide(correctionExtractor),
+        Layer.provide(referenceChecker),
+        Layer.provide(verifier),
+        Layer.provide(skillGuidance),
+        Layer.provide(referenceGuidance),
+      )
+
+      // Kick off a background project copy refresh to update locations now that we
+      // have a location
+      const projectCopyRefresh = Flag.AIGCFROGE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT
+        ? Layer.effectDiscard(Effect.void)
+        : Layer.effectDiscard(ProjectCopy.refreshAfterBoot).pipe(Layer.provide(services))
+
+      return Layer.mergeAll(
+        boot,
+        services,
+        image,
+        mutation,
+        promptAssetService,
+        skillAssetService,
+        mcpAssetService,
+        commandAssetService,
+        agentAssetService,
+        customProfileService,
+        compositionResolver,
+        resources,
+        todos,
+        tasks,
+        workflowRun,
+        workflowRunner,
+        questions,
+        workArtifact,
+        model,
+        runner,
+        builtInTools,
+        referenceGuidance,
+        projectCopyRefresh,
+        AgentAssetBridge.layer.pipe(Layer.provide(services)),
+        mcpBindingStore,
+        mcpConnections,
+      ).pipe(Layer.fresh, Layer.orDie)
+    },
+    idleTimeToLive: "60 minutes",
+    dependencies: [
+      Project.defaultLayer,
+      EventV2.defaultLayer,
+      Credential.defaultLayer,
+      Npm.defaultLayer,
+      ModelsDev.defaultLayer,
       FSUtil.defaultLayer,
-    ).pipe(Layer.provideMerge(location))
-    const resources = ToolOutputStore.layer.pipe(Layer.provide(base))
-    const permissionsAndTools = ToolRegistry.layer.pipe(
-      Layer.provideMerge(PermissionV2.locationLayer),
-      Layer.provideMerge(SessionPermissionOverride.locationLayer),
-      Layer.provide(resources),
-      Layer.provide(base),
-    )
-    const services = Layer.mergeAll(base, resources, permissionsAndTools)
-    const image = Image.layer.pipe(Layer.provide(services))
-    const mutation = FileMutation.locationLayer.pipe(Layer.provide(services))
-    const promptAssetService = PromptAssetService.locationLayer.pipe(
-      Layer.provide(services),
-      Layer.provide(mutation),
-    )
-    const skillAssetService = SkillAssetService.locationLayer.pipe(
-      Layer.provide(services),
-      Layer.provide(mutation),
-    )
-    const mcpAssetService = MCPAssetService.locationLayer.pipe(
-      Layer.provide(services),
-      Layer.provide(mutation),
-    )
-    const commandAssetService = CommandAssetService.locationLayer.pipe(
-      Layer.provide(services),
-      Layer.provide(mutation),
-    )
-    const agentAssetService = AgentAssetService.locationLayer.pipe(
-      Layer.provide(services),
-      Layer.provide(mutation),
-    )
-    const customProfileService = CustomProfileService.locationLayer.pipe(
-      Layer.provide(services),
-      Layer.provide(mutation),
-    )
-    const compositionResolver = CompositionResolver.locationLayer.pipe(
-      Layer.provide(services),
-    )
-    const skillGuidance = SkillGuidance.locationLayer.pipe(Layer.provide(services))
-    const referenceGuidance = ReferenceGuidance.locationLayer.pipe(Layer.provide(services))
-    const tasks = SessionTask.layer.pipe(Layer.provide(services))
-    const workflowRun = WorkflowRun.layer.pipe(Layer.provide(services))
-    const workflowRunner = WorkflowRunner.layer.pipe(
-      Layer.provide(workflowRun),
-      Layer.provide(tasks),
-      Layer.provide(CredentialScanner.layer),
-      Layer.provide(services),
-    )
-    const todos = SessionTodo.layer.pipe(Layer.provide(tasks), Layer.provide(services))
-    const questions = QuestionV2.locationLayer.pipe(Layer.provide(services))
-    const workArtifact = WorkArtifact.locationLayer.pipe(Layer.provide(services), Layer.provide(mutation))
-    // The `task` built-in reaches child Sessions through the TaskDriver module
-    // bridge (a plain Deferred filled by the composition root), not a Layer, so
-    // BuiltInTools carries no extra requirement here. See tool/task-driver.ts.
-    const memoryTools = MemoryTool.layer.pipe(
-      Layer.provide(MetaAgentMemory.layer.pipe(Layer.provide(MetaAgentService.layer))),
-      Layer.provide(services),
-    )
-    const builtInTools = BuiltInTools.locationLayer.pipe(
-      Layer.provide(services),
-      Layer.provide(ScheduleService.layer),
-      Layer.provide(PersonalMemory.layer),
-      Layer.provide(KBService.layer),
-      Layer.provide(mutation),
-      Layer.provide(promptAssetService),
-      Layer.provide(skillAssetService),
-      Layer.provide(mcpAssetService),
-      Layer.provide(commandAssetService),
-      Layer.provide(agentAssetService),
-      Layer.provide(resources),
-      Layer.provide(todos),
-      Layer.provide(tasks),
-      Layer.provide(questions),
-      Layer.provide(image),
-      Layer.provide(memoryTools),
-    )
-    const model = SessionRunnerModel.locationLayer.pipe(Layer.provide(services))
-    const doomLoop = DoomLoop.layer.pipe(Layer.provide(services))
-    const correctionStore = CorrectionStore.layer.pipe(Layer.provide(services))
-    const correctionExtractor = CorrectionExtractor.layer.pipe(
-      Layer.provide(correctionStore),
-      Layer.provide(services),
-    )
-    const referenceChecker = ReferenceChecker.layer.pipe(
-      Layer.provide(correctionStore),
-      Layer.provide(services),
-    )
-    const verifier = Verifier.layer.pipe(
-      Layer.provide(VerificationRouter.layer.pipe(Layer.provide(services))),
-      Layer.provide(correctionStore),
-      Layer.provide(services),
-    )
-    const runner = SessionRunnerLLM.defaultLayer.pipe(
-      Layer.provide(services),
-      Layer.provide(model),
-      Layer.provide(doomLoop),
-      Layer.provide(correctionStore),
-      Layer.provide(correctionExtractor),
-      Layer.provide(referenceChecker),
-      Layer.provide(verifier),
-      Layer.provide(skillGuidance),
-      Layer.provide(referenceGuidance),
-    )
-
-    // Kick off a background project copy refresh to update locations now that we
-    // have a location
-    const projectCopyRefresh = Flag.AIGCFROGE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT
-      ? Layer.effectDiscard(Effect.void)
-      : Layer.effectDiscard(ProjectCopy.refreshAfterBoot).pipe(Layer.provide(services))
-
-    return Layer.mergeAll(
-      boot,
-      services,
-      image,
-      mutation,
-      promptAssetService,
-      skillAssetService,
-      mcpAssetService,
-      commandAssetService,
-      agentAssetService,
-      customProfileService,
-      compositionResolver,
-      resources,
-      todos,
-      tasks,
-      workflowRun,
-      workflowRunner,
-      questions,
-      workArtifact,
-      model,
-      runner,
-      builtInTools,
-      referenceGuidance,
-      projectCopyRefresh,
-      AgentAssetBridge.layer.pipe(Layer.provide(services)),
-    ).pipe(Layer.fresh, Layer.orDie)
+      Git.defaultLayer,
+      AppProcess.defaultLayer,
+      Global.defaultLayer,
+      Ripgrep.defaultLayer,
+      Database.defaultLayer,
+      ProjectDirectories.defaultLayer,
+      SessionStore.layer.pipe(Layer.provide(Database.defaultLayer)),
+      PermissionSaved.defaultLayer,
+      RepositoryCache.defaultLayer,
+      LLMClient.layer.pipe(Layer.provide(RequestExecutor.defaultLayer)),
+      FetchHttpClient.layer,
+      ToolOutputStore.defaultCleanupLayer,
+      ApplicationTools.layer,
+      // Approval responder facts are connection-scoped, so one process-wide
+      // instance: the HTTP layer binds connections, not Locations (ADR-20 §2.7).
+      ApprovalPresence.defaultLayer,
+    ],
   },
-  idleTimeToLive: "60 minutes",
-  dependencies: [
-    Project.defaultLayer,
-    EventV2.defaultLayer,
-    Credential.defaultLayer,
-    Npm.defaultLayer,
-    ModelsDev.defaultLayer,
-    FSUtil.defaultLayer,
-    Git.defaultLayer,
-    AppProcess.defaultLayer,
-    Global.defaultLayer,
-    Ripgrep.defaultLayer,
-    Database.defaultLayer,
-    ProjectDirectories.defaultLayer,
-    SessionStore.layer.pipe(Layer.provide(Database.defaultLayer)),
-    PermissionSaved.defaultLayer,
-    RepositoryCache.defaultLayer,
-    LLMClient.layer.pipe(Layer.provide(RequestExecutor.defaultLayer)),
-    FetchHttpClient.layer,
-    ToolOutputStore.defaultCleanupLayer,
-    ApplicationTools.layer,
-    // Approval responder facts are connection-scoped, so one process-wide
-    // instance: the HTTP layer binds connections, not Locations (ADR-20 §2.7).
-    ApprovalPresence.defaultLayer,
-  ],
-}) {}
+) {}

@@ -4,7 +4,7 @@ import { fileURLToPath } from "url"
 import path from "path"
 import { SqliteClient } from "@effect/sql-sqlite-bun"
 import { EffectDrizzleSqlite } from "@aigcfroge/effect-drizzle-sqlite"
-import { Effect, Layer } from "effect"
+import { Effect, Exit, Layer } from "effect"
 import { eq, inArray, sql } from "drizzle-orm"
 import { DatabaseMigration } from "@aigcfroge/core/database/migration"
 import { migrations } from "@aigcfroge/core/database/migration.gen"
@@ -24,6 +24,7 @@ import addSessionCompositionSnapshotMigration from "@aigcfroge/core/database/mig
 import scopedGrantMigration from "@aigcfroge/core/database/migration/20260823072731_wakeful_lady_bullseye"
 import scopedGrantRetentionIndexMigration from "@aigcfroge/core/database/migration/20260823210409_scoped_grant_retention_index"
 import scopedGrantLevelIndexMigration from "@aigcfroge/core/database/migration/20260824010035_scoped_grant_level_issued_index"
+import mcpCredentialBindingMigration from "@aigcfroge/core/database/migration/20260825033229_secret_rachel_grey"
 import workflowDurableProjectionMigration from "@aigcfroge/core/database/migration/20260820130142_cynical_sasquatch"
 import { EventV2 } from "@aigcfroge/core/event"
 import { ProjectV2 } from "@aigcfroge/core/project"
@@ -1286,6 +1287,53 @@ describe("DatabaseMigration", () => {
         // Rerunning both migrations keeps the row and index intact.
         yield* DatabaseMigration.applyOnly(db, [scopedGrantMigration, scopedGrantRetentionIndexMigration, scopedGrantLevelIndexMigration])
         expect(yield* db.all(sql`SELECT id FROM scoped_grant`)).toEqual([{ id: "grt_test" }])
+      }),
+    )
+  })
+
+  test("adds mcp_credential_binding to an existing database, preserves prior rows and reruns clean", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY)`)
+        yield* db.run(sql`INSERT INTO session (id) VALUES ('ses_pre_existing')`)
+
+        yield* DatabaseMigration.applyOnly(db, [mcpCredentialBindingMigration])
+
+        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'mcp_credential_binding'`)).toEqual({
+          name: "mcp_credential_binding",
+        })
+        expect(yield* db.all(sql`SELECT id FROM session`)).toEqual([{ id: "ses_pre_existing" }])
+
+        // Default empty sentinel and CAS counter
+        yield* db.run(sql`
+          INSERT INTO mcp_credential_binding (id, directory, workspace_id, server_name, credential_ref, time_created, time_updated)
+          VALUES ('mcb_test', '/tmp/x', '', 'git', 'cred_abc', 1000, 1000)
+        `)
+        expect(yield* db.get(sql`SELECT id, workspace_id, binding_revision FROM mcp_credential_binding WHERE id = 'mcb_test'`)).toEqual({
+          id: "mcb_test",
+          workspace_id: "",
+          binding_revision: 1,
+        })
+
+        // Unique index: same directory/workspace/server duplicate fails
+        const dupInsert = yield* db
+          .run(sql`
+            INSERT INTO mcp_credential_binding (id, directory, workspace_id, server_name, credential_ref, time_created, time_updated)
+            VALUES ('mcb_dup', '/tmp/x', '', 'git', 'cred_other', 1001, 1001)
+          `)
+          .pipe(Effect.exit)
+        expect(dupInsert._tag).toBe("Failure")
+
+        // Rerun is a no-op and does not drop the row.
+        yield* DatabaseMigration.applyOnly(db, [mcpCredentialBindingMigration])
+        expect(yield* db.all(sql`SELECT id FROM mcp_credential_binding`)).toEqual([{ id: "mcb_test" }])
+        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'mcp_binding_directory_workspace_server_idx'`)).toEqual({
+          name: "mcp_binding_directory_workspace_server_idx",
+        })
+        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'mcp_binding_credential_ref_idx'`)).toEqual({
+          name: "mcp_binding_credential_ref_idx",
+        })
       }),
     )
   })

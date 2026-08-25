@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "ee00df4a-0683-4da3-8e45-2b872192f8a4",
+  "id": "2cc13146-dd2f-416f-b21b-d6793665703a",
   "prevIds": [
-    "a68b06e5-f850-41ad-9ddc-6f8b581ef99e"
+    "ee00df4a-0683-4da3-8e45-2b872192f8a4"
   ],
   "ddl": [
     {
@@ -64,6 +64,10 @@
     },
     {
       "name": "scoped_grant",
+      "entityType": "tables"
+    },
+    {
+      "name": "mcp_credential_binding",
       "entityType": "tables"
     },
     {
@@ -1311,6 +1315,96 @@
       "name": "time_updated",
       "entityType": "columns",
       "table": "scoped_grant"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "mcp_credential_binding"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "directory",
+      "entityType": "columns",
+      "table": "mcp_credential_binding"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "''",
+      "generated": null,
+      "name": "workspace_id",
+      "entityType": "columns",
+      "table": "mcp_credential_binding"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "server_name",
+      "entityType": "columns",
+      "table": "mcp_credential_binding"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "credential_ref",
+      "entityType": "columns",
+      "table": "mcp_credential_binding"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "name": "binding_revision",
+      "entityType": "columns",
+      "table": "mcp_credential_binding"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "revoked_at",
+      "entityType": "columns",
+      "table": "mcp_credential_binding"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "time_created",
+      "entityType": "columns",
+      "table": "mcp_credential_binding"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "time_updated",
+      "entityType": "columns",
+      "table": "mcp_credential_binding"
     },
     {
       "type": "text",
@@ -3769,6 +3863,15 @@
         "id"
       ],
       "nameExplicit": false,
+      "name": "mcp_credential_binding_pk",
+      "table": "mcp_credential_binding",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
       "name": "meta_agent_memory_pk",
       "table": "meta_agent_memory",
       "entityType": "pks"
@@ -4219,6 +4322,42 @@
       "name": "scoped_grant_level_issued_idx",
       "entityType": "indexes",
       "table": "scoped_grant"
+    },
+    {
+      "columns": [
+        {
+          "value": "directory",
+          "isExpression": false
+        },
+        {
+          "value": "workspace_id",
+          "isExpression": false
+        },
+        {
+          "value": "server_name",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "mcp_binding_directory_workspace_server_idx",
+      "entityType": "indexes",
+      "table": "mcp_credential_binding"
+    },
+    {
+      "columns": [
+        {
+          "value": "credential_ref",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "mcp_binding_credential_ref_idx",
+      "entityType": "indexes",
+      "table": "mcp_credential_binding"
     },
     {
       "columns": [

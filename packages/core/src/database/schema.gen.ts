@@ -191,6 +191,19 @@ export default {
         );
       `)
       yield* tx.run(`
+        CREATE TABLE \`mcp_credential_binding\` (
+          \`id\` text PRIMARY KEY,
+          \`directory\` text NOT NULL,
+          \`workspace_id\` text DEFAULT '' NOT NULL,
+          \`server_name\` text NOT NULL,
+          \`credential_ref\` text NOT NULL,
+          \`binding_revision\` integer DEFAULT 1 NOT NULL,
+          \`revoked_at\` integer,
+          \`time_created\` integer NOT NULL,
+          \`time_updated\` integer NOT NULL
+        );
+      `)
+      yield* tx.run(`
         CREATE TABLE \`meta_agent_memory\` (
           \`id\` text PRIMARY KEY,
           \`project_id\` text NOT NULL,
@@ -506,6 +519,12 @@ export default {
         `CREATE INDEX \`scoped_grant_session_issued_idx\` ON \`scoped_grant\` (\`session_id\`,\`issued_at\`);`,
       )
       yield* tx.run(`CREATE INDEX \`scoped_grant_level_issued_idx\` ON \`scoped_grant\` (\`level\`,\`issued_at\`);`)
+      yield* tx.run(
+        `CREATE UNIQUE INDEX \`mcp_binding_directory_workspace_server_idx\` ON \`mcp_credential_binding\` (\`directory\`,\`workspace_id\`,\`server_name\`);`,
+      )
+      yield* tx.run(
+        `CREATE INDEX \`mcp_binding_credential_ref_idx\` ON \`mcp_credential_binding\` (\`credential_ref\`);`,
+      )
       yield* tx.run(`CREATE INDEX \`meta_agent_memory_project_idx\` ON \`meta_agent_memory\` (\`project_id\`);`)
       yield* tx.run(`CREATE INDEX \`meta_agent_session_meta_agent_idx\` ON \`meta_agent_session\` (\`meta_agent_id\`);`)
       yield* tx.run(`CREATE INDEX \`meta_agent_session_session_idx\` ON \`meta_agent_session\` (\`session_id\`);`)
