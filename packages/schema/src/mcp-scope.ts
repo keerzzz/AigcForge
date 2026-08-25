@@ -26,16 +26,9 @@ export const MAX_GRANT_RESOURCES = 32
 // contract surface.
 const strictOptions = { errors: "all", onExcessProperty: "error" } as const
 
-/** Connection health of one MCP server; runtime projection, never frozen. */
-export const McpConnectionHealth = Schema.Literals([
-  "connecting",
-  "ready",
-  "degraded",
-  "offline",
-  "auth-required",
-  "revoked",
-])
-export type McpConnectionHealth = typeof McpConnectionHealth.Type
+/** Connection health is shared with composition Plan projections. */
+export const McpConnectionHealth = Composition.McpConnectionHealth
+export type McpConnectionHealth = Composition.McpConnectionHealth
 
 const bounded = (max: number) =>
   Schema.String.pipe(Schema.check(Schema.isMinLength(1)), Schema.check(Schema.isMaxLength(max)))

@@ -17,6 +17,7 @@ import {
 import { HttpClient, HttpClientError, HttpClientRequest } from "effect/unstable/http"
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
+import { Composition } from "@aigcfroge/schema/composition"
 import { McpScope, McpServerBinding } from "@aigcfroge/schema/mcp-scope"
 import { canonicalToolName, McpRegistration, SERVER_NAME_PATTERN } from "../tool/mcp-registration"
 import { RegistrationError, Tool } from "../tool/tool"
@@ -165,7 +166,7 @@ export const transitionHealth = (input: {
 }) => {
   const allowed =
     (input.from === "connecting" && ["ready", "degraded", "offline", "auth-required", "revoked"].includes(input.to)) ||
-    (input.from === "ready" && ["connecting", "degraded", "offline"].includes(input.to)) ||
+    (input.from === "ready" && ["connecting", "degraded", "offline", "revoked"].includes(input.to)) ||
     (input.from === "degraded" && ["connecting", "ready", "offline"].includes(input.to)) ||
     (input.from === "offline" && input.to === "connecting") ||
     (input.from === "auth-required" && input.to === "connecting") ||
@@ -181,6 +182,19 @@ export class ConnInfo extends Schema.Class<ConnInfo>("McpConnection.ConnInfo")({
   serverName: Schema.String,
   pid: Schema.optional(Schema.Number),
   health: McpScope.McpConnectionHealth,
+}) {}
+
+/**
+ * Read-only connection-owner facts consumed by CompositionResolver. They are
+ * published only after this owner has registered the canonical tools; they
+ * deliberately exclude transport material, clients, commands, URLs and secrets.
+ */
+export class Fact extends Schema.Class<Fact>("McpConnection.Fact")({
+  serverName: Schema.String,
+  ref: Schema.Struct({ relativePath: Schema.String, revision: Composition.Revision }),
+  credentialRef: Schema.optional(Schema.String),
+  health: McpScope.McpConnectionHealth,
+  tools: Schema.Array(Schema.String),
 }) {}
 
 export type ConnectError =
@@ -217,6 +231,10 @@ export type CallToolError =
   | ProcessStartError
   | CredentialMissingError
   | CredentialExpiredError
+  | McpCredentialBindingStore.CrossLocationRefError
+  | McpCredentialBindingStore.RevokedRefError
+  | McpCredentialBindingStore.StateError
+  | HealthTransitionError
   | RemoteDnsError
   | RemoteConnectionRefusedError
   | RemoteTlsError
@@ -224,7 +242,16 @@ export type CallToolError =
   | ConnectionClosedError
   | McpDisabledError
 
-type WireError = Exclude<CallToolError, UnknownToolError | NotConnectedError>
+type WireError =
+  | ProtocolError
+  | ProcessStartError
+  | CredentialMissingError
+  | CredentialExpiredError
+  | RemoteDnsError
+  | RemoteConnectionRefusedError
+  | RemoteTlsError
+  | RemoteUnavailableError
+  | ConnectionClosedError
 type Pending = Deferred.Deferred<unknown, WireError>
 
 interface Wire {
@@ -236,6 +263,8 @@ interface Wire {
   readonly sendOnly: (payload: unknown) => Effect.Effect<void>
   readonly stop: (error: ConnectionClosedError) => Effect.Effect<void>
   health: McpScope.McpConnectionHealth
+  binding?: McpServerBinding
+  tools?: ReadonlyArray<string>
 }
 
 export interface Interface {
@@ -247,6 +276,8 @@ export interface Interface {
   readonly connections: () => Effect.Effect<readonly ConnInfo[]>
   /** Last observed health for one server, including failed admissions. */
   readonly health: (serverName: string) => Effect.Effect<McpScope.McpConnectionHealth | undefined>
+  /** Successful canonical registrations and their non-secret binding identity. */
+  readonly facts: () => Effect.Effect<readonly Fact[]>
   /** Execute a tool by canonical name through the owning connection. */
   readonly callTool: (input: {
     readonly name: string
@@ -353,10 +384,14 @@ export const layer = Layer.effect(
         const current = health.get(input.serverName)
         if (current === undefined || current === input.to) {
           health.set(input.serverName, input.to)
+          const wire = conns.get(input.serverName)
+          if (wire !== undefined) wire.health = input.to
           return input.to
         }
         const next = yield* transitionHealth({ from: current, to: input.to, rebound: input.rebound })
         health.set(input.serverName, next)
+        const wire = conns.get(input.serverName)
+        if (wire !== undefined) wire.health = next
         return next
       })
 
@@ -619,6 +654,19 @@ export const layer = Layer.effect(
       Effect.gen(function* () {
         const wire = conns.get(server)
         if (wire === undefined) return yield* new NotConnectedError({ serverName: server })
+        if (wire.binding?.credentialRef !== undefined) {
+          yield* bindingStore.resolve({ serverName: server, credentialRef: wire.binding.credentialRef }).pipe(
+            Effect.catch((error): Effect.Effect<void, CallToolError> => {
+              if (error instanceof McpCredentialBindingStore.RevokedRefError)
+                return setHealth({ serverName: server, to: "revoked" }).pipe(Effect.andThen(Effect.fail(error)))
+              if (error instanceof McpCredentialBindingStore.DanglingRefError)
+                return setHealth({ serverName: server, to: "auth-required" }).pipe(
+                  Effect.andThen(Effect.fail(new CredentialMissingError({ serverName: server, credentialRef: error.credentialRef }))),
+                )
+              return Effect.fail(error)
+            }),
+          )
+        }
         return yield* wire.request(method, params).pipe(
           Effect.tapError((error) =>
             setHealth({
@@ -778,8 +826,14 @@ export const layer = Layer.effect(
         // Routes derive from the keys that were ACTUALLY registered — never
         // from the discovered list — so a route can never exist without its
         // registration behind it.
-        for (const toolName of Object.keys(wrapped))
-          routes.set(canonicalToolName(serverName, toolName), { server: serverName, tool: toolName })
+        const registeredTools = Object.keys(wrapped).map((toolName) => ({
+          toolName,
+          canonicalName: canonicalToolName(serverName, toolName),
+        }))
+        const canonicalTools = registeredTools.map((tool) => tool.canonicalName)
+        for (const tool of registeredTools) routes.set(tool.canonicalName, { server: serverName, tool: tool.toolName })
+        wire.binding = binding
+        wire.tools = canonicalTools
         wire.health = yield* setHealth({ serverName, to: "ready" })
         return new ConnInfo({ serverName, pid: wire.pid, health: wire.health })
       })
@@ -809,6 +863,20 @@ export const layer = Layer.effect(
       }),
       health: Effect.fn("McpConnection.health")(function* (serverName: string) {
         return health.get(serverName)
+      }),
+      facts: Effect.fn("McpConnection.facts")(function* () {
+        return [...conns.values()].flatMap((wire) => {
+          if (wire.binding === undefined || wire.tools === undefined) return []
+          return [
+            new Fact({
+              serverName: wire.serverName,
+              ref: wire.binding.ref,
+              credentialRef: wire.binding.credentialRef,
+              health: wire.health,
+              tools: wire.tools,
+            }),
+          ]
+        })
       }),
       callTool: Effect.fn("McpConnection.callTool")(function* (input: {
         readonly name: string

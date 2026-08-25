@@ -150,6 +150,16 @@ M3 的根问题不是「让 Profile 能选 MCP」，而是让外部工具在一�
 
 > 事实校准（§0.1）：现有 union 只有 V1|V2，**没有 v1→v2 升级**，未知版本硬失败，消费方各自 `switch version`。新增 v3 意味着**每个这类站点都要加第三分支**——先评估是否能用 V2 内的可选字段承载，而不是急着开 v3。
 
+> **Phase E 交付事实（2026-08-26，`mcp-composition`）**：评估结论是不新增 v3。`Composition.Plan.mcp` 与 `SnapshotDataV2.mcp` 使用可选/默认字段承载 MCP 投影和审计事实，旧 V1/V2 解码保持兼容，既有 `version` 分支无需扩展。`Plan` 的 `requested/effective/denied` 来自 Profile 的显式 `mcpBindings`、MCP 资产 revision 校验和唯一 `McpConnection.Service.facts()` owner 投影；Location 中存在但未绑定的 MCP 不进入 effective、cost catalog 或 Snapshot catalog。
+>
+> **连接边界是明确的**：`CompositionResolver.resolve/freeze` 只读取 `MCPAsset.Service` 与 `McpConnection.Service.facts()`，绝不调用 `connect()`。连接、transport、registration、health 和 credential admission 由唯一 MCP connection owner 完成；若产品未来需要 start 自动连接，必须另设显式 coordinator/admission 流程，而不是把副作用藏进 resolver。
+>
+> **Snapshot 只存审计身份**：`SnapshotMcpInfo` 记录 server、MCP ref/revision、opaque `credentialRef` 和实际注册的 canonical tool names；不记录 command、URL、headers、client、executor、PID、health 或 secret material。MCP asset 的 `configJson` 当前仍是 opaque body，只用于 asset existence/revision provenance，不能被当作已验证的 connection config 真源。
+>
+> **运行时观察者**：Session runner 在每个 custom provider turn 前复用 generic fingerprint/catalog guard，并额外校验 Snapshot MCP audit catalog、binding identity、ready health 与实际 canonical registration；任何 mismatch/revoked/not-ready 都在 provider dispatch 前抛 typed `SnapshotDriftError`。连接 owner 的 `requestOn` 在每次带 credentialRef 的 tool admission 前重新解析 Location-scoped binding；撤销保证后续调用失败并投影 `revoked`，不宣称中断已经在飞的调用。
+>
+> **Phase E 红证记录**：①同时拆除 Resolver 的 Plan/Snapshot MCP effective filters 后，`resolves only profile-bound MCP registrations into Plan and Snapshot audit facts` 在 catalog 断言处因未绑定的 `mcp_unbound_admin` 出现而失败；恢复后 focused core MCP 组通过。②移除 runner 的 `verifySnapshotMcp` 调用后，`fails before provider dispatch when MCP registration identity no longer matches the frozen binding` 在无 failure 的 `expectDrift` 处失败；恢复后通过。③移除 `requestOn` 的 binding-store revalidation 后，`revoking a bound credential fails the next tool admission before the server observes it` 超时，fixture 已等待 server 响应，证明调用已越过 admission；恢复后 1 pass/0 fail。④把 Profile MCP entry 临时改为普通 `McpServerBinding` schema 后，secret-bearing 负例的无条件 `toThrow()` 失败，因为 `authorization` 被静默丢弃；恢复 canonical decoder 后 schema 负例通过。
+
 ### Phase F：HTTP/SDK/App 审批中心
 
 **红**：auth/scope/CSRF等现有 HTTP 边界；pending 聚合；once/Session/Location 明示；revoke；无页面连接；Builder health/diagnostics；desktop/narrow/keyboard/i18n（en/zh/zht 三语）。

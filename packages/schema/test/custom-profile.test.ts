@@ -40,12 +40,60 @@ describe("CustomProfile Schema", () => {
     requestedCapabilities: [],
   }
 
-  test("Profile decodes valid profile structure with single agent", () => {
-    const decoded = Schema.decodeUnknownSync(CustomProfile.Profile)(validProfile)
+  test("Profile defaults M3 MCP bindings to an empty list for existing YAML", () => {
+    const decoded = CustomProfile.decodeProfile(validProfile)
     expect(decoded.kind).toBe("custom-profile")
     expect(String(decoded.name)).toBe("release-review")
     expect(decoded.agents.length).toBe(1)
     expect(decoded.presentation).toBe("native")
+    expect(decoded.mcpBindings).toEqual([])
+  })
+
+  test("Profile decoding routes MCP bindings through the strict canonical decoder", () => {
+    const decoded = CustomProfile.decodeProfile({
+      ...validProfile,
+      mcpBindings: [
+        {
+          serverName: "project-search",
+          ref: { relativePath: "project-search.md", revision: "f".repeat(64) },
+          transport: "stdio",
+          command: ["bun", "run", "server.ts"],
+        },
+      ],
+    })
+    expect(decoded.mcpBindings).toHaveLength(1)
+    expect(decoded.mcpBindings[0]?.serverName).toBe("project-search")
+    expect(() =>
+      CustomProfile.decodeProfile({
+        ...validProfile,
+        mcpBindings: [
+          {
+            serverName: "poisoned",
+            ref: { relativePath: "poisoned.md", revision: "f".repeat(64) },
+            transport: "stdio",
+            command: ["bun", "run", "server.ts"],
+            authorization: "Bearer sk-live-abcdefghijklmnopqrstuvwxyz012345",
+          },
+        ],
+      }),
+    ).toThrow()
+  })
+
+  test("Profile schema itself rejects secret-bearing MCP bindings before HTTP candidates can strip them", () => {
+    expect(() =>
+      Schema.decodeUnknownSync(CustomProfile.Profile)({
+        ...validProfile,
+        mcpBindings: [
+          {
+            serverName: "direct-poison",
+            ref: { relativePath: "direct-poison.md", revision: "f".repeat(64) },
+            transport: "stdio",
+            command: ["bun", "run", "server.ts"],
+            authorization: "Bearer sk-live-abcdefghijklmnopqrstuvwxyz012345",
+          },
+        ],
+      }),
+    ).toThrow()
   })
 
   test("Profile decodes valid profile structure with multiple agents (M2)", () => {

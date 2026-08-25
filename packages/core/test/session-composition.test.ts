@@ -364,6 +364,119 @@ describe("SessionComposition", () => {
       }),
     )
 
+    it.effect("round-trips matching SnapshotV2 MCP audit facts through the durable owner", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const composition = yield* SessionComposition.Service
+        const mcpFingerprint = {
+          placement: "/project",
+          name: "mcp_audit_echo",
+          digest: mockDigest,
+          installationVersion: "0.1.0",
+        }
+        const tools = new Composition.SnapshotToolInfo({
+          fingerprints: [mcpFingerprint],
+          catalogDigest: computeDigest([mcpFingerprint]),
+          catalog: ["mcp_audit_echo"],
+        })
+        const snapshot = new Composition.SnapshotV2({
+          version: 2,
+          digest: mockDigest,
+          sessionID,
+          createdAt: 1700000000000,
+          data: new Composition.SnapshotDataV2({
+            agents: [
+              new Composition.AgentInfo({
+                id: "code-reviewer",
+                name: "code-reviewer",
+                description: "Code reviewer",
+                relativePath: "agents/reviewer.md",
+                revision: mockRevision,
+              }),
+            ],
+            bindings: {},
+            instructions: [],
+            prompts: [],
+            skills: [],
+            tools,
+            mcp: new Composition.SnapshotMcpInfo({
+              bindings: [
+                new Composition.SnapshotMcpBinding({
+                  serverName: "audit",
+                  ref: new Composition.McpRef({ kind: "mcp", relativePath: "mcps/audit.md", revision: mockRevision }),
+                }),
+              ],
+              tools: [
+                new Composition.SnapshotMcpTool({
+                  canonicalName: "mcp_audit_echo",
+                  serverName: "audit",
+                  ref: new Composition.McpRef({ kind: "mcp", relativePath: "mcps/audit.md", revision: mockRevision }),
+                }),
+              ],
+            }),
+          }),
+        })
+        yield* composition.attach(sessionID, snapshot)
+
+        const read = yield* composition.assertDependency(sessionID)
+
+        expect(read.version).toBe(2)
+        if (read.version !== 2) throw new Error("expected v2 snapshot")
+        expect(read.data.mcp.tools[0]?.canonicalName).toBe("mcp_audit_echo")
+        expect(read.data.mcp.bindings[0]?.ref.relativePath).toBe("mcps/audit.md")
+      }),
+    )
+
+    it.effect("fails when an MCP catalog entry has no SnapshotV2 registration audit fact", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const composition = yield* SessionComposition.Service
+        const mcpFingerprint = {
+          placement: "/project",
+          name: "mcp_audit_echo",
+          digest: mockDigest,
+          installationVersion: "0.1.0",
+        }
+        const tools = new Composition.SnapshotToolInfo({
+          fingerprints: [mcpFingerprint],
+          catalogDigest: computeDigest([mcpFingerprint]),
+          catalog: ["mcp_audit_echo"],
+        })
+        yield* composition.attach(
+          sessionID,
+          new Composition.SnapshotV2({
+            version: 2,
+            digest: mockDigest,
+            sessionID,
+            createdAt: 1700000000000,
+            data: new Composition.SnapshotDataV2({
+              agents: [
+                new Composition.AgentInfo({
+                  id: "code-reviewer",
+                  name: "code-reviewer",
+                  description: "Code reviewer",
+                  relativePath: "agents/reviewer.md",
+                  revision: mockRevision,
+                }),
+              ],
+              bindings: {},
+              instructions: [],
+              prompts: [],
+              skills: [],
+              tools,
+              mcp: new Composition.SnapshotMcpInfo({ bindings: [], tools: [] }),
+            }),
+          }),
+        )
+
+        const error = yield* composition.assertDependency(sessionID).pipe(Effect.flip)
+
+        expect(error).toBeInstanceOf(SessionComposition.DependencyMissingError)
+        if (error instanceof SessionComposition.DependencyMissingError)
+          expect(error.reason).toBe("mcp_audit_catalog_mismatch")
+      }),
+    )
+
     it.effect("fails with DependencyMissingError naming empty_tool_catalog", () =>
       Effect.gen(function* () {
         yield* setup

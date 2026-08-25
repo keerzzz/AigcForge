@@ -41,15 +41,13 @@ describe("Composition Schema", () => {
     expect(Schema.decodeUnknownSync(Composition.AssetRef)(commandRef).kind).toBe("command")
   })
 
-  test("AssetRef rejects disallowed asset kinds in M2 (e.g. mcp, plugin)", () => {
-    expect(() =>
-      Schema.decodeUnknownSync(Composition.AssetRef)({
-        kind: "mcp",
-        relativePath: "mcp.json",
-        revision: "a".repeat(64),
-      }),
-    ).toThrow()
-
+  test("AssetRef accepts M3 MCP refs and still rejects unsupported kinds", () => {
+    const mcp = Schema.decodeUnknownSync(Composition.AssetRef)({
+      kind: "mcp",
+      relativePath: "mcp.json",
+      revision: "a".repeat(64),
+    })
+    expect(mcp.kind).toBe("mcp")
     expect(() =>
       Schema.decodeUnknownSync(Composition.AssetRef)({
         kind: "plugin",
@@ -348,6 +346,36 @@ describe("Composition Schema", () => {
       }),
     ).toThrow()
     expect(Schema.decodeUnknownSync(Composition.SnapshotDataV2)({ ...base, maxConcurrency: 8 }).maxConcurrency).toBe(8)
+  })
+
+  test("Plan and legacy SnapshotV2 default MCP projections without opening a V3", () => {
+    const plan = Schema.decodeUnknownSync(Composition.Plan)({
+      version: 1,
+      digest: "a".repeat(64),
+      valid: true,
+      input: {
+        source: "temporary",
+        agents: [],
+        bindings: {},
+        presentation: "native",
+        requestedCapabilities: [],
+      },
+      instructions: [],
+      skills: [],
+      capabilities: [],
+      diagnostics: [],
+    })
+    expect(plan.mcp).toEqual({ requested: [], effective: [], denied: [] })
+
+    const snapshot = Schema.decodeUnknownSync(Composition.SnapshotDataV2)({
+      agents: [],
+      bindings: {},
+      instructions: [],
+      prompts: [],
+      skills: [],
+      tools: { fingerprints: [], catalogDigest: "b".repeat(64), catalog: [] },
+    })
+    expect(snapshot.mcp).toEqual({ bindings: [], tools: [] })
   })
 
   test("Snapshot rejects unknown version (fail-closed)", () => {
