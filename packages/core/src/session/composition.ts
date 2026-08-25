@@ -308,17 +308,14 @@ export const layer = Layer.effect(
         )
       }
       if (snapshot.version === 2) {
-        const catalogMcpTools = snapshot.data.tools.catalog.filter((name) => name.startsWith("mcp_"))
-        const auditMcpTools = snapshot.data.mcp.tools
-          .map((tool) => tool.canonicalName)
-          .toSorted((a, b) => a.localeCompare(b))
-        if (
-          catalogMcpTools.length !== auditMcpTools.length ||
-          catalogMcpTools.some((name, index) => name !== auditMcpTools[index])
-        ) {
+        const audit = Composition.mcpAuditMatchesCatalog({
+          catalog: snapshot.data.tools.catalog,
+          auditToolNames: snapshot.data.mcp.tools.map((tool) => tool.canonicalName),
+        })
+        if (!audit.matches) {
           return yield* missing(
             "mcp_audit_catalog_mismatch",
-            `MCP catalog ${JSON.stringify(catalogMcpTools)} does not equal MCP audit tools ${JSON.stringify(auditMcpTools)}`,
+            `MCP catalog ${JSON.stringify(audit.catalogMcpTools)} does not equal MCP audit tools ${JSON.stringify(audit.auditMcpTools)}`,
           )
         }
         for (const tool of snapshot.data.mcp.tools) {

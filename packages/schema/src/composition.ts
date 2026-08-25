@@ -395,4 +395,30 @@ export class ResolveError extends Schema.TaggedErrorClass<ResolveError>()("Compo
   diagnostics: Schema.optional(Schema.Array(Diagnostic)),
 }) {}
 
+/**
+ * The one comparison behind "every `mcp_` name in the frozen catalog has a
+ * matching registration identity". Both the Snapshot loader and the pre-turn
+ * drift guard must use THIS function, not their own sort.
+ *
+ * `catalog` is stored in `localeCompare` order (the resolver sorts fingerprints
+ * that way), so the audit list has to be ordered by the same comparator. Sorting
+ * one side with the default comparator instead diverges on legal canonical names
+ * — `mcp_git_list-files` vs `mcp_git_list_files` order differently under the two
+ * — and turns a healthy session into a permanent false-positive drift failure.
+ */
+export const mcpAuditMatchesCatalog = (input: {
+  readonly catalog: ReadonlyArray<string>
+  readonly auditToolNames: ReadonlyArray<string>
+}) => {
+  const catalogMcpTools = input.catalog.filter((name) => name.startsWith("mcp_"))
+  const auditMcpTools = input.auditToolNames.toSorted((a, b) => a.localeCompare(b))
+  return {
+    catalogMcpTools,
+    auditMcpTools,
+    matches:
+      catalogMcpTools.length === auditMcpTools.length &&
+      catalogMcpTools.every((name, index) => name === auditMcpTools[index]),
+  }
+}
+
 export * as Composition from "./composition"

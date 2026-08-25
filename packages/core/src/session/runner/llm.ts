@@ -283,17 +283,17 @@ export const layer = Layer.effect(
       snapshot: Composition.Snapshot,
     ) {
       if (snapshot.version !== 2) return yield* Effect.void
-      const catalogMcpTools = snapshot.data.tools.catalog.filter((name) => name.startsWith("mcp_"))
-      const auditMcpTools = snapshot.data.mcp.tools.map((tool) => tool.canonicalName)
-      if (
-        catalogMcpTools.length !== auditMcpTools.length ||
-        catalogMcpTools.some((name, index) => name !== auditMcpTools.toSorted()[index])
-      )
+      const audit = Composition.mcpAuditMatchesCatalog({
+        catalog: snapshot.data.tools.catalog,
+        auditToolNames: snapshot.data.mcp.tools.map((tool) => tool.canonicalName),
+      })
+      if (!audit.matches)
         return yield* new SnapshotDriftError({
           sessionID,
           reason: "mcp_audit_catalog_mismatch",
           details: "Snapshot MCP catalog entries do not have a matching registration identity",
         })
+      const auditMcpTools = audit.auditMcpTools
       if (auditMcpTools.length === 0) return yield* Effect.void
       if (Option.isNone(mcpConnections))
         return yield* new SnapshotDriftError({

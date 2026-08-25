@@ -424,4 +424,53 @@ describe("Composition Schema", () => {
     expect(encodedEffect).toBeDefined()
     expect((encodedEffect as { version: number }).version).toBe(2)
   })
+
+  describe("mcpAuditMatchesCatalog", () => {
+    // Regression: two canonical names differing only by `-` vs `_` order
+    // DIFFERENTLY under localeCompare and the default comparator. The catalog is
+    // stored in localeCompare order, so an audit list sorted with the default
+    // comparator reports a mismatch on a perfectly healthy session. Both tool
+    // names below pass Tool.validateName, so this is reachable input, not a
+    // hypothetical.
+    const canonical = ["mcp_git_list-files", "mcp_git_list_files"]
+    const catalogOrder = [...canonical].toSorted((a, b) => a.localeCompare(b))
+
+    test("the two comparators really do disagree on these names", () => {
+      expect([...canonical].toSorted()).not.toEqual(catalogOrder)
+    })
+
+    test("matches a catalog whose mcp_ entries equal the audit identities", () => {
+      const result = Composition.mcpAuditMatchesCatalog({
+        catalog: ["bash", ...catalogOrder, "read"],
+        auditToolNames: [...canonical].reverse(),
+      })
+      expect(result.matches).toBe(true)
+      expect(result.catalogMcpTools).toEqual(catalogOrder)
+    })
+
+    test("reports a mismatch when an audit identity is missing", () => {
+      const result = Composition.mcpAuditMatchesCatalog({
+        catalog: catalogOrder,
+        auditToolNames: [canonical[0]!],
+      })
+      expect(result.matches).toBe(false)
+    })
+
+    test("reports a mismatch when the audit carries a name the catalog lacks", () => {
+      const result = Composition.mcpAuditMatchesCatalog({
+        catalog: [canonical[0]!],
+        auditToolNames: [canonical[0]!, "mcp_git_other"],
+      })
+      expect(result.matches).toBe(false)
+    })
+
+    test("ignores non-mcp catalog entries on both sides", () => {
+      const result = Composition.mcpAuditMatchesCatalog({
+        catalog: ["bash", "edit", "read"],
+        auditToolNames: [],
+      })
+      expect(result.matches).toBe(true)
+      expect(result.catalogMcpTools).toEqual([])
+    })
+  })
 })
