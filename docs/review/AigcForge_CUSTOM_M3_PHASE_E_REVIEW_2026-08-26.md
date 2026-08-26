@@ -6,7 +6,7 @@
 
 ## Review Conclusion
 
-Phase E is ready to merge into the local `main`. The implementation binds MCP composition output to observed connection-owner facts instead of treating registration capability as runtime truth. No Composition V3 was introduced: MCP plan data and Snapshot audit data use optional/default fields inside the existing V2 shape.
+**Initial review conclusion was superseded by `2307df31f` after post-merge review found one false-positive drift bug and one incomplete Resolver red-proof claim.** The corrected Phase E implementation is on local `main` at `497268161`: it binds MCP composition output to observed connection-owner facts instead of treating registration capability as runtime truth, and it uses one locale-aware audit comparison at both durable-Snapshot and provider-turn boundaries. No Composition V3 was introduced: MCP plan data and Snapshot audit data use optional/default fields inside the existing V2 shape.
 
 ## Impacted Files
 
@@ -39,12 +39,14 @@ Phase E is ready to merge into the local `main`. The implementation binds MCP co
 
 ## Red Evidence
 
-Each safety assertion was tested by temporarily removing the production observation point, running the focused test, and restoring the change immediately:
+Each safety assertion was tested by temporarily removing the production observation point, running the focused test, and restoring the change immediately. The initial report overstated item 1: it covered an unbound registered server but not the requested-server denial branches. The correction below preserves the valid catalog evidence and records the missing branch evidence separately.
 
-1. Removed both Resolver MCP effective filters. `resolves only profile-bound MCP registrations into Plan and Snapshot audit facts` failed because the unbound `mcp_unbound_admin` appeared in the frozen catalog. Restored: focused MCP group green.
-2. Removed the Runner `verifySnapshotMcp` call. `fails before provider dispatch when MCP registration identity no longer matches the frozen binding` returned success instead of a drift failure. Restored: focused drift group green.
-3. Removed `requestOn` binding-store revalidation. `revoking a bound credential fails the next tool admission before the server observes it` timed out waiting on the fixture, proving the call crossed admission. Restored: the test passed with typed `McpBinding.RevokedRefError`, `revoked` health, matching `Fact.health`, and no server marker.
-4. Replaced the Profile MCP canonical decoder with ordinary `McpServerBinding` decoding. The secret-bearing negative test failed because `authorization` was silently stripped. Restored: schema negative test green.
+1. Removed both Resolver MCP catalog filters. `resolves only profile-bound MCP registrations into Plan and Snapshot audit facts` failed because the unbound `mcp_unbound_admin` appeared in the frozen catalog. This proves that a server absent from the Profile does not leak into the frozen catalog; it does **not** prove requested-but-unusable denial behavior. Restored: focused MCP group green.
+2. `2307df31f` added three requested-server denial proofs. Removing the no-fact denial makes `denies a requested MCP server that the connection owner has no fact for` fail; removing the `health !== "ready"` gate makes `denies a requested MCP server whose fact exists but is not ready` fail; weakening fact matching to server name makes `denies a connected MCP server whose live identity is not the frozen binding` fail. Each case unconditionally asserts the denial reason and the exact effective tool count, rather than optional-chaining a nonexistent catalog field.
+3. Removed the Runner `verifySnapshotMcp` call. `fails before provider dispatch when MCP registration identity no longer matches the frozen binding` returned success instead of a drift failure. Restored: focused drift group green.
+4. `2307df31f` replaced two incompatible audit sort implementations with `Composition.mcpAuditMatchesCatalog`. The regression tests prove that default sorting and `localeCompare` disagree for legal `mcp_git_list-files` / `mcp_git_list_files` names, while the shared helper accepts the valid catalog. Reverting the helper to default `.toSorted()` makes that valid-input test fail.
+5. Removed `requestOn` binding-store revalidation. `revoking a bound credential fails the next tool admission before the server observes it` timed out waiting on the fixture, proving the call crossed admission. Restored: the test passed with typed `McpBinding.RevokedRefError`, `revoked` health, matching `Fact.health`, and no server marker.
+6. Replaced the Profile MCP canonical decoder with ordinary `McpServerBinding` decoding. The secret-bearing negative test failed because `authorization` was silently stripped. Restored: schema negative test green.
 
 ## Verification
 
@@ -53,10 +55,18 @@ Each safety assertion was tested by temporarily removing the production observat
 - `bun --cwd packages/core test --timeout 30000`: **2174 pass / 2 skip / 0 fail / 6230 expect() calls**.
 - `bun --cwd packages/core typecheck`: **exit 0**.
 - `cd packages/core && bun run script/migration.ts --check`: **no schema changes; clean/existing migration checks completed**.
-- `bun --cwd packages/aigcfroge test test/server/ --timeout 60000 --concurrency 1`: **381 pass / 2 skip / 0 fail / 1759 expect() calls**.
+- Server-suite count in this initial record was read incorrectly and is superseded by the post-merge verification below.
 - `bun run script/lint-changed.ts`: **Incremental lint passed: 15 changed files, 1053 added lines**.
 - `bash .aigcfroge/skills/protocols/scripts/check-refs.sh`: **32/32 references present**.
 - `git diff --check`: **exit 0**.
+
+## Post-Merge Correction Verification
+
+- `bun --cwd packages/schema test --timeout 30000`: **145 pass / 0 fail**.
+- `bun --cwd packages/core test --timeout 30000`: **2177 pass / 2 skip / 0 fail**.
+- `bun --cwd packages/schema typecheck && bun --cwd packages/core typecheck`: **exit 0**.
+- `bun --cwd packages/aigcfroge test test/server/ --timeout 60000 --concurrency 1`: **379 pass / 2 skip / 0 fail, 381 tests total**.
+- `bun run script/lint-changed.ts`: **Incremental lint passed: 5 changed files, 242 added lines**.
 
 ## SDK Generation Note
 
