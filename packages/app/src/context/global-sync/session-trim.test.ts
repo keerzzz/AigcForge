@@ -28,6 +28,27 @@ describe("trimSessions", () => {
     expect(result.map((x) => x.id)).toEqual(["a", "b", "c", "d"])
   })
 
+  test("keeps an otherwise stale child with a V2 pending permission", () => {
+    const now = 1_000_000
+    const result = trimSessions(
+      [
+        session({ id: "root-1", created: now - 1000 }),
+        session({ id: "z-root", created: now - 30_000_000 }),
+        session({ id: "child-v2", parentID: "z-root", created: now - 20_000_000 }),
+      ],
+      {
+        limit: 1,
+        permission: {},
+        permission_v2: {
+          "child-v2": [{ id: "per_v2", sessionID: "child-v2", action: "bash", resources: ["/tmp/run.sh"] }],
+        },
+        now,
+      },
+    )
+
+    expect(result.map((item) => item.id)).toEqual(["child-v2", "root-1"])
+  })
+
   test("keeps children when root is kept, permission exists, or child is recent", () => {
     const now = 1_000_000
     const list = [

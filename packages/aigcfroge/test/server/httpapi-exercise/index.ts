@@ -1748,11 +1748,31 @@ const scenarios: Scenario[] = [
     .get("/api/provider/{providerID}", "v2.provider.get")
     .at((ctx) => ({ path: route("/api/provider/{providerID}", { providerID: "missing" }), headers: ctx.headers() }))
     .json(404, object, "status"),
-  http.protected.get("/api/permission/request", "v2.permission.request.list").json(200, (body) => {
-    object(body)
-    object(body.location)
-    array(body.data)
-  }),
+  http.protected
+    .get("/api/permission/request", "v2.permission.request.list")
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const session = yield* ctx.session({ title: "Permission pending list owner" })
+        const request = yield* ctx.permissionV2({
+          sessionID: session.id,
+          action: "bash",
+          resources: ["/httpapi/global-list"],
+        })
+        return { requestID: request.id, sessionID: session.id }
+      }),
+    )
+    .json(200, (body, ctx) => {
+      object(body)
+      object(body.location)
+      array(body.data)
+      check(
+        body.data.some(
+          (request) =>
+            isRecord(request) && request.id === ctx.state.requestID && request.sessionID === ctx.state.sessionID,
+        ),
+        "Location-scoped pending list should include the request created for this Location",
+      )
+    }),
   http.protected.get("/api/question/request", "v2.question.request.list").json(200, (body) => {
     object(body)
     object(body.location)
@@ -1760,12 +1780,29 @@ const scenarios: Scenario[] = [
   }),
   http.protected
     .get("/api/session/{sessionID}/permission", "v2.session.permission.list")
-    .seeded((ctx) => ctx.session({ title: "Permission list owner" }))
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const session = yield* ctx.session({ title: "Permission list owner" })
+        const request = yield* ctx.permissionV2({
+          sessionID: session.id,
+          action: "bash",
+          resources: ["/httpapi/session-list"],
+        })
+        return { sessionID: session.id, requestID: request.id }
+      }),
+    )
     .at((ctx) => ({
-      path: route("/api/session/{sessionID}/permission", { sessionID: ctx.state.id }),
+      path: route("/api/session/{sessionID}/permission", { sessionID: ctx.state.sessionID }),
       headers: ctx.headers(),
     }))
-    .json(200, data(array)),
+    .json(200, (body, ctx) => {
+      object(body)
+      array(body.data)
+      check(
+        body.data.some((request) => isRecord(request) && request.id === ctx.state.requestID),
+        "Session pending list should include its owned request",
+      )
+    }),
   http.protected
     .get("/api/session/{sessionID}/question", "v2.session.question.list")
     .seeded((ctx) => ctx.session({ title: "Question list owner" }))
@@ -1776,16 +1813,59 @@ const scenarios: Scenario[] = [
     .json(200, data(array)),
   http.protected
     .post("/api/session/{sessionID}/permission/{requestID}/reply", "v2.session.permission.reply")
-    .seeded((ctx) => ctx.session({ title: "Permission owner" }))
+    .mutating()
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const session = yield* ctx.session({ title: "Permission reply owner" })
+        const request = yield* ctx.permissionV2({
+          sessionID: session.id,
+          action: "bash",
+          resources: ["/httpapi/reply"],
+        })
+        return { sessionID: session.id, requestID: request.id }
+      }),
+    )
+    .at((ctx) => ({
+      path: route("/api/session/{sessionID}/permission/{requestID}/reply", ctx.state),
+      headers: ctx.headers(),
+      body: { reply: "once" },
+    }))
+    .status(204, (ctx) =>
+      ctx.pendingPermissionV2().pipe(
+        Effect.flatMap((pending) =>
+          Effect.sync(() => check(!pending.some((request) => request.id === ctx.state.requestID), "Reply should consume pending request")),
+        ),
+      ),
+    ),
+  http.protected
+    .post("/api/session/{sessionID}/permission/{requestID}/reply", "v2.session.permission.reply.foreign")
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const owner = yield* ctx.session({ title: "Permission owner" })
+        const foreign = yield* ctx.session({ title: "Permission foreign session" })
+        const request = yield* ctx.permissionV2({
+          sessionID: owner.id,
+          action: "bash",
+          resources: ["/httpapi/foreign-reply"],
+        })
+        return { ownerID: owner.id, foreignID: foreign.id, requestID: request.id }
+      }),
+    )
     .at((ctx) => ({
       path: route("/api/session/{sessionID}/permission/{requestID}/reply", {
-        sessionID: ctx.state.id,
-        requestID: "per_httpapi_missing",
+        sessionID: ctx.state.foreignID,
+        requestID: ctx.state.requestID,
       }),
       headers: ctx.headers(),
       body: { reply: "once" },
     }))
-    .json(404, object, "status"),
+    .jsonEffect(404, (_body, ctx) =>
+      ctx.pendingPermissionV2().pipe(
+        Effect.flatMap((pending) =>
+          Effect.sync(() => check(pending.some((request) => request.id === ctx.state.requestID), "Foreign session must not consume request")),
+        ),
+      ),
+    ),
   http.protected
     .post("/api/session/{sessionID}/question/{requestID}/reply", "v2.session.question.reply")
     .seeded((ctx) => ctx.session({ title: "Question reply owner" }))

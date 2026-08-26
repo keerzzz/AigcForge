@@ -368,6 +368,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
       const next = trimSessions(store.session, {
         limit: retainedLimit,
         permission: store.permission,
+        permission_v2: store.permission_v2,
       })
       if (next.length !== store.session.length) {
         setStore("session", reconcile(next, { key: "id" }))
@@ -407,6 +408,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
               const sessions = trimSessions([...nonArchived, ...childSessions], {
                 limit: retained,
                 permission: store.permission,
+                permission_v2: store.permission_v2,
               })
               batch(() => {
                 setStore(

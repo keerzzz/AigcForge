@@ -1,36 +1,37 @@
 import { For, Show, createMemo } from "solid-js"
-import type { PermissionRequest } from "@aigcfroge/sdk/v2"
+import { PermissionPendingModel } from "@/context/global-sync/permission-pending"
 import { Button } from "@aigcfroge/ui/button"
 import { DockPrompt } from "@aigcfroge/session-ui/dock-prompt"
 import { Icon } from "@aigcfroge/ui/icon"
 import { useLanguage } from "@/context/language"
 
 export function SessionPermissionDock(props: {
-  request: PermissionRequest
+  request: PermissionPendingModel.PermissionPending
   responding: boolean
   sessionID?: string
   onDecide: (response: "once" | "always" | "reject") => void
 }) {
   const language = useLanguage()
-  const isChildRequest = createMemo(() => props.sessionID !== undefined && props.request.sessionID !== props.sessionID)
+  const request = createMemo(() => PermissionPendingModel.permissionPresentation(props.request))
+  const isChildRequest = createMemo(() => props.sessionID !== undefined && request().sessionID !== props.sessionID)
 
   const toolDescription = () => {
-    const key = `settings.permissions.tool.${props.request.permission}.description`
+    const key = `settings.permissions.tool.${request().action}.description`
     const value = language.t(key as Parameters<typeof language.t>[0])
     if (value === key) return ""
     return value
   }
 
   const metaDescription = () => {
-    const value = props.request.metadata?.description
+    const value = request().metadata?.description
     return typeof value === "string" && value ? value : ""
   }
   const metaCliTarget = () => {
-    const value = props.request.metadata?.cli_target
+    const value = request().metadata?.cli_target
     return typeof value === "string" && value ? value : ""
   }
   const metaExecutionType = () => {
-    const value = props.request.metadata?.execution_type
+    const value = request().metadata?.execution_type
     return typeof value === "string" && value ? value : ""
   }
   const hasMetadata = createMemo(() => Boolean(metaDescription() || metaCliTarget() || metaExecutionType()))
@@ -102,11 +103,11 @@ export function SessionPermissionDock(props: {
         </div>
       </Show>
 
-      <Show when={props.request.patterns.length > 0}>
+      <Show when={request().resources.length > 0}>
         <div data-slot="permission-row">
           <span data-slot="permission-spacer" aria-hidden="true" />
           <div data-slot="permission-patterns">
-            <For each={props.request.patterns}>
+            <For each={request().resources}>
               {(pattern) => <code class="text-12-regular text-text-base break-all">{pattern}</code>}
             </For>
           </div>
