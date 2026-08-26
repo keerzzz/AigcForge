@@ -79,6 +79,13 @@ export function SessionPermissionDock(props: {
         </div>
       </Show>
 
+      <div data-slot="permission-row">
+        <span data-slot="permission-spacer" aria-hidden="true" />
+        <code data-slot="permission-action" class="text-12-regular text-text-base break-all">
+          {request().action}
+        </code>
+      </div>
+
       <Show when={toolDescription()}>
         <div data-slot="permission-row">
           <span data-slot="permission-spacer" aria-hidden="true" />

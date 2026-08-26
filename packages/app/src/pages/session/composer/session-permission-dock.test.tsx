@@ -23,6 +23,12 @@ describe("SessionPermissionDock", () => {
     expect(dock).toContain("request().metadata?.cli_target")
   })
 
+  test("renders the canonical action even when no localized description exists", () => {
+    const dock = read("session-permission-dock.tsx")
+    expect(dock).toContain('data-slot="permission-action"')
+    expect(dock).toContain("request().action")
+  })
+
   test("wires normalized resources into the existing request list", () => {
     const dock = read("session-permission-dock.tsx")
     expect(dock).toContain('data-slot="permission-patterns"')
