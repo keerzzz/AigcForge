@@ -205,6 +205,78 @@ describe("bootstrapDirectory", () => {
     expect(store.permission_v2_events).toEqual([])
   })
 
+  test("does not let an older V2 snapshot overwrite a newer load", async () => {
+    const [store, setStore] = createStore<State>({
+      status: "complete",
+      agent: [],
+      command: [],
+      project: "",
+      projectMeta: undefined,
+      icon: undefined,
+      provider_ready: true,
+      provider,
+      config: {},
+      path: { state: "", config: "", worktree: "/project", directory: "/project", home: "/home" },
+      session: [],
+      sessionTotal: 1,
+      session_status: {},
+      session_working() {
+        return false
+      },
+      session_diff: {},
+      todo: {},
+      permission: {},
+      permission_v2: {},
+      permission_v2_revision: 0,
+      permission_v2_load_epoch: 0,
+      permission_v2_events: [],
+      question: {},
+      mcp_ready: true,
+      mcp: {},
+      lsp_ready: true,
+      lsp: [],
+      vcs: undefined,
+      limit: 5,
+      message: {},
+      part: {},
+      part_text_accum_delta: {},
+    })
+    let resolveOlder!: (value: { data: { data: unknown[] } }) => void
+    const older = new Promise<{ data: { data: unknown[] } }>((resolve) => {
+      resolveOlder = resolve
+    })
+    let calls = 0
+    const sdk = {
+      session: { get: async () => ({ data: undefined }) },
+      v2: {
+        permission: {
+          request: {
+            list: () => {
+              calls += 1
+              if (calls === 1) return older
+              return Promise.resolve({
+                data: {
+                  data: [{ id: "per_newer", sessionID: "ses_custom", action: "bash", resources: ["/newer"] }],
+                },
+              })
+            },
+          },
+        },
+      },
+    } satisfies PermissionPendingClient
+
+    const first = loadV2PermissionPending({ sdk, store, setStore })
+    await loadV2PermissionPending({ sdk, store, setStore })
+    resolveOlder({
+      data: {
+        data: [{ id: "per_older", sessionID: "ses_custom", action: "bash", resources: ["/older"] }],
+      },
+    })
+    await first
+
+    expect(store.permission_v2.ses_custom?.map((request) => request.id)).toEqual(["per_newer"])
+  })
+
   test("does not revive a replied request from a stale V2 snapshot", async () => {
     const [store, setStore] = createStore<State>({
       status: "complete",
