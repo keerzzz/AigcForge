@@ -57,6 +57,13 @@ const questionRequest = (id: string, sessionID: string, title = id) =>
     ],
   }) as QuestionRequest
 
+const permissionV2Request = (id: string, sessionID: string, action = "bash") => ({
+  id,
+  sessionID,
+  action,
+  resources: ["/tmp/run.sh"],
+})
+
 const baseState = (input: Partial<State> = {}) =>
   ({
     status: "complete",
@@ -74,6 +81,10 @@ const baseState = (input: Partial<State> = {}) =>
     session_diff: {},
     todo: {},
     permission: {},
+    permission_v2: {},
+    permission_v2_revision: 0,
+    permission_v2_load_epoch: 0,
+    permission_v2_events: [],
     question: {},
     mcp: {},
     lsp: [],
@@ -218,6 +229,7 @@ describe("applyDirectoryEvent", () => {
         session_diff: { ses_1: [] },
         todo: { ses_1: [] },
         permission: { ses_1: [] },
+        permission_v2: {},
         question: { ses_1: [] },
         session_status: { ses_1: { type: "busy" } },
       }),
@@ -264,6 +276,7 @@ describe("applyDirectoryEvent", () => {
           session_diff: { [item.info.id]: [] },
           todo: { [item.info.id]: [] },
           permission: { [item.info.id]: [] },
+          permission_v2: {},
           question: { [item.info.id]: [] },
           session_status: { [item.info.id]: { type: "busy" } },
         }),
@@ -533,6 +546,57 @@ describe("applyDirectoryEvent", () => {
       loadLsp() {},
     })
     expect(store.question[sessionID]?.map((x) => x.id)).toEqual(["q_1", "q_3"])
+  })
+
+  test("tracks V2 permission requests separately from legacy permission requests", () => {
+    const sessionID = "ses_custom"
+    const [store, setStore] = createStore(
+      baseState({
+        permission: { [sessionID]: [permissionRequest("perm_legacy", sessionID)] },
+        permission_v2: { [sessionID]: [permissionV2Request("per_v2_1", sessionID)] },
+      }),
+    )
+
+    applyDirectoryEvent({
+      event: { type: "permission.v2.asked", properties: permissionV2Request("per_v2_2", sessionID) },
+      store,
+      setStore,
+      push() {},
+      directory: "/tmp",
+      loadLsp() {},
+    })
+    expect(store.permission[sessionID]?.map((item) => item.id)).toEqual(["perm_legacy"])
+    expect(store.permission_v2[sessionID]?.map((item) => item.id)).toEqual(["per_v2_1", "per_v2_2"])
+
+    applyDirectoryEvent({
+      event: { type: "permission.v2.asked", properties: permissionV2Request("per_v2_2", sessionID, "write") },
+      store,
+      setStore,
+      push() {},
+      directory: "/tmp",
+      loadLsp() {},
+    })
+    expect(store.permission_v2[sessionID]?.find((item) => item.id === "per_v2_2")?.action).toBe("write")
+
+    applyDirectoryEvent({
+      event: { type: "permission.v2.replied", properties: { sessionID, requestID: "per_v2_2", reply: "invalid" } },
+      store,
+      setStore,
+      push() {},
+      directory: "/tmp",
+      loadLsp() {},
+    })
+    expect(store.permission_v2[sessionID]?.map((item) => item.id)).toEqual(["per_v2_1", "per_v2_2"])
+
+    applyDirectoryEvent({
+      event: { type: "permission.v2.replied", properties: { sessionID, requestID: "per_v2_2", reply: "once" } },
+      store,
+      setStore,
+      push() {},
+      directory: "/tmp",
+      loadLsp() {},
+    })
+    expect(store.permission_v2[sessionID]?.map((item) => item.id)).toEqual(["per_v2_1"])
   })
 
   test("updates vcs branch in store and cache", () => {

@@ -1,4 +1,5 @@
 import type { PermissionRequest, Session } from "@aigcfroge/sdk/v2/client"
+import { PermissionPendingModel } from "./permission-pending"
 import { cmp } from "./utils"
 import { SESSION_RECENT_LIMIT, SESSION_RECENT_WINDOW } from "./types"
 
@@ -32,7 +33,12 @@ export function takeRecentSessions(sessions: Session[], limit: number, cutoff: n
 
 export function trimSessions(
   input: Session[],
-  options: { limit: number; permission: Record<string, PermissionRequest[]>; now?: number },
+  options: {
+    limit: number
+    permission: Record<string, PermissionRequest[]>
+    permission_v2?: Record<string, PermissionPendingModel.PermissionV2Pending[]>
+    now?: number
+  },
 ) {
   const limit = Math.max(0, options.limit)
   const cutoff = (options.now ?? Date.now()) - SESSION_RECENT_WINDOW
@@ -49,8 +55,8 @@ export function trimSessions(
   const keepRootIds = new Set(keepRoots.map((s) => s.id))
   const keepChildren = children.filter((s) => {
     if (s.parentID && keepRootIds.has(s.parentID)) return true
-    const perms = options.permission[s.id] ?? []
-    if (perms.length > 0) return true
+    const permissions = (options.permission[s.id]?.length ?? 0) + (options.permission_v2?.[s.id]?.length ?? 0)
+    if (permissions > 0) return true
     return sessionUpdatedAt(s) > cutoff
   })
   return [...keepRoots, ...keepChildren].sort((a, b) => cmp(a.id, b.id))

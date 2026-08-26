@@ -8,6 +8,7 @@ import type {
   SnapshotFileDiff,
   Todo,
 } from "@aigcfroge/sdk/v2/client"
+import type { PermissionV2Pending } from "./permission-pending"
 import { dropSessionCaches, pickSessionCacheEvictions } from "./session-cache"
 
 const msg = (id: string, sessionID: string) =>
@@ -38,6 +39,7 @@ describe("app session cache", () => {
       message: Record<string, Message[] | undefined>
       part: Record<string, Part[] | undefined>
       permission: Record<string, PermissionRequest[] | undefined>
+      permission_v2: Record<string, PermissionV2Pending[] | undefined>
       question: Record<string, QuestionRequest[] | undefined>
       part_text_accum_delta: Record<string, string | undefined>
     } = {
@@ -47,6 +49,7 @@ describe("app session cache", () => {
       message: {},
       part: { msg_1: [part("prt_1", "ses_1", "msg_1")] },
       permission: { ses_1: [] as PermissionRequest[] },
+      permission_v2: { ses_1: [] },
       question: { ses_1: [] as QuestionRequest[] },
       part_text_accum_delta: { prt_1: "streamed text" },
     }
@@ -60,6 +63,7 @@ describe("app session cache", () => {
     expect(store.session_diff.ses_1).toBeUndefined()
     expect(store.session_status.ses_1).toBeUndefined()
     expect(store.permission.ses_1).toBeUndefined()
+    expect(store.permission_v2.ses_1).toBeUndefined()
     expect(store.question.ses_1).toBeUndefined()
   })
 
@@ -72,6 +76,7 @@ describe("app session cache", () => {
       message: Record<string, Message[] | undefined>
       part: Record<string, Part[] | undefined>
       permission: Record<string, PermissionRequest[] | undefined>
+      permission_v2: Record<string, PermissionV2Pending[] | undefined>
       question: Record<string, QuestionRequest[] | undefined>
       part_text_accum_delta: Record<string, string | undefined>
     } = {
@@ -81,6 +86,7 @@ describe("app session cache", () => {
       message: { ses_1: [m] },
       part: { [m.id]: [part("prt_1", "ses_1", m.id)] },
       permission: {},
+      permission_v2: {},
       question: {},
       part_text_accum_delta: {},
     }

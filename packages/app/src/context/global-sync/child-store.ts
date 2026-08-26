@@ -220,6 +220,10 @@ export function createChildStoreManager(input: {
             session_diff: {},
             todo: {},
             permission: {},
+            permission_v2: {},
+            permission_v2_revision: 0,
+            permission_v2_load_epoch: 0,
+            permission_v2_events: [],
             question: {},
             get mcp_ready() {
               return !mcpQuery.isLoading

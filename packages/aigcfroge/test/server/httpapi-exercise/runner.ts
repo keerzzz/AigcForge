@@ -2,6 +2,7 @@ import { Flag } from "@aigcfroge/core/flag/flag"
 import { ConfigV1 } from "@aigcfroge/core/v1/config/config"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { Location } from "@aigcfroge/core/location"
+import { PermissionV2 } from "@aigcfroge/core/permission"
 import { LocationServiceMap } from "@aigcfroge/core/location-layer"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionV2 } from "@aigcfroge/core/session"
@@ -199,6 +200,24 @@ function withContext<A, E>(
                   })
                   .pipe(Effect.orDie)
                 return created
+              }),
+            ),
+          permissionV2: (input) =>
+            run(
+              Effect.gen(function* () {
+                const locations = yield* LocationServiceMap
+                const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(directory()) }))
+                const service = yield* PermissionV2.Service.pipe(Effect.provide(layer), Effect.orDie)
+                return yield* service.ask(input).pipe(Effect.orDie)
+              }),
+            ),
+          pendingPermissionV2: () =>
+            run(
+              Effect.gen(function* () {
+                const locations = yield* LocationServiceMap
+                const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(directory()) }))
+                const service = yield* PermissionV2.Service.pipe(Effect.provide(layer), Effect.orDie)
+                return yield* service.list()
               }),
             ),
           project: () =>

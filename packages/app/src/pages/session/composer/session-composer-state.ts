@@ -1,13 +1,14 @@
 import { createMemo } from "solid-js"
 import { createStore } from "solid-js/store"
-import type { PermissionRequest, QuestionRequest } from "@aigcfroge/sdk/v2"
+import type { QuestionRequest } from "@aigcfroge/sdk/v2"
 import { useParams } from "@solidjs/router"
 import { showToast } from "@/utils/toast"
 import { useLanguage } from "@/context/language"
 import { usePermission } from "@/context/permission"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
-import { sessionPermissionRequest, sessionQuestionRequest } from "./session-request-tree"
+import { PermissionPendingModel } from "@/context/global-sync/permission-pending"
+import { sessionPendingPermissionRequest, sessionQuestionRequest } from "./session-request-tree"
 
 export function createSessionComposerState() {
   const params = useParams()
@@ -20,10 +21,14 @@ export function createSessionComposerState() {
     return sessionQuestionRequest(sync().data.session, sync().data.question, params.id)
   })
 
-  const permissionRequest = createMemo((): PermissionRequest | undefined => {
-    return sessionPermissionRequest(sync().data.session, sync().data.permission, params.id, (item) => {
-      return !permission.autoResponds(item, sdk().directory)
-    })
+  const permissionRequest = createMemo((): PermissionPendingModel.PermissionPending | undefined => {
+    return sessionPendingPermissionRequest(
+      sync().data.session,
+      sync().data.permission,
+      sync().data.permission_v2,
+      params.id,
+      (item) => !permission.autoResponds(item, sdk().directory),
+    )
   })
 
   const blocked = createMemo(() => {
@@ -39,23 +44,22 @@ export function createSessionComposerState() {
   const permissionResponding = createMemo(() => {
     const perm = permissionRequest()
     if (!perm) return false
-    return store.responding === perm.id
+    return store.responding === perm.request.id
   })
 
   const decide = (response: "once" | "always" | "reject") => {
     const perm = permissionRequest()
     if (!perm) return
-    if (store.responding === perm.id) return
+    if (store.responding === perm.request.id) return
 
-    setStore("responding", perm.id)
-    sdk()
-      .client.permission.respond({ sessionID: perm.sessionID, permissionID: perm.id, response })
+    setStore("responding", perm.request.id)
+    PermissionPendingModel.replyPermission(sdk().client, perm, response)
       .catch((err: unknown) => {
         const description = err instanceof Error ? err.message : String(err)
         showToast({ title: language.t("common.requestFailed"), description })
       })
       .finally(() => {
-        setStore("responding", (id) => (id === perm.id ? undefined : id))
+        setStore("responding", (id) => (id === perm.request.id ? undefined : id))
       })
   }
 

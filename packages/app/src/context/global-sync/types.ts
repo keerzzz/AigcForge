@@ -16,6 +16,7 @@ import type {
   Todo,
   VcsInfo,
 } from "@aigcfroge/sdk/v2/client"
+import { PermissionPendingModel } from "./permission-pending"
 import { NormalizedProviderListResponse } from "@aigcfroge/session-ui/context"
 import type { Accessor } from "solid-js"
 import type { SetStoreFunction, Store } from "solid-js/store"
@@ -57,6 +58,12 @@ export type State = {
   permission: {
     [sessionID: string]: PermissionRequest[]
   }
+  permission_v2: {
+    [sessionID: string]: PermissionPendingModel.PermissionV2Pending[]
+  }
+  permission_v2_revision: number
+  permission_v2_load_epoch: number
+  permission_v2_events: PermissionPendingModel.PermissionV2Event[]
   question: {
     [sessionID: string]: QuestionRequest[]
   }

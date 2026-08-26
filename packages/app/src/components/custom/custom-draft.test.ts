@@ -213,6 +213,7 @@ describe("custom-draft store", () => {
         prompts: [{ relativePath: "guide.md", revision: Revision.make("f".repeat(64)), content: "" }],
         skills: [{ name: "bash", description: "", relativePath: "bash", revision: Revision.make("1".repeat(64)) }],
         tools: { fingerprints: [], catalogDigest: Digest.make("b".repeat(64)), catalog: [] },
+        mcp: { bindings: [], tools: [] },
       },
     }
 
@@ -270,6 +271,7 @@ describe("custom-draft store", () => {
         prompts: [],
         skills: [],
         tools: { fingerprints: [], catalogDigest: Digest.make("b".repeat(64)), catalog: [] },
+        mcp: { bindings: [], tools: [] },
       },
     }
 
