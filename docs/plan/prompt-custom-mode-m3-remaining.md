@@ -169,7 +169,7 @@ M3 计划 §3 Phase E 的事实校准是本 Phase 最重要的一条：
 - Resolver/freeze 不 connect；它们只消费唯一 `McpConnection.Service.facts()` 的成功 registration fact。Profile 显式绑定、asset revision、binding identity 和 runtime ready health 全部满足后才进入 effective/catalog/Snapshot。
 - `MCPAsset.configJson` 不被解码为连接真源；当前只做 asset path/revision provenance。Snapshot 只保留 ref/revision、opaque credentialRef、server 与 canonical registration identity。
 - Runner 的 MCP audit 校验和 connection owner 的每次 credential binding revalidation 都是实际调用链，不是孤立 helper。撤销保证新 admission 失败，不中断已开始的 provider/HTTP/child 调用。
-- 四组红证必须随复审报告记录：Resolver filter、Runner audit guard、requestOn revoke revalidation、Profile canonical decoder；每组都必须写拆除点、红用例和恢复后的绿结果。
+- 红证记录已在 `2307df31f` 后修正：原 Resolver catalog red proof 只覆盖“未绑定 server 不进入 catalog”，不能代替 requested-but-unusable 的 denial coverage。三个 denial branches（`not_connected` / `not_ready` / `binding_mismatch`）各有独立 red proof；MCP audit comparison 另有“合法输入不会误伤”的 comparator regression。其余 runner audit guard、requestOn revoke revalidation、Profile canonical decoder 也都必须写拆除点、红用例和恢复后的绿结果。
 
 ### 陷阱
 
