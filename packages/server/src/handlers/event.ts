@@ -28,11 +28,12 @@ export const EventHandler = HttpApiBuilder.group(Api, "server.event", (handlers)
         // Complete custom-session membership set, captured once per connection.
         const sessionModes = yield* SessionStore.sessionModes()
         const isEventSupported = ProductModePolicy.eventFilter(capabilitiesHeader, sessionModes)
-        // ADR-20 §2.7: this connection can answer approval prompts, so it
-        // counts as a responder while attached. Both SSE surfaces must bind —
-        // a client attached only here would otherwise leave the responder count
-        // at zero and every `ask` would be rejected instead of prompting.
-        yield* (yield* ApprovalPresence.Service).bindResponder()
+        // A legacy SSE connection filters custom events, so it must not claim it
+        // can answer custom approval prompts. Both SSE surfaces bind the same
+        // mode-aware connection fact while their Scope is alive.
+        yield* (yield* ApprovalPresence.Service).bindResponder({
+          custom: ProductModePolicy.isCustomCapable(capabilitiesHeader),
+        })
 
         const connected = {
           id: EventV2.ID.create(),

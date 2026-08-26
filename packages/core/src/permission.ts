@@ -275,6 +275,14 @@ export const layer = Layer.effect(
         }),
       )
 
+    const requireResponder = EffectRuntime.fnUntraced(function* (sessionID: SessionV2.ID) {
+      const session = yield* sessions.get(sessionID)
+      if (!session) return yield* new SessionV2.NotFoundError({ sessionID })
+      if (!(yield* presence.hasResponder({ location: session.location, mode: session.mode })))
+        return yield* new RejectedError({ reason: "no_responder" })
+      return yield* EffectRuntime.void
+    })
+
     const ask = EffectRuntime.fn("PermissionV2.ask")(function* (input: AssertInput) {
       const result = yield* evaluateInput(input)
       const value = request(input)
@@ -299,13 +307,9 @@ export const layer = Layer.effect(
           }
           if (result.effect === "allow") return
           if (yield* consultGrant(input)) return
-          // ADR-20 §2.7: a prompt may wait only while a capable responder is
-          // attached — a connection fact, never the `attended` flag. With no
-          // responder the request is rejected before anything is parked.
-          if (!(yield* presence.hasResponder())) {
-            yield* new RejectedError({ reason: "no_responder" })
-            return
-          }
+          // ADR-20 §2.7: a legacy SSE client cannot observe custom asks, so it
+          // cannot keep a custom prompt parked.
+          yield* requireResponder(input.sessionID)
           const item = yield* create(request(input), input.agent)
           yield* restore(Deferred.await(item.deferred)).pipe(
             EffectRuntime.timeoutOrElse({

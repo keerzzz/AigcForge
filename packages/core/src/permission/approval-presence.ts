@@ -1,6 +1,8 @@
 export * as ApprovalPresence from "./approval-presence"
 
 import { Context, Effect, Layer, Schema } from "effect"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { Location } from "../location"
 import type * as Scope from "effect/Scope"
 
 export const DEFAULT_TTL_MS = 300_000
@@ -21,7 +23,9 @@ const clampTtl = (ttlMs: number) => Math.min(Math.max(Math.floor(ttlMs), 1), MAX
  *
  * - Over-reporting (a responder is bound that cannot actually see this
  *   Location's or this mode's prompts) costs one bounded TTL wait and then a
- *   typed rejection. Nothing is ever granted.
+ *   typed rejection. Nothing is ever granted. The custom-mode capability is
+ *   tracked separately so a legacy SSE connection cannot over-report custom
+ *   approval availability.
  * - Under-reporting (no responder bound while a client is in fact watching)
  *   turns every `ask` into a hard denial with no path to approval.
  *
@@ -39,10 +43,13 @@ const clampTtl = (ttlMs: number) => Math.min(Math.max(Math.floor(ttlMs), 1), MAX
  * layer/type error, not a runtime policy change.
  */
 export interface Interface {
-  /** Registers one capable responder; released when the connection Scope closes. */
-  readonly bindResponder: () => Effect.Effect<void, never, Scope.Scope>
-  /** Live connection fact: at least one responder is currently bound. */
-  readonly hasResponder: () => Effect.Effect<boolean>
+  /** Registers one responder and the modes and Location it can observe. */
+  readonly bindResponder: (input: {
+    readonly location?: Location.Ref
+    readonly custom: boolean
+  }) => Effect.Effect<void, never, Scope.Scope>
+  /** Live connection fact: at least one responder can observe this Location and mode. */
+  readonly hasResponder: (input: { readonly location: Location.Ref; readonly mode: ProductMode.ID }) => Effect.Effect<boolean>
   /** Bounded wait for an answer once a responder exists; clamped to (0, MAX_TTL_MS]. */
   readonly ttlMs: number
 }
@@ -53,17 +60,28 @@ export const make = (ttlMs: number) =>
   Layer.effect(
     Service,
     Effect.gen(function* () {
-      let responders = 0
+      const responders: Array<{ readonly location?: Location.Ref; readonly custom: boolean }> = []
       return Service.of({
-        bindResponder: Effect.fn("ApprovalPresence.bindResponder")(function* () {
-          responders += 1
+        bindResponder: Effect.fn("ApprovalPresence.bindResponder")(function* (input: {
+          readonly location?: Location.Ref
+          readonly custom: boolean
+        }) {
+          responders.push(input)
           yield* Effect.addFinalizer(() =>
             Effect.sync(() => {
-              responders -= 1
+              const index = responders.indexOf(input)
+              if (index >= 0) responders.splice(index, 1)
             }),
           )
         }),
-        hasResponder: () => Effect.sync(() => responders > 0),
+        hasResponder: (input) =>
+          Effect.sync(() =>
+            responders.some(
+              (responder) =>
+                (input.mode !== "custom" || responder.custom) &&
+                (responder.location === undefined || sameLocation(responder.location, input.location)),
+            ),
+          ),
         ttlMs: clampTtl(ttlMs),
       })
     }),
@@ -73,3 +91,7 @@ export const make = (ttlMs: number) =>
 export const defaultLayer = make(DEFAULT_TTL_MS)
 
 export const Reason = Schema.Literals(["no_responder"])
+
+function sameLocation(left: Location.Ref, right: Location.Ref) {
+  return left.directory === right.directory && left.workspaceID === right.workspaceID
+}

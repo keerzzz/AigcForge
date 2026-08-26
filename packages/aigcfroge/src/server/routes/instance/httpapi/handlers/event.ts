@@ -7,6 +7,8 @@ import { HttpApiBuilder } from "effect/unstable/httpapi"
 import * as Sse from "effect/unstable/encoding/Sse"
 import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
 import { ApprovalPresence } from "@aigcfroge/core/permission/approval-presence"
+import { Location } from "@aigcfroge/core/location"
+import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionStore } from "@aigcfroge/core/session/store"
 import { EventApi } from "../groups/event"
 
@@ -29,6 +31,7 @@ function eventResponse(events: EventV2.Interface) {
     const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
     const instance = yield* InstanceState.context
     const workspaceID = yield* InstanceState.workspaceID
+    const presence = yield* ApprovalPresence.Service
     // Complete custom-session membership set, captured once per connection.
     const sessionModes = yield* SessionStore.sessionModes()
     const isEventSupported = ProductModePolicy.eventFilter(capabilitiesHeader, sessionModes)
@@ -38,10 +41,13 @@ function eventResponse(events: EventV2.Interface) {
     const queue = yield* Queue.unbounded<EventV2.Payload>()
     const unsubscribe = yield* events.listen((event) => Effect.sync(() => Queue.offerUnsafe(queue, event)))
     yield* Effect.addFinalizer(() => unsubscribe)
-    // ADR-20 §2.7: this connection can answer approval prompts, so it counts as
-    // a responder for as long as it is attached. Without at least one bound
-    // responder every `ask` is rejected immediately instead of prompting.
-    yield* (yield* ApprovalPresence.Service).bindResponder()
+    // A legacy SSE connection filters custom events, so it must not claim it
+    // can answer custom approval prompts. The presence owner keeps this fact by
+    // session mode while the connection Scope is alive.
+    yield* presence.bindResponder({
+      location: Location.Ref.make({ directory: AbsolutePath.make(instance.directory), workspaceID }),
+      custom: ProductModePolicy.isCustomCapable(capabilitiesHeader),
+    })
     const stream = Stream.fromQueue(queue).pipe(
       Stream.filter(
         (event) =>

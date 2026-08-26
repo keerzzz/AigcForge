@@ -160,6 +160,7 @@ const workspaceRoutingLive = workspaceRoutingLayer.pipe(Layer.provide(Socket.lay
 const rootApiRoutes = HttpApiBuilder.layer(RootHttpApi).pipe(
   Layer.provide([controlHandlers, controlPlaneHandlers, globalHandlers]),
   Layer.provide(schemaErrorLayer),
+  Layer.provide(ApprovalPresence.defaultLayer),
   Layer.provide(httpApiAuthLayer),
 )
 const eventApiRoutes = HttpApiBuilder.layer(EventApi).pipe(
