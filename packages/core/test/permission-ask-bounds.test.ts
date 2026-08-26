@@ -1,5 +1,6 @@
 import { describe, expect } from "bun:test"
-import { Cause, Context, Effect, Exit, Layer, Option, Scope } from "effect"
+import { Cause, Context, Deferred, Effect, Exit, Fiber, Layer, Option, Schema, Scope } from "effect"
+import { eq } from "drizzle-orm"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { ApprovalPresence } from "@aigcfroge/core/permission/approval-presence"
@@ -101,11 +102,112 @@ describe("ApprovalPresence × ask bounds (ADR-20 §2.7)", () => {
     }),
   )
 
+  it.effect("rejects a custom execution ask immediately when only a legacy responder is attached", () =>
+    Effect.gen(function* () {
+      const presence = yield* ApprovalPresence.Service
+      yield* presence.bindResponder({ custom: false })
+      const sessionID = yield* setup([{ action: "bash", resource: "*", effect: "ask" }])
+      const service = yield* PermissionV2.Service
+
+      const exit = yield* service
+        .assert({ sessionID, action: "bash", resources: ["/tmp/run.sh"], agent: AgentV2.ID.make("test") })
+        .pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      const error = Exit.isFailure(exit) ? Option.getOrUndefined(Cause.findErrorOption(exit.cause)) : undefined
+      expect(error).toBeInstanceOf(PermissionV2.RejectedError)
+      if (error instanceof PermissionV2.RejectedError) expect(error.reason).toBe("no_responder")
+      expect(yield* service.forSession(sessionID)).toHaveLength(0)
+    }),
+  )
+
+  it.effect("publishes and resolves a custom ask when a capable responder is attached", () =>
+    Effect.gen(function* () {
+      const presence = yield* ApprovalPresence.Service
+      yield* presence.bindResponder({ custom: true })
+      const sessionID = yield* setup([{ action: "bash", resource: "*", effect: "ask" }])
+      const service = yield* PermissionV2.Service
+      const events = yield* EventV2.Service
+      const asked = yield* Deferred.make<PermissionV2.Request>()
+      const unsubscribe = yield* events.listen((event) =>
+        event.type === PermissionV2.Event.Asked.type
+          ? Deferred.succeed(asked, Schema.decodeUnknownSync(PermissionV2.Request)(event.data)).pipe(Effect.asVoid)
+          : Effect.void,
+      )
+      yield* Effect.addFinalizer(() => unsubscribe)
+      const fiber = yield* service
+        .assert({ sessionID, action: "bash", resources: ["/tmp/run.sh"], agent: AgentV2.ID.make("test") })
+        .pipe(Effect.forkScoped)
+      const request = yield* Deferred.await(asked)
+
+      expect(request.sessionID).toBe(sessionID)
+      expect(yield* service.forSession(sessionID)).toEqual([request])
+      yield* service.reply({ requestID: request.id, reply: "once" })
+      yield* Fiber.join(fiber)
+      expect(yield* service.forSession(sessionID)).toHaveLength(0)
+    }),
+  )
+
+  it.effect("keeps a non-custom execution ask answerable through a legacy responder", () =>
+    Effect.gen(function* () {
+      const presence = yield* ApprovalPresence.Service
+      yield* presence.bindResponder({ custom: false })
+      const sessionID = yield* setup([{ action: "bash", resource: "*", effect: "ask" }])
+      const { db } = yield* Database.Service
+      yield* db
+        .update(SessionTable)
+        .set({ mode: "coding" })
+        .where(eq(SessionTable.id, sessionID))
+        .run()
+        .pipe(Effect.orDie)
+      const service = yield* PermissionV2.Service
+      const events = yield* EventV2.Service
+      const asked = yield* Deferred.make<PermissionV2.Request>()
+      const unsubscribe = yield* events.listen((event) =>
+        event.type === PermissionV2.Event.Asked.type
+          ? Deferred.succeed(asked, Schema.decodeUnknownSync(PermissionV2.Request)(event.data)).pipe(Effect.asVoid)
+          : Effect.void,
+      )
+      yield* Effect.addFinalizer(() => unsubscribe)
+      const fiber = yield* service
+        .assert({ sessionID, action: "bash", resources: ["/tmp/run.sh"], agent: AgentV2.ID.make("test") })
+        .pipe(Effect.forkScoped)
+      const request = yield* Deferred.await(asked)
+
+      expect(request.sessionID).toBe(sessionID)
+      yield* service.reply({ requestID: request.id, reply: "once" })
+      yield* Fiber.join(fiber)
+      expect(yield* service.forSession(sessionID)).toHaveLength(0)
+    }),
+  )
+
+  it.effect("does not let a responder from another Location answer a custom execution ask", () =>
+    Effect.gen(function* () {
+      const presence = yield* ApprovalPresence.Service
+      yield* presence.bindResponder({
+        location: { directory: AbsolutePath.make("/other-project") },
+        custom: true,
+      })
+      const sessionID = yield* setup([{ action: "bash", resource: "*", effect: "ask" }])
+      const service = yield* PermissionV2.Service
+
+      const exit = yield* service
+        .assert({ sessionID, action: "bash", resources: ["/tmp/run.sh"], agent: AgentV2.ID.make("test") })
+        .pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      const error = Exit.isFailure(exit) ? Option.getOrUndefined(Cause.findErrorOption(exit.cause)) : undefined
+      expect(error).toBeInstanceOf(PermissionV2.RejectedError)
+      if (error instanceof PermissionV2.RejectedError) expect(error.reason).toBe("no_responder")
+      expect(yield* service.forSession(sessionID)).toHaveLength(0)
+    }),
+  )
+
   // Short-TTL variant runs on its own runtime (real clock, 10ms bound).
   it.effect("still resolves through reply while inside the TTL window", () =>
     Effect.gen(function* () {
       const presence = yield* ApprovalPresence.Service
-      yield* presence.bindResponder()
+      yield* presence.bindResponder({ custom: true })
       const sessionID = yield* setup([{ action: "bash", resource: "*", effect: "ask" }])
       const service = yield* PermissionV2.Service
 
@@ -124,7 +226,7 @@ describe("ApprovalPresence × ask bounds (ADR-20 §2.7)", () => {
 // cannot see and every prompt is rejected again — the same P0 in a subtler
 // shape, invisible to any single-composition test.
 describe("ApprovalPresence instance sharing", () => {
-  it.live("shares one responder counter across independently provided compositions", () =>
+  it.live("shares responder mode facts across independently provided compositions", () =>
     Effect.gen(function* () {
       const memoMap = Layer.makeMemoMapUnsafe()
       const scope = yield* Scope.make()
@@ -133,15 +235,33 @@ describe("ApprovalPresence instance sharing", () => {
       const viaRoute = Context.get(first, ApprovalPresence.Service)
       const viaLocation = Context.get(second, ApprovalPresence.Service)
 
-      expect(yield* viaLocation.hasResponder()).toBe(false)
+      expect(
+        yield* viaLocation.hasResponder({
+          location: { directory: AbsolutePath.make("/project") },
+          mode: "custom",
+        }),
+      ).toBe(false)
       yield* Effect.scoped(
         Effect.gen(function* () {
-          yield* viaRoute.bindResponder()
+          yield* viaRoute.bindResponder({
+            location: { directory: AbsolutePath.make("/project") },
+            custom: true,
+          })
           // Bound through one composition, observed through the other.
-          expect(yield* viaLocation.hasResponder()).toBe(true)
+          expect(
+            yield* viaLocation.hasResponder({
+              location: { directory: AbsolutePath.make("/project") },
+              mode: "custom",
+            }),
+          ).toBe(true)
         }),
       )
-      expect(yield* viaLocation.hasResponder()).toBe(false)
+      expect(
+        yield* viaLocation.hasResponder({
+          location: { directory: AbsolutePath.make("/project") },
+          mode: "custom",
+        }),
+      ).toBe(false)
       yield* Scope.close(scope, Exit.void)
     }),
   )
@@ -157,7 +277,7 @@ describe("custom ceiling × responder facts (composed)", () => {
   it.effect("a rewritten allow reaches a real prompt while a responder is attached", () =>
     Effect.gen(function* () {
       const presence = yield* ApprovalPresence.Service
-      yield* presence.bindResponder()
+      yield* presence.bindResponder({ custom: true })
       // Exactly what `tools: [bash]` in an agent file compiles to — no author
       // wrote "ask" anywhere.
       const sessionID = yield* setup([{ action: "bash", resource: "*", effect: "allow" }])
@@ -183,7 +303,7 @@ describe("custom ceiling × responder facts (composed)", () => {
   it.effect("a whitelisted readonly allow is untouched by the ceiling and never prompts", () =>
     Effect.gen(function* () {
       const presence = yield* ApprovalPresence.Service
-      yield* presence.bindResponder()
+      yield* presence.bindResponder({ custom: true })
       const sessionID = yield* setup([{ action: "read", resource: "*", effect: "allow" }])
       const service = yield* PermissionV2.Service
 
@@ -222,7 +342,7 @@ describe("ApprovalPresence × ask TTL (short, live clock)", () => {
   itTtl.live("expires the ask with a typed error once the TTL elapses unanswered", () =>
     Effect.gen(function* () {
       const presence = yield* ApprovalPresence.Service
-      yield* presence.bindResponder() // attached but never answers
+      yield* presence.bindResponder({ custom: true }) // attached but never answers
       expect(presence.ttlMs).toBe(10)
       const sessionID = yield* setup([{ action: "bash", resource: "*", effect: "ask" }])
       const service = yield* PermissionV2.Service

@@ -181,18 +181,19 @@ Snapshot 只存 **ref / fingerprint**，永不存材料、executor、client（M3
 
 **分支**：`approval-center`
 
-### 6.0 先纠正计划里的一条事实：pending 端点**不存在**
+### 6.0 事实恢复：V2 pending / reply 端点已经存在
 
-M3 计划 §3 Phase F 写「V2 的 pending / reply 端点与 `permission.v2.*` 事件**都已存在并已挂载**，缺的纯粹是客户端」。**这句话有一半是错的**，我逐条复核过（2026-08-26，`main@497268161`）：
+此前一次复核把检索范围错误限定在 `packages/aigcfroge/src`，据此宣布 V2 pending 端点不存在；这是错误结论。V2 permission API 在 `packages/server`，并被 `packages/aigcfroge/.../httpapi/api.ts` 引入和挂载：
 
-| 计划的说法                   | 实测                                                                                                                                                                                                                                                                                                |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| V2 reply 端点已存在          | ✅ **成立，但走的是 V1 类型的路由**：`POST /session/:sessionID/permissions/:permissionID`（`groups/session.ts:535`，`params.permissionID` 声明为 `PermissionV1.ID`），handler 在 `handlers/session.ts:922` 用 `ProductModePolicy.shouldUseV2Runtime` 分叉，V2 会话才走 `PermissionV2.Service.reply` |
-| V2 pending 端点已存在        | ❌ **不存在。** 唯一的 list 是 `GET /permission`（`groups/permission.ts:20`），success 类型是 `Schema.Array(PermissionV1.Request)`，handler 用 V1 service。全仓 `rg PermissionV2 packages/aigcfroge/src` **只有 4 处命中，全在 `handlers/session.ts` 的 reply 路径里**                              |
-| `permission.v2.*` 事件已存在 | ✅ `permission.ts:79` `permission.v2.asked`、`:81` `permission.v2.replied`                                                                                                                                                                                                                          |
-| 客户端零消费                 | ✅ **确实是字面意义的零**：`app` / `tui` / `session-ui` / `ui` / `desktop` 各 0 命中。app 现在消费 V1 的 `permission.asked`（`app/src/context/permission.tsx:167`、`context/global-sync/event-reducer.ts:387`）                                                                                     |
+| 事实 | 实测 |
+| --- | --- |
+| V2 pending 聚合端点 | ✅ `GET /api/permission/request`，`v2.permission.request.list`，返回 `Location.response(Schema.Array(PermissionV2.Request))`，handler 调用 `PermissionV2.Service.list()` |
+| V2 session pending 端点 | ✅ `GET /api/session/:sessionID/permission`，`v2.session.permission.list`，handler 调用 `PermissionV2.Service.forSession()` |
+| V2 reply 端点 | ✅ `POST /api/session/:sessionID/permission/:requestID/reply`，`v2.session.permission.reply`，handler 先校验 request 所属 Session 再调用 `PermissionV2.Service.reply()` |
+| `permission.v2.*` 事件 | ✅ `permission.v2.asked` 与 `permission.v2.replied` 已存在 |
+| 客户端消费 | ✅ 仍为字面零：app / tui / session-ui / ui / desktop 尚未消费 V2 permission API 或事件 |
 
-**所以 Phase F 不是纯客户端工作**：**V2 pending 聚合端点要从零写**。如果你照计划的转述去找一个「已挂载的 V2 pending 端点」，会找不到，然后审批中心会拿不到任何可列的东西。**这条纠正必须同步回 M3 计划 §3 Phase F，不要只写在报告里。**
+**Phase F 的重心仍是客户端和 SDK，而不是重造服务端 pending 端点。** F2 先复用并验证现有 `packages/server` API 的 auth、Location scope、request ownership 和 OpenAPI/SDK surface，再接入审批中心。
 
 ### 6.1 我在复核中发现的一个活缺陷：responder 过报
 
@@ -235,31 +236,19 @@ M3 计划 §3 Phase F 写「V2 的 pending / reply 端点与 `permission.v2.*` �
 
 **这是纯浏览器状态，不是服务端授权。** 收敛方案必须显式回答：审批中心上线后，这个 store 是（a）删除、（b）降级为「本地 UI 便利」且**永不代替服务端判定**、还是（c）迁移成真正的 `ScopedGrant`。**不许让它继续事实上充当授权来源**——`base64(directory)/*` 那个通配键 + 血缘继承，等价于一个没有过期、没有撤销、没有审计的 Location 级 grant。
 
-### 6.4 attended custom 天花板：R6 残留**仍然开着**
+### 6.4 attended custom 天花板：已实现，F 阶段只验证与展示
 
-计划 §3 Phase D 注 1 要求 Phase D 一并处理，但 Phase D（`38d82e2b3`）**没有做**。实测 `core/src/permission/effective.ts`：
+此前把 `effective.ts` 的 unattended deny-first clamp 误读成 attended ceiling 缺失；这是错误结论。`effective.ts:59-67` 已对 custom 模式的资产来源执行类 `allow` 无条件重写为 `ask`，不依赖 `attended`。`savedApprovals` 在后续独立追加为 `allow`，正是 ADR-20 §2.6 要求保留用户显式 always 授权的设计，不是漏洞。
 
-- `:112` 天花板仍然只在 `if (!attended)` 分支内
-- `:88-94` attended 时 `savedApprovals` 被作为 **`allow`** 规则 push 进去
-
-所以 attended custom 会话里 allow-all 资产仍然得到 `allow`，而审批框只在 `ask` 时弹——**框根本不出现**。
-
-**但它的阻塞依赖已经解除了**：计划说重写必须与「无应答方即时拒绝」同一 slice 交付，而后者在 Phase F0 已经建好（§6.2）。**所以这条现在可以、也应该在 Phase F 落地。**
-
-落地要点照 ADR-20 §2.6（不要重新论证）：
-
-1. 生效位序：头部 fallback `deny` → 非白名单资产 allow **重写为 ask** → 白名单 allow → 显式非通配 `deny`。`evaluate` 是 `findLast`，位序错了就等于没做
-2. **必须区分「base 来源」与「saved 追加来源」**——用户真点过 always 的 saved approval 不受天花板影响，否则把用户自己的显式授权一起削掉
-3. provenance 校验：注册表条目须来自被绑定资产的 `relativePath` + `revision`，不一致 fail closed
-4. 白名单成员是**已裁定项**：`READONLY_CEILING_ACTIONS` 现状见 `effective.ts:30` 附近；`skill` / `kb_search` / `question` **不纳入**，需要时走 grant 签发。任何成员变更要重过 Security 复审并同步 `permission-effective.test.ts`
+F 阶段不重复实现或改写这一规则；只需在审批中心/UI 中正确展示其 ask 请求，并保留回归测试覆盖：资产 allow → ask、只读白名单保持 allow、显式 deny 优先、saved approval 不被天花板削弱。
 
 ### 6.5 Slice 拆分（建议，每个 slice 独立红→绿→审）
 
 | Slice  | 范围                                            | 判据                                                                               |
 | ------ | ----------------------------------------------- | ---------------------------------------------------------------------------------- |
 | **F1** | responder 能力对齐（§6.1）                      | 非能力头 + custom ask → 立即 `no_responder`；能力头 → 进 pending。**不许靠等 TTL** |
-| **F2** | V2 pending 聚合端点 + SDK 重新生成              | 端点带 `OpenApi.annotations identifier`；响应体只含 ref 与 label，**永不含材料**   |
-| **F3** | attended 天花板重写（§6.4）                     | 四个要点各一条断言；saved approval 不被削                                          |
+| **F2** | 复用 V2 pending/reply API + SDK/客户端接入       | 既有 identifiers、Location scope、request ownership 和响应 schema 经真实 API/SDK 测试；不新增重复端点 |
+| **F3** | attended ceiling 回归验证与审批展示             | 资产 allow→ask、只读 allow、explicit deny、saved approval 的既有规则都可见且不回归 |
 | **F4** | App pending indicator / dialog + Builder health | 只聚合请求，**不自动扩大 scope**；once / Session / Location 明示                   |
 | **F5** | 浏览器 auto-accept 收敛裁决（§6.3）             | 三选一并落到代码；通配键 + 血缘继承必须有明确处置                                  |
 

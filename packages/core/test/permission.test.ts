@@ -22,7 +22,7 @@ import { testEffect } from "./lib/effect"
 const attachResponder = () =>
   Effect.gen(function* () {
     const presence = yield* ApprovalPresence.Service
-    yield* presence.bindResponder()
+    yield* presence.bindResponder({ custom: true })
   })
 
 const current = Layer.succeed(
