@@ -61,9 +61,10 @@ CI 中（linux only）：coverage + auth 为硬门禁，effect 为 advisory。
 
 ## 4. App E2E（Playwright）
 
-- 配置：`packages/app/e2e/playwright.config.ts`（另有 `playwright.uncapped.config.ts`）
+- 配置：`packages/app/playwright.config.ts`（性能基准另用 `packages/app/e2e/performance/playwright.config.ts`）
 - 目录：`regression/`（回归规格）、`smoke/`（冒烟）、`performance/`（基准）、`utils/`（辅助）
-- 必须覆盖：桌面与窄视口、light/dark、en/zh/zht 三语、键盘 focus、加载/空/错误态
+- **当前实际执行标准**：每个功能一份 spec，覆盖该功能的主路径与加载/空/错误态。**这是审查时唯一可据以打回的 e2e 标准。**
+- **目标（尚未实现，勿作为 PR blocker）**：桌面与窄视口、light/dark、en/zh/zht 三语、键盘 focus。截至 2026-08-26 实测：18 个 `regression/*.spec.ts` 中 dark **0/18**、i18n **0/18**、keyboard **2/18**；`packages/app/playwright.config.ts:43` 只有单个 `chromium` / Desktop Chrome project，无 theme / locale / 窄视口 project。**所以这一行历史上是纸面要求，从未在任何层面成立**——登记于 [technical-debt](technical-debt.md) §4，根治方式是在 config 加 project（会一次照亮全部既有 spec），不是逐个 PR 追加断言
 - 运行报告：`bun --cwd packages/app run test:e2e:report`（playwright-report）
 
 ---
