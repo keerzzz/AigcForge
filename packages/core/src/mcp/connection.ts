@@ -346,6 +346,25 @@ const credentialHeadersFor = (value: Credential.OAuth): Record<string, string> =
   Authorization: `Bearer ${value.access}`,
 })
 
+/**
+ * The one expiry rule, shared by connect admission and per-call admission.
+ *
+ * It has to be one function rather than two inline comparisons: `requestOn`
+ * re-resolves the binding before every credentialed call so that revocation
+ * takes effect immediately, and expiry has to ride the same path or a token
+ * that lapsed after the handshake stays invisible locally — surfacing only if
+ * the remote answers 401, which then reports a *missing* credential for one that
+ * merely expired (and reports `offline` for a server that answers 403 instead).
+ *
+ * No clock tolerance on purpose. Granting grace here alone would give the two
+ * admission points different rules; granting it at both would let a
+ * nearly-expired token connect and then fail on its first call, which is worse
+ * feedback than refusing the connection. ADR-21 §4.1 keeps refresh out of this
+ * owner, so the only outcome either way is a typed failure into `auth-required`.
+ */
+const isCredentialExpired = (value: Credential.Value, nowMs: number) =>
+  value.type === "oauth" && value.expires <= nowMs / 1000
+
 export const redactRemoteResponse = (
   scanner: CredentialScanner.Interface,
   input: { readonly headers: Readonly<Record<string, string>>; readonly body: string },
@@ -666,6 +685,19 @@ export const layer = Layer.effect(
               return Effect.fail(error)
             }),
           )
+          // Same admission rule as connect (`isCredentialExpired`): a token that
+          // lapsed after the handshake must fail here, typed as expired, rather
+          // than travelling to the remote and coming back as a 401 that reads
+          // like a missing credential.
+          const credentialRef = wire.binding.credentialRef
+          const cred = yield* credentialService.get(Credential.ID.make(credentialRef)).pipe(Effect.orDie)
+          if (!cred) return yield* new CredentialMissingError({ serverName: server, credentialRef })
+          // No `setHealth` here: `ready -> auth-required` is rejected by
+          // `transitionHealth`, so attempting it would only be swallowed. Same
+          // reason the `tapError` further down has never been able to record
+          // this state. See technical-debt §3.2.
+          if (isCredentialExpired(cred.value, Date.now()))
+            return yield* new CredentialExpiredError({ serverName: server, credentialRef })
         }
         return yield* wire.request(method, params).pipe(
           Effect.tapError((error) =>
@@ -734,7 +766,7 @@ export const layer = Layer.effect(
           yield* setHealth({ serverName, to: "auth-required" })
           return yield* new CredentialMissingError({ serverName, credentialRef: resolved.credentialRef })
         }
-        if (cred.value.type === "oauth" && cred.value.expires <= Date.now() / 1000) {
+        if (isCredentialExpired(cred.value, Date.now())) {
           yield* setHealth({ serverName, to: "auth-required" })
           return yield* new CredentialExpiredError({ serverName, credentialRef: resolved.credentialRef })
         }

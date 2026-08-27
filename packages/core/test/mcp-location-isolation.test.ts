@@ -1,6 +1,6 @@
 import { describe, expect } from "bun:test"
 import { Effect, Exit, Layer, Schema, Scope } from "effect"
-import { mkdirSync, rmSync } from "node:fs"
+import { mkdirSync, readFileSync, rmSync } from "node:fs"
 import { randomUUID } from "node:crypto"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -11,7 +11,7 @@ import { ToolRegistry } from "@aigcfroge/core/tool/registry"
 import { Composition } from "@aigcfroge/schema/composition"
 import { McpServerBinding } from "@aigcfroge/schema/mcp-scope"
 import { withCustomModeEnabled } from "./lib/product-mode"
-import { testEffect } from "./lib/effect"
+import { pollWithTimeout, testEffect } from "./lib/effect"
 
 /**
  * M3 exit condition, at the layer that actually decides it: "Location A's MCP
@@ -43,6 +43,28 @@ const bindingFor = (serverName: string) =>
     ref: { relativePath: `mcp/${serverName}.json`, revision: REVISION },
     transport: "stdio",
     command: [process.execPath, FIXTURE, "ok"],
+  })
+
+/**
+ * Gone entirely, not merely stopped: `/proc` where it exists (which also settles
+ * identity against pid recycling), `process.kill(pid, 0)` elsewhere so the
+ * Windows CI leg asserts this too. Mirrors `mcp-connection.test.ts`.
+ */
+const reaped = (pid: number) =>
+  Effect.sync(() => {
+    if (process.platform === "linux") {
+      try {
+        return !readFileSync(`/proc/${pid}/cmdline`, "utf8").includes("fake-mcp-server.mjs")
+      } catch {
+        return true
+      }
+    }
+    try {
+      process.kill(pid, 0)
+      return false
+    } catch {
+      return true
+    }
   })
 
 /** Both halves: the registry set and the definitions the model is handed. */
@@ -96,6 +118,70 @@ describe("MCP Location isolation through the real LayerMap (M3 exit condition)",
         )
       expect(yield* namesIn(a)).toEqual(["only-in-a"])
       expect(yield* namesIn(b)).toEqual(["only-in-b"])
+    }),
+  )
+
+  /**
+   * Location unload, on the production path and without touching production.
+   *
+   * An earlier pass concluded this was untestable because the only trigger is
+   * `location-layer.ts:282`'s hardcoded `idleTimeToLive: "60 minutes"` — a real
+   * clock cannot be waited out and a virtual one cannot coexist with a live
+   * subprocess. That conclusion came from not reading `LayerMap`'s interface,
+   * which carries an explicit `invalidate(key)` alongside the idle timer. The
+   * TTL is only the automatic trigger; this is the same teardown reached
+   * deliberately.
+   */
+  it.live("releases a Location's child process and tools when the LayerMap invalidates it", () =>
+    Effect.gen(function* () {
+      const root = path.join(os.tmpdir(), `aigcfroge-loc-unload-${randomUUID()}`)
+      mkdirSync(root, { recursive: true })
+      yield* Effect.addFinalizer(() => Effect.sync(() => rmSync(root, { recursive: true, force: true })))
+
+      const locations = yield* LocationServiceMap
+      const ref = { directory: AbsolutePath.make(root) }
+      // The borrow lives in its own scope: `LayerMap` reference-counts, so an
+      // `invalidate` while this test still holds the layer only marks it — the
+      // finalizers cannot run until the last borrower lets go. Measured, not
+      // assumed: invalidating with the borrow open left the child alive.
+      const borrow = yield* Scope.make()
+      const scope = yield* Scope.make()
+      yield* Effect.addFinalizer(() => Scope.close(scope, Exit.void).pipe(Effect.ignore))
+      yield* Effect.addFinalizer(() => Scope.close(borrow, Exit.void).pipe(Effect.ignore))
+      const context = yield* Layer.buildWithScope(locations.get(ref), borrow)
+
+      const info = yield* McpConnection.Service.use((conn) =>
+        conn.connect({ binding: bindingFor("unload-me") }),
+      ).pipe(Effect.provide(context))
+      const pid = info.pid
+      if (pid === undefined) throw new Error("stdio connection did not expose a pid")
+      expect(yield* view("unload-me").pipe(Effect.provide(context))).toEqual({
+        registered: true,
+        materialized: true,
+      })
+      // Control: the child is running and unreaped before the unload, so the
+      // assertions below cannot hold vacuously.
+      expect(yield* reaped(pid)).toBe(false)
+
+      yield* Scope.close(borrow, Exit.void)
+      yield* locations.invalidate(ref)
+
+      // The observable that cannot be faked: the external binary this Location
+      // owned is gone and reaped, meaning the owner Scope ran its finalizers.
+      yield* pollWithTimeout(
+        reaped(pid).pipe(Effect.map((gone) => (gone ? true : undefined))),
+        "the invalidated Location left its MCP child running",
+      )
+      // And nothing leaked into the Location's next incarnation: asking for the
+      // same ref again yields a set with no connections of its own.
+      const rebuilt = yield* Layer.buildWithScope(locations.get(ref), scope)
+      expect(
+        yield* McpConnection.Service.use((conn) => conn.connections()).pipe(Effect.provide(rebuilt)),
+      ).toEqual([])
+      expect(yield* view("unload-me").pipe(Effect.provide(rebuilt))).toEqual({
+        registered: false,
+        materialized: false,
+      })
     }),
   )
 })

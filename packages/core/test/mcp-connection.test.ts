@@ -522,6 +522,67 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
     }),
   )
 
+  /**
+   * Mid-session OAuth expiry, detected locally (ruling of 2026-08-27).
+   *
+   * `requestOn` already re-resolves the binding before every credentialed call,
+   * which is what makes revocation take effect immediately — but it did not
+   * re-check `expires`. So a token that expired after the handshake stayed
+   * invisible locally and only surfaced if the remote answered 401, which then
+   * mapped to `CredentialMissingError`: the user was told the credential was
+   * absent when it had merely expired, and a server answering 403 or
+   * 200-with-error was reported as `offline` instead.
+   *
+   * The same predicate now runs at both admission points, so the two cannot
+   * drift. No clock tolerance: connect-time has shipped without it, and adding
+   * grace in one place only would mean two different expiry rules, while adding
+   * it in both would let a nearly-expired token connect and then fail on its
+   * first call — worse feedback than refusing the connection.
+   */
+  it.live("fails a call whose OAuth credential expired after the handshake, as expired and not as missing", () =>
+    Effect.gen(function* () {
+      const credential = yield* Credential.Service
+      const bindings = yield* McpCredentialBindingStore.Service
+      const conn = yield* McpConnection.Service
+      const oauth = (expires: number) =>
+        Schema.decodeUnknownSync(Credential.OAuth)({
+          type: "oauth",
+          methodID: "oauth",
+          refresh: "refresh",
+          access: "sk-live-midsession-0123456789abcdef",
+          expires,
+        })
+      const created = yield* credential.create({
+        integrationID: Integration.ID.make("int_midsession_expiry"),
+        value: oauth(Math.floor(Date.now() / 1000) + 3600),
+        label: "mid-session expiry",
+      })
+      yield* bindings.bind({ serverName: "expiring", credentialRef: String(created.id) })
+      yield* conn.connect({ binding: binding({ serverName: "expiring", credentialRef: String(created.id) }) })
+
+      // Control: while the token is valid the call goes through, so the failure
+      // below is caused by the expiry and not by the credential path in general.
+      expect((yield* probe(conn.callTool({ name: "mcp_expiring_echo", args: { msg: "hi" } }))).failed).toBe(false)
+      expect(yield* conn.health("expiring")).toBe("ready")
+
+      yield* credential.update(created.id, { value: oauth(Math.floor(Date.now() / 1000) - 1) })
+
+      const result = yield* probe(conn.callTool({ name: "mcp_expiring_echo", args: { msg: "hi" } }))
+      expect(result.tag).toBe("McpConnection.CredentialExpiredError")
+
+      // Health deliberately NOT asserted as `auth-required`, because it cannot
+      // be: `transitionHealth` forbids `ready -> auth-required` and that
+      // illegality is itself pinned by a reviewed test in this file. The call
+      // path already *intends* that move — the `tapError` below `requestOn` maps
+      // `CredentialExpiredError` to `auth-required` — so the intent has never
+      // been reachable from a ready connection and the failure is swallowed.
+      // Amending a reviewed state machine is not this change's call; the finding
+      // is registered in technical-debt §3.2 instead.
+      expect(yield* conn.health("expiring")).toBe("ready")
+      yield* conn.disconnect("expiring")
+    }),
+  )
+
   it.live("disconnect kills that server's child and further calls fail closed", () =>
     Effect.gen(function* () {
       const conn = yield* McpConnection.Service
