@@ -2,6 +2,28 @@ import type { PermissionRequest } from "@aigcfroge/sdk/v2/client"
 
 export type PermissionReply = "once" | "always" | "reject"
 
+/**
+ * What a user may answer, keyed by which runtime owns the request.
+ *
+ * The two sets are deliberately NOT one flat union. A legacy request has no
+ * ScopedGrant to issue, and a V2 request must not take the legacy `always`
+ * path — `always` there would persist a project-wide rule instead of the
+ * Session/Location grant the user actually picked, which is the exact
+ * "rename `always` into a scoped grant" failure ADR-20 §2.1 forbids.
+ *
+ * Splitting them puts that rule in the type system: `always` on a V2 request and
+ * `session`/`location` on a legacy one are compile errors, so no test has to
+ * stand guard over which branch the JSX renders.
+ */
+export type LegacyDecision = "once" | "always" | "reject"
+export type ScopedDecision = "once" | "session" | "location" | "reject"
+export type PermissionDecision = LegacyDecision | ScopedDecision
+
+/** A pending request paired with a decision its own runtime can actually take. */
+export type PermissionDecisionInput =
+  | { readonly request: Extract<PermissionPending, { kind: "legacy" }>; readonly decision: LegacyDecision }
+  | { readonly request: Extract<PermissionPending, { kind: "v2" }>; readonly decision: ScopedDecision }
+
 type Metadata = {
   description?: string
   cli_target?: string
@@ -78,7 +100,8 @@ function source(value: unknown): Source | undefined {
 
 export function permissionPendingFromV2(value: unknown): PermissionV2Pending | undefined {
   if (!isRecord(value)) return undefined
-  if (typeof value.id !== "string" || typeof value.sessionID !== "string" || typeof value.action !== "string") return undefined
+  if (typeof value.id !== "string" || typeof value.sessionID !== "string" || typeof value.action !== "string")
+    return undefined
   const resources = strings(value.resources)
   if (!resources) return undefined
   const save = value.save === undefined ? undefined : strings(value.save)
@@ -104,7 +127,10 @@ export function permissionReplyFromV2(value: unknown) {
   return { sessionID: value.sessionID, requestID: value.requestID, reply: value.reply }
 }
 
-export function permissionPendingFromLegacy(request: PermissionRequest): PermissionPending {
+/** Returns the narrowed legacy variant so callers can build a `LegacyDecision` pair. */
+export function permissionPendingFromLegacy(
+  request: PermissionRequest,
+): Extract<PermissionPending, { kind: "legacy" }> {
   return { kind: "legacy", request }
 }
 
@@ -136,10 +162,45 @@ export type PermissionReplyClient = {
   }
 }
 
-export function replyPermission(client: PermissionReplyClient, request: PermissionPending, reply: PermissionReply) {
+export type ScopedGrantClient = {
+  v2: {
+    session: {
+      permission: {
+        grant(input: { sessionID: string; requestID: string; level: "session" | "location" }): Promise<unknown>
+      }
+    }
+  }
+}
+
+function replyPermission(
+  client: PermissionReplyClient,
+  request: PermissionPending,
+  reply: PermissionReply,
+): PermissionReplyRequest["kind"] extends never ? never : Promise<unknown> {
   const next = permissionReply(request, reply)
-  if (next.kind === "legacy") return client.permission.respond(next.input)
-  return client.v2.session.permission.reply(next.input)
+  return next.kind === "legacy" ? client.permission.respond(next.input) : client.v2.session.permission.reply(next.input)
+}
+
+/**
+ * Session/location are real ScopedGrants, never a legacy `always` reply.
+ *
+ * The pairing is enforced by `PermissionDecisionInput`, so there is no runtime
+ * guard here for "scoped grant on a legacy request" — that combination cannot be
+ * constructed. A `throw` would be unreachable code pretending to be a defence.
+ */
+export async function decidePermission(
+  client: PermissionReplyClient & ScopedGrantClient,
+  input: PermissionDecisionInput,
+) {
+  if (input.decision !== "session" && input.decision !== "location") {
+    return replyPermission(client, input.request, input.decision)
+  }
+  const presented = permissionPresentation(input.request)
+  return client.v2.session.permission.grant({
+    sessionID: presented.sessionID,
+    requestID: presented.id,
+    level: input.decision,
+  })
 }
 
 export function permissionPresentation(request: PermissionPending) {

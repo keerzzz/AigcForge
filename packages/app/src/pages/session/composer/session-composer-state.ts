@@ -47,13 +47,16 @@ export function createSessionComposerState() {
     return store.responding === perm.request.id
   })
 
-  const decide = (response: "once" | "always" | "reject") => {
+  // Takes the request/decision pair the dock built. The dock is the only place
+  // that knows which runtime owns the prompt, so it is the only place that can
+  // legally construct the pair — this state just forwards it.
+  const decide = (input: PermissionPendingModel.PermissionDecisionInput) => {
     const perm = permissionRequest()
     if (!perm) return
     if (store.responding === perm.request.id) return
 
     setStore("responding", perm.request.id)
-    PermissionPendingModel.replyPermission(sdk().client, perm, response)
+    PermissionPendingModel.decidePermission(sdk().client, input)
       .catch((err: unknown) => {
         const description = err instanceof Error ? err.message : String(err)
         showToast({ title: language.t("common.requestFailed"), description })
