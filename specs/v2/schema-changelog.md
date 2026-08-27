@@ -1,5 +1,31 @@
 # V2 Schema Changelog
 
+## 2026-08-27: Custom Mode M3 Phase E/F/G MCP Composition Projection and Approval Surface
+
+> **Status: IMPLEMENTED (composition/snapshot MCP projection + scoped-grant HTTP/SDK surface + credential binding schema)**
+
+Affected schema:
+
+- `Composition.Plan` gains `mcp: McpPlan` (`requested` / `effective` / `denied`) built from `McpRequestedInfo`, `McpEffectiveInfo` and `McpDeniedInfo`; `McpDeniedInfo.reason` carries the fail-closed cause and optional `health` / `credentialStatus` facts, typed by the new `McpConnectionHealth` and `McpCredentialStatus` literals.
+- `Composition.SnapshotDataV2` gains `mcp: SnapshotMcpInfo` (`bindings: SnapshotMcpBinding[]`, `tools: SnapshotMcpTool[]`) — server name, MCP `ref` (relativePath + revision), opaque `credentialRef` and the canonical tool names actually registered. No command, URL, header, PID, health or credential material is recorded.
+- `Composition.AllowedKind` and `AssetRef` gain the `"mcp"` member (`McpRef`), so an MCP asset is addressable everywhere an asset ref is.
+- `CustomProfile.Profile` gains `mcpBindings: McpBinding[]`, and `decodeProfile` is the single strict decoder for the profile (unknown keys rejected).
+- New `McpScope.McpCredentialBinding` plus the single-point `workspaceID` sentinel codec (`normalizeWorkspaceId` / `denormalizeWorkspaceId`, ADR-21 §2.2 v1.2): the DB column is `not null` with `""` for a workspace-less Location, so the uniqueness constraint covers the common case, and the sentinel is translated in exactly one place.
+- New exported helper `Composition.mcpAuditMatchesCatalog`: one comparison shared by the Snapshot loader and the runner. The two previously sorted MCP audit names independently, and legal names like `list-files` / `list_files` order differently under the default sort than under `localeCompare`, so the runner could false-positive and block a legal turn.
+- `credential-scan` promotes the secret patterns (`API_KEY_RE`, `BEARER_TOKEN_RE`, `PRIVATE_KEY_RE`, `ENV_LINE_RE`, `SECRET_PATTERNS`) and `containsSecret` to the schema public surface, so binding decode, stderr redaction and the scanner share one definition instead of three.
+- Generated SDK (`v2`): scoped-grant endpoints `v2.permission.grant.list`, `v2.permission.grant.revoke` (`grantID` + `expectedRevision` CAS) and `v2.session.permission.grant` (`sessionID` + `requestID` + `level`).
+
+Durable migrations:
+
+- `20260825033229_secret_rachel_grey` creates `mcp_credential_binding`: opaque `credential_ref` only, `binding_revision` for CAS, `revoked_at` for the in-place `rebind` transition, and `unique(directory, workspace_id, server_name)` with `workspace_id` `not null default ''` so the constraint covers workspace-less Locations. No credential material is stored in this table.
+- `20260826074345_scoped_grant_location` adds `directory` + `workspace_id` to `scoped_grant`, then **deletes rows carrying neither**. That `DELETE` is deliberate and destructive: grants issued before Location ownership cannot be attributed to a Location, and an unattributable grant must not keep authorizing anything, so it is revoked rather than migrated. The two session/level indexes are replaced with Location-leading equivalents (`scoped_grant_location_session_issued_idx`, `scoped_grant_location_level_issued_idx`).
+
+Compatibility:
+
+- `Plan.mcp` and `SnapshotDataV2.mcp` are optional on decode with an empty default (`withDecodingDefaultKey` + `withConstructorDefault`), so existing V1/V2 plans and frozen snapshots decode unchanged and the `version` union is not extended — evaluated and rejected a `version: 3`.
+- `Profile.mcpBindings` defaults to `[]`, so profiles written before Phase E stay valid.
+- No durable event family is introduced beyond the Phase D `grant.updated.1` family. The MCP projection itself introduces no migration: it is derived at resolve/freeze time from the MCP asset owner and the single `McpConnection.Service.facts()` owner, and `CompositionResolver.resolve/freeze` never calls `connect()`. The two migrations above come from credential custody and grant Location-scoping, not from the projection.
+
 ## 2026-08-25: Custom Mode M3 Phase C Remote Connection, Health, and Canonical Long Names
 
 > **Status: IMPLEMENTED (Slice 3 + Slice 4 connection foundation)**
@@ -8,7 +34,7 @@
 - Credential custody remains in `Credential.Service`: stdio receives only the documented `MCP_CREDENTIAL_API_KEY` / `MCP_CREDENTIAL_ACCESS_TOKEN` environment values; remote uses OAuth `Authorization: Bearer` per request. Neither connection projection, registry catalog, Snapshot, nor log payload contains material. Remote response headers/body are scanned before redaction/truncation reaches logs.
 - Connection close is a typed `ConnectionClosedError` boundary. Both stdio Deferred requests and remote in-flight requests are owned by the same connection Scope and resolve on management close instead of hanging. The custom runtime flag is an admission gate for MCP connect/call; an admission attempt after it is disabled closes existing owned connections with `kill_switch_disabled` before returning typed `McpDisabledError`.
 - Canonical MCP names keep all short existing names byte-for-byte. Long inputs deterministically compact to `mcp_<server-prefix>_<tool-prefix>_<hash16>` where the 16-hex SHA-256 suffix covers the complete `(server, tool)` identity; final validation and collision checks remain fail-closed. This supersedes the prior Phase B `McpToolNameTooLongError` deferral.
-- Compatibility: no durable DB/event/SDK migration. Existing frozen snapshots retain short names; long canonical names become stable only at future registration/freeze boundaries. Reconnect updates the canonical registry entry, and existing per-turn fingerprint/catalog verification rejects a changed definition fail-closed.
+- Compatibility: no event-family or SDK change. The credential-custody table `mcp_credential_binding` is this phase's one durable migration (`20260825033229_secret_rachel_grey`, ADR-21 §2.2); it is listed with the 2026-08-27 entry so both M3 migrations read in one place. Existing frozen snapshots retain short names; long canonical names become stable only at future registration/freeze boundaries. Reconnect updates the canonical registry entry, and existing per-turn fingerprint/catalog verification rejects a changed definition fail-closed.
 
 ## 2026-08-23: Custom Mode M3 Phase D Scoped Grants and Ask Bounds
 

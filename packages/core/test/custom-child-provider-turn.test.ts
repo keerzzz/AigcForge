@@ -130,30 +130,32 @@ const config = Layer.succeed(
   }),
 )
 const sessionComposition = SessionComposition.layer.pipe(Layer.provide(Database.defaultLayer))
-const runner = runnerLayer.pipe(
-  Layer.provide(sessionComposition),
-  Layer.provide(appProcess),
-  Layer.provide(skillV2),
-  Layer.provide(Database.defaultLayer),
-  Layer.provide(SessionStore.defaultLayer),
-  Layer.provide(EventV2.defaultLayer),
-  Layer.provide(client),
-  Layer.provide(registry),
-  Layer.provide(models),
-  Layer.provide(SystemContextRegistry.layer),
-).pipe(
-  Layer.provide(location),
-  Layer.provide(agents),
-  Layer.provide(skillGuidance),
-  Layer.provide(referenceGuidance),
-  Layer.provide(DoomLoop.layer),
-  Layer.provide(CorrectionExtractor.layer),
-  Layer.provide(CorrectionStore.layer),
-  Layer.provide(verifier),
-  Layer.provide(referenceChecker),
-  Layer.provide(permission),
-  Layer.provide(config),
-)
+const runner = runnerLayer
+  .pipe(
+    Layer.provide(sessionComposition),
+    Layer.provide(appProcess),
+    Layer.provide(skillV2),
+    Layer.provide(Database.defaultLayer),
+    Layer.provide(SessionStore.defaultLayer),
+    Layer.provide(EventV2.defaultLayer),
+    Layer.provide(client),
+    Layer.provide(registry),
+    Layer.provide(models),
+    Layer.provide(SystemContextRegistry.layer),
+  )
+  .pipe(
+    Layer.provide(location),
+    Layer.provide(agents),
+    Layer.provide(skillGuidance),
+    Layer.provide(referenceGuidance),
+    Layer.provide(DoomLoop.layer),
+    Layer.provide(CorrectionExtractor.layer),
+    Layer.provide(CorrectionStore.layer),
+    Layer.provide(verifier),
+    Layer.provide(referenceChecker),
+    Layer.provide(permission),
+    Layer.provide(config),
+  )
 const sessions = SessionV2.layer.pipe(
   Layer.provide(EventV2.defaultLayer),
   Layer.provide(Database.defaultLayer),
@@ -278,7 +280,6 @@ const reset = () => {
 }
 
 describe("Custom Mode non-meta child provider turn (Phase A probe)", () => {
-
   it.effect("pool agent without matching asset provenance fails the turn closed (ADR-20 §2.6)", () =>
     Effect.gen(function* () {
       reset()

@@ -1790,17 +1790,29 @@ const scenarios: Scenario[] = [
     }),
   http.protected
     .get("/api/permission/grant", "v2.permission.grant.list")
+    // Seeding a real grant is the point: with only a pending request the endpoint
+    // returns `[]` and `array(body.data)` passes no matter what the handler does.
     .seeded((ctx) =>
       Effect.gen(function* () {
-        const session = yield* ctx.session({ title: "Scoped grant list owner" })
-        yield* ctx.permissionV2({ sessionID: session.id, action: "bash", resources: ["/httpapi/grant-list"] })
-        return session.id
+        const grant = yield* ctx.grantIssue({
+          scope: { level: "location" },
+          action: "bash",
+          resources: ["/httpapi/grant-list"],
+        })
+        return grant.grant.id
       }),
     )
-    .json(200, (body) => {
+    .json(200, (body, ctx) => {
       object(body)
       object(body.location)
       array(body.data)
+      const listed = body.data.find((entry) => isRecord(entry) && isRecord(entry.grant) && entry.grant.id === ctx.state)
+      check(isRecord(listed), "issued grant should appear in the Location listing")
+      check(listed.status === "active", "a freshly issued grant lists as active")
+      object(listed.grant)
+      check(listed.grant.action === "bash", "listing carries the issued action")
+      object(listed.grant.scope)
+      check(listed.grant.scope.level === "location", "listing carries the issued scope level")
     }),
   http.protected
     .post("/api/session/{sessionID}/permission/{requestID}/grant", "v2.session.permission.grant.session")

@@ -185,13 +185,13 @@ Snapshot 只存 **ref / fingerprint**，永不存材料、executor、client（M3
 
 此前一次复核把检索范围错误限定在 `packages/aigcfroge/src`，据此宣布 V2 pending 端点不存在；这是错误结论。V2 permission API 在 `packages/server`，并被 `packages/aigcfroge/.../httpapi/api.ts` 引入和挂载：
 
-| 事实 | 实测 |
-| --- | --- |
-| V2 pending 聚合端点 | ✅ `GET /api/permission/request`，`v2.permission.request.list`，返回 `Location.response(Schema.Array(PermissionV2.Request))`，handler 调用 `PermissionV2.Service.list()` |
-| V2 session pending 端点 | ✅ `GET /api/session/:sessionID/permission`，`v2.session.permission.list`，handler 调用 `PermissionV2.Service.forSession()` |
-| V2 reply 端点 | ✅ `POST /api/session/:sessionID/permission/:requestID/reply`，`v2.session.permission.reply`，handler 先校验 request 所属 Session 再调用 `PermissionV2.Service.reply()` |
-| `permission.v2.*` 事件 | ✅ `permission.v2.asked` 与 `permission.v2.replied` 已存在 |
-| 客户端消费 | ✅ 仍为字面零：app / tui / session-ui / ui / desktop 尚未消费 V2 permission API 或事件 |
+| 事实                    | 实测                                                                                                                                                                     |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| V2 pending 聚合端点     | ✅ `GET /api/permission/request`，`v2.permission.request.list`，返回 `Location.response(Schema.Array(PermissionV2.Request))`，handler 调用 `PermissionV2.Service.list()` |
+| V2 session pending 端点 | ✅ `GET /api/session/:sessionID/permission`，`v2.session.permission.list`，handler 调用 `PermissionV2.Service.forSession()`                                              |
+| V2 reply 端点           | ✅ `POST /api/session/:sessionID/permission/:requestID/reply`，`v2.session.permission.reply`，handler 先校验 request 所属 Session 再调用 `PermissionV2.Service.reply()`  |
+| `permission.v2.*` 事件  | ✅ `permission.v2.asked` 与 `permission.v2.replied` 已存在                                                                                                               |
+| 客户端消费              | ✅ 仍为字面零：app / tui / session-ui / ui / desktop 尚未消费 V2 permission API 或事件                                                                                   |
 
 **Phase F 的重心仍是客户端和 SDK，而不是重造服务端 pending 端点。** F2 先复用并验证现有 `packages/server` API 的 auth、Location scope、request ownership 和 OpenAPI/SDK surface，再接入审批中心。
 
@@ -251,13 +251,13 @@ F 阶段不重复实现或改写这一规则；只需在审批中心/UI 中正�
 
 ### 6.5 Slice 拆分（建议，每个 slice 独立红→绿→审）
 
-| Slice  | 范围                                            | 判据                                                                               |
-| ------ | ----------------------------------------------- | ---------------------------------------------------------------------------------- |
-| **F1** | responder 能力对齐（§6.1）                      | 非能力头 + custom ask → 立即 `no_responder`；能力头 → 进 pending。**不许靠等 TTL** |
-| **F2** | 复用 V2 pending/reply API + SDK/客户端接入       | 既有 identifiers、Location scope、request ownership 和响应 schema 经真实 API/SDK 测试；不新增重复端点 |
-| **F3** | attended ceiling 回归验证与审批展示             | 资产 allow→ask、只读 allow、explicit deny、saved approval 的既有规则都可见且不回归 |
-| **F4** | App pending indicator / dialog + Builder health | 只聚合请求，**不自动扩大 scope**；once / Session / Location 明示                   |
-| **F5** | 浏览器 auto-accept 收敛裁决（§6.3）             | V2/custom 不可被浏览器自动放行须是类型+测试强制的边界，而非事件名巧合；V1 通配键处置留待产品裁定 |
+| Slice  | 范围                                            | 判据                                                                                                  |
+| ------ | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **F1** | responder 能力对齐（§6.1）                      | 非能力头 + custom ask → 立即 `no_responder`；能力头 → 进 pending。**不许靠等 TTL**                    |
+| **F2** | 复用 V2 pending/reply API + SDK/客户端接入      | 既有 identifiers、Location scope、request ownership 和响应 schema 经真实 API/SDK 测试；不新增重复端点 |
+| **F3** | attended ceiling 回归验证与审批展示             | 资产 allow→ask、只读 allow、explicit deny、saved approval 的既有规则都可见且不回归                    |
+| **F4** | App pending indicator / dialog + Builder health | 只聚合请求，**不自动扩大 scope**；once / Session / Location 明示                                      |
+| **F5** | 浏览器 auto-accept 收敛裁决（§6.3）             | V2/custom 不可被浏览器自动放行须是类型+测试强制的边界，而非事件名巧合；V1 通配键处置留待产品裁定      |
 
 ### 6.6 红（每条都要红证）
 

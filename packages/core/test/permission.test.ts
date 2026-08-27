@@ -45,7 +45,7 @@ const layer = PermissionV2.locationLayer.pipe(
   Layer.provideMerge(SessionExecution.noopLayer),
   Layer.provideMerge(PermissionSaved.defaultLayer),
   Layer.provideMerge(ApprovalPresence.defaultLayer),
-  )
+)
 const it = testEffect(layer)
 
 function setup(rules: PermissionV2.Ruleset = []) {

@@ -83,8 +83,7 @@ const owners = (
   store: {
     issue: (input: { scope: { level: string }; action: string }) =>
       Effect.suspend(() => {
-        if (over.issueRejected)
-          return Effect.fail(new GrantEvent.CommitRejected({ grantID: GRANT_ID, revision: 1 }))
+        if (over.issueRejected) return Effect.fail(new GrantEvent.CommitRejected({ grantID: GRANT_ID, revision: 1 }))
         calls.issued.push({ action: input.action, level: input.scope.level })
         return Effect.succeed(issued(1))
       }),
@@ -108,9 +107,8 @@ const failureOf = (exit: Exit.Exit<unknown, unknown>) => {
   expect(Exit.isFailure(exit)).toBe(true)
   const found = Exit.isFailure(exit) ? Cause.findErrorOption(exit.cause) : Option.none()
   expect(Option.isSome(found)).toBe(true)
-  const error: Record<string, unknown> = Option.isSome(found) && typeof found.value === "object" && found.value !== null
-    ? { ...found.value }
-    : {}
+  const error: Record<string, unknown> =
+    Option.isSome(found) && typeof found.value === "object" && found.value !== null ? { ...found.value } : {}
   return { tag: str(error._tag), resource: str(error.resource), message: str(error.message) }
 }
 

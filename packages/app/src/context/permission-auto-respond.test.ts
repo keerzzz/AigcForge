@@ -149,7 +149,9 @@ describe("autoRespondableAsk", () => {
   })
 
   test("refuses an unrelated event and a missing one", () => {
-    expect(autoRespondableAsk({ id: "evt_x", type: "server.connected", properties: {} } satisfies Event)).toBeUndefined()
+    expect(
+      autoRespondableAsk({ id: "evt_x", type: "server.connected", properties: {} } satisfies Event),
+    ).toBeUndefined()
     expect(autoRespondableAsk(undefined)).toBeUndefined()
   })
 })

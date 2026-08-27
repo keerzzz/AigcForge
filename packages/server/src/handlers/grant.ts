@@ -46,8 +46,7 @@ export const issueGrantForRequest = Effect.fn("GrantHandler.issueGrantForRequest
   if (!request || request.sessionID !== input.sessionID) return yield* missingRequest(input.requestID)
   const issued = yield* input.store
     .issue({
-      scope:
-        input.level === "session" ? { level: "session", sessionID: request.sessionID } : { level: "location" },
+      scope: input.level === "session" ? { level: "session", sessionID: request.sessionID } : { level: "location" },
       action: request.action,
       resources: request.resources,
     })

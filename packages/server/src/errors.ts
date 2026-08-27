@@ -68,10 +68,14 @@ export class InvalidCursorError extends Schema.TaggedErrorClass<InvalidCursorErr
   { httpApiStatus: 400 },
 ) {}
 
-export class GrantNotFoundError extends Schema.TaggedErrorClass<GrantNotFoundError>()("GrantNotFoundError", {
-  grantID: Schema.String,
-  message: Schema.String,
-}, { httpApiStatus: 404 }) {}
+export class GrantNotFoundError extends Schema.TaggedErrorClass<GrantNotFoundError>()(
+  "GrantNotFoundError",
+  {
+    grantID: Schema.String,
+    message: Schema.String,
+  },
+  { httpApiStatus: 404 },
+) {}
 
 export class PermissionNotFoundError extends Schema.TaggedErrorClass<PermissionNotFoundError>()(
   "PermissionNotFoundError",

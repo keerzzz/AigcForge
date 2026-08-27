@@ -41,7 +41,6 @@ const echo = (tag: string) => {
   return tool
 }
 
-
 const sessionA = SessionV2.ID.make("ses_placement_a")
 const sessionB = SessionV2.ID.make("ses_placement_b")
 const callFor = (sessionID: SessionV2.ID, id: string) => ({
@@ -119,25 +118,27 @@ describe("ToolRegistry placement (ADR-19 §2.2)", () => {
     }),
   )
 
-  it.effect("a mid-flight foreign-session registration does not stale the owning session (same placement predicate)", () =>
-    Effect.gen(function* () {
-      const registry = yield* ToolRegistry.Service
-      const locationScope = yield* Scope.make()
-      yield* registry.register({ echo: echo("loc") }).pipe(Scope.provide(locationScope))
+  it.effect(
+    "a mid-flight foreign-session registration does not stale the owning session (same placement predicate)",
+    () =>
+      Effect.gen(function* () {
+        const registry = yield* ToolRegistry.Service
+        const locationScope = yield* Scope.make()
+        yield* registry.register({ echo: echo("loc") }).pipe(Scope.provide(locationScope))
 
-      const forA = yield* registry.materialize(undefined, undefined, { sessionID: sessionA })
+        const forA = yield* registry.materialize(undefined, undefined, { sessionID: sessionA })
 
-      // Session B registers its own echo after A materialized but before A's
-      // settle: A's effective winner is unchanged, so no stale error.
-      const scopeB = yield* Scope.make()
-      yield* registry.registerSession(sessionB, { echo: echo("b") }).pipe(Scope.provide(scopeB))
+        // Session B registers its own echo after A materialized but before A's
+        // settle: A's effective winner is unchanged, so no stale error.
+        const scopeB = yield* Scope.make()
+        yield* registry.registerSession(sessionB, { echo: echo("b") }).pipe(Scope.provide(scopeB))
 
-      const settled = yield* forA.settle(callFor(sessionA, "call-midflight"))
-      expect(settled.result.type).toBe("text")
+        const settled = yield* forA.settle(callFor(sessionA, "call-midflight"))
+        expect(settled.result.type).toBe("text")
 
-      yield* Scope.close(scopeB, Exit.void)
-      yield* Scope.close(locationScope, Exit.void)
-    }),
+        yield* Scope.close(scopeB, Exit.void)
+        yield* Scope.close(locationScope, Exit.void)
+      }),
   )
 
   // C1 (ADR-19 approval condition). The production materialize callers

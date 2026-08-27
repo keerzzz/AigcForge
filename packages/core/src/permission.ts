@@ -1,6 +1,9 @@
 export * as PermissionV2 from "./permission"
 
-import { Context, Deferred, Effect, Effect as EffectRuntime, Layer, Option, Schema } from "effect"
+// `Effect` is aliased because this module re-exports schema's `Effect` (the
+// permission rule effect, allow/deny) on the line below — a genuine same-name
+// collision, which is the only case AGENTS.md §Imports permits an alias for.
+import { Context, Deferred, Duration, Effect as EffectRuntime, Layer, Option, Schema } from "effect"
 import { Permission } from "@aigcfroge/schema/permission"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { EventV2 } from "./event"
@@ -17,7 +20,6 @@ import { SessionPermissionOverride } from "./permission/session-override"
 import { ScopedGrantStore } from "./grant/store"
 import { ApprovalPresence } from "./permission/approval-presence"
 import { GrantEvent } from "./grant/event"
-import { Duration } from "effect"
 
 export { Effect, Rule, Ruleset } from "@aigcfroge/schema/permission"
 const missingAgentPermissions: Permission.Ruleset = [{ action: "*", resource: "*", effect: "deny" }]
@@ -131,7 +133,9 @@ export function merge(...rulesets: Permission.Ruleset[]): Permission.Ruleset {
 }
 
 export interface Interface {
-  readonly ask: (input: AssertInput) => EffectRuntime.Effect<AskResult, SessionV2.NotFoundError | GrantEvent.CommitRejected>
+  readonly ask: (
+    input: AssertInput,
+  ) => EffectRuntime.Effect<AskResult, SessionV2.NotFoundError | GrantEvent.CommitRejected>
   readonly assert: (input: AssertInput) => EffectRuntime.Effect<void, Error | SessionV2.NotFoundError>
   readonly reply: (input: ReplyInput) => EffectRuntime.Effect<void, NotFoundError>
   readonly get: (id: ID) => EffectRuntime.Effect<Request | undefined>
@@ -172,20 +176,14 @@ export const layer = Layer.effect(
       const grantsOption = yield* EffectRuntime.serviceOption(ScopedGrantStore.Service)
       if (Option.isNone(grantsOption)) return false
       const store = grantsOption.value
-      const hit = yield* store
-        .findValid({
-          action: input.action,
-          resources: input.resources,
-          sessionID: input.sessionID,
-          ...(input.agent !== undefined ? { agent: input.agent } : {}),
-        })
-        .pipe(
-          EffectRuntime.catchCause((cause) =>
-            EffectRuntime.logWarning("Scoped grant consultation failed; degrading to ask", { cause }).pipe(
-              EffectRuntime.as(undefined),
-            ),
-          ),
-        )
+      // `findValid` has no typed error channel, so a catch here could only ever
+      // swallow interruption and defects — both must survive (tool/AGENTS.md).
+      const hit = yield* store.findValid({
+        action: input.action,
+        resources: input.resources,
+        sessionID: input.sessionID,
+        ...(input.agent !== undefined ? { agent: input.agent } : {}),
+      })
       if (!hit) return false
       if (hit.grant.scope.level !== "once") return true
       // Racing consumers: losing the consume falls back to the ask flow.

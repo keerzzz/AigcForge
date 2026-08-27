@@ -85,18 +85,22 @@ describe("custom-preview-tabs model logic", () => {
     const plan: Partial<CompositionPlan> = {
       mcp: {
         requested: [{ serverName: "search", ref }],
-        effective: [{
-          serverName: "search",
-          ref,
-          credentialStatus: "available",
-          health: "degraded",
-          tools: ["mcp_search_query"],
-        }],
-        denied: [{
-          serverName: "private-search",
-          ref,
-          reason: "binding_mismatch",
-        }],
+        effective: [
+          {
+            serverName: "search",
+            ref,
+            credentialStatus: "available",
+            health: "degraded",
+            tools: ["mcp_search_query"],
+          },
+        ],
+        denied: [
+          {
+            serverName: "private-search",
+            ref,
+            reason: "binding_mismatch",
+          },
+        ],
       },
       diagnostics: [
         { severity: "error", code: "mcp_not_ready", message: "Server is revoked", asset: ref },
@@ -110,10 +114,7 @@ describe("custom-preview-tabs model logic", () => {
     expect(summary.effective[0]?.credentialStatus).toBe("available")
     expect(summary.denied[0]?.reason).toBe("binding_mismatch")
     expect("health" in (summary.denied[0] ?? {})).toBe(false)
-    expect(summary.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
-      "mcp_not_ready",
-      "mcp_binding_mismatch",
-    ])
+    expect(summary.diagnostics.map((diagnostic) => diagnostic.code)).toEqual(["mcp_not_ready", "mcp_binding_mismatch"])
   })
 
   test("distinguishes MCP loading, error, unavailable, empty, and content states", () => {
@@ -123,10 +124,12 @@ describe("custom-preview-tabs model logic", () => {
     }
     const requestedPlan: Partial<CompositionPlan> = {
       mcp: {
-        requested: [{
-          serverName: "search",
-          ref: { kind: "mcp", relativePath: ".aigcfroge/mcp/search.yaml", revision: "rev-1" },
-        }],
+        requested: [
+          {
+            serverName: "search",
+            ref: { kind: "mcp", relativePath: ".aigcfroge/mcp/search.yaml", revision: "rev-1" },
+          },
+        ],
         effective: [],
         denied: [],
       },

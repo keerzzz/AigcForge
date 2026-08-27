@@ -91,13 +91,13 @@ sanitized-server-name ::= [a-z0-9_-]+ （≤64 字符，来自 McpServerBinding.
 
 ### 2.7 隔离与一致性证明（测试钉死）
 
-| 不变量 | 证明方式 | Phase B 状态 |
-|---|---|---|
-| 跨 Location 隔离 | Location A 注册的 server 在 Location B 的 materialize/settle 中不存在（registry 本就 Location-scoped，`ARCHITECTURE.md` §4.4） | ✅ 结构性成立：`location-layer.ts:267` 整个 lookup 组合以 `Layer.fresh` 收尾，绕过 MemoMap 按 Layer 对象引用的记忆化，每 Location 一份独立 registry 闭包。**例外须知**：`ApplicationTools.layer` 在 LayerMap `dependencies`（`location-layer.ts:289`）→ 进程全局单实例，而它并入 §2.4 占用域，故**冲突域不是 Location-scoped**（A 的应用工具会占掉 B 的 MCP 名）。存量设计，fail-closed，登记 technical-debt |
-| 跨 Session 隔离 | Session placement 注册对同 Location 其他 Session 的 materialize 不可见 | ✅ `tool-registry-placement.test.ts` 三例（含 close 后消失 + 跨会话 settle 负向） |
-| definitions ≡ captured settle | settle 绑定物化时的 registration.identity，漂移即 stale error（`registry.ts:96-97`；Laws 见 `specs/v2/tools.md:178-179`） | ✅ 见 §4 条件 C1 状态 |
-| V1 单向隔离 | Custom Session 的 materialize 结果中不出现任何 V1 InstanceState 来源的工具；V1 HTTP 面改动不影响 canonical 路径 | ✅ 结构性成立并已钉死：V1 用**另一个** registry（`aigcfroge/src/session/tools.ts:10` 的 `@/tool/registry`），V1 MCP 工具落在本地 `Record`（`:386` 的 `mcp.tools()`），从不进 canonical `local`。因两个 registry 同名不同包、边界离「被 refactor 抹掉」只差一行 import 且抹掉后无任何别的测试会红，故补 source contract：`aigcfroge/test/session/v1-canonical-registry-boundary.test.ts` |
-| 安全成对覆盖 | 每条「模型看到定义」测试必有对应「settle 真执行」负向测试（计划 §4） | ✅ placement 与 MCP 命名两套测试均为「定义可见 + settle 真执行 text」成对 |
+| 不变量                        | 证明方式                                                                                                                       | Phase B 状态                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 跨 Location 隔离              | Location A 注册的 server 在 Location B 的 materialize/settle 中不存在（registry 本就 Location-scoped，`ARCHITECTURE.md` §4.4） | ✅ 结构性成立：`location-layer.ts:267` 整个 lookup 组合以 `Layer.fresh` 收尾，绕过 MemoMap 按 Layer 对象引用的记忆化，每 Location 一份独立 registry 闭包。**例外须知**：`ApplicationTools.layer` 在 LayerMap `dependencies`（`location-layer.ts:289`）→ 进程全局单实例，而它并入 §2.4 占用域，故**冲突域不是 Location-scoped**（A 的应用工具会占掉 B 的 MCP 名）。存量设计，fail-closed，登记 technical-debt |
+| 跨 Session 隔离               | Session placement 注册对同 Location 其他 Session 的 materialize 不可见                                                         | ✅ `tool-registry-placement.test.ts` 三例（含 close 后消失 + 跨会话 settle 负向）                                                                                                                                                                                                                                                                                                                            |
+| definitions ≡ captured settle | settle 绑定物化时的 registration.identity，漂移即 stale error（`registry.ts:96-97`；Laws 见 `specs/v2/tools.md:178-179`）      | ✅ 见 §4 条件 C1 状态                                                                                                                                                                                                                                                                                                                                                                                        |
+| V1 单向隔离                   | Custom Session 的 materialize 结果中不出现任何 V1 InstanceState 来源的工具；V1 HTTP 面改动不影响 canonical 路径                | ✅ 结构性成立并已钉死：V1 用**另一个** registry（`aigcfroge/src/session/tools.ts:10` 的 `@/tool/registry`），V1 MCP 工具落在本地 `Record`（`:386` 的 `mcp.tools()`），从不进 canonical `local`。因两个 registry 同名不同包、边界离「被 refactor 抹掉」只差一行 import 且抹掉后无任何别的测试会红，故补 source contract：`aigcfroge/test/session/v1-canonical-registry-boundary.test.ts`                      |
+| 安全成对覆盖                  | 每条「模型看到定义」测试必有对应「settle 真执行」负向测试（计划 §4）                                                           | ✅ placement 与 MCP 命名两套测试均为「定义可见 + settle 真执行 text」成对                                                                                                                                                                                                                                                                                                                                    |
 
 ### 2.8 Kill-switch 与 disable 通知（§4.5-2 的 registration 部分）
 
@@ -113,25 +113,25 @@ sanitized-server-name ::= [a-z0-9_-]+ （≤64 字符，来自 McpServerBinding.
 
 ## 3. 架构影响与五层映射
 
-| 层级 | 变更 |
-|---|---|
-| L1 Schema | `McpScope.McpServerBinding` / `GrantScope` / `ScopedGrant` / `McpConnectionHealth`（已在 `packages/schema/src/mcp-scope.ts` 落地并通过负向用例）；后续按需增补 server fingerprint 编码 |
-| L2 Core/DB | ToolRegistry 的 sessionID 过滤维度（小扩展）；connection owner Service（Phase C）；无第二 registry/executor |
-| L3 HTTP/SDK | Phase C/F：connect/status/revoke 端点（V1 面之外新增，带能力头）；SDK 重新生成 |
-| L4 App | Builder MCP blocks、health/diagnostics 投影（Phase F） |
-| L5 Security | collision fail-closed、命名空间前缀、owner Scope 清理、kill-switch admission、跨 Location/Session 隔离矩阵（§2.7） |
+| 层级        | 变更                                                                                                                                                                                   |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L1 Schema   | `McpScope.McpServerBinding` / `GrantScope` / `ScopedGrant` / `McpConnectionHealth`（已在 `packages/schema/src/mcp-scope.ts` 落地并通过负向用例）；后续按需增补 server fingerprint 编码 |
+| L2 Core/DB  | ToolRegistry 的 sessionID 过滤维度（小扩展）；connection owner Service（Phase C）；无第二 registry/executor                                                                            |
+| L3 HTTP/SDK | Phase C/F：connect/status/revoke 端点（V1 面之外新增，带能力头）；SDK 重新生成                                                                                                         |
+| L4 App      | Builder MCP blocks、health/diagnostics 投影（Phase F）                                                                                                                                 |
+| L5 Security | collision fail-closed、命名空间前缀、owner Scope 清理、kill-switch admission、跨 Location/Session 隔离矩阵（§2.7）                                                                     |
 
 ## 4. 审批与授权记录
 
 审批日期 2026-08-23，`main@1d5c51f6c`。审批方独立复核了本 ADR 引用的代码事实与外部引用（`specs/v2/tools.md:178-179` Laws、`ARCHITECTURE.md` §4.4、`registry.ts` 注册/finalizer/stale 机制、`application-tools.ts:42-50` 缺 finalizer、`mcp-asset.ts:34-40` opaque 串），并实跑 `packages/schema/test/mcp-scope.test.ts` → **17 pass / 0 fail**。
 
-| 评审方 | 结论 | 备注 |
-|---|---|---|
-| Product | **Approved** | §2.1 并存-冻结成立：一次性收敛会拖入 V1 全部消费方与双轨凭据迁移，超出 M3 门禁。V1→canonical 迁移归 M4 Gate 输入，须登记 technical-debt |
-| Core | **Approved with condition C1** | §2.2 的 `materialize` 增加 `sessionID` 过滤维度是必要扩展；条件见下 |
-| Security | **Approved** | §2.4 collision 由 last-wins 收窄为 typed error 是本 ADR 最重要的决策——外部 server 可控工具名在现机制下能静默遮蔽 `read`/`bash`（`registry.ts:88/:177` 的 `.at(-1)` 直接生效）。§2.5 前缀化、§2.3 owner Scope、§2.9 解码期校验均通过。§2.8 明确拒绝虚称能中断在飞 Provider 流，符合诚实边界要求 |
-| App | **Approved** | §3 L4 投影范围仅读取服务端 health/diagnostics，不自行推演授权 |
-| Schema+SDK | **Approved** | `mcp-scope.ts`（157 行）+ 17 例正负用例已落地并实跑通过 |
+| 评审方     | 结论                           | 备注                                                                                                                                                                                                                                                                                           |
+| ---------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Product    | **Approved**                   | §2.1 并存-冻结成立：一次性收敛会拖入 V1 全部消费方与双轨凭据迁移，超出 M3 门禁。V1→canonical 迁移归 M4 Gate 输入，须登记 technical-debt                                                                                                                                                        |
+| Core       | **Approved with condition C1** | §2.2 的 `materialize` 增加 `sessionID` 过滤维度是必要扩展；条件见下                                                                                                                                                                                                                            |
+| Security   | **Approved**                   | §2.4 collision 由 last-wins 收窄为 typed error 是本 ADR 最重要的决策——外部 server 可控工具名在现机制下能静默遮蔽 `read`/`bash`（`registry.ts:88/:177` 的 `.at(-1)` 直接生效）。§2.5 前缀化、§2.3 owner Scope、§2.9 解码期校验均通过。§2.8 明确拒绝虚称能中断在飞 Provider 流，符合诚实边界要求 |
+| App        | **Approved**                   | §3 L4 投影范围仅读取服务端 health/diagnostics，不自行推演授权                                                                                                                                                                                                                                  |
+| Schema+SDK | **Approved**                   | `mcp-scope.ts`（157 行）+ 17 例正负用例已落地并实跑通过                                                                                                                                                                                                                                        |
 
 ### 批准条件（Phase B 开工前必须处理）
 

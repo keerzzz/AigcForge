@@ -260,7 +260,9 @@ test.describe("regression: Builder MCP health", () => {
     await expect(denied(page)).toHaveCount(0)
   })
 
-  test("shows the loading state instead of a stale server list while a recalculation is in flight", async ({ page }) => {
+  test("shows the loading state instead of a stale server list while a recalculation is in flight", async ({
+    page,
+  }) => {
     let release = () => {}
     const gate = new Promise<void>((resolve) => {
       release = resolve

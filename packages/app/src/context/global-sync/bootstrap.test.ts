@@ -3,7 +3,13 @@ import { createStore } from "solid-js/store"
 import { QueryClient } from "@tanstack/solid-query"
 import { createAigcfrogeClient, type Config, type AigcfrogeClient, type Project } from "@aigcfroge/sdk/v2/client"
 import type { NormalizedProviderListResponse } from "@aigcfroge/session-ui/context"
-import { bootstrapDirectory, loadPathQuery, loadProvidersQuery, loadV2PermissionPending, type PermissionPendingClient } from "./bootstrap"
+import {
+  bootstrapDirectory,
+  loadPathQuery,
+  loadProvidersQuery,
+  loadV2PermissionPending,
+  type PermissionPendingClient,
+} from "./bootstrap"
 import type { State, VcsCache } from "./types"
 import { ServerScope } from "@/utils/server-scope"
 import { applyDirectoryEvent } from "./event-reducer"
@@ -333,7 +339,10 @@ describe("bootstrapDirectory", () => {
 
     const pending = loadV2PermissionPending({ sdk, store, setStore })
     applyDirectoryEvent({
-      event: { type: "permission.v2.replied", properties: { sessionID: "ses_custom", requestID: "per_pending", reply: "once" } },
+      event: {
+        type: "permission.v2.replied",
+        properties: { sessionID: "ses_custom", requestID: "per_pending", reply: "once" },
+      },
       store,
       setStore,
       push() {},

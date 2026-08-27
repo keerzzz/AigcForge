@@ -2,12 +2,12 @@ import type { McpScopeScopedGrantInfo } from "@aigcfroge/sdk/v2/client"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { Dialog, DialogFooter } from "@aigcfroge/ui/v2/dialog-v2"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
-import { createMemo, createSignal, For, onMount, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, For, onMount, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 import { createStore } from "solid-js/store"
-import { useSDK } from "@/context/sdk"
+import { useSDK, type DirectorySDK } from "@/context/sdk"
 import { useLanguage } from "@/context/language"
-import { useSync } from "@/context/sync"
+import { useSync, type DirectorySync } from "@/context/sync"
 import { PermissionPendingModel, type PermissionV2Pending } from "@/context/global-sync/permission-pending"
 
 type ApprovalScope = "reject" | "once" | "session" | "location"
@@ -35,19 +35,38 @@ export function pendingForLocation(
     .toSorted((a, b) => a.sessionID.localeCompare(b.sessionID) || a.id.localeCompare(b.id))
 }
 
-export function ApprovalCenter() {
-  const sdk = useSDK()
-  const sync = useSync()
+/**
+ * Titlebar approval surface for V2 pending requests and scoped grants.
+ *
+ * Routes that sit inside `SDKProvider`/`DirectoryDataProvider` (session, draft)
+ * mount it bare and it reads both from context. `/mode/:mode` has neither —
+ * `ModeWorkspace` is server-scoped and resolves its directory itself — so it
+ * passes the accessors in. That mount is not cosmetic: the app's one global SSE
+ * connection binds the responder fact for every route (`handlers/global.ts`),
+ * so a route without this component leaves `ask` parked for the full TTL with
+ * nothing on screen to answer it.
+ */
+export function ApprovalCenter(props: {
+  readonly sdk?: () => DirectorySDK | undefined
+  readonly sync?: () => DirectorySync | undefined
+}) {
+  const sdkFromContext = props.sdk ?? useSDK()
+  const syncFromContext = props.sync ?? useSync()
   const dialog = useDialog()
   const language = useLanguage()
   const [mount, setMount] = createSignal<HTMLElement | null>(null)
   const [state, setState] = createStore<ApprovalCenterState>({ grants: [], grantsLoading: true })
-  const pending = createMemo(() => pendingForLocation(sync().data.permission_v2))
+  const pending = createMemo(() => {
+    const current = syncFromContext()
+    return current === undefined ? [] : pendingForLocation(current.data.permission_v2)
+  })
 
   const loadGrants = async () => {
+    const client = sdkFromContext()?.client
+    if (!client) return
     setState({ grantsLoading: true, grantsError: undefined })
     try {
-      const result = await sdk().client.v2.permission.grant.list(undefined, { throwOnError: true })
+      const result = await client.v2.permission.grant.list(undefined, { throwOnError: true })
       setState({ grants: result.data?.data ?? [], grantsLoading: false })
     } catch (error: unknown) {
       setState({
@@ -59,23 +78,28 @@ export function ApprovalCenter() {
 
   onMount(() => {
     setMount(document.getElementById("aigcfroge-titlebar-right"))
+  })
+
+  // `ModeWorkspace` resolves its directory SDK in an effect, so the first load is
+  // keyed on the client becoming available rather than fired once at mount.
+  createEffect(() => {
+    if (sdkFromContext()?.client === undefined) return
     void loadGrants()
   })
 
   const submit = async (request: PermissionV2Pending, scope: ApprovalScope) => {
     const key = `${request.sessionID}\0${request.id}`
+    const client = sdkFromContext()?.client
+    if (!client) return
     setState({ submitting: key, error: undefined })
     try {
-      const client = sdk().client
-      if (approvalScopeTransport(scope) === "grant") {
-        await client.v2.session.permission.grant({
-          sessionID: request.sessionID,
-          requestID: request.id,
-          level: scope === "session" ? "session" : "location",
-        })
-      } else {
-        await PermissionPendingModel.decidePermission(client, { request: { kind: "v2", request }, decision: scope })
-      }
+      await (approvalScopeTransport(scope) === "grant"
+        ? client.v2.session.permission.grant({
+            sessionID: request.sessionID,
+            requestID: request.id,
+            level: scope === "session" ? "session" : "location",
+          })
+        : PermissionPendingModel.decidePermission(client, { request: { kind: "v2", request }, decision: scope }))
       dialog.close()
     } catch (error: unknown) {
       setState({ error: error instanceof Error ? error.message : String(error) })
@@ -85,9 +109,11 @@ export function ApprovalCenter() {
   }
 
   const revoke = async (grant: McpScopeScopedGrantInfo) => {
+    const client = sdkFromContext()?.client
+    if (!client) return
     setState({ revoking: grant.grant.id, grantsError: undefined })
     try {
-      await sdk().client.v2.permission.grant.revoke(
+      await client.v2.permission.grant.revoke(
         { grantID: grant.grant.id, expectedRevision: grant.grantRevision },
         { throwOnError: true },
       )
@@ -196,7 +222,7 @@ function ApprovalDialog(props: {
               </div>
               <Show when={props.state.error}>
                 {(error) => (
-                  <p class="break-words text-red-400 text-12-regular" role="alert">
+                  <p class="break-words text-v2-state-fg-danger text-12-regular" role="alert">
                     {error()}
                   </p>
                 )}
@@ -282,7 +308,11 @@ function GrantHistory(props: {
       </Show>
       <Show when={!props.state.grantsLoading && props.state.grantsError}>
         {(error) => (
-          <p class="break-words text-red-400 text-12-regular" role="alert" data-slot="approval-center-grants-error">
+          <p
+            class="break-words text-v2-state-fg-danger text-12-regular"
+            role="alert"
+            data-slot="approval-center-grants-error"
+          >
             {error()}
           </p>
         )}

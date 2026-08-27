@@ -22,9 +22,7 @@ export function SessionPermissionDock(props: {
   const scopedRequest = createMemo(() => (props.request.kind === "v2" ? props.request : undefined))
   /** `once` / `reject` are legal for both runtimes; narrow so the pair still typechecks. */
   const shared = (decision: "once" | "reject"): PermissionPendingModel.PermissionDecisionInput =>
-    props.request.kind === "legacy"
-      ? { request: props.request, decision }
-      : { request: props.request, decision }
+    props.request.kind === "legacy" ? { request: props.request, decision } : { request: props.request, decision }
   const isChildRequest = createMemo(() => props.sessionID !== undefined && request().sessionID !== props.sessionID)
 
   const toolDescription = () => {
@@ -63,7 +61,12 @@ export function SessionPermissionDock(props: {
         <>
           <div />
           <div data-slot="permission-footer-actions">
-            <Button variant="ghost" size="normal" onClick={() => props.onDecide(shared("reject"))} disabled={props.responding}>
+            <Button
+              variant="ghost"
+              size="normal"
+              onClick={() => props.onDecide(shared("reject"))}
+              disabled={props.responding}
+            >
               {language.t("ui.permission.deny")}
             </Button>
             <Show
@@ -106,7 +109,12 @@ export function SessionPermissionDock(props: {
                 </>
               )}
             </Show>
-            <Button variant="primary" size="normal" onClick={() => props.onDecide(shared("once"))} disabled={props.responding}>
+            <Button
+              variant="primary"
+              size="normal"
+              onClick={() => props.onDecide(shared("once"))}
+              disabled={props.responding}
+            >
               {language.t("ui.permission.allowOnce")}
             </Button>
           </div>

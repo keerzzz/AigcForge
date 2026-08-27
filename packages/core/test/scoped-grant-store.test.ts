@@ -87,7 +87,50 @@ const expectLostConsume = (exit: Exit.Exit<unknown, unknown>) => {
   throw new Error(`expected StateError{already_consumed} or GrantEvent.CommitRejected, got ${tag}`)
 }
 
+const expectCommitRejected = (exit: Exit.Exit<unknown, unknown>, revision: number) => {
+  if (!Exit.isFailure(exit)) throw new Error("expected a typed failure, got a success")
+  expect(Cause.hasDies(exit.cause)).toBe(false)
+  const error = Option.getOrThrow(Cause.findErrorOption(exit.cause))
+  expect(error).toBeInstanceOf(GrantEvent.CommitRejected)
+  if (error instanceof GrantEvent.CommitRejected) expect(error.revision).toBe(revision)
+}
+
 describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
+  /**
+   * `expectLostConsume` accepts `CommitRejected` as one of two legal concurrent
+   * losers, but under today's synchronous SQLite driver every `consume` loser
+   * takes the `already_consumed` path — so the conversion at `grant/event.ts:49`
+   * (defect -> typed failure) was reachable only in theory and asserted nowhere.
+   *
+   * Both `CommitRejected` branches are deterministic at the `publish` seam, with
+   * no race needed: a revision that does not equal `seq + 1`, and a `commit`
+   * callback that reports the row was not written. Driving them here is what
+   * makes the store's "a loser fails typed, never as a defect" promise testable.
+   * `Cause.hasDies` is the sharp half — without the `catchDefect` conversion the
+   * same input arrives as a defect and every caller's typed channel is a lie.
+   */
+  it.effect("converts both CommitRejected branches into typed failures, not defects", () =>
+    Effect.gen(function* () {
+      const events = yield* EventV2.Service
+      const update = { grantID: "grt_commit_seam", status: "active" as const, timeUpdated: 1 }
+
+      const staleRevision = yield* GrantEvent.publish(events, { ...update, revision: 7 }, () =>
+        Effect.succeed(true),
+      ).pipe(Effect.exit)
+      expectCommitRejected(staleRevision, 7)
+
+      const rejectedRow = yield* GrantEvent.publish(events, { ...update, revision: 1 }, () =>
+        Effect.succeed(false),
+      ).pipe(Effect.exit)
+      expectCommitRejected(rejectedRow, 1)
+
+      // Positive control: the same call with a matching revision and an accepted
+      // row must succeed, otherwise the two assertions above prove nothing.
+      const accepted = yield* GrantEvent.publish(events, { ...update, revision: 1 }, () => Effect.succeed(true))
+      expect(accepted.data.grantID).toBe("grt_commit_seam")
+    }),
+  )
+
   // `rows[0]` is `Row | undefined` at every read site and the settled-row sweep
   // makes "look up a grant that is already gone" an ordinary path, so a missing
   // row must be `undefined`, not a defect.
@@ -329,8 +372,16 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
     Effect.gen(function* () {
       const store = yield* ScopedGrantStore.Service
       const once = yield* store.issue({ scope: { level: "once" }, action: "bash", resources: ["*"] })
-      const sessionAGrant = yield* store.issue({ scope: { level: "session", sessionID: sessionA }, action: "edit", resources: ["*"] })
-      const sessionBGrant = yield* store.issue({ scope: { level: "session", sessionID: sessionB }, action: "write", resources: ["*"] })
+      const sessionAGrant = yield* store.issue({
+        scope: { level: "session", sessionID: sessionA },
+        action: "edit",
+        resources: ["*"],
+      })
+      const sessionBGrant = yield* store.issue({
+        scope: { level: "session", sessionID: sessionB },
+        action: "write",
+        resources: ["*"],
+      })
       const locationGrant = yield* store.issue({ scope: { level: "location" }, action: "read", resources: ["*"] })
 
       const all = yield* store.list({ retentionMs: 60_000 })
@@ -379,9 +430,11 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
       const query = db
         .select()
         .from(ScopedGrantTable)
-        .where(ScopedGrantStore.listFilter(input, ScopedGrantStore.retentionCutoff(now, input.retentionMs), {
+        .where(
+          ScopedGrantStore.listFilter(input, ScopedGrantStore.retentionCutoff(now, input.retentionMs), {
             directory: "/project",
-          }))
+          }),
+        )
       const { sql: text } = query.toSQL()
       const plan = yield* db.all<{ detail: string }>(sql.raw(`EXPLAIN QUERY PLAN ${text.replaceAll("?", "1")}`))
       const details = plan.map((row) => row.detail)
@@ -415,8 +468,14 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
             ),
           ),
         )
-      const first = Context.get(yield* Layer.buildWithScope(storeFor("/grant-location-a"), scope), ScopedGrantStore.Service)
-      const second = Context.get(yield* Layer.buildWithScope(storeFor("/grant-location-b"), scope), ScopedGrantStore.Service)
+      const first = Context.get(
+        yield* Layer.buildWithScope(storeFor("/grant-location-a"), scope),
+        ScopedGrantStore.Service,
+      )
+      const second = Context.get(
+        yield* Layer.buildWithScope(storeFor("/grant-location-b"), scope),
+        ScopedGrantStore.Service,
+      )
 
       const issued = yield* first.issue({ scope: { level: "location" }, action: "bash", resources: ["*"] })
       expect(yield* second.get(issued.grant.id)).toBeUndefined()
@@ -502,10 +561,24 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
       const store = yield* ScopedGrantStore.Service
       const { db } = yield* Database.Service
       const now = Date.now()
-      const recent = yield* store.issue({ scope: { level: "once" }, action: "bash", resources: ["*"], issuedAt: now - 1_000 })
-      const old = yield* store.issue({ scope: { level: "once" }, action: "edit", resources: ["*"], issuedAt: now - 20_000 })
-      yield* db.run(sql`UPDATE scoped_grant SET consumed_at = ${now - 1_000}, grant_revision = 2 WHERE id = ${recent.grant.id}`)
-      yield* db.run(sql`UPDATE scoped_grant SET consumed_at = ${now - 20_000}, grant_revision = 2 WHERE id = ${old.grant.id}`)
+      const recent = yield* store.issue({
+        scope: { level: "once" },
+        action: "bash",
+        resources: ["*"],
+        issuedAt: now - 1_000,
+      })
+      const old = yield* store.issue({
+        scope: { level: "once" },
+        action: "edit",
+        resources: ["*"],
+        issuedAt: now - 20_000,
+      })
+      yield* db.run(
+        sql`UPDATE scoped_grant SET consumed_at = ${now - 1_000}, grant_revision = 2 WHERE id = ${recent.grant.id}`,
+      )
+      yield* db.run(
+        sql`UPDATE scoped_grant SET consumed_at = ${now - 20_000}, grant_revision = 2 WHERE id = ${old.grant.id}`,
+      )
       const expired = yield* store.issue({
         scope: { level: "location" },
         action: "read",
@@ -513,8 +586,15 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
         issuedAt: now - 20_000,
         expiresAt: now - 20_000,
       })
-      const boundary = yield* store.issue({ scope: { level: "location" }, action: "grep", resources: ["*"], issuedAt: now - 5_000 })
-      yield* db.run(sql`UPDATE scoped_grant SET consumed_at = ${now - 5_000}, grant_revision = 2 WHERE id = ${boundary.grant.id}`)
+      const boundary = yield* store.issue({
+        scope: { level: "location" },
+        action: "grep",
+        resources: ["*"],
+        issuedAt: now - 5_000,
+      })
+      yield* db.run(
+        sql`UPDATE scoped_grant SET consumed_at = ${now - 5_000}, grant_revision = 2 WHERE id = ${boundary.grant.id}`,
+      )
       const transitionedWithFutureExpiry = yield* store.issue({
         scope: { level: "once" },
         action: "write",

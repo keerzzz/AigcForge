@@ -16,16 +16,16 @@ G3-3 与 G3-1/G3-2 性质不同：**它不是「待批准」，是「待建」**
 
 ### 1.1 起点事实（逐条复核）
 
-| # | 事实 | 证据 |
-|---|---|---|
-| 1 | **秘密以明文 JSON 存在 SQLite 里。** `credential.value` 是 `text({ mode: "json" })`，`Credential.Value = OAuth \| Key` 直接含 `refresh` / `access` / `key` 明文字符串，无加密、无信封、无 KMS | `credential/sql.ts:9`、`schema/src/credential.ts:15-33` |
-| 2 | **凭据表无任何 scope 列。** 列只有 `id / integration_id / label / value / connector_id / method_id / active` + Timestamps。**没有 location / session / agent / revision**，也没有 expiry / revocation（OAuth 的 `expires` 在 value 里，是 token 自身有效期，不是授权作用域） | `credential/sql.ts:5-14` |
-| 3 | **`Credential` 是进程级全局单例，不是 Location-scoped。** 它位于 `LocationServiceMap` 的 `dependencies`，与 `Database` / `ApplicationTools` 同位 —— 即任意 Location 看到同一张表、同一批凭据 | `location-layer.ts:274` |
-| 4 | **存在两个绕开 `Credential.Service` 的文件存储。** `auth.json`（provider API keys，`auth/index.ts:10`）与 `mcp-auth.json`（MCP OAuth token / clientInfo / codeVerifier / oauthState，`mcp/v2-auth.ts:36`）。两者**都是明文 JSON**，但**都以 `0o600` 落盘**（`auth/index.ts:79`、`mcp/v2-auth.ts:81`），而 SQLite 库文件**无任何 chmod**（`global.ts:36-42` 只 mkdir，`database.ts:44-54` 只算路径）。**即：今天文件存储比数据库存储更严** |
-| 5 | **Snapshot 没有任何字段能装 credential ref。** `schema/src/composition.ts` 内 `credential` 0 命中 | `rg credential packages/schema/src/composition.ts` = 0 |
-| 6 | **Phase A 已定义 `McpScope.CredentialRef` 契约，但零消费方。** `Schema.String` + `isStartsWith("cred_")` + 长度上界 + brand，且 `McpServerBinding.credentialRef` 为 optional | `schema/src/mcp-scope.ts:51-56`、`:89` |
-| 7 | **`CredentialScanner` 有 1 个生产 Service 取用点，另有 2 处 Layer 提供/装配点。** 唯一生产取用点是 `workflow/workflow-runner.ts:205`；`location-layer.ts:178` 与 `workflow/workflow-runner.ts:763` 只提供或装配 `CredentialScanner` Layer，不是调用点。它是**正则文本扫描器**（api_key / bearer_token / private_key / env_line 四类），仅作为**输出侧脱敏兜底**，不是密钥管理层 | `credential-scanner.ts:9-30`、`workflow/workflow-runner.ts:205`、`location-layer.ts:178`、`workflow/workflow-runner.ts:763` |
-| 8 | **`credential.active` 列在 V2 服务里零引用。** `credential.ts` 内 `active` 0 命中；该列与 `credential_connector_active_idx` 唯一索引来自 V1 时代迁移 | `credential.ts`（0 命中）、`migration/20260611035744_credential.ts:21` |
+| #   | 事实                                                                                                                                                                                                                                                                                                                                                                                                                                      | 证据                                                                                                                        |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **秘密以明文 JSON 存在 SQLite 里。** `credential.value` 是 `text({ mode: "json" })`，`Credential.Value = OAuth \| Key` 直接含 `refresh` / `access` / `key` 明文字符串，无加密、无信封、无 KMS                                                                                                                                                                                                                                             | `credential/sql.ts:9`、`schema/src/credential.ts:15-33`                                                                     |
+| 2   | **凭据表无任何 scope 列。** 列只有 `id / integration_id / label / value / connector_id / method_id / active` + Timestamps。**没有 location / session / agent / revision**，也没有 expiry / revocation（OAuth 的 `expires` 在 value 里，是 token 自身有效期，不是授权作用域）                                                                                                                                                              | `credential/sql.ts:5-14`                                                                                                    |
+| 3   | **`Credential` 是进程级全局单例，不是 Location-scoped。** 它位于 `LocationServiceMap` 的 `dependencies`，与 `Database` / `ApplicationTools` 同位 —— 即任意 Location 看到同一张表、同一批凭据                                                                                                                                                                                                                                              | `location-layer.ts:274`                                                                                                     |
+| 4   | **存在两个绕开 `Credential.Service` 的文件存储。** `auth.json`（provider API keys，`auth/index.ts:10`）与 `mcp-auth.json`（MCP OAuth token / clientInfo / codeVerifier / oauthState，`mcp/v2-auth.ts:36`）。两者**都是明文 JSON**，但**都以 `0o600` 落盘**（`auth/index.ts:79`、`mcp/v2-auth.ts:81`），而 SQLite 库文件**无任何 chmod**（`global.ts:36-42` 只 mkdir，`database.ts:44-54` 只算路径）。**即：今天文件存储比数据库存储更严** |
+| 5   | **Snapshot 没有任何字段能装 credential ref。** `schema/src/composition.ts` 内 `credential` 0 命中                                                                                                                                                                                                                                                                                                                                         | `rg credential packages/schema/src/composition.ts` = 0                                                                      |
+| 6   | **Phase A 已定义 `McpScope.CredentialRef` 契约，但零消费方。** `Schema.String` + `isStartsWith("cred_")` + 长度上界 + brand，且 `McpServerBinding.credentialRef` 为 optional                                                                                                                                                                                                                                                              | `schema/src/mcp-scope.ts:51-56`、`:89`                                                                                      |
+| 7   | **`CredentialScanner` 有 1 个生产 Service 取用点，另有 2 处 Layer 提供/装配点。** 唯一生产取用点是 `workflow/workflow-runner.ts:205`；`location-layer.ts:178` 与 `workflow/workflow-runner.ts:763` 只提供或装配 `CredentialScanner` Layer，不是调用点。它是**正则文本扫描器**（api_key / bearer_token / private_key / env_line 四类），仅作为**输出侧脱敏兜底**，不是密钥管理层                                                           | `credential-scanner.ts:9-30`、`workflow/workflow-runner.ts:205`、`location-layer.ts:178`、`workflow/workflow-runner.ts:763` |
+| 8   | **`credential.active` 列在 V2 服务里零引用。** `credential.ts` 内 `active` 0 命中；该列与 `credential_connector_active_idx` 唯一索引来自 V1 时代迁移                                                                                                                                                                                                                                                                                      | `credential.ts`（0 命中）、`migration/20260611035744_credential.ts:21`                                                      |
 
 ### 1.2 由这些事实决定的三个结论
 
@@ -119,13 +119,13 @@ unique(directory, workspace_id, server_name)
 
 ## 3. 架构影响与五层映射
 
-| 层级 | 变更 |
-|---|---|
-| L1 Schema | `McpScope.CredentialRef` 已落地（`mcp-scope.ts:51-56`）；新增 `McpCredentialBinding` 编码契约与 `CrossLocationRefError`；`McpServerBinding` 解码期加秘密字面量拒绝（§2.5 止血 2） |
-| L2 Core/DB | 新增 `mcp_credential_binding` 表 + 唯一 CAS 写入者 service（照抄 ADR-20 §2.4；layer 用 `provide`）；DB 文件 chmod `0o600`；`Credential` 与 `CredentialScanner` **均不改语义** |
-| L3 HTTP/SDK | Phase C/F：bind / unbind / list 薄端点（带 `product-mode-custom-v1` 能力头）；**响应体永不含材料**，只含 ref 与 `label`；SDK 重新生成 |
-| L4 App | Builder 里选择既有凭据并绑定到 server（不新建凭据录入面，复用 Integration 既有流）；显示 ref 与 label，**不显示材料** |
-| L5 Security | 连接侧零字面量、跨 Location ref 拒绝、绑定层可撤销、解码期秘密拒绝、日志经 scanner、DB 文件权限对齐 |
+| 层级        | 变更                                                                                                                                                                              |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L1 Schema   | `McpScope.CredentialRef` 已落地（`mcp-scope.ts:51-56`）；新增 `McpCredentialBinding` 编码契约与 `CrossLocationRefError`；`McpServerBinding` 解码期加秘密字面量拒绝（§2.5 止血 2） |
+| L2 Core/DB  | 新增 `mcp_credential_binding` 表 + 唯一 CAS 写入者 service（照抄 ADR-20 §2.4；layer 用 `provide`）；DB 文件 chmod `0o600`；`Credential` 与 `CredentialScanner` **均不改语义**     |
+| L3 HTTP/SDK | Phase C/F：bind / unbind / list 薄端点（带 `product-mode-custom-v1` 能力头）；**响应体永不含材料**，只含 ref 与 `label`；SDK 重新生成                                             |
+| L4 App      | Builder 里选择既有凭据并绑定到 server（不新建凭据录入面，复用 Integration 既有流）；显示 ref 与 label，**不显示材料**                                                             |
+| L5 Security | 连接侧零字面量、跨 Location ref 拒绝、绑定层可撤销、解码期秘密拒绝、日志经 scanner、DB 文件权限对齐                                                                               |
 
 ## 4. 评审要点与结论
 
@@ -156,12 +156,12 @@ unique(directory, workspace_id, server_name)
 
 ## 6. 审批与授权记录
 
-| 评审方 | 结论 | 备注 |
-|---|---|---|
-| Product | **Accepted**（2026-08-24） | 人类直接裁定 §2.5：加密排除在 M3 之外，只做两项止血；v1.1 追加裁定 §2.5 两项补强纳入止血 1、OAuth `expires` 取 typed fail 不做 refresh（§4.1 第 6/7 条） |
-| Core | **Accepted, condition discharged**（2026-08-24） | 用户授权 AI 代理代行技术审批；§2.2「必须新增绑定表」的复核前置**已由 Phase C Slice 0 履行**：八条事实 8/8 成立，逐候选否决后保留新增，另发现三处 ADR 缺陷（DDL 唯一性、轮换透明性、止血覆盖面），均已在 v1.1 修订 |
-| Security | **Accepted**（2026-08-24） | §2.3 为如实边界；主防线 §2.1，scanner 仅兜底 |
-| App | **Accepted**（2026-08-24） | 只做绑定，不做凭据录入 |
-| Schema+SDK | **Accepted**（2026-08-24） | 复用 `mcp-scope.ts` 为编码真源 |
+| 评审方     | 结论                                             | 备注                                                                                                                                                                                                              |
+| ---------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Product    | **Accepted**（2026-08-24）                       | 人类直接裁定 §2.5：加密排除在 M3 之外，只做两项止血；v1.1 追加裁定 §2.5 两项补强纳入止血 1、OAuth `expires` 取 typed fail 不做 refresh（§4.1 第 6/7 条）                                                          |
+| Core       | **Accepted, condition discharged**（2026-08-24） | 用户授权 AI 代理代行技术审批；§2.2「必须新增绑定表」的复核前置**已由 Phase C Slice 0 履行**：八条事实 8/8 成立，逐候选否决后保留新增，另发现三处 ADR 缺陷（DDL 唯一性、轮换透明性、止血覆盖面），均已在 v1.1 修订 |
+| Security   | **Accepted**（2026-08-24）                       | §2.3 为如实边界；主防线 §2.1，scanner 仅兜底                                                                                                                                                                      |
+| App        | **Accepted**（2026-08-24）                       | 只做绑定，不做凭据录入                                                                                                                                                                                            |
+| Schema+SDK | **Accepted**（2026-08-24）                       | 复用 `mcp-scope.ts` 为编码真源                                                                                                                                                                                    |
 
 > **起草/批准分离说明**：本 ADR 由复审方起草，故不由起草方自批。§2.5 由人类裁定；其余四条以「Accepted + Slice 0 独立事实复核」形式闭门——Slice 0 就是起草方不自批的补偿控制，**不是可选步骤**。
