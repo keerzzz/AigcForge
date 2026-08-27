@@ -271,6 +271,27 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                 }),
               ),
             ),
+            Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", (error) =>
+              Effect.fail(
+                new InvalidRequestError({
+                  message: `Agent ${error.agentID} is not allowed in session ${error.sessionID} (allowed: ${error.allowedAgentID ?? "none"})`,
+                }),
+              ),
+            ),
+            Effect.catchTag("SessionComposition.SnapshotNotFoundError", (error) =>
+              Effect.fail(
+                new InvalidRequestError({
+                  message: `Conflicting composition snapshot for session ${error.sessionID}`,
+                }),
+              ),
+            ),
+            Effect.catchTag("SessionComposition.SnapshotDecodeError", () =>
+              Effect.fail(
+                new InvalidRequestError({
+                  message: `Conflicting composition snapshot for session ${ctx.params.sessionID}`,
+                }),
+              ),
+            ),
           )
           return HttpApiSchema.NoContent.make()
         }),

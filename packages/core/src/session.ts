@@ -217,7 +217,14 @@ export interface Interface {
     sessionID: SessionSchema.ID
     after?: number
   }) => Stream.Stream<SessionEvent.DurableEvent, NotFoundError>
-  readonly switchAgent: (input: { sessionID: SessionSchema.ID; agent: string }) => Effect.Effect<void, NotFoundError | ProductModePolicy.UnsupportedProductModeError>
+  readonly switchAgent: (input: { sessionID: SessionSchema.ID; agent: string }) => Effect.Effect<
+    void,
+    | NotFoundError
+    | ProductModePolicy.UnsupportedProductModeError
+    | SessionComposition.AgentDelegationForbiddenError
+    | SessionComposition.SnapshotNotFoundError
+    | SessionComposition.SnapshotDecodeError
+  >
   readonly switchModel: (input: {
     sessionID: SessionSchema.ID
     model: ModelV2.Ref
@@ -740,6 +747,12 @@ export const layer = Layer.effect(
       switchAgent: Effect.fn("V2Session.switchAgent")(function* (input) {
         const session = yield* result.get(input.sessionID)
         yield* ProductModePolicy.assertRuntimeSupported(session.mode)
+        // Custom sessions may only switch within their frozen Snapshot pool;
+        // without this gate a post-creation swap would bypass the same
+        // allowlist that guards `create` and delegated dispatch.
+        if (session.mode === "custom") {
+          yield* sessionComposition.assertAgentAllowed(input.sessionID, input.agent)
+        }
         yield* events.publish(SessionEvent.AgentSwitched, {
           sessionID: input.sessionID,
           messageID: SessionMessage.ID.create(),

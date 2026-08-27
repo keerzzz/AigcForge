@@ -570,6 +570,47 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
         expect(forbiddenChild._tag).toBe("Failure")
       }),
     )
+
+    it.effect("switchAgent rejects agents outside the snapshot allowlist", () =>
+      Effect.gen(function* () {
+        const sessionService = yield* SessionV2.Service
+        const comp = yield* SessionComposition.Service
+        const { db } = yield* Database.Service
+
+        const rootSessionID = SessionV2.ID.make("ses_switch_gate_root")
+        yield* db.insert(ProjectTable).values({ id: ProjectV2.ID.make("proj_test_5"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
+        yield* db.insert(SessionTable).values({
+          id: rootSessionID,
+          slug: "switch-gate-slug",
+          version: "1.0.0",
+          project_id: ProjectV2.ID.make("proj_test_5"),
+          directory: AbsolutePath.make("/workspace"),
+          title: "Switch Gate",
+          mode: "custom",
+          agent: AgentV2.ID.make("meta"),
+          time_created: Date.now(),
+          time_updated: Date.now(),
+        }).run().pipe(Effect.orDie)
+        yield* comp.attach(rootSessionID, mockSnapshot(rootSessionID, "custom-coder"))
+
+        // An in-pool agent switches cleanly.
+        yield* sessionService.switchAgent({ sessionID: rootSessionID, agent: "custom-coder" })
+
+        // An out-of-pool agent fails closed with the delegation error.
+        const forbiddenSwitch = yield* sessionService
+          .switchAgent({ sessionID: rootSessionID, agent: "unauthorized-agent" })
+          .pipe(Effect.exit)
+        expect(forbiddenSwitch._tag).toBe("Failure")
+        if (forbiddenSwitch._tag === "Failure") {
+          const error = Cause.findErrorOption(forbiddenSwitch.cause)
+          if (error._tag === "Some") {
+            expect((error.value as { _tag?: string })._tag).toBe("SessionComposition.AgentDelegationForbiddenError")
+          } else {
+            expect.unreachable()
+          }
+        }
+      }),
+    )
   })
 
   describe("Custom Mode Runtime Kill Switch", () => {
