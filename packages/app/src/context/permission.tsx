@@ -9,6 +9,7 @@ import { useParams } from "@solidjs/router"
 import { decode64 } from "@/utils/base64"
 import {
   acceptKey,
+  autoRespondableAsk,
   directoryAcceptKey,
   isDirectoryAutoAccepting,
   autoRespondsPermission,
@@ -163,10 +164,11 @@ export const { use: usePermission, provider: PermissionProvider } = createSimple
     }
 
     const unsubscribe = serverSDK().event.listen((e) => {
-      const event = e.details
-      if (event?.type !== "permission.asked") return
+      // V1 asks only — see `autoRespondableAsk`. A V2 ask arrives on this same
+      // stream in this same shape, so the narrowing is the boundary.
+      const perm = autoRespondableAsk(e.details)
+      if (!perm) return
 
-      const perm = event.properties
       if (!shouldAutoRespond(perm, e.name)) return
 
       respondOnce(perm, e.name)
