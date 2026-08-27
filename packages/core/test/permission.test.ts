@@ -7,6 +7,7 @@ import { Location } from "@aigcfroge/core/location"
 import { PermissionV2 } from "@aigcfroge/core/permission"
 import { PermissionTable } from "@aigcfroge/core/permission/sql"
 import { PermissionSaved } from "@aigcfroge/core/permission/saved"
+import { ApprovalPresence } from "@aigcfroge/core/permission/approval-presence"
 import { Project } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
 import { AbsolutePath } from "@aigcfroge/core/schema"
@@ -17,6 +18,12 @@ import { SessionStore } from "@aigcfroge/core/session/store"
 import { eq } from "drizzle-orm"
 import { location } from "./fixture/location"
 import { testEffect } from "./lib/effect"
+
+const attachResponder = () =>
+  Effect.gen(function* () {
+    const presence = yield* ApprovalPresence.Service
+    yield* presence.bindResponder({ custom: true })
+  })
 
 const current = Layer.succeed(
   Location.Service,
@@ -37,7 +44,8 @@ const layer = PermissionV2.locationLayer.pipe(
   Layer.provideMerge(sessions),
   Layer.provideMerge(SessionExecution.noopLayer),
   Layer.provideMerge(PermissionSaved.defaultLayer),
-)
+  Layer.provideMerge(ApprovalPresence.defaultLayer),
+  )
 const it = testEffect(layer)
 
 function setup(rules: PermissionV2.Ruleset = []) {
@@ -258,6 +266,7 @@ describe("PermissionV2", () => {
 
   it.effect("resolves an asked permission once", () =>
     Effect.gen(function* () {
+      yield* attachResponder()
       yield* setup()
       const { service, fiber, request } = yield* waitForRequest()
       expect(yield* service.list()).toEqual([request])
@@ -273,6 +282,7 @@ describe("PermissionV2", () => {
 
   it.effect("stores and removes saved resources for a project", () =>
     Effect.gen(function* () {
+      yield* attachResponder()
       yield* setup()
       const service = yield* PermissionV2.Service
       const asked = yield* Deferred.make<PermissionV2.Request>()
@@ -441,6 +451,7 @@ describe("PermissionV2", () => {
 
   it.effect("effective rules honor the session tier and drive assert identically", () =>
     Effect.gen(function* () {
+      yield* attachResponder()
       yield* setup()
       yield* (yield* AgentV2.Service).transform((editor) =>
         editor.update(AgentV2.ID.make("meta"), (agent) => {

@@ -23,8 +23,23 @@ export class SnapshotDriftError extends Schema.TaggedErrorClass<SnapshotDriftErr
   },
 ) {}
 
+export class AgentProvenanceError extends Schema.TaggedErrorClass<AgentProvenanceError>()(
+  "SessionRunner.AgentProvenanceError",
+  {
+    sessionID: Schema.String,
+    agent: Schema.String,
+    expectedRelativePath: Schema.String,
+    expectedRevision: Schema.String,
+  },
+) {
+  override get message() {
+    return `Agent '${this.agent}' in session ${this.sessionID} does not originate from the bound asset ${this.expectedRelativePath}@${this.expectedRevision}`
+  }
+}
+
 export type RunError =
   | LLMError
+  | AgentProvenanceError
   | SessionRunnerModel.Error
   | MessageDecodeError
   | ContextSnapshotDecodeError

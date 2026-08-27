@@ -1,22 +1,11 @@
 import { Context, Effect, Layer } from "effect"
-import { CredentialScan } from "@aigcfroge/schema/credential-scan"
+import { API_KEY_RE, BEARER_TOKEN_RE, CredentialScan, ENV_LINE_RE, PRIVATE_KEY_RE } from "@aigcfroge/schema/credential-scan"
 
 type Hit = {
   type: "api_key" | "bearer_token" | "private_key" | "env_line"
   lineIndex: number
   positionHint: string
 }
-
-const API_KEY_RE =
-  /(?:(?:api[_-]?key|apikey)\s*[=:]\s*['"]?(?:sk-[a-zA-Z0-9]{20,}|[a-zA-Z0-9_-]{16,})['"]?)/gi
-
-const BEARER_TOKEN_RE =
-  /(?:Authorization\s*[=:]\s*)?Bearer\s+(eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]+|[a-zA-Z0-9_-]{20,})/gi
-
-const PRIVATE_KEY_RE = /-----BEGIN\s+(?:RSA|EC|DSA|OPENSSH|PGP)\s+PRIVATE\s+KEY-----[\s\S]*?-----END\s+(?:RSA|EC|DSA|OPENSSH|PGP)\s+PRIVATE\s+KEY-----/g
-
-const ENV_LINE_RE =
-  /^(?:DATABASE_URL|SECRET(?:_KEY)?|API_KEY(?:_\w+)?|ACCESS_KEY|SECRET_ACCESS_KEY|PRIVATE_KEY|TOKEN|PASSWORD|DB_[A-Z_]+)\s*=\s*['"]?.+['"]?$/gim
 
 const PATTERNS: {
   type: "api_key" | "bearer_token" | "private_key" | "env_line"

@@ -22,6 +22,11 @@ export type Input = {
 // Chat full 必须逐次确认的危险 action（红线 4）。未知 action 由 wildcard ask 兜底。
 const DANGEROUS_ACTIONS = ["bash", "edit", "write", "apply_patch"] as const
 
+/** 单一真源出口：资产导入期的危险动作披露复用同一清单，禁止另抄一份。 */
+export function isDangerousAction(action: string) {
+  return (DANGEROUS_ACTIONS as ReadonlyArray<string>).includes(action)
+}
+
 // custom unattended 天花板白名单（ADR-20 §2.6，R6-2 整改）：只读类 action 才可
 // 为无人值守扇出预授权；成员逐一取自 builtins.ts 注册清单，新工具默认不在
 // 名单内即 deny。task_spawn/webfetch 等扇出与外发原语被刻意排除。
@@ -44,8 +49,23 @@ export function evaluateV1(rules: PermissionV1.Ruleset, permission: string, patt
 
 // 唯一决策实现：mode × agent × tier × attended × master × saved 的全部条件分支
 // 只存在于这里；effectiveV1/effectiveV2 只是同一决策结果的双端格式转换。
-function compute(input: Input, base: Permission.Ruleset): Permission.Ruleset {
+function compute(input: Input, baseInput: Permission.Ruleset): Permission.Ruleset {
   const attended = input.attended !== false
+  // ADR-20 §2.6 (Phase D)：custom 模式下资产来源的执行类 allow 一律改判 ask
+  // ——审批框只在 ask 时出现，「用户在场 ≠ 用户同意」。白名单只读类保持
+  // allow；saved 追加来源在下游单独追加，不受此重写影响。
+  const rewrittenAsks: Permission.Ruleset = []
+  const rest: Permission.Ruleset = []
+  for (const rule of baseInput) {
+    const rewritten =
+      input.mode === "custom" && rule.effect === "allow" && !readonlyCeilingAction.has(rule.action)
+        ? { ...rule, effect: "ask" as const }
+        : rule
+    // 位序即语义（evaluate 是 findLast）：由 allow 改判的 ask 前置到白名单
+    // allow 与显式 deny 之前，避免尾部通配改判遮蔽它们；其余规则保持原序。
+    ;(rewritten.effect === "ask" && rule.effect === "allow" ? rewrittenAsks : rest).push(rewritten)
+  }
+  const base = input.mode === "custom" ? [...rewrittenAsks, ...rest] : baseInput
   // 档位只对 chat/work/assistant × meta × full 抬权；未知 mode fail-safe 不抬权。
   const elevatedMode = input.mode === "chat" || input.mode === "work" || input.mode === "assistant"
   const elevated = elevatedMode && input.agent === "meta" && input.tier === "full"

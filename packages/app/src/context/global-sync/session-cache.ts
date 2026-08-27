@@ -1,3 +1,4 @@
+import { PermissionPendingModel } from "./permission-pending"
 import type {
   Message,
   Part,
@@ -17,6 +18,7 @@ type SessionCache = {
   message: Record<string, Message[] | undefined>
   part: Record<string, Part[] | undefined>
   permission: Record<string, PermissionRequest[] | undefined>
+  permission_v2: Record<string, PermissionPendingModel.PermissionV2Pending[] | undefined>
   question: Record<string, QuestionRequest[] | undefined>
   part_text_accum_delta: Record<string, string | undefined>
 }
@@ -40,6 +42,7 @@ export function dropSessionCaches(store: SessionCache, sessionIDs: Iterable<stri
     delete store.session_diff[sessionID]
     delete store.session_status[sessionID]
     delete store.permission[sessionID]
+    delete store.permission_v2[sessionID]
     delete store.question[sessionID]
   }
 }

@@ -11,19 +11,38 @@ import path from "path"
 const read = (rel: string) => fs.readFileSync(path.resolve(__dirname, rel), "utf-8")
 
 describe("SessionPermissionDock", () => {
-  test("renders request metadata description and cli_target when present", () => {
+  test("wires normalized request metadata description and cli_target into the dock", () => {
     const dock = read("session-permission-dock.tsx")
     // Metadata block is rendered independently of the patterns list.
     expect(dock).toContain('data-slot="permission-metadata"')
+    // Presentation adapter makes V1 and V2 request shapes explicit before rendering.
+    expect(dock).toContain("permissionPresentation(props.request)")
     // Description surfaced when the task tool sent one.
-    expect(dock).toContain("props.request.metadata?.description")
+    expect(dock).toContain("request().metadata?.description")
     // External-CLI target surfaced when the request is a CLI dispatch.
-    expect(dock).toContain("props.request.metadata?.cli_target")
+    expect(dock).toContain("request().metadata?.cli_target")
   })
 
-  test("keeps the existing patterns list rendering untouched", () => {
+  test("renders the canonical action even when no localized description exists", () => {
+    const dock = read("session-permission-dock.tsx")
+    expect(dock).toContain('data-slot="permission-action"')
+    expect(dock).toContain("request().action")
+  })
+
+  test("wires normalized resources into the existing request list", () => {
     const dock = read("session-permission-dock.tsx")
     expect(dock).toContain('data-slot="permission-patterns"')
-    expect(dock).toContain("props.request.patterns.length > 0")
+    expect(dock).toContain("request().resources.length > 0")
   })
+
+  // The "V2 must never answer `always`" invariant used to live here as a regex
+  // over this file. It is now carried by `PermissionDecisionInput`: each button
+  // can only build the pair its narrowed branch permits, so the illegal
+  // combination does not compile. The behavioural half is asserted in
+  // context/global-sync/permission-pending.test.ts (routing plus two type-negative
+  // cases). A regex here would only re-assert the shape of code the compiler
+  // already refuses to accept.
+  //
+  // Note: do not write the expect-error directive name in a comment — TypeScript
+  // parses it as a real directive and reports it as unused.
 })

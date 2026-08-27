@@ -56,9 +56,11 @@ export type Event =
   | EventSessionNextVerifyFailed
   | EventSessionNextCacheDiagnostic
   | EventFileWatcherUpdated
+  | EventMcpCredentialBindingUpdated
   | EventReferenceUpdated
   | EventPermissionOverrideEnabled
   | EventPermissionOverrideDisabled
+  | EventGrantUpdated
   | EventPermissionV2Asked
   | EventPermissionV2Replied
   | EventPluginAdded
@@ -1345,6 +1347,16 @@ export type GlobalEvent = {
       }
     | {
         id: string
+        type: "mcp_credential_binding.updated"
+        properties: {
+          bindingID: string
+          status: "active" | "revoked"
+          revision: number
+          timeUpdated: number
+        }
+      }
+    | {
+        id: string
         type: "reference.updated"
         properties: {
           [key: string]: unknown
@@ -1363,6 +1375,16 @@ export type GlobalEvent = {
         type: "permission.override.disabled"
         properties: {
           sessionID: string
+        }
+      }
+    | {
+        id: string
+        type: "grant.updated"
+        properties: {
+          grantID: string
+          status: "active" | "consumed" | "revoked"
+          revision: number
+          timeUpdated: number
         }
       }
     | {
@@ -1978,6 +2000,8 @@ export type GlobalEvent = {
     | SyncEventSessionNextVerifyStarted
     | SyncEventSessionNextVerifyPassed
     | SyncEventSessionNextVerifyFailed
+    | SyncEventMcpCredentialBindingUpdated
+    | SyncEventGrantUpdated
     | SyncEventWorkflowRunUpdated
 }
 
@@ -3688,6 +3712,12 @@ export type ProviderNotFoundError = {
   message: string
 }
 
+export type GrantNotFoundError = {
+  _tag: "GrantNotFoundError"
+  grantID: string
+  message: string
+}
+
 export type V2Event =
   | V2EventModelsDevRefreshed
   | V2EventIntegrationUpdated
@@ -3740,9 +3770,11 @@ export type V2Event =
   | V2EventSessionNextVerifyFailed
   | V2EventSessionNextCacheDiagnostic
   | V2EventFileWatcherUpdated
+  | V2EventMcpCredentialBindingUpdated
   | V2EventReferenceUpdated
   | V2EventPermissionOverrideEnabled
   | V2EventPermissionOverrideDisabled
+  | V2EventGrantUpdated
   | V2EventPermissionV2Asked
   | V2EventPermissionV2Replied
   | V2EventPluginAdded
@@ -4824,6 +4856,40 @@ export type SyncEventSessionNextVerifyFailed = {
   }
 }
 
+export type SyncEventMcpCredentialBindingUpdated = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "mcp_credential_binding.updated.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      bindingID: string
+      status: "active" | "revoked"
+      revision: number
+      timeUpdated: number
+    }
+  }
+}
+
+export type SyncEventGrantUpdated = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "grant.updated.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      grantID: string
+      status: "active" | "consumed" | "revoked"
+      revision: number
+      timeUpdated: number
+    }
+  }
+}
+
 export type SyncEventWorkflowRunUpdated = {
   type: "sync"
   id: string
@@ -5091,6 +5157,17 @@ export type AgentAssetCandidate = {
   relativePath: string
 }
 
+export type AgentAssetWarning = {
+  code: "wildcard_allow" | "dangerous_allow"
+  action: string
+  resource: string
+}
+
+export type AgentAssetApplyResult = {
+  asset: AgentAssetInfo
+  warnings: Array<AgentAssetWarning>
+}
+
 export type CustomProfileSummary = {
   kind: "custom-profile"
   name: string
@@ -5138,6 +5215,18 @@ export type CompositionBinding = {
   }>
 }
 
+export type CustomProfileMcpBinding = {
+  serverName: string
+  ref: {
+    relativePath: string
+    revision: string
+  }
+  transport: "stdio" | "remote"
+  command?: Array<string>
+  url?: string
+  credentialRef?: string
+}
+
 export type CustomProfileProfile = {
   kind: "custom-profile"
   name: string
@@ -5149,6 +5238,7 @@ export type CustomProfileProfile = {
   }
   presentation: "native"
   requestedCapabilities: Array<string>
+  mcpBindings?: Array<CustomProfileMcpBinding>
 }
 
 export type CustomProfileInfo = {
@@ -5250,8 +5340,50 @@ export type CompositionCostPreview = {
   agentCount: number
 }
 
+export type CompositionMcpPlan = {
+  requested: Array<{
+    serverName: string
+    ref: {
+      kind: "mcp"
+      relativePath: string
+      revision: string
+    }
+    credentialRef?: string
+  }>
+  effective: Array<{
+    serverName: string
+    ref: {
+      kind: "mcp"
+      relativePath: string
+      revision: string
+    }
+    credentialRef?: string
+    credentialStatus: "not-required" | "available" | "missing" | "expired" | "revoked"
+    health: "connecting" | "ready" | "degraded" | "offline" | "auth-required" | "revoked"
+    tools: Array<string>
+  }>
+  denied: Array<{
+    serverName: string
+    ref: {
+      kind: "mcp"
+      relativePath: string
+      revision: string
+    }
+    credentialRef?: string
+    reason: string
+    health?: "connecting" | "ready" | "degraded" | "offline" | "auth-required" | "revoked"
+    credentialStatus?: "not-required" | "available" | "missing" | "expired" | "revoked"
+  }>
+}
+
 export type CompositionCommandRef = {
   kind: "command"
+  relativePath: string
+  revision: string
+}
+
+export type CompositionMcpRef = {
+  kind: "mcp"
   relativePath: string
   revision: string
 }
@@ -5267,6 +5399,7 @@ export type CompositionDiagnostic = {
     | CompositionSkillRef
     | CompositionWorkflowRef
     | CompositionCommandRef
+    | CompositionMcpRef
 }
 
 export type CompositionPlan = {
@@ -5294,6 +5427,7 @@ export type CompositionPlan = {
   skills: Array<CompositionSkillInfo>
   capabilities: Array<CompositionCapabilityInfo>
   costPreview?: CompositionCostPreview
+  mcp?: CompositionMcpPlan
   diagnostics: Array<CompositionDiagnostic>
 }
 
@@ -5389,6 +5523,27 @@ export type CompositionSnapshotV1 = {
   data: CompositionSnapshotDataV1
 }
 
+export type CompositionSnapshotMcpInfo = {
+  bindings: Array<{
+    serverName: string
+    ref: {
+      kind: "mcp"
+      relativePath: string
+      revision: string
+    }
+    credentialRef?: string
+  }>
+  tools: Array<{
+    canonicalName: string
+    serverName: string
+    ref: {
+      kind: "mcp"
+      relativePath: string
+      revision: string
+    }
+  }>
+}
+
 export type CompositionSnapshotDataV2 = {
   agents: Array<CompositionAgentInfo>
   workflow?: CompositionWorkflowInfo
@@ -5426,6 +5581,7 @@ export type CompositionSnapshotDataV2 = {
   prompts: Array<CompositionSnapshotPromptData>
   skills: Array<CompositionSkillInfo>
   tools: CompositionSnapshotToolInfo
+  mcp?: CompositionSnapshotMcpInfo
 }
 
 export type CompositionSnapshotV2 = {
@@ -5773,6 +5929,8 @@ export type AgentV2Info = {
   permissions: PermissionV2Ruleset
   attended?: boolean
   handoffs: Array<Handoff>
+  originRelativePath?: string
+  originRevision?: string
 }
 
 export type SessionInputAdmittedPrompt = {
@@ -6274,6 +6432,38 @@ export type PermissionSavedInfo = {
   projectID: string
   action: string
   resource: string
+}
+
+export type McpScopeGrantScope =
+  | {
+      level: "once"
+    }
+  | {
+      level: "session"
+      sessionID: string
+    }
+  | {
+      level: "location"
+    }
+
+export type McpScopeScopedGrant = {
+  id: string
+  scope: McpScopeGrantScope
+  action: string
+  resources: Array<string>
+  effect: "allow"
+  agent?: string
+  revision?: string
+  issuedAt: number
+  expiresAt?: number
+  revokedAt?: number
+}
+
+export type McpScopeScopedGrantInfo = {
+  grant: McpScopeScopedGrant
+  status: "active" | "consumed" | "revoked" | "expired"
+  consumedAt?: number
+  grantRevision: number
 }
 
 export type FileSystemEntry = {
@@ -7390,6 +7580,26 @@ export type V2EventFileWatcherUpdated = {
   }
 }
 
+export type V2EventMcpCredentialBindingUpdated = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "mcp_credential_binding.updated"
+  data: {
+    bindingID: string
+    status: "active" | "revoked"
+    revision: number
+    timeUpdated: number
+  }
+}
+
 export type V2EventReferenceUpdated = {
   id: string
   metadata?: {
@@ -7439,6 +7649,26 @@ export type V2EventPermissionOverrideDisabled = {
   type: "permission.override.disabled"
   data: {
     sessionID: string
+  }
+}
+
+export type V2EventGrantUpdated = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "grant.updated"
+  data: {
+    grantID: string
+    status: "active" | "consumed" | "revoked"
+    revision: number
+    timeUpdated: number
   }
 }
 
@@ -9298,6 +9528,17 @@ export type EventFileWatcherUpdated = {
   }
 }
 
+export type EventMcpCredentialBindingUpdated = {
+  id: string
+  type: "mcp_credential_binding.updated"
+  properties: {
+    bindingID: string
+    status: "active" | "revoked"
+    revision: number
+    timeUpdated: number
+  }
+}
+
 export type EventReferenceUpdated = {
   id: string
   type: "reference.updated"
@@ -9320,6 +9561,17 @@ export type EventPermissionOverrideDisabled = {
   type: "permission.override.disabled"
   properties: {
     sessionID: string
+  }
+}
+
+export type EventGrantUpdated = {
+  id: string
+  type: "grant.updated"
+  properties: {
+    grantID: string
+    status: "active" | "consumed" | "revoked"
+    revision: number
+    timeUpdated: number
   }
 }
 
@@ -13032,9 +13284,9 @@ export type AgentAssetApplyError = AgentAssetApplyErrors[keyof AgentAssetApplyEr
 
 export type AgentAssetApplyResponses = {
   /**
-   * Applied agent asset
+   * Applied agent asset with import warnings
    */
-  200: AgentAssetInfo
+  200: AgentAssetApplyResult
 }
 
 export type AgentAssetApplyResponse = AgentAssetApplyResponses[keyof AgentAssetApplyResponses]
@@ -18312,6 +18564,132 @@ export type V2SessionPermissionReplyResponses = {
 
 export type V2SessionPermissionReplyResponse =
   V2SessionPermissionReplyResponses[keyof V2SessionPermissionReplyResponses]
+
+export type V2PermissionGrantListData = {
+  body?: never
+  path?: never
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/api/permission/grant"
+}
+
+export type V2PermissionGrantListErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+}
+
+export type V2PermissionGrantListError = V2PermissionGrantListErrors[keyof V2PermissionGrantListErrors]
+
+export type V2PermissionGrantListResponses = {
+  /**
+   * Success
+   */
+  200: {
+    location: LocationInfo
+    data: Array<McpScopeScopedGrantInfo>
+  }
+}
+
+export type V2PermissionGrantListResponse = V2PermissionGrantListResponses[keyof V2PermissionGrantListResponses]
+
+export type V2PermissionGrantRevokeData = {
+  body: {
+    expectedRevision: number
+  }
+  path: {
+    grantID: string
+  }
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/api/permission/grant/{grantID}"
+}
+
+export type V2PermissionGrantRevokeErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * GrantNotFoundError
+   */
+  404: GrantNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2PermissionGrantRevokeError = V2PermissionGrantRevokeErrors[keyof V2PermissionGrantRevokeErrors]
+
+export type V2PermissionGrantRevokeResponses = {
+  /**
+   * McpScope.ScopedGrantInfo
+   */
+  200: McpScopeScopedGrantInfo
+}
+
+export type V2PermissionGrantRevokeResponse = V2PermissionGrantRevokeResponses[keyof V2PermissionGrantRevokeResponses]
+
+export type V2SessionPermissionGrantData = {
+  body: {
+    level: "session" | "location"
+  }
+  path: {
+    sessionID: string
+    requestID: string
+  }
+  query?: never
+  url: "/api/session/{sessionID}/permission/{requestID}/grant"
+}
+
+export type V2SessionPermissionGrantErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * SessionNotFoundError | PermissionNotFoundError
+   */
+  404: PermissionNotFoundError | SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2SessionPermissionGrantError = V2SessionPermissionGrantErrors[keyof V2SessionPermissionGrantErrors]
+
+export type V2SessionPermissionGrantResponses = {
+  /**
+   * McpScope.ScopedGrantInfo
+   */
+  200: McpScopeScopedGrantInfo
+}
+
+export type V2SessionPermissionGrantResponse =
+  V2SessionPermissionGrantResponses[keyof V2SessionPermissionGrantResponses]
 
 export type V2FsReadData = {
   body?: never

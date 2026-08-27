@@ -278,6 +278,121 @@ const reset = () => {
 }
 
 describe("Custom Mode non-meta child provider turn (Phase A probe)", () => {
+
+  it.effect("pool agent without matching asset provenance fails the turn closed (ADR-20 §2.6)", () =>
+    Effect.gen(function* () {
+      reset()
+      response = textResponse("text-prov", "Done")
+      const { db } = yield* Database.Service
+      const parentID = SessionV2.ID.make("ses_prov_root")
+      yield* insertCustomRoot(parentID)
+      // V2 snapshot binding custom-coder to an asset file/revision.
+      const tools = yield* buildToolInfo()
+      const composition = yield* SessionComposition.Service
+      const revision = Schema.decodeUnknownSync(Composition.Revision)("e".repeat(64))
+      yield* composition.attach(
+        parentID,
+        new Composition.SnapshotV2({
+          version: 2,
+          digest: mockDigest,
+          sessionID: parentID,
+          createdAt: Date.now(),
+          data: new Composition.SnapshotDataV2({
+            agents: [
+              new Composition.AgentInfo({
+                id: CHILD_AGENT,
+                name: CHILD_AGENT,
+                description: "bound",
+                relativePath: "agents/coder.yaml",
+                revision,
+              }),
+            ],
+            bindings: {},
+            instructions: [],
+            prompts: [],
+            skills: [],
+            tools,
+          }),
+        }),
+      )
+      const sessions = yield* SessionV2.Service
+      const child = yield* sessions.create({
+        id: SessionV2.ID.make("ses_prov_child"),
+        parentID,
+        agent: AgentV2.ID.make(CHILD_AGENT),
+        location: Location.Ref.make({ directory: AbsolutePath.make("/project") }),
+      })
+
+      // The registry entry carries no origin → impostor, fail closed.
+      yield* sessions.prompt({ sessionID: child.id, prompt: Prompt.make({ text: "hi" }), resume: false })
+      const sessionRunner = yield* SessionRunner.Service
+      const exit = yield* sessionRunner.run({ sessionID: child.id, force: true }).pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      if (Exit.isFailure(exit)) {
+        expect(Cause.squash(exit.cause) instanceof SessionRunner.AgentProvenanceError).toBe(true)
+      }
+      expect(requests).toHaveLength(0)
+    }),
+  )
+
+  it.effect("pool agent whose registry origin matches the bound asset completes the turn", () =>
+    Effect.gen(function* () {
+      reset()
+      response = textResponse("text-prov-ok", "Done")
+      const agents = yield* AgentV2.Service
+      yield* agents.transform((editor) =>
+        editor.update(AgentV2.ID.make(CHILD_AGENT), (agent) => {
+          agent.originRelativePath = "agents/coder.yaml"
+          agent.originRevision = Schema.decodeUnknownSync(Composition.Revision)("e".repeat(64))
+        }),
+      )
+      const parentID = SessionV2.ID.make("ses_prov_ok_root")
+      yield* insertCustomRoot(parentID)
+      const tools = yield* buildToolInfo()
+      const composition = yield* SessionComposition.Service
+      const revision = Schema.decodeUnknownSync(Composition.Revision)("e".repeat(64))
+      yield* composition.attach(
+        parentID,
+        new Composition.SnapshotV2({
+          version: 2,
+          digest: mockDigest,
+          sessionID: parentID,
+          createdAt: Date.now(),
+          data: new Composition.SnapshotDataV2({
+            agents: [
+              new Composition.AgentInfo({
+                id: CHILD_AGENT,
+                name: CHILD_AGENT,
+                description: "bound",
+                relativePath: "agents/coder.yaml",
+                revision,
+              }),
+            ],
+            bindings: {},
+            instructions: [],
+            prompts: [],
+            skills: [],
+            tools,
+          }),
+        }),
+      )
+      const sessions = yield* SessionV2.Service
+      const child = yield* sessions.create({
+        id: SessionV2.ID.make("ses_prov_ok_child"),
+        parentID,
+        agent: AgentV2.ID.make(CHILD_AGENT),
+        location: Location.Ref.make({ directory: AbsolutePath.make("/project") }),
+      })
+      yield* sessions.prompt({ sessionID: child.id, prompt: Prompt.make({ text: "hi" }), resume: false })
+      const sessionRunner = yield* SessionRunner.Service
+
+      const exit = yield* sessionRunner.run({ sessionID: child.id, force: true }).pipe(Effect.exit)
+
+      if (Exit.isFailure(exit)) throw Cause.squash(exit.cause)
+      expect(requests).toHaveLength(1)
+    }),
+  )
   it.effect("child creation succeeds with the snapshot agent while the parent keeps meta", () =>
     Effect.gen(function* () {
       reset()

@@ -66,6 +66,7 @@ import { TaskDriverFill } from "@aigcfroge/core/session/task-driver-fill"
 import { TaskDriver } from "@aigcfroge/core/tool/task-driver"
 import * as WorkflowExecutionLocal from "@aigcfroge/core/workflow/execution/local"
 import { LocationServiceMap } from "@aigcfroge/core/location-layer"
+import { ApprovalPresence } from "@aigcfroge/core/permission/approval-presence"
 import { ScheduledJob } from "@aigcfroge/core/session/scheduled-job"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { SessionTodo } from "@aigcfroge/core/session/todo"
@@ -159,10 +160,16 @@ const workspaceRoutingLive = workspaceRoutingLayer.pipe(Layer.provide(Socket.lay
 const rootApiRoutes = HttpApiBuilder.layer(RootHttpApi).pipe(
   Layer.provide([controlHandlers, controlPlaneHandlers, globalHandlers]),
   Layer.provide(schemaErrorLayer),
+  Layer.provide(ApprovalPresence.defaultLayer),
   Layer.provide(httpApiAuthLayer),
 )
 const eventApiRoutes = HttpApiBuilder.layer(EventApi).pipe(
   Layer.provide(eventHandlers),
+  // ADR-20 §2.7: the SSE connection is the responder fact. Same Layer object as
+  // `LocationServiceMap` dependencies, so Locations and this handler share one
+  // counter — a second instance would let Locations see zero responders while
+  // clients are attached, i.e. reject every prompt.
+  Layer.provide(ApprovalPresence.defaultLayer),
   Layer.provide([httpApiAuthLayer, workspaceRoutingLive, instanceContextLayer]),
 )
 const ptyConnectApiRoutes = HttpApiBuilder.layer(PtyConnectApi).pipe(
@@ -233,6 +240,9 @@ const instanceRoutes = instanceApiRoutes.pipe(
 const serverRoutes = HttpApiBuilder.layer(Api).pipe(
   Layer.provide(handlers),
   Layer.provide(PluginPtyEnvironment.layer),
+  // Second SSE surface (`server.event`); same shared Layer object as the
+  // instance event routes and `LocationServiceMap` dependencies (ADR-20 §2.7).
+  Layer.provide(ApprovalPresence.defaultLayer),
   Layer.provide([serverHttpApiAuthLayer, v2SchemaErrorLayer]),
 )
 

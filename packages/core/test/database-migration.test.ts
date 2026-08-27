@@ -4,7 +4,7 @@ import { fileURLToPath } from "url"
 import path from "path"
 import { SqliteClient } from "@effect/sql-sqlite-bun"
 import { EffectDrizzleSqlite } from "@aigcfroge/effect-drizzle-sqlite"
-import { Effect, Layer } from "effect"
+import { Effect, Exit, Layer } from "effect"
 import { eq, inArray, sql } from "drizzle-orm"
 import { DatabaseMigration } from "@aigcfroge/core/database/migration"
 import { migrations } from "@aigcfroge/core/database/migration.gen"
@@ -21,6 +21,11 @@ import addTaskOutputDigestMigration from "@aigcfroge/core/database/migration/202
 import addTaskScheduleFieldsMigration from "@aigcfroge/core/database/migration/20260802093236_add_task_schedule_fields"
 import addTaskSpawnFieldsMigration from "@aigcfroge/core/database/migration/20260802140709_add_task_spawn_fields"
 import addSessionCompositionSnapshotMigration from "@aigcfroge/core/database/migration/20260819012541_add_session_composition_snapshot"
+import scopedGrantMigration from "@aigcfroge/core/database/migration/20260823072731_wakeful_lady_bullseye"
+import scopedGrantRetentionIndexMigration from "@aigcfroge/core/database/migration/20260823210409_scoped_grant_retention_index"
+import scopedGrantLevelIndexMigration from "@aigcfroge/core/database/migration/20260824010035_scoped_grant_level_issued_index"
+import scopedGrantLocationMigration from "@aigcfroge/core/database/migration/20260826074345_scoped_grant_location"
+import mcpCredentialBindingMigration from "@aigcfroge/core/database/migration/20260825033229_secret_rachel_grey"
 import workflowDurableProjectionMigration from "@aigcfroge/core/database/migration/20260820130142_cynical_sasquatch"
 import { EventV2 } from "@aigcfroge/core/event"
 import { ProjectV2 } from "@aigcfroge/core/project"
@@ -93,11 +98,13 @@ describe("DatabaseMigration", () => {
         expect(yield* db.get(sql`SELECT count(*) as count FROM migration`)).toEqual({ count: migrations.length })
         expect(
           yield* db.all(
-            sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('event_aggregate_seq_idx', 'event_aggregate_type_seq_idx', 'session_input_session_pending_seq_idx', 'session_input_session_pending_delivery_seq_idx', 'session_input_session_admitted_seq_idx', 'session_input_session_promoted_seq_idx', 'session_message_session_idx', 'session_message_session_type_idx', 'session_message_session_seq_idx', 'session_message_session_type_seq_idx', 'session_message_session_time_created_id_idx') ORDER BY name`,
+            sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('event_aggregate_seq_idx', 'event_aggregate_type_seq_idx', 'session_input_session_pending_seq_idx', 'session_input_session_pending_delivery_seq_idx', 'session_input_session_admitted_seq_idx', 'session_input_session_promoted_seq_idx', 'session_message_session_idx', 'session_message_session_type_idx', 'session_message_session_seq_idx', 'session_message_session_type_seq_idx', 'session_message_session_time_created_id_idx', 'scoped_grant_location_session_issued_idx', 'scoped_grant_location_level_issued_idx') ORDER BY name`,
           ),
         ).toEqual([
           { name: "event_aggregate_seq_idx" },
           { name: "event_aggregate_type_seq_idx" },
+          { name: "scoped_grant_location_level_issued_idx" },
+          { name: "scoped_grant_location_session_issued_idx" },
           { name: "session_input_session_admitted_seq_idx" },
           { name: "session_input_session_pending_delivery_seq_idx" },
           { name: "session_input_session_promoted_seq_idx" },
@@ -105,6 +112,30 @@ describe("DatabaseMigration", () => {
           { name: "session_message_session_time_created_id_idx" },
           { name: "session_message_session_type_seq_idx" },
         ])
+        // `apply` on a truly empty database runs the drizzle snapshot, not the
+        // hand-written migrations (migration.ts:26-38), so this leg pins what a
+        // FRESH install gets. The pre-Location indexes must be absent from the
+        // snapshot too, otherwise fresh and migrated installs diverge.
+        expect(
+          yield* db.all(
+            sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('scoped_grant_session_issued_idx', 'scoped_grant_level_issued_idx')`,
+          ),
+        ).toEqual([])
+        // Name assertions alone would survive an index that serves nothing (the
+        // F0 defect). Assert the planner actually reaches for each one.
+        for (const [predicate, index] of [
+          ["session_id = 'ses_1'", "scoped_grant_location_session_issued_idx"],
+          ["level = 'location'", "scoped_grant_location_level_issued_idx"],
+        ] as const) {
+          const plan = yield* db.all<{ detail: string }>(
+            sql.raw(
+              `EXPLAIN QUERY PLAN SELECT * FROM scoped_grant WHERE directory = '/x' AND workspace_id = '' AND ${predicate} ORDER BY issued_at`,
+            ),
+          )
+          const details = plan.map((row) => row.detail).join(" | ")
+          expect(details).toContain(index)
+          expect(details).not.toContain("SCAN scoped_grant")
+        }
       }),
     )
   })
@@ -1233,6 +1264,150 @@ describe("DatabaseMigration", () => {
         expect(
           yield* db.get(sql`SELECT session_id FROM session_composition_snapshot WHERE session_id = 'ses_test_1'`),
         ).toBeUndefined()
+      }),
+    )
+  })
+
+  // Existing-DB leg for the Phase D migration (CLAUDE.md requires clean +
+  // existing + rerun). `scoped_grant` is a pure CREATE TABLE with no backfill,
+  // so "existing" means: applied onto a database that already carries prior
+  // state, it adds the table, leaves that state untouched, and re-running is a
+  // no-op. Mirrors the session_composition_snapshot case above.
+  test("adds scoped_grant to an existing database, preserves prior rows and reruns clean", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY)`)
+        yield* db.run(sql`INSERT INTO session (id) VALUES ('ses_pre_existing')`)
+
+        yield* DatabaseMigration.applyOnly(db, [scopedGrantMigration, scopedGrantRetentionIndexMigration, scopedGrantLevelIndexMigration])
+
+        expect(
+          yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'scoped_grant'`),
+        ).toEqual({ name: "scoped_grant" })
+        // Pre-existing state is untouched.
+        expect(yield* db.all(sql`SELECT id FROM session`)).toEqual([{ id: "ses_pre_existing" }])
+
+        // grant_revision defaults to 1 so the CAS counter starts where the store expects.
+        yield* db.run(sql`
+          INSERT INTO scoped_grant (id, level, action, resources, issued_at, time_created, time_updated)
+          VALUES ('grt_test', 'once', 'bash', '["*"]', 1000, 1000, 1000)
+        `)
+        expect(yield* db.get(sql`SELECT id, level, grant_revision FROM scoped_grant WHERE id = 'grt_test'`)).toEqual({
+          id: "grt_test",
+          level: "once",
+          grant_revision: 1,
+        })
+
+        // Rerun is a no-op and does not drop the row.
+        yield* DatabaseMigration.applyOnly(db, [scopedGrantMigration, scopedGrantRetentionIndexMigration, scopedGrantLevelIndexMigration])
+        expect(yield* db.all(sql`SELECT id FROM scoped_grant`)).toEqual([{ id: "grt_test" }])
+        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'scoped_grant_session_issued_idx'`)).toEqual({
+          name: "scoped_grant_session_issued_idx",
+        })
+        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'scoped_grant_level_issued_idx'`)).toEqual({
+          name: "scoped_grant_level_issued_idx",
+        })
+
+        // Rerunning both migrations keeps the row and index intact.
+        yield* DatabaseMigration.applyOnly(db, [scopedGrantMigration, scopedGrantRetentionIndexMigration, scopedGrantLevelIndexMigration])
+        expect(yield* db.all(sql`SELECT id FROM scoped_grant`)).toEqual([{ id: "grt_test" }])
+      }),
+    )
+  })
+
+  test("partitions scoped_grant by Location on an existing database, drops unattributable grants and reruns clean", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY)`)
+        yield* DatabaseMigration.applyOnly(db, [
+          scopedGrantMigration,
+          scopedGrantRetentionIndexMigration,
+          scopedGrantLevelIndexMigration,
+        ])
+        yield* db.run(sql`
+          INSERT INTO scoped_grant (id, level, action, resources, issued_at, time_created, time_updated)
+          VALUES ('grt_legacy_a', 'session', 'bash', '["*"]', 1000, 1000, 1000),
+                 ('grt_legacy_b', 'location', 'edit', '["*"]', 1001, 1001, 1001)
+        `)
+
+        yield* DatabaseMigration.applyOnly(db, [scopedGrantLocationMigration])
+
+        // Fail closed: a grant that predates Location ownership cannot be
+        // attributed, so it must not survive as ambient authority. The DELETE is
+        // destructive, which is exactly why it is asserted and not assumed.
+        expect(yield* db.all(sql`SELECT id FROM scoped_grant`)).toEqual([])
+
+        // On a pre-Location database every row is unattributable by construction
+        // — the column did not exist — so the predicate and a bare
+        // `DELETE FROM scoped_grant` are equivalent here and no assertion can
+        // tell them apart. What IS worth pinning is that the ledger stops a
+        // replay: a grant issued after the migration must survive a rerun, or
+        // every restart would wipe live authority.
+        yield* db.run(sql`
+          INSERT INTO scoped_grant (id, level, action, resources, directory, workspace_id, issued_at, time_created, time_updated)
+          VALUES ('grt_located', 'session', 'bash', '["*"]', '/project', '', 2000, 2000, 2000)
+        `)
+        yield* DatabaseMigration.applyOnly(db, [scopedGrantLocationMigration])
+        expect(yield* db.all(sql`SELECT id FROM scoped_grant`)).toEqual([{ id: "grt_located" }])
+
+        // The pre-Location indexes are replaced, not merely supplemented.
+        expect(
+          yield* db.all(
+            sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'scoped_grant%' ORDER BY name`,
+          ),
+        ).toEqual([
+          { name: "scoped_grant_location_level_issued_idx" },
+          { name: "scoped_grant_location_session_issued_idx" },
+        ])
+      }),
+    )
+  })
+
+  test("adds mcp_credential_binding to an existing database, preserves prior rows and reruns clean", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY)`)
+        yield* db.run(sql`INSERT INTO session (id) VALUES ('ses_pre_existing')`)
+
+        yield* DatabaseMigration.applyOnly(db, [mcpCredentialBindingMigration])
+
+        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'mcp_credential_binding'`)).toEqual({
+          name: "mcp_credential_binding",
+        })
+        expect(yield* db.all(sql`SELECT id FROM session`)).toEqual([{ id: "ses_pre_existing" }])
+
+        // Default empty sentinel and CAS counter
+        yield* db.run(sql`
+          INSERT INTO mcp_credential_binding (id, directory, workspace_id, server_name, credential_ref, time_created, time_updated)
+          VALUES ('mcb_test', '/tmp/x', '', 'git', 'cred_abc', 1000, 1000)
+        `)
+        expect(yield* db.get(sql`SELECT id, workspace_id, binding_revision FROM mcp_credential_binding WHERE id = 'mcb_test'`)).toEqual({
+          id: "mcb_test",
+          workspace_id: "",
+          binding_revision: 1,
+        })
+
+        // Unique index: same directory/workspace/server duplicate fails
+        const dupInsert = yield* db
+          .run(sql`
+            INSERT INTO mcp_credential_binding (id, directory, workspace_id, server_name, credential_ref, time_created, time_updated)
+            VALUES ('mcb_dup', '/tmp/x', '', 'git', 'cred_other', 1001, 1001)
+          `)
+          .pipe(Effect.exit)
+        expect(dupInsert._tag).toBe("Failure")
+
+        // Rerun is a no-op and does not drop the row.
+        yield* DatabaseMigration.applyOnly(db, [mcpCredentialBindingMigration])
+        expect(yield* db.all(sql`SELECT id FROM mcp_credential_binding`)).toEqual([{ id: "mcb_test" }])
+        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'mcp_binding_directory_workspace_server_idx'`)).toEqual({
+          name: "mcp_binding_directory_workspace_server_idx",
+        })
+        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'mcp_binding_credential_ref_idx'`)).toEqual({
+          name: "mcp_binding_credential_ref_idx",
+        })
       }),
     )
   })

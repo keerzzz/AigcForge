@@ -1,19 +1,30 @@
 export * as CustomProfile from "./custom-profile"
 
-import { Schema } from "effect"
+import { Effect, Option, Schema, SchemaGetter, SchemaIssue } from "effect"
 import { Composition } from "./composition"
+import { McpScope } from "./mcp-scope"
 
 export const Name = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length >= 1, { message: "Name must be at least 1 code point" })),
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length <= 80, { message: "Name must be at most 80 code points" })),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length >= 1, {
+      message: "Name must be at least 1 code point",
+    }),
+  ),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length <= 80, {
+      message: "Name must be at most 80 code points",
+    }),
+  ),
   Schema.brand("CustomProfile.Name"),
 )
 export type Name = typeof Name.Type
 
 export const Description = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length <= 300, {
-    message: "Description must be at most 300 code points",
-  })),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length <= 300, {
+      message: "Description must be at most 300 code points",
+    }),
+  ),
   Schema.brand("CustomProfile.Description"),
 )
 export type Description = typeof Description.Type
@@ -28,6 +39,33 @@ export type Revision = typeof Revision.Type
 
 export const BaseRevision = Schema.Union([Schema.Null, Revision])
 export type BaseRevision = typeof BaseRevision.Type
+
+const McpBinding = Schema.declareConstructor<McpScope.McpServerBinding>()(
+  [],
+  () => (input) => {
+    try {
+      return Effect.succeed(McpScope.decodeBinding(input))
+    } catch (error) {
+      return Effect.fail(
+        new SchemaIssue.InvalidValue(Option.some(input), {
+          message: error instanceof Error ? error.message : "Invalid MCP binding",
+        }),
+      )
+    }
+  },
+  {
+    identifier: "CustomProfile.McpBinding",
+    // The runtime declaration above remains the strict admission boundary.
+    // This JSON codec only tells OpenAPI tooling that the opaque value has the
+    // same wire shape as the canonical MCP binding; without it, Schema's
+    // declaration fallback becomes `null` and contaminates unrelated SDK types.
+    toCodecJson: () =>
+      Schema.link<McpScope.McpServerBinding>()(McpScope.McpServerBinding, {
+        decode: SchemaGetter.transform((value) => value),
+        encode: SchemaGetter.transform((value) => value),
+      }),
+  },
+)
 
 export class Profile extends Schema.Class<Profile>("CustomProfile.Profile")({
   kind: Schema.Literal("custom-profile"),
@@ -44,7 +82,20 @@ export class Profile extends Schema.Class<Profile>("CustomProfile.Profile")({
   bindings: Schema.Record(Composition.Consumer, Composition.Binding),
   presentation: Composition.Presentation,
   requestedCapabilities: Schema.Array(Schema.String),
+  mcpBindings: Schema.Array(McpBinding).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed([])),
+    Schema.withConstructorDefault(Effect.succeed([])),
+  ),
 }) {}
+
+const strictOptions = { errors: "all", onExcessProperty: "error" } as const
+
+/**
+ * Profile persistence boundary: each MCP entry delegates to the canonical strict
+ * decoder, so secret-bearing or structurally invalid fields fail before a
+ * Profile/Candidate/HTTP boundary can normalize or silently strip them.
+ */
+export const decodeProfile = Schema.decodeUnknownSync(Profile, strictOptions)
 
 export class Summary extends Schema.Class<Summary>("CustomProfile.Summary")({
   kind: Schema.Literal("custom-profile"),

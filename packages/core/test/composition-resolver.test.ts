@@ -10,6 +10,8 @@ import { PromptAsset } from "@aigcfroge/core/prompt-asset"
 import { SkillAsset } from "@aigcfroge/core/skill-asset"
 import { WorkflowAsset } from "@aigcfroge/core/workflow-asset"
 import { CommandAsset } from "@aigcfroge/core/command-asset"
+import { MCPAsset } from "@aigcfroge/core/mcp-asset"
+import { McpConnection } from "@aigcfroge/core/mcp/connection"
 import { FSUtil } from "@aigcfroge/core/fs-util"
 import { Location } from "@aigcfroge/core/location"
 import { AbsolutePath } from "@aigcfroge/core/schema"
@@ -17,6 +19,7 @@ import { Hash } from "@aigcfroge/core/util/hash"
 import { InstallationVersion } from "@aigcfroge/core/installation/version"
 import { ToolRegistry } from "@aigcfroge/core/tool/registry"
 import { ToolDefinition } from "@aigcfroge/llm"
+import { McpScope } from "@aigcfroge/schema/mcp-scope"
 import { location } from "./fixture/location"
 import { tmpdir } from "./fixture/tmpdir"
 import fs from "fs/promises"
@@ -28,6 +31,8 @@ function locationLayer(dir: string) {
   )
 }
 
+let mcpFacts: ReadonlyArray<McpConnection.Fact> = []
+
 function fullResolverLayer(dir: string) {
   const location = locationLayer(dir)
   const assets = Layer.mergeAll(
@@ -37,8 +42,10 @@ function fullResolverLayer(dir: string) {
     SkillAsset.locationLayer,
     WorkflowAsset.locationLayer,
     CommandAsset.locationLayer,
+    MCPAsset.locationLayer,
   ).pipe(Layer.provide(location), Layer.provide(FSUtil.defaultLayer))
   const tools = Layer.mock(ToolRegistry.Service, {
+    registeredNames: () => new Set<string>(),
     materialize: () =>
       Effect.succeed({
         definitions: [
@@ -47,11 +54,30 @@ function fullResolverLayer(dir: string) {
             description: "Read a file",
             inputSchema: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
           }),
+          ...mcpFacts.flatMap((fact) =>
+            fact.tools.map(
+              (name) =>
+                new ToolDefinition({
+                  name,
+                  description: `MCP tool ${name}`,
+                  inputSchema: { type: "object", properties: {} },
+                }),
+            ),
+          ),
         ],
         settle: () => Effect.die("Tool settlement is not used by CompositionResolver tests"),
       }),
   })
-  const base = Layer.mergeAll(assets, location, tools)
+  const mcp = Layer.mock(McpConnection.Service, {
+    connect: () => Effect.die("CompositionResolver must not connect MCP servers"),
+    disconnect: () => Effect.die("unused"),
+    connections: () => Effect.succeed([]),
+    facts: () => Effect.succeed(mcpFacts),
+    health: (serverName) => Effect.succeed(mcpFacts.find((fact) => fact.serverName === serverName)?.health),
+    callTool: () => Effect.die("unused"),
+    shutdown: () => Effect.void,
+  })
+  const base = Layer.mergeAll(assets, location, tools, mcp)
 
   return Layer.merge(
     CompositionResolver.locationLayer.pipe(Layer.provide(base)),
@@ -60,6 +86,7 @@ function fullResolverLayer(dir: string) {
 }
 
 async function withTmp<T>(fn: (dir: string) => Promise<T>): Promise<T> {
+  mcpFacts = []
   const tmp = await tmpdir()
   try {
     return await fn(tmp.path)
@@ -485,6 +512,311 @@ requestedCapabilities: []
           // Unconnected assets must not silently land in the plan output
           expect(plan.instructions).toHaveLength(1) // agent system prompt only
           expect(plan.skills).toHaveLength(0)
+        }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
+      )
+    })
+  })
+
+  test("resolves only profile-bound MCP registrations into Plan and Snapshot audit facts", async () => {
+    await withTmp(async (dir) => {
+      const agentDir = path.join(dir, ".aigcfroge", "agents")
+      const mcpDir = path.join(dir, ".aigcfroge", "mcps")
+      const profileDir = path.join(dir, ".aigcfroge", "custom-profiles")
+      await fs.mkdir(agentDir, { recursive: true })
+      await fs.mkdir(mcpDir, { recursive: true })
+      await fs.mkdir(profileDir, { recursive: true })
+
+      const agentRaw = `---\nkind: agent\nname: researcher\ndescription: Researcher\n---\nResearch.\n`
+      await fs.writeFile(path.join(agentDir, "researcher.md"), agentRaw)
+      const agentRevision = Hash.sha256(Buffer.from(agentRaw))
+      const boundMcpRaw = `---\nkind: mcp\nname: project-search\ndescription: Project search\ncommand: bun\nargs: [run, server.ts]\n---\n{}`
+      const unboundMcpRaw = `---\nkind: mcp\nname: unbound\ndescription: Unbound\ncommand: bun\nargs: [run, server.ts]\n---\n{}`
+      await fs.writeFile(path.join(mcpDir, "project-search.md"), boundMcpRaw)
+      await fs.writeFile(path.join(mcpDir, "unbound.md"), unboundMcpRaw)
+      const boundRevision = Schema.decodeUnknownSync(Composition.Revision)(Hash.sha256(Buffer.from(boundMcpRaw)))
+      const unboundRevision = Schema.decodeUnknownSync(Composition.Revision)(Hash.sha256(Buffer.from(unboundMcpRaw)))
+      const credentialRef = "cred_" + "c".repeat(32)
+      mcpFacts = [
+        new McpConnection.Fact({
+          serverName: "project-search",
+          ref: { relativePath: "project-search.md", revision: boundRevision },
+          credentialRef,
+          health: "ready",
+          tools: ["mcp_project_search_search"],
+        }),
+        new McpConnection.Fact({
+          serverName: "unbound",
+          ref: { relativePath: "unbound.md", revision: unboundRevision },
+          health: "ready",
+          tools: ["mcp_unbound_admin"],
+        }),
+      ]
+      const profileRaw = `kind: custom-profile
+name: mcp-profile
+description: Binds only project search
+agents:
+  - kind: agent
+    relativePath: researcher.md
+    revision: ${agentRevision}
+bindings: {}
+presentation: native
+requestedCapabilities: []
+mcpBindings:
+  - serverName: project-search
+    ref:
+      relativePath: project-search.md
+      revision: ${boundRevision}
+    transport: stdio
+    command: [bun, run, server.ts]
+    credentialRef: ${credentialRef}
+`
+      await fs.writeFile(path.join(profileDir, "mcp-profile.yaml"), profileRaw)
+      const profileRevision = Schema.decodeUnknownSync(Composition.Revision)(Hash.sha256(Buffer.from(profileRaw)))
+
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const resolver = yield* CompositionResolver.Service
+          const input = new Composition.ProfileInput({
+            source: "profile",
+            profilePath: "mcp-profile.yaml",
+            profileRevision,
+          })
+          const plan = yield* resolver.resolve(input)
+          expect(plan.mcp.requested).toHaveLength(1)
+          expect(plan.mcp.requested[0]?.serverName).toBe("project-search")
+          expect(plan.mcp.effective).toHaveLength(1)
+          expect(plan.mcp.effective[0]?.tools).toEqual(["mcp_project_search_search"])
+          expect(plan.mcp.effective[0]?.credentialStatus).toBe("available")
+          expect(plan.mcp.denied).toEqual([])
+
+          const snapshot = yield* resolver.freeze(new Composition.FreezeInput({ input }))
+          expect(snapshot.version).toBe(2)
+          if (snapshot.version !== 2) throw new Error("MCP audit facts require SnapshotV2")
+          expect(snapshot.data.tools.catalog).toEqual(["mcp_project_search_search", "read"])
+          expect(snapshot.data.mcp.bindings).toEqual([
+            { serverName: "project-search", ref: { kind: "mcp", relativePath: "project-search.md", revision: boundRevision }, credentialRef },
+          ])
+          expect(snapshot.data.mcp.tools).toEqual([
+            {
+              canonicalName: "mcp_project_search_search",
+              serverName: "project-search",
+              ref: { kind: "mcp", relativePath: "project-search.md", revision: boundRevision },
+            },
+          ])
+        }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
+      )
+    })
+  })
+
+  test("keeps requested MCP bindings visible when an asset is stale and denies freeze", async () => {
+    await withTmp(async (dir) => {
+      const agentDir = path.join(dir, ".aigcfroge", "agents")
+      const mcpDir = path.join(dir, ".aigcfroge", "mcps")
+      const profileDir = path.join(dir, ".aigcfroge", "custom-profiles")
+      await fs.mkdir(agentDir, { recursive: true })
+      await fs.mkdir(mcpDir, { recursive: true })
+      await fs.mkdir(profileDir, { recursive: true })
+      const agentRaw = `---\nkind: agent\nname: reader\ndescription: Reader\n---\nRead.\n`
+      await fs.writeFile(path.join(agentDir, "reader.md"), agentRaw)
+      const agentRevision = Hash.sha256(Buffer.from(agentRaw))
+      const assetRaw = `---\nkind: mcp\nname: stale-search\ndescription: Stale search\ncommand: bun\nargs: [run, server.ts]\n---\n{}`
+      await fs.writeFile(path.join(mcpDir, "stale-search.md"), assetRaw)
+      const actualRevision = Hash.sha256(Buffer.from(assetRaw))
+      const declaredRevision = "d".repeat(64)
+      expect(actualRevision).not.toBe(declaredRevision)
+      const profileRaw = `kind: custom-profile
+name: stale-mcp-profile
+description: Shows denial facts
+agents:
+  - kind: agent
+    relativePath: reader.md
+    revision: ${agentRevision}
+bindings: {}
+presentation: native
+requestedCapabilities: []
+mcpBindings:
+  - serverName: stale-search
+    ref:
+      relativePath: stale-search.md
+      revision: ${declaredRevision}
+    transport: stdio
+    command: [bun, run, server.ts]
+`
+      await fs.writeFile(path.join(profileDir, "stale-mcp-profile.yaml"), profileRaw)
+      const profileRevision = Schema.decodeUnknownSync(Composition.Revision)(Hash.sha256(Buffer.from(profileRaw)))
+
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const resolver = yield* CompositionResolver.Service
+          const input = new Composition.ProfileInput({
+            source: "profile",
+            profilePath: "stale-mcp-profile.yaml",
+            profileRevision,
+          })
+          const plan = yield* resolver.resolve(input)
+          expect(plan.mcp.requested).toHaveLength(1)
+          expect(plan.mcp.effective).toEqual([])
+          expect(plan.mcp.denied).toHaveLength(1)
+          expect(plan.mcp.denied[0]?.reason).toBe("mcp_asset_stale_revision")
+          expect(plan.valid).toBe(false)
+          const failure = yield* resolver.freeze(new Composition.FreezeInput({ input })).pipe(Effect.flip)
+          expect(failure.code).toBe("invalid_composition_plan")
+          const references = yield* resolver.findReferencingProfiles("mcp", "stale-search.md")
+          expect(references.map((entry) => entry.relativePath)).toEqual(["stale-mcp-profile.yaml"])
+        }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
+      )
+    })
+  })
+
+  // The two branches below are the ONLY thing keeping a requested-but-unusable
+  // MCP server out of `effective` — and `effective` is what becomes the frozen
+  // Snapshot's MCP bindings and tool catalog. Removing either guard used to leave
+  // the whole resolver suite green, because the only case that reached this code
+  // was the happy path where the fact matched AND health was "ready".
+  /** Effective tool count when every requested MCP server is denied. */
+  const MCP_DENIED_TOOL_COUNT = 1
+
+  const mcpDenialProfile = async (
+    dir: string,
+    over: { readonly serverName: string; readonly credentialRef?: string },
+  ) => {
+    const agentDir = path.join(dir, ".aigcfroge", "agents")
+    const mcpDir = path.join(dir, ".aigcfroge", "mcps")
+    const profileDir = path.join(dir, ".aigcfroge", "custom-profiles")
+    await fs.mkdir(agentDir, { recursive: true })
+    await fs.mkdir(mcpDir, { recursive: true })
+    await fs.mkdir(profileDir, { recursive: true })
+    const agentRaw = `---\nkind: agent\nname: reader\ndescription: Reader\n---\nRead.\n`
+    await fs.writeFile(path.join(agentDir, "reader.md"), agentRaw)
+    const agentRevision = Hash.sha256(Buffer.from(agentRaw))
+    const assetRaw = `---\nkind: mcp\nname: ${over.serverName}\ndescription: Server\ncommand: bun\nargs: [run, server.ts]\n---\n{}`
+    await fs.writeFile(path.join(mcpDir, `${over.serverName}.md`), assetRaw)
+    const revision = Schema.decodeUnknownSync(Composition.Revision)(Hash.sha256(Buffer.from(assetRaw)))
+    const profileRaw = `kind: custom-profile
+name: denial-profile
+description: Requests one MCP server
+agents:
+  - kind: agent
+    relativePath: reader.md
+    revision: ${agentRevision}
+bindings: {}
+presentation: native
+requestedCapabilities: []
+mcpBindings:
+  - serverName: ${over.serverName}
+    ref:
+      relativePath: ${over.serverName}.md
+      revision: ${revision}
+    transport: stdio
+    command: [bun, run, server.ts]
+${over.credentialRef === undefined ? "" : `    credentialRef: ${over.credentialRef}\n`}`
+    await fs.writeFile(path.join(profileDir, "denial-profile.yaml"), profileRaw)
+    const profileRevision = Schema.decodeUnknownSync(Composition.Revision)(Hash.sha256(Buffer.from(profileRaw)))
+    return { revision, profileRevision }
+  }
+
+  test("denies a requested MCP server that the connection owner has no fact for", async () => {
+    await withTmp(async (dir) => {
+      await mcpDenialProfile(dir, { serverName: "absent-search" })
+      mcpFacts = []
+      const { profileRevision } = await mcpDenialProfile(dir, { serverName: "absent-search" })
+
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const resolver = yield* CompositionResolver.Service
+          const input = new Composition.ProfileInput({
+            source: "profile",
+            profilePath: "denial-profile.yaml",
+            profileRevision,
+          })
+          const plan = yield* resolver.resolve(input)
+          expect(plan.mcp.requested).toHaveLength(1)
+          expect(plan.mcp.effective).toEqual([])
+          expect(plan.mcp.denied).toHaveLength(1)
+          expect(plan.mcp.denied[0]?.reason).toBe("not_connected")
+          expect(plan.valid).toBe(false)
+          // A denied server contributes no tools to the effective count.
+          expect(plan.costPreview?.effectiveToolCount).toBe(MCP_DENIED_TOOL_COUNT)
+        }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
+      )
+    })
+  })
+
+  test("denies a requested MCP server whose fact exists but is not ready", async () => {
+    await withTmp(async (dir) => {
+      const credentialRef = "cred_" + "e".repeat(32)
+      const { revision, profileRevision } = await mcpDenialProfile(dir, {
+        serverName: "degraded-search",
+        credentialRef,
+      })
+      mcpFacts = [
+        new McpConnection.Fact({
+          serverName: "degraded-search",
+          ref: { relativePath: "degraded-search.md", revision },
+          credentialRef,
+          health: "revoked",
+          tools: ["mcp_degraded_search_query"],
+        }),
+      ]
+
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const resolver = yield* CompositionResolver.Service
+          const input = new Composition.ProfileInput({
+            source: "profile",
+            profilePath: "denial-profile.yaml",
+            profileRevision,
+          })
+          const plan = yield* resolver.resolve(input)
+          expect(plan.mcp.effective).toEqual([])
+          expect(plan.mcp.denied).toHaveLength(1)
+          expect(plan.mcp.denied[0]?.reason).toBe("not_ready")
+          expect(plan.mcp.denied[0]?.health).toBe("revoked")
+          expect(plan.mcp.denied[0]?.credentialStatus).toBe("revoked")
+          expect(plan.valid).toBe(false)
+          // The fact advertises mcp_degraded_search_query; dropping the health
+          // gate would add it to the effective set and bump this count.
+          expect(plan.costPreview?.effectiveToolCount).toBe(MCP_DENIED_TOOL_COUNT)
+        }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
+      )
+    })
+  })
+
+  test("denies a connected MCP server whose live identity is not the frozen binding", async () => {
+    await withTmp(async (dir) => {
+      const boundRef = "cred_" + "f".repeat(32)
+      const otherRef = "cred_" + "0".repeat(32)
+      const { revision, profileRevision } = await mcpDenialProfile(dir, {
+        serverName: "swapped-search",
+        credentialRef: boundRef,
+      })
+      // Same server name, ready, same asset revision — but a DIFFERENT credential
+      // ref than the Profile froze. Matching on serverName alone would accept it.
+      mcpFacts = [
+        new McpConnection.Fact({
+          serverName: "swapped-search",
+          ref: { relativePath: "swapped-search.md", revision },
+          credentialRef: otherRef,
+          health: "ready",
+          tools: ["mcp_swapped_search_query"],
+        }),
+      ]
+
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const resolver = yield* CompositionResolver.Service
+          const input = new Composition.ProfileInput({
+            source: "profile",
+            profilePath: "denial-profile.yaml",
+            profileRevision,
+          })
+          const plan = yield* resolver.resolve(input)
+          expect(plan.mcp.effective).toEqual([])
+          expect(plan.mcp.denied).toHaveLength(1)
+          expect(plan.mcp.denied[0]?.reason).toBe("binding_mismatch")
+          expect(plan.mcp.denied[0]?.health).toBe("ready")
+          expect(plan.valid).toBe(false)
+          expect(plan.costPreview?.effectiveToolCount).toBe(MCP_DENIED_TOOL_COUNT)
         }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
       )
     })

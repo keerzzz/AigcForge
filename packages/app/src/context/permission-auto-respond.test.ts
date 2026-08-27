@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
-import type { PermissionRequest, Session } from "@aigcfroge/sdk/v2/client"
+import type { Event, PermissionRequest, Session } from "@aigcfroge/sdk/v2/client"
 import { base64Encode } from "@aigcfroge/core/util/encode"
-import { autoRespondsPermission, isDirectoryAutoAccepting } from "./permission-auto-respond"
+import { autoRespondableAsk, autoRespondsPermission, isDirectoryAutoAccepting } from "./permission-auto-respond"
 
 const session = (input: { id: string; parentID?: string }) =>
   ({
@@ -98,5 +98,58 @@ describe("isDirectoryAutoAccepting", () => {
     const directory = "/tmp/project"
     const autoAccept = { [`${base64Encode(directory)}/*`]: false }
     expect(isDirectoryAutoAccepting(autoAccept, directory)).toBe(false)
+  })
+})
+
+/**
+ * `satisfies Event` is load-bearing: it is what makes these fixtures real union
+ * members rather than hand-shaped objects, so a wire-shape change in the
+ * generated SDK breaks this file instead of leaving it asserting a shape the
+ * server no longer sends.
+ */
+const v1Asked = {
+  id: "evt_v1",
+  type: "permission.asked",
+  properties: {
+    id: "per_v1",
+    sessionID: "ses_1",
+    permission: "bash",
+    patterns: ["rm -rf *"],
+    metadata: {},
+    always: ["bash"],
+  },
+} satisfies Event
+
+const v2Asked = {
+  id: "evt_v2",
+  type: "permission.v2.asked",
+  properties: {
+    id: "per_v2",
+    sessionID: "ses_1",
+    action: "bash",
+    resources: ["rm -rf *"],
+  },
+} satisfies Event
+
+describe("autoRespondableAsk", () => {
+  test("returns the request for a V1 ask", () => {
+    // Companion to the V2 case below: without this, a guard that returned
+    // `undefined` unconditionally would satisfy every other assertion here and
+    // silently disable auto-accept instead of scoping it.
+    const request: PermissionRequest | undefined = autoRespondableAsk(v1Asked)
+    expect(request?.id).toBe("per_v1")
+    expect(request?.sessionID).toBe("ses_1")
+  })
+
+  test("refuses a V2 ask so the browser store can never answer a scoped-grant prompt", () => {
+    // The security case. Both asks reach this callback as `{type, properties}`
+    // because the instance event route renames `data` to `properties`, so the
+    // event type is the whole boundary — and MCP/custom approvals are V2-only.
+    expect(autoRespondableAsk(v2Asked)).toBeUndefined()
+  })
+
+  test("refuses an unrelated event and a missing one", () => {
+    expect(autoRespondableAsk({ id: "evt_x", type: "server.connected", properties: {} } satisfies Event)).toBeUndefined()
+    expect(autoRespondableAsk(undefined)).toBeUndefined()
   })
 })

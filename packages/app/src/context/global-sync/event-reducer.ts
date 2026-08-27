@@ -12,6 +12,7 @@ import type {
   SnapshotFileDiff,
   Todo,
 } from "@aigcfroge/sdk/v2/client"
+import { PermissionPendingModel } from "./permission-pending"
 import type { State, VcsCache } from "./types"
 import type { TaskProgressSnapshot } from "../server-sync"
 import { trimSessions } from "./session-trim"
@@ -84,6 +85,7 @@ export function cleanupDroppedSessionCaches(
     ...Object.keys(store.session_diff),
     ...Object.keys(store.todo),
     ...Object.keys(store.permission),
+    ...Object.keys(store.permission_v2),
     ...Object.keys(store.question),
     ...Object.keys(store.session_status),
     ...Object.values(store.part)
@@ -143,7 +145,7 @@ export function applyDirectoryEvent(input: {
       }
       const next = input.store.session.slice()
       next.splice(result.index, 0, info)
-      const trimmed = trimSessions(next, { limit, permission: input.store.permission })
+      const trimmed = trimSessions(next, { limit, permission: input.store.permission, permission_v2: input.store.permission_v2 })
       input.setStore("session", reconcile(trimmed, { key: "id" }))
       cleanupDroppedSessionCaches(input.store, input.setStore, trimmed, input.setSessionTodo, input.setSessionTask, input.setSessionTaskProgress)
       if (!info.parentID) input.setStore("sessionTotal", (value) => value + 1)
@@ -173,7 +175,7 @@ export function applyDirectoryEvent(input: {
       }
       const next = input.store.session.slice()
       next.splice(result.index, 0, info)
-      const trimmed = trimSessions(next, { limit, permission: input.store.permission })
+      const trimmed = trimSessions(next, { limit, permission: input.store.permission, permission_v2: input.store.permission_v2 })
       input.setStore("session", reconcile(trimmed, { key: "id" }))
       cleanupDroppedSessionCaches(input.store, input.setStore, trimmed, input.setSessionTodo, input.setSessionTask, input.setSessionTaskProgress)
       break
@@ -413,6 +415,52 @@ export function applyDirectoryEvent(input: {
       if (!result.found) break
       input.setStore(
         "permission",
+        props.sessionID,
+        produce((draft) => {
+          draft.splice(result.index, 1)
+        }),
+      )
+      break
+    }
+    case "permission.v2.asked": {
+      const permission = PermissionPendingModel.permissionPendingFromV2(event.properties)
+      if (!permission) break
+      const revision = input.store.permission_v2_revision + 1
+      input.setStore("permission_v2_revision", revision)
+      input.setStore("permission_v2_events", (events) => [...events, { revision, type: "asked" as const, request: permission }])
+      const permissions = input.store.permission_v2[permission.sessionID]
+      if (!permissions) {
+        input.setStore("permission_v2", permission.sessionID, [permission])
+        break
+      }
+      const result = Binary.search(permissions, permission.id, (p) => p.id)
+      if (result.found) {
+        input.setStore("permission_v2", permission.sessionID, result.index, reconcile(permission))
+        break
+      }
+      input.setStore(
+        "permission_v2",
+        permission.sessionID,
+        produce((draft) => {
+          draft.splice(result.index, 0, permission)
+        }),
+      )
+      break
+    }
+    case "permission.v2.replied": {
+      const props = PermissionPendingModel.permissionReplyFromV2(event.properties)
+      if (!props) break
+      const revision = input.store.permission_v2_revision + 1
+      input.setStore("permission_v2_revision", revision)
+      input.setStore("permission_v2_events", (events) =>
+        [...events, { revision, type: "replied" as const, sessionID: props.sessionID, requestID: props.requestID }],
+      )
+      const permissions = input.store.permission_v2[props.sessionID]
+      if (!permissions) break
+      const result = Binary.search(permissions, props.requestID, (p) => p.id)
+      if (!result.found) break
+      input.setStore(
+        "permission_v2",
         props.sessionID,
         produce((draft) => {
           draft.splice(result.index, 1)

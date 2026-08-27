@@ -1,6 +1,6 @@
 export * as PermissionV2 from "./permission"
 
-import { Context, Deferred, Effect as EffectRuntime, Layer, Schema } from "effect"
+import { Context, Deferred, Effect, Effect as EffectRuntime, Layer, Option, Schema } from "effect"
 import { Permission } from "@aigcfroge/schema/permission"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { EventV2 } from "./event"
@@ -14,6 +14,10 @@ import { Wildcard } from "./util/wildcard"
 import { PermissionSaved } from "./permission/saved"
 import { PermissionEffective } from "./permission/effective"
 import { SessionPermissionOverride } from "./permission/session-override"
+import { ScopedGrantStore } from "./grant/store"
+import { ApprovalPresence } from "./permission/approval-presence"
+import { GrantEvent } from "./grant/event"
+import { Duration } from "effect"
 
 export { Effect, Rule, Ruleset } from "@aigcfroge/schema/permission"
 const missingAgentPermissions: Permission.Ruleset = [{ action: "*", resource: "*", effect: "deny" }]
@@ -83,7 +87,18 @@ export const Event = {
   }),
 }
 
-export class RejectedError extends Schema.TaggedErrorClass<RejectedError>()("PermissionV2.RejectedError", {}) {}
+export class RejectedError extends Schema.TaggedErrorClass<RejectedError>()("PermissionV2.RejectedError", {
+  reason: Schema.optional(Schema.Literals(["no_responder"])),
+}) {}
+
+export class AskExpiredError extends Schema.TaggedErrorClass<AskExpiredError>()("PermissionV2.AskExpiredError", {
+  requestID: ID,
+  ttlMs: Schema.Int.check(Schema.isGreaterThan(0)),
+}) {
+  override get message() {
+    return `Approval request ${this.requestID} expired after ${this.ttlMs}ms without an answer`
+  }
+}
 
 export class CorrectedError extends Schema.TaggedErrorClass<CorrectedError>()("PermissionV2.CorrectedError", {
   feedback: Schema.String,
@@ -97,7 +112,7 @@ export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("Per
   requestID: ID,
 }) {}
 
-export type Error = DeniedError | RejectedError | CorrectedError
+export type Error = DeniedError | RejectedError | CorrectedError | AskExpiredError | GrantEvent.CommitRejected
 
 export function evaluate(action: string, resource: string, ...rulesets: Permission.Ruleset[]): Permission.Rule {
   return (
@@ -116,7 +131,7 @@ export function merge(...rulesets: Permission.Ruleset[]): Permission.Ruleset {
 }
 
 export interface Interface {
-  readonly ask: (input: AssertInput) => EffectRuntime.Effect<AskResult, SessionV2.NotFoundError>
+  readonly ask: (input: AssertInput) => EffectRuntime.Effect<AskResult, SessionV2.NotFoundError | GrantEvent.CommitRejected>
   readonly assert: (input: AssertInput) => EffectRuntime.Effect<void, Error | SessionV2.NotFoundError>
   readonly reply: (input: ReplyInput) => EffectRuntime.Effect<void, NotFoundError>
   readonly get: (id: ID) => EffectRuntime.Effect<Request | undefined>
@@ -145,7 +160,41 @@ export const layer = Layer.effect(
     const sessions = yield* SessionStore.Service
     const saved = yield* PermissionSaved.Service
     const override = yield* SessionPermissionOverride.Service
+    // Hard dependency (ADR-20 §2.7): an optional lookup here is what let a
+    // build ship with no provider, turning every `ask` in every mode into a
+    // silent no_responder rejection. A missing provider must fail the layer.
+    const presence = yield* ApprovalPresence.Service
     const pending = new Map<ID, Pending>()
+
+    const consultGrant = EffectRuntime.fn("PermissionV2.consultGrant")(function* (input: AssertInput) {
+      // Read per-call: layer-construction-time capture would miss providers
+      // composed outside this layer.
+      const grantsOption = yield* EffectRuntime.serviceOption(ScopedGrantStore.Service)
+      if (Option.isNone(grantsOption)) return false
+      const store = grantsOption.value
+      const hit = yield* store
+        .findValid({
+          action: input.action,
+          resources: input.resources,
+          sessionID: input.sessionID,
+          ...(input.agent !== undefined ? { agent: input.agent } : {}),
+        })
+        .pipe(
+          EffectRuntime.catchCause((cause) =>
+            EffectRuntime.logWarning("Scoped grant consultation failed; degrading to ask", { cause }).pipe(
+              EffectRuntime.as(undefined),
+            ),
+          ),
+        )
+      if (!hit) return false
+      if (hit.grant.scope.level !== "once") return true
+      // Racing consumers: losing the consume falls back to the ask flow.
+      const consumed = yield* store.consume(hit.grant.id).pipe(
+        EffectRuntime.catchTag("ScopedGrant.StateError", () => EffectRuntime.succeed(undefined)),
+        EffectRuntime.catchTag("ScopedGrant.NotFoundError", () => EffectRuntime.succeed(undefined)),
+      )
+      return consumed !== undefined
+    })
 
     yield* EffectRuntime.addFinalizer(() =>
       EffectRuntime.forEach(pending.values(), (item) => Deferred.fail(item.deferred, new RejectedError()), {
@@ -226,10 +275,23 @@ export const layer = Layer.effect(
         }),
       )
 
+    const requireResponder = EffectRuntime.fnUntraced(function* (sessionID: SessionV2.ID) {
+      const session = yield* sessions.get(sessionID)
+      if (!session) return yield* new SessionV2.NotFoundError({ sessionID })
+      if (!(yield* presence.hasResponder({ location: session.location, mode: session.mode })))
+        return yield* new RejectedError({ reason: "no_responder" })
+      return yield* EffectRuntime.void
+    })
+
     const ask = EffectRuntime.fn("PermissionV2.ask")(function* (input: AssertInput) {
       const result = yield* evaluateInput(input)
       const value = request(input)
-      if (result.effect === "ask") yield* create(value, input.agent)
+      if (result.effect === "ask") {
+        const granted = yield* consultGrant(input)
+        const effect = granted ? ("allow" as const) : result.effect
+        if (!granted) yield* create(value, input.agent)
+        return { id: value.id, effect }
+      }
       return { id: value.id, effect: result.effect }
     })
 
@@ -238,13 +300,33 @@ export const layer = Layer.effect(
         EffectRuntime.gen(function* () {
           const result = yield* evaluateInput(input)
           if (result.effect === "deny") {
-            return yield* new DeniedError({
+            yield* new DeniedError({
               rules: relevant(input, result.rules),
             })
+            return
           }
           if (result.effect === "allow") return
+          if (yield* consultGrant(input)) return
+          // ADR-20 §2.7: a legacy SSE client cannot observe custom asks, so it
+          // cannot keep a custom prompt parked.
+          yield* requireResponder(input.sessionID)
           const item = yield* create(request(input), input.agent)
-          return yield* restore(Deferred.await(item.deferred)).pipe(
+          yield* restore(Deferred.await(item.deferred)).pipe(
+            EffectRuntime.timeoutOrElse({
+              duration: Duration.millis(presence.ttlMs),
+              orElse: () =>
+                EffectRuntime.gen(function* () {
+                  yield* events
+                    .publish(Event.Replied, {
+                      sessionID: item.request.sessionID,
+                      requestID: item.request.id,
+                      reply: "reject",
+                    })
+                    .pipe(EffectRuntime.ignore)
+                  pending.delete(item.request.id)
+                  yield* new AskExpiredError({ requestID: item.request.id, ttlMs: presence.ttlMs })
+                }),
+            }),
             EffectRuntime.ensuring(
               EffectRuntime.sync(() => {
                 pending.delete(item.request.id)
@@ -341,4 +423,5 @@ export const layer = Layer.effect(
 export const locationLayer = layer.pipe(
   Layer.provideMerge(AgentV2.locationLayer),
   Layer.provideMerge(SessionPermissionOverride.locationLayer),
+  Layer.provideMerge(ScopedGrantStore.locationLayer),
 )

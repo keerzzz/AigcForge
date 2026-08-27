@@ -1,5 +1,53 @@
 # V2 Schema Changelog
 
+## 2026-08-25: Custom Mode M3 Phase C Remote Connection, Health, and Canonical Long Names
+
+> **Status: IMPLEMENTED (Slice 3 + Slice 4 connection foundation)**
+
+- `McpConnection` extends the existing single owner to remote JSON-RPC HTTP: remote DNS, connection-refused, TLS, unavailable, credential-missing, credential-expired, binding-revoked, and owner-close paths are typed. Runtime health exposes the six `McpScope.McpConnectionHealth` states and validates legal transitions; `auth-required` remains distinct from `offline`.
+- Credential custody remains in `Credential.Service`: stdio receives only the documented `MCP_CREDENTIAL_API_KEY` / `MCP_CREDENTIAL_ACCESS_TOKEN` environment values; remote uses OAuth `Authorization: Bearer` per request. Neither connection projection, registry catalog, Snapshot, nor log payload contains material. Remote response headers/body are scanned before redaction/truncation reaches logs.
+- Connection close is a typed `ConnectionClosedError` boundary. Both stdio Deferred requests and remote in-flight requests are owned by the same connection Scope and resolve on management close instead of hanging. The custom runtime flag is an admission gate for MCP connect/call; an admission attempt after it is disabled closes existing owned connections with `kill_switch_disabled` before returning typed `McpDisabledError`.
+- Canonical MCP names keep all short existing names byte-for-byte. Long inputs deterministically compact to `mcp_<server-prefix>_<tool-prefix>_<hash16>` where the 16-hex SHA-256 suffix covers the complete `(server, tool)` identity; final validation and collision checks remain fail-closed. This supersedes the prior Phase B `McpToolNameTooLongError` deferral.
+- Compatibility: no durable DB/event/SDK migration. Existing frozen snapshots retain short names; long canonical names become stable only at future registration/freeze boundaries. Reconnect updates the canonical registry entry, and existing per-turn fingerprint/catalog verification rejects a changed definition fail-closed.
+
+## 2026-08-23: Custom Mode M3 Phase D Scoped Grants and Ask Bounds
+
+> **Status: IMPLEMENTED (store + consultation + ask bounds + attended ceiling rewrite + provenance + F0 retention/import preflight)**
+
+- New durable owner `ScopedGrantStore` (`packages/core/src/grant/`): SQLite `scoped_grant` table (migration `20260823072731_wakeful_lady_bullseye`), single CAS writer whose state transitions are committed inside the same transaction as the new durable event family `grant.updated.1` (aggregate `grantID`, `seq+1 === grantRevision`). Consume/revoke use RETURNING-based CAS; 0 affected rows raise typed `ScopedGrant.StateError`. Consultation (`findValid`) re-reads live state every call — expiry/revocation/consumption apply immediately, no cached copy.
+- `PermissionV2` consults candidate grants only when the policy verdict is `ask` (ADR-20 §2.2): deny rejects outright, allow passes outright. A hit skips the prompt; a `once` grant is consumed atomically so the next identical call asks again. The store is an optional dependency read per-call — hosts without grant wiring keep prior behavior.
+- Approval asks are bounded (ADR-20 §2.7): typed `AskExpiredError` after `ttlMs` (default 300,000, clamped ≤60min), and immediate typed rejection with reason `no_responder` when no capable subscriber is attached.
+- New `ApprovalPresence` service (`core/src/permission/approval-presence.ts`) is the responder-fact source: **one process-wide instance** (`LocationServiceMap` dependencies, beside `ApplicationTools`), and each event-stream connection calls `bindResponder()` for the lifetime of its connection Scope — both SSE surfaces bind (the instance `event` route and `packages/server`'s `server.event`, which the instance server also mounts). `hasResponder()` reads the live count; **there is no default "someone is there"**. `PermissionV2` takes it as a **hard dependency**: the first cut read it through `Effect.serviceOption` while nothing provided it, so `Option.isNone` held forever and every `ask` in every mode became a silent `RejectedError(no_responder)` with no prompt — a missing provider must be a layer/type error instead. Presence is a coarse liveness hint, not an authorization fact: over-reporting costs one bounded TTL wait, under-reporting denies everything, and `reply` still routes through the owning Location's PermissionV2 with the leaf `assert` as the final boundary.
+- Behavior change: hosts that never attach an event stream (scripts / CI driving V2 sessions directly) now get an immediate `no_responder` rejection instead of a 300s park. TUI and App both subscribe, so interactive paths are unaffected. This is the fail-closed direction required by the M3 plan's stop condition (an `ask` may neither wait indefinitely nor default to allow); a "default online" switch for headless hosts would need a product ruling and must not be implemented by restoring a default `true`.
+- `AgentV2.Info` gains optional `originRelativePath` / `originRevision`, backfilled by `agent/asset-bridge.ts` from the asset. Each custom provider turn verifies the registry entry's origin against the bound asset's `relativePath` + `revision`; a mismatch (including absence) fails closed with `SessionRunner.AgentProvenanceError`, closing the same-name impersonation variant.
+- Settled `ScopedGrantStore` rows are retained for a bounded default window of 30 days instead of being deleted by the next `issue`. The Location-owned store prunes immediately and then hourly under its owner Scope; failures are classified and logged without stopping the schedule. `ScopedGrantStore.list` exposes active and in-window settled rows. Without `sessionID` it returns once/session/location rows; with `sessionID` it returns that Session's session rows plus location rows, while once rows remain explicitly un-attributed because the current schema stores no issuing Session. `findValid` still excludes consumed, revoked, and expired grants; explicit `prune` removes only settled rows outside the configured window and is idempotent.
+- Agent asset import/apply now returns non-blocking permission warnings. Dangerous allows and broad wildcard allows are disclosed after config decoding; a readonly action with a wildcard resource is still broad and warns, while a readonly action scoped to `src/**` does not. The warning is transported as propose metadata and as the independent apply result `{ asset, warnings }`; the persisted asset content is not rewritten.
+- Attended custom ceiling rewritten to **ask** (ADR-20 §2.6 attended half): asset-sourced non-whitelist allows become `ask` so the approval prompt actually surfaces; whitelist actions stay `allow`; saved always-approvals are appended independently and survive; unattended behavior unchanged (custom/coding paired assertions kept green).
+
+## 2026-08-23: Custom Mode M3 Phase B Registration Placement and MCP Namespace
+
+> **Status: IMPLEMENTED (core registry contracts; connection owner deferred to Phase C behind G3-3)**
+
+- `ToolRegistry` gains the ADR-19 §2.2 placement dimension: registrations carry an optional owning `sessionID`, and **one visibility predicate** (Location entries visible to every Session, a Session entry only to its own) serves all three consumers — `materialize`, settle and the §2.4 collision input.
+- `materialize({ sessionID? })` filters Location∪own-Session entries, and the returned `Materialization` **binds that placement**: settle resolves the winner through the materialization's placement, never the call's, and a Session-placed materialization settled by another Session fails closed with a placement mismatch. This is ADR-19 approval condition C1 — definitions and settle must read one source, otherwise a Session registration can fake staleness against the Location-wide view the runner materializes (`session/runner/llm.ts:209`/`:556` pass no `sessionID`). Guard `tool-registry-stale.test.ts` (four phases) stays green.
+- New `registerSession(sessionID, tools)` on both `ToolRegistry` and the narrow `Tools.Service` capability; owner-Scope close removes exactly that registration and reveals any prior winner (session or location).
+- New read-only probe `registeredNames(sessionID?)` on `ToolRegistry`: names a new registration **at that placement** would collide with. Omitting `sessionID` (Location placement) sees every occupied name, because a Location registration shadows whatever any placement serves; a Session placement does not see sibling Sessions — so two child Sessions of one composition can bind the same MCP server independently.
+- New owner `McpRegistration` (`packages/core/src/tool/mcp-registration.ts`): namespaces external tools under `mcp_<server>_<tool>` ([a-z0-9_-]{1,64} server segment), validates every final name, and fails closed at its own placement with typed errors (`McpNameCollisionError` / `InvalidServerNameError` / `Tool.RegistrationError`) — all-or-nothing per server, so last-wins is never exercised by MCP producers. Phase C later finalized deterministic long-name compaction; see the 2026-08-25 entry.
+- Compatibility: existing callers unchanged (omitted `sessionID` keeps pure Location-wide semantics; prior single-placement behavior identical).
+
+## 2026-08-23: Custom Mode M3 Phase A Scope Contract (McpScope)
+
+> **Status: PROPOSED（Phase A 契约层；运行时实现被 ADR-19/ADR-20 接受阻塞）**
+> **Scope:** MCP binding/ref/health、ScopedGrant scope 语法与 decode 边界。无运行时 owner、无迁移、无 HTTP 面。
+
+- 新增 `packages/schema/src/mcp-scope.ts`（namespace `McpScope`，已入 barrel）：
+  - `McpConnectionHealth`：封闭六值 `connecting | ready | degraded | offline | auth-required | revoked`。
+  - `McpServerBinding`：冻结身份事实（serverName / ref{relativePath, revision} / transport stdio⇒command、remote⇒http(s) url / 可选 opaque `credentialRef`）。**不含任何 secret 物料**；canonical 解码器以 `onExcessProperty:"error"` 钉死——token/clientSecret/env/headers 等多余键即解码失败，绝不静默剥离。全部字符串与集合字段解码期上界（§4.5-3 教训：不留 opaque 串、不等 freeze 拒绝）。
+  - `GrantScope`：`once | session(sessionID) | location` 封闭 union；location scope 无法携带外来 location 身份（多余键失败）。
+  - `ScopedGrant`：id(`grt_`) / action / resources(≤32) / effect 钉死 `"allow"`（grant 永不表达 deny）/ agent? / revision? / issuedAt / expiresAt?(必须晚于签发) / revokedAt?。
+- 兼容性：纯新增模块，不改任何既有 schema；既有 Snapshot V1/V2 行为不受影响。
+- 关联提案：[ADR-19](../../docs/architecture/adr/ADR-19-mcp-scoped-registration.md)、[ADR-20](../../docs/architecture/adr/ADR-20-scoped-grant-model.md)（均 Proposed 待裁决）；代码事实基础见 [Phase A 调研报告](../../docs/plan/custom-mode-m3-phase-a-research.md)。
+
 ## 2026-08-21: Custom Mode M2 Workflow Contract Slice
 
 > **Status: IMPLEMENTED (Schema/Resolver contract only)**

@@ -1,2 +1,10 @@
 sst-env.d.ts
 packages/desktop/src/bindings.ts
+
+# Nested git worktrees (subagent checkouts). They are hidden from `git status`
+# by .git/info/exclude, but Prettier does not read that file — so
+# `script/format.ts` (`prettier --write .`, which script/generate.ts runs at the
+# end) reformats every file inside them. That rewrite lands in the OTHER
+# worktree, so the main tree still looks clean while SDK generation appears to
+# have reformatted the whole repo.
+.claude/worktrees/

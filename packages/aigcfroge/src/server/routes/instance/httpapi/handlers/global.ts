@@ -11,6 +11,7 @@ import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import * as Sse from "effect/unstable/encoding/Sse"
 import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
+import { ApprovalPresence } from "@aigcfroge/core/permission/approval-presence"
 import { SessionStore } from "@aigcfroge/core/session/store"
 import { RootHttpApi } from "../api"
 import { GlobalUpgradeInput } from "../groups/global"
@@ -53,6 +54,9 @@ function eventResponse(events: EventV2.Interface) {
     // Complete custom-session membership set, captured once per connection.
     const sessionModes = yield* SessionStore.sessionModes()
     const isEventSupported = ProductModePolicy.eventFilter(capabilitiesHeader, sessionModes)
+    yield* (yield* ApprovalPresence.Service).bindResponder({
+      custom: ProductModePolicy.isCustomCapable(capabilitiesHeader),
+    })
 
     yield* Effect.logInfo("global event connected")
     const globalEvents = Stream.callback<GlobalBusEvent>((queue) => {

@@ -73,6 +73,10 @@ describe("PromptAsset E2E (aigcfroge)", () => {
             Effect.sync(() => {
               captured.push(...Object.keys(tools))
             }),
+          registerSession: (sessionID, tools) =>
+            Effect.sync(() => {
+              captured.push(...Object.keys(tools))
+            }),
         }),
       )
     }

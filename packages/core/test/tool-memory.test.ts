@@ -49,7 +49,7 @@ const registry = ToolRegistry.layer.pipe(
 )
 const toolsRegister = Layer.effect(
   Tools.Service,
-  ToolRegistry.Service.use((reg) => Effect.succeed(Tools.Service.of({ register: reg.register }))),
+  ToolRegistry.Service.use((reg) => Effect.succeed(Tools.Service.of({ register: reg.register, registerSession: reg.registerSession }))),
 ).pipe(Layer.provide(registry))
 const memoryTool = MemoryTool.layer.pipe(Layer.provide(toolsRegister), Layer.provide(memory), Layer.provide(location))
 const it = testEffect(Layer.mergeAll(registry, memoryTool))

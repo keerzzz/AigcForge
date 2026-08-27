@@ -89,7 +89,7 @@ function loadDir(
 
       let profile: SchemaCustomProfile.Profile
       try {
-        profile = Schema.decodeUnknownSync(SchemaCustomProfile.Profile)(doc)
+        profile = SchemaCustomProfile.decodeProfile(doc)
       } catch {
         invalid.set(relativePath, { relativePath, errorTag: "bad_yaml" })
         yield* Effect.logWarning("Skipping custom profile with bad schema", { relativePath, errorTag: "bad_yaml" })

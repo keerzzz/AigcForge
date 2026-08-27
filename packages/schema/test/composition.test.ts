@@ -41,15 +41,13 @@ describe("Composition Schema", () => {
     expect(Schema.decodeUnknownSync(Composition.AssetRef)(commandRef).kind).toBe("command")
   })
 
-  test("AssetRef rejects disallowed asset kinds in M2 (e.g. mcp, plugin)", () => {
-    expect(() =>
-      Schema.decodeUnknownSync(Composition.AssetRef)({
-        kind: "mcp",
-        relativePath: "mcp.json",
-        revision: "a".repeat(64),
-      }),
-    ).toThrow()
-
+  test("AssetRef accepts M3 MCP refs and still rejects unsupported kinds", () => {
+    const mcp = Schema.decodeUnknownSync(Composition.AssetRef)({
+      kind: "mcp",
+      relativePath: "mcp.json",
+      revision: "a".repeat(64),
+    })
+    expect(mcp.kind).toBe("mcp")
     expect(() =>
       Schema.decodeUnknownSync(Composition.AssetRef)({
         kind: "plugin",
@@ -350,6 +348,36 @@ describe("Composition Schema", () => {
     expect(Schema.decodeUnknownSync(Composition.SnapshotDataV2)({ ...base, maxConcurrency: 8 }).maxConcurrency).toBe(8)
   })
 
+  test("Plan and legacy SnapshotV2 default MCP projections without opening a V3", () => {
+    const plan = Schema.decodeUnknownSync(Composition.Plan)({
+      version: 1,
+      digest: "a".repeat(64),
+      valid: true,
+      input: {
+        source: "temporary",
+        agents: [],
+        bindings: {},
+        presentation: "native",
+        requestedCapabilities: [],
+      },
+      instructions: [],
+      skills: [],
+      capabilities: [],
+      diagnostics: [],
+    })
+    expect(plan.mcp).toEqual({ requested: [], effective: [], denied: [] })
+
+    const snapshot = Schema.decodeUnknownSync(Composition.SnapshotDataV2)({
+      agents: [],
+      bindings: {},
+      instructions: [],
+      prompts: [],
+      skills: [],
+      tools: { fingerprints: [], catalogDigest: "b".repeat(64), catalog: [] },
+    })
+    expect(snapshot.mcp).toEqual({ bindings: [], tools: [] })
+  })
+
   test("Snapshot rejects unknown version (fail-closed)", () => {
     expect(() =>
       Schema.decodeUnknownSync(Composition.Snapshot)({
@@ -395,5 +423,54 @@ describe("Composition Schema", () => {
     const encodedEffect = await Effect.runPromise(Schema.encodeUnknownEffect(Composition.Snapshot)(decoded))
     expect(encodedEffect).toBeDefined()
     expect((encodedEffect as { version: number }).version).toBe(2)
+  })
+
+  describe("mcpAuditMatchesCatalog", () => {
+    // Regression: two canonical names differing only by `-` vs `_` order
+    // DIFFERENTLY under localeCompare and the default comparator. The catalog is
+    // stored in localeCompare order, so an audit list sorted with the default
+    // comparator reports a mismatch on a perfectly healthy session. Both tool
+    // names below pass Tool.validateName, so this is reachable input, not a
+    // hypothetical.
+    const canonical = ["mcp_git_list-files", "mcp_git_list_files"]
+    const catalogOrder = [...canonical].toSorted((a, b) => a.localeCompare(b))
+
+    test("the two comparators really do disagree on these names", () => {
+      expect([...canonical].toSorted()).not.toEqual(catalogOrder)
+    })
+
+    test("matches a catalog whose mcp_ entries equal the audit identities", () => {
+      const result = Composition.mcpAuditMatchesCatalog({
+        catalog: ["bash", ...catalogOrder, "read"],
+        auditToolNames: [...canonical].reverse(),
+      })
+      expect(result.matches).toBe(true)
+      expect(result.catalogMcpTools).toEqual(catalogOrder)
+    })
+
+    test("reports a mismatch when an audit identity is missing", () => {
+      const result = Composition.mcpAuditMatchesCatalog({
+        catalog: catalogOrder,
+        auditToolNames: [canonical[0]!],
+      })
+      expect(result.matches).toBe(false)
+    })
+
+    test("reports a mismatch when the audit carries a name the catalog lacks", () => {
+      const result = Composition.mcpAuditMatchesCatalog({
+        catalog: [canonical[0]!],
+        auditToolNames: [canonical[0]!, "mcp_git_other"],
+      })
+      expect(result.matches).toBe(false)
+    })
+
+    test("ignores non-mcp catalog entries on both sides", () => {
+      const result = Composition.mcpAuditMatchesCatalog({
+        catalog: ["bash", "edit", "read"],
+        auditToolNames: [],
+      })
+      expect(result.matches).toBe(true)
+      expect(result.catalogMcpTools).toEqual([])
+    })
   })
 })

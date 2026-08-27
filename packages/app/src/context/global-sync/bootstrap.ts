@@ -10,6 +10,7 @@ import type {
   SessionTaskInfo,
   Todo,
 } from "@aigcfroge/sdk/v2/client"
+import { PermissionPendingModel } from "./permission-pending"
 import { showToast } from "@/utils/toast"
 import { getFilename } from "@aigcfroge/core/util/path"
 import { retry } from "@aigcfroge/core/util/retry"
@@ -166,11 +167,17 @@ function mergeSession(setStore: SetStoreFunction<State>, session: Session) {
   })
 }
 
+type SessionReader = {
+  session: {
+    get(input: { sessionID: string }): Promise<{ data?: Session }>
+  }
+}
+
 function warmSessions(input: {
   ids: string[]
   store: Store<State>
   setStore: SetStoreFunction<State>
-  sdk: AigcfrogeClient
+  sdk: SessionReader
 }) {
   const known = new Set(input.store.session.map((item) => item.id))
   const ids = [...new Set(input.ids)].filter((id) => !!id && !known.has(id))
@@ -184,6 +191,50 @@ function warmSessions(input: {
       }),
     ),
   ).then(() => undefined)
+}
+
+export type PermissionPendingClient = SessionReader & {
+  v2: {
+    permission: {
+      request: {
+        list(): Promise<{ data?: { data?: unknown[] } }>
+      }
+    }
+  }
+}
+
+export function loadV2PermissionPending(input: {
+  sdk: PermissionPendingClient
+  store: Store<State>
+  setStore: SetStoreFunction<State>
+}) {
+  const revision = input.store.permission_v2_revision
+  const loadEpoch = input.store.permission_v2_load_epoch + 1
+  input.setStore("permission_v2_load_epoch", loadEpoch)
+  return input.sdk.v2.permission.request.list().then((x) => {
+    const permissions = (x.data?.data ?? []).flatMap((value) => {
+      const permission = PermissionPendingModel.permissionPendingFromV2(value)
+      return permission ? [permission] : []
+    })
+    const ids = permissions.map((permission) => permission.sessionID)
+    return warmSessions({ ids, store: input.store, setStore: input.setStore, sdk: input.sdk }).then(() => {
+      if (input.store.permission_v2_load_epoch !== loadEpoch) return
+      const pending = PermissionPendingModel.applyPermissionV2Events(
+        permissions,
+        input.store.permission_v2_events.filter((event) => event.revision > revision),
+      )
+      const grouped = Object.fromEntries(
+        Object.entries(groupBySession(pending)).map(([sessionID, requests]) => [
+          sessionID,
+          requests.sort((a, b) => cmp(a.id, b.id)),
+        ]),
+      )
+      return batch(() => {
+        input.setStore("permission_v2", reconcile(grouped, { merge: false }))
+                input.setStore("permission_v2_events", [])
+      })
+    })
+  })
 }
 
 export const loadProvidersQuery = (scope: ServerScope, directory: string | null, sdk: AigcfrogeClient) =>
@@ -316,6 +367,7 @@ export async function bootstrapDirectory(input: {
             )
           }),
         ),
+      () => retry(() => loadV2PermissionPending(input)),
       () =>
         retry(() =>
           input.sdk.question.list().then((x) => {

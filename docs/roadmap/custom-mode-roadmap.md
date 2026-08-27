@@ -35,7 +35,7 @@ Custom 主线
 | **M0** | 治理与组合底座            | 第五 Mode、Profile/Plan/Snapshot、AssetRef、Resolver | ADR-17 已批准            | 已完成（Phase A-F） |
 | **M1** | 单 Agent 可恢复闭环       | `meta` + 一个用户 Agent + Prompt/Skill + native + Upgrade + UI Phase E + 50 轮稳定性矩阵 | M0                       | 已完成（Waves W1-W4） |
 | **M2** | 多 Agent 与编排           | Agent 池、Command、Workflow、进度、取消、部分成功    | M1                       | 已完成（PR #46 合入 `main@a11b50020`） |
-| **M3** | MCP 与审批                | scoped registration、凭证、健康、统一审批入口        | M2 + Tool Registry 扩展  | 待开工（G3-1/G3-2 ADR 阻塞） |
+| **M3** | MCP 与审批                | scoped registration、凭证、健康、统一审批入口        | M2 + Tool Registry 扩展  | 进行中（G3-1/G3-2/G3-3/G3-4 全过；Phase A/B/C/D/E/F0-F5 已合入本地 `main`；余 Phase G） |
 | **M4** | Trusted Runtime Extension | Host/Agent/Client 分面、信任、停止、隔离、回滚       | M3 + Plugin 生命周期 ADR | 远期                |
 | **M5** | Code Presentation         | `run_code` + 受限 SDK，共用 Effective Tool Set       | M3/M4 稳定               | 远期                |
 
@@ -50,7 +50,7 @@ Custom 主线
 | M4   | [Trusted Runtime Extension](../plan/custom-mode-m4-trusted-runtime-extension.md) | threat/lifecycle/capability ADR 未批准不得 mount code    |
 | M5   | [Code Presentation](../plan/custom-mode-m5-code-presentation.md)                 | sandbox/equivalence 证明未过不得实现 `run_code`          |
 
-当前执行手册：M0/M1/M2 已完成并合入 `main`（M2 = PR #46，合并提交 `a11b50020`，复审报告 [Custom M2 复审报告](../review/AigcForge_CUSTOM_M2_REVIEW.md) 结论 APPROVED）；下一节点 M3 执行提示词见 [Custom Mode M3 全量 TDD 执行提示词](../plan/prompt-custom-mode-m3-mcp-approval.md)。**M3 开工前提是 G3-1（Registration ADR）与 G3-2（Grant ADR）已批准**——两份 ADR 尚未起草，因此 M3 当前只能执行研究/ADR 阶段，不得进入生产实现。
+当前执行手册：M0/M1/M2 已完成并合入 `main`（M2 = PR #46，合并提交 `a11b50020`，复审报告 [Custom M2 复审报告](../review/AigcForge_CUSTOM_M2_REVIEW.md) 结论 APPROVED）。**M3 进行中**（2026-08-27 状态）：四道 Gate 已全过 —— G3-1 [ADR-19](../architecture/adr/ADR-19-mcp-scoped-registration.md) Accepted v1.0、G3-2 [ADR-20](../architecture/adr/ADR-20-scoped-grant-model.md) Accepted v1.2、G3-3 [ADR-21](../architecture/adr/ADR-21-mcp-credential-custody.md) Accepted v1.2、G3-4 由 ADR-20 §2.6/§2.7/§2.8 回答。**已合入本地 `main`（未推送）**：Phase A / B / D / F0，Phase C（Slice 0-4：typed stdio 与 remote 连接 owner、`mcp_credential_binding`、六态 health、两项止血）、Phase E（Resolver/Snapshot 绑定 MCP facts，未开 Composition V3）、Phase F1-F4（responder 能力对齐、V2 审批客户端、审批展示、Location 审批中心 + scoped grant 端点 + Builder MCP health）、F5（浏览器 auto-accept 只对 V1 ask 生效这一边界，由 `autoRespondableAsk` 的返回类型强制并双向红证；V1 通配键处置需产品裁定，已转 [technical-debt](../technical-debt.md) §4）。**剩余：Phase G（故障注入与灰度）**，随后才是 M4/M5。执行提示词见 [M3 剩余阶段执行提示词](../plan/prompt-custom-mode-m3-remaining.md)。M3 全部 Phase 完成后统一开一个 PR。
 
 ## 2. 总体原则
 

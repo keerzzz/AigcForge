@@ -9,6 +9,9 @@ import { withStatics } from "./schema"
 import { Identifier } from "./util/identifier"
 import { LayerNode } from "./effect/layer-node"
 import { isDeepStrictEqual } from "node:util"
+import type { EffectSQLiteQueryEffectHKT, EffectSQLiteRunResult } from "@aigcfroge/effect-drizzle-sqlite/effect-sqlite"
+import type { SQLiteEffectTransaction } from "@aigcfroge/effect-drizzle-sqlite/sqlite-core/effect"
+import type { EmptyRelations } from "drizzle-orm/relations"
 
 export const ID = Schema.String.check(Schema.isStartsWith("evt_")).pipe(
   Schema.brand("Event.ID"),
@@ -81,6 +84,18 @@ export function versionedType(type: string, version: number) {
 export const registry = new Map<string, Definition>()
 const durableRegistry = new Map<string, Definition>()
 
+/**
+ * `Definition.data` surfaces as Schema's erased `Top`, which is not assignable to
+ * `Encoder`/`Decoder` even though every definition builds it from
+ * `Schema.Struct`. Removing the assertion fails to compile (TS2345 at all three
+ * former call sites), so it is a genuine third-party type escape rather than a
+ * shortcut — centralised here so there is one documented escape instead of one
+ * per call site.
+ */
+const codec = (schema: Schema.Top) =>
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- see above
+  schema as unknown as Schema.Codec<unknown, Record<string, unknown>>
+
 export function define<const Type extends string, Fields extends Schema.Struct.Fields>(input: {
   readonly type: Type
   readonly durable?: {
@@ -121,12 +136,14 @@ export function definitions() {
   return registry.values().toArray()
 }
 
+export type Transaction = SQLiteEffectTransaction<EffectSQLiteQueryEffectHKT, EffectSQLiteRunResult, EmptyRelations>
+
 export interface PublishOptions {
   readonly id?: ID
   readonly metadata?: Record<string, unknown>
   readonly location?: Location.Ref
   /** Local operational projection committed atomically with a new durable event. Not replayed or serialized. */
-  readonly commit?: (seq: number) => Effect.Effect<void>
+  readonly commit?: (seq: number, tx: Transaction) => Effect.Effect<void>
 }
 
 export interface Interface {
@@ -201,7 +218,7 @@ export const layerWith = (options?: LayerOptions) =>
           readonly ownerID?: string
           readonly strictOwner?: boolean
         },
-        commit?: (seq: number) => Effect.Effect<void>,
+        commit?: (seq: number, tx: Transaction) => Effect.Effect<void>,
       ) {
         return Effect.gen(function* () {
           const definition = registry.get(event.type)
@@ -229,18 +246,16 @@ export const layerWith = (options?: LayerOptions) =>
                 Effect.gen(function* () {
                   const committed = yield* db
                     .transaction(
-                      () =>
+                      (tx) =>
                         Effect.gen(function* () {
-                          const row = yield* db
+                          const row = yield* tx
                             .select({ seq: EventSequenceTable.seq, ownerID: EventSequenceTable.owner_id })
                             .from(EventSequenceTable)
                             .where(eq(EventSequenceTable.aggregate_id, aggregateID))
                             .get()
                             .pipe(Effect.orDie)
                           const latest = row?.seq ?? -1
-                          const encoded = Schema.encodeUnknownSync(
-                            definition.data as Schema.Codec<unknown, unknown>,
-                          )(event.data) as Record<string, unknown>
+                          const encoded = Schema.encodeUnknownSync(codec(definition.data))(event.data)
                           if (input?.strictOwner && row?.ownerID && row.ownerID !== input.ownerID) {
                             yield* Effect.die(
                               new InvalidDurableEventError({
@@ -250,7 +265,7 @@ export const layerWith = (options?: LayerOptions) =>
                             )
                           }
                           if (input && input.seq <= latest) {
-                            const stored = yield* db
+                            const stored = yield* tx
                               .select()
                               .from(EventTable)
                               .where(and(eq(EventTable.aggregate_id, aggregateID), eq(EventTable.seq, input.seq)))
@@ -262,7 +277,7 @@ export const layerWith = (options?: LayerOptions) =>
                               isDeepStrictEqual(stored.data, encoded)
                             ) {
                               if (input.ownerID && row?.ownerID == null) {
-                                yield* db
+                                yield* tx
                                   .update(EventSequenceTable)
                                   .set({ owner_id: input.ownerID })
                                   .where(eq(EventSequenceTable.aggregate_id, aggregateID))
@@ -290,7 +305,7 @@ export const layerWith = (options?: LayerOptions) =>
                               }),
                             )
                           }
-                          const stored = yield* db
+                          const stored = yield* tx
                             .select({ aggregateID: EventTable.aggregate_id, seq: EventTable.seq })
                             .from(EventTable)
                             .where(eq(EventTable.id, event.id))
@@ -310,8 +325,8 @@ export const layerWith = (options?: LayerOptions) =>
                           for (const projector of list) {
                             yield* projector(committed)
                           }
-                          if (commit) yield* commit(seq)
-                          yield* db
+                          if (commit) yield* commit(seq, tx)
+                          yield* tx
                             .insert(EventSequenceTable)
                             .values([{ aggregate_id: aggregateID, seq, owner_id: input?.ownerID }])
                             .onConflictDoUpdate({
@@ -323,7 +338,7 @@ export const layerWith = (options?: LayerOptions) =>
                             })
                             .run()
                             .pipe(Effect.orDie)
-                          yield* db
+                          yield* tx
                             .insert(EventTable)
                             .values([
                               {
@@ -442,9 +457,7 @@ export const layerWith = (options?: LayerOptions) =>
             const payload = {
               id: event.id,
               type: definition.type,
-              data: Schema.decodeUnknownSync(definition.data as Schema.Codec<unknown, unknown>)(
-                event.data,
-              ),
+              data: Schema.decodeUnknownSync(codec(definition.data))(event.data),
             } as Payload
             const committed = yield* commitDurableEvent(payload, {
               seq: event.seq,
@@ -539,7 +552,7 @@ export const layerWith = (options?: LayerOptions) =>
           id: event.id,
           type: definition.type,
           durable: { aggregateID: event.aggregateID, seq: event.seq, version: definition.durable.version },
-          data: Schema.decodeUnknownSync(definition.data as Schema.Codec<unknown, unknown>)(event.data),
+          data: Schema.decodeUnknownSync(codec(definition.data))(event.data),
         }
       }
 

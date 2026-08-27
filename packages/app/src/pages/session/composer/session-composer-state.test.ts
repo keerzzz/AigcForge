@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { PermissionRequest, QuestionRequest, Session } from "@aigcfroge/sdk/v2/client"
-import { sessionPermissionRequest, sessionQuestionRequest } from "./session-request-tree"
+import { sessionPendingPermissionRequest, sessionPermissionRequest, sessionQuestionRequest } from "./session-request-tree"
 
 const session = (input: { id: string; parentID?: string }) =>
   ({
@@ -76,6 +76,34 @@ describe("sessionPermissionRequest", () => {
     }
 
     expect(sessionPermissionRequest(sessions, permissions, "root", () => false)).toBeUndefined()
+  })
+})
+
+describe("sessionPendingPermissionRequest", () => {
+  test("uses V2 pending requests without applying legacy auto-accept", () => {
+    const sessions = [session({ id: "root" })]
+    const requests = {
+      root: [{ id: "per_v2", sessionID: "root", action: "bash", resources: ["/tmp/run.sh"] }],
+    }
+
+    expect(
+      sessionPendingPermissionRequest(
+        sessions,
+        { root: [permission("perm_legacy", "root")] },
+        requests,
+        "root",
+        () => false,
+      ),
+    ).toEqual({ kind: "v2", request: requests.root[0] })
+  })
+
+  test("keeps legacy session selection when no V2 request is pending", () => {
+    const legacy = permission("perm_legacy", "root")
+
+    expect(sessionPendingPermissionRequest([session({ id: "root" })], { root: [legacy] }, {}, "root")).toEqual({
+      kind: "legacy",
+      request: legacy,
+    })
   })
 })
 

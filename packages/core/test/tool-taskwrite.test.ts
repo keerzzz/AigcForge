@@ -212,7 +212,9 @@ const appProcess = Layer.mock(AppProcess.Service, { run: () => Effect.die("AppPr
 const skillV2 = Layer.mock(SkillV2.Service, { list: () => Effect.succeed([]) })
 const toolsRegister = Layer.effect(
   Tools.Service,
-  ToolRegistry.Service.use((reg) => Effect.succeed(Tools.Service.of({ register: reg.register }))),
+  ToolRegistry.Service.use((reg) =>
+    Effect.succeed(Tools.Service.of({ register: reg.register, registerSession: reg.registerSession })),
+  ),
 ).pipe(Layer.provide(registry))
 const taskTool = TaskTool.layer.pipe(Layer.provide(toolsRegister), Layer.provide(config), Layer.provide(EventV2.defaultLayer))
 

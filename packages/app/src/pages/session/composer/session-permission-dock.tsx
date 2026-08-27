@@ -1,36 +1,49 @@
 import { For, Show, createMemo } from "solid-js"
-import type { PermissionRequest } from "@aigcfroge/sdk/v2"
+import { PermissionPendingModel } from "@/context/global-sync/permission-pending"
 import { Button } from "@aigcfroge/ui/button"
 import { DockPrompt } from "@aigcfroge/session-ui/dock-prompt"
 import { Icon } from "@aigcfroge/ui/icon"
 import { useLanguage } from "@/context/language"
 
 export function SessionPermissionDock(props: {
-  request: PermissionRequest
+  request: PermissionPendingModel.PermissionPending
   responding: boolean
   sessionID?: string
-  onDecide: (response: "once" | "always" | "reject") => void
+  /**
+   * Takes the request/decision PAIR rather than a bare decision, so `always` on a
+   * V2 request and `session`/`location` on a legacy one are compile errors. Each
+   * button below can only build the pair its own narrowed branch permits.
+   */
+  onDecide: (input: PermissionPendingModel.PermissionDecisionInput) => void
 }) {
   const language = useLanguage()
-  const isChildRequest = createMemo(() => props.sessionID !== undefined && props.request.sessionID !== props.sessionID)
+  const request = createMemo(() => PermissionPendingModel.permissionPresentation(props.request))
+  const legacyRequest = createMemo(() => (props.request.kind === "legacy" ? props.request : undefined))
+  const scopedRequest = createMemo(() => (props.request.kind === "v2" ? props.request : undefined))
+  /** `once` / `reject` are legal for both runtimes; narrow so the pair still typechecks. */
+  const shared = (decision: "once" | "reject"): PermissionPendingModel.PermissionDecisionInput =>
+    props.request.kind === "legacy"
+      ? { request: props.request, decision }
+      : { request: props.request, decision }
+  const isChildRequest = createMemo(() => props.sessionID !== undefined && request().sessionID !== props.sessionID)
 
   const toolDescription = () => {
-    const key = `settings.permissions.tool.${props.request.permission}.description`
+    const key = `settings.permissions.tool.${request().action}.description`
     const value = language.t(key as Parameters<typeof language.t>[0])
     if (value === key) return ""
     return value
   }
 
   const metaDescription = () => {
-    const value = props.request.metadata?.description
+    const value = request().metadata?.description
     return typeof value === "string" && value ? value : ""
   }
   const metaCliTarget = () => {
-    const value = props.request.metadata?.cli_target
+    const value = request().metadata?.cli_target
     return typeof value === "string" && value ? value : ""
   }
   const metaExecutionType = () => {
-    const value = props.request.metadata?.execution_type
+    const value = request().metadata?.execution_type
     return typeof value === "string" && value ? value : ""
   }
   const hasMetadata = createMemo(() => Boolean(metaDescription() || metaCliTarget() || metaExecutionType()))
@@ -50,18 +63,50 @@ export function SessionPermissionDock(props: {
         <>
           <div />
           <div data-slot="permission-footer-actions">
-            <Button variant="ghost" size="normal" onClick={() => props.onDecide("reject")} disabled={props.responding}>
+            <Button variant="ghost" size="normal" onClick={() => props.onDecide(shared("reject"))} disabled={props.responding}>
               {language.t("ui.permission.deny")}
             </Button>
-            <Button
-              variant="secondary"
-              size="normal"
-              onClick={() => props.onDecide("always")}
-              disabled={props.responding}
+            <Show
+              when={scopedRequest()}
+              fallback={
+                <Show when={legacyRequest()}>
+                  {(legacy) => (
+                    <Button
+                      variant="secondary"
+                      size="normal"
+                      onClick={() => props.onDecide({ request: legacy(), decision: "always" })}
+                      disabled={props.responding}
+                    >
+                      {language.t("ui.permission.allowAlways")}
+                    </Button>
+                  )}
+                </Show>
+              }
             >
-              {language.t("ui.permission.allowAlways")}
-            </Button>
-            <Button variant="primary" size="normal" onClick={() => props.onDecide("once")} disabled={props.responding}>
+              {(scoped) => (
+                <>
+                  <Show when={props.sessionID === scoped().request.sessionID}>
+                    <Button
+                      variant="secondary"
+                      size="normal"
+                      onClick={() => props.onDecide({ request: scoped(), decision: "session" })}
+                      disabled={props.responding}
+                    >
+                      {language.t("approval.center.sessionScope")}
+                    </Button>
+                  </Show>
+                  <Button
+                    variant="secondary"
+                    size="normal"
+                    onClick={() => props.onDecide({ request: scoped(), decision: "location" })}
+                    disabled={props.responding}
+                  >
+                    {language.t("approval.center.locationScope")}
+                  </Button>
+                </>
+              )}
+            </Show>
+            <Button variant="primary" size="normal" onClick={() => props.onDecide(shared("once"))} disabled={props.responding}>
               {language.t("ui.permission.allowOnce")}
             </Button>
           </div>
@@ -77,6 +122,13 @@ export function SessionPermissionDock(props: {
           </div>
         </div>
       </Show>
+
+      <div data-slot="permission-row">
+        <span data-slot="permission-spacer" aria-hidden="true" />
+        <code data-slot="permission-action" class="text-12-regular text-text-base break-all">
+          {request().action}
+        </code>
+      </div>
 
       <Show when={toolDescription()}>
         <div data-slot="permission-row">
@@ -102,11 +154,11 @@ export function SessionPermissionDock(props: {
         </div>
       </Show>
 
-      <Show when={props.request.patterns.length > 0}>
+      <Show when={request().resources.length > 0}>
         <div data-slot="permission-row">
           <span data-slot="permission-spacer" aria-hidden="true" />
           <div data-slot="permission-patterns">
-            <For each={props.request.patterns}>
+            <For each={request().resources}>
               {(pattern) => <code class="text-12-regular text-text-base break-all">{pattern}</code>}
             </For>
           </div>

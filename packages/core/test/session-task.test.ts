@@ -266,7 +266,7 @@ const skillV2 = Layer.succeed(
 // module bridge (installed in setup), not a Layer, so it carries no seam deps.
 const toolsRegister = Layer.effect(
   Tools.Service,
-  ToolRegistry.Service.use((reg) => Effect.succeed(Tools.Service.of({ register: reg.register }))),
+  ToolRegistry.Service.use((reg) => Effect.succeed(Tools.Service.of({ register: reg.register, registerSession: reg.registerSession }))),
 ).pipe(Layer.provide(registry))
 // Provide only taskTool-specific deps here; agents/permission stay as
 // requirements satisfied once at the outer pipe so setup's AgentV2.transform and

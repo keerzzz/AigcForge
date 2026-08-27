@@ -1,4 +1,37 @@
 import { base64Encode } from "@aigcfroge/core/util/encode"
+import type { Event, PermissionRequest } from "@aigcfroge/sdk/v2/client"
+
+/**
+ * The one place that decides which ask events this store may answer, and it may
+ * answer **only the V1 ask**.
+ *
+ * Why this needs to be a guarded, typed seam rather than an inline string
+ * compare: both asks travel the same SSE stream in the same shape. The instance
+ * event route renames the EventV2 envelope's `data` to `properties` for every
+ * event it forwards (`aigcfroge/src/server/routes/instance/httpapi/handlers/event.ts:58`),
+ * so a `permission.v2.asked` reaches this store as
+ * `{ type, properties: { id, sessionID, action, resources, ... } }` — structurally
+ * indistinguishable from a V1 ask at the callback boundary. Nothing else on the
+ * client filters it. The event-type string was the entire boundary.
+ *
+ * That boundary must hold, because this store is not an authorization source:
+ * its state is browser-local, has no expiry, no revocation record, and answers
+ * with a reply the server cannot tell apart from a human click. ADR-20 puts
+ * scoped authorization in `ScopedGrant` (expiry, revocation, audit) precisely so
+ * that a persisted UI toggle can never stand in for one. Letting this store
+ * answer V2 asks would route MCP and every scoped-grant consultation around that
+ * model.
+ *
+ * The declared `PermissionRequest` return type is the enforcement, not the
+ * comment: widening the guard to admit `permission.v2.asked` makes the returned
+ * union stop assigning to the V1 request shape, so the mistake fails typecheck
+ * instead of shipping. The mistake is plausible — "V2 sessions ignore my
+ * auto-accept toggle" reads like a bug report, and answering it is a hole.
+ */
+export function autoRespondableAsk(event: Event | undefined): PermissionRequest | undefined {
+  if (event?.type !== "permission.asked") return undefined
+  return event.properties
+}
 
 export function acceptKey(sessionID: string, directory?: string) {
   if (!directory) return sessionID

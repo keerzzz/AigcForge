@@ -323,3 +323,51 @@ describe("PermissionEffective R6 整改（custom unattended 天花板）", () =>
     expect(PermissionEffective.evaluate(rules, "some_future_tool", "*")).toBe("deny")
   })
 })
+
+describe("PermissionEffective attended custom 重写为 ask（Phase D §2.6）", () => {
+  // 资产作者声明的全量 allow（攻击面输入）。
+  const allowAllAsset: Permission.Ruleset = [
+    { action: "bash", resource: "*", effect: "allow" },
+    { action: "task_spawn", resource: "*", effect: "allow" },
+    { action: "webfetch", resource: "*", effect: "allow" },
+    { action: "read", resource: "*", effect: "allow" },
+    { action: "*", resource: "*", effect: "allow" },
+  ]
+
+  test("attended custom：非白名单资产 allow 全部重写为 ask，白名单保持 allow", () => {
+    const rules = v2(input({ mode: "custom", agent: "workflow-worker", attended: true }), allowAllAsset)
+    expect(PermissionEffective.evaluate(rules, "bash", "*")).toBe("ask")
+    expect(PermissionEffective.evaluate(rules, "edit", "src/x.ts")).toBe("ask")
+    expect(PermissionEffective.evaluate(rules, "write", "out.txt")).toBe("ask")
+    expect(PermissionEffective.evaluate(rules, "apply_patch", "*")).toBe("ask")
+    expect(PermissionEffective.evaluate(rules, "task_spawn", "*")).toBe("ask")
+    expect(PermissionEffective.evaluate(rules, "webfetch", "https://x")).toBe("ask")
+    expect(PermissionEffective.evaluate(rules, "some_future_tool", "*")).toBe("ask")
+    expect(PermissionEffective.evaluate(rules, "read", "src/index.ts")).toBe("allow")
+  })
+
+  test("attended custom：显式资源级 deny 仍压过通配 allow 与 saved（位序不变）", () => {
+    const withDeny: Permission.Ruleset = [
+      ...allowAllAsset,
+      { action: "read", resource: ".env", effect: "deny" },
+    ]
+    const rules = v2(
+      input({ mode: "custom", agent: "workflow-worker", attended: true, savedApprovals: [{ action: "read", resource: ".env" }] }),
+      withDeny,
+    )
+    expect(PermissionEffective.evaluate(rules, "read", ".env")).toBe("deny")
+  })
+
+  test("attended custom：saved 追加来源不被天花板削掉", () => {
+    const rules = v2(
+      input({ mode: "custom", agent: "workflow-worker", attended: true, savedApprovals: [{ action: "grep", resource: "logs/*" }] }),
+      [{ action: "*", resource: "*", effect: "allow" }],
+    )
+    expect(PermissionEffective.evaluate(rules, "grep", "logs/a.log")).toBe("allow")
+  })
+
+  test("unattended 行为一字不变（R6 块继续作准，此处仅钉 coding 配对）", () => {
+    const rules = v2(input({ mode: "coding", agent: "worker", attended: true }), allowAllAsset)
+    expect(PermissionEffective.evaluate(rules, "bash", "*")).toBe("allow")
+  })
+})

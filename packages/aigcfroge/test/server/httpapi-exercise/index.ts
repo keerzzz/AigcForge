@@ -454,7 +454,10 @@ function customCompositionScenarios(): Scenario[] {
       .json(200, (body) => {
         object(body)
         check(isRecord(body.session) && body.session.mode === "custom", "custom start should create a custom session")
-        check(isRecord(body.snapshot) && typeof body.snapshot.digest === "string", "custom start should return a snapshot")
+        check(
+          isRecord(body.snapshot) && typeof body.snapshot.digest === "string",
+          "custom start should return a snapshot",
+        )
       }),
     http.protected
       .post(`${root}/upgrade`, "custom-composition.upgrade")
@@ -484,8 +487,14 @@ function customCompositionScenarios(): Scenario[] {
       .json(200, (body, ctx) => {
         object(body)
         check(isRecord(body.session) && body.session.mode === "custom", "custom upgrade should create a custom session")
-        check(isRecord(body.snapshot) && typeof body.snapshot.digest === "string", "custom upgrade should return a snapshot")
-        check(isRecord(body.session) && body.session.id !== ctx.state.sessionID, "custom upgrade should not reuse the source session id")
+        check(
+          isRecord(body.snapshot) && typeof body.snapshot.digest === "string",
+          "custom upgrade should return a snapshot",
+        )
+        check(
+          isRecord(body.session) && body.session.id !== ctx.state.sessionID,
+          "custom upgrade should not reuse the source session id",
+        )
       }),
     http.protected
       .get(`${root}/health`, "custom-composition.health")
@@ -789,7 +798,12 @@ const scenarios: Scenario[] = [
   http.protected
     .get("/memory", "memory.list")
     .seeded((ctx) =>
-      ctx.memoryPropose({ content: "user prefers concise", source: "derived", trustLevel: "medium", sensitivityLevel: "low" }),
+      ctx.memoryPropose({
+        content: "user prefers concise",
+        source: "derived",
+        trustLevel: "medium",
+        sensitivityLevel: "low",
+      }),
     )
     .at((ctx) => ({ path: "/memory", headers: ctx.headers() }))
     .json(200, (body) => {
@@ -1072,7 +1086,8 @@ const scenarios: Scenario[] = [
     )
     .at((ctx) => ({ path: "/delivery/{deliveryKey}/read", headers: ctx.headers(), body: {} }))
     .status(200, undefined, "status"),
-  http.protected.post("/import-asset/parse", "import-parser.parse")
+  http.protected
+    .post("/import-asset/parse", "import-parser.parse")
     .global()
     .at(() => ({ path: "/import-asset/parse", body: { content: "# HTTP API Import\n\nPrompt body" } }))
     .json(200, (body) => {
@@ -1748,11 +1763,119 @@ const scenarios: Scenario[] = [
     .get("/api/provider/{providerID}", "v2.provider.get")
     .at((ctx) => ({ path: route("/api/provider/{providerID}", { providerID: "missing" }), headers: ctx.headers() }))
     .json(404, object, "status"),
-  http.protected.get("/api/permission/request", "v2.permission.request.list").json(200, (body) => {
-    object(body)
-    object(body.location)
-    array(body.data)
-  }),
+  http.protected
+    .get("/api/permission/request", "v2.permission.request.list")
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const session = yield* ctx.session({ title: "Permission pending list owner" })
+        const request = yield* ctx.permissionV2({
+          sessionID: session.id,
+          action: "bash",
+          resources: ["/httpapi/global-list"],
+        })
+        return { requestID: request.id, sessionID: session.id }
+      }),
+    )
+    .json(200, (body, ctx) => {
+      object(body)
+      object(body.location)
+      array(body.data)
+      check(
+        body.data.some(
+          (request) =>
+            isRecord(request) && request.id === ctx.state.requestID && request.sessionID === ctx.state.sessionID,
+        ),
+        "Location-scoped pending list should include the request created for this Location",
+      )
+    }),
+  http.protected
+    .get("/api/permission/grant", "v2.permission.grant.list")
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const session = yield* ctx.session({ title: "Scoped grant list owner" })
+        yield* ctx.permissionV2({ sessionID: session.id, action: "bash", resources: ["/httpapi/grant-list"] })
+        return session.id
+      }),
+    )
+    .json(200, (body) => {
+      object(body)
+      object(body.location)
+      array(body.data)
+    }),
+  http.protected
+    .post("/api/session/{sessionID}/permission/{requestID}/grant", "v2.session.permission.grant.session")
+    .mutating()
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const session = yield* ctx.session({ title: "Session grant owner" })
+        const request = yield* ctx.permissionV2({
+          sessionID: session.id,
+          action: "bash",
+          resources: ["/httpapi/grant-session"],
+        })
+        return { sessionID: session.id, requestID: request.id }
+      }),
+    )
+    .at((ctx) => ({
+      path: route("/api/session/{sessionID}/permission/{requestID}/grant", ctx.state),
+      headers: ctx.headers(),
+      body: { level: "session" },
+    }))
+    .json(200, (body) => {
+      object(body)
+      object(body.grant)
+      object(body.grant.scope)
+      check(body.grant.scope.level === "session", "should issue a session scoped grant")
+      check(body.grant.action === "bash", "grant action comes from pending request")
+    }),
+  http.protected
+    .post("/api/session/{sessionID}/permission/{requestID}/grant", "v2.session.permission.grant.location")
+    .mutating()
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const session = yield* ctx.session({ title: "Location grant owner" })
+        const request = yield* ctx.permissionV2({
+          sessionID: session.id,
+          action: "write",
+          resources: ["/httpapi/grant-location"],
+        })
+        return { sessionID: session.id, requestID: request.id }
+      }),
+    )
+    .at((ctx) => ({
+      path: route("/api/session/{sessionID}/permission/{requestID}/grant", ctx.state),
+      headers: ctx.headers(),
+      body: { level: "location" },
+    }))
+    .json(200, (body) => {
+      object(body)
+      object(body.grant)
+      object(body.grant.scope)
+      check(body.grant.scope.level === "location", "should issue a location scoped grant")
+      check(body.grant.action === "write", "grant action comes from pending request")
+    }),
+  http.protected
+    .delete("/api/permission/grant/{grantID}", "v2.permission.grant.revoke")
+    .mutating()
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const grant = yield* ctx.grantIssue({
+          scope: { level: "location" },
+          action: "bash",
+          resources: ["/httpapi/grant-revoke"],
+        })
+        return { grantID: grant.grant.id, revision: grant.grantRevision }
+      }),
+    )
+    .at((ctx) => ({
+      path: route("/api/permission/grant/{grantID}", { grantID: ctx.state.grantID }),
+      headers: ctx.headers(),
+      body: { expectedRevision: ctx.state.revision },
+    }))
+    .json(200, (body) => {
+      object(body)
+      check(body.status === "revoked", "revoke should return the revoked grant")
+    }),
   http.protected.get("/api/question/request", "v2.question.request.list").json(200, (body) => {
     object(body)
     object(body.location)
@@ -1760,12 +1883,29 @@ const scenarios: Scenario[] = [
   }),
   http.protected
     .get("/api/session/{sessionID}/permission", "v2.session.permission.list")
-    .seeded((ctx) => ctx.session({ title: "Permission list owner" }))
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const session = yield* ctx.session({ title: "Permission list owner" })
+        const request = yield* ctx.permissionV2({
+          sessionID: session.id,
+          action: "bash",
+          resources: ["/httpapi/session-list"],
+        })
+        return { sessionID: session.id, requestID: request.id }
+      }),
+    )
     .at((ctx) => ({
-      path: route("/api/session/{sessionID}/permission", { sessionID: ctx.state.id }),
+      path: route("/api/session/{sessionID}/permission", { sessionID: ctx.state.sessionID }),
       headers: ctx.headers(),
     }))
-    .json(200, data(array)),
+    .json(200, (body, ctx) => {
+      object(body)
+      array(body.data)
+      check(
+        body.data.some((request) => isRecord(request) && request.id === ctx.state.requestID),
+        "Session pending list should include its owned request",
+      )
+    }),
   http.protected
     .get("/api/session/{sessionID}/question", "v2.session.question.list")
     .seeded((ctx) => ctx.session({ title: "Question list owner" }))
@@ -1776,16 +1916,71 @@ const scenarios: Scenario[] = [
     .json(200, data(array)),
   http.protected
     .post("/api/session/{sessionID}/permission/{requestID}/reply", "v2.session.permission.reply")
-    .seeded((ctx) => ctx.session({ title: "Permission owner" }))
+    .mutating()
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const session = yield* ctx.session({ title: "Permission reply owner" })
+        const request = yield* ctx.permissionV2({
+          sessionID: session.id,
+          action: "bash",
+          resources: ["/httpapi/reply"],
+        })
+        return { sessionID: session.id, requestID: request.id }
+      }),
+    )
+    .at((ctx) => ({
+      path: route("/api/session/{sessionID}/permission/{requestID}/reply", ctx.state),
+      headers: ctx.headers(),
+      body: { reply: "once" },
+    }))
+    .status(204, (ctx) =>
+      ctx
+        .pendingPermissionV2()
+        .pipe(
+          Effect.flatMap((pending) =>
+            Effect.sync(() =>
+              check(
+                !pending.some((request) => request.id === ctx.state.requestID),
+                "Reply should consume pending request",
+              ),
+            ),
+          ),
+        ),
+    ),
+  http.protected
+    .post("/api/session/{sessionID}/permission/{requestID}/reply", "v2.session.permission.reply.foreign")
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const owner = yield* ctx.session({ title: "Permission owner" })
+        const foreign = yield* ctx.session({ title: "Permission foreign session" })
+        const request = yield* ctx.permissionV2({
+          sessionID: owner.id,
+          action: "bash",
+          resources: ["/httpapi/foreign-reply"],
+        })
+        return { ownerID: owner.id, foreignID: foreign.id, requestID: request.id }
+      }),
+    )
     .at((ctx) => ({
       path: route("/api/session/{sessionID}/permission/{requestID}/reply", {
-        sessionID: ctx.state.id,
-        requestID: "per_httpapi_missing",
+        sessionID: ctx.state.foreignID,
+        requestID: ctx.state.requestID,
       }),
       headers: ctx.headers(),
       body: { reply: "once" },
     }))
-    .json(404, object, "status"),
+    .jsonEffect(404, (_body, ctx) =>
+      ctx.pendingPermissionV2().pipe(
+        Effect.flatMap((pending) =>
+          Effect.sync(() =>
+            check(
+              pending.some((request) => request.id === ctx.state.requestID),
+              "Foreign session must not consume request",
+            ),
+          ),
+        ),
+      ),
+    ),
   http.protected
     .post("/api/session/{sessionID}/question/{requestID}/reply", "v2.session.question.reply")
     .seeded((ctx) => ctx.session({ title: "Question reply owner" }))
@@ -1904,7 +2099,11 @@ const scenarios: Scenario[] = [
     )
     .at((ctx) => ({
       path: "/api/session/custom",
-      headers: { ...ctx.headers(), "content-type": "application/json", "x-aigcfroge-capabilities": "product-mode-custom-v1" },
+      headers: {
+        ...ctx.headers(),
+        "content-type": "application/json",
+        "x-aigcfroge-capabilities": "product-mode-custom-v1",
+      },
       body: {
         location: { directory: ctx.directory },
         title: "httpapi v2 custom",
@@ -1926,7 +2125,10 @@ const scenarios: Scenario[] = [
     .json(200, (body) => {
       object(body)
       check(isRecord(body.data) && body.data.mode === "custom", "v2 session.custom should create a custom session")
-      check(isRecord(body.snapshot) && typeof body.snapshot.digest === "string", "v2 session.custom should return a snapshot")
+      check(
+        isRecord(body.snapshot) && typeof body.snapshot.digest === "string",
+        "v2 session.custom should return a snapshot",
+      )
     }),
   http.protected
     .get("/api/session/{sessionID}", "v2.session.get")
