@@ -385,6 +385,100 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
     }),
   )
 
+  /**
+   * The rollout gate's two paths (M3 Phase G §7.2). The existing kill-switch
+   * case above covers admission and the pending call; what neither it nor
+   * anything else covered is the **tool catalog**, which is the half that
+   * decides what the model can see. `registeredNames` alone is not enough
+   * either — `materialize()` is what reaches the provider, and a name can be
+   * absent from one while present in the other (testing.md §10 red line 4).
+   *
+   * Rollback here is deliberately **lazy**, and that is measured, not assumed:
+   * flipping the env leaves the child process running and its tools both
+   * registered and materialized until the next `connect`/`callTool` reaches the
+   * check and tears the connection down. That is not an authorization hole —
+   * every call after the flip is rejected before dispatch — but it is a real
+   * mounted window, so it is pinned rather than glossed. Operationally the
+   * rollback is env flip plus restart, which releases everything through the
+   * Location scope.
+   */
+  const echoOf = (server: string) => `mcp_${server}_echo`
+  const catalogHas = (server: string) =>
+    Effect.gen(function* () {
+      const registry = yield* ToolRegistry.Service
+      const { definitions } = yield* registry.materialize()
+      return {
+        registered: registry.registeredNames().has(echoOf(server)),
+        materialized: definitions.some((definition) => definition.name === echoOf(server)),
+      }
+    })
+
+  it.live("enable path: the switch gates admission and the catalog together", () =>
+    Effect.gen(function* () {
+      const conn = yield* McpConnection.Service
+      const server = "rollout-on"
+
+      const saved = process.env["AIGCFROGE_CUSTOM_MODE"]
+      delete process.env["AIGCFROGE_CUSTOM_MODE"]
+      const blocked = yield* probe(conn.connect({ binding: binding({ serverName: server }) })).pipe(
+        Effect.ensuring(
+          Effect.sync(() => {
+            if (saved === undefined) delete process.env["AIGCFROGE_CUSTOM_MODE"]
+            else process.env["AIGCFROGE_CUSTOM_MODE"] = saved
+          }),
+        ),
+      )
+      expect(blocked.tag).toBe("McpConnection.McpDisabledError")
+      expect(yield* catalogHas(server)).toEqual({ registered: false, materialized: false })
+
+      // Switched on: the same binding now connects and the tool is visible in
+      // both the registry and the materialized definitions the model receives.
+      const info = yield* conn.connect({ binding: binding({ serverName: server }) })
+      expect(info.health).toBe("ready")
+      expect(yield* catalogHas(server)).toEqual({ registered: true, materialized: true })
+      const called = yield* probe(conn.callTool({ name: echoOf(server), args: { msg: "hi" } }))
+      expect(called.failed).toBe(false)
+
+      yield* conn.disconnect(server)
+      expect(yield* catalogHas(server)).toEqual({ registered: false, materialized: false })
+    }),
+  )
+
+  it.live("rollback path: the catalog empties at the next call, not at the env flip", () =>
+    Effect.gen(function* () {
+      const conn = yield* McpConnection.Service
+      const server = "rollout-off"
+      const info = yield* conn.connect({ binding: binding({ serverName: server }) })
+      if (info.pid === undefined) throw new Error("stdio connection did not expose a pid")
+      expect(yield* catalogHas(server)).toEqual({ registered: true, materialized: true })
+
+      const saved = process.env["AIGCFROGE_CUSTOM_MODE"]
+      delete process.env["AIGCFROGE_CUSTOM_MODE"]
+      const result = yield* Effect.gen(function* () {
+        // The mounted window, asserted so a move to eager teardown shows up here
+        // instead of silently changing what the model can see.
+        expect(yield* catalogHas(server)).toEqual({ registered: true, materialized: true })
+        expect(yield* conn.connections()).toHaveLength(1)
+
+        return yield* probe(conn.callTool({ name: echoOf(server), args: { msg: "hi" } }))
+      }).pipe(
+        Effect.ensuring(
+          Effect.sync(() => {
+            if (saved === undefined) delete process.env["AIGCFROGE_CUSTOM_MODE"]
+            else process.env["AIGCFROGE_CUSTOM_MODE"] = saved
+          }),
+        ),
+      )
+
+      expect(result.tag).toBe("McpConnection.McpDisabledError")
+      // Nothing half-mounted once the check has run: no connection, no child, and
+      // the canonical name gone from both the registry and the materialization.
+      expect(yield* conn.connections()).toHaveLength(0)
+      expect(yield* catalogHas(server)).toEqual({ registered: false, materialized: false })
+      yield* waitDead(info.pid)
+    }),
+  )
+
   it.live("disconnect kills that server's child and further calls fail closed", () =>
     Effect.gen(function* () {
       const conn = yield* McpConnection.Service

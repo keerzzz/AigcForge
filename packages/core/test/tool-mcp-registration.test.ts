@@ -1,5 +1,5 @@
 import { describe, expect } from "bun:test"
-import { Cause, Exit, Effect, Layer, Scope, Schema } from "effect"
+import { Cause, Exit, Effect, Layer, Option, Scope, Schema } from "effect"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { PermissionV2 } from "@aigcfroge/core/permission"
 import { SessionMessage } from "@aigcfroge/core/session/message"
@@ -23,6 +23,48 @@ const mcpLayer = McpRegistration.layer.pipe(
   Layer.provide(ToolOutputStore.defaultLayer),
 )
 const it = testEffect(mcpLayer)
+
+/**
+ * `expect(x instanceof T).toBe(true)` was the pattern here, and one site had
+ * only `Exit.isFailure`. Neither pins what callers actually key on: `_tag` is
+ * the string that crosses the wire and the event log, so a rename passes an
+ * `instanceof` check, and `Exit.isFailure` cannot tell a typed refusal from a
+ * defect. The identifying fields went unasserted too, which is what
+ * distinguishes "collided on this name" from "collided on some name".
+ *
+ * Throws instead of skipping on a wrong class so the failure names the culprit.
+ */
+const failureOf = (exit: Exit.Exit<unknown, unknown>) => {
+  if (!Exit.isFailure(exit)) throw new Error("expected a typed failure, got a success")
+  return Option.getOrThrow(Cause.findErrorOption(exit.cause))
+}
+
+const describeError = (error: unknown) =>
+  typeof error === "object" && error !== null && "_tag" in error ? String(error._tag) : String(error)
+
+const expectCollision = (exit: Exit.Exit<unknown, unknown>, name: string) => {
+  const error = failureOf(exit)
+  if (!(error instanceof McpRegistration.McpNameCollisionError))
+    throw new Error(`expected McpNameCollisionError, got ${describeError(error)}`)
+  expect(error._tag).toBe("McpRegistration.McpNameCollisionError")
+  expect(error.name).toBe(name)
+}
+
+const expectInvalidServerName = (exit: Exit.Exit<unknown, unknown>, serverName: string) => {
+  const error = failureOf(exit)
+  if (!(error instanceof McpRegistration.InvalidServerNameError))
+    throw new Error(`expected InvalidServerNameError, got ${describeError(error)}`)
+  expect(error._tag).toBe("McpRegistration.InvalidServerNameError")
+  expect(error.serverName).toBe(serverName)
+}
+
+const expectRegistrationError = (exit: Exit.Exit<unknown, unknown>, name: string) => {
+  const error = failureOf(exit)
+  if (!(error instanceof Tool.RegistrationError))
+    throw new Error(`expected Tool.RegistrationError, got ${describeError(error)}`)
+  expect(error._tag).toBe("Tool.RegistrationError")
+  expect(error.name).toBe(name)
+}
 
 const echo = () =>
   Tool.make({
@@ -66,10 +108,7 @@ describe("McpRegistration namespace and collision (ADR-19 §2.4/§2.5)", () => {
       const exit = yield* mcp
         .registerServer({ serverName: "Bad Server!", tools: { read: echo() } })
         .pipe(Scope.provide(scope), Effect.exit)
-      expect(Exit.isFailure(exit)).toBe(true)
-      if (Exit.isFailure(exit)) {
-        expect(Cause.squash(exit.cause) instanceof McpRegistration.InvalidServerNameError).toBe(true)
-      }
+      expectInvalidServerName(exit, "Bad Server!")
       expect((yield* ToolRegistry.Service).materialize).toBeDefined()
       expect(yield* (yield* ToolRegistry.Service).materialize()).toMatchObject({ definitions: [] })
       yield* Scope.close(scope, Exit.void)
@@ -87,10 +126,7 @@ describe("McpRegistration namespace and collision (ADR-19 §2.4/§2.5)", () => {
       const exit = yield* mcp
         .registerServer({ serverName: "ctx", tools: { echo: echo() } })
         .pipe(Scope.provide(scope), Effect.exit)
-      expect(Exit.isFailure(exit)).toBe(true)
-      if (Exit.isFailure(exit)) {
-        expect(Cause.squash(exit.cause) instanceof McpRegistration.McpNameCollisionError).toBe(true)
-      }
+      expectCollision(exit, "mcp_ctx_echo")
 
       yield* Scope.close(appScope, Exit.void)
       yield* Scope.close(scope, Exit.void)
@@ -112,10 +148,7 @@ describe("McpRegistration namespace and collision (ADR-19 §2.4/§2.5)", () => {
       const exit = yield* mcp
         .registerServer({ serverName: "dup", tools: { echo: echo() } })
         .pipe(Scope.provide(secondScope), Effect.exit)
-      expect(Exit.isFailure(exit)).toBe(true)
-      if (Exit.isFailure(exit)) {
-        expect(Cause.squash(exit.cause) instanceof McpRegistration.McpNameCollisionError).toBe(true)
-      }
+      expectCollision(exit, "mcp_dup_echo")
 
       // The first registration is untouched by the failed one.
       const view = yield* ToolRegistry.Service
@@ -191,7 +224,7 @@ describe("McpRegistration namespace and collision (ADR-19 §2.4/§2.5)", () => {
       const exit = yield* mcp
         .registerServer({ serverName: "ok", tools: { "bad name": echo() } })
         .pipe(Scope.provide(scope), Effect.exit)
-      expect(Exit.isFailure(exit)).toBe(true)
+      expectRegistrationError(exit, "mcp_ok_bad name")
       // Nothing was registered: all-or-nothing per server.
       expect(yield* (yield* ToolRegistry.Service).materialize()).toMatchObject({ definitions: [] })
       yield* Scope.close(scope, Exit.void)
