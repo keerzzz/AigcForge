@@ -159,6 +159,28 @@ export const classifyRemoteFailure = (input: { readonly serverName: string; read
   return new RemoteUnavailableError({ serverName: input.serverName, url: input.url })
 }
 
+/**
+ * `ready -> auth-required` is legal because its sibling is: `requestOn`'s catch
+ * raises `revoked` and `auth-required` a few lines apart, from the same
+ * credential re-resolution, and the table admitted only the first. That
+ * asymmetry is what made the call path's `auth-required` intent unreachable from
+ * a live connection.
+ *
+ * The omission is not confined to that one edge, and the remaining ones are NOT
+ * fixed here. `requestOn` chooses its target purely from the error it just
+ * observed, with no knowledge of the current state, so it can also request
+ * `degraded -> auth-required`, `auth-required -> offline`, `auth-required ->
+ * degraded`, `offline -> auth-required` and `degraded -> revoked` — all
+ * reachable, all currently rejected (measured). Those failures are discarded by
+ * the callers, so the recorded health silently lags reality.
+ *
+ * The collision is structural: this table says "once broken, change state only
+ * by way of `connecting`", while the call path says "record what just happened".
+ * Enumerating edges cannot reconcile them; the rule that can is "an observation
+ * of failure is always recordable, and only becoming `ready` is gated". That is
+ * a redesign of a reviewed state machine, so it is registered in technical-debt
+ * §3.2 rather than folded into this change.
+ */
 export const transitionHealth = (input: {
   readonly from: McpScope.McpConnectionHealth
   readonly to: McpScope.McpConnectionHealth
@@ -166,7 +188,7 @@ export const transitionHealth = (input: {
 }) => {
   const allowed =
     (input.from === "connecting" && ["ready", "degraded", "offline", "auth-required", "revoked"].includes(input.to)) ||
-    (input.from === "ready" && ["connecting", "degraded", "offline", "revoked"].includes(input.to)) ||
+    (input.from === "ready" && ["connecting", "degraded", "offline", "auth-required", "revoked"].includes(input.to)) ||
     (input.from === "degraded" && ["connecting", "ready", "offline"].includes(input.to)) ||
     (input.from === "offline" && input.to === "connecting") ||
     (input.from === "auth-required" && input.to === "connecting") ||
@@ -346,6 +368,25 @@ const credentialHeadersFor = (value: Credential.OAuth): Record<string, string> =
   Authorization: `Bearer ${value.access}`,
 })
 
+/**
+ * The one expiry rule, shared by connect admission and per-call admission.
+ *
+ * It has to be one function rather than two inline comparisons: `requestOn`
+ * re-resolves the binding before every credentialed call so that revocation
+ * takes effect immediately, and expiry has to ride the same path or a token
+ * that lapsed after the handshake stays invisible locally — surfacing only if
+ * the remote answers 401, which then reports a *missing* credential for one that
+ * merely expired (and reports `offline` for a server that answers 403 instead).
+ *
+ * No clock tolerance on purpose. Granting grace here alone would give the two
+ * admission points different rules; granting it at both would let a
+ * nearly-expired token connect and then fail on its first call, which is worse
+ * feedback than refusing the connection. ADR-21 §4.1 keeps refresh out of this
+ * owner, so the only outcome either way is a typed failure into `auth-required`.
+ */
+const isCredentialExpired = (value: Credential.Value, nowMs: number) =>
+  value.type === "oauth" && value.expires <= nowMs / 1000
+
 export const redactRemoteResponse = (
   scanner: CredentialScanner.Interface,
   input: { readonly headers: Readonly<Record<string, string>>; readonly body: string },
@@ -394,6 +435,7 @@ export const layer = Layer.effect(
         if (wire !== undefined) wire.health = next
         return next
       })
+
 
     // Spawns the child and wires the newline-delimited JSON-RPC protocol
     // around it. Runs inside the caller-provided Scope so the spawn handle
@@ -666,6 +708,20 @@ export const layer = Layer.effect(
               return Effect.fail(error)
             }),
           )
+          // Same admission rule as connect (`isCredentialExpired`): a token that
+          // lapsed after the handshake must fail here, typed as expired, rather
+          // than travelling to the remote and coming back as a 401 that reads
+          // like a missing credential.
+          const credentialRef = wire.binding.credentialRef
+          const cred = yield* credentialService.get(Credential.ID.make(credentialRef)).pipe(Effect.orDie)
+          if (!cred) {
+            yield* setHealth({ serverName: server, to: "auth-required" })
+            return yield* new CredentialMissingError({ serverName: server, credentialRef })
+          }
+          if (isCredentialExpired(cred.value, Date.now())) {
+            yield* setHealth({ serverName: server, to: "auth-required" })
+            return yield* new CredentialExpiredError({ serverName: server, credentialRef })
+          }
         }
         return yield* wire.request(method, params).pipe(
           Effect.tapError((error) =>
@@ -734,7 +790,7 @@ export const layer = Layer.effect(
           yield* setHealth({ serverName, to: "auth-required" })
           return yield* new CredentialMissingError({ serverName, credentialRef: resolved.credentialRef })
         }
-        if (cred.value.type === "oauth" && cred.value.expires <= Date.now() / 1000) {
+        if (isCredentialExpired(cred.value, Date.now())) {
           yield* setHealth({ serverName, to: "auth-required" })
           return yield* new CredentialExpiredError({ serverName, credentialRef: resolved.credentialRef })
         }

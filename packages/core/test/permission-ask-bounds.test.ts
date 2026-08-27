@@ -16,7 +16,7 @@ import { SessionV2 } from "@aigcfroge/core/session"
 import { PermissionSaved } from "@aigcfroge/core/permission/saved"
 import { PermissionV2 } from "@aigcfroge/core/permission"
 import { location } from "./fixture/location"
-import { testEffect } from "./lib/effect"
+import { pollWithTimeout, testEffect } from "./lib/effect"
 
 // ADR-20 §2.7: an `ask` may only wait while a capable responder is attached,
 // and never longer than the configured TTL. Both bounds fail typed and clear
@@ -337,6 +337,83 @@ describe("custom ceiling × responder facts (composed)", () => {
   )
 })
 
+/**
+ * The third bound on the same `Deferred.await`, alongside responder facts and
+ * the TTL: the owning layer scope closing.
+ *
+ * `permission.ts` registers a finalizer that fails every parked ask when its
+ * scope goes away — the release path a Session close or Location unload
+ * ultimately runs through. Nothing exercised it, and a leak here is the worst
+ * shape available: the tool call's fiber never settles, so the turn hangs with
+ * no error and no timeout left to save it (the TTL fiber died with the scope).
+ *
+ * Asserting the tag is only half of it. `reply` publishes
+ * `permission.v2.replied`; this finalizer publishes nothing, so a shutdown-
+ * cancelled approval leaves no ledger entry at all. That asymmetry is pinned
+ * here so it stays a deliberate choice rather than drifting silently.
+ */
+describe("PermissionV2 owner scope release (M3 Phase G §7.1)", () => {
+  it.live("fails a parked ask when the owning scope closes, and records nothing for it", () =>
+    Effect.gen(function* () {
+      const replied: Array<string> = []
+      const scope = yield* Scope.make()
+      // `Layer.fresh` so this owns its own in-memory Database and pending map
+      // rather than sharing the file-level harness instance. The 5s TTL is what
+      // makes a missing release *observable*: `assert` runs inside
+      // `uninterruptibleMask`, so no timeout the test wraps around it can cut it
+      // short — the production TTL is the only bound that can fire, and it then
+      // arrives as `AskExpiredError` instead of the `RejectedError` asserted
+      // below. Without it a regression here shows up as the runner's own
+      // timeout with no message.
+      const context = yield* Layer.buildWithScope(Layer.fresh(harness(ApprovalPresence.make(5_000))), scope)
+
+      const parked = yield* Effect.gen(function* () {
+        const presence = yield* ApprovalPresence.Service
+        yield* presence.bindResponder({ custom: true })
+        const sessionID = yield* setup([{ action: "bash", resource: "*", effect: "ask" }])
+        const service = yield* PermissionV2.Service
+        const events = yield* EventV2.Service
+        const unsubscribe = yield* events.listen((event) =>
+          Effect.sync(() => {
+            if (event.type === PermissionV2.Event.Replied.type) replied.push(event.type)
+          }),
+        )
+        yield* Effect.addFinalizer(() => unsubscribe)
+
+        const fiber = yield* service
+          .assert({ sessionID, action: "bash", resources: ["/tmp/run.sh"], agent: AgentV2.ID.make("test") })
+          .pipe(Effect.exit, Effect.forkScoped)
+        // Wait for the request to actually be pending: forking only guarantees
+        // the fiber started, and closing before `create` would prove nothing.
+        // A present entry is also the control — `assert` deletes it on settle
+        // (`ensuring`), so "still listed" means "still parked", and the failure
+        // below has to have come from the close.
+        const pending = yield* pollWithTimeout(
+          service.forSession(sessionID).pipe(Effect.map((all) => (all.length === 1 ? all : undefined))),
+          "the ask never became pending",
+        )
+        expect(pending).toHaveLength(1)
+        return fiber
+      }).pipe(
+        Effect.provide(context),
+        // Without this, anything throwing above leaves the parked fiber holding
+        // the test scope open and the failure surfaces as a runner timeout.
+        Effect.onError(() => Scope.close(scope, Exit.void)),
+      )
+
+      yield* Scope.close(scope, Exit.void)
+
+      const exit = yield* Fiber.join(parked)
+      expect(Exit.isFailure(exit)).toBe(true)
+      const error = Exit.isFailure(exit) ? Option.getOrUndefined(Cause.findErrorOption(exit.cause)) : undefined
+      expect(error).toBeInstanceOf(PermissionV2.RejectedError)
+      // No reason is carried, so this is indistinguishable from a user rejection
+      // at the type level — see the block comment.
+      expect(replied).toEqual([])
+    }),
+  )
+})
+
 describe("ApprovalPresence × ask TTL (short, live clock)", () => {
   const itTtl = testEffect(harness(ApprovalPresence.make(10)))
   itTtl.live("expires the ask with a typed error once the TTL elapses unanswered", () =>
@@ -356,6 +433,58 @@ describe("ApprovalPresence × ask TTL (short, live clock)", () => {
         expect(Cause.squash(exit.cause) instanceof PermissionV2.AskExpiredError).toBe(true)
       }
       expect(yield* service.forSession(sessionID)).toHaveLength(0)
+    }),
+  )
+})
+
+/**
+ * `make` is exported and its doc comment promises `(0, MAX_TTL_MS]`, but nothing
+ * held it to that. The bound matters in both directions and they fail
+ * differently: a TTL that clamps to 0 turns every ask into an instant expiry
+ * (F0's fix inverted into a denial), while an unbounded one restores the hang F0
+ * removed by parking a tool call until the Location is evicted.
+ *
+ * The last case is the one that would actually bite: production only ever calls
+ * `make(DEFAULT_TTL_MS)`, so a clamp that mangled its own default is the single
+ * reachable defect here, and it is invisible to every other case in this file
+ * because they all pass an explicit TTL.
+ */
+const ttlOf = (ttlMs: number) =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const context = yield* Layer.build(ApprovalPresence.make(ttlMs))
+      return Context.get(context, ApprovalPresence.Service).ttlMs
+    }),
+  )
+
+describe("ApprovalPresence TTL clamp (ADR-20 §2.7)", () => {
+  it.effect("raises a non-positive TTL to a still-waiting window rather than an instant expiry", () =>
+    Effect.gen(function* () {
+      expect(yield* ttlOf(0)).toBe(1)
+      expect(yield* ttlOf(-5)).toBe(1)
+      expect(yield* ttlOf(1)).toBe(1)
+    }),
+  )
+
+  it.effect("caps a TTL above the ceiling so no ask can park indefinitely", () =>
+    Effect.gen(function* () {
+      expect(yield* ttlOf(ApprovalPresence.MAX_TTL_MS + 1)).toBe(ApprovalPresence.MAX_TTL_MS)
+      expect(yield* ttlOf(Number.POSITIVE_INFINITY)).toBe(ApprovalPresence.MAX_TTL_MS)
+    }),
+  )
+
+  it.effect("floors a fractional TTL instead of handing a non-integer to the timeout", () =>
+    Effect.gen(function* () {
+      expect(yield* ttlOf(10.9)).toBe(10)
+    }),
+  )
+
+  it.effect("leaves the shipped default exactly as declared", () =>
+    Effect.gen(function* () {
+      // The positive control, and the only clamp input production reaches.
+      expect(ApprovalPresence.DEFAULT_TTL_MS).toBe(300_000)
+      expect(yield* ttlOf(ApprovalPresence.DEFAULT_TTL_MS)).toBe(ApprovalPresence.DEFAULT_TTL_MS)
+      expect(ApprovalPresence.DEFAULT_TTL_MS).toBeLessThan(ApprovalPresence.MAX_TTL_MS)
     }),
   )
 })

@@ -385,6 +385,200 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
     }),
   )
 
+  /**
+   * The rollout gate's two paths (M3 Phase G §7.2). The existing kill-switch
+   * case above covers admission and the pending call; what neither it nor
+   * anything else covered is the **tool catalog**, which is the half that
+   * decides what the model can see. `registeredNames` alone is not enough
+   * either — `materialize()` is what reaches the provider, and a name can be
+   * absent from one while present in the other (testing.md §10 red line 4).
+   *
+   * Rollback here is deliberately **lazy**, and that is measured, not assumed:
+   * flipping the env leaves the child process running and its tools both
+   * registered and materialized until the next `connect`/`callTool` reaches the
+   * check and tears the connection down. That is not an authorization hole —
+   * every call after the flip is rejected before dispatch — but it is a real
+   * mounted window, so it is pinned rather than glossed. Operationally the
+   * rollback is env flip plus restart, which releases everything through the
+   * Location scope.
+   */
+  const echoOf = (server: string) => `mcp_${server}_echo`
+  const catalogHas = (server: string) =>
+    Effect.gen(function* () {
+      const registry = yield* ToolRegistry.Service
+      const { definitions } = yield* registry.materialize()
+      return {
+        registered: registry.registeredNames().has(echoOf(server)),
+        materialized: definitions.some((definition) => definition.name === echoOf(server)),
+      }
+    })
+
+  /**
+   * Stricter than `alive`, on purpose. `alive` counts a zombie as dead — right
+   * for "did we kill it", wrong for "did the owner let go", because an unreaped
+   * child is exactly what a leaked stream reader or death-watcher fiber looks
+   * like from outside.
+   *
+   * Two implementations because the two CI legs offer different evidence, and
+   * this suite runs on windows-latest as well (`test.yml:32`):
+   *
+   * - Linux reads `/proc/<pid>/cmdline`, which also settles identity, so a pid
+   *   recycled onto another process cannot read as "still ours".
+   * - Elsewhere `process.kill(pid, 0)` answers existence only (measured: `true`
+   *   while running, `ESRCH` once gone). A zombie still occupies the table and
+   *   so reads as not-yet-reaped, which is the semantics wanted here. It cannot
+   *   detect recycling, but that direction only weakens the assertion — it
+   *   cannot manufacture a failure.
+   */
+  const reaped = (pid: number) =>
+    Effect.sync(() => {
+      if (process.platform === "linux") {
+        try {
+          return !readFileSync(`/proc/${pid}/cmdline`, "utf8").includes("fake-mcp-server.mjs")
+        } catch {
+          return true
+        }
+      }
+      try {
+        process.kill(pid, 0)
+        return false
+      } catch {
+        return true
+      }
+    })
+
+  it.live("enable path: the switch gates admission and the catalog together", () =>
+    Effect.gen(function* () {
+      const conn = yield* McpConnection.Service
+      const server = "rollout-on"
+
+      const saved = process.env["AIGCFROGE_CUSTOM_MODE"]
+      delete process.env["AIGCFROGE_CUSTOM_MODE"]
+      const blocked = yield* probe(conn.connect({ binding: binding({ serverName: server }) })).pipe(
+        Effect.ensuring(
+          Effect.sync(() => {
+            if (saved === undefined) delete process.env["AIGCFROGE_CUSTOM_MODE"]
+            else process.env["AIGCFROGE_CUSTOM_MODE"] = saved
+          }),
+        ),
+      )
+      expect(blocked.tag).toBe("McpConnection.McpDisabledError")
+      expect(yield* catalogHas(server)).toEqual({ registered: false, materialized: false })
+
+      // Switched on: the same binding now connects and the tool is visible in
+      // both the registry and the materialized definitions the model receives.
+      const info = yield* conn.connect({ binding: binding({ serverName: server }) })
+      expect(info.health).toBe("ready")
+      expect(yield* catalogHas(server)).toEqual({ registered: true, materialized: true })
+      const called = yield* probe(conn.callTool({ name: echoOf(server), args: { msg: "hi" } }))
+      expect(called.failed).toBe(false)
+
+      yield* conn.disconnect(server)
+      expect(yield* catalogHas(server)).toEqual({ registered: false, materialized: false })
+    }),
+  )
+
+  it.live("rollback path: the catalog empties at the next call, not at the env flip", () =>
+    Effect.gen(function* () {
+      const conn = yield* McpConnection.Service
+      const server = "rollout-off"
+      const info = yield* conn.connect({ binding: binding({ serverName: server }) })
+      if (info.pid === undefined) throw new Error("stdio connection did not expose a pid")
+      expect(yield* catalogHas(server)).toEqual({ registered: true, materialized: true })
+      // Control for the reap assertion below: it must be false while mounted,
+      // otherwise "reaped after rollback" would hold vacuously.
+      expect(yield* reaped(info.pid)).toBe(false)
+
+      const saved = process.env["AIGCFROGE_CUSTOM_MODE"]
+      delete process.env["AIGCFROGE_CUSTOM_MODE"]
+      const result = yield* Effect.gen(function* () {
+        // The mounted window, asserted so a move to eager teardown shows up here
+        // instead of silently changing what the model can see.
+        expect(yield* catalogHas(server)).toEqual({ registered: true, materialized: true })
+        expect(yield* conn.connections()).toHaveLength(1)
+
+        return yield* probe(conn.callTool({ name: echoOf(server), args: { msg: "hi" } }))
+      }).pipe(
+        Effect.ensuring(
+          Effect.sync(() => {
+            if (saved === undefined) delete process.env["AIGCFROGE_CUSTOM_MODE"]
+            else process.env["AIGCFROGE_CUSTOM_MODE"] = saved
+          }),
+        ),
+      )
+
+      expect(result.tag).toBe("McpConnection.McpDisabledError")
+      // Nothing half-mounted once the check has run: no connection, no child, and
+      // the canonical name gone from both the registry and the materialization.
+      expect(yield* conn.connections()).toHaveLength(0)
+      expect(yield* catalogHas(server)).toEqual({ registered: false, materialized: false })
+      yield* waitDead(info.pid)
+      // And the child is reaped, not merely stopped — the observable that a
+      // stream reader or death watcher was released with the owner scope.
+      yield* pollWithTimeout(
+        reaped(info.pid).pipe(Effect.map((gone) => (gone ? true : undefined))),
+        "the killed child was never reaped",
+      )
+    }),
+  )
+
+  /**
+   * Mid-session OAuth expiry, detected locally (ruling of 2026-08-27).
+   *
+   * `requestOn` already re-resolves the binding before every credentialed call,
+   * which is what makes revocation take effect immediately — but it did not
+   * re-check `expires`. So a token that expired after the handshake stayed
+   * invisible locally and only surfaced if the remote answered 401, which then
+   * mapped to `CredentialMissingError`: the user was told the credential was
+   * absent when it had merely expired, and a server answering 403 or
+   * 200-with-error was reported as `offline` instead.
+   *
+   * The same predicate now runs at both admission points, so the two cannot
+   * drift. No clock tolerance: connect-time has shipped without it, and adding
+   * grace in one place only would mean two different expiry rules, while adding
+   * it in both would let a nearly-expired token connect and then fail on its
+   * first call — worse feedback than refusing the connection.
+   */
+  it.live("fails a call whose OAuth credential expired after the handshake, as expired and not as missing", () =>
+    Effect.gen(function* () {
+      const credential = yield* Credential.Service
+      const bindings = yield* McpCredentialBindingStore.Service
+      const conn = yield* McpConnection.Service
+      const oauth = (expires: number) =>
+        Schema.decodeUnknownSync(Credential.OAuth)({
+          type: "oauth",
+          methodID: "oauth",
+          refresh: "refresh",
+          access: "sk-live-midsession-0123456789abcdef",
+          expires,
+        })
+      const created = yield* credential.create({
+        integrationID: Integration.ID.make("int_midsession_expiry"),
+        value: oauth(Math.floor(Date.now() / 1000) + 3600),
+        label: "mid-session expiry",
+      })
+      yield* bindings.bind({ serverName: "expiring", credentialRef: String(created.id) })
+      yield* conn.connect({ binding: binding({ serverName: "expiring", credentialRef: String(created.id) }) })
+
+      // Control: while the token is valid the call goes through, so the failure
+      // below is caused by the expiry and not by the credential path in general.
+      expect((yield* probe(conn.callTool({ name: "mcp_expiring_echo", args: { msg: "hi" } }))).failed).toBe(false)
+      expect(yield* conn.health("expiring")).toBe("ready")
+
+      yield* credential.update(created.id, { value: oauth(Math.floor(Date.now() / 1000) - 1) })
+
+      const result = yield* probe(conn.callTool({ name: "mcp_expiring_echo", args: { msg: "hi" } }))
+      expect(result.tag).toBe("McpConnection.CredentialExpiredError")
+
+      // And it is legible as such: `auth-required` tells the user to go
+      // re-authorize, which is the whole point of detecting expiry locally. This
+      // needed the `ready -> auth-required` edge, whose absence had made the
+      // call path's existing intent unreachable from a live connection.
+      expect(yield* conn.health("expiring")).toBe("auth-required")
+      yield* conn.disconnect("expiring")
+    }),
+  )
+
   it.live("disconnect kills that server's child and further calls fail closed", () =>
     Effect.gen(function* () {
       const conn = yield* McpConnection.Service
@@ -394,6 +588,60 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
       yield* waitDead(info.pid)
       const result = yield* probe(conn.callTool({ name: "mcp_fake_echo", args: { msg: "hi" } }))
       expect(result.tag).toBe("McpConnection.NotConnectedError")
+    }),
+  )
+
+  /**
+   * The death watcher (`connection.ts:517-526`), which had no test: every other
+   * crash case here is a *startup* crash, where the failure surfaces from
+   * `connect` and no request is in flight.
+   *
+   * Post-handshake death is the shape that matters at runtime — the child is
+   * gone but the caller is parked on a `Deferred` that only `failAll` can
+   * resolve. Its five production reasons were all unasserted, so a watcher that
+   * reported the wrong cause, or reported nothing and left the request hanging,
+   * looked identical to a healthy suite.
+   */
+  it.live("fails an in-flight call with the child's exit code and leaves sibling servers usable", () =>
+    Effect.gen(function* () {
+      const marker = path.join("/tmp", `aigcfroge-mcp-die-${randomUUID()}`)
+      const conn = yield* McpConnection.Service
+      yield* conn.connect({ binding: binding({ serverName: "survivor" }) })
+      const dying = yield* conn.connect({
+        binding: binding({ serverName: "dying", command: [process.execPath, FIXTURE, "diemidcall", marker] }),
+      })
+      if (dying.pid === undefined) throw new Error("stdio connection did not expose a pid")
+
+      const inflight = yield* Effect.forkScoped(probe(conn.callTool({ name: "mcp_dying_echo", args: { msg: "hi" } })))
+      // The marker is written before the child exits, so reaching it proves the
+      // call was genuinely in flight rather than rejected before dispatch.
+      yield* pollWithTimeout(
+        Effect.promise(() => Bun.file(marker).exists()).pipe(Effect.map((exists) => (exists ? marker : undefined))),
+        "the dying server never observed the tool call",
+      )
+
+      const result = yield* Fiber.join(inflight)
+      expect(result.failed).toBe(true)
+      expect(result.tag).toBe("McpConnection.ProcessStartError")
+      expect(result.reason).toBe("process exited with code 7")
+      yield* waitDead(dying.pid)
+      expect(yield* conn.health("dying")).toBe("offline")
+
+      // A known canonical name must keep failing as a dead connection, not decay
+      // into UnknownToolError — and the reason distinguishes "died just now"
+      // from "was already closed".
+      const after = yield* probe(conn.callTool({ name: "mcp_dying_echo", args: { msg: "again" } }))
+      expect(after.tag).toBe("McpConnection.ProcessStartError")
+      expect(after.reason).toBe("connection closed")
+
+      // The positive control, and the isolation claim: one server dying must not
+      // take its siblings down with it.
+      const survivor = yield* probe(conn.callTool({ name: "mcp_survivor_echo", args: { msg: "ok" } }))
+      expect(survivor.failed).toBe(false)
+      expect(yield* conn.health("survivor")).toBe("ready")
+
+      yield* conn.disconnect("survivor")
+      yield* Effect.promise(() => Bun.file(marker).delete()).pipe(Effect.ignore)
     }),
   )
 
@@ -693,6 +941,11 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
         ["ready", "degraded"],
         ["ready", "offline"],
         ["ready", "revoked"],
+        // Sibling of `ready -> revoked` above: both are credential failures
+        // raised by the same `requestOn` catch, a few lines apart. The table
+        // admitted one and omitted the other, which is why the call path's
+        // `auth-required` intent was never reachable from a live connection.
+        ["ready", "auth-required"],
         ["degraded", "connecting"],
         ["degraded", "ready"],
         ["degraded", "offline"],
@@ -705,7 +958,6 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
       )
 
       for (const [from, to] of [
-        ["ready", "auth-required"],
         ["offline", "ready"],
         ["auth-required", "ready"],
         ["revoked", "ready"],
