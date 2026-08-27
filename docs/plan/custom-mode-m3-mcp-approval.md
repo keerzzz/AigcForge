@@ -201,6 +201,6 @@ M3 的根问题不是「让 Profile 能选 MCP」，而是让外部工具在一�
 ## 7. 分支策略
 
 - 研究/ADR 走 `mcp-scope-adr`（Phase A，**已合入 main `7a2804624`**）；Phase B 走 `mcp-registration`（**已交付，复审整改完成，未推送**）。
-- 实现分支现状（全部合入本地 `main`，未推送）：`mcp-scope-adr`（Phase A）、`mcp-registration`（Phase B）、`scoped-grants`（Phase D）、`approval-preflight`（F0）、`mcp-connection`（Phase C Slice 0-4）、`mcp-composition`（Phase E）、`ceiling-display` 与 `approval-client` 与 `approval-scopes`（F1-F4）、`global-event-harness`（F1 遗留回归修复）。**剩余：F5（浏览器 auto-accept 收敛，待产品/安全裁定）与 Phase G（故障注入与灰度）。**
+- 实现分支现状（全部合入本地 `main`，未推送）：`mcp-scope-adr`（Phase A）、`mcp-registration`（Phase B）、`scoped-grants`（Phase D）、`approval-preflight`（F0）、`mcp-connection`（Phase C Slice 0-4）、`mcp-composition`（Phase E）、`ceiling-display` 与 `approval-client` 与 `approval-scopes`（F1-F4）、`global-event-harness`（F1 遗留回归修复）、`auto-accept-boundary`（F5）。**剩余：Phase G（故障注入与灰度）。** F5 的产出是把「浏览器 auto-accept 只应答 V1 ask」从事件名巧合改成类型强制的边界（放宽守卫即 typecheck 失败，双向红证），因此 custom/MCP 审批不可能被浏览器自动放行，**F5 不构成 Phase G 的前置**；V1 面 `base64(directory)/*` 通配键的三种处置属产品裁定，已转 [technical-debt](../technical-debt.md) §4。
 - 按现行安排：M3 各阶段分支在本地依次叠加，**全部阶段结束后统一开一个 PR**，不逐阶段推送。不与 M4 Plugin 生命周期修改混在同一 PR。
 - 执行细则、必读清单、TDD 循环与停止条件见 [执行提示词](prompt-custom-mode-m3-mcp-approval.md)。
