@@ -56,6 +56,17 @@ function runActive(options: Options, scenario: ActiveScenario) {
 
 function runAuth(scenario: ActiveScenario) {
   return Effect.gen(function* () {
+    // The auth probe reuses the same web handler and the same `memoMap` as the
+    // normal path, and the TaskDriver runtime state lives inside `AppLayer`.
+    // `withContext` is what builds that layer into the memo map, and auth mode
+    // skips `withContext` entirely — so nothing populated it and every probe,
+    // including public routes like `/global/health`, died on "TaskDriver runtime
+    // state is not provided" rather than reporting 401/200. Building it here is
+    // the same call `withContext` makes; `buildWithMemoMap` memoizes, so only
+    // the first scenario pays for it.
+    const modules = yield* Effect.promise(() => runtime())
+    yield* Layer.buildWithMemoMap(modules.AppLayer, modules.memoMap, yield* Scope.Scope)
+
     const result = yield* callAuthProbe(scenario, "missing")
     if (scenario.auth === "protected") {
       if (result.status !== 401) throw new Error(`auth expected 401, got ${result.status}`)
