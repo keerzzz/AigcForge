@@ -8,6 +8,7 @@ import { Config } from "../../src/config/config"
 import { Installation } from "../../src/installation"
 import { MoveSession } from "@aigcfroge/core/control-plane/move-session"
 import { EventV2 } from "@aigcfroge/core/event"
+import { ApprovalPresence } from "@aigcfroge/core/permission/approval-presence"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { Event } from "../../src/server/event"
 import { ServerAuth } from "../../src/server/auth"
@@ -24,6 +25,10 @@ const apiLayer = HttpRouter.serve(
   HttpApiBuilder.layer(RootHttpApi).pipe(
     Layer.provide([controlHandlers, controlPlaneHandlers, globalHandlers]),
     Layer.provide([authorizationLayer, schemaErrorLayer]),
+    // Mirrors the production graph (httpapi/server.ts:163). The global event
+    // stream binds itself as an approval responder, so leaving this out makes
+    // every stream request 500 while the two non-streaming routes still pass.
+    Layer.provide(ApprovalPresence.defaultLayer),
     // Raw HttpApi routes expose an opaque handler context at the request boundary.
     // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
     HttpRouter.provideRequest(Layer.succeedContext(Context.empty() as Context.Context<unknown>)),
