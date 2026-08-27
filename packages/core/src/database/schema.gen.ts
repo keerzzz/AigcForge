@@ -175,6 +175,8 @@ export default {
       yield* tx.run(`
         CREATE TABLE \`scoped_grant\` (
           \`id\` text PRIMARY KEY,
+          \`directory\` text DEFAULT '' NOT NULL,
+          \`workspace_id\` text DEFAULT '' NOT NULL,
           \`level\` text NOT NULL,
           \`session_id\` text,
           \`action\` text NOT NULL,
@@ -516,9 +518,11 @@ export default {
       yield* tx.run(`CREATE UNIQUE INDEX \`event_aggregate_seq_idx\` ON \`event\` (\`aggregate_id\`,\`seq\`);`)
       yield* tx.run(`CREATE INDEX \`event_aggregate_type_seq_idx\` ON \`event\` (\`aggregate_id\`,\`type\`,\`seq\`);`)
       yield* tx.run(
-        `CREATE INDEX \`scoped_grant_session_issued_idx\` ON \`scoped_grant\` (\`session_id\`,\`issued_at\`);`,
+        `CREATE INDEX \`scoped_grant_location_session_issued_idx\` ON \`scoped_grant\` (\`directory\`,\`workspace_id\`,\`session_id\`,\`issued_at\`);`,
       )
-      yield* tx.run(`CREATE INDEX \`scoped_grant_level_issued_idx\` ON \`scoped_grant\` (\`level\`,\`issued_at\`);`)
+      yield* tx.run(
+        `CREATE INDEX \`scoped_grant_location_level_issued_idx\` ON \`scoped_grant\` (\`directory\`,\`workspace_id\`,\`level\`,\`issued_at\`);`,
+      )
       yield* tx.run(
         `CREATE UNIQUE INDEX \`mcp_binding_directory_workspace_server_idx\` ON \`mcp_credential_binding\` (\`directory\`,\`workspace_id\`,\`server_name\`);`,
       )

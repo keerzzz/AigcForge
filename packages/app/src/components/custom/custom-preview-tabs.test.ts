@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { Plan, Instruction } from "@aigcfroge/schema/composition"
 import type { CompositionPlan } from "@aigcfroge/sdk/v2/client"
-import { planPreviewSummary } from "./custom-preview-tabs"
+import { mcpPreviewState, mcpPreviewSummary, planPreviewSummary } from "./custom-preview-tabs"
 
 describe("custom-preview-tabs model logic", () => {
   test("summarizes the server plan's workflow, agent pool, concurrency, and cost", () => {
@@ -78,5 +78,65 @@ describe("custom-preview-tabs model logic", () => {
     expect(blocking.length).toBe(1)
     expect(blocking[0]?.code).toBe("duplicate_agent_name")
     expect(warnings.length).toBe(1)
+  })
+
+  test("keeps server-provided MCP health, denials, and top-level MCP diagnostics unchanged", () => {
+    const ref = { kind: "mcp" as const, relativePath: ".aigcfroge/mcp/search.yaml", revision: "rev-1" }
+    const plan: Partial<CompositionPlan> = {
+      mcp: {
+        requested: [{ serverName: "search", ref }],
+        effective: [{
+          serverName: "search",
+          ref,
+          credentialStatus: "available",
+          health: "degraded",
+          tools: ["mcp_search_query"],
+        }],
+        denied: [{
+          serverName: "private-search",
+          ref,
+          reason: "binding_mismatch",
+        }],
+      },
+      diagnostics: [
+        { severity: "error", code: "mcp_not_ready", message: "Server is revoked", asset: ref },
+        { severity: "warning", code: "mcp_binding_mismatch", message: "Binding changed" },
+        { severity: "warning", code: "missing_doc", message: "Unrelated diagnostic" },
+      ],
+    }
+
+    const summary = mcpPreviewSummary(plan)
+    expect(summary.effective[0]?.health).toBe("degraded")
+    expect(summary.effective[0]?.credentialStatus).toBe("available")
+    expect(summary.denied[0]?.reason).toBe("binding_mismatch")
+    expect("health" in (summary.denied[0] ?? {})).toBe(false)
+    expect(summary.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
+      "mcp_not_ready",
+      "mcp_binding_mismatch",
+    ])
+  })
+
+  test("distinguishes MCP loading, error, unavailable, empty, and content states", () => {
+    const emptyPlan: Partial<CompositionPlan> = {
+      mcp: { requested: [], effective: [], denied: [] },
+      diagnostics: [],
+    }
+    const requestedPlan: Partial<CompositionPlan> = {
+      mcp: {
+        requested: [{
+          serverName: "search",
+          ref: { kind: "mcp", relativePath: ".aigcfroge/mcp/search.yaml", revision: "rev-1" },
+        }],
+        effective: [],
+        denied: [],
+      },
+      diagnostics: [],
+    }
+
+    expect(mcpPreviewState({ plan: undefined, loading: true, error: "stale" })).toBe("loading")
+    expect(mcpPreviewState({ plan: undefined, error: "failed" })).toBe("error")
+    expect(mcpPreviewState({ plan: undefined })).toBe("unavailable")
+    expect(mcpPreviewState({ plan: emptyPlan })).toBe("empty")
+    expect(mcpPreviewState({ plan: requestedPlan })).toBe("content")
   })
 })

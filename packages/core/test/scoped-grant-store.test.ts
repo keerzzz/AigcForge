@@ -3,6 +3,9 @@ import { Context, Deferred, Duration, Effect, Exit, Layer, Ref, Schema, Scope } 
 import * as TestClock from "effect/testing/TestClock"
 import { eq, sql } from "drizzle-orm"
 import { Database } from "@aigcfroge/core/database/database"
+import { Location } from "@aigcfroge/core/location"
+import { Project } from "@aigcfroge/core/project"
+import { AbsolutePath } from "@aigcfroge/core/schema"
 import { EventTable } from "@aigcfroge/core/event/sql"
 import { EventV2 } from "@aigcfroge/core/event"
 import { ScopedGrantStore } from "@aigcfroge/core/grant/store"
@@ -11,9 +14,16 @@ import { SessionV2 } from "@aigcfroge/core/session"
 import { Composition } from "@aigcfroge/schema/composition"
 import { testEffect } from "./lib/effect"
 
+const current = Layer.succeed(
+  Location.Service,
+  Location.Service.of({
+    directory: AbsolutePath.make("/project"),
+    project: { id: Project.ID.global, directory: AbsolutePath.make("/project") },
+  }),
+)
 const dependencies = Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer)
-const grants = ScopedGrantStore.locationLayer.pipe(Layer.provide(dependencies))
-const it = testEffect(Layer.merge(dependencies, grants))
+const grants = ScopedGrantStore.locationLayer.pipe(Layer.provide(Layer.mergeAll(dependencies, current)))
+const it = testEffect(Layer.mergeAll(dependencies, current, grants))
 
 const sessionA = SessionV2.ID.make("ses_grant_a")
 const sessionB = SessionV2.ID.make("ses_grant_b")
@@ -243,8 +253,8 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
       const healthy = yield* store.issue({ scope: { level: "location" }, action: "grep", resources: ["*"] })
       const now = Date.now()
       yield* db.run(sql`
-        INSERT INTO scoped_grant (id, level, action, resources, asset_revision, issued_at, grant_revision, time_created, time_updated)
-        VALUES ('grt_corrupt_history', 'location', 'read', '["*"]', 'not-a-revision', ${now}, 1, ${now}, ${now})
+        INSERT INTO scoped_grant (id, directory, workspace_id, level, action, resources, asset_revision, issued_at, grant_revision, time_created, time_updated)
+        VALUES ('grt_corrupt_history', '/project', '', 'location', 'read', '["*"]', 'not-a-revision', ${now}, 1, ${now}, ${now})
       `)
 
       const listed = yield* store.list()
@@ -265,14 +275,50 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
       const query = db
         .select()
         .from(ScopedGrantTable)
-        .where(ScopedGrantStore.listFilter(input, ScopedGrantStore.retentionCutoff(now, input.retentionMs)))
+        .where(ScopedGrantStore.listFilter(input, ScopedGrantStore.retentionCutoff(now, input.retentionMs), {
+            directory: "/project",
+          }))
       const { sql: text } = query.toSQL()
       const plan = yield* db.all<{ detail: string }>(sql.raw(`EXPLAIN QUERY PLAN ${text.replaceAll("?", "1")}`))
       const details = plan.map((row) => row.detail)
-      expect(details.some((detail) => detail.includes("scoped_grant_session_issued_idx"))).toBe(true)
-      expect(details.some((detail) => detail.includes("scoped_grant_level_issued_idx"))).toBe(true)
+      expect(details.some((detail) => detail.includes("scoped_grant_location_session_issued_idx"))).toBe(true)
+      expect(details.some((detail) => detail.includes("scoped_grant_location_level_issued_idx"))).toBe(true)
       // A full scan would mean the indexes exist but serve nothing.
       expect(details.some((detail) => detail.includes("SCAN scoped_grant"))).toBe(false)
+    }),
+  )
+
+  it.effect("does not expose a Location grant through another Location store", () =>
+    Effect.gen(function* () {
+      const scope = yield* Scope.make()
+      const database = yield* Database.Service
+      const events = yield* EventV2.Service
+      const storeFor = (directory: string) =>
+        Layer.fresh(
+          ScopedGrantStore.locationLayer.pipe(
+            Layer.provide(
+              Layer.mergeAll(
+                Layer.succeed(
+                  Location.Service,
+                  Location.Service.of({
+                    directory: AbsolutePath.make(directory),
+                    project: { id: Project.ID.global, directory: AbsolutePath.make(directory) },
+                  }),
+                ),
+                Layer.succeed(Database.Service, database),
+                Layer.succeed(EventV2.Service, events),
+              ),
+            ),
+          ),
+        )
+      const first = Context.get(yield* Layer.buildWithScope(storeFor("/grant-location-a"), scope), ScopedGrantStore.Service)
+      const second = Context.get(yield* Layer.buildWithScope(storeFor("/grant-location-b"), scope), ScopedGrantStore.Service)
+
+      const issued = yield* first.issue({ scope: { level: "location" }, action: "bash", resources: ["*"] })
+      expect(yield* second.get(issued.grant.id)).toBeUndefined()
+      expect(yield* second.list()).toEqual([])
+      expect(yield* second.findValid({ action: "bash", resources: ["*"] })).toBeUndefined()
+      yield* Scope.close(scope, Exit.void)
     }),
   )
 

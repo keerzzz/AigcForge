@@ -34,4 +34,15 @@ describe("SessionPermissionDock", () => {
     expect(dock).toContain('data-slot="permission-patterns"')
     expect(dock).toContain("request().resources.length > 0")
   })
+
+  // The "V2 must never answer `always`" invariant used to live here as a regex
+  // over this file. It is now carried by `PermissionDecisionInput`: each button
+  // can only build the pair its narrowed branch permits, so the illegal
+  // combination does not compile. The behavioural half is asserted in
+  // context/global-sync/permission-pending.test.ts (routing plus two type-negative
+  // cases). A regex here would only re-assert the shape of code the compiler
+  // already refuses to accept.
+  //
+  // Note: do not write the expect-error directive name in a comment — TypeScript
+  // parses it as a real directive and reports it as unused.
 })

@@ -7,6 +7,8 @@ import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
  */
 export const ScopedGrantTable = sqliteTable("scoped_grant", {
   id: text().primaryKey(),
+  directory: text().notNull().default(""),
+  workspace_id: text().notNull().default(""),
   level: text().$type<"once" | "session" | "location">().notNull(),
   session_id: text(),
   action: text().notNull(),
@@ -25,6 +27,6 @@ export const ScopedGrantTable = sqliteTable("scoped_grant", {
     .notNull()
     .$onUpdate(() => Date.now()),
 }, (table) => [
-  index("scoped_grant_session_issued_idx").on(table.session_id, table.issued_at),
-  index("scoped_grant_level_issued_idx").on(table.level, table.issued_at),
+  index("scoped_grant_location_session_issued_idx").on(table.directory, table.workspace_id, table.session_id, table.issued_at),
+  index("scoped_grant_location_level_issued_idx").on(table.directory, table.workspace_id, table.level, table.issued_at),
 ])

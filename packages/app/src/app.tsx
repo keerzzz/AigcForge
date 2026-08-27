@@ -42,6 +42,7 @@ import { ErrorPage } from "./pages/error"
 import { useCheckServerHealth } from "./utils/server-health"
 import { requireServerKey, rootSession, sessionHref } from "./utils/session-route"
 import { launchModeSession } from "@/pages/layout/helpers"
+import { ApprovalCenter } from "@/components/approval-center"
 
 import Session from "@/pages/session"
 import { ModeWorkspace } from "@/pages/mode-workspace"
@@ -152,6 +153,7 @@ function ResolvedTargetSessionRoute() {
 	      <Show when={directory()}>
 	        <SDKProvider directory={targetDirectory}>
 	          <DirectoryDataProvider directory={targetDirectory} server={serverKey}>
+	            <ApprovalCenter />
 	            <TargetSessionPage />
 	          </DirectoryDataProvider>
 	        </SDKProvider>
@@ -218,6 +220,7 @@ function ResolvedDraftRoute(props: { draft: DraftTab }) {
         <TargetServerScopedProviders directory={directory}>
           <SDKProvider directory={directory}>
             <DirectoryDataProvider directory={directory} server={serverKey}>
+              <ApprovalCenter />
               <DraftProviders>
                 <NewSession />
               </DraftProviders>

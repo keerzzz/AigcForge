@@ -282,7 +282,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
     idleTimeToLive: "60 minutes",
     dependencies: [
       Project.defaultLayer,
-      EventV2.defaultLayer,
+      EventV2.layer.pipe(Layer.provide(Database.defaultLayer)),
       Credential.defaultLayer,
       Npm.defaultLayer,
       ModelsDev.defaultLayer,

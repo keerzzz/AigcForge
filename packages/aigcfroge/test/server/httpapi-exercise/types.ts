@@ -1,5 +1,6 @@
 import type { Duration, Effect } from "effect"
 import type { PermissionV2 } from "@aigcfroge/core/permission"
+import type { ScopedGrantStore } from "@aigcfroge/core/grant/store"
 import type { SessionTask } from "@aigcfroge/core/session/task"
 import type { KBNote } from "@aigcfroge/schema/kb-note"
 import type { PersonalMemory as PersonalMemorySchema } from "@aigcfroge/schema/personal-memory"
@@ -60,13 +61,21 @@ export type ScenarioContext = {
   file: (name: string, content: string) => Effect.Effect<void>
   session: (input?: { title?: string; parentID?: SessionID }) => Effect.Effect<SessionInfo>
   sessionGet: (sessionID: SessionID) => Effect.Effect<SessionInfo | undefined>
-  customSession: (input?: { title?: string; workflow?: boolean }) => Effect.Effect<{ session: SessionInfo; snapshot: unknown }>
+  customSession: (input?: {
+    title?: string
+    workflow?: boolean
+  }) => Effect.Effect<{ session: SessionInfo; snapshot: unknown }>
   permissionV2: (input: {
     sessionID: SessionID
     action: string
     resources: string[]
   }) => Effect.Effect<PermissionV2.AskResult>
   pendingPermissionV2: () => Effect.Effect<ReadonlyArray<PermissionV2.Request>>
+  grantIssue: (input: {
+    scope: { level: "once" } | { level: "session"; sessionID: SessionID } | { level: "location" }
+    action: string
+    resources: string[]
+  }) => Effect.Effect<ScopedGrantStore.Info>
   project: () => Effect.Effect<Project.Info>
   message: (sessionID: SessionID, input?: { text?: string }) => Effect.Effect<MessageSeed>
   messages: (sessionID: SessionID) => Effect.Effect<SessionV1.WithParts[]>

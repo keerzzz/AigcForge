@@ -6,7 +6,7 @@ import {
   permissionReplyFromV2,
   permissionReply,
   permissionPresentation,
-  replyPermission,
+  decidePermission,
   type PermissionV2Pending,
 } from "./permission-pending"
 
@@ -57,7 +57,9 @@ describe("permission pending adapters", () => {
 
   test("rejects malformed V2 reply payloads", () => {
     expect(permissionReplyFromV2({ sessionID: "ses_custom" })).toBeUndefined()
-    expect(permissionReplyFromV2({ sessionID: "ses_custom", requestID: "per_v2", reply: "allow_everything" })).toBeUndefined()
+    expect(
+      permissionReplyFromV2({ sessionID: "ses_custom", requestID: "per_v2", reply: "allow_everything" }),
+    ).toBeUndefined()
     expect(permissionReplyFromV2({ sessionID: "ses_custom", requestID: "per_v2", reply: "once" })).toEqual({
       sessionID: "ses_custom",
       requestID: "per_v2",
@@ -91,6 +93,40 @@ describe("permission pending adapters", () => {
   })
 })
 
+test("routes scoped decisions through the grant endpoint and rejects them for legacy requests", async () => {
+  const calls: Array<{ route: string; input: unknown }> = []
+  const client = {
+    permission: { respond: async () => undefined },
+    v2: {
+      session: {
+        permission: {
+          reply: async () => calls.push({ route: "reply", input: null }),
+          grant: async (input: unknown) => {
+            calls.push({ route: "grant", input })
+          },
+        },
+      },
+    },
+  }
+
+  await decidePermission(client, { request: { kind: "v2", request: v2() }, decision: "session" })
+  await decidePermission(client, { request: { kind: "v2", request: v2() }, decision: "location" })
+
+  // A scoped grant on a legacy request used to be a runtime throw. It is now a
+  // compile error, which is strictly stronger: the call cannot be written at all,
+  // so no runtime guard has to survive future refactors to keep it out.
+  // @ts-expect-error a legacy request has no ScopedGrant to issue
+  void (() => decidePermission(client, { request: permissionPendingFromLegacy(legacy()), decision: "session" }))
+  // …and the reverse: `always` is a project-wide legacy rule, never a V2 answer.
+  // @ts-expect-error a V2 request must not take the legacy `always` path
+  void (() => decidePermission(client, { request: { kind: "v2", request: v2() }, decision: "always" }))
+
+  expect(calls).toEqual([
+    { route: "grant", input: { sessionID: "ses_custom", requestID: "per_v2", level: "session" } },
+    { route: "grant", input: { sessionID: "ses_custom", requestID: "per_v2", level: "location" } },
+  ])
+})
+
 test("dispatches each pending request through its owned reply endpoint", async () => {
   const calls: Array<{ route: string; input: unknown }> = []
   const client = {
@@ -105,13 +141,14 @@ test("dispatches each pending request through its owned reply endpoint", async (
           reply: async (input: unknown) => {
             calls.push({ route: "v2", input })
           },
+          grant: async () => undefined,
         },
       },
     },
   }
 
-  await replyPermission(client, permissionPendingFromLegacy(legacy()), "reject")
-  await replyPermission(client, { kind: "v2", request: v2() }, "once")
+  await decidePermission(client, { request: permissionPendingFromLegacy(legacy()), decision: "reject" })
+  await decidePermission(client, { request: { kind: "v2", request: v2() }, decision: "once" })
 
   expect(calls).toEqual([
     {

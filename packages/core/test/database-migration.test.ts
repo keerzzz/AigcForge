@@ -24,6 +24,7 @@ import addSessionCompositionSnapshotMigration from "@aigcfroge/core/database/mig
 import scopedGrantMigration from "@aigcfroge/core/database/migration/20260823072731_wakeful_lady_bullseye"
 import scopedGrantRetentionIndexMigration from "@aigcfroge/core/database/migration/20260823210409_scoped_grant_retention_index"
 import scopedGrantLevelIndexMigration from "@aigcfroge/core/database/migration/20260824010035_scoped_grant_level_issued_index"
+import scopedGrantLocationMigration from "@aigcfroge/core/database/migration/20260826074345_scoped_grant_location"
 import mcpCredentialBindingMigration from "@aigcfroge/core/database/migration/20260825033229_secret_rachel_grey"
 import workflowDurableProjectionMigration from "@aigcfroge/core/database/migration/20260820130142_cynical_sasquatch"
 import { EventV2 } from "@aigcfroge/core/event"
@@ -97,13 +98,13 @@ describe("DatabaseMigration", () => {
         expect(yield* db.get(sql`SELECT count(*) as count FROM migration`)).toEqual({ count: migrations.length })
         expect(
           yield* db.all(
-            sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('event_aggregate_seq_idx', 'event_aggregate_type_seq_idx', 'session_input_session_pending_seq_idx', 'session_input_session_pending_delivery_seq_idx', 'session_input_session_admitted_seq_idx', 'session_input_session_promoted_seq_idx', 'session_message_session_idx', 'session_message_session_type_idx', 'session_message_session_seq_idx', 'session_message_session_type_seq_idx', 'session_message_session_time_created_id_idx', 'scoped_grant_session_issued_idx', 'scoped_grant_level_issued_idx') ORDER BY name`,
+            sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('event_aggregate_seq_idx', 'event_aggregate_type_seq_idx', 'session_input_session_pending_seq_idx', 'session_input_session_pending_delivery_seq_idx', 'session_input_session_admitted_seq_idx', 'session_input_session_promoted_seq_idx', 'session_message_session_idx', 'session_message_session_type_idx', 'session_message_session_seq_idx', 'session_message_session_type_seq_idx', 'session_message_session_time_created_id_idx', 'scoped_grant_location_session_issued_idx', 'scoped_grant_location_level_issued_idx') ORDER BY name`,
           ),
         ).toEqual([
           { name: "event_aggregate_seq_idx" },
           { name: "event_aggregate_type_seq_idx" },
-          { name: "scoped_grant_level_issued_idx" },
-          { name: "scoped_grant_session_issued_idx" },
+          { name: "scoped_grant_location_level_issued_idx" },
+          { name: "scoped_grant_location_session_issued_idx" },
           { name: "session_input_session_admitted_seq_idx" },
           { name: "session_input_session_pending_delivery_seq_idx" },
           { name: "session_input_session_promoted_seq_idx" },
@@ -111,6 +112,30 @@ describe("DatabaseMigration", () => {
           { name: "session_message_session_time_created_id_idx" },
           { name: "session_message_session_type_seq_idx" },
         ])
+        // `apply` on a truly empty database runs the drizzle snapshot, not the
+        // hand-written migrations (migration.ts:26-38), so this leg pins what a
+        // FRESH install gets. The pre-Location indexes must be absent from the
+        // snapshot too, otherwise fresh and migrated installs diverge.
+        expect(
+          yield* db.all(
+            sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('scoped_grant_session_issued_idx', 'scoped_grant_level_issued_idx')`,
+          ),
+        ).toEqual([])
+        // Name assertions alone would survive an index that serves nothing (the
+        // F0 defect). Assert the planner actually reaches for each one.
+        for (const [predicate, index] of [
+          ["session_id = 'ses_1'", "scoped_grant_location_session_issued_idx"],
+          ["level = 'location'", "scoped_grant_location_level_issued_idx"],
+        ] as const) {
+          const plan = yield* db.all<{ detail: string }>(
+            sql.raw(
+              `EXPLAIN QUERY PLAN SELECT * FROM scoped_grant WHERE directory = '/x' AND workspace_id = '' AND ${predicate} ORDER BY issued_at`,
+            ),
+          )
+          const details = plan.map((row) => row.detail).join(" | ")
+          expect(details).toContain(index)
+          expect(details).not.toContain("SCAN scoped_grant")
+        }
       }),
     )
   })
@@ -1287,6 +1312,55 @@ describe("DatabaseMigration", () => {
         // Rerunning both migrations keeps the row and index intact.
         yield* DatabaseMigration.applyOnly(db, [scopedGrantMigration, scopedGrantRetentionIndexMigration, scopedGrantLevelIndexMigration])
         expect(yield* db.all(sql`SELECT id FROM scoped_grant`)).toEqual([{ id: "grt_test" }])
+      }),
+    )
+  })
+
+  test("partitions scoped_grant by Location on an existing database, drops unattributable grants and reruns clean", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY)`)
+        yield* DatabaseMigration.applyOnly(db, [
+          scopedGrantMigration,
+          scopedGrantRetentionIndexMigration,
+          scopedGrantLevelIndexMigration,
+        ])
+        yield* db.run(sql`
+          INSERT INTO scoped_grant (id, level, action, resources, issued_at, time_created, time_updated)
+          VALUES ('grt_legacy_a', 'session', 'bash', '["*"]', 1000, 1000, 1000),
+                 ('grt_legacy_b', 'location', 'edit', '["*"]', 1001, 1001, 1001)
+        `)
+
+        yield* DatabaseMigration.applyOnly(db, [scopedGrantLocationMigration])
+
+        // Fail closed: a grant that predates Location ownership cannot be
+        // attributed, so it must not survive as ambient authority. The DELETE is
+        // destructive, which is exactly why it is asserted and not assumed.
+        expect(yield* db.all(sql`SELECT id FROM scoped_grant`)).toEqual([])
+
+        // On a pre-Location database every row is unattributable by construction
+        // — the column did not exist — so the predicate and a bare
+        // `DELETE FROM scoped_grant` are equivalent here and no assertion can
+        // tell them apart. What IS worth pinning is that the ledger stops a
+        // replay: a grant issued after the migration must survive a rerun, or
+        // every restart would wipe live authority.
+        yield* db.run(sql`
+          INSERT INTO scoped_grant (id, level, action, resources, directory, workspace_id, issued_at, time_created, time_updated)
+          VALUES ('grt_located', 'session', 'bash', '["*"]', '/project', '', 2000, 2000, 2000)
+        `)
+        yield* DatabaseMigration.applyOnly(db, [scopedGrantLocationMigration])
+        expect(yield* db.all(sql`SELECT id FROM scoped_grant`)).toEqual([{ id: "grt_located" }])
+
+        // The pre-Location indexes are replaced, not merely supplemented.
+        expect(
+          yield* db.all(
+            sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'scoped_grant%' ORDER BY name`,
+          ),
+        ).toEqual([
+          { name: "scoped_grant_location_level_issued_idx" },
+          { name: "scoped_grant_location_session_issued_idx" },
+        ])
       }),
     )
   })

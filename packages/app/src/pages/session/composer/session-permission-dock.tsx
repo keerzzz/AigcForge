@@ -9,10 +9,22 @@ export function SessionPermissionDock(props: {
   request: PermissionPendingModel.PermissionPending
   responding: boolean
   sessionID?: string
-  onDecide: (response: "once" | "always" | "reject") => void
+  /**
+   * Takes the request/decision PAIR rather than a bare decision, so `always` on a
+   * V2 request and `session`/`location` on a legacy one are compile errors. Each
+   * button below can only build the pair its own narrowed branch permits.
+   */
+  onDecide: (input: PermissionPendingModel.PermissionDecisionInput) => void
 }) {
   const language = useLanguage()
   const request = createMemo(() => PermissionPendingModel.permissionPresentation(props.request))
+  const legacyRequest = createMemo(() => (props.request.kind === "legacy" ? props.request : undefined))
+  const scopedRequest = createMemo(() => (props.request.kind === "v2" ? props.request : undefined))
+  /** `once` / `reject` are legal for both runtimes; narrow so the pair still typechecks. */
+  const shared = (decision: "once" | "reject"): PermissionPendingModel.PermissionDecisionInput =>
+    props.request.kind === "legacy"
+      ? { request: props.request, decision }
+      : { request: props.request, decision }
   const isChildRequest = createMemo(() => props.sessionID !== undefined && request().sessionID !== props.sessionID)
 
   const toolDescription = () => {
@@ -51,18 +63,50 @@ export function SessionPermissionDock(props: {
         <>
           <div />
           <div data-slot="permission-footer-actions">
-            <Button variant="ghost" size="normal" onClick={() => props.onDecide("reject")} disabled={props.responding}>
+            <Button variant="ghost" size="normal" onClick={() => props.onDecide(shared("reject"))} disabled={props.responding}>
               {language.t("ui.permission.deny")}
             </Button>
-            <Button
-              variant="secondary"
-              size="normal"
-              onClick={() => props.onDecide("always")}
-              disabled={props.responding}
+            <Show
+              when={scopedRequest()}
+              fallback={
+                <Show when={legacyRequest()}>
+                  {(legacy) => (
+                    <Button
+                      variant="secondary"
+                      size="normal"
+                      onClick={() => props.onDecide({ request: legacy(), decision: "always" })}
+                      disabled={props.responding}
+                    >
+                      {language.t("ui.permission.allowAlways")}
+                    </Button>
+                  )}
+                </Show>
+              }
             >
-              {language.t("ui.permission.allowAlways")}
-            </Button>
-            <Button variant="primary" size="normal" onClick={() => props.onDecide("once")} disabled={props.responding}>
+              {(scoped) => (
+                <>
+                  <Show when={props.sessionID === scoped().request.sessionID}>
+                    <Button
+                      variant="secondary"
+                      size="normal"
+                      onClick={() => props.onDecide({ request: scoped(), decision: "session" })}
+                      disabled={props.responding}
+                    >
+                      {language.t("approval.center.sessionScope")}
+                    </Button>
+                  </Show>
+                  <Button
+                    variant="secondary"
+                    size="normal"
+                    onClick={() => props.onDecide({ request: scoped(), decision: "location" })}
+                    disabled={props.responding}
+                  >
+                    {language.t("approval.center.locationScope")}
+                  </Button>
+                </>
+              )}
+            </Show>
+            <Button variant="primary" size="normal" onClick={() => props.onDecide(shared("once"))} disabled={props.responding}>
               {language.t("ui.permission.allowOnce")}
             </Button>
           </div>

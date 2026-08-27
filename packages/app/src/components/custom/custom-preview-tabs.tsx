@@ -13,6 +13,31 @@ export interface CustomPreviewTabsProps {
   loading?: boolean
 }
 
+export function mcpPreviewSummary(plan: Partial<CompositionPlan> | undefined) {
+  const mcp = plan?.mcp
+  const diagnostics = plan?.diagnostics ?? []
+  return {
+    requested: mcp?.requested ?? [],
+    effective: mcp?.effective ?? [],
+    denied: mcp?.denied ?? [],
+    diagnostics: diagnostics.filter((diagnostic) => diagnostic.asset?.kind === "mcp" || diagnostic.code.startsWith("mcp_")),
+    hasMcpPlan: mcp !== undefined,
+  }
+}
+
+export function mcpPreviewState(input: {
+  plan: Partial<CompositionPlan> | undefined
+  loading?: boolean
+  error?: string
+}) {
+  if (input.loading) return "loading" as const
+  if (input.error !== undefined) return "error" as const
+  const summary = mcpPreviewSummary(input.plan)
+  if (!summary.hasMcpPlan) return "unavailable" as const
+  if (summary.requested.length === 0 && summary.effective.length === 0 && summary.denied.length === 0 && summary.diagnostics.length === 0) return "empty" as const
+  return "content" as const
+}
+
 export function planPreviewSummary(plan: Partial<CompositionPlan> | undefined) {
   const steps = plan?.workflow?.steps ?? []
   return {
@@ -293,6 +318,137 @@ export function PermissionsTab(props: { plan: CompositionPlan | undefined }) {
         </div>
       </Show>
     </div>
+  )
+}
+
+export function McpTab(props: { plan: CompositionPlan | undefined; loading?: boolean; error?: string }) {
+  const language = useLanguage()
+  const summary = createMemo(() => mcpPreviewSummary(props.plan))
+  const state = createMemo(() => mcpPreviewState({ plan: props.plan, loading: props.loading, error: props.error }))
+
+  return (
+    <Show
+      when={state() !== "loading"}
+      fallback={<div class="p-8 text-center text-v2-text-text-muted text-13-regular">{language.t("custom.builder.mcp.loading")}</div>}
+    >
+      <Show
+        when={state() !== "error"}
+        fallback={
+          <div class="flex flex-col items-center justify-center gap-2 p-8 text-center">
+            <Icon name="warning" size="normal" class="text-rose-300" />
+            <span class="text-v2-text-text-base text-13-medium">{language.t("custom.builder.mcp.error")}</span>
+            <span class="max-w-xl break-words text-v2-text-text-muted text-12-regular">{props.error}</span>
+          </div>
+        }
+      >
+        <Show
+          when={state() !== "unavailable"}
+          fallback={<div class="p-8 text-center text-v2-text-text-muted text-13-regular">{language.t("custom.builder.mcp.noData")}</div>}
+        >
+          <Show
+            when={state() !== "empty"}
+            fallback={<div class="p-8 text-center text-v2-text-text-muted text-13-regular">{language.t("custom.builder.mcp.empty")}</div>}
+          >
+            <div class="flex flex-col gap-5">
+              <div class="grid grid-cols-3 gap-px overflow-hidden rounded-md border border-v2-border-border-base bg-v2-border-border-base">
+                <For each={[
+                  { label: language.t("custom.builder.mcp.requested"), value: summary().requested.length },
+                  { label: language.t("custom.builder.mcp.effective"), value: summary().effective.length },
+                  { label: language.t("custom.builder.mcp.denied"), value: summary().denied.length },
+                ]}>
+                  {(metric) => (
+                    <div class="flex min-w-0 flex-col gap-1 bg-v2-background-bg-layer-02 px-3 py-2.5">
+                      <span class="truncate text-v2-text-text-faint text-10-medium uppercase tracking-wider">{metric.label}</span>
+                      <span class="font-mono text-v2-text-text-base text-14-medium">{metric.value}</span>
+                    </div>
+                  )}
+                </For>
+              </div>
+
+              <Show when={summary().effective.length > 0}>
+                <section class="flex flex-col gap-2">
+                  <div class="flex items-center justify-between gap-2">
+                    <h3 class="text-v2-text-text-base text-12-medium">{language.t("custom.builder.mcp.effective")}</h3>
+                    <span class="text-v2-text-text-faint text-10-regular">{summary().effective.length}</span>
+                  </div>
+                  <div class="flex flex-col gap-2">
+                    <For each={summary().effective}>
+                      {(server) => (
+                        <div data-slot="mcp-effective-server" class="flex min-w-0 flex-col gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
+                          <div class="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                            <span data-slot="mcp-server-name" class="min-w-0 break-all font-mono text-v2-text-text-base text-12-medium">{server.serverName}</span>
+                            <span data-slot="mcp-health" class="rounded border border-v2-border-border-base bg-v2-background-bg-layer-03 px-2 py-0.5 font-mono text-10-medium text-v2-text-text-base">{server.health}</span>
+                          </div>
+                          <div class="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-v2-text-text-muted text-11-regular">
+                            <span>{language.t("custom.builder.mcp.credentialStatus")}: <code data-slot="mcp-credential-status" class="font-mono text-v2-text-text-base">{server.credentialStatus}</code></span>
+                            <span>{language.t("custom.builder.mcp.tools")}: {server.tools.length}</span>
+                          </div>
+                          <Show when={server.tools.length > 0}>
+                            <div class="flex flex-wrap gap-1.5">
+                              <For each={server.tools}>
+                                {(tool) => <code class="max-w-full break-all rounded bg-v2-background-bg-layer-03 px-1.5 py-0.5 font-mono text-10-regular text-v2-text-text-muted">{tool}</code>}
+                              </For>
+                            </div>
+                          </Show>
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </section>
+              </Show>
+
+              <Show when={summary().denied.length > 0}>
+                <section class="flex flex-col gap-2">
+                  <div class="flex items-center justify-between gap-2">
+                    <h3 class="text-v2-text-text-base text-12-medium">{language.t("custom.builder.mcp.denied")}</h3>
+                    <span class="text-v2-text-text-faint text-10-regular">{summary().denied.length}</span>
+                  </div>
+                  <div class="flex flex-col gap-2">
+                    <For each={summary().denied}>
+                      {(server) => (
+                        <div data-slot="mcp-denied-server" class="flex min-w-0 flex-col gap-2 rounded-md border border-rose-500/30 bg-rose-500/5 p-3">
+                          <div class="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                            <span data-slot="mcp-server-name" class="min-w-0 break-all font-mono text-v2-text-text-base text-12-medium">{server.serverName}</span>
+                            <Show when={server.health}>
+                              {(health) => <span data-slot="mcp-health" class="rounded border border-v2-border-border-base bg-v2-background-bg-layer-03 px-2 py-0.5 font-mono text-10-medium text-v2-text-text-base">{health()}</span>}
+                            </Show>
+                          </div>
+                          <div class="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-v2-text-text-muted text-11-regular">
+                            <span>{language.t("custom.builder.mcp.reason")}: <code data-slot="mcp-reason" class="break-all font-mono text-rose-300">{server.reason}</code></span>
+                            <Show when={server.credentialStatus}>
+                              {(status) => <span>{language.t("custom.builder.mcp.credentialStatus")}: <code class="font-mono text-v2-text-text-base">{status()}</code></span>}
+                            </Show>
+                          </div>
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </section>
+              </Show>
+
+              <Show when={summary().diagnostics.length > 0}>
+                <section class="flex flex-col gap-2">
+                  <h3 class="text-v2-text-text-base text-12-medium">{language.t("custom.builder.mcp.diagnostics")}</h3>
+                  <div class="flex flex-col gap-2">
+                    <For each={summary().diagnostics}>
+                      {(diagnostic) => (
+                        <div data-slot="mcp-diagnostic" class="rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
+                          <div class="flex min-w-0 flex-wrap items-center gap-2">
+                            <span data-slot="mcp-diagnostic-code" class="font-mono text-11-medium text-v2-text-text-base">[{diagnostic.code}]</span>
+                            <span class="text-10-medium uppercase text-v2-text-text-muted">{diagnostic.severity}</span>
+                          </div>
+                          <p class="mt-1 break-words text-12-regular leading-relaxed text-v2-text-text-muted">{diagnostic.message}</p>
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </section>
+              </Show>
+            </div>
+          </Show>
+        </Show>
+      </Show>
+    </Show>
   )
 }
 

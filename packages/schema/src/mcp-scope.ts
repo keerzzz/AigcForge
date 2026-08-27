@@ -125,6 +125,13 @@ export class ScopedGrant extends Schema.Class<ScopedGrant>("McpScope.ScopedGrant
   revokedAt: Schema.optional(Schema.Finite),
 }) {}
 
+export class ScopedGrantInfo extends Schema.Class<ScopedGrantInfo>("McpScope.ScopedGrantInfo")({
+  grant: ScopedGrant,
+  status: Schema.Literals(["active", "consumed", "revoked", "expired"]),
+  consumedAt: Schema.optional(Schema.Finite),
+  grantRevision: Schema.Int.pipe(Schema.check(Schema.isGreaterThanOrEqualTo(1))),
+}) {}
+
 /**
  * One Location-scoped credential binding (ADR-21 §2.2 v1.2). Only the opaque
  * ref is stored; material never enters Snapshot/event/log. `workspaceID` is

@@ -16,10 +16,10 @@ export const Updated = EventV2.define({
 
 export type Update = EventV2.Data<typeof Updated>
 
-export class CommitRejected extends Schema.TaggedErrorClass<CommitRejected>()(
-  "BindingEvent.CommitRejected",
-  { bindingID: Schema.String, revision: Schema.Int },
-) {
+export class CommitRejected extends Schema.TaggedErrorClass<CommitRejected>()("BindingEvent.CommitRejected", {
+  bindingID: Schema.String,
+  revision: Schema.Int,
+}) {
   override get message() {
     return `MCP credential binding ${this.bindingID} rejected revision ${this.revision}`
   }
@@ -29,22 +29,22 @@ export class CommitRejected extends Schema.TaggedErrorClass<CommitRejected>()(
 export const publish = Effect.fn("BindingEvent.publish")(function* (
   events: EventV2.Interface,
   update: Update,
-  commit: () => Effect.Effect<boolean>,
+  commit: (tx: EventV2.Transaction) => Effect.Effect<boolean>,
 ) {
   return yield* events
     .publish(Updated, update, {
-      commit: (seq) => {
+      commit: (seq, tx) => {
         if (seq + 1 !== update.revision) {
           return Effect.die(new CommitRejected({ bindingID: update.bindingID, revision: update.revision }))
         }
-        return commit().pipe(
+        return commit(tx).pipe(
           Effect.flatMap((accepted) =>
-            accepted ? Effect.void : Effect.die(new CommitRejected({ bindingID: update.bindingID, revision: update.revision })),
+            accepted
+              ? Effect.void
+              : Effect.die(new CommitRejected({ bindingID: update.bindingID, revision: update.revision })),
           ),
         )
       },
     })
-    .pipe(
-      Effect.catchDefect((defect) => (defect instanceof CommitRejected ? Effect.fail(defect) : Effect.die(defect))),
-    )
+    .pipe(Effect.catchDefect((defect) => (defect instanceof CommitRejected ? Effect.fail(defect) : Effect.die(defect))))
 })

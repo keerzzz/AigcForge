@@ -1,20 +1,30 @@
 export * as CustomProfile from "./custom-profile"
 
-import { Effect, Option, Schema, SchemaIssue } from "effect"
+import { Effect, Option, Schema, SchemaGetter, SchemaIssue } from "effect"
 import { Composition } from "./composition"
 import { McpScope } from "./mcp-scope"
 
 export const Name = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length >= 1, { message: "Name must be at least 1 code point" })),
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length <= 80, { message: "Name must be at most 80 code points" })),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length >= 1, {
+      message: "Name must be at least 1 code point",
+    }),
+  ),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length <= 80, {
+      message: "Name must be at most 80 code points",
+    }),
+  ),
   Schema.brand("CustomProfile.Name"),
 )
 export type Name = typeof Name.Type
 
 export const Description = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length <= 300, {
-    message: "Description must be at most 300 code points",
-  })),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length <= 300, {
+      message: "Description must be at most 300 code points",
+    }),
+  ),
   Schema.brand("CustomProfile.Description"),
 )
 export type Description = typeof Description.Type
@@ -43,7 +53,18 @@ const McpBinding = Schema.declareConstructor<McpScope.McpServerBinding>()(
       )
     }
   },
-  { identifier: "CustomProfile.McpBinding" },
+  {
+    identifier: "CustomProfile.McpBinding",
+    // The runtime declaration above remains the strict admission boundary.
+    // This JSON codec only tells OpenAPI tooling that the opaque value has the
+    // same wire shape as the canonical MCP binding; without it, Schema's
+    // declaration fallback becomes `null` and contaminates unrelated SDK types.
+    toCodecJson: () =>
+      Schema.link<McpScope.McpServerBinding>()(McpScope.McpServerBinding, {
+        decode: SchemaGetter.transform((value) => value),
+        encode: SchemaGetter.transform((value) => value),
+      }),
+  },
 )
 
 export class Profile extends Schema.Class<Profile>("CustomProfile.Profile")({

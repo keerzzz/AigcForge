@@ -38,7 +38,7 @@ const sessions = SessionV2.layer.pipe(
   Layer.provide(SessionExecution.noopLayer),
 )
 const grantDependencies = Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer)
-const grants = ScopedGrantStore.locationLayer.pipe(Layer.provide(grantDependencies))
+const grants = ScopedGrantStore.locationLayer.pipe(Layer.provide(Layer.mergeAll(grantDependencies, current)))
 
 const layer = PermissionV2.locationLayer.pipe(
   Layer.provideMerge(Database.defaultLayer),

@@ -3,6 +3,7 @@ import { ConfigV1 } from "@aigcfroge/core/v1/config/config"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { Location } from "@aigcfroge/core/location"
 import { PermissionV2 } from "@aigcfroge/core/permission"
+import { ScopedGrantStore } from "@aigcfroge/core/grant/store"
 import { LocationServiceMap } from "@aigcfroge/core/location-layer"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionV2 } from "@aigcfroge/core/session"
@@ -160,7 +161,8 @@ function withContext<A, E>(
                 // M1 requires exactly one agent, so seed a minimal agent asset
                 // and reference it with its content hash before freezing.
                 const agentPath = ".aigcfroge/agents/httpapi-seed.md"
-                const agentContent = '---\nkind: agent\nname: httpapi-seed\ndescription: exerciser seed\nconfig: "{}"\n---\nSeed instructions'
+                const agentContent =
+                  '---\nkind: agent\nname: httpapi-seed\ndescription: exerciser seed\nconfig: "{}"\n---\nSeed instructions'
                 yield* Effect.promise(() => Bun.write(`${directory()}/${agentPath}`, agentContent))
                 const revision = yield* Effect.sync(() =>
                   Schema.decodeUnknownSync(Composition.Revision)(Hash.sha256(Buffer.from(agentContent))),
@@ -169,7 +171,9 @@ function withContext<A, E>(
                   ? yield* Effect.gen(function* () {
                       const workflowContent =
                         'kind: workflow\nname: httpapi-workflow\ndescription: exerciser\nversion: "1.0.0"\ntriggers: []\nsteps:\n  - id: review\n    name: Review\n    agent: httpapi-seed\n    input: {}\n    next: END\n'
-                      yield* Effect.promise(() => Bun.write(`${directory()}/${WORKFLOWS_DIR}/httpapi-workflow.yaml`, workflowContent))
+                      yield* Effect.promise(() =>
+                        Bun.write(`${directory()}/${WORKFLOWS_DIR}/httpapi-workflow.yaml`, workflowContent),
+                      )
                       return {
                         kind: "workflow" as const,
                         relativePath: "httpapi-workflow.yaml",
@@ -218,6 +222,15 @@ function withContext<A, E>(
                 const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(directory()) }))
                 const service = yield* PermissionV2.Service.pipe(Effect.provide(layer), Effect.orDie)
                 return yield* service.list()
+              }),
+            ),
+          grantIssue: (input) =>
+            run(
+              Effect.gen(function* () {
+                const locations = yield* LocationServiceMap
+                const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(directory()) }))
+                const service = yield* ScopedGrantStore.Service.pipe(Effect.provide(layer), Effect.orDie)
+                return yield* service.issue(input).pipe(Effect.orDie)
               }),
             ),
           project: () =>
@@ -281,7 +294,9 @@ function withContext<A, E>(
                   Effect.provide(LayerNode.buildLayer(KBService.node)),
                   Effect.orDie,
                 )
-                return yield* service.create({ ...input, tags: input.tags ?? [], baseDir: undefined }).pipe(Effect.orDie)
+                return yield* service
+                  .create({ ...input, tags: input.tags ?? [], baseDir: undefined })
+                  .pipe(Effect.orDie)
               }),
             ),
           memoryPropose: (input) =>
