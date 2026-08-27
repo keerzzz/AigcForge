@@ -7,6 +7,7 @@
 ## 0. 核心原则
 
 - **测试不能从仓库根目录运行**（根 `test` 脚本是 guard：`echo 'do not run tests from root' && exit 1`）。单包运行：`bun --cwd packages/<name> test --timeout 30000`。
+- **`--cwd` 后面不要加 `run`**：`bun --cwd <pkg> run <script>` 会打印 `bun run` 的 usage、**什么都不执行、且 exit 0**（bun 1.3.14 实测）。正确形式是 `bun --cwd <pkg> <script>`，或 `cd packages/<name> && bun run <script>`。**这是"绿了但没跑"的静默陷阱**：报告里写了命令、退出码是 0、却没有任何测试执行。CI 用的是正确形式（`test.yml:145`、`storybook.yml:40` 均无 `run`，其余走 turbo），所以门禁本身有效；受影响的只是照文档手敲的人和 agent。已归档于 [technical-debt](technical-debt.md) §4。
 - **TDD 强制循环**：红（先写测试确认失败）→ 绿（最小实现）→ 重构（去重保持绿）。禁止复制生产逻辑进测试。
 - **避免 mock**：不用 `globalThis.*`（除非唯一选项）；用 `Layer.mock` 优于 `Layer.succeed(Service, Service.of({...}))` 全量 stub；测试实际实现。
 - **禁止等待并发 fiber**：不用 `Effect.sleep(N)` / `setTimeout`。用就绪信号：`pollWithTimeout`、`awaitWithTimeout`、`llm.wait(n)`、`SessionStatus.Service.get`、`BackgroundJob.wait`、Bus+Latch、`Deferred.await` + `timeoutOrElse`。
@@ -31,11 +32,11 @@
 |---|---|---|
 | core | `bun --cwd packages/core test --timeout 30000` | 脚本含 `--only-failures` |
 | aigcfroge | `bun --cwd packages/aigcfroge test --timeout 30000` | 脚本含 `--only-failures` |
-| aigcfroge | `bun --cwd packages/aigcfroge run test:httpapi` | 独立门禁，见 §3 |
-| app | `bun --cwd packages/app run test:unit` | `bun test --only-failures --preload ./happydom.ts ./src` |
-| app | `bun --cwd packages/app run test:virtualizer` | `--conditions=browser` solid-virtual |
-| app | `bun --cwd packages/app run test:e2e <spec>` | `playwright test`（另有 `:ui` 交互、`:report`） |
-| app | `bun --cwd packages/app run test:bench` | `bun test ./e2e/performance/unit && playwright test --config e2e/performance/playwright.config.ts` |
+| aigcfroge | `bun --cwd packages/aigcfroge test:httpapi` | 独立门禁，见 §3 |
+| app | `bun --cwd packages/app test:unit` | `bun test --only-failures --preload ./happydom.ts ./src` |
+| app | `bun --cwd packages/app test:virtualizer` | `--conditions=browser` solid-virtual |
+| app | `bun --cwd packages/app test:e2e <spec>` | `playwright test`（另有 `:ui` 交互、`:report`） |
+| app | `bun --cwd packages/app test:bench` | `bun test ./e2e/performance/unit && playwright test --config e2e/performance/playwright.config.ts` |
 | schema / llm | `bun --cwd packages/<name> test` | schema 无 timeout 覆盖 |
 | ui / session-ui | `bun --cwd packages/<name> test` | 脚本含 `--only-failures` |
 | effect-drizzle-sqlite | `bun --cwd packages/effect-drizzle-sqlite test --timeout 30000` | vendor 桥接 |
@@ -65,7 +66,7 @@ CI 中（linux only）：coverage + auth 为硬门禁，effect 为 advisory。
 - 目录：`regression/`（回归规格）、`smoke/`（冒烟）、`performance/`（基准）、`utils/`（辅助）
 - **当前实际执行标准**：每个功能一份 spec，覆盖该功能的主路径与加载/空/错误态。**这是审查时唯一可据以打回的 e2e 标准。**
 - **目标（尚未实现，勿作为 PR blocker）**：桌面与窄视口、light/dark、en/zh/zht 三语、键盘 focus。截至 2026-08-26 实测：18 个 `regression/*.spec.ts` 中 dark **0/18**、i18n **0/18**、keyboard **2/18**；`packages/app/playwright.config.ts:43` 只有单个 `chromium` / Desktop Chrome project，无 theme / locale / 窄视口 project。**所以这一行历史上是纸面要求，从未在任何层面成立**——登记于 [technical-debt](technical-debt.md) §4，根治方式是在 config 加 project（会一次照亮全部既有 spec），不是逐个 PR 追加断言
-- 运行报告：`bun --cwd packages/app run test:e2e:report`（playwright-report）
+- 运行报告：`bun --cwd packages/app test:e2e:report`（playwright-report）
 
 ---
 
@@ -99,7 +100,7 @@ CI 中（linux only）：coverage + auth 为硬门禁，effect 为 advisory。
 | 全量 lint | `bun run lint`（= `oxlint` 全仓 + lint-changed，CI 用） |
 | 协议引用检查 | `bash .aigcfroge/skills/protocols/scripts/check-refs.sh` |
 | 差异检查 | `git diff --check` |
-| App 性能 | `bun --cwd packages/app run test:bench` |
+| App 性能 | `bun --cwd packages/app test:bench` |
 | Storybook 构建 | `bun --cwd packages/storybook build`（收集 app/ui/session-ui stories） |
 
 ### pre-push 钩子

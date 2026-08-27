@@ -97,7 +97,7 @@ git log --oneline --decorate -20 main
 4. 未经用户确认 remote、issue、最终 diff、commit/PR title，不 push、不创建 PR。禁止 `--no-verify`。
 5. 测试永不从仓库根运行。用 `bun --cwd packages/<name> test --timeout 30000`。根目录只跑 typecheck/lint/protocol/diff 等非 test 门禁。
 6. **创建 custom session 的新测试文件必须自己拿 kill switch**：在文件作用域调用 `withCustomModeEnabled()`（`packages/core/test/lib/product-mode.ts`），并用 `env -u AIGCFROGE_CUSTOM_MODE bun --cwd packages/core test <file>` 单跑验证。放进 `describe` 里只覆盖那一个 block，不够；靠别的测试文件泄漏的 env 通过 = 本地绿 CI 红（M2 实际踩过）。
-7. **迁移脚本的正确调用形式**是 `cd packages/core && bun run script/migration.ts --check`（`bun --cwd packages/core run script/migration.ts --check` 会吐 bun usage，跑不通）。报告里照实写你实际敲的那一行，不要抄提示词。
+7. **`bun --cwd <pkg> run <...>` 一律跑不通**：它会打印 `bun run` 的 usage、什么都不执行、**并且 exit 0**。所以迁移检查要写 `cd packages/core && bun run script/migration.ts --check`，包脚本要写 `bun --cwd packages/app test:unit`（不带 `run`）。这条不是迁移脚本特有的，见 [docs/testing.md](../testing.md) §0。报告里照实写你实际敲的那一行，不要抄提示词——**照抄这个形式会得到一个什么都没跑的绿色退出码**。
 
 ## 2. 必读协议与计划
 
