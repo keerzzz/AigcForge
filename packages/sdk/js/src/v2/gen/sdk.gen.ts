@@ -459,6 +459,10 @@ import type {
   V2LocationGetResponses,
   V2ModelListErrors,
   V2ModelListResponses,
+  V2PermissionGrantListErrors,
+  V2PermissionGrantListResponses,
+  V2PermissionGrantRevokeErrors,
+  V2PermissionGrantRevokeResponses,
   V2PermissionRequestListErrors,
   V2PermissionRequestListResponses,
   V2PermissionSavedListErrors,
@@ -513,6 +517,8 @@ import type {
   V2SessionListResponses,
   V2SessionMessagesErrors,
   V2SessionMessagesResponses,
+  V2SessionPermissionGrantErrors,
+  V2SessionPermissionGrantResponses,
   V2SessionPermissionListErrors,
   V2SessionPermissionListResponses,
   V2SessionPermissionReplyErrors,
@@ -8116,6 +8122,47 @@ export class Permission2 extends HeyApiClient {
       },
     })
   }
+
+  /**
+   * Issue scoped grant for pending permission
+   *
+   * Issue a Session or Location scoped grant whose facts are copied from an owned pending request.
+   */
+  public grant<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      requestID: string
+      level?: "session" | "location"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "path", key: "requestID" },
+            { in: "body", key: "level" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      V2SessionPermissionGrantResponses,
+      V2SessionPermissionGrantErrors,
+      ThrowOnError
+    >({
+      url: "/api/session/{sessionID}/permission/{requestID}/grant",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
 }
 
 export class Question2 extends HeyApiClient {
@@ -9306,6 +9353,78 @@ export class Saved extends HeyApiClient {
   }
 }
 
+export class Grant extends HeyApiClient {
+  /**
+   * List scoped grants
+   *
+   * Retrieve scoped grant history for a location.
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "location" }] }])
+    return (options?.client ?? this.client).get<
+      V2PermissionGrantListResponses,
+      V2PermissionGrantListErrors,
+      ThrowOnError
+    >({
+      url: "/api/permission/grant",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Revoke scoped grant
+   *
+   * Revoke a scoped grant using its current CAS revision.
+   */
+  public revoke<ThrowOnError extends boolean = false>(
+    parameters: {
+      grantID: string
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+      expectedRevision?: number
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "grantID" },
+            { in: "query", key: "location" },
+            { in: "body", key: "expectedRevision" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).delete<
+      V2PermissionGrantRevokeResponses,
+      V2PermissionGrantRevokeErrors,
+      ThrowOnError
+    >({
+      url: "/api/permission/grant/{grantID}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class Permission3 extends HeyApiClient {
   private _request?: Request
   get request(): Request {
@@ -9315,6 +9434,11 @@ export class Permission3 extends HeyApiClient {
   private _saved?: Saved
   get saved(): Saved {
     return (this._saved ??= new Saved({ client: this.client }))
+  }
+
+  private _grant?: Grant
+  get grant(): Grant {
+    return (this._grant ??= new Grant({ client: this.client }))
   }
 }
 

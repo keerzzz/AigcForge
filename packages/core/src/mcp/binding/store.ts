@@ -176,25 +176,28 @@ export const layer = Layer.effect(
         const { directory, workspaceID } = currentLocation()
         const ws = normalizeWorkspaceId(workspaceID)
         return yield* Effect.gen(function* () {
-          yield* BindingEvent.publish(events, { bindingID: id, status: "active", revision: 1, timeUpdated: now }, () =>
-            Effect.gen(function* () {
-              const inserted = yield* db
-                .insert(McpCredentialBindingTable)
-                .values({
-                  id,
-                  directory,
-                  workspace_id: ws,
-                  server_name: input.serverName,
-                  credential_ref: input.credentialRef,
-                  binding_revision: 1,
-                  revoked_at: null,
-                })
-                .onConflictDoNothing()
-                .returning()
-                .get()
-                .pipe(Effect.orDie)
-              return inserted !== undefined
-            }),
+          yield* BindingEvent.publish(
+            events,
+            { bindingID: id, status: "active", revision: 1, timeUpdated: now },
+            (tx) =>
+              Effect.gen(function* () {
+                const inserted = yield* tx
+                  .insert(McpCredentialBindingTable)
+                  .values({
+                    id,
+                    directory,
+                    workspace_id: ws,
+                    server_name: input.serverName,
+                    credential_ref: input.credentialRef,
+                    binding_revision: 1,
+                    revoked_at: null,
+                  })
+                  .onConflictDoNothing()
+                  .returning()
+                  .get()
+                  .pipe(Effect.orDie)
+                return inserted !== undefined
+              }),
           )
           const row = (yield* db
             .select()
@@ -232,9 +235,9 @@ export const layer = Layer.effect(
         yield* BindingEvent.publish(
           events,
           { bindingID: id, status: "active", revision: nextRevision, timeUpdated: now },
-          () =>
+          (tx) =>
             Effect.gen(function* () {
-              const updated = yield* db
+              const updated = yield* tx
                 .update(McpCredentialBindingTable)
                 .set({ credential_ref: credentialRef, revoked_at: null, binding_revision: nextRevision })
                 .where(rebindFilter({ id, expectedRevision }))
@@ -305,9 +308,9 @@ export const layer = Layer.effect(
         yield* BindingEvent.publish(
           events,
           { bindingID: id, status: "revoked", revision: nextRevision, timeUpdated: now },
-          () =>
+          (tx) =>
             Effect.gen(function* () {
-              const updated = yield* db
+              const updated = yield* tx
                 .update(McpCredentialBindingTable)
                 .set({ revoked_at: now, binding_revision: nextRevision })
                 .where(

@@ -4,7 +4,7 @@ import { Icon } from "@aigcfroge/ui/v2/icon"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { useCustomDraft } from "@/context/custom-draft"
-import { WorkflowTab, InstructionsTab, CapabilitiesTab, PermissionsTab, DiagnosticsTab } from "./custom-preview-tabs"
+import { WorkflowTab, InstructionsTab, CapabilitiesTab, PermissionsTab, DiagnosticsTab, McpTab } from "./custom-preview-tabs"
 import { useModeDirectory } from "@/pages/mode-workspace-context"
 import { useTabs } from "@/context/tabs"
 import { ServerConnection } from "@/context/server"
@@ -200,6 +200,16 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
             <TabsV2.Trigger value="permissions">
               {language.t("custom.builder.tab.permissions")}
             </TabsV2.Trigger>
+            <TabsV2.Trigger value="mcp">
+              <div class="flex items-center gap-1.5">
+                <span>{language.t("custom.builder.tab.mcp")}</span>
+                <Show when={(plan()?.mcp?.requested.length ?? 0) > 0}>
+                  <span class="rounded-full bg-v2-background-bg-layer-01 px-1.5 py-0.2 text-10-bold text-v2-text-text-muted">
+                    {plan()?.mcp?.requested.length}
+                  </span>
+                </Show>
+              </div>
+            </TabsV2.Trigger>
             <TabsV2.Trigger value="diagnostics">
               <div class="flex items-center gap-1.5">
                 <span>{language.t("custom.builder.tab.diagnostics")}</span>
@@ -226,6 +236,9 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
             </TabsV2.Content>
             <TabsV2.Content value="permissions">
               <PermissionsTab plan={plan()} />
+            </TabsV2.Content>
+            <TabsV2.Content value="mcp">
+              <McpTab plan={plan()} loading={planResult.loading} error={planResult()?.error} />
             </TabsV2.Content>
             <TabsV2.Content value="diagnostics">
               <DiagnosticsTab plan={plan()} />

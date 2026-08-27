@@ -6,6 +6,7 @@ import { Composition } from "@aigcfroge/schema/composition"
 import { McpScope } from "@aigcfroge/schema/mcp-scope"
 import { Database } from "../database/database"
 import { EventV2 } from "../event"
+import { Location } from "../location"
 import { Wildcard } from "../util/wildcard"
 import { GrantEvent, type CommitRejected } from "./event"
 import { ScopedGrantTable } from "./sql"
@@ -17,13 +18,7 @@ export const DEFAULT_SETTLED_GRANT_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000
 /** Retention pruning runs once immediately, then once per hour per Location owner Scope. */
 export const SETTLED_GRANT_PRUNE_INTERVAL = Duration.hours(1)
 
-export interface Info {
-  readonly grant: McpScope.ScopedGrant
-  readonly status: GrantStatus
-  readonly consumedAt?: number
-  /** CAS counter for state transitions (ADR-20 §2.4); not the asset revision. */
-  readonly grantRevision: number
-}
+export type Info = typeof McpScope.ScopedGrantInfo.Type
 
 export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("ScopedGrant.NotFoundError", {
   grantID: Schema.String,
@@ -68,6 +63,19 @@ export type PruneInput = {
 
 type Row = typeof ScopedGrantTable.$inferSelect
 
+const normalizeWorkspaceId = McpScope.normalizeWorkspaceId
+
+export type LocationInput = {
+  readonly directory: string
+  readonly workspaceID?: string
+}
+
+export const locationFilter = (input: LocationInput) =>
+  and(
+    eq(ScopedGrantTable.directory, input.directory),
+    eq(ScopedGrantTable.workspace_id, normalizeWorkspaceId(input.workspaceID)),
+  )
+
 const decodeRevision = (value: string): McpScope.ScopedGrant["revision"] | undefined => {
   try {
     return Schema.decodeUnknownSync(Composition.Revision)(value)
@@ -98,8 +106,7 @@ const decodeRow = (row: Row | undefined, now = Date.now()) =>
   Effect.gen(function* () {
     if (!row) return undefined
     const info = toInfoSafe(row, now)
-    if (!info)
-      yield* Effect.logWarning("Scoped grant row failed to decode; skipping", { grantID: row.id })
+    if (!info) yield* Effect.logWarning("Scoped grant row failed to decode; skipping", { grantID: row.id })
     return info
   })
 
@@ -117,13 +124,13 @@ const toInfo = (row: Row, now = Date.now()): Info => {
     effect: "allow",
     ...(row.agent ? { agent: row.agent } : {}),
     ...(row.asset_revision !== null
-        ? { revision: Schema.decodeUnknownSync(Composition.Revision)(row.asset_revision) }
-        : {}),
+      ? { revision: Schema.decodeUnknownSync(Composition.Revision)(row.asset_revision) }
+      : {}),
     issuedAt: row.issued_at,
     ...(row.expires_at !== null ? { expiresAt: row.expires_at } : {}),
     ...(row.revoked_at !== null ? { revokedAt: row.revoked_at } : {}),
   })
-  return {
+  return new McpScope.ScopedGrantInfo({
     grant,
     status:
       row.revoked_at !== null
@@ -135,7 +142,7 @@ const toInfo = (row: Row, now = Date.now()): Info => {
             : "active",
     ...(row.consumed_at !== null ? { consumedAt: row.consumed_at } : {}),
     grantRevision: row.grant_revision,
-  }
+  })
 }
 
 const isExpired = (row: Row, now: number) => row.expires_at !== null && row.expires_at <= now
@@ -156,8 +163,9 @@ export const retentionCutoff = (now: number, retentionMs?: number) =>
  * `cutoff`. Wildcard action/resource matching stays in JS — it cannot be pushed
  * into SQL; `findValid` splits the same way.
  */
-export const listFilter = (input: ListInput, cutoff: number) =>
+export const listFilter = (input: ListInput, cutoff: number, location: LocationInput) =>
   and(
+    locationFilter(location),
     ...(input.sessionID !== undefined
       ? [or(eq(ScopedGrantTable.session_id, input.sessionID), eq(ScopedGrantTable.level, "location"))]
       : []),
@@ -165,7 +173,11 @@ export const listFilter = (input: ListInput, cutoff: number) =>
     ...(input.since !== undefined ? [gte(ScopedGrantTable.issued_at, input.since)] : []),
     ...(input.until !== undefined ? [lte(ScopedGrantTable.issued_at, input.until)] : []),
     or(
-      and(isNull(ScopedGrantTable.consumed_at), isNull(ScopedGrantTable.revoked_at), isNull(ScopedGrantTable.expires_at)),
+      and(
+        isNull(ScopedGrantTable.consumed_at),
+        isNull(ScopedGrantTable.revoked_at),
+        isNull(ScopedGrantTable.expires_at),
+      ),
       and(
         isNull(ScopedGrantTable.consumed_at),
         isNull(ScopedGrantTable.revoked_at),
@@ -182,7 +194,7 @@ export const listFilter = (input: ListInput, cutoff: number) =>
     ),
   )
 
-interface Interface {
+export interface Interface {
   /** Creates one active grant and publishes its durable creation event. */
   readonly issue: (input: {
     readonly scope: McpScope.ScopedGrant["scope"]
@@ -207,7 +219,10 @@ interface Interface {
   /** Marks a `once` grant consumed. Concurrent consumers: exactly one wins. */
   readonly consume: (id: string) => Effect.Effect<Info, NotFoundError | StateError | CommitRejected>
   /** Revokes under CAS; 0 affected rows raises instead of returning quietly. */
-  readonly revoke: (id: string, expectedRevision: number) => Effect.Effect<Info, NotFoundError | StateError | CommitRejected>
+  readonly revoke: (
+    id: string,
+    expectedRevision: number,
+  ) => Effect.Effect<Info, NotFoundError | StateError | CommitRejected>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/ScopedGrantStore") {}
@@ -217,8 +232,10 @@ export const layer = Layer.effect(
   Effect.gen(function* () {
     const { db } = yield* Database.Service
     const events = yield* EventV2.Service
+    const location = yield* Location.Service
+    const currentLocation = () => ({ directory: location.directory, workspaceID: location.workspaceID })
 
-        const service = Service.of({
+    const service = Service.of({
       issue: Effect.fn("ScopedGrantStore.issue")(function* (input) {
         const id = input.id ?? "grt_" + crypto.randomUUID().replaceAll("-", "")
         const now = Date.now()
@@ -233,12 +250,14 @@ export const layer = Layer.effect(
           issuedAt: input.issuedAt ?? now,
           ...(input.expiresAt !== undefined ? { expiresAt: input.expiresAt } : {}),
         })
-        yield* GrantEvent.publish(events, { grantID: id, status: "active", revision: 1, timeUpdated: now }, () =>
+        yield* GrantEvent.publish(events, { grantID: id, status: "active", revision: 1, timeUpdated: now }, (tx) =>
           Effect.gen(function* () {
-            yield* db
+            yield* tx
               .insert(ScopedGrantTable)
               .values({
                 id,
+                directory: location.directory,
+                workspace_id: normalizeWorkspaceId(location.workspaceID),
                 level: grant.scope.level,
                 session_id: grant.scope.level === "session" ? grant.scope.sessionID : null,
                 action: grant.action,
@@ -251,15 +270,20 @@ export const layer = Layer.effect(
                 consumed_at: null,
                 grant_revision: 1,
               })
-              .run().pipe(Effect.orDie)
+              .run()
+              .pipe(Effect.orDie)
             return true
           }),
         )
-        return { grant, status: "active" as const, grantRevision: 1 }
+        return new McpScope.ScopedGrantInfo({ grant, status: "active", grantRevision: 1 })
       }),
 
       get: Effect.fn("ScopedGrantStore.get")(function* (id) {
-        const rows = yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.id, id)).all()
+        const rows = yield* db
+          .select()
+          .from(ScopedGrantTable)
+          .where(and(eq(ScopedGrantTable.id, id), locationFilter(currentLocation())))
+          .all()
           .pipe(Effect.orDie)
         return yield* decodeRow(rows[0])
       }),
@@ -269,7 +293,7 @@ export const layer = Layer.effect(
         const rows = yield* db
           .select()
           .from(ScopedGrantTable)
-          .where(listFilter(input, retentionCutoff(now, input.retentionMs)))
+          .where(listFilter(input, retentionCutoff(now, input.retentionMs), currentLocation()))
           .all()
           .pipe(Effect.orDie)
         const filtered = rows.toSorted((a, b) => b.issued_at - a.issued_at)
@@ -286,17 +310,20 @@ export const layer = Layer.effect(
         yield* db
           .delete(ScopedGrantTable)
           .where(
-            or(
-              and(
-                isNull(ScopedGrantTable.consumed_at),
-                isNull(ScopedGrantTable.revoked_at),
-                isNotNull(ScopedGrantTable.expires_at),
-                lt(ScopedGrantTable.expires_at, cutoff),
-              ),
-              and(
-                or(isNotNull(ScopedGrantTable.consumed_at), isNotNull(ScopedGrantTable.revoked_at)),
-                or(isNull(ScopedGrantTable.consumed_at), lt(ScopedGrantTable.consumed_at, cutoff)),
-                or(isNull(ScopedGrantTable.revoked_at), lt(ScopedGrantTable.revoked_at, cutoff)),
+            and(
+              locationFilter(currentLocation()),
+              or(
+                and(
+                  isNull(ScopedGrantTable.consumed_at),
+                  isNull(ScopedGrantTable.revoked_at),
+                  isNotNull(ScopedGrantTable.expires_at),
+                  lt(ScopedGrantTable.expires_at, cutoff),
+                ),
+                and(
+                  or(isNotNull(ScopedGrantTable.consumed_at), isNotNull(ScopedGrantTable.revoked_at)),
+                  or(isNull(ScopedGrantTable.consumed_at), lt(ScopedGrantTable.consumed_at, cutoff)),
+                  or(isNull(ScopedGrantTable.revoked_at), lt(ScopedGrantTable.revoked_at, cutoff)),
+                ),
               ),
             ),
           )
@@ -311,7 +338,13 @@ export const layer = Layer.effect(
         const rows = yield* db
           .select()
           .from(ScopedGrantTable)
-          .where(and(isNull(ScopedGrantTable.consumed_at), isNull(ScopedGrantTable.revoked_at)))
+          .where(
+            and(
+              locationFilter(currentLocation()),
+              isNull(ScopedGrantTable.consumed_at),
+              isNull(ScopedGrantTable.revoked_at),
+            ),
+          )
           .all()
           .pipe(Effect.orDie)
         const valid = rows
@@ -335,7 +368,11 @@ export const layer = Layer.effect(
       }),
 
       consume: Effect.fn("ScopedGrantStore.consume")(function* (id) {
-        const current = yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.id, id)).all()
+        const current = yield* db
+          .select()
+          .from(ScopedGrantTable)
+          .where(and(eq(ScopedGrantTable.id, id), locationFilter(currentLocation())))
+          .all()
           .pipe(Effect.orDie)
         const row = current[0]
         if (!row) return yield* new NotFoundError({ grantID: id })
@@ -347,14 +384,15 @@ export const layer = Layer.effect(
         yield* GrantEvent.publish(
           events,
           { grantID: id, status: "consumed", revision: nextRevision, timeUpdated: now },
-          () =>
+          (tx) =>
             Effect.gen(function* () {
-              const updated = yield* db
+              const updated = yield* tx
                 .update(ScopedGrantTable)
                 .set({ consumed_at: now, grant_revision: nextRevision })
                 .where(
                   and(
                     eq(ScopedGrantTable.id, id),
+                    locationFilter(currentLocation()),
                     isNull(ScopedGrantTable.consumed_at),
                     isNull(ScopedGrantTable.revoked_at),
                     eq(ScopedGrantTable.grant_revision, row.grant_revision),
@@ -366,12 +404,21 @@ export const layer = Layer.effect(
               return updated !== undefined
             }),
         )
-        const updated = (yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.id, id)).all().pipe(Effect.orDie))[0]
+        const updated = (yield* db
+          .select()
+          .from(ScopedGrantTable)
+          .where(and(eq(ScopedGrantTable.id, id), locationFilter(currentLocation())))
+          .all()
+          .pipe(Effect.orDie))[0]
         return (yield* decodeRow(updated)) ?? (yield* new NotFoundError({ grantID: id }))
       }),
 
       revoke: Effect.fn("ScopedGrantStore.revoke")(function* (id, expectedRevision) {
-        const current = yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.id, id)).all()
+        const current = yield* db
+          .select()
+          .from(ScopedGrantTable)
+          .where(and(eq(ScopedGrantTable.id, id), locationFilter(currentLocation())))
+          .all()
           .pipe(Effect.orDie)
         const row = current[0]
         if (!row) return yield* new NotFoundError({ grantID: id })
@@ -383,14 +430,15 @@ export const layer = Layer.effect(
         yield* GrantEvent.publish(
           events,
           { grantID: id, status: "revoked", revision: nextRevision, timeUpdated: now },
-          () =>
+          (tx) =>
             Effect.gen(function* () {
-              const updated = yield* db
+              const updated = yield* tx
                 .update(ScopedGrantTable)
                 .set({ revoked_at: now, grant_revision: nextRevision })
                 .where(
                   and(
                     eq(ScopedGrantTable.id, id),
+                    locationFilter(currentLocation()),
                     isNull(ScopedGrantTable.revoked_at),
                     eq(ScopedGrantTable.grant_revision, expectedRevision),
                   ),
@@ -401,7 +449,12 @@ export const layer = Layer.effect(
               return updated !== undefined
             }),
         )
-        const updated = (yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.id, id)).all().pipe(Effect.orDie))[0]
+        const updated = (yield* db
+          .select()
+          .from(ScopedGrantTable)
+          .where(and(eq(ScopedGrantTable.id, id), locationFilter(currentLocation())))
+          .all()
+          .pipe(Effect.orDie))[0]
         return (yield* decodeRow(updated)) ?? (yield* new NotFoundError({ grantID: id }))
       }),
     })
@@ -413,17 +466,15 @@ export const layer = Layer.effect(
 export const cleanupLayer = Layer.effectDiscard(
   Effect.gen(function* () {
     const store = yield* Service
-    yield* store
-      .prune()
-      .pipe(
-        Effect.catchCause((cause) =>
-          Cause.hasInterruptsOnly(cause)
-            ? Effect.failCause(cause)
-            : Effect.logWarning("Scoped grant retention cleanup failed", { source: "scheduled_prune", cause }),
-        ),
-        Effect.repeat(Schedule.spaced(SETTLED_GRANT_PRUNE_INTERVAL)),
-        Effect.forkScoped({ startImmediately: true }),
-      )
+    yield* store.prune().pipe(
+      Effect.catchCause((cause) =>
+        Cause.hasInterruptsOnly(cause)
+          ? Effect.failCause(cause)
+          : Effect.logWarning("Scoped grant retention cleanup failed", { source: "scheduled_prune", cause }),
+      ),
+      Effect.repeat(Schedule.spaced(SETTLED_GRANT_PRUNE_INTERVAL)),
+      Effect.forkScoped({ startImmediately: true }),
+    )
   }),
 )
 

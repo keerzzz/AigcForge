@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "2cc13146-dd2f-416f-b21b-d6793665703a",
+  "id": "9cd17dbb-8ef0-4d85-83c3-dab628b07495",
   "prevIds": [
-    "ee00df4a-0683-4da3-8e45-2b872192f8a4"
+    "2cc13146-dd2f-416f-b21b-d6793665703a"
   ],
   "ddl": [
     {
@@ -1183,6 +1183,26 @@
       "default": null,
       "generated": null,
       "name": "id",
+      "entityType": "columns",
+      "table": "scoped_grant"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "''",
+      "generated": null,
+      "name": "directory",
+      "entityType": "columns",
+      "table": "scoped_grant"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "''",
+      "generated": null,
+      "name": "workspace_id",
       "entityType": "columns",
       "table": "scoped_grant"
     },
@@ -4290,6 +4310,14 @@
     {
       "columns": [
         {
+          "value": "directory",
+          "isExpression": false
+        },
+        {
+          "value": "workspace_id",
+          "isExpression": false
+        },
+        {
           "value": "session_id",
           "isExpression": false
         },
@@ -4301,12 +4329,20 @@
       "isUnique": false,
       "where": null,
       "origin": "manual",
-      "name": "scoped_grant_session_issued_idx",
+      "name": "scoped_grant_location_session_issued_idx",
       "entityType": "indexes",
       "table": "scoped_grant"
     },
     {
       "columns": [
+        {
+          "value": "directory",
+          "isExpression": false
+        },
+        {
+          "value": "workspace_id",
+          "isExpression": false
+        },
         {
           "value": "level",
           "isExpression": false
@@ -4319,7 +4355,7 @@
       "isUnique": false,
       "where": null,
       "origin": "manual",
-      "name": "scoped_grant_level_issued_idx",
+      "name": "scoped_grant_location_level_issued_idx",
       "entityType": "indexes",
       "table": "scoped_grant"
     },

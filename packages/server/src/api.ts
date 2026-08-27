@@ -5,6 +5,7 @@ import { ModelGroup } from "./groups/model"
 import { ProviderGroup } from "./groups/provider"
 import { SessionGroup } from "./groups/session"
 import { PermissionGroup } from "./groups/permission"
+import { GrantGroup } from "./groups/grant"
 import { FileSystemGroup } from "./groups/fs"
 import { CommandGroup } from "./groups/command"
 import { SkillGroup } from "./groups/skill"
@@ -31,6 +32,7 @@ export const Api = HttpApi.make("server")
   .add(IntegrationGroup)
   .add(CredentialGroup)
   .add(PermissionGroup)
+  .add(GrantGroup)
   .add(FileSystemGroup)
   .add(CommandGroup)
   .add(SkillGroup)
