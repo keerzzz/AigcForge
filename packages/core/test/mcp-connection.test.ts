@@ -397,6 +397,60 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
     }),
   )
 
+  /**
+   * The death watcher (`connection.ts:517-526`), which had no test: every other
+   * crash case here is a *startup* crash, where the failure surfaces from
+   * `connect` and no request is in flight.
+   *
+   * Post-handshake death is the shape that matters at runtime — the child is
+   * gone but the caller is parked on a `Deferred` that only `failAll` can
+   * resolve. Its five production reasons were all unasserted, so a watcher that
+   * reported the wrong cause, or reported nothing and left the request hanging,
+   * looked identical to a healthy suite.
+   */
+  it.live("fails an in-flight call with the child's exit code and leaves sibling servers usable", () =>
+    Effect.gen(function* () {
+      const marker = path.join("/tmp", `aigcfroge-mcp-die-${randomUUID()}`)
+      const conn = yield* McpConnection.Service
+      yield* conn.connect({ binding: binding({ serverName: "survivor" }) })
+      const dying = yield* conn.connect({
+        binding: binding({ serverName: "dying", command: [process.execPath, FIXTURE, "diemidcall", marker] }),
+      })
+      if (dying.pid === undefined) throw new Error("stdio connection did not expose a pid")
+
+      const inflight = yield* Effect.forkScoped(probe(conn.callTool({ name: "mcp_dying_echo", args: { msg: "hi" } })))
+      // The marker is written before the child exits, so reaching it proves the
+      // call was genuinely in flight rather than rejected before dispatch.
+      yield* pollWithTimeout(
+        Effect.promise(() => Bun.file(marker).exists()).pipe(Effect.map((exists) => (exists ? marker : undefined))),
+        "the dying server never observed the tool call",
+      )
+
+      const result = yield* Fiber.join(inflight)
+      expect(result.failed).toBe(true)
+      expect(result.tag).toBe("McpConnection.ProcessStartError")
+      expect(result.reason).toBe("process exited with code 7")
+      yield* waitDead(dying.pid)
+      expect(yield* conn.health("dying")).toBe("offline")
+
+      // A known canonical name must keep failing as a dead connection, not decay
+      // into UnknownToolError — and the reason distinguishes "died just now"
+      // from "was already closed".
+      const after = yield* probe(conn.callTool({ name: "mcp_dying_echo", args: { msg: "again" } }))
+      expect(after.tag).toBe("McpConnection.ProcessStartError")
+      expect(after.reason).toBe("connection closed")
+
+      // The positive control, and the isolation claim: one server dying must not
+      // take its siblings down with it.
+      const survivor = yield* probe(conn.callTool({ name: "mcp_survivor_echo", args: { msg: "ok" } }))
+      expect(survivor.failed).toBe(false)
+      expect(yield* conn.health("survivor")).toBe("ready")
+
+      yield* conn.disconnect("survivor")
+      yield* Effect.promise(() => Bun.file(marker).delete()).pipe(Effect.ignore)
+    }),
+  )
+
   it.live("registers discovered tools under mcp_<server>_<tool> in the one canonical registry", () =>
     Effect.gen(function* () {
       const conn = yield* McpConnection.Service

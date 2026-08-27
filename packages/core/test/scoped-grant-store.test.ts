@@ -1,5 +1,5 @@
 import { describe, expect } from "bun:test"
-import { Context, Deferred, Duration, Effect, Exit, Layer, Ref, Schema, Scope } from "effect"
+import { Cause, Context, Deferred, Duration, Effect, Exit, Layer, Option, Ref, Schema, Scope } from "effect"
 import * as TestClock from "effect/testing/TestClock"
 import { eq, sql } from "drizzle-orm"
 import { Database } from "@aigcfroge/core/database/database"
@@ -28,6 +28,33 @@ const it = testEffect(Layer.mergeAll(dependencies, current, grants))
 const sessionA = SessionV2.ID.make("ses_grant_a")
 const sessionB = SessionV2.ID.make("ses_grant_b")
 const revision = Schema.decodeUnknownSync(Composition.Revision)("c".repeat(64))
+
+/**
+ * Every denied transition in this store is a `StateError` carrying one of four
+ * reasons, and `Exit.isFailure` cannot tell them apart — nor can it tell any of
+ * them apart from a defect. That is not hypothetical: this milestone already
+ * shipped one "duplicate is a typed StateError" test that only checked
+ * `Exit.isFailure`, and the typed path underneath it was dead.
+ *
+ * Reasons are what the caller branches on: `consultGrant` swallows
+ * `already_consumed` to fall back to the ask flow (`permission.ts:192-196`),
+ * while `revision_mismatch` means a lost CAS race that must not be retried
+ * blindly. Swapping two of them is a live behaviour change that stayed green.
+ *
+ * Throwing rather than skipping on a wrong tag is deliberate: a nested
+ * `if (error instanceof ...)` would silently pass once the tag changed.
+ * Mirrors `mcp-credential-binding.test.ts`'s helper of the same shape.
+ */
+const expectStateError = (exit: Exit.Exit<unknown, unknown>, expectedReason: ScopedGrantStore.StateError["reason"]) => {
+  if (!Exit.isFailure(exit)) throw new Error("expected a typed failure, got a success")
+  const error = Option.getOrThrow(Cause.findErrorOption(exit.cause))
+  if (!(error instanceof ScopedGrantStore.StateError)) {
+    const tag = typeof error === "object" && error !== null && "_tag" in error ? String(error._tag) : String(error)
+    throw new Error(`expected ScopedGrant.StateError, got ${tag}`)
+  }
+  expect(error._tag).toBe("ScopedGrant.StateError")
+  expect(error.reason).toBe(expectedReason)
+}
 
 describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
   // `rows[0]` is `Row | undefined` at every read site and the settled-row sweep
@@ -77,13 +104,16 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
       )
       expect(exits.filter(Exit.isSuccess)).toHaveLength(1)
       expect(exits.filter(Exit.isFailure)).toHaveLength(7)
+      // The seven losers lost the CAS on an already-settled row, not on a
+      // defect: without this, a store that died on contention would pass.
+      for (const exit of exits.filter(Exit.isFailure)) expectStateError(exit, "already_consumed")
 
       const consumed = yield* store.get(grant.grant.id)
       expect(consumed?.status).toBe("consumed")
 
       // The explicit second consume is a typed failure, not a silent no-op.
       const second = yield* store.consume(grant.grant.id).pipe(Effect.exit)
-      expect(Exit.isFailure(second)).toBe(true)
+      expectStateError(second, "already_consumed")
 
       // Consultation misses a consumed grant.
       const hit = yield* store.findValid({ action: "bash", resources: ["/workspace/run.sh"] })
@@ -163,7 +193,7 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
       expect(before?.status).toBe("active")
 
       const staleRevision = yield* store.revoke(grant.grant.id, grant.grantRevision + 5).pipe(Effect.exit)
-      expect(Exit.isFailure(staleRevision)).toBe(true)
+      expectStateError(staleRevision, "revision_mismatch")
 
       const revoked = yield* store.revoke(grant.grant.id, grant.grantRevision)
       expect(revoked.status).toBe("revoked")
@@ -171,7 +201,50 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
       expect(after).toBeUndefined()
 
       const doubleRevoke = yield* store.revoke(grant.grant.id, revoked.grantRevision).pipe(Effect.exit)
-      expect(Exit.isFailure(doubleRevoke)).toBe(true)
+      expectStateError(doubleRevoke, "already_revoked")
+    }),
+  )
+
+  /**
+   * `reason: "expired"` (`store.ts:381`) was the one branch no test could reach:
+   * expiry was only ever observed through `findValid` returning `undefined`,
+   * which is the consultation path and never enters `consume`. So a grant that
+   * outlived its window could be settled as if it were live and the suite would
+   * not notice.
+   *
+   * Order matters here too — the guard runs after the revoked and consumed
+   * checks, so an expired-and-revoked grant must still report `already_revoked`.
+   */
+  it.effect("refuses to consume a grant that outlived its window, and keeps settled reasons ahead of expiry", () =>
+    Effect.gen(function* () {
+      const store = yield* ScopedGrantStore.Service
+      const stale = yield* store.issue({
+        scope: { level: "once" },
+        action: "bash",
+        resources: ["*"],
+        expiresAt: Date.now() - 1,
+      })
+      expectStateError(yield* store.consume(stale.grant.id).pipe(Effect.exit), "expired")
+
+      const revokedThenExpired = yield* store.issue({
+        scope: { level: "once" },
+        action: "bash",
+        resources: ["*"],
+        expiresAt: Date.now() - 1,
+      })
+      yield* store.revoke(revokedThenExpired.grant.id, revokedThenExpired.grantRevision)
+      expectStateError(yield* store.consume(revokedThenExpired.grant.id).pipe(Effect.exit), "already_revoked")
+
+      // The positive control: a grant inside its window still consumes. Without
+      // it, an `isExpired` that returned `true` unconditionally would satisfy
+      // every assertion above while making all once-grants unusable.
+      const live = yield* store.issue({
+        scope: { level: "once" },
+        action: "bash",
+        resources: ["*"],
+        expiresAt: Date.now() + 60_000,
+      })
+      expect((yield* store.consume(live.grant.id)).status).toBe("consumed")
     }),
   )
 

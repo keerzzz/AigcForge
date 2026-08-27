@@ -7,7 +7,9 @@
 //   so a test can prove the material actually reached the child process),
 // stderrsecret (writes one very long stderr line whose secret straddles the
 //   log truncation boundary; exercises scan-before-truncate ordering),
-// pendingcall (handshakes normally then leaves tools/call unanswered).
+// pendingcall (handshakes normally then leaves tools/call unanswered),
+// diemidcall (handshakes normally, then exits 7 while a tools/call is in
+//   flight; exercises the death watcher rather than a startup crash).
 import { writeFileSync } from "node:fs"
 import readline from "node:readline"
 
@@ -87,6 +89,13 @@ if (mode === "garbage") {
       if (mode === "pendingcall") {
         if (pendingMarker) writeFileSync(pendingMarker, "pending")
         return
+      }
+      if (mode === "diemidcall") {
+        // Record arrival first: the test needs to know the call was in flight
+        // when the process died, otherwise it could be asserting a pre-call
+        // failure instead of the death watcher.
+        if (pendingMarker) writeFileSync(pendingMarker, "pending")
+        process.exit(7)
       }
       const echoed =
         mode === "envecho"
