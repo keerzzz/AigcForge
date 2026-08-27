@@ -260,13 +260,40 @@ test.describe("regression: Builder MCP health", () => {
     await expect(denied(page)).toHaveCount(0)
   })
 
-  // A loading-state case is deliberately absent, and the reason is a finding
-  // rather than an omission: holding the FIRST plan request suspends the whole
-  // mode workspace, so the tab never renders and there is nothing to assert
-  // against; and gating a Recalculate refetch never surfaces
-  // `custom.builder.mcp.loading` either, so `McpTab`'s `loading` prop appears not
-  // to be true during a refetch. Both are current-behaviour observations about
-  // the preview column, not about MCP health, and are reported separately.
+  test("shows the loading state instead of a stale server list while a recalculation is in flight", async ({ page }) => {
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const state = wire({
+      gate,
+      plan: planWith({
+        effective: [
+          {
+            serverName: "late-server",
+            ref: mcpRef("late-server.md"),
+            credentialStatus: "not-required",
+            health: "ready",
+            tools: [],
+          },
+        ],
+      }),
+    })
+    await openBuilder(page, state)
+    await openMcpTab(page)
+    await expect(effective(page).locator('[data-slot="mcp-server-name"]')).toHaveText("late-server")
+
+    // The gate holds the second plan request. An in-flight plan must read as
+    // loading, never as a still-valid server list — and this is only observable
+    // because the column reads `planResult.latest` rather than the suspending
+    // call; suspending unmounts the panel, so its loading branch never rendered.
+    await page.getByRole("button", { name: "Recalculate" }).click()
+    await expect(page.getByText("Loading MCP plan from the server...")).toBeVisible()
+    await expect(effective(page)).toHaveCount(0)
+    await expect(denied(page)).toHaveCount(0)
+    release()
+    await expect(effective(page).locator('[data-slot="mcp-server-name"]')).toHaveText("late-server")
+  })
 
   test("fails closed when the plan request errors", async ({ page }) => {
     await openBuilder(page, wire({ status: 500, message: "plan blew up" }))

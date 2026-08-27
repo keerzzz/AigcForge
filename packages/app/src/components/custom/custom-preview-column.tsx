@@ -61,14 +61,30 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
     },
   )
 
-  const plan = createMemo(() => planResult()?.plan)
+  /**
+   * Read the latest settled value, never the suspending call.
+   *
+   * Reading a pending resource suspends to the nearest boundary, and the only
+   * one above this component is `pages/layout.tsx:43` — a `<Suspense>` with no
+   * fallback wrapping the whole `<main>`. So a pending plan blanked the entire
+   * mode workspace on first load, and a `Recalculate` unmounted this column
+   * mid-refetch, which is why `McpTab`'s own loading branch
+   * (`custom-preview-tabs.tsx`, state `"loading"`) could never render: the
+   * component did not exist while the request was in flight.
+   *
+   * With `.latest` the column stays mounted and each panel renders its own
+   * loading state from `planResult.loading`. The app-wide fallback-less
+   * `<Suspense>` is a separate, pre-existing problem — see technical-debt §4.
+   */
+  const result = createMemo(() => planResult.latest)
+  const plan = createMemo(() => result()?.plan)
   const blockingCount = createMemo(
     () => (plan()?.diagnostics ?? []).filter((d: CompositionDiagnostic) => d.severity === "blocking").length,
   )
   const canStart = createMemo(() => {
     if (starting()) return false
     if (!props.dirSdk()) return false
-    if (planResult()?.disabled || planResult()?.unsupported) return false
+    if (result()?.disabled || result()?.unsupported) return false
     if (blockingCount() > 0) return false
     if (draft.state.source === "temporary" && draft.state.agents.length === 0) return false
     return true
@@ -161,14 +177,14 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
       </div>
 
       {/* Warning / Error banners */}
-      <Show when={planResult()?.disabled}>
+      <Show when={result()?.disabled}>
         <div class="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-12-regular text-amber-300 flex items-center gap-2">
           <Icon name="warning" size="small" class="shrink-0" />
           <span>{language.t("custom.builder.flagDisabledWarning")}</span>
         </div>
       </Show>
 
-      <Show when={planResult()?.unsupported}>
+      <Show when={result()?.unsupported}>
         <div class="rounded-md border border-rose-500/30 bg-rose-500/10 p-3 text-12-regular text-rose-300 flex items-center gap-2">
           <Icon name="warning" size="small" class="shrink-0" />
           <span>{language.t("custom.builder.unsupportedServerWarning")}</span>
@@ -238,7 +254,7 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
               <PermissionsTab plan={plan()} />
             </TabsV2.Content>
             <TabsV2.Content value="mcp">
-              <McpTab plan={plan()} loading={planResult.loading} error={planResult()?.error} />
+              <McpTab plan={plan()} loading={planResult.loading} error={result()?.error} />
             </TabsV2.Content>
             <TabsV2.Content value="diagnostics">
               <DiagnosticsTab plan={plan()} />
