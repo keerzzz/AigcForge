@@ -1082,8 +1082,15 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
 
       const loser = [a.pid, b.pid].find((pid) => pid !== live[0]?.pid)
       if (loser === undefined) throw new Error("both connects reported the surviving pid")
-      yield* waitDead(loser)
-      expect(yield* alive(live[0]!.pid!)).toBe(true)
+      // `alive` reads /proc, so the orphan probe is Linux-only — same split as
+      // `reaped` above. On Windows it reports every pid as dead, which would
+      // fail the survivor assertion on a missing instrument rather than on a
+      // real orphan. The serialization contract itself (one live connection, one
+      // fact, one registered definition) is asserted on every platform above.
+      if (process.platform === "linux") {
+        yield* waitDead(loser)
+        expect(yield* alive(live[0]!.pid!)).toBe(true)
+      }
       yield* conn.disconnect("race")
     }),
   )
