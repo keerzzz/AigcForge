@@ -570,15 +570,11 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
       const result = yield* probe(conn.callTool({ name: "mcp_expiring_echo", args: { msg: "hi" } }))
       expect(result.tag).toBe("McpConnection.CredentialExpiredError")
 
-      // Health deliberately NOT asserted as `auth-required`, because it cannot
-      // be: `transitionHealth` forbids `ready -> auth-required` and that
-      // illegality is itself pinned by a reviewed test in this file. The call
-      // path already *intends* that move — the `tapError` below `requestOn` maps
-      // `CredentialExpiredError` to `auth-required` — so the intent has never
-      // been reachable from a ready connection and the failure is swallowed.
-      // Amending a reviewed state machine is not this change's call; the finding
-      // is registered in technical-debt §3.2 instead.
-      expect(yield* conn.health("expiring")).toBe("ready")
+      // And it is legible as such: `auth-required` tells the user to go
+      // re-authorize, which is the whole point of detecting expiry locally. This
+      // needed the `ready -> auth-required` edge, whose absence had made the
+      // call path's existing intent unreachable from a live connection.
+      expect(yield* conn.health("expiring")).toBe("auth-required")
       yield* conn.disconnect("expiring")
     }),
   )
@@ -945,6 +941,11 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
         ["ready", "degraded"],
         ["ready", "offline"],
         ["ready", "revoked"],
+        // Sibling of `ready -> revoked` above: both are credential failures
+        // raised by the same `requestOn` catch, a few lines apart. The table
+        // admitted one and omitted the other, which is why the call path's
+        // `auth-required` intent was never reachable from a live connection.
+        ["ready", "auth-required"],
         ["degraded", "connecting"],
         ["degraded", "ready"],
         ["degraded", "offline"],
@@ -957,7 +958,6 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
       )
 
       for (const [from, to] of [
-        ["ready", "auth-required"],
         ["offline", "ready"],
         ["auth-required", "ready"],
         ["revoked", "ready"],

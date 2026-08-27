@@ -159,6 +159,28 @@ export const classifyRemoteFailure = (input: { readonly serverName: string; read
   return new RemoteUnavailableError({ serverName: input.serverName, url: input.url })
 }
 
+/**
+ * `ready -> auth-required` is legal because its sibling is: `requestOn`'s catch
+ * raises `revoked` and `auth-required` a few lines apart, from the same
+ * credential re-resolution, and the table admitted only the first. That
+ * asymmetry is what made the call path's `auth-required` intent unreachable from
+ * a live connection.
+ *
+ * The omission is not confined to that one edge, and the remaining ones are NOT
+ * fixed here. `requestOn` chooses its target purely from the error it just
+ * observed, with no knowledge of the current state, so it can also request
+ * `degraded -> auth-required`, `auth-required -> offline`, `auth-required ->
+ * degraded`, `offline -> auth-required` and `degraded -> revoked` — all
+ * reachable, all currently rejected (measured). Those failures are discarded by
+ * the callers, so the recorded health silently lags reality.
+ *
+ * The collision is structural: this table says "once broken, change state only
+ * by way of `connecting`", while the call path says "record what just happened".
+ * Enumerating edges cannot reconcile them; the rule that can is "an observation
+ * of failure is always recordable, and only becoming `ready` is gated". That is
+ * a redesign of a reviewed state machine, so it is registered in technical-debt
+ * §3.2 rather than folded into this change.
+ */
 export const transitionHealth = (input: {
   readonly from: McpScope.McpConnectionHealth
   readonly to: McpScope.McpConnectionHealth
@@ -166,7 +188,7 @@ export const transitionHealth = (input: {
 }) => {
   const allowed =
     (input.from === "connecting" && ["ready", "degraded", "offline", "auth-required", "revoked"].includes(input.to)) ||
-    (input.from === "ready" && ["connecting", "degraded", "offline", "revoked"].includes(input.to)) ||
+    (input.from === "ready" && ["connecting", "degraded", "offline", "auth-required", "revoked"].includes(input.to)) ||
     (input.from === "degraded" && ["connecting", "ready", "offline"].includes(input.to)) ||
     (input.from === "offline" && input.to === "connecting") ||
     (input.from === "auth-required" && input.to === "connecting") ||
@@ -413,6 +435,7 @@ export const layer = Layer.effect(
         if (wire !== undefined) wire.health = next
         return next
       })
+
 
     // Spawns the child and wires the newline-delimited JSON-RPC protocol
     // around it. Runs inside the caller-provided Scope so the spawn handle
@@ -691,13 +714,14 @@ export const layer = Layer.effect(
           // like a missing credential.
           const credentialRef = wire.binding.credentialRef
           const cred = yield* credentialService.get(Credential.ID.make(credentialRef)).pipe(Effect.orDie)
-          if (!cred) return yield* new CredentialMissingError({ serverName: server, credentialRef })
-          // No `setHealth` here: `ready -> auth-required` is rejected by
-          // `transitionHealth`, so attempting it would only be swallowed. Same
-          // reason the `tapError` further down has never been able to record
-          // this state. See technical-debt §3.2.
-          if (isCredentialExpired(cred.value, Date.now()))
+          if (!cred) {
+            yield* setHealth({ serverName: server, to: "auth-required" })
+            return yield* new CredentialMissingError({ serverName: server, credentialRef })
+          }
+          if (isCredentialExpired(cred.value, Date.now())) {
+            yield* setHealth({ serverName: server, to: "auth-required" })
             return yield* new CredentialExpiredError({ serverName: server, credentialRef })
+          }
         }
         return yield* wire.request(method, params).pipe(
           Effect.tapError((error) =>
