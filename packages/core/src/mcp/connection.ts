@@ -12,6 +12,7 @@ import {
   Option,
   Scope,
   Schema,
+  Semaphore,
   Stream,
 } from "effect"
 import { HttpClient, HttpClientError, HttpClientRequest } from "effect/unstable/http"
@@ -23,7 +24,6 @@ import { canonicalToolName, McpRegistration, SERVER_NAME_PATTERN } from "../tool
 import { RegistrationError, Tool } from "../tool/tool"
 import { McpCredentialBindingStore } from "./binding/store"
 import { Credential } from "../credential"
-import { Location } from "../location"
 import { CredentialScanner } from "../credential-scanner"
 import { ProductModePolicy } from "../product-mode-policy"
 
@@ -147,7 +147,11 @@ export class HealthTransitionError extends Schema.TaggedErrorClass<HealthTransit
   }
 }
 
-export const classifyRemoteFailure = (input: { readonly serverName: string; readonly url: string; readonly cause: unknown }) => {
+export const classifyRemoteFailure = (input: {
+  readonly serverName: string
+  readonly url: string
+  readonly cause: unknown
+}) => {
   const cause = input.cause instanceof HttpClientError.HttpClientError ? input.cause.reason.cause : input.cause
   const text = String(cause).toLowerCase()
   if (text.includes("enotfound") || text.includes("getaddrinfo") || text.includes("dns"))
@@ -391,9 +395,8 @@ export const redactRemoteResponse = (
   scanner: CredentialScanner.Interface,
   input: { readonly headers: Readonly<Record<string, string>>; readonly body: string },
 ) =>
-  Effect.forEach(
-    [...Object.entries(input.headers).map(([name, value]) => `${name}: ${value}`), input.body],
-    (text) => redactStderrLine(scanner, text),
+  Effect.forEach([...Object.entries(input.headers).map(([name, value]) => `${name}: ${value}`), input.body], (text) =>
+    redactStderrLine(scanner, text),
   ).pipe(
     Effect.map((entries) => ({
       entries: entries.map((entry) => entry.redacted),
@@ -410,11 +413,26 @@ export const layer = Layer.effect(
     const credentialService = yield* Credential.Service
     const scanner = yield* CredentialScanner.Service
     const http = yield* HttpClient.HttpClient
-    const currentLocation = yield* Location.Service
 
     const conns = new Map<string, Wire>()
     const health = new Map<string, McpScope.McpConnectionHealth>()
     const routes = new Map<string, { readonly server: string; readonly tool: string }>()
+
+    // One connect at a time per server name. Two concurrent connects for the same
+    // name otherwise interleave the `conns.has` check with the `conns.set` that
+    // only happens after the spawn: the loser's wire never reaches the map, so its
+    // child process and `connScope` stay alive with its tools still registered on
+    // a scope nothing can reach, while `callTool` answers NotConnected for them —
+    // the orphan shape ADR-19 §4.5 exists to prevent.
+    const connectLocks = new Map<string, Semaphore.Semaphore>()
+    const connectLock = (serverName: string) => {
+      const existing = connectLocks.get(serverName)
+      if (existing !== undefined) return existing
+      // makeUnsafe is synchronous, so no fiber can interleave get and set.
+      const created = Semaphore.makeUnsafe(1)
+      connectLocks.set(serverName, created)
+      return created
+    }
 
     const setHealth = (input: {
       readonly serverName: string
@@ -435,7 +453,6 @@ export const layer = Layer.effect(
         if (wire !== undefined) wire.health = next
         return next
       })
-
 
     // Spawns the child and wires the newline-delimited JSON-RPC protocol
     // around it. Runs inside the caller-provided Scope so the spawn handle
@@ -598,7 +615,10 @@ export const layer = Layer.effect(
     }) =>
       redactRemoteResponse(scanner, { headers: input.headers, body: input.body }).pipe(
         Effect.tap((redacted) =>
-          Effect.logDebug("mcp remote response rejected", { serverName: input.serverName, secretHits: redacted.secretHits }),
+          Effect.logDebug("mcp remote response rejected", {
+            serverName: input.serverName,
+            secretHits: redacted.secretHits,
+          }),
         ),
       )
 
@@ -633,20 +653,32 @@ export const layer = Layer.effect(
               Effect.gen(function* () {
                 const body = yield* response.text.pipe(
                   Effect.mapError(
-                    () => new ProtocolError({ serverName: input.serverName, reason: "remote response body could not be read" }),
+                    () =>
+                      new ProtocolError({
+                        serverName: input.serverName,
+                        reason: "remote response body could not be read",
+                      }),
                   ),
                 )
                 yield* redactRemoteFailure({ serverName: input.serverName, headers: response.headers, body })
                 if (response.status === 401 || response.status === 403)
                   return yield* new CredentialMissingError({ serverName: input.serverName })
                 if (response.status < 200 || response.status >= 300)
-                  return yield* new RemoteUnavailableError({ serverName: input.serverName, url: input.url, status: response.status })
+                  return yield* new RemoteUnavailableError({
+                    serverName: input.serverName,
+                    url: input.url,
+                    status: response.status,
+                  })
                 const message = yield* Effect.try({
                   try: () => JSON.parse(body),
-                  catch: () => new ProtocolError({ serverName: input.serverName, reason: "remote response was not JSON" }),
+                  catch: () =>
+                    new ProtocolError({ serverName: input.serverName, reason: "remote response was not JSON" }),
                 })
                 if (!isRecord(message) || !("result" in message))
-                  return yield* new ProtocolError({ serverName: input.serverName, reason: "remote response lacked result" })
+                  return yield* new ProtocolError({
+                    serverName: input.serverName,
+                    reason: "remote response lacked result",
+                  })
                 return message.result
               }),
             ),
@@ -669,10 +701,7 @@ export const layer = Layer.effect(
       } satisfies Wire
     })
 
-    const killConn = (
-      serverName: string,
-      reason: ConnectionClosedError["reason"] = "disconnect",
-    ) =>
+    const killConn = (serverName: string, reason: ConnectionClosedError["reason"] = "disconnect") =>
       Effect.gen(function* () {
         const wire = conns.get(serverName)
         if (!wire) return
@@ -703,7 +732,9 @@ export const layer = Layer.effect(
                 return setHealth({ serverName: server, to: "revoked" }).pipe(Effect.andThen(Effect.fail(error)))
               if (error instanceof McpCredentialBindingStore.DanglingRefError)
                 return setHealth({ serverName: server, to: "auth-required" }).pipe(
-                  Effect.andThen(Effect.fail(new CredentialMissingError({ serverName: server, credentialRef: error.credentialRef }))),
+                  Effect.andThen(
+                    Effect.fail(new CredentialMissingError({ serverName: server, credentialRef: error.credentialRef })),
+                  ),
                 )
               return Effect.fail(error)
             }),
@@ -753,6 +784,11 @@ export const layer = Layer.effect(
       })
       const serverName = binding.serverName
       if (!SERVER_NAME_PATTERN.test(serverName)) yield* new McpRegistration.InvalidServerNameError({ serverName })
+      return yield* connectLock(serverName).withPermits(1)(establish(binding))
+    })
+
+    const establish = Effect.fnUntraced(function* (binding: McpServerBinding) {
+      const serverName = binding.serverName
       if (binding.transport === "stdio" && (binding.command === undefined || binding.command.length === 0))
         return yield* new InvalidConfigError({ serverName, reason: "stdio transport requires a command" })
       if (binding.transport === "remote" && binding.url === undefined)
@@ -765,7 +801,9 @@ export const layer = Layer.effect(
           // fitting, and the whole `connect` error channel collapses to
           // `unknown` — voiding every typed guarantee on it at once.
           Effect.catch(
-            (e): Effect.Effect<
+            (
+              e,
+            ): Effect.Effect<
               never,
               | McpCredentialBindingStore.CrossLocationRefError
               | McpCredentialBindingStore.RevokedRefError
@@ -776,7 +814,9 @@ export const layer = Layer.effect(
               if (e instanceof McpCredentialBindingStore.CrossLocationRefError) return Effect.fail(e)
               if (e instanceof McpCredentialBindingStore.DanglingRefError)
                 return setHealth({ serverName, to: "auth-required" }).pipe(
-                  Effect.andThen(Effect.fail(new CredentialMissingError({ serverName, credentialRef: e.credentialRef }))),
+                  Effect.andThen(
+                    Effect.fail(new CredentialMissingError({ serverName, credentialRef: e.credentialRef })),
+                  ),
                 )
               if (e instanceof McpCredentialBindingStore.RevokedRefError)
                 return setHealth({ serverName, to: "revoked" }).pipe(Effect.andThen(Effect.fail(e)))
@@ -801,22 +841,21 @@ export const layer = Layer.effect(
       if (conns.has(serverName)) yield* killConn(serverName, "disconnect")
       yield* setHealth({ serverName, to: "connecting", rebound: health.get(serverName) === "revoked" })
       const connScope = yield* Scope.make()
-      const wireExit = yield* (binding.transport === "stdio"
-        ? buildWire({
-            serverName,
-            command: [binding.command![0], ...binding.command!.slice(1)],
-            scope: connScope,
-            ...(credential !== undefined ? { env: credentialEnvFor(credential) } : {}),
-          })
-        : buildRemoteWire({
-            serverName,
-            url: binding.url!,
-            scope: connScope,
-            ...(credential?.type === "oauth" ? { headers: credentialHeadersFor(credential) } : {}),
-          })).pipe(
-        Effect.provideService(Scope.Scope, connScope),
-        Effect.exit,
-      )
+      const wireExit = yield* (
+        binding.transport === "stdio"
+          ? buildWire({
+              serverName,
+              command: [binding.command![0], ...binding.command!.slice(1)],
+              scope: connScope,
+              ...(credential !== undefined ? { env: credentialEnvFor(credential) } : {}),
+            })
+          : buildRemoteWire({
+              serverName,
+              url: binding.url!,
+              scope: connScope,
+              ...(credential?.type === "oauth" ? { headers: credentialHeadersFor(credential) } : {}),
+            })
+      ).pipe(Effect.provideService(Scope.Scope, connScope), Effect.exit)
       if (Exit.isFailure(wireExit)) {
         yield* Scope.close(connScope, Exit.void).pipe(Effect.ignore)
         yield* setHealth({ serverName, to: "offline" }).pipe(Effect.catch(() => Effect.void))
@@ -898,7 +937,10 @@ export const layer = Layer.effect(
         Effect.tapError((error) =>
           setHealth({
             serverName,
-            to: error instanceof CredentialMissingError || error instanceof CredentialExpiredError ? "auth-required" : "offline",
+            to:
+              error instanceof CredentialMissingError || error instanceof CredentialExpiredError
+                ? "auth-required"
+                : "offline",
           }).pipe(Effect.catch(() => Effect.void)),
         ),
         Effect.onError(() => killConn(serverName, "owner_scope_closed")),
@@ -908,9 +950,20 @@ export const layer = Layer.effect(
     return Service.of({
       connect,
       disconnect: Effect.fn("McpConnection.disconnect")(function* (serverName: string) {
-        if (!health.has(serverName)) return yield* new NotConnectedError({ serverName })
-        yield* killConn(serverName)
-        health.delete(serverName)
+        // Shares connect's per-server lock. A disconnect landing between
+        // `setHealth("connecting")` and `conns.set` would otherwise kill a wire
+        // that `establish` then re-adds, recreating the same orphan from the
+        // other side. The wait is bounded by the handshake timeout.
+        yield* connectLock(serverName).withPermits(1)(
+          Effect.gen(function* () {
+            if (health.has(serverName)) {
+              yield* killConn(serverName)
+              health.delete(serverName)
+              return
+            }
+            yield* new NotConnectedError({ serverName })
+          }),
+        )
       }),
       connections: Effect.fn("McpConnection.connections")(function* () {
         return [...conns.values()].map(

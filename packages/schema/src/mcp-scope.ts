@@ -77,6 +77,18 @@ export class McpServerBinding extends Schema.Class<McpServerBinding>("McpScope.M
         Schema.makeFilter<string>((input) => input.startsWith("http://") || input.startsWith("https://"), {
           message: "MCP remote url must be http(s)",
         }),
+        // `user:pass@host` would put a credential in a field this schema treats
+        // as non-secret: the URL is echoed verbatim by typed connect errors and
+        // by the connection projection, so userinfo is a credential leak path.
+        // Credentials belong in `credentialRef` and only in `credentialRef`.
+        Schema.makeFilter<string>(
+          (input) => {
+            const parsed = URL.parse(input)
+            if (parsed === null) return false
+            return parsed.username === "" && parsed.password === ""
+          },
+          { message: "MCP remote url must be parseable and must not embed userinfo; use credentialRef" },
+        ),
       ),
     ),
   ),

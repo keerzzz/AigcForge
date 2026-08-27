@@ -290,7 +290,9 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
       if (info.pid === undefined) throw new Error("stdio connection did not expose a pid")
       const fiber = yield* Effect.forkScoped(probe(conn.callTool({ name: "mcp_pending_echo", args: {} })))
       yield* pollWithTimeout(
-        Effect.promise(() => Bun.file(marker).exists()).pipe(Effect.flatMap((exists) => (exists ? Effect.succeed(marker) : Effect.succeed(undefined)))),
+        Effect.promise(() => Bun.file(marker).exists()).pipe(
+          Effect.flatMap((exists) => (exists ? Effect.succeed(marker) : Effect.succeed(undefined))),
+        ),
         "stdio server never observed the pending tool call",
       )
       yield* conn.disconnect("pending")
@@ -359,14 +361,14 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
       if (info.pid === undefined) throw new Error("stdio connection did not expose a pid")
       const pending = yield* Effect.forkScoped(probe(conn.callTool({ name: "mcp_killswitch_echo", args: {} })))
       yield* pollWithTimeout(
-        Effect.promise(() => Bun.file(marker).exists()).pipe(Effect.flatMap((exists) => (exists ? Effect.succeed(marker) : Effect.succeed(undefined)))),
+        Effect.promise(() => Bun.file(marker).exists()).pipe(
+          Effect.flatMap((exists) => (exists ? Effect.succeed(marker) : Effect.succeed(undefined))),
+        ),
         "stdio server never observed the pending tool call",
       )
       const saved = process.env["AIGCFROGE_CUSTOM_MODE"]
       delete process.env["AIGCFROGE_CUSTOM_MODE"]
-      const disabled = yield* probe(
-        conn.connect({ binding: binding({ serverName: "new-server", mode: "ok" }) }),
-      ).pipe(
+      const disabled = yield* probe(conn.connect({ binding: binding({ serverName: "new-server", mode: "ok" }) })).pipe(
         Effect.ensuring(
           Effect.sync(() => {
             if (saved === undefined) delete process.env["AIGCFROGE_CUSTOM_MODE"]
@@ -819,7 +821,9 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
         fixtureLocation({ directory: AbsolutePath.make("/tmp/test-mcp-connection-b") }),
       )
       const bindingsB = McpCredentialBindingStore.layer.pipe(
-        Layer.provide(Layer.mergeAll(Layer.succeed(Database.Service, db), Layer.succeed(EventV2.Service, events), locationB)),
+        Layer.provide(
+          Layer.mergeAll(Layer.succeed(Database.Service, db), Layer.succeed(EventV2.Service, events), locationB),
+        ),
       )
       const connectionB = McpConnection.layer.pipe(
         Layer.provide(RegistryLayer.pipe(Layer.fresh)),
@@ -980,7 +984,11 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
           JSON.stringify({
             jsonrpc: "2.0",
             id: 1,
-            result: { protocolVersion: "2024-11-05", capabilities: { tools: {} }, serverInfo: { name: "remote", version: "0" } },
+            result: {
+              protocolVersion: "2024-11-05",
+              capabilities: { tools: {} },
+              serverInfo: { name: "remote", version: "0" },
+            },
           }),
           { headers: { "content-type": "application/json" } },
         ),
@@ -1001,9 +1009,12 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
           }),
           { headers: { "content-type": "application/json" } },
         ),
-        new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result: { content: [{ type: "text", text: "remote:hi" }] } }), {
-          headers: { "content-type": "application/json" },
-        }),
+        new Response(
+          JSON.stringify({ jsonrpc: "2.0", id: 1, result: { content: [{ type: "text", text: "remote:hi" }] } }),
+          {
+            headers: { "content-type": "application/json" },
+          },
+        ),
       ]
       const conn = yield* McpConnection.Service
       const info = yield* conn.connect({
@@ -1015,7 +1026,9 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
       expect(remoteRequests[0]?.headers.authorization).toBeUndefined()
       const registry = yield* ToolRegistry.Service
       expect(registry.registeredNames().has("mcp_remote_echo")).toBe(true)
-      expect(JSON.stringify(yield* conn.callTool({ name: "mcp_remote_echo", args: { msg: "hi" } }))).toContain("remote:hi")
+      expect(JSON.stringify(yield* conn.callTool({ name: "mcp_remote_echo", args: { msg: "hi" } }))).toContain(
+        "remote:hi",
+      )
       yield* conn.disconnect("remote")
     }),
   )
@@ -1026,17 +1039,52 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
       const first = yield* conn.connect({ binding: binding({ serverName: "reconnect", mode: "ok" }) })
       if (first.pid === undefined) throw new Error("stdio connection did not expose a pid")
       const registry = yield* ToolRegistry.Service
-      expect((yield* registry.materialize()).definitions.find((item) => item.name === "mcp_reconnect_echo")?.description).toBe(
-        "Echo a message",
-      )
+      expect(
+        (yield* registry.materialize()).definitions.find((item) => item.name === "mcp_reconnect_echo")?.description,
+      ).toBe("Echo a message")
 
       const second = yield* conn.connect({ binding: binding({ serverName: "reconnect", mode: "changed" }) })
       expect(second.health).toBe("ready")
-      expect((yield* registry.materialize()).definitions.find((item) => item.name === "mcp_reconnect_echo")?.description).toBe(
-        "Changed echo",
-      )
+      expect(
+        (yield* registry.materialize()).definitions.find((item) => item.name === "mcp_reconnect_echo")?.description,
+      ).toBe("Changed echo")
       yield* waitDead(first.pid)
       yield* conn.disconnect("reconnect")
+    }),
+  )
+
+  it.live("serializes two concurrent connects for one server name and orphans no child", () =>
+    Effect.gen(function* () {
+      const conn = yield* McpConnection.Service
+      const registry = yield* ToolRegistry.Service
+      // Both fibers race the same server name. Unserialized, each passes the
+      // `conns.has` check before either reaches `conns.set`: two children spawn,
+      // the map keeps one, and the loser's process plus its tool registration
+      // survive on a scope nothing can reach (ADR-19 §4.5).
+      const [a, b] = yield* Effect.all(
+        [
+          conn.connect({ binding: binding({ serverName: "race", mode: "ok" }) }),
+          conn.connect({ binding: binding({ serverName: "race", mode: "ok" }) }),
+        ],
+        { concurrency: "unbounded" },
+      )
+
+      if (a.pid === undefined || b.pid === undefined) throw new Error("stdio connection did not expose a pid")
+      expect(a.pid).not.toBe(b.pid)
+      const live = (yield* conn.connections()).filter((item) => item.serverName === "race")
+      expect(live).toHaveLength(1)
+      expect(live[0]?.health).toBe("ready")
+      // Exactly one registration survives, so the winner's tool is callable.
+      expect((yield* registry.materialize()).definitions.filter((item) => item.name === "mcp_race_echo")).toHaveLength(
+        1,
+      )
+      expect((yield* conn.facts()).filter((fact) => fact.serverName === "race")).toHaveLength(1)
+
+      const loser = [a.pid, b.pid].find((pid) => pid !== live[0]?.pid)
+      if (loser === undefined) throw new Error("both connects reported the surviving pid")
+      yield* waitDead(loser)
+      expect(yield* alive(live[0]!.pid!)).toBe(true)
+      yield* conn.disconnect("race")
     }),
   )
 
@@ -1120,14 +1168,15 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
       remoteReplies = [new Response("authorization required", { status: 401 })]
       const conn = yield* McpConnection.Service
       const result = yield* probe(
-        conn.connect({ binding: binding({ serverName: "remote-auth", transport: "remote", url: "https://auth.test/mcp" }) }),
+        conn.connect({
+          binding: binding({ serverName: "remote-auth", transport: "remote", url: "https://auth.test/mcp" }),
+        }),
       )
       expect(result.tag).toBe("McpConnection.CredentialMissingError")
       expect(yield* conn.health("remote-auth")).toBe("auth-required")
       expect(yield* conn.connections()).toHaveLength(0)
     }),
   )
-
 
   it.live("scans remote response headers and body through the connection path", () =>
     Effect.gen(function* () {
@@ -1142,7 +1191,9 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
       ]
       const conn = yield* McpConnection.Service
       const result = yield* probe(
-        conn.connect({ binding: binding({ serverName: "diagnostic", transport: "remote", url: "https://diag.test/mcp" }) }),
+        conn.connect({
+          binding: binding({ serverName: "diagnostic", transport: "remote", url: "https://diag.test/mcp" }),
+        }),
       )
       expect(result.tag).toBe("McpConnection.RemoteUnavailableError")
       expect(scannedRemoteTexts).toContain(`authorization: Bearer ${secret}`)
@@ -1165,9 +1216,16 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
           headers: { "content-type": "application/json" },
         }),
         new Response("{}", { headers: { "content-type": "application/json" } }),
-        new Response(JSON.stringify({ jsonrpc: "2.0", id: 2, result: { tools: [{ name: "wait", inputSchema: { type: "object" } }] } }), {
-          headers: { "content-type": "application/json" },
-        }),
+        new Response(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 2,
+            result: { tools: [{ name: "wait", inputSchema: { type: "object" } }] },
+          }),
+          {
+            headers: { "content-type": "application/json" },
+          },
+        ),
         new Response(JSON.stringify({ jsonrpc: "2.0", id: 3, result: { content: [] } }), {
           headers: { "content-type": "application/json" },
         }),
@@ -1180,9 +1238,11 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
           })
           remoteStarted = started
           remoteBlock = blocked
-          yield* conn
-            .callTool({ name: "mcp_close_wait", args: {} })
-            .pipe(probe, Effect.tap((result) => Deferred.succeed(completed, result)), Effect.forkIn(outerScope))
+          yield* conn.callTool({ name: "mcp_close_wait", args: {} }).pipe(
+            probe,
+            Effect.tap((result) => Deferred.succeed(completed, result)),
+            Effect.forkIn(outerScope),
+          )
           yield* Deferred.await(started)
         }).pipe(Effect.provide(TestLayer.pipe(Layer.fresh))),
       )
@@ -1199,12 +1259,12 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
     Effect.gen(function* () {
       scannedRemoteTexts.length = 0
       remoteFailures.length = 0
-      remoteReplies = [
-        new Response("service unavailable", { status: 503, headers: { "content-type": "text/plain" } }),
-      ]
+      remoteReplies = [new Response("service unavailable", { status: 503, headers: { "content-type": "text/plain" } })]
       const conn = yield* McpConnection.Service
       const result = yield* probe(
-        conn.connect({ binding: binding({ serverName: "offline", transport: "remote", url: "https://offline.test/mcp" }) }),
+        conn.connect({
+          binding: binding({ serverName: "offline", transport: "remote", url: "https://offline.test/mcp" }),
+        }),
       )
       expect(result.tag).toBe("McpConnection.RemoteUnavailableError")
       expect(yield* conn.health("offline")).toBe("offline")
@@ -1224,7 +1284,9 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
         remoteReplies = []
         remoteFailures = [new Error(message)]
         const result = yield* probe(
-          conn.connect({ binding: binding({ serverName, transport: "remote", url: `https://${serverName}.test/mcp` }) }),
+          conn.connect({
+            binding: binding({ serverName, transport: "remote", url: `https://${serverName}.test/mcp` }),
+          }),
         )
         expect(result.tag).toBe(expectedTag)
         expect(yield* conn.health(serverName)).toBe("offline")
@@ -1290,7 +1352,10 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
         value: Schema.decodeUnknownSync(Credential.Key)({ type: "key", key: "key" }),
         label: "revoked",
       })
-      const revokedBinding = yield* bindings.bind({ serverName: "revoked", credentialRef: String(revokedCredential.id) })
+      const revokedBinding = yield* bindings.bind({
+        serverName: "revoked",
+        credentialRef: String(revokedCredential.id),
+      })
       yield* bindings.revoke(revokedBinding.id, revokedBinding.bindingRevision)
       const revoked = yield* probe(
         conn.connect({ binding: binding({ serverName: "revoked", credentialRef: String(revokedCredential.id) }) }),
