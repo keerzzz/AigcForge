@@ -49,7 +49,10 @@ export interface Interface {
     readonly custom: boolean
   }) => Effect.Effect<void, never, Scope.Scope>
   /** Live connection fact: at least one responder can observe this Location and mode. */
-  readonly hasResponder: (input: { readonly location: Location.Ref; readonly mode: ProductMode.ID }) => Effect.Effect<boolean>
+  readonly hasResponder: (input: {
+    readonly location: Location.Ref
+    readonly mode: ProductMode.ID
+  }) => Effect.Effect<boolean>
   /** Bounded wait for an answer once a responder exists; clamped to (0, MAX_TTL_MS]. */
   readonly ttlMs: number
 }

@@ -74,7 +74,7 @@ describe("Database file permissions (ADR-21 §2.5 止血 1)", () => {
     }),
   )
 
-  it.effect("re-tightens a sidecar that was loosened behind the layer's back", () =>
+  it.effect("re-tightens a database and its sidecar that sat at the process umask", () =>
     Effect.gen(function* () {
       if (skipOnWindows) return
       const tmp = yield* Effect.acquireRelease(
@@ -82,18 +82,34 @@ describe("Database file permissions (ADR-21 §2.5 止血 1)", () => {
         (t) => Effect.promise(() => t[Symbol.asyncDispose]()),
       )
       const filename = join(tmp.path, "remediate.sqlite")
-      const open = Effect.gen(function* () {
-        yield* Database.Service
-      }).pipe(Effect.provide(Database.layerFromPath(filename)))
+      // Both phases run their work *inside* the layer's scope on purpose. SQLite
+      // deletes `-wal` / `-shm` when the last connection closes cleanly, so a
+      // sidecar stat-ed after the scope ends is a file that no longer exists —
+      // this test used to do exactly that and only passed when it won the race
+      // against the close (CI caught it as ENOENT on `remediate.sqlite-wal`).
+      const withOpen = <A, E>(body: Effect.Effect<A, E>) =>
+        Effect.gen(function* () {
+          yield* Database.Service
+          return yield* body
+        }).pipe(Effect.provide(Database.layerFromPath(filename)))
 
-      yield* open
-      // Simulate a database created by a build that shipped no chmod at all:
-      // both the main file and its WAL sidecar sit at the process umask.
-      yield* Effect.promise(() => chmod(filename, 0o644))
-      yield* Effect.promise(() => chmod(`${filename}-wal`, 0o644))
-      yield* open
-      expect(yield* Effect.promise(() => mode(filename))).toBe("600")
-      expect(yield* Effect.promise(() => mode(`${filename}-wal`))).toBe("600")
+      // Simulate a database created by a build that shipped no chmod at all.
+      // The main file keeps 0644 across the close; the sidecar is recreated at
+      // the process umask by the reopen, so both reach the second phase loose.
+      yield* withOpen(
+        Effect.promise(async () => {
+          await chmod(filename, 0o644)
+          await chmod(`${filename}-wal`, 0o644)
+        }),
+      )
+      expect(yield* Effect.promise(() => mode(filename))).toBe("644")
+
+      yield* withOpen(
+        Effect.gen(function* () {
+          expect(yield* Effect.promise(() => mode(filename))).toBe("600")
+          expect(yield* Effect.promise(() => mode(`${filename}-wal`))).toBe("600")
+        }),
+      )
     }),
   )
 

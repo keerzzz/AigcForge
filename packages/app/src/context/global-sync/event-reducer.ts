@@ -21,6 +21,30 @@ import { diffs as list, message as clean } from "@/utils/diffs"
 
 const SKIP_PARTS = new Set(["patch", "step-start", "step-finish"])
 
+/**
+ * The V2 permission event buffer exists only to replay events that land while a
+ * pending bootstrap is in flight; `loadV2PermissionPending` clears it whenever a
+ * load completes. Nothing else clears it, so a Location whose bootstrap stops
+ * completing (offline, or a directory the app never re-bootstraps) would grow it
+ * for the life of the tab.
+ *
+ * Dropping the oldest is the safe direction: a load only reads events *newer*
+ * than the revision it captured at start, so the entries it needs are always at
+ * the tail. Declared tradeoff (CLAUDE.md 方案对冲): a load that stays in flight
+ * across more than this many events could lose one and under-report a pending
+ * request until the next event or load. The cap is set far above one load window
+ * rather than tracking a per-load floor, which would need new store state.
+ */
+const PERMISSION_V2_EVENT_CAP = 500
+
+const appendPermissionV2Event = (
+  events: PermissionPendingModel.PermissionV2Event[],
+  event: PermissionPendingModel.PermissionV2Event,
+) => {
+  const next = [...events, event]
+  return next.length > PERMISSION_V2_EVENT_CAP ? next.slice(next.length - PERMISSION_V2_EVENT_CAP) : next
+}
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
 
@@ -118,14 +142,16 @@ export function applyDirectoryEvent(input: {
   /** P2: ephemeral progress snapshot for the session's active task. */
   setSessionTaskProgress?: (
     sessionID: string,
-    progress: {
-      taskID: string
-      phase: "thinking" | "streaming" | "tool" | "waiting"
-      progress?: number
-      current?: number
-      total?: number
-      updatedAt: number
-    } | undefined,
+    progress:
+      | {
+          taskID: string
+          phase: "thinking" | "streaming" | "tool" | "waiting"
+          progress?: number
+          current?: number
+          total?: number
+          updatedAt: number
+        }
+      | undefined,
   ) => void
   retainedLimit?: number
 }) {
@@ -145,9 +171,20 @@ export function applyDirectoryEvent(input: {
       }
       const next = input.store.session.slice()
       next.splice(result.index, 0, info)
-      const trimmed = trimSessions(next, { limit, permission: input.store.permission, permission_v2: input.store.permission_v2 })
+      const trimmed = trimSessions(next, {
+        limit,
+        permission: input.store.permission,
+        permission_v2: input.store.permission_v2,
+      })
       input.setStore("session", reconcile(trimmed, { key: "id" }))
-      cleanupDroppedSessionCaches(input.store, input.setStore, trimmed, input.setSessionTodo, input.setSessionTask, input.setSessionTaskProgress)
+      cleanupDroppedSessionCaches(
+        input.store,
+        input.setStore,
+        trimmed,
+        input.setSessionTodo,
+        input.setSessionTask,
+        input.setSessionTaskProgress,
+      )
       if (!info.parentID) input.setStore("sessionTotal", (value) => value + 1)
       break
     }
@@ -164,7 +201,13 @@ export function applyDirectoryEvent(input: {
             }),
           )
         }
-        cleanupSessionCaches(input.setStore, info.id, input.setSessionTodo, input.setSessionTask, input.setSessionTaskProgress)
+        cleanupSessionCaches(
+          input.setStore,
+          info.id,
+          input.setSessionTodo,
+          input.setSessionTask,
+          input.setSessionTaskProgress,
+        )
         if (info.parentID) break
         input.setStore("sessionTotal", (value) => Math.max(0, value - 1))
         break
@@ -175,9 +218,20 @@ export function applyDirectoryEvent(input: {
       }
       const next = input.store.session.slice()
       next.splice(result.index, 0, info)
-      const trimmed = trimSessions(next, { limit, permission: input.store.permission, permission_v2: input.store.permission_v2 })
+      const trimmed = trimSessions(next, {
+        limit,
+        permission: input.store.permission,
+        permission_v2: input.store.permission_v2,
+      })
       input.setStore("session", reconcile(trimmed, { key: "id" }))
-      cleanupDroppedSessionCaches(input.store, input.setStore, trimmed, input.setSessionTodo, input.setSessionTask, input.setSessionTaskProgress)
+      cleanupDroppedSessionCaches(
+        input.store,
+        input.setStore,
+        trimmed,
+        input.setSessionTodo,
+        input.setSessionTask,
+        input.setSessionTaskProgress,
+      )
       break
     }
     case "session.deleted": {
@@ -191,7 +245,13 @@ export function applyDirectoryEvent(input: {
           }),
         )
       }
-      cleanupSessionCaches(input.setStore, info.id, input.setSessionTodo, input.setSessionTask, input.setSessionTaskProgress)
+      cleanupSessionCaches(
+        input.setStore,
+        info.id,
+        input.setSessionTodo,
+        input.setSessionTask,
+        input.setSessionTaskProgress,
+      )
       if (info.parentID) break
       input.setStore("sessionTotal", (value) => Math.max(0, value - 1))
       break
@@ -427,7 +487,9 @@ export function applyDirectoryEvent(input: {
       if (!permission) break
       const revision = input.store.permission_v2_revision + 1
       input.setStore("permission_v2_revision", revision)
-      input.setStore("permission_v2_events", (events) => [...events, { revision, type: "asked" as const, request: permission }])
+      input.setStore("permission_v2_events", (events) =>
+        appendPermissionV2Event(events, { revision, type: "asked" as const, request: permission }),
+      )
       const permissions = input.store.permission_v2[permission.sessionID]
       if (!permissions) {
         input.setStore("permission_v2", permission.sessionID, [permission])
@@ -453,7 +515,12 @@ export function applyDirectoryEvent(input: {
       const revision = input.store.permission_v2_revision + 1
       input.setStore("permission_v2_revision", revision)
       input.setStore("permission_v2_events", (events) =>
-        [...events, { revision, type: "replied" as const, sessionID: props.sessionID, requestID: props.requestID }],
+        appendPermissionV2Event(events, {
+          revision,
+          type: "replied" as const,
+          sessionID: props.sessionID,
+          requestID: props.requestID,
+        }),
       )
       const permissions = input.store.permission_v2[props.sessionID]
       if (!permissions) break

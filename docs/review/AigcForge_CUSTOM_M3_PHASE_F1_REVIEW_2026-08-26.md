@@ -44,4 +44,3 @@ F1 is implemented on this branch and is ready for review. It is intentionally no
 - This slice does not implement pending aggregation, reply/revoke HTTP endpoints, SDK generation, or approval UI. Those remain F2-F5 work.
 - `ask()` remains a model/permission preview and pending-registration API; responder admission belongs to `assert()`, which is the path that can wait for a reply.
 - A global SSE connection is treated as wildcard Location visibility because its event stream is cross-Location; instance SSE is Location-bound.
-

@@ -599,6 +599,32 @@ describe("applyDirectoryEvent", () => {
     expect(store.permission_v2[sessionID]?.map((item) => item.id)).toEqual(["per_v2_1"])
   })
 
+  // The buffer is only drained by a completing bootstrap, so a Location that
+  // stops re-bootstrapping used to grow it for the life of the tab.
+  test("caps the V2 permission replay buffer and keeps the newest events", () => {
+    const sessionID = "ses_custom"
+    const [store, setStore] = createStore(baseState({}))
+
+    for (let index = 0; index < 620; index++) {
+      applyDirectoryEvent({
+        event: { type: "permission.v2.asked", properties: permissionV2Request(`per_v2_${index}`, sessionID) },
+        store,
+        setStore,
+        push() {},
+        directory: "/tmp",
+        loadLsp() {},
+      })
+    }
+
+    expect(store.permission_v2_events).toHaveLength(500)
+    // A load reads only events newer than the revision it captured, so the tail
+    // is what must survive eviction.
+    expect(store.permission_v2_events.at(-1)?.revision).toBe(620)
+    expect(store.permission_v2_events[0]?.revision).toBe(121)
+    // Eviction touches the replay buffer only; the pending projection is intact.
+    expect(store.permission_v2[sessionID]).toHaveLength(620)
+  })
+
   test("updates vcs branch in store and cache", () => {
     const [store, setStore] = createStore(baseState({ vcs: { branch: "main", default_branch: "main" } }))
     const [cacheStore, setCacheStore] = createStore({

@@ -130,7 +130,7 @@ async function mockApprovalRoutes(page: Page, wire: ApprovalWire) {
   })
 }
 
-async function openSession(page: Page, wire: ApprovalWire) {
+async function mountApp(page: Page, wire: ApprovalWire, href: string) {
   await mockAigcfrogeServer(page, {
     directory,
     project: project(),
@@ -144,8 +144,28 @@ async function openSession(page: Page, wire: ApprovalWire) {
   await page.addInitScript(() => {
     localStorage.setItem("settings.v3", JSON.stringify({ general: { newLayoutDesigns: true } }))
   })
-  await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+  await page.goto(href)
+}
+
+async function openSession(page: Page, wire: ApprovalWire) {
+  await mountApp(page, wire, `/${base64Encode(directory)}/session/${sessionID}`)
   await expectAppVisible(page.getByRole("heading", { name: title }))
+}
+
+// `/mode/:mode` sits outside SDKProvider/DirectoryDataProvider, so the approval
+// surface only appears there if ModeWorkspace passes its resolved directory
+// accessors in. Before that wiring the route rendered no trigger at all while
+// the server still counted the App's global SSE stream as an available
+// responder, so an `ask` parked for the full TTL with nothing to answer it.
+//
+// The session route is visited first on purpose: that is both how a user reaches
+// the workspace (open a session, navigate back while the agent keeps working)
+// and what lets `useModeDirectory()` resolve a directory, matching
+// builder-mcp-health.spec.ts.
+async function openModeWorkspace(page: Page, wire: ApprovalWire, mode: string) {
+  await openSession(page, wire)
+  await page.goto(`/mode/${mode}`)
+  await expectAppVisible(page.locator("[data-mode-workspace]"))
 }
 
 function wire(overrides: Partial<ApprovalWire> = {}): ApprovalWire {
@@ -250,7 +270,9 @@ test.describe("regression: Location approval center", () => {
     const state = wire({ pendingStatus: 500 })
     const failedRead = page.waitForResponse(
       (response) =>
-        new URL(response.url()).pathname === "/api/permission/request" && response.request().method() === "GET" && response.status() === 500,
+        new URL(response.url()).pathname === "/api/permission/request" &&
+        response.request().method() === "GET" &&
+        response.status() === 500,
     )
     await openSession(page, state)
     await failedRead
@@ -260,5 +282,37 @@ test.describe("regression: Location approval center", () => {
     expect(state.replies).toEqual([])
     expect(state.grants).toEqual([])
     expect(state.legacyWrites).toEqual([])
+  })
+
+  // Custom mode is the primary source of V2 approvals and its home route is
+  // /mode/custom, so this route carrying the surface is the load-bearing case.
+  for (const mode of ["custom", "chat"] as const) {
+    test(`answers a pending approval from the ${mode} mode workspace route`, async ({ page }) => {
+      const state = wire({ pending: [pending("req_mode", "bash", ["bun test"])] })
+      await openModeWorkspace(page, state, mode)
+
+      await expect(trigger(page)).toHaveAttribute("aria-label", "Pending approvals: 1")
+      expect(new URL(state.reads[0]!).searchParams.get("location[directory]")).toBe(directory)
+
+      await trigger(page).click()
+      await expect(dialog(page)).toBeVisible()
+      await expect(dialog(page).locator('[data-slot="approval-center-action"]')).toHaveText("bash")
+
+      await dialog(page).locator('[data-slot="approval-center-once"]').click()
+      await expect.poll(() => state.replies.length).toBe(1)
+      expect(state.replies[0]).toEqual({
+        path: `/api/session/${sessionID}/permission/req_mode/reply`,
+        body: { reply: "once" },
+      })
+      expect(state.legacyWrites).toEqual([])
+    })
+  }
+
+  test("does not render a trigger on the mode workspace when nothing is pending", async ({ page }) => {
+    const state = wire()
+    await openModeWorkspace(page, state, "custom")
+
+    await expect(trigger(page)).toHaveCount(0)
+    await expect(dialog(page)).toHaveCount(0)
   })
 })

@@ -25,10 +25,7 @@ import { tmpdir } from "./fixture/tmpdir"
 import fs from "fs/promises"
 
 function locationLayer(dir: string) {
-  return Layer.succeed(
-    Location.Service,
-    Location.Service.of(location({ directory: AbsolutePath.make(dir) })),
-  )
+  return Layer.succeed(Location.Service, Location.Service.of(location({ directory: AbsolutePath.make(dir) })))
 }
 
 let mcpFacts: ReadonlyArray<McpConnection.Fact> = []
@@ -79,10 +76,7 @@ function fullResolverLayer(dir: string) {
   })
   const base = Layer.mergeAll(assets, location, tools, mcp)
 
-  return Layer.merge(
-    CompositionResolver.locationLayer.pipe(Layer.provide(base)),
-    base,
-  )
+  return Layer.merge(CompositionResolver.locationLayer.pipe(Layer.provide(base)), base)
 }
 
 async function withTmp<T>(fn: (dir: string) => Promise<T>): Promise<T> {
@@ -379,9 +373,7 @@ requestedCapabilities: []
       await Effect.runPromise(
         Effect.gen(function* () {
           const resolver = yield* CompositionResolver.Service
-          const err = yield* resolver
-            .freeze(new Composition.FreezeInput({ input }))
-            .pipe(Effect.flip)
+          const err = yield* resolver.freeze(new Composition.FreezeInput({ input })).pipe(Effect.flip)
           expect(err._tag).toBe("Composition.ResolveError")
           expect(err.code).toBe("invalid_composition_plan")
         }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
@@ -505,10 +497,7 @@ requestedCapabilities: []
           const unconnected = plan.diagnostics.filter((d) => d.code === "unconnected_asset")
           expect(unconnected).toHaveLength(2)
           expect(unconnected.every((d) => d.severity === "error")).toBe(true)
-          expect(unconnected.map((d) => d.path).toSorted()).toEqual([
-            "ghost-prompt.md",
-            "ghost-tools/SKILL.md",
-          ])
+          expect(unconnected.map((d) => d.path).toSorted()).toEqual(["ghost-prompt.md", "ghost-tools/SKILL.md"])
           // Unconnected assets must not silently land in the plan output
           expect(plan.instructions).toHaveLength(1) // agent system prompt only
           expect(plan.skills).toHaveLength(0)
@@ -594,7 +583,11 @@ mcpBindings:
           if (snapshot.version !== 2) throw new Error("MCP audit facts require SnapshotV2")
           expect(snapshot.data.tools.catalog).toEqual(["mcp_project_search_search", "read"])
           expect(snapshot.data.mcp.bindings).toEqual([
-            { serverName: "project-search", ref: { kind: "mcp", relativePath: "project-search.md", revision: boundRevision }, credentialRef },
+            {
+              serverName: "project-search",
+              ref: { kind: "mcp", relativePath: "project-search.md", revision: boundRevision },
+              credentialRef,
+            },
           ])
           expect(snapshot.data.mcp.tools).toEqual([
             {
@@ -736,6 +729,36 @@ ${over.credentialRef === undefined ? "" : `    credentialRef: ${over.credentialR
           expect(plan.mcp.denied[0]?.reason).toBe("not_connected")
           expect(plan.valid).toBe(false)
           // A denied server contributes no tools to the effective count.
+          expect(plan.costPreview?.effectiveToolCount).toBe(MCP_DENIED_TOOL_COUNT)
+        }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
+      )
+    })
+  })
+
+  test("denies a requested MCP server whose asset no longer exists on disk", async () => {
+    await withTmp(async (dir) => {
+      await mcpDenialProfile(dir, { serverName: "absent-asset" })
+      mcpFacts = []
+      const { profileRevision } = await mcpDenialProfile(dir, { serverName: "absent-asset" })
+      // The profile still pins the asset ref; the asset row itself is gone, so
+      // the resolver must deny before it ever consults a connection fact.
+      await fs.rm(path.join(dir, ".aigcfroge", "mcps", "absent-asset.md"))
+
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const resolver = yield* CompositionResolver.Service
+          const input = new Composition.ProfileInput({
+            source: "profile",
+            profilePath: "denial-profile.yaml",
+            profileRevision,
+          })
+          const plan = yield* resolver.resolve(input)
+          expect(plan.mcp.requested).toHaveLength(1)
+          expect(plan.mcp.effective).toEqual([])
+          expect(plan.mcp.denied).toHaveLength(1)
+          expect(plan.mcp.denied[0]?.reason).toBe("mcp_asset_not_found")
+          expect(plan.diagnostics.some((d) => d.code === "mcp_asset_not_found")).toBe(true)
+          expect(plan.valid).toBe(false)
           expect(plan.costPreview?.effectiveToolCount).toBe(MCP_DENIED_TOOL_COUNT)
         }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
       )
@@ -1090,9 +1113,7 @@ steps:
               requestedCapabilities: [],
             })
 
-            const snapshot = yield* resolver.freeze(
-              new Composition.FreezeInput({ input, sessionID: "ses-multi-123" }),
-            )
+            const snapshot = yield* resolver.freeze(new Composition.FreezeInput({ input, sessionID: "ses-multi-123" }))
             expect(snapshot.version).toBe(2)
             expect(snapshot.sessionID).toBe("ses-multi-123")
             if (snapshot.version === 2) {
@@ -1178,7 +1199,9 @@ steps:
             expect(plan.commands[0].template).toContain("without executing it")
             expect(plan.capabilities).toEqual([])
             expect(plan.costPreview?.effectiveToolCount).toBe(1)
-            expect(plan.instructions.some((instruction) => instruction.content.includes("without executing it"))).toBe(false)
+            expect(plan.instructions.some((instruction) => instruction.content.includes("without executing it"))).toBe(
+              false,
+            )
 
             const snapshot = yield* resolver.freeze(new Composition.FreezeInput({ input }))
             expect(snapshot.version).toBe(2)

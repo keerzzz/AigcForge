@@ -215,7 +215,11 @@ describe("SessionComposition", () => {
       expect(yield* composition.exists(sessionID)).toBe(true)
 
       // Delete the session
-      yield* db.delete(SessionTable).where(require("drizzle-orm").eq(SessionTable.id, sessionID)).run().pipe(Effect.orDie)
+      yield* db
+        .delete(SessionTable)
+        .where(require("drizzle-orm").eq(SessionTable.id, sessionID))
+        .run()
+        .pipe(Effect.orDie)
 
       expect(yield* composition.exists(sessionID)).toBe(false)
       expect(yield* composition.read(sessionID)).toBeUndefined()
@@ -474,6 +478,71 @@ describe("SessionComposition", () => {
         expect(error).toBeInstanceOf(SessionComposition.DependencyMissingError)
         if (error instanceof SessionComposition.DependencyMissingError)
           expect(error.reason).toBe("mcp_audit_catalog_mismatch")
+      }),
+    )
+
+    it.effect("fails when a SnapshotV2 MCP audit tool has no matching binding identity", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const composition = yield* SessionComposition.Service
+        const mcpFingerprint = {
+          placement: "/project",
+          name: "mcp_audit_echo",
+          digest: mockDigest,
+          installationVersion: "0.1.0",
+        }
+        const tools = new Composition.SnapshotToolInfo({
+          fingerprints: [mcpFingerprint],
+          catalogDigest: computeDigest([mcpFingerprint]),
+          catalog: ["mcp_audit_echo"],
+        })
+        yield* composition.attach(
+          sessionID,
+          new Composition.SnapshotV2({
+            version: 2,
+            digest: mockDigest,
+            sessionID,
+            createdAt: 1700000000000,
+            data: new Composition.SnapshotDataV2({
+              agents: [
+                new Composition.AgentInfo({
+                  id: "code-reviewer",
+                  name: "code-reviewer",
+                  description: "Code reviewer",
+                  relativePath: "agents/reviewer.md",
+                  revision: mockRevision,
+                }),
+              ],
+              bindings: {},
+              instructions: [],
+              prompts: [],
+              skills: [],
+              tools,
+              // Catalog and audit tools agree, so the catalog check passes; the
+              // tool's own binding identity is the row that went missing.
+              mcp: new Composition.SnapshotMcpInfo({
+                bindings: [],
+                tools: [
+                  new Composition.SnapshotMcpTool({
+                    canonicalName: "mcp_audit_echo",
+                    serverName: "audit",
+                    ref: new Composition.McpRef({
+                      kind: "mcp",
+                      relativePath: "mcps/audit.md",
+                      revision: mockRevision,
+                    }),
+                  }),
+                ],
+              }),
+            }),
+          }),
+        )
+
+        const error = yield* composition.assertDependency(sessionID).pipe(Effect.flip)
+
+        expect(error).toBeInstanceOf(SessionComposition.DependencyMissingError)
+        if (error instanceof SessionComposition.DependencyMissingError)
+          expect(error.reason).toBe("mcp_audit_binding_missing")
       }),
     )
 

@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import type { PermissionRequest, QuestionRequest, Session } from "@aigcfroge/sdk/v2/client"
-import { sessionPendingPermissionRequest, sessionPermissionRequest, sessionQuestionRequest } from "./session-request-tree"
+import {
+  sessionPendingPermissionRequest,
+  sessionPermissionRequest,
+  sessionQuestionRequest,
+} from "./session-request-tree"
 
 const session = (input: { id: string; parentID?: string }) =>
   ({

@@ -79,9 +79,9 @@ describe("McpRegistration namespace and collision (ADR-19 §2.4/§2.5)", () => {
     Effect.gen(function* () {
       const mcp = yield* McpRegistration.Service
       const scope = yield* Scope.make()
-      yield* mcp.registerServer({ serverName: "context7", tools: { read: echo(), grep: echo() } }).pipe(
-        Scope.provide(scope),
-      )
+      yield* mcp
+        .registerServer({ serverName: "context7", tools: { read: echo(), grep: echo() } })
+        .pipe(Scope.provide(scope))
 
       const view = yield* ToolRegistry.Service
       const materialized = yield* view.materialize(undefined, undefined, { allowlist: ["mcp_context7_read"] })
@@ -133,31 +133,33 @@ describe("McpRegistration namespace and collision (ADR-19 §2.4/§2.5)", () => {
     }),
   )
 
-  it.effect("fails closed when a Location registration would shadow a session-placed server (no silent last-wins)", () =>
-    Effect.gen(function* () {
-      const mcp = yield* McpRegistration.Service
-      const sessionID = SessionV2.ID.make("ses_mcp_cross")
-      const firstScope = yield* Scope.make()
-      yield* mcp.registerServer({ serverName: "dup", sessionID, tools: { echo: echo() } }).pipe(
-        Scope.provide(firstScope),
-      )
+  it.effect(
+    "fails closed when a Location registration would shadow a session-placed server (no silent last-wins)",
+    () =>
+      Effect.gen(function* () {
+        const mcp = yield* McpRegistration.Service
+        const sessionID = SessionV2.ID.make("ses_mcp_cross")
+        const firstScope = yield* Scope.make()
+        yield* mcp
+          .registerServer({ serverName: "dup", sessionID, tools: { echo: echo() } })
+          .pipe(Scope.provide(firstScope))
 
-      // A Location registration is visible to every session, so it would become
-      // the newer winner for this session too — that is a real conflict.
-      const secondScope = yield* Scope.make()
-      const exit = yield* mcp
-        .registerServer({ serverName: "dup", tools: { echo: echo() } })
-        .pipe(Scope.provide(secondScope), Effect.exit)
-      expectCollision(exit, "mcp_dup_echo")
+        // A Location registration is visible to every session, so it would become
+        // the newer winner for this session too — that is a real conflict.
+        const secondScope = yield* Scope.make()
+        const exit = yield* mcp
+          .registerServer({ serverName: "dup", tools: { echo: echo() } })
+          .pipe(Scope.provide(secondScope), Effect.exit)
+        expectCollision(exit, "mcp_dup_echo")
 
-      // The first registration is untouched by the failed one.
-      const view = yield* ToolRegistry.Service
-      const materialized = yield* view.materialize(undefined, undefined, { sessionID })
-      expect(materialized.definitions.map((definition) => definition.name)).toEqual(["mcp_dup_echo"])
+        // The first registration is untouched by the failed one.
+        const view = yield* ToolRegistry.Service
+        const materialized = yield* view.materialize(undefined, undefined, { sessionID })
+        expect(materialized.definitions.map((definition) => definition.name)).toEqual(["mcp_dup_echo"])
 
-      yield* Scope.close(firstScope, Exit.void)
-      yield* Scope.close(secondScope, Exit.void)
-    }),
+        yield* Scope.close(firstScope, Exit.void)
+        yield* Scope.close(secondScope, Exit.void)
+      }),
   )
 
   // ADR-19 §2.2: two child Sessions of one composition binding the same server
@@ -171,12 +173,12 @@ describe("McpRegistration namespace and collision (ADR-19 §2.4/§2.5)", () => {
       const b = SessionV2.ID.make("ses_mcp_sib_b")
       const scopeA = yield* Scope.make()
       const scopeB = yield* Scope.make()
-      yield* mcp.registerServer({ serverName: "github", sessionID: a, tools: { search: echo() } }).pipe(
-        Scope.provide(scopeA),
-      )
-      yield* mcp.registerServer({ serverName: "github", sessionID: b, tools: { search: echo() } }).pipe(
-        Scope.provide(scopeB),
-      )
+      yield* mcp
+        .registerServer({ serverName: "github", sessionID: a, tools: { search: echo() } })
+        .pipe(Scope.provide(scopeA))
+      yield* mcp
+        .registerServer({ serverName: "github", sessionID: b, tools: { search: echo() } })
+        .pipe(Scope.provide(scopeB))
 
       const view = yield* ToolRegistry.Service
       for (const sessionID of [a, b]) {
@@ -208,9 +210,9 @@ describe("McpRegistration namespace and collision (ADR-19 §2.4/§2.5)", () => {
 
       const mcp = yield* McpRegistration.Service
       const scope = yield* Scope.make()
-      yield* mcp.registerServer({ serverName: longServer, tools: { [firstTool]: echo(), [secondTool]: echo() } }).pipe(
-        Scope.provide(scope),
-      )
+      yield* mcp
+        .registerServer({ serverName: longServer, tools: { [firstTool]: echo(), [secondTool]: echo() } })
+        .pipe(Scope.provide(scope))
       const definitions = (yield* (yield* ToolRegistry.Service).materialize()).definitions
       expect(definitions.map((definition) => definition.name).toSorted()).toEqual([first, second].toSorted())
       yield* Scope.close(scope, Exit.void)

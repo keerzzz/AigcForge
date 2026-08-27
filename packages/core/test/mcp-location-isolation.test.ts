@@ -150,9 +150,9 @@ describe("MCP Location isolation through the real LayerMap (M3 exit condition)",
       yield* Effect.addFinalizer(() => Scope.close(borrow, Exit.void).pipe(Effect.ignore))
       const context = yield* Layer.buildWithScope(locations.get(ref), borrow)
 
-      const info = yield* McpConnection.Service.use((conn) =>
-        conn.connect({ binding: bindingFor("unload-me") }),
-      ).pipe(Effect.provide(context))
+      const info = yield* McpConnection.Service.use((conn) => conn.connect({ binding: bindingFor("unload-me") })).pipe(
+        Effect.provide(context),
+      )
       const pid = info.pid
       if (pid === undefined) throw new Error("stdio connection did not expose a pid")
       expect(yield* view("unload-me").pipe(Effect.provide(context))).toEqual({
@@ -175,9 +175,7 @@ describe("MCP Location isolation through the real LayerMap (M3 exit condition)",
       // And nothing leaked into the Location's next incarnation: asking for the
       // same ref again yields a set with no connections of its own.
       const rebuilt = yield* Layer.buildWithScope(locations.get(ref), scope)
-      expect(
-        yield* McpConnection.Service.use((conn) => conn.connections()).pipe(Effect.provide(rebuilt)),
-      ).toEqual([])
+      expect(yield* McpConnection.Service.use((conn) => conn.connections()).pipe(Effect.provide(rebuilt))).toEqual([])
       expect(yield* view("unload-me").pipe(Effect.provide(rebuilt))).toEqual({
         registered: false,
         materialized: false,

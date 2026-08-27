@@ -25,3 +25,10 @@ describe("approval center model", () => {
     ])
   })
 })
+
+// Route coverage is asserted behaviourally in
+// e2e/regression/approval-center.spec.ts ("answers a pending approval from the
+// <mode> mode workspace route"), not by grepping this component's source:
+// docs/testing.md §10 红线 3 forbids source-string assertions standing in for
+// behaviour, and a regex over a JSX mount cannot tell whether the surface
+// actually receives pending requests on that route.

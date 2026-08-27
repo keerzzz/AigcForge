@@ -58,10 +58,17 @@ describe("agent asset HttpApi", () => {
               source: Schema.String,
               relativePath: Schema.String,
             }),
-            warnings: Schema.Array(Schema.Struct({ code: Schema.String, action: Schema.String, resource: Schema.String })),
+            warnings: Schema.Array(
+              Schema.Struct({ code: Schema.String, action: Schema.String, resource: Schema.String }),
+            ),
           }),
         )(yield* applyResponse.json)
-        expect(applied.asset).toMatchObject({ kind: "agent", name: "reviewer", config: candidate.config, source: candidate.source })
+        expect(applied.asset).toMatchObject({
+          kind: "agent",
+          name: "reviewer",
+          config: candidate.config,
+          source: candidate.source,
+        })
         expect(applied.warnings).toEqual([{ code: "wildcard_allow", action: "*", resource: "*" }])
 
         const contentResponse = yield* requestInDirectory(
@@ -80,7 +87,12 @@ describe("agent asset HttpApi", () => {
             revision: Schema.String,
           }),
         )(yield* contentResponse.json)
-        expect(content).toMatchObject({ kind: "agent", name: "reviewer", config: candidate.config, source: candidate.source })
+        expect(content).toMatchObject({
+          kind: "agent",
+          name: "reviewer",
+          config: candidate.config,
+          source: candidate.source,
+        })
         expect(Object.hasOwn(content, "warnings")).toBe(false)
       }),
     { git: true },

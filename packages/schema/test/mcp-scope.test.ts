@@ -52,6 +52,38 @@ describe("McpScope.McpServerBinding", () => {
     }
   })
 
+  // The url is echoed verbatim by typed connect errors and by the connection
+  // projection, both of which are treated as secret-free. Userinfo would smuggle
+  // a credential through that surface, so it must not decode at all.
+  test("rejects a remote url embedding userinfo instead of carrying it into errors and logs", () => {
+    const remote = {
+      serverName: "remote-tools",
+      ref: { relativePath: ".aigcfroge/mcp/remote.yaml", revision },
+      transport: "remote" as const,
+    }
+    for (const url of [
+      "https://user:pass@mcp.example.com/v1",
+      "https://user@mcp.example.com/v1",
+      "http://:pass@mcp.example.com/v1",
+    ]) {
+      expect(() => McpScope.decodeBinding({ ...remote, url }), url).toThrow()
+    }
+    expect(McpScope.decodeBinding({ ...remote, url: "https://mcp.example.com/v1" }).url).toBe(
+      "https://mcp.example.com/v1",
+    )
+  })
+
+  test("rejects an http(s)-prefixed string that is not a parseable url", () => {
+    expect(() =>
+      McpScope.decodeBinding({
+        serverName: "remote-tools",
+        ref: { relativePath: ".aigcfroge/mcp/remote.yaml", revision },
+        transport: "remote",
+        url: "https://",
+      }),
+    ).toThrow()
+  })
+
   test("rejects absolute-path refs that could point outside the asset tree", () => {
     expect(() =>
       McpScope.decodeBinding({

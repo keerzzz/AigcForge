@@ -231,7 +231,7 @@ export function loadV2PermissionPending(input: {
       )
       return batch(() => {
         input.setStore("permission_v2", reconcile(grouped, { merge: false }))
-                input.setStore("permission_v2_events", [])
+        input.setStore("permission_v2_events", [])
       })
     })
   })

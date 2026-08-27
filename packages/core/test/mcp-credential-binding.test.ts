@@ -45,7 +45,6 @@ const expectCrossLocation = (exit: Exit.Exit<unknown, unknown>) => {
   expect(error._tag).toBe("McpBinding.CrossLocationRefError")
 }
 
-
 describe("McpCredentialBindingStore (ADR-21 §2.2/§2.3 v1.2)", () => {
   it.effect("bind succeeds and duplicate server in same Location fails via unique constraint", () =>
     Effect.gen(function* () {

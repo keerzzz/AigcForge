@@ -158,7 +158,11 @@ const mcpConnection = Layer.mock(McpConnection.Service, {
   shutdown: () => Effect.void,
 })
 const sessionComposition = SessionComposition.layer.pipe(Layer.provide(Database.defaultLayer))
-const runner = runnerLayer.pipe(
+// Everything the runner needs except the MCP connection owner. `session/runner/
+// llm.ts` reads that one through `Effect.serviceOption`, so a host with no MCP
+// wiring is a live configuration rather than a layer error — hence two graphs
+// off one base instead of two hand-copied chains.
+const runnerBase = runnerLayer.pipe(
   Layer.provide(sessionComposition),
   Layer.provide(appProcess),
   Layer.provide(skillV2),
@@ -167,22 +171,25 @@ const runner = runnerLayer.pipe(
   Layer.provide(EventV2.defaultLayer),
   Layer.provide(client),
   Layer.provide(countedRegistry),
-  Layer.provide(mcpConnection),
   Layer.provide(models),
   Layer.provide(SystemContextRegistry.layer),
-).pipe(
-  Layer.provide(location),
-  Layer.provide(agents),
-  Layer.provide(skillGuidance),
-  Layer.provide(referenceGuidance),
-  Layer.provide(DoomLoop.layer),
-  Layer.provide(CorrectionExtractor.layer),
-  Layer.provide(CorrectionStore.layer),
-  Layer.provide(verifier),
-  Layer.provide(referenceChecker),
-  Layer.provide(permission),
-  Layer.provide(config),
 )
+const runnerEnv = (base: typeof runnerBase) =>
+  base.pipe(
+    Layer.provide(location),
+    Layer.provide(agents),
+    Layer.provide(skillGuidance),
+    Layer.provide(referenceGuidance),
+    Layer.provide(DoomLoop.layer),
+    Layer.provide(CorrectionExtractor.layer),
+    Layer.provide(CorrectionStore.layer),
+    Layer.provide(verifier),
+    Layer.provide(referenceChecker),
+    Layer.provide(permission),
+    Layer.provide(config),
+  )
+const runner = runnerEnv(runnerBase.pipe(Layer.provide(mcpConnection)))
+const runnerWithoutMcp = runnerEnv(runnerBase)
 const sessions = SessionV2.layer.pipe(
   Layer.provide(EventV2.defaultLayer),
   Layer.provide(Database.defaultLayer),
@@ -191,32 +198,33 @@ const sessions = SessionV2.layer.pipe(
   Layer.provide(sessionComposition),
   Layer.provide(SessionExecution.noopLayer),
 )
-const it = testEffect(
-  Layer.mergeAll(
-    Database.defaultLayer,
-    EventV2.defaultLayer,
-    SessionProjector.defaultLayer,
-    SessionStore.defaultLayer,
-    sessionComposition,
-    client,
-    permission,
-    applications,
-    agents,
-    registry,
-    mcpRegistration,
-    echo,
-    models,
-    location,
-    skillGuidance,
-    referenceGuidance,
-    skillV2,
-    config,
-    appProcess,
-    runner,
-    sessions,
-    mcpConnection,
-  ),
+// Same graph as `runner` minus the MCP connection owner. `session/runner/llm.ts`
+// reads it through `Effect.serviceOption`, so a host with no MCP wiring is a
+// live configuration rather than a layer error — that is the branch under test.
+const baseLayers = Layer.mergeAll(
+  Database.defaultLayer,
+  EventV2.defaultLayer,
+  SessionProjector.defaultLayer,
+  SessionStore.defaultLayer,
+  sessionComposition,
+  client,
+  permission,
+  applications,
+  agents,
+  registry,
+  mcpRegistration,
+  echo,
+  models,
+  location,
+  skillGuidance,
+  referenceGuidance,
+  skillV2,
+  config,
+  appProcess,
+  sessions,
 )
+const it = testEffect(Layer.mergeAll(baseLayers, runner, mcpConnection))
+const itWithoutMcp = testEffect(Layer.mergeAll(baseLayers, runnerWithoutMcp))
 
 const mockDigest = Composition.Digest.make("a".repeat(64))
 const mockRevision = Schema.decodeUnknownSync(Composition.Revision)(
@@ -292,7 +300,10 @@ const buildToolInfo = Effect.fnUntraced(function* (tamper?: "tool-digest" | "cat
         ? { ...fingerprint, digest: Composition.Digest.make("f".repeat(64)) }
         : fingerprint,
     )
-  const catalog = [...fingerprints.map((fingerprint) => fingerprint.name), ...(tamper === "extra-tool" ? ["ghost"] : [])]
+  const catalog = [
+    ...fingerprints.map((fingerprint) => fingerprint.name),
+    ...(tamper === "extra-tool" ? ["ghost"] : []),
+  ]
   const catalogDigest =
     tamper === "catalog-digest"
       ? Composition.Digest.make("e".repeat(64))
@@ -368,7 +379,9 @@ const textResponse = (id: string, text: string): LLMEvent[] => [
 
 const userTexts = (request: LLMRequest) =>
   request.messages.flatMap((message) =>
-    message.role === "user" ? message.content.flatMap((content) => (content.type === "text" ? [content.text] : [])) : [],
+    message.role === "user"
+      ? message.content.flatMap((content) => (content.type === "text" ? [content.text] : []))
+      : [],
   )
 
 const reset = () => {
@@ -380,7 +393,6 @@ const reset = () => {
 }
 
 describe("Custom Mode Runner Drift Fail-Closed (MEDIUM-3)", () => {
-
   it.effect("missing snapshot row fails the turn closed before any provider or tool work", () =>
     Effect.gen(function* () {
       reset()
@@ -476,6 +488,80 @@ describe("Custom Mode Runner Drift Fail-Closed (MEDIUM-3)", () => {
     }),
   )
 
+  it.effect("fails before provider dispatch when the frozen MCP tool is absent from the live registration fact", () =>
+    Effect.gen(function* () {
+      reset()
+      const sessionID = SessionV2.ID.make("ses_drift_mcp_registration")
+      yield* insertCustomSession(sessionID)
+      const mcp = yield* McpRegistration.Service
+      const scope = yield* Scope.make()
+      yield* mcp
+        .registerServer({
+          serverName: "snapshot-mcp",
+          tools: {
+            echo: Tool.make({
+              description: "Snapshot MCP echo",
+              input: Schema.Struct({}),
+              output: Schema.Struct({}),
+              execute: () => Effect.succeed({}),
+            }),
+          },
+        })
+        .pipe(Effect.provideService(Scope.Scope, scope))
+      // Binding identity and health still match, so the binding loop passes; the
+      // fact no longer carries the canonical tool name the snapshot froze.
+      currentMcpFacts = [
+        new McpConnection.Fact({
+          serverName: "snapshot-mcp",
+          ref: { relativePath: "snapshot-mcp.md", revision: mockRevision },
+          health: "ready",
+          tools: [],
+        }),
+      ]
+      const composition = yield* SessionComposition.Service
+      yield* composition.attach(sessionID, makeMcpSnapshot(sessionID, yield* buildToolInfo()))
+      const sessionRunner = yield* SessionRunner.Service
+
+      const exit = yield* sessionRunner.run({ sessionID, force: true }).pipe(Effect.exit)
+
+      expectDrift(exit, "mcp_registration_mismatch")
+      expect(requests).toHaveLength(0)
+      yield* Scope.close(scope, Exit.void)
+    }),
+  )
+
+  itWithoutMcp.effect("fails before provider dispatch when no MCP connection owner is wired at all", () =>
+    Effect.gen(function* () {
+      reset()
+      const sessionID = SessionV2.ID.make("ses_drift_mcp_unwired")
+      yield* insertCustomSession(sessionID)
+      const mcp = yield* McpRegistration.Service
+      const scope = yield* Scope.make()
+      yield* mcp
+        .registerServer({
+          serverName: "snapshot-mcp",
+          tools: {
+            echo: Tool.make({
+              description: "Snapshot MCP echo",
+              input: Schema.Struct({}),
+              output: Schema.Struct({}),
+              execute: () => Effect.succeed({}),
+            }),
+          },
+        })
+        .pipe(Effect.provideService(Scope.Scope, scope))
+      const composition = yield* SessionComposition.Service
+      yield* composition.attach(sessionID, makeMcpSnapshot(sessionID, yield* buildToolInfo()))
+      const sessionRunner = yield* SessionRunner.Service
+
+      const exit = yield* sessionRunner.run({ sessionID, force: true }).pipe(Effect.exit)
+
+      expectDrift(exit, "mcp_connection_unavailable")
+      expect(requests).toHaveLength(0)
+      yield* Scope.close(scope, Exit.void)
+    }),
+  )
+
   it.effect("rejects a snapshot MCP catalog entry that lacks registration audit identity", () =>
     Effect.gen(function* () {
       reset()
@@ -541,15 +627,15 @@ describe("Custom Mode Runner Drift Fail-Closed (MEDIUM-3)", () => {
           toModelOutput: ({ output }) => [{ type: "text", text: output.text }],
           execute: ({ text }) => Effect.succeed({ text }),
         })
-      yield* mcp.registerServer({ serverName: "reconnect", tools: { echo: makeRemoteEcho("First remote echo") } }).pipe(
-        Scope.provide(firstScope),
-      )
+      yield* mcp
+        .registerServer({ serverName: "reconnect", tools: { echo: makeRemoteEcho("First remote echo") } })
+        .pipe(Scope.provide(firstScope))
       const tools = yield* buildToolInfo()
       yield* Scope.close(firstScope, Exit.void)
       const secondScope = yield* Scope.make()
-      yield* mcp.registerServer({ serverName: "reconnect", tools: { echo: makeRemoteEcho("Changed remote echo") } }).pipe(
-        Scope.provide(secondScope),
-      )
+      yield* mcp
+        .registerServer({ serverName: "reconnect", tools: { echo: makeRemoteEcho("Changed remote echo") } })
+        .pipe(Scope.provide(secondScope))
       const composition = yield* SessionComposition.Service
       yield* composition.attach(sessionID, makeSnapshot(sessionID, tools))
       const sessionRunner = yield* SessionRunner.Service

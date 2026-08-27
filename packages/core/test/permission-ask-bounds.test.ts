@@ -35,15 +35,15 @@ const sessions = SessionV2.layer.pipe(
 )
 const harness = (presence: Layer.Layer<ApprovalPresence.Service> = ApprovalPresence.defaultLayer) =>
   PermissionV2.locationLayer.pipe(
-  Layer.provideMerge(Database.defaultLayer),
-  Layer.provideMerge(SessionStore.defaultLayer),
-  Layer.provideMerge(EventV2.defaultLayer),
-  Layer.provideMerge(current),
-  Layer.provideMerge(sessions),
-  Layer.provideMerge(SessionExecution.noopLayer),
-  Layer.provideMerge(PermissionSaved.defaultLayer),
-  Layer.provideMerge(presence),
-)
+    Layer.provideMerge(Database.defaultLayer),
+    Layer.provideMerge(SessionStore.defaultLayer),
+    Layer.provideMerge(EventV2.defaultLayer),
+    Layer.provideMerge(current),
+    Layer.provideMerge(sessions),
+    Layer.provideMerge(SessionExecution.noopLayer),
+    Layer.provideMerge(PermissionSaved.defaultLayer),
+    Layer.provideMerge(presence),
+  )
 const it = testEffect(harness())
 
 const setup = (rules: PermissionV2.Ruleset) =>

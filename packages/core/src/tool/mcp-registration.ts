@@ -71,11 +71,7 @@ export type RegisterServerInput = {
 export interface Interface {
   readonly registerServer: (
     input: RegisterServerInput,
-  ) => Effect.Effect<
-    void,
-    RegistrationError | InvalidServerNameError | McpNameCollisionError,
-    Scope.Scope
-  >
+  ) => Effect.Effect<void, RegistrationError | InvalidServerNameError | McpNameCollisionError, Scope.Scope>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/McpRegistration") {}

@@ -30,12 +30,21 @@ const provider = {
     {
       id: "aigcfroge",
       label: "AigcForge",
-      models: [{ id: "claude-opus-4-6", label: "Claude Opus 4.6", mode: "chat", variants: [{ id: "max", label: "Max" }] }],
+      models: [
+        { id: "claude-opus-4-6", label: "Claude Opus 4.6", mode: "chat", variants: [{ id: "max", label: "Max" }] },
+      ],
     },
   ],
   default: "aigcfroge",
 }
-const project = { id: "proj_agent_asset_warning", worktree: directory, vcs: "git", name: "AgentAssetWarning", time: { created: 1700000000000, updated: 1700000000000 }, sandboxes: [] }
+const project = {
+  id: "proj_agent_asset_warning",
+  worktree: directory,
+  vcs: "git",
+  name: "AgentAssetWarning",
+  time: { created: 1700000000000, updated: 1700000000000 },
+  sandboxes: [],
+}
 
 const base64Encode = (value: string) =>
   Buffer.from(value, "utf8").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "")
@@ -93,7 +102,15 @@ async function mockServer(page: Page, response: unknown) {
 
 test("agent asset apply warning is displayed after the real browser apply response", async ({ page }) => {
   await mockServer(page, {
-    asset: { kind: "agent", name: candidate.name, description: candidate.description, relativePath: ".aigcfroge/agents/reviewer.md", revision: "a".repeat(64), config: candidate.config, source: candidate.source },
+    asset: {
+      kind: "agent",
+      name: candidate.name,
+      description: candidate.description,
+      relativePath: ".aigcfroge/agents/reviewer.md",
+      revision: "a".repeat(64),
+      config: candidate.config,
+      source: candidate.source,
+    },
     warnings: [{ code: "wildcard_allow", action: "*", resource: "*" }],
   })
 

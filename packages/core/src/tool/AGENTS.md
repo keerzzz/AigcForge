@@ -55,5 +55,5 @@ Producer capture limits are separate. For example, Bash keeps `AppProcess.maxOut
 ## Current Gaps
 
 - Plugin boot has not been redesigned to register canonical tools through `Tools.Service`; do not redesign it as part of leaf migrations.
-- MCP and future Session-scoped registrations still need an explicit canonical registration design.
+- Session-scoped registration and the MCP canonical namespace are designed and implemented — see [ADR-19](../../../../docs/architecture/adr/ADR-19-mcp-scoped-registration.md), `registry.registerSession`, and `mcp-registration.ts`. What is still open is that the collision domain is not Location-scoped, because `ApplicationTools` is a process-wide singleton (recorded in `docs/technical-debt.md` §3.2).
 - The public Session result shape currently exposes managed `outputPaths`; full storage encapsulation requires a future opaque managed-output reference design.

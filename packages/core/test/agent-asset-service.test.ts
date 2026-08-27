@@ -37,17 +37,17 @@ describe("AgentAssetService permission warnings", () => {
     Effect.gen(function* () {
       const service = yield* AgentAssetService.Service
       const wildcard = yield* service.propose(
-        candidate("permissions:\n  - action: \"*\"\n    resource: \"*\"\n    effect: allow"),
+        candidate('permissions:\n  - action: "*"\n    resource: "*"\n    effect: allow'),
       )
       expect(wildcard.warnings.map((warning) => warning.code)).toEqual(["wildcard_allow"])
 
       const dangerous = yield* service.propose(
-        candidate("permissions:\n  - action: bash\n    resource: \"*\"\n    effect: allow"),
+        candidate('permissions:\n  - action: bash\n    resource: "*"\n    effect: allow'),
       )
       expect(dangerous.warnings.map((warning) => warning.code)).toEqual(["dangerous_allow"])
 
       const readonlyWildcard = yield* service.propose(
-        candidate("permissions:\n  - action: read\n    resource: \"*\"\n    effect: allow"),
+        candidate('permissions:\n  - action: read\n    resource: "*"\n    effect: allow'),
       )
       expect(readonlyWildcard.warnings.map((warning) => warning.code)).toEqual(["wildcard_allow"])
 
@@ -62,7 +62,7 @@ describe("AgentAssetService permission warnings", () => {
     Effect.gen(function* () {
       const service = yield* AgentAssetService.Service
       const value = candidate(
-        "permissions:\n  - action: \"*\"\n    resource: \"*\"\n    effect: allow\n  - action: bash\n    resource: \"*\"\n    effect: allow",
+        'permissions:\n  - action: "*"\n    resource: "*"\n    effect: allow\n  - action: bash\n    resource: "*"\n    effect: allow',
       )
       const proposed = yield* service.propose(value)
       const applied = yield* service.apply({ candidate: value, baseRevision: null, overwrite: false })

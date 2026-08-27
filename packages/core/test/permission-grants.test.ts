@@ -90,7 +90,6 @@ function setup(rules: PermissionV2.Ruleset) {
   })
 }
 
-
 describe("PermissionV2 × ScopedGrant consultation (ADR-20 §2.2)", () => {
   it.effect("full chain: ask verdict hits grant, skips the prompt, consumes once, next call asks again", () =>
     Effect.gen(function* () {
@@ -170,8 +169,9 @@ describe("PermissionV2 × ScopedGrant consultation (ADR-20 §2.2)", () => {
       const service = yield* PermissionV2.Service
 
       const rules = yield* service.effectiveRules(sessionID, AgentV2.ID.make("test"))
-      expect(rules.some((rule) => rule.action === "edit" && rule.resource === "docs/*" && rule.effect === "allow"))
-        .toBe(true)
+      expect(
+        rules.some((rule) => rule.action === "edit" && rule.resource === "docs/*" && rule.effect === "allow"),
+      ).toBe(true)
 
       // And the stored shape is untouched: four fields, Project-scoped.
       const listed = yield* saved.list({})

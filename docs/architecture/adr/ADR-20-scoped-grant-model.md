@@ -27,12 +27,12 @@
 
 采纳计划默认建议：grant 真源是新的 `ScopedGrantStore` Service，`PermissionSaved` 保持既有 Project 语义原样（**不改名、不迁义、不新增列**——停止条件红线）。二者并存且互不读写：
 
-| | PermissionSaved（不动） | ScopedGrant（新） |
-|---|---|---|
-| 作用域 | Project | once / Session / Location |
-| 维度 | action+resource | action/resource/agent/revision/expiry/revocation |
-| 生命周期 | 手动删除才消失 | 消费/过期/撤销即失效 |
-| 消费方 | `PermissionEffective.compute` 的 savedApprovals 输入 | `PermissionEffective.compute` 新增 grants 输入 |
+|          | PermissionSaved（不动）                              | ScopedGrant（新）                                |
+| -------- | ---------------------------------------------------- | ------------------------------------------------ |
+| 作用域   | Project                                              | once / Session / Location                        |
+| 维度     | action+resource                                      | action/resource/agent/revision/expiry/revocation |
+| 生命周期 | 手动删除才消失                                       | 消费/过期/撤销即失效                             |
+| 消费方   | `PermissionEffective.compute` 的 savedApprovals 输入 | `PermissionEffective.compute` 新增 grants 输入   |
 
 ### 2.2 Deny 恒胜出；grants 只存 allow
 
@@ -48,14 +48,14 @@ scope ::= { level: "once" }
         | { level: "location" }
 ```
 
-| 维度 | 语义 |
-|---|---|
-| once | CAS 单次消费：并发消费单赢者（照抄 workflow step revision CAS），消费即终态 |
-| session | 绑定签发时的 `sessionID`；其他 Session（含同 root 的兄弟 child）不可见 |
-| location | 绑定签发 Location；跨 Location 查询天然 miss（store 按 Location 层装配） |
-| agent? | 收窄到单 agent；不匹配即不可用 |
-| revision? | 收窄到 Snapshot revision；组合升级/fork 后旧 grant 不随行（ADR-17 §10 升级语义一致） |
-| expiry / revocation | 每次咨询实时读 store，无缓存副本——过期与撤销立即生效 |
+| 维度                | 语义                                                                                 |
+| ------------------- | ------------------------------------------------------------------------------------ |
+| once                | CAS 单次消费：并发消费单赢者（照抄 workflow step revision CAS），消费即终态          |
+| session             | 绑定签发时的 `sessionID`；其他 Session（含同 root 的兄弟 child）不可见               |
+| location            | 绑定签发 Location；跨 Location 查询天然 miss（store 按 Location 层装配）             |
+| agent?              | 收窄到单 agent；不匹配即不可用                                                       |
+| revision?           | 收窄到 Snapshot revision；组合升级/fork 后旧 grant 不随行（ADR-17 §10 升级语义一致） |
+| expiry / revocation | 每次咨询实时读 store，无缓存副本——过期与撤销立即生效                                 |
 
 ### 2.4 Store：照抄 WorkflowRun durable owner 模式
 
@@ -80,6 +80,7 @@ Snapshot 冻结的权限摘要（ADR-17 §2.4「有效权限摘要 digest」）�
   ```
 
   刻意排除的代表性注册（同一清单可查）：`task_spawn`/`task`（扇出放大）、`webfetch`/`websearch`（外发通道）、`bash`/`edit`/`write`/`apply_patch`（执行/写）、`taskschedule`（延时扇出）、7 个 `propose_*_asset` 与 memory/note（资产与持久态写入）、`skill`/`kb_search`（内容注入，非纯只读——是否纳入由 Security 复审裁定）。
+
 - **显式非通配 deny 的位序保证（R6-1 整改）**。base 的资源级 deny（如 `{read,.env,deny}`）必须保留，且在结果集中排在白名单 allow **之后**——`evaluate` 是 `findLast`，位序即语义；custom 在显式 deny 上不得弱于其它模式。实现顺序：头部 fallback deny → ask→deny 重写 → 白名单 allow → 显式非通配 deny。
 - **非 custom 模式不回退**：2026-08-02 scheduled-job 裁决（显式 allow 不被 unattended clamp 改写）维持不变，并以 custom/coding 配对断言防再分叉。
 - **attended custom（2026-08-23 产品裁定：Accepted，语义为 `ask` 而非 `deny`）**：天花板扩展到全量 `mode === "custom"`（用户在场 ≠ 用户同意），但**重写目标是 `ask`，不是 `deny`**——真正的缺陷是「审批框根本不弹」，而框只在判定为 `ask` 时出现；把它压成 `deny` 会连带废掉合法的写文件类 custom agent，且用户没有任何在场途径可以放行。裁定与 2026-08-16 对 meta 的既有裁决同型（meta 在非 coding 模式下 `bash`/`edit`/`write` 走 ask，非 deny 非 allow），保持权限模型一致。
@@ -92,10 +93,13 @@ Snapshot 冻结的权限摘要（ADR-17 §2.4「有效权限摘要 digest」）�
 ### 2.7 Ask 超时策略（回答 G3-4 ①）
 
 - unattended：维持现状即时 deny（已 fail-closed），不引入等待。
-- **attended 但无客户端连接**（新增契约，提案默认值待产品确认）：pending request 携带 `expiresAt = created + ASK_TTL_MS`，默认 **300,000ms（5 分钟）**；到期由 permission owner 以 typed `AskExpiredError` 自动拒绝并发布 replied 事件（reply 语义 = reject），客户端可见「已超时」。TTL 经 config 可调但必须 > 0 且 ≤ Location idle TTL（60 分钟）——保证永不出现「只能靠驱逐兜底」的挂起。
+- **attended 但无客户端连接**（新增契约，提案默认值待产品确认）：pending request 到期由 permission owner 以 typed `AskExpiredError` 自动拒绝并发布 replied 事件（reply 语义 = reject），客户端可见「已超时」，默认 **300,000ms（5 分钟）**。TTL 经 config 可调但必须 > 0 且 ≤ Location idle TTL（60 分钟）——保证永不出现「只能靠驱逐兜底」的挂起。
+
+  **落地更正（Phase D 交付后核对，2026-08-27）**：本节初稿写的是「pending request 携带 `expiresAt = created + ASK_TTL_MS`」。**实现里没有这个字段**：TTL 由等待侧的 `Effect.timeoutOrElse` 施加（`ApprovalPresence.ttlMs`，`clampTtl` 夹在 (0, 60min]），到期即 typed 拒绝。因此语义（有界等待 + typed 拒绝 + 客户端可见）成立，但**「pending 行上有 `expiresAt` 可读」不成立**；客户端不能靠读该字段渲染倒计时。若审批中心需要倒计时，需显式新增字段 + 迁移，属产品裁定。
+
 - **无应答方即时拒绝（2026-08-23 新增，attended 天花板的前置条件）**：TTL 只把无限挂起收敛成 5 分钟挂起，不足以支撑 §2.6 的 attended 重写。`attended` 今天的判据是 `input.attended !== false`（`effective.ts:48`），即**默认值**而非「真有人能答」。因此 owner 在挂起 `Deferred.await` 前必须先判定「是否存在能应答本请求的订阅方」（对 custom 会话＝存在带 `product-mode-custom-v1` 能力头的活跃连接）：不存在则**即时按 reject 结束**，与 unattended 同构，不进入等待。这既满足 M3 计划 §6 停止条件，也让 attended 天花板在审批中心落地前就是安全且可用的。判据必须来自连接/订阅事实，不得用「flag 没被显式设成 false」冒充。
 
-  **落地形态（Phase D，2026-08-23）**：`ApprovalPresence`（`core/src/permission/approval-presence.ts`）是**进程级单例**（`LocationServiceMap` dependencies，与 `ApplicationTools` 同位），事件流连接在自己的连接 Scope 存活期内 `bindResponder()` 计数 +1，断开自动 -1；`hasResponder()` 读实时计数，**无任何「默认有人」兜底**。两个 SSE 面都必须绑定：实例 `event` 路由与 `packages/server` 的 `server.event`（实例服务器也挂载后者）。`PermissionV2` 以**硬依赖**取用它——首版用 `Effect.serviceOption` 导致「无人提供 ⇒ 静默变成全模式硬拒」出厂，改硬依赖后缺提供方是 Layer/类型错误。
+  **落地形态（Phase D，2026-08-23）**：`ApprovalPresence`（`core/src/permission/approval-presence.ts`）是**进程级单例**（`LocationServiceMap` dependencies，与 `ApplicationTools` 同位），事件流连接在自己的连接 Scope 存活期内 `bindResponder()` 计数 +1，断开自动 -1；`hasResponder()` 读实时计数，**无任何「默认有人」兜底**。**三个** SSE 面都绑定（2026-08-27 更正，初稿写「两个」）：实例 `event` 路由（`handlers/event.ts:47`，带 Location.Ref）、`packages/server` 的 `server.event`（`server/src/handlers/event.ts:34`，实例服务器也挂载）、以及实例的 **global** 事件面（`handlers/global.ts:57`）。三者的 `custom` 能力位一律来自 `ProductModePolicy.isCustomCapable(capabilitiesHeader)`，没有硬编码 `true`。**注意 global 面不带 `location`**，所以它对任何 Location 都算「有人」——App 只开这一条流（`context/server-sdk.tsx` 的 `eventSdk.global.event`），因此**任何路由只要 App 连着，presence 就为真**，UI 是否真的挂了审批入口是另一回事，见下面的不对称说明与 §2.8。`PermissionV2` 以**硬依赖**取用它——首版用 `Effect.serviceOption` 导致「无人提供 ⇒ 静默变成全模式硬拒」出厂，改硬依赖后缺提供方是 Layer/类型错误。
 
   **presence 是粗粒度存活提示，不是授权事实**，其失效方向不对称决定了这个形状：多报（绑着的应答方其实看不到本 Location/本 mode 的请求）代价是**一次有界 TTL 等待后 typed 拒绝，永不放行**；少报（有人在看却报 0）会把每个 `ask` 变成硬拒。所以按最粗但诚实的粒度取（HTTP 层知道连接、不知道会问哪个 Location），授权本身从不咨询它——`reply` 仍走所属 Location 的 PermissionV2，leaf `assert` 仍是最终边界。
 
@@ -109,25 +113,25 @@ Snapshot 冻结的权限摘要（ADR-17 §2.4「有效权限摘要 digest」）�
 
 ## 3. 架构影响与五层映射
 
-| 层级 | 变更 |
-|---|---|
-| L1 Schema | `McpScope.GrantScope` / `ScopedGrant`（已落地，17 例负向/正向用例）；pending request 增加 expiresAt 字段契约 |
-| L2 Core/DB | `scoped_grant` 表 + `ScopedGrantStore` 唯一 CAS 写入者；`PermissionEffective` grants 注入点；attended 天花板扩展（若 §2.6 批准）；ask TTL |
-| L3 HTTP/SDK | pending/reply/grant/revoke 薄端点复用既有 V2 组扩展；SDK 重新生成 |
-| L4 App | 审批中心（聚合/明示 scope/revoke）、能力头接入（Phase F） |
-| L5 Security | deny 恒胜出、leaf assert 不动、provenance 校验、跨 Session/Location 隔离矩阵、审计投影分离 |
+| 层级        | 变更                                                                                                                                                                 |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L1 Schema   | `McpScope.GrantScope` / `ScopedGrant`（已落地，17 例负向/正向用例）；~~pending request 增加 expiresAt 字段契约~~〔见 §2.7 落地更正：该字段未落地，TTL 由等待侧施加〕 |
+| L2 Core/DB  | `scoped_grant` 表 + `ScopedGrantStore` 唯一 CAS 写入者；`PermissionEffective` grants 注入点；attended 天花板扩展（若 §2.6 批准）；ask TTL                            |
+| L3 HTTP/SDK | pending/reply/grant/revoke 薄端点复用既有 V2 组扩展；SDK 重新生成                                                                                                    |
+| L4 App      | 审批中心（聚合/明示 scope/revoke）、能力头接入（Phase F）                                                                                                            |
+| L5 Security | deny 恒胜出、leaf assert 不动、provenance 校验、跨 Session/Location 隔离矩阵、审计投影分离                                                                           |
 
 ## 4. 审批与授权记录
 
 审批日期 2026-08-23，`main@1d5c51f6c`。审批方独立复核了 `PermissionSaved` 四字段、`permission.ts:106` 的 `findLast`、`:247` 无 timeout、V2 pending/reply 端点已挂载而客户端零消费、`product-mode-policy.ts` 能力头过滤，并**实跑了 §2.6 所依赖 hotfix 的 `compute` 纯函数**（结果见下）。
 
-| 评审方 | 结论 | 备注 |
-|---|---|---|
-| Product | **Approved** | §2.7 TTL 默认 300,000ms 采纳（须 > 0 且 ≤ Location idle TTL 60 分钟，config 可调）。**§2.6 attended 已于 2026-08-23 裁定**：非白名单的资产来源 allow 重写为 **`ask`**（非 `deny`）——缺陷本质是审批框不弹，压成 deny 会废掉合法的写文件 custom agent 且用户无在场放行途径；与 2026-08-16 meta 裁决同型。裁定同时接受 §2.7 的「无应答方即时拒绝」为该重写的前置条件 |
-| Core | **Approved** | §2.4 照抄 `WorkflowRun` durable owner + CAS + 同事务事件，不发明第二套一致性方案。§2.2 咨询顺序接入点定在 `PermissionEffective.compute` 的新增 grants 输入，leaf assert 不动 |
-| Security | **Approved**（§2.6 unattended 部分含白名单裁定；attended 扩展留 Phase D） | §2.2 deny 恒胜出 + grant 只存 allow（Schema 钉死 `Literal("allow")`）是正确的单向性。§2.8 能力头与「不存在应用级永久 allow」通过。§2.6 首轮判 BLOCK 的 R6-1/R6-2/R6-3 三项已整改，复审方用同一支纯函数探针复跑实证闭环（见下）；白名单成员裁定为 `glob\|grep\|list_assets\|read`，`skill`/`kb_search`/`question` 不纳入，理由与「天花板 vs grant 授权主体不同」的区分见 §2.6 状态注 |
-| App | **Approved** | §2.8 入口必须带 `product-mode-custom-v1` 能力头，否则 SSE 过滤掉 custom 请求 |
-| Schema+SDK | **Approved** | `mcp-scope.ts` 作为 grant/pending 编码真源，17 例用例实跑通过 |
+| 评审方     | 结论                                                                      | 备注                                                                                                                                                                                                                                                                                                                                                                                |
+| ---------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Product    | **Approved**                                                              | §2.7 TTL 默认 300,000ms 采纳（须 > 0 且 ≤ Location idle TTL 60 分钟，config 可调）。**§2.6 attended 已于 2026-08-23 裁定**：非白名单的资产来源 allow 重写为 **`ask`**（非 `deny`）——缺陷本质是审批框不弹，压成 deny 会废掉合法的写文件 custom agent 且用户无在场放行途径；与 2026-08-16 meta 裁决同型。裁定同时接受 §2.7 的「无应答方即时拒绝」为该重写的前置条件                   |
+| Core       | **Approved**                                                              | §2.4 照抄 `WorkflowRun` durable owner + CAS + 同事务事件，不发明第二套一致性方案。§2.2 咨询顺序接入点定在 `PermissionEffective.compute` 的新增 grants 输入，leaf assert 不动                                                                                                                                                                                                        |
+| Security   | **Approved**（§2.6 unattended 部分含白名单裁定；attended 扩展留 Phase D） | §2.2 deny 恒胜出 + grant 只存 allow（Schema 钉死 `Literal("allow")`）是正确的单向性。§2.8 能力头与「不存在应用级永久 allow」通过。§2.6 首轮判 BLOCK 的 R6-1/R6-2/R6-3 三项已整改，复审方用同一支纯函数探针复跑实证闭环（见下）；白名单成员裁定为 `glob\|grep\|list_assets\|read`，`skill`/`kb_search`/`question` 不纳入，理由与「天花板 vs grant 授权主体不同」的区分见 §2.6 状态注 |
+| App        | **Approved**                                                              | §2.8 入口必须带 `product-mode-custom-v1` 能力头，否则 SSE 过滤掉 custom 请求                                                                                                                                                                                                                                                                                                        |
+| Schema+SDK | **Approved**                                                              | `mcp-scope.ts` 作为 grant/pending 编码真源，17 例用例实跑通过                                                                                                                                                                                                                                                                                                                       |
 
 ### §2.6 不予批准的理由（对 `custom-child-turn@c0de66899` 的复审）
 
@@ -141,7 +145,7 @@ coding unattended（同一 base）: read .env -> deny
 ```
 
 - **R6-1（P0，加固补丁自身引入的回归）**：custom 分支用 `rules.flatMap(rule => rule.effect === "ask" ? [deny] : [])` 重建规则，**把 base 的显式非通配 `deny` 全部丢弃**（第 84 行刚 push 进去的那批），而 `ceilingAllows` 被追加在尾部；`evaluate` 是 `findLast`，于是 `{read,*,allow}` 压过被丢弃的 `{read,.env,deny}` → **`.env` 在 custom unattended 下可读，而同一 base 在 coding 下正确 deny**。即：一个为收紧 custom 而写的补丁，使 custom 在显式 deny 上**弱于其它所有模式**。修法：显式非通配 deny 必须保留并排在 `ceilingAllows` 之后。
-- **R6-2（P1，天花板是黑名单而非白名单）**：`ceilingAllows` 的过滤条件是「action !== "*" 且不在 `DANGEROUS_ACTIONS`（仅 bash/edit/write/apply_patch 四个）」。因此资产作者仍可为 unattended 预授权 `task_spawn`（**继续派生 child，正是天花板要抑制的扇出放大原语**）与 `webfetch`（外发通道），实测均为 `allow`。这与 §2.6 自述目的「不得为 unattended 扇出预授权执行能力」直接冲突。修法：改为只保留只读类 action 的**白名单**，新增工具默认落进 deny。
+- **R6-2（P1，天花板是黑名单而非白名单）**：`ceilingAllows` 的过滤条件是「action !== "\*" 且不在 `DANGEROUS_ACTIONS`（仅 bash/edit/write/apply_patch 四个）」。因此资产作者仍可为 unattended 预授权 `task_spawn`（**继续派生 child，正是天花板要抑制的扇出放大原语**）与 `webfetch`（外发通道），实测均为 `allow`。这与 §2.6 自述目的「不得为 unattended 扇出预授权执行能力」直接冲突。修法：改为只保留只读类 action 的**白名单**，新增工具默认落进 deny。
 - **R6-3（P1，豁免范围宽于缺陷）**：hotfix 的 `llm.ts` 以 `session.parentID !== undefined` 对**所有模式的所有 child** 跳过 `checkPrimaryAgent`，但 commit 与 §2.6 的理由是 custom 专属机制 `assertAgentAllowed`（hotfix 自己的 `session.ts` 改动即证明该门禁只在 `mode === "custom"` 生效）。`product-mode-agent-policy.ts` 无任何 delegation 专用门禁（`checkDelegation`/`checkSubagent` 0 命中），因此非 custom 的 child 在豁免后**每轮 mode×agent 门禁全空**。方向本身可辩（`checkPrimaryAgent` 文档自述是 root/primary 不变量），但要么收窄到 `mode === "custom"`，要么举证非 custom child 的替代门禁。
 
 > §2.6 之外的全部决策已批准，Phase D/E/F 可开工；触及 unattended 天花板的 slice 必须等 R6-1/R6-2/R6-3 整改并复审后再动。
