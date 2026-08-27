@@ -417,21 +417,31 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
    * Stricter than `alive`, on purpose. `alive` counts a zombie as dead — right
    * for "did we kill it", wrong for "did the owner let go", because an unreaped
    * child is exactly what a leaked stream reader or death-watcher fiber looks
-   * like from outside. This asks whether the pid is gone entirely (or recycled
-   * onto something that is not our fixture).
+   * like from outside.
    *
-   * Gated on Linux because it reads `/proc`. The existing `alive`/`waitDead`
-   * helpers silently degrade to "always dead" on other platforms, which is why
-   * they never fail on the Windows CI leg; the same degradation would *invert*
-   * the mounted-state control below into a failure, so the gate is explicit
-   * rather than inherited. CI runs this suite on windows-latest too
-   * (`test.yml:32`), so this is a real leg, not a hypothetical one.
+   * Two implementations because the two CI legs offer different evidence, and
+   * this suite runs on windows-latest as well (`test.yml:32`):
+   *
+   * - Linux reads `/proc/<pid>/cmdline`, which also settles identity, so a pid
+   *   recycled onto another process cannot read as "still ours".
+   * - Elsewhere `process.kill(pid, 0)` answers existence only (measured: `true`
+   *   while running, `ESRCH` once gone). A zombie still occupies the table and
+   *   so reads as not-yet-reaped, which is the semantics wanted here. It cannot
+   *   detect recycling, but that direction only weakens the assertion — it
+   *   cannot manufacture a failure.
    */
-  const REAP_OBSERVABLE = process.platform === "linux"
   const reaped = (pid: number) =>
     Effect.sync(() => {
+      if (process.platform === "linux") {
+        try {
+          return !readFileSync(`/proc/${pid}/cmdline`, "utf8").includes("fake-mcp-server.mjs")
+        } catch {
+          return true
+        }
+      }
       try {
-        return !readFileSync(`/proc/${pid}/cmdline`, "utf8").includes("fake-mcp-server.mjs")
+        process.kill(pid, 0)
+        return false
       } catch {
         return true
       }
@@ -477,7 +487,7 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
       expect(yield* catalogHas(server)).toEqual({ registered: true, materialized: true })
       // Control for the reap assertion below: it must be false while mounted,
       // otherwise "reaped after rollback" would hold vacuously.
-      if (REAP_OBSERVABLE) expect(yield* reaped(info.pid)).toBe(false)
+      expect(yield* reaped(info.pid)).toBe(false)
 
       const saved = process.env["AIGCFROGE_CUSTOM_MODE"]
       delete process.env["AIGCFROGE_CUSTOM_MODE"]
@@ -505,11 +515,10 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
       yield* waitDead(info.pid)
       // And the child is reaped, not merely stopped — the observable that a
       // stream reader or death watcher was released with the owner scope.
-      if (REAP_OBSERVABLE)
-        yield* pollWithTimeout(
-          reaped(info.pid).pipe(Effect.map((gone) => (gone ? true : undefined))),
-          "the killed child was never reaped",
-        )
+      yield* pollWithTimeout(
+        reaped(info.pid).pipe(Effect.map((gone) => (gone ? true : undefined))),
+        "the killed child was never reaped",
+      )
     }),
   )
 
