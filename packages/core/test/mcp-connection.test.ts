@@ -413,6 +413,30 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
       }
     })
 
+  /**
+   * Stricter than `alive`, on purpose. `alive` counts a zombie as dead — right
+   * for "did we kill it", wrong for "did the owner let go", because an unreaped
+   * child is exactly what a leaked stream reader or death-watcher fiber looks
+   * like from outside. This asks whether the pid is gone entirely (or recycled
+   * onto something that is not our fixture).
+   *
+   * Gated on Linux because it reads `/proc`. The existing `alive`/`waitDead`
+   * helpers silently degrade to "always dead" on other platforms, which is why
+   * they never fail on the Windows CI leg; the same degradation would *invert*
+   * the mounted-state control below into a failure, so the gate is explicit
+   * rather than inherited. CI runs this suite on windows-latest too
+   * (`test.yml:32`), so this is a real leg, not a hypothetical one.
+   */
+  const REAP_OBSERVABLE = process.platform === "linux"
+  const reaped = (pid: number) =>
+    Effect.sync(() => {
+      try {
+        return !readFileSync(`/proc/${pid}/cmdline`, "utf8").includes("fake-mcp-server.mjs")
+      } catch {
+        return true
+      }
+    })
+
   it.live("enable path: the switch gates admission and the catalog together", () =>
     Effect.gen(function* () {
       const conn = yield* McpConnection.Service
@@ -451,6 +475,9 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
       const info = yield* conn.connect({ binding: binding({ serverName: server }) })
       if (info.pid === undefined) throw new Error("stdio connection did not expose a pid")
       expect(yield* catalogHas(server)).toEqual({ registered: true, materialized: true })
+      // Control for the reap assertion below: it must be false while mounted,
+      // otherwise "reaped after rollback" would hold vacuously.
+      if (REAP_OBSERVABLE) expect(yield* reaped(info.pid)).toBe(false)
 
       const saved = process.env["AIGCFROGE_CUSTOM_MODE"]
       delete process.env["AIGCFROGE_CUSTOM_MODE"]
@@ -476,6 +503,13 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
       expect(yield* conn.connections()).toHaveLength(0)
       expect(yield* catalogHas(server)).toEqual({ registered: false, materialized: false })
       yield* waitDead(info.pid)
+      // And the child is reaped, not merely stopped — the observable that a
+      // stream reader or death watcher was released with the owner scope.
+      if (REAP_OBSERVABLE)
+        yield* pollWithTimeout(
+          reaped(info.pid).pipe(Effect.map((gone) => (gone ? true : undefined))),
+          "the killed child was never reaped",
+        )
     }),
   )
 

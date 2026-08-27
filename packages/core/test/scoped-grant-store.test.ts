@@ -8,6 +8,7 @@ import { Project } from "@aigcfroge/core/project"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { EventTable } from "@aigcfroge/core/event/sql"
 import { EventV2 } from "@aigcfroge/core/event"
+import { GrantEvent } from "@aigcfroge/core/grant/event"
 import { ScopedGrantStore } from "@aigcfroge/core/grant/store"
 import { ScopedGrantTable } from "@aigcfroge/core/grant/sql"
 import { SessionV2 } from "@aigcfroge/core/session"
@@ -54,6 +55,36 @@ const expectStateError = (exit: Exit.Exit<unknown, unknown>, expectedReason: Sco
   }
   expect(error._tag).toBe("ScopedGrant.StateError")
   expect(error.reason).toBe(expectedReason)
+}
+
+/**
+ * A concurrent loser has two legitimate typed causes and which one it gets is
+ * scheduling, not contract: it either re-read a row already marked consumed
+ * (`StateError{already_consumed}`) or passed that pre-check and then lost the
+ * `grant_revision` CAS (`GrantEvent.CommitRejected`, `grant/event.ts:38`).
+ *
+ * Today's SQLite driver is synchronous, so each `consume` tends to run to
+ * completion inside one fiber slice and every loser takes the first path — but
+ * that is an artifact of the yield budget, not a guarantee. Asserting
+ * `already_consumed` for all seven passed here and would have started failing
+ * the moment any step in `consume` became async. What the store actually
+ * promises is that a loser fails **typed**, for one of exactly those two
+ * reasons, and never silently or as a defect. The sequential second consume
+ * below is deterministic and keeps the sharp assertion.
+ */
+const expectLostConsume = (exit: Exit.Exit<unknown, unknown>) => {
+  if (!Exit.isFailure(exit)) throw new Error("expected a typed failure, got a success")
+  const error = Option.getOrThrow(Cause.findErrorOption(exit.cause))
+  if (error instanceof ScopedGrantStore.StateError) {
+    expect(error.reason).toBe("already_consumed")
+    return
+  }
+  if (error instanceof GrantEvent.CommitRejected) {
+    expect(error._tag).toBe("GrantEvent.CommitRejected")
+    return
+  }
+  const tag = typeof error === "object" && error !== null && "_tag" in error ? String(error._tag) : String(error)
+  throw new Error(`expected StateError{already_consumed} or GrantEvent.CommitRejected, got ${tag}`)
 }
 
 describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
@@ -104,9 +135,9 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
       )
       expect(exits.filter(Exit.isSuccess)).toHaveLength(1)
       expect(exits.filter(Exit.isFailure)).toHaveLength(7)
-      // The seven losers lost the CAS on an already-settled row, not on a
-      // defect: without this, a store that died on contention would pass.
-      for (const exit of exits.filter(Exit.isFailure)) expectStateError(exit, "already_consumed")
+      // The seven losers fail typed, not as a defect: without this, a store that
+      // died on contention would satisfy the counts above.
+      for (const exit of exits.filter(Exit.isFailure)) expectLostConsume(exit)
 
       const consumed = yield* store.get(grant.grant.id)
       expect(consumed?.status).toBe("consumed")
