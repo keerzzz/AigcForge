@@ -226,15 +226,22 @@ Snapshot 只存 **ref / fingerprint**，永不存材料、executor、client（M3
 | `ScopedGrantStore`          | `core/src/grant/store.ts`                     | grant 签发唯一 owner。**不新建第二个**（计划 §6 停止条件）                                                                                                                                |
 | `eventFilter`               | `core/src/product-mode-policy.ts:156`         | 唯一 SSE 能力过滤实现，三个 handler 共用（`httpapi/handlers/event.ts:34`、`handlers/global.ts:55`、`packages/server/src/handlers/event.ts:30`）。**新端点不要再写第二套过滤**             |
 
-### 6.3 浏览器 auto-accept：它不是 grant，且已有三层键
+### 6.3 浏览器 auto-accept：它只对 V1 生效，F5 已把这条边界固化
 
 `app/src/context/permission-auto-respond.ts`：
 
-- 键有三种，按此顺序回退（`:12-16`）：`base64(directory)/sessionID` → 裸 `sessionID` → `base64(directory)/*`
-- `:23-38` `sessionLineage` 沿 `parentID` 链上溯，**父会话的 auto-accept 会被子会话继承**
-- 消费点 `app/src/context/permission.tsx:146/150/155`
+- 键有三种，按此顺序回退：`base64(directory)/sessionID` → 裸 `sessionID` → `base64(directory)/*`
+- `sessionLineage` 沿 `parentID` 链上溯，**父会话的 auto-accept 会被子会话继承**
+- 消费点 `app/src/context/permission.tsx`（`isAutoAccepting` / `isAutoAcceptingDirectory` / `shouldAutoRespond`）
 
-**这是纯浏览器状态，不是服务端授权。** 收敛方案必须显式回答：审批中心上线后，这个 store 是（a）删除、（b）降级为「本地 UI 便利」且**永不代替服务端判定**、还是（c）迁移成真正的 `ScopedGrant`。**不许让它继续事实上充当授权来源**——`base64(directory)/*` 那个通配键 + 血缘继承，等价于一个没有过期、没有撤销、没有审计的 Location 级 grant。
+**先纠正本文早先的两处结论**：
+
+1. 它**不是**「没有过期、没有撤销、没有审计的 Location 级 grant」。自动应答只发 `response: "once"`，从不发 `always`，因此不写 `PermissionSaved`、不签发 `ScopedGrant`——它是**自动点击器**，不是授权源。真正的问题是审计：`permission.replied` 不带 actor 字段，自动应答与真人点击逐字节相同。
+2. 它**结构上无法**放行 MCP / custom 审批。自动应答监听的是 V1 `permission.asked`，而 V2 ask 是 `permission.v2.asked`（`core/src/permission.ts` 的 `Event.Asked`）。custom 会话是 V2-only（V1 同步端点对 custom 直接返回不支持），所以 **F5 不是 Phase G 的前置**。
+
+**这条边界原先只是巧合，不是设计**：`httpapi/handlers/event.ts:58` 把 EventV2 信封的 `data` 统一重命名为 `properties` 再推给 app，于是两种 ask 在回调处形状同构（`{type, properties:{id, sessionID, ...}}`），事件名字符串是唯一屏障，且无任何测试。**F5 已把它固化**为 `autoRespondableAsk(event): PermissionRequest | undefined`：守卫一旦放宽接纳 `permission.v2.asked`，返回联合类型就不再可赋给 V1 请求形状（V2 `properties` 缺 `permission`/`patterns`/`always`），**typecheck 直接失败**；单测同时覆盖正例（V1 ask 仍返回请求）与安全例（V2 ask 返回 `undefined`），两者均已红证。这里选类型而不是只写注释，是因为错误方向很像 bug 修复——「V2 会话为什么不吃我的自动接受」听起来就是个缺陷单。
+
+**仍然开放、且属于产品裁定**：V1 面的 `base64(directory)/*` 通配键 + 血缘继承依然在役（`handlers/session.ts:808-815` 让同步 `prompt`/`command`/`shell` 即使 `AIGCFROGE_V2_RUNTIME=true` 也留在 V1 路径），无过期、无撤销记录。三选一（删除 / 加 TTL / 随 V1 退役迁成 `ScopedGrant level:"location"`）的用户可感知代价已登记在 [technical-debt](../technical-debt.md) §4，**不由执行方自决**。
 
 ### 6.4 attended custom 天花板：已实现，F 阶段只验证与展示
 
@@ -250,7 +257,7 @@ F 阶段不重复实现或改写这一规则；只需在审批中心/UI 中正�
 | **F2** | 复用 V2 pending/reply API + SDK/客户端接入       | 既有 identifiers、Location scope、request ownership 和响应 schema 经真实 API/SDK 测试；不新增重复端点 |
 | **F3** | attended ceiling 回归验证与审批展示             | 资产 allow→ask、只读 allow、explicit deny、saved approval 的既有规则都可见且不回归 |
 | **F4** | App pending indicator / dialog + Builder health | 只聚合请求，**不自动扩大 scope**；once / Session / Location 明示                   |
-| **F5** | 浏览器 auto-accept 收敛裁决（§6.3）             | 三选一并落到代码；通配键 + 血缘继承必须有明确处置                                  |
+| **F5** | 浏览器 auto-accept 收敛裁决（§6.3）             | V2/custom 不可被浏览器自动放行须是类型+测试强制的边界，而非事件名巧合；V1 通配键处置留待产品裁定 |
 
 ### 6.6 红（每条都要红证）
 
