@@ -180,6 +180,13 @@ describe.serial("V2 Session Capability Matrix", () => {
     "serves orphan custom reads but fails closed for admissions, controls, and fork",
     () =>
       Effect.gen(function* () {
+        // This test owns the kill switch. Its 400s come from
+        // `assertRuntimeSupported`, which only fails for `custom` while the flag
+        // is off — so without this line the whole assertion block was riding on
+        // ambient env, and a sibling file leaking the flag on would silently turn
+        // it into a different test. `test/lib/product-mode.ts` documents exactly
+        // this failure (green locally, red on CI).
+        yield* disableCustomMode
         const test = yield* TestInstance
         const target = yield* Session.use.create({ title: "share target" })
         const custom = yield* Session.use.create({ title: "legacy custom" })
@@ -204,7 +211,14 @@ describe.serial("V2 Session Capability Matrix", () => {
             expect({ endpoint: endpoint.name, status: response.status, body }).toMatchObject({
               endpoint: endpoint.name,
               status: 400,
-              body: { _tag: "UnsupportedProductModeError", mode: "custom" },
+              // The message is asserted, not just the tag: `UnsupportedProductModeError`
+              // is also what an unknown mode produces, so tag-only cannot tell
+              // "kill switch is off" from "mode does not exist".
+              body: {
+                _tag: "UnsupportedProductModeError",
+                mode: "custom",
+                message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
+              },
             })
             return
           }
@@ -212,7 +226,11 @@ describe.serial("V2 Session Capability Matrix", () => {
             expect({ endpoint: endpoint.name, status: response.status, body }).toMatchObject({
               endpoint: endpoint.name,
               status: 400,
-              body: { _tag: "UnsupportedProductModeError", mode: "custom" },
+              body: {
+                _tag: "UnsupportedProductModeError",
+                mode: "custom",
+                message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
+              },
             })
             return
           }
@@ -435,6 +453,32 @@ describe.serial("V2 Session Capability Matrix", () => {
         )
         expect(context.status).toBe(200)
         expect(yield* context.json).toEqual({ data: [] })
+
+        // The deny half, on a real snapshot-backed session rather than a
+        // `markCustom` orphan: these reach `SessionV2`'s own
+        // `assertRuntimeSupported` call sites, not just the handler pre-check.
+        // Paired with the reads above, this is the deny/allow control pair
+        // docs/testing.md §10 红线 4 asks for.
+        for (const endpoint of endpoints.filter((item) => item.kind === "admission" || item.kind === "control")) {
+          const response = yield* callEndpoint(endpoint, {
+            sessionID: created.data.id,
+            targetSessionID: created.data.id,
+            directory: test.directory,
+            capable: true,
+          })
+          expect({ endpoint: endpoint.name, status: response.status }).toEqual({
+            endpoint: endpoint.name,
+            status: 400,
+          })
+          expect({ endpoint: endpoint.name, body: yield* response.json }).toMatchObject({
+            endpoint: endpoint.name,
+            body: {
+              _tag: "UnsupportedProductModeError",
+              mode: "custom",
+              message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
+            },
+          })
+        }
       }),
     { git: true, config: { formatter: false, lsp: false } },
   )
