@@ -52,6 +52,27 @@ function notFound() {
   return HttpServerResponse.jsonUnsafe({ error: "Not Found" }, { status: 404 })
 }
 
+/**
+ * The UI fallback proxies to the hosted app whenever no build-time UI is
+ * embedded, which is every source checkout. `HttpClientError` is not
+ * `Respondable`, so an unreachable upstream escaped as a typed failure and
+ * landed on Effect's generic `Response.empty({ status: 500 })`: no body, no
+ * content-type, nothing telling the caller the gateway hop failed. The
+ * per-route `errorLayer` cannot fill it in either — that boundary only replaces
+ * defect-only empty 500s.
+ *
+ * 502 rather than 404: the path may well be a valid SPA deep link, so the honest
+ * statement is that this server could not reach the app upstream, not that the
+ * resource does not exist. `reason` carries only the failure discriminator, not
+ * the cause, so an upstream error cannot push internals into the response.
+ */
+function badGateway(reason: string) {
+  return HttpServerResponse.jsonUnsafe(
+    { error: "Bad Gateway", upstream: UI_UPSTREAM.host, reason },
+    { status: 502 },
+  )
+}
+
 function embeddedUIResponse(file: string, body: Uint8Array) {
   const mime = FSUtil.mimeType(file)
   const headers = new Headers({ "content-type": mime })
@@ -85,7 +106,15 @@ export function serveUIEffect(
 
     if (embeddedWebUI) return yield* serveEmbeddedUIEffect(path, services.fs, embeddedWebUI)
 
-    const response = yield* services.client.execute(
+    return yield* proxyUIEffect(request, path, services.client).pipe(
+      Effect.catchTag("HttpClientError", (error) => Effect.succeed(badGateway(error.reason._tag))),
+    )
+  })
+}
+
+function proxyUIEffect(request: HttpServerRequest.HttpServerRequest, path: string, client: HttpClient.HttpClient) {
+  return Effect.gen(function* () {
+    const response = yield* client.execute(
       HttpClientRequest.make(request.method)(upstreamURL(path), {
         headers: ProxyUtil.headers(request.headers, { host: UI_UPSTREAM.host }),
         body: requestBody(request),
