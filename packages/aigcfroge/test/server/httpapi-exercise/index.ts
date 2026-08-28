@@ -1888,6 +1888,33 @@ const scenarios: Scenario[] = [
       object(body)
       check(body.status === "revoked", "revoke should return the revoked grant")
     }),
+  // The 409 is declared on the endpoint and mapped from three store failure tags,
+  // but until now only the happy 200 was exercised at the HTTP layer, so nothing
+  // proved the CAS miss survives the handler's error mapping rather than becoming
+  // a 500. `revision + 1` is a revision that never existed, which is the
+  // `revision_mismatch` branch rather than the already-revoked one.
+  http.protected
+    .delete("/api/permission/grant/{grantID}", "v2.permission.grant.revoke.conflict")
+    .mutating()
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const grant = yield* ctx.grantIssue({
+          scope: { level: "location" },
+          action: "bash",
+          resources: ["/httpapi/grant-revoke-conflict"],
+        })
+        return { grantID: grant.grant.id, revision: grant.grantRevision }
+      }),
+    )
+    .at((ctx) => ({
+      path: route("/api/permission/grant/{grantID}", { grantID: ctx.state.grantID }),
+      headers: ctx.headers(),
+      body: { expectedRevision: ctx.state.revision + 1 },
+    }))
+    .json(409, (body) => {
+      object(body)
+      check(body._tag === "ConflictError", "CAS miss must stay a typed conflict, not a generic failure")
+    }),
   http.protected.get("/api/question/request", "v2.question.request.list").json(200, (body) => {
     object(body)
     object(body.location)

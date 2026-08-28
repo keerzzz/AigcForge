@@ -25,6 +25,37 @@ function parseErrorDetails(err: unknown): { status?: number; message?: string } 
   return { message: String(err) }
 }
 
+export interface PlanFailure {
+  error: string
+  disabled?: boolean
+  unsupported?: boolean
+}
+
+/**
+ * Classifies a failed `customComposition.plan` call.
+ *
+ * `disabled` is what downgrades the surface from a red error to the amber
+ * opt-in notice and what keeps `canStart` false, so misclassifying it
+ * re-enables Start against a server that will refuse. It is currently derived by
+ * matching the English text of `ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE`,
+ * because the four server-side constructions of this error pass only `message` —
+ * `InvalidRequestError.kind` exists and is populated elsewhere
+ * (`"permission-override"`, `"Query"`), just not on this branch. So the
+ * structured signal is available and unadopted, not missing. Until it is
+ * adopted, this classification is sensitive to a server-side reword or a
+ * localization pass, which is why it is a pinned pure function rather than an
+ * inline branch — see technical-debt §4 for the fix and its trigger.
+ */
+export const DISABLED_MESSAGE_MARKER = "Custom mode is disabled"
+
+export function classifyPlanFailure(err: unknown): PlanFailure {
+  const { status, message } = parseErrorDetails(err)
+  const msg = message ?? String(err)
+  if (status === 404) return { unsupported: true, error: "This server does not support custom compositions" }
+  if (msg.includes(DISABLED_MESSAGE_MARKER)) return { disabled: true, error: msg }
+  return { error: msg }
+}
+
 export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
   const language = useLanguage()
   const tabs = useTabs()
@@ -48,15 +79,7 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
         })
         return { plan: res.data }
       } catch (err: unknown) {
-        const { status, message } = parseErrorDetails(err)
-        const msg = message ?? String(err)
-        if (status === 404) {
-          return { unsupported: true, error: "This server does not support custom compositions" }
-        }
-        if (msg.includes("Custom mode is disabled")) {
-          return { disabled: true, error: msg }
-        }
-        return { error: msg }
+        return classifyPlanFailure(err)
       }
     },
   )
