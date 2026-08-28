@@ -5,7 +5,7 @@ import { layer as sqliteLayer } from "#sqlite"
 import { Context, Effect, Layer } from "effect"
 import { Global } from "../global"
 import { Flag } from "../flag/flag"
-import { isAbsolute, join } from "path"
+import { dirname, isAbsolute, join } from "path"
 import { DatabaseMigration } from "./migration"
 import { InstallationChannel } from "../installation/version"
 import { LayerNode } from "../effect/layer-node"
@@ -58,6 +58,41 @@ const restrictDatabaseFiles = (filename: string) =>
     }
   })
 
+/**
+ * Owner-only files inside a group- or world-traversable directory are only half
+ * the control: `Global.Path.data` is created by a bare `fs.mkdir` with no `mode`,
+ * so it lands at `0777 & ~umask` — 0775 on a default Linux install. Anything left
+ * loose in there by an older build (or by a channel path this process will never
+ * reopen, so `restrictDatabaseFiles` can never reach it) stays readable to every
+ * local account.
+ *
+ * `mode:` on `mkdir` would not fix an existing install, since it only applies to
+ * directories it creates. So this chmods on open, the same shape as the file
+ * control — and for the same reason: it must self-heal, not just start correct.
+ *
+ * Scoped to the directory this app created. `AIGCFROGE_DB` may point anywhere,
+ * and tightening a directory we neither own nor created is not ours to do —
+ * `/srv/shared/aigcfroge.db` must not cost other accounts their access to
+ * `/srv/shared`. That predicate is exported so it can be asserted directly
+ * instead of by writing into the real data directory from a test.
+ */
+export const restrictsDirectoryOf = (filename: string) =>
+  process.platform !== "win32" && !filename.includes(":memory:") && dirname(filename) === Global.Path.data
+
+const restrictDataDirectory = (filename: string) =>
+  Effect.gen(function* () {
+    if (!restrictsDirectoryOf(filename)) return
+    const directory = dirname(filename)
+    const { chmod } = yield* Effect.promise(() => import("node:fs/promises"))
+    yield* Effect.tryPromise({ try: () => chmod(directory, 0o700), catch: (cause) => cause }).pipe(
+      Effect.catch((error) => {
+        const code = errnoCode(error)
+        if (code === "ENOENT") return Effect.void
+        return Effect.logWarning("failed to restrict data directory permissions", { directory, code })
+      }),
+    )
+  })
+
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -88,7 +123,13 @@ export const layer = Layer.effect(
  * first write (see `restrictDatabaseFiles`).
  */
 export function layerFromPath(filename: string) {
-  return layer.pipe(Layer.provide(sqliteLayer({ filename }).pipe(Layer.tap(() => restrictDatabaseFiles(filename)))))
+  return layer.pipe(
+    Layer.provide(
+      sqliteLayer({ filename }).pipe(
+        Layer.tap(() => restrictDatabaseFiles(filename).pipe(Effect.andThen(restrictDataDirectory(filename)))),
+      ),
+    ),
+  )
 }
 
 export function path() {

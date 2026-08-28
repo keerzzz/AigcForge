@@ -4,6 +4,7 @@ import { chmod, stat } from "node:fs/promises"
 import { existsSync } from "node:fs"
 import { join } from "node:path"
 import { Database } from "@aigcfroge/core/database/database"
+import { Global } from "@aigcfroge/core/global"
 import { testEffect } from "./lib/effect"
 import { tmpdir } from "./fixture/tmpdir"
 
@@ -121,4 +122,48 @@ describe("Database file permissions (ADR-21 §2.5 止血 1)", () => {
       expect(db).toBeDefined()
     }),
   )
+
+  /**
+   * Owner-only files inside a 0775 directory are half a control, and
+   * `Global.Path.data` is created by a bare `mkdir` with no mode. But the scope
+   * of the directory fix is the part worth pinning: `AIGCFROGE_DB` may point
+   * anywhere, and tightening a directory this app neither created nor owns would
+   * cost other accounts their access to it.
+   *
+   * Asserted through the exported predicate rather than by opening a database
+   * inside the real data directory, which is the only other way to reach the
+   * positive branch and is not something a test may do.
+   */
+  describe("data directory scope", () => {
+    it.effect("restricts only the directory this app created", () =>
+      Effect.gen(function* () {
+        if (skipOnWindows) return
+        expect(Database.restrictsDirectoryOf(join(Global.Path.data, "aigcfroge.db"))).toBe(true)
+        expect(Database.restrictsDirectoryOf(join(Global.Path.data, "aigcfroge-local.db"))).toBe(true)
+        expect(Database.restrictsDirectoryOf("/srv/shared/aigcfroge.db")).toBe(false)
+        expect(Database.restrictsDirectoryOf(join(Global.Path.data, "nested", "aigcfroge.db"))).toBe(false)
+        expect(Database.restrictsDirectoryOf(":memory:")).toBe(false)
+      }),
+    )
+
+    it.effect("leaves an operator-supplied directory at its original mode", () =>
+      Effect.gen(function* () {
+        if (skipOnWindows) return
+        const tmp = yield* Effect.acquireRelease(
+          Effect.promise(() => tmpdir()),
+          (t) => Effect.promise(() => t[Symbol.asyncDispose]()),
+        )
+        const filename = join(tmp.path, "outside.sqlite")
+        yield* Effect.promise(() => chmod(tmp.path, 0o755))
+
+        yield* Effect.gen(function* () {
+          yield* Database.Service
+        }).pipe(Effect.provide(Database.layerFromPath(filename)))
+
+        expect(yield* Effect.promise(() => mode(tmp.path))).toBe("755")
+        // The file itself is still tightened wherever it lives.
+        expect(yield* Effect.promise(() => mode(filename))).toBe("600")
+      }),
+    )
+  })
 })

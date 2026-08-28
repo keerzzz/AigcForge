@@ -4,6 +4,7 @@ import { Flag } from "@aigcfroge/core/flag/flag"
 import { ConfigProvider, Effect, Layer } from "effect"
 import {
   HttpClient,
+  HttpClientError,
   HttpClientRequest,
   HttpClientResponse,
   HttpRouter,
@@ -183,6 +184,20 @@ function httpClient(response: Response, onRequest?: (request: HttpClientRequest.
       onRequest?.(request)
       return Effect.succeed(HttpClientResponse.fromWeb(request, response))
     }),
+  )
+}
+
+/** An upstream that cannot be reached, exactly as `FetchHttpClient` reports it. */
+function unreachableUpstream() {
+  return Layer.succeed(
+    HttpClient.HttpClient,
+    HttpClient.make((request) =>
+      Effect.fail(
+        new HttpClientError.HttpClientError({
+          reason: new HttpClientError.TransportError({ request, cause: new Error("offline") }),
+        }),
+      ),
+    ),
   )
 }
 
@@ -369,6 +384,45 @@ describe("HttpApi UI fallback", () => {
 
       expect(response.status).toBe(404)
       expect(server.proxiedUrl()).toBeUndefined()
+    }),
+  )
+
+  // Without the mapping these three land on Effect's generic
+  // `Response.empty({ status: 500 })`: no body, no content-type. The per-route
+  // `errorLayer` cannot fill that in — it only replaces defect-only empty 500s,
+  // and this arrives as a typed `HttpClientError`.
+  it.live("answers 502 with a body when the UI upstream is unreachable", () =>
+    Effect.gen(function* () {
+      const response = yield* uiApp({
+        disableEmbeddedWebUi: true,
+        client: unreachableUpstream(),
+      }).request("/definitely-not-a-route")
+
+      expect(response.status).toBe(502)
+      expect(response.headers.get("content-type")).toContain("application/json")
+      expect(JSON.parse(yield* responseText(response))).toEqual({
+        error: "Bad Gateway",
+        upstream: "app.aigcfroge.ai",
+        reason: "TransportError",
+      })
+    }),
+  )
+
+  it.live("answers 502 for the root path too, not only unmatched ones", () =>
+    Effect.gen(function* () {
+      const response = yield* uiApp({ disableEmbeddedWebUi: true, client: unreachableUpstream() }).request("/")
+
+      expect(response.status).toBe(502)
+      expect(yield* responseText(response)).not.toBe("")
+    }),
+  )
+
+  it.live("keeps serving the UI when the upstream is reachable", () =>
+    Effect.gen(function* () {
+      const response = yield* uiApp({ disableEmbeddedWebUi: true }).request("/")
+
+      expect(response.status).toBe(200)
+      expect(yield* responseText(response)).toBe("ui")
     }),
   )
 
