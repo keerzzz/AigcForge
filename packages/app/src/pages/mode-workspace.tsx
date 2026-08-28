@@ -25,14 +25,19 @@ export function ModeWorkspace() {
     selection: { server: server.key } as HomeProjectSelection,
   })
   const codingValue = {
-    get selection() { return codingSel.selection },
+    get selection() {
+      return codingSel.selection
+    },
     selectServer: (key: ServerConnection.Key) => setCodingSel("selection", { server: key }),
-    selectProject: (key: ServerConnection.Key, directory: string) => setCodingSel("selection", { server: key, directory }),
+    selectProject: (key: ServerConnection.Key, directory: string) =>
+      setCodingSel("selection", { server: key, directory }),
   }
 
   const [assistantSel, setAssistantSel] = createStore<{ selection: AssistantNavSelection }>({ selection: undefined })
   const assistantValue = {
-    get selection() { return assistantSel.selection },
+    get selection() {
+      return assistantSel.selection
+    },
     select: (selection: AssistantNavSelection) => setAssistantSel("selection", selection),
   }
 
@@ -83,18 +88,28 @@ export function ModeWorkspace() {
     }))
 
     const allAssets: AssetWorkbench.AssetInput[] = [
-      ...promptAssets, ...skillAssets, ...mcpAssets, ...cmdAssets, ...agentAssets, ...workflowAssets, ...pluginAssets, ...bridgedPluginInputs,
+      ...promptAssets,
+      ...skillAssets,
+      ...mcpAssets,
+      ...cmdAssets,
+      ...agentAssets,
+      ...workflowAssets,
+      ...pluginAssets,
+      ...bridgedPluginInputs,
     ]
 
-    const invalidRows = AssetWorkbench.buildRows([], [
-      ...promptInvalid.map((item) => ({ ...item, kind: "prompt" as const })),
-      ...skillInvalid.map((item) => ({ ...item, kind: "skill" as const })),
-      ...mcpInvalid.map((item) => ({ ...item, kind: "mcp" as const })),
-      ...cmdInvalid.map((item) => ({ ...item, kind: "command" as const })),
-      ...agentInvalid.map((item) => ({ ...item, kind: "agent" as const })),
-      ...workflowInvalid.map((item) => ({ ...item, kind: "workflow" as const })),
-      ...pluginInvalid.map((item) => ({ ...item, kind: "plugin" as const })),
-    ])
+    const invalidRows = AssetWorkbench.buildRows(
+      [],
+      [
+        ...promptInvalid.map((item) => ({ ...item, kind: "prompt" as const })),
+        ...skillInvalid.map((item) => ({ ...item, kind: "skill" as const })),
+        ...mcpInvalid.map((item) => ({ ...item, kind: "mcp" as const })),
+        ...cmdInvalid.map((item) => ({ ...item, kind: "command" as const })),
+        ...agentInvalid.map((item) => ({ ...item, kind: "agent" as const })),
+        ...workflowInvalid.map((item) => ({ ...item, kind: "workflow" as const })),
+        ...pluginInvalid.map((item) => ({ ...item, kind: "plugin" as const })),
+      ],
+    )
 
     return {
       assets: allAssets,
@@ -140,48 +155,54 @@ export function ModeWorkspace() {
   return (
     <ModeWorkspaceAssetCtx.Provider value={assetCtx}>
       <CodingSelectionCtx.Provider value={codingValue}>
-      <AssistantSelectionCtx.Provider value={assistantValue}>
-      <div data-mode-workspace class="rounded-[10px] shadow-[var(--v2-elevation-raised)] m-2 min-h-0 lg:overflow-hidden bg-v2-background-bg-base self-stretch flex-1 flex flex-col">
-        <LocationApprovalCenter />
-        <div
-          class={
-            "mx-auto grid h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-3 pb-3 lg:grid-rows-1 lg:px-6 lg:pb-16 lg:gap-8" +
-            (mode.currentMode === "chat"
-              ? " max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]"
-              : mode.currentMode === "work"
-                ? " max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]"
-                : " max-w-[1080px] lg:grid-cols-[280px_minmax(0,720px)]")
-          }
-        >
-          {/* Sidebar slot: render-all + display:none */}
-          <div>
-            <For each={ALL_SLOTS}>
-              {(slot) => {
-                const surf = modeSurface(slot)
-                return (
-                  <div style={{ display: mode.currentMode === slot ? "" : "none" }}>
-                    <surf.Sidebar />
-                  </div>
-                )
-              }}
-            </For>
+        <AssistantSelectionCtx.Provider value={assistantValue}>
+          <div
+            data-mode-workspace
+            class="rounded-[10px] shadow-[var(--v2-elevation-raised)] m-2 min-h-0 lg:overflow-hidden bg-v2-background-bg-base self-stretch flex-1 flex flex-col"
+          >
+            <LocationApprovalCenter />
+            <div
+              class={
+                "mx-auto grid h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-3 pb-3 lg:grid-rows-1 lg:px-6 lg:pb-16 lg:gap-8" +
+                (mode.currentMode === "chat"
+                  ? " max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]"
+                  : mode.currentMode === "work"
+                    ? " max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]"
+                    : " max-w-[1080px] lg:grid-cols-[280px_minmax(0,720px)]")
+              }
+            >
+              {/* Sidebar slot: render-all + display:none */}
+              <div>
+                <For each={ALL_SLOTS}>
+                  {(slot) => {
+                    const surf = modeSurface(slot)
+                    return (
+                      <div style={{ display: mode.currentMode === slot ? "" : "none" }}>
+                        <surf.Sidebar />
+                      </div>
+                    )
+                  }}
+                </For>
+              </div>
+              {/* Main slot: render-all + display:none */}
+              <section class="min-h-0 min-w-0 flex-1 flex flex-col" aria-label="Main content">
+                <For each={ALL_SLOTS}>
+                  {(slot) => {
+                    const surf = modeSurface(slot)
+                    return (
+                      <div
+                        class="flex min-h-0 flex-1 flex-col pt-6 lg:pt-12"
+                        style={{ display: mode.currentMode === slot ? "flex" : "none" }}
+                      >
+                        <surf.Main />
+                      </div>
+                    )
+                  }}
+                </For>
+              </section>
+            </div>
           </div>
-          {/* Main slot: render-all + display:none */}
-          <section class="min-h-0 min-w-0 flex-1 flex flex-col" aria-label="Main content">
-            <For each={ALL_SLOTS}>
-              {(slot) => {
-                const surf = modeSurface(slot)
-                return (
-                  <div class="flex min-h-0 flex-1 flex-col pt-6 lg:pt-12" style={{ display: mode.currentMode === slot ? "flex" : "none" }}>
-                    <surf.Main />
-                  </div>
-                )
-              }}
-            </For>
-          </section>
-        </div>
-      </div>
-      </AssistantSelectionCtx.Provider>
+        </AssistantSelectionCtx.Provider>
       </CodingSelectionCtx.Provider>
     </ModeWorkspaceAssetCtx.Provider>
   )

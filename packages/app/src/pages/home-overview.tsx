@@ -75,7 +75,9 @@ export function HomeOverview() {
   )
   const selectedProject = createMemo(() => projects().find((project) => project.worktree === state.projectFilter))
   // Load the complete current-server set once; filters and counts stay in memory.
-  const projectDirectories = createMemo(() => projects().flatMap((project) => [project.worktree, ...(project.sandboxes ?? [])]))
+  const projectDirectories = createMemo(() =>
+    projects().flatMap((project) => [project.worktree, ...(project.sandboxes ?? [])]),
+  )
   const activeServer = () => {
     const conn = focusedServer()
     return conn ? ServerConnection.key(conn) === server.key : false
@@ -217,10 +219,7 @@ export function HomeOverview() {
         />
         <ScrollView class="mt-3 min-h-0 flex-1">
           <div class="pt-3 flex flex-col gap-6">
-            <Show
-              when={!sessionLoad.isLoading}
-              fallback={<HomeSessionSkeleton label={language.t("common.loading")} />}
-            >
+            <Show when={!sessionLoad.isLoading} fallback={<HomeSessionSkeleton label={language.t("common.loading")} />}>
               <Show
                 when={pinned().pinned || groups().length > 0}
                 fallback={
@@ -385,7 +384,9 @@ export function HomeOverviewSidebar(props: {
           aria-current={props.selectedDirectory === undefined ? "page" : undefined}
           onClick={() => props.onSelectProject(undefined)}
         >
-          <span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{language.t("home.overview.allProjects")}</span>
+          <span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+            {language.t("home.overview.allProjects")}
+          </span>
           <span class={MODE_FILTER_COUNT}>{props.total}</span>
         </button>
         <For each={props.projects}>
