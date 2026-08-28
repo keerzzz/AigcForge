@@ -176,9 +176,39 @@ const decodeBindingStrict = Schema.decodeUnknownSync(McpServerBinding, strictOpt
 const decodeGrantStrict = Schema.decodeUnknownSync(ScopedGrant, strictOptions)
 const decodeGrantScopeStrict = Schema.decodeUnknownSync(GrantScope, strictOptions)
 
+/**
+ * `onExcessProperty: "error"` reports the rejected value, not just its key, so
+ * the unknown key an attacker or a confused client used to smuggle a credential
+ * comes back inside the message. These messages reach HTTP 400 bodies, so the
+ * value has to be dropped: the key name is what a caller needs to fix its
+ * request, and the value is theirs already — echoing it only widens exposure.
+ *
+ * `SchemaError` is not an `Error` subclass, so this cannot narrow on `instanceof
+ * Error`; it reads `message` structurally and rethrows anything without one.
+ */
+const redactExcessKeyValues = (message: string) => message.replaceAll(/(Unexpected key) with value [^\n]*/g, "$1")
+
+const messageOf = (error: unknown): string | undefined => {
+  if (typeof error !== "object" || error === null || !("message" in error)) return undefined
+  const message = error.message
+  return typeof message === "string" ? message : undefined
+}
+
+const decodeRedacted = <A>(decode: (input: unknown) => A, input: unknown): A => {
+  try {
+    return decode(input)
+  } catch (error) {
+    const message = messageOf(error)
+    if (message === undefined) throw error
+    const redacted = redactExcessKeyValues(message)
+    if (redacted === message) throw error
+    throw new Error(redacted)
+  }
+}
+
 /** Canonical binding decode: rejects excess keys, then enforces transport shape and secret redaction. */
 export const decodeBinding = (input: unknown): McpServerBinding => {
-  const binding = decodeBindingStrict(input)
+  const binding = decodeRedacted(decodeBindingStrict, input)
   if (binding.transport === "stdio" && (binding.command === undefined || binding.command.length === 0))
     throw new Error(`MCP stdio binding '${binding.serverName}' requires command`)
   if (binding.transport === "remote" && binding.url === undefined)

@@ -272,3 +272,49 @@ describe("McpScope.ScopedGrant", () => {
     expect(() => McpScope.decodeGrant({ ...base, locationDirectory: "/elsewhere" })).toThrow()
   })
 })
+
+describe("McpScope excess-key redaction", () => {
+  const binding = {
+    serverName: "probe",
+    ref: { relativePath: ".aigcfroge/mcp/probe.yaml", revision },
+    transport: "remote" as const,
+    url: "https://example.com/mcp",
+  }
+
+  // `onExcessProperty: "error"` names the rejected value, and these messages
+  // reach HTTP 400 bodies. The key is what a caller needs to fix its request;
+  // the value is the credential it just tried to smuggle through an unknown
+  // field, so it must not come back out.
+  test("rejects an unknown binding key without echoing its value", () => {
+    const secret = "topsecrettoken1234567890"
+    expect(() => McpScope.decodeBinding({ ...binding, headers: { Authorization: `Bearer ${secret}` } })).toThrow()
+    try {
+      McpScope.decodeBinding({ ...binding, headers: { Authorization: `Bearer ${secret}` } })
+      throw new Error("expected a rejection")
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      expect(message).not.toContain(secret)
+      expect(message).toContain("headers")
+    }
+  })
+
+  test("leaves every other rejection message intact", () => {
+    const message = (input: unknown) => {
+      try {
+        McpScope.decodeBinding(input)
+        return ""
+      } catch (error) {
+        return error instanceof Error ? error.message : String(error)
+      }
+    }
+    expect(message({ ...binding, transport: "stdio", url: undefined })).toContain("requires command")
+    expect(message({ ...binding, url: "https://u:p@example.com/mcp" })).toContain("must not embed userinfo")
+    expect(
+      message({ ...binding, transport: "stdio", url: undefined, command: ["s", "--api-key=sk-live-abcdefghij"] }),
+    ).toContain("contains secret-like material")
+  })
+
+  test("a valid binding still decodes", () => {
+    expect(McpScope.decodeBinding(binding).serverName).toBe("probe")
+  })
+})

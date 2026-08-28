@@ -194,4 +194,41 @@ describe("CustomProfile Schema", () => {
     })
     expect(String(c.name)).toBe("candidate-profile")
   })
+
+  // The HTTP boundary decodes wire JSON, which goes through the `toCodecJson`
+  // link rather than the runtime declaration. The link target used to be the
+  // plain binding class, so unknown keys were stripped and `POST
+  // /custom-profile/apply` answered 200 with the credential silently dropped —
+  // the exact silent-swallow the strict decoder exists to prevent. Patching the
+  // link's getter does not fix it (the target decodes first) and removing the
+  // link breaks every decode with `Expected null`, so the target itself is strict.
+  describe("JSON codec path", () => {
+    const json = Schema.decodeUnknownSync(Schema.toCodecJson(CustomProfile.Profile))
+    const binding = {
+      serverName: "probe",
+      ref: { relativePath: "probe.yaml", revision: "a".repeat(64) },
+      transport: "remote" as const,
+      url: "https://example.com/mcp",
+    }
+    const withBinding = (extra: Record<string, unknown>) => ({
+      ...validProfile,
+      mcpBindings: [{ ...binding, ...extra }],
+    })
+
+    test("rejects an unknown, secret-bearing binding key instead of stripping it", () => {
+      expect(() => json(withBinding({ headers: { Authorization: "Bearer topsecrettoken1234567890" } }))).toThrow()
+    })
+
+    test("still admits a clean binding and preserves its fields", () => {
+      const decoded = json(withBinding({}))
+      expect(decoded.mcpBindings).toHaveLength(1)
+      expect(decoded.mcpBindings[0]!.serverName).toBe("probe")
+      expect(decoded.mcpBindings[0]!.url).toBe("https://example.com/mcp")
+    })
+
+    test("still enforces the transport and userinfo rules over JSON", () => {
+      expect(() => json(withBinding({ transport: "stdio", url: undefined }))).toThrow()
+      expect(() => json(withBinding({ url: "https://u:p@example.com/mcp" }))).toThrow()
+    })
+  })
 })
