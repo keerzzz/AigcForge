@@ -13,6 +13,7 @@ import { useServerSync } from "@/context/server-sync"
 import { useLayout, type LocalProject } from "@/context/layout"
 import { useMode, type Mode } from "@/context/mode"
 import { useNotification } from "@/context/notification"
+import { LocationApprovalCenter } from "@/components/approval-center"
 import { useDirectoryPicker } from "@/components/directory-picker"
 import {
   closeHomeProject,
@@ -182,6 +183,7 @@ export function HomeOverview() {
 
   return (
     <div class={OVERVIEW_GRID} data-component="home-overview">
+      <LocationApprovalCenter />
       <Show when={focusedServer()} fallback={<div />}>
         {(conn) => (
           <HomeOverviewSidebar

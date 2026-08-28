@@ -1,7 +1,7 @@
 import { createEffect, createMemo, createResource, createSignal, For } from "solid-js"
 import { createStore } from "solid-js/store"
 import { modeSurface } from "@/components/mode-surfaces"
-import { ApprovalCenter } from "@/components/approval-center"
+import { LocationApprovalCenter } from "@/components/approval-center"
 import { useServerSync } from "@/context/server-sync"
 import { type DirectorySDK } from "@/context/sdk"
 import { AssetWorkbench } from "@/components/chat/asset-workbench"
@@ -108,16 +108,6 @@ export function ModeWorkspace() {
     return sync().child(dir, { mcp: true })[0]
   })
 
-  // Approval surface for this route. `/mode/:mode` sits outside SDKProvider and
-  // DirectoryDataProvider, so the accessors are passed explicitly; scope follows
-  // the same resolved directory the asset and MCP panels already use. Approvals
-  // raised by sessions in other directories still surface on their own routes.
-  const approvalSync = createMemo(() => {
-    const dir = chatDirectory()
-    if (!dir) return undefined
-    return sync().ensureDirSyncContext(dir)
-  })
-
   const mergedAssetData = createMemo(() => {
     const project = chatAssetList()
     const system = chatSystemData()
@@ -152,7 +142,7 @@ export function ModeWorkspace() {
       <CodingSelectionCtx.Provider value={codingValue}>
       <AssistantSelectionCtx.Provider value={assistantValue}>
       <div data-mode-workspace class="rounded-[10px] shadow-[var(--v2-elevation-raised)] m-2 min-h-0 lg:overflow-hidden bg-v2-background-bg-base self-stretch flex-1 flex flex-col">
-        <ApprovalCenter sdk={chatDirSdk} sync={approvalSync} />
+        <LocationApprovalCenter />
         <div
           class={
             "mx-auto grid h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-3 pb-3 lg:grid-rows-1 lg:px-6 lg:pb-16 lg:gap-8" +
