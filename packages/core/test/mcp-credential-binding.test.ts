@@ -234,4 +234,62 @@ describe("McpCredentialBindingStore (ADR-21 §2.2/§2.3 v1.2)", () => {
       expect(where).toContain('"revoked_at" is not null')
     }),
   )
+
+  /**
+   * The read side has always enforced the `cred_` prefix and both length bounds
+   * (`toInfoSafe` builds the branded class, whose constructor validates). The
+   * write side did not, and the asymmetry was not cosmetic: the post-commit
+   * read-back throws, a throw inside `Effect.gen` is a defect that `bind`'s
+   * `Effect.catch` cannot see, so the row stayed committed while `bind` died.
+   * `get` then read it as absent while the unique index still held the slot — so
+   * the retry below is the assertion that matters, not the rejection itself.
+   */
+  it.effect("bind rejects an out-of-contract credentialRef without wedging the server slot", () =>
+    Effect.gen(function* () {
+      const store = yield* McpCredentialBindingStore.Service
+      const rejected = yield* store.bind({ serverName: "git", credentialRef: "not-a-ref" }).pipe(Effect.exit)
+      expectStateError(rejected, "invalid_input")
+
+      expect(yield* store.get({ serverName: "git" })).toBeUndefined()
+
+      const retried = yield* store.bind({ serverName: "git", credentialRef: "cred_valid1" })
+      expect(retried.credentialRef).toBe("cred_valid1")
+      expect(retried.bindingRevision).toBe(1)
+    }).pipe(Effect.provide(makeStore({ directory: "/tmp/reject-bind" }))),
+  )
+
+  it.effect("bind rejects an over-long credentialRef and an empty serverName", () =>
+    Effect.gen(function* () {
+      const store = yield* McpCredentialBindingStore.Service
+      const tooLong = yield* store
+        .bind({ serverName: "git", credentialRef: `cred_${"a".repeat(200)}` })
+        .pipe(Effect.exit)
+      expectStateError(tooLong, "invalid_input")
+
+      const noName = yield* store.bind({ serverName: "", credentialRef: "cred_valid1" }).pipe(Effect.exit)
+      expectStateError(noName, "invalid_input")
+
+      expect(yield* store.get({ serverName: "git" })).toBeUndefined()
+    }).pipe(Effect.provide(makeStore({ directory: "/tmp/reject-bounds" }))),
+  )
+
+  it.effect("rebind rejects an out-of-contract credentialRef and leaves the binding revoked", () =>
+    Effect.gen(function* () {
+      const store = yield* McpCredentialBindingStore.Service
+      const bound = yield* store.bind({ serverName: "git", credentialRef: "cred_first11" })
+      const revoked = yield* store.revoke(bound.id, bound.bindingRevision)
+
+      const rejected = yield* store.rebind(bound.id, revoked.bindingRevision, "not-a-ref").pipe(Effect.exit)
+      expectStateError(rejected, "invalid_input")
+
+      const after = yield* store.getById(bound.id)
+      expect(after?.revokedAt).not.toBeUndefined()
+      expect(after?.credentialRef).toBe("cred_first11")
+      expect(after?.bindingRevision).toBe(revoked.bindingRevision)
+
+      const rebound = yield* store.rebind(bound.id, revoked.bindingRevision, "cred_second1")
+      expect(rebound.credentialRef).toBe("cred_second1")
+      expect(rebound.revokedAt).toBeUndefined()
+    }).pipe(Effect.provide(makeStore({ directory: "/tmp/reject-rebind" }))),
+  )
 })

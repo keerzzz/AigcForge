@@ -19,7 +19,7 @@ export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("Mcp
 
 export class StateError extends Schema.TaggedErrorClass<StateError>()("McpBinding.StateError", {
   id: Schema.String,
-  reason: Schema.Literals(["already_revoked", "revision_mismatch", "duplicate", "not_revoked"]),
+  reason: Schema.Literals(["already_revoked", "revision_mismatch", "duplicate", "not_revoked", "invalid_input"]),
 }) {
   override get message() {
     return `MCP credential binding ${this.id} rejected: ${this.reason}`
@@ -107,6 +107,38 @@ const toInfo = (row: Row): Info => {
 
 const normalizeWorkspaceId = McpScope.normalizeWorkspaceId
 
+const decodeCredentialRef = Schema.decodeUnknownEffect(McpScope.CredentialRef)
+const decodeServerName = Schema.decodeUnknownEffect(McpScope.McpCredentialBinding.fields.serverName)
+
+/**
+ * Validates the two caller-supplied strings **before** the transaction opens.
+ *
+ * The read side already enforces these constraints — `toInfoSafe` builds the
+ * branded `McpCredentialBinding`, whose constructor checks the `cred_` prefix and
+ * both length bounds at runtime. The write side did not, and the asymmetry was
+ * not merely untidy: `toInfo` on the post-commit read-back *throws*, and a throw
+ * inside `Effect.gen` is a defect that `bind`'s own `Effect.catch` cannot see. So
+ * an out-of-contract ref left the row committed while `bind` died; `get` then
+ * decoded it as absent while the unique index still held
+ * `(directory, workspace_id, server_name)`, so a retry hit
+ * `onConflictDoNothing` → `duplicate` and the binding became unreachable through
+ * this interface.
+ *
+ * Typed rather than a defect, unlike the sibling `ScopedGrantStore.issue` which
+ * constructs its branded class bare: grant inputs are schema-decoded at an HTTP
+ * boundary before they arrive, and this store has no HTTP boundary at all, so
+ * this method *is* the boundary.
+ *
+ * The rejected value is never echoed. A malformed `credentialRef` is exactly
+ * where someone pastes real credential material by mistake.
+ */
+const validateWriteInput = (id: string, input: { serverName: string; credentialRef: string }) =>
+  Effect.gen(function* () {
+    const serverName = yield* decodeServerName(input.serverName)
+    const credentialRef = yield* decodeCredentialRef(input.credentialRef)
+    return { serverName, credentialRef }
+  }).pipe(Effect.mapError(() => new StateError({ id, reason: "invalid_input" })))
+
 /** Pure predicate for the unique active lookup — used for EXPLAIN assertions. */
 export const lookupFilter = (input: { directory: string; workspaceID?: string; serverName: string }) =>
   and(
@@ -175,6 +207,7 @@ export const layer = Layer.effect(
         const now = Date.now()
         const { directory, workspaceID } = currentLocation()
         const ws = normalizeWorkspaceId(workspaceID)
+        const valid = yield* validateWriteInput(id, input)
         return yield* Effect.gen(function* () {
           yield* BindingEvent.publish(
             events,
@@ -187,8 +220,8 @@ export const layer = Layer.effect(
                     id,
                     directory,
                     workspace_id: ws,
-                    server_name: input.serverName,
-                    credential_ref: input.credentialRef,
+                    server_name: valid.serverName,
+                    credential_ref: valid.credentialRef,
                     binding_revision: 1,
                     revoked_at: null,
                   })
@@ -230,6 +263,7 @@ export const layer = Layer.effect(
         if (current.bindingRevision !== expectedRevision)
           return yield* new StateError({ id, reason: "revision_mismatch" })
         if (current.revokedAt === undefined) return yield* new StateError({ id, reason: "not_revoked" })
+        const valid = yield* validateWriteInput(id, { serverName: current.serverName, credentialRef })
         const nextRevision = current.bindingRevision + 1
         const now = Date.now()
         yield* BindingEvent.publish(
@@ -239,7 +273,7 @@ export const layer = Layer.effect(
             Effect.gen(function* () {
               const updated = yield* tx
                 .update(McpCredentialBindingTable)
-                .set({ credential_ref: credentialRef, revoked_at: null, binding_revision: nextRevision })
+                .set({ credential_ref: valid.credentialRef, revoked_at: null, binding_revision: nextRevision })
                 .where(rebindFilter({ id, expectedRevision }))
                 .returning()
                 .get()
