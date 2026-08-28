@@ -8,6 +8,8 @@ import { createStore } from "solid-js/store"
 import { useSDK, type DirectorySDK } from "@/context/sdk"
 import { useLanguage } from "@/context/language"
 import { useSync, type DirectorySync } from "@/context/sync"
+import { useServerSync } from "@/context/server-sync"
+import { useModeDirectory } from "@/pages/mode-workspace-context"
 import { PermissionPendingModel, type PermissionV2Pending } from "@/context/global-sync/permission-pending"
 
 type ApprovalScope = "reject" | "once" | "session" | "location"
@@ -156,6 +158,35 @@ export function ApprovalCenter(props: {
       )}
     </Show>
   )
+}
+
+/**
+ * Mounts the approval surface on the routes that sit outside `SDKProvider` /
+ * `DirectoryDataProvider` — `/` and `/mode/:mode`. Those routes have no ambient
+ * directory context, so the accessors are resolved from `useModeDirectory()`
+ * and handed to `ApprovalCenter` explicitly.
+ *
+ * This is not optional polish. The responder fact is bound by the App's single
+ * global SSE connection, so a route that renders no approval surface does **not**
+ * fail closed: the server counts a responder, the `ask` parks for the full TTL,
+ * and nothing is on screen to answer it. Every route a user can idle on needs
+ * this mounted, which is why it is one component rather than per-route wiring.
+ */
+export function LocationApprovalCenter() {
+  const serverSync = useServerSync()
+  const { ctx, directory } = useModeDirectory()
+  const sdk = createMemo(() => {
+    const dir = directory()
+    const current = ctx()
+    if (!dir || !current) return undefined
+    return current.sdk.ensureDirSdkContext(dir)
+  })
+  const sync = createMemo(() => {
+    const dir = directory()
+    if (!dir) return undefined
+    return serverSync().ensureDirSyncContext(dir)
+  })
+  return <ApprovalCenter sdk={sdk} sync={sync} />
 }
 
 function ApprovalDialog(props: {

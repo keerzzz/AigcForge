@@ -40,6 +40,18 @@ export type Revision = typeof Revision.Type
 export const BaseRevision = Schema.Union([Schema.Null, Revision])
 export type BaseRevision = typeof BaseRevision.Type
 
+// The JSON codec link's target is what actually decodes wire JSON, and it runs
+// *before* the link's own getters — so a target that strips unknown keys defeats
+// the canonical decoder no matter what the getters do. Plain `McpServerBinding`
+// strips them, which is why a `headers: { Authorization: ... }` smuggled through
+// `POST /custom-profile/apply` was silently dropped and answered 200: exactly the
+// silent-swallow `McpScope`'s strict options exist to prevent. Measured, not
+// assumed — patching the getter leaves it admitted, and removing the link makes
+// every decode fail `Expected null`.
+const StrictMcpServerBinding = McpScope.McpServerBinding.annotate({
+  parseOptions: { onExcessProperty: "error" },
+})
+
 const McpBinding = Schema.declareConstructor<McpScope.McpServerBinding>()(
   [],
   () => (input) => {
@@ -55,12 +67,13 @@ const McpBinding = Schema.declareConstructor<McpScope.McpServerBinding>()(
   },
   {
     identifier: "CustomProfile.McpBinding",
-    // The runtime declaration above remains the strict admission boundary.
-    // This JSON codec only tells OpenAPI tooling that the opaque value has the
-    // same wire shape as the canonical MCP binding; without it, Schema's
-    // declaration fallback becomes `null` and contaminates unrelated SDK types.
+    // The declaration above is the strict boundary for in-process callers. JSON
+    // input goes through this link instead, so the link target has to carry the
+    // same strictness; it also tells OpenAPI tooling the wire shape, without
+    // which Schema's declaration fallback becomes `null` and contaminates
+    // unrelated SDK types.
     toCodecJson: () =>
-      Schema.link<McpScope.McpServerBinding>()(McpScope.McpServerBinding, {
+      Schema.link<McpScope.McpServerBinding>()(StrictMcpServerBinding, {
         decode: SchemaGetter.transform((value) => value),
         encode: SchemaGetter.transform((value) => value),
       }),

@@ -168,6 +168,16 @@ async function openModeWorkspace(page: Page, wire: ApprovalWire, mode: string) {
   await expectAppVisible(page.locator("[data-mode-workspace]"))
 }
 
+// `/` is the default landing route and had the same gap as `/mode/:mode`: the
+// portal target exists there, but nothing mounted the surface, so a user idling
+// on the home overview could not answer an approval while the server still
+// counted them as a responder. Same two-step entry, for the same reason.
+async function openHomeOverview(page: Page, wire: ApprovalWire) {
+  await openSession(page, wire)
+  await page.goto("/")
+  await expectAppVisible(page.locator('[data-component="home-overview"]'))
+}
+
 function wire(overrides: Partial<ApprovalWire> = {}): ApprovalWire {
   return {
     pending: [],
@@ -307,6 +317,26 @@ test.describe("regression: Location approval center", () => {
       expect(state.legacyWrites).toEqual([])
     })
   }
+
+  test("answers a pending approval from the global home overview route", async ({ page }) => {
+    const state = wire({ pending: [pending("req_home", "write", ["src/index.ts"])] })
+    await openHomeOverview(page, state)
+
+    await expect(trigger(page)).toHaveAttribute("aria-label", "Pending approvals: 1")
+
+    await trigger(page).click()
+    await expect(dialog(page)).toBeVisible()
+    await expect(dialog(page).locator('[data-slot="approval-center-action"]')).toHaveText("write")
+
+    await dialog(page).locator('[data-slot="approval-center-location-scope"]').click()
+    await expect.poll(() => state.grants.length).toBe(1)
+    expect(state.grants[0]).toEqual({
+      path: `/api/session/${sessionID}/permission/req_home/grant`,
+      body: { level: "location" },
+    })
+    expect(state.replies).toEqual([])
+    expect(state.legacyWrites).toEqual([])
+  })
 
   test("does not render a trigger on the mode workspace when nothing is pending", async ({ page }) => {
     const state = wire()

@@ -1,5 +1,21 @@
 # V2 Schema Changelog
 
+## 2026-08-28: MCP Binding Admission Boundary Correction
+
+> **Status: IMPLEMENTED (JSON-path strict decode + excess-key redaction + widened secret patterns)**
+
+Found by driving the real Electron desktop app and the HTTP surface end to end, not by reading the diff.
+
+- **`CustomProfile.McpBinding`'s strict boundary did not hold for wire JSON.** The runtime declaration calls `McpScope.decodeBinding` (strict), but JSON input goes through the `toCodecJson` link instead, and the link's _target_ decodes before the link's own getters. The target was the plain `McpScope.McpServerBinding`, which strips unknown keys — so `POST /custom-profile/apply` answered **200** to a binding carrying `headers: { Authorization: … }` and silently dropped it. A client that believed it had passed a credential got a success and a credential-less binding. The link target is now annotated `onExcessProperty: "error"`. Two other candidate fixes were measured and rejected: patching the link's `decode` getter leaves the key admitted, and removing the link fails every decode with `Expected null` (which is the reason the link exists at all). The OpenAPI shape is unaffected — the generated SDK is byte-identical after regeneration.
+- **Excess-key rejections no longer echo the rejected value.** `onExcessProperty: "error"` names the value, and these messages reach HTTP 400 bodies, so closing the boundary without redacting would have traded a fail-open boundary for returning the caller's credential. `decodeBinding` now strips the value while still naming the key, which covers the in-process callers as well as the HTTP path.
+- **`SECRET_PATTERNS` gains `NAMED_CREDENTIAL_RE` and `ENCODED_BEARER_RE`.** `ENV_LINE_RE` is `^`-anchored, so `--token=…`, `--env=TOKEN=…` and `?token=…` all escaped it; `API_KEY_RE` only recognises the literal `api_key` / `apikey` label; and `BEARER_TOKEN_RE` requires `Bearer\s+`, so percent- or plus-encoding the space made it unable to match a real URL — the most common way an MCP server is handed a token. Seven measured escapes are now rejected. Deliberately **not** added: a generic high-entropy rule or a vendor-prefix catalogue. This scan is a denylist, so it can never be complete, and a false reject is a user hitting a wall; five control inputs (long module paths, hex path segments, non-sensitive query strings) are pinned as still admitted.
+
+Compatibility:
+
+- No durable migration, no event-family change, no SDK change (regeneration produces no diff).
+- Behaviour change for clients that were relying on unknown binding keys being silently accepted: those requests now fail with a typed 400 naming the offending key. That is the intended fail-closed direction.
+- Profiles already on disk are unaffected; the strictness applies at decode, and any binding that decoded before still decodes.
+
 ## 2026-08-27: Custom Mode M3 Phase E/F/G MCP Composition Projection and Approval Surface
 
 > **Status: IMPLEMENTED (composition/snapshot MCP projection + scoped-grant HTTP/SDK surface + credential binding schema)**
@@ -12,7 +28,7 @@ Affected schema:
 - `CustomProfile.Profile` gains `mcpBindings: McpBinding[]`, and `decodeProfile` is the single strict decoder for the profile (unknown keys rejected).
 - New `McpScope.McpCredentialBinding` plus the single-point `workspaceID` sentinel codec (`normalizeWorkspaceId` / `denormalizeWorkspaceId`, ADR-21 §2.2 v1.2): the DB column is `not null` with `""` for a workspace-less Location, so the uniqueness constraint covers the common case, and the sentinel is translated in exactly one place.
 - New exported helper `Composition.mcpAuditMatchesCatalog`: one comparison shared by the Snapshot loader and the runner. The two previously sorted MCP audit names independently, and legal names like `list-files` / `list_files` order differently under the default sort than under `localeCompare`, so the runner could false-positive and block a legal turn.
-- `credential-scan` promotes the secret patterns (`API_KEY_RE`, `BEARER_TOKEN_RE`, `PRIVATE_KEY_RE`, `ENV_LINE_RE`, `SECRET_PATTERNS`) and `containsSecret` to the schema public surface, so binding decode, stderr redaction and the scanner share one definition instead of three.
+- `credential-scan` promotes the secret patterns (`API_KEY_RE`, `BEARER_TOKEN_RE`, `PRIVATE_KEY_RE`, `ENV_LINE_RE`, `SECRET_PATTERNS`) and `containsSecret` to the schema public surface, so binding decode, stderr redaction and the scanner share one definition instead of three. **This sharing is not the same as coverage**: the pattern set is defence in depth, not an admission boundary. The boundary is `decodeBinding`'s excess-key rejection plus the `credentialRef` indirection; see the 2026-08-28 entry, which corrects an earlier reading of this line as "command and url secrets are covered".
 - Generated SDK (`v2`): scoped-grant endpoints `v2.permission.grant.list`, `v2.permission.grant.revoke` (`grantID` + `expectedRevision` CAS) and `v2.session.permission.grant` (`sessionID` + `requestID` + `level`).
 
 Durable migrations:
