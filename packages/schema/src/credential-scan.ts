@@ -11,7 +11,31 @@ export const PRIVATE_KEY_RE =
 export const ENV_LINE_RE =
   /^(?:DATABASE_URL|SECRET(?:_KEY)?|API_KEY(?:_\w+)?|ACCESS_KEY|SECRET_ACCESS_KEY|PRIVATE_KEY|TOKEN|PASSWORD|DB_[A-Z_]+)\s*=\s*['"]?.+['"]?$/gim
 
-export const SECRET_PATTERNS = [API_KEY_RE, BEARER_TOKEN_RE, PRIVATE_KEY_RE, ENV_LINE_RE] as const
+/**
+ * Named credential assignments anywhere in a string, not just at line start.
+ * `ENV_LINE_RE` is `^`-anchored, so `--token=…`, `--env=TOKEN=…` and
+ * `?token=…` all defeated it, and `API_KEY_RE` only recognises the literal
+ * `api_key` / `apikey` label. Those were the shapes that reached MCP `command`
+ * arrays and remote URLs unchallenged.
+ */
+export const NAMED_CREDENTIAL_RE =
+  /(?:access[_-]?token|api[_-]?key|apikey|auth[_-]?token|client[_-]?secret|passwd|password|secret|token)["']?\s*[=:]\s*['"]?[a-zA-Z0-9_\-.~+/]{12,}/gi
+
+/**
+ * `BEARER_TOKEN_RE` requires `Bearer\s+`, so percent- or plus-encoding the
+ * space means it can never match a real URL — which is the most common way an
+ * MCP server is handed a token. Matches the encoded forms directly.
+ */
+export const ENCODED_BEARER_RE = /Bearer(?:%20|\+)+[a-zA-Z0-9_\-.~]{12,}/gi
+
+export const SECRET_PATTERNS = [
+  API_KEY_RE,
+  BEARER_TOKEN_RE,
+  PRIVATE_KEY_RE,
+  ENV_LINE_RE,
+  NAMED_CREDENTIAL_RE,
+  ENCODED_BEARER_RE,
+] as const
 
 export const containsSecret = (text: string): boolean => {
   for (const re of SECRET_PATTERNS) {
