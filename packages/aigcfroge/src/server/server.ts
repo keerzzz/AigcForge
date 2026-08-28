@@ -7,6 +7,7 @@ import { OpenApi } from "effect/unstable/httpapi"
 import { createServer } from "node:http"
 import { MDNS } from "./mdns"
 import { HttpApiApp } from "./routes/instance/httpapi/server"
+import { AppLayer } from "@/effect/app-runtime"
 import { disposeMiddleware } from "./routes/instance/httpapi/lifecycle"
 import { WebSocketTracker } from "./routes/instance/httpapi/websocket-tracker"
 import { PublicApi } from "./routes/instance/httpapi/public"
@@ -117,6 +118,18 @@ function listenerLayer(opts: ListenOptions, port: number) {
   }).pipe(
     Layer.provideMerge(WebSocketTracker.layer),
     Layer.provideMerge(serverLayer({ port, hostname: opts.hostname })),
+    // The routes resolve the TaskDriver runtime state — a `Context.Reference`
+    // defaulting to `undefined` — from whatever built them, so this listener has
+    // to provide it or the first request touching `TaskDriver.Runtime` dies with
+    // "TaskDriver runtime state is not provided". That is what stopped the
+    // desktop app from booting: the CLI gets it via `effectCmd`'s
+    // `AppRuntime.runPromise` wrapper, but `sidecar.ts` calls `Server.listen()`
+    // directly. Providing it here makes each listener a self-contained
+    // composition root, which is what the `Context.Reference` design requires;
+    // it also means the listener keeps its own memo map, so concurrent listeners
+    // do not share the module-level route layers and leak each other's CORS
+    // configuration.
+    Layer.provideMerge(AppLayer),
     // Install a fresh `ConfigProvider` per listener so `Config.string(...)`
     // reads reflect the current `process.env`. Effect's default
     // `ConfigProvider` snapshots `process.env` on first read and caches the
@@ -127,9 +140,7 @@ function listenerLayer(opts: ListenOptions, port: number) {
 }
 
 function startWithPortFallback(opts: ListenOptions) {
-  return startListener(opts, opts.port || 4096).pipe(
-    Effect.catch(() => startListener(opts, 0)),
-  )
+  return startListener(opts, opts.port || 4096).pipe(Effect.catch(() => startListener(opts, 0)))
 }
 
 function startListener(opts: ListenOptions, port: number) {
