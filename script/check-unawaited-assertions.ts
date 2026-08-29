@@ -20,10 +20,10 @@
  * is covered too. A line-anchored regex is not: it never sees the `expect(`.
  */
 
-import { readdirSync, readFileSync } from "node:fs"
+import { readdirSync } from "node:fs"
 import path from "node:path"
 
-const SCAN_DIRS = ["src", "test"]
+const SCAN_DIRS = ["src", "test", "e2e"]
 const TEST_FILE = /\.test\.tsx?$/
 const MEMBER = /\.(rejects|resolves)\b/g
 const CONSUMED = /\b(await|return|yield)\s*$/
@@ -61,7 +61,11 @@ function expectStart(source: string, memberIndex: number): number | undefined {
   let end = i
   while (end > 0 && /\s/.test(source[end - 1]!)) end--
   const start = end - "expect".length
-  return source.slice(start, end) === "expect" ? start : undefined
+  if (source.slice(start, end) !== "expect") return undefined
+  // Word boundary: a longer identifier ending in `expect` (e.g. `myexpect(`)
+  // does not own the chain.
+  const before = start > 0 ? source[start - 1]! : ""
+  return /[\w$]/.test(before) ? undefined : start
 }
 
 const files = SCAN_DIRS.flatMap((sub) =>
@@ -74,7 +78,7 @@ const violations: string[] = []
 let chains = 0
 
 for (const file of files) {
-  const source = readFileSync(file, "utf-8")
+  const source = await Bun.file(file).text()
   const lineStarts = [0]
   for (let i = 0; i < source.length; i++) if (source[i] === "\n") lineStarts.push(i + 1)
   for (const match of source.matchAll(MEMBER)) {
