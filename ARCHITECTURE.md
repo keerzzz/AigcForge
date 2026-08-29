@@ -195,9 +195,9 @@ Effect Schema-first provider abstraction. Default path is the AI SDK; native pat
 
 ### 4.10 Product Mode
 
-Product Mode (`chat | coding | work | assistant`) is a persisted App filtering context and a durable Session classification. It is separate from Agent execution mode (`primary | subagent | all`).
+Product Mode (`chat | coding | work | assistant | custom`) is a persisted App filtering context and a durable Session classification. It is separate from Agent execution mode (`primary | subagent | all`).
 
-The four-value set above remains the current implemented and Accepted contract in production runtime. ADR-17 (Accepted for M0/M1 implementation v1.2) defines one additional fixed value, `custom`, with a `Platform Foundation -> Composition Profile (.aigcfroge/custom-profiles/*.yaml) -> Asset Blocks -> Session Composition Snapshot (independent session_composition_snapshot DB table)` lifecycle. Until M0 Phase B lands, readers and implementations must not treat `custom` as an active production runtime value or decode it as Coding.
+All five values are shipped in `packages/schema/src/product-mode.ts` (`ProductMode.ID` is a five-literal union; `Default = "coding"`). ADR-17's `custom` milestones M0–M3 are implemented and merged to `main`, with the `Platform Foundation -> Composition Profile (.aigcfroge/custom-profiles/*.yaml) -> Asset Blocks -> Session Composition Snapshot (independent session_composition_snapshot DB table)` lifecycle in place. Runtime activation is **opt-in and default-off**: `Flag.AIGCFROGE_CUSTOM_MODE` gates it (`packages/core/src/product-mode-policy.ts:39`), and `isModeSupported` / `assertRuntimeSupported` fail closed with `CUSTOM_MODE_DISABLED_MESSAGE` when the flag is unset. Client capability negotiation uses the `x-aigcfroge-capabilities: product-mode-custom-v1` header, declared in `packages/schema/src/product-mode.ts` (not in `core`, because the browser app must send it and `core/product-mode-policy` transitively imports `core/flag/flag`, which reads `process.env` at module evaluation). Treat `custom` as a real value everywhere; never decode it as Coding.
 
 - Home cards and the global icon rail navigate to `/mode/:mode`; that module-entry navigation never creates/restores a Draft or Session, selects a Tab, reclassifies work, or changes the Agent.
 - Session routes remain keyed only by server and Session identity.

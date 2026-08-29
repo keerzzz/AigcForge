@@ -128,59 +128,24 @@ Session 页面核心结构：
 
 ## 9. 后续规划 (PLANNED，当前代码未实现)
 
-- Mode Switcher: 当前四模式 (Chat/Work/Coding/Assistant)；ADR-17 提议加入固定 Custom，第五入口必须复用同一 Mode registry/ModeWorkspace，接受前不属于已实现事实
 - Status Bar: 底部度量栏
-- MetaAgent: CHAT 模式元智能体调度
-- 6 大资产: .aigcfroge/ 目录体系
-- CHAT/WORK/Assistant 模式 Viewport
+- CHAT/WORK/Assistant 模式 Viewport 的剩余补全项（见 `docs/roadmap/v2-ux-ui-roadmap.md`）
+
+> 已从本节移出（**已实现**，不再是规划项）：Mode Switcher 第五模式 Custom（`ProductMode.ID` 已是五值联合，ADR-17 M0–M3 已合入 `main`，运行时由 `AIGCFROGE_CUSTOM_MODE` opt-in 门控，默认关）、MetaAgent 调度、`.aigcfroge/` 资产体系。权威状态见 [ARCHITECTURE.md](../../ARCHITECTURE.md) §4.10 与 §7。
 
 ---
 
-## 10. 包拓扑 (21 包 Monorepo，核心 13 包)
+## 10. 包拓扑
 
-当前仓库 `packages/*/package.json` 共 21 个包：aigcfroge, app, cli, core, desktop, effect-drizzle-sqlite, effect-sqlite-node, enterprise, function, http-recorder, llm, plugin, schema, script, server, session-ui, slack, storybook, tui, ui, web。
+**唯一真源是 workspace manifest**（`package.json` 的 `workspaces`: `packages/*` + `packages/sdk/js`）与 [ARCHITECTURE.md](../../ARCHITECTURE.md) §3 的分层视图。本文件不再维护第二份拓扑副本——历史副本曾漂移到 21 包并列出 `cli` / `function` / `slack` / `web` / `enterprise` 五个已不存在的包。
 
-下方分层图仅列 `CLAUDE.md` 当前约束的核心包和 `sdk/js`。
+复核命令：
 
-### 10.1 分层视图
-
-```
-入口层 (Products)
-  desktop    — Electron + Tauri 桌面应用壳层
-  cli        — CLI 命令行入口
-  tui        — 终端交互式 TUI
-  plugin     — 插件 SDK 和示例
-
-应用层 (Application)
-  app        — SolidJS Web 前端 (路由、布局、Session UI)
-  server     — HTTP API 服务端 (路由、认证、中间件)
-  script     — 构建/部署脚本
-
-领域层 (Domain)
-  llm        — LLM 抽象层 (Provider、路由、缓存策略、工具运行时)
-  core       — 核心业务逻辑 (Agent、Config、Account、Catalog)
-  sdk/js     — JavaScript SDK 客户端
-
-基础设施层 (Infrastructure)
-  ui         — 共享 UI 组件库 (27 V2 组件 + 主题引擎 + i18n)
-  effect-drizzle-sqlite — Effect 封装的 Drizzle ORM + SQLite
-  effect-sqlite-node     — Node.js SQLite 驱动 Effect 封装
-  http-recorder          — HTTP 录制/回放 (测试用 Cassette 系统)
+```bash
+ls -d packages/*/package.json packages/sdk/js/package.json | wc -l   # 期望 17
 ```
 
-### 10.2 关键依赖方向
-
-```
-desktop → app → ui
-desktop → app → core
-desktop → app → sdk
-tui → llm → core
-cli → server → core
-server → core (Drizzle schema, migrations)
-plugin → core
-app → sdk (API 客户端)
-app → llm (AIGCFROGE_EXPERIMENTAL_NATIVE_LLM 时)
-```
+`packages/enterprise/` 目录仍有一个被跟踪的遗留文件但**没有** `package.json`，因此不是 workspace 包，也不在任何 `tsconfig` / `turbo` 图内。
 
 ### 10.3 共享基础设施
 
