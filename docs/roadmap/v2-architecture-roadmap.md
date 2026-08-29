@@ -92,11 +92,11 @@ Desktop / App / TUI / API clients
 
 ### 证据
 
-- `/media/win_data/aigcfroge/packages/core/src/session.ts:773-790`：`remove`、`removeMessage`、`setTitle` 直接写投影表。
-- `/media/win_data/aigcfroge/packages/core/src/event.ts:519-528`：Event 流已有独立 remove owner，但 V2 remove 没有调用它。
-- `/media/win_data/aigcfroge/packages/core/src/session/projector.ts:220-265`：已有 Created/Updated/Deleted 事件投影路径。
-- `/media/win_data/aigcfroge/packages/aigcfroge/src/session/session.ts:650-680`：V1 会递归删除 child、发送 Deleted 并移除事件流，说明两条生命周期语义并不等价。
-- `/media/win_data/aigcfroge/packages/core/src/session/sql.ts:25-35`：`parent_id` 没有自引用 FK 或级联约束。
+- `packages/core/src/session.ts:773-790`：`remove`、`removeMessage`、`setTitle` 直接写投影表。
+- `packages/core/src/event.ts:519-528`：Event 流已有独立 remove owner，但 V2 remove 没有调用它。
+- `packages/core/src/session/projector.ts:220-265`：已有 Created/Updated/Deleted 事件投影路径。
+- `packages/aigcfroge/src/session/session.ts:650-680`：V1 会递归删除 child、发送 Deleted 并移除事件流，说明两条生命周期语义并不等价。
+- `packages/core/src/session/sql.ts:25-35`：`parent_id` 没有自引用 FK 或级联约束。
 
 内存 SQLite 探针复现了以下结果：
 
@@ -127,11 +127,11 @@ setTitle：当前投影为 renamed，EventV2 只有 created，重放后回到 fi
 
 ### 证据
 
-- `/media/win_data/aigcfroge/packages/core/src/session/run-coordinator.ts:17-105`：active owner 主要是进程内 Map/Fiber。
-- `/media/win_data/aigcfroge/packages/core/src/session/runner/llm.ts:65-108`：代码明确列出 durable status/recovery 尚未闭环。
-- `/media/win_data/aigcfroge/packages/core/src/file-mutation.ts:268-277`：tool side effect 与 settlement 之间的恢复仍是 TODO。
-- `/media/win_data/aigcfroge/packages/desktop/src/main/server.ts:92-202`：sidecar exit 可观测，但没有 listener restart 契约。
-- `/media/win_data/aigcfroge/packages/desktop/src/main/index.ts:224-230,339-375`：退出只记日志；启动逻辑只执行一次。
+- `packages/core/src/session/run-coordinator.ts:17-105`：active owner 主要是进程内 Map/Fiber。
+- `packages/core/src/session/runner/llm.ts:65-108`：代码明确列出 durable status/recovery 尚未闭环。
+- `packages/core/src/file-mutation.ts:268-277`：tool side effect 与 settlement 之间的恢复仍是 TODO。
+- `packages/desktop/src/main/server.ts:92-202`：sidecar exit 可观测，但没有 listener restart 契约。
+- `packages/desktop/src/main/index.ts:224-230,339-375`：退出只记日志；启动逻辑只执行一次。
 
 ### 根因、影响与触发条件
 
@@ -152,11 +152,11 @@ setTitle：当前投影为 renamed，EventV2 只有 created，重放后回到 fi
 
 ### 证据
 
-- `/media/win_data/aigcfroge/packages/aigcfroge/src/effect/app-runtime.ts:84-121`：V2 默认关闭，注释列出 auth/shape 尚未闭环。
-- `/media/win_data/aigcfroge/packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts:372-442`：`messages/create` 固定走 V1。
-- `/media/win_data/aigcfroge/packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts:802-889`：`prompt/command/shell` 固定走 V1，Custom 另有拒绝/强制规则。
-- `/media/win_data/aigcfroge/packages/core/src/product-mode-policy.ts:102-109`：Custom 强制 V2，其他模式受全局 flag 影响。
-- `/media/win_data/aigcfroge/specs/v2/todo.md:184-198`：V1 retirement 与 default flip 仍处在未来阶段。
+- `packages/aigcfroge/src/effect/app-runtime.ts:84-121`：V2 默认关闭，注释列出 auth/shape 尚未闭环。
+- `packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts:372-442`：`messages/create` 固定走 V1。
+- `packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts:802-889`：`prompt/command/shell` 固定走 V1，Custom 另有拒绝/强制规则。
+- `packages/core/src/product-mode-policy.ts:102-109`：Custom 强制 V2，其他模式受全局 flag 影响。
+- `specs/v2/todo.md:184-198`：V1 retirement 与 default flip 仍处在未来阶段。
 
 ### 根因、影响与触发条件
 
@@ -177,11 +177,11 @@ setTitle：当前投影为 renamed，EventV2 只有 created，重放后回到 fi
 
 ### 证据
 
-- `/media/win_data/aigcfroge/packages/aigcfroge/src/server/server.ts:113-139`：listener 再次 `provideMerge AppLayer`。
-- `/media/win_data/aigcfroge/packages/aigcfroge/src/server/routes/instance/httpapi/server.ts:149-247,278-377`：route graph 同时装配 legacy 与 V2 roots。
-- `/media/win_data/aigcfroge/packages/aigcfroge/src/effect/app-runtime.ts:123-253`：存在第二套 V1+V2 AppLayer 组合。
-- `/media/win_data/aigcfroge/packages/core/src/location-layer.ts:96-306`：Location graph 继续组装大量共享与局部服务。
-- `/media/win_data/aigcfroge/packages/core/src/session/execution.ts:18-30`：生产模块携带全局测试 seam。
+- `packages/aigcfroge/src/server/server.ts:113-139`：listener 再次 `provideMerge AppLayer`。
+- `packages/aigcfroge/src/server/routes/instance/httpapi/server.ts:149-247,278-377`：route graph 同时装配 legacy 与 V2 roots。
+- `packages/aigcfroge/src/effect/app-runtime.ts:123-253`：存在第二套 V1+V2 AppLayer 组合。
+- `packages/core/src/location-layer.ts:96-306`：Location graph 继续组装大量共享与局部服务。
+- `packages/core/src/session/execution.ts:18-30`：生产模块携带全局测试 seam。
 
 ### 处理
 
@@ -197,11 +197,11 @@ setTitle：当前投影为 renamed，EventV2 只有 created，重放后回到 fi
 
 ### 证据
 
-- `/media/win_data/aigcfroge/packages/core/src/credential/sql.ts:5-13`：`credential.value` 是明文 JSON。
-- `/media/win_data/aigcfroge/packages/aigcfroge/src/auth/index.ts:10-35,73-88`：`auth.json` 明文存储，写入 mode 0600。
-- `/media/win_data/aigcfroge/packages/aigcfroge/src/mcp/v2-auth.ts:9-36,77-82`：MCP OAuth 材料写入 `mcp-auth.json`。
-- `/media/win_data/aigcfroge/packages/core/src/database/database.ts:22-94`：数据库/目录权限是止血措施；Windows 不等价于 owner-only。
-- `/media/win_data/aigcfroge/docs/architecture/adr/ADR-21-mcp-credential-custody.md:17-115`：项目已正式承认明文与专项边界。
+- `packages/core/src/credential/sql.ts:5-13`：`credential.value` 是明文 JSON。
+- `packages/aigcfroge/src/auth/index.ts:10-35,73-88`：`auth.json` 明文存储，写入 mode 0600。
+- `packages/aigcfroge/src/mcp/v2-auth.ts:9-36,77-82`：MCP OAuth 材料写入 `mcp-auth.json`。
+- `packages/core/src/database/database.ts:22-94`：数据库/目录权限是止血措施；Windows 不等价于 owner-only。
+- `docs/architecture/adr/ADR-21-mcp-credential-custody.md:17-115`：项目已正式承认明文与专项边界。
 
 ### 处理
 
@@ -217,9 +217,9 @@ setTitle：当前投影为 renamed，EventV2 只有 created，重放后回到 fi
 
 ### 证据与处理
 
-- `/media/win_data/aigcfroge/packages/core/src/session/runner/llm.ts:65-149`：集中 provider turn、snapshot drift、MCP、permission、tool settlement、verification、compaction、shell 和 input promotion 等职责。
-- `/media/win_data/aigcfroge/packages/core/src/session/runner/llm.ts:151-1039`：turn/tool/shell/promotion 共同驻留；文件约 1043 行、约 49KB、依赖超过 20 个 collaborator。
-- `/media/win_data/aigcfroge/AGENTS.md:207-219`：要求每个 provider turn 保留一个显式 `llm.stream(request)`，且 SessionRunner、模型、工具和权限保持 Location-scoped。
+- `packages/core/src/session/runner/llm.ts:65-149`：集中 provider turn、snapshot drift、MCP、permission、tool settlement、verification、compaction、shell 和 input promotion 等职责。
+- `packages/core/src/session/runner/llm.ts:151-1039`：turn/tool/shell/promotion 共同驻留；文件约 1043 行、约 49KB、依赖超过 20 个 collaborator。
+- `AGENTS.md:207-219`：要求每个 provider turn 保留一个显式 `llm.stream(request)`，且 SessionRunner、模型、工具和权限保持 Location-scoped。
 
 **根因**是功能增长速度快于边界提纯速度；继续堆 recovery、Plugin UI、M4/M5 或 provider-specific 分支会放大回归半径。
 
@@ -235,11 +235,11 @@ setTitle：当前投影为 renamed，EventV2 只有 created，重放后回到 fi
 
 ### 证据与处理
 
-- `/media/win_data/aigcfroge/ARCHITECTURE.md:68-113,196-211,265-277`：包数与 Custom 状态已过期。
-- `/media/win_data/aigcfroge/docs/architecture/system-blueprint.md:129-183`：列出已不存在的 21 包拓扑。
-- `/media/win_data/aigcfroge/packages/schema/src/product-mode.ts:5-19`：真实 `ProductMode` 已含 `custom`。
-- `/media/win_data/aigcfroge/packages/app/src/pages/mode-workspace.tsx:1-30`：真实工作台已注册五模式。
-- `/media/win_data/aigcfroge/packages/core/src/plugin/provider/aigcfroge.ts:1-15`：Core 从 generated SDK 导入 `CredentialValue`，反向泄漏契约 owner。
+- `ARCHITECTURE.md:68-113,196-211,265-277`：包数与 Custom 状态已过期。
+- `docs/architecture/system-blueprint.md:129-183`：列出已不存在的 21 包拓扑。
+- `packages/schema/src/product-mode.ts:5-19`：真实 `ProductMode` 已含 `custom`。
+- `packages/app/src/pages/mode-workspace.tsx:1-30`：真实工作台已注册五模式。
+- `packages/core/src/plugin/provider/aigcfroge.ts:1-15`：Core 从 generated SDK 导入 `CredentialValue`，反向泄漏契约 owner。
 
 **最小修复**：校准 `ARCHITECTURE.md`、specs、blueprint；包清单从 workspace manifest 生成；Core 的 `CredentialValue` 改用 schema/core owner。
 
@@ -494,11 +494,11 @@ Slice 2 与 Slice 3 可以在 Slice 1 完成明确的状态命名后并行，但
 
 ### 13.1 执行协议
 
-- `/media/win_data/aigcfroge/CLAUDE.md`
-- `/media/win_data/aigcfroge/AGENTS.md`
-- `/media/win_data/aigcfroge/ARCHITECTURE.md`
-- `/media/win_data/aigcfroge/CONTEXT.md`
-- `/media/win_data/aigcfroge/DESIGN.md`
+- `CLAUDE.md`
+- `AGENTS.md`
+- `ARCHITECTURE.md`
+- `CONTEXT.md`
+- `DESIGN.md`
 
 ### 13.2 既有架构与路线
 
@@ -518,25 +518,25 @@ Slice 2 与 Slice 3 可以在 Slice 1 完成明确的状态命名后并行，但
 
 ### 13.3 关键代码路径
 
-- `/media/win_data/aigcfroge/packages/core/src/session.ts`
-- `/media/win_data/aigcfroge/packages/core/src/event.ts`
-- `/media/win_data/aigcfroge/packages/core/src/session/projector.ts`
-- `/media/win_data/aigcfroge/packages/core/src/session/sql.ts`
-- `/media/win_data/aigcfroge/packages/core/src/session/run-coordinator.ts`
-- `/media/win_data/aigcfroge/packages/core/src/session/runner/llm.ts`
-- `/media/win_data/aigcfroge/packages/core/src/file-mutation.ts`
-- `/media/win_data/aigcfroge/packages/aigcfroge/src/effect/app-runtime.ts`
-- `/media/win_data/aigcfroge/packages/aigcfroge/src/server/server.ts`
-- `/media/win_data/aigcfroge/packages/aigcfroge/src/server/routes/instance/httpapi/server.ts`
-- `/media/win_data/aigcfroge/packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts`
-- `/media/win_data/aigcfroge/packages/desktop/src/main/server.ts`
-- `/media/win_data/aigcfroge/packages/desktop/src/main/index.ts`
-- `/media/win_data/aigcfroge/packages/core/src/credential/sql.ts`
-- `/media/win_data/aigcfroge/packages/aigcfroge/src/auth/index.ts`
-- `/media/win_data/aigcfroge/packages/aigcfroge/src/mcp/v2-auth.ts`
-- `/media/win_data/aigcfroge/packages/core/src/database/database.ts`
-- `/media/win_data/aigcfroge/packages/schema/src/product-mode.ts`
-- `/media/win_data/aigcfroge/packages/core/src/plugin/provider/aigcfroge.ts`
+- `packages/core/src/session.ts`
+- `packages/core/src/event.ts`
+- `packages/core/src/session/projector.ts`
+- `packages/core/src/session/sql.ts`
+- `packages/core/src/session/run-coordinator.ts`
+- `packages/core/src/session/runner/llm.ts`
+- `packages/core/src/file-mutation.ts`
+- `packages/aigcfroge/src/effect/app-runtime.ts`
+- `packages/aigcfroge/src/server/server.ts`
+- `packages/aigcfroge/src/server/routes/instance/httpapi/server.ts`
+- `packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts`
+- `packages/desktop/src/main/server.ts`
+- `packages/desktop/src/main/index.ts`
+- `packages/core/src/credential/sql.ts`
+- `packages/aigcfroge/src/auth/index.ts`
+- `packages/aigcfroge/src/mcp/v2-auth.ts`
+- `packages/core/src/database/database.ts`
+- `packages/schema/src/product-mode.ts`
+- `packages/core/src/plugin/provider/aigcfroge.ts`
 
 ---
 

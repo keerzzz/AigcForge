@@ -645,8 +645,8 @@ renderer 的类型环境，于是 `Platform.fetch?: typeof fetch`（`app/src/con
 
 【必须知道的既有缺口（未修，已记入 docs/technical-debt.md §4）】
 `bun turbo test` 只跑 5 个包（`bunx turbo test --dry=json` 实测），**desktop（57，且根本没有
-`test` script）· tui（210）· schema（159）· llm（282）· http-recorder（33）·
-effect-drizzle-sqlite（7）共 748 个用例在 CI 从不执行**。所以 S2 报告里
+`test` script）· tui（211）· schema（159）· llm（308）· http-recorder（33）·
+effect-drizzle-sqlite（7）共 775 个用例在 CI 从不执行**。所以 S2 报告里
 「picker-token 隔离断言由从未执行变为真实执行」在本地成立、在 CI 不成立。
 六包本地全绿，补齐不会因存量失败变红，但那是 CI 配置决定，不并入本批。
 **静态面已覆盖全部包** —— 新门禁在 `bun run lint` 链路里（`ci.yml:27`）。
@@ -809,8 +809,8 @@ A. `bun turbo test` 只跑 5 个包
 - `turbo.json` 的 `tasks` 里只有 `aigcfroge#test` / `@aigcfroge/core#test` / `@aigcfroge/app#test`
   / `@aigcfroge/ui#test` / `@aigcfroge/session-ui#test` 五个 `#test` 任务，没有通用 `"test": {}`。
   `bunx turbo test --dry=json` 实测 18 个任务里只有这 5 个是 test。
-- 于是 **desktop(57) · tui(210) · schema(159) · llm(282) · http-recorder(33) ·
-  effect-drizzle-sqlite(7) = 748 个用例在 CI 从不执行**。六包本地 2026-08-29 全绿。
+- 于是 **desktop(57) · tui(211) · schema(159) · llm(308) · http-recorder(33) ·
+  effect-drizzle-sqlite(7) = 775 个用例在 CI 从不执行**。六包本地 2026-08-29 全绿。
 - `packages/desktop` **连 `test` script 都没有**：`bun --cwd packages/desktop test` 报
   `Script not found "test"`；跑它要 `cd packages/desktop && bun test --timeout 30000`。
 - 直接后果：S2 修好的 `attachment-picker.test.ts` picker-token 跨 renderer 隔离断言
@@ -856,7 +856,7 @@ E. Prettier 无门禁
 ```text
 【Phase A（红）】五组种红，每组都要贴出「门禁仍然绿」的原始输出，种完立刻还原：
 1. 在 `packages/desktop/src/main/attachment-picker.test.ts` 里塞一条 `expect(1).toBe(2)`，
-   跑 `bun turbo test` —— 必须仍然全绿。这就是 748 个用例不执行的红证。
+   跑 `bun turbo test` —— 必须仍然全绿。这就是 775 个用例不执行的红证。
    同样在 tui / schema / llm / http-recorder / effect-drizzle-sqlite 各塞一条，一次跑完，
    报告里给出「6 个包都塞了红、turbo test 依然 0 fail」。
 2. 把某个 exerciser 场景的期望状态改成 `.json(599, …)`（一个不可能的状态码），
@@ -904,7 +904,7 @@ E. Prettier 无门禁
 
 【Phase C（回归）】
 bunx turbo test --dry=json（确认 11 个 test 任务）
-bun turbo test（全量，这次真的会跑 748 个多出来的用例）
+bun turbo test（全量，这次真的会跑 775 个多出来的用例）
 bun turbo typecheck
 bun run lint（现在含 prettier --check）
 bun --cwd packages/aigcfroge test test/server --timeout 30000（确认 reference 用例不再依赖网络）

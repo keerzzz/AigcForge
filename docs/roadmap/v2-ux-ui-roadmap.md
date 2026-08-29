@@ -6,7 +6,7 @@
 >
 > **Owner**：产品 / UX/UI / App / UI / Session UI / QA；涉及执行状态与恢复语义时，由 Core、Desktop 与架构 Owner 共同确认。
 >
-> **设计基线**：`/media/win_data/aigcfroge/DESIGN.md`
+> **设计基线**：`DESIGN.md`
 >
 > **来源交付物**：`/home/keer/.cursor/projects/media-win-data-aigcfroge/canvases/aigcfroge-v2-ux-upgrade.canvas.tsx`
 >
@@ -20,8 +20,8 @@
 
 本路线图不替代以下事实源：
 
-- 产品模式、Session、事件与上下文的架构约束：`/media/win_data/aigcfroge/ARCHITECTURE.md`、`/media/win_data/aigcfroge/CONTEXT.md`；
-- 工程执行规则：`/media/win_data/aigcfroge/AGENTS.md`、`/media/win_data/aigcfroge/CLAUDE.md`；
+- 产品模式、Session、事件与上下文的架构约束：`ARCHITECTURE.md`、`CONTEXT.md`；
+- 工程执行规则：`AGENTS.md`、`CLAUDE.md`；
 - 已批准的模式专线：
   - `docs/roadmap/custom-mode-roadmap.md`
   - `docs/roadmap/assistant-mode-roadmap.md`
@@ -88,14 +88,14 @@ V2 的首要升级不是玻璃材质、粒子连线、渐变背景或更复杂�
 | 领域 | 当前事实 | UX 含义 | 证据位置 |
 | --- | --- | --- | --- |
 | 研究范围 | 完整 UX 会话日志约 230 条记录、16 次用户明确输入；研究覆盖五模式 × 三层级 | 角色研究已足够支撑第一版契约，但不能把后期愿景直接当产品事实 | `/home/keer/.gemini/antigravity/brain/33cc3ae3-bbc0-48e6-86fc-53cdee5c2850/.system_generated/logs/transcript_full.jsonl` |
-| V2 组件 | `packages/ui/src/v2/components` 有 51 个 TSX 文件；旧 `src/components` 有 68 个 TSX 文件 | V2 组件库已成形，但不能称为“全量 V2” | `/media/win_data/aigcfroge/packages/ui/src/v2/components` |
-| 旧 Token | 扫描快照：`ui` 580、`app` 55、`session-ui` 266 处旧 Token 引用，含源码与 Story | 视觉断层的根因是双系统并存，不是缺少装饰效果 | `/media/win_data/aigcfroge/packages/ui/src`、`/media/win_data/aigcfroge/packages/app/src`、`/media/win_data/aigcfroge/packages/session-ui/src` |
-| 旧组件入口 | 约 60 个 App 源文件仍直接导入 `@aigcfroge/ui` 的旧组件入口 | 迁移需要按 owner、风险和用户路径分批完成 | `/media/win_data/aigcfroge/packages/app/src` |
-| 主题 | `themes` 目录有 37 个 JSON 主题文件 | 主题数量不等于可用性；需要逐主题检查对比度、零白闪与语义完整性 | `/media/win_data/aigcfroge/packages/ui/src/theme/themes` |
-| 共享外壳 | `ModeWorkspace` 使用 render-all + `display:none`；HomeOverview、ModeSwitcher、SessionRightPanel 已存在 | 这是可复用底座，应继续收敛，不再创建平行 Shell | `/media/win_data/aigcfroge/packages/app/src/pages/mode-workspace.tsx` |
-| Custom 真实形态 | Custom 已进入模式轨；当前中间区域是组合配置表单与 Plan Tabs，不是 DAG 节点画布 | M1 应被命名为配置工作台；真正编排画布只能作为 M2 单独立项 | `/media/win_data/aigcfroge/packages/app/src/pages/mode-workspace-slots.tsx`、`/media/win_data/aigcfroge/packages/app/src/components/custom/` |
-| 能力门控 | ModeSwitcher 当前无条件遍历 `MODE_DEFINITIONS`；Custom 的后端能力/开关在 Plan/Start 调用时才反馈 | 入口、不可用原因和服务端能力需要共享同一事实源 | `/media/win_data/aigcfroge/packages/app/src/components/mode-switcher.tsx`、`/media/win_data/aigcfroge/packages/core/src/product-mode-policy.ts` |
-| 几何风险 | `ModeWorkspace` 的 `max-w-[1080px]` 与 `280px + 960px + gap + padding` 存在语义冲突 | 不能仅凭 class 名称判断溢出，必须先读取 computed geometry | `/media/win_data/aigcfroge/packages/app/src/pages/mode-workspace.tsx` |
+| V2 组件 | `packages/ui/src/v2/components` 有 51 个 TSX 文件；旧 `src/components` 有 68 个 TSX 文件 | V2 组件库已成形，但不能称为“全量 V2” | `packages/ui/src/v2/components` |
+| 旧 Token | 扫描快照：`ui` 580、`app` 55、`session-ui` 266 处旧 Token 引用，含源码与 Story | 视觉断层的根因是双系统并存，不是缺少装饰效果 | `packages/ui/src`、`packages/app/src`、`packages/session-ui/src` |
+| 旧组件入口 | 约 60 个 App 源文件仍直接导入 `@aigcfroge/ui` 的旧组件入口 | 迁移需要按 owner、风险和用户路径分批完成 | `packages/app/src` |
+| 主题 | `themes` 目录有 37 个 JSON 主题文件 | 主题数量不等于可用性；需要逐主题检查对比度、零白闪与语义完整性 | `packages/ui/src/theme/themes` |
+| 共享外壳 | `ModeWorkspace` 使用 render-all + `display:none`；HomeOverview、ModeSwitcher、SessionRightPanel 已存在 | 这是可复用底座，应继续收敛，不再创建平行 Shell | `packages/app/src/pages/mode-workspace.tsx` |
+| Custom 真实形态 | Custom 已进入模式轨；当前中间区域是组合配置表单与 Plan Tabs，不是 DAG 节点画布 | M1 应被命名为配置工作台；真正编排画布只能作为 M2 单独立项 | `packages/app/src/pages/mode-workspace-slots.tsx`、`packages/app/src/components/custom/` |
+| 能力门控 | ModeSwitcher 当前无条件遍历 `MODE_DEFINITIONS`；Custom 的后端能力/开关在 Plan/Start 调用时才反馈 | 入口、不可用原因和服务端能力需要共享同一事实源 | `packages/app/src/components/mode-switcher.tsx`、`packages/core/src/product-mode-policy.ts` |
+| 几何风险 | `ModeWorkspace` 的 `max-w-[1080px]` 与 `280px + 960px + gap + padding` 存在语义冲突 | 不能仅凭 class 名称判断溢出，必须先读取 computed geometry | `packages/app/src/pages/mode-workspace.tsx` |
 
 ### 3.1 对原始提案的校准
 
@@ -117,11 +117,11 @@ V2 的首要升级不是玻璃材质、粒子连线、渐变背景或更复杂�
 
 | 模式 | 首要对象 | 首屏主操作 | 信息密度 | 当前真实能力 | V2 补全重点 | 明确不做 | 主要 UI Owner |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| **Coding** | Session / Diff / Tool execution | 继续会话、审查改动、运行或停止执行 | 高密度、键盘优先；保留项目、分支和沙箱语义 | Session timeline、Diff、行级评论、Terminal、Composer Dock | 工具结果分层：运行中可见、成功后摘要、失败保留诊断与下一步；强化停止、恢复和影响范围 | 不把日志压成不可追溯的一行；不以动效替代执行状态 | `/media/win_data/aigcfroge/packages/app/src/pages/session.tsx`；`/media/win_data/aigcfroge/packages/session-ui/src/components/message-part.tsx` |
-| **Chat** | Prompt / Skill / MCP / Agent 等资产 | 创建、导入、预览、应用和治理资产 | 中密度、扫描优先；来源、版本和错误可见 | AssetWorkbench、分类侧栏、导入/删除、会话插入 | 统一资产状态：`draft`、`candidate`、`applied`、`invalid`、`conflict`；减少隐藏动作 | 不退化为普通聊天气泡；不把资产治理埋进悬浮特效 | `/media/win_data/aigcfroge/packages/app/src/components/chat/asset-workbench.tsx`；`/media/win_data/aigcfroge/packages/app/src/pages/mode-workspace-slots.tsx` |
-| **Work** | Preset / Task / Artifact | 选择目标、回答必要问题、审阅产物、原子应用 | 舒展但不松散；阅读优先；交付状态固定在视口可见区 | WorkPresetCatalog、WorkArtifactPanel、workflow/preset launch | 建立任务到产物的时间线；明确 `preview`、`apply`、`conflict`、`saved` 差异 | 不把预设目录做成营销落地页；不模糊只读与可编辑 | `/media/win_data/aigcfroge/packages/app/src/pages/work-preset-catalog.ts`；`/media/win_data/aigcfroge/packages/app/src/pages/work-artifact-panel.tsx` |
-| **Assistant** | Reminder / Delivery / Memory / Note / Session | 处理待办、确认记忆、编辑知识、回到相关会话 | 阅读与关系导航优先；降低底层执行术语首屏占比 | AssistantDashboard、实体列表、KB Note Editor、Session linkage | 稳定呈现“待确认”“已生效”“来源会话”“下一步”；写入动作提供可逆反馈 | 不做装饰性知识卡片墙；不允许无确认自动写入记忆 | `/media/win_data/aigcfroge/packages/app/src/pages/assistant-dashboard.tsx`；`/media/win_data/aigcfroge/packages/app/src/components/assistant-entity-lists.tsx` |
-| **Custom** | Composition Draft / Plan / Snapshot | 选择能力、绑定资产、修复诊断、启动并冻结快照 | 结构化高密度；配置与诊断并列；权限和能力可解释 | CustomDraft、CustomSidebar、CompositionConfig、Plan Preview、Snapshot Panel | 先补能力门控、错误区分、版本漂移和快照语义；M2 再决定是否进入节点画布 | 不把 `unsupported` / `disabled` 当空列表；没有 DAG 数据模型前不实现粒子连线 | `/media/win_data/aigcfroge/packages/app/src/components/custom/`；`/media/win_data/aigcfroge/packages/app/src/context/custom-draft.tsx` |
+| **Coding** | Session / Diff / Tool execution | 继续会话、审查改动、运行或停止执行 | 高密度、键盘优先；保留项目、分支和沙箱语义 | Session timeline、Diff、行级评论、Terminal、Composer Dock | 工具结果分层：运行中可见、成功后摘要、失败保留诊断与下一步；强化停止、恢复和影响范围 | 不把日志压成不可追溯的一行；不以动效替代执行状态 | `packages/app/src/pages/session.tsx`；`packages/session-ui/src/components/message-part.tsx` |
+| **Chat** | Prompt / Skill / MCP / Agent 等资产 | 创建、导入、预览、应用和治理资产 | 中密度、扫描优先；来源、版本和错误可见 | AssetWorkbench、分类侧栏、导入/删除、会话插入 | 统一资产状态：`draft`、`candidate`、`applied`、`invalid`、`conflict`；减少隐藏动作 | 不退化为普通聊天气泡；不把资产治理埋进悬浮特效 | `packages/app/src/components/chat/asset-workbench.tsx`；`packages/app/src/pages/mode-workspace-slots.tsx` |
+| **Work** | Preset / Task / Artifact | 选择目标、回答必要问题、审阅产物、原子应用 | 舒展但不松散；阅读优先；交付状态固定在视口可见区 | WorkPresetCatalog、WorkArtifactPanel、workflow/preset launch | 建立任务到产物的时间线；明确 `preview`、`apply`、`conflict`、`saved` 差异 | 不把预设目录做成营销落地页；不模糊只读与可编辑 | `packages/app/src/pages/work-preset-catalog.ts`；`packages/app/src/pages/work-artifact-panel.tsx` |
+| **Assistant** | Reminder / Delivery / Memory / Note / Session | 处理待办、确认记忆、编辑知识、回到相关会话 | 阅读与关系导航优先；降低底层执行术语首屏占比 | AssistantDashboard、实体列表、KB Note Editor、Session linkage | 稳定呈现“待确认”“已生效”“来源会话”“下一步”；写入动作提供可逆反馈 | 不做装饰性知识卡片墙；不允许无确认自动写入记忆 | `packages/app/src/pages/assistant-dashboard.tsx`；`packages/app/src/components/assistant-entity-lists.tsx` |
+| **Custom** | Composition Draft / Plan / Snapshot | 选择能力、绑定资产、修复诊断、启动并冻结快照 | 结构化高密度；配置与诊断并列；权限和能力可解释 | CustomDraft、CustomSidebar、CompositionConfig、Plan Preview、Snapshot Panel | 先补能力门控、错误区分、版本漂移和快照语义；M2 再决定是否进入节点画布 | 不把 `unsupported` / `disabled` 当空列表；没有 DAG 数据模型前不实现粒子连线 | `packages/app/src/components/custom/`；`packages/app/src/context/custom-draft.tsx` |
 
 ### 4.1 模式切换不变量
 
@@ -439,11 +439,11 @@ Custom error truth ────┘       Review gate
 
 ### 10.1 规范与架构
 
-- `/media/win_data/aigcfroge/CLAUDE.md`
-- `/media/win_data/aigcfroge/AGENTS.md`
-- `/media/win_data/aigcfroge/DESIGN.md`
-- `/media/win_data/aigcfroge/ARCHITECTURE.md`
-- `/media/win_data/aigcfroge/CONTEXT.md`
+- `CLAUDE.md`
+- `AGENTS.md`
+- `DESIGN.md`
+- `ARCHITECTURE.md`
+- `CONTEXT.md`
 
 ### 10.2 模式路线
 
@@ -459,16 +459,16 @@ Custom error truth ────┘       Review gate
 
 ### 10.3 主要实现面
 
-- `/media/win_data/aigcfroge/packages/app/src/context/mode.tsx`
-- `/media/win_data/aigcfroge/packages/app/src/components/mode-switcher.tsx`
-- `/media/win_data/aigcfroge/packages/app/src/pages/mode-workspace.tsx`
-- `/media/win_data/aigcfroge/packages/app/src/pages/mode-workspace-slots.tsx`
-- `/media/win_data/aigcfroge/packages/app/src/components/custom/`
-- `/media/win_data/aigcfroge/packages/app/src/components/custom/custom-sidebar.tsx`
-- `/media/win_data/aigcfroge/packages/app/src/pages/session.tsx`
-- `/media/win_data/aigcfroge/packages/session-ui/src/components/message-part.tsx`
-- `/media/win_data/aigcfroge/packages/ui/src/v2/components/`
-- `/media/win_data/aigcfroge/packages/ui/src/theme/themes/`
+- `packages/app/src/context/mode.tsx`
+- `packages/app/src/components/mode-switcher.tsx`
+- `packages/app/src/pages/mode-workspace.tsx`
+- `packages/app/src/pages/mode-workspace-slots.tsx`
+- `packages/app/src/components/custom/`
+- `packages/app/src/components/custom/custom-sidebar.tsx`
+- `packages/app/src/pages/session.tsx`
+- `packages/session-ui/src/components/message-part.tsx`
+- `packages/ui/src/v2/components/`
+- `packages/ui/src/theme/themes/`
 
 ---
 
