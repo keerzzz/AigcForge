@@ -454,5 +454,226 @@ LINT_BASE_REF=origin/main bun run script/lint-changed.ts
    数组项」而不是「改用 schema 真源」，打回；S2 交上来「打开 await-thenable」，打回。
 3. **有没有顺手改无关代码** —— `git diff --stat` 必须与批次范围逐文件对得上。
 
+---
+
+## S1 审批结果（2026-08-29，打回）与后续补丁
+
+三项审批重点：**根因 ✅ 通过**（四条修法全部按根因走，marked 覆写是删掉不是打补丁，core 的
+本地 `PATTERNS` 是删掉不是补两项）、**范围 ✅ 通过**（12 文件全部在批次内，`technical-debt.md`
+只动一行）、**红证 ❌ 不成立**（见 B3）。另有两处必改（B1/B2）。
+
+【B1 阻塞 · `FORBID_ATTR: ["style"]` 在生产环境摧毁 KaTeX 数学渲染】
+真实 Chromium + DOMPurify 3.4.6 实测：KaTeX 输出的 10 个内联 style → **0**。`.katex-html`
+视觉层完全靠内联 style 定位 strut/分式/vlist，剥掉后 `\frac{a}{b}` 是重叠错位的字形，
+不是交付报告里写的「布局降级（内容保留）」。KaTeX 是在用的功能：`marked.tsx:484` 的
+`markedKatex`、`:389`/`:402` 两处 `katex.renderToString`、`ui/src/styles/index.css:7` 引入
+`katex.min.css`。**已申报但从未实测的风险，落在一个在用功能上，不构成可以静默交付的取舍。**
+
+三条修法（按 极致减法 排序，取 2、退 1）：
+1. **删除**对内联 style 的依赖：KaTeX 改 `output: "mathml"`，Chromium 109+ 原生渲染 MathML，
+   本仓是 Electron/Chromium，`FORBID_ATTR: ["style"]` 可原样保留。代价：数学外观变化，需真机看。
+2. **归并**到容器层而非属性层：遮罩之所以成立是 `position:fixed` 能逃出消息容器逃到视口。
+   给 markdown 容器建立 containing block（`contain: layout paint` 或 `transform`）即可就地封死，
+   不动 sanitizer、不伤 KaTeX，一行 CSS。**前置验证**：permission / question 面必须渲染在该容器之外。
+3. **重构**成 style 值过滤：在既有 hook 里删掉可逃逸的属性。代码最多，且是黑名单——
+   与 `technical-debt.md` 里自己批评过的形状同款。
+**禁止**用 `class="katex"` 做 style 白名单豁免：class 可由 markdown 直接伪造，等于没防。
+
+【B2 阻塞 · `"img"` 进 `FORBID_TAGS` 是未批准的范围扩张，删掉了在用功能】
+实测 `![alt](https://…)`、`![alt](data:image/png;base64,…)`、`![alt](/local/file.png)`
+一律 sanitize 成 `<p></p>`——远程、内联、本地图片全没了，`alt` 文本也一起丢。
+`session-ui/src/components/timeline-playground.stories.tsx:263` 有 `![Alt text](…)` 作为渲染
+fixture，服务端 CSP 又刻意允许 `img-src 'self' data: https:`，所以这一改与既有决定相冲。
+**这一半是提示词的错**：S1 要了一条信标测试，而 S1 给的 `FORBID_TAGS` 五项修法根本满足不了它——
+提示词自相矛盾。修法：**去掉 `"img"`**，那条信标测试按最终决定重写。若信标外泄需要处理，
+那是 CSP `img-src` 收窄的独立决定，不是 markdown 标签禁用。
+
+【B3 阻塞 · sanitizer 的红证不成立，而真实浏览器本来就有】
+`sanitize-regression.test.tsx` 跑在 happy-dom 上，实测：**只要前面有任何一个元素被 DOMPurify
+删除，它之后的所有节点就完全跳过属性消毒**。加个 `<unknowntag></unknowntag>` 前缀，
+`onclick`、`javascript:` href、`style`、`<form action>`、`<img>` **全部原样存活**：
+
+```text
+happy-dom          baseline onclick        <span>X</span>          ← 正确
+happy-dom          after unknown tag       <span onclick="alert(1)">X</span>   ← 逃逸
+happy-dom          js: href after removal  <a href="javascript:alert(1)">X</a> ← 逃逸
+真实 Chromium      after unknown tag       <span>X</span>          ← 正确
+真实 Chromium       js: href after removal  <a>X</a>                ← 正确
+```
+
+成因是 DOMPurify 依赖 live `NodeIterator`，而 happy-dom 的 iterator 在当前节点被 removeChild
+后失效——**是 happy-dom 一致性缺口，不是生产漏洞**（真实 Chromium 全部正确消毒）。但后果是：
+**这套测试的绿取决于 payload 在文档里的位置，不取决于 config 是否生效**，所以那三条新测试证明的
+是「config 字面量改了」，不是「sanitizer 剥掉了」。提示词已预告 happy-dom 陷阱并写明「做不到就改用
+真实浏览器 e2e 并说明理由」；`chromium-1217` + playwright 1.59.1 是装好的，本次审批就是用它两分钟
+测出上表的。**要求**：这三条断言在真实浏览器里钉一遍，并补「payload 不在文档首位」的变体，
+让这套测试具备真正失败的能力。
+
+【必改，非阻塞】
+1. **新引入 Prettier 漂移**：`packages/schema/src/credential-scan.ts` 基线上是干净的、改后变脏
+   （`SECRET_PATTERN_LIST` 的类型标注超 printWidth 120）。已用 stash 比对确认。
+   `message-part.tsx`/`.css` 基线上就脏，属存量，**不要动**。
+2. **凭据模式仍有第三份副本**：`packages/http-recorder/src/redaction.ts:30` 自带
+   `SECRET_PATTERNS: ReadonlyArray<{label, pattern}>`。形状与用途都不同（cassette env 脱敏），
+   可以判定为独立 owner，但 S1 的目标就是单一真源，报告里一个字没提。要么归并，要么写明为何不归并。
+3. **报告口径**：「手动 light/dark 视觉检查未执行（本环境无浏览器）」——浏览器是装好的。
+   如实写「未做」，不要归因于环境。
+
+【S1 经验补丁（S2 起追加遵守）】
+1. **happy-dom 的 sanitize 测试只在 payload 位于文档首位、且其前无任何元素被删除时可信。**
+   任何「危险东西被剥掉了」的断言，若跑在 happy-dom 上，必须同时给出真实浏览器证据，
+   或至少补一条「同 payload 挪到删除节点之后」的变体证明测试会失败。
+2. **申报风险 ≠ 可以不测。** 落在在用功能上的风险必须实测后再申报，并给出量化后果
+   （本例：10 个内联 style → 0，不是「布局降级」）。风险栏里写着未实测的推测，
+   等于把验证责任推给审批人。
+3. **提示词要求的验收标准与提示词给的修法清单冲突时，停下报告，不要靠扩张范围凑绿。**
+   B2 就是这样被夹住的——正确动作是把冲突交回来，而不是自行加一个 `FORBID_TAGS` 项。
+4. **改了跨包导出的函数，就要跑下游包的测试。** `sanitizeMarkdown` 被
+   `packages/app/src/pages/session/assistant-citation.test.ts` 消费，交付报告的命令表里没有 app。
+   （本次审批补跑：app 958 pass + browser 225 pass，恰好没坏。）
+5. **新增/改动文件必须过 Prettier**，即使该文件所在目录有存量漂移。用 stash 比对区分存量与新增。
+
+【S1 已确立、后续批次直接可用的契约事实】
+- `CredentialScan.ScanResult` **没有 HTTP 暴露面**（唯一消费方是 `core/src/credential-scanner.ts`），
+  所以扩 type literals 不触发 SDK 重生成。
+- `SECRET_TYPES` → `SECRET_PATTERN_LIST` → `SECRET_PATTERNS` 已构成派生链，core 的 `Hit["type"]`
+  取自 `(typeof SECRET_PATTERN_LIST)[number]["type"]`，**结构上不可能再次漂移**。这比提示词要求的
+  「两处 literals 手工同步」更强，予以采纳。
+- `DOMPurify.FORBID_TAGS` 是**去壳留芯且跳过子树检查**：`form` 被剥后 `input`/`button` 原样留下，
+  必须同时进 `FORBID_CONTENTS` 才整树删除。（S1 实测，已写进 `markdown-cache.tsx` 注释。）
+- `afterSanitizeAttributes` hook 注册在 **DOMPurify 单例**上，`mermaid.ts` 的 sanitize 也会命中；
+  但 hook 的 `instanceof HTMLAnchorElement` 判断会过滤掉 SVG 里的 `SVGAElement`，所以 mermaid 图内
+  链接不受影响（也拿不到 noopener，属存量）。
+- `message-part.css` 的 mono 代码块规格是 `--font-family-mono` + `font-feature-settings` +
+  `font-size: 13px`，与 `[data-slot="bash-pre"] code`（:438-441）一致，该 13px 在本文件有 7 处先例。
+- 真实浏览器验证路径：playwright 1.59.1 + `~/.cache/ms-playwright/chromium_headless_shell-1217/`，
+  `chromium.launch({ executablePath })` 直接指过去即可（根目录 `bunx` 会解析到 1.62.1 并索要 build 1234，
+  必须显式给 executablePath）。
+
+## S1 返工结果（2026-08-29，审批人直接修复，通过）
+
+三个阻塞项按 B1/B2/B3 逐条闭环，改动叠在原交付之上（未推翻其四条根因修法）。
+
+| 项 | 修法 | 证据 |
+|---|---|---|
+| B1 | 删掉 `FORBID_ATTR: ["style"]`，改为**只摘出流能力**：hook 里用 CSSOM 判 `position ∈ {absolute,fixed,sticky}` 就 `removeProperty`（大小写自己 `toLowerCase()` 兜，不依赖实现归一化），并顺手摘 `transform`；结构层在 `markdown.css` 给 `[data-component="markdown"]` 加 `contain: layout` | 真机反向验证：加回 `FORBID_ATTR: ["style"]` → KaTeX 用例红（`styledCount` 0 vs >0）；还原到 S1 前 → 遮罩用例红（`inlinePosition` 得到 `"fixed"`） |
+| B2 | `"img"` 从 `FORBID_TAGS` 去掉；信标测试改成「图片必须保留」并注明是刻意决定，外泄面记入 `technical-debt.md` §4 | 还原到 S1 前 → form 用例红（`form` count 1 vs 0），图片用例仍绿（图片本就该保留） |
+| B3 | 新增 `packages/app/e2e/regression/markdown-sanitize.spec.ts`：真实 Chromium，一条消息同时带遮罩/公式/图片/表单，用**真实几何**断言（`getBoundingClientRect` + `getComputedStyle`），并在单测文件头写清 happy-dom 缺口 | 3 passed；且上表两次反向验证证明它会红 |
+
+选 `position` 而不是整条禁 `style`，依据是实测的 KaTeX 内联属性表：13 种构造只用到
+`height / top / margin-left|right / vertical-align / border-bottom-width / min-width / width /
+padding-left`，`position` **只出现 relative**（`\sum`、`\int` 各一次）。所以摘掉出流三值对 KaTeX
+零影响，而 `position` 一去 `top/left/inset/z-index` 全部失效——一处删除同时关掉四个杠杆。
+
+【非阻塞三项】`credential-scan.ts` 与新文件已过 Prettier（`ui.ts`/`message-part.*` 的漂移是存量，
+未动）；http-recorder 的第三份副本与 markdown 远程资源外泄面已各记一行 §4 债；报告口径问题
+本节即更正——真实浏览器一直是可用的。
+
+【已运行】session-ui 114 / ui 10 / schema 159 / core 69（scanner + mcp-connection + workflow-runner）/
+aigcfroge httpapi-ui 15 / app 958 + 3，全 0 fail；schema·core·session-ui·ui·aigcfroge·app 六包
+typecheck 全 OK；`LINT_BASE_REF=origin/main bun run script/lint-changed.ts` → passed（11 files）。
+lint 抓到并已修一处 `no-unsafe-type-assertion`（e2e 里 `node as HTMLElement`，改为形参标注 +
+`if (!container) throw`，同时消掉两个 `!`）。
+
+【剩余风险】① markdown 容器新增 `contain: layout` 会建立独立格式化上下文与层叠上下文；
+容器首/末子元素外边距本来就被 `markdown.css` 归零，且 e2e 三条用例含真实几何断言未见异常，
+但长会话下的视觉回归只有人工看过才算数。② `contain: layout` 不裁剪绘制，`position:absolute`
+若将来被放行仍能画到容器外（当前被属性层挡住）；要硬边界得上 `contain: paint`，代价是裁剪
+合法溢出，未采纳。③ 本次未做人工 light/dark 巡检。
+
+---
+
+## S2 审批结果（2026-08-29，条件通过：4 项问题已由审批方就地整改）
+
+三项审批重点：**根因 ✅**（没去动 `.oxlintrc.json:56-65` 的 override，按要求做了文本门禁）、
+**红证 ✅**（29 处清单是真的，补的都是真 `await`，无一处弱化断言）、
+**范围 ⚠**（顺着门禁自己的输出扩到 core/tui 是对的；但生产代码被加了断言、desktop fixture 被裁剪）。
+
+【整改 1 · 门禁太弱，漏了 4 处真缺陷 —— 真实总数是 33 不是 29】
+交付的正则 `^\s*expect\(.*\)\.(rejects|resolves)` 要求 `expect(` 与 `.rejects` 在同一行。
+全仓这类链共 **76** 条，其中 **13** 条是多行形态：
+
+```text
+await expect(
+  doThing(),
+).rejects.toThrow("boom")
+```
+
+门禁只看见 63 条，13 条隐形，其中 **4 条是真的没 await**：
+
+- `packages/aigcfroge/test/cli/run/stream.transport.test.ts:2258 / :2306 / :2347` ——
+  包在 `try { … } finally { await transport.close() }` 里，三个用例什么都没断言，
+  而且未等待的 Promise 与 `close()` 抢跑。
+- `packages/core/test/database-migration.test.ts:302` —— `test(...)` 回调**根本不是 async**，
+  「rejects a non-empty database without a session table」这条迁移守卫断言从未执行。
+
+门禁已重写为从 `.rejects` 位置**向前跨平衡括号**定位链首 `expect`，多行形态因此覆盖；
+并跳过注释里引用的 `.rejects`（交付版需要为 `openai-ws.test.ts:813` 单独开口子）。
+同时删掉交付版里：整个从未被调用的 `collectTestFiles()`、空的
+`try { const entries = Bun.file(base) } catch {}`、把每个文件重读一遍只为重算同一个数字的
+第二趟扫描、4 组 `as any` + `oxlint-disable`（`Bun.Glob` 的类型不是问题所在，
+换成 `readdirSync` 递归后一个断言都不需要）、以及留在代码里的推理草稿注释。
+现在：0 违例 / 75 条链（76 减 1 条注释）。4 处补齐后实测全绿，未暴露新 bug。
+
+【整改 2 · 生产代码被塞 `as unknown as`，只为迁就测试用的 tsconfig 改动】
+`packages/desktop/tsconfig.json` 加 `types: ["bun"]` 是必需的（去掉则 12 个测试文件
+`Cannot find module 'bun:test'`，已实测），但它把 Bun 的 `fetch`（带 `preconnect`）带进了
+renderer 的类型环境，于是 `Platform.fetch?: typeof fetch`（`app/src/context/platform.tsx:71`）
+不再被满足 —— 报 `TS2741: Property 'preconnect' is missing`。交付的处置是在
+`packages/desktop/src/renderer/index.tsx:229` 写 `as unknown as typeof fetch` 加两条
+`oxlint-disable-next-line`。已改为 `Object.assign(wrapper, { preconnect: fetch.preconnect })`：
+**真的提供了那个属性，而不是用断言假装提供**，零断言、零 disable、typecheck 通过。
+
+【整改 3 · desktop fixture 被裁剪去迎合过窄的形参类型】
+`servers.test.ts` 的两处 fixture 被删了字段来消掉多余属性检查：
+`{ id, distro }` → `{ id }`、`{ available, version, error }` → `{ available }`。
+但生产类型是 `WslServerConfig = { id, distro }`（`app/src/wsl/types.ts:35`，
+`servers.ts:365` 构造的就是它）与 `WslRuntimeCheck = { available, version, error }`
+（`types.ts:1`，`probeWslRuntime` 的返回值）—— **原 fixture 本来是忠于生产形状的**，
+报错只是因为 `startup.ts` 的形参写成了结构最小类型 `{ id: string }` / `{ available: boolean }`，
+而对象字面量会触发多余属性检查（生产传的是变量，所以不报）。删字段等于把 fixture 与生产解耦：
+将来函数开始读 `distro`/`error`，测试照样绿。已改为把 fixture 声明成真实的
+`WslServerConfig[]` / `WslRuntimeCheck` 再传入 —— 形参保持最小契约，测试反而钉住了
+「真实类型满足这个契约」。
+
+【整改 4 · `waitFor` 的 `?.()` 等于给测试装了静音开关】
+`releaseAigcfrogeResolve?.()` 报 `TS2349: Type 'never' has no call signatures`（CFA 把只在
+回调里赋值的 `let` 收窄成 `undefined`，`?.` 再剔掉 `undefined` 就剩 `never`）。交付的处置是
+写 `(x as (() => void) | undefined)?.()`。已改为让 `waitFor` **返回等到的值**：
+`const release = await waitFor(() => pendingAigcfrogeCheck.release)` → `release()`。
+零断言，而且更强 —— 原来的 `?.()` 在时序变化后会静默什么都不做，测试照样绿。
+
+【必须知道的既有缺口（未修，已记入 docs/technical-debt.md §4）】
+`bun turbo test` 只跑 5 个包（`bunx turbo test --dry=json` 实测），**desktop（57，且根本没有
+`test` script）· tui（210）· schema（159）· llm（282）· http-recorder（33）·
+effect-drizzle-sqlite（7）共 748 个用例在 CI 从不执行**。所以 S2 报告里
+「picker-token 隔离断言由从未执行变为真实执行」在本地成立、在 CI 不成立。
+六包本地全绿，补齐不会因存量失败变红，但那是 CI 配置决定，不并入本批。
+**静态面已覆盖全部包** —— 新门禁在 `bun run lint` 链路里（`ci.yml:27`）。
+
+【S2 经验补丁（S3 起追加遵守）】
+1. **新建门禁必须先证明它能看见"没写在同一行"的形态。** 交付前用一次与门禁无关的手段
+   （raw grep 计数）交叉核对总量：本例 76 vs 63 的差额就是全部漏检。
+   报告里必须给出「门禁看到的总量 = 独立手段数到的总量」这一条等式。
+2. **类型环境改动（tsconfig 的 types / include）如果迫使生产代码加断言，说明改动放错了层或收尾没做完。**
+   先问"能不能真的提供那个属性"，`Object.assign` 往往就够；断言是最后手段。
+3. **为了让 typecheck 过而删测试 fixture 的字段，是让 fixture 与生产形状脱钩。**
+   正确顺序：先查生产构造的是什么类型（`grep "const x: T ="`），再决定是改形参还是标注 fixture。
+4. **`?.()` / `?? []` 出现在测试的关键动作上，等于装了静音开关。** 让辅助函数返回确定存在的值，
+   而不是在调用点用可选链把"没等到"这件事咽下去。
+5. **门禁进了 lint 链路 ≠ 它保护的测试会被执行。** 交付涉及某包的测试时，顺手确认
+   `bunx turbo test --dry=json` 里有那个包。
+
+【S2 已确立、后续批次直接可用的契约事实】
+- `script/check-unawaited-assertions.ts` 已在 `package.json` 的 `lint` 链路末位，CI 经 `ci.yml:27`
+  的 `bun run lint` 执行；它扫 `packages/*/{src,test}` 下全部 `*.test.ts(x)`，多行链与注释都已处理。
+- `packages/desktop` **没有 `test` script**，标准命令 `bun --cwd packages/desktop test` 会报
+  `Script not found "test"`；跑它的测试要 `cd packages/desktop && bun test --timeout 30000`。
+- `packages/desktop/tsconfig.json` 现在把 `src/**/*.test.ts` 纳入 typecheck（原 `exclude` 已删），
+  代价是 `types` 必须含 `"bun"`；这与 `packages/session-ui/tsconfig.json` 的既有做法一致
+  （`types: ["vite/client", "bun"]` + dom lib）。
+- `packages/core/test/database-migration.test.ts` 在 `origin/main` 上就未过 Prettier（已 stash 比对），
+  本批新增行不构成新漂移；不要顺手格式化整个文件。
+
 
 
