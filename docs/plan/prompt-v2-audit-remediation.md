@@ -784,5 +784,155 @@ Location 决定），所以 project 侧的收敛得挂在 Location 建立时。�
 4. **修完之后回头看一眼自己新写的测试用的是哪个作用域/分支**，兜底如果没覆盖那个作用域，
    要在报告里点名（S4 三条测试全是 project，兜底只有 global）。
 
+---
+
+## S5 提示词：让门禁真的执行、且真的判行为（CI / 测试基础设施）
+
+> **排期约束**：S5 必须排在 `v2-architecture-governance-slice-0-3.md` 与 `v2-ux-trust-foundation.md`
+> 两个 worktree **开工之前**。两个理由：① 它改的是根级配置（`turbo.json`、`package.json`、
+> `.github/workflows/`）与全仓格式化，会与任何在飞分支冲突；② 后续每一批的「红→绿证据」都要靠
+> 这一层门禁独立背书 —— 在门禁不可信之前，验收等于自证。
+
+```text
+任务：S5 — 修「门禁声明了但不执行，或执行了但不判行为」这一个根因下的 8 处缺口
+（根配置 + packages/{desktop,aigcfroge,app}，TDD 红→绿）。
+
+【本批的红证长什么样（先读这段，它决定整批做法）】
+这批没有"会失败的业务测试"可写。门禁类缺陷的判别式是 **种红**：
+往一个 CI 声称会跑的地方塞一条**必定失败**的断言，然后跑门禁 ——
+门禁仍然绿，就是红证。种完立刻还原，不许留在交付里。
+这条方法直接来自 S4 的经验补丁 1（删掉被测守卫还能全绿的测试不是测试），
+在门禁层的等价表述是：**种一个必失败的断言还能全绿的门禁不是门禁。**
+
+【背景事实（2026-08-29 实测核实，行号以实际代码为准）】
+A. `bun turbo test` 只跑 5 个包
+- `turbo.json` 的 `tasks` 里只有 `aigcfroge#test` / `@aigcfroge/core#test` / `@aigcfroge/app#test`
+  / `@aigcfroge/ui#test` / `@aigcfroge/session-ui#test` 五个 `#test` 任务，没有通用 `"test": {}`。
+  `bunx turbo test --dry=json` 实测 18 个任务里只有这 5 个是 test。
+- 于是 **desktop(57) · tui(210) · schema(159) · llm(282) · http-recorder(33) ·
+  effect-drizzle-sqlite(7) = 748 个用例在 CI 从不执行**。六包本地 2026-08-29 全绿。
+- `packages/desktop` **连 `test` script 都没有**：`bun --cwd packages/desktop test` 报
+  `Script not found "test"`；跑它要 `cd packages/desktop && bun test --timeout 30000`。
+- 直接后果：S2 修好的 `attachment-picker.test.ts` picker-token 跨 renderer 隔离断言
+  （`attachment-picker.ts:20` 那道安全控制的唯一断言）本地跑、CI 不跑。
+
+B. exerciser 的硬门禁不判行为
+- `test/server/httpapi-exercise/routing.ts:37-39` 的 `coverageResult` **无条件**返回
+  `{ status: "pass", scenario }`；`index.ts:3409-3410` 让 `--mode coverage` 走它。
+  ⇒ coverage 模式**从不发出任何请求**，`.json(409, …)` 里的状态断言在该模式下不执行。
+- 真判断言的 `--mode effect` 在 `.github/workflows/test.yml:86` 挂着
+  `continue-on-error: true`，步骤名自述 "pre-existing runtime failures on main"。
+- ⇒ `docs/testing.md` §3 列为硬门禁的那两条，实际保证的是「每条路由都有 scenario + 认证边界」，
+  **不是**「响应状态与响应体正确」。
+- **未复核项（必须自己重测，不要照抄）**：债表记录 effect 模式在 main 上有 3 条既有失败 ——
+  `agent-asset.apply` / `session.workflow.run`（期望 202 实得 500）/ `session.task.get`，
+  日期 2026-08-28。这个集合我这次没有重跑，你必须先跑一遍拿到当前真实集合。
+- 另有两处「已注册但恒绿」的场景：workflow 的 `cancelRun`/`cancelStep`/`retryStep` 只注册了
+  404 路径；`v2.permission.grant.list` 的 seed 从不签发 grant，断言恒在空列表上为真。
+
+C. `packages/app/e2e` 不在 typecheck 项目内
+- `packages/app/tsconfig.json` 的 `include` 是 `["src", "package.json"]`；
+  `e2e/tsconfig.json` 从不被 `tsgo -b` 或 CI 执行。
+- 今日实测 `bunx tsgo --noEmit -p e2e/tsconfig.json` = **恰好 29 个错误**，全为存量
+  （S1 新增的 `markdown-sanitize.spec.ts` 贡献 0）。
+
+D. 网络依赖与负载敏感把门禁变成随机数
+- `test/server/httpapi-reference.test.ts:23/66/71` 真的把 `Effect-TS/effect` 克隆进
+  `Global.Path.repos/github.com/...` 再 `pollWithTimeout` 等就绪 ⇒ 整个 `test/server/`
+  门禁网络依赖，github.com 不通时以超时形式变红，失败现场（`test/lib/effect.ts` 的
+  `orElse` 栈）看不出是网络问题。
+- spawn 密集的 4 个文件在并行负载下集体 `TimeoutError`、空载单跑全绿：
+  `test/project/instance-bootstrap.test.ts`、`test/cli/acp/initialize-auth.test.ts`、
+  `test/cli/acp/skills.test.ts`、`test/cli/run/run-process.test.ts`。
+
+E. Prettier 无门禁
+- 全仓 **436** 个文件未过 `prettier --check`（`packages/**/*.{ts,tsx,css}` + `script/**` + `*.json`），
+  其中 `packages/core/src` 106 个。`bun run lint` = `oxlint && lint-changed.ts &&
+  check-unawaited-assertions.ts`，**不含 format 检查**；CLAUDE.md 明确「无 pre-commit hook」。
+- 债表把这一条登记了两次（§3.2 与 §4），且计数会随每次改动漂移 —— 本批要合并成一条，
+  并把「计数」换成「有无门禁」。
+```
+
+```text
+【Phase A（红）】五组种红，每组都要贴出「门禁仍然绿」的原始输出，种完立刻还原：
+1. 在 `packages/desktop/src/main/attachment-picker.test.ts` 里塞一条 `expect(1).toBe(2)`，
+   跑 `bun turbo test` —— 必须仍然全绿。这就是 748 个用例不执行的红证。
+   同样在 tui / schema / llm / http-recorder / effect-drizzle-sqlite 各塞一条，一次跑完，
+   报告里给出「6 个包都塞了红、turbo test 依然 0 fail」。
+2. 把某个 exerciser 场景的期望状态改成 `.json(599, …)`（一个不可能的状态码），
+   跑 `--mode coverage` —— 必须仍然 PASS。这是 coverage 模式不发请求的红证。
+3. 跑 `--mode effect` 拿到**当前真实**的失败集合，逐条列出（名字 + 期望 vs 实得）。
+   不要引用债表里 2026-08-28 那三条，要给今天的数字。
+4. 在 `packages/app/e2e/regression/` 任一 spec 里写一处必定报错的类型
+   （如 `const x: number = "s"`），跑 `bun --cwd packages/app typecheck` 与 `bun turbo typecheck`
+   —— 必须都绿。这是 e2e 不在 typecheck 项目内的红证。
+5. 跑 `bunx prettier --check` 全仓拿到当前未过计数，再跑 `bun run lint` —— lint 必须绿。
+   这是 format 无门禁的红证。
+
+【Phase B（绿）】按下面的顺序做，顺序本身有依赖，不要重排：
+1. **turbo test 补 6 包**（最便宜、且让 S2 的成果真正生效）：
+   给 `packages/desktop/package.json` 加 `"test": "bun test --timeout 30000 --only-failures"`
+   （照 tui/llm/http-recorder 的既有形式，不要自创）；`turbo.json` 补 6 个
+   `@aigcfroge/<name>#test`，`dependsOn: ["^build"]` 与既有 5 条对齐。
+   跑 `bunx turbo test --dry=json` 确认 test 任务从 5 变 11。
+2. **exerciser 的 coverage 模式不再伪装成断言结果**：
+   根因不是「coverage 模式漏了断言」，而是**它的产出形状撒谎** —— 它只知道「场景是否注册」，
+   却报成 pass/fail。修法是让它输出覆盖率而不是通过状态（`routing.ts:37` 的 `coverageResult`
+   改成不产出 `status:"pass"` 的形状，`report.ts` 相应区分「覆盖统计」与「行为结果」），
+   **行为门禁一律由 `--mode effect` 承担**。
+   **明确禁止**在 coverage 模式里补断言 —— 那是把两个语义塞回同一个模式，下次还会有人误读。
+3. **修掉 effect 模式的既有失败，然后摘掉 `test.yml:86` 的 `continue-on-error: true`**。
+   顺序不能反：先摘 flag 会让 CI 立刻红。若某条失败的根因超出 exerciser 本身
+   （例如 `session.workflow.run` 的 500 来自 runner），**停下报告**，不要为了让门禁绿而
+   弱化场景断言或把它移出 exerciser。
+4. **补两处恒绿场景**：workflow 的 `cancelRun`/`cancelStep`/`retryStep` 各补 200/202 成功路径
+   与一条 409 stale revision；`v2.permission.grant.list` 的 seed 先签发一个 grant 再断言投影字段，
+   并补 HTTP 层 409（CAS miss）/404/400。
+5. **e2e 进 typecheck**：修完那 29 个存量错误，把 `e2e` 纳入 `packages/app` 的 `tsgo -b`
+   项目引用（或让 CI 显式跑 `-p e2e/tsconfig.json`）。29 条全是存量，逐条修，
+   **不许用 `as any` / `@ts-ignore` 消灭它们** —— 那只是把类型缺口换个地方藏。
+6. **网络依赖用例移出硬门禁**：`httpapi-reference.test.ts` 改用本地 fixture 仓库
+   （`git init` 一个临时裸仓库再指过去），或把它标为 advisory 并从 `test/server/` 硬门禁里摘出。
+   选哪种在代码注释里写清理由。
+7. **spawn 敏感的 4 个文件**：给独立更宽的超时，或在 CI 中与重负载步骤串行化。
+   两种都可以，但报告里要说明选择依据（不要两个都加）。
+8. **Prettier**：本批内**两个独立提交** ——
+   提交 A：`prettier --write` 全仓（format-only，零语义改动）；
+   提交 B：`bun run lint` 链路加 `prettier --check`。
+   两者必须同批（否则立刻再漂），但必须分提交（否则 400+ 文件的格式化会淹掉门禁改动）。
+   同时把债表里重复登记的两条 Prettier 债合并成一条，措辞从「计数」改成「有无门禁」。
+
+【Phase C（回归）】
+bunx turbo test --dry=json（确认 11 个 test 任务）
+bun turbo test（全量，这次真的会跑 748 个多出来的用例）
+bun turbo typecheck
+bun run lint（现在含 prettier --check）
+bun --cwd packages/aigcfroge test test/server --timeout 30000（确认 reference 用例不再依赖网络）
+cd packages/aigcfroge && bun run script/httpapi-exercise.ts --mode effect（必须 0 fail）
+bun --cwd packages/app test:e2e（只跑受影响的 spec）
+跑门禁时不要并行跑其他重任务 —— 本批第 7 项修的就是这个现象。
+
+【验收】
+- `bunx turbo test --dry=json` 的 test 任务从 5 变 11，且六包的种红实验能让 `bun turbo test` 变红
+  （交付时把种红→变红的对照贴出来，这是本批唯一有意义的验收证据）
+- `--mode coverage` 不再产出 pass/fail 形状；`--mode effect` 0 fail 且 `continue-on-error` 已摘
+- 把 `.json(599)` 塞进任一场景，`--mode effect` 必须红（证明行为门禁真的在判）
+- e2e 进入 typecheck，且在 spec 里种一个类型错误能让 `bun turbo typecheck` 变红
+- `bun run lint` 含 prettier --check，且改坏一个文件的格式能让它变红
+- `test/server/` 在断网环境下仍能全绿（拔网或设 `HTTPS_PROXY=http://127.0.0.1:1` 实测一次）
+
+【显式不做（各自另立专项）】
+- **e2e 矩阵（dark / zh|zht / 窄视口 / 键盘）**：实测 21 个 regression spec 里 dark 0、
+  zh|zht 0、keyboard 1，`playwright.config.ts:43` 只有单个 chromium project。
+  在 config 加 theme/locale/viewport project 会**一次照亮全部 21 个既有 spec**，
+  需要配套的修复预算，量级不可预估 —— 塞进本批会让整批无法收口。
+- 债表里 9 条明确「需产品裁定 / 需设计输入 / 需人类裁定」的条目（`timeoutSeconds` 缺省无超时、
+  Credential 静态加密、未知 API 路径 404 还是 SPA、浏览器 auto-accept 通配键、
+  markdown 远程资源 CSP 收窄、once grant 归属、960px 主列、`layout.tsx` Suspense fallback、
+  `credential.active` 采纳还是删除）—— 这些要人先答，不要在批次里替人做决定。
+- 54 处历史文档里的 `bun --cwd <pkg> run <script>`（改动量大收益低，已登记）。
+- 全仓 legacy import 债（249 star + 123 alias，AGENTS.md 明确存量不迁移）。
+```
+
 
 
