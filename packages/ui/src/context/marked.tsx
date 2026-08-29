@@ -476,15 +476,11 @@ export function mermaidPlaceholder(code: string): string {
 }
 
 export function createMarkedParser() {
+  // link 渲染保持 marked 默认实现（encodeURI(href) + 实体转义 title）。
+  // class/target/rel 由下游 DOMPurify afterSanitizeAttributes hook 补齐
+  // （packages/session-ui/src/components/markdown-cache.tsx），这里不再接管
+  // 渲染 —— 自行插值会丢掉上游的转义，等于维护一份必须自己修的分叉实现。
   return marked.use(
-    {
-      renderer: {
-        link({ href, title, text }) {
-          const titleAttr = title ? ` title="${title}"` : ""
-          return `<a href="${href}"${titleAttr} class="external-link" target="_blank" rel="noopener noreferrer">${text}</a>`
-        },
-      },
-    },
     markedKatex({
       throwOnError: false,
       nonStandard: true,

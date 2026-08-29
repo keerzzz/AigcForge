@@ -19,23 +19,49 @@ const ALLOWED_URI_REGEXP =
 const config = {
   USE_PROFILES: { html: true, mathMl: true },
   SANITIZE_NAMED_PROPS: true,
-  FORBID_TAGS: ["style"],
-  FORBID_CONTENTS: ["style", "script"],
+  // form 必须同时进 FORBID_CONTENTS：FORBID_TAGS 只剥标签本身并跳过子树
+  // 检查（KEEP_CONTENT），form 的 input/button 子节点会原样留在输出里。
+  FORBID_TAGS: ["style", "form", "input", "button", "select", "textarea"],
+  FORBID_CONTENTS: ["style", "script", "form"],
   ADD_TAGS: ["svg", "path"],
   ADD_ATTR: ["d", "viewBox", "preserveAspectRatio", "xmlns", "target"],
   ALLOWED_URI_REGEXP,
 }
 
+// 内联 style **不能**整条禁掉：KaTeX 的视觉层完全靠它定位（实测用到 height /
+// top / margin-left|right / vertical-align / border-bottom-width / min-width /
+// width / padding-left），禁掉后 \frac{a}{b} 的分子分母会叠在一起。
+// 真正的攻击面是「脱离文档流后盖住 permission / question 提示框」，所以这里只摘掉
+// 出流能力：position 一旦移除，top/left/inset/z-index 随之失效，元素回到文档流。
+// KaTeX 的内联 position 只用 relative（实测 13 种构造），不在下表内，不受影响。
+// 结构性兜底在 markdown.css 的 contain: layout（容器成为定位包含块 + 层叠上下文）。
+const OUT_OF_FLOW_POSITIONS = new Set(["absolute", "fixed", "sticky"])
+
 if (typeof window !== "undefined" && DOMPurify.isSupported) {
   DOMPurify.addHook("afterSanitizeAttributes", (node: Element) => {
-    if (!(node instanceof HTMLAnchorElement)) return
-    if (node.target !== "_blank") return
+    if (!(node instanceof HTMLElement)) return
 
-    const rel = node.getAttribute("rel") ?? ""
-    const set = new Set(rel.split(/\s+/).filter(Boolean))
-    set.add("noopener")
-    set.add("noreferrer")
-    node.setAttribute("rel", Array.from(set).join(" "))
+    // 用 CSSOM 读写而不是自己写 CSS 解析器：空白与重复声明都由浏览器归一化。
+    // 关键字大小写必须自己兜：Chromium 的 CSSOM 会把 STICKY 归一成 sticky，
+    // happy-dom 原样返回 "STICKY"，靠实现归一化就等于让防线取决于 DOM 实现。
+    // mermaid 的图走 mermaidSvgConfig 且是 SVGElement，不会命中这里。
+    if (OUT_OF_FLOW_POSITIONS.has(node.style.position.toLowerCase())) node.style.removeProperty("position")
+    // transform 不在 KaTeX 的内联属性表里，但能把元素画到自身盒子之外。
+    if (node.style.transform) node.style.removeProperty("transform")
+    if (node.hasAttribute("style") && node.getAttribute("style") === "") node.removeAttribute("style")
+
+    if (!(node instanceof HTMLAnchorElement) || !node.hasAttribute("href")) return
+
+    // marked 的默认 link renderer 只输出转义后的 href/title（接管渲染的覆写
+    // 已删除，见 packages/ui/src/context/marked.tsx），外链行为在这里补齐。
+    node.setAttribute("target", "_blank")
+    const rel = new Set((node.getAttribute("rel") ?? "").split(/\s+/).filter(Boolean))
+    rel.add("noopener")
+    rel.add("noreferrer")
+    node.setAttribute("rel", Array.from(rel).join(" "))
+    const cls = new Set((node.getAttribute("class") ?? "").split(/\s+/).filter(Boolean))
+    cls.add("external-link")
+    node.setAttribute("class", Array.from(cls).join(" "))
   })
 }
 

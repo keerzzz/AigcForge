@@ -2,6 +2,12 @@
   /* Reset & Base Typography */
   min-width: 0;
   max-width: 100%;
+  /* 安全边界：markdown 正文是不可信内容（模型输出 + 工具输出）。布局包含让本
+     容器成为绝对/固定定位后代的包含块，并建立层叠上下文，所以注入的
+     position:fixed;inset:0 只能铺满这个容器、z-index 也出不了这里，盖不到
+     permission / question 提示框。属性层的对应防线见 markdown-cache.tsx 的
+     OUT_OF_FLOW_POSITIONS，两道缺一不可。 */
+  contain: layout;
   overflow-wrap: break-word;
   color: var(--text-strong);
   font-family: var(--font-family-sans);

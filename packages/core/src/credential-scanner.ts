@@ -1,21 +1,11 @@
 import { Context, Effect, Layer } from "effect"
-import { API_KEY_RE, BEARER_TOKEN_RE, CredentialScan, ENV_LINE_RE, PRIVATE_KEY_RE } from "@aigcfroge/schema/credential-scan"
+import { CredentialScan, SECRET_PATTERN_LIST } from "@aigcfroge/schema/credential-scan"
 
 type Hit = {
-  type: "api_key" | "bearer_token" | "private_key" | "env_line"
+  type: (typeof SECRET_PATTERN_LIST)[number]["type"]
   lineIndex: number
   positionHint: string
 }
-
-const PATTERNS: {
-  type: "api_key" | "bearer_token" | "private_key" | "env_line"
-  regex: RegExp
-}[] = [
-  { type: "api_key", regex: API_KEY_RE },
-  { type: "bearer_token", regex: BEARER_TOKEN_RE },
-  { type: "private_key", regex: PRIVATE_KEY_RE },
-  { type: "env_line", regex: ENV_LINE_RE },
-]
 
 function scanText(text: string): Hit[] {
   const lines = text.split("\n")
@@ -23,7 +13,7 @@ function scanText(text: string): Hit[] {
   const hits: Hit[] = []
 
   // Phase 1: multiline patterns (private_key) — run on full text
-  for (const pattern of PATTERNS) {
+  for (const pattern of SECRET_PATTERN_LIST) {
     if (pattern.type !== "private_key") continue
     const regex = new RegExp(pattern.regex.source, pattern.regex.flags)
     let match: RegExpExecArray | null
@@ -41,7 +31,7 @@ function scanText(text: string): Hit[] {
     const line = lines[lineIndex]
     const lineHits: { type: Hit["type"]; start: number }[] = []
 
-    for (const pattern of PATTERNS) {
+    for (const pattern of SECRET_PATTERN_LIST) {
       if (pattern.type === "private_key") continue // handled in phase 1
       const regex = new RegExp(pattern.regex.source, pattern.regex.flags)
       let match: RegExpExecArray | null
@@ -66,7 +56,7 @@ function scanText(text: string): Hit[] {
 
 function stripText(text: string): string {
   let result = text
-  for (const pattern of PATTERNS) {
+  for (const pattern of SECRET_PATTERN_LIST) {
     if (pattern.type === "private_key") {
       result = result.replace(pattern.regex, (match) => {
         const lines = match.split("\n")

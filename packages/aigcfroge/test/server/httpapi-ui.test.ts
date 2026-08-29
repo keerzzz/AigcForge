@@ -374,6 +374,9 @@ describe("HttpApi UI fallback", () => {
       expect(csp).toContain("script-src 'self' 'wasm-unsafe-eval'")
       expect(csp).toContain(`'sha256-${createHash("sha256").update(script).digest("base64")}'`)
       expect(csp).toContain("connect-src * data:")
+      // form-action does not fall back to default-src; without it an injected
+      // form could post credentials to any origin.
+      expect(csp).toContain("form-action 'self'")
     }),
   )
 
