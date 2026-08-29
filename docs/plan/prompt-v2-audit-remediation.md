@@ -675,5 +675,114 @@ effect-drizzle-sqlite（7）共 748 个用例在 CI 从不执行**。所以 S2 �
 - `packages/core/test/database-migration.test.ts` 在 `origin/main` 上就未过 Prettier（已 stash 比对），
   本批新增行不构成新漂移；不要顺手格式化整个文件。
 
+---
+
+## S3 审批结果（2026-08-29，通过）
+
+三项审批重点全过。两处修法与提示词一字不差：`event-reducer.ts:195` 判空提前成
+`const existing = result.found ? … : undefined`，`sessionTotal` 的减量进了 `result.found`
+（:212 与 :256 两处都改了）；`directory-sync.ts` 抽出 `pickTarget(ownDirectory, requestedDirectory)`
+并改名形参，遮蔽因此在结构上不可能再犯。
+
+红证复验（我自己 stash 还原 `event-reducer.ts` 跑的）：
+```text
+Error name: "TypeError"
+(fail) does not throw when archiving a session not in local list and does not decrement total
+Expected: 2  Received: 1
+(fail) does not decrement sessionTotal when deleting a session not in local list
+ 17 pass / 2 fail
+```
+两条都因正确的原因失败。`bun --cwd packages/app test` 962 + 3 pass，typecheck 干净。
+
+顺手核了一件提示词没提的事：`target()` 的跨目录分支从死代码变成活代码后，
+`serverSync.child(effective)` 不带 `{ mcp: true }`、且会走 `pinForOwner`。
+查过 `child-store.ts:81-99`：`pinForOwner` 按 reactive owner 去重且注册了 `onCleanup`，
+在无 owner 的回调里直接 no-op，所以既不泄漏 pin 也不会重复 enableMcp。无新问题。
+
+【留作记录，未要求改】`directory-sync.test.ts` 只测 `pickTarget` 本身，
+`pickTarget("/a","/b") === "/b"` 近乎恒等式 —— 它不覆盖这个 bug 的真实影响
+（跨目录乐观写入落到哪个 store）。因为抽函数已让遮蔽不可复现，接受现状；
+但若以后有 solid-testing-library，补一条 store 路由断言才算真正钉住。
+
+---
+
+## S4 审批结果（2026-08-29，条件通过：1 项假测试与 3 项已由审批方就地整改）
+
+**根因方向 ✅**：KB 确实改成了复用 `FileMutation`，裸 `fs.writeWithDirs` 归零；
+artifact 换成 `FileMutation.create` 让存在判定进锁；grep/glob 用 `ToolFailure` 而不是
+`Effect.die`（按提示词的明确要求，没照抄 `read.ts` 的 die）；权限 deny 落在
+`AgentV2.defaultID` 与 `general` 两个 ruleset 内，没有外溢。
+`fs.ensureDir` 被删掉是安全的 —— 已核 `writeAtomic` 自带
+`catchReason("PlatformError","NotFound") → makeDirectory(recursive)` 兜底（file-mutation.ts:211-222）。
+
+【整改 1（阻塞）· `tool-path-containment.test.ts` 是假测试】
+交付的版本整个文件只测 `FSUtil.contains("/tmp/project", path.resolve(…, "../.."))`，
+**一次都没调用 grep/glob**。我把 `grep.ts` 里那八行守卫整段删掉，它照样 **3 pass / 0 fail**。
+它测的是一个本来就正确、也不是本批改动的工具函数，命名却让人以为它守着这个修复。
+已重写为经 `ToolRegistry` 真调工具，并用 `Layer.mock(Ripgrep.Service)` 记录每次搜索的 `cwd`：
+判别式是 **越界时 ripgrep 根本没被调用**（`expect(searched).toEqual([])`），
+而不只是"返回了失败"。同时补了两条正向用例（`path: "src"` 仍能搜、省略 `path` 落在 Location 根）。
+复验：守卫在 → 5 pass；把 grep 与 glob 的守卫都删掉 → **3 fail**。
+
+【整改 2 · 笔记标题进了 defect 消息（Clean Logs）】
+新增的四处 `Effect.die(new Error(\`Note with title "${input.title}" already exists…\`))` 把标题
+写进了错误消息，而**同一个文件 :253 的既有注释明确写着 "Clean Logs: no title in the message"**。
+defect 会带完整消息进日志。已改为 `A note with this title already exists in scope "…"`，
+四处都不再回显标题。
+**未改、需要单独一批**：重名是用户可触发的预期条件，用 `Effect.die` 表达它意味着 HTTP 边界
+仍然吐 500（改动前撞唯一索引 `orDie` 也是 500，所以不是回归）。改成
+`Schema.TaggedErrorClass` 要动 interface 错误通道 + HTTP handler + SDK 错误面，属独立改动。
+
+【整改 3 · 两把互斥锁，"单一 owner"没真正达成】
+提示词的裁定里我写了「FileMutation 已具备全部所需原语 —— `locks.withLock(target.canonical)`」，
+**这句是错的**：`locks` 是 `file-mutation.ts:92` 的内部变量，`Service.of({ create, write,
+writeTextPreservingBom, writeIfUnchanged, remove, writeAtomic })` 没有暴露它。所以「查重 + 写」
+在同一临界区这个要求，用现有 Service 表面确实做不到 —— 执行方按提示词的规矩本该停下报告，
+而不是自带一把 `KeyedMutex`。
+实际后果（要说清，别高估也别忽略）：`kbLocks` 序列化了 KB 自己的写，
+**不覆盖** `write`/`edit`/`apply-patch` 对同一个 `.md` 的写（那些走 FileMutation 内部的锁）。
+失败形态是 KB 查到"文件不存在"→ write 工具建了它 → KB 的 writeAtomic 覆盖掉。
+窗口很窄（kb_* 现在对默认 agent 已 deny，write 要审批），所以没有强行返工。
+已在 `kbLocks` 声明处写清这把锁保护什么、不保护什么，并指出真正的修法：
+FileMutation 需要一个「在锁内跑调用方前置检查」的组合子 ——
+**直接把 `writeAtomic` 包进外层同键锁会重入死锁**（KeyedMutex 非重入），所以这是一个
+设计任务而不是搬代码。已记入 `docs/technical-debt.md`。
+
+【整改 4 · 启动 sweep 阻塞启动，且只覆盖 global】
+提示词点名了 `scheduled-job.ts:203-235` 的 `SchedulerCore.daemon({ startupSweep })` 范式。
+交付的 `startupLayer` 用 `Layer.effectDiscard` 直接 `yield*` 了同步扫描 ——
+`effectDiscard` 的 effect 跑在 layer **构建期**，等于让服务端启动阻塞在一次文件系统扫描上；
+另有 `Effect.catch(...)` 后再 `Effect.ignore` 的双重吞掉与 `String(e)` 丢结构。
+已改为 `Effect.forkIn(scope)`（照 `reference.ts:112` 的既有形状，AGENTS.md 禁 `Effect.fork`）
++ `catchCause` 传 cause。
+**未改的局限已写进代码注释**：只扫 global 目录。project 作用域的镜像在
+`<directory>/.aigcfroge/knowledge-base` 下，而启动时不存在"当前项目"这个概念（目录由每个
+Location 决定），所以 project 侧的收敛得挂在 Location 建立时。而本批三条 KB 新测试用的全是
+`scope: "project"` —— 也就是说测试覆盖的那个作用域恰好没有兜底。这一条本该在交付时报告。
+
+【留作记录，未改】
+1. `create` 的 `db.insert(...).values({...})` 在 `if (input.baseDir)` 与 `else` 两支各抄一份，
+   `update` 的 `db.update(...).set({...})` 抄了**三份**。Reusability：两份/三份一定会漂移。
+2. 三条新 deny 规则没有理由注释，而同一段里每一组 deny 都带（"2026-08-06 裁决"、
+   "Mirror the V1 subagent defaults"）。理由是有的（KB 写路径是 UI 确认后的服务端 API，
+   见 agent.ts:460-465 assistant-orchestrator 的注释），只是没写下来 —— 下一个读代码的人会想删它。
+3. `plan` agent（agent.ts:294）仍从 `defaults` 继承 kb 写权限。提示词只要求 default + general，
+   不算违约，但这是同型缺口。
+4. `error instanceof ToolFailure`（grep/glob 的 mapError 守卫）跨包时不如判 `_tag` 稳；
+   `artifact.test.ts` 用 `String(failureCause)).toContain("WorkArtifact.Conflict")` 是字符串断言。
+5. `grep.ts` / `glob.ts` 在基线上过 Prettier、改后不过（新加的 realPath 行超 120 列），
+   已 `prettier --write` 这两个文件修掉；`kb-service.ts` 与 `artifact.ts` 基线就脏，未动。
+
+【S3/S4 经验补丁（后续批次遵守）】
+1. **一个测试如果删掉被测守卫还能全绿，它就不是测试。** 交付前对每个新测试做一次反向验证：
+   把它声称守着的那几行删掉，跑一遍，必须变红 —— 并把这次红贴进报告。
+   S1 补丁 1 要求的是"门禁能看见多行形态"，这一条更基本：**测试必须调用被测代码**。
+2. **提示词里的"既有原语可复用"是断言，不是事实**，先去 Service 的导出上核一眼。
+   核不上就停下报告 —— 自带一把平行原语正是批次要消除的东西。
+3. **`Layer.effectDiscard` 里的 effect 跑在 layer 构建期。** 任何扫描/轮询/等待都要
+   `Effect.forkIn(scope)`，否则是在给启动路径加阻塞。
+4. **修完之后回头看一眼自己新写的测试用的是哪个作用域/分支**，兜底如果没覆盖那个作用域，
+   要在报告里点名（S4 三条测试全是 project，兜底只有 global）。
+
 
 
