@@ -101,18 +101,14 @@ export const layer = Layer.effect(
       )
       // Move conflict check inside the file lock (TOCTOU fix): use FileMutation.create
       // for the non-overwrite path so the existence check and the write are atomic.
-      let existed: boolean
-      if (!input.overwrite) {
-        const result = yield* fileMutation.create({ target, content: input.content }).pipe(
-          Effect.catchTag("FileMutation.TargetExistsError", () =>
-            Effect.fail(new ConflictError({ relativePath: input.relativePath })),
-          ),
-        )
-        existed = result.existed
-      } else {
-        const result = yield* fileMutation.writeAtomic({ target, content: input.content })
-        existed = result.existed
-      }
+      const result = input.overwrite
+        ? yield* fileMutation.writeAtomic({ target, content: input.content })
+        : yield* fileMutation.create({ target, content: input.content }).pipe(
+            Effect.catchTag("FileMutation.TargetExistsError", () =>
+              Effect.fail(new ConflictError({ relativePath: input.relativePath })),
+            ),
+          )
+      const existed = result.existed
       const now = yield* DateTime.nowAsDate
       const artifactID = Identifier.create("art", "ascending")
       const artifact: ArtifactRecord = {

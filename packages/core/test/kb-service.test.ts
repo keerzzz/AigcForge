@@ -5,9 +5,10 @@ import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
 import { FileMutation } from "@aigcfroge/core/file-mutation"
 import { FSUtil } from "@aigcfroge/core/fs-util"
+import { Global } from "@aigcfroge/core/global"
 import { KBService } from "@aigcfroge/core/session/kb-service"
 import { KBNote } from "@aigcfroge/schema/kb-note"
-import { testEffect } from "./lib/effect"
+import { pollWithTimeout, testEffect } from "./lib/effect"
 
 
 const it = testEffect(
@@ -352,13 +353,14 @@ describe("KBService atomicity", () => {
     }),
   )
 
-  it.effect("rename that fails to write the new mirror leaves the old mirror intact", () =>
+  it.effect("rename onto an occupied target path leaves the old mirror intact", () =>
     Effect.gen(function* () {
       const kb = yield* KBService.Service
       const fs = yield* FSUtil.Service
       const dir = base()
       const note = yield* kb.create({ title: "Old", content: "old content", scope: "project", baseDir: dir })
-      // Make the target path a directory so the atomic write must fail.
+      // Occupy the target path as a directory: the rename's exists-guard must
+      // die before any write is attempted.
       yield* fs.ensureDir(`${dir}/.aigcfroge/knowledge-base/New.md`).pipe(Effect.orDie)
       const exit = yield* kb.update({ id: note.id, title: "New", content: "new content", baseDir: dir }).pipe(Effect.exit)
       expect(exit._tag).toBe("Failure")
@@ -369,6 +371,36 @@ describe("KBService atomicity", () => {
       yield* Effect.tryPromise(() =>
         import("fs/promises").then((m) => m.rm(`${dir}/.aigcfroge/knowledge-base/New.md`, { recursive: true, force: true })),
       ).pipe(Effect.catch(() => Effect.void))
+    }),
+  )
+
+  it.live("startup sweep imports global mirrors from the config knowledge-base directory", () =>
+    Effect.gen(function* () {
+      const kb = yield* KBService.Service
+      const fs = yield* FSUtil.Service
+      const dir = base()
+      yield* fs.writeWithDirs(`${dir}/knowledge-base/Boot.md`, "boot content").pipe(Effect.orDie)
+      // startupLayer reads Global.Path.config once at layer-build time (the
+      // forked sweep captures globalDir then), so swapping it just around the
+      // build is race-free. Same mutable-Path pattern as
+      // aigcfroge/test/config/config.test.ts.
+      const previous = Global.Path.config
+      ;(Global.Path as { config: string }).config = dir
+      yield* Layer.build(KBService.startupLayer).pipe(
+        Effect.ensuring(
+          Effect.sync(() => {
+            ;(Global.Path as { config: string }).config = previous
+          }),
+        ),
+      )
+      const found = yield* pollWithTimeout(
+        kb.list({ scope: "global" }).pipe(
+          Effect.map((notes) => notes.find((note) => note.title === "Boot")),
+          Effect.orDie,
+        ),
+        "startup sweep did not import the global mirror from the config directory",
+      )
+      expect(found.content).toBe("boot content")
     }),
   )
 })

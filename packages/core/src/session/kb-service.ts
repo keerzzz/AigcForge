@@ -243,30 +243,14 @@ export const layer = Layer.effect(
       }
     })
 
-    const writeFile = Effect.fn("KBService.writeFile")(function* (
-      baseDir: string | undefined,
-      scope: KBNote.NoteScope,
-      title: string,
-      content: string,
-    ) {
-      if (!baseDir) return yield* Effect.void
-      // ADR-14 §2: global notes live in <config>/knowledge-base/, project notes
-      // in <directory>/.aigcfroge/knowledge-base/ — the `.md` file is the
-      // content source of truth.
-      const dir = scope === "global" ? `${baseDir}/knowledge-base` : `${baseDir}/.aigcfroge/knowledge-base`
-      // Path-traversal guard (review BLOCKER#1): resolve the target and assert
-      // it stays inside the knowledge-base directory — a title that slipped
-      // past schema validation must not write an arbitrary `.md` outside it.
-      const absolute = path.resolve(dir, `${title}.md`)
-      if (!FSUtil.contains(dir, absolute)) {
-        // Defense-in-depth assertion: schema validation already rejects such
-        // titles; a title reaching here is a programming error — die loudly
-        // (Clean Logs: no title in the message).
-        return yield* Effect.die(new Error("Note title escapes the knowledge-base directory"))
-      }
-      const target: FileMutation.Target = { canonical: absolute, resource: `${title}.md` }
-      return yield* fileMutation.writeAtomic({ target, content }).pipe(Effect.orDie)
-    })
+    // ADR-14 §2: global notes live in <config>/knowledge-base/, project notes
+    // in <directory>/.aigcfroge/knowledge-base/ — the `.md` file is the
+    // content source of truth. Every mirror path is resolved and asserted to
+    // stay inside its knowledge-base directory (FSUtil.contains): a title
+    // that slipped past schema validation is a programming error — die loudly
+    // (Clean Logs: no title in the message).
+    const mirrorDir = (baseDir: string, scope: KBNote.NoteScope) =>
+      scope === "global" ? `${baseDir}/knowledge-base` : `${baseDir}/.aigcfroge/knowledge-base`
 
     const create = Effect.fn("KBService.create")((input: {
       readonly title: string
@@ -287,7 +271,7 @@ export const layer = Layer.effect(
         const id = KBNote.NoteID.create()
         const now = Date.now()
         if (input.baseDir) {
-          const dir = input.scope === "global" ? `${input.baseDir}/knowledge-base` : `${input.baseDir}/.aigcfroge/knowledge-base`
+          const dir = mirrorDir(input.baseDir, input.scope)
           const absolute = path.resolve(dir, `${input.title}.md`)
           if (!FSUtil.contains(dir, absolute)) {
             return yield* Effect.die(new Error("Note title escapes the knowledge-base directory"))
@@ -398,7 +382,7 @@ export const layer = Layer.effect(
         const title = input.title ?? prior.title
         const content = input.content ?? prior.content
         if (input.baseDir) {
-          const dir = prior.scope === "global" ? `${input.baseDir}/knowledge-base` : `${input.baseDir}/.aigcfroge/knowledge-base`
+          const dir = mirrorDir(input.baseDir, prior.scope)
           const newAbsolute = path.resolve(dir, `${title}.md`)
           if (!FSUtil.contains(dir, newAbsolute)) {
             return yield* Effect.die(new Error("Note title escapes the knowledge-base directory"))
@@ -520,10 +504,21 @@ export const layer = Layer.effect(
           .run()
           .pipe(Effect.orDie)
         if (input.baseDir && prior) {
-          const dir = prior.scope === "global" ? `${input.baseDir}/knowledge-base` : `${input.baseDir}/.aigcfroge/knowledge-base`
-          yield* Effect.tryPromise(() => Bun.file(`${dir}/${prior.title}.md`).delete()).pipe(
-            Effect.catch((error) =>
-              Effect.logWarning("failed to remove note mirror on delete", { noteID: input.id, error }),
+          const dir = mirrorDir(input.baseDir, prior.scope)
+          const absolute = path.resolve(dir, `${prior.title}.md`)
+          if (!FSUtil.contains(dir, absolute)) {
+            return yield* Effect.die(new Error("Note title escapes the knowledge-base directory"))
+          }
+          // Same standard as the rename path: FileMutation under the per-path
+          // lock. A missing/unwritable mirror downgrades to a warning instead of
+          // failing the delete — the DB row is already gone and
+          // syncFromDirectory reconciles leftovers.
+          const target: FileMutation.Target = { canonical: absolute, resource: `${prior.title}.md` }
+          yield* kbLocks.withLock(absolute)(
+            fileMutation.remove({ target }).pipe(
+              Effect.catch((error) =>
+                Effect.logWarning("failed to remove note mirror on delete", { noteID: input.id, error }),
+              ),
             ),
           )
         }
@@ -749,7 +744,7 @@ export const startupLayer = Layer.effectDiscard(
     const kb = yield* Service
     const fs = yield* FSUtil.Service
     const scope = yield* Effect.scope
-    const globalDir = `${Global.Path.data}/knowledge-base`
+    const globalDir = `${Global.Path.config}/knowledge-base`
     yield* Effect.gen(function* () {
       const exists = yield* fs.exists(globalDir).pipe(Effect.catch(() => Effect.succeed(false)))
       if (!exists) return

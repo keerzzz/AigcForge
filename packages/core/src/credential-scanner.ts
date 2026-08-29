@@ -36,7 +36,7 @@ function scanText(text: string): Hit[] {
       const regex = new RegExp(pattern.regex.source, pattern.regex.flags)
       let match: RegExpExecArray | null
       while ((match = regex.exec(line)) !== null) {
-        lineHits.push({ type: pattern.type, start: match.index ?? 0 })
+        lineHits.push({ type: pattern.type, start: match.index })
       }
     }
 
