@@ -14,7 +14,7 @@ let persistedServers: WslServerConfig[] = []
 const pendingAigcfrogeCheck: { release?: () => void } = {}
 
 test("starts every configured WSL server on initialization", () => {
-  // 用真实的 WslServerConfig 而不是裁剪成 { id }：servers.ts:365 构造的就是 { id, distro }，
+  // 用真实的 WslServerConfig 而不是裁剪成 { id }：servers.ts:283 构造的就是 { id, distro }，
   // 裁掉 distro 只是为了绕过对象字面量的多余属性检查，会让 fixture 与生产形状脱钩。
   const configs: WslServerConfig[] = [
     { id: "wsl:Debian", distro: "Debian" },
