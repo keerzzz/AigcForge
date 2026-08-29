@@ -7,7 +7,10 @@ import { KBNote } from "@aigcfroge/schema/kb-note"
 import { Database } from "../database/database"
 import { LayerNode } from "../effect/layer-node"
 import { FSUtil } from "../fs-util"
+import { FileMutation } from "../file-mutation"
+import { KeyedMutex } from "../effect/keyed-mutex"
 import { EventV2 } from "../event"
+import { Global } from "../global"
 import { KBLink } from "../kb/link"
 import { KBLinkTable, KBNoteTable } from "./kb.sql"
 
@@ -110,7 +113,15 @@ export const layer = Layer.effect(
   Effect.gen(function* () {
     const { db } = yield* Database.Service
     const fs = yield* FSUtil.Service
+    const fileMutation = yield* FileMutation.Service
     const events = yield* EventV2.Service
+    // FileMutation 的锁没有暴露在 Service 上（file-mutation.ts:92 的 locks 是内部的），
+    // 而「查重 + 写」必须在同一个临界区里，所以这里只能自带一把。后果要说清：
+    // 它序列化的是 KB 自己的写，**不覆盖** write/edit/apply-patch 工具对同一个
+    // .md 的写（那些走 FileMutation 内部的锁）。要真正单 owner，需要 FileMutation
+    // 提供「在锁内跑调用方前置检查」的组合子 —— 直接把 writeAtomic 包进外层同键锁
+    // 会重入死锁（KeyedMutex 非重入）。见 docs/technical-debt.md。
+    const kbLocks = KeyedMutex.makeUnsafe<string>()
     yield* db.run(sql.raw(FTS_MAYBE)).pipe(Effect.orDie)
 
     const ensureFts = Effect.fn("KBService.ensureFts")(function* (noteID: string, title: string, content: string) {
@@ -243,7 +254,6 @@ export const layer = Layer.effect(
       // in <directory>/.aigcfroge/knowledge-base/ — the `.md` file is the
       // content source of truth.
       const dir = scope === "global" ? `${baseDir}/knowledge-base` : `${baseDir}/.aigcfroge/knowledge-base`
-      yield* fs.ensureDir(dir).pipe(Effect.orDie)
       // Path-traversal guard (review BLOCKER#1): resolve the target and assert
       // it stays inside the knowledge-base directory — a title that slipped
       // past schema validation must not write an arbitrary `.md` outside it.
@@ -254,7 +264,8 @@ export const layer = Layer.effect(
         // (Clean Logs: no title in the message).
         return yield* Effect.die(new Error("Note title escapes the knowledge-base directory"))
       }
-      return yield* fs.writeWithDirs(absolute, content).pipe(Effect.orDie)
+      const target: FileMutation.Target = { canonical: absolute, resource: `${title}.md` }
+      return yield* fileMutation.writeAtomic({ target, content }).pipe(Effect.orDie)
     })
 
     const create = Effect.fn("KBService.create")((input: {
@@ -275,26 +286,68 @@ export const layer = Layer.effect(
         }
         const id = KBNote.NoteID.create()
         const now = Date.now()
-        // File-first (ADR-14: the `.md` file is the content source of truth):
-        // write the mirror BEFORE the DB row so a DB fault leaves an orphan
-        // file that syncFromDirectory re-imports — never a DB row missing its
-        // file (review MAJOR: partial failure left corrupt state).
-        yield* writeFile(input.baseDir, input.scope, input.title, input.content)
-        yield* db
-          .insert(KBNoteTable)
-          .values({
-            id,
-            title: input.title,
-            content: input.content,
-            scope: input.scope,
-            tags: [...(input.tags ?? [])],
-            ...(input.aliases ? { aliases: [...input.aliases] } : {}),
-            format: input.format ?? "note",
-            time_created: now,
-            time_updated: now,
-          })
-          .run()
-          .pipe(Effect.orDie)
+        if (input.baseDir) {
+          const dir = input.scope === "global" ? `${input.baseDir}/knowledge-base` : `${input.baseDir}/.aigcfroge/knowledge-base`
+          const absolute = path.resolve(dir, `${input.title}.md`)
+          if (!FSUtil.contains(dir, absolute)) {
+            return yield* Effect.die(new Error("Note title escapes the knowledge-base directory"))
+          }
+          const target: FileMutation.Target = { canonical: absolute, resource: `${input.title}.md` }
+          // Serialize per-target: check DB duplicate and file existence inside the lock
+          // BEFORE the file write so a duplicate DB row does not clobber the existing .md.
+          yield* kbLocks.withLock(absolute)(
+            Effect.uninterruptible(
+              // oxlint-disable-next-line typescript/consistent-return -- Effect.gen with early returns via Effect.die is intentional
+              Effect.gen(function* () {
+                const existing = yield* db
+                  .select()
+                  .from(KBNoteTable)
+                  .where(and(eq(KBNoteTable.scope, input.scope), eq(KBNoteTable.title, input.title)))
+                  .get()
+                  .pipe(Effect.orDie)
+                if (existing) {
+                  return yield* Effect.die(new Error(`A note with this title already exists in scope "${input.scope}"`))
+                }
+                const fileExists = yield* fs.exists(absolute).pipe(Effect.orDie)
+                if (fileExists) {
+                  return yield* Effect.die(new Error("A mirror file already exists for this title"))
+                }
+                yield* fileMutation.writeAtomic({ target, content: input.content }).pipe(Effect.orDie)
+                yield* db
+                  .insert(KBNoteTable)
+                  .values({
+                    id,
+                    title: input.title,
+                    content: input.content,
+                    scope: input.scope,
+                    tags: [...(input.tags ?? [])],
+                    ...(input.aliases ? { aliases: [...input.aliases] } : {}),
+                    format: input.format ?? "note",
+                    time_created: now,
+                    time_updated: now,
+                  })
+                  .run()
+                  .pipe(Effect.orDie)
+              }),
+            ),
+          )
+        } else {
+          yield* db
+            .insert(KBNoteTable)
+            .values({
+              id,
+              title: input.title,
+              content: input.content,
+              scope: input.scope,
+              tags: [...(input.tags ?? [])],
+              ...(input.aliases ? { aliases: [...input.aliases] } : {}),
+              format: input.format ?? "note",
+              time_created: now,
+              time_updated: now,
+            })
+            .run()
+            .pipe(Effect.orDie)
+        }
         yield* ensureFts(id, input.title, input.content)
         yield* syncLinks(id, input.content, input.scope)
         // A new title/alias resolves previously dangling edges pointing at it.
@@ -344,40 +397,102 @@ export const layer = Layer.effect(
         }
         const title = input.title ?? prior.title
         const content = input.content ?? prior.content
-        // File-first mirror (content source of truth, ADR-14 §2): write the new
-        // `.md` BEFORE the DB row so a DB fault leaves the file ahead of the
-        // index — the next syncFromDirectory converges the index to the file
-        // instead of stranding a DB row missing its file (review MAJOR).
         if (input.baseDir) {
           const dir = prior.scope === "global" ? `${input.baseDir}/knowledge-base` : `${input.baseDir}/.aigcfroge/knowledge-base`
-          yield* fs.ensureDir(dir).pipe(Effect.orDie)
+          const newAbsolute = path.resolve(dir, `${title}.md`)
+          if (!FSUtil.contains(dir, newAbsolute)) {
+            return yield* Effect.die(new Error("Note title escapes the knowledge-base directory"))
+          }
           if (input.title !== undefined && input.title !== prior.title) {
-            yield* Effect.tryPromise(() => Bun.file(`${dir}/${prior.title}.md`).delete()).pipe(
-              // A stale mirror (Clean Logs: no title in the log) is a rename
-              // bookkeeping gap, not a data loss — warn instead of dying.
-              Effect.catch((error) =>
-                Effect.logWarning("failed to remove stale note mirror after rename", { noteID: input.id, error }),
+            const oldAbsolute = path.resolve(dir, `${prior.title}.md`)
+            if (!FSUtil.contains(dir, oldAbsolute)) {
+              return yield* Effect.die(new Error("Note title escapes the knowledge-base directory"))
+            }
+            const newTarget: FileMutation.Target = { canonical: newAbsolute, resource: `${title}.md` }
+            const oldTarget: FileMutation.Target = { canonical: oldAbsolute, resource: `${prior.title}.md` }
+            // Rename: write new mirror first, then remove old, both inside locks.
+            // Lock both paths in sorted order to avoid deadlock; check duplicate/title
+            // inside the lock so a concurrent create/rename cannot slip between check and write.
+            const keys = [oldAbsolute, newAbsolute].sort()
+            const doRename = Effect.uninterruptible(
+              // oxlint-disable-next-line typescript/consistent-return -- Effect.gen with early returns via Effect.die is intentional
+              Effect.gen(function* () {
+                const duplicate = yield* db
+                  .select()
+                  .from(KBNoteTable)
+                  .where(and(eq(KBNoteTable.scope, prior.scope), eq(KBNoteTable.title, title)))
+                  .get()
+                  .pipe(Effect.orDie)
+                if (duplicate && duplicate.id !== input.id) {
+                  return yield* Effect.die(new Error(`A note with this title already exists in scope "${prior.scope}"`))
+                }
+                const newExists = yield* fs.exists(newAbsolute).pipe(Effect.orDie)
+                if (newExists) {
+                  return yield* Effect.die(new Error("A mirror file already exists for the target title"))
+                }
+                yield* fileMutation.writeAtomic({ target: newTarget, content }).pipe(Effect.orDie)
+                yield* fileMutation.remove({ target: oldTarget }).pipe(
+                  Effect.catch((error) =>
+                    Effect.logWarning("failed to remove stale note mirror after rename", { noteID: input.id, error }),
+                  ),
+                )
+                yield* db
+                  .update(KBNoteTable)
+                  .set({
+                    title,
+                    ...(input.content !== undefined ? { content } : {}),
+                    ...(input.tags !== undefined ? { tags: [...input.tags] } : {}),
+                    ...(input.aliases !== undefined ? { aliases: [...input.aliases] } : {}),
+                    time_updated: Date.now(),
+                  })
+                  .where(eq(KBNoteTable.id, input.id))
+                  .run()
+                  .pipe(Effect.orDie)
+              }),
+            )
+            // Acquire both locks in order
+            if (keys[0] === keys[1]) {
+              yield* kbLocks.withLock(keys[0])(doRename)
+            } else {
+              yield* kbLocks.withLock(keys[0])(kbLocks.withLock(keys[1])(doRename))
+            }
+          } else {
+            // Content update or metadata update without rename
+            const target: FileMutation.Target = { canonical: newAbsolute, resource: `${title}.md` }
+            yield* kbLocks.withLock(newAbsolute)(
+              Effect.uninterruptible(
+                Effect.gen(function* () {
+                  yield* fileMutation.writeAtomic({ target, content }).pipe(Effect.orDie)
+                  yield* db
+                    .update(KBNoteTable)
+                    .set({
+                      ...(input.title !== undefined ? { title } : {}),
+                      ...(input.content !== undefined ? { content } : {}),
+                      ...(input.tags !== undefined ? { tags: [...input.tags] } : {}),
+                      ...(input.aliases !== undefined ? { aliases: [...input.aliases] } : {}),
+                      time_updated: Date.now(),
+                    })
+                    .where(eq(KBNoteTable.id, input.id))
+                    .run()
+                    .pipe(Effect.orDie)
+                }),
               ),
             )
           }
-          const absolute = path.resolve(dir, `${title}.md`)
-          if (!FSUtil.contains(dir, absolute)) {
-            return yield* Effect.die(new Error("Note title escapes the knowledge-base directory"))
-          }
-          yield* fs.writeWithDirs(absolute, content).pipe(Effect.orDie)
+        } else {
+          yield* db
+            .update(KBNoteTable)
+            .set({
+              ...(input.title !== undefined ? { title } : {}),
+              ...(input.content !== undefined ? { content } : {}),
+              ...(input.tags !== undefined ? { tags: [...input.tags] } : {}),
+              ...(input.aliases !== undefined ? { aliases: [...input.aliases] } : {}),
+              time_updated: Date.now(),
+            })
+            .where(eq(KBNoteTable.id, input.id))
+            .run()
+            .pipe(Effect.orDie)
         }
-        yield* db
-          .update(KBNoteTable)
-          .set({
-            ...(input.title !== undefined ? { title } : {}),
-            ...(input.content !== undefined ? { content } : {}),
-            ...(input.tags !== undefined ? { tags: [...input.tags] } : {}),
-            ...(input.aliases !== undefined ? { aliases: [...input.aliases] } : {}),
-            time_updated: Date.now(),
-          })
-          .where(eq(KBNoteTable.id, input.id))
-          .run()
-          .pipe(Effect.orDie)
         yield* ensureFts(input.id, title, content)
         yield* syncLinks(input.id, content, prior.scope)
         if (input.title !== undefined) yield* resolveDanglingFor(input.title)
@@ -615,5 +730,34 @@ export const layer = Layer.effect(
   }),
 )
 
-export const defaultLayer = layer.pipe(Layer.provide(Database.defaultLayer))
-export const node = LayerNode.make(layer, [Database.node, FSUtil.node, EventV2.node])
+export const defaultLayer = layer.pipe(
+  Layer.provide(Database.defaultLayer),
+  Layer.provide(EventV2.defaultLayer),
+  Layer.provide(FSUtil.defaultLayer),
+  Layer.provide(FileMutation.layer.pipe(Layer.provide(FSUtil.defaultLayer))),
+)
+export const node = LayerNode.make(layer.pipe(Layer.provide(FileMutation.layer)), [Database.node, FSUtil.node, EventV2.node])
+
+// 收敛兜底（不是正确性依赖）：把磁盘上的 .md 重新导入索引，弥补历史遗留的半状态。
+// 必须 forkIn(scope) —— Layer.effectDiscard 的 effect 跑在 layer 构建期，直接 await
+// 会让服务端启动阻塞在一次文件系统扫描上。
+// **已知局限**：只扫 global 目录。project 作用域的镜像在 <directory>/.aigcfroge/
+// knowledge-base 下，启动时并不存在「当前项目」这一概念（目录由每个 Location 决定），
+// 所以 project 侧的收敛需要挂在 Location 建立时而非进程启动时，属独立改动。
+export const startupLayer = Layer.effectDiscard(
+  Effect.gen(function* () {
+    const kb = yield* Service
+    const fs = yield* FSUtil.Service
+    const scope = yield* Effect.scope
+    const globalDir = `${Global.Path.data}/knowledge-base`
+    yield* Effect.gen(function* () {
+      const exists = yield* fs.exists(globalDir).pipe(Effect.catch(() => Effect.succeed(false)))
+      if (!exists) return
+      yield* kb.syncFromDirectory(globalDir, "global")
+    }).pipe(
+      Effect.catchCause((cause) => Effect.logWarning("knowledge base startup sync failed", { cause })),
+      Effect.forkIn(scope),
+    )
+  }),
+)
+export const startupNode = LayerNode.make(startupLayer, [node, FSUtil.node])

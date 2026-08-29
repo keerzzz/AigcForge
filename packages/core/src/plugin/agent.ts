@@ -284,6 +284,9 @@ export const Plugin = define({
           ...PermissionV2.merge(defaults, [
             { action: "question", resource: "*", effect: "allow" },
             { action: "plan_enter", resource: "*", effect: "allow" },
+            { action: "kb_create", resource: "*", effect: "deny" },
+            { action: "kb_update", resource: "*", effect: "deny" },
+            { action: "kb_delete", resource: "*", effect: "deny" },
           ]),
         )
       })
@@ -325,6 +328,9 @@ export const Plugin = define({
             // a subagent must not schedule or spawn follow-up work recursively.
             { action: "task_schedule", resource: "*", effect: "deny" },
             { action: "task_spawn", resource: "*", effect: "deny" },
+            { action: "kb_create", resource: "*", effect: "deny" },
+            { action: "kb_update", resource: "*", effect: "deny" },
+            { action: "kb_delete", resource: "*", effect: "deny" },
           ]),
         )
       })

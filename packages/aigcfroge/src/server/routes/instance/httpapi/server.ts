@@ -345,6 +345,7 @@ const app = LayerNode.group([
   PersonalMemory.node,
   // Knowledge base (Phase D).
   KBService.node,
+  KBService.startupNode,
 ])
 
 export function createRoutes(
