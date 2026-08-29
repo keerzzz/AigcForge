@@ -255,6 +255,90 @@ describe("applyDirectoryEvent", () => {
     expect(store.session_status.ses_1).toBeUndefined()
   })
 
+  test("does not throw when archiving a session not in local list and does not decrement total", () => {
+    const [store, setStore] = createStore(
+      baseState({
+        session: [],
+        sessionTotal: 0,
+        message: {},
+        part: {},
+      }),
+    )
+
+    expect(() =>
+      applyDirectoryEvent({
+        event: { type: "session.updated", properties: { info: rootSession({ id: "ses_missing", archived: 10 }) } },
+        store,
+        setStore,
+        push() {},
+        directory: "/tmp",
+        loadLsp() {},
+      }),
+    ).not.toThrow()
+    expect(store.session).toHaveLength(0)
+    expect(store.sessionTotal).toBe(0)
+
+    // Also verify non-empty store with missing id does not drift total
+    const [store2, setStore2] = createStore(
+      baseState({
+        session: [rootSession({ id: "ses_a" })],
+        sessionTotal: 1,
+      }),
+    )
+    expect(() =>
+      applyDirectoryEvent({
+        event: { type: "session.updated", properties: { info: rootSession({ id: "ses_missing2", archived: 10 }) } },
+        store: store2,
+        setStore: setStore2,
+        push() {},
+        directory: "/tmp",
+        loadLsp() {},
+      }),
+    ).not.toThrow()
+    expect(store2.session.map((x) => x.id)).toEqual(["ses_a"])
+    expect(store2.sessionTotal).toBe(1)
+  })
+
+  test("does not decrement sessionTotal when deleting a session not in local list", () => {
+    const [store, setStore] = createStore(
+      baseState({
+        session: [rootSession({ id: "ses_1" }), rootSession({ id: "ses_3" })],
+        sessionTotal: 2,
+        message: {},
+        part: {},
+      }),
+    )
+
+    applyDirectoryEvent({
+      event: { type: "session.deleted", properties: { info: rootSession({ id: "ses_2" }) } },
+      store,
+      setStore,
+      push() {},
+      directory: "/tmp",
+      loadLsp() {},
+    })
+
+    expect(store.session.map((x) => x.id)).toEqual(["ses_1", "ses_3"])
+    expect(store.sessionTotal).toBe(2)
+
+    // empty store case
+    const [emptyStore, setEmptyStore] = createStore(
+      baseState({
+        session: [],
+        sessionTotal: 0,
+      }),
+    )
+    applyDirectoryEvent({
+      event: { type: "session.deleted", properties: { info: rootSession({ id: "ses_missing" }) } },
+      store: emptyStore,
+      setStore: setEmptyStore,
+      push() {},
+      directory: "/tmp",
+      loadLsp() {},
+    })
+    expect(emptyStore.sessionTotal).toBe(0)
+  })
+
   test("cleans session caches when deleted and decrements only root totals", () => {
     const cases = [
       { info: rootSession({ id: "ses_1" }), expectedTotal: 1 },

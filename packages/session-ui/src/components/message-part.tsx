@@ -1700,9 +1700,13 @@ ToolRegistry.register({
         trigger={{ title: i18n.t("ui.tool.list"), subtitle: getDirectory(props.input.path || "/") }}
       >
         <Show when={props.output}>
-          <div data-component="tool-output" data-scrollable>
-            <Markdown text={props.output!} />
-          </div>
+          {(output) => (
+            <div data-component="tool-output" data-scrollable>
+              <pre>
+                <code>{output()}</code>
+              </pre>
+            </div>
+          )}
         </Show>
       </BasicTool>
     )
@@ -1724,9 +1728,13 @@ ToolRegistry.register({
         }}
       >
         <Show when={props.output}>
-          <div data-component="tool-output" data-scrollable>
-            <Markdown text={props.output!} />
-          </div>
+          {(output) => (
+            <div data-component="tool-output" data-scrollable>
+              <pre>
+                <code>{output()}</code>
+              </pre>
+            </div>
+          )}
         </Show>
       </BasicTool>
     )
@@ -1751,9 +1759,13 @@ ToolRegistry.register({
         }}
       >
         <Show when={props.output}>
-          <div data-component="tool-output" data-scrollable>
-            <Markdown text={props.output!} />
-          </div>
+          {(output) => (
+            <div data-component="tool-output" data-scrollable>
+              <pre>
+                <code>{output()}</code>
+              </pre>
+            </div>
+          )}
         </Show>
       </BasicTool>
     )

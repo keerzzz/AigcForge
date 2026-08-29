@@ -28,14 +28,34 @@ export const NAMED_CREDENTIAL_RE =
  */
 export const ENCODED_BEARER_RE = /Bearer(?:%20|\+)+[a-zA-Z0-9_\-.~]{12,}/gi
 
-export const SECRET_PATTERNS = [
-  API_KEY_RE,
-  BEARER_TOKEN_RE,
-  PRIVATE_KEY_RE,
-  ENV_LINE_RE,
-  NAMED_CREDENTIAL_RE,
-  ENCODED_BEARER_RE,
+export const SECRET_TYPES = [
+  "api_key",
+  "bearer_token",
+  "private_key",
+  "env_line",
+  "named_credential",
+  "encoded_bearer",
 ] as const
+
+/**
+ * The one pattern registry. `containsSecret` (admission) and the core
+ * `CredentialScanner` (MCP stderr / remote-response redaction) both consume
+ * this list, so a new pattern only lands here — adding it to a local copy
+ * instead is how the scanner fell four shapes behind (e4a036866).
+ */
+export const SECRET_PATTERN_LIST: ReadonlyArray<{
+  readonly type: (typeof SECRET_TYPES)[number]
+  readonly regex: RegExp
+}> = [
+  { type: "api_key", regex: API_KEY_RE },
+  { type: "bearer_token", regex: BEARER_TOKEN_RE },
+  { type: "private_key", regex: PRIVATE_KEY_RE },
+  { type: "env_line", regex: ENV_LINE_RE },
+  { type: "named_credential", regex: NAMED_CREDENTIAL_RE },
+  { type: "encoded_bearer", regex: ENCODED_BEARER_RE },
+]
+
+export const SECRET_PATTERNS = SECRET_PATTERN_LIST.map((pattern) => pattern.regex)
 
 export const containsSecret = (text: string): boolean => {
   for (const re of SECRET_PATTERNS) {
@@ -49,7 +69,7 @@ export const containsSecret = (text: string): boolean => {
 export class ScanResult extends Schema.Class<ScanResult>("CredentialScan.ScanResult")({
   hits: Schema.Array(
     Schema.Struct({
-      type: Schema.Literals(["api_key", "bearer_token", "private_key", "env_line"]),
+      type: Schema.Literals(SECRET_TYPES),
       lineIndex: Schema.Number,
       positionHint: Schema.String,
     }),

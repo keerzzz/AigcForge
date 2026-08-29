@@ -1,7 +1,7 @@
 # AigcForge Design Protocol
 
 > **Role**: Senior UX design
-> **Scope**: Product UI in `packages/app/`, shared components in `packages/ui/`, desktop shell surfaces in `packages/desktop/`, terminal-facing UX in `packages/tui/`, session rendering in `packages/session-ui/`, and enterprise routes in `packages/enterprise/`. `packages/web/` is an Astro marketing site and is excluded. `packages/storybook/` is a component showcase and follows the same token and story conventions.
+> **Scope**: Product UI in `packages/app/`, shared components in `packages/ui/`, desktop shell surfaces in `packages/desktop/`, terminal-facing UX in `packages/tui/`, and session rendering in `packages/session-ui/`. `packages/storybook/` is a component showcase and follows the same token and story conventions. `packages/enterprise/` is **not** a workspace package (no `package.json`); the single tracked file under it is unreferenced legacy outside every `tsconfig`/`turbo` graph and is therefore out of scope until it is either revived as a package or deleted. There is no `packages/web/`.
 > **Nature**: UI design entry point. Theming engine detail lives in `.aigcfroge/skills/frontend-theming/SKILL.md`.
 
 ## Tech Stack

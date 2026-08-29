@@ -90,7 +90,19 @@ export const layer = Layer.effectDiscard(
                 agent: context.agent,
                 source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
               })
-              const target = path.resolve(location.directory, input.path ?? ".")
+              const rawPath = input.path ?? "."
+              const absolute = path.resolve(location.directory, rawPath)
+              if (!FSUtil.contains(location.directory, absolute)) {
+                return yield* new ToolFailure({ message: `Path escapes the allowed root: ${rawPath}` })
+              }
+              const real = yield* fs.realPath(absolute).pipe(Effect.catch(() => Effect.succeed(absolute)))
+              const rootReal = yield* fs
+                .realPath(location.directory)
+                .pipe(Effect.catch(() => Effect.succeed(location.directory)))
+              if (!FSUtil.contains(rootReal, real)) {
+                return yield* new ToolFailure({ message: `Path escapes the allowed root: ${rawPath}` })
+              }
+              const target = absolute
               const info = yield* fs.stat(target).pipe(Effect.catch(() => Effect.succeed(undefined)))
               return yield* ripgrep
                 .grep({
@@ -121,7 +133,13 @@ export const layer = Layer.effectDiscard(
                     ),
                   ),
                 )
-            }).pipe(Effect.mapError(() => new ToolFailure({ message: `Unable to grep for ${input.pattern}` }))),
+            }).pipe(
+              Effect.mapError((error) =>
+                error instanceof ToolFailure
+                  ? error
+                  : new ToolFailure({ message: `Unable to grep for ${input.pattern}` }),
+              ),
+            ),
         }),
       })
       .pipe(Effect.orDie)

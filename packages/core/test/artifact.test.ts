@@ -139,4 +139,29 @@ describe("WorkArtifact.apply", () => {
       }).pipe(provide(directory)),
     ),
   )
+
+  it.live("second concurrent apply without overwrite fails with conflict, not silent overwrite", () =>
+    withTmp((directory) =>
+      Effect.gen(function* () {
+        const service = yield* WorkArtifact.Service
+        const input = { sessionID, title: "x", relativePath: "concurrent.md", content: "first" }
+        const input2 = { sessionID, title: "x", relativePath: "concurrent.md", content: "second" }
+        const results = yield* Effect.all(
+          [service.apply(input).pipe(Effect.exit), service.apply(input2).pipe(Effect.exit)],
+          { concurrency: 2 },
+        )
+        const successes = results.filter((r) => r._tag === "Success")
+        const failures = results.filter((r) => r._tag === "Failure")
+        expect(successes).toHaveLength(1)
+        expect(failures).toHaveLength(1)
+        // The failure must be a Conflict, not a silent overwrite.
+        const failureCause = (failures[0] as { cause: unknown }).cause
+        // Check that the cause contains Conflict
+        const pretty = String(failureCause)
+        expect(pretty).toContain("WorkArtifact.Conflict")
+        const content = yield* Effect.promise(() => fs.readFile(path.join(directory, "concurrent.md"), "utf8"))
+        expect(["first", "second"]).toContain(content)
+      }).pipe(provide(directory)),
+    ),
+  )
 })

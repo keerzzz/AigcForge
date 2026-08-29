@@ -19,7 +19,8 @@ test("rejects when the external editor cannot start", async () => {
     currentRenderBuffer: { clear() {} },
   }
 
-  expect(openEditor({ value: "original", renderer: renderer as never })).rejects.toThrow()
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- test needs invalid renderer shape to exercise rejection path
+  await expect(openEditor({ value: "original", renderer: renderer as never })).rejects.toThrow()
 })
 
 test("normalizes a single trailing editor newline for one-line prompts", () => {

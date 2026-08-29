@@ -167,6 +167,32 @@ describe("AgentV2", () => {
     }),
   )
 
+  it.effect("default and general agents deny direct KB writes", () =>
+    Effect.gen(function* () {
+      const agent = yield* AgentV2.Service
+      yield* AgentPlugin.Plugin.effect(
+        host({
+          agent: agentHost(agent),
+        }),
+      ).pipe(
+        Effect.provideService(
+          Location.Service,
+          Location.Service.of(location({ directory: AbsolutePath.make("/project") })),
+        ),
+      )
+
+      for (const id of [AgentV2.defaultID, AgentV2.ID.make("general")] as const) {
+        const info = yield* agent.get(id)
+        expect(info).toBeDefined()
+        for (const action of ["kb_create", "kb_update", "kb_delete"] as const) {
+          expect(PermissionV2.evaluate(action, "*", info!.permissions).effect).toBe("deny")
+        }
+        // kb_search remains allowed via the propose flow; direct writes are denied
+        expect(PermissionV2.evaluate("kb_search", "*", info!.permissions).effect).toBe("allow")
+      }
+    }),
+  )
+
   it.effect("work-orchestrator is fail-closed and gates .env reads to ask", () =>
     Effect.gen(function* () {
       const agent = yield* AgentV2.Service

@@ -6,18 +6,21 @@ import {
   pollWslHealth,
   wslServerIdsToStartOnInitialize,
 } from "./startup"
-import { createWslServersController, type WslServerConfig } from "./servers"
+import { createWslServersController, type WslRuntimeCheck, type WslServerConfig } from "./servers"
 
 let persistedServers: WslServerConfig[] = []
-let releaseAigcfrogeResolve: (() => void) | undefined
+// 只在 mock 回调里赋值，CFA 看不到，直接用 let 会被收窄成 undefined 再 ?.() 得到 never。
+// 放进对象里让 TS 用声明类型，比在调用点写断言诚实。
+const pendingAigcfrogeCheck: { release?: () => void } = {}
 
 test("starts every configured WSL server on initialization", () => {
-  expect(
-    wslServerIdsToStartOnInitialize([
-      { id: "wsl:Debian", distro: "Debian" },
-      { id: "wsl:Ubuntu-24.04", distro: "Ubuntu-24.04" },
-    ]),
-  ).toEqual(["wsl:Debian", "wsl:Ubuntu-24.04"])
+  // 用真实的 WslServerConfig 而不是裁剪成 { id }：servers.ts:283 构造的就是 { id, distro }，
+  // 裁掉 distro 只是为了绕过对象字面量的多余属性检查，会让 fixture 与生产形状脱钩。
+  const configs: WslServerConfig[] = [
+    { id: "wsl:Debian", distro: "Debian" },
+    { id: "wsl:Ubuntu-24.04", distro: "Ubuntu-24.04" },
+  ]
+  expect(wslServerIdsToStartOnInitialize(configs)).toEqual(["wsl:Debian", "wsl:Ubuntu-24.04"])
 })
 
 test("rejects an update that did not install the desktop version", () => {
@@ -92,13 +95,16 @@ test("validates WSL IPC identifiers at the module boundary", () => {
 })
 
 test("derives a required Windows restart from the post-install runtime probe", () => {
-  expect(pendingRestartAfterWslInstall({ available: false, version: null, error: "WSL unavailable" })).toBe(true)
-  expect(pendingRestartAfterWslInstall({ available: true, version: "WSL version: 2.6.1", error: null })).toBe(false)
+  // probeWslRuntime 返回的是完整的 WslRuntimeCheck，fixture 保持同形。
+  const unavailable: WslRuntimeCheck = { available: false, version: null, error: "WSL unavailable" }
+  const available: WslRuntimeCheck = { available: true, version: "WSL version: 2.6.1", error: null }
+  expect(pendingRestartAfterWslInstall(unavailable)).toBe(true)
+  expect(pendingRestartAfterWslInstall(available)).toBe(false)
 })
 
 test("ignores stale background Aigcfroge checks after removing a WSL server", async () => {
   persistedServers = []
-  releaseAigcfrogeResolve = undefined
+  pendingAigcfrogeCheck.release = undefined
   const controller = createWslServersController(
     "1.16.2",
     async () => ({
@@ -114,9 +120,9 @@ test("ignores stale background Aigcfroge checks after removing a WSL server", as
   )
 
   await controller.addServer("Debian")
-  await waitFor(() => !!releaseAigcfrogeResolve)
+  const release = await waitFor(() => pendingAigcfrogeCheck.release)
   await controller.removeServer("wsl:Debian")
-  releaseAigcfrogeResolve?.()
+  release()
   await new Promise((resolve) => setTimeout(resolve, 0))
 
   expect(controller.getState().servers).toEqual([])
@@ -125,7 +131,7 @@ test("ignores stale background Aigcfroge checks after removing a WSL server", as
 
 test("ignores stale startup Aigcfroge checks after removing a WSL server", async () => {
   persistedServers = [{ id: "wsl:Debian", distro: "Debian" }]
-  releaseAigcfrogeResolve = undefined
+  pendingAigcfrogeCheck.release = undefined
   const controller = createWslServersController(
     "1.16.2",
     async () => new Promise<never>(() => undefined),
@@ -133,18 +139,21 @@ test("ignores stale startup Aigcfroge checks after removing a WSL server", async
   )
 
   await controller.initialize()
-  await waitFor(() => !!releaseAigcfrogeResolve)
+  const release = await waitFor(() => pendingAigcfrogeCheck.release)
   await controller.removeServer("wsl:Debian")
-  releaseAigcfrogeResolve?.()
+  release()
   await new Promise((resolve) => setTimeout(resolve, 0))
 
   expect(controller.getState().servers).toEqual([])
   expect(controller.getState().aigcfrogeChecks).toEqual({})
 })
 
-async function waitFor(check: () => boolean) {
+// 返回等到的值而不是布尔：调用点因此拿到一个确定存在的函数，不需要 `?.()`
+// （那个可选调用在时序变化后会静默什么都不做，等于把测试悄悄关掉）。
+async function waitFor<T>(read: () => T | undefined): Promise<T> {
   for (let attempt = 0; attempt < 20; attempt++) {
-    if (check()) return
+    const value = read()
+    if (value !== undefined) return value
     await new Promise((resolve) => setTimeout(resolve, 0))
   }
   throw new Error("Timed out waiting for condition")
@@ -159,7 +168,7 @@ function testControllerOptions() {
     readCommandVersion: async () => "1.16.2",
     resolveAigcfroge: async () => {
       await new Promise<void>((resolve) => {
-        releaseAigcfrogeResolve = resolve
+        pendingAigcfrogeCheck.release = resolve
       })
       return "/home/me/.aigcfroge/bin/aigcfroge"
     },

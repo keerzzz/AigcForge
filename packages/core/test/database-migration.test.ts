@@ -299,8 +299,8 @@ describe("DatabaseMigration", () => {
     )
   })
 
-  test("rejects a non-empty database without a session table", () => {
-    expect(
+  test("rejects a non-empty database without a session table", async () => {
+    await expect(
       run(
         Effect.gen(function* () {
           const db = yield* makeDb

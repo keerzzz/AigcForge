@@ -171,6 +171,11 @@ function setOptimisticRemove(setStore: (...args: unknown[]) => void, input: Opti
   })
 }
 
+export function pickTarget(ownDirectory: string, requestedDirectory?: string): string {
+  if (!requestedDirectory || requestedDirectory === ownDirectory) return ownDirectory
+  return requestedDirectory
+}
+
 export const createDirSyncContext = (
   directory: string,
   serverSync: ReturnType<typeof createServerSyncContextInner>,
@@ -182,9 +187,10 @@ export const createDirSyncContext = (
   type Setter = Child[1]
 
   const current = createMemo(() => serverSync.child(directory, { mcp: true }))
-  const target = (directory?: string) => {
-    if (!directory || directory === directory) return current()
-    return serverSync.child(directory)
+  const target = (requestedDirectory?: string) => {
+    const effective = pickTarget(directory, requestedDirectory)
+    if (effective === directory) return current()
+    return serverSync.child(effective)
   }
   const absolute = (path: string) => (current()[0].path.directory + "/" + path).replace("//", "/")
   const initialMessagePageSize = 2

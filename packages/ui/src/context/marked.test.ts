@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { mermaidPlaceholder } from "./marked"
+import { createMarkedParser, mermaidPlaceholder } from "./marked"
 
 describe("mermaidPlaceholder", () => {
   test("wraps percent-encoded source into a data-mermaid div", () => {
@@ -17,5 +17,21 @@ describe("mermaidPlaceholder", () => {
     expect(value).not.toContain(">")
     expect(value).not.toContain('"')
     expect(decodeURIComponent(value)).toBe(src)
+  })
+})
+
+describe("createMarkedParser link escaping", () => {
+  const parser = createMarkedParser()
+
+  test("escapes a double quote in the link title instead of closing the attribute", async () => {
+    const html = await parser.parse("[x](https://ok.example 'a\" style=\"position:fixed;inset:0')")
+    expect(html).not.toContain('style="')
+    expect(html).toContain("&quot;")
+  })
+
+  test("percent-encodes a double quote inside the link href", async () => {
+    const html = await parser.parse('[x](https://a"style="b)')
+    expect(html).not.toContain('style="')
+    expect(html).toContain("%22")
   })
 })

@@ -4,6 +4,7 @@ import { ToolFailure } from "@aigcfroge/llm"
 import { Effect, Layer, Schema } from "effect"
 import path from "path"
 import { FileSystem } from "../filesystem"
+import { FSUtil } from "../fs-util"
 import { Location } from "../location"
 import { Ripgrep } from "../ripgrep"
 import { RelativePath } from "../schema"
@@ -39,6 +40,7 @@ export const layer = Layer.effectDiscard(
     const ripgrep = yield* Ripgrep.Service
     const location = yield* Location.Service
     const permission = yield* PermissionV2.Service
+    const fs = yield* FSUtil.Service
 
     yield* tools
       .register({
@@ -70,7 +72,19 @@ export const layer = Layer.effectDiscard(
                 agent: context.agent,
                 source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
               })
-              const cwd = path.resolve(location.directory, input.path ?? ".")
+              const rawPath = input.path ?? "."
+              const absolute = path.resolve(location.directory, rawPath)
+              if (!FSUtil.contains(location.directory, absolute)) {
+                return yield* new ToolFailure({ message: `Path escapes the allowed root: ${rawPath}` })
+              }
+              const real = yield* fs.realPath(absolute).pipe(Effect.catch(() => Effect.succeed(absolute)))
+              const rootReal = yield* fs
+                .realPath(location.directory)
+                .pipe(Effect.catch(() => Effect.succeed(location.directory)))
+              if (!FSUtil.contains(rootReal, real)) {
+                return yield* new ToolFailure({ message: `Path escapes the allowed root: ${rawPath}` })
+              }
+              const cwd = absolute
               return yield* ripgrep
                 .glob({
                   cwd,
@@ -88,7 +102,11 @@ export const layer = Layer.effectDiscard(
                   ),
                 )
             }).pipe(
-              Effect.mapError(() => new ToolFailure({ message: `Unable to find files matching ${input.pattern}` })),
+              Effect.mapError((error) =>
+                error instanceof ToolFailure
+                  ? error
+                  : new ToolFailure({ message: `Unable to find files matching ${input.pattern}` }),
+              ),
             ),
         }),
       })

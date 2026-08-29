@@ -226,10 +226,17 @@ const createPlatform = (): Platform => {
       }
     },
 
-    fetch: (input, init) => {
-      if (input instanceof Request) return fetch(input)
-      return fetch(input, init)
-    },
+    // Bun 的 fetch 类型带 preconnect（desktop tsconfig 的 types 含 "bun"，测试文件需要），
+    // 而 Platform.fetch 声明成 typeof fetch，所以包装器必须把 preconnect 一并带上。
+    // Chromium 运行时没有 fetch.preconnect——复制过来的是 undefined，这里只做
+    // 类型形状对齐；全仓无 .preconnect( 调用方。
+    fetch: Object.assign(
+      (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+        if (input instanceof Request) return fetch(input)
+        return fetch(input, init)
+      },
+      { preconnect: fetch.preconnect },
+    ),
 
     getDefaultServer: async () => {
       const url = await window.api.getDefaultServerUrl().catch(() => null)

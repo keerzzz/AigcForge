@@ -1,15 +1,10 @@
-import { marked, type Tokens } from "marked"
+import { marked } from "marked"
 
-const renderer = new marked.Renderer()
-
-renderer.link = ({ href, title, text }: Tokens.Link) => {
-  const titleAttr = title ? ` title="${title}"` : ""
-  return `<a href="${href}"${titleAttr} class="external-link" target="_blank" rel="noopener noreferrer">${text}</a>`
-}
-
+// 与 packages/ui/src/context/marked.tsx 同一原则：不覆写 link renderer ——
+// 自行插值 href/title 会丢掉 marked 的上游转义。外链的 target/rel/class
+// 由 session-ui 的 sanitize hook（markdown-cache.tsx）在消毒阶段统一补齐。
 export function parseMarkdown(input: string) {
   return marked(input, {
-    renderer,
     breaks: false,
     gfm: true,
   })

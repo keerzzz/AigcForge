@@ -192,7 +192,8 @@ export function applyDirectoryEvent(input: {
       const info = (event.properties as { info: Session }).info
       const result = Binary.search(input.store.session, info.id, (s) => s.id)
       if (info.time.archived) {
-        if (input.store.session[result.index].time.archived === info.time.archived) break
+        const existing = result.found ? input.store.session[result.index] : undefined
+        if (existing?.time.archived === info.time.archived) break
         if (result.found) {
           input.setStore(
             "session",
@@ -209,7 +210,7 @@ export function applyDirectoryEvent(input: {
           input.setSessionTaskProgress,
         )
         if (info.parentID) break
-        input.setStore("sessionTotal", (value) => Math.max(0, value - 1))
+        if (result.found) input.setStore("sessionTotal", (value) => Math.max(0, value - 1))
         break
       }
       if (result.found) {
@@ -253,7 +254,7 @@ export function applyDirectoryEvent(input: {
         input.setSessionTaskProgress,
       )
       if (info.parentID) break
-      input.setStore("sessionTotal", (value) => Math.max(0, value - 1))
+      if (result.found) input.setStore("sessionTotal", (value) => Math.max(0, value - 1))
       break
     }
     case "session.diff": {

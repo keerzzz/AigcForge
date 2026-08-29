@@ -3,14 +3,17 @@ import { Effect, Layer } from "effect"
 import fs from "fs/promises"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
+import { FileMutation } from "@aigcfroge/core/file-mutation"
 import { FSUtil } from "@aigcfroge/core/fs-util"
+import { Global } from "@aigcfroge/core/global"
 import { KBService } from "@aigcfroge/core/session/kb-service"
 import { KBNote } from "@aigcfroge/schema/kb-note"
-import { testEffect } from "./lib/effect"
+import { pollWithTimeout, testEffect } from "./lib/effect"
 
 
 const it = testEffect(
   KBService.layer.pipe(
+    Layer.provideMerge(FileMutation.layer),
     Layer.provideMerge(Database.defaultLayer),
     Layer.provideMerge(FSUtil.defaultLayer),
     Layer.provideMerge(EventV2.defaultLayer),
@@ -310,6 +313,94 @@ describe("KBService review hardening", () => {
       const globalLink = (yield* kb.linksFrom(globalSource.id))[0]
       expect(globalLink?.dangling).toBe(false)
       expect(globalLink?.targetNoteID).toBe(globalShared.id)
+    }),
+  )
+})
+
+describe("KBService atomicity", () => {
+  it.effect("duplicate create leaves the existing .md unchanged", () =>
+    Effect.gen(function* () {
+      const kb = yield* KBService.Service
+      const fs = yield* FSUtil.Service
+      const dir = base()
+      const first = yield* kb.create({ title: "Note", content: "first", scope: "project", baseDir: dir })
+      expect(yield* fs.readFileStringSafe(`${dir}/.aigcfroge/knowledge-base/Note.md`)).toBe("first")
+      const exit = yield* kb.create({ title: "Note", content: "second", scope: "project", baseDir: dir }).pipe(Effect.exit)
+      expect(exit._tag).toBe("Failure")
+      // The existing note's file must not have been clobbered by the failed create.
+      expect(yield* fs.readFileStringSafe(`${dir}/.aigcfroge/knowledge-base/Note.md`)).toBe("first")
+      const notes = yield* kb.list({ scope: "project" })
+      expect(notes.filter((n) => n.title === "Note")).toHaveLength(1)
+      expect(notes.find((n) => n.id === first.id)?.content).toBe("first")
+    }),
+  )
+
+  it.effect("rename to an existing title fails and leaves both mirrors intact", () =>
+    Effect.gen(function* () {
+      const kb = yield* KBService.Service
+      const fs = yield* FSUtil.Service
+      const dir = base()
+      const a = yield* kb.create({ title: "A", content: "content A", scope: "project", baseDir: dir })
+      const b = yield* kb.create({ title: "B", content: "content B", scope: "project", baseDir: dir })
+      const exit = yield* kb.update({ id: a.id, title: "B", baseDir: dir }).pipe(Effect.exit)
+      expect(exit._tag).toBe("Failure")
+      // Old mirror still there, victim's mirror not clobbered.
+      expect(yield* fs.readFileStringSafe(`${dir}/.aigcfroge/knowledge-base/A.md`)).toBe("content A")
+      expect(yield* fs.readFileStringSafe(`${dir}/.aigcfroge/knowledge-base/B.md`)).toBe("content B")
+      const notes = yield* kb.list({ scope: "project" })
+      expect(notes.find((n) => n.id === a.id)?.title).toBe("A")
+      expect(notes.find((n) => n.id === b.id)?.title).toBe("B")
+    }),
+  )
+
+  it.effect("rename onto an occupied target path leaves the old mirror intact", () =>
+    Effect.gen(function* () {
+      const kb = yield* KBService.Service
+      const fs = yield* FSUtil.Service
+      const dir = base()
+      const note = yield* kb.create({ title: "Old", content: "old content", scope: "project", baseDir: dir })
+      // Occupy the target path as a directory: the rename's exists-guard must
+      // die before any write is attempted.
+      yield* fs.ensureDir(`${dir}/.aigcfroge/knowledge-base/New.md`).pipe(Effect.orDie)
+      const exit = yield* kb.update({ id: note.id, title: "New", content: "new content", baseDir: dir }).pipe(Effect.exit)
+      expect(exit._tag).toBe("Failure")
+      // Old mirror must still exist; the new target must not have become a file.
+      expect(yield* fs.existsSafe(`${dir}/.aigcfroge/knowledge-base/Old.md`)).toBe(true)
+      expect(yield* fs.readFileStringSafe(`${dir}/.aigcfroge/knowledge-base/Old.md`)).toBe("old content")
+      // Cleanup the directory we created for the failure injection.
+      yield* Effect.tryPromise(() =>
+        import("fs/promises").then((m) => m.rm(`${dir}/.aigcfroge/knowledge-base/New.md`, { recursive: true, force: true })),
+      ).pipe(Effect.catch(() => Effect.void))
+    }),
+  )
+
+  it.live("startup sweep imports global mirrors from the config knowledge-base directory", () =>
+    Effect.gen(function* () {
+      const kb = yield* KBService.Service
+      const fs = yield* FSUtil.Service
+      const dir = base()
+      yield* fs.writeWithDirs(`${dir}/knowledge-base/Boot.md`, "boot content").pipe(Effect.orDie)
+      // startupLayer reads Global.Path.config once at layer-build time (the
+      // forked sweep captures globalDir then), so swapping it just around the
+      // build is race-free. Same mutable-Path pattern as
+      // aigcfroge/test/config/config.test.ts.
+      const previous = Global.Path.config
+      ;(Global.Path as { config: string }).config = dir
+      yield* Layer.build(KBService.startupLayer).pipe(
+        Effect.ensuring(
+          Effect.sync(() => {
+            ;(Global.Path as { config: string }).config = previous
+          }),
+        ),
+      )
+      const found = yield* pollWithTimeout(
+        kb.list({ scope: "global" }).pipe(
+          Effect.map((notes) => notes.find((note) => note.title === "Boot")),
+          Effect.orDie,
+        ),
+        "startup sweep did not import the global mirror from the config directory",
+      )
+      expect(found.content).toBe("boot content")
     }),
   )
 })
