@@ -46,6 +46,8 @@ const x = 1
 `
 
 describe("markdown -> mermaid integration", () => {
+  // Mermaid's lazy chunk load starves past bun's 5s default under turbo
+  // parallel load (observed 5.6s); the assertions themselves are not slow.
   test("mermaid block becomes svg while ts block stays shiki-highlighted", async () => {
     const parser = createMarkedParser()
     const html = await Promise.resolve(parser.parse(markdown))
@@ -60,5 +62,5 @@ describe("markdown -> mermaid integration", () => {
     expect(final).toContain('<pre class="shiki')
     expect(final).toContain("<text")
     expect(final).not.toContain("foreignObject")
-  })
+  }, 15_000)
 })
