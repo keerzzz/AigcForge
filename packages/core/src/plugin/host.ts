@@ -226,17 +226,9 @@ export const make = Effect.fn("PluginHost.make")(function* (plugin: PluginV2.Int
             middleware: {
               register: (_name, hooks) => {
                 if (hooks.preToolUse)
-                  cleanups.push(
-                    registerPreToolUse((input) =>
-                      Effect.promise(() => hooks.preToolUse!(input)),
-                    ),
-                  )
+                  cleanups.push(registerPreToolUse((input) => Effect.promise(() => hooks.preToolUse!(input))))
                 if (hooks.postToolUse)
-                  cleanups.push(
-                    registerPostToolUse((input) =>
-                      Effect.promise(() => hooks.postToolUse!(input)),
-                    ),
-                  )
+                  cleanups.push(registerPostToolUse((input) => Effect.promise(() => hooks.postToolUse!(input))))
               },
             },
           })

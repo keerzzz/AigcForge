@@ -8,7 +8,20 @@ import {
   isContextOverflowFailure,
   type ProviderErrorEvent,
 } from "@aigcfroge/llm"
-import { Cause, DateTime, Duration, Effect, Exit, FiberSet, Layer, Option, Ref, Schema, Semaphore, Stream } from "effect"
+import {
+  Cause,
+  DateTime,
+  Duration,
+  Effect,
+  Exit,
+  FiberSet,
+  Layer,
+  Option,
+  Ref,
+  Schema,
+  Semaphore,
+  Stream,
+} from "effect"
 import { ChildProcess } from "effect/unstable/process"
 import { AgentV2 } from "../../agent"
 import { ProductModeAgentPolicy } from "../../product-mode-agent-policy"
@@ -345,7 +358,11 @@ export const layer = Layer.effect(
 
     // Tracks the file paths a session touched this drain (for reverse-refs
     // injection). Only mutating tools with a `path` arg are recorded.
-    const trackChangedFile = Effect.fnUntraced(function* (sessionID: SessionSchema.ID, toolName: string, toolInput: unknown) {
+    const trackChangedFile = Effect.fnUntraced(function* (
+      sessionID: SessionSchema.ID,
+      toolName: string,
+      toolInput: unknown,
+    ) {
       if (toolName !== "edit" && toolName !== "write") return
       if (!isRecord(toolInput) || typeof toolInput.path !== "string") return
       const path = toolInput.path
@@ -991,9 +1008,10 @@ export const layer = Layer.effect(
       const hasSkillSteer = hasPromptSteer
         ? false
         : yield* SessionInput.hasPending(db, input.sessionID, "steer", "skill")
-      const hasSyntheticSteer = hasPromptSteer || hasSkillSteer
-        ? false
-        : yield* SessionInput.hasPending(db, input.sessionID, "steer", "synthetic")
+      const hasSyntheticSteer =
+        hasPromptSteer || hasSkillSteer
+          ? false
+          : yield* SessionInput.hasPending(db, input.sessionID, "steer", "synthetic")
       const hasSteer = hasPromptSteer || hasSkillSteer || hasSyntheticSteer
       const hasQueue = hasSteer ? false : yield* SessionInput.hasPending(db, input.sessionID, "queue")
       const hasShell = hasQueue ? false : (yield* SessionInput.nextPendingShell(db, input.sessionID)) !== undefined

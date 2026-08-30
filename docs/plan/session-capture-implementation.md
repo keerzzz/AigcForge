@@ -15,10 +15,10 @@
 
 PRD 定义的三条供给路径中，路径 B（会话捕获）是唯一零代码的缺口：
 
-| 供给路径 | 状态 |
-|---------|------|
-| A：引导创建 | ✅ M1-M7 完成 |
-| B：会话捕获 | ❌ 零代码 |
+| 供给路径    | 状态                                                           |
+| ----------- | -------------------------------------------------------------- |
+| A：引导创建 | ✅ M1-M7 完成                                                  |
+| B：会话捕获 | ❌ 零代码                                                      |
 | C：外部导入 | ⚠️ ImportDialog 有（M7），Core import-parser 无（P0 另一计划） |
 
 任意模式的对话产出（一段好的代码 diff、一条精准的分析、一份 review comment）今天全死在 transcript 里。
@@ -33,12 +33,12 @@ PRD 定义的三条供给路径中，路径 B（会话捕获）是唯一零代�
 
 ### 0.3 按钮显示规则
 
-| 维度 | 规则 | 实现 |
-|------|------|------|
-| **模式** | 所有模式**除了 chat** | `mode !== "chat"` check |
-| **消息类型** | 只在 assistant 消息的**最终轮次**上 | 与 handoff button 同级渲染 |
-| **Agent 范围** | **所有 agent**的输出 | 不限 meta/subagent |
-| **消息状态** | 只在非 working 状态显示 | `!workingTurn(msgID)` |
+| 维度           | 规则                                | 实现                       |
+| -------------- | ----------------------------------- | -------------------------- |
+| **模式**       | 所有模式**除了 chat**               | `mode !== "chat"` check    |
+| **消息类型**   | 只在 assistant 消息的**最终轮次**上 | 与 handoff button 同级渲染 |
+| **Agent 范围** | **所有 agent**的输出                | 不限 meta/subagent         |
+| **消息状态**   | 只在非 working 状态显示             | `!workingTurn(msgID)`      |
 
 ### 0.4 非目标
 
@@ -63,7 +63,7 @@ PRD 定义的三条供给路径中，路径 B（会话捕获）是唯一零代�
   │           │ 提取 text part 内容
   │           │ 过滤 tool call / interactive UI 部分
   │           │
-  │           └─► wrapCaptureContent(content) 
+  │           └─► wrapCaptureContent(content)
   │                 │ <captured_content>…</captured_content>
   │                 │ 标注来源: sessionID + messageID（只记元数据，不记正文）
   │                 │
@@ -79,6 +79,7 @@ PRD 定义的三条供给路径中，路径 B（会话捕获）是唯一零代�
 ```
 
 **关键设计决策**：
+
 - Capture 后走聊天完善流线而非直接 apply，与 M7 Create/Import 一致
 - 凭证扫描在**服务端**做（Core service），不在前端做。前端只负责提取和包裹
 - seed prompt 引用 sessionID/messageID 作为溯源标记，不嵌入消息正文（Clean Logs 原则）
@@ -89,44 +90,44 @@ PRD 定义的三条供给路径中，路径 B（会话捕获）是唯一零代�
 
 ### L1 UI 组件层
 
-| 文件 | 行 | 关键内容 |
-|------|-----|---------|
-| `packages/session-ui/src/components/message-part.tsx` | 171-175 | `UserActions` 类型：`fork`/`revert`/`handoff` |
-| `packages/session-ui/src/components/message-part.tsx` | 162 | `actions?: UserActions` prop |
-| `packages/app/src/pages/session/timeline/message-timeline.tsx` | 241 | `actions?: UserActions` prop |
-| `packages/app/src/pages/session/timeline/message-timeline.tsx` | 1141 | actions 传递给 Message |
-| `packages/app/src/pages/session/timeline/message-timeline.tsx` | 1176-1192 | HandoffButton 渲染位置（同层级添加 CaptureButton） |
-| `packages/app/src/pages/session.tsx` | 1561 | `const actions = { revert, handoff }` — 需加 `capture` |
-| `packages/app/src/pages/session.tsx` | 54 | MessageTimeline import |
+| 文件                                                           | 行        | 关键内容                                               |
+| -------------------------------------------------------------- | --------- | ------------------------------------------------------ |
+| `packages/session-ui/src/components/message-part.tsx`          | 171-175   | `UserActions` 类型：`fork`/`revert`/`handoff`          |
+| `packages/session-ui/src/components/message-part.tsx`          | 162       | `actions?: UserActions` prop                           |
+| `packages/app/src/pages/session/timeline/message-timeline.tsx` | 241       | `actions?: UserActions` prop                           |
+| `packages/app/src/pages/session/timeline/message-timeline.tsx` | 1141      | actions 传递给 Message                                 |
+| `packages/app/src/pages/session/timeline/message-timeline.tsx` | 1176-1192 | HandoffButton 渲染位置（同层级添加 CaptureButton）     |
+| `packages/app/src/pages/session.tsx`                           | 1561      | `const actions = { revert, handoff }` — 需加 `capture` |
+| `packages/app/src/pages/session.tsx`                           | 54        | MessageTimeline import                                 |
 
 ### L2 页面与上下文层
 
-| 文件 | 行 | 关键内容 |
-|------|-----|---------|
-| `packages/app/src/pages/session.tsx` | 全文件 | Session 页，有 `mode`、`server`、`directory` 上下文 |
-| `packages/app/src/context/mode.tsx` | 61-66 | `modeDraft("chat")` = `{ mode: "chat", agent: "chat-orchestrator" }` |
-| `packages/app/src/context/tabs.tsx` | 141-149 | `newDraft(placement, seedPrompt?)` — seed prompt 已支持 |
-| `packages/app/src/pages/layout/helpers.ts` | 159-176 | `openProjectNewSession` — 复用 |
-| `packages/app/src/pages/home.tsx` | 488-500 | `onNewAsset()` — "新建"流线样板，capture 流线参照此模式 |
+| 文件                                       | 行      | 关键内容                                                             |
+| ------------------------------------------ | ------- | -------------------------------------------------------------------- |
+| `packages/app/src/pages/session.tsx`       | 全文件  | Session 页，有 `mode`、`server`、`directory` 上下文                  |
+| `packages/app/src/context/mode.tsx`        | 61-66   | `modeDraft("chat")` = `{ mode: "chat", agent: "chat-orchestrator" }` |
+| `packages/app/src/context/tabs.tsx`        | 141-149 | `newDraft(placement, seedPrompt?)` — seed prompt 已支持              |
+| `packages/app/src/pages/layout/helpers.ts` | 159-176 | `openProjectNewSession` — 复用                                       |
+| `packages/app/src/pages/home.tsx`          | 488-500 | `onNewAsset()` — "新建"流线样板，capture 流线参照此模式              |
 
 ### L3 Session 路由层
 
-| 文件 | 行 | 关键内容 |
-|------|-----|---------|
+| 文件                                 | 行            | 关键内容                                     |
+| ------------------------------------ | ------------- | -------------------------------------------- |
 | `packages/app/src/pages/session.tsx` | `params.mode` | 当前 session mode 可从 session metadata 获取 |
-| `packages/app/src/pages/session.tsx` | `params.id` | 当前 sessionID |
+| `packages/app/src/pages/session.tsx` | `params.id`   | 当前 sessionID                               |
 
 ### L4 Core 领域层（新增）
 
-| 文件 | 说明 |
-|------|------|
+| 文件                                            | 说明                               |
+| ----------------------------------------------- | ---------------------------------- |
 | `packages/core/src/credential-scanner.ts`（新） | Credential 模式扫描 Effect service |
-| `packages/schema/src/credential-scan.ts`（新） | Credential 检测结果 Schema 定义 |
+| `packages/schema/src/credential-scan.ts`（新）  | Credential 检测结果 Schema 定义    |
 
 ### L5 SDK/API层
 
-| 文件 | 说明 |
-|------|------|
+| 文件            | 说明                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------ |
 | 不新增 API 端点 | capture 行为纯 UI + seed prompt 驱动，靠 chat-orchestrator 的现有 propose 工具链完成 |
 
 ---
@@ -152,11 +153,13 @@ Step F 再次认知：重新阅读 CLAUDE.md + PRD §7.2 + ADR-13
 ### Step 1: Schema + Core Credential Scanner
 
 **改动文件**：
+
 - `packages/schema/src/credential-scan.ts`（新增）
 - `packages/core/src/credential-scanner.ts`（新增）
 - `packages/core/test/credential-scanner.test.ts`（新增）
 
 **红（测试）**：
+
 ```ts
 // packages/core/test/credential-scanner.test.ts
 it("detects API key patterns", () => {
@@ -185,13 +188,16 @@ it("returns structured scan result with hit type and position", () => {
 **绿**：
 
 1. `packages/schema/src/credential-scan.ts`：
+
 ```ts
 export class ScanResult extends Schema.Class<ScanResult>("CredentialScan.ScanResult")({
-  hits: Schema.Array(Schema.Struct({
-    type: Schema.Literal("api_key", "bearer_token", "private_key", "env_line"),
-    lineIndex: Schema.Number,
-    positionHint: Schema.String, // e.g. "Line 3" — no actual value
-  })),
+  hits: Schema.Array(
+    Schema.Struct({
+      type: Schema.Literal("api_key", "bearer_token", "private_key", "env_line"),
+      lineIndex: Schema.Number,
+      positionHint: Schema.String, // e.g. "Line 3" — no actual value
+    }),
+  ),
   stripped: Schema.String, // content with credentials replaced by [REDACTED]
 }) {}
 ```
@@ -204,6 +210,7 @@ export class ScanResult extends Schema.Class<ScanResult>("CredentialScan.ScanRes
    - **当前生命周期**：此服务作为共享基础设施预建；Session Capture 的 Step 4 capture 流不直接调用它。未来由 Core import-parser（P0 另一计划）和 Server-side prompt 构造层（Step 5 可选集成点）消费。两个计划共享同一个 `CredentialScanner` 服务。
 
 **验证**：
+
 ```bash
 bun --cwd packages/schema typecheck
 bun --cwd packages/core typecheck
@@ -218,11 +225,13 @@ bun run lint
 ### Step 2: Message 内容提取 + Capture 语义类型
 
 **改动文件**：
+
 - `packages/schema/src/session-capture.ts`（新增）
 - `packages/app/src/components/chat/capture-helpers.ts`（新增）
 - `packages/app/src/components/chat/capture-helpers.test.ts`（新增）
 
 **红（测试）**：
+
 ```ts
 // packages/app/src/components/chat/capture-helpers.test.ts
 it("extracts text from message parts", () => {
@@ -247,6 +256,7 @@ it("generates seed prompt with capture instruction", () => {
 **绿**：
 
 1. `packages/app/src/components/chat/capture-helpers.ts`：
+
 ```ts
 export function extractMessageContent(parts: Part[]): string {
   // 过滤出 TextPart，保留 tool call 的 description，过滤 pure UI
@@ -267,6 +277,7 @@ ${t("capture.instruction")}`
 ```
 
 **验证**：
+
 ```bash
 bun --cwd packages/app typecheck
 bun --cwd packages/app test --timeout 30000
@@ -280,12 +291,14 @@ bun run lint
 ### Step 3: 扩展 UserActions + CaptureButton UI
 
 **改动文件**：
+
 - `packages/session-ui/src/components/message-part.tsx`（UserActions 加 capture）
 - `packages/app/src/pages/session/timeline/message-timeline.tsx`（渲染 CaptureButton）
 - `packages/app/src/components/chat/capture-button.tsx`（新增）
 - `packages/app/src/i18n/en.ts` + `packages/app/src/i18n/zh.ts`（i18n key）
 
 **红（测试）**：
+
 ```ts
 it("CaptureButton renders on assistant message in coding mode", () => {
   // mode=coding, msg complete → button visible
@@ -304,17 +317,19 @@ it("CaptureButton triggers onCapture callback", () => {
 **绿**：
 
 1. `UserActions` 扩展：
+
 ```ts
 // message-part.tsx:171
 export type UserActions = {
   fork?: SessionAction
   revert?: SessionAction
   handoff?: (agent: string, prompt: string) => void
-  capture?: () => void  // NEW
+  capture?: () => void // NEW
 }
 ```
 
 2. `CaptureButton` 组件：
+
 ```tsx
 function CaptureButton(props: { onClick: () => void; language: ReturnType<typeof useLanguage> }) {
   return (
@@ -328,6 +343,7 @@ function CaptureButton(props: { onClick: () => void; language: ReturnType<typeof
 ```
 
 3. `message-timeline.tsx` 渲染 CaptureButton（与 HandoffButton 同级，line 1176 附近）：
+
 ```tsx
 <Show when={props.actions?.capture && !workingTurn(assistantPartRow().userMessageID)}>
   <CaptureButton onClick={props.actions!.capture!} language={language} />
@@ -343,6 +359,7 @@ function CaptureButton(props: { onClick: () => void; language: ReturnType<typeof
 ### Step 4: 串联 session.tsx — capture action → chat draft
 
 **改动文件**：
+
 - `packages/app/src/pages/session.tsx`（添加 imports + capture action 实现）
 
 **新增 imports**（session.tsx 当前缺失）：
@@ -356,6 +373,7 @@ import { extractMessageContent, captureSeedPrompt } from "@/components/chat/capt
 ```
 
 **红（测试）**：
+
 ```ts
 it("capture action creates chat draft with seed prompt", () => {
   // click capture → newDraft({ mode: "chat" }, seedPrompt) called
@@ -415,12 +433,14 @@ const actions = { revert, handoff, capture: sessionMode() !== "chat" ? capture :
 ```
 
 **关键点**：
+
 - `info()` = `sync().session.get(params.id)` (session.tsx:244)，包含 `.mode` 和 `.directory` 字段
 - `sessionMode()` 是 session 的 product mode（`"chat"|"coding"|"work"|"assistant"`），**不是** session.tsx:381 的 `vcsMode()`（那个是 VCS mode）
 - `server.current` 来自 `useServer()`（需新增 import）
 - `openProjectNewSession` + `modeDraft("chat")` 与 home.tsx onNewAsset 完全一致
 
 **验证**：
+
 ```bash
 bun --cwd packages/app test --timeout 30000
 bun --cwd packages/app typecheck
@@ -434,11 +454,13 @@ bun run lint
 ### Step 5: i18n + Credential Scanner 集成到 Server Prompt
 
 **改动文件**：
+
 - `packages/app/src/i18n/en.ts` + `zh.ts`（capture 相关 key）
 - `packages/core/src/agent/prompt/chat-orchestrator.ts`（system prompt 更新，添加捕获内容处理说明）
 - `packages/aigcfroge/src/session/prompt.ts`（可选：在 prompt 构造时跑 credential scanner）
 
 **红（测试）**：
+
 ```ts
 it("i18n keys exist for en and zh", () => {
   // chatCapture.* keys present in both en.ts and zh.ts
@@ -451,6 +473,7 @@ it("chat-orchestrator prompt mentions captured content handling", () => {
 **绿**：
 
 1. i18n keys（en.ts + zh.ts）：
+
 ```ts
 chatCapture: {
   captureAsAsset: "存为资产",
@@ -460,6 +483,7 @@ chatCapture: {
 ```
 
 2. chat-orchestrator system prompt 更新：
+
 ```
 When you see <captured_content source_session="..." source_message="...">:
 - This content was captured by the user from another conversation
@@ -469,6 +493,7 @@ When you see <captured_content source_session="..." source_message="...">:
 ```
 
 **验证**：
+
 ```bash
 bun --cwd packages/app test --timeout 30000
 bun --cwd packages/app typecheck
@@ -485,6 +510,7 @@ bun run lint
 **改动文件**：无（确认状态）
 
 **验收清单**：
+
 ```bash
 # 1. 类型检查
 bun --cwd packages/schema typecheck
@@ -507,12 +533,14 @@ bun run lint
 ```
 
 **DESIGN.md 合规**：
+
 - 按钮使用 v2 token
 - 聚焦时 keyboard focus 正确
 - 明暗主题自适应
 - i18n zh/en 双 key 覆盖
 
 **复查结论**：
+
 ```text
 复查结论:
 - Step: 6 全量验收
@@ -548,12 +576,12 @@ Step 6 (全量验收)
 
 ## 6. 风险与回滚
 
-| 风险 | 缓解 |
-|------|------|
+| 风险                                         | 缓解                                |
+| -------------------------------------------- | ----------------------------------- |
 | Capture 按钮 UI 与现有 handoff/fork 冲突布局 | 与 handoff 同级渲染，用相同按钮样式 |
-| 消息 parts 提取逻辑遗漏部分 part 类型 | 测试覆盖所有已知 part 类型 |
-| 凭证扫描正则误报 | 只做高置信度模式，降低误报率 |
-| chat Draft 创建后用户预期在当前 session | 显式 toast 提示"已创建新聊天会话" |
+| 消息 parts 提取逻辑遗漏部分 part 类型        | 测试覆盖所有已知 part 类型          |
+| 凭证扫描正则误报                             | 只做高置信度模式，降低误报率        |
+| chat Draft 创建后用户预期在当前 session      | 显式 toast 提示"已创建新聊天会话"   |
 
 **回滚**：独立分支，可 revert 整个分支。
 

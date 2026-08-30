@@ -118,35 +118,35 @@ export const layer = Layer.effect(
 export const locationLayer = layer
 
 const registerFileAgentTransform = (agents: Interface): Effect.Effect<void, never, Scope.Scope> =>
-  agents.transform((draft) =>
-    Effect.gen(function* () {
-      if (!Flag.AIGCFROGE_ENABLE_AGENT_FILE) return
-      const fileLoader = yield* Effect.serviceOption(AgentFileLoader.Service).pipe(
-        Effect.map(Option.getOrUndefined),
-      )
-      if (!fileLoader) return
-      const fileAgents = yield* fileLoader.loadAll()
-      for (const fa of fileAgents) {
-        draft.update(fa.info.id, (item) => {
-          Object.assign(item, fa.info)
-        })
-      }
-    }),
-  ).pipe(Effect.asVoid)
+  agents
+    .transform((draft) =>
+      Effect.gen(function* () {
+        if (!Flag.AIGCFROGE_ENABLE_AGENT_FILE) return
+        const fileLoader = yield* Effect.serviceOption(AgentFileLoader.Service).pipe(Effect.map(Option.getOrUndefined))
+        if (!fileLoader) return
+        const fileAgents = yield* fileLoader.loadAll()
+        for (const fa of fileAgents) {
+          draft.update(fa.info.id, (item) => {
+            Object.assign(item, fa.info)
+          })
+        }
+      }),
+    )
+    .pipe(Effect.asVoid)
 
 const subscribeToFileWatcher = Effect.fn("AgentV2.subscribeToFileWatcher")(function* (
   agents: Interface,
   scope: Scope.Scope,
 ) {
   const events = yield* EventV2.Service
-  yield* events
-    .subscribe(Watcher.Event.Updated)
-    .pipe(
-      Stream.filter((event) => event.data.event === "add" || event.data.event === "change" || event.data.event === "unlink"),
-      Stream.filter((event) => event.data.file.endsWith(".agent.md")),
-      Stream.runForEach(() => agents.reload()),
-      Effect.forkIn(scope),
-    )
+  yield* events.subscribe(Watcher.Event.Updated).pipe(
+    Stream.filter(
+      (event) => event.data.event === "add" || event.data.event === "change" || event.data.event === "unlink",
+    ),
+    Stream.filter((event) => event.data.file.endsWith(".agent.md")),
+    Stream.runForEach(() => agents.reload()),
+    Effect.forkIn(scope),
+  )
 })
 
 export const fileLayer = Layer.effect(

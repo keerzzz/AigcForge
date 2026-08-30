@@ -116,230 +116,107 @@ export const layer = Layer.effectDiscard(
     const metaAgent = yield* Effect.serviceOption(MetaAgentService.Service)
     yield* TaskDriver.initialize(
       TaskDriver.make(
-      {
-        get: sessions.get,
-        create: (input) =>
-          Effect.gen(function* () {
-            const child = yield* sessions.create(input)
-            // Record meta agent step if the parent session is associated with a meta agent.
-            if (metaAgent._tag === "Some" && input.parentID) {
-              const parentMeta = yield* metaAgent.value.findBySession(input.parentID)
-              if (parentMeta) {
-                yield* metaAgent.value.writeStep({
-                  metaAgentSessionID: parentMeta.sessionID,
-                  seq: yield* Effect.sync(() => Date.now()),
-                  engine: input.agent ? input.agent.toString() : "default",
-                  type: "subagent",
-                  prompt: undefined,
-                })
-              }
-            }
-            return child
-          }),
-        prompt: sessions.prompt,
-        resume: sessions.resume,
-        messages: (input) => sessions.messages({ sessionID: input.sessionID }),
-        injectSynthetic: sessions.injectSynthetic,
-        interrupt: sessions.interrupt,
-      },
-      {
-        start: (sessionID, work) => background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
-        // Map BackgroundJob's terminal Info to the seam's BackgroundOutcome. A
-        // still-"running" status can't occur here (wait blocks until the job
-        // settles); a missing Info (job never registered / scope closed) is
-        // reported as undefined so delegate treats it as completed-but-empty.
-        wait: (sessionID) =>
-          background
-            .wait({ id: sessionID })
-            .pipe(
-              Effect.map(({ info }) =>
-                info && info.status !== "running"
-                  ? { status: info.status, ...(info.error ? { error: info.error } : {}) }
-                  : undefined,
-              ),
-            ),
-        cancel: (sessionID) => background.cancel(sessionID).pipe(Effect.asVoid),
-        extend: (sessionID, work) => background.extend({ id: sessionID, run: work.pipe(Effect.as("")) }),
-      },
-      {
-        execute: (input) =>
-          Effect.gen(function* () {
-            const adapter = getCliAdapter(input.cliTarget)
-            if (!adapter)
-              return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "unknown_target" })
-            if (adapter.transport !== "sdk" && adapter.transport !== "acp" && !spawner) {
-              return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "no_spawner" })
-            }
-            const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
-
-            // Create a real child session so the task card link navigates to a real
-            // session. The child's title is the task description and its agent is the
-            // CLI name (mirrors V1's task tool, which passes description as the title).
-            const childSession = yield* sessions
-              .create({
-                id: input.taskID,
-                parentID: input.sessionID,
-                agent: AgentV2.ID.make(input.cliTarget),
-                location: session.location,
-                title: input.description,
-              })
-              .pipe(Effect.orDie)
-            if (childSession.parentID !== input.sessionID) {
-              return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "invalid_task" })
-            }
-
-            // Write the delegated prompt as the child's first user message so the child
-            // Session reads like a real conversation (mirrors V1's task tool).
-            const cliPrompt = `[Project directory: ${session.location.directory}]\n\n${input.prompt}`
-            yield* events
-              .publish(SessionEvent.Prompted, {
-                sessionID: childSession.id,
-                messageID: SessionMessageID.ID.create(),
-                timestamp: yield* DateTime.now,
-                prompt: Prompt.make({ text: cliPrompt }),
-                delivery: "steer",
-              })
-              .pipe(Effect.orDie)
-
-            // Attempt to load DB for resume lookup and hint persistence.
-            // Not all callers (e.g. tests) provide Database.Service, so
-            // use serviceOption; when absent, DB operations are skipped.
-            const dbOpt = yield* Effect.serviceOption(Database.Service)
-
-            // Check for a pending external CLI session to resume. The row is keyed by the
-            // PARENT session id — a child executes once, but the parent may delegate to the
-            // same CLI again and should pick up its last active external session (P0-1). The
-            // child session id is not stored in the row; it stays recoverable via the session
-            // parent relationship (`session.parent_id = <parent>`).
-            let resumeId: string | undefined
-            if (Option.isSome(dbOpt)) {
-              const db: Database.Interface["db"] = dbOpt.value.db
-              const row = yield* db
-                .select()
-                .from(ExternalCliSessionTable)
-                .where(
-                  and(
-                    eq(ExternalCliSessionTable.session_id, input.sessionID),
-                    eq(ExternalCliSessionTable.cli_target, input.cliTarget),
-                    eq(ExternalCliSessionTable.status, "active"),
-                  ),
-                )
-                .orderBy(desc(ExternalCliSessionTable.time_updated))
-                .get()
-              resumeId = row?.external_session_id
-              if (resumeId)
-                yield* Effect.logInfo(
-                  `CLI resume: found active session ${resumeId} for session ${input.sessionID}, target=${input.cliTarget}`,
-                )
-            }
-
-            // Meta agent step: record the dispatch up front (status running), then settle it
-            // with the CLI outcome so meta_agent_step reflects real work.
-            const metaAgentSvc = metaAgent._tag === "Some" ? metaAgent.value : undefined
-            let stepID: string | undefined
-            if (metaAgentSvc) {
-              const parentMeta = yield* metaAgentSvc.findBySession(input.sessionID)
-              if (parentMeta) {
-                stepID = yield* metaAgentSvc.writeStep({
-                  metaAgentSessionID: parentMeta.sessionID,
-                  seq: yield* Effect.sync(() => Date.now()),
-                  engine: input.cliTarget,
-                  type: "external-cli",
-                  prompt: input.prompt,
-                })
-              }
-            }
-
-            // PermissionV2 bridge (M5): when a PermissionV2.Service is present,
-            // external CLI tool calls (SDK canUseTool / ACP request_permission)
-            // are decided against the PARENT session's rules — the child session
-            // is unattended, so asserting against it would auto-deny. The assert
-            // carries its dependencies in the service instance, so it runs from
-            // the SDK/ACP plain-async callback via Effect.runPromise; an "ask"
-            // parks until the user replies through the dock UI.
-            const permissionOpt = yield* Effect.serviceOption(PermissionV2.Service)
-            let canUseTool: SdkPermissionHandler | undefined
-            if (permissionOpt._tag === "Some") {
-              const permission = permissionOpt.value
-              canUseTool = async (request) => {
-                const decision = await Effect.runPromise(
-                  permission
-                    .assert({
-                      sessionID: input.sessionID,
-                      action: request.toolName,
-                      resources: [JSON.stringify(request.input)],
-                      metadata: { cli: input.cliTarget, external: true },
-                      source: { type: "tool", messageID: childSession.id, callID: input.cliTarget },
-                    })
-                    .pipe(Effect.match({ onSuccess: () => "allow" as const, onFailure: () => "deny" as const })),
-                )
-                return decision
-              }
-            }
-
-            // SDK transports (claude/codex) execute through the SDK's own
-            // stream/resume; jsonl transports spawn + parse. The SDK/ACP path gets
-            // the same timeout bound as executeWithTimeout; interrupting the fiber
-            // abandons the wait (the SDK's own child may linger briefly).
-            const result =
-              (adapter.transport === "sdk" || adapter.transport === "acp") && adapter.execute
-                ? yield* adapter
-                    .execute({
-                      prompt: cliPrompt,
-                      cwd: session.location.directory,
-                      resumeId,
-                      canUseTool,
-                    })
-                    .pipe(
-                      Effect.timeoutOrElse({
-                        duration: Duration.millis(adapter.timeout ?? 300_000),
-                        orElse: () =>
-                          Effect.succeed<DelegationResult>({
-                            status: "failed",
-                            summary: `CLI "${adapter.name}" execution Timed out`,
-                            errors: ["Timed out"],
-                          }),
-                      }),
-                    )
-                : yield* executeWithTimeout(spawner!, adapter, {
-                    prompt: cliPrompt,
-                    cwd: session.location.directory,
-                    resumeId,
+        {
+          get: sessions.get,
+          create: (input) =>
+            Effect.gen(function* () {
+              const child = yield* sessions.create(input)
+              // Record meta agent step if the parent session is associated with a meta agent.
+              if (metaAgent._tag === "Some" && input.parentID) {
+                const parentMeta = yield* metaAgent.value.findBySession(input.parentID)
+                if (parentMeta) {
+                  yield* metaAgent.value.writeStep({
+                    metaAgentSessionID: parentMeta.sessionID,
+                    seq: yield* Effect.sync(() => Date.now()),
+                    engine: input.agent ? input.agent.toString() : "default",
+                    type: "subagent",
+                    prompt: undefined,
                   })
+                }
+              }
+              return child
+            }),
+          prompt: sessions.prompt,
+          resume: sessions.resume,
+          messages: (input) => sessions.messages({ sessionID: input.sessionID }),
+          injectSynthetic: sessions.injectSynthetic,
+          interrupt: sessions.interrupt,
+        },
+        {
+          start: (sessionID, work) => background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
+          // Map BackgroundJob's terminal Info to the seam's BackgroundOutcome. A
+          // still-"running" status can't occur here (wait blocks until the job
+          // settles); a missing Info (job never registered / scope closed) is
+          // reported as undefined so delegate treats it as completed-but-empty.
+          wait: (sessionID) =>
+            background
+              .wait({ id: sessionID })
+              .pipe(
+                Effect.map(({ info }) =>
+                  info && info.status !== "running"
+                    ? { status: info.status, ...(info.error ? { error: info.error } : {}) }
+                    : undefined,
+                ),
+              ),
+          cancel: (sessionID) => background.cancel(sessionID).pipe(Effect.asVoid),
+          extend: (sessionID, work) => background.extend({ id: sessionID, run: work.pipe(Effect.as("")) }),
+        },
+        {
+          execute: (input) =>
+            Effect.gen(function* () {
+              const adapter = getCliAdapter(input.cliTarget)
+              if (!adapter)
+                return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "unknown_target" })
+              if (adapter.transport !== "sdk" && adapter.transport !== "acp" && !spawner) {
+                return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "no_spawner" })
+              }
+              const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
 
-            // Write the CLI summary as the child's second user message.
-            yield* events
-              .publish(SessionEvent.Prompted, {
-                sessionID: childSession.id,
-                messageID: SessionMessageID.ID.create(),
-                timestamp: yield* DateTime.now,
-                prompt: Prompt.make({ text: result.summary }),
-                delivery: "steer",
-              })
-              .pipe(Effect.orDie)
+              // Create a real child session so the task card link navigates to a real
+              // session. The child's title is the task description and its agent is the
+              // CLI name (mirrors V1's task tool, which passes description as the title).
+              const childSession = yield* sessions
+                .create({
+                  id: input.taskID,
+                  parentID: input.sessionID,
+                  agent: AgentV2.ID.make(input.cliTarget),
+                  location: session.location,
+                  title: input.description,
+                })
+                .pipe(Effect.orDie)
+              if (childSession.parentID !== input.sessionID) {
+                return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "invalid_task" })
+              }
 
-            if (stepID && metaAgentSvc) {
-              yield* metaAgentSvc.updateStep({
-                stepID,
-                status: result.status === "failed" ? "failed" : "completed",
-                ...(result.status === "failed" ? { error: result.summary } : { result: result.summary }),
-              })
-            }
+              // Write the delegated prompt as the child's first user message so the child
+              // Session reads like a real conversation (mirrors V1's task tool).
+              const cliPrompt = `[Project directory: ${session.location.directory}]\n\n${input.prompt}`
+              yield* events
+                .publish(SessionEvent.Prompted, {
+                  sessionID: childSession.id,
+                  messageID: SessionMessageID.ID.create(),
+                  timestamp: yield* DateTime.now,
+                  prompt: Prompt.make({ text: cliPrompt }),
+                  delivery: "steer",
+                })
+                .pipe(Effect.orDie)
 
-            // Persist the external session id for resume. SDK transports surface
-            // it on the DelegationResult; jsonl transports emit a resume_hint
-            // frame parsed from raw stdout. Keyed by the PARENT session id so the
-            // next same-parent delegation resumes it (P0-1).
-            if (Option.isSome(dbOpt)) {
-              const db: Database.Interface["db"] = dbOpt.value.db
-              const hint = result.sessionId ?? adapter.parseResumeHint?.(result.rawStdout ?? result.summary)
-              if (hint) {
-                yield* Effect.logInfo(
-                  `CLI resume: persisted hint ${hint} for session ${input.sessionID}, target=${input.cliTarget}`,
-                )
-                yield* db
-                  .update(ExternalCliSessionTable)
-                  .set({ status: "completed" })
+              // Attempt to load DB for resume lookup and hint persistence.
+              // Not all callers (e.g. tests) provide Database.Service, so
+              // use serviceOption; when absent, DB operations are skipped.
+              const dbOpt = yield* Effect.serviceOption(Database.Service)
+
+              // Check for a pending external CLI session to resume. The row is keyed by the
+              // PARENT session id — a child executes once, but the parent may delegate to the
+              // same CLI again and should pick up its last active external session (P0-1). The
+              // child session id is not stored in the row; it stays recoverable via the session
+              // parent relationship (`session.parent_id = <parent>`).
+              let resumeId: string | undefined
+              if (Option.isSome(dbOpt)) {
+                const db: Database.Interface["db"] = dbOpt.value.db
+                const row = yield* db
+                  .select()
+                  .from(ExternalCliSessionTable)
                   .where(
                     and(
                       eq(ExternalCliSessionTable.session_id, input.sessionID),
@@ -347,24 +224,147 @@ export const layer = Layer.effectDiscard(
                       eq(ExternalCliSessionTable.status, "active"),
                     ),
                   )
-                yield* db
-                  .insert(ExternalCliSessionTable)
-                  .values({
-                    session_id: input.sessionID,
-                    cli_target: input.cliTarget,
-                    external_session_id: hint,
-                    status: "active",
-                  })
-                  .onConflictDoUpdate({
-                    target: [ExternalCliSessionTable.session_id, ExternalCliSessionTable.external_session_id],
-                    set: { cli_target: input.cliTarget, status: "active" },
-                  })
+                  .orderBy(desc(ExternalCliSessionTable.time_updated))
+                  .get()
+                resumeId = row?.external_session_id
+                if (resumeId)
+                  yield* Effect.logInfo(
+                    `CLI resume: found active session ${resumeId} for session ${input.sessionID}, target=${input.cliTarget}`,
+                  )
               }
-            }
 
-            return { text: result.summary, sessionID: childSession.id, status: result.status }
-          }),
-      },
+              // Meta agent step: record the dispatch up front (status running), then settle it
+              // with the CLI outcome so meta_agent_step reflects real work.
+              const metaAgentSvc = metaAgent._tag === "Some" ? metaAgent.value : undefined
+              let stepID: string | undefined
+              if (metaAgentSvc) {
+                const parentMeta = yield* metaAgentSvc.findBySession(input.sessionID)
+                if (parentMeta) {
+                  stepID = yield* metaAgentSvc.writeStep({
+                    metaAgentSessionID: parentMeta.sessionID,
+                    seq: yield* Effect.sync(() => Date.now()),
+                    engine: input.cliTarget,
+                    type: "external-cli",
+                    prompt: input.prompt,
+                  })
+                }
+              }
+
+              // PermissionV2 bridge (M5): when a PermissionV2.Service is present,
+              // external CLI tool calls (SDK canUseTool / ACP request_permission)
+              // are decided against the PARENT session's rules — the child session
+              // is unattended, so asserting against it would auto-deny. The assert
+              // carries its dependencies in the service instance, so it runs from
+              // the SDK/ACP plain-async callback via Effect.runPromise; an "ask"
+              // parks until the user replies through the dock UI.
+              const permissionOpt = yield* Effect.serviceOption(PermissionV2.Service)
+              let canUseTool: SdkPermissionHandler | undefined
+              if (permissionOpt._tag === "Some") {
+                const permission = permissionOpt.value
+                canUseTool = async (request) => {
+                  const decision = await Effect.runPromise(
+                    permission
+                      .assert({
+                        sessionID: input.sessionID,
+                        action: request.toolName,
+                        resources: [JSON.stringify(request.input)],
+                        metadata: { cli: input.cliTarget, external: true },
+                        source: { type: "tool", messageID: childSession.id, callID: input.cliTarget },
+                      })
+                      .pipe(Effect.match({ onSuccess: () => "allow" as const, onFailure: () => "deny" as const })),
+                  )
+                  return decision
+                }
+              }
+
+              // SDK transports (claude/codex) execute through the SDK's own
+              // stream/resume; jsonl transports spawn + parse. The SDK/ACP path gets
+              // the same timeout bound as executeWithTimeout; interrupting the fiber
+              // abandons the wait (the SDK's own child may linger briefly).
+              const result =
+                (adapter.transport === "sdk" || adapter.transport === "acp") && adapter.execute
+                  ? yield* adapter
+                      .execute({
+                        prompt: cliPrompt,
+                        cwd: session.location.directory,
+                        resumeId,
+                        canUseTool,
+                      })
+                      .pipe(
+                        Effect.timeoutOrElse({
+                          duration: Duration.millis(adapter.timeout ?? 300_000),
+                          orElse: () =>
+                            Effect.succeed<DelegationResult>({
+                              status: "failed",
+                              summary: `CLI "${adapter.name}" execution Timed out`,
+                              errors: ["Timed out"],
+                            }),
+                        }),
+                      )
+                  : yield* executeWithTimeout(spawner!, adapter, {
+                      prompt: cliPrompt,
+                      cwd: session.location.directory,
+                      resumeId,
+                    })
+
+              // Write the CLI summary as the child's second user message.
+              yield* events
+                .publish(SessionEvent.Prompted, {
+                  sessionID: childSession.id,
+                  messageID: SessionMessageID.ID.create(),
+                  timestamp: yield* DateTime.now,
+                  prompt: Prompt.make({ text: result.summary }),
+                  delivery: "steer",
+                })
+                .pipe(Effect.orDie)
+
+              if (stepID && metaAgentSvc) {
+                yield* metaAgentSvc.updateStep({
+                  stepID,
+                  status: result.status === "failed" ? "failed" : "completed",
+                  ...(result.status === "failed" ? { error: result.summary } : { result: result.summary }),
+                })
+              }
+
+              // Persist the external session id for resume. SDK transports surface
+              // it on the DelegationResult; jsonl transports emit a resume_hint
+              // frame parsed from raw stdout. Keyed by the PARENT session id so the
+              // next same-parent delegation resumes it (P0-1).
+              if (Option.isSome(dbOpt)) {
+                const db: Database.Interface["db"] = dbOpt.value.db
+                const hint = result.sessionId ?? adapter.parseResumeHint?.(result.rawStdout ?? result.summary)
+                if (hint) {
+                  yield* Effect.logInfo(
+                    `CLI resume: persisted hint ${hint} for session ${input.sessionID}, target=${input.cliTarget}`,
+                  )
+                  yield* db
+                    .update(ExternalCliSessionTable)
+                    .set({ status: "completed" })
+                    .where(
+                      and(
+                        eq(ExternalCliSessionTable.session_id, input.sessionID),
+                        eq(ExternalCliSessionTable.cli_target, input.cliTarget),
+                        eq(ExternalCliSessionTable.status, "active"),
+                      ),
+                    )
+                  yield* db
+                    .insert(ExternalCliSessionTable)
+                    .values({
+                      session_id: input.sessionID,
+                      cli_target: input.cliTarget,
+                      external_session_id: hint,
+                      status: "active",
+                    })
+                    .onConflictDoUpdate({
+                      target: [ExternalCliSessionTable.session_id, ExternalCliSessionTable.external_session_id],
+                      set: { cli_target: input.cliTarget, status: "active" },
+                    })
+                }
+              }
+
+              return { text: result.summary, sessionID: childSession.id, status: result.status }
+            }),
+        },
       ),
     )
   }),

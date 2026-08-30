@@ -13,8 +13,18 @@ const PRESETS: ReadonlyArray<WorkPreset.Preset> = [
       "你是资深视频分镜师。请基于用户的回答，产出一份 Markdown 双栏分镜脚本：左栏镜头号与画面描述，右栏台词/字幕、时长与备注。开头包含视频标题、风格、目标平台与总时长。镜头衔接自然，节奏符合平台特点。",
     questions: [
       { key: "topic", prompt: "视频主题是什么？", required: true },
-      { key: "duration", prompt: "目标时长大约多久？", required: true, options: ["60秒以内", "1-3分钟", "3-10分钟", "10分钟以上"] },
-      { key: "platform", prompt: "发布在哪个平台？", required: true, options: ["抖音/快手", "B站", "小红书", "YouTube"] },
+      {
+        key: "duration",
+        prompt: "目标时长大约多久？",
+        required: true,
+        options: ["60秒以内", "1-3分钟", "3-10分钟", "10分钟以上"],
+      },
+      {
+        key: "platform",
+        prompt: "发布在哪个平台？",
+        required: true,
+        options: ["抖音/快手", "B站", "小红书", "YouTube"],
+      },
       { key: "style", prompt: "期望什么视觉风格？", required: true, options: ["写实", "动画", "纪录片", "剧情"] },
       { key: "audience", prompt: "目标受众是谁？", required: false },
     ],

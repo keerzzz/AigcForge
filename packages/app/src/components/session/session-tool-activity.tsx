@@ -81,9 +81,7 @@ export function SessionToolActivity(props: { parts: () => readonly Part[] }) {
             </StickyAccordionHeader>
             <AccordionV2.Content>
               <div class="grid grid-cols-2 gap-x-6 gap-y-3 px-3 pb-3">
-                <For each={activities()}>
-                  {(activity) => <ToolActivitySection activity={activity} />}
-                </For>
+                <For each={activities()}>{(activity) => <ToolActivitySection activity={activity} />}</For>
               </div>
             </AccordionV2.Content>
           </AccordionV2.Item>

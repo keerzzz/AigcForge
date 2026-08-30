@@ -76,7 +76,14 @@ describe("normalizeProposeCandidate", () => {
     const mcp = normalizeProposeCandidate({
       tool: "propose_mcp_asset",
       state: {
-        input: { name: "m", description: "d", command: "npx", args: ["-y", "srv"], env: { KEY: "v" }, configJson: "{}" },
+        input: {
+          name: "m",
+          description: "d",
+          command: "npx",
+          args: ["-y", "srv"],
+          env: { KEY: "v" },
+          configJson: "{}",
+        },
         structured: { relativePath: "m.md", exists: false },
       },
     })
@@ -93,7 +100,11 @@ describe("normalizeProposeCandidate", () => {
         structured: { relativePath: "c.md", exists: false },
       },
     })
-    expect(command).toMatchObject({ kind: "command", content: "RUN BODY", candidate: { invocation: "/run", source: "RUN BODY" } })
+    expect(command).toMatchObject({
+      kind: "command",
+      content: "RUN BODY",
+      candidate: { invocation: "/run", source: "RUN BODY" },
+    })
 
     const agent = normalizeProposeCandidate({
       tool: "propose_agent_asset",
@@ -102,12 +113,26 @@ describe("normalizeProposeCandidate", () => {
         structured: { relativePath: "a.md", exists: false },
       },
     })
-    expect(agent).toMatchObject({ kind: "agent", content: "AGENT BODY", candidate: { config: "mode: subagent", source: "AGENT BODY" } })
+    expect(agent).toMatchObject({
+      kind: "agent",
+      content: "AGENT BODY",
+      candidate: { config: "mode: subagent", source: "AGENT BODY" },
+    })
   })
 
   test("rejects unknown tools and missing per-kind content", () => {
-    expect(normalizeProposeCandidate({ tool: "propose_workflow_asset", state: { input: { name: "w", description: "d", content: "steps: []" }, structured: { relativePath: "w.yaml", exists: false } } })).toMatchObject({
-      kind: "workflow", name: "w", content: "steps: []",
+    expect(
+      normalizeProposeCandidate({
+        tool: "propose_workflow_asset",
+        state: {
+          input: { name: "w", description: "d", content: "steps: []" },
+          structured: { relativePath: "w.yaml", exists: false },
+        },
+      }),
+    ).toMatchObject({
+      kind: "workflow",
+      name: "w",
+      content: "steps: []",
     })
     // Missing content still returns null
     expect(normalizeProposeCandidate({ tool: "propose_workflow_asset", state: { input: { name: "w" } } })).toBeNull()
@@ -152,51 +177,42 @@ describe("normalizeProposeCandidate", () => {
 
 describe("findProposeResult", () => {
   test("returns the newest completed proposal", () => {
-    const result = findProposeResult(
-      [{ id: "old" }, { id: "new" }],
-      {
-        old: [completed("old", { relativePath: "old.md", exists: false })],
-        new: [completed("new", { relativePath: "new.md", exists: false })],
-      },
-    )
+    const result = findProposeResult([{ id: "old" }, { id: "new" }], {
+      old: [completed("old", { relativePath: "old.md", exists: false })],
+      new: [completed("new", { relativePath: "new.md", exists: false })],
+    })
 
     expect(result?.name).toBe("new")
     expect(result?.relativePath).toBe("new.md")
   })
 
   test("skips incomplete and malformed parts", () => {
-    const result = findProposeResult(
-      [{ id: "message" }],
-      {
-        message: [
-          null,
-          { type: "tool", tool: "propose_prompt_asset", state: { status: "running" } },
-          completed("valid", { relativePath: "valid.md", exists: false }),
-        ],
-      },
-    )
+    const result = findProposeResult([{ id: "message" }], {
+      message: [
+        null,
+        { type: "tool", tool: "propose_prompt_asset", state: { status: "running" } },
+        completed("valid", { relativePath: "valid.md", exists: false }),
+      ],
+    })
 
     expect(result?.name).toBe("valid")
   })
 
   test("detects non-prompt propose tools", () => {
-    const result = findProposeResult(
-      [{ id: "message" }],
-      {
-        message: [
-          completed("old", { relativePath: "old.md", exists: false }),
-          {
-            type: "tool",
-            tool: "propose_skill_asset",
-            state: {
-              status: "completed",
-              input: { name: "sk", description: "d", slash: false, content: "BODY" },
-              structured: { relativePath: "sk.md", exists: false },
-            },
+    const result = findProposeResult([{ id: "message" }], {
+      message: [
+        completed("old", { relativePath: "old.md", exists: false }),
+        {
+          type: "tool",
+          tool: "propose_skill_asset",
+          state: {
+            status: "completed",
+            input: { name: "sk", description: "d", slash: false, content: "BODY" },
+            structured: { relativePath: "sk.md", exists: false },
           },
-        ],
-      },
-    )
+        },
+      ],
+    })
 
     expect(result?.kind).toBe("skill")
     expect(result?.name).toBe("sk")
@@ -204,23 +220,20 @@ describe("findProposeResult", () => {
   })
 
   test("detects V2-style parts using `name` field", () => {
-    const result = findProposeResult(
-      [{ id: "msg" }],
-      {
-        msg: [
-          {
-            type: "tool",
-            name: "propose_workflow_asset",
-            state: {
-              status: "completed",
-              input: { name: "wf_v2", description: "v2 wf", content: "name: wf\nsteps: []" },
-              structured: { relativePath: ".aigcfroge/workflows/wf.yaml", exists: false },
-              content: [{ type: "text", text: "Candidate is valid." }],
-            },
+    const result = findProposeResult([{ id: "msg" }], {
+      msg: [
+        {
+          type: "tool",
+          name: "propose_workflow_asset",
+          state: {
+            status: "completed",
+            input: { name: "wf_v2", description: "v2 wf", content: "name: wf\nsteps: []" },
+            structured: { relativePath: ".aigcfroge/workflows/wf.yaml", exists: false },
+            content: [{ type: "text", text: "Candidate is valid." }],
           },
-        ],
-      },
-    )
+        },
+      ],
+    })
 
     expect(result).not.toBeNull()
     expect(result?.kind).toBe("workflow")

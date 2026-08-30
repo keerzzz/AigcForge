@@ -67,9 +67,7 @@ export function SubagentFooter() {
     return undefined
   })
 
-  const handoffActions = createMemo<
-    { label: string; agent: string; prompt: string }[]
-  >(() => {
+  const handoffActions = createMemo<{ label: string; agent: string; prompt: string }[]>(() => {
     const name = currentAgentName()
     if (!name) return []
     const agent = sync.data.agent.find((a) => a.name === name)
@@ -171,9 +169,7 @@ export function SubagentFooter() {
                     onMouseOver={() => setHandoffHover(index())}
                     onMouseOut={() => setHandoffHover(null)}
                     onMouseUp={() => handleHandoff(action.agent, action.prompt)}
-                    backgroundColor={
-                      handoffHover() === index() ? theme.backgroundElement : theme.backgroundPanel
-                    }
+                    backgroundColor={handoffHover() === index() ? theme.backgroundElement : theme.backgroundPanel}
                   >
                     <text fg={theme.text}>{action.label}</text>
                   </box>

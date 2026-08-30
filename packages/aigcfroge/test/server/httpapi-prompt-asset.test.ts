@@ -53,10 +53,7 @@ describe("prompt asset HttpApi", () => {
     await using tmp = await tmpdir({ git: true })
     const promptsDir = path.join(tmp.path, ".aigcfroge", "prompts")
     await fs.mkdir(promptsDir, { recursive: true })
-    await fs.writeFile(
-      path.join(promptsDir, "good.md"),
-      "---\nkind: prompt\nname: good\ndescription: ok\n---\nbody",
-    )
+    await fs.writeFile(path.join(promptsDir, "good.md"), "---\nkind: prompt\nname: good\ndescription: ok\n---\nbody")
     await fs.writeFile(path.join(promptsDir, "badfm.md"), "---\ndescription: missing kind and name\n---\nbody")
 
     const response = await request(PromptAssetApiGroup.PromptAssetPaths.list, tmp.path)
@@ -74,10 +71,7 @@ describe("prompt asset HttpApi", () => {
     const commandsDir = path.join(tmp.path, ".aigcfroge", "commands")
     await fs.mkdir(promptsDir, { recursive: true })
     await fs.mkdir(commandsDir, { recursive: true })
-    await fs.writeFile(
-      path.join(promptsDir, "good.md"),
-      "---\nkind: prompt\nname: good\ndescription: ok\n---\nbody",
-    )
+    await fs.writeFile(path.join(promptsDir, "good.md"), "---\nkind: prompt\nname: good\ndescription: ok\n---\nbody")
     await fs.writeFile(
       path.join(commandsDir, "oversized.md"),
       `---\nname: oversized\ndescription: ${"x".repeat(301)}\n---\nbody`,

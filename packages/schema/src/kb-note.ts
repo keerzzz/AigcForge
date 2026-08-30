@@ -20,7 +20,15 @@ export const NoteID = Schema.String.check(Schema.isStartsWith("kb_")).pipe(
 export type NoteID = typeof NoteID.Type
 
 /** note | summary | faq | timeline (study_guide/briefing/mindmap deferred). */
-export const NoteFormat = Schema.Literals(["note", "summary", "faq", "timeline", "study_guide", "briefing", "mindmap"]).annotate({
+export const NoteFormat = Schema.Literals([
+  "note",
+  "summary",
+  "faq",
+  "timeline",
+  "study_guide",
+  "briefing",
+  "mindmap",
+]).annotate({
   identifier: "KBNoteFormat",
 })
 export type NoteFormat = typeof NoteFormat.Type

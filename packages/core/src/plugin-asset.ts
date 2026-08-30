@@ -26,7 +26,11 @@ export interface Info {
   readonly version: string
   readonly category?: string
   readonly author?: { readonly name: string; readonly email?: string }
-  readonly source?: { readonly type: "mcp" | "openapi" | "bundled"; readonly mcp?: { readonly name: string }; readonly openapi?: { readonly url: string } }
+  readonly source?: {
+    readonly type: "mcp" | "openapi" | "bundled"
+    readonly mcp?: { readonly name: string }
+    readonly openapi?: { readonly url: string }
+  }
   readonly hooks: ReadonlyArray<{ readonly event: string; readonly command: string; readonly timeout?: number }>
   readonly revision: string
 }
@@ -60,9 +64,9 @@ function loadDir(
 
     for (const file of files) {
       const relativePath = path.relative(ownerRoot, file).replaceAll("\\", "/")
-      const raw = yield* fs.readFile(file).pipe(
-        Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)),
-      )
+      const raw = yield* fs
+        .readFile(file)
+        .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
       if (!raw) continue
 
       const text = new TextDecoder().decode(raw)
@@ -179,21 +183,19 @@ export const layer = Layer.effect(
     const scope = yield* Scope.Scope
     const eventsOpt = yield* Effect.serviceOption(EventV2.Service)
     if (Option.isSome(eventsOpt)) {
-      yield* eventsOpt.value
-        .subscribe(Watcher.Event.Updated)
-        .pipe(
-          Stream.filter((e) => FSUtil.contains(ownerRoot, e.data.file) && e.data.file.endsWith(".plugin.yaml")),
-          Stream.runForEach(() =>
-            reload().pipe(
-              Effect.catch((error) =>
-                Effect.logWarning("Failed to reload plugin assets", {
-                  errorTag: "_tag" in error ? error._tag : "filesystem_error",
-                }),
-              ),
+      yield* eventsOpt.value.subscribe(Watcher.Event.Updated).pipe(
+        Stream.filter((e) => FSUtil.contains(ownerRoot, e.data.file) && e.data.file.endsWith(".plugin.yaml")),
+        Stream.runForEach(() =>
+          reload().pipe(
+            Effect.catch((error) =>
+              Effect.logWarning("Failed to reload plugin assets", {
+                errorTag: "_tag" in error ? error._tag : "filesystem_error",
+              }),
             ),
           ),
-          Effect.forkIn(scope),
-        )
+        ),
+        Effect.forkIn(scope),
+      )
     }
 
     yield* reload().pipe(Effect.orDie)

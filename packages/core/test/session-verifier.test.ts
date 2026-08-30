@@ -52,9 +52,7 @@ const makeAppProcess = (exitCodes: ReadonlyArray<number>, runs: number[] = []) =
           command: "bun",
           exitCode: code,
           stdout:
-            code === 0
-              ? Buffer.from("")
-              : Buffer.from("src/foo.ts(1,1): error TS2307: Cannot find module './x'\n"),
+            code === 0 ? Buffer.from("") : Buffer.from("src/foo.ts(1,1): error TS2307: Cannot find module './x'\n"),
           stderr: code === 0 ? Buffer.alloc(0) : Buffer.from(""),
           stdoutTruncated: false,
           stderrTruncated: false,
@@ -221,9 +219,7 @@ describe("Verifier real subprocess", () => {
         Layer.provide(EventV2.defaultLayer),
         Layer.provide(AppProcess.defaultLayer),
         Layer.provide(
-          Location.layer({ directory: AbsolutePath.make(tmpDir) }).pipe(
-            Layer.provide(Project.defaultLayer),
-          ),
+          Location.layer({ directory: AbsolutePath.make(tmpDir) }).pipe(Layer.provide(Project.defaultLayer)),
         ),
         Layer.provide(configLayer({})),
       )
@@ -241,4 +237,3 @@ describe("Verifier real subprocess", () => {
     }).pipe(Effect.provide(FSUtil.defaultLayer)),
   )
 })
-

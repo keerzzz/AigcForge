@@ -48,7 +48,11 @@ describe("plugin asset HttpApi", () => {
         const t = yield* TestInstance
         const res = yield* requestInDirectory(PluginAssetApiGroup.PluginAssetPaths.list, t.directory)
         expect(res.status).toBe(200)
-        const body = (yield* res.json) as unknown as { assets: { name: string; kind?: string }[]; invalid: unknown[]; bridged: unknown[] }
+        const body = (yield* res.json) as unknown as {
+          assets: { name: string; kind?: string }[]
+          invalid: unknown[]
+          bridged: unknown[]
+        }
         expect(body.assets).toEqual([])
         expect(Array.isArray(body.bridged)).toBe(true)
       }),
@@ -65,7 +69,11 @@ describe("plugin asset HttpApi", () => {
         yield* Effect.promise(() => fs.writeFile(path.join(plDir, "broken.plugin.yaml"), "broken yaml [["))
         const res = yield* requestInDirectory(PluginAssetApiGroup.PluginAssetPaths.list, t.directory)
         expect(res.status).toBe(200)
-        const body = (yield* res.json) as unknown as { assets: { name: string; kind?: string }[]; invalid: unknown[]; bridged: unknown[] }
+        const body = (yield* res.json) as unknown as {
+          assets: { name: string; kind?: string }[]
+          invalid: unknown[]
+          bridged: unknown[]
+        }
         expect(body.invalid).toEqual([{ relativePath: "broken.plugin.yaml", errorTag: "parse_error" }])
       }),
     { git: true },
@@ -86,7 +94,11 @@ describe("plugin asset HttpApi", () => {
         )
         const res = yield* requestInDirectory(PluginAssetApiGroup.PluginAssetPaths.list, t.directory)
         expect(res.status).toBe(200)
-        const body = (yield* res.json) as unknown as { assets: { name: string; kind?: string }[]; invalid: unknown[]; bridged: unknown[] }
+        const body = (yield* res.json) as unknown as {
+          assets: { name: string; kind?: string }[]
+          invalid: unknown[]
+          bridged: unknown[]
+        }
         expect(body.assets).toHaveLength(1)
         expect(body.assets[0].name).toBe("my-plugin")
         expect(body.assets[0].kind).toBe("plugin")
@@ -99,7 +111,11 @@ describe("plugin asset HttpApi", () => {
     () =>
       Effect.gen(function* () {
         const t = yield* TestInstance
-        const candidate = { name: "test-pl", description: "test", content: "kind: plugin\nname: test-pl\ndescription: test\nversion: 1.0.0\nhooks: []" }
+        const candidate = {
+          name: "test-pl",
+          description: "test",
+          content: "kind: plugin\nname: test-pl\ndescription: test\nversion: 1.0.0\nhooks: []",
+        }
         const route = PluginAssetApiGroup.PluginAssetPaths.apply.replace(":sessionID", "sess-1")
 
         const applyRes = yield* post(route, t.directory, { candidate, overwrite: true })
@@ -121,7 +137,11 @@ describe("plugin asset HttpApi", () => {
     () =>
       Effect.gen(function* () {
         const t = yield* TestInstance
-        const candidate = { name: "pconflict", description: "test", content: "kind: plugin\nname: pconflict\ndescription: test\nversion: 1.0.0\nhooks: []" }
+        const candidate = {
+          name: "pconflict",
+          description: "test",
+          content: "kind: plugin\nname: pconflict\ndescription: test\nversion: 1.0.0\nhooks: []",
+        }
         const route = PluginAssetApiGroup.PluginAssetPaths.apply.replace(":sessionID", "sess-2")
 
         const res1 = yield* requestInDirectory(route, t.directory, {
@@ -146,7 +166,11 @@ describe("plugin asset HttpApi", () => {
     () =>
       Effect.gen(function* () {
         const t = yield* TestInstance
-        const candidate = { name: "del-pl", description: "test", content: "kind: plugin\nname: del-pl\ndescription: test\nversion: 1.0.0\nhooks: []" }
+        const candidate = {
+          name: "del-pl",
+          description: "test",
+          content: "kind: plugin\nname: del-pl\ndescription: test\nversion: 1.0.0\nhooks: []",
+        }
         const applyRoute = PluginAssetApiGroup.PluginAssetPaths.apply.replace(":sessionID", "sess-3")
 
         const applyRes = yield* requestInDirectory(applyRoute, t.directory, {
@@ -193,7 +217,11 @@ describe("plugin asset HttpApi", () => {
     () =>
       Effect.gen(function* () {
         const t = yield* TestInstance
-        const candidate = { name: "stale-pl", description: "test", content: "kind: plugin\nname: stale-pl\ndescription: test\nversion: 1.0.0\nhooks: []" }
+        const candidate = {
+          name: "stale-pl",
+          description: "test",
+          content: "kind: plugin\nname: stale-pl\ndescription: test\nversion: 1.0.0\nhooks: []",
+        }
         const route = PluginAssetApiGroup.PluginAssetPaths.apply.replace(":sessionID", "sess-s1")
 
         const res1 = yield* requestInDirectory(route, t.directory, {
@@ -217,7 +245,11 @@ describe("plugin asset HttpApi", () => {
     () =>
       Effect.gen(function* () {
         const t = yield* TestInstance
-        const candidate = { name: "rev-pl", description: "test", content: "kind: plugin\nname: rev-pl\ndescription: test\nversion: 1.0.0\nhooks: []" }
+        const candidate = {
+          name: "rev-pl",
+          description: "test",
+          content: "kind: plugin\nname: rev-pl\ndescription: test\nversion: 1.0.0\nhooks: []",
+        }
         const applyRoute = PluginAssetApiGroup.PluginAssetPaths.apply.replace(":sessionID", "sess-s2")
         const delRoute = PluginAssetApiGroup.PluginAssetPaths.delete.replace(":sessionID", "sess-s2")
 
@@ -259,7 +291,11 @@ describe("plugin asset HttpApi", () => {
       Effect.gen(function* () {
         const t = yield* TestInstance
         const delRoute = PluginAssetApiGroup.PluginAssetPaths.delete.replace(":sessionID", "sess-s3")
-        for (const relativePath of ["../escape.plugin.yaml", "sub/../../escape.plugin.yaml", "/etc/escape.plugin.yaml"]) {
+        for (const relativePath of [
+          "../escape.plugin.yaml",
+          "sub/../../escape.plugin.yaml",
+          "/etc/escape.plugin.yaml",
+        ]) {
           const res = yield* requestInDirectory(delRoute, t.directory, {
             method: "POST",
             headers: { "content-type": "application/json" },
@@ -279,7 +315,9 @@ describe("plugin asset HttpApi", () => {
         const plDir = path.join(t.directory, ".aigcfroge", "plugins")
         yield* Effect.promise(() => fs.mkdir(plDir, { recursive: true }))
         const outside = path.join(t.directory, "outside-target.plugin.yaml")
-        yield* Effect.promise(() => fs.writeFile(outside, "kind: plugin\nname: outside\ndescription: t\nversion: 1.0.0\nhooks: []"))
+        yield* Effect.promise(() =>
+          fs.writeFile(outside, "kind: plugin\nname: outside\ndescription: t\nversion: 1.0.0\nhooks: []"),
+        )
         yield* Effect.promise(() => fs.symlink(outside, path.join(plDir, "evil.plugin.yaml")))
 
         const delRoute = PluginAssetApiGroup.PluginAssetPaths.delete.replace(":sessionID", "sess-s4")

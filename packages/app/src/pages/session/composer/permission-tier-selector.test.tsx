@@ -47,6 +47,6 @@ describe("tabs DraftTab permission tier field", () => {
   const source = read("../../../context/tabs.tsx")
 
   test("carries the permissionTier field on drafts", () => {
-    expect(source).toContain("permissionTier?: \"propose\" | \"full\"")
+    expect(source).toContain('permissionTier?: "propose" | "full"')
   })
 })

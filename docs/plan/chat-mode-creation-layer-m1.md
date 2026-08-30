@@ -12,12 +12,12 @@
 
 本版本吸收上一轮审批的阻断项，取消原 v2 的“全量推进、无 Gate 阻塞”结论。Gate 状态截至 2026-07-18（v4.1 对齐修订后）：
 
-| Gate             | 条件                                                                                                                                      | 状态（2026-07-18） | 阻塞范围                            |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ----------------------------------- |
-| **G0 文档真源**  | ADR-13/14 的 Accepted 状态与 `ARCHITECTURE.md` 变更已提交/合并；Chat PRD 不再写“ADR 提出”并明确本 M1 的内部 Agent 不属于“创建 Agent 资产” | **PASS**：ADR-13/14 已于 2026-07-15 Accepted（见各 ADR 头部）；`ARCHITECTURE.md` §7 已同步列 Accepted；commit `6fa57a49a` M1 闭环收尾已提交 | 全部 Phase                          |
-| **G1 产品契约**  | 产品确认字段上限、文件名规则和默认路径；本计划建议值见 §3.1                                                                               | 产品 owner 确认 §3.1 建议值即过     | Phase A-F                           |
-| **G2 安全边界**  | Core/Security owner 接受：Chat M1 只允许 chat-orchestrator；`prompt_asset_apply` 是独立权限标识，不复用模型 `edit` 权限（见 §3.3 v4.1 修订） | 安全 owner 确认 §3.3/§13.5 apply 授权模型即过 | Phase C-F                           |
-| **G3 灰度/分析** | 明确 10% Beta 的外部分桶 owner、产品分析事件 owner 和 7 日归因设施                                                                        | DEFERRED：不阻塞内部闭环，阻塞外部 Beta | 仅 Phase F Beta；不阻塞内部闭环开发 |
+| Gate             | 条件                                                                                                                                         | 状态（2026-07-18）                                                                                                                          | 阻塞范围                            |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| **G0 文档真源**  | ADR-13/14 的 Accepted 状态与 `ARCHITECTURE.md` 变更已提交/合并；Chat PRD 不再写“ADR 提出”并明确本 M1 的内部 Agent 不属于“创建 Agent 资产”    | **PASS**：ADR-13/14 已于 2026-07-15 Accepted（见各 ADR 头部）；`ARCHITECTURE.md` §7 已同步列 Accepted；commit `6fa57a49a` M1 闭环收尾已提交 | 全部 Phase                          |
+| **G1 产品契约**  | 产品确认字段上限、文件名规则和默认路径；本计划建议值见 §3.1                                                                                  | 产品 owner 确认 §3.1 建议值即过                                                                                                             | Phase A-F                           |
+| **G2 安全边界**  | Core/Security owner 接受：Chat M1 只允许 chat-orchestrator；`prompt_asset_apply` 是独立权限标识，不复用模型 `edit` 权限（见 §3.3 v4.1 修订） | 安全 owner 确认 §3.3/§13.5 apply 授权模型即过                                                                                               | Phase C-F                           |
+| **G3 灰度/分析** | 明确 10% Beta 的外部分桶 owner、产品分析事件 owner 和 7 日归因设施                                                                           | DEFERRED：不阻塞内部闭环，阻塞外部 Beta                                                                                                     | 仅 Phase F Beta；不阻塞内部闭环开发 |
 
 **实施状态（2026-07-18）：** M1 主体已实现并提交（commit `6fa57a49a` “M1 提示词闭环收尾”）：prompt-asset schema/registry/service/事务、V1+V2 propose 工具、chat-orchestrator Agent、ProductModeAgentPolicy、HTTP API（list/content/apply）、App Chat 面板与首页就地分流均落地。本文自 v4.1 起转为**实施记录 + v4 差异清单（§13）+ 剩余工作**：
 
@@ -62,22 +62,22 @@ Chat 复用 Coding 工作台布局，但二级侧栏不展示项目树，而展�
 
 **布局矩阵：**
 
-| 模式 | 左侧 | 右侧 |
-|---|---|---|
-| coding | 项目树（保留现有效果） | 会话列表（关联项目树选中，`directory+mode` 过滤） |
-| chat | 功能树（项目级 Location 选择器 + 6 分类） | 按选中功能切换：提示词=会话列表+资产入口；其他 5=能力清单只读 |
-| work / assistant | 占位 PlaceholderSidebar | 占位（M1 之后实现） |
+| 模式             | 左侧                                      | 右侧                                                          |
+| ---------------- | ----------------------------------------- | ------------------------------------------------------------- |
+| coding           | 项目树（保留现有效果）                    | 会话列表（关联项目树选中，`directory+mode` 过滤）             |
+| chat             | 功能树（项目级 Location 选择器 + 6 分类） | 按选中功能切换：提示词=会话列表+资产入口；其他 5=能力清单只读 |
+| work / assistant | 占位 PlaceholderSidebar                   | 占位（M1 之后实现）                                           |
 
 **chat 功能树 × 右侧内容映射（补法 1，闭环）：**
 
-| 功能分类 | 右侧内容 | 数据来源 | 动作 |
-|---|---|---|---|
-| 提示词 | chat 会话列表 + 资产入口（会话详情页右栏 `ChatRightPanel`，非首页） | `SessionTable.mode=chat` + `prompts/*.md` | “新建提示词”-> Draft -> propose/apply 闭环 |
-| 技能 | 能力清单（只读） | server sync `command`(source=skill) | 无 |
-| MCP | 能力清单（只读） | server sync `mcp` | 无 |
-| 命令 | 能力清单（只读） | server sync `command`(source≠skill) | 无 |
-| 智能体 | 能力清单（只读） | server sync `agent` | 无 |
-| 工作流 | 占位 | M1 无数据源 | 无 |
+| 功能分类 | 右侧内容                                                            | 数据来源                                  | 动作                                       |
+| -------- | ------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------ |
+| 提示词   | chat 会话列表 + 资产入口（会话详情页右栏 `ChatRightPanel`，非首页） | `SessionTable.mode=chat` + `prompts/*.md` | “新建提示词”-> Draft -> propose/apply 闭环 |
+| 技能     | 能力清单（只读）                                                    | server sync `command`(source=skill)       | 无                                         |
+| MCP      | 能力清单（只读）                                                    | server sync `mcp`                         | 无                                         |
+| 命令     | 能力清单（只读）                                                    | server sync `command`(source≠skill)       | 无                                         |
+| 智能体   | 能力清单（只读）                                                    | server sync `agent`                       | 无                                         |
+| 工作流   | 占位                                                                | M1 无数据源                               | 无                                         |
 
 **关键不变量：**
 
@@ -468,25 +468,25 @@ bun --cwd packages/aigcfroge test --timeout 30000
 
 #### 改动文件
 
-| 文件                                                                             | 操作 | 说明                                                             |
-| -------------------------------------------------------------------------------- | ---- | ---------------------------------------------------------------- |
-| `packages/aigcfroge/src/server/routes/instance/httpapi/groups/prompt-asset.ts`   | 新增 | typed list/apply API 和显式 API errors                           |
-| `packages/aigcfroge/src/server/routes/instance/httpapi/handlers/prompt-asset.ts` | 新增 | LocationServiceMap 注入、session 真值查询、domain→API error 映射 |
-| `packages/aigcfroge/src/server/routes/instance/httpapi/api.ts`                   | 修改 | 挂载 PromptAsset API group                                       |
-| `packages/aigcfroge/src/server/routes/instance/httpapi/server.ts`                | 修改 | 提供 promptAssetHandlers                                         |
-| `packages/sdk/js/src/v2/gen/*`                                                   | 生成 | list/apply SDK                                                   |
-| `packages/app/src/components/chat/prompt-asset-candidate.ts`                     | 新增 | V1/V2 tool result normalization 纯函数                           |
-| `packages/app/src/components/chat/chat-right-panel.tsx`                          | 新增 | 预览/已保存资产/上下文入口                                       |
-| `packages/app/src/components/chat/chat-preview-tab.tsx`                          | 新增 | 候选预览、冲突 diff、应用                                        |
-| `packages/app/src/components/chat/chat-prompt-assets.tsx`                        | 新增 | registry search/list/insert                                      |
+| 文件                                                                             | 操作 | 说明                                                                     |
+| -------------------------------------------------------------------------------- | ---- | ------------------------------------------------------------------------ |
+| `packages/aigcfroge/src/server/routes/instance/httpapi/groups/prompt-asset.ts`   | 新增 | typed list/apply API 和显式 API errors                                   |
+| `packages/aigcfroge/src/server/routes/instance/httpapi/handlers/prompt-asset.ts` | 新增 | LocationServiceMap 注入、session 真值查询、domain→API error 映射         |
+| `packages/aigcfroge/src/server/routes/instance/httpapi/api.ts`                   | 修改 | 挂载 PromptAsset API group                                               |
+| `packages/aigcfroge/src/server/routes/instance/httpapi/server.ts`                | 修改 | 提供 promptAssetHandlers                                                 |
+| `packages/sdk/js/src/v2/gen/*`                                                   | 生成 | list/apply SDK                                                           |
+| `packages/app/src/components/chat/prompt-asset-candidate.ts`                     | 新增 | V1/V2 tool result normalization 纯函数                                   |
+| `packages/app/src/components/chat/chat-right-panel.tsx`                          | 新增 | 预览/已保存资产/上下文入口                                               |
+| `packages/app/src/components/chat/chat-preview-tab.tsx`                          | 新增 | 候选预览、冲突 diff、应用                                                |
+| `packages/app/src/components/chat/chat-prompt-assets.tsx`                        | 新增 | registry search/list/insert                                              |
 | `packages/app/src/components/mode-surfaces.tsx`                                  | 修改 | Chat 功能树（6 分类 + 项目级 Location 选择器）、RightPanel、右侧内容联动 |
-| `packages/app/src/pages/home.tsx`                                                | 修改 | 首页就地分流骨架、模式卡片、左右栏按 currentMode 切换、新建按钮回调 |
-| `packages/app/src/app.tsx`                                                       | 修改 | `/mode/:mode` 改为重定向到 `/` + setCurrentMode（兼容旧深链）    |
-| `packages/app/src/pages/layout.tsx`                                              | 修改 | ModeSwitcher 在首页 `/` 隐藏，会话详情页保留                     |
-| `packages/app/src/context/mode.tsx`                                              | 修改 | 所有入口复用统一 Mode→Draft/Agent 规则                           |
-| `packages/app/src/i18n/*.ts`                                                     | 修改 | 18 locale 完整键值，不依赖英文 fallback 通过 parity              |
-| `packages/app/src/i18n/parity.test.ts`                                           | 修改 | 新 key 全 locale 存在且非空                                      |
-| App/API 测试                                                                     | 新增 | normalization、状态机、错误映射、交互                            |
+| `packages/app/src/pages/home.tsx`                                                | 修改 | 首页就地分流骨架、模式卡片、左右栏按 currentMode 切换、新建按钮回调      |
+| `packages/app/src/app.tsx`                                                       | 修改 | `/mode/:mode` 改为重定向到 `/` + setCurrentMode（兼容旧深链）            |
+| `packages/app/src/pages/layout.tsx`                                              | 修改 | ModeSwitcher 在首页 `/` 隐藏，会话详情页保留                             |
+| `packages/app/src/context/mode.tsx`                                              | 修改 | 所有入口复用统一 Mode→Draft/Agent 规则                                   |
+| `packages/app/src/i18n/*.ts`                                                     | 修改 | 18 locale 完整键值，不依赖英文 fallback 通过 parity                      |
+| `packages/app/src/i18n/parity.test.ts`                                           | 修改 | 新 key 全 locale 存在且非空                                              |
+| App/API 测试                                                                     | 新增 | normalization、状态机、错误映射、交互                                    |
 
 #### API 契约
 
@@ -638,14 +638,14 @@ Phase F E2E/internal flag
           10% Beta
 ```
 
-| Phase |   预估 | 说明                                   |
-| ----- | -----: | -------------------------------------- |
-| A     | 1-1.5d | Schema、owner path、bytes atomic write |
-| B     | 1-1.5d | Registry、watcher、Location layer      |
-| C     | 2-2.5d | 完整事务、CAS、故障注入                |
-| D     | 2-2.5d | V1/V2 Agent/Tool/Session policy        |
+| Phase |   预估 | 说明                                                                                   |
+| ----- | -----: | -------------------------------------------------------------------------------------- |
+| A     | 1-1.5d | Schema、owner path、bytes atomic write                                                 |
+| B     | 1-1.5d | Registry、watcher、Location layer                                                      |
+| C     | 2-2.5d | 完整事务、CAS、故障注入                                                                |
+| D     | 2-2.5d | V1/V2 Agent/Tool/Session policy                                                        |
 | E     | 4-4.5d | per-slot 右栏重构（A1）+ API、SDK、App 查询/预览/插入、diff 复用（A3）、窄屏双区（A5） |
-| F     | 1.5-2d | 双路径验证、flag、内部 E2E             |
+| F     | 1.5-2d | 双路径验证、flag、内部 E2E                                                             |
 
 **工程估算：12-15d，不含 G0/G1/G2 等待和 G3 分析设施建设。** 原 v2 的 6.5d 未覆盖双运行时、API handler、registry 复用入口和完整事务，作废。v4.1 将 Phase E 从 2.5-3d 上调至 4-4.5d：A1 的 `SessionSidePanel` per-slot 可插拔重构（§13.2）是双区映射的前置，原估算未含。
 
@@ -722,9 +722,9 @@ Phase F E2E/internal flag
 
 - 内部 flag 首先验证 50 次有效 apply 尝试；G3 未通过前不进入外部 10% Beta。
 - **50 次基线结论落点（PRD §11.2）**：基线完成后在此记录分路径复用率 / 闭环成功率 / 首次产出时间 P50，作为 Beta Gate 前置：
-  - 引导创建：复用率 __ / 闭环成功率 __ / 首次产出 P50 __
-  - 导入：复用率 __ / 首次产出 P50 __
-  - 捕获：复用率 __ / 首次产出 P50 __
+  - 引导创建：复用率 ** / 闭环成功率 ** / 首次产出 P50 \_\_
+  - 导入：复用率 ** / 首次产出 P50 **
+  - 捕获：复用率 ** / 首次产出 P50 **
 - 关闭 flag 只隐藏创建/apply/propose，保留已有资产读取和插入。
 - 应用代码回滚不删除用户资产；单事务失败仅按 §3.4 安全恢复。
 - 任一 owner-root escape、未确认覆盖、旧内容被错误覆盖、日志正文泄露均立即停止内部灰度。

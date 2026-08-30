@@ -8,10 +8,12 @@ import { WorkflowRun } from "../workflow-run"
 /** Routes process-local Workflow ownership through the root Session's full Location. */
 export const layer = Layer.effect(
   WorkflowExecution.Service,
-    Effect.gen(function* () {
+  Effect.gen(function* () {
     const store = yield* SessionStore.Service
     const locations = yield* LocationServiceMap
-    const coordinator = yield* WorkflowExecution.make<WorkflowRunner.WorkflowExecutionError | WorkflowRun.RequestConflictError>({
+    const coordinator = yield* WorkflowExecution.make<
+      WorkflowRunner.WorkflowExecutionError | WorkflowRun.RequestConflictError
+    >({
       admit: (sessionID, requestID, expectedSnapshotDigest) =>
         Effect.gen(function* () {
           const session = yield* store.get(sessionID)

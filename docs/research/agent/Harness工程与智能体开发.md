@@ -14,10 +14,10 @@
 
 基于当前前沿的工程架构实践，智能体技术栈可以被解构为三个层级分明且相互协作的逻辑域。通过对比分析，我们可以清晰地识别出脚手架在整个生态系统中所处的独特位置及其不可替代的系统学价值。
 
-| 系统组件类型 | 核心职能与系统边界定义 | 架构特性与适用场景分析 | 典型代表技术栈与开源项目 |
-| :---- | :---- | :---- | :---- |
-| **智能体框架 (Agent Framework)** | 定义智能体逻辑的静态蓝图与抽象结构。负责声明模型类型、提示词模板结构、可用工具的接口定义以及基础的路由逻辑。 | 具有高度的抽象性与可扩展性，适用于从零开始构建或深度定制智能体。它不处理执行过程中的状态维持，仅提供构建模块。 | LangChain, LlamaIndex, Vercel AI SDK, CrewAI 6 |
-| **智能体运行时 (Agent Runtime)** | 负责管理智能体的动态执行循环。提供持久化状态管理（Durable Execution）、并发控制、网络通信调度以及结构化的容错与重试机制。 | 专注于执行效率与容错保障。确保当智能体在多步任务中途崩溃时，系统能够恢复到最后的已知状态，防止进度丢失。适用于需要高并发、长连接的生产环境。 | LangGraph (兼具框架特性) 6 |
+| 系统组件类型                     | 核心职能与系统边界定义                                                                                                               | 架构特性与适用场景分析                                                                                                                                              | 典型代表技术栈与开源项目                          |
+| :------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------ |
+| **智能体框架 (Agent Framework)** | 定义智能体逻辑的静态蓝图与抽象结构。负责声明模型类型、提示词模板结构、可用工具的接口定义以及基础的路由逻辑。                         | 具有高度的抽象性与可扩展性，适用于从零开始构建或深度定制智能体。它不处理执行过程中的状态维持，仅提供构建模块。                                                      | LangChain, LlamaIndex, Vercel AI SDK, CrewAI 6    |
+| **智能体运行时 (Agent Runtime)** | 负责管理智能体的动态执行循环。提供持久化状态管理（Durable Execution）、并发控制、网络通信调度以及结构化的容错与重试机制。            | 专注于执行效率与容错保障。确保当智能体在多步任务中途崩溃时，系统能够恢复到最后的已知状态，防止进度丢失。适用于需要高并发、长连接的生产环境。                        | LangGraph (兼具框架特性) 6                        |
 | **智能体脚手架 (Agent Harness)** | 提供完整的执行环境、物理沙盒验证、预设的默认策略工具链以及外部环境的集成适配。涵盖了从代码验证、凭证注入到人类在环审批的端到端管控。 | 属于“开箱即用”且带有强烈倾向性（Opinionated）的集成系统。它不仅包含如何执行，更规定了“在什么约束下执行”。适用于需要快速验证业务逻辑或部署高风险操作的企业级工作流。 | DeepAgents, Claude Code SDK, Datadog BitsEvolve 3 |
 
 在这一清晰的分类体系下，我们可以将智能体系统类比为一台高度复杂的自动化机械。框架构成了机械的设计图纸，定义了齿轮与杠杆的相互关系；运行时是驱动机械运转的马达与润滑系统，保证其不会卡顿；而智能体脚手架则是机械运作所在的物理车间、安全防护罩以及质量检验流水线 4。脚手架并不直接介入大模型“思考什么”或“为什么这样做”（这是模型自身的概率推理域），它专注于解决“如何安全地执行”以及“在哪里执行”的物理边界问题 3。通过将系统状态持久化、环境交互和安全拦截从模型的内部逻辑中完全剥离，脚手架工程实现了一种模块化的信任机制：开发者无需盲目信任模型的输出，只需信任脚手架施加的数学与逻辑约束。
@@ -64,7 +64,7 @@
 
 ### **宿主隔离与指令级安全沙盒**
 
-在代码生成、安全分析等高风险场景中，脚手架需要为智能体提供绝对隔离的物理执行空间。微软的 Agent Framework 在这方面提供了详尽的模式参考。对于需要在宿主机上进行的操作，脚手架采用本地 Shell 挂载模式，但该挂载点受到严格的审批流程钳制。任何通过 Python subprocess.run 或.NET System.Diagnostics.Process 发出的命令，都必须配置为 approval\_mode="always\_require" 状态。当智能体尝试执行一条 Bash 指令时，执行线程会被硬性挂起，系统会捕获标准输出并将其重定向至监控管道，同时向人类操作员或上级安全系统发出中断请求。只有在接收到明确的许可回调指令后，系统才会恢复执行环境并将结果返回给智能体 12。
+在代码生成、安全分析等高风险场景中，脚手架需要为智能体提供绝对隔离的物理执行空间。微软的 Agent Framework 在这方面提供了详尽的模式参考。对于需要在宿主机上进行的操作，脚手架采用本地 Shell 挂载模式，但该挂载点受到严格的审批流程钳制。任何通过 Python subprocess.run 或.NET System.Diagnostics.Process 发出的命令，都必须配置为 approval_mode="always_require" 状态。当智能体尝试执行一条 Bash 指令时，执行线程会被硬性挂起，系统会捕获标准输出并将其重定向至监控管道，同时向人类操作员或上级安全系统发出中断请求。只有在接收到明确的许可回调指令后，系统才会恢复执行环境并将结果返回给智能体 12。
 
 对于企业级部署，脚手架通常会采用更先进的托管环境（Hosted Shell Harness）模式，直接通过云原生架构在短生命周期的容器（如 Kubernetes Sandbox CRD）内运行所有工具调用任务 20。例如，在构建安全红蓝对抗智能体时，系统会采用双模式执行架构和动态凭证挂载技术。智能体的基础推理运行在一个无害的沙盒中；当需要对目标机器执行渗透测试代码时，脚手架通过加密存储库（如 Fernet 加密）实时提取特定工作区的 SSH 或 SFTP 凭证，将需要执行的恶意负载脚本上传至目标主机的临时目录并执行，随后立刻销毁凭证缓存 21。这种架构确保了即便智能体自身遭到提示词注入攻击而完全失控，其破坏范围也被物理限制在特定的临时沙盒内，且无法横向穿透脚手架自身的管理网段 21。为了防止持久化攻击或利用本地缓存进行的权限提升，脚手架会在内核级别拦截所有尝试向沙盒工作区之外（尤其是诸如配置文件或 MCP 连接配置）进行写入的系统调用请求 22。
 
@@ -74,9 +74,9 @@
 
 执行期授权的本质是在操作执行的瞬间（Execution-Time），由一个独立的验证器对当前的操作意图进行全方位的合规性审查。这一架构设计旨在防范几种智能体特有的高级威胁模型：
 
-1. **环境权限滥用（Ambient Authority）**：如果智能体仅因为拥有 API 密钥就畅通无阻，一旦其行为逻辑遭到篡改，该密钥将引发灾难。执行期授权要求每次 API 调用必须附带加密的许可策略声明，证明该调用符合当前会话的上下文与任务约束 26。  
-2. **混淆代理攻击（Confused Deputy）**：恶意用户可能诱导高权限的智能体执行非授权操作。授权网关通过受众绑定（Audience Binding）技术，严格核验当前任务发起者的身份是否拥有驱动该智能体执行特定动作的权限，切断越权调用的链路 26。  
-3. **时间与范围的无界扩散（Unbounded TTL）**：授权网关会强制检验操作的时间戳、一次性随机数（Nonce）以及短时间窗口限制（如 issued\_at / expires\_at），确保每一次工具调用授权都是转瞬即逝且无法重放的 26。
+1. **环境权限滥用（Ambient Authority）**：如果智能体仅因为拥有 API 密钥就畅通无阻，一旦其行为逻辑遭到篡改，该密钥将引发灾难。执行期授权要求每次 API 调用必须附带加密的许可策略声明，证明该调用符合当前会话的上下文与任务约束 26。
+2. **混淆代理攻击（Confused Deputy）**：恶意用户可能诱导高权限的智能体执行非授权操作。授权网关通过受众绑定（Audience Binding）技术，严格核验当前任务发起者的身份是否拥有驱动该智能体执行特定动作的权限，切断越权调用的链路 26。
+3. **时间与范围的无界扩散（Unbounded TTL）**：授权网关会强制检验操作的时间戳、一次性随机数（Nonce）以及短时间窗口限制（如 issued_at / expires_at），确保每一次工具调用授权都是转瞬即逝且无法重放的 26。
 
 在技术实现上，现代企业级脚手架普遍采用策略即代码（Policy-as-Code）的理念，将 Open Policy Agent (OPA) 深度集成于智能体的 API 网关中。所有来自大语言模型的工作流请求首先在 OPA 引擎内经历严格的、基于角色的访问控制（RBAC）与细粒度的数据边界验证。由于这种验证是基于确定性的数学规则和硬编码策略执行的，它的安全性不会因为基础模型的规模扩大、逻辑增强或产生幻觉而出现丝毫的衰减 23。这种将概率推理与确定性防御深度解耦的设计，使得即使是最先进、最不可预测的大模型，也能够被安全地容纳在金融或医疗等高度受监管的核心业务流程中 23。
 
@@ -90,9 +90,9 @@ Beads 是一个专为机器智能体设计的、具备深度依赖感知能力�
 
 在 Beads 体系下，脚手架强迫智能体将任何一个宏大的开发计划分解为一系列被称为“Bead”的微小工作单元。每一个 Bead 都代表着一次可以被单独审查、验证和执行的代码修改或环境探索。Beads 系统通过一套严格的最佳实践规范来约束智能体的行为：
 
-* **单一逻辑聚焦**：每一个 Bead 仅允许包含一个不可分割的逻辑单元，严禁将不相关的工作打包处理，以此限制智能体在单次执行中可能产生的破坏范围 31。  
-* **显式依赖声明**：智能体不能依赖内部的“隐式记忆”来判断先做哪一步。它必须使用 Beads 提供的命令行工具（如 bd depend）明确声明每一个 Bead 之间的先后关系。这种声明形成了一张有向无环图（DAG），脚手架通过该图谱来评估哪些任务目前处于“准备就绪”（Ready）状态，并以此为依据向智能体分发下一步的工作 32。  
-* **测试与业务的强绑定**：脚手架系统通过硬规则强制规定，在创建一个功能性的业务 Bead 时，智能体必须同步创建并关联与之对应的单元测试 Bead 和端到端（E2E）测试 Bead，确保任何逻辑的修改都有确凿的测试用例作为支撑 33。
+- **单一逻辑聚焦**：每一个 Bead 仅允许包含一个不可分割的逻辑单元，严禁将不相关的工作打包处理，以此限制智能体在单次执行中可能产生的破坏范围 31。
+- **显式依赖声明**：智能体不能依赖内部的“隐式记忆”来判断先做哪一步。它必须使用 Beads 提供的命令行工具（如 bd depend）明确声明每一个 Bead 之间的先后关系。这种声明形成了一张有向无环图（DAG），脚手架通过该图谱来评估哪些任务目前处于“准备就绪”（Ready）状态，并以此为依据向智能体分发下一步的工作 32。
+- **测试与业务的强绑定**：脚手架系统通过硬规则强制规定，在创建一个功能性的业务 Bead 时，智能体必须同步创建并关联与之对应的单元测试 Bead 和端到端（E2E）测试 Bead，确保任何逻辑的修改都有确凿的测试用例作为支撑 33。
 
 通过这种状态外置的架构，即使智能体的执行会话因故被彻底清空，在下一次苏醒时，它只需要向 Beads 数据库发起一次同步请求，就能立刻获得一张清晰、结构化且包含严格执行时序的项目作战地图。它只需挑选下一个状态为“就绪”的微工作单元继续执行，从而将脆弱的概率连续性转化为了坚不可摧的分布式事务处理能力 30。
 
@@ -126,29 +126,29 @@ Beads 是一个专为机器智能体设计的、具备深度依赖感知能力�
 
 在智能体开发的初始阶段，开发范式应当向领域驱动的测试驱动开发（Domain-Driven TDD）进行根本性倾斜。由于大模型在没有硬约束的情况下具有强烈的发散倾向，开发人员必须在编写任何系统提示词之前，首先通过测试用例定义业务的边界与验收标准 39。
 
-1. **场景定义的倒置**：团队的首要工作不是设计智能体的具体执行逻辑，而是利用领域通用语言编写宏观的场景验证测试（Scenario Tests）。这些测试以极其精确的形式定义了智能体在遭遇特定业务事件时所应达成的最终状态和不可逾越的红线 39。在初始执行阶段，这些测试必然会全部失败，而这些明确的失败报错正是引导智能体修正行为的指南针 39。  
+1. **场景定义的倒置**：团队的首要工作不是设计智能体的具体执行逻辑，而是利用领域通用语言编写宏观的场景验证测试（Scenario Tests）。这些测试以极其精确的形式定义了智能体在遭遇特定业务事件时所应达成的最终状态和不可逾越的红线 39。在初始执行阶段，这些测试必然会全部失败，而这些明确的失败报错正是引导智能体修正行为的指南针 39。
 2. **契约优先与硬编码验证**：在构建脚手架内的工具包时，引入强类型的契约验证机制。例如，对于所有的工具入口方法，强制使用装饰器或断言库进行入参范围和返回值类型的硬性验证 41。这种设计确保了如果智能体产生了幻觉并传递了错误格式的参数，异常会在脚手架层面立刻被抛出，并以机器可读的格式反馈给大模型，要求其立即修正，从而切断了错误向底层系统蔓延的路径。
 
 ### **阶段二：工具链裁剪与结构化环境配置（机器可读的知识场）**
 
 智能体依赖于环境的线索来进行导航与推理。为智能体提供一个边界清晰、高度结构化且对机器友好的工程环境，是脚手架整合的基础。
 
-1. **实施架构维度的依赖控制**：在一个边界模糊、模块间严重耦合的代码库中，智能体极易将新的逻辑插入错误的位置，导致系统熵的急剧增加。脚手架工程要求团队在架构层面设定极其严格的依赖控制协议，例如，确保项目中包含具有清晰物理边界的领域模块（Domain、Service、Handler），并通过明确定义的接口契约（如 interface.go）来声明公共访问权限 42。清晰的层级架构不仅约束了人类开发者，更是智能体在自动生成代码时赖以定位和遵循的“导航地图” 42。  
-2. **消除隐式知识，强化项目内联约束**：全面审计团队内流传于口头、Slack 聊天记录或深埋于外部 Confluence Wiki 中的“部落知识”（Tribal Knowledge）。这些孤立于代码库之外的信息对智能体来说是彻底不可见的盲区 8。团队必须将这些隐式规则提炼、结构化，并将其固化为项目根目录下的配置契约文件（如 .cursorrules、AGENTS.md 或是 CLAUDE.md）。在编写这些文件时，应采用渐进式披露（Progressive Disclosure）原则，仅保留放之四海而皆准的核心规范，避免冗长无关的描述稀释关键信息的权重 8。  
+1. **实施架构维度的依赖控制**：在一个边界模糊、模块间严重耦合的代码库中，智能体极易将新的逻辑插入错误的位置，导致系统熵的急剧增加。脚手架工程要求团队在架构层面设定极其严格的依赖控制协议，例如，确保项目中包含具有清晰物理边界的领域模块（Domain、Service、Handler），并通过明确定义的接口契约（如 interface.go）来声明公共访问权限 42。清晰的层级架构不仅约束了人类开发者，更是智能体在自动生成代码时赖以定位和遵循的“导航地图” 42。
+2. **消除隐式知识，强化项目内联约束**：全面审计团队内流传于口头、Slack 聊天记录或深埋于外部 Confluence Wiki 中的“部落知识”（Tribal Knowledge）。这些孤立于代码库之外的信息对智能体来说是彻底不可见的盲区 8。团队必须将这些隐式规则提炼、结构化，并将其固化为项目根目录下的配置契约文件（如 .cursorrules、AGENTS.md 或是 CLAUDE.md）。在编写这些文件时，应采用渐进式披露（Progressive Disclosure）原则，仅保留放之四海而皆准的核心规范，避免冗长无关的描述稀释关键信息的权重 8。
 3. **遵循最小权限与微工具设计**：在为智能体提供执行工具时，彻底摒弃暴露全量底层 API 的做法，转而采用类似 MCP V2 架构的抽象重构策略 14。仅授予智能体完成当前原子任务所绝对必需的读写权限。通过高度聚合的宏观操作指令替代底层的细粒度请求，从而大幅降低由于工具膨胀带来的上下文压力以及大语言模型可能引发的安全隐患 8。
 
 ### **阶段三：基于中间件设计的运行时管控与多级环境流转**
 
 在核心代码与业务逻辑进入实际的测试与部署流转时，脚手架必须提供无缝拦截与执行控制的层级结构。
 
-1. **采用中间件层级结构（Middleware-First Approach）**：优秀的脚手架系统不应是一块巨大的、不可拆卸的单体逻辑泥潭，而应当被设计为由一系列独立中间件模块构成的洋葱模型。这些模块（例如用于状态回滚的内存控制中间件、用于工具拦截的安全检查中间件、用于数据压缩的上下文削峰中间件）通过松耦合的方式组装在一起 8。这种可插拔的模块化设计（Rippable Design）不仅极大地降低了系统耦合度，还使得团队能够在更高级别的大模型原生集成某些功能后，轻松移除冗余的拦截逻辑，防止系统陷入过度工程的陷阱 8。  
+1. **采用中间件层级结构（Middleware-First Approach）**：优秀的脚手架系统不应是一块巨大的、不可拆卸的单体逻辑泥潭，而应当被设计为由一系列独立中间件模块构成的洋葱模型。这些模块（例如用于状态回滚的内存控制中间件、用于工具拦截的安全检查中间件、用于数据压缩的上下文削峰中间件）通过松耦合的方式组装在一起 8。这种可插拔的模块化设计（Rippable Design）不仅极大地降低了系统耦合度，还使得团队能够在更高级别的大模型原生集成某些功能后，轻松移除冗余的拦截逻辑，防止系统陷入过度工程的陷阱 8。
 2. **强制性的人类在环断点与自动化生命周期钩子（Hooks）**：在关键的工作流节点，脚手架必须被硬编码为拦截模式。例如，当智能体完成了某项特性开发，并在内部认为任务结束时，脚手架的钩子程序将自动接管控制流，强制触发类型检查（Type-checks）、静态代码分析（Linting）、完整构建流程以及单元测试套件。如果在此过程中发现任何编译错误或测试未通过，脚手架会在后台直接拒绝本次变更，将控制权和错误日志连同重试指令一起抛还给智能体 10。对于涉及生产数据库写入、敏感权限分配或系统核心配置更改的高危动作，必须无条件触发人工审批流程，只有在获取了带有外部认证时间戳的许可指令后，操作才允许继续执行 2。
 
 ### **阶段四：持续的生产治理、可观测性注入与系统熵管理**
 
 部署上线并不是智能体生命周期的终点，由于智能体本质上的自主决策能力，生产环境的持续治理与系统熵值控制是防范其陷入混沌的最后一道防线。
 
-1. **注入全景可观测性与独立追踪管道**：在生产环境的脚手架底层，深度集成基于 OpenTelemetry 等标准的可观测性探针。这些探针需要专门记录智能体特有的运行时指标：不仅包括传统的 CPU 使用率和网络延迟，更要精准记录每个节点的 Token 消耗与成本归集、工具调用的详尽堆栈、提示词注入的异常拦截事件，以及完整的跨组件通信链条（Trace log views） 27。由于大模型极具发散性且难以复现，这种带有详尽上下文的运行轨迹审计日志（Audit-ready traces）是诊断复杂并发故障、修复长尾缺陷以及进行合规性举证的唯一有效手段 28。  
+1. **注入全景可观测性与独立追踪管道**：在生产环境的脚手架底层，深度集成基于 OpenTelemetry 等标准的可观测性探针。这些探针需要专门记录智能体特有的运行时指标：不仅包括传统的 CPU 使用率和网络延迟，更要精准记录每个节点的 Token 消耗与成本归集、工具调用的详尽堆栈、提示词注入的异常拦截事件，以及完整的跨组件通信链条（Trace log views） 27。由于大模型极具发散性且难以复现，这种带有详尽上下文的运行轨迹审计日志（Audit-ready traces）是诊断复杂并发故障、修复长尾缺陷以及进行合规性举证的唯一有效手段 28。
 2. **定期执行强制性的熵管理（Entropy Management / Garbage Collection）**：智能体在处理代码维护和环境交互时，通常倾向于“做加法”，如果缺乏有效的收敛机制，系统会迅速积累大量的死代码、废弃的接口、冲突的依赖版本以及未及时同步的文档注释。这不仅增加了系统的维护难度，更会污染后续智能体执行任务的上下文环境。因此，脚手架工程在设计之初就必须规划专门的定时清理任务流，定期唤醒具有专门权限的“清道夫智能体”。这些特殊的清理智能体不仅能够在后台自动修复一致性漂移、修剪无用的冗余逻辑，还能以不干扰主业务线的方式自动提交优化请求（Pull Requests），从而长期维持整个系统架构的健康度与机器可读性 8。
 
 ## **面向未来的自主系统架构演进与治理展望**
@@ -161,49 +161,49 @@ Beads 是一个专为机器智能体设计的、具备深度依赖感知能力�
 
 #### **引用的著作**
 
-> 1. 访问时间为 三月 24, 2026， [https://www.firecrawl.dev/blog/what-is-an-agent-harness\#:\~:text=An%20agent%20harness%20is%20everything,every%20new%20session%20starts%20blind](https://www.firecrawl.dev/blog/what-is-an-agent-harness#:~:text=An%20agent%20harness%20is%20everything,every%20new%20session%20starts%20blind)  
-> 2. What Is an Agent Harness? The Infrastructure That Makes AI Agents ..., 访问时间为 三月 24, 2026， [https://www.firecrawl.dev/blog/what-is-an-agent-harness](https://www.firecrawl.dev/blog/what-is-an-agent-harness)  
-> 3. What Is an Agent Harness? The Key to Reliable AI \- Salesforce, 访问时间为 三月 24, 2026， [https://www.salesforce.com/agentforce/ai-agents/agent-harness/](https://www.salesforce.com/agentforce/ai-agents/agent-harness/)  
-> 4. 2025 Was Agents. 2026 Is Agent Harnesses. Here's Why That Changes Everything., 访问时间为 三月 24, 2026， [https://aakashgupta.medium.com/2025-was-agents-2026-is-agent-harnesses-heres-why-that-changes-everything-073e9877655e](https://aakashgupta.medium.com/2025-was-agents-2026-is-agent-harnesses-heres-why-that-changes-everything-073e9877655e)  
-> 5. The Agent Harness Is the Architecture (and Your Model Is Not the Bottleneck) \- Medium, 访问时间为 三月 24, 2026， [https://medium.com/@epappas/the-agent-harness-is-the-architecture-and-your-model-is-not-the-bottleneck-5ae5fd067bb2](https://medium.com/@epappas/the-agent-harness-is-the-architecture-and-your-model-is-not-the-bottleneck-5ae5fd067bb2)  
-> 6. Agent Frameworks, Runtimes, and Harnesses- oh my\! \- LangChain Blog, 访问时间为 三月 24, 2026， [https://blog.langchain.com/agent-frameworks-runtimes-and-harnesses-oh-my/](https://blog.langchain.com/agent-frameworks-runtimes-and-harnesses-oh-my/)  
-> 7. Agent Frameworks vs Runtime vs Harnesses: What They Are and When to Use Which, 访问时间为 三月 24, 2026， [https://www.analyticsvidhya.com/blog/2025/12/agent-frameworks-vs-runtimes-vs-harnesses/](https://www.analyticsvidhya.com/blog/2025/12/agent-frameworks-vs-runtimes-vs-harnesses/)  
-> 8. Harness Engineering: The Complete Guide to Building Systems ..., 访问时间为 三月 24, 2026， [https://www.nxcode.io/resources/news/harness-engineering-complete-guide-ai-agent-codex-2026](https://www.nxcode.io/resources/news/harness-engineering-complete-guide-ai-agent-codex-2026)  
-> 9. Agent vs Harness: What's the Difference? \- Ezz's Blog, 访问时间为 三月 24, 2026， [https://ezz.sh/posts/agent\_vs\_harness](https://ezz.sh/posts/agent_vs_harness)  
-> 10. Skill Issue: Harness Engineering for Coding Agents | HumanLayer Blog, 访问时间为 三月 24, 2026， [https://www.humanlayer.dev/blog/skill-issue-harness-engineering-for-coding-agents](https://www.humanlayer.dev/blog/skill-issue-harness-engineering-for-coding-agents)  
-> 11. How Hightouch built their long-running agent harness \- Amplify Partners, 访问时间为 三月 24, 2026， [https://www.amplifypartners.com/blog-posts/how-hightouch-built-their-long-running-agent-harness](https://www.amplifypartners.com/blog-posts/how-hightouch-built-their-long-running-agent-harness)  
-> 12. Agent Harness in Agent Framework | Microsoft Agent Framework, 访问时间为 三月 24, 2026， [https://devblogs.microsoft.com/agent-framework/agent-harness-in-agent-framework/](https://devblogs.microsoft.com/agent-framework/agent-harness-in-agent-framework/)  
-> 13. Building Effective AI Coding Agents for the Terminal: Scaffolding, Harness, Context Engineering, and Lessons Learned \- arXiv, 访问时间为 三月 24, 2026， [https://arxiv.org/html/2603.05344v3](https://arxiv.org/html/2603.05344v3)  
-> 14. Designing MCP for the Age of AI Agents \- Harness, 访问时间为 三月 24, 2026， [https://www.harness.io/blog/harness-mcp-server-redesign](https://www.harness.io/blog/harness-mcp-server-redesign)  
-> 15. MCP: Model, Context… Propaganda? What security teams need to know about the latest hyped up AI tech | Semgrep, 访问时间为 三月 24, 2026， [https://semgrep.dev/blog/2025/mcp-model-context-propaganda-what-security-teams-need-to-know-about-the-latest-hyped-up-ai-tech/](https://semgrep.dev/blog/2025/mcp-model-context-propaganda-what-security-teams-need-to-know-about-the-latest-hyped-up-ai-tech/)  
-> 16. Generative AI and the Transformation of Software Development Practices \- arXiv, 访问时间为 三月 24, 2026， [https://arxiv.org/html/2510.10819v1](https://arxiv.org/html/2510.10819v1)  
-> 17. Introduction to AI Agents. Architecture, Tools, and Implementation | by Aleix López Pascual, 访问时间为 三月 24, 2026， [https://medium.com/@aleixlopez/introduction-to-ai-agents-62a790d0bc22](https://medium.com/@aleixlopez/introduction-to-ai-agents-62a790d0bc22)  
-> 18. Top 10 API Management Tools for 2026: A Deep Dive for Architects \- Zuplo, 访问时间为 三月 24, 2026， [https://zuplo.com/blog/top-10-api-management-tools-for-2025-a-deep-dive-for-architects](https://zuplo.com/blog/top-10-api-management-tools-for-2025-a-deep-dive-for-architects)  
-> 19. Agentic AI Protocols & Platforms: The UnBPO™ Advantage \- Firstsource, 访问时间为 三月 24, 2026， [https://www.firstsource.com/insights/blogs/new-language-agentic-ai-protocols-platforms-and-unbpotm-advantage](https://www.firstsource.com/insights/blogs/new-language-agentic-ai-protocols-platforms-and-unbpotm-advantage)  
-> 20. Building Secure, Scalable, and Isolated AI Agent Runtimes on GKE | by Derrick Wong, 访问时间为 三月 24, 2026， [https://medium.com/@derrickchwong/building-secure-scalable-and-isolated-ai-agent-runtimes-on-gke-3cc82b0511ff](https://medium.com/@derrickchwong/building-secure-scalable-and-isolated-ai-agent-runtimes-on-gke-3cc82b0511ff)  
-> 21. How We Built an AI Agent Harness That Actually Does Security | by Hungrysoul \- Medium, 访问时间为 三月 24, 2026， [https://medium.com/@hungry.soul/how-we-built-an-ai-agent-harness-that-actually-does-security-6b52ca949752](https://medium.com/@hungry.soul/how-we-built-an-ai-agent-harness-that-actually-does-security-6b52ca949752)  
-> 22. Practical Security Guidance for Sandboxing Agentic Workflows and Managing Execution Risk | NVIDIA Technical Blog, 访问时间为 三月 24, 2026， [https://developer.nvidia.com/blog/practical-security-guidance-for-sandboxing-agentic-workflows-and-managing-execution-risk/](https://developer.nvidia.com/blog/practical-security-guidance-for-sandboxing-agentic-workflows-and-managing-execution-risk/)  
-> 23. Execution-Time Authorization for AI Agents: A Formal Framework for Deterministic Governance Boundaries \- ResearchGate, 访问时间为 三月 24, 2026， [https://www.researchgate.net/publication/401174999\_Execution-Time\_Authorization\_for\_AI\_Agents\_A\_Formal\_Framework\_for\_Deterministic\_Governance\_Boundaries](https://www.researchgate.net/publication/401174999_Execution-Time_Authorization_for_AI_Agents_A_Formal_Framework_for_Deterministic_Governance_Boundaries)  
-> 24. Faramesh: A Protocol-Agnostic Execution Control Plane for Autonomous Agent systems, 访问时间为 三月 24, 2026， [https://arxiv.org/html/2601.17744v1](https://arxiv.org/html/2601.17744v1)  
-> 25. From Monitoring to Authorization: The Structural Shift Emerging in Agentic AI Governance, 访问时间为 三月 24, 2026， [https://www.researchgate.net/publication/401121882\_From\_Monitoring\_to\_Authorization\_The\_Structural\_Shift\_Emerging\_in\_Agentic\_AI\_Governance](https://www.researchgate.net/publication/401121882_From_Monitoring_to_Authorization_The_Structural_Shift_Emerging_in_Agentic_AI_Governance)  
-> 26. Agent Permission Protocol (APP) Whitepaper \- Crittora, 访问时间为 三月 24, 2026， [https://www.crittora.com/app/whitepaper/](https://www.crittora.com/app/whitepaper/)  
-> 27. API Lifecycles, Specifications, and Standards with Kin Lane \- InfoQ, 访问时间为 三月 24, 2026， [https://www.infoq.com/podcasts/api-lifecycles-specifications-standards/](https://www.infoq.com/podcasts/api-lifecycles-specifications-standards/)  
-> 28. Singapore's Agentic AI Framework: Governing Autonomous Systems Without Killing Innovation | by Naveen Sundaresan | Mar, 2026 | Medium, 访问时间为 三月 24, 2026， [https://medium.com/@nvns10/singapores-agentic-ai-framework-governing-autonomous-systems-without-killing-innovation-00581ae27cbf](https://medium.com/@nvns10/singapores-agentic-ai-framework-governing-autonomous-systems-without-killing-innovation-00581ae27cbf)  
-> 29. BYTEBURST \#7: Ralph, Beads, and bv — A Practicum for Autonomous Software Development | by Yuri Trukhin | Mar, 2026 \- Medium, 访问时间为 三月 24, 2026， [https://medium.com/trukhinyuri/byteburst-7-ralph-beads-and-bv-a-practicum-for-autonomous-software-development-5ad7829194d9](https://medium.com/trukhinyuri/byteburst-7-ralph-beads-and-bv-a-practicum-for-autonomous-software-development-5ad7829194d9)  
-> 30. The Beads Revolution: How I Built The TODO System That AI Agents Actually Want to Use, 访问时间为 三月 24, 2026， [https://steve-yegge.medium.com/the-beads-revolution-how-i-built-the-todo-system-that-ai-agents-actually-want-to-use-228a5f9be2a9](https://steve-yegge.medium.com/the-beads-revolution-how-i-built-the-todo-system-that-ai-agents-actually-want-to-use-228a5f9be2a9)  
-> 31. beads-workflow \- Skill | Smithery, 访问时间为 三月 24, 2026， [https://smithery.ai/skills/dralgorhythm/beads-workflow](https://smithery.ai/skills/dralgorhythm/beads-workflow)  
-> 32. beads\_viewer/AGENTS.md at main \- GitHub, 访问时间为 三月 24, 2026， [https://github.com/Dicklesworthstone/beads\_viewer/blob/main/AGENTS.md](https://github.com/Dicklesworthstone/beads_viewer/blob/main/AGENTS.md)  
-> 33. beads-workflow | Skills Marketplace \- LobeHub, 访问时间为 三月 24, 2026， [https://lobehub.com/pl/skills/neversight-learn-skills.dev-beads-workflow](https://lobehub.com/pl/skills/neversight-learn-skills.dev-beads-workflow)  
-> 34. Closing the verification loop: Observability-driven harnesses for ..., 访问时间为 三月 24, 2026， [https://www.datadoghq.com/blog/ai/harness-first-agents/](https://www.datadoghq.com/blog/ai/harness-first-agents/)  
-> 35. How to Build an Evaluation Harness for Your AI Agent (Before It Books the Wrong Flight), 访问时间为 三月 24, 2026， [https://medium.com/@Micheal-Lanham/how-to-build-an-evaluation-harness-for-your-ai-agent-before-it-books-the-wrong-flight-84de83a47207](https://medium.com/@Micheal-Lanham/how-to-build-an-evaluation-harness-for-your-ai-agent-before-it-books-the-wrong-flight-84de83a47207)  
-> 36. What are you using to evaluate LLM agents beyond prompt tweaks? : r/generativeAI \- Reddit, 访问时间为 三月 24, 2026， [https://www.reddit.com/r/generativeAI/comments/1s0e622/what\_are\_you\_using\_to\_evaluate\_llm\_agents\_beyond/](https://www.reddit.com/r/generativeAI/comments/1s0e622/what_are_you_using_to_evaluate_llm_agents_beyond/)  
-> 37. Demystifying evals for AI agents \- Anthropic, 访问时间为 三月 24, 2026， [https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)  
-> 38. Harness Engineering: What It Means for QA \- Test Collab, 访问时间为 三月 24, 2026， [https://testcollab.com/blog/harness-engineering](https://testcollab.com/blog/harness-engineering)  
-> 39. From Scenario to Finished: How to Test AI Agents with Domain-Driven TDD \- LangWatch, 访问时间为 三月 24, 2026， [https://langwatch.ai/blog/from-scenario-to-finished-how-to-test-ai-agents-with-domain-driven-tdd](https://langwatch.ai/blog/from-scenario-to-finished-how-to-test-ai-agents-with-domain-driven-tdd)  
-> 40. Test-Driven Development with Agentic AI | by Giorgio Zoppi | Medium, 访问时间为 三月 24, 2026， [https://medium.com/@giorgio.zoppi/test-driven-development-with-agentic-ai-cdc8b494542d](https://medium.com/@giorgio.zoppi/test-driven-development-with-agentic-ai-cdc8b494542d)  
-> 41. specfact-cli/CHANGELOG.md at main \- GitHub, 访问时间为 三月 24, 2026， [https://github.com/nold-ai/specfact-cli/blob/main/CHANGELOG.md](https://github.com/nold-ai/specfact-cli/blob/main/CHANGELOG.md)  
-> 42. 52 Days of Harness Engineering by One Person : r/SideProject \- Reddit, 访问时间为 三月 24, 2026， [https://www.reddit.com/r/SideProject/comments/1rt7kyv/52\_days\_of\_harness\_engineering\_by\_one\_person/](https://www.reddit.com/r/SideProject/comments/1rt7kyv/52_days_of_harness_engineering_by_one_person/)  
-> 43. Step-by-Step Guide on Building AI Agents for Beginners \- Codewave, 访问时间为 三月 24, 2026， [https://codewave.com/insights/build-ai-agents-beginners-guide/](https://codewave.com/insights/build-ai-agents-beginners-guide/)  
-> 44. 8 Best AI Agent Debugging & Root Cause Analysis Tools | Galileo, 访问时间为 三月 24, 2026， [https://galileo.ai/blog/best-ai-agent-debugging-root-cause-analysis-tools](https://galileo.ai/blog/best-ai-agent-debugging-root-cause-analysis-tools)  
-> 45. Sandboxes for AI: Tools for a new frontier \- The Datasphere Initiative, 访问时间为 三月 24, 2026， [https://www.thedatasphere.org/wp-content/uploads/2025/02/Report-Sandboxes-for-AI-2025.pdf](https://www.thedatasphere.org/wp-content/uploads/2025/02/Report-Sandboxes-for-AI-2025.pdf)  
+> 1. 访问时间为 三月 24, 2026， [https://www.firecrawl.dev/blog/what-is-an-agent-harness\#:\~:text=An%20agent%20harness%20is%20everything,every%20new%20session%20starts%20blind](https://www.firecrawl.dev/blog/what-is-an-agent-harness#:~:text=An%20agent%20harness%20is%20everything,every%20new%20session%20starts%20blind)
+> 2. What Is an Agent Harness? The Infrastructure That Makes AI Agents ..., 访问时间为 三月 24, 2026， [https://www.firecrawl.dev/blog/what-is-an-agent-harness](https://www.firecrawl.dev/blog/what-is-an-agent-harness)
+> 3. What Is an Agent Harness? The Key to Reliable AI \- Salesforce, 访问时间为 三月 24, 2026， [https://www.salesforce.com/agentforce/ai-agents/agent-harness/](https://www.salesforce.com/agentforce/ai-agents/agent-harness/)
+> 4. 2025 Was Agents. 2026 Is Agent Harnesses. Here's Why That Changes Everything., 访问时间为 三月 24, 2026， [https://aakashgupta.medium.com/2025-was-agents-2026-is-agent-harnesses-heres-why-that-changes-everything-073e9877655e](https://aakashgupta.medium.com/2025-was-agents-2026-is-agent-harnesses-heres-why-that-changes-everything-073e9877655e)
+> 5. The Agent Harness Is the Architecture (and Your Model Is Not the Bottleneck) \- Medium, 访问时间为 三月 24, 2026， [https://medium.com/@epappas/the-agent-harness-is-the-architecture-and-your-model-is-not-the-bottleneck-5ae5fd067bb2](https://medium.com/@epappas/the-agent-harness-is-the-architecture-and-your-model-is-not-the-bottleneck-5ae5fd067bb2)
+> 6. Agent Frameworks, Runtimes, and Harnesses- oh my\! \- LangChain Blog, 访问时间为 三月 24, 2026， [https://blog.langchain.com/agent-frameworks-runtimes-and-harnesses-oh-my/](https://blog.langchain.com/agent-frameworks-runtimes-and-harnesses-oh-my/)
+> 7. Agent Frameworks vs Runtime vs Harnesses: What They Are and When to Use Which, 访问时间为 三月 24, 2026， [https://www.analyticsvidhya.com/blog/2025/12/agent-frameworks-vs-runtimes-vs-harnesses/](https://www.analyticsvidhya.com/blog/2025/12/agent-frameworks-vs-runtimes-vs-harnesses/)
+> 8. Harness Engineering: The Complete Guide to Building Systems ..., 访问时间为 三月 24, 2026， [https://www.nxcode.io/resources/news/harness-engineering-complete-guide-ai-agent-codex-2026](https://www.nxcode.io/resources/news/harness-engineering-complete-guide-ai-agent-codex-2026)
+> 9. Agent vs Harness: What's the Difference? \- Ezz's Blog, 访问时间为 三月 24, 2026， [https://ezz.sh/posts/agent_vs_harness](https://ezz.sh/posts/agent_vs_harness)
+> 10. Skill Issue: Harness Engineering for Coding Agents | HumanLayer Blog, 访问时间为 三月 24, 2026， [https://www.humanlayer.dev/blog/skill-issue-harness-engineering-for-coding-agents](https://www.humanlayer.dev/blog/skill-issue-harness-engineering-for-coding-agents)
+> 11. How Hightouch built their long-running agent harness \- Amplify Partners, 访问时间为 三月 24, 2026， [https://www.amplifypartners.com/blog-posts/how-hightouch-built-their-long-running-agent-harness](https://www.amplifypartners.com/blog-posts/how-hightouch-built-their-long-running-agent-harness)
+> 12. Agent Harness in Agent Framework | Microsoft Agent Framework, 访问时间为 三月 24, 2026， [https://devblogs.microsoft.com/agent-framework/agent-harness-in-agent-framework/](https://devblogs.microsoft.com/agent-framework/agent-harness-in-agent-framework/)
+> 13. Building Effective AI Coding Agents for the Terminal: Scaffolding, Harness, Context Engineering, and Lessons Learned \- arXiv, 访问时间为 三月 24, 2026， [https://arxiv.org/html/2603.05344v3](https://arxiv.org/html/2603.05344v3)
+> 14. Designing MCP for the Age of AI Agents \- Harness, 访问时间为 三月 24, 2026， [https://www.harness.io/blog/harness-mcp-server-redesign](https://www.harness.io/blog/harness-mcp-server-redesign)
+> 15. MCP: Model, Context… Propaganda? What security teams need to know about the latest hyped up AI tech | Semgrep, 访问时间为 三月 24, 2026， [https://semgrep.dev/blog/2025/mcp-model-context-propaganda-what-security-teams-need-to-know-about-the-latest-hyped-up-ai-tech/](https://semgrep.dev/blog/2025/mcp-model-context-propaganda-what-security-teams-need-to-know-about-the-latest-hyped-up-ai-tech/)
+> 16. Generative AI and the Transformation of Software Development Practices \- arXiv, 访问时间为 三月 24, 2026， [https://arxiv.org/html/2510.10819v1](https://arxiv.org/html/2510.10819v1)
+> 17. Introduction to AI Agents. Architecture, Tools, and Implementation | by Aleix López Pascual, 访问时间为 三月 24, 2026， [https://medium.com/@aleixlopez/introduction-to-ai-agents-62a790d0bc22](https://medium.com/@aleixlopez/introduction-to-ai-agents-62a790d0bc22)
+> 18. Top 10 API Management Tools for 2026: A Deep Dive for Architects \- Zuplo, 访问时间为 三月 24, 2026， [https://zuplo.com/blog/top-10-api-management-tools-for-2025-a-deep-dive-for-architects](https://zuplo.com/blog/top-10-api-management-tools-for-2025-a-deep-dive-for-architects)
+> 19. Agentic AI Protocols & Platforms: The UnBPO™ Advantage \- Firstsource, 访问时间为 三月 24, 2026， [https://www.firstsource.com/insights/blogs/new-language-agentic-ai-protocols-platforms-and-unbpotm-advantage](https://www.firstsource.com/insights/blogs/new-language-agentic-ai-protocols-platforms-and-unbpotm-advantage)
+> 20. Building Secure, Scalable, and Isolated AI Agent Runtimes on GKE | by Derrick Wong, 访问时间为 三月 24, 2026， [https://medium.com/@derrickchwong/building-secure-scalable-and-isolated-ai-agent-runtimes-on-gke-3cc82b0511ff](https://medium.com/@derrickchwong/building-secure-scalable-and-isolated-ai-agent-runtimes-on-gke-3cc82b0511ff)
+> 21. How We Built an AI Agent Harness That Actually Does Security | by Hungrysoul \- Medium, 访问时间为 三月 24, 2026， [https://medium.com/@hungry.soul/how-we-built-an-ai-agent-harness-that-actually-does-security-6b52ca949752](https://medium.com/@hungry.soul/how-we-built-an-ai-agent-harness-that-actually-does-security-6b52ca949752)
+> 22. Practical Security Guidance for Sandboxing Agentic Workflows and Managing Execution Risk | NVIDIA Technical Blog, 访问时间为 三月 24, 2026， [https://developer.nvidia.com/blog/practical-security-guidance-for-sandboxing-agentic-workflows-and-managing-execution-risk/](https://developer.nvidia.com/blog/practical-security-guidance-for-sandboxing-agentic-workflows-and-managing-execution-risk/)
+> 23. Execution-Time Authorization for AI Agents: A Formal Framework for Deterministic Governance Boundaries \- ResearchGate, 访问时间为 三月 24, 2026， [https://www.researchgate.net/publication/401174999_Execution-Time_Authorization_for_AI_Agents_A_Formal_Framework_for_Deterministic_Governance_Boundaries](https://www.researchgate.net/publication/401174999_Execution-Time_Authorization_for_AI_Agents_A_Formal_Framework_for_Deterministic_Governance_Boundaries)
+> 24. Faramesh: A Protocol-Agnostic Execution Control Plane for Autonomous Agent systems, 访问时间为 三月 24, 2026， [https://arxiv.org/html/2601.17744v1](https://arxiv.org/html/2601.17744v1)
+> 25. From Monitoring to Authorization: The Structural Shift Emerging in Agentic AI Governance, 访问时间为 三月 24, 2026， [https://www.researchgate.net/publication/401121882_From_Monitoring_to_Authorization_The_Structural_Shift_Emerging_in_Agentic_AI_Governance](https://www.researchgate.net/publication/401121882_From_Monitoring_to_Authorization_The_Structural_Shift_Emerging_in_Agentic_AI_Governance)
+> 26. Agent Permission Protocol (APP) Whitepaper \- Crittora, 访问时间为 三月 24, 2026， [https://www.crittora.com/app/whitepaper/](https://www.crittora.com/app/whitepaper/)
+> 27. API Lifecycles, Specifications, and Standards with Kin Lane \- InfoQ, 访问时间为 三月 24, 2026， [https://www.infoq.com/podcasts/api-lifecycles-specifications-standards/](https://www.infoq.com/podcasts/api-lifecycles-specifications-standards/)
+> 28. Singapore's Agentic AI Framework: Governing Autonomous Systems Without Killing Innovation | by Naveen Sundaresan | Mar, 2026 | Medium, 访问时间为 三月 24, 2026， [https://medium.com/@nvns10/singapores-agentic-ai-framework-governing-autonomous-systems-without-killing-innovation-00581ae27cbf](https://medium.com/@nvns10/singapores-agentic-ai-framework-governing-autonomous-systems-without-killing-innovation-00581ae27cbf)
+> 29. BYTEBURST \#7: Ralph, Beads, and bv — A Practicum for Autonomous Software Development | by Yuri Trukhin | Mar, 2026 \- Medium, 访问时间为 三月 24, 2026， [https://medium.com/trukhinyuri/byteburst-7-ralph-beads-and-bv-a-practicum-for-autonomous-software-development-5ad7829194d9](https://medium.com/trukhinyuri/byteburst-7-ralph-beads-and-bv-a-practicum-for-autonomous-software-development-5ad7829194d9)
+> 30. The Beads Revolution: How I Built The TODO System That AI Agents Actually Want to Use, 访问时间为 三月 24, 2026， [https://steve-yegge.medium.com/the-beads-revolution-how-i-built-the-todo-system-that-ai-agents-actually-want-to-use-228a5f9be2a9](https://steve-yegge.medium.com/the-beads-revolution-how-i-built-the-todo-system-that-ai-agents-actually-want-to-use-228a5f9be2a9)
+> 31. beads-workflow \- Skill | Smithery, 访问时间为 三月 24, 2026， [https://smithery.ai/skills/dralgorhythm/beads-workflow](https://smithery.ai/skills/dralgorhythm/beads-workflow)
+> 32. beads_viewer/AGENTS.md at main \- GitHub, 访问时间为 三月 24, 2026， [https://github.com/Dicklesworthstone/beads_viewer/blob/main/AGENTS.md](https://github.com/Dicklesworthstone/beads_viewer/blob/main/AGENTS.md)
+> 33. beads-workflow | Skills Marketplace \- LobeHub, 访问时间为 三月 24, 2026， [https://lobehub.com/pl/skills/neversight-learn-skills.dev-beads-workflow](https://lobehub.com/pl/skills/neversight-learn-skills.dev-beads-workflow)
+> 34. Closing the verification loop: Observability-driven harnesses for ..., 访问时间为 三月 24, 2026， [https://www.datadoghq.com/blog/ai/harness-first-agents/](https://www.datadoghq.com/blog/ai/harness-first-agents/)
+> 35. How to Build an Evaluation Harness for Your AI Agent (Before It Books the Wrong Flight), 访问时间为 三月 24, 2026， [https://medium.com/@Micheal-Lanham/how-to-build-an-evaluation-harness-for-your-ai-agent-before-it-books-the-wrong-flight-84de83a47207](https://medium.com/@Micheal-Lanham/how-to-build-an-evaluation-harness-for-your-ai-agent-before-it-books-the-wrong-flight-84de83a47207)
+> 36. What are you using to evaluate LLM agents beyond prompt tweaks? : r/generativeAI \- Reddit, 访问时间为 三月 24, 2026， [https://www.reddit.com/r/generativeAI/comments/1s0e622/what_are_you_using_to_evaluate_llm_agents_beyond/](https://www.reddit.com/r/generativeAI/comments/1s0e622/what_are_you_using_to_evaluate_llm_agents_beyond/)
+> 37. Demystifying evals for AI agents \- Anthropic, 访问时间为 三月 24, 2026， [https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)
+> 38. Harness Engineering: What It Means for QA \- Test Collab, 访问时间为 三月 24, 2026， [https://testcollab.com/blog/harness-engineering](https://testcollab.com/blog/harness-engineering)
+> 39. From Scenario to Finished: How to Test AI Agents with Domain-Driven TDD \- LangWatch, 访问时间为 三月 24, 2026， [https://langwatch.ai/blog/from-scenario-to-finished-how-to-test-ai-agents-with-domain-driven-tdd](https://langwatch.ai/blog/from-scenario-to-finished-how-to-test-ai-agents-with-domain-driven-tdd)
+> 40. Test-Driven Development with Agentic AI | by Giorgio Zoppi | Medium, 访问时间为 三月 24, 2026， [https://medium.com/@giorgio.zoppi/test-driven-development-with-agentic-ai-cdc8b494542d](https://medium.com/@giorgio.zoppi/test-driven-development-with-agentic-ai-cdc8b494542d)
+> 41. specfact-cli/CHANGELOG.md at main \- GitHub, 访问时间为 三月 24, 2026， [https://github.com/nold-ai/specfact-cli/blob/main/CHANGELOG.md](https://github.com/nold-ai/specfact-cli/blob/main/CHANGELOG.md)
+> 42. 52 Days of Harness Engineering by One Person : r/SideProject \- Reddit, 访问时间为 三月 24, 2026， [https://www.reddit.com/r/SideProject/comments/1rt7kyv/52_days_of_harness_engineering_by_one_person/](https://www.reddit.com/r/SideProject/comments/1rt7kyv/52_days_of_harness_engineering_by_one_person/)
+> 43. Step-by-Step Guide on Building AI Agents for Beginners \- Codewave, 访问时间为 三月 24, 2026， [https://codewave.com/insights/build-ai-agents-beginners-guide/](https://codewave.com/insights/build-ai-agents-beginners-guide/)
+> 44. 8 Best AI Agent Debugging & Root Cause Analysis Tools | Galileo, 访问时间为 三月 24, 2026， [https://galileo.ai/blog/best-ai-agent-debugging-root-cause-analysis-tools](https://galileo.ai/blog/best-ai-agent-debugging-root-cause-analysis-tools)
+> 45. Sandboxes for AI: Tools for a new frontier \- The Datasphere Initiative, 访问时间为 三月 24, 2026， [https://www.thedatasphere.org/wp-content/uploads/2025/02/Report-Sandboxes-for-AI-2025.pdf](https://www.thedatasphere.org/wp-content/uploads/2025/02/Report-Sandboxes-for-AI-2025.pdf)
 > 46. Agentic Engineering FAQs, 访问时间为 三月 24, 2026， [https://www.agenticengineeringinstitute.com/agentic-engineering-faqs](https://www.agenticengineeringinstitute.com/agentic-engineering-faqs)

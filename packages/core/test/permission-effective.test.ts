@@ -206,7 +206,8 @@ describe("PermissionEffective V1/V2 同源", () => {
         ["read", ".env"],
         ["some_future_tool", "*"],
         ["task", "*"],
-      ] as const) {        expect(PermissionEffective.evaluate(rulesV2, action, resource), JSON.stringify(i)).toBe(
+      ] as const) {
+        expect(PermissionEffective.evaluate(rulesV2, action, resource), JSON.stringify(i)).toBe(
           PermissionEffective.evaluateV1(rulesV1, action, resource),
         )
       }
@@ -347,12 +348,14 @@ describe("PermissionEffective attended custom 重写为 ask（Phase D §2.6）",
   })
 
   test("attended custom：显式资源级 deny 仍压过通配 allow 与 saved（位序不变）", () => {
-    const withDeny: Permission.Ruleset = [
-      ...allowAllAsset,
-      { action: "read", resource: ".env", effect: "deny" },
-    ]
+    const withDeny: Permission.Ruleset = [...allowAllAsset, { action: "read", resource: ".env", effect: "deny" }]
     const rules = v2(
-      input({ mode: "custom", agent: "workflow-worker", attended: true, savedApprovals: [{ action: "read", resource: ".env" }] }),
+      input({
+        mode: "custom",
+        agent: "workflow-worker",
+        attended: true,
+        savedApprovals: [{ action: "read", resource: ".env" }],
+      }),
       withDeny,
     )
     expect(PermissionEffective.evaluate(rules, "read", ".env")).toBe("deny")
@@ -360,7 +363,12 @@ describe("PermissionEffective attended custom 重写为 ask（Phase D §2.6）",
 
   test("attended custom：saved 追加来源不被天花板削掉", () => {
     const rules = v2(
-      input({ mode: "custom", agent: "workflow-worker", attended: true, savedApprovals: [{ action: "grep", resource: "logs/*" }] }),
+      input({
+        mode: "custom",
+        agent: "workflow-worker",
+        attended: true,
+        savedApprovals: [{ action: "grep", resource: "logs/*" }],
+      }),
       [{ action: "*", resource: "*", effect: "allow" }],
     )
     expect(PermissionEffective.evaluate(rules, "grep", "logs/a.log")).toBe("allow")

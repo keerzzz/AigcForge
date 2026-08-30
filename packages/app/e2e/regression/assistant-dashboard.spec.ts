@@ -95,9 +95,7 @@ test.describe("regression: assistant dashboard", () => {
     const cancel = page.getByLabel("Cancel reminder")
     await expect(cancel).toBeVisible({ timeout: 15_000 })
     await cancel.click()
-    await expect
-      .poll(() => cancelled, { timeout: 10_000 })
-      .toBe(true)
+    await expect.poll(() => cancelled, { timeout: 10_000 }).toBe(true)
   })
 
   test("confirms and rejects a pending memory proposal", async ({ page }) => {

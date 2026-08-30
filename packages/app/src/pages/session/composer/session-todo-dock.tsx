@@ -226,17 +226,16 @@ function TodoList(props: { todos: Todo[] }) {
                   style={{
                     "line-height": "var(--line-height-normal)",
                     transition:
-                    "color 220ms var(--tool-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)), opacity 220ms var(--tool-motion-ease, cubic-bezier(0.22, 1, 0.36, 1))",
-                  color:
-                    todo().status === "completed" || todo().status === "cancelled"
-                      ? "var(--v2-text-text-muted)"
-                      : "var(--v2-text-text-base)",
-                  opacity: todo().status === "pending" ? "0.92" : "1",
-                }}
-              />
+                      "color 220ms var(--tool-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)), opacity 220ms var(--tool-motion-ease, cubic-bezier(0.22, 1, 0.36, 1))",
+                    color:
+                      todo().status === "completed" || todo().status === "cancelled"
+                        ? "var(--v2-text-text-muted)"
+                        : "var(--v2-text-text-base)",
+                    opacity: todo().status === "pending" ? "0.92" : "1",
+                  }}
+                />
               }
-            >
-            </CheckboxV2>
+            ></CheckboxV2>
           )}
         </Index>
       </div>

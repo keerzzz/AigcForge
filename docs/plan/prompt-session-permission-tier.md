@@ -49,32 +49,32 @@ specs/v2/session.md、specs/v2/tools.md（涉 V2 语义时）
 
 ## 2. 关键事实（已核实，实施前仍须 grep 确认）
 
-| 位点 | 现状（2026-08-16 main） |
-|---|---|
-| `packages/core/src/permission.ts:169-185` | V2 `configured()`：只读 agent 固有权限；unattended 降级仅覆盖子会话（`parentID !== undefined`），根会话需推广 |
-| `packages/core/src/permission.ts:124-131` | `PermissionV2.Interface` 无 `effectiveRules`，需新增 |
-| `packages/core/src/permission.ts:244` | `assert` → `evaluateInput` → `configured`（执行授权入口） |
-| `packages/core/src/session/runner/llm.ts:327/:578/:387` | `SessionRunner.runTurn`；`:387` 直传 `agent.info?.permissions` 给 `tools.materialize`，需改传 effectiveRules |
-| `packages/core/src/tool/registry.ts:52/162` | `materialize(permissions?, intent?)`；registry 无 PermissionV2 依赖（tool/AGENTS.md），不得新增 |
-| `packages/core/src/product-mode-agent-policy.ts:79/:164` | `checkPrimaryAgent` 现状保留；`checkCliDelegationAllowed(mode)` 单参、未知 mode 放行（测试 `packages/core/test/product-mode-agent-policy.test.ts:155` 断言 allow，Phase 4 需反转） |
-| `packages/core/src/tool/task-driver.ts:625` | `checkCliDelegationAllowed(parent?.mode ?? "coding")` 调用点 |
-| `packages/core/src/plugin/agent.ts:456-485` | V2 meta：`bash/edit/write→ask`、`task→allow` 已落地；`:229` `defaults` 首条 `{"*":"allow"}` 待移除；`:145` 静态提示词绝对指引已过期待删 |
-| `packages/aigcfroge/src/agent/agent.ts:227-250` | V1 meta 同形（bash/edit/write ask 已落地） |
-| `packages/aigcfroge/src/session/tools.ts:82` | V1 `ctx.ask` 内 `Permission.merge(agent.permission, session.permission)`，需改单次 effective Ruleset |
-| `packages/aigcfroge/src/session/llm/request.ts:197-200` | `resolveTools` 再次 `Permission.merge` agent 基线，需移除 |
-| `packages/aigcfroge/src/session/prompt.ts:373` | V1 `permission.ask({ ruleset: Permission.merge(taskAgent.permission, session.permission) })` |
-| `packages/core/src/v1/session.ts:546/:573-574` | `SessionInfo`（含 permission/attended）、V1 CreateInput 字段 |
-| `packages/aigcfroge/src/session/session.ts:263-276/:278/:694` | V1 `CreateInput`（现无 attended，需补）、`ForkInput`、`create` |
-| `packages/core/src/session/sql.ts:32/:52/:53` | `parent_id`/`permission`/`attended`；新增 `permission_tier` 列 |
-| `packages/core/src/session/info.ts:17/:50`、`projector.ts:44/:71-72` | `fromRow`/`sessionRow` 投影位点 |
-| `packages/schema/src/session.ts:34/:63` | `SessionSchema.Info`（mode/attended；加 permissionTier） |
-| `packages/aigcfroge/src/server/routes/instance/httpapi/groups/session.ts:53-62/:313/:337/:108` | `UpdatePayload`/create/update；`permissions` 为 ask 响应端点（与新 override 端点不冲突） |
-| `packages/core/src/event.ts:23/36/128` | EventV2 `define` 支持非 durable 投影（break-glass 状态同步用） |
-| `packages/core/src/config.ts:114`、`packages/core/src/tool/task.ts:156` | `subagent_attended_default` 仅子代理 task 委派专用，根 Session 契约不得复用 |
-| `packages/core/src/permission/saved.ts` | saved approval service（项目级 action/resource 白名单） |
-| `packages/core/script/migration.ts` | `--name` 生成迁移；禁止手改 `schema.gen.ts`/`migration.gen.ts`/SDK generated |
-| `./packages/sdk/js/script/build.ts` | SDK 生成脚本（endpoint/字段变化后必须重跑） |
-| `packages/app/src/pages/session/composer/` | 档位 selector 与 break-glass dialog 落点（现有 `session-permission-dock.tsx` 复用） |
+| 位点                                                                                           | 现状（2026-08-16 main）                                                                                                                                                            |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core/src/permission.ts:169-185`                                                      | V2 `configured()`：只读 agent 固有权限；unattended 降级仅覆盖子会话（`parentID !== undefined`），根会话需推广                                                                      |
+| `packages/core/src/permission.ts:124-131`                                                      | `PermissionV2.Interface` 无 `effectiveRules`，需新增                                                                                                                               |
+| `packages/core/src/permission.ts:244`                                                          | `assert` → `evaluateInput` → `configured`（执行授权入口）                                                                                                                          |
+| `packages/core/src/session/runner/llm.ts:327/:578/:387`                                        | `SessionRunner.runTurn`；`:387` 直传 `agent.info?.permissions` 给 `tools.materialize`，需改传 effectiveRules                                                                       |
+| `packages/core/src/tool/registry.ts:52/162`                                                    | `materialize(permissions?, intent?)`；registry 无 PermissionV2 依赖（tool/AGENTS.md），不得新增                                                                                    |
+| `packages/core/src/product-mode-agent-policy.ts:79/:164`                                       | `checkPrimaryAgent` 现状保留；`checkCliDelegationAllowed(mode)` 单参、未知 mode 放行（测试 `packages/core/test/product-mode-agent-policy.test.ts:155` 断言 allow，Phase 4 需反转） |
+| `packages/core/src/tool/task-driver.ts:625`                                                    | `checkCliDelegationAllowed(parent?.mode ?? "coding")` 调用点                                                                                                                       |
+| `packages/core/src/plugin/agent.ts:456-485`                                                    | V2 meta：`bash/edit/write→ask`、`task→allow` 已落地；`:229` `defaults` 首条 `{"*":"allow"}` 待移除；`:145` 静态提示词绝对指引已过期待删                                            |
+| `packages/aigcfroge/src/agent/agent.ts:227-250`                                                | V1 meta 同形（bash/edit/write ask 已落地）                                                                                                                                         |
+| `packages/aigcfroge/src/session/tools.ts:82`                                                   | V1 `ctx.ask` 内 `Permission.merge(agent.permission, session.permission)`，需改单次 effective Ruleset                                                                               |
+| `packages/aigcfroge/src/session/llm/request.ts:197-200`                                        | `resolveTools` 再次 `Permission.merge` agent 基线，需移除                                                                                                                          |
+| `packages/aigcfroge/src/session/prompt.ts:373`                                                 | V1 `permission.ask({ ruleset: Permission.merge(taskAgent.permission, session.permission) })`                                                                                       |
+| `packages/core/src/v1/session.ts:546/:573-574`                                                 | `SessionInfo`（含 permission/attended）、V1 CreateInput 字段                                                                                                                       |
+| `packages/aigcfroge/src/session/session.ts:263-276/:278/:694`                                  | V1 `CreateInput`（现无 attended，需补）、`ForkInput`、`create`                                                                                                                     |
+| `packages/core/src/session/sql.ts:32/:52/:53`                                                  | `parent_id`/`permission`/`attended`；新增 `permission_tier` 列                                                                                                                     |
+| `packages/core/src/session/info.ts:17/:50`、`projector.ts:44/:71-72`                           | `fromRow`/`sessionRow` 投影位点                                                                                                                                                    |
+| `packages/schema/src/session.ts:34/:63`                                                        | `SessionSchema.Info`（mode/attended；加 permissionTier）                                                                                                                           |
+| `packages/aigcfroge/src/server/routes/instance/httpapi/groups/session.ts:53-62/:313/:337/:108` | `UpdatePayload`/create/update；`permissions` 为 ask 响应端点（与新 override 端点不冲突）                                                                                           |
+| `packages/core/src/event.ts:23/36/128`                                                         | EventV2 `define` 支持非 durable 投影（break-glass 状态同步用）                                                                                                                     |
+| `packages/core/src/config.ts:114`、`packages/core/src/tool/task.ts:156`                        | `subagent_attended_default` 仅子代理 task 委派专用，根 Session 契约不得复用                                                                                                        |
+| `packages/core/src/permission/saved.ts`                                                        | saved approval service（项目级 action/resource 白名单）                                                                                                                            |
+| `packages/core/script/migration.ts`                                                            | `--name` 生成迁移；禁止手改 `schema.gen.ts`/`migration.gen.ts`/SDK generated                                                                                                       |
+| `./packages/sdk/js/script/build.ts`                                                            | SDK 生成脚本（endpoint/字段变化后必须重跑）                                                                                                                                        |
+| `packages/app/src/pages/session/composer/`                                                     | 档位 selector 与 break-glass dialog 落点（现有 `session-permission-dock.tsx` 复用）                                                                                                |
 
 ---
 
@@ -142,7 +142,7 @@ specs/v2/session.md、specs/v2/tools.md（涉 V2 语义时）
 
 现状（已落地）：V1/V2 meta 的 `bash/edit/write→ask`、`task→allow`（提交 `a6321f20e`）。剩余缺口：`defaults` 首条 wildcard allow（`plugin/agent.ts:229`）。
 
-红：V1/V2 meta 均无 wildcard allow；已知安全工具（read/glob/grep/question/propose_*）可见；未知 action 默认 deny；build/general 固有行为无回归。
+红：V1/V2 meta 均无 wildcard allow；已知安全工具（read/glob/grep/question/propose\_\*）可见；未知 action 默认 deny；build/general 固有行为无回归。
 
 绿：抽取 V1/V2 `metaDefaults`（deny-first + 白名单），V1/V2 同构；补齐 propose 工具与 read 环境文件（`.env` ask）规则 parity。
 

@@ -289,8 +289,7 @@ const stepWith = (page: Page, status: StepStatus) =>
   page.locator(`[data-component="workflow-runtime-step"][data-status="${status}"]`)
 // The run badge is the first `data-status` span inside the content block: the run
 // header renders before the step list, and step badges live inside step rows.
-const runBadgeOf = (page: Page) =>
-  page.locator('[data-component="workflow-runtime-content"] span[data-status]').first()
+const runBadgeOf = (page: Page) => page.locator('[data-component="workflow-runtime-content"] span[data-status]').first()
 
 test.describe("regression: custom workflow runtime panel", () => {
   test("renders the empty state, then reloads authoritative state on workflow.run.updated", async ({ page }) => {

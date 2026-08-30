@@ -69,9 +69,7 @@ describe("task_schedule tool", () => {
   it.effect("registers the task_schedule tool in the registry", () =>
     Effect.gen(function* () {
       const reg = yield* ToolRegistry.Service
-      const materialized = yield* reg.materialize([
-        { action: TaskScheduleTool.name, resource: "*", effect: "allow" },
-      ])
+      const materialized = yield* reg.materialize([{ action: TaskScheduleTool.name, resource: "*", effect: "allow" }])
       expect(materialized.definitions.some((definition) => definition.name === TaskScheduleTool.name)).toBe(true)
     }),
   )
@@ -278,8 +276,7 @@ describe("task_schedule tool", () => {
         yield* executeTool(reg, call([{ content: "never runs", recurrence: { cron: "0 3 * * *", enabled: false } }])),
       ).toEqual({
         type: "error",
-        value:
-          "task_schedule: recurrence is disabled and scheduledAt is unset; a job without a trigger can never run",
+        value: "task_schedule: recurrence is disabled and scheduledAt is unset; a job without a trigger can never run",
       })
       expect(yield* tasks.get(sessionID)).toHaveLength(0)
     }),

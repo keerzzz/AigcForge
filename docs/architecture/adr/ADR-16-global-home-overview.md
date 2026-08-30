@@ -84,13 +84,13 @@ V2 顶栏（Titlebar）左侧的既有 home 切换按钮（`grid-plus` icon，`t
 
 ### Gate 核对
 
-| Gate | 状态 | 证据 | 签字 |
-|---|---|---|---|
-| 1. ADR 一致 | PASS | Amends ADR-15 §对齐；对齐 ADR-12 §2/§4、ADR-13 定位表；不冲突 ADR-11（不编 mode 进 Session URL）| Core owner ✓ |
-| 2. 框架契约 Core 评审 | PASS | 首页为独立路由组件（非 slot）；记忆为显式持久化（onSet 信号，不依赖 time.updated）；SDK/DB 零改动 | Core owner ✓ |
-| 3. 安全评审 | PASS | 无新 migration；无新网络/权限面；复用现有 sessionPlacement 持久化通道 | Security ✓ |
-| 4. 指标/埋点 | N/A | 本 ADR 不涉及指标 | - |
-| 5. App 评审 | PASS | 复用 home-shared.tsx/coding-project-column.tsx 导出组件 + 共享 openSessionRecord；组件测试对齐 mode-workspace.test.tsx 存在性断言风格 | App owner ✓ |
+| Gate                  | 状态 | 证据                                                                                                                                  | 签字         |
+| --------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| 1. ADR 一致           | PASS | Amends ADR-15 §对齐；对齐 ADR-12 §2/§4、ADR-13 定位表；不冲突 ADR-11（不编 mode 进 Session URL）                                      | Core owner ✓ |
+| 2. 框架契约 Core 评审 | PASS | 首页为独立路由组件（非 slot）；记忆为显式持久化（onSet 信号，不依赖 time.updated）；SDK/DB 零改动                                     | Core owner ✓ |
+| 3. 安全评审           | PASS | 无新 migration；无新网络/权限面；复用现有 sessionPlacement 持久化通道                                                                 | Security ✓   |
+| 4. 指标/埋点          | N/A  | 本 ADR 不涉及指标                                                                                                                     | -            |
+| 5. App 评审           | PASS | 复用 home-shared.tsx/coding-project-column.tsx 导出组件 + 共享 openSessionRecord；组件测试对齐 mode-workspace.test.tsx 存在性断言风格 | App owner ✓  |
 
 ### 签字
 

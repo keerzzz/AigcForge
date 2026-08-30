@@ -121,7 +121,8 @@ describe("WorkflowRun Service", () => {
         currentStepId: "step_event",
         timeUpdated: started.timeUpdated,
       })
-    }))
+    }),
+  )
 
   it.effect("rolls back workflow state and durable event when the commit fails", () =>
     Effect.gen(function* () {
@@ -164,7 +165,8 @@ describe("WorkflowRun Service", () => {
       expect((yield* workflowService.getSteps(run.id))[0]).toMatchObject({ status: "ready", revision: step.revision })
       expect(yield* db.select().from(EventTable).where(eq(EventTable.aggregate_id, run.id)).all()).toHaveLength(1)
       yield* db.run("DROP TRIGGER workflow_event_commit_failure")
-    }))
+    }),
+  )
 
   it.effect("allows one concurrent step CAS winner and emits one matching event", () =>
     Effect.gen(function* () {
@@ -192,7 +194,9 @@ describe("WorkflowRun Service", () => {
       const dispatching = yield* workflowService.dispatchStep({ stepRunID: step.id, expectedRevision: step.revision })
       const exits = yield* Effect.all(
         Array.from({ length: 20 }, () =>
-          workflowService.startStep({ stepRunID: dispatching.id, expectedRevision: dispatching.revision }).pipe(Effect.exit),
+          workflowService
+            .startStep({ stepRunID: dispatching.id, expectedRevision: dispatching.revision })
+            .pipe(Effect.exit),
         ),
         { concurrency: "unbounded" },
       )
@@ -210,10 +214,11 @@ describe("WorkflowRun Service", () => {
       expect(latestStep).toMatchObject({ status: "running", revision: 3 })
       expect(rows.map((row) => row.seq)).toEqual([0, 1, 2])
       expect(rows[2]?.seq + 1).toBe(latestRun.revision)
-      expect(
-        yield* db.select().from(WorkflowRunTable).where(eq(WorkflowRunTable.id, run.id)).get(),
-      ).toMatchObject({ revision: 3 })
-    }))
+      expect(yield* db.select().from(WorkflowRunTable).where(eq(WorkflowRunTable.id, run.id)).get()).toMatchObject({
+        revision: 3,
+      })
+    }),
+  )
 
   it.effect("creates a workflow run and seeds initial step runs", () =>
     Effect.gen(function* () {
@@ -256,7 +261,8 @@ describe("WorkflowRun Service", () => {
       expect(steps[0].status).toBe("ready")
       expect(steps[1].stepId).toBe("step_review")
       expect(steps[1].status).toBe("pending")
-    }))
+    }),
+  )
 
   it.effect("finds ready steps across linear, parallel, and branching workflows", () =>
     Effect.gen(function* () {
@@ -344,7 +350,8 @@ describe("WorkflowRun Service", () => {
 
       const completedRun = yield* workflowService.completeRun(run.id)
       expect(completedRun.status).toBe("completed")
-    }))
+    }),
+  )
 
   it.effect("handles step retry with incremented attempt number", () =>
     Effect.gen(function* () {
@@ -394,7 +401,8 @@ describe("WorkflowRun Service", () => {
       expect(allSteps[0].status).toBe("failed")
       expect(allSteps[1].attempt).toBe(2)
       expect(allSteps[1].status).toBe("ready")
-    }))
+    }),
+  )
 
   it.effect("cancels run and marks all pending/ready/running steps as cancelled", () =>
     Effect.gen(function* () {
@@ -443,7 +451,8 @@ describe("WorkflowRun Service", () => {
       const postSteps = yield* workflowService.getSteps(run.id)
       expect(postSteps[0].status).toBe("cancelled")
       expect(postSteps[1].status).toBe("skipped")
-    }))
+    }),
+  )
 
   it.effect("handles failurePolicy continue and completes as partial_success", () =>
     Effect.gen(function* () {
@@ -505,7 +514,8 @@ describe("WorkflowRun Service", () => {
       // 4. Complete run as partial_success
       const completedRun = yield* workflowService.completeRun(run.id, true)
       expect(completedRun.status).toBe("partial_success")
-    }))
+    }),
+  )
 
   it.effect("handles failurePolicy abort and marks run as failed", () =>
     Effect.gen(function* () {
@@ -553,7 +563,8 @@ describe("WorkflowRun Service", () => {
       const postSteps = yield* workflowService.getSteps(run.id)
       expect(postSteps[0].status).toBe("failed")
       expect(postSteps[1].status).toBe("skipped")
-    }))
+    }),
+  )
 
   it.effect("recovers dispatching work back to ready without replaying provider work", () =>
     Effect.gen(function* () {
@@ -587,7 +598,8 @@ describe("WorkflowRun Service", () => {
         childSessionId: "child_dispatching_recovery",
       })
       expect((yield* workflowService.get(run.id)).status).toBe("running")
-    }))
+    }),
+  )
 
   it.effect("cancels one active step without enabling automatic retry", () =>
     Effect.gen(function* () {
@@ -619,7 +631,8 @@ describe("WorkflowRun Service", () => {
         workflowService.retryStep({ stepRunID: cancelled.id, expectedRevision: cancelled.revision }),
       )
       expect(retry._tag).toBe("WorkflowRun.InvalidStateTransitionError")
-    }))
+    }),
+  )
 
   it.effect("freezes a run when provider execution is orphaned and keeps terminal state immutable", () =>
     Effect.gen(function* () {
@@ -657,7 +670,8 @@ describe("WorkflowRun Service", () => {
       })
       expect(unchanged).toEqual(frozen)
       expect((yield* workflowService.getSteps(run.id))[0].status).toBe("execution_unknown")
-    }))
+    }),
+  )
 
   it.effect("creates an idempotent terminal retry lineage and rejects request reuse conflicts", () =>
     Effect.gen(function* () {
@@ -735,7 +749,8 @@ describe("WorkflowRun Service", () => {
         }),
       )
       expect(conflict._tag).toBe("WorkflowRun.RequestConflictError")
-    }))
+    }),
+  )
 
   it.effect("settles dispatching and cancelling steps when the run fails", () =>
     Effect.gen(function* () {
@@ -784,7 +799,8 @@ describe("WorkflowRun Service", () => {
       }
       expect(settled.find((candidate) => candidate.stepId === "a")?.status).toBe("cancelled")
       expect(settled.find((candidate) => candidate.stepId === "b")?.status).toBe("cancelled")
-    }))
+    }),
+  )
 
   it.effect("keeps a merge step that a taken path still feeds out of the branch skip closure", () =>
     Effect.gen(function* () {
@@ -836,7 +852,8 @@ describe("WorkflowRun Service", () => {
       expect(byStep.get("armB")?.status).toBe("skipped")
       expect(byStep.get("join")?.status).not.toBe("skipped")
       expect(frontier.map((candidate) => candidate.stepId).sort()).toEqual(["armA", "join"])
-    }))
+    }),
+  )
 
   it.effect("dedupes run identity against the active run only, never a terminal one", () =>
     Effect.gen(function* () {
@@ -858,5 +875,6 @@ describe("WorkflowRun Service", () => {
       const afterTerminal = yield* workflowService.getOrCreate({ sessionID: SessionV2.ID.make(sid), workflow })
       expect(afterTerminal.id).not.toBe(first.id)
       expect(afterTerminal.status).toBe("pending")
-    }))
+    }),
+  )
 })

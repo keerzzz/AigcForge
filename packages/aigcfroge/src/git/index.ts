@@ -365,10 +365,7 @@ export const layer = Layer.effect(
     })
 
     const log = Effect.fn("Git.log")(function* (cwd: string, count = 15) {
-      const result = yield* run(
-        ["log", "-z", `--max-count=${count}`, "--format=%H%x00%s%x00%an%x00%aI"],
-        { cwd },
-      )
+      const result = yield* run(["log", "-z", `--max-count=${count}`, "--format=%H%x00%s%x00%an%x00%aI"], { cwd })
       if (result.exitCode !== 0) return []
       const fields = nuls(result.text())
       const entries: CommitEntry[] = []

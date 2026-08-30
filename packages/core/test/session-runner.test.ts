@@ -277,47 +277,49 @@ const skillV2 = Layer.succeed(
   } as unknown as SkillV2.Interface),
 )
 const sessionComposition = SessionComposition.layer.pipe(Layer.provide(Database.defaultLayer))
-const runner = SessionRunnerLLM.layer.pipe(
-  Layer.provide(sessionComposition),
-  Layer.provide(appProcess),
-  Layer.provide(skillV2),
-  Layer.provide(Database.defaultLayer),
-  Layer.provide(SessionStore.defaultLayer),
-  Layer.provide(EventV2.defaultLayer),
-  Layer.provide(client),
-  Layer.provide(registry),
-  Layer.provide(models),
-  Layer.provide(systemContext),
-).pipe(
-  Layer.provide(location),
-  Layer.provide(agents),
-  Layer.provide(skillGuidance),
-  Layer.provide(referenceGuidance),
-  Layer.provide(DoomLoop.layer),
-  Layer.provide(CorrectionExtractor.layer),
-  Layer.provide(CorrectionStore.layer),
-  Layer.provide(
-    Verifier.layer.pipe(
-      Layer.provide(VerificationRouter.layer.pipe(Layer.provide(config))),
-      Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
-      Layer.provide(EventV2.defaultLayer.pipe(Layer.provide(Database.defaultLayer))),
-      Layer.provide(location),
-      Layer.provide(appProcess),
-      Layer.provide(config),
+const runner = SessionRunnerLLM.layer
+  .pipe(
+    Layer.provide(sessionComposition),
+    Layer.provide(appProcess),
+    Layer.provide(skillV2),
+    Layer.provide(Database.defaultLayer),
+    Layer.provide(SessionStore.defaultLayer),
+    Layer.provide(EventV2.defaultLayer),
+    Layer.provide(client),
+    Layer.provide(registry),
+    Layer.provide(models),
+    Layer.provide(systemContext),
+  )
+  .pipe(
+    Layer.provide(location),
+    Layer.provide(agents),
+    Layer.provide(skillGuidance),
+    Layer.provide(referenceGuidance),
+    Layer.provide(DoomLoop.layer),
+    Layer.provide(CorrectionExtractor.layer),
+    Layer.provide(CorrectionStore.layer),
+    Layer.provide(
+      Verifier.layer.pipe(
+        Layer.provide(VerificationRouter.layer.pipe(Layer.provide(config))),
+        Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
+        Layer.provide(EventV2.defaultLayer.pipe(Layer.provide(Database.defaultLayer))),
+        Layer.provide(location),
+        Layer.provide(appProcess),
+        Layer.provide(config),
+      ),
     ),
-  ),
-  Layer.provide(
-    ReferenceChecker.layer.pipe(
-      Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
-      Layer.provide(location),
-      Layer.provide(config),
-      Layer.provide(Ripgrep.layer.pipe(Layer.provide(RipgrepBinary.defaultLayer), Layer.provide(appProcess))),
-      Layer.provide(FSUtil.defaultLayer),
+    Layer.provide(
+      ReferenceChecker.layer.pipe(
+        Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
+        Layer.provide(location),
+        Layer.provide(config),
+        Layer.provide(Ripgrep.layer.pipe(Layer.provide(RipgrepBinary.defaultLayer), Layer.provide(appProcess))),
+        Layer.provide(FSUtil.defaultLayer),
+      ),
     ),
-  ),
-  Layer.provide(permission),
-  Layer.provide(config),
-)
+    Layer.provide(permission),
+    Layer.provide(config),
+  )
 const execution = Layer.effect(
   SessionExecution.Service,
   Effect.gen(function* () {
@@ -1039,7 +1041,9 @@ describe("SessionRunnerLLM", () => {
       response = []
       yield* session.resume(sessionID)
       expect(requests.map((request) => request.model)).toEqual([model])
-      expect(requests.map((request) => request.system.map((part) => part.text))).toEqual([[expect.stringContaining("Initial context")]])
+      expect(requests.map((request) => request.system.map((part) => part.text))).toEqual([
+        [expect.stringContaining("Initial context")],
+      ])
     }),
   )
 

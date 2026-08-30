@@ -23,7 +23,7 @@ describe("AssetSummary", () => {
         description: "",
         relativePath: "x.md",
         revision: "a".repeat(64),
-      })
+      }),
     ).toThrow()
   })
 })

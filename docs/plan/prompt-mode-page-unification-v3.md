@@ -143,16 +143,16 @@ Phase 4-7 不再需要等待权限计划，全部 Phase 可顺序执行。但两
 
 命令规则：
 
-| 用途 | 命令 |
-|---|---|
-| App 单元测试 | `bun --cwd packages/app run test:unit` |
-| App 类型检查 | `bun --cwd packages/app typecheck` |
-| App E2E | `bun --cwd packages/app run test:e2e <受影响 spec>` |
-| App 性能 | `bun --cwd packages/app run test:bench`（只在此包执行） |
-| Storybook | `bun --cwd packages/storybook build` |
-| 增量 lint | `bun run script/lint-changed.ts` |
-| 协议引用 | `bash .aigcfroge/skills/protocols/scripts/check-refs.sh` |
-| 差异检查 | `git diff --check` |
+| 用途         | 命令                                                     |
+| ------------ | -------------------------------------------------------- |
+| App 单元测试 | `bun --cwd packages/app run test:unit`                   |
+| App 类型检查 | `bun --cwd packages/app typecheck`                       |
+| App E2E      | `bun --cwd packages/app run test:e2e <受影响 spec>`      |
+| App 性能     | `bun --cwd packages/app run test:bench`（只在此包执行）  |
+| Storybook    | `bun --cwd packages/storybook build`                     |
+| 增量 lint    | `bun run script/lint-changed.ts`                         |
+| 协议引用     | `bash .aigcfroge/skills/protocols/scripts/check-refs.sh` |
+| 差异检查     | `git diff --check`                                       |
 
 ## 5. 实施步骤（推荐顺序：Phase 1 → 2 → 3 → 4 → 5 → 6 → 7；Phase 3 可与 1/2 并行，但不能共享未验证的半成品 owner）
 
@@ -307,11 +307,11 @@ bun --cwd packages/app run test:bench
 
 ## 使用说明
 
-| 项 | 值 |
-|---|---|
-| 复制范围 | `PROMPT START` 到 `PROMPT END` |
-| 计划真源 | `docs/plan/mode-page-unification-v2.md`（需先合入 PR #34） |
-| 基线 | `main` / `origin/main` @ `42cf6d950`（PR #32 权限档位合入后） |
-| G3 权限 Gate | ✅ 已通过，Phase 4-7 可直接执行 |
-| 阶段节奏 | 每 Phase 独立分支/提交，**连续执行不逐 Phase 等审批**，全部完成后统一审批 |
-| UI 验证 | App unit/typecheck/lint + 受影响 Playwright + Storybook build + 适用 benchmark |
+| 项           | 值                                                                             |
+| ------------ | ------------------------------------------------------------------------------ |
+| 复制范围     | `PROMPT START` 到 `PROMPT END`                                                 |
+| 计划真源     | `docs/plan/mode-page-unification-v2.md`（需先合入 PR #34）                     |
+| 基线         | `main` / `origin/main` @ `42cf6d950`（PR #32 权限档位合入后）                  |
+| G3 权限 Gate | ✅ 已通过，Phase 4-7 可直接执行                                                |
+| 阶段节奏     | 每 Phase 独立分支/提交，**连续执行不逐 Phase 等审批**，全部完成后统一审批      |
+| UI 验证      | App unit/typecheck/lint + 受影响 Playwright + Storybook build + 适用 benchmark |

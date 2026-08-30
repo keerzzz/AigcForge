@@ -35,7 +35,10 @@ function expand(p: string): string {
 }
 
 /** 从 SKILL.md 正文提取 name/description/body。 */
-function parseSkillContent(text: string, fullPath: string): { name: string; description: string; content: string } | null {
+function parseSkillContent(
+  text: string,
+  fullPath: string,
+): { name: string; description: string; content: string } | null {
   const fm = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(text)
   if (fm) {
     const frontmatter: Record<string, string> = {}
@@ -71,23 +74,20 @@ function yamlQuote(value: string): string {
 }
 
 /** 将发现的命令以 .md 文件写入 COMMANDS_DIR，幂等（已存在且一致则跳过）。 */
-export function syncDiscovered(
-  fs: FSUtil.Interface,
-  commandsDir: string,
-): Effect.Effect<void> {
+export function syncDiscovered(fs: FSUtil.Interface, commandsDir: string): Effect.Effect<void> {
   return Effect.gen(function* () {
     const seen = new Set<string>()
 
     for (const source of SOURCES) {
       const root = expand(source.dir)
-      const files = yield* fs.glob(source.pattern, { cwd: root, absolute: true, include: "file", dot: true, symlink: true }).pipe(
-        Effect.catch(() => Effect.succeed([] as string[])),
-      )
+      const files = yield* fs
+        .glob(source.pattern, { cwd: root, absolute: true, include: "file", dot: true, symlink: true })
+        .pipe(Effect.catch(() => Effect.succeed([] as string[])))
 
       for (const file of files) {
-        const raw = yield* fs.readFile(file).pipe(
-          Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)),
-        )
+        const raw = yield* fs
+          .readFile(file)
+          .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
         if (!raw) continue
 
         const text = new TextDecoder().decode(raw)
@@ -103,9 +103,9 @@ export function syncDiscovered(
         const targetPath = path.join(commandsDir, fileName)
 
         // 已存在 → 跳过（用户可能编辑过）
-        const existing = yield* fs.readFile(targetPath).pipe(
-          Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)),
-        )
+        const existing = yield* fs
+          .readFile(targetPath)
+          .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
         if (existing !== undefined) continue
 
         // 写文件（create dirs if needed）

@@ -39,13 +39,10 @@ export const Event = {
   }),
 }
 
-export class PathValidationError extends Schema.TaggedErrorClass<PathValidationError>()(
-  "WorkArtifact.PathValidation",
-  {
-    relativePath: Schema.String,
-    reason: Schema.String,
-  },
-) {}
+export class PathValidationError extends Schema.TaggedErrorClass<PathValidationError>()("WorkArtifact.PathValidation", {
+  relativePath: Schema.String,
+  reason: Schema.String,
+}) {}
 
 export class ConflictError extends Schema.TaggedErrorClass<ConflictError>()("WorkArtifact.Conflict", {
   relativePath: Schema.String,
@@ -94,20 +91,24 @@ export const layer = Layer.effect(
     const apply = Effect.fn("WorkArtifact.apply")(function* (input: ApplyInput) {
       yield* validate(input.relativePath)
       // LocationMutation.resolve 做真实路径规范化 + 符号链接越界拦截。
-      const target = yield* locationMutation.resolve({ path: input.relativePath }).pipe(
-        Effect.mapError(
-          (error) => new PathValidationError({ relativePath: input.relativePath, reason: String(error) }),
-        ),
-      )
+      const target = yield* locationMutation
+        .resolve({ path: input.relativePath })
+        .pipe(
+          Effect.mapError(
+            (error) => new PathValidationError({ relativePath: input.relativePath, reason: String(error) }),
+          ),
+        )
       // Move conflict check inside the file lock (TOCTOU fix): use FileMutation.create
       // for the non-overwrite path so the existence check and the write are atomic.
       const result = input.overwrite
         ? yield* fileMutation.writeAtomic({ target, content: input.content })
-        : yield* fileMutation.create({ target, content: input.content }).pipe(
-            Effect.catchTag("FileMutation.TargetExistsError", () =>
-              Effect.fail(new ConflictError({ relativePath: input.relativePath })),
-            ),
-          )
+        : yield* fileMutation
+            .create({ target, content: input.content })
+            .pipe(
+              Effect.catchTag("FileMutation.TargetExistsError", () =>
+                Effect.fail(new ConflictError({ relativePath: input.relativePath })),
+              ),
+            )
       const existed = result.existed
       const now = yield* DateTime.nowAsDate
       const artifactID = Identifier.create("art", "ascending")

@@ -79,9 +79,20 @@ function makeRegistry(dir: string): WorkflowAsset.Interface {
 /** Minimal FSUtil.Interface that wraps fs.promises. */
 function makeFs(): FSUtil.Interface {
   return {
-    exists: Effect.fn("test.exists")((p: string) => Effect.promise(async () => fs.stat(p).then(() => true).catch(() => false))),
-    readFile: Effect.fn("test.readFile")((p: string) => Effect.promise(async () => new Uint8Array(await fs.readFile(p)))),
-    readFileString: Effect.fn("test.readFileString")((p: string) => Effect.promise(async () => await fs.readFile(p, "utf-8"))),
+    exists: Effect.fn("test.exists")((p: string) =>
+      Effect.promise(async () =>
+        fs
+          .stat(p)
+          .then(() => true)
+          .catch(() => false),
+      ),
+    ),
+    readFile: Effect.fn("test.readFile")((p: string) =>
+      Effect.promise(async () => new Uint8Array(await fs.readFile(p))),
+    ),
+    readFileString: Effect.fn("test.readFileString")((p: string) =>
+      Effect.promise(async () => await fs.readFile(p, "utf-8")),
+    ),
   } as unknown as FSUtil.Interface
 }
 
@@ -133,10 +144,7 @@ describe("ProposeWorkflowAssetTool", () => {
       const deps = { workflowAsset: makeRegistry(dir), fs: makeFs(), directory: dir }
       await runNow(deps.workflowAsset.reload())
       const result = await runNow(
-        ProposeWorkflowAssetTool.propose(
-          { name: "existing", description: "x", content: wfYaml("existing") },
-          deps,
-        ),
+        ProposeWorkflowAssetTool.propose({ name: "existing", description: "x", content: wfYaml("existing") }, deps),
       )
       expect(result.exists).toBe(true)
       expect(result.revision).toBeTruthy()

@@ -64,47 +64,47 @@ SecondarySidebar
 
 ## 3. Context 依赖
 
-| Context | 用途 |
-|---------|------|
-| useServer | 获取当前服务器连接 |
-| useGlobal | 获取 project 列表 (projects.list) |
-| useServerSync | session store 订阅 |
-| useTabs | 新建 draft session (newDraft) |
-| useNotification | unseen 计数 + 清除 |
-| useDialog | workspace 删除/重置对话框 |
-| useLayout | sidebar.workspaces 开关, sidebar.setWorkspaceExpanded |
-| useLanguage | i18n |
-| useMode | 当前 Product Mode；驱动 Session 列表、搜索、加载和未读聚合 |
-| WorkspaceSidebarContext | 桥接到 SortableWorkspace/LocalWorkspace |
+| Context                 | 用途                                                       |
+| ----------------------- | ---------------------------------------------------------- |
+| useServer               | 获取当前服务器连接                                         |
+| useGlobal               | 获取 project 列表 (projects.list)                          |
+| useServerSync           | session store 订阅                                         |
+| useTabs                 | 新建 draft session (newDraft)                              |
+| useNotification         | unseen 计数 + 清除                                         |
+| useDialog               | workspace 删除/重置对话框                                  |
+| useLayout               | sidebar.workspaces 开关, sidebar.setWorkspaceExpanded      |
+| useLanguage             | i18n                                                       |
+| useMode                 | 当前 Product Mode；驱动 Session 列表、搜索、加载和未读聚合 |
+| WorkspaceSidebarContext | 桥接到 SortableWorkspace/LocalWorkspace                    |
 
 ## 4. WorkspaceSidebarContext 桥接
 
 `secondary-sidebar.tsx` 构建 WorkspaceSidebarContext 供给 `SortableWorkspace` / `LocalWorkspace` 使用：
 
-| 方法 | 实现 |
-|------|------|
-| currentDir | 从 URL params 读取 |
-| navList | 所有 project 的 sortedRootSessions 平铺 |
-| sidebarExpanded | 始终 true |
-| sidebarHovering | 始终 true |
-| prefetchSession | no-op |
-| archiveSession | no-op |
-| workspaceName | Persist.global 存储的自定义名或 branch/目录名 |
-| renameWorkspace | 更新 persisted workspaceNameStore |
-| isBusy | workspace 删除/重置期间灰显 |
-| workspaceExpanded | 每个 directory 独立 persisted toggle |
-| showResetWorkspaceDialog | DialogResetWorkspace（从旧 V1 移植） |
-| showDeleteWorkspaceDialog | DialogDeleteWorkspace（从旧 V1 移植） |
+| 方法                      | 实现                                          |
+| ------------------------- | --------------------------------------------- |
+| currentDir                | 从 URL params 读取                            |
+| navList                   | 所有 project 的 sortedRootSessions 平铺       |
+| sidebarExpanded           | 始终 true                                     |
+| sidebarHovering           | 始终 true                                     |
+| prefetchSession           | no-op                                         |
+| archiveSession            | no-op                                         |
+| workspaceName             | Persist.global 存储的自定义名或 branch/目录名 |
+| renameWorkspace           | 更新 persisted workspaceNameStore             |
+| isBusy                    | workspace 删除/重置期间灰显                   |
+| workspaceExpanded         | 每个 directory 独立 persisted toggle          |
+| showResetWorkspaceDialog  | DialogResetWorkspace（从旧 V1 移植）          |
+| showDeleteWorkspaceDialog | DialogDeleteWorkspace（从旧 V1 移植）         |
 
 ## 5. Workspace 生命周期
 
-| 操作 | 函数 | 实现 |
-|------|------|------|
-| 创建 | createWorkspace | worktree.create → bootstrap → newDraft |
-| 重命名 | renameWorkspace | 更新 workspaceNameStore |
-| 展开/折叠 | workspaceExpanded/setWorkspaceExpanded | Persisted Record<string, boolean> |
-| 删除 | deleteWorkspace | worktree.remove → sync 移除 sandbox → close project |
-| 重置 | resetWorkspace | vcs status → dispose instance → worktree.reset → 归档 sessions |
+| 操作      | 函数                                   | 实现                                                           |
+| --------- | -------------------------------------- | -------------------------------------------------------------- |
+| 创建      | createWorkspace                        | worktree.create → bootstrap → newDraft                         |
+| 重命名    | renameWorkspace                        | 更新 workspaceNameStore                                        |
+| 展开/折叠 | workspaceExpanded/setWorkspaceExpanded | Persisted Record<string, boolean>                              |
+| 删除      | deleteWorkspace                        | worktree.remove → sync 移除 sandbox → close project            |
+| 重置      | resetWorkspace                         | vcs status → dispose instance → worktree.reset → 归档 sessions |
 
 ## 6. 搜索面板
 
@@ -123,22 +123,22 @@ SecondarySidebar
 
 ## 7. 错误边界
 
-| 场景 | 处理 |
-|------|------|
-| server 未连接 | conn() 为空 → 不渲染项目列表 |
-| 当前 Mode 无 Session | 保留 Project/Workspace，显示 Mode-scoped 空状态 |
-| project 无 vcs | workspaceEnabled 为 false（workspaces 只对 git 项目可用） |
-| workspace 删除失败 | Toast 提示错误 |
-| workspace 重置失败 | Toast 提示错误 |
+| 场景                 | 处理                                                      |
+| -------------------- | --------------------------------------------------------- |
+| server 未连接        | conn() 为空 → 不渲染项目列表                              |
+| 当前 Mode 无 Session | 保留 Project/Workspace，显示 Mode-scoped 空状态           |
+| project 无 vcs       | workspaceEnabled 为 false（workspaces 只对 git 项目可用） |
+| workspace 删除失败   | Toast 提示错误                                            |
+| workspace 重置失败   | Toast 提示错误                                            |
 
 ## 8. 上下游文件索引
 
-| 文件 | 用途 |
-|------|------|
-| [secondary-sidebar.tsx](../../../packages/app/src/components/secondary-sidebar.tsx) | 组件本体 + WorkspaceSidebarContext 桥接 |
+| 文件                                                                                  | 用途                                                  |
+| ------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| [secondary-sidebar.tsx](../../../packages/app/src/components/secondary-sidebar.tsx)   | 组件本体 + WorkspaceSidebarContext 桥接               |
 | [sidebar-workspace.tsx](../../../packages/app/src/pages/layout/sidebar-workspace.tsx) | SortableWorkspace/LocalWorkspace/WorkspaceSessionList |
-| [sidebar-items.tsx](../../../packages/app/src/pages/layout/sidebar-items.tsx) | SessionItem/NewSessionItem/SessionSkeleton |
-| [inline-editor.tsx](../../../packages/app/src/pages/layout/inline-editor.tsx) | 内联编辑 controller |
-| [helpers.ts](../../../packages/app/src/pages/layout/helpers.ts) | displayName/sortedRootSessions/homeProjectDirectories |
-| [layout.tsx](../../../packages/app/src/pages/layout.tsx) | 三栏布局宿主 |
-| [mode.tsx](../../../packages/app/src/context/mode.tsx) | ModeProvider（次级侧边栏父级） |
+| [sidebar-items.tsx](../../../packages/app/src/pages/layout/sidebar-items.tsx)         | SessionItem/NewSessionItem/SessionSkeleton            |
+| [inline-editor.tsx](../../../packages/app/src/pages/layout/inline-editor.tsx)         | 内联编辑 controller                                   |
+| [helpers.ts](../../../packages/app/src/pages/layout/helpers.ts)                       | displayName/sortedRootSessions/homeProjectDirectories |
+| [layout.tsx](../../../packages/app/src/pages/layout.tsx)                              | 三栏布局宿主                                          |
+| [mode.tsx](../../../packages/app/src/context/mode.tsx)                                | ModeProvider（次级侧边栏父级）                        |

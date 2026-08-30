@@ -326,11 +326,11 @@ bun --cwd packages/app run test:bench
 
 ## 使用说明
 
-| 项 | 值 |
-|---|---|
-| 复制范围 | `PROMPT START` 到 `PROMPT END` |
-| 计划真源 | `docs/plan/mode-page-unification-v2.md` |
-| 基线 | `main` / `origin/main` @ `a4b0485aa` |
-| 阶段节奏 | 每 Phase 独立分支/提交，报告后停下等审批 |
-| 权限 Gate | Phase 4-7 需要权限计划先合入 `main` 并完成复审 |
-| UI 验证 | App unit/typecheck/lint + 受影响 Playwright + Storybook build + 适用 benchmark |
+| 项        | 值                                                                             |
+| --------- | ------------------------------------------------------------------------------ |
+| 复制范围  | `PROMPT START` 到 `PROMPT END`                                                 |
+| 计划真源  | `docs/plan/mode-page-unification-v2.md`                                        |
+| 基线      | `main` / `origin/main` @ `a4b0485aa`                                           |
+| 阶段节奏  | 每 Phase 独立分支/提交，报告后停下等审批                                       |
+| 权限 Gate | Phase 4-7 需要权限计划先合入 `main` 并完成复审                                 |
+| UI 验证   | App unit/typecheck/lint + 受影响 Playwright + Storybook build + 适用 benchmark |

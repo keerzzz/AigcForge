@@ -860,9 +860,7 @@ export function Message(props: MessageProps) {
   return (
     <Switch>
       <Match when={props.message.role === "user" && props.message}>
-        {(userMessage) => (
-          <UserMessageDisplay message={userMessage()} parts={props.parts} actions={props.actions} />
-        )}
+        {(userMessage) => <UserMessageDisplay message={userMessage()} parts={props.parts} actions={props.actions} />}
       </Match>
       <Match when={props.message.role === "assistant" && props.message}>
         {(assistantMessage) => (
@@ -1091,13 +1089,13 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
 
   const text = createMemo(() => textPart()?.text || "")
 
-  const files = createMemo(() => (props.parts?.filter((p) => p.type === "file")) ?? [])
+  const files = createMemo(() => props.parts?.filter((p) => p.type === "file") ?? [])
 
   const attachments = createMemo(() => files().filter(attached))
 
   const inlineFiles = createMemo(() => files().filter(inline))
 
-  const agents = createMemo(() => (props.parts?.filter((p) => p.type === "agent")) ?? [])
+  const agents = createMemo(() => props.parts?.filter((p) => p.type === "agent") ?? [])
 
   const model = createMemo(() => {
     const providerID = props.message.model?.providerID
@@ -1510,8 +1508,7 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
   const numfmt = createMemo(() => new Intl.NumberFormat(i18n.locale()))
   const part = () => props.part as TextPart
   const interrupted = createMemo(
-    () =>
-      props.message.role === "assistant" && props.message.error?.name === "MessageAbortedError",
+    () => props.message.role === "assistant" && props.message.error?.name === "MessageAbortedError",
   )
 
   const model = createMemo(() => {
@@ -2421,11 +2418,18 @@ ToolRegistry.register({
           <div data-component="todos">
             <For each={todos()}>
               {(todo: Todo) => (
-                <CheckboxV2 label={<span data-slot="message-part-todo-content"
-                    data-completed={todo.status === "completed" ? "completed" : undefined}>
-                    {todo.content}
-                  </span>}
-                  readOnly checked={todo.status === "completed"} />
+                <CheckboxV2
+                  label={
+                    <span
+                      data-slot="message-part-todo-content"
+                      data-completed={todo.status === "completed" ? "completed" : undefined}
+                    >
+                      {todo.content}
+                    </span>
+                  }
+                  readOnly
+                  checked={todo.status === "completed"}
+                />
               )}
             </For>
           </div>

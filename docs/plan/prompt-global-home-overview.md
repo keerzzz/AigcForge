@@ -14,6 +14,7 @@
 ## 0. 强制首读（写任何代码前必须精读；每小节开工前重读对应文档）
 
 **协议文档（按顺序）**：
+
 1. `CLAUDE.md` — 宪法（四绝八耻、四大拒绝、以认真查询为荣、以主动测试为荣、改完即审）
 2. `AGENTS.md` — 根规范（分支提交、import 自导出、禁 star/alias import、Effect、Schema、Testing、代码风格）
 3. `packages/app/AGENTS.md` — app 包约束（**NEVER restart the app or the server process, EVER**；本地 dev 双起方式；SolidJS createStore 优先）
@@ -23,11 +24,7 @@
 7. `docs/architecture/adr/ADR-15-mode-workspace-main-area-slot.md` — slot 契约（**首页为独立路由组件，非 ModeWorkspace slot**）
 8. `docs/plan/global-home-overview.md` — **本计划全文**（§1 目标 / §2 现状实证 / §5 文件清单 / §6 函数级细节 / §9 测试 / §10 TDD 步骤 / §12 审批记录）
 
-**范式参考代码（读源码，不猜接口）**：
-9. `packages/app/src/pages/home.tsx` — HomeSessionRow/Search/GroupHeader/HomeProjectRow 组件契约（复用对象）
-10. `packages/app/src/pages/mode-workspace-slots.tsx:287-305` — openSession 逐行对照（**共享函数迁移模板**）
-11. `packages/app/src/utils/session-placement.ts` — onSet 签名（**步骤 5 必须改此文件类型与传参**）
-12. `packages/app/src/pages/home.test.ts` + `packages/app/src/pages/mode-workspace.test.tsx` — 测试风格基准
+**范式参考代码（读源码，不猜接口）**：9. `packages/app/src/pages/home.tsx` — HomeSessionRow/Search/GroupHeader/HomeProjectRow 组件契约（复用对象）10. `packages/app/src/pages/mode-workspace-slots.tsx:287-305` — openSession 逐行对照（**共享函数迁移模板**）11. `packages/app/src/utils/session-placement.ts` — onSet 签名（**步骤 5 必须改此文件类型与传参**）12. `packages/app/src/pages/home.test.ts` + `packages/app/src/pages/mode-workspace.test.tsx` — 测试风格基准
 
 ## 1. 目标（摘自计划 §1.2，产品已确认）
 
@@ -80,18 +77,18 @@ grep -rn "loadSessions" packages/app/src/context/server-sync.ts | head -5
 
 每步：**R（Red）先写测试并确认失败 → G（Green）最小实现 → R（Refactor）重构**。每小节开工前重读计划 §10 对应行的「协议阅读」列，输出中引用所读文档结论。
 
-| 步骤 | 交付物 | 红绿灯（测试先行） |
-|---|---|---|
-| 1 | `docs/architecture/adr/ADR-16-global-home-overview.md`（Amends ADR-15，契约见计划 §8） | 文档评审（无测试） |
-| 2 | i18n：en.ts 先加 key → parity 红 → 18 文件补齐 → parity 绿 | `bun --cwd packages/app test --preload ./happydom.ts ./src/i18n` |
-| 3 | `packages/ui/src/v2/components/icon.tsx` 新增 `home`（16x16 stroke 风格对照 `mode-chat`） | 手动（无测试先例） |
-| 4 | `pages/home-overview-model.ts` + `home-overview-model.test.ts`（countByMode/pinLastActive 全分支） | 纯函数测试红→绿 |
-| 5 | `utils/session-placement.ts` onSet 扩 leafID + `context/global.tsx` `lastActiveSession`（persisted + onSet 写入） | 8 处 `sessionPlacement.set` 调用点 grep 核对零改动 + typecheck |
-| 6 | `helpers.ts` `openSessionRecord` + `CodingSessionListMain.openSession` 迁移（含首页 `setCurrentMode` 参数位） | 迁移后现有测试（home.test.ts / mode-workspace.test.tsx）保持绿 |
-| 7 | `pages/home-overview.tsx`（左筛选列 + 右会话列表 + 置顶组 + `components/session-mode-badge.tsx`） | `home-overview.test.tsx` 存在性+导出断言红→绿 |
-| 8 | `app.tsx` `/` → `<HomeOverview/>`（删 HomeRedirect）+ `titlebar.tsx` V2 分支插主页按钮 | 手动验收（路由/外壳） |
-| 9 | `mode-workspace.tsx:140-145` chat 网格 `max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]` | 手动（样式） |
-| 10 | 全量验证 + `docs/review/global-home-overview-review.md` 验收记录 | `bun --cwd packages/app test --preload ./happydom.ts ./src`（**首次全量，勿用 --only-failures**）+ `bun --cwd packages/app typecheck` |
+| 步骤 | 交付物                                                                                                            | 红绿灯（测试先行）                                                                                                                    |
+| ---- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `docs/architecture/adr/ADR-16-global-home-overview.md`（Amends ADR-15，契约见计划 §8）                            | 文档评审（无测试）                                                                                                                    |
+| 2    | i18n：en.ts 先加 key → parity 红 → 18 文件补齐 → parity 绿                                                        | `bun --cwd packages/app test --preload ./happydom.ts ./src/i18n`                                                                      |
+| 3    | `packages/ui/src/v2/components/icon.tsx` 新增 `home`（16x16 stroke 风格对照 `mode-chat`）                         | 手动（无测试先例）                                                                                                                    |
+| 4    | `pages/home-overview-model.ts` + `home-overview-model.test.ts`（countByMode/pinLastActive 全分支）                | 纯函数测试红→绿                                                                                                                       |
+| 5    | `utils/session-placement.ts` onSet 扩 leafID + `context/global.tsx` `lastActiveSession`（persisted + onSet 写入） | 8 处 `sessionPlacement.set` 调用点 grep 核对零改动 + typecheck                                                                        |
+| 6    | `helpers.ts` `openSessionRecord` + `CodingSessionListMain.openSession` 迁移（含首页 `setCurrentMode` 参数位）     | 迁移后现有测试（home.test.ts / mode-workspace.test.tsx）保持绿                                                                        |
+| 7    | `pages/home-overview.tsx`（左筛选列 + 右会话列表 + 置顶组 + `components/session-mode-badge.tsx`）                 | `home-overview.test.tsx` 存在性+导出断言红→绿                                                                                         |
+| 8    | `app.tsx` `/` → `<HomeOverview/>`（删 HomeRedirect）+ `titlebar.tsx` V2 分支插主页按钮                            | 手动验收（路由/外壳）                                                                                                                 |
+| 9    | `mode-workspace.tsx:140-145` chat 网格 `max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]`                      | 手动（样式）                                                                                                                          |
+| 10   | 全量验证 + `docs/review/global-home-overview-review.md` 验收记录                                                  | `bun --cwd packages/app test --preload ./happydom.ts ./src`（**首次全量，勿用 --only-failures**）+ `bun --cwd packages/app typecheck` |
 
 **提交规范**：每步独立提交，conventional 前缀 `feat(app):`（ui 图标用 `feat(ui):`、文档用 `docs:`），push 前不跳过 typecheck hook（若需快速迭代可用 `AIGCFROGE_SKIP_TYPECHECK=1`，最终提交前必须真实跑过）。
 

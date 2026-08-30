@@ -44,12 +44,7 @@ export const recordedEffectGroup = <
 }) => {
   const cassettes = new Set<string>()
 
-  const run = <A, E2>(
-    name: string,
-    caseOptions: CaseOptions,
-    body: RecordedBody<A, E2, R>,
-    testOptions?: number,
-  ) => {
+  const run = <A, E2>(name: string, caseOptions: CaseOptions, body: RecordedBody<A, E2, R>, testOptions?: number) => {
     const cassette = cassetteName(input.options.prefix, name, caseOptions)
     if (cassettes.has(cassette)) throw new Error(`Duplicate ${input.duplicateLabel} "${cassette}"`)
     cassettes.add(cassette)
@@ -89,12 +84,8 @@ export const recordedEffectGroup = <
   const effect = <A, E2>(name: string, body: RecordedBody<A, E2, R>, testOptions?: number) =>
     run(name, {} as CaseOptions, body, testOptions)
 
-  effect.with = <A, E2>(
-    name: string,
-    caseOptions: CaseOptions,
-    body: RecordedBody<A, E2, R>,
-    testOptions?: number,
-  ) => run(name, caseOptions, body, testOptions)
+  effect.with = <A, E2>(name: string, caseOptions: CaseOptions, body: RecordedBody<A, E2, R>, testOptions?: number) =>
+    run(name, caseOptions, body, testOptions)
 
   return { effect }
 }

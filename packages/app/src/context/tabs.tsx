@@ -64,9 +64,10 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
             if (!tab || typeof tab !== "object") return tab
             const migrated = "server" in tab ? tab : { ...tab, server: fallback }
             if (!("type" in migrated) || migrated.type !== "draft") return migrated
-            const mode = "mode" in migrated && typeof migrated.mode === "string" && isMode(migrated.mode)
-              ? migrated.mode
-              : "coding"
+            const mode =
+              "mode" in migrated && typeof migrated.mode === "string" && isMode(migrated.mode)
+                ? migrated.mode
+                : "coding"
             return { ...migrated, mode }
           })
         },

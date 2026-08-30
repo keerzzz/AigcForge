@@ -10,20 +10,20 @@
 
 ## 0. M1 → M2 范围缺口矩阵
 
-| 维度 | M1 已完成 | M2 范围 | 后续 |
-|------|-----------|---------|------|
-| **主区** | ModeRoute 渲染 Home / ModeCards 已删 | ✅ AssetWorkbench 4 列表格（新增） | — |
-| **右栏** | 双区 ChatRightPanel | ✅ 简化为纯 Detail Inspector | — |
-| **次级侧栏** | 6 分类功能树 + ChatSessionList | ✅ 移除功能树，只留 Location+会话 | — |
-| **Insert 流程** | 无 | ✅ SessionSelectorPopover + 跳转注入 | — |
-| **健康度** | 无 | ✅ 🔴 行级标记 | — |
-| **ADR-15 合规** | `home.tsx:461` 用 `<Dynamic>` （remount 违禁） | ✅ 改为 render-all + display:none | — |
-| **listInvalid 数据源** | registry 跳过坏文件但不存储 | ✅ 新增 listInvalid + HTTP API | — |
-| **AssetKind 框架** | PromptAsset 单类型 | ❌ 不做 | 后续独立一期 |
-| **外部导入** | 无 | ❌ 不做 | 后续 |
-| **会话捕获** | 无 | ❌ 不做 | 后续 |
-| **命令开闸** | 无 | ❌ 不做 | 后续 |
-| **分析设施** | 无 | ❌ 不做 | G3 后 |
+| 维度                   | M1 已完成                                      | M2 范围                              | 后续         |
+| ---------------------- | ---------------------------------------------- | ------------------------------------ | ------------ |
+| **主区**               | ModeRoute 渲染 Home / ModeCards 已删           | ✅ AssetWorkbench 4 列表格（新增）   | —            |
+| **右栏**               | 双区 ChatRightPanel                            | ✅ 简化为纯 Detail Inspector         | —            |
+| **次级侧栏**           | 6 分类功能树 + ChatSessionList                 | ✅ 移除功能树，只留 Location+会话    | —            |
+| **Insert 流程**        | 无                                             | ✅ SessionSelectorPopover + 跳转注入 | —            |
+| **健康度**             | 无                                             | ✅ 🔴 行级标记                       | —            |
+| **ADR-15 合规**        | `home.tsx:461` 用 `<Dynamic>` （remount 违禁） | ✅ 改为 render-all + display:none    | —            |
+| **listInvalid 数据源** | registry 跳过坏文件但不存储                    | ✅ 新增 listInvalid + HTTP API       | —            |
+| **AssetKind 框架**     | PromptAsset 单类型                             | ❌ 不做                              | 后续独立一期 |
+| **外部导入**           | 无                                             | ❌ 不做                              | 后续         |
+| **会话捕获**           | 无                                             | ❌ 不做                              | 后续         |
+| **命令开闸**           | 无                                             | ❌ 不做                              | 后续         |
+| **分析设施**           | 无                                             | ❌ 不做                              | G3 后        |
 
 ---
 
@@ -43,11 +43,11 @@
 
 ### 1.2 资产作用域
 
-| 作用域 | 当前状态 | 说明 |
-|--------|---------|------|
-| **项目级** | ✅ M1 已实现 | `<Location.directory>/.aigcfroge/prompts/` |
-| **文件夹级** | ✅ M1 已支持（registry 用 glob 递归） | Path 列展示子目录路径 |
-| **全局** | ❌ PRD §5.2 非目标 | 其他服务有全局层，PromptAsset 不做 |
+| 作用域       | 当前状态                              | 说明                                       |
+| ------------ | ------------------------------------- | ------------------------------------------ |
+| **项目级**   | ✅ M1 已实现                          | `<Location.directory>/.aigcfroge/prompts/` |
+| **文件夹级** | ✅ M1 已支持（registry 用 glob 递归） | Path 列展示子目录路径                      |
+| **全局**     | ❌ PRD §5.2 非目标                    | 其他服务有全局层，PromptAsset 不做         |
 
 ### 1.3 非目标（不含）
 
@@ -107,6 +107,7 @@ ModeWorkspace (app.tsx ModeRoute → <Home />)
 **绿**：solid-js 组件 + v2 token（`--v2-*`）+ 4 列 table + `useAssetStore`（从 registry list 取数据）+ `KindFilterDropdown` + `SearchInput` + `AssetRow`
 
 **关键数据流**：
+
 ```
 PromptAsset.list (registry) → AssetWorkbench → 4 列渲染
                                            ↓
@@ -126,6 +127,7 @@ PromptAsset.list (registry) → AssetWorkbench → 4 列渲染
 ### Step 3: SecondarySidebar 功能树移除 + ADR-15 slot 合规
 
 **位置**：
+
 - `packages/app/src/context/chat-feature.ts`（删除，功能树 context 源）
 - `packages/app/src/components/mode-surfaces.tsx`（修改，删 CHAT_FEATURES/ChatFeatureSidebar/ChatFeaturePanel）
 - `packages/app/src/components/secondary-sidebar.tsx`（修改，删 FeatureSidebar 渲染）
@@ -135,6 +137,7 @@ PromptAsset.list (registry) → AssetWorkbench → 4 列渲染
 **红**：无功能树 / 编译通过 / slot 不 remount（createResource 不重取）
 
 **绿**：
+
 1. 删除 `chat-feature.ts`（全仓唯一 import 者：`home.tsx` + `mode-surfaces.tsx`，同步清理）
 2. `mode-surfaces.tsx`：删 `CHAT_FEATURES` / `ChatFeatureSidebar` / `ChatFeaturePanel` export
 3. `secondary-sidebar.tsx`：Chat 分支去 FeatureSidebar，只留 LocationSelector + ChatSessionList
@@ -156,6 +159,7 @@ PromptAsset.list (registry) → AssetWorkbench → 4 列渲染
 **红**：跨路由右栏状态保持（`/mode/chat` ↔ `/server/:key/session/:id`）/ Dirty Draft 确认 Modal
 
 **绿**：
+
 - 新建 `ChatWorkspaceContext`（`selectedAsset` / `rightPanelOpen` / `dirtyState`）
 - Provider 挂 Router 之外（`app.tsx` ModeRoute 所在 router 层之上）
 - Dirty Draft 机制：`createEffect` 监听 `dirtyState` → 检测到路由变更前弹 `<Dialog>` / `<Modal>` → 用户确认→调用 `setDirty(false)` →允许导航；取消→保留当前路由
@@ -169,37 +173,37 @@ PromptAsset.list (registry) → AssetWorkbench → 4 列渲染
 
 ## 4. 测试矩阵
 
-| 层 | 测试点 | 工具 | 位置 |
-|---|---|---|---|
-| Component | AssetWorkbench / ChatRightPanel / Popover | `bun:test` + happydom | `src/components/chat/*.test.ts` |
-| 行为 | Insert URL、路由状态、Dirty Draft | `bun:test` + context mock | `src/*.test.ts` |
-| 集成 | 功能树删除编译通过、ADR-15 slot 不 remount | typecheck + resource spy | — |
-| E2E | 全链路 | playwright | `e2e/` |
-| Core | listInvalid 存储+返回+脱敏 | `bun:test` + tmpdir | `core/test/` |
-| API | HTTP list 携带 invalid | `bun:test` | `aigcfroge/test/server/` |
+| 层        | 测试点                                     | 工具                      | 位置                            |
+| --------- | ------------------------------------------ | ------------------------- | ------------------------------- |
+| Component | AssetWorkbench / ChatRightPanel / Popover  | `bun:test` + happydom     | `src/components/chat/*.test.ts` |
+| 行为      | Insert URL、路由状态、Dirty Draft          | `bun:test` + context mock | `src/*.test.ts`                 |
+| 集成      | 功能树删除编译通过、ADR-15 slot 不 remount | typecheck + resource spy  | —                               |
+| E2E       | 全链路                                     | playwright                | `e2e/`                          |
+| Core      | listInvalid 存储+返回+脱敏                 | `bun:test` + tmpdir       | `core/test/`                    |
+| API       | HTTP list 携带 invalid                     | `bun:test`                | `aigcfroge/test/server/`        |
 
 ---
 
 ## 5. 改动文件清单
 
-| 文件 | 操作 |
-|------|------|
-| `packages/schema/src/prompt-asset.ts` | 修改（增 InvalidEntry schema）|
-| `packages/core/src/prompt-asset.ts` | 修改（增 listInvalid/getInvalid + loadDir 存储坏文件）|
-| `packages/core/test/prompt-asset-registry.test.ts` | 修改（增 listInvalid 测试）|
-| `packages/aigcfroge/src/server/httpapi/groups/prompt-asset.ts` | 修改（list 响应增 invalid 字段）|
-| `packages/aigcfroge/src/server/httpapi/handlers/prompt-asset.ts` | 修改（list handler 注入 invalid 数据）|
-| `packages/aigcfroge/test/server/httpapi-prompt-asset.test.ts` | 修改（增 list invalid 测试）|
-| `packages/app/src/components/chat/asset-workbench.tsx` | **新增**（4 列资产表格）|
-| `packages/app/src/components/chat/asset-workbench.test.ts` | **新增**（表格组件测试）|
-| `packages/app/src/components/chat/chat-right-panel.tsx` | **重写**（简化为 Detail Inspector）|
-| `packages/app/src/components/chat/asset-session-selector.tsx` | **新增**（Insert 会话选择浮窗）|
-| `packages/app/src/context/chat-workspace.tsx` | **新增**（路由状态保持 Provider）|
-| `packages/app/src/context/chat-feature.ts` | **删除**（功能树 context 源）|
-| `packages/app/src/components/secondary-sidebar.tsx` | **修改**（删 FeatureSidebar 渲染）|
-| `packages/app/src/components/mode-surfaces.tsx` | **修改**（删 CHAT_FEATURES）|
-| `packages/app/src/pages/home.tsx` | **修改**（删 ChatFeaturePanel + `<Dynamic>` slot 改 render-all+display:none）|
-| `packages/app/src/app.tsx` | **验证**（确认 ModeRoute slot 路径无残留）|
+| 文件                                                             | 操作                                                                          |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `packages/schema/src/prompt-asset.ts`                            | 修改（增 InvalidEntry schema）                                                |
+| `packages/core/src/prompt-asset.ts`                              | 修改（增 listInvalid/getInvalid + loadDir 存储坏文件）                        |
+| `packages/core/test/prompt-asset-registry.test.ts`               | 修改（增 listInvalid 测试）                                                   |
+| `packages/aigcfroge/src/server/httpapi/groups/prompt-asset.ts`   | 修改（list 响应增 invalid 字段）                                              |
+| `packages/aigcfroge/src/server/httpapi/handlers/prompt-asset.ts` | 修改（list handler 注入 invalid 数据）                                        |
+| `packages/aigcfroge/test/server/httpapi-prompt-asset.test.ts`    | 修改（增 list invalid 测试）                                                  |
+| `packages/app/src/components/chat/asset-workbench.tsx`           | **新增**（4 列资产表格）                                                      |
+| `packages/app/src/components/chat/asset-workbench.test.ts`       | **新增**（表格组件测试）                                                      |
+| `packages/app/src/components/chat/chat-right-panel.tsx`          | **重写**（简化为 Detail Inspector）                                           |
+| `packages/app/src/components/chat/asset-session-selector.tsx`    | **新增**（Insert 会话选择浮窗）                                               |
+| `packages/app/src/context/chat-workspace.tsx`                    | **新增**（路由状态保持 Provider）                                             |
+| `packages/app/src/context/chat-feature.ts`                       | **删除**（功能树 context 源）                                                 |
+| `packages/app/src/components/secondary-sidebar.tsx`              | **修改**（删 FeatureSidebar 渲染）                                            |
+| `packages/app/src/components/mode-surfaces.tsx`                  | **修改**（删 CHAT_FEATURES）                                                  |
+| `packages/app/src/pages/home.tsx`                                | **修改**（删 ChatFeaturePanel + `<Dynamic>` slot 改 render-all+display:none） |
+| `packages/app/src/app.tsx`                                       | **验证**（确认 ModeRoute slot 路径无残留）                                    |
 
 ---
 

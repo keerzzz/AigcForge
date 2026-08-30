@@ -1,8 +1,5 @@
 import { Effect } from "effect"
-import {
-  registerClaudeMcpServerContributor,
-  type McpServerConfig,
-} from "@aigcfroge/core/mcp/contributor"
+import { registerClaudeMcpServerContributor, type McpServerConfig } from "@aigcfroge/core/mcp/contributor"
 
 /**
  * IdeMcpServerContributor — exposes IDE simulated diagnostics as an MCP tool.

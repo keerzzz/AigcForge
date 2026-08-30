@@ -38,7 +38,8 @@ export const Event = {
  * single-sided source edges — never double-written.
  */
 
-const FTS_MAYBE = "CREATE VIRTUAL TABLE IF NOT EXISTS kb_note_fts USING fts5(note_id UNINDEXED, title, content, tokenize = 'unicode61')"
+const FTS_MAYBE =
+  "CREATE VIRTUAL TABLE IF NOT EXISTS kb_note_fts USING fts5(note_id UNINDEXED, title, content, tokenize = 'unicode61')"
 
 const toNote = (row: typeof KBNoteTable.$inferSelect): KBNote.Note =>
   new KBNote.Note({
@@ -77,7 +78,10 @@ export interface Interface {
     readonly baseDir?: string
   }) => Effect.Effect<KBNote.Note>
   readonly get: (id: KBNote.NoteID) => Effect.Effect<KBNote.Note | undefined>
-  readonly list: (options?: { readonly scope?: KBNote.NoteScope; readonly limit?: number }) => Effect.Effect<ReadonlyArray<KBNote.Note>>
+  readonly list: (options?: {
+    readonly scope?: KBNote.NoteScope
+    readonly limit?: number
+  }) => Effect.Effect<ReadonlyArray<KBNote.Note>>
   readonly update: (input: {
     readonly id: KBNote.NoteID
     readonly title?: string
@@ -91,7 +95,10 @@ export interface Interface {
    * Full-text search (PRD §7.4 / plan P3): FTS5 unicode61 first; exact Chinese
    * phrases fall back to LIKE on title/content so CJK matching stays exact.
    */
-  readonly search: (query: string, options?: { readonly scope?: KBNote.NoteScope; readonly limit?: number }) => Effect.Effect<ReadonlyArray<KBNote.Note>>
+  readonly search: (
+    query: string,
+    options?: { readonly scope?: KBNote.NoteScope; readonly limit?: number },
+  ) => Effect.Effect<ReadonlyArray<KBNote.Note>>
   /** Edges leaving a note (its outgoing [[links]]). */
   readonly linksFrom: (id: KBNote.NoteID) => Effect.Effect<ReadonlyArray<KBNote.Link>>
   /** Backlinks: notes that link TO the given note (single-sided + derived). */
@@ -126,7 +133,9 @@ export const layer = Layer.effect(
 
     const ensureFts = Effect.fn("KBService.ensureFts")(function* (noteID: string, title: string, content: string) {
       yield* db.run(sql`DELETE FROM kb_note_fts WHERE note_id = ${noteID}`).pipe(Effect.orDie)
-      yield* db.run(sql`INSERT INTO kb_note_fts (note_id, title, content) VALUES (${noteID}, ${title}, ${content})`).pipe(Effect.orDie)
+      yield* db
+        .run(sql`INSERT INTO kb_note_fts (note_id, title, content) VALUES (${noteID}, ${title}, ${content})`)
+        .pipe(Effect.orDie)
     })
 
     const removeFts = Effect.fn("KBService.removeFts")(function* (noteID: string) {
@@ -138,7 +147,7 @@ export const layer = Layer.effect(
     // prefers the source note's OWN scope and only falls back across scopes
     // when the title is unambiguous — otherwise [[Foo]] could silently bind to
     // a note in the wrong scope.
-    const buildTitleIndex = (notes: typeof KBNoteTable.$inferSelect[]) => {
+    const buildTitleIndex = (notes: (typeof KBNoteTable.$inferSelect)[]) => {
       const byTitle = new Map<string, Array<{ scope: KBNote.NoteScope; id: KBNote.NoteID }>>()
       const scopeById = new Map<KBNote.NoteID, KBNote.NoteScope>()
       const aliasesByNote = new Map<KBNote.NoteID, readonly string[]>()
@@ -229,7 +238,11 @@ export const layer = Layer.effect(
     })
 
     /** Rewrite the note's kb_link edges from its current content. */
-    const syncLinks = Effect.fn("KBService.syncLinks")(function* (id: KBNote.NoteID, content: string, scope: KBNote.NoteScope) {
+    const syncLinks = Effect.fn("KBService.syncLinks")(function* (
+      id: KBNote.NoteID,
+      content: string,
+      scope: KBNote.NoteScope,
+    ) {
       yield* db.delete(KBLinkTable).where(eq(KBLinkTable.source_note_id, id)).run().pipe(Effect.orDie)
       const titles = KBLink.extractWikilinks(content)
       if (titles.length === 0) return
@@ -238,7 +251,9 @@ export const layer = Layer.effect(
       for (const title of titles) {
         const target = resolveInScope(title, scope, index)
         yield* db
-          .run(sql`INSERT INTO kb_link (source_note_id, target_note_id, target_title, link_type, dangling, time_created) VALUES (${id}, ${target ?? null}, ${title}, 'reference', ${target === undefined}, ${Date.now()})`)
+          .run(
+            sql`INSERT INTO kb_link (source_note_id, target_note_id, target_title, link_type, dangling, time_created) VALUES (${id}, ${target ?? null}, ${title}, 'reference', ${target === undefined}, ${Date.now()})`,
+          )
           .pipe(Effect.orDie)
       }
     })
@@ -252,96 +267,99 @@ export const layer = Layer.effect(
     const mirrorDir = (baseDir: string, scope: KBNote.NoteScope) =>
       scope === "global" ? `${baseDir}/knowledge-base` : `${baseDir}/.aigcfroge/knowledge-base`
 
-    const create = Effect.fn("KBService.create")((input: {
-      readonly title: string
-      readonly content: string
-      readonly scope: KBNote.NoteScope
-      readonly tags?: readonly string[]
-      readonly aliases?: readonly string[]
-      readonly format?: KBNote.NoteFormat
-      readonly baseDir?: string
-    }) =>
-      Effect.gen(function* () {
-        // Both entries (tool input, HTTP payload) schema-gate the title; check
-        // again BEFORE any write so a direct caller cannot leave a dirty row
-        // that poisons list/get via toNote validation (review hardening).
-        if (Schema.decodeUnknownOption(KBNote.Title)(input.title)._tag === "None") {
-          return yield* Effect.die(new Error(`Invalid note title: ${JSON.stringify(input.title)}`))
-        }
-        const id = KBNote.NoteID.create()
-        const now = Date.now()
-        if (input.baseDir) {
-          const dir = mirrorDir(input.baseDir, input.scope)
-          const absolute = path.resolve(dir, `${input.title}.md`)
-          if (!FSUtil.contains(dir, absolute)) {
-            return yield* Effect.die(new Error("Note title escapes the knowledge-base directory"))
+    const create = Effect.fn("KBService.create")(
+      (input: {
+        readonly title: string
+        readonly content: string
+        readonly scope: KBNote.NoteScope
+        readonly tags?: readonly string[]
+        readonly aliases?: readonly string[]
+        readonly format?: KBNote.NoteFormat
+        readonly baseDir?: string
+      }) =>
+        Effect.gen(function* () {
+          // Both entries (tool input, HTTP payload) schema-gate the title; check
+          // again BEFORE any write so a direct caller cannot leave a dirty row
+          // that poisons list/get via toNote validation (review hardening).
+          if (Schema.decodeUnknownOption(KBNote.Title)(input.title)._tag === "None") {
+            return yield* Effect.die(new Error(`Invalid note title: ${JSON.stringify(input.title)}`))
           }
-          const target: FileMutation.Target = { canonical: absolute, resource: `${input.title}.md` }
-          // Serialize per-target: check DB duplicate and file existence inside the lock
-          // BEFORE the file write so a duplicate DB row does not clobber the existing .md.
-          yield* kbLocks.withLock(absolute)(
-            Effect.uninterruptible(
-              // oxlint-disable-next-line typescript/consistent-return -- Effect.gen with early returns via Effect.die is intentional
-              Effect.gen(function* () {
-                const existing = yield* db
-                  .select()
-                  .from(KBNoteTable)
-                  .where(and(eq(KBNoteTable.scope, input.scope), eq(KBNoteTable.title, input.title)))
-                  .get()
-                  .pipe(Effect.orDie)
-                if (existing) {
-                  return yield* Effect.die(new Error(`A note with this title already exists in scope "${input.scope}"`))
-                }
-                const fileExists = yield* fs.exists(absolute).pipe(Effect.orDie)
-                if (fileExists) {
-                  return yield* Effect.die(new Error("A mirror file already exists for this title"))
-                }
-                yield* fileMutation.writeAtomic({ target, content: input.content }).pipe(Effect.orDie)
-                yield* db
-                  .insert(KBNoteTable)
-                  .values({
-                    id,
-                    title: input.title,
-                    content: input.content,
-                    scope: input.scope,
-                    tags: [...(input.tags ?? [])],
-                    ...(input.aliases ? { aliases: [...input.aliases] } : {}),
-                    format: input.format ?? "note",
-                    time_created: now,
-                    time_updated: now,
-                  })
-                  .run()
-                  .pipe(Effect.orDie)
-              }),
-            ),
-          )
-        } else {
-          yield* db
-            .insert(KBNoteTable)
-            .values({
-              id,
-              title: input.title,
-              content: input.content,
-              scope: input.scope,
-              tags: [...(input.tags ?? [])],
-              ...(input.aliases ? { aliases: [...input.aliases] } : {}),
-              format: input.format ?? "note",
-              time_created: now,
-              time_updated: now,
-            })
-            .run()
-            .pipe(Effect.orDie)
-        }
-        yield* ensureFts(id, input.title, input.content)
-        yield* syncLinks(id, input.content, input.scope)
-        // A new title/alias resolves previously dangling edges pointing at it.
-        yield* resolveDanglingFor(input.title)
-        for (const alias of input.aliases ?? []) yield* resolveDanglingFor(alias)
-        yield* events.publish(Event.NoteCreated, { noteID: id })
-        const row = yield* db.select().from(KBNoteTable).where(eq(KBNoteTable.id, id)).get().pipe(Effect.orDie)
-        if (!row) return yield* Effect.die(new Error("created note row vanished"))
-        return toNote(row)
-      }),
+          const id = KBNote.NoteID.create()
+          const now = Date.now()
+          if (input.baseDir) {
+            const dir = mirrorDir(input.baseDir, input.scope)
+            const absolute = path.resolve(dir, `${input.title}.md`)
+            if (!FSUtil.contains(dir, absolute)) {
+              return yield* Effect.die(new Error("Note title escapes the knowledge-base directory"))
+            }
+            const target: FileMutation.Target = { canonical: absolute, resource: `${input.title}.md` }
+            // Serialize per-target: check DB duplicate and file existence inside the lock
+            // BEFORE the file write so a duplicate DB row does not clobber the existing .md.
+            yield* kbLocks.withLock(absolute)(
+              Effect.uninterruptible(
+                // oxlint-disable-next-line typescript/consistent-return -- Effect.gen with early returns via Effect.die is intentional
+                Effect.gen(function* () {
+                  const existing = yield* db
+                    .select()
+                    .from(KBNoteTable)
+                    .where(and(eq(KBNoteTable.scope, input.scope), eq(KBNoteTable.title, input.title)))
+                    .get()
+                    .pipe(Effect.orDie)
+                  if (existing) {
+                    return yield* Effect.die(
+                      new Error(`A note with this title already exists in scope "${input.scope}"`),
+                    )
+                  }
+                  const fileExists = yield* fs.exists(absolute).pipe(Effect.orDie)
+                  if (fileExists) {
+                    return yield* Effect.die(new Error("A mirror file already exists for this title"))
+                  }
+                  yield* fileMutation.writeAtomic({ target, content: input.content }).pipe(Effect.orDie)
+                  yield* db
+                    .insert(KBNoteTable)
+                    .values({
+                      id,
+                      title: input.title,
+                      content: input.content,
+                      scope: input.scope,
+                      tags: [...(input.tags ?? [])],
+                      ...(input.aliases ? { aliases: [...input.aliases] } : {}),
+                      format: input.format ?? "note",
+                      time_created: now,
+                      time_updated: now,
+                    })
+                    .run()
+                    .pipe(Effect.orDie)
+                }),
+              ),
+            )
+          } else {
+            yield* db
+              .insert(KBNoteTable)
+              .values({
+                id,
+                title: input.title,
+                content: input.content,
+                scope: input.scope,
+                tags: [...(input.tags ?? [])],
+                ...(input.aliases ? { aliases: [...input.aliases] } : {}),
+                format: input.format ?? "note",
+                time_created: now,
+                time_updated: now,
+              })
+              .run()
+              .pipe(Effect.orDie)
+          }
+          yield* ensureFts(id, input.title, input.content)
+          yield* syncLinks(id, input.content, input.scope)
+          // A new title/alias resolves previously dangling edges pointing at it.
+          yield* resolveDanglingFor(input.title)
+          for (const alias of input.aliases ?? []) yield* resolveDanglingFor(alias)
+          yield* events.publish(Event.NoteCreated, { noteID: id })
+          const row = yield* db.select().from(KBNoteTable).where(eq(KBNoteTable.id, id)).get().pipe(Effect.orDie)
+          if (!row) return yield* Effect.die(new Error("created note row vanished"))
+          return toNote(row)
+        }),
     )
 
     const get = Effect.fn("KBService.get")((id: KBNote.NoteID) =>
@@ -351,106 +369,91 @@ export const layer = Layer.effect(
       }),
     )
 
-    const list = Effect.fn("KBService.list")((options?: { readonly scope?: KBNote.NoteScope; readonly limit?: number }) =>
-      Effect.gen(function* () {
-        const rows = yield* db
-          .select()
-          .from(KBNoteTable)
-          .where(options?.scope ? eq(KBNoteTable.scope, options.scope) : undefined)
-          .orderBy(desc(KBNoteTable.time_updated))
-          .limit(options?.limit ?? 100)
-          .all()
-          .pipe(Effect.orDie)
-        return rows.map(toNote)
-      }),
+    const list = Effect.fn("KBService.list")(
+      (options?: { readonly scope?: KBNote.NoteScope; readonly limit?: number }) =>
+        Effect.gen(function* () {
+          const rows = yield* db
+            .select()
+            .from(KBNoteTable)
+            .where(options?.scope ? eq(KBNoteTable.scope, options.scope) : undefined)
+            .orderBy(desc(KBNoteTable.time_updated))
+            .limit(options?.limit ?? 100)
+            .all()
+            .pipe(Effect.orDie)
+          return rows.map(toNote)
+        }),
     )
 
-    const update = Effect.fn("KBService.update")((input: {
-      readonly id: KBNote.NoteID
-      readonly title?: string
-      readonly content?: string
-      readonly tags?: readonly string[]
-      readonly aliases?: readonly string[]
-      readonly baseDir?: string
-    }) =>
-      Effect.gen(function* () {
-        const prior = yield* db.select().from(KBNoteTable).where(eq(KBNoteTable.id, input.id)).get().pipe(Effect.orDie)
-        if (!prior) return undefined
-        if (input.title !== undefined && Schema.decodeUnknownOption(KBNote.Title)(input.title)._tag === "None") {
-          return yield* Effect.die(new Error(`Invalid note title: ${JSON.stringify(input.title)}`))
-        }
-        const title = input.title ?? prior.title
-        const content = input.content ?? prior.content
-        if (input.baseDir) {
-          const dir = mirrorDir(input.baseDir, prior.scope)
-          const newAbsolute = path.resolve(dir, `${title}.md`)
-          if (!FSUtil.contains(dir, newAbsolute)) {
-            return yield* Effect.die(new Error("Note title escapes the knowledge-base directory"))
+    const update = Effect.fn("KBService.update")(
+      (input: {
+        readonly id: KBNote.NoteID
+        readonly title?: string
+        readonly content?: string
+        readonly tags?: readonly string[]
+        readonly aliases?: readonly string[]
+        readonly baseDir?: string
+      }) =>
+        Effect.gen(function* () {
+          const prior = yield* db
+            .select()
+            .from(KBNoteTable)
+            .where(eq(KBNoteTable.id, input.id))
+            .get()
+            .pipe(Effect.orDie)
+          if (!prior) return undefined
+          if (input.title !== undefined && Schema.decodeUnknownOption(KBNote.Title)(input.title)._tag === "None") {
+            return yield* Effect.die(new Error(`Invalid note title: ${JSON.stringify(input.title)}`))
           }
-          if (input.title !== undefined && input.title !== prior.title) {
-            const oldAbsolute = path.resolve(dir, `${prior.title}.md`)
-            if (!FSUtil.contains(dir, oldAbsolute)) {
+          const title = input.title ?? prior.title
+          const content = input.content ?? prior.content
+          if (input.baseDir) {
+            const dir = mirrorDir(input.baseDir, prior.scope)
+            const newAbsolute = path.resolve(dir, `${title}.md`)
+            if (!FSUtil.contains(dir, newAbsolute)) {
               return yield* Effect.die(new Error("Note title escapes the knowledge-base directory"))
             }
-            const newTarget: FileMutation.Target = { canonical: newAbsolute, resource: `${title}.md` }
-            const oldTarget: FileMutation.Target = { canonical: oldAbsolute, resource: `${prior.title}.md` }
-            // Rename: write new mirror first, then remove old, both inside locks.
-            // Lock both paths in sorted order to avoid deadlock; check duplicate/title
-            // inside the lock so a concurrent create/rename cannot slip between check and write.
-            const keys = [oldAbsolute, newAbsolute].sort()
-            const doRename = Effect.uninterruptible(
-              // oxlint-disable-next-line typescript/consistent-return -- Effect.gen with early returns via Effect.die is intentional
-              Effect.gen(function* () {
-                const duplicate = yield* db
-                  .select()
-                  .from(KBNoteTable)
-                  .where(and(eq(KBNoteTable.scope, prior.scope), eq(KBNoteTable.title, title)))
-                  .get()
-                  .pipe(Effect.orDie)
-                if (duplicate && duplicate.id !== input.id) {
-                  return yield* Effect.die(new Error(`A note with this title already exists in scope "${prior.scope}"`))
-                }
-                const newExists = yield* fs.exists(newAbsolute).pipe(Effect.orDie)
-                if (newExists) {
-                  return yield* Effect.die(new Error("A mirror file already exists for the target title"))
-                }
-                yield* fileMutation.writeAtomic({ target: newTarget, content }).pipe(Effect.orDie)
-                yield* fileMutation.remove({ target: oldTarget }).pipe(
-                  Effect.catch((error) =>
-                    Effect.logWarning("failed to remove stale note mirror after rename", { noteID: input.id, error }),
-                  ),
-                )
-                yield* db
-                  .update(KBNoteTable)
-                  .set({
-                    title,
-                    ...(input.content !== undefined ? { content } : {}),
-                    ...(input.tags !== undefined ? { tags: [...input.tags] } : {}),
-                    ...(input.aliases !== undefined ? { aliases: [...input.aliases] } : {}),
-                    time_updated: Date.now(),
-                  })
-                  .where(eq(KBNoteTable.id, input.id))
-                  .run()
-                  .pipe(Effect.orDie)
-              }),
-            )
-            // Acquire both locks in order
-            if (keys[0] === keys[1]) {
-              yield* kbLocks.withLock(keys[0])(doRename)
-            } else {
-              yield* kbLocks.withLock(keys[0])(kbLocks.withLock(keys[1])(doRename))
-            }
-          } else {
-            // Content update or metadata update without rename
-            const target: FileMutation.Target = { canonical: newAbsolute, resource: `${title}.md` }
-            yield* kbLocks.withLock(newAbsolute)(
-              Effect.uninterruptible(
+            if (input.title !== undefined && input.title !== prior.title) {
+              const oldAbsolute = path.resolve(dir, `${prior.title}.md`)
+              if (!FSUtil.contains(dir, oldAbsolute)) {
+                return yield* Effect.die(new Error("Note title escapes the knowledge-base directory"))
+              }
+              const newTarget: FileMutation.Target = { canonical: newAbsolute, resource: `${title}.md` }
+              const oldTarget: FileMutation.Target = { canonical: oldAbsolute, resource: `${prior.title}.md` }
+              // Rename: write new mirror first, then remove old, both inside locks.
+              // Lock both paths in sorted order to avoid deadlock; check duplicate/title
+              // inside the lock so a concurrent create/rename cannot slip between check and write.
+              const keys = [oldAbsolute, newAbsolute].sort()
+              const doRename = Effect.uninterruptible(
+                // oxlint-disable-next-line typescript/consistent-return -- Effect.gen with early returns via Effect.die is intentional
                 Effect.gen(function* () {
-                  yield* fileMutation.writeAtomic({ target, content }).pipe(Effect.orDie)
+                  const duplicate = yield* db
+                    .select()
+                    .from(KBNoteTable)
+                    .where(and(eq(KBNoteTable.scope, prior.scope), eq(KBNoteTable.title, title)))
+                    .get()
+                    .pipe(Effect.orDie)
+                  if (duplicate && duplicate.id !== input.id) {
+                    return yield* Effect.die(
+                      new Error(`A note with this title already exists in scope "${prior.scope}"`),
+                    )
+                  }
+                  const newExists = yield* fs.exists(newAbsolute).pipe(Effect.orDie)
+                  if (newExists) {
+                    return yield* Effect.die(new Error("A mirror file already exists for the target title"))
+                  }
+                  yield* fileMutation.writeAtomic({ target: newTarget, content }).pipe(Effect.orDie)
+                  yield* fileMutation.remove({ target: oldTarget }).pipe(
+                    Effect.catch((error) =>
+                      Effect.logWarning("failed to remove stale note mirror after rename", {
+                        noteID: input.id,
+                        error,
+                      }),
+                    ),
+                  )
                   yield* db
                     .update(KBNoteTable)
                     .set({
-                      ...(input.title !== undefined ? { title } : {}),
+                      title,
                       ...(input.content !== undefined ? { content } : {}),
                       ...(input.tags !== undefined ? { tags: [...input.tags] } : {}),
                       ...(input.aliases !== undefined ? { aliases: [...input.aliases] } : {}),
@@ -460,34 +463,61 @@ export const layer = Layer.effect(
                     .run()
                     .pipe(Effect.orDie)
                 }),
-              ),
-            )
+              )
+              // Acquire both locks in order
+              if (keys[0] === keys[1]) {
+                yield* kbLocks.withLock(keys[0])(doRename)
+              } else {
+                yield* kbLocks.withLock(keys[0])(kbLocks.withLock(keys[1])(doRename))
+              }
+            } else {
+              // Content update or metadata update without rename
+              const target: FileMutation.Target = { canonical: newAbsolute, resource: `${title}.md` }
+              yield* kbLocks.withLock(newAbsolute)(
+                Effect.uninterruptible(
+                  Effect.gen(function* () {
+                    yield* fileMutation.writeAtomic({ target, content }).pipe(Effect.orDie)
+                    yield* db
+                      .update(KBNoteTable)
+                      .set({
+                        ...(input.title !== undefined ? { title } : {}),
+                        ...(input.content !== undefined ? { content } : {}),
+                        ...(input.tags !== undefined ? { tags: [...input.tags] } : {}),
+                        ...(input.aliases !== undefined ? { aliases: [...input.aliases] } : {}),
+                        time_updated: Date.now(),
+                      })
+                      .where(eq(KBNoteTable.id, input.id))
+                      .run()
+                      .pipe(Effect.orDie)
+                  }),
+                ),
+              )
+            }
+          } else {
+            yield* db
+              .update(KBNoteTable)
+              .set({
+                ...(input.title !== undefined ? { title } : {}),
+                ...(input.content !== undefined ? { content } : {}),
+                ...(input.tags !== undefined ? { tags: [...input.tags] } : {}),
+                ...(input.aliases !== undefined ? { aliases: [...input.aliases] } : {}),
+                time_updated: Date.now(),
+              })
+              .where(eq(KBNoteTable.id, input.id))
+              .run()
+              .pipe(Effect.orDie)
           }
-        } else {
-          yield* db
-            .update(KBNoteTable)
-            .set({
-              ...(input.title !== undefined ? { title } : {}),
-              ...(input.content !== undefined ? { content } : {}),
-              ...(input.tags !== undefined ? { tags: [...input.tags] } : {}),
-              ...(input.aliases !== undefined ? { aliases: [...input.aliases] } : {}),
-              time_updated: Date.now(),
-            })
-            .where(eq(KBNoteTable.id, input.id))
-            .run()
-            .pipe(Effect.orDie)
-        }
-        yield* ensureFts(input.id, title, content)
-        yield* syncLinks(input.id, content, prior.scope)
-        if (input.title !== undefined) yield* resolveDanglingFor(input.title)
-        if (input.aliases !== undefined) for (const alias of input.aliases) yield* resolveDanglingFor(alias)
-        // A rename/alias change invalidates incoming edges that resolved to the
-        // old identity: re-resolve them against the current index so they point
-        // at the new target or go dangling (review MAJOR).
-        if (input.title !== undefined || input.aliases !== undefined) yield* reresolveIncoming(input.id)
-        const row = yield* db.select().from(KBNoteTable).where(eq(KBNoteTable.id, input.id)).get().pipe(Effect.orDie)
-        return row ? toNote(row) : undefined
-      }),
+          yield* ensureFts(input.id, title, content)
+          yield* syncLinks(input.id, content, prior.scope)
+          if (input.title !== undefined) yield* resolveDanglingFor(input.title)
+          if (input.aliases !== undefined) for (const alias of input.aliases) yield* resolveDanglingFor(alias)
+          // A rename/alias change invalidates incoming edges that resolved to the
+          // old identity: re-resolve them against the current index so they point
+          // at the new target or go dangling (review MAJOR).
+          if (input.title !== undefined || input.aliases !== undefined) yield* reresolveIncoming(input.id)
+          const row = yield* db.select().from(KBNoteTable).where(eq(KBNoteTable.id, input.id)).get().pipe(Effect.orDie)
+          return row ? toNote(row) : undefined
+        }),
     )
 
     const remove = Effect.fn("KBService.remove")((input: { readonly id: KBNote.NoteID; readonly baseDir?: string }) =>
@@ -515,77 +545,88 @@ export const layer = Layer.effect(
           // syncFromDirectory reconciles leftovers.
           const target: FileMutation.Target = { canonical: absolute, resource: `${prior.title}.md` }
           yield* kbLocks.withLock(absolute)(
-            fileMutation.remove({ target }).pipe(
-              Effect.catch((error) =>
-                Effect.logWarning("failed to remove note mirror on delete", { noteID: input.id, error }),
+            fileMutation
+              .remove({ target })
+              .pipe(
+                Effect.catch((error) =>
+                  Effect.logWarning("failed to remove note mirror on delete", { noteID: input.id, error }),
+                ),
               ),
-            ),
           )
         }
         yield* events.publish(Event.NoteRemoved, { noteID: input.id })
       }),
     )
 
-    const search = Effect.fn("KBService.search")((query: string, options?: { readonly scope?: KBNote.NoteScope; readonly limit?: number }) =>
-      Effect.gen(function* () {
-        yield* events.publish(Event.KBSearched, {})
-        const limit = options?.limit ?? 20
-        // FTS5 (unicode61) first: word-level for Latin. unicode61 tokenizes a
-        // CJK run as a single token, so partial CJK phrases cannot match FTS —
-        // the LIKE fallback below carries those (plan P3).
-        // A MATCH syntax error (e.g. an unquoted `"` in the query) must degrade
-        // to the LIKE fallback — never a 500 (review MAJOR #4).
-        const ftsRows = yield* db
-          .all<{ note_id: KBNote.NoteID }>(sql`SELECT note_id FROM kb_note_fts WHERE kb_note_fts MATCH ${query} ORDER BY rank LIMIT ${limit}`)
-          .pipe(
-            Effect.catchCause((cause: Cause.Cause<unknown>) => {
-              // Degrade ONLY FTS5 query syntax errors (bad user input) to the
-              // LIKE fallback; a real DB failure (locked/corrupt) stays fatal
-              // instead of silently returning empty results. The SQLite
-              // message is nested inside the drizzle wrapper's cause chain.
-              const rendered = Cause.pretty(cause)
-              if (rendered.includes("syntax error") || rendered.includes("unterminated string")) return Effect.succeed([])
-              return Effect.failCause(cause)
-            }),
-            Effect.orDie,
-          )
-        const notes: typeof KBNoteTable.$inferSelect[] = []
-        for (const row of ftsRows) {
-          const note = yield* db
+    const search = Effect.fn("KBService.search")(
+      (query: string, options?: { readonly scope?: KBNote.NoteScope; readonly limit?: number }) =>
+        Effect.gen(function* () {
+          yield* events.publish(Event.KBSearched, {})
+          const limit = options?.limit ?? 20
+          // FTS5 (unicode61) first: word-level for Latin. unicode61 tokenizes a
+          // CJK run as a single token, so partial CJK phrases cannot match FTS —
+          // the LIKE fallback below carries those (plan P3).
+          // A MATCH syntax error (e.g. an unquoted `"` in the query) must degrade
+          // to the LIKE fallback — never a 500 (review MAJOR #4).
+          const ftsRows = yield* db
+            .all<{
+              note_id: KBNote.NoteID
+            }>(sql`SELECT note_id FROM kb_note_fts WHERE kb_note_fts MATCH ${query} ORDER BY rank LIMIT ${limit}`)
+            .pipe(
+              Effect.catchCause((cause: Cause.Cause<unknown>) => {
+                // Degrade ONLY FTS5 query syntax errors (bad user input) to the
+                // LIKE fallback; a real DB failure (locked/corrupt) stays fatal
+                // instead of silently returning empty results. The SQLite
+                // message is nested inside the drizzle wrapper's cause chain.
+                const rendered = Cause.pretty(cause)
+                if (rendered.includes("syntax error") || rendered.includes("unterminated string"))
+                  return Effect.succeed([])
+                return Effect.failCause(cause)
+              }),
+              Effect.orDie,
+            )
+          const notes: (typeof KBNoteTable.$inferSelect)[] = []
+          for (const row of ftsRows) {
+            const note = yield* db
+              .select()
+              .from(KBNoteTable)
+              .where(eq(KBNoteTable.id, row.note_id))
+              .get()
+              .pipe(Effect.orDie)
+            if (note && (!options?.scope || note.scope === options.scope)) notes.push(note)
+          }
+          if (notes.length >= limit) return notes.map(toNote)
+          // LIKE fallback (plan P3): exact substring match for CJK phrases that
+          // FTS5 unicode61 cannot express (e.g. "项目计划" as a phrase).
+          const likeRows = yield* db
             .select()
             .from(KBNoteTable)
-            .where(eq(KBNoteTable.id, row.note_id))
-            .get()
+            .where(
+              and(
+                options?.scope ? eq(KBNoteTable.scope, options.scope) : undefined,
+                or(like(KBNoteTable.title, `%${query}%`), like(KBNoteTable.content, `%${query}%`)),
+              ),
+            )
+            .orderBy(desc(KBNoteTable.time_updated))
+            .limit(limit - notes.length)
+            .all()
             .pipe(Effect.orDie)
-          if (note && (!options?.scope || note.scope === options.scope)) notes.push(note)
-        }
-        if (notes.length >= limit) return notes.map(toNote)
-        // LIKE fallback (plan P3): exact substring match for CJK phrases that
-        // FTS5 unicode61 cannot express (e.g. "项目计划" as a phrase).
-        const likeRows = yield* db
-          .select()
-          .from(KBNoteTable)
-          .where(
-            and(
-              options?.scope ? eq(KBNoteTable.scope, options.scope) : undefined,
-              or(like(KBNoteTable.title, `%${query}%`), like(KBNoteTable.content, `%${query}%`)),
-            ),
-          )
-          .orderBy(desc(KBNoteTable.time_updated))
-          .limit(limit - notes.length)
-          .all()
-          .pipe(Effect.orDie)
-        const seen = new Set(notes.map((n) => n.id))
-        for (const row of likeRows) {
-          if (!seen.has(row.id)) notes.push(row)
-        }
-        return notes.map(toNote)
-      }),
+          const seen = new Set(notes.map((n) => n.id))
+          for (const row of likeRows) {
+            if (!seen.has(row.id)) notes.push(row)
+          }
+          return notes.map(toNote)
+        }),
     )
 
     const linksFrom = Effect.fn("KBService.linksFrom")((id: KBNote.NoteID) =>
       Effect.gen(function* () {
-        const rows = yield* db.select().from(KBLinkTable).where(eq(KBLinkTable.source_note_id, id)).all().pipe(Effect.orDie)
+        const rows = yield* db
+          .select()
+          .from(KBLinkTable)
+          .where(eq(KBLinkTable.source_note_id, id))
+          .all()
+          .pipe(Effect.orDie)
         return rows.map(toLink)
       }),
     )
@@ -601,7 +642,12 @@ export const layer = Layer.effect(
           .pipe(Effect.orDie)
         const notes: KBNote.Note[] = []
         for (const row of rows) {
-          const note = yield* db.select().from(KBNoteTable).where(eq(KBNoteTable.id, row.source_note_id)).get().pipe(Effect.orDie)
+          const note = yield* db
+            .select()
+            .from(KBNoteTable)
+            .where(eq(KBNoteTable.id, row.source_note_id))
+            .get()
+            .pipe(Effect.orDie)
           if (note) notes.push(toNote(note))
         }
         return notes
@@ -610,15 +656,15 @@ export const layer = Layer.effect(
 
     const listDangling = Effect.fn("KBService.listDangling")(() =>
       Effect.gen(function* () {
-        const rows = yield* db
-          .select()
-          .from(KBLinkTable)
-          .where(eq(KBLinkTable.dangling, true))
-          .all()
-          .pipe(Effect.orDie)
+        const rows = yield* db.select().from(KBLinkTable).where(eq(KBLinkTable.dangling, true)).all().pipe(Effect.orDie)
         const result: KBNote.DanglingLink[] = []
         for (const row of rows) {
-          const source = yield* db.select().from(KBNoteTable).where(eq(KBNoteTable.id, row.source_note_id)).get().pipe(Effect.orDie)
+          const source = yield* db
+            .select()
+            .from(KBNoteTable)
+            .where(eq(KBNoteTable.id, row.source_note_id))
+            .get()
+            .pipe(Effect.orDie)
           if (!source) continue
           result.push(
             new KBNote.DanglingLink({
@@ -721,7 +767,19 @@ export const layer = Layer.effect(
       }),
     )
 
-    return Service.of({ create, get, list, update, remove, search, linksFrom, backlinks, listDangling, countDangling, syncFromDirectory })
+    return Service.of({
+      create,
+      get,
+      list,
+      update,
+      remove,
+      search,
+      linksFrom,
+      backlinks,
+      listDangling,
+      countDangling,
+      syncFromDirectory,
+    })
   }),
 )
 
@@ -731,7 +789,11 @@ export const defaultLayer = layer.pipe(
   Layer.provide(FSUtil.defaultLayer),
   Layer.provide(FileMutation.layer.pipe(Layer.provide(FSUtil.defaultLayer))),
 )
-export const node = LayerNode.make(layer.pipe(Layer.provide(FileMutation.layer)), [Database.node, FSUtil.node, EventV2.node])
+export const node = LayerNode.make(layer.pipe(Layer.provide(FileMutation.layer)), [
+  Database.node,
+  FSUtil.node,
+  EventV2.node,
+])
 
 // 收敛兜底（不是正确性依赖）：把磁盘上的 .md 重新导入索引，弥补历史遗留的半状态。
 // 必须 forkIn(scope) —— Layer.effectDiscard 的 effect 跑在 layer 构建期，直接 await

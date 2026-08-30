@@ -81,12 +81,16 @@
   color: var(--v2-text-text-muted);
 }
 
-[data-component="tabs-v2"] [data-slot="tabs-v2-trigger-wrapper"][data-hide-close-button] [data-slot="tabs-v2-close-button"] {
+[data-component="tabs-v2"]
+  [data-slot="tabs-v2-trigger-wrapper"][data-hide-close-button]
+  [data-slot="tabs-v2-close-button"] {
   opacity: 0;
   transition: opacity 0.15s ease;
 }
 
-[data-component="tabs-v2"] [data-slot="tabs-v2-trigger-wrapper"][data-hide-close-button]:hover [data-slot="tabs-v2-close-button"],
+[data-component="tabs-v2"]
+  [data-slot="tabs-v2-trigger-wrapper"][data-hide-close-button]:hover
+  [data-slot="tabs-v2-close-button"],
 [data-component="tabs-v2"]
   [data-slot="tabs-v2-trigger-wrapper"][data-hide-close-button]:focus-within
   [data-slot="tabs-v2-close-button"] {

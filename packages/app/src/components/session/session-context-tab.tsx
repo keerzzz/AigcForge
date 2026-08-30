@@ -93,17 +93,15 @@ export function SessionContextTab() {
     () => {
       const id = params.id
       if (!id) return emptyMessages
-      return (sync().data.message[id] ?? [])
+      return sync().data.message[id] ?? []
     },
     emptyMessages,
     { equals: same },
   )
 
-  const userMessages = createMemo(
-    () => messages().filter((m) => m.role === "user"),
-    emptyUserMessages,
-    { equals: same },
-  )
+  const userMessages = createMemo(() => messages().filter((m) => m.role === "user"), emptyUserMessages, {
+    equals: same,
+  })
 
   const visibleUserMessages = createMemo(
     () => {
@@ -187,11 +185,10 @@ export function SessionContextTab() {
     return language.t("context.breakdown.other")
   }
 
-
   let scroll: HTMLDivElement | undefined
   let frame: number | undefined
   let pending: { x: number; y: number } | undefined
-  const getParts = (id: string) => (sync().data.part[id] ?? [])
+  const getParts = (id: string) => sync().data.part[id] ?? []
 
   const allParts = createMemo(
     () => {
@@ -265,21 +262,15 @@ export function SessionContextTab() {
         <div class="flex flex-wrap items-center gap-2">
           <Tag>
             <span class="text-text-weak">{language.t("context.stats.session")}:</span>
-            <span class="text-text-strong font-medium truncate max-w-48">
-              {info()?.title ?? params.id ?? "—"}
-            </span>
+            <span class="text-text-strong font-medium truncate max-w-48">{info()?.title ?? params.id ?? "—"}</span>
           </Tag>
           <Tag>
             <span class="text-text-weak">{language.t("context.stats.provider")}:</span>
-            <span class="text-text-strong font-medium">
-              {providerLabel()}
-            </span>
+            <span class="text-text-strong font-medium">{providerLabel()}</span>
           </Tag>
           <Tag>
             <span class="text-text-weak">{language.t("context.stats.model")}:</span>
-            <span class="text-text-strong font-medium">
-              {modelLabel()}
-            </span>
+            <span class="text-text-strong font-medium">{modelLabel()}</span>
           </Tag>
           <Tag>
             <span class="text-text-weak">{language.t("status.popover.trigger")}:</span>
@@ -306,18 +297,14 @@ export function SessionContextTab() {
         <div class="grid grid-cols-1 @[32rem]:grid-cols-2 gap-3">
           <div class="p-3.5 border border-border-weaker-base rounded-lg bg-surface-raised-base flex flex-col gap-1 shadow-[var(--v2-elevation-raised)]">
             <span class="text-12-regular text-text-weak">{language.t("context.stats.usage")}</span>
-            <span class="text-24-medium text-text-strong tracking-tight">
-              {formatter().percent(ctx()?.usage)}
-            </span>
+            <span class="text-24-medium text-text-strong tracking-tight">{formatter().percent(ctx()?.usage)}</span>
             <span class="text-11-regular text-text-weaker">
               {formatter().number(ctx()?.total)} / {formatter().number(ctx()?.limit)} tokens
             </span>
           </div>
           <div class="p-3.5 border border-border-weaker-base rounded-lg bg-surface-raised-base flex flex-col gap-1 shadow-[var(--v2-elevation-raised)]">
             <span class="text-12-regular text-text-weak">{language.t("context.stats.totalCost")}</span>
-            <span class="text-24-medium text-text-strong tracking-tight">
-              {cost()}
-            </span>
+            <span class="text-24-medium text-text-strong tracking-tight">{cost()}</span>
             <span class="text-11-regular text-text-weaker">
               {counts().all.toLocaleString(language.intl())} {language.t("context.stats.messages")}
             </span>
@@ -326,7 +313,9 @@ export function SessionContextTab() {
 
         {/* Token Details */}
         <div class="flex flex-col gap-2">
-          <span class="text-12-bold uppercase tracking-wider text-text-weak">{language.t("context.section.tokens")}</span>
+          <span class="text-12-bold uppercase tracking-wider text-text-weak">
+            {language.t("context.section.tokens")}
+          </span>
           <div class="grid grid-cols-2 @[32rem]:grid-cols-4 gap-3 bg-surface-raised-base border border-border-weaker-base rounded-lg p-3">
             <div class="flex flex-col gap-0.5">
               <span class="text-11-regular text-text-weak">{language.t("context.stats.inputTokens")}</span>
@@ -380,17 +369,20 @@ export function SessionContextTab() {
           </div>
         </Show>
 
-        <Show when={params.id}>{(id) => (
-          <>
-            <SessionToolActivity parts={allParts} />
-            <SessionCacheDiagnostics sessionID={id()} />
-          </>
-        )}
+        <Show when={params.id}>
+          {(id) => (
+            <>
+              <SessionToolActivity parts={allParts} />
+              <SessionCacheDiagnostics sessionID={id()} />
+            </>
+          )}
         </Show>
 
         {/* Activity & Messages */}
         <div class="flex flex-col gap-2">
-          <span class="text-12-bold uppercase tracking-wider text-text-weak">{language.t("context.section.activity")}</span>
+          <span class="text-12-bold uppercase tracking-wider text-text-weak">
+            {language.t("context.section.activity")}
+          </span>
           <div class="grid grid-cols-1 @[32rem]:grid-cols-2 gap-3 bg-surface-raised-base border border-border-weaker-base rounded-lg p-3">
             <div class="grid grid-cols-2 gap-2">
               <div class="flex flex-col gap-0.5">
@@ -399,7 +391,9 @@ export function SessionContextTab() {
               </div>
               <div class="flex flex-col gap-0.5">
                 <span class="text-11-regular text-text-weak">{language.t("context.stats.assistantMessages")}</span>
-                <span class="text-13-medium text-text-strong">{counts().assistant.toLocaleString(language.intl())}</span>
+                <span class="text-13-medium text-text-strong">
+                  {counts().assistant.toLocaleString(language.intl())}
+                </span>
               </div>
             </div>
             <div class="flex flex-col gap-1 text-11-regular">

@@ -10,7 +10,6 @@ import {
   ASSISTANT_ORCHESTRATOR,
 } from "../src/product-mode-agent-policy"
 
-
 describe("resolvePrimaryAgent", () => {
   test("defaults chat/work/coding to meta; assistant to assistant-orchestrator (2026-08-11 + plan §3.3)", () => {
     expect(resolvePrimaryAgent("chat")).toBe(META)

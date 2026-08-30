@@ -62,9 +62,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         Effect.flatMap((info) =>
           ProductModePolicy.assertRuntimeSupported(info.mode).pipe(
             Effect.map(() => info),
-            Effect.mapError(
-              (error) => new UnsupportedProductModeError({ mode: error.mode, message: error.message }),
-            ),
+            Effect.mapError((error) => new UnsupportedProductModeError({ mode: error.mode, message: error.message })),
           ),
         ),
       )
@@ -72,11 +70,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
     const requireReadableSession = (sessionID: string, capabilitiesHeader?: string | null) =>
       requireSessionAndCapability(sessionID, capabilitiesHeader)
 
-    const requireRuntimeControlSession = (
-      sessionID: string,
-      operation: string,
-      capabilitiesHeader?: string | null,
-    ) =>
+    const requireRuntimeControlSession = (sessionID: string, operation: string, capabilitiesHeader?: string | null) =>
       Effect.gen(function* () {
         const info = yield* requireRuntimeSession(sessionID, capabilitiesHeader)
         if (info.mode === "custom") {

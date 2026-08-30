@@ -64,8 +64,8 @@ describe("AppProcess", () => {
           const reason = exit.cause.reasons[0]
           if (reason && reason._tag === "Fail") {
             expect(reason.error).toBeInstanceOf(AppProcess.AppProcessError)
-            expect((reason.error).exitCode).toBe(1)
-            expect((reason.error).message).toContain("Command failed (exit 1)")
+            expect(reason.error.exitCode).toBe(1)
+            expect(reason.error.message).toContain("Command failed (exit 1)")
           } else {
             throw new Error("expected fail reason")
           }
@@ -97,7 +97,7 @@ describe("AppProcess", () => {
           const reason = exit.cause.reasons[0]
           if (reason && reason._tag === "Fail") {
             expect(reason.error).toBeInstanceOf(AppProcess.AppProcessError)
-            expect((reason.error).exitCode).toBe(2)
+            expect(reason.error.exitCode).toBe(2)
           }
         }
       }),

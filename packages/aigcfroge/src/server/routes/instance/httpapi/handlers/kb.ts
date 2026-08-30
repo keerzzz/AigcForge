@@ -56,7 +56,12 @@ export const kbHandlers = HttpApiBuilder.group(InstanceHttpApi, "kb", (handlers)
 
     const update = Effect.fn("KBHttpApi.update")(function* (ctx: {
       params: { id: KBNote.NoteID }
-      payload: { readonly title?: string; readonly content?: string; readonly tags?: readonly string[]; readonly aliases?: readonly string[] }
+      payload: {
+        readonly title?: string
+        readonly content?: string
+        readonly tags?: readonly string[]
+        readonly aliases?: readonly string[]
+      }
     }) {
       const prior = yield* kb.get(ctx.params.id)
       if (!prior) return yield* Effect.fail(new InvalidRequestError({ message: `Note ${ctx.params.id} not found` }))

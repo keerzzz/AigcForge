@@ -87,46 +87,57 @@ export const layer = Layer.effect(
     const { db } = yield* Database.Service
     const events = yield* EventV2.Service
 
-    const propose = Effect.fn("PersonalMemory.propose")((input: {
-      readonly content: string
-      readonly source: PersonalMemorySchema.Source
-      readonly trustLevel: PersonalMemorySchema.TrustLevel
-      readonly sensitivityLevel: PersonalMemorySchema.SensitivityLevel
-      readonly sourceSessionID?: string
-      readonly sourceMessageID?: string
-      readonly createdBy?: string
-    }) =>
-      Effect.gen(function* () {
-        const id = PersonalMemorySchema.ID.create()
-        const now = Date.now()
-        yield* db
-          .insert(PersonalMemoryTable)
-          .values({
-            id,
-            content: input.content,
-            source: input.source,
-            trust_level: input.trustLevel,
-            sensitivity_level: input.sensitivityLevel,
-            // Confirm-first (PRD §9): proposals are always pending.
-            status: "pending",
-            ...(input.sourceSessionID ? { source_session_id: input.sourceSessionID } : {}),
-            ...(input.sourceMessageID ? { source_message_id: input.sourceMessageID } : {}),
-            ...(input.createdBy ? { created_by: input.createdBy } : {}),
-            time_created: now,
-            time_updated: now,
-          })
-          .run()
-          .pipe(Effect.orDie)
-        yield* events.publish(Event.Proposed, { memoryID: id })
-        const row = yield* db.select().from(PersonalMemoryTable).where(eq(PersonalMemoryTable.id, id)).get().pipe(Effect.orDie)
-        if (!row) return yield* Effect.die(new Error("created memory row vanished"))
-        return toInfo(row)
-      }),
+    const propose = Effect.fn("PersonalMemory.propose")(
+      (input: {
+        readonly content: string
+        readonly source: PersonalMemorySchema.Source
+        readonly trustLevel: PersonalMemorySchema.TrustLevel
+        readonly sensitivityLevel: PersonalMemorySchema.SensitivityLevel
+        readonly sourceSessionID?: string
+        readonly sourceMessageID?: string
+        readonly createdBy?: string
+      }) =>
+        Effect.gen(function* () {
+          const id = PersonalMemorySchema.ID.create()
+          const now = Date.now()
+          yield* db
+            .insert(PersonalMemoryTable)
+            .values({
+              id,
+              content: input.content,
+              source: input.source,
+              trust_level: input.trustLevel,
+              sensitivity_level: input.sensitivityLevel,
+              // Confirm-first (PRD §9): proposals are always pending.
+              status: "pending",
+              ...(input.sourceSessionID ? { source_session_id: input.sourceSessionID } : {}),
+              ...(input.sourceMessageID ? { source_message_id: input.sourceMessageID } : {}),
+              ...(input.createdBy ? { created_by: input.createdBy } : {}),
+              time_created: now,
+              time_updated: now,
+            })
+            .run()
+            .pipe(Effect.orDie)
+          yield* events.publish(Event.Proposed, { memoryID: id })
+          const row = yield* db
+            .select()
+            .from(PersonalMemoryTable)
+            .where(eq(PersonalMemoryTable.id, id))
+            .get()
+            .pipe(Effect.orDie)
+          if (!row) return yield* Effect.die(new Error("created memory row vanished"))
+          return toInfo(row)
+        }),
     )
 
     const list = Effect.fn("PersonalMemory.list")(() =>
       Effect.gen(function* () {
-        const rows = yield* db.select().from(PersonalMemoryTable).orderBy(desc(PersonalMemoryTable.time_created)).all().pipe(Effect.orDie)
+        const rows = yield* db
+          .select()
+          .from(PersonalMemoryTable)
+          .orderBy(desc(PersonalMemoryTable.time_created))
+          .all()
+          .pipe(Effect.orDie)
         return rows.map(toInfo)
       }),
     )
@@ -157,56 +168,58 @@ export const layer = Layer.effect(
       }),
     )
 
-    const setStatus = Effect.fn("PersonalMemory.setStatus")((id: PersonalMemorySchema.ID, status: PersonalMemorySchema.Status) =>
-      Effect.gen(function* () {
-        const row = yield* db
-          .update(PersonalMemoryTable)
-          .set({
-            status,
-            ...(status === "confirmed" ? { confirmed_at: Date.now() } : {}),
-            time_updated: Date.now(),
-          })
-          .where(and(eq(PersonalMemoryTable.id, id), eq(PersonalMemoryTable.status, "pending")))
-          .returning()
-          .get()
-          .pipe(Effect.orDie)
-        if (!row) return undefined
-        yield* events.publish(row.status === "confirmed" ? Event.Confirmed : Event.Rejected, { memoryID: id })
-        return toInfo(row)
-      }),
+    const setStatus = Effect.fn("PersonalMemory.setStatus")(
+      (id: PersonalMemorySchema.ID, status: PersonalMemorySchema.Status) =>
+        Effect.gen(function* () {
+          const row = yield* db
+            .update(PersonalMemoryTable)
+            .set({
+              status,
+              ...(status === "confirmed" ? { confirmed_at: Date.now() } : {}),
+              time_updated: Date.now(),
+            })
+            .where(and(eq(PersonalMemoryTable.id, id), eq(PersonalMemoryTable.status, "pending")))
+            .returning()
+            .get()
+            .pipe(Effect.orDie)
+          if (!row) return undefined
+          yield* events.publish(row.status === "confirmed" ? Event.Confirmed : Event.Rejected, { memoryID: id })
+          return toInfo(row)
+        }),
     )
 
     const confirm = Effect.fn("PersonalMemory.confirm")((id: PersonalMemorySchema.ID) => setStatus(id, "confirmed"))
 
     const reject = Effect.fn("PersonalMemory.reject")((id: PersonalMemorySchema.ID) => setStatus(id, "rejected"))
 
-    const edit = Effect.fn("PersonalMemory.edit")((input: {
-      readonly id: PersonalMemorySchema.ID
-      readonly content?: string
-      readonly trustLevel?: PersonalMemorySchema.TrustLevel
-      readonly sensitivityLevel?: PersonalMemorySchema.SensitivityLevel
-    }) =>
-      Effect.gen(function* () {
-        const row = yield* db
-          .update(PersonalMemoryTable)
-          .set({
-            ...(input.content !== undefined ? { content: input.content } : {}),
-            ...(input.trustLevel !== undefined ? { trust_level: input.trustLevel } : {}),
-            ...(input.sensitivityLevel !== undefined ? { sensitivity_level: input.sensitivityLevel } : {}),
-            time_updated: Date.now(),
-          })
-          .where(
-            and(
-              eq(PersonalMemoryTable.id, input.id),
-              or(eq(PersonalMemoryTable.status, "pending"), eq(PersonalMemoryTable.status, "confirmed")),
-            ),
-          )
-          .returning()
-          .get()
-          .pipe(Effect.orDie)
-        if (!row) return undefined
-        return toInfo(row)
-      }),
+    const edit = Effect.fn("PersonalMemory.edit")(
+      (input: {
+        readonly id: PersonalMemorySchema.ID
+        readonly content?: string
+        readonly trustLevel?: PersonalMemorySchema.TrustLevel
+        readonly sensitivityLevel?: PersonalMemorySchema.SensitivityLevel
+      }) =>
+        Effect.gen(function* () {
+          const row = yield* db
+            .update(PersonalMemoryTable)
+            .set({
+              ...(input.content !== undefined ? { content: input.content } : {}),
+              ...(input.trustLevel !== undefined ? { trust_level: input.trustLevel } : {}),
+              ...(input.sensitivityLevel !== undefined ? { sensitivity_level: input.sensitivityLevel } : {}),
+              time_updated: Date.now(),
+            })
+            .where(
+              and(
+                eq(PersonalMemoryTable.id, input.id),
+                or(eq(PersonalMemoryTable.status, "pending"), eq(PersonalMemoryTable.status, "confirmed")),
+              ),
+            )
+            .returning()
+            .get()
+            .pipe(Effect.orDie)
+          if (!row) return undefined
+          return toInfo(row)
+        }),
     )
 
     const remove = Effect.fn("PersonalMemory.remove")((id: PersonalMemorySchema.ID) =>

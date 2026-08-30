@@ -17,8 +17,7 @@ describe("ConfigWatcher", () => {
         const changed = yield* watcher.hasChanged()
         expect(changed).toBe(false)
       }).pipe(Effect.provide(ConfigWatcher.layer)),
-    ),
-  )
+    ))
 
   test("should not detect change when flag is off", () =>
     run(
@@ -29,6 +28,5 @@ describe("ConfigWatcher", () => {
         const changed = yield* watcher.hasChanged()
         expect(changed).toBe(false)
       }).pipe(Effect.provide(ConfigWatcher.layer)),
-    ),
-  )
+    ))
 })

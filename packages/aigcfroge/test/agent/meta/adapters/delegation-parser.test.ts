@@ -10,7 +10,9 @@ describe("delegation parser", () => {
   })
 
   it("parses <task_error> tag", () => {
-    const result = DelegationParser.parseDelegationResult('<task id="1" state="error"><task_error>Something broke</task_error></task>')
+    const result = DelegationParser.parseDelegationResult(
+      '<task id="1" state="error"><task_error>Something broke</task_error></task>',
+    )
     expect(result).toBeDefined()
     expect(result!.summary).toContain("Something broke")
   })

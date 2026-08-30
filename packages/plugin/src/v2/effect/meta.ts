@@ -15,23 +15,26 @@ export interface MetaDraft {
   }
   /** Register middleware that runs before/after meta agent delegation. */
   readonly middleware: {
-    readonly register: (name: string, hooks: {
-      before?: (input: { prompt: string }) => Promise<{ prompt: string } | undefined>
-      after?: (input: { result: string }) => Promise<{ result: string } | undefined>
-      /** Runs before a tool executes. Return {allow: false} to block execution. */
-      preToolUse?: (input: {
-        toolName: string
-        args: Record<string, unknown>
-        sessionID: string
-      }) => Promise<{ allow: boolean; reason?: string }>
-      /** Runs after a tool completes. */
-      postToolUse?: (input: {
-        toolName: string
-        args: Record<string, unknown>
-        result: unknown
-        sessionID: string
-      }) => Promise<void>
-    }) => void
+    readonly register: (
+      name: string,
+      hooks: {
+        before?: (input: { prompt: string }) => Promise<{ prompt: string } | undefined>
+        after?: (input: { result: string }) => Promise<{ result: string } | undefined>
+        /** Runs before a tool executes. Return {allow: false} to block execution. */
+        preToolUse?: (input: {
+          toolName: string
+          args: Record<string, unknown>
+          sessionID: string
+        }) => Promise<{ allow: boolean; reason?: string }>
+        /** Runs after a tool completes. */
+        postToolUse?: (input: {
+          toolName: string
+          args: Record<string, unknown>
+          result: unknown
+          sessionID: string
+        }) => Promise<void>
+      },
+    ) => void
   }
 }
 

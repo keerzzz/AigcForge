@@ -16,9 +16,7 @@ import { Credential } from "../../credential"
  * user's provider API keys (those live in auth.json). The LLM request then
  * goes out with `Auth.none` -> 401 API_KEY_REQUIRED.
  */
-export type CredentialResolver = (
-  providerID: string,
-) => Effect.Effect<Credential.Value | undefined, never, unknown>
+export type CredentialResolver = (providerID: string) => Effect.Effect<Credential.Value | undefined, never, unknown>
 
 let resolver: CredentialResolver | undefined = undefined
 

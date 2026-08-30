@@ -52,13 +52,13 @@ M2 的第一个可提交 PR 是 ADR/Schema contract，不是修改 `agents.lengt
 
 ## 2. 五层设计
 
-| 层                  | owner/交付                                                      | 复用与约束                                       |
-| ------------------- | --------------------------------------------------------------- | ------------------------------------------------ |
-| L1 Schema           | `Composition v2`、Workflow Definition v2、Run/Step 状态与 `ErrorCategory` 固定分类 | version union；旧 M1 Snapshot 可读；step 只落 digest，不落原始 input/output/error |
-| L2 Core/DB          | `WorkflowRun` durable owner（唯一 CAS 写入者）+ `WorkflowRunner` 编排循环 + `WorkflowExecution` 进程内 owner | 复用 SessionTask/TaskDriver 与 `SessionRunCoordinator`，不复制 child runner |
-| L3 HTTP/SDK         | status / run(202) / run cancel / step cancel / step retry(202) 五端点 | command/query 分离，typed idempotency（`requestID` + `expectedRunRevision`/`expectedStepRevision`）；不新开 Workflow SSE 流 |
-| L4 App              | Agent pool、DAG preview、运行态面板（progress/cancel/retry/partial result） | 复用 Builder/Session timeline/Task UI；只投影服务端状态 |
-| L5 runtime/security | bounded dispatch、per-step allowlist/permission、settle         | 每条路径 success/failure/cancel 必 settle；`TaskDriver` 按 composition root 解析 |
+| 层                  | owner/交付                                                                                                   | 复用与约束                                                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| L1 Schema           | `Composition v2`、Workflow Definition v2、Run/Step 状态与 `ErrorCategory` 固定分类                           | version union；旧 M1 Snapshot 可读；step 只落 digest，不落原始 input/output/error                                           |
+| L2 Core/DB          | `WorkflowRun` durable owner（唯一 CAS 写入者）+ `WorkflowRunner` 编排循环 + `WorkflowExecution` 进程内 owner | 复用 SessionTask/TaskDriver 与 `SessionRunCoordinator`，不复制 child runner                                                 |
+| L3 HTTP/SDK         | status / run(202) / run cancel / step cancel / step retry(202) 五端点                                        | command/query 分离，typed idempotency（`requestID` + `expectedRunRevision`/`expectedStepRevision`）；不新开 Workflow SSE 流 |
+| L4 App              | Agent pool、DAG preview、运行态面板（progress/cancel/retry/partial result）                                  | 复用 Builder/Session timeline/Task UI；只投影服务端状态                                                                     |
+| L5 runtime/security | bounded dispatch、per-step allowlist/permission、settle                                                      | 每条路径 success/failure/cancel 必 settle；`TaskDriver` 按 composition root 解析                                            |
 
 ### 2.1 持久化关系（已实现，`ADR-18` §2.2 为契约真源）
 

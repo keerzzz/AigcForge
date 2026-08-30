@@ -135,7 +135,10 @@ function toolPart(
       ? { files: [patchFile(index, "update"), patchFile(index + 1, index % 2 === 0 ? "add" : "delete")] }
       : tool === "edit" || tool === "write"
         ? {
-            filediff: fileDiff(typeof input.filePath === "string" ? input.filePath : `src/generated/file-${index}.ts`, index),
+            filediff: fileDiff(
+              typeof input.filePath === "string" ? input.filePath : `src/generated/file-${index}.ts`,
+              index,
+            ),
             diff: patch(index, outputLength),
             preview: patch(index + 1, 420),
           }

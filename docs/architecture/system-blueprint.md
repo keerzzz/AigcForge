@@ -11,8 +11,8 @@ AigcForge 桌面端采用 **SolidJS + Electron/Tauri 双壳层** 架构，单一
 
 ### 1.1 桌面壳层
 
-- **Electron**: window.api.* — contextBridge 暴露的 IPC 接口
-- **Tauri**: window.__TAURI__.* — Tauri invoke IPC 接口
+- **Electron**: window.api.\* — contextBridge 暴露的 IPC 接口
+- **Tauri**: window.**TAURI**.\* — Tauri invoke IPC 接口
 - 双壳层通过运行时特性检测切换
 
 ### 1.2 安全原则
@@ -59,23 +59,24 @@ SessionProviders
 ```
 
 DraftProviders (草稿页，无终端)
-  FileProvider → PromptProvider → CommentsProvider
+FileProvider → PromptProvider → CommentsProvider
 
 ---
 
 ## 3. 路由拓扑
 
-| 路径 | 组件 | 说明 |
-|------|------|------|
-| / | Home | 项目列表 + Session 搜索 |
-| /new-session | DraftRoute | 草稿新建 |
-| /server/:serverKey/session/:id | TargetSessionRoute | Session 主工作台 |
+| 路径                           | 组件               | 说明                    |
+| ------------------------------ | ------------------ | ----------------------- |
+| /                              | Home               | 项目列表 + Session 搜索 |
+| /new-session                   | DraftRoute         | 草稿新建                |
+| /server/:serverKey/session/:id | TargetSessionRoute | Session 主工作台        |
 
 ---
 
 ## 4. 布局骨架
 
 Layout 组件 (layout.tsx)：
+
 - Titlebar (36px): Tab 条 + 导航 + 窗口控制
 - Main: 当前路由内容 (Home / Draft / Session)
 - Session 自身渲染 SessionHeader、工作台、SessionSidePanel 和 TerminalPanel
@@ -102,6 +103,7 @@ Session 页面核心结构：
 ## 6. 首页
 
 `HomeOverview` 组件（ADR-16 全局聚合首页）：
+
 - 跨模式会话列表 + 模式/项目筛选 + 「继续上次」置顶 + 会话搜索
 - 复用 `home-shared.tsx`（Session 数据管线与展示组件）与 `coding-project-column.tsx`（项目行）
 - `/mode/:mode` 各模式首页由共享 ModeWorkspace typed slots 承载（ADR-15）
@@ -119,7 +121,7 @@ Session 页面核心结构：
 ## 8. 设计系统
 
 - UI: @aigcfroge/ui V2 组件 (27 个)
-- CSS: --v2-* Token
+- CSS: --v2-\* Token
 - 字体: font-family-text + 13px/440
 - 图标: @aigcfroge/ui/icon
 - i18n: I18nProvider + 多语言字典
@@ -153,7 +155,7 @@ ls -d packages/*/package.json packages/sdk/js/package.json | wc -l   # 期望 17
 - **Bun**: 开发/测试运行时
 - **Drizzle**: core 包中定义数据库 schema，SQLite 持久化
 - **SolidJS**: app 包前端框架
-- **CSS 变量**: --v2-* Token 体系，跨包共享主题
+- **CSS 变量**: --v2-\* Token 体系，跨包共享主题
 
 ---
 
@@ -163,17 +165,17 @@ Session V2 是 AigcForge 的业务主干，负责从用户输入到 AI 响应的
 
 ### 11.1 核心概念
 
-| 概念 | 定义 | 代码位置 |
-|------|------|---------|
-| Session | 一次对话会话，包含项目目录、Agent、Model 等元数据 | core/src/session.ts |
-| SessionInput | 用户输入的持久化记录 (Prompt + Delivery mode) | core/src/session/input.ts |
-| SessionExecution | 进程内调度器，按 Session ID 路由到对应 Runner | core/src/session/execution.ts |
-| SessionRunner | Location 级运行器，执行一次 LLM 调用 | core/src/session/runner/index.ts |
-| SessionStore | Session 持久化存储 (SQLite/Drizzle) | core/src/session/store.ts |
-| SessionProjector | 事件投影器，从 Event Stream 构建 Session 视图 | core/src/session/projector.ts |
-| EventV2 | 事件源，PubSub + 持久化事件流 | core/src/event.ts |
-| SystemContext | 独立刷新的类型化系统上下文源 (文件树/Git 状态等) | core/src/system-context/index.ts |
-| ContextEpoch | 上下文的持久化快照时间点 | core/src/session/context-epoch.ts |
+| 概念             | 定义                                              | 代码位置                          |
+| ---------------- | ------------------------------------------------- | --------------------------------- |
+| Session          | 一次对话会话，包含项目目录、Agent、Model 等元数据 | core/src/session.ts               |
+| SessionInput     | 用户输入的持久化记录 (Prompt + Delivery mode)     | core/src/session/input.ts         |
+| SessionExecution | 进程内调度器，按 Session ID 路由到对应 Runner     | core/src/session/execution.ts     |
+| SessionRunner    | Location 级运行器，执行一次 LLM 调用              | core/src/session/runner/index.ts  |
+| SessionStore     | Session 持久化存储 (SQLite/Drizzle)               | core/src/session/store.ts         |
+| SessionProjector | 事件投影器，从 Event Stream 构建 Session 视图     | core/src/session/projector.ts     |
+| EventV2          | 事件源，PubSub + 持久化事件流                     | core/src/event.ts                 |
+| SystemContext    | 独立刷新的类型化系统上下文源 (文件树/Git 状态等)  | core/src/system-context/index.ts  |
+| ContextEpoch     | 上下文的持久化快照时间点                          | core/src/session/context-epoch.ts |
 
 ### 11.2 Prompt 生命周期
 
@@ -201,10 +203,12 @@ Session V2 是 AigcForge 的业务主干，负责从用户输入到 AI 响应的
 ```
 
 **Delivery 模式**:
+
 - `steer`: 引导当前 drain，不新起 drain
 - `queue`: 排队等待 Session 空闲时提升
 
 **关键约束** (来自 AGENTS.md):
+
 - 每次 Provider turn 只有一次 `llm.stream(request)` 调用
 - 持久化 prompt 先于模型执行
 - 复用 Session ID = 复用已有 Session，复用 prompt message ID = 精确重试
@@ -252,13 +256,13 @@ SystemContext.make(source<A>) → SystemContext (opaque)
 
 ### 11.5 数据表结构
 
-| 表 | 用途 |
-|----|------|
-| session | Session 元数据 (id, directory, agent, model, location, created_at) |
-| session_input | Prompt 输入队列 (admitted_seq, promoted_seq, delivery, prompt JSON) |
-| session_message | 消息记录 (id, session_id, role, parts JSON) |
-| event | EventV2 持久化事件 |
-| event_sequence | 事件序列号管理 |
+| 表              | 用途                                                                |
+| --------------- | ------------------------------------------------------------------- |
+| session         | Session 元数据 (id, directory, agent, model, location, created_at)  |
+| session_input   | Prompt 输入队列 (admitted_seq, promoted_seq, delivery, prompt JSON) |
+| session_message | 消息记录 (id, session_id, role, parts JSON)                         |
+| event           | EventV2 持久化事件                                                  |
+| event_sequence  | 事件序列号管理                                                      |
 
 Schema 定义: session_input/session_message/session_context_epoch (core/src/session/sql.ts) + event/event_sequence (core/src/event/sql.ts)。
 

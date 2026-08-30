@@ -31,7 +31,9 @@ describe("workflow runtime model", () => {
         "session-a",
       ),
     ).toBe(false)
-    expect(isWorkflowUpdatedForSession({ type: "session.updated", properties: { sessionID: "session-a" } }, "session-a")).toBe(false)
+    expect(
+      isWorkflowUpdatedForSession({ type: "session.updated", properties: { sessionID: "session-a" } }, "session-a"),
+    ).toBe(false)
   })
 
   test("exposes the terminal and active action matrix", () => {
@@ -168,10 +170,7 @@ describe("workflow runtime model", () => {
     // because `mock.module("@aigcfroge/sdk/v2/client", ...)` in
     // `components/prompt-input/submit.test.ts` is process-global in bun and
     // would replace the real client for whichever file runs second.
-    const generated = fs.readFileSync(
-      path.resolve(__dirname, "../../../../sdk/js/src/v2/gen/sdk.gen.ts"),
-      "utf8",
-    )
+    const generated = fs.readFileSync(path.resolve(__dirname, "../../../../sdk/js/src/v2/gen/sdk.gen.ts"), "utf8")
     const workflowClass = generated.slice(generated.indexOf("export class Workflow extends HeyApiClient"))
     const body = workflowClass.slice(0, workflowClass.indexOf("\nexport class ", 1))
     expect(body).toContain("export class Workflow extends HeyApiClient")

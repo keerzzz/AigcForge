@@ -90,11 +90,10 @@ describe("executeWithTimeout", () => {
   it.effect("CLI not found returns failed and does not throw", () =>
     Effect.gen(function* () {
       const spawner = mockSpawner(() => ({ code: 0, stdout: "", stderr: "" }))
-      const result = yield* executeWithTimeout(
-        spawner,
-        makeAdapter({ detect: () => Effect.succeed(false) }),
-        { prompt: "x", cwd: "/p" },
-      )
+      const result = yield* executeWithTimeout(spawner, makeAdapter({ detect: () => Effect.succeed(false) }), {
+        prompt: "x",
+        cwd: "/p",
+      })
       expect(result.status).toBe("failed")
       expect(result.errors).toContain("CLI not found on system")
     }),

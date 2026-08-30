@@ -11,7 +11,7 @@ export const importParserHandlers = HttpApiBuilder.group(InstanceHttpApi, "impor
       ImportParser.Service.pipe(
         Effect.flatMap((svc) => svc.parse(ctx.payload.content)),
         Effect.provide(ImportParser.ImportParserLive),
-      )
+      ),
     )
   }),
 )

@@ -164,40 +164,41 @@ export const layer = Layer.effect(
     const { db } = yield* Database.Service
     const events = yield* EventV2.Service
 
-    const create = Effect.fn("ScheduleService.create")((input: {
-      readonly sessionID: SessionSchema.ID
-      readonly kind: Schedule.ScheduleKind
-      readonly content: string
-      readonly dueAt: number
-      readonly timezone: string
-      readonly deliveryKey: string
-    }) =>
-      Effect.gen(function* () {
-        const id = Schedule.ID.create()
-        const now = Date.now()
-        yield* db
-          .insert(ScheduleTable)
-          .values({
-            id,
-            session_id: input.sessionID,
-            kind: input.kind,
-            content: input.content,
-            due_at: input.dueAt,
-            timezone: input.timezone,
-            status: "pending",
-            attempts: 0,
-            delivery_key: input.deliveryKey,
-            time_created: now,
-            time_updated: now,
-          })
-          .run()
-          .pipe(Effect.orDie)
-        yield* publishSchedules({ db, events, sessionID: input.sessionID })
-        yield* events.publish(Event.Created, { sessionID: input.sessionID, scheduleID: id })
-        const row = yield* db.select().from(ScheduleTable).where(eq(ScheduleTable.id, id)).get().pipe(Effect.orDie)
-        if (!row) return yield* Effect.die(new Error("created schedule row vanished"))
-        return toInfo(row)
-      }),
+    const create = Effect.fn("ScheduleService.create")(
+      (input: {
+        readonly sessionID: SessionSchema.ID
+        readonly kind: Schedule.ScheduleKind
+        readonly content: string
+        readonly dueAt: number
+        readonly timezone: string
+        readonly deliveryKey: string
+      }) =>
+        Effect.gen(function* () {
+          const id = Schedule.ID.create()
+          const now = Date.now()
+          yield* db
+            .insert(ScheduleTable)
+            .values({
+              id,
+              session_id: input.sessionID,
+              kind: input.kind,
+              content: input.content,
+              due_at: input.dueAt,
+              timezone: input.timezone,
+              status: "pending",
+              attempts: 0,
+              delivery_key: input.deliveryKey,
+              time_created: now,
+              time_updated: now,
+            })
+            .run()
+            .pipe(Effect.orDie)
+          yield* publishSchedules({ db, events, sessionID: input.sessionID })
+          yield* events.publish(Event.Created, { sessionID: input.sessionID, scheduleID: id })
+          const row = yield* db.select().from(ScheduleTable).where(eq(ScheduleTable.id, id)).get().pipe(Effect.orDie)
+          if (!row) return yield* Effect.die(new Error("created schedule row vanished"))
+          return toInfo(row)
+        }),
     )
 
     const list = Effect.fn("ScheduleService.list")((sessionID: SessionSchema.ID) =>
@@ -247,10 +248,7 @@ export const layer = Layer.effect(
           .update(ScheduleTable)
           .set({ status: "cancelled", time_updated: Date.now() })
           .where(
-            and(
-              eq(ScheduleTable.id, id),
-              or(eq(ScheduleTable.status, "pending"), eq(ScheduleTable.status, "running")),
-            ),
+            and(eq(ScheduleTable.id, id), or(eq(ScheduleTable.status, "pending"), eq(ScheduleTable.status, "running"))),
           )
           .returning()
           .get()
@@ -261,41 +259,52 @@ export const layer = Layer.effect(
       }),
     )
 
-    const update = Effect.fn("ScheduleService.update")((input: {
-      readonly id: Schedule.ID
-      readonly content?: string
-      readonly dueAt?: number
-      readonly timezone?: string
-      readonly deliveryKey?: string
-    }) =>
-      Effect.gen(function* () {
-        const row = yield* db.select().from(ScheduleTable).where(eq(ScheduleTable.id, input.id)).get().pipe(Effect.orDie)
-        if (!row) return undefined
-        if (row.status !== "pending" && row.status !== "running") return undefined
-        const rescheduled = input.dueAt !== undefined && input.dueAt !== row.due_at
-        const updated = yield* db
-          .update(ScheduleTable)
-          .set({
-            ...(input.content !== undefined ? { content: input.content } : {}),
-            ...(input.dueAt !== undefined ? { due_at: input.dueAt } : {}),
-            ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
-            // A changed content/due time must regenerate the idempotency key
-            // (deliveryKey) or the stale key blocks re-creating the original
-            // reminder (unique constraint) after an edit (review MAJOR).
-            ...(input.deliveryKey !== undefined ? { delivery_key: input.deliveryKey } : {}),
-            // Re-scheduling resets the retry timeline: a fresh due time means a
-            // fresh delivery attempt budget.
-            ...(rescheduled ? { attempts: 0, next_attempt_at: null } : {}),
-            time_updated: Date.now(),
-          })
-          .where(and(eq(ScheduleTable.id, input.id), or(eq(ScheduleTable.status, "pending"), eq(ScheduleTable.status, "running"))))
-          .returning()
-          .get()
-          .pipe(Effect.orDie)
-        if (!updated) return toInfo(row)
-        yield* publishSchedules({ db, events, sessionID: row.session_id })
-        return toInfo(updated)
-      }),
+    const update = Effect.fn("ScheduleService.update")(
+      (input: {
+        readonly id: Schedule.ID
+        readonly content?: string
+        readonly dueAt?: number
+        readonly timezone?: string
+        readonly deliveryKey?: string
+      }) =>
+        Effect.gen(function* () {
+          const row = yield* db
+            .select()
+            .from(ScheduleTable)
+            .where(eq(ScheduleTable.id, input.id))
+            .get()
+            .pipe(Effect.orDie)
+          if (!row) return undefined
+          if (row.status !== "pending" && row.status !== "running") return undefined
+          const rescheduled = input.dueAt !== undefined && input.dueAt !== row.due_at
+          const updated = yield* db
+            .update(ScheduleTable)
+            .set({
+              ...(input.content !== undefined ? { content: input.content } : {}),
+              ...(input.dueAt !== undefined ? { due_at: input.dueAt } : {}),
+              ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+              // A changed content/due time must regenerate the idempotency key
+              // (deliveryKey) or the stale key blocks re-creating the original
+              // reminder (unique constraint) after an edit (review MAJOR).
+              ...(input.deliveryKey !== undefined ? { delivery_key: input.deliveryKey } : {}),
+              // Re-scheduling resets the retry timeline: a fresh due time means a
+              // fresh delivery attempt budget.
+              ...(rescheduled ? { attempts: 0, next_attempt_at: null } : {}),
+              time_updated: Date.now(),
+            })
+            .where(
+              and(
+                eq(ScheduleTable.id, input.id),
+                or(eq(ScheduleTable.status, "pending"), eq(ScheduleTable.status, "running")),
+              ),
+            )
+            .returning()
+            .get()
+            .pipe(Effect.orDie)
+          if (!updated) return toInfo(row)
+          yield* publishSchedules({ db, events, sessionID: row.session_id })
+          return toInfo(updated)
+        }),
     )
 
     const claim = Effect.fn("ScheduleService.claim")((id: Schedule.ID, owner: string, now: number) =>
@@ -383,34 +392,35 @@ export const deliveryLayer = Layer.effect(
   Effect.gen(function* () {
     const { db } = yield* Database.Service
 
-    const deliver = Effect.fn("DeliveryService.deliver")((input: {
-      readonly deliveryKey: string
-      readonly scheduleID: Schedule.ID
-      readonly sessionID: SessionSchema.ID
-      readonly kind: Schedule.ScheduleKind
-      readonly content: string
-      readonly deliveredAt: number
-      readonly caughtUp: boolean
-    }) =>
-      Effect.gen(function* () {
-        const result = yield* db
-          .insert(DeliveryTable)
-          .values({
-            delivery_key: input.deliveryKey,
-            schedule_id: input.scheduleID,
-            session_id: input.sessionID,
-            kind: input.kind,
-            content: input.content,
-            delivered_at: input.deliveredAt,
-            caught_up: input.caughtUp,
-            time_created: input.deliveredAt,
-          })
-          .onConflictDoNothing()
-          .returning({ delivery_key: DeliveryTable.delivery_key })
-          .all()
-          .pipe(Effect.orDie)
-        return result.length > 0
-      }),
+    const deliver = Effect.fn("DeliveryService.deliver")(
+      (input: {
+        readonly deliveryKey: string
+        readonly scheduleID: Schedule.ID
+        readonly sessionID: SessionSchema.ID
+        readonly kind: Schedule.ScheduleKind
+        readonly content: string
+        readonly deliveredAt: number
+        readonly caughtUp: boolean
+      }) =>
+        Effect.gen(function* () {
+          const result = yield* db
+            .insert(DeliveryTable)
+            .values({
+              delivery_key: input.deliveryKey,
+              schedule_id: input.scheduleID,
+              session_id: input.sessionID,
+              kind: input.kind,
+              content: input.content,
+              delivered_at: input.deliveredAt,
+              caught_up: input.caughtUp,
+              time_created: input.deliveredAt,
+            })
+            .onConflictDoNothing()
+            .returning({ delivery_key: DeliveryTable.delivery_key })
+            .all()
+            .pipe(Effect.orDie)
+          return result.length > 0
+        }),
     )
 
     const listRecent = Effect.fn("DeliveryService.listRecent")((limit: number) =>
@@ -469,20 +479,17 @@ export const deliveryLayer = Layer.effect(
 export const deliveryDefaultLayer = deliveryLayer.pipe(Layer.provide(Database.defaultLayer))
 export const deliveryNode = LayerNode.make(deliveryLayer, [Database.node])
 
-const publishSchedules = Effect.fn("ScheduleService.publishSchedules")((input: {
-  db: Database.Interface["db"]
-  events: EventV2.Interface
-  sessionID: SessionSchema.ID
-}) =>
-  Effect.gen(function* () {
-    const rows = yield* input.db
-      .select()
-      .from(ScheduleTable)
-      .where(eq(ScheduleTable.session_id, input.sessionID))
-      .all()
-      .pipe(Effect.orDie)
-    yield* input.events.publish(Event.Updated, { sessionID: input.sessionID, schedules: rows.map(toInfo) })
-  }),
+const publishSchedules = Effect.fn("ScheduleService.publishSchedules")(
+  (input: { db: Database.Interface["db"]; events: EventV2.Interface; sessionID: SessionSchema.ID }) =>
+    Effect.gen(function* () {
+      const rows = yield* input.db
+        .select()
+        .from(ScheduleTable)
+        .where(eq(ScheduleTable.session_id, input.sessionID))
+        .all()
+        .pipe(Effect.orDie)
+      yield* input.events.publish(Event.Updated, { sessionID: input.sessionID, schedules: rows.map(toInfo) })
+    }),
 )
 
 /**
@@ -528,15 +535,11 @@ export const makeAssistantCore = (input: {
         const outcome = yield* input.db
           .transaction((tx) =>
             Effect.gen(function* () {
-              const row = yield* tx
-                .select()
-                .from(ScheduleTable)
-                .where(eq(ScheduleTable.id, id))
-                .get()
-                // Review MAJOR: no orDie here — a statement-level SqlError must
-                // stay typed so the transaction catch below can run the
-                // bounded-backoff retry (PRD §7.2). orDie would turn it into a
-                // defect and make the retry branch dead code.
+              const row = yield* tx.select().from(ScheduleTable).where(eq(ScheduleTable.id, id)).get()
+              // Review MAJOR: no orDie here — a statement-level SqlError must
+              // stay typed so the transaction catch below can run the
+              // bounded-backoff retry (PRD §7.2). orDie would turn it into a
+              // defect and make the retry branch dead code.
               if (!row) return { skipped: true as const, sessionID: "" }
               if (row.status !== "pending") return { skipped: true as const, sessionID: "" }
               yield* tx
@@ -663,25 +666,22 @@ export const makeAssistantCore = (input: {
  * re-delivers with the same idempotency key). The marked rows carry the
  * `caught_up` inbox flag so the UI can distinguish offline catch-up.
  */
-export const markCatchUp = Effect.fn("AssistantScheduler.markCatchUp")((input: {
-  db: Database.Interface["db"]
-  recovered: Ref.Ref<Set<string>>
-  now: number
-}) =>
-  Effect.gen(function* () {
-    const rows = yield* input.db
-      .select({ id: ScheduleTable.id })
-      .from(ScheduleTable)
-      .where(
-        and(
-          eq(ScheduleTable.status, "pending"),
-          or(lt(ScheduleTable.due_at, input.now), lt(ScheduleTable.next_attempt_at, input.now)),
-        ),
-      )
-      .all()
-      .pipe(Effect.orDie)
-    yield* Ref.update(input.recovered, (set) => new Set([...set, ...rows.map((row) => row.id)]))
-  }),
+export const markCatchUp = Effect.fn("AssistantScheduler.markCatchUp")(
+  (input: { db: Database.Interface["db"]; recovered: Ref.Ref<Set<string>>; now: number }) =>
+    Effect.gen(function* () {
+      const rows = yield* input.db
+        .select({ id: ScheduleTable.id })
+        .from(ScheduleTable)
+        .where(
+          and(
+            eq(ScheduleTable.status, "pending"),
+            or(lt(ScheduleTable.due_at, input.now), lt(ScheduleTable.next_attempt_at, input.now)),
+          ),
+        )
+        .all()
+        .pipe(Effect.orDie)
+      yield* Ref.update(input.recovered, (set) => new Set([...set, ...rows.map((row) => row.id)]))
+    }),
 )
 
 /**

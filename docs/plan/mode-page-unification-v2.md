@@ -11,12 +11,12 @@
 
 ## 0. 执行 Gate
 
-| Gate | 决议 | 执行约束 |
-|---|---|---|
+| Gate              | 决议                                                                                                                                                                                                          | 执行约束                                                                                                                                                             |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **G1 Owner 边界** | 以 main 代码为准：Coding 保留 `HomeProjectColumn` 项目树；Work/Assistant 当前消费 `ModeLocationNewSession`；Chat 当前由 `ChatFeatureSidebar` 同时拥有 Location、资产功能树和新建/添加项目动作，尚未消费该组件 | 不得把 Coding 项目树直接替换成 `ModeLocationNewSession`，也不得把 Chat 的 Location 事实写成已统一；若要让 Chat 改用共享组件，必须先保留功能树行为并补 owner/行为测试 |
-| **G2 宽度语义** | 源码存在 Chat/Work 的 `960px` 与 Coding/Assistant 的 `720px` track 分支；父容器为 `max-w-[1080px]`、`px-6`、`gap-8`、`280px` 侧栏，不能仅凭源码推断最终 computed width | Phase 6 先记录四模式 desktop/narrow computed layout、overflow 和 scroll geometry；只有基线证明可等价时才删分支。若要实际 `960px` 主列，另立产品/视觉变更 |
-| **G3 权限档位** | `mode-scoped-permission-overlay.md` 是独立 P0 计划，当前仍未实施 | Phase 1-3 可在权限计划等待期执行；Phase 4-7 必须等待权限前置提交合入 `main` 并完成最终复审；两者永不进入同一 PR |
-| **G4 计划状态** | 本文曾使用未来日期的 owner PASS，已改为“工程证据已收敛，待用户/owner 执行确认” | 不得把文档中的工程裁决伪装成人类签字；执行提示词必须保留停止 Gate |
+| **G2 宽度语义**   | 源码存在 Chat/Work 的 `960px` 与 Coding/Assistant 的 `720px` track 分支；父容器为 `max-w-[1080px]`、`px-6`、`gap-8`、`280px` 侧栏，不能仅凭源码推断最终 computed width                                        | Phase 6 先记录四模式 desktop/narrow computed layout、overflow 和 scroll geometry；只有基线证明可等价时才删分支。若要实际 `960px` 主列，另立产品/视觉变更             |
+| **G3 权限档位**   | `mode-scoped-permission-overlay.md` 是独立 P0 计划，当前仍未实施                                                                                                                                              | Phase 1-3 可在权限计划等待期执行；Phase 4-7 必须等待权限前置提交合入 `main` 并完成最终复审；两者永不进入同一 PR                                                      |
+| **G4 计划状态**   | 本文曾使用未来日期的 owner PASS，已改为“工程证据已收敛，待用户/owner 执行确认”                                                                                                                                | 不得把文档中的工程裁决伪装成人类签字；执行提示词必须保留停止 Gate                                                                                                    |
 
 **核心结论**：归一化底座已经存在：首页是 `ModeWorkspace` render-all + typed slots，详情页是 `SessionRightPanel` A/B 壳。本文只归并真实重复的 owner 内实现，不做四模式语义大统一。
 
@@ -46,19 +46,19 @@
 
 ## 2. main 基线已核实事实
 
-| 领域 | main 基线事实 | 本计划处理 |
-|---|---|---|
-| ModeWorkspace | `mode-workspace.tsx` 同时挂载四个 slot，使用 `display:none` 保持状态 | 保持不变 |
-| 主列宽度 | 源码写有 `960px`/`720px` 两种 track；父容器 `max-w-[1080px]`、padding、gap 使最终 geometry 不能只由源码推断 | 先记录四模式 computed-layout baseline；等价才删条件，不声称实现 960px |
-| Home owner | `home.tsx` 已无 `Home` 页面，仅保留共享导出和 Coding 项目树 | 拆为 `home-shared.tsx` + Coding 专属 owner |
-| Coding 项目树 | `HomeProjectColumn` 负责 server/project 列表、项目操作、通知和多项目选择；`CodingSelectionCtx` 负责主区联动 | 保留，不并入三模式 Location |
-| 非 Coding Location | Work/Assistant 当前复用 `ModeLocationNewSession`；Chat 的 `ChatFeatureSidebar` 内联等价的目录、新建和添加项目逻辑，并额外承载资产功能树 | 保留 Chat 功能树 owner；是否抽取更低层 Location primitive 必须以行为等价测试为前置，不把 Chat 误报为已复用 |
-| 首页 Session 管线 | Coding、Work、Assistant、Global Home 共享 `buildHomeSessionRecords` 等基础函数，但各自有预取、筛选、置顶、badge、高亮和空态差异 | 提取纯展示组件，查询/筛选生命周期留在页面 owner |
-| 详情页 Tab | Chat 与 Coding 共享文件 Tab 基础设施，但 leading tabs、review、preview、打开文件按钮和 active fallback 不同 | 只抽拖拽/列表基础层，保留 mode slots |
-| Diff | Chat 与 Work 都调用 `diffTextLines`，但容器、背景色、边框和密度不同 | `TextDiffView` 必须有 variant，保持视觉契约 |
-| 侧栏 Session | Chat/Work/Assistant 都使用 `sortedRootSessions` + mode filter + `SessionItem`，但 Work 有维度 tabs，Assistant 有实体树，Chat 有独立 Location/加载语义 | 共享纯函数，保留三侧栏视图 owner |
-| 搜索 | Home 是 Session 搜索；Coding 是项目搜索；Chat 右栏是 `.aigcfroge` 文件树搜索 | 不做跨领域合并 |
-| 新建会话 | 普通入口、Chat seed/import、Work preset/workflow、Assistant、资产选择器有不同 Draft 字段和初始 prompt | 只提取带 options 的安全启动 helper |
+| 领域               | main 基线事实                                                                                                                                         | 本计划处理                                                                                                 |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| ModeWorkspace      | `mode-workspace.tsx` 同时挂载四个 slot，使用 `display:none` 保持状态                                                                                  | 保持不变                                                                                                   |
+| 主列宽度           | 源码写有 `960px`/`720px` 两种 track；父容器 `max-w-[1080px]`、padding、gap 使最终 geometry 不能只由源码推断                                           | 先记录四模式 computed-layout baseline；等价才删条件，不声称实现 960px                                      |
+| Home owner         | `home.tsx` 已无 `Home` 页面，仅保留共享导出和 Coding 项目树                                                                                           | 拆为 `home-shared.tsx` + Coding 专属 owner                                                                 |
+| Coding 项目树      | `HomeProjectColumn` 负责 server/project 列表、项目操作、通知和多项目选择；`CodingSelectionCtx` 负责主区联动                                           | 保留，不并入三模式 Location                                                                                |
+| 非 Coding Location | Work/Assistant 当前复用 `ModeLocationNewSession`；Chat 的 `ChatFeatureSidebar` 内联等价的目录、新建和添加项目逻辑，并额外承载资产功能树               | 保留 Chat 功能树 owner；是否抽取更低层 Location primitive 必须以行为等价测试为前置，不把 Chat 误报为已复用 |
+| 首页 Session 管线  | Coding、Work、Assistant、Global Home 共享 `buildHomeSessionRecords` 等基础函数，但各自有预取、筛选、置顶、badge、高亮和空态差异                       | 提取纯展示组件，查询/筛选生命周期留在页面 owner                                                            |
+| 详情页 Tab         | Chat 与 Coding 共享文件 Tab 基础设施，但 leading tabs、review、preview、打开文件按钮和 active fallback 不同                                           | 只抽拖拽/列表基础层，保留 mode slots                                                                       |
+| Diff               | Chat 与 Work 都调用 `diffTextLines`，但容器、背景色、边框和密度不同                                                                                   | `TextDiffView` 必须有 variant，保持视觉契约                                                                |
+| 侧栏 Session       | Chat/Work/Assistant 都使用 `sortedRootSessions` + mode filter + `SessionItem`，但 Work 有维度 tabs，Assistant 有实体树，Chat 有独立 Location/加载语义 | 共享纯函数，保留三侧栏视图 owner                                                                           |
+| 搜索               | Home 是 Session 搜索；Coding 是项目搜索；Chat 右栏是 `.aigcfroge` 文件树搜索                                                                          | 不做跨领域合并                                                                                             |
+| 新建会话           | 普通入口、Chat seed/import、Work preset/workflow、Assistant、资产选择器有不同 Draft 字段和初始 prompt                                                 | 只提取带 options 的安全启动 helper                                                                         |
 
 ---
 
@@ -75,13 +75,13 @@
 
 ### 3.2 禁止归一化清单
 
-| 模式 | 必须保留 |
-|---|---|
-| coding | 项目/服务器树、跨 server 选择、项目操作、markdown 预取、review/diff 树 |
-| chat | 资产 propose/apply/overwrite 状态机、资产工作台、文件树搜索和 preview tab |
-| work | artifact apply/overwrite、trade/taskSet/agent tabs、preset/workflow 分类和失败降级 |
-| assistant | 实体导航树、动态实体 tabs、提醒/投递/记忆/KB 区块和来源会话高亮 |
-| global home | all/mode/project 筛选、lastActive 置顶、mode badge 和全量 Session 搜索 |
+| 模式        | 必须保留                                                                           |
+| ----------- | ---------------------------------------------------------------------------------- |
+| coding      | 项目/服务器树、跨 server 选择、项目操作、markdown 预取、review/diff 树             |
+| chat        | 资产 propose/apply/overwrite 状态机、资产工作台、文件树搜索和 preview tab          |
+| work        | artifact apply/overwrite、trade/taskSet/agent tabs、preset/workflow 分类和失败降级 |
+| assistant   | 实体导航树、动态实体 tabs、提醒/投递/记忆/KB 区块和来源会话高亮                    |
+| global home | all/mode/project 筛选、lastActive 置顶、mode badge 和全量 Session 搜索             |
 
 ---
 
@@ -202,16 +202,16 @@ Chat/Coding 各自保留 TabsV2 内容和 active state，只消费这个 surface
 
 浏览器：Chromium。Viewport：desktop `1440x900`、narrow `640x900`。测量 spec：`packages/app/e2e/performance/mode-layout-baseline.spec.ts`。原始结果中的 `x/y/width/height` 单位均为 CSS px，scroll 值为 `scrollWidth x scrollHeight`：
 
-| Mode | Viewport | Grid columns | Workspace box / overflow / scroll | Sidebar box | Main box |
-|---|---|---|---|---|---|
-| chat | desktop | `280px 720px` | `(73,45) 1358x822`, hidden/hidden, `1358x822` | `(236,45) 280x758` | `(548,45) 720x758` |
-| coding | desktop | `280px 720px` | `(73,45) 1358x822`, hidden/hidden, `1358x822` | `(236,45) 280x758` | `(548,45) 720x758` |
-| work | desktop | `280px 720px` | `(73,45) 1358x822`, hidden/hidden, `1358x822` | `(236,45) 280x758` | `(548,45) 720x758` |
-| assistant | desktop | `280px 720px` | `(73,45) 1358x822`, hidden/hidden, `1358x822` | `(236,45) 280x758` | `(548,45) 720x758` |
-| chat | narrow | `534px` | `(73,45) 558x822`, visible/visible, `558x822` | `(85,45) 534x346.5` | `(85,407.5) 534x431.5` |
-| coding | narrow | `534px` | `(73,45) 558x822`, visible/visible, `558x822` | `(85,45) 534x116` | `(85,177) 534x662` |
-| work | narrow | `534px` | `(73,45) 558x822`, visible/visible, `558x822` | `(85,45) 534x93` | `(85,154) 534x685` |
-| assistant | narrow | `534px` | `(73,45) 558x822`, visible/visible, `558x822` | `(85,45) 534x271.5` | `(85,332.5) 534x506.5` |
+| Mode      | Viewport | Grid columns  | Workspace box / overflow / scroll             | Sidebar box         | Main box               |
+| --------- | -------- | ------------- | --------------------------------------------- | ------------------- | ---------------------- |
+| chat      | desktop  | `280px 720px` | `(73,45) 1358x822`, hidden/hidden, `1358x822` | `(236,45) 280x758`  | `(548,45) 720x758`     |
+| coding    | desktop  | `280px 720px` | `(73,45) 1358x822`, hidden/hidden, `1358x822` | `(236,45) 280x758`  | `(548,45) 720x758`     |
+| work      | desktop  | `280px 720px` | `(73,45) 1358x822`, hidden/hidden, `1358x822` | `(236,45) 280x758`  | `(548,45) 720x758`     |
+| assistant | desktop  | `280px 720px` | `(73,45) 1358x822`, hidden/hidden, `1358x822` | `(236,45) 280x758`  | `(548,45) 720x758`     |
+| chat      | narrow   | `534px`       | `(73,45) 558x822`, visible/visible, `558x822` | `(85,45) 534x346.5` | `(85,407.5) 534x431.5` |
+| coding    | narrow   | `534px`       | `(73,45) 558x822`, visible/visible, `558x822` | `(85,45) 534x116`   | `(85,177) 534x662`     |
+| work      | narrow   | `534px`       | `(73,45) 558x822`, visible/visible, `558x822` | `(85,45) 534x93`    | `(85,154) 534x685`     |
+| assistant | narrow   | `534px`       | `(73,45) 558x822`, visible/visible, `558x822` | `(85,45) 534x271.5` | `(85,332.5) 534x506.5` |
 
 结论：**无安全可删分支**。desktop 的 computed 主轨虽最终均为 `720px`，narrow 的 sidebar/main 高度和纵向滚动几何随模式明显不同；保留当前条件分支、`max-w-[1080px]` 和响应式规则，不宣称主列为 `960px`。
 
@@ -261,30 +261,30 @@ Phase 8 (permission tier) ── independent P0 plan
 
 ## 6. 影响范围
 
-| 文件 | Phase | 动作 |
-|---|---:|---|
-| `packages/app/src/pages/home.tsx` | 1 | 删除 legacy owner |
-| `packages/app/src/pages/home-shared.tsx` | 1 | 新建 Home Session 共享 owner |
-| `packages/app/src/pages/coding-project-column.tsx` | 1 | 新建 Coding 项目树 owner |
-| `packages/app/src/pages/layout/helpers.ts` | 1/7 | 类型 owner、启动 helper |
-| `packages/app/src/pages/mode-workspace-slots.tsx` | 1/4/7 | import、展示组件、Work card、启动 options |
-| `packages/app/src/pages/assistant-dashboard.tsx` | 1/4 | 共享展示组件 |
-| `packages/app/src/pages/home-overview.tsx` | 1/4 | import、pinned/filter 行为保留 |
-| `packages/app/src/components/assistant-nav-tree.test.tsx` | 1 | 更新源码契约路径 |
-| `packages/app/src/pages/session/session-side-panel.tsx` | 3 | 消费 FileTabStrip |
-| `packages/app/src/components/chat/chat-right-panel.tsx` | 3/7 | 消费 Tab/Diff helper，保留 Chat 语义 |
-| `packages/app/src/pages/work-artifact-panel.tsx` | 3/4 | 消费默认 fileTree/Diff variant |
-| `packages/app/src/pages/session/assistant-session-panel.tsx` | 3 | 消费默认 fileTree |
-| `packages/app/src/components/secondary-sidebar.tsx` | 5 | 保留显式 render-all，补 contract test |
-| `packages/app/src/pages/mode-workspace.tsx` | 6 | 先做 computed-layout baseline；仅在等价时删除宽度分支 |
-| `packages/app/src/pages/session/file-tab-strip.tsx` | 3 | 新建详情页 Tab surface |
-| `packages/app/src/pages/session/text-diff-view.tsx` | 3 | 新建 variant Diff view |
-| `packages/app/src/pages/session/*.test.*`、`packages/app/src/components/*.test.*` | 1-7 | 近邻行为/契约测试 |
-| `packages/app/src/pages/session/*.stories.tsx` 或 `packages/app/src/**/*.stories.tsx` | 3/4 | 新增 App-local shared UI stories；由 `packages/storybook/.storybook/main.ts` 收集 |
-| `packages/storybook/.storybook/main.ts` | 3/4 | 仅在 story 发现路径或 mock 需要变化时修改，不为新增 story 盲目新增第二套配置 |
-| `docs/architecture/adr/ADR-16-global-home-overview.md` | 1/7 | 更新 Home shared owner 路径 |
-| `docs/architecture/pages/home.md` | 1/7 | 更新当前路由/owner/data flow |
-| `docs/architecture/system-blueprint.md` | 1/7 | 更新代码基线索引 |
+| 文件                                                                                  | Phase | 动作                                                                              |
+| ------------------------------------------------------------------------------------- | ----: | --------------------------------------------------------------------------------- |
+| `packages/app/src/pages/home.tsx`                                                     |     1 | 删除 legacy owner                                                                 |
+| `packages/app/src/pages/home-shared.tsx`                                              |     1 | 新建 Home Session 共享 owner                                                      |
+| `packages/app/src/pages/coding-project-column.tsx`                                    |     1 | 新建 Coding 项目树 owner                                                          |
+| `packages/app/src/pages/layout/helpers.ts`                                            |   1/7 | 类型 owner、启动 helper                                                           |
+| `packages/app/src/pages/mode-workspace-slots.tsx`                                     | 1/4/7 | import、展示组件、Work card、启动 options                                         |
+| `packages/app/src/pages/assistant-dashboard.tsx`                                      |   1/4 | 共享展示组件                                                                      |
+| `packages/app/src/pages/home-overview.tsx`                                            |   1/4 | import、pinned/filter 行为保留                                                    |
+| `packages/app/src/components/assistant-nav-tree.test.tsx`                             |     1 | 更新源码契约路径                                                                  |
+| `packages/app/src/pages/session/session-side-panel.tsx`                               |     3 | 消费 FileTabStrip                                                                 |
+| `packages/app/src/components/chat/chat-right-panel.tsx`                               |   3/7 | 消费 Tab/Diff helper，保留 Chat 语义                                              |
+| `packages/app/src/pages/work-artifact-panel.tsx`                                      |   3/4 | 消费默认 fileTree/Diff variant                                                    |
+| `packages/app/src/pages/session/assistant-session-panel.tsx`                          |     3 | 消费默认 fileTree                                                                 |
+| `packages/app/src/components/secondary-sidebar.tsx`                                   |     5 | 保留显式 render-all，补 contract test                                             |
+| `packages/app/src/pages/mode-workspace.tsx`                                           |     6 | 先做 computed-layout baseline；仅在等价时删除宽度分支                             |
+| `packages/app/src/pages/session/file-tab-strip.tsx`                                   |     3 | 新建详情页 Tab surface                                                            |
+| `packages/app/src/pages/session/text-diff-view.tsx`                                   |     3 | 新建 variant Diff view                                                            |
+| `packages/app/src/pages/session/*.test.*`、`packages/app/src/components/*.test.*`     |   1-7 | 近邻行为/契约测试                                                                 |
+| `packages/app/src/pages/session/*.stories.tsx` 或 `packages/app/src/**/*.stories.tsx` |   3/4 | 新增 App-local shared UI stories；由 `packages/storybook/.storybook/main.ts` 收集 |
+| `packages/storybook/.storybook/main.ts`                                               |   3/4 | 仅在 story 发现路径或 mock 需要变化时修改，不为新增 story 盲目新增第二套配置      |
+| `docs/architecture/adr/ADR-16-global-home-overview.md`                                |   1/7 | 更新 Home shared owner 路径                                                       |
+| `docs/architecture/pages/home.md`                                                     |   1/7 | 更新当前路由/owner/data flow                                                      |
+| `docs/architecture/system-blueprint.md`                                               |   1/7 | 更新代码基线索引                                                                  |
 
 ---
 

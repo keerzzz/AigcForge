@@ -234,7 +234,7 @@ export function SessionHeader() {
       <Show when={rightMount()}>
         {(mount) => (
           <Portal mount={mount()}>
-              <SessionHeaderV2Actions state={v2ActionsState()} />
+            <SessionHeaderV2Actions state={v2ActionsState()} />
           </Portal>
         )}
       </Show>

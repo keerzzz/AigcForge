@@ -24,13 +24,9 @@ export const ScheduleKind = Schema.Literals(["reminder"]).annotate({ identifier:
 export type ScheduleKind = typeof ScheduleKind.Type
 
 /** pending → running → completed | failed; cancelled is terminal from any pre-terminal state. */
-export const ScheduleStatus = Schema.Literals([
-  "pending",
-  "running",
-  "completed",
-  "cancelled",
-  "failed",
-]).annotate({ identifier: "ScheduleStatus" })
+export const ScheduleStatus = Schema.Literals(["pending", "running", "completed", "cancelled", "failed"]).annotate({
+  identifier: "ScheduleStatus",
+})
 export type ScheduleStatus = typeof ScheduleStatus.Type
 
 export class Info extends Schema.Class<Info>("Schedule.Info")({

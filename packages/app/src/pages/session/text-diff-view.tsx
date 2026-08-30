@@ -7,11 +7,7 @@ import { diffTextLines } from "@/utils/text-diff"
  * inside the caller's preview container; "work" keeps its bordered scrolled box.
  * Diff computation stays on the shared diffTextLines pipeline.
  */
-export function TextDiffView(props: {
-  oldText: string
-  newText: string
-  variant: "chat" | "work"
-}) {
+export function TextDiffView(props: { oldText: string; newText: string; variant: "chat" | "work" }) {
   const lines = createMemo(() => diffTextLines(props.oldText, props.newText))
 
   if (props.variant === "work") {
@@ -49,9 +45,7 @@ export function TextDiffView(props: {
               "text-v2-text-text-muted": line.type === "eq",
             }}
           >
-            <span class="shrink-0 select-none">
-              {line.type === "add" ? "+" : line.type === "del" ? "-" : " "}
-            </span>
+            <span class="shrink-0 select-none">{line.type === "add" ? "+" : line.type === "del" ? "-" : " "}</span>
             <span class="whitespace-pre-wrap break-all">{line.text}</span>
           </div>
         )}

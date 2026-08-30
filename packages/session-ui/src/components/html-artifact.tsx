@@ -12,7 +12,8 @@ export type HtmlArtifactLabels = {
   viewCode: string
 }
 
-const IFRAME_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'none';"
+const IFRAME_CSP =
+  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'none';"
 
 /**
  * HTML artifact 渲染器（M3.5）：iframe sandbox（三重防线）+ Code/Preview 两 Tab。
@@ -101,7 +102,5 @@ function CodeView(props: { code: string }) {
       }
     },
   )
-  return (
-    <div class="min-h-0 flex-1 overflow-auto p-3" data-component="html-artifact-code" innerHTML={html()} />
-  )
+  return <div class="min-h-0 flex-1 overflow-auto p-3" data-component="html-artifact-code" innerHTML={html()} />
 }

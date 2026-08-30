@@ -26,9 +26,7 @@ const configLayer = (meta: { enabled?: boolean; max_entries?: number } = {}) =>
   )
 
 const layerFor = (meta = {}) =>
-  CorrectionExtractor.layer.pipe(
-    Layer.provideMerge(CorrectionStore.layer.pipe(Layer.provide(configLayer(meta)))),
-  )
+  CorrectionExtractor.layer.pipe(Layer.provideMerge(CorrectionStore.layer.pipe(Layer.provide(configLayer(meta)))))
 
 const extract = (text: string) =>
   Effect.gen(function* () {

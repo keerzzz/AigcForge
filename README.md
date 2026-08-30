@@ -57,6 +57,7 @@
 **AigcForge** is far more than a single coding terminal; it is a **Unified Agentic Workspace**.
 
 Traditional AI coding tools are often confined to single terminal interfaces, lack verification loops, lose conversation lessons after sessions end, and exclude non-coding stakeholders. AigcForge solves this through **asset-first human-agent collaboration** and **reliable engineering delivery**:
+
 - **4+1 Product Modes**: Tailored workspaces for engineering, asset creation, structured business delivery, and personal task management.
 - **Asset Studio**: 3 acquisition channels (Guided Creation, Session Capture, External Import) to capture valuable conversation experience into 7 classes of managed, reproducible project assets.
 - **External CLI Dispatch**: Seamlessly orchestrate built-in agents alongside top-tier external CLIs like Claude Code, Codex, Gemini, and opencode.
@@ -84,6 +85,7 @@ AigcForge enforces durable `Product Mode` classification. Switching modes preser
 ```
 
 ### Coding Mode (Full-featured AI Development)
+
 - **Primary Focus**: Full development workspace for professional software engineers.
 - **Key Capabilities**:
   - Read, search, patch code (AST-level precision diffing), and run isolated Git worktrees.
@@ -92,20 +94,22 @@ AigcForge enforces durable `Product Mode` classification. Switching modes preser
   - **Verification Gate**: Mechanized `typecheck` / test suite triggers post-edit to catch defects immediately.
 
 ### Chat Mode (Asset Studio: Conversation Value to Assets)
+
 - **Primary Focus**: Transform implicit conversational insights into explicit, reusable project building blocks.
 - **Key Capabilities**:
   - **7 Standard Managed Asset Kinds**: `prompt`, `skill`, `mcp`, `command`, `agent`, `workflow` (definition), and `plugin`.
   - **Three Supply Paths**:
-    1. *Guided Creation*: Interactive questionnaires infer asset kinds, properties, and produce validated drafts.
-    2. *Session Capture*: One-click "Save as Asset" from message cards in any session.
-    3. *External Import*: Paste external AI chat threads or import files; automatically strips thinking tags and noise.
+    1. _Guided Creation_: Interactive questionnaires infer asset kinds, properties, and produce validated drafts.
+    2. _Session Capture_: One-click "Save as Asset" from message cards in any session.
+    3. _External Import_: Paste external AI chat threads or import files; automatically strips thinking tags and noise.
   - **Fail-Closed Safety Envelope**: Creation agent is read-only + `propose_*_asset` only (no Shell or direct Write). Assets are written atomically to `<project>/.aigcfroge/` via typed server transactions after user review.
 
 ### Work Mode (Non-programming Structured Delivery)
+
 - **Primary Focus**: High-confidence structured delivery for non-coding roles (Preset Tasks → Live Ledger → Safe Artifact Delivery).
 - **Target Roles (12 IT Roles + 5 Creative/Academic Groups)**:
-  - *Engineering & Tech*: PO (PRD / WSJF ROI scoring), BA (Gherkin BDD specs), UI/UX (Design Tokens), Architect (ADR candidate generation), FE/BE (API & SQL audits), QA (BDD test plans), SRE (Incident postmortems), Data Analysts (SQL verification).
-  - *Creators & Academics*: Video storyboard scripts, Game GDDs, Academic literature matrix comparison, Student thesis structuring, Zero-code wizard writing.
+  - _Engineering & Tech_: PO (PRD / WSJF ROI scoring), BA (Gherkin BDD specs), UI/UX (Design Tokens), Architect (ADR candidate generation), FE/BE (API & SQL audits), QA (BDD test plans), SRE (Incident postmortems), Data Analysts (SQL verification).
+  - _Creators & Academics_: Video storyboard scripts, Game GDDs, Academic literature matrix comparison, Student thesis structuring, Zero-code wizard writing.
 - **Key Capabilities**:
   - **Presets Catalog**: Hardcoded domain presets with interactive clarification wizards.
   - **Progress Ledger**: Visual stage tracking with incremental **Resume from Breakpoint**.
@@ -113,6 +117,7 @@ AigcForge enforces durable `Product Mode` classification. Switching modes preser
   - **Reverse Asset Loop**: One-click "Save as Asset" routes successful outputs back to Chat Studio.
 
 ### Assistant Mode (Proactive Personal Agent)
+
 - **Primary Focus**: Long-term personal context and proactive local task management.
 - **Key Capabilities**:
   - **Persistent Scheduler**: Natural language timer/cron scheduling. Uses lease-based claims and idempotent delivery; **catches up on missed tasks after system reboot** without wasteful background polling.
@@ -120,6 +125,7 @@ AigcForge enforces durable `Product Mode` classification. Switching modes preser
   - **Web Research**: Integrated `websearch` and `webfetch` for synthesizing live web intelligence into personal notes.
 
 ### Custom Mode (Asset Composition & Execution Platform - In Review)
+
 - **Primary Focus**: Multi-asset composition, preview, and reproducible multi-agent runtime (ADR-17).
 - **Key Capabilities**:
   - Bind custom user agents, prompts, skills, and MCP tools under root orchestrator `meta`.
@@ -153,6 +159,7 @@ AigcForge enforces durable `Product Mode` classification. Switching modes preser
 ```
 
 ### Session V2 & EventV2 Event-Sourced Engine
+
 - **Durable Admission Decoupling**: User inputs persist into `session_input` before serialized runner drains execute, guaranteeing zero message loss across reboots.
 - **EventV2 Stream**: Every lifecycle mutation (message chunks, tool executions, permissions, checkpoints) streams through a typed PubSub bus and persists durably.
 - **Deterministic Replay & Time Travel**:
@@ -161,6 +168,7 @@ AigcForge enforces durable `Product Mode` classification. Switching modes preser
   - **Compaction**: Token-efficient transcript summarization without breaking prefix caching.
 
 ### Meta-Agent Unified Orchestrator
+
 - **Single Point of Interaction**: The default orchestrator `meta` routes intents without requiring manual agent juggling.
 - **Three-Tier System Prompt Architecture**:
   - **L1 Constant**: Byte-locked role definitions & routing rules (maximizing LLM prompt prefix cache).
@@ -169,7 +177,9 @@ AigcForge enforces durable `Product Mode` classification. Switching modes preser
 - **Flexible Execution Modes**: Single-intent routing, serial pipelines (Plan → Build → Review), and `@mention` parallel fan-out.
 
 ### External CLI Dispatch System (ACP / SDK)
+
 Directly dispatch subtasks to third-party coding CLI agents:
+
 - **Supported CLIs**: `claude-code`, `codex`, `gemini`, `opencode`.
 - **Three Transport Tiers**:
   1. **ACP (Agent Client Protocol)**: Modern bidirectional client protocol via `@agentclientprotocol/sdk`.
@@ -178,6 +188,7 @@ Directly dispatch subtasks to third-party coding CLI agents:
 - **Unified Permission Bridge**: All external tool executions intercept back into AigcForge's `PermissionV2` authority.
 
 ### Harness 7-Layer Hardening & Anti-Hallucination Loop
+
 1. **Doom Loop Detection**: Blocks repeated identical tool failures.
 2. **Reference Integrity Checker**: Mechanically verifies Markdown links and `import` paths after edits.
 3. **Verifier Gate**: Triggers automated `typecheck` / tests post-edit with prose error mapping.
@@ -185,6 +196,7 @@ Directly dispatch subtasks to third-party coding CLI agents:
 5. **Multi-Model Judge Arbitration**: Escalates ambiguous outputs to multi-model consensus (Judge / PGE routing).
 
 ### Security Tiers & Path Containment
+
 - **Dual Permission Envelopes**:
   - `propose` tier (Chat mode default): Read-only + structured draft proposals.
   - `full` tier (Coding mode): Supervised execution with `ask`, `allow`, `deny`, and unattended auto-deny.
@@ -196,32 +208,33 @@ Directly dispatch subtasks to third-party coding CLI agents:
 
 AigcForge is built on Bun + Turbo, adhering strictly to downward-layer dependency flows:
 
-| Layer | Package Directory | Package Name (`package.json`) | Primary Role & Responsibility |
-|---|---|---|---|
-| **Entry** | `packages/desktop` | `@aigcfroge/desktop` | **Electron Desktop Shell**: Window lifecycle, IPC bridges, embedded sidecar management, native OS notifications. |
-| | `packages/aigcfroge` | `aigcfroge` | **Core Runtime & CLI Engine**: Command tree, Sidecar daemon, Meta-Agent dispatch, tool/MCP implementations. |
-| | `packages/tui` | `@aigcfroge/tui` | **Terminal User Interface**: High-density, keyboard-driven terminal UI powered by OpenTUI + Solid. |
-| **Application** | `packages/app` | `@aigcfroge/app` | **SolidJS Frontend App**: Mode routes (`/mode/:mode`), ModeWorkspace slots, reactive stores, right-panel tab/diff views. |
-| | `packages/server` | `@aigcfroge/server` | **Unified HTTP/SSE API Server**: Effect `HttpApiBuilder` router with automatic OpenAPI 3.0 specs. |
-| | `packages/script` | `@aigcfroge/script` | **Build & Release Scripts**: Automated version computation and workspace publishing tools. |
-| **Domain** | `packages/core` | `@aigcfroge/core` | **Domain Core**: Session V2, EventV2, ToolRegistry, PermissionV2, SystemContext, ACP Client, SQLite schema & migrations. |
-| | `packages/llm` | `@aigcfroge/llm` | **LLM Abstraction Layer**: Effect-Schema multi-provider routing (OpenAI, Claude, Gemini, DeepSeek, Ollama, etc.). |
-| | `packages/schema` | `@aigcfroge/schema` | **Pure Contract Schema**: Shared Effect-Schema contracts across domain and application layers. |
-| | `packages/sdk/js` | `@aigcfroge/sdk` | **TypeScript/JavaScript SDK**: OpenAPI-generated client SDK for programmatic integrations. |
-| **UI** | `packages/ui` | `@aigcfroge/ui` | **Design System V2**: Token V2 styling, 37 built-in themes, accessible primitive controls, and i18n foundation. |
-| | `packages/session-ui` | `@aigcfroge/session-ui` | **Session Rendering Components**: Markdown streaming, interactive diff viewer, tool cards. |
-| | `packages/storybook` | `@aigcfroge/storybook` | **Component Storybook**: Isolated component development and visual regression workspace. |
-| **Extension** | `packages/plugin` | `@aigcfroge/plugin` | **Plugin SDK**: Extensibility framework supporting V1 API and modern V2 Effect-based hooks. |
-| | `packages/enterprise` | `@aigcfroge/enterprise` | **Enterprise Extensions**: Remote Session Sharing, multi-tenant boundaries, and compliance audit adapters. |
-| **Infrastructure** | `packages/effect-drizzle-sqlite` | `@aigcfroge/effect-drizzle-sqlite` | **Drizzle + Effect SQLite Adapter**: Bridges Drizzle ORM into Effect transactions and services. |
-| | `packages/effect-sqlite-node` | `@aigcfroge/effect-sqlite-node` | **Native SQLite Driver Binding**: High-performance Node SQLite driver wrapped in Effect. |
-| | `packages/http-recorder` | `@aigcfroge/http-recorder` | **HTTP Cassette Recorder**: Deterministic HTTP record/replay testing infrastructure for offline suites. |
+| Layer              | Package Directory                | Package Name (`package.json`)      | Primary Role & Responsibility                                                                                            |
+| ------------------ | -------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **Entry**          | `packages/desktop`               | `@aigcfroge/desktop`               | **Electron Desktop Shell**: Window lifecycle, IPC bridges, embedded sidecar management, native OS notifications.         |
+|                    | `packages/aigcfroge`             | `aigcfroge`                        | **Core Runtime & CLI Engine**: Command tree, Sidecar daemon, Meta-Agent dispatch, tool/MCP implementations.              |
+|                    | `packages/tui`                   | `@aigcfroge/tui`                   | **Terminal User Interface**: High-density, keyboard-driven terminal UI powered by OpenTUI + Solid.                       |
+| **Application**    | `packages/app`                   | `@aigcfroge/app`                   | **SolidJS Frontend App**: Mode routes (`/mode/:mode`), ModeWorkspace slots, reactive stores, right-panel tab/diff views. |
+|                    | `packages/server`                | `@aigcfroge/server`                | **Unified HTTP/SSE API Server**: Effect `HttpApiBuilder` router with automatic OpenAPI 3.0 specs.                        |
+|                    | `packages/script`                | `@aigcfroge/script`                | **Build & Release Scripts**: Automated version computation and workspace publishing tools.                               |
+| **Domain**         | `packages/core`                  | `@aigcfroge/core`                  | **Domain Core**: Session V2, EventV2, ToolRegistry, PermissionV2, SystemContext, ACP Client, SQLite schema & migrations. |
+|                    | `packages/llm`                   | `@aigcfroge/llm`                   | **LLM Abstraction Layer**: Effect-Schema multi-provider routing (OpenAI, Claude, Gemini, DeepSeek, Ollama, etc.).        |
+|                    | `packages/schema`                | `@aigcfroge/schema`                | **Pure Contract Schema**: Shared Effect-Schema contracts across domain and application layers.                           |
+|                    | `packages/sdk/js`                | `@aigcfroge/sdk`                   | **TypeScript/JavaScript SDK**: OpenAPI-generated client SDK for programmatic integrations.                               |
+| **UI**             | `packages/ui`                    | `@aigcfroge/ui`                    | **Design System V2**: Token V2 styling, 37 built-in themes, accessible primitive controls, and i18n foundation.          |
+|                    | `packages/session-ui`            | `@aigcfroge/session-ui`            | **Session Rendering Components**: Markdown streaming, interactive diff viewer, tool cards.                               |
+|                    | `packages/storybook`             | `@aigcfroge/storybook`             | **Component Storybook**: Isolated component development and visual regression workspace.                                 |
+| **Extension**      | `packages/plugin`                | `@aigcfroge/plugin`                | **Plugin SDK**: Extensibility framework supporting V1 API and modern V2 Effect-based hooks.                              |
+|                    | `packages/enterprise`            | `@aigcfroge/enterprise`            | **Enterprise Extensions**: Remote Session Sharing, multi-tenant boundaries, and compliance audit adapters.               |
+| **Infrastructure** | `packages/effect-drizzle-sqlite` | `@aigcfroge/effect-drizzle-sqlite` | **Drizzle + Effect SQLite Adapter**: Bridges Drizzle ORM into Effect transactions and services.                          |
+|                    | `packages/effect-sqlite-node`    | `@aigcfroge/effect-sqlite-node`    | **Native SQLite Driver Binding**: High-performance Node SQLite driver wrapped in Effect.                                 |
+|                    | `packages/http-recorder`         | `@aigcfroge/http-recorder`         | **HTTP Cassette Recorder**: Deterministic HTTP record/replay testing infrastructure for offline suites.                  |
 
 ---
 
 ## 5. Installation & Multi-Surface Support
 
 ### CLI & TUI Installation
+
 Install globally using your favorite package manager:
 
 ```bash
@@ -245,41 +258,47 @@ nix run nixpkgs#aigcfroge
 ```
 
 ### Desktop Application Download
+
 Pre-built desktop binaries are available on [GitHub Releases](https://github.com/keerzzz/AigcForge/releases):
 
-| Platform | Package Format | Direct Command (Optional) |
-|---|---|---|
-| **macOS (Apple Silicon)** | `.dmg` (arm64) | `brew install --cask aigcfroge-desktop` |
-| **macOS (Intel)** | `.dmg` (x64) | `brew install --cask aigcfroge-desktop` |
-| **Windows** | `.exe` / `.msi` (x64) | `scoop install extras/aigcfroge-desktop` |
-| **Linux** | `.AppImage` / `.deb` / `.rpm` | Executable directly |
+| Platform                  | Package Format                | Direct Command (Optional)                |
+| ------------------------- | ----------------------------- | ---------------------------------------- |
+| **macOS (Apple Silicon)** | `.dmg` (arm64)                | `brew install --cask aigcfroge-desktop`  |
+| **macOS (Intel)**         | `.dmg` (x64)                  | `brew install --cask aigcfroge-desktop`  |
+| **Windows**               | `.exe` / `.msi` (x64)         | `scoop install extras/aigcfroge-desktop` |
+| **Linux**                 | `.AppImage` / `.deb` / `.rpm` | Executable directly                      |
 
 ---
 
 ## 6. Core Workflow Paradigms
 
 ### Scenario 1: Full-Stack Engineering (Coding Mode)
+
 1. Start in your repo: `aigcfroge` (or launch the Desktop App).
 2. In **Coding Mode**, type:
-   > *"Refactor the session cache in packages/core and use @explore to verify all consumer call sites."*
+   > _"Refactor the session cache in packages/core and use @explore to verify all consumer call sites."_
 3. Meta-Agent routes `@explore` to discover callers, applies atomic code patches, and runs automated `typecheck` verification.
 
 ### Scenario 2: Capturing Best Practices into Assets (Chat Mode)
+
 1. Navigate to **Chat Mode** (`/mode/chat`).
 2. Request an asset:
-   > *"Create a Frontend Code Review skill that enforces Effect error handling and Tailwind Token V2 conventions."*
+   > _"Create a Frontend Code Review skill that enforces Effect error handling and Tailwind Token V2 conventions."_
 3. The creation agent interacts to clarify parameters and generates a `propose_skill_asset` preview.
 4. Review the diff in the right panel and click **Apply** to save atomically into `.aigcfroge/skills/`.
 
 ### Scenario 3: Non-Programming Structured Delivery (Work Mode)
+
 1. Navigate to **Work Mode** and select a preset like `BDD Gherkin Specifications` or `Video Storyboard Planning`.
 2. Complete the interactive questions; monitor execution live via the **Progress Ledger**.
 3. Inspect the read-only generated artifact, click "Save to Project", or click **"Save as Asset"** to convert the recipe into a reusable workflow.
 
 ### Scenario 4: External CLI Orchestration
+
 Delegate complex refactoring tasks inline:
-> *"@claude-code Please trace why node-pty child processes hang under Windows and implement the fix."*
-The task delegates over ACP / SDK and streams back results under unified session tracking.
+
+> _"@claude-code Please trace why node-pty child processes hang under Windows and implement the fix."_
+> The task delegates over ACP / SDK and streams back results under unified session tracking.
 
 ---
 
@@ -317,6 +336,7 @@ We welcome contributions from the community!
 
 - **Code Style & Protocols**: Read [AGENTS.md](./AGENTS.md) and [ARCHITECTURE.md](./ARCHITECTURE.md). Domain code is written in **Effect-TS** with strict type safety.
 - **Local Verification**:
+
   ```bash
   # Install dependencies
   bun install

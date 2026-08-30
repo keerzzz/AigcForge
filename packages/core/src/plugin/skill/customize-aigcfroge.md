@@ -37,17 +37,17 @@ already-loaded config until then.
 
 ## Where files live
 
-| Scope                         | Path                                                                                                                      |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Scope                         | Path                                                                                                                           |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | Project config                | `./aigcfroge.json`, `./aigcfroge.jsonc`, or `.aigcfroge/aigcfroge.json` (aigcfroge walks up from the cwd to the worktree root) |
-| Global config                 | `~/.config/aigcfroge/aigcfroge.json` (NOT `~/.aigcfroge/`)                                                                   |
-| Project agents                | `.aigcfroge/agent/<name>.md` or `.aigcfroge/agents/<name>.md`                                                               |
-| Global agents                 | `~/.config/aigcfroge/agent(s)/<name>.md`                                                                                   |
-| Project commands              | `.aigcfroge/command/<name>.md` or `.aigcfroge/commands/<name>.md`                                                           |
-| Global commands               | `~/.config/aigcfroge/command(s)/<name>.md`                                                                                 |
-| Project skills                | `.aigcfroge/skill(s)/<name>/SKILL.md`                                                                                      |
-| Global skills                 | `~/.config/aigcfroge/skill(s)/<name>/SKILL.md`                                                                             |
-| External skills (auto-loaded) | `~/.claude/skills/<name>/SKILL.md`, `~/.agents/skills/<name>/SKILL.md`                                                    |
+| Global config                 | `~/.config/aigcfroge/aigcfroge.json` (NOT `~/.aigcfroge/`)                                                                     |
+| Project agents                | `.aigcfroge/agent/<name>.md` or `.aigcfroge/agents/<name>.md`                                                                  |
+| Global agents                 | `~/.config/aigcfroge/agent(s)/<name>.md`                                                                                       |
+| Project commands              | `.aigcfroge/command/<name>.md` or `.aigcfroge/commands/<name>.md`                                                              |
+| Global commands               | `~/.config/aigcfroge/command(s)/<name>.md`                                                                                     |
+| Project skills                | `.aigcfroge/skill(s)/<name>/SKILL.md`                                                                                          |
+| Global skills                 | `~/.config/aigcfroge/skill(s)/<name>/SKILL.md`                                                                                 |
+| External skills (auto-loaded) | `~/.claude/skills/<name>/SKILL.md`, `~/.agents/skills/<name>/SKILL.md`                                                         |
 
 Configs from each scope are deep-merged. Project overrides global. Unknown
 top-level keys in `aigcfroge.json` are rejected with `ConfigInvalidError`.

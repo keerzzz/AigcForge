@@ -21,7 +21,11 @@ export function PermissionTierSelector(props: {
   })
 
   const options = [
-    { id: "propose" as const, label: language.t("permission.tier.propose"), hint: language.t("permission.tier.propose.hint") },
+    {
+      id: "propose" as const,
+      label: language.t("permission.tier.propose"),
+      hint: language.t("permission.tier.propose.hint"),
+    },
     { id: "full" as const, label: language.t("permission.tier.full"), hint: language.t("permission.tier.full.hint") },
   ]
 

@@ -42,14 +42,12 @@ Input:
 - timezone: the user-confirmed IANA timezone (e.g. "Asia/Shanghai")`
 
 export const Input = Schema.Struct({
-  content: Schema.String.pipe(
-    Schema.check(Schema.isMinLength(1)),
-    Schema.check(Schema.isMaxLength(500)),
-  ).annotate({ description: "User-confirmed reminder text" }),
-  dueAt: Schema.Number.pipe(
-    Schema.check(Schema.isInt()),
-    Schema.check(Schema.isGreaterThan(0)),
-  ).annotate({ description: "Absolute due timestamp (ms since epoch)" }),
+  content: Schema.String.pipe(Schema.check(Schema.isMinLength(1)), Schema.check(Schema.isMaxLength(500))).annotate({
+    description: "User-confirmed reminder text",
+  }),
+  dueAt: Schema.Number.pipe(Schema.check(Schema.isInt()), Schema.check(Schema.isGreaterThan(0))).annotate({
+    description: "Absolute due timestamp (ms since epoch)",
+  }),
   timezone: IanaTimezone.annotate({ description: "User-confirmed IANA timezone" }),
 })
 
@@ -88,7 +86,9 @@ export const layer = Layer.effectDiscard(
                 const now = (yield* DateTime.nowAsDate).getTime()
                 if (input.dueAt <= now) {
                   return yield* Effect.fail(
-                    new ToolFailure({ message: "The due time is in the past. Re-confirm the target time with the user." }),
+                    new ToolFailure({
+                      message: "The due time is in the past. Re-confirm the target time with the user.",
+                    }),
                   )
                 }
                 const created = yield* schedules.create({

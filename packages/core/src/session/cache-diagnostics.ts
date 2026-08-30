@@ -116,46 +116,47 @@ const extractUsage = (row: typeof EventTable.$inferSelect): StepTokenUsage | und
   return undefined
 }
 
-export const getCacheDiagnostics = Effect.fn("CacheDiagnostics.get")(
-  function* (db: Database.Interface["db"], sessionID: SessionSchema.ID) {
-    const rows = yield* db
-      .select()
-      .from(EventTable)
-      .where(and(eq(EventTable.aggregate_id, sessionID), inArray(EventTable.type, cacheEventTypes)))
-      .orderBy(asc(EventTable.seq))
-      .all()
+export const getCacheDiagnostics = Effect.fn("CacheDiagnostics.get")(function* (
+  db: Database.Interface["db"],
+  sessionID: SessionSchema.ID,
+) {
+  const rows = yield* db
+    .select()
+    .from(EventTable)
+    .where(and(eq(EventTable.aggregate_id, sessionID), inArray(EventTable.type, cacheEventTypes)))
+    .orderBy(asc(EventTable.seq))
+    .all()
 
-    let totalCacheRead = 0
-    let totalCacheWrite = 0
-    let totalInput = 0
-    const perStep: StepCacheStats[] = []
+  let totalCacheRead = 0
+  let totalCacheWrite = 0
+  let totalInput = 0
+  const perStep: StepCacheStats[] = []
 
-    for (const row of rows) {
-      const usage = extractUsage(row)
-      if (!usage) continue
-      totalCacheRead += usage.cacheRead
-      totalCacheWrite += usage.cacheWrite
-      totalInput += usage.input
+  for (const row of rows) {
+    const usage = extractUsage(row)
+    if (!usage) continue
+    totalCacheRead += usage.cacheRead
+    totalCacheWrite += usage.cacheWrite
+    totalInput += usage.input
 
-      perStep.push(
-        StepCacheStats.make({
-          assistantMessageID: usage.assistantMessageID,
-          hitRate: calcHitRate(usage.cacheRead, usage.input),
-          cacheRead: usage.cacheRead,
-          cacheWrite: usage.cacheWrite,
-        }),
-      )
-    }
+    perStep.push(
+      StepCacheStats.make({
+        assistantMessageID: usage.assistantMessageID,
+        hitRate: calcHitRate(usage.cacheRead, usage.input),
+        cacheRead: usage.cacheRead,
+        cacheWrite: usage.cacheWrite,
+      }),
+    )
+  }
 
-    const sessionHitRate = calcHitRate(totalCacheRead, totalInput)
+  const sessionHitRate = calcHitRate(totalCacheRead, totalInput)
 
-    return CacheDiagnostics.make({
-      sessionHitRate,
-      sessionCacheRead: totalCacheRead,
-      sessionCacheWrite: totalCacheWrite,
-      sessionTotalInput: totalInput,
-      confidence: classifyConfidence(totalCacheRead, totalCacheWrite),
-      perStep,
-    })
-  },
-)
+  return CacheDiagnostics.make({
+    sessionHitRate,
+    sessionCacheRead: totalCacheRead,
+    sessionCacheWrite: totalCacheWrite,
+    sessionTotalInput: totalInput,
+    confidence: classifyConfidence(totalCacheRead, totalCacheWrite),
+    perStep,
+  })
+})

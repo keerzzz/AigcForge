@@ -29,30 +29,15 @@
 
 按模块读，理解当前系统的完整调用链：
 
-**Agent 系统**：
-9. `packages/aigcfroge/src/agent/agent.ts` — Agent 注册表（build/plan/general/explore 等的定义、权限合并、`defaultAgent()` 逻辑）
-10. `packages/aigcfroge/src/agent/subagent-permissions.ts` — 子智能体权限派生（父 deny 规则继承、todowrite/task 强制 deny）
-11. `packages/core/src/agent.ts` — V2 AgentService（ID/mode/permissions/resolve/select/all）
-12. `packages/core/src/plugin/agent.ts` — core agent plugin（V2 注册 build/plan/general/explore 等）
+**Agent 系统**：9. `packages/aigcfroge/src/agent/agent.ts` — Agent 注册表（build/plan/general/explore 等的定义、权限合并、`defaultAgent()` 逻辑）10. `packages/aigcfroge/src/agent/subagent-permissions.ts` — 子智能体权限派生（父 deny 规则继承、todowrite/task 强制 deny）11. `packages/core/src/agent.ts` — V2 AgentService（ID/mode/permissions/resolve/select/all）12. `packages/core/src/plugin/agent.ts` — core agent plugin（V2 注册 build/plan/general/explore 等）
 
-**Tool 系统**：
-13. `packages/aigcfroge/src/tool/task.ts` — Task 工具（子智能体 spawn、权限检查、后台/前台模式、`acquireUseRelease` 中断处理）
-14. `packages/aigcfroge/src/tool/tool.ts` — Tool 定义框架（`Tool.define`、`Tool.Context`、execute/trucate）
-15. `packages/aigcfroge/src/tool/registry.ts` — 工具注册表（内置工具 + 插件工具 + MCP 资源工具 + `describeTask`）
+**Tool 系统**：13. `packages/aigcfroge/src/tool/task.ts` — Task 工具（子智能体 spawn、权限检查、后台/前台模式、`acquireUseRelease` 中断处理）14. `packages/aigcfroge/src/tool/tool.ts` — Tool 定义框架（`Tool.define`、`Tool.Context`、execute/trucate）15. `packages/aigcfroge/src/tool/registry.ts` — 工具注册表（内置工具 + 插件工具 + MCP 资源工具 + `describeTask`）
 
-**Session 系统**：
-16. `packages/aigcfroge/src/session/processor.ts` — Session 处理器（LLM 事件流、tool call/tool result 事件处理、compaction 触发）
-17. `packages/aigcfroge/src/session/tools.ts` — Session 工具解析（权限 ask、插件 hooks、MCP 工具注入）
+**Session 系统**：16. `packages/aigcfroge/src/session/processor.ts` — Session 处理器（LLM 事件流、tool call/tool result 事件处理、compaction 触发）17. `packages/aigcfroge/src/session/tools.ts` — Session 工具解析（权限 ask、插件 hooks、MCP 工具注入）
 
-**插件系统**：
-18. `packages/plugin/src/v2/effect/agent.ts` — AgentDraft 类型
-19. `packages/plugin/src/v2/effect/context.ts` — PluginContext 接口
-20. `packages/plugin/src/v2/effect/registration.ts` — Registration/Hooks 模式
-21. `packages/plugin/src/v2/effect/index.ts` — 插件包导出
+**插件系统**：18. `packages/plugin/src/v2/effect/agent.ts` — AgentDraft 类型 19. `packages/plugin/src/v2/effect/context.ts` — PluginContext 接口 20. `packages/plugin/src/v2/effect/registration.ts` — Registration/Hooks 模式 21. `packages/plugin/src/v2/effect/index.ts` — 插件包导出
 
-**数据层**：
-22. `packages/core/src/meta-agent/sql.ts` — meta_agent + meta_agent_session 表（schema 参考）
-23. `packages/schema/src/meta-agent.ts` — MetaAgent.Info + MetaAgent.ID（品牌 ID `mag_*`）
+**数据层**：22. `packages/core/src/meta-agent/sql.ts` — meta*agent + meta_agent_session 表（schema 参考）23. `packages/schema/src/meta-agent.ts` — MetaAgent.Info + MetaAgent.ID（品牌 ID `mag*\*`）
 
 ### Step 0.4 — 外部参考（读，理解模式来源，不拷贝代码）
 
@@ -125,6 +110,7 @@ Phase 1 包含 **7 个代码任务** + **1 个验证任务**。严格按照以�
    - 测试空字符串/纯符号边界
 
 6. **验证**：
+
    ```bash
    bun --cwd packages/aigcfroge test --timeout 30000
    ```
@@ -155,6 +141,7 @@ Phase 1 包含 **7 个代码任务** + **1 个验证任务**。严格按照以�
    - 工作流类别返回 workflow type
 
 6. **验证**：
+
    ```bash
    bun --cwd packages/aigcfroge test --timeout 30000
    ```
@@ -188,6 +175,7 @@ Phase 1 包含 **7 个代码任务** + **1 个验证任务**。严格按照以�
    - 未知 @name: 不识别为 mention
 
 6. **验证**：
+
    ```bash
    bun --cwd packages/aigcfroge test --timeout 30000
    ```
@@ -217,6 +205,7 @@ Phase 1 包含 **7 个代码任务** + **1 个验证任务**。严格按照以�
    - warmth 标记注入
 
 6. **验证**：
+
    ```bash
    bun --cwd packages/aigcfroge test --timeout 30000
    ```
@@ -249,6 +238,7 @@ Phase 1 包含 **7 个代码任务** + **1 个验证任务**。严格按照以�
    - hitRate 计算（命中/总请求 = rate）
 
 6. **验证**：
+
    ```bash
    bun --cwd packages/aigcfroge test --timeout 30000
    ```
@@ -343,6 +333,7 @@ Phase 1 包含 **7 个代码任务** + **1 个验证任务**。严格按照以�
 1. **修改文件**：`packages/aigcfroge/src/agent/subagent-permissions.ts`
 
 2. **变更**：函数签名增加可选参数 `parentAgentName?: string`：
+
    ```typescript
    export function deriveSubagentSessionPermission(input: {
      parentSessionPermission: PermissionV1.Ruleset
@@ -350,6 +341,7 @@ Phase 1 包含 **7 个代码任务** + **1 个验证任务**。严格按照以�
      parentAgentName?: string
    }): PermissionV1.Ruleset
    ```
+
    - 当 `parentAgentName === "meta"` 时，不强制添加 todowrite/task deny
    - 其他情况保持原有逻辑不变
 
@@ -362,17 +354,21 @@ Phase 1 包含 **7 个代码任务** + **1 个验证任务**。严格按照以�
 1. **修改文件**：`packages/core/src/plugin/agent.ts`
 
 2. **变更**：在 `AgentPlugin.effect` 的 transform 回调中新增 meta 注册：
+
    ```typescript
    draft.update(AgentV2.ID.make("meta"), (item) => {
      item.description = "The meta agent — unified orchestration entry point."
      item.system = PROMPT_META
      item.mode = "primary"
-     item.permissions.push(...PermissionV2.merge(defaults, [
-       { action: "question", resource: "*", effect: "allow" },
-       { action: "task", resource: "*", effect: "allow" },
-     ]))
+     item.permissions.push(
+       ...PermissionV2.merge(defaults, [
+         { action: "question", resource: "*", effect: "allow" },
+         { action: "task", resource: "*", effect: "allow" },
+       ]),
+     )
    })
    ```
+
    - `PROMPT_META` 需要从对应的 .txt 文件导入（使用 Bun text import 或 copy prompt string）
    - 注意 V2 注册路径在 core 包中，meta.txt 路径需要调
 
@@ -385,6 +381,7 @@ Phase 1 包含 **7 个代码任务** + **1 个验证任务**。严格按照以�
 ### Task 8：Phase 1 全量验证
 
 1. **运行所有检查**：
+
    ```bash
    bun run lint
    bun --cwd packages/core typecheck
@@ -398,12 +395,15 @@ Phase 1 包含 **7 个代码任务** + **1 个验证任务**。严格按照以�
    - 任何修改 L1 区 → 测试失败 → 需要同步更新预期哈希
 
 3. **回退开关验证**：
+
    ```bash
    AIGCFROGE_DISABLE_META_AGENT=true bun --cwd packages/aigcfroge test --timeout 30000
    ```
+
    - 验证默认 agent 回到 build
 
 4. **输出 Phase 1 复查结论**：
+
    ```text
    Phase 1 复查结论:
    - 影响文件: intent.ts, engine-selector.ts, mention.ts, context-builder.ts, cache-warmth.ts,
@@ -449,6 +449,7 @@ Phase 1 包含 **7 个代码任务** + **1 个验证任务**。严格按照以�
 ### 改完即审流程（CLAUDE.md 第 7 步）
 
 每次写完代码后：
+
 1. `git diff -- <改动的文件>` 锁定改动范围
 2. 安全复查：Catch Everything / No Null Pointer / Security First
 3. 整洁复查：No Cheating / Reusability / Clean Logs
@@ -493,28 +494,28 @@ Phase 1 包含 **7 个代码任务** + **1 个验证任务**。严格按照以�
 
 ### 当前项目关键路径
 
-| 文件 | 用途 |
-|------|------|
-| `CLAUDE.md` | 执行宪法 |
-| `AGENTS.md` | 代码风格 |
-| `docs/architecture/system-blueprint.md` | 架构总览 |
-| `docs/prd/meta-agent-orchestrator.md` | PRD |
-| `docs/plan/meta-agent-orchestrator.md` | 实施计划 |
-| `packages/aigcfroge/src/agent/agent.ts` | Agent 注册表 |
-| `packages/aigcfroge/src/agent/subagent-permissions.ts` | 子智能体权限 |
-| `packages/core/src/agent.ts` | V2 AgentService |
-| `packages/core/src/plugin/agent.ts` | V2 内置 agent 注册 |
-| `packages/aigcfroge/src/tool/task.ts` | Task 工具 |
-| `packages/aigcfroge/src/tool/tool.ts` | Tool 定义框架 |
-| `packages/plugin/src/v2/effect/context.ts` | PluginContext |
-| `packages/core/src/meta-agent/sql.ts` | meta_agent 数据表 |
+| 文件                                                   | 用途               |
+| ------------------------------------------------------ | ------------------ |
+| `CLAUDE.md`                                            | 执行宪法           |
+| `AGENTS.md`                                            | 代码风格           |
+| `docs/architecture/system-blueprint.md`                | 架构总览           |
+| `docs/prd/meta-agent-orchestrator.md`                  | PRD                |
+| `docs/plan/meta-agent-orchestrator.md`                 | 实施计划           |
+| `packages/aigcfroge/src/agent/agent.ts`                | Agent 注册表       |
+| `packages/aigcfroge/src/agent/subagent-permissions.ts` | 子智能体权限       |
+| `packages/core/src/agent.ts`                           | V2 AgentService    |
+| `packages/core/src/plugin/agent.ts`                    | V2 内置 agent 注册 |
+| `packages/aigcfroge/src/tool/task.ts`                  | Task 工具          |
+| `packages/aigcfroge/src/tool/tool.ts`                  | Tool 定义框架      |
+| `packages/plugin/src/v2/effect/context.ts`             | PluginContext      |
+| `packages/core/src/meta-agent/sql.ts`                  | meta_agent 数据表  |
 
 ### 外部参考路径
 
-| 路径 | 用途 |
-|------|------|
-| `/home/keer/Documents/web/aigcfroge/packages/opencode/src/agent/meta-agent.ts` | meta 定义参考 |
-| `/home/keer/Documents/web/aigcfroge/packages/opencode/src/agent/meta/intent.ts` | 意图分类参考 |
-| `/home/keer/Documents/web/aigcfroge/packages/opencode/src/agent/meta/engine-selector.ts` | 引擎路由参考 |
-| `/home/keer/Documents/web/aigcfroge/packages/opencode/src/agent/meta/adapters/interface.ts` | CLI 适配器参考 |
+| 路径                                                                                              | 用途           |
+| ------------------------------------------------------------------------------------------------- | -------------- |
+| `/home/keer/Documents/web/aigcfroge/packages/opencode/src/agent/meta-agent.ts`                    | meta 定义参考  |
+| `/home/keer/Documents/web/aigcfroge/packages/opencode/src/agent/meta/intent.ts`                   | 意图分类参考   |
+| `/home/keer/Documents/web/aigcfroge/packages/opencode/src/agent/meta/engine-selector.ts`          | 引擎路由参考   |
+| `/home/keer/Documents/web/aigcfroge/packages/opencode/src/agent/meta/adapters/interface.ts`       | CLI 适配器参考 |
 | `/home/keer/Documents/web/aigcfroge/packages/opencode/src/agent/meta/protocol/context-builder.ts` | 委派上下文参考 |

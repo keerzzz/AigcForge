@@ -51,9 +51,7 @@ const quiet = values.quiet
 const bunBin = process.argv[0] || "bun"
 const entry = path.join(root, "packages/aigcfroge/src/index.ts")
 const hasBinary = Boolean(Bun.which("aigcfroge"))
-const cmd = hasBinary
-  ? ["aigcfroge", "run"]
-  : [bunBin, "run", "--conditions=browser", entry, "run"]
+const cmd = hasBinary ? ["aigcfroge", "run"] : [bunBin, "run", "--conditions=browser", entry, "run"]
 
 cmd.push("--variant", values.variant)
 cmd.push("--command", "changelog", "--", ...args)

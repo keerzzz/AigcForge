@@ -591,7 +591,9 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
 
                             // LRU Proximity Guard: Only prefetch active tab and immediate neighbors (±1)
                             const activeIdx = tabsStore.findIndex((t) => t === currentTab())
-                            if (!shouldPrefetchTab({ tabIndex: i(), activeIndex: activeIdx, totalTabs: tabsStore.length })) {
+                            if (
+                              !shouldPrefetchTab({ tabIndex: i(), activeIndex: activeIdx, totalTabs: tabsStore.length })
+                            ) {
                               return
                             }
 

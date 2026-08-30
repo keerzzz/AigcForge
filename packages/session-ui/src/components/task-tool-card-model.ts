@@ -62,7 +62,9 @@ export function taskCardModel(
   // The tool-call input carries execution_type from the start (even while a CLI
   // is still running and no result metadata exists yet), so check it first.
   const isExternalCli =
-    input.execution_type === "external-cli" || metadata?.execution_type === "external-cli" || typeof metadata?.cli === "string"
+    input.execution_type === "external-cli" ||
+    metadata?.execution_type === "external-cli" ||
+    typeof metadata?.cli === "string"
   const subtitle = typeof input.description === "string" && input.description ? input.description : undefined
   const href = typeof metadata?.sessionId === "string" && metadata.sessionId ? metadata.sessionId : undefined
 

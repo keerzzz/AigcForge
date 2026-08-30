@@ -420,7 +420,14 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
                   }),
                 )
                 setStore("session", reconcile(sessions, { key: "id" }))
-                cleanupDroppedSessionCaches(store, setStore, sessions, setSessionTodo, setSessionTask, setSessionTaskProgress)
+                cleanupDroppedSessionCaches(
+                  store,
+                  setStore,
+                  sessions,
+                  setSessionTodo,
+                  setSessionTask,
+                  setSessionTaskProgress,
+                )
               })
               sessionMeta.set(bucket, { limit: retained })
             })

@@ -35,8 +35,8 @@ const readonlyCeilingAction = new Set<string>(READONLY_CEILING_ACTIONS)
 
 export function evaluate(rules: Permission.Ruleset, action: string, resource: string): Permission.Effect {
   return (
-    rules.findLast((rule) => Wildcard.match(action, rule.action) && Wildcard.match(resource, rule.resource))
-      ?.effect ?? "ask"
+    rules.findLast((rule) => Wildcard.match(action, rule.action) && Wildcard.match(resource, rule.resource))?.effect ??
+    "ask"
   )
 }
 
@@ -124,12 +124,7 @@ function compute(input: Input, baseInput: Permission.Ruleset): Permission.Rulese
       const explicitDenies = rules.filter(
         (rule) => rule.effect === "deny" && !(rule.action === "*" && rule.resource === "*"),
       )
-      return [
-        { action: "*", resource: "*", effect: "deny" },
-        ...clampedAsks,
-        ...ceilingAllows,
-        ...explicitDenies,
-      ]
+      return [{ action: "*", resource: "*", effect: "deny" }, ...clampedAsks, ...ceilingAllows, ...explicitDenies]
     }
     // unattended 最高拒绝（红线 5）：saved/master 不放开（上方未追加），
     // 全部 ask → deny，头部 fallback deny 兜底未匹配 action。

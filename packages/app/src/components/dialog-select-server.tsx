@@ -334,7 +334,7 @@ export function useServerManagementController(options: { onSelect?: () => void; 
     return [current, ...list.filter((x) => x !== current)]
   })
 
-	const current = createMemo<ServerConnection.Any | undefined>(() => undefined)
+  const current = createMemo<ServerConnection.Any | undefined>(() => undefined)
 
   const sortedItems = createMemo(() => {
     const list = items()

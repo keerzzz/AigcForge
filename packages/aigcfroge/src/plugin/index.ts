@@ -42,10 +42,7 @@ type TriggerName = {
 }[keyof Hooks]
 
 export interface Interface {
-  readonly trigger: <
-    Name extends TriggerName,
-    Output = Parameters<Required<Hooks>[Name]>[1],
-  >(
+  readonly trigger: <Name extends TriggerName, Output = Parameters<Required<Hooks>[Name]>[1]>(
     name: Name,
     input: Parameters<Required<Hooks>[Name]>[0],
     output: Output,

@@ -25,11 +25,11 @@ AigcForge 是一个 22 包 monorepo，产品形态包括：**CLI、终端 TUI、
 
 ### 2.1 三个进程模型
 
-| 进程 | 代码位置 | 职责 |
-|---|---|---|
-| **main** | `packages/desktop/src/main/`（入口 `index.ts`，第二入口 `sidecar.ts`） | 窗口、IPC、菜单、自动更新；fork 本地后端 sidecar（`spawnLocalServer()`） |
-| **preload** | `packages/desktop/src/preload/index.ts` | contextBridge 暴露 `window.api`（contextIsolation + sandbox） |
-| **renderer** | `packages/desktop/src/renderer/index.tsx` | SolidJS 壳，用 `PlatformProvider` 包住 `@aigcfroge/app` 的 `AppInterface` |
+| 进程         | 代码位置                                                               | 职责                                                                      |
+| ------------ | ---------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| **main**     | `packages/desktop/src/main/`（入口 `index.ts`，第二入口 `sidecar.ts`） | 窗口、IPC、菜单、自动更新；fork 本地后端 sidecar（`spawnLocalServer()`）  |
+| **preload**  | `packages/desktop/src/preload/index.ts`                                | contextBridge 暴露 `window.api`（contextIsolation + sandbox）             |
+| **renderer** | `packages/desktop/src/renderer/index.tsx`                              | SolidJS 壳，用 `PlatformProvider` 包住 `@aigcfroge/app` 的 `AppInterface` |
 
 ### 2.2 后端 sidecar（关键机制）
 
@@ -91,15 +91,15 @@ desktop（devDeps: @aigcfroge/app, @aigcfroge/ui；隐含相对路径依赖 pack
     └─ tui    → deps: core, plugin, sdk, ui
 ```
 
-| 组 | 包 | 保留原因 |
-|---|---|---|
-| 入口 | `desktop` | Electron 壳（main/preload/renderer） |
-| 前端 | `app` | renderer 从 app **源码**直接打包（appPlugin + app/public） |
-| UI | `ui`、`session-ui` | 设计系统 + 会话渲染（app 依赖；虽被 enterprise/stats/tui 共享，但删除它们不影响这两个包） |
-| 领域 | `core`、`llm`、`schema`、`sdk/js`、`plugin` | 会话核心 / LLM 抽象 / Schema 契约 / OpenAPI 客户端 / 插件 SDK |
-| 应用 | **`aigcfroge`**、`server`、`script` | **sidecar 后端本体**、其 HTTP API 实现（cors/api/pty-environment/middleware）、版本/渠道工具（`Script.channel`/`Script.version`，desktop `scripts/prepare.ts:2` 与 `build-node.ts:3` 均使用） |
-| 基础设施 | `effect-drizzle-sqlite`、`effect-sqlite-node`、`http-recorder`(dev) | SQLite 持久化（core 依赖）、HTTP 录制回放测试基础设施（llm/core devDep；构建/运行不需要，但不改 devDep 声明则 `bun install` 需要它存在） |
-| 连带（硬依赖） | `tui` | **修正（2026-08-14 复核）**：旧版称"tui 仅 CLI 交互路径使用"**不准确**。`packages/aigcfroge/src/util/record.ts:1`、`src/util/error.ts:1`、`src/util/locale.ts:1-2` 是对 `@aigcfroge/tui` 的 re-export 桥，而 `src/config/config.ts:17` 引用 `@/util/record`；`src/node.ts:1` 直接导出 `Config`，故 **sidecar bundle 实际包含 tui 代码**。剥离需先拆这 3 个 util 桥及 `src/config/tui*.ts` 等约 35 处 import——属于独立重构任务，不在本次瘦身范围 |
+| 组             | 包                                                                  | 保留原因                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 入口           | `desktop`                                                           | Electron 壳（main/preload/renderer）                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 前端           | `app`                                                               | renderer 从 app **源码**直接打包（appPlugin + app/public）                                                                                                                                                                                                                                                                                                                                                                                      |
+| UI             | `ui`、`session-ui`                                                  | 设计系统 + 会话渲染（app 依赖；虽被 enterprise/stats/tui 共享，但删除它们不影响这两个包）                                                                                                                                                                                                                                                                                                                                                       |
+| 领域           | `core`、`llm`、`schema`、`sdk/js`、`plugin`                         | 会话核心 / LLM 抽象 / Schema 契约 / OpenAPI 客户端 / 插件 SDK                                                                                                                                                                                                                                                                                                                                                                                   |
+| 应用           | **`aigcfroge`**、`server`、`script`                                 | **sidecar 后端本体**、其 HTTP API 实现（cors/api/pty-environment/middleware）、版本/渠道工具（`Script.channel`/`Script.version`，desktop `scripts/prepare.ts:2` 与 `build-node.ts:3` 均使用）                                                                                                                                                                                                                                                   |
+| 基础设施       | `effect-drizzle-sqlite`、`effect-sqlite-node`、`http-recorder`(dev) | SQLite 持久化（core 依赖）、HTTP 录制回放测试基础设施（llm/core devDep；构建/运行不需要，但不改 devDep 声明则 `bun install` 需要它存在）                                                                                                                                                                                                                                                                                                        |
+| 连带（硬依赖） | `tui`                                                               | **修正（2026-08-14 复核）**：旧版称"tui 仅 CLI 交互路径使用"**不准确**。`packages/aigcfroge/src/util/record.ts:1`、`src/util/error.ts:1`、`src/util/locale.ts:1-2` 是对 `@aigcfroge/tui` 的 re-export 桥，而 `src/config/config.ts:17` 引用 `@/util/record`；`src/node.ts:1` 直接导出 `Config`，故 **sidecar bundle 实际包含 tui 代码**。剥离需先拆这 3 个 util 桥及 `src/config/tui*.ts` 等约 35 处 import——属于独立重构任务，不在本次瘦身范围 |
 
 ---
 
@@ -107,28 +107,28 @@ desktop（devDeps: @aigcfroge/app, @aigcfroge/ui；隐含相对路径依赖 pack
 
 ### 4.1 无反向依赖，直接删
 
-| 项 | 用途 | 备注 |
-|---|---|---|
-| `packages/web` | Astro + Starlight 营销/文档站 | 无 workspace 依赖 |
-| `packages/enterprise` | SolidStart 企业站 | 依赖 core/session-ui/ui，但**不反向依赖** |
-| `packages/function` | Cloudflare Worker（SyncServer + GitHub JWT） | 无 workspace 依赖 |
-| `packages/slack` | Slack 机器人 | 根 package.json workspaces 单独列出（`package.json:27`），需同步移除 |
-| `packages/console/` | 独立子项目（无 package.json，非 workspace） | 独立删除 |
-| `packages/stats/` | 独立子项目（无 package.json，非 workspace） | 独立删除 |
-| `packages/containers/` | Docker 容器（base/bun-node/rust/tauri-linux 等） | 独立删除 |
-| `packages/docs/` | Mintlify 文档站内容（docs.json + 生成的 openapi.json） | 独立删除 |
-| `packages/identity/` | 品牌资源（logo 等） | 独立删除 |
+| 项                     | 用途                                                   | 备注                                                                 |
+| ---------------------- | ------------------------------------------------------ | -------------------------------------------------------------------- |
+| `packages/web`         | Astro + Starlight 营销/文档站                          | 无 workspace 依赖                                                    |
+| `packages/enterprise`  | SolidStart 企业站                                      | 依赖 core/session-ui/ui，但**不反向依赖**                            |
+| `packages/function`    | Cloudflare Worker（SyncServer + GitHub JWT）           | 无 workspace 依赖                                                    |
+| `packages/slack`       | Slack 机器人                                           | 根 package.json workspaces 单独列出（`package.json:27`），需同步移除 |
+| `packages/console/`    | 独立子项目（无 package.json，非 workspace）            | 独立删除                                                             |
+| `packages/stats/`      | 独立子项目（无 package.json，非 workspace）            | 独立删除                                                             |
+| `packages/containers/` | Docker 容器（base/bun-node/rust/tauri-linux 等）       | 独立删除                                                             |
+| `packages/docs/`       | Mintlify 文档站内容（docs.json + 生成的 openapi.json） | 独立删除                                                             |
+| `packages/identity/`   | 品牌资源（logo 等）                                    | 独立删除                                                             |
 
 ### 4.2 可删但需同步修改引用
 
-| 项 | 用途 | 同步修改 |
-|---|---|---|
-| `packages/cli` | CLI 分发二进制 | desktop 运行时/构建均不消费；删除需同步改 `publish.yml`（build-cli/sign-cli-windows job、build-electron 的 `needs`、publish job 的 4 处 `download-artifact`：aigcfroge-cli / -windows / -signed-windows / -preview-cli）与 `script/publish.ts:42`（CLI 发布段） |
-| `packages/storybook` | UI 组件展示（纯开发工具） | 根 package.json `dev:storybook` 脚本同步删；`storybook.yml` 同步删 |
-| `sdks/vscode/` | VS Code 扩展 | `publish-vscode.yml` 同步删；`script/raw-changelog.ts:123,140`（git log 路径与分类表，另 `:42-43` sections 表有 Extensions 映射，属同一清理面）同步清理 |
-| `github/` | 产品级 GitHub Action（独立产品；`action.yml:68-74` 安装 npm CLI、`index.ts:235` spawn `aigcfroge serve`） | `publish-github-action.yml`、`release-github-action.yml`、`aigcfroge.yml`（`:29` `uses: ./github`）同步删 |
-| `install`（根文件） | CLI curl 安装脚本 | **必须同步删 `nix/node_modules.nix:33` 的 fileset 行**，否则 nix build 断 |
-| `release.yml` | 手动 CLI-only 发布（`:31,36` packages/cli） | 与 publish.yml 功能重叠，整文件删除 |
+| 项                   | 用途                                                                                                      | 同步修改                                                                                                                                                                                                                                                        |
+| -------------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/cli`       | CLI 分发二进制                                                                                            | desktop 运行时/构建均不消费；删除需同步改 `publish.yml`（build-cli/sign-cli-windows job、build-electron 的 `needs`、publish job 的 4 处 `download-artifact`：aigcfroge-cli / -windows / -signed-windows / -preview-cli）与 `script/publish.ts:42`（CLI 发布段） |
+| `packages/storybook` | UI 组件展示（纯开发工具）                                                                                 | 根 package.json `dev:storybook` 脚本同步删；`storybook.yml` 同步删                                                                                                                                                                                              |
+| `sdks/vscode/`       | VS Code 扩展                                                                                              | `publish-vscode.yml` 同步删；`script/raw-changelog.ts:123,140`（git log 路径与分类表，另 `:42-43` sections 表有 Extensions 映射，属同一清理面）同步清理                                                                                                         |
+| `github/`            | 产品级 GitHub Action（独立产品；`action.yml:68-74` 安装 npm CLI、`index.ts:235` spawn `aigcfroge serve`） | `publish-github-action.yml`、`release-github-action.yml`、`aigcfroge.yml`（`:29` `uses: ./github`）同步删                                                                                                                                                       |
+| `install`（根文件）  | CLI curl 安装脚本                                                                                         | **必须同步删 `nix/node_modules.nix:33` 的 fileset 行**，否则 nix build 断                                                                                                                                                                                       |
+| `release.yml`        | 手动 CLI-only 发布（`:31,36` packages/cli）                                                               | 与 publish.yml 功能重叠，整文件删除                                                                                                                                                                                                                             |
 
 ### 4.3 云部署层（desktop 零引用，全删）
 
@@ -140,12 +140,12 @@ desktop（devDeps: @aigcfroge/app, @aigcfroge/ui；隐含相对路径依赖 pack
 
 ### 4.4 CI 精简
 
-| 处置 | workflow |
-|---|---|
-| 删除 | `deploy.yml`、`stats.yml`、`storybook.yml`、`containers.yml`、`docs-locale-sync.yml`、`docs-update.yml`、`publish-vscode.yml`、`publish-github-action.yml`、`release-github-action.yml`、`aigcfroge.yml`、`release.yml` |
-| 修改 | `publish.yml`——只保留 desktop 链（version → build-electron → publish/finalize），移除 CLI job 与引用（唯一真正的发布链手术，详见 §5.2） |
-| 保留不动 | `ci.yml`、`typecheck.yml`、`nix-eval.yml`、`nix-hashes.yml`（通用 turbo/nix 命令，自动收缩）；`test.yml`（`:74` turbo test 自动收缩；`:78-88` httpapi-exercise 在 packages/aigcfroge、e2e job `:90-159`（packages/app 段自 `:134` 起），均在保留链）；`beta.yml`、`generate.yml`（script/beta.ts、generate.ts 均在保留链）；仓库管理类 `close-issues.yml`、`close-prs.yml`、`pr-standards.yml`、`compliance-close.yml`、`notify-discord.yml`（用 script/github/*.ts，与 `github/` Action 目录无关） |
-| 待决策 | `review.yml:35`、`triage.yml:23`、`duplicate-issues.yml:23,135`、`pr-management.yml:40` 均跑 `bun i -g aigcfroge` 装最新 npm CLI。CLI 停发后冻结在最后一个已发布版本——短期不坏，长期需删除或改造（见 §9） |
+| 处置     | workflow                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 删除     | `deploy.yml`、`stats.yml`、`storybook.yml`、`containers.yml`、`docs-locale-sync.yml`、`docs-update.yml`、`publish-vscode.yml`、`publish-github-action.yml`、`release-github-action.yml`、`aigcfroge.yml`、`release.yml`                                                                                                                                                                                                                                                                              |
+| 修改     | `publish.yml`——只保留 desktop 链（version → build-electron → publish/finalize），移除 CLI job 与引用（唯一真正的发布链手术，详见 §5.2）                                                                                                                                                                                                                                                                                                                                                              |
+| 保留不动 | `ci.yml`、`typecheck.yml`、`nix-eval.yml`、`nix-hashes.yml`（通用 turbo/nix 命令，自动收缩）；`test.yml`（`:74` turbo test 自动收缩；`:78-88` httpapi-exercise 在 packages/aigcfroge、e2e job `:90-159`（packages/app 段自 `:134` 起），均在保留链）；`beta.yml`、`generate.yml`（script/beta.ts、generate.ts 均在保留链）；仓库管理类 `close-issues.yml`、`close-prs.yml`、`pr-standards.yml`、`compliance-close.yml`、`notify-discord.yml`（用 script/github/\*.ts，与 `github/` Action 目录无关） |
+| 待决策   | `review.yml:35`、`triage.yml:23`、`duplicate-issues.yml:23,135`、`pr-management.yml:40` 均跑 `bun i -g aigcfroge` 装最新 npm CLI。CLI 停发后冻结在最后一个已发布版本——短期不坏，长期需删除或改造（见 §9）                                                                                                                                                                                                                                                                                            |
 
 补充：`docs-locale-sync.yml:12` 已是 `if: false` 停用状态、`docs-update.yml:13` 限定 `sst/aigcfroge` 仓库在本 fork 本不触发——删除它们更无悬念。
 
@@ -175,18 +175,18 @@ desktop（devDeps: @aigcfroge/app, @aigcfroge/ui；隐含相对路径依赖 pack
 
 ### 5.2 必须同步修改（不修改则发布/构建挂）
 
-| 位置 | 现状 | 改为 |
-|---|---|---|
-| `publish.yml` build-electron job | `needs: [build-cli, version]`（`:231-233`） | `needs: [version]` |
-| `publish.yml` publish job | `needs` 含 build-cli、sign-cli-windows（`:457-461`）；下载 4 个 CLI artifacts（`:487-505`） | 移除 needs 与 4 处 download-artifact；`script/publish.ts` 调用（`:559`）随脚本同步精简 |
-| `script/publish.ts` | `:42` 发布 `packages/cli` | 删该段（`:39` aigcfroge、`:45` sdk/js、`:48` plugin、`:51-52` desktop finalize 保留） |
-| `script/raw-changelog.ts` | `:123` git log 路径含 `sdks/vscode github`、`:140` 分类表 | 删除目录后同步清理（仍能跑，只是分类失效） |
-| 根 `package.json` | workspaces 单列 `packages/slack`（`:27`）；scripts 含 `dev:storybook`（`:12`）、`sso`（`:20`）；`sst`（devDep `:103`）、`@aws-sdk/client-s3`（`:107`）、`heap-snapshot-toolkit`（`:111`，后两者在 dependencies 段）；catalog 残留只为被删包服务的条目（`@cloudflare/workers-types`、`@openauthjs/openauth`、`hono-openapi`、`drizzle-kit` 等） | 移除失效项；catalog 残留不报错，可顺手清理。**`dev:web` 保留**（指向保留链的 app） |
-| `nix/node_modules.nix` | `:36` fileset 含 `../install` | 删 `install` 文件时**必须同步删此行**，否则 nix build 断 |
-| `patches/` + 根 `package.json` `patchedDependencies` | `@standard-community/standard-openapi` patch 仅 enterprise 消费 | 删 patch 文件与 `patchedDependencies` 对应条目，否则 bun install 告警 |
-| `.oxlintrc.json` | `:74-75` ignorePatterns 的 `packages/console/**`、`packages/stats/**` | 死规则（无害），可选清理 |
-| `bun.lock` | 含已删包 | `bun install` 重新生成，无需手工编辑 |
-| `bunfig.toml` | `@opentui/*` 排除项 | tui 保留 → **不动** |
+| 位置                                                 | 现状                                                                                                                                                                                                                                                                                                                                           | 改为                                                                                   |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `publish.yml` build-electron job                     | `needs: [build-cli, version]`（`:231-233`）                                                                                                                                                                                                                                                                                                    | `needs: [version]`                                                                     |
+| `publish.yml` publish job                            | `needs` 含 build-cli、sign-cli-windows（`:457-461`）；下载 4 个 CLI artifacts（`:487-505`）                                                                                                                                                                                                                                                    | 移除 needs 与 4 处 download-artifact；`script/publish.ts` 调用（`:559`）随脚本同步精简 |
+| `script/publish.ts`                                  | `:42` 发布 `packages/cli`                                                                                                                                                                                                                                                                                                                      | 删该段（`:39` aigcfroge、`:45` sdk/js、`:48` plugin、`:51-52` desktop finalize 保留）  |
+| `script/raw-changelog.ts`                            | `:123` git log 路径含 `sdks/vscode github`、`:140` 分类表                                                                                                                                                                                                                                                                                      | 删除目录后同步清理（仍能跑，只是分类失效）                                             |
+| 根 `package.json`                                    | workspaces 单列 `packages/slack`（`:27`）；scripts 含 `dev:storybook`（`:12`）、`sso`（`:20`）；`sst`（devDep `:103`）、`@aws-sdk/client-s3`（`:107`）、`heap-snapshot-toolkit`（`:111`，后两者在 dependencies 段）；catalog 残留只为被删包服务的条目（`@cloudflare/workers-types`、`@openauthjs/openauth`、`hono-openapi`、`drizzle-kit` 等） | 移除失效项；catalog 残留不报错，可顺手清理。**`dev:web` 保留**（指向保留链的 app）     |
+| `nix/node_modules.nix`                               | `:36` fileset 含 `../install`                                                                                                                                                                                                                                                                                                                  | 删 `install` 文件时**必须同步删此行**，否则 nix build 断                               |
+| `patches/` + 根 `package.json` `patchedDependencies` | `@standard-community/standard-openapi` patch 仅 enterprise 消费                                                                                                                                                                                                                                                                                | 删 patch 文件与 `patchedDependencies` 对应条目，否则 bun install 告警                  |
+| `.oxlintrc.json`                                     | `:74-75` ignorePatterns 的 `packages/console/**`、`packages/stats/**`                                                                                                                                                                                                                                                                          | 死规则（无害），可选清理                                                               |
+| `bun.lock`                                           | 含已删包                                                                                                                                                                                                                                                                                                                                       | `bun install` 重新生成，无需手工编辑                                                   |
+| `bunfig.toml`                                        | `@opentui/*` 排除项                                                                                                                                                                                                                                                                                                                            | tui 保留 → **不动**                                                                    |
 
 ### 5.3 真正的风险点（仅 3 个）
 
@@ -253,23 +253,23 @@ nix eval .#aigcfroge-desktop.name   # 或交给 CI 的 nix-eval.yml
 
 ## 8. 关键证据索引（文件与行号）
 
-| 事实 | 证据 |
-|---|---|
-| sidecar 加载 aigcfroge 的 node 产物 | `packages/desktop/electron.vite.config.ts:6`（`AIGCFROGE_SERVER_DIST = "../aigcfroge/dist/node"`）、`:54-68`（`aigcfroge:server-dist` 插件，含 `.wasm` 拷贝） |
-| sidecar 运行时 | `packages/desktop/src/main/sidecar.ts:57`（`import("virtual:aigcfroge-server")` + `Server.listen`）；`src/main/server.ts:82-83`（`utilityProcess.fork`，127.0.0.1 随机端口 + basic auth） |
-| prebuild 构建 sidecar 后端 | `packages/desktop/scripts/prebuild.ts:10`、`scripts/predev.ts:5`（`cd ../aigcfroge && bun script/build-node.ts`） |
-| aigcfroge node 入口 | `packages/aigcfroge/src/node.ts:1-4`（导出 `Config`/`Server`/`bootstrap`/`Database`）；`script/build-node.ts:3,15-29`（输出 `dist/node`） |
-| aigcfroge 依赖 server | `packages/aigcfroge/src/server/routes/instance/httpapi/server.ts:71-117`（import `@aigcfroge/server/*`） |
+| 事实                                 | 证据                                                                                                                                                                                                                            |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| sidecar 加载 aigcfroge 的 node 产物  | `packages/desktop/electron.vite.config.ts:6`（`AIGCFROGE_SERVER_DIST = "../aigcfroge/dist/node"`）、`:54-68`（`aigcfroge:server-dist` 插件，含 `.wasm` 拷贝）                                                                   |
+| sidecar 运行时                       | `packages/desktop/src/main/sidecar.ts:57`（`import("virtual:aigcfroge-server")` + `Server.listen`）；`src/main/server.ts:82-83`（`utilityProcess.fork`，127.0.0.1 随机端口 + basic auth）                                       |
+| prebuild 构建 sidecar 后端           | `packages/desktop/scripts/prebuild.ts:10`、`scripts/predev.ts:5`（`cd ../aigcfroge && bun script/build-node.ts`）                                                                                                               |
+| aigcfroge node 入口                  | `packages/aigcfroge/src/node.ts:1-4`（导出 `Config`/`Server`/`bootstrap`/`Database`）；`script/build-node.ts:3,15-29`（输出 `dist/node`）                                                                                       |
+| aigcfroge 依赖 server                | `packages/aigcfroge/src/server/routes/instance/httpapi/server.ts:71-117`（import `@aigcfroge/server/*`）                                                                                                                        |
 | **tui 被 bundle 进 sidecar（修正）** | `packages/aigcfroge/src/util/record.ts:1`、`src/util/error.ts:1`、`src/util/locale.ts:1-2`（re-export `@aigcfroge/tui`）；`src/config/config.ts:17` 引用 `@/util/record`；`src/node.ts:1` 导出 `Config` → sidecar bundle 含 tui |
-| CLI 相关 dead code | `packages/desktop/scripts/utils.ts:11,54,61`（定义无调用方）；`publish.yml:352` 传 `AIGCFROGE_CLI_ARTIFACT` 无人读取；`copy-bundles.ts` 全仓库无调用；build-electron `needs: [build-cli, version]` 仅排序依赖 |
-| desktop 依赖声明 | `packages/desktop/package.json`（仅 `@aigcfroge/app`、`@aigcfroge/ui`，未声明 aigcfroge） |
-| desktop 对 app/ui 的源码级直接引用 | `electron.vite.config.ts:3`（`@aigcfroge/app/vite`）、`:85`（`publicDir: "../../../app/public"`）；`src/main/windows.ts:4`（`ui/src/theme/themes/oc-2.json`）；`src/renderer/i18n/index.ts:20-35+`（16 处 `app/src/i18n/*`） |
-| app 被三方共享 | desktop renderer（electron.vite.config.ts renderer 段）、`infra/app.ts:64`、`packages/aigcfroge/script/build.ts:29-31,188` |
-| nix 耦合 | `nix/desktop.nix:18-23`（inherit aigcfroge.nix）；`nix/node_modules.nix:33`（fileset 含 `../install`）、`:34`（含 `.github/TEAM_MEMBERS`） |
-| 4 个 workflow 依赖 npm CLI | `review.yml:35`、`triage.yml:23`、`duplicate-issues.yml:23,135`、`pr-management.yml:40`（`bun i -g aigcfroge`） |
-| desktop 无 SST 依赖 | desktop/app 源码零 `infra` 引用；`sst.config.ts` 部署的全是云端端 |
-| 保留链零引用可删包 | 全仓库 grep：`@aigcfroge/{web,enterprise,function,slack,cli,storybook}` 在保留链源码 0 匹配 |
-| patch 消费方 | `@standard-community/standard-openapi` → 仅 `packages/enterprise/package.json:26`（hono-openapi peer）；其余 patch 消费方全在保留链 |
+| CLI 相关 dead code                   | `packages/desktop/scripts/utils.ts:11,54,61`（定义无调用方）；`publish.yml:352` 传 `AIGCFROGE_CLI_ARTIFACT` 无人读取；`copy-bundles.ts` 全仓库无调用；build-electron `needs: [build-cli, version]` 仅排序依赖                   |
+| desktop 依赖声明                     | `packages/desktop/package.json`（仅 `@aigcfroge/app`、`@aigcfroge/ui`，未声明 aigcfroge）                                                                                                                                       |
+| desktop 对 app/ui 的源码级直接引用   | `electron.vite.config.ts:3`（`@aigcfroge/app/vite`）、`:85`（`publicDir: "../../../app/public"`）；`src/main/windows.ts:4`（`ui/src/theme/themes/oc-2.json`）；`src/renderer/i18n/index.ts:20-35+`（16 处 `app/src/i18n/*`）    |
+| app 被三方共享                       | desktop renderer（electron.vite.config.ts renderer 段）、`infra/app.ts:64`、`packages/aigcfroge/script/build.ts:29-31,188`                                                                                                      |
+| nix 耦合                             | `nix/desktop.nix:18-23`（inherit aigcfroge.nix）；`nix/node_modules.nix:33`（fileset 含 `../install`）、`:34`（含 `.github/TEAM_MEMBERS`）                                                                                      |
+| 4 个 workflow 依赖 npm CLI           | `review.yml:35`、`triage.yml:23`、`duplicate-issues.yml:23,135`、`pr-management.yml:40`（`bun i -g aigcfroge`）                                                                                                                 |
+| desktop 无 SST 依赖                  | desktop/app 源码零 `infra` 引用；`sst.config.ts` 部署的全是云端端                                                                                                                                                               |
+| 保留链零引用可删包                   | 全仓库 grep：`@aigcfroge/{web,enterprise,function,slack,cli,storybook}` 在保留链源码 0 匹配                                                                                                                                     |
+| patch 消费方                         | `@standard-community/standard-openapi` → 仅 `packages/enterprise/package.json:26`（hono-openapi peer）；其余 patch 消费方全在保留链                                                                                             |
 
 ---
 
@@ -284,7 +284,6 @@ nix eval .#aigcfroge-desktop.name   # 或交给 CI 的 nix-eval.yml
 - [ ] `script/sign-windows.ps1` 去留（CLI 签名场景消失；桌面 Windows 签名走 electron-builder 内建，可留作备用）
 - [ ] `stats.ts` 脚本（stats.yml 删除后）：npm 维度失效，GitHub release 资产下载量维度仍覆盖 desktop——保留还是删
 
-
 ---
 
 ## 10. 审批记录（2026-08-14）
@@ -293,9 +292,10 @@ nix eval .#aigcfroge-desktop.name   # 或交给 CI 的 nix-eval.yml
 
 - **影响面**：仅本文档（`git diff --stat`：1 file changed）。
 - **命中协议/技能**：`CLAUDE.md`（审批流程）、`AGENTS.md`（根，代码检索/测试规约）、`packages/desktop/AGENTS.md`（4 行，无冲突约束）、`protocols` skill（Phase 1/2 路由与影响面核对）；`effect`/`database`/`frontend-theming` 未命中（无代码改动）。引用完整性 `check-refs.sh`：28/28 通过。
-- **事实核验**：22 条关键声明分两组实地核验（A 组 sidecar/构建链/nix/patches 11 条；B 组 CI/脚本/根配置/测试覆盖 11 条），覆盖上下游 5 层（desktop → app/ui/aigcfroge → session-ui/server → core/plugin → llm/schema/sdk/effect-*）及其测试代码。结果：**语义 0 不符**；7 处行号漂移 + 1 处 dependencies/devDependencies 措辞已回改本文档（§2.6、§4.2、§4.3、§4.4、§5.2、§6、§8）。
+- **事实核验**：22 条关键声明分两组实地核验（A 组 sidecar/构建链/nix/patches 11 条；B 组 CI/脚本/根配置/测试覆盖 11 条），覆盖上下游 5 层（desktop → app/ui/aigcfroge → session-ui/server → core/plugin → llm/schema/sdk/effect-\*）及其测试代码。结果：**语义 0 不符**；7 处行号漂移 + 1 处 dependencies/devDependencies 措辞已回改本文档（§2.6、§4.2、§4.3、§4.4、§5.2、§6、§8）。
 - **测试自洽性**：保留链 16 包测试零引用被删包；既有测试缺口备案于 §5.4。
 - **裁决**：**有条件批准**——计划可按 §6 顺序执行。前置条件：§9 待决策项中 3 项需在执行前由 owner 拍板（storybook 去留、4 个 npm CLI workflow 处置、specs/docs 保留范围），其余待决策项可在执行中并行决定。
+
 ## 10.2 执行审批记录（2026-08-14，终审：批准）
 
 执行在独立 worktree（`slim_desktop_only`）的分支 `desktop-only` 上完成，9 个 commit 对应 §6 各节，1584 文件变更（+168 / -475,756）。
@@ -304,21 +304,21 @@ nix eval .#aigcfroge-desktop.name   # 或交给 CI 的 nix-eval.yml
 
 **审批人独立复验（非转述执行方报告）**：
 
-| 门禁 | 结果 |
-|---|---|
-| typecheck ×4（desktop/app/core/aigcfroge） | 全 PASS |
-| core 测试 | 1782 pass / 2 skip / **0 fail**（执行方申报 "2 fail 同基线" 不准确，实为负载抖动） |
-| aigcfroge 测试 | 3167 pass / 1 fail；失败项 `loop sets status to busy then idle`（`test/session/prompt.test.ts:954`，自带 3s 墙钟超时）为并发负载抖动，隔离复跑 57/57 转绿 |
-| app 全量测试 | 831+3 = **834 pass / 0 fail**，与申报一致 |
-| check-refs.sh | 27/27 通过 |
-| 悬空引用 grep | 保留链对被删包引用 = 0 |
-| 构建产物 | `.deb`(126MB) / `.AppImage`(165MB) / `linux-unpacked` 实际存在 |
+| 门禁                                       | 结果                                                                                                                                                      |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| typecheck ×4（desktop/app/core/aigcfroge） | 全 PASS                                                                                                                                                   |
+| core 测试                                  | 1782 pass / 2 skip / **0 fail**（执行方申报 "2 fail 同基线" 不准确，实为负载抖动）                                                                        |
+| aigcfroge 测试                             | 3167 pass / 1 fail；失败项 `loop sets status to busy then idle`（`test/session/prompt.test.ts:954`，自带 3s 墙钟超时）为并发负载抖动，隔离复跑 57/57 转绿 |
+| app 全量测试                               | 831+3 = **834 pass / 0 fail**，与申报一致                                                                                                                 |
+| check-refs.sh                              | 27/27 通过                                                                                                                                                |
+| 悬空引用 grep                              | 保留链对被删包引用 = 0                                                                                                                                    |
+| 构建产物                                   | `.deb`(126MB) / `.AppImage`(165MB) / `linux-unpacked` 实际存在                                                                                            |
 
 **白盒审查**：publish.yml 手术（build-cli/sign-cli-windows 移除、needs 修正、4 处 artifact 下载删除）逐行核对无误；根 package.json / .oxlintrc.json / nix/node_modules.nix / patches / script/publish.ts:42 / raw-changelog.ts 均与 §5.2 一致。
 
 **遗留瑕疵（非阻塞，均为删除前已存在的死配置）**：
+
 1. `publish.yml:188` 仍传死 env `AIGCFROGE_CLI_ARTIFACT`；`:258` 仍 glob `resources\aigcfroge-cli.exe`（带 SilentlyContinue，无害）——建议顺手清理
 2. `script/publish.ts:38` 日志标签 `=== cli ===` 实为 aigcfroge npm 发布段，措辞陈旧（cosmetic）
 
 **合入前提**：主检出工作区（分支 `fix-assistant-panel-layout`）挂有 14 个 `packages/app` 未提交业务改动（非本次产出），合入前需先提交或另行安置。
-

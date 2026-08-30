@@ -604,12 +604,8 @@ describe("TaskDriver composition-root ownership", () => {
       )
       yield* Effect.all(
         [
-          TaskDriver.createChild({ parentID, id: childID }).pipe(
-            Effect.provideService(TaskDriver.Runtime, runtimeA),
-          ),
-          TaskDriver.createChild({ parentID, id: childID }).pipe(
-            Effect.provideService(TaskDriver.Runtime, runtimeB),
-          ),
+          TaskDriver.createChild({ parentID, id: childID }).pipe(Effect.provideService(TaskDriver.Runtime, runtimeA)),
+          TaskDriver.createChild({ parentID, id: childID }).pipe(Effect.provideService(TaskDriver.Runtime, runtimeB)),
         ],
         { concurrency: "unbounded" },
       )
@@ -640,8 +636,12 @@ describe("TaskDriver composition-root ownership", () => {
       const inner = TaskDriver.make(facade("inner"), background)
       const sessionID = SessionV2.ID.make("ses_registration_lifetime")
 
-      expect(yield* TaskDriver.sessionMode(sessionID).pipe(Effect.provideService(TaskDriver.Runtime, outer))).toBe("outer")
-      expect(yield* TaskDriver.sessionMode(sessionID).pipe(Effect.provideService(TaskDriver.Runtime, inner))).toBe("inner")
+      expect(yield* TaskDriver.sessionMode(sessionID).pipe(Effect.provideService(TaskDriver.Runtime, outer))).toBe(
+        "outer",
+      )
+      expect(yield* TaskDriver.sessionMode(sessionID).pipe(Effect.provideService(TaskDriver.Runtime, inner))).toBe(
+        "inner",
+      )
     }),
   )
 

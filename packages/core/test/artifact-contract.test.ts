@@ -23,9 +23,7 @@ describe("WorkArtifact.ArtifactRecord", () => {
   })
 
   test("rejects unknown kind", () => {
-    expect(() =>
-      Schema.decodeUnknownSync(WorkArtifact.ArtifactRecord)({ ...validRecord, kind: "code" }),
-    ).toThrow()
+    expect(() => Schema.decodeUnknownSync(WorkArtifact.ArtifactRecord)({ ...validRecord, kind: "code" })).toThrow()
   })
 
   test("rejects unknown mediaType", () => {
@@ -35,9 +33,7 @@ describe("WorkArtifact.ArtifactRecord", () => {
   })
 
   test("rejects unknown status", () => {
-    expect(() =>
-      Schema.decodeUnknownSync(WorkArtifact.ArtifactRecord)({ ...validRecord, status: "pending" }),
-    ).toThrow()
+    expect(() => Schema.decodeUnknownSync(WorkArtifact.ArtifactRecord)({ ...validRecord, status: "pending" })).toThrow()
   })
 
   test("rejects missing sessionID", () => {

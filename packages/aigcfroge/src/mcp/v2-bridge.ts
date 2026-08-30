@@ -19,10 +19,7 @@ import "./contributors/ide"
 const DEFAULT_TIMEOUT = 30_000
 
 function createMcpClient() {
-  return new Client(
-    { name: "aigcfroge", version: InstallationVersion },
-    { capabilities: { roots: {} } },
-  )
+  return new Client({ name: "aigcfroge", version: InstallationVersion }, { capabilities: { roots: {} } })
 }
 
 export const layer = Layer.effect(
@@ -58,7 +55,9 @@ export const layer = Layer.effect(
             if (cfg.type === "local" || cfg.command) {
               const [cmd, ...args] = cfg.command ?? []
               const transport = new StdioClientTransport({
-                command: cmd, args, cwd: cfg.cwd,
+                command: cmd,
+                args,
+                cwd: cfg.cwd,
                 env: { ...process.env, ...(cmd === "aigcfroge" ? { BUN_BE_BUN: "1" } : {}), ...cfg.environment },
               })
               client = createMcpClient()
@@ -66,39 +65,60 @@ export const layer = Layer.effect(
             } else if (cfg.type === "remote" && cfg.url) {
               const url = new URL(cfg.url)
               // Build OAuth provider if the config has OAuth enabled
-              const oauthConfig: McpOAuthConfig | undefined = cfg.oauth && typeof cfg.oauth === "object"
-                ? { clientId: cfg.oauth.clientId, clientSecret: cfg.oauth.clientSecret, scope: cfg.oauth.scope, callbackPort: cfg.oauth.callbackPort, redirectUri: cfg.oauth.redirectUri }
-                : cfg.oauth === false ? undefined : undefined
+              const oauthConfig: McpOAuthConfig | undefined =
+                cfg.oauth && typeof cfg.oauth === "object"
+                  ? {
+                      clientId: cfg.oauth.clientId,
+                      clientSecret: cfg.oauth.clientSecret,
+                      scope: cfg.oauth.scope,
+                      callbackPort: cfg.oauth.callbackPort,
+                      redirectUri: cfg.oauth.redirectUri,
+                    }
+                  : cfg.oauth === false
+                    ? undefined
+                    : undefined
               const oauthProvider = oauthConfig
-                ? new McpOAuthProvider(name, cfg.url.toString(), oauthConfig, {
-                    onRedirect: async (authUrl) => {
-                      await McpOAuthCallback.ensureRunning(oauthConfig.redirectUri)
-                      const urlStr = typeof authUrl === "string" ? authUrl : authUrl.toString()
-                      console.log(`Open browser to: ${urlStr}`)
-                      try {
-                        const mod = await import("open")
-                        mod.default(urlStr).catch(() => {})
-                      } catch { /* open not available */ }
+                ? new McpOAuthProvider(
+                    name,
+                    cfg.url.toString(),
+                    oauthConfig,
+                    {
+                      onRedirect: async (authUrl) => {
+                        await McpOAuthCallback.ensureRunning(oauthConfig.redirectUri)
+                        const urlStr = typeof authUrl === "string" ? authUrl : authUrl.toString()
+                        console.log(`Open browser to: ${urlStr}`)
+                        try {
+                          const mod = await import("open")
+                          mod.default(urlStr).catch(() => {})
+                        } catch {
+                          /* open not available */
+                        }
+                      },
                     },
-                  }, auth)
+                    auth,
+                  )
                 : undefined
 
               for (const makeTransport of [
-                () => new StreamableHTTPClientTransport(url, {
-                  ...(cfg.headers ? { requestInit: { headers: cfg.headers } } : {}),
-                  ...(oauthProvider ? { authProvider: oauthProvider } : {}),
-                }),
-                () => new SSEClientTransport(url, {
-                  ...(cfg.headers ? { requestInit: { headers: cfg.headers } } : {}),
-                  ...(oauthProvider ? { authProvider: oauthProvider } : {}),
-                }),
+                () =>
+                  new StreamableHTTPClientTransport(url, {
+                    ...(cfg.headers ? { requestInit: { headers: cfg.headers } } : {}),
+                    ...(oauthProvider ? { authProvider: oauthProvider } : {}),
+                  }),
+                () =>
+                  new SSEClientTransport(url, {
+                    ...(cfg.headers ? { requestInit: { headers: cfg.headers } } : {}),
+                    ...(oauthProvider ? { authProvider: oauthProvider } : {}),
+                  }),
               ]) {
                 try {
                   const transport = makeTransport()
                   client = createMcpClient()
                   await client.connect(transport)
                   break
-                } catch { continue }
+                } catch {
+                  continue
+                }
               }
             }
             if (!client) return undefined

@@ -25,13 +25,19 @@ export function createGitState(input: GitProjectState) {
   const statusQuery = createQuery(() => ({
     queryKey: statusKey(input.directory),
     enabled: input.statusEnabled,
-    queryFn: () => sdk().client.vcs.status({}).then((r) => r.data ?? []),
+    queryFn: () =>
+      sdk()
+        .client.vcs.status({})
+        .then((r) => r.data ?? []),
   }))
 
   const logQuery = createQuery(() => ({
     queryKey: logKey(input.directory),
     enabled: input.statusEnabled,
-    queryFn: () => sdk().client.vcs.log({}).then((r) => r.data ?? []),
+    queryFn: () =>
+      sdk()
+        .client.vcs.log({})
+        .then((r) => r.data ?? []),
   }))
 
   const stageMutation = createMutation(() => ({
@@ -73,12 +79,16 @@ export function createGitState(input: GitProjectState) {
   const hasStaged = () => stagedCount() > 0
 
   const stageAll = () => {
-    const files = status().filter((f) => !f.staged).map((f) => f.file)
+    const files = status()
+      .filter((f) => !f.staged)
+      .map((f) => f.file)
     if (files.length > 0) stageMutation.mutate(files)
   }
 
   const unstageAll = () => {
-    const files = status().filter((f) => f.staged).map((f) => f.file)
+    const files = status()
+      .filter((f) => f.staged)
+      .map((f) => f.file)
     if (files.length > 0) unstageMutation.mutate(files)
   }
 

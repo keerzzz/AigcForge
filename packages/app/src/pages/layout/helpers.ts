@@ -185,10 +185,7 @@ export function openProjectNewSession(
   const dirKey = pathKey(directory)
   const parent = projects
     .list()
-    .find(
-      (p) =>
-        pathKey(p.worktree) === dirKey || (p.sandboxes ?? []).some((s) => pathKey(s) === dirKey),
-    )
+    .find((p) => pathKey(p.worktree) === dirKey || (p.sandboxes ?? []).some((s) => pathKey(s) === dirKey))
   const projectWorktree = parent?.worktree ?? directory
   projects.open(projectWorktree)
   projects.touch(projectWorktree)

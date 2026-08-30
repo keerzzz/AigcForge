@@ -73,9 +73,7 @@ export const instanceHandlers = HttpApiBuilder.group(InstanceHttpApi, "instance"
       )
     })
 
-    const stageVcs = Effect.fn("InstanceHttpApi.vcsStage")(function* (ctx: {
-      payload: { files: readonly string[] }
-    }) {
+    const stageVcs = Effect.fn("InstanceHttpApi.vcsStage")(function* (ctx: { payload: { files: readonly string[] } }) {
       return yield* vcs.stage([...ctx.payload.files]).pipe(
         Effect.mapError(
           (error) =>

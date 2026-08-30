@@ -235,7 +235,8 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
           cancel: () => Effect.void,
         },
         {
-          execute: () => Effect.succeed({ text: "", sessionID: SessionSchema.ID.make("s"), status: "success" as const }),
+          execute: () =>
+            Effect.succeed({ text: "", sessionID: SessionSchema.ID.make("s"), status: "success" as const }),
         },
       )
     }
@@ -253,19 +254,28 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
         const comp = yield* SessionComposition.Service
         const rootSessionID = SessionV2.ID.make("ses_task_cli_test")
 
-        yield* db.insert(ProjectTable).values({ id: ProjectSchema.ID.make("proj_t1_1"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
-        yield* db.insert(SessionTable).values({
-          id: rootSessionID,
-          slug: "t1-slug-1",
-          version: "1.0.0",
-          project_id: ProjectV2.ID.make("proj_t1_1"),
-          directory: AbsolutePath.make("/workspace"),
-          title: "Custom Session",
-          mode: "custom",
-          agent: AgentV2.ID.make("meta"),
-          time_created: Date.now(),
-          time_updated: Date.now(),
-        }).run().pipe(Effect.orDie)
+        yield* db
+          .insert(ProjectTable)
+          .values({ id: ProjectSchema.ID.make("proj_t1_1"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] })
+          .onConflictDoNothing()
+          .run()
+          .pipe(Effect.orDie)
+        yield* db
+          .insert(SessionTable)
+          .values({
+            id: rootSessionID,
+            slug: "t1-slug-1",
+            version: "1.0.0",
+            project_id: ProjectV2.ID.make("proj_t1_1"),
+            directory: AbsolutePath.make("/workspace"),
+            title: "Custom Session",
+            mode: "custom",
+            agent: AgentV2.ID.make("meta"),
+            time_created: Date.now(),
+            time_updated: Date.now(),
+          })
+          .run()
+          .pipe(Effect.orDie)
         yield* comp.attach(rootSessionID, mockSnapshot(rootSessionID, "custom-coder"))
 
         const materialized = yield* reg.materialize()
@@ -309,19 +319,28 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
         const comp = yield* SessionComposition.Service
         const rootSessionID = SessionV2.ID.make("ses_task_judge_test")
 
-        yield* db.insert(ProjectTable).values({ id: ProjectSchema.ID.make("proj_t1_2"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
-        yield* db.insert(SessionTable).values({
-          id: rootSessionID,
-          slug: "t1-slug-2",
-          version: "1.0.0",
-          project_id: ProjectV2.ID.make("proj_t1_2"),
-          directory: AbsolutePath.make("/workspace"),
-          title: "Custom Session",
-          mode: "custom",
-          agent: AgentV2.ID.make("meta"),
-          time_created: Date.now(),
-          time_updated: Date.now(),
-        }).run().pipe(Effect.orDie)
+        yield* db
+          .insert(ProjectTable)
+          .values({ id: ProjectSchema.ID.make("proj_t1_2"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] })
+          .onConflictDoNothing()
+          .run()
+          .pipe(Effect.orDie)
+        yield* db
+          .insert(SessionTable)
+          .values({
+            id: rootSessionID,
+            slug: "t1-slug-2",
+            version: "1.0.0",
+            project_id: ProjectV2.ID.make("proj_t1_2"),
+            directory: AbsolutePath.make("/workspace"),
+            title: "Custom Session",
+            mode: "custom",
+            agent: AgentV2.ID.make("meta"),
+            time_created: Date.now(),
+            time_updated: Date.now(),
+          })
+          .run()
+          .pipe(Effect.orDie)
         yield* comp.attach(rootSessionID, mockSnapshot(rootSessionID, "custom-coder"))
 
         const materialized = yield* reg.materialize()
@@ -365,19 +384,28 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
         const comp = yield* SessionComposition.Service
         const rootSessionID = SessionV2.ID.make("ses_task_bg_test")
 
-        yield* db.insert(ProjectTable).values({ id: ProjectSchema.ID.make("proj_t1_3"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
-        yield* db.insert(SessionTable).values({
-          id: rootSessionID,
-          slug: "t1-slug-3",
-          version: "1.0.0",
-          project_id: ProjectV2.ID.make("proj_t1_3"),
-          directory: AbsolutePath.make("/workspace"),
-          title: "Custom Session",
-          mode: "custom",
-          agent: AgentV2.ID.make("meta"),
-          time_created: Date.now(),
-          time_updated: Date.now(),
-        }).run().pipe(Effect.orDie)
+        yield* db
+          .insert(ProjectTable)
+          .values({ id: ProjectSchema.ID.make("proj_t1_3"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] })
+          .onConflictDoNothing()
+          .run()
+          .pipe(Effect.orDie)
+        yield* db
+          .insert(SessionTable)
+          .values({
+            id: rootSessionID,
+            slug: "t1-slug-3",
+            version: "1.0.0",
+            project_id: ProjectV2.ID.make("proj_t1_3"),
+            directory: AbsolutePath.make("/workspace"),
+            title: "Custom Session",
+            mode: "custom",
+            agent: AgentV2.ID.make("meta"),
+            time_created: Date.now(),
+            time_updated: Date.now(),
+          })
+          .run()
+          .pipe(Effect.orDie)
         yield* comp.attach(rootSessionID, mockSnapshot(rootSessionID, "custom-coder"))
 
         const materialized = yield* reg.materialize()
@@ -420,19 +448,28 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
         const comp = yield* SessionComposition.Service
         const rootSessionID = SessionV2.ID.make("ses_task_unauth_test")
 
-        yield* db.insert(ProjectTable).values({ id: ProjectSchema.ID.make("proj_t1_4"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
-        yield* db.insert(SessionTable).values({
-          id: rootSessionID,
-          slug: "t1-slug-4",
-          version: "1.0.0",
-          project_id: ProjectV2.ID.make("proj_t1_4"),
-          directory: AbsolutePath.make("/workspace"),
-          title: "Custom Session",
-          mode: "custom",
-          agent: AgentV2.ID.make("meta"),
-          time_created: Date.now(),
-          time_updated: Date.now(),
-        }).run().pipe(Effect.orDie)
+        yield* db
+          .insert(ProjectTable)
+          .values({ id: ProjectSchema.ID.make("proj_t1_4"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] })
+          .onConflictDoNothing()
+          .run()
+          .pipe(Effect.orDie)
+        yield* db
+          .insert(SessionTable)
+          .values({
+            id: rootSessionID,
+            slug: "t1-slug-4",
+            version: "1.0.0",
+            project_id: ProjectV2.ID.make("proj_t1_4"),
+            directory: AbsolutePath.make("/workspace"),
+            title: "Custom Session",
+            mode: "custom",
+            agent: AgentV2.ID.make("meta"),
+            time_created: Date.now(),
+            time_updated: Date.now(),
+          })
+          .run()
+          .pipe(Effect.orDie)
         yield* comp.attach(rootSessionID, mockSnapshot(rootSessionID, "custom-coder"))
 
         const materialized = yield* reg.materialize()
@@ -482,19 +519,32 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
         const { db } = yield* Database.Service
         const rootSessionID = SessionV2.ID.make("ses_custom_root_1")
 
-        yield* db.insert(ProjectTable).values({ id: ProjectSchema.ID.make("proj_test_1"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
-        yield* db.insert(SessionTable).values({
-          id: rootSessionID,
-          slug: "root-slug-1",
-          version: "1.0.0",
-          project_id: ProjectV2.ID.make("proj_test_1"),
-          directory: AbsolutePath.make("/workspace"),
-          title: "Custom Session",
-          mode: "custom",
-          agent: AgentV2.ID.make("meta"),
-          time_created: Date.now(),
-          time_updated: Date.now(),
-        }).run().pipe(Effect.orDie)
+        yield* db
+          .insert(ProjectTable)
+          .values({
+            id: ProjectSchema.ID.make("proj_test_1"),
+            worktree: AbsolutePath.make("/workspace"),
+            sandboxes: [],
+          })
+          .onConflictDoNothing()
+          .run()
+          .pipe(Effect.orDie)
+        yield* db
+          .insert(SessionTable)
+          .values({
+            id: rootSessionID,
+            slug: "root-slug-1",
+            version: "1.0.0",
+            project_id: ProjectV2.ID.make("proj_test_1"),
+            directory: AbsolutePath.make("/workspace"),
+            title: "Custom Session",
+            mode: "custom",
+            agent: AgentV2.ID.make("meta"),
+            time_created: Date.now(),
+            time_updated: Date.now(),
+          })
+          .run()
+          .pipe(Effect.orDie)
 
         yield* comp.attach(rootSessionID, mockSnapshot(rootSessionID, "custom-coder"))
 
@@ -523,19 +573,32 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
 
         // Create root custom session via DB + attach snapshot
         const rootSessionID = SessionV2.ID.make("ses_root_custom_sec")
-        yield* db.insert(ProjectTable).values({ id: ProjectSchema.ID.make("proj_test_2"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
-        yield* db.insert(SessionTable).values({
-          id: rootSessionID,
-          slug: "root-slug-2",
-          version: "1.0.0",
-          project_id: ProjectV2.ID.make("proj_test_2"),
-          directory: AbsolutePath.make("/workspace"),
-          title: "Custom Session",
-          mode: "custom",
-          agent: AgentV2.ID.make("meta"),
-          time_created: Date.now(),
-          time_updated: Date.now(),
-        }).run().pipe(Effect.orDie)
+        yield* db
+          .insert(ProjectTable)
+          .values({
+            id: ProjectSchema.ID.make("proj_test_2"),
+            worktree: AbsolutePath.make("/workspace"),
+            sandboxes: [],
+          })
+          .onConflictDoNothing()
+          .run()
+          .pipe(Effect.orDie)
+        yield* db
+          .insert(SessionTable)
+          .values({
+            id: rootSessionID,
+            slug: "root-slug-2",
+            version: "1.0.0",
+            project_id: ProjectV2.ID.make("proj_test_2"),
+            directory: AbsolutePath.make("/workspace"),
+            title: "Custom Session",
+            mode: "custom",
+            agent: AgentV2.ID.make("meta"),
+            time_created: Date.now(),
+            time_updated: Date.now(),
+          })
+          .run()
+          .pipe(Effect.orDie)
 
         yield* comp.attach(rootSessionID, mockSnapshot(rootSessionID, "custom-coder"))
 
@@ -578,19 +641,28 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
         const { db } = yield* Database.Service
 
         const rootSessionID = SessionV2.ID.make("ses_switch_gate_root")
-        yield* db.insert(ProjectTable).values({ id: ProjectV2.ID.make("proj_test_5"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
-        yield* db.insert(SessionTable).values({
-          id: rootSessionID,
-          slug: "switch-gate-slug",
-          version: "1.0.0",
-          project_id: ProjectV2.ID.make("proj_test_5"),
-          directory: AbsolutePath.make("/workspace"),
-          title: "Switch Gate",
-          mode: "custom",
-          agent: AgentV2.ID.make("meta"),
-          time_created: Date.now(),
-          time_updated: Date.now(),
-        }).run().pipe(Effect.orDie)
+        yield* db
+          .insert(ProjectTable)
+          .values({ id: ProjectV2.ID.make("proj_test_5"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] })
+          .onConflictDoNothing()
+          .run()
+          .pipe(Effect.orDie)
+        yield* db
+          .insert(SessionTable)
+          .values({
+            id: rootSessionID,
+            slug: "switch-gate-slug",
+            version: "1.0.0",
+            project_id: ProjectV2.ID.make("proj_test_5"),
+            directory: AbsolutePath.make("/workspace"),
+            title: "Switch Gate",
+            mode: "custom",
+            agent: AgentV2.ID.make("meta"),
+            time_created: Date.now(),
+            time_updated: Date.now(),
+          })
+          .run()
+          .pipe(Effect.orDie)
         yield* comp.attach(rootSessionID, mockSnapshot(rootSessionID, "custom-coder"))
 
         // An in-pool agent switches cleanly.
@@ -736,19 +808,32 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
         const { db } = yield* Database.Service
         const sessionID = SessionV2.ID.make("ses_dep_test")
 
-        yield* db.insert(ProjectTable).values({ id: ProjectSchema.ID.make("proj_test_3"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
-        yield* db.insert(SessionTable).values({
-          id: sessionID,
-          slug: "dep-slug",
-          version: "1.0.0",
-          project_id: ProjectV2.ID.make("proj_test_3"),
-          directory: AbsolutePath.make("/workspace"),
-          title: "Custom Session",
-          mode: "custom",
-          agent: AgentV2.ID.make("meta"),
-          time_created: Date.now(),
-          time_updated: Date.now(),
-        }).run().pipe(Effect.orDie)
+        yield* db
+          .insert(ProjectTable)
+          .values({
+            id: ProjectSchema.ID.make("proj_test_3"),
+            worktree: AbsolutePath.make("/workspace"),
+            sandboxes: [],
+          })
+          .onConflictDoNothing()
+          .run()
+          .pipe(Effect.orDie)
+        yield* db
+          .insert(SessionTable)
+          .values({
+            id: sessionID,
+            slug: "dep-slug",
+            version: "1.0.0",
+            project_id: ProjectV2.ID.make("proj_test_3"),
+            directory: AbsolutePath.make("/workspace"),
+            title: "Custom Session",
+            mode: "custom",
+            agent: AgentV2.ID.make("meta"),
+            time_created: Date.now(),
+            time_updated: Date.now(),
+          })
+          .run()
+          .pipe(Effect.orDie)
 
         yield* comp.attach(sessionID, mockSnapshot(sessionID, "custom-coder"))
 
@@ -793,19 +878,28 @@ describe("Skill Tool Snapshot-Local Lookup (MEDIUM-2a)", () => {
       const sessionID = SessionV2.ID.make("ses_skill_snap_in")
       currentSkills = [boundSkill, outsideSkill]
 
-      yield* db.insert(ProjectTable).values({ id: ProjectSchema.ID.make("proj_sk_1"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
-      yield* db.insert(SessionTable).values({
-        id: sessionID,
-        slug: "sk-slug-1",
-        version: "1.0.0",
-        project_id: ProjectV2.ID.make("proj_sk_1"),
-        directory: AbsolutePath.make("/workspace"),
-        title: "Custom Session",
-        mode: "custom",
-        agent: AgentV2.ID.make("meta"),
-        time_created: Date.now(),
-        time_updated: Date.now(),
-      }).run().pipe(Effect.orDie)
+      yield* db
+        .insert(ProjectTable)
+        .values({ id: ProjectSchema.ID.make("proj_sk_1"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] })
+        .onConflictDoNothing()
+        .run()
+        .pipe(Effect.orDie)
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: sessionID,
+          slug: "sk-slug-1",
+          version: "1.0.0",
+          project_id: ProjectV2.ID.make("proj_sk_1"),
+          directory: AbsolutePath.make("/workspace"),
+          title: "Custom Session",
+          mode: "custom",
+          agent: AgentV2.ID.make("meta"),
+          time_created: Date.now(),
+          time_updated: Date.now(),
+        })
+        .run()
+        .pipe(Effect.orDie)
       yield* comp.attach(sessionID, mockSnapshot(sessionID, "custom-coder", snapshotSkills))
 
       const reg = yield* ToolRegistry.Service
@@ -831,19 +925,28 @@ describe("Skill Tool Snapshot-Local Lookup (MEDIUM-2a)", () => {
       const sessionID = SessionV2.ID.make("ses_skill_snap_out")
       currentSkills = [boundSkill, outsideSkill]
 
-      yield* db.insert(ProjectTable).values({ id: ProjectSchema.ID.make("proj_sk_2"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
-      yield* db.insert(SessionTable).values({
-        id: sessionID,
-        slug: "sk-slug-2",
-        version: "1.0.0",
-        project_id: ProjectV2.ID.make("proj_sk_2"),
-        directory: AbsolutePath.make("/workspace"),
-        title: "Custom Session",
-        mode: "custom",
-        agent: AgentV2.ID.make("meta"),
-        time_created: Date.now(),
-        time_updated: Date.now(),
-      }).run().pipe(Effect.orDie)
+      yield* db
+        .insert(ProjectTable)
+        .values({ id: ProjectSchema.ID.make("proj_sk_2"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] })
+        .onConflictDoNothing()
+        .run()
+        .pipe(Effect.orDie)
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: sessionID,
+          slug: "sk-slug-2",
+          version: "1.0.0",
+          project_id: ProjectV2.ID.make("proj_sk_2"),
+          directory: AbsolutePath.make("/workspace"),
+          title: "Custom Session",
+          mode: "custom",
+          agent: AgentV2.ID.make("meta"),
+          time_created: Date.now(),
+          time_updated: Date.now(),
+        })
+        .run()
+        .pipe(Effect.orDie)
       yield* comp.attach(sessionID, mockSnapshot(sessionID, "custom-coder", snapshotSkills))
 
       const reg = yield* ToolRegistry.Service
@@ -868,19 +971,28 @@ describe("Skill Tool Snapshot-Local Lookup (MEDIUM-2a)", () => {
       const sessionID = SessionV2.ID.make("ses_skill_coding")
       currentSkills = [boundSkill, outsideSkill]
 
-      yield* db.insert(ProjectTable).values({ id: ProjectSchema.ID.make("proj_sk_3"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
-      yield* db.insert(SessionTable).values({
-        id: sessionID,
-        slug: "sk-slug-3",
-        version: "1.0.0",
-        project_id: ProjectV2.ID.make("proj_sk_3"),
-        directory: AbsolutePath.make("/workspace"),
-        title: "Coding Session",
-        mode: "coding",
-        agent: AgentV2.ID.make("build"),
-        time_created: Date.now(),
-        time_updated: Date.now(),
-      }).run().pipe(Effect.orDie)
+      yield* db
+        .insert(ProjectTable)
+        .values({ id: ProjectSchema.ID.make("proj_sk_3"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] })
+        .onConflictDoNothing()
+        .run()
+        .pipe(Effect.orDie)
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: sessionID,
+          slug: "sk-slug-3",
+          version: "1.0.0",
+          project_id: ProjectV2.ID.make("proj_sk_3"),
+          directory: AbsolutePath.make("/workspace"),
+          title: "Coding Session",
+          mode: "coding",
+          agent: AgentV2.ID.make("build"),
+          time_created: Date.now(),
+          time_updated: Date.now(),
+        })
+        .run()
+        .pipe(Effect.orDie)
 
       const reg = yield* ToolRegistry.Service
       const materialized = yield* reg.materialize()
@@ -904,19 +1016,28 @@ describe("Skill Tool Snapshot-Local Lookup (MEDIUM-2a)", () => {
       const sessionID = SessionV2.ID.make("ses_skill_snap_missing")
       currentSkills = [boundSkill, outsideSkill]
 
-      yield* db.insert(ProjectTable).values({ id: ProjectSchema.ID.make("proj_sk_4"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
-      yield* db.insert(SessionTable).values({
-        id: sessionID,
-        slug: "sk-slug-4",
-        version: "1.0.0",
-        project_id: ProjectV2.ID.make("proj_sk_4"),
-        directory: AbsolutePath.make("/workspace"),
-        title: "Custom Session",
-        mode: "custom",
-        agent: AgentV2.ID.make("meta"),
-        time_created: Date.now(),
-        time_updated: Date.now(),
-      }).run().pipe(Effect.orDie)
+      yield* db
+        .insert(ProjectTable)
+        .values({ id: ProjectSchema.ID.make("proj_sk_4"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] })
+        .onConflictDoNothing()
+        .run()
+        .pipe(Effect.orDie)
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: sessionID,
+          slug: "sk-slug-4",
+          version: "1.0.0",
+          project_id: ProjectV2.ID.make("proj_sk_4"),
+          directory: AbsolutePath.make("/workspace"),
+          title: "Custom Session",
+          mode: "custom",
+          agent: AgentV2.ID.make("meta"),
+          time_created: Date.now(),
+          time_updated: Date.now(),
+        })
+        .run()
+        .pipe(Effect.orDie)
 
       const reg = yield* ToolRegistry.Service
       const materialized = yield* reg.materialize()

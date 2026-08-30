@@ -13,7 +13,7 @@ describe("resolveLibs (D3 Inline Script Injection)", () => {
   })
 
   test("inlines both when both globals are used", () => {
-    const html = '<script>vis.Network(); new Chart();</script>'
+    const html = "<script>vis.Network(); new Chart();</script>"
     expect(resolveLibs(html)).toEqual([CHART_LIBS["vis-network"], CHART_LIBS["chart.js"]])
   })
 

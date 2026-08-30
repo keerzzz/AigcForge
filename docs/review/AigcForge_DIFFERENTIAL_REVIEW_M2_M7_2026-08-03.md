@@ -7,12 +7,12 @@
 
 ## 1. Executive Summary
 
-| Severity | Count |
-|---|---:|
-| CRITICAL | 0 |
-| HIGH | 5 |
-| MEDIUM | 3 |
-| LOW / Gate | 2 |
+| Severity   | Count |
+| ---------- | ----: |
+| CRITICAL   |     0 |
+| HIGH       |     5 |
+| MEDIUM     |     3 |
+| LOW / Gate |     2 |
 
 **Overall risk:** HIGH
 **Recommendation:** **REJECT — 不批准合并。**
@@ -34,6 +34,7 @@
 ### HIGH-1: App 全量回写会把 `scheduled` / `failed` 静默改成 `pending`
 
 **Files:**
+
 - `packages/app/src/pages/session/timeline/session-todo-progress-model.ts:66-75`
 - `packages/app/src/pages/session/timeline/session-todo-progress.tsx:134-155`
 - `packages/core/src/session/scheduled-job.ts:79-83`
@@ -60,6 +61,7 @@
 ### HIGH-2: 基于缓存的全列表 PATCH 会删除并发新增任务
 
 **Files:**
+
 - `packages/app/src/pages/session/timeline/session-todo-progress.tsx:134-155`
 - `packages/app/src/pages/session/timeline/agent-task-hub.tsx:131-195`
 - `packages/app/src/pages/session/timeline/session-scheduled-tasks.tsx:79-100`
@@ -83,6 +85,7 @@
 ### HIGH-3: daemon 中断后任务永久停在 `in_progress`，重启不会恢复
 
 **Files:**
+
 - `packages/core/src/session/scheduled-job.ts:110-165`
 - `packages/core/test/scheduled-job.test.ts:244-275`
 
@@ -98,6 +101,7 @@ trigger 先持久化 `in_progress`。interrupt-only cause 被直接传播，不�
 ### HIGH-4: 领域层未维护“scheduled 必须有有效 trigger”的不变量
 
 **Files:**
+
 - `packages/core/src/session/task.ts:284-307,400-408`
 - `packages/core/src/tool/taskschedule.ts:73-100`
 - `packages/core/src/session/scheduled-job.ts:71-83`
@@ -119,6 +123,7 @@ trigger 先持久化 `in_progress`。interrupt-only cause 被直接传播，不�
 ### HIGH-5: `task_spawn` 的公开契约宣称会运行 Agent，但实现只创建不会执行的 pending row
 
 **Files:**
+
 - `packages/core/src/tool/taskspawn.ts:13-24,43-70`
 - `specs/v2/todo.md:133-137`
 
@@ -145,6 +150,7 @@ Input 描述为“Prompt the spawned agent runs”，工具名和说明也表达
 ### MEDIUM-2: cron 计算是同步逐分钟扫描，读取路径可被线性放大
 
 **Files:**
+
 - `packages/core/src/session/schedule.ts:80-99`
 - `packages/core/src/session/task.ts:171-193,576-580`
 
@@ -221,14 +227,14 @@ Incremental lint 报新增违规：
 
 ## 7. Blast Radius
 
-| Area | Blast radius | Risk |
-|---|---|---|
-| `SessionTask.update` full reconcile | HTTP PATCH、Progress、Scheduled popover、Agent Hub、tool remove | HIGH |
-| status normalization | Every interactive task-list write | HIGH |
-| ScheduledJob claim/recovery | Every one-shot/recurring job across process restarts | HIGH |
-| schedule invariant | HTTP、tool、App create/resume、daemon arm | HIGH |
-| DAG scope | Every scheduled task with `dependsOn` | MEDIUM/HIGH |
-| `nextRun` | write validation、read endpoints、events、Hub aggregation、daemon arm | MEDIUM/HIGH |
+| Area                                | Blast radius                                                          | Risk        |
+| ----------------------------------- | --------------------------------------------------------------------- | ----------- |
+| `SessionTask.update` full reconcile | HTTP PATCH、Progress、Scheduled popover、Agent Hub、tool remove       | HIGH        |
+| status normalization                | Every interactive task-list write                                     | HIGH        |
+| ScheduledJob claim/recovery         | Every one-shot/recurring job across process restarts                  | HIGH        |
+| schedule invariant                  | HTTP、tool、App create/resume、daemon arm                             | HIGH        |
+| DAG scope                           | Every scheduled task with `dependsOn`                                 | MEDIUM/HIGH |
+| `nextRun`                           | write validation、read endpoints、events、Hub aggregation、daemon arm | MEDIUM/HIGH |
 
 ## 8. Required Actions Before Re-review
 

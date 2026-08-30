@@ -4,10 +4,7 @@ import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useLanguage } from "@/context/language"
 import type { AssetRow } from "./asset-workbench"
 
-export function AssetDeleteDialog(props: {
-  asset: AssetRow
-  onDelete: () => Promise<boolean> | boolean
-}) {
+export function AssetDeleteDialog(props: { asset: AssetRow; onDelete: () => Promise<boolean> | boolean }) {
   const language = useLanguage()
   const dialog = useDialog()
 
@@ -37,9 +34,7 @@ export function AssetDeleteDialog(props: {
             <span class="text-v2-text-text-base">{props.asset.relativePath}</span>
           </div>
         </div>
-        <p class="text-v2-state-fg-danger text-13-regular">
-          {language.t("promptAsset.asset.deleteIrreversible")}
-        </p>
+        <p class="text-v2-state-fg-danger text-13-regular">{language.t("promptAsset.asset.deleteIrreversible")}</p>
         <div class="flex justify-end gap-2">
           <ButtonV2 variant="ghost" onClick={() => dialog.close()}>
             {language.t("common.cancel")}

@@ -18,14 +18,8 @@ describe("toolCountFromParts", () => {
       { id: "m2", sessionID: "s1", role: "assistant", time: { created: 0 } } as Message,
     ]
     const parts: Record<string, Part[]> = {
-      m1: [
-        { id: "p1", type: "tool", tool: "read" } as Part,
-        { id: "p2", type: "text", text: "hello" } as Part,
-      ],
-      m2: [
-        { id: "p3", type: "tool", tool: "edit" } as Part,
-        { id: "p4", type: "tool", tool: "grep" } as Part,
-      ],
+      m1: [{ id: "p1", type: "tool", tool: "read" } as Part, { id: "p2", type: "text", text: "hello" } as Part],
+      m2: [{ id: "p3", type: "tool", tool: "edit" } as Part, { id: "p4", type: "tool", tool: "grep" } as Part],
     }
     expect(toolCountFromParts(parts, messages)).toBe(3)
   })

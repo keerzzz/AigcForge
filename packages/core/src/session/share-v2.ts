@@ -84,9 +84,9 @@ export const layer = Layer.effect(
           text = `[Shared reference] Source session: ${input.sourceSessionID}. Use the session.read tool to inspect its history.`
           break
         case "output": {
-          const msgs = yield* sessions.messages({ sessionID: input.sourceSessionID, order: "asc" }).pipe(
-            Effect.catch((e) => Effect.die(e instanceof Error ? e : new Error(String(e)))),
-          )
+          const msgs = yield* sessions
+            .messages({ sessionID: input.sourceSessionID, order: "asc" })
+            .pipe(Effect.catch((e) => Effect.die(e instanceof Error ? e : new Error(String(e)))))
           const output = lastAssistantText(msgs)
           if (!output) {
             text = `[Shared output] Source session ${input.sourceSessionID} has no assistant output yet.`
@@ -96,9 +96,9 @@ export const layer = Layer.effect(
           break
         }
         case "full": {
-          const msgs = yield* sessions.context(input.sourceSessionID).pipe(
-            Effect.catch((e) => Effect.die(e instanceof Error ? e : new Error(String(e)))),
-          )
+          const msgs = yield* sessions
+            .context(input.sourceSessionID)
+            .pipe(Effect.catch((e) => Effect.die(e instanceof Error ? e : new Error(String(e)))))
           text = `[Shared history from session ${input.sourceSessionID}]\n\n${formatMessages(msgs)}`
           break
         }
@@ -114,9 +114,9 @@ export const layer = Layer.effect(
 
       // Optionally trigger a drain so the target agent runs a turn over the shared content.
       if (input.trigger === true) {
-        yield* sessions.resume(input.targetSessionID).pipe(
-          Effect.catch((e) => Effect.die(e instanceof Error ? e : new Error(String(e)))),
-        )
+        yield* sessions
+          .resume(input.targetSessionID)
+          .pipe(Effect.catch((e) => Effect.die(e instanceof Error ? e : new Error(String(e)))))
       }
     })
 
@@ -125,8 +125,5 @@ export const layer = Layer.effect(
 )
 
 export const defaultLayer = Layer.suspend(() =>
-  layer.pipe(
-    Layer.provideMerge(SessionV2.defaultLayer),
-    Layer.provideMerge(EventV2.defaultLayer),
-  ),
+  layer.pipe(Layer.provideMerge(SessionV2.defaultLayer), Layer.provideMerge(EventV2.defaultLayer)),
 )

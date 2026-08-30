@@ -74,30 +74,32 @@ export const registerAgentAssetTransform = (
   agents: AgentV2.Interface,
   assetRegistry: AgentAsset.Interface,
 ): Effect.Effect<void, never, Scope.Scope> =>
-  agents.transform((draft) =>
-    Effect.gen(function* () {
-      const assetList = yield* assetRegistry.list()
-      for (const asset of assetList) {
-        const info = agentAssetToAgentInfo(asset)
-        if (!info) continue
-        // An Agent Asset may only contribute a NEW candidate. Transforms replay
-        // over one shared draft, so a plain `Object.assign` lets a user/LLM
-        // authored asset replace an already-registered agent wholesale —
-        // including built-in fail-closed permission rulesets (chat-orchestrator,
-        // build, plan, …). Name collision must never be an override path.
-        if (draft.get(info.id) !== undefined) {
-          yield* Effect.logWarning("Ignoring agent asset that collides with an existing agent", {
-            agent: info.id,
-            relativePath: asset.relativePath,
+  agents
+    .transform((draft) =>
+      Effect.gen(function* () {
+        const assetList = yield* assetRegistry.list()
+        for (const asset of assetList) {
+          const info = agentAssetToAgentInfo(asset)
+          if (!info) continue
+          // An Agent Asset may only contribute a NEW candidate. Transforms replay
+          // over one shared draft, so a plain `Object.assign` lets a user/LLM
+          // authored asset replace an already-registered agent wholesale —
+          // including built-in fail-closed permission rulesets (chat-orchestrator,
+          // build, plan, …). Name collision must never be an override path.
+          if (draft.get(info.id) !== undefined) {
+            yield* Effect.logWarning("Ignoring agent asset that collides with an existing agent", {
+              agent: info.id,
+              relativePath: asset.relativePath,
+            })
+            continue
+          }
+          draft.update(info.id, (item) => {
+            Object.assign(item, info)
           })
-          continue
         }
-        draft.update(info.id, (item) => {
-          Object.assign(item, info)
-        })
-      }
-    }),
-  ).pipe(Effect.asVoid)
+      }),
+    )
+    .pipe(Effect.asVoid)
 
 export const refreshAgentAssets = (agents: AgentV2.Interface, assetRegistry: AgentAsset.Interface) =>
   assetRegistry.reload().pipe(Effect.andThen(agents.reload()))
@@ -111,20 +113,18 @@ export const layer = Layer.effectDiscard(
     const location = yield* Location.Service
     const scope = yield* Scope.Scope
     const ownerRoot = path.resolve(location.directory, AGENTS_DIR)
-    yield* events
-      .subscribe(Watcher.Event.Updated)
-      .pipe(
-        Stream.filter((event) => FSUtil.contains(ownerRoot, event.data.file) && event.data.file.endsWith(".md")),
-        Stream.runForEach(() =>
-          refreshAgentAssets(agents, assetRegistry).pipe(
-            Effect.catch((error) =>
-              Effect.logWarning("Failed to refresh AgentV2 from Agent assets", {
-                errorTag: "_tag" in error ? error._tag : "filesystem_error",
-              }),
-            ),
+    yield* events.subscribe(Watcher.Event.Updated).pipe(
+      Stream.filter((event) => FSUtil.contains(ownerRoot, event.data.file) && event.data.file.endsWith(".md")),
+      Stream.runForEach(() =>
+        refreshAgentAssets(agents, assetRegistry).pipe(
+          Effect.catch((error) =>
+            Effect.logWarning("Failed to refresh AgentV2 from Agent assets", {
+              errorTag: "_tag" in error ? error._tag : "filesystem_error",
+            }),
           ),
         ),
-        Effect.forkIn(scope),
-      )
+      ),
+      Effect.forkIn(scope),
+    )
   }),
 )

@@ -54,9 +54,7 @@ export default defineConfig({
         name: "aigcfroge:server-dist",
         enforce: "pre",
         resolveId(id) {
-          return id === "virtual:aigcfroge-server"
-            ? this.resolve(`${AIGCFROGE_SERVER_DIST}/node.js`)
-            : null
+          return id === "virtual:aigcfroge-server" ? this.resolve(`${AIGCFROGE_SERVER_DIST}/node.js`) : null
         },
         async writeBundle() {
           const outDir = "./out/main/chunks"

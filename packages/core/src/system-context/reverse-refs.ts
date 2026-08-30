@@ -15,10 +15,9 @@ const settings = (documents: readonly Config.Entry[]) => {
   const configured = documents
     .filter((entry): entry is Config.Document => entry.type === "document")
     .flatMap((entry) => (entry.info.meta?.reverse_refs ? [entry.info.meta.reverse_refs] : []))
-  return configured.reduce<Settings>(
-    (result, current) => ({ enabled: current.enabled ?? result.enabled }),
-    { enabled: DEFAULT_ENABLED },
-  )
+  return configured.reduce<Settings>((result, current) => ({ enabled: current.enabled ?? result.enabled }), {
+    enabled: DEFAULT_ENABLED,
+  })
 }
 
 export class CodegraphError extends Schema.TaggedErrorClass<CodegraphError>()("ReverseRefs.CodegraphError", {

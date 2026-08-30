@@ -4,7 +4,14 @@ import { Icon } from "@aigcfroge/ui/v2/icon"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { useCustomDraft } from "@/context/custom-draft"
-import { WorkflowTab, InstructionsTab, CapabilitiesTab, PermissionsTab, DiagnosticsTab, McpTab } from "./custom-preview-tabs"
+import {
+  WorkflowTab,
+  InstructionsTab,
+  CapabilitiesTab,
+  PermissionsTab,
+  DiagnosticsTab,
+  McpTab,
+} from "./custom-preview-tabs"
 import { useModeDirectory } from "@/pages/mode-workspace-context"
 import { useTabs } from "@/context/tabs"
 import { ServerConnection } from "@/context/server"
@@ -180,20 +187,13 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
         <div class="flex items-center justify-between text-11-regular text-v2-text-text-muted border-t border-v2-border-border-base pt-2">
           <div class="flex items-center gap-2">
             <span>{language.t("custom.builder.planDigest")}:</span>
-            <Show
-              when={plan()?.digest}
-              fallback={<span class="font-mono text-v2-text-text-faint">-</span>}
-            >
+            <Show when={plan()?.digest} fallback={<span class="font-mono text-v2-text-text-faint">-</span>}>
               <span class="rounded bg-v2-background-bg-layer-03 px-1.5 py-0.5 font-mono text-11-medium text-v2-text-text-base">
                 {plan()?.digest.slice(0, 8)}
               </span>
             </Show>
           </div>
-          <button
-            type="button"
-            class="hover:text-v2-text-text-base text-11-medium"
-            onClick={() => refetchPlan()}
-          >
+          <button type="button" class="hover:text-v2-text-text-base text-11-medium" onClick={() => refetchPlan()}>
             {language.t("custom.builder.recalculatePlan")}
           </button>
         </div>
@@ -227,18 +227,10 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
       <div class="flex-1 min-h-0 flex flex-col rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 overflow-hidden">
         <TabsV2 value={activeTab()} onChange={setActiveTab} class="flex flex-col h-full">
           <div class="flex items-center overflow-x-auto border-b border-v2-border-border-base px-2 bg-v2-background-bg-layer-03">
-            <TabsV2.Trigger value="workflow">
-              {language.t("custom.builder.tab.workflow")}
-            </TabsV2.Trigger>
-            <TabsV2.Trigger value="instructions">
-              {language.t("custom.builder.tab.instructions")}
-            </TabsV2.Trigger>
-            <TabsV2.Trigger value="capabilities">
-              {language.t("custom.builder.tab.capabilities")}
-            </TabsV2.Trigger>
-            <TabsV2.Trigger value="permissions">
-              {language.t("custom.builder.tab.permissions")}
-            </TabsV2.Trigger>
+            <TabsV2.Trigger value="workflow">{language.t("custom.builder.tab.workflow")}</TabsV2.Trigger>
+            <TabsV2.Trigger value="instructions">{language.t("custom.builder.tab.instructions")}</TabsV2.Trigger>
+            <TabsV2.Trigger value="capabilities">{language.t("custom.builder.tab.capabilities")}</TabsV2.Trigger>
+            <TabsV2.Trigger value="permissions">{language.t("custom.builder.tab.permissions")}</TabsV2.Trigger>
             <TabsV2.Trigger value="mcp">
               <div class="flex items-center gap-1.5">
                 <span>{language.t("custom.builder.tab.mcp")}</span>

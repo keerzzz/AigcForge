@@ -83,9 +83,7 @@ describe("browser boundary: @aigcfroge workspace imports", () => {
         while (queue.length > 0) {
           const current = queue.shift()!
           if (readsProcessOnImport(current)) {
-            offenders.push(
-              `${path.relative(appSrc, file)} -> ${specifier} -> ${path.relative(packagesRoot, current)}`,
-            )
+            offenders.push(`${path.relative(appSrc, file)} -> ${specifier} -> ${path.relative(packagesRoot, current)}`)
             break
           }
           for (const next of specifiers(current)) {

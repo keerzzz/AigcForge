@@ -24,7 +24,9 @@ export const dispatch = (tools: Tools, call: ToolCallPart): Effect.Effect<Dispat
   const tool = tools[call.name]
   if (!tool) return Effect.succeed(result(call, { result: { type: "error", value: `Unknown tool: ${call.name}` } }))
   if (!tool.execute)
-    return Effect.succeed(result(call, { result: { type: "error", value: `Tool has no execute handler: ${call.name}` } }))
+    return Effect.succeed(
+      result(call, { result: { type: "error", value: `Tool has no execute handler: ${call.name}` } }),
+    )
 
   return decodeAndExecute(tool, call).pipe(
     Effect.map((value) => result(call, value)),

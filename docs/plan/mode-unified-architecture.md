@@ -36,41 +36,44 @@ mode 状态流:
 ### 1.1 home.tsx — Unify enterMode
 
 **Before** (line 394-410):
-```ts
-function enterMode(m: Mode) {
-    mode.setCurrentMode(m)
-    const placement = mode.activeSessionId(m)()
-    if (placement) {
-      navigate(sessionHref(placement.server, placement.sessionId))
-      return
-    }
-    if (m === "coding") {                          // ← 删掉这个分支
-      const conn = focusedServer()
-      const project = newSessionProject()
-      if (conn && project) {
-        openProjectNewSession(conn, project.worktree)
-      }
-      return
-    }
-    navigate("/")                                   // ← 删掉这个兜底
-  }
-```
 
-**After**:
 ```ts
 function enterMode(m: Mode) {
-    mode.setCurrentMode(m)
-    const placement = mode.activeSessionId(m)()
-    if (placement) {
-      navigate(sessionHref(placement.server, placement.sessionId))
-      return
-    }
+  mode.setCurrentMode(m)
+  const placement = mode.activeSessionId(m)()
+  if (placement) {
+    navigate(sessionHref(placement.server, placement.sessionId))
+    return
+  }
+  if (m === "coding") {
+    // ← 删掉这个分支
     const conn = focusedServer()
     const project = newSessionProject()
     if (conn && project) {
       openProjectNewSession(conn, project.worktree)
     }
+    return
   }
+  navigate("/") // ← 删掉这个兜底
+}
+```
+
+**After**:
+
+```ts
+function enterMode(m: Mode) {
+  mode.setCurrentMode(m)
+  const placement = mode.activeSessionId(m)()
+  if (placement) {
+    navigate(sessionHref(placement.server, placement.sessionId))
+    return
+  }
+  const conn = focusedServer()
+  const project = newSessionProject()
+  if (conn && project) {
+    openProjectNewSession(conn, project.worktree)
+  }
+}
 ```
 
 四个 mode 统一：有 placement 恢复，没有就新建 draft。
@@ -80,6 +83,7 @@ function enterMode(m: Mode) {
 **Location**: `createPromptSubmit` in [submit.ts:384-392](../../packages/app/src/components/prompt-input/submit.ts#L384-L392)
 
 After session creation (`session = created`), add:
+
 ```ts
 mode.setActiveSessionId(mode.currentMode, {
   server: server.key,
@@ -94,6 +98,7 @@ Need to add `import { useMode } from "@/context/mode"` and `const mode = useMode
 **Location**: `ResolvedTargetSessionRoute` in [app.tsx:116-123](../../packages/app/src/app.tsx#L116-L123)
 
 After `tabs.addSessionTab(...)`, add:
+
 ```ts
 mode.setActiveSessionId(mode.currentMode, {
   server: serverKey(),
@@ -138,11 +143,11 @@ bun run lint
 
 ## 4. File Manifest
 
-| File | Action | Lines |
-|------|--------|-------|
-| [home.tsx](../../packages/app/src/pages/home.tsx) | Delete `if (m === "coding")` branch + `navigate("/")` | -7 |
-| [submit.ts](../../packages/app/src/components/prompt-input/submit.ts) | Add `mode.setActiveSessionId(...)` after session create | +4 |
-| [app.tsx](../../packages/app/src/app.tsx) | Add `mode.setActiveSessionId(...)` after tab add | +4 |
+| File                                                                  | Action                                                  | Lines |
+| --------------------------------------------------------------------- | ------------------------------------------------------- | ----- |
+| [home.tsx](../../packages/app/src/pages/home.tsx)                     | Delete `if (m === "coding")` branch + `navigate("/")`   | -7    |
+| [submit.ts](../../packages/app/src/components/prompt-input/submit.ts) | Add `mode.setActiveSessionId(...)` after session create | +4    |
+| [app.tsx](../../packages/app/src/app.tsx)                             | Add `mode.setActiveSessionId(...)` after tab add        | +4    |
 
 ## 5. What This Does NOT Do
 

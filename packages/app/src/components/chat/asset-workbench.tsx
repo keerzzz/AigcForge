@@ -46,7 +46,11 @@ export type AssetRow = {
 
 export function buildRows(
   assets: readonly AssetInput[],
-  invalid: readonly { relativePath: string; kind: AssetKindId; errorTag?: "parse_error" | "bad_frontmatter" | "name_conflict" }[],
+  invalid: readonly {
+    relativePath: string
+    kind: AssetKindId
+    errorTag?: "parse_error" | "bad_frontmatter" | "name_conflict"
+  }[],
 ): AssetRow[] {
   const valid: AssetRow[] = assets.map((a) => ({
     kind: a.kind,
@@ -154,7 +158,11 @@ export function mergeAssets(project: readonly AssetInput[], system: readonly Sys
 }
 
 /** 系统级计数（M4 功能树）：与 mergeAssets 同规则剔除被项目级遮蔽的同名项，保证侧栏计数与表格行一致。 */
-export function systemCountFor(system: readonly SystemAsset[], kind: AssetKindId, projectNames: ReadonlySet<string>): number {
+export function systemCountFor(
+  system: readonly SystemAsset[],
+  kind: AssetKindId,
+  projectNames: ReadonlySet<string>,
+): number {
   return system.filter((s) => s.kind === kind && !projectNames.has(s.name)).length
 }
 
@@ -180,7 +188,11 @@ export function createAssetWorkbenchStore() {
 
 export function AssetWorkbenchTable(props: {
   assets: readonly AssetInput[]
-  invalid: readonly { relativePath: string; kind: AssetKindId; errorTag?: "parse_error" | "bad_frontmatter" | "name_conflict" }[]
+  invalid: readonly {
+    relativePath: string
+    kind: AssetKindId
+    errorTag?: "parse_error" | "bad_frontmatter" | "name_conflict"
+  }[]
   onSelect?: (row: AssetRow) => void
   onInsert?: (row: AssetRow) => void
   /** 新建按钮回调：传入时按钮非 disabled，点击触发新建流程。 */
@@ -205,7 +217,10 @@ export function AssetWorkbenchTable(props: {
   })
 
   const rows = createMemo(() => {
-    const byKind = filterByKind(filterBySearch(buildRows(props.assets, props.invalid), store.state.search), store.state.kindFilter)
+    const byKind = filterByKind(
+      filterBySearch(buildRows(props.assets, props.invalid), store.state.search),
+      store.state.kindFilter,
+    )
     return sortRows(filterByOrigin(byKind, store.state.originFilter))
   })
 
@@ -257,7 +272,12 @@ export function AssetWorkbenchTable(props: {
             </button>
           ))}
         </div>
-        <ButtonV2 variant="neutral" icon="plus" disabled={isNewButtonDisabled(props.onNew)} onClick={() => props.onNew?.()}>
+        <ButtonV2
+          variant="neutral"
+          icon="plus"
+          disabled={isNewButtonDisabled(props.onNew)}
+          onClick={() => props.onNew?.()}
+        >
           {language.t("asset.panel.new", { kind: kindLabel() })}
         </ButtonV2>
         <ButtonV2 variant="ghost" disabled={!props.onImport} onClick={() => props.onImport?.()}>
@@ -268,19 +288,21 @@ export function AssetWorkbenchTable(props: {
         <Show
           when={rows().length > 0}
           fallback={
-            <p class="px-4 py-6 text-v2-text-text-muted [font-weight:440]">{language.t("promptAsset.panel.noAssets")}</p>
+            <p class="px-4 py-6 text-v2-text-text-muted [font-weight:440]">
+              {language.t("promptAsset.panel.noAssets")}
+            </p>
           }
         >
           <Suspense>
-          <div class="flex flex-col">
-            <div class="flex items-center gap-2 px-3 py-1.5 lg:px-4 text-v2-text-text-faint text-11-regular">
-              <span class="w-16 lg:w-20 shrink-0">{language.t("promptAsset.list.kind")}</span>
-              <span class="flex-[35] truncate">{language.t("promptAsset.list.name")}</span>
-              <span class="hidden sm:flex sm:flex-[40] truncate">{language.t("promptAsset.list.description")}</span>
-              <span class="hidden sm:flex sm:flex-[20] sm:justify-end" aria-hidden="true" />
-            </div>
-            <For each={rows()}>
-              {(row) => (
+            <div class="flex flex-col">
+              <div class="flex items-center gap-2 px-3 py-1.5 lg:px-4 text-v2-text-text-faint text-11-regular">
+                <span class="w-16 lg:w-20 shrink-0">{language.t("promptAsset.list.kind")}</span>
+                <span class="flex-[35] truncate">{language.t("promptAsset.list.name")}</span>
+                <span class="hidden sm:flex sm:flex-[40] truncate">{language.t("promptAsset.list.description")}</span>
+                <span class="hidden sm:flex sm:flex-[20] sm:justify-end" aria-hidden="true" />
+              </div>
+              <For each={rows()}>
+                {(row) => (
                   <div
                     role="button"
                     tabindex="0"
@@ -305,12 +327,15 @@ export function AssetWorkbenchTable(props: {
                       </span>
                       <Show when={row.invalid}>
                         <TooltipV2 value={row.errorTag}>
-                          <span class="text-v2-state-fg-danger" aria-label={language.t("promptAsset.badge.invalid")}>●</span>
+                          <span class="text-v2-state-fg-danger" aria-label={language.t("promptAsset.badge.invalid")}>
+                            ●
+                          </span>
                         </TooltipV2>
                       </Show>
                     </span>
                     <span class="min-w-0 flex-1 truncate sm:flex-[35] text-v2-text-text-base [font-weight:530]">
-                      <Show when={row.origin === "system"}
+                      <Show
+                        when={row.origin === "system"}
                         fallback={
                           <span
                             class="mr-1 rounded-[3px] bg-v2-background-bg-layer-04 px-1.5 py-0.5 text-[10px] text-v2-text-text-muted"
@@ -321,7 +346,9 @@ export function AssetWorkbenchTable(props: {
                         }
                       >
                         <TooltipV2
-                          value={language.t("asset.origin.systemTooltip", { kind: language.t("chat.feature." + row.kind) })}
+                          value={language.t("asset.origin.systemTooltip", {
+                            kind: language.t("chat.feature." + row.kind),
+                          })}
                         >
                           <span
                             class="mr-1 rounded-[3px] bg-v2-background-bg-layer-04 px-1.5 py-0.5 text-[10px] text-v2-text-text-muted"
@@ -333,7 +360,9 @@ export function AssetWorkbenchTable(props: {
                       </Show>
                       {row.name || row.relativePath}
                     </span>
-                    <span class="min-w-0 hidden sm:block sm:flex-[40] truncate text-v2-text-text-muted">{row.description}</span>
+                    <span class="min-w-0 hidden sm:block sm:flex-[40] truncate text-v2-text-text-muted">
+                      {row.description}
+                    </span>
                     <span class="relative hidden sm:flex shrink-0 sm:flex-[20] items-center justify-end gap-1 self-stretch">
                       <Show when={row.origin !== "system"}>
                         <Show when={!row.invalid}>
@@ -366,8 +395,8 @@ export function AssetWorkbenchTable(props: {
                     </span>
                   </div>
                 )}
-            </For>
-          </div>
+              </For>
+            </div>
           </Suspense>
         </Show>
       </div>

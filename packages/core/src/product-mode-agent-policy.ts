@@ -11,26 +11,20 @@ export * as ProductModeAgentPolicy from "./product-mode-agent-policy"
 import { Effect, Schema } from "effect"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 
-export class AgentNotAllowedError extends Schema.TaggedErrorClass<AgentNotAllowedError>()(
-  "AgentNotAllowedError",
-  {
-    mode: Schema.String,
-    agent: Schema.optional(Schema.String),
-    reason: Schema.String,
-  },
-) {
+export class AgentNotAllowedError extends Schema.TaggedErrorClass<AgentNotAllowedError>()("AgentNotAllowedError", {
+  mode: Schema.String,
+  agent: Schema.optional(Schema.String),
+  reason: Schema.String,
+}) {
   override get message() {
     return `Agent "${this.agent ?? "default"}" is not allowed in mode "${this.mode}": ${this.reason}`
   }
 }
 
-export class CommandDeniedError extends Schema.TaggedErrorClass<CommandDeniedError>()(
-  "CommandDeniedError",
-  {
-    mode: Schema.String,
-    reason: Schema.String,
-  },
-) {
+export class CommandDeniedError extends Schema.TaggedErrorClass<CommandDeniedError>()("CommandDeniedError", {
+  mode: Schema.String,
+  reason: Schema.String,
+}) {
   override get message() {
     return `Command/shell is not allowed in mode "${this.mode}": ${this.reason}`
   }
@@ -82,7 +76,11 @@ export function checkPrimaryAgent(mode: string, agent?: string): PolicyVerdict {
     if (agent !== META && agent !== CHAT_ORCHESTRATOR) {
       return {
         allowed: false,
-        error: new AgentNotAllowedError({ mode, agent, reason: "Only meta or chat-orchestrator is allowed in chat mode" }),
+        error: new AgentNotAllowedError({
+          mode,
+          agent,
+          reason: "Only meta or chat-orchestrator is allowed in chat mode",
+        }),
       }
     }
     return { allowed: true }
@@ -92,7 +90,11 @@ export function checkPrimaryAgent(mode: string, agent?: string): PolicyVerdict {
     if (agent !== META && agent !== WORK_ORCHESTRATOR) {
       return {
         allowed: false,
-        error: new AgentNotAllowedError({ mode, agent, reason: "Only meta or work-orchestrator is allowed in work mode" }),
+        error: new AgentNotAllowedError({
+          mode,
+          agent,
+          reason: "Only meta or work-orchestrator is allowed in work mode",
+        }),
       }
     }
     return { allowed: true }
@@ -102,7 +104,11 @@ export function checkPrimaryAgent(mode: string, agent?: string): PolicyVerdict {
     if (agent !== META && agent !== ASSISTANT_ORCHESTRATOR) {
       return {
         allowed: false,
-        error: new AgentNotAllowedError({ mode, agent, reason: "Only meta or assistant-orchestrator is allowed in assistant mode" }),
+        error: new AgentNotAllowedError({
+          mode,
+          agent,
+          reason: "Only meta or assistant-orchestrator is allowed in assistant mode",
+        }),
       }
     }
     return { allowed: true }
@@ -136,7 +142,11 @@ export function checkPrimaryAgent(mode: string, agent?: string): PolicyVerdict {
   if (agent === ASSISTANT_ORCHESTRATOR) {
     return {
       allowed: false,
-      error: new AgentNotAllowedError({ mode, agent, reason: "assistant-orchestrator is only valid in assistant mode" }),
+      error: new AgentNotAllowedError({
+        mode,
+        agent,
+        reason: "assistant-orchestrator is only valid in assistant mode",
+      }),
     }
   }
   return { allowed: true }

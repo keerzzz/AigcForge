@@ -32,9 +32,12 @@ type RouteState = {
   readonly failures: number
 }
 
-export class InvalidLevelError extends Schema.TaggedErrorClass<InvalidLevelError>()("VerificationRouter.InvalidLevelError", {
-  reason: Schema.String,
-}) {
+export class InvalidLevelError extends Schema.TaggedErrorClass<InvalidLevelError>()(
+  "VerificationRouter.InvalidLevelError",
+  {
+    reason: Schema.String,
+  },
+) {
   override get message() {
     return `Invalid verification route: ${this.reason}`
   }
@@ -70,13 +73,26 @@ export const layer = Layer.effect(
         // failure count reaches the threshold, the level moves up one step.
         const level: RouteLevel =
           current.failures >= configured.escalationThreshold
-            ? (current.level === "l0" ? "l1" : current.level === "l1" ? "l2" : "l2")
+            ? current.level === "l0"
+              ? "l1"
+              : current.level === "l1"
+                ? "l2"
+                : "l2"
             : current.level
         if (input.failed) {
           const failures = current.failures + 1
-          const next = failures >= configured.escalationThreshold
-            ? { level: (current.level === "l0" ? "l1" as const : current.level === "l1" ? "l2" as const : "l2" as const), failures: 0 }
-            : { level: current.level, failures }
+          const next =
+            failures >= configured.escalationThreshold
+              ? {
+                  level:
+                    current.level === "l0"
+                      ? ("l1" as const)
+                      : current.level === "l1"
+                        ? ("l2" as const)
+                        : ("l2" as const),
+                  failures: 0,
+                }
+              : { level: current.level, failures }
           return [level, map.set(input.sessionID, next)]
         }
         return [level, map.set(input.sessionID, { level: "l0", failures: 0 })]

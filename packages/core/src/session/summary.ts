@@ -31,8 +31,9 @@ export const layer = Layer.effect(
 
       // Find the assistant message with snapshot data for the same messageID
       // or for the assistant message produced in response to the target.
-      const assistantMsg = msgs.find((m): m is Extract<SessionMessage.Message, { type: "assistant" }> =>
-        m.type === "assistant" && m.snapshot?.start != null && m.snapshot?.end != null
+      const assistantMsg = msgs.find(
+        (m): m is Extract<SessionMessage.Message, { type: "assistant" }> =>
+          m.type === "assistant" && m.snapshot?.start != null && m.snapshot?.end != null,
       )
 
       if (!assistantMsg?.snapshot?.start || !assistantMsg?.snapshot?.end) return []
@@ -44,6 +45,4 @@ export const layer = Layer.effect(
   }),
 )
 
-export const defaultLayer = layer.pipe(
-  Layer.provide(SessionStore.defaultLayer),
-)
+export const defaultLayer = layer.pipe(Layer.provide(SessionStore.defaultLayer))

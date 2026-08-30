@@ -144,15 +144,13 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const requireRuntimeSession = Effect.fn("SessionHttpApi.requireRuntimeSession")(function* (sessionID: SessionID) {
       const info = yield* requireSession(sessionID)
       yield* ProductModePolicy.assertRuntimeSupported(info.mode).pipe(
-        Effect.catchTag(
-          "UnsupportedProductModeError",
-          (error) =>
-            Effect.fail(
-              new UnsupportedProductModeError({
-                mode: error.mode,
-                message: error.message,
-              }),
-            ),
+        Effect.catchTag("UnsupportedProductModeError", (error) =>
+          Effect.fail(
+            new UnsupportedProductModeError({
+              mode: error.mode,
+              message: error.message,
+            }),
+          ),
         ),
       )
       return info
@@ -429,9 +427,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       )
     })
 
-    const create = Effect.fn("SessionHttpApi.create")(function* (ctx: {
-      payload?: Session.CreateInput
-    }) {
+    const create = Effect.fn("SessionHttpApi.create")(function* (ctx: { payload?: Session.CreateInput }) {
       yield* ProductModePolicy.assertCreationSupported(ctx.payload?.mode)
       // create stays on the V1 path (shareSvc.create) even when AIGCFROGE_V2_RUNTIME=true.
       // V2 SessionV2.create requires an explicit location.directory, but the create
@@ -465,23 +461,22 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       const info = yield* requireRuntimeSession(ctx.params.sessionID)
       if (ProductModePolicy.shouldUseV2Runtime(info.mode, AIGCFROGE_V2_RUNTIME)) {
         const v2s = yield* SessionV2.Service
-        yield* v2s.remove(ctx.params.sessionID).pipe(
-          Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))),
-        )
+        yield* v2s
+          .remove(ctx.params.sessionID)
+          .pipe(Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))))
         return true
       }
       yield* SessionError.mapStorageNotFound(session.remove(ctx.params.sessionID))
       return true
     })
 
-    const overrideNotFound = (sessionID: SessionID) =>
-      Effect.fail(notFound(`Session not found: ${sessionID}`))
+    const overrideNotFound = (sessionID: SessionID) => Effect.fail(notFound(`Session not found: ${sessionID}`))
 
     const overrideGet = Effect.fnUntraced(function* (sessionID: SessionID) {
       yield* requireSession(sessionID)
-      return yield* permissionOverrideSvc.get(sessionID).pipe(
-        Effect.catchTag("Session.NotFoundError", () => overrideNotFound(sessionID)),
-      )
+      return yield* permissionOverrideSvc
+        .get(sessionID)
+        .pipe(Effect.catchTag("Session.NotFoundError", () => overrideNotFound(sessionID)))
     })
 
     const overrideStatus = Effect.fn("SessionHttpApi.overrideStatus")(function* (sessionID: SessionID) {
@@ -506,9 +501,10 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
         Effect.catchTag("PermissionOverride.UnavailableError", (error) =>
           Effect.fail(
             new InvalidRequestError({
-              message: error.reason === "child-session"
-                ? "Permission override is only available for root sessions"
-                : "Permission override is not available for unattended sessions",
+              message:
+                error.reason === "child-session"
+                  ? "Permission override is only available for root sessions"
+                  : "Permission override is not available for unattended sessions",
               kind: "permission-override",
             }),
           ),
@@ -534,9 +530,9 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       if (ctx.payload.title !== undefined) {
         if (ProductModePolicy.shouldUseV2Runtime(current.mode, AIGCFROGE_V2_RUNTIME)) {
           const v2s = yield* SessionV2.Service
-          yield* v2s.setTitle({ sessionID: ctx.params.sessionID, title: ctx.payload.title }).pipe(
-            Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))),
-          )
+          yield* v2s
+            .setTitle({ sessionID: ctx.params.sessionID, title: ctx.payload.title })
+            .pipe(Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))))
         } else {
           yield* session.setTitle({ sessionID: ctx.params.sessionID, title: ctx.payload.title })
         }
@@ -568,9 +564,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
                 }),
               ),
             ),
-            Effect.catchTag("NotFoundError", () =>
-              Effect.fail(notFound(`Session not found: ${ctx.params.sessionID}`)),
-            ),
+            Effect.catchTag("NotFoundError", () => Effect.fail(notFound(`Session not found: ${ctx.params.sessionID}`))),
           )
       }
       if (ctx.payload.time?.archived !== undefined) {
@@ -622,17 +616,13 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       // snapshot (orphan custom parents fail typed via the SnapshotNotFound
       // catchTag below). Root custom creation stays blocked on session.create.
       if (original.mode !== "custom") {
-        yield* ProductModePolicy.assertCreationSupported(original.mode).pipe(
-          Effect.mapError(unsupportedProductMode),
-        )
+        yield* ProductModePolicy.assertCreationSupported(original.mode).pipe(Effect.mapError(unsupportedProductMode))
       }
       if (ProductModePolicy.shouldUseV2Runtime(original.mode, AIGCFROGE_V2_RUNTIME)) {
         const v2s = yield* SessionV2.Service
         const parent = yield* SessionError.mapStorageNotFound(session.get(ctx.params.sessionID))
         if (parent.mode !== "custom") {
-          yield* ProductModePolicy.assertCreationSupported(parent.mode).pipe(
-            Effect.mapError(unsupportedProductMode),
-          )
+          yield* ProductModePolicy.assertCreationSupported(parent.mode).pipe(Effect.mapError(unsupportedProductMode))
         }
         const child = yield* v2s
           .create({
@@ -719,9 +709,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
           Effect.catchTag("SessionComposition.SnapshotNotFoundError", () =>
             Effect.fail(notFound(`Snapshot not found for session ${ctx.params.sessionID}`)),
           ),
-          Effect.catchTag("SessionComposition.SnapshotDecodeError", () =>
-            Effect.fail(new HttpApiError.BadRequest({})),
-          ),
+          Effect.catchTag("SessionComposition.SnapshotDecodeError", () => Effect.fail(new HttpApiError.BadRequest({}))),
         )
         return true
       }
@@ -755,7 +743,9 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
           })
           .pipe(Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))))
       } else {
-        yield* shareSvc.share(ctx.params.sessionID).pipe(Effect.mapError(() => new HttpApiError.InternalServerError({})))
+        yield* shareSvc
+          .share(ctx.params.sessionID)
+          .pipe(Effect.mapError(() => new HttpApiError.InternalServerError({})))
       }
       return yield* requireRuntimeSession(ctx.params.sessionID)
     })
@@ -921,19 +911,21 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       const info = yield* requireRuntimeSession(ctx.params.sessionID)
       if (ProductModePolicy.shouldUseV2Runtime(info.mode, AIGCFROGE_V2_RUNTIME)) {
         const v2perm = yield* PermissionV2.Service
-        yield* v2perm.reply({
-          requestID: PermissionV2.ID.make(ctx.params.permissionID),
-          reply: ctx.payload.response,
-        }).pipe(
-          Effect.catchTag("PermissionV2.NotFoundError", (error) =>
-            Effect.fail(
-              new PermissionNotFoundError({
-                requestID: String(error.requestID),
-                message: `Permission request not found: ${error.requestID}`,
-              }),
+        yield* v2perm
+          .reply({
+            requestID: PermissionV2.ID.make(ctx.params.permissionID),
+            reply: ctx.payload.response,
+          })
+          .pipe(
+            Effect.catchTag("PermissionV2.NotFoundError", (error) =>
+              Effect.fail(
+                new PermissionNotFoundError({
+                  requestID: String(error.requestID),
+                  message: `Permission request not found: ${error.requestID}`,
+                }),
+              ),
             ),
-          ),
-        )
+          )
       } else {
         yield* permissionSvc.reply({ requestID: ctx.params.permissionID, reply: ctx.payload.response }).pipe(
           Effect.catchTag("Permission.NotFoundError", (error) =>
@@ -956,12 +948,12 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       yield* SessionError.mapBusy(runState.assertNotBusy(ctx.params.sessionID))
       if (ProductModePolicy.shouldUseV2Runtime(info.mode, AIGCFROGE_V2_RUNTIME)) {
         const v2s = yield* SessionV2.Service
-        yield* v2s.removeMessage({
-          sessionID: ctx.params.sessionID,
-          messageID: SessionMessage.ID.make(ctx.params.messageID),
-        }).pipe(
-          Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))),
-        )
+        yield* v2s
+          .removeMessage({
+            sessionID: ctx.params.sessionID,
+            messageID: SessionMessage.ID.make(ctx.params.messageID),
+          })
+          .pipe(Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))))
         return true
       }
       yield* session.removeMessage(ctx.params)
@@ -1001,9 +993,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       )
     })
 
-    const toolSummary = Effect.fn("SessionHttpApi.toolSummary")(function* (ctx: {
-      params: { sessionID: SessionID }
-    }) {
+    const toolSummary = Effect.fn("SessionHttpApi.toolSummary")(function* (ctx: { params: { sessionID: SessionID } }) {
       const info = yield* requireSession(ctx.params.sessionID)
       if (ProductModePolicy.shouldUseV2Runtime(info.mode, AIGCFROGE_V2_RUNTIME)) {
         const v2s = yield* SessionV2.Service
@@ -1015,9 +1005,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       return []
     })
 
-    const composition = Effect.fn("SessionHttpApi.composition")(function* (ctx: {
-      params: { sessionID: SessionID }
-    }) {
+    const composition = Effect.fn("SessionHttpApi.composition")(function* (ctx: { params: { sessionID: SessionID } }) {
       const info = yield* requireRuntimeSession(ctx.params.sessionID)
       // SessionComposition is Location-scoped and resolved through the
       // LocationServiceMap for the session's directory.
@@ -1032,16 +1020,12 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
         Effect.catchTag("SessionComposition.SnapshotNotFoundError", () =>
           Effect.fail(notFound(`Snapshot not found for session ${ctx.params.sessionID}`)),
         ),
-        Effect.catchTag("SessionComposition.SnapshotDecodeError", () =>
-          Effect.fail(new HttpApiError.BadRequest({})),
-        ),
+        Effect.catchTag("SessionComposition.SnapshotDecodeError", () => Effect.fail(new HttpApiError.BadRequest({}))),
       )
       return snapshot
     })
 
-    const workflow = Effect.fn("SessionHttpApi.workflow")(function* (ctx: {
-      params: { sessionID: SessionID }
-    }) {
+    const workflow = Effect.fn("SessionHttpApi.workflow")(function* (ctx: { params: { sessionID: SessionID } }) {
       const info = yield* requireRuntimeSession(ctx.params.sessionID)
       const layer = locations.get(
         Location.Ref.make({
@@ -1117,20 +1101,24 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       const info = yield* requireRuntimeSession(ctx.params.sessionID)
       const layer = workflowLocation(info)
       const workflowService = yield* WorkflowRun.Service.pipe(Effect.provide(layer), Effect.orDie)
-      const run = yield* workflowService.get(ctx.params.runID).pipe(
-        Effect.catchTag("WorkflowRun.WorkflowNotFoundError", () => Effect.fail(notFound("Workflow run not found"))),
-      )
+      const run = yield* workflowService
+        .get(ctx.params.runID)
+        .pipe(
+          Effect.catchTag("WorkflowRun.WorkflowNotFoundError", () => Effect.fail(notFound("Workflow run not found"))),
+        )
       if (run.sessionID !== ctx.params.sessionID) return yield* notFound("Workflow run not found")
-      const cancelling = yield* workflowService.cancelRun({
-        runID: run.id,
-        expectedRevision: ctx.payload.expectedRunRevision,
-        errorCategory: "step_cancelled",
-      }).pipe(
-        Effect.catchTag("WorkflowRun.InvalidStateTransitionError", (error) =>
-          Effect.fail(new ConflictError({ message: error.message, resource: run.id })),
-        ),
-        Effect.catchTag("WorkflowRun.WorkflowNotFoundError", () => Effect.fail(notFound("Workflow run not found"))),
-      )
+      const cancelling = yield* workflowService
+        .cancelRun({
+          runID: run.id,
+          expectedRevision: ctx.payload.expectedRunRevision,
+          errorCategory: "step_cancelled",
+        })
+        .pipe(
+          Effect.catchTag("WorkflowRun.InvalidStateTransitionError", (error) =>
+            Effect.fail(new ConflictError({ message: error.message, resource: run.id })),
+          ),
+          Effect.catchTag("WorkflowRun.WorkflowNotFoundError", () => Effect.fail(notFound("Workflow run not found"))),
+        )
       yield* workflowExecution.interrupt(ctx.params.sessionID)
       const notFoundRun = () => Effect.fail(notFound("Workflow run not found"))
       // The interrupted owner may have bumped the run revision on its way out, so
@@ -1145,7 +1133,9 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
             Effect.flatMap((fresh) =>
               fresh.status === "cancelling"
                 ? finalize(fresh.revision).pipe(
-                    Effect.catchTag("WorkflowRun.InvalidStateTransitionError", () => workflowService.get(cancelling.id)),
+                    Effect.catchTag("WorkflowRun.InvalidStateTransitionError", () =>
+                      workflowService.get(cancelling.id),
+                    ),
                   )
                 : Effect.succeed(fresh),
             ),
@@ -1154,7 +1144,10 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
         ),
         Effect.catchTag("WorkflowRun.WorkflowNotFoundError", notFoundRun),
       )
-      return new WorkflowAsset.WorkflowStatusResponse({ run: finalRun, steps: yield* workflowService.getSteps(finalRun.id) })
+      return new WorkflowAsset.WorkflowStatusResponse({
+        run: finalRun,
+        steps: yield* workflowService.getSteps(finalRun.id),
+      })
     })
 
     const workflowCancelStep = Effect.fn("SessionHttpApi.workflowCancelStep")(function* (ctx: {
@@ -1163,26 +1156,35 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     }) {
       const info = yield* requireRuntimeSession(ctx.params.sessionID)
       const workflowService = yield* WorkflowRun.Service.pipe(Effect.provide(workflowLocation(info)), Effect.orDie)
-      const run = yield* workflowService.get(ctx.params.runID).pipe(
-        Effect.catchTag("WorkflowRun.WorkflowNotFoundError", () => Effect.fail(notFound("Workflow run not found"))),
-      )
+      const run = yield* workflowService
+        .get(ctx.params.runID)
+        .pipe(
+          Effect.catchTag("WorkflowRun.WorkflowNotFoundError", () => Effect.fail(notFound("Workflow run not found"))),
+        )
       if (run.sessionID !== ctx.params.sessionID) return yield* notFound("Workflow run not found")
       const step = (yield* workflowService.getSteps(run.id)).find((candidate) => candidate.id === ctx.params.stepRunID)
       if (!step) return yield* notFound("Workflow step not found")
       if (run.revision !== ctx.payload.expectedRunRevision || step.revision !== ctx.payload.expectedStepRevision) {
         return yield* new ConflictError({ message: "Workflow revision is stale. Refresh and retry.", resource: run.id })
       }
-      yield* workflowService.cancelStep({ stepRunID: step.id, expectedRevision: step.revision, errorCategory: "step_cancelled" }).pipe(
-        Effect.catchTag("WorkflowRun.StepNotFoundError", () => Effect.fail(notFound("Workflow step not found"))),
-        Effect.catchTag("WorkflowRun.InvalidStateTransitionError", (error) =>
-          Effect.fail(new ConflictError({ message: error.message, resource: step.id })),
-        ),
-      )
+      yield* workflowService
+        .cancelStep({ stepRunID: step.id, expectedRevision: step.revision, errorCategory: "step_cancelled" })
+        .pipe(
+          Effect.catchTag("WorkflowRun.StepNotFoundError", () => Effect.fail(notFound("Workflow step not found"))),
+          Effect.catchTag("WorkflowRun.InvalidStateTransitionError", (error) =>
+            Effect.fail(new ConflictError({ message: error.message, resource: step.id })),
+          ),
+        )
       yield* workflowExecution.wake(ctx.params.sessionID)
-      const updatedRun = yield* workflowService.get(run.id).pipe(
-        Effect.catchTag("WorkflowRun.WorkflowNotFoundError", () => Effect.fail(notFound("Workflow run not found"))),
-      )
-      return new WorkflowAsset.WorkflowStatusResponse({ run: updatedRun, steps: yield* workflowService.getSteps(run.id) })
+      const updatedRun = yield* workflowService
+        .get(run.id)
+        .pipe(
+          Effect.catchTag("WorkflowRun.WorkflowNotFoundError", () => Effect.fail(notFound("Workflow run not found"))),
+        )
+      return new WorkflowAsset.WorkflowStatusResponse({
+        run: updatedRun,
+        steps: yield* workflowService.getSteps(run.id),
+      })
     })
 
     const workflowRetryStep = Effect.fn("SessionHttpApi.workflowRetryStep")(function* (ctx: {
@@ -1197,9 +1199,11 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       // writes the new lineage run under the *source* run's session, so without
       // this a caller could seed a foreign session's run lineage from their own
       // snapshot's step definitions.
-      const sourceRun = yield* workflowService.get(ctx.params.runID).pipe(
-        Effect.catchTag("WorkflowRun.WorkflowNotFoundError", () => Effect.fail(notFound("Workflow run not found"))),
-      )
+      const sourceRun = yield* workflowService
+        .get(ctx.params.runID)
+        .pipe(
+          Effect.catchTag("WorkflowRun.WorkflowNotFoundError", () => Effect.fail(notFound("Workflow run not found"))),
+        )
       if (sourceRun.sessionID !== ctx.params.sessionID) return yield* notFound("Workflow run not found")
       const snapshotService = yield* SessionComposition.Service.pipe(Effect.provide(layer), Effect.orDie)
       const snapshot = yield* snapshotService.get(ctx.params.sessionID).pipe(
@@ -1209,26 +1213,31 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       if (snapshot.version !== 2 || !snapshot.data.workflow) {
         return yield* new InvalidRequestError({ message: "Session snapshot has no workflow" })
       }
-      const retried = yield* workflowService.retryRun({
-        runID: ctx.params.runID,
-        stepRunID: ctx.params.stepRunID,
-        requestID: ctx.payload.requestID,
-        expectedRunRevision: ctx.payload.expectedRunRevision,
-        expectedStepRevision: ctx.payload.expectedStepRevision,
-        stepsDef: snapshot.data.workflow.steps,
-        sessionID: ctx.params.sessionID,
-      }).pipe(
-        Effect.catchTag("WorkflowRun.RequestConflictError", (error) =>
-          Effect.fail(new ConflictError({ message: error.message, resource: error.requestID })),
-        ),
-        Effect.catchTag("WorkflowRun.InvalidStateTransitionError", (error) =>
-          Effect.fail(new ConflictError({ message: error.message, resource: ctx.params.runID })),
-        ),
-        Effect.catchTag("WorkflowRun.WorkflowNotFoundError", () => Effect.fail(notFound("Workflow run not found"))),
-        Effect.catchTag("WorkflowRun.StepNotFoundError", () => Effect.fail(notFound("Workflow step not found"))),
-      )
+      const retried = yield* workflowService
+        .retryRun({
+          runID: ctx.params.runID,
+          stepRunID: ctx.params.stepRunID,
+          requestID: ctx.payload.requestID,
+          expectedRunRevision: ctx.payload.expectedRunRevision,
+          expectedStepRevision: ctx.payload.expectedStepRevision,
+          stepsDef: snapshot.data.workflow.steps,
+          sessionID: ctx.params.sessionID,
+        })
+        .pipe(
+          Effect.catchTag("WorkflowRun.RequestConflictError", (error) =>
+            Effect.fail(new ConflictError({ message: error.message, resource: error.requestID })),
+          ),
+          Effect.catchTag("WorkflowRun.InvalidStateTransitionError", (error) =>
+            Effect.fail(new ConflictError({ message: error.message, resource: ctx.params.runID })),
+          ),
+          Effect.catchTag("WorkflowRun.WorkflowNotFoundError", () => Effect.fail(notFound("Workflow run not found"))),
+          Effect.catchTag("WorkflowRun.StepNotFoundError", () => Effect.fail(notFound("Workflow step not found"))),
+        )
       yield* workflowExecution.wake(ctx.params.sessionID)
-      return new WorkflowAsset.WorkflowStatusResponse({ run: retried, steps: yield* workflowService.getSteps(retried.id) })
+      return new WorkflowAsset.WorkflowStatusResponse({
+        run: retried,
+        steps: yield* workflowService.getSteps(retried.id),
+      })
     })
 
     return handlers

@@ -37,8 +37,7 @@ describe("tool-lifecycle-hooks", () => {
         const r = yield* runPreToolUse({ toolName, args, sessionID })
         expect(r.allow).toBe(true)
         expect(r.reason).toBeUndefined()
-      }).pipe(Effect.runPromise),
-    )
+      }).pipe(Effect.runPromise))
 
     test("should allow when single hook returns allow", () => {
       reg.pre(() => Effect.succeed({ allow: true }))
@@ -125,8 +124,7 @@ describe("tool-lifecycle-hooks", () => {
       Effect.gen(function* () {
         const r = yield* runPostToolUse({ toolName, args, result, sessionID })
         expect(r).toBeUndefined()
-      }).pipe(Effect.runPromise),
-    )
+      }).pipe(Effect.runPromise))
 
     test("should pass input to hooks", () => {
       let captured: unknown

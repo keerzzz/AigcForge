@@ -85,9 +85,7 @@ export const layer = Layer.effectDiscard(
         execute: (input) =>
           Effect.gen(function* () {
             const all = yield* Effect.promise(() => scanDir(location.directory))
-            const assets = input.kind
-              ? all.filter((a) => a.kind === input.kind)
-              : all
+            const assets = input.kind ? all.filter((a) => a.kind === input.kind) : all
             return { assets }
           }).pipe(
             Effect.catch((err) =>

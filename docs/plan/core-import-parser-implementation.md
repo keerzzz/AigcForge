@@ -25,6 +25,7 @@ ImportDialog → serializeImport() → wrapImportContent("<untrusted_import>…"
 ```
 
 问题：
+
 - 解析在 LLM 边界做（不可控、不结构化、不可 audit）
 - 无 serviced 边界（TUI/CLI 无法复用）
 - 无法做预校验（超限、格式错误在 Agent 调用后才暴露）
@@ -92,42 +93,42 @@ ImportDialog → serializeImport() → POST /import-asset/parse (Effect service)
 
 ### L1 schema 层
 
-| 文件 | 说明 |
-|------|------|
+| 文件                                  | 说明                              |
+| ------------------------------------- | --------------------------------- |
 | `packages/schema/src/prompt-asset.ts` | PromptAsset.Candidate（参照模式） |
-| `packages/schema/src/asset.ts` | AssetKindId 定义 |
+| `packages/schema/src/asset.ts`        | AssetKindId 定义                  |
 
 ### L2 core 层
 
-| 文件 | 行 | 说明 |
-|------|-----|------|
-| `packages/core/src/prompt-asset-service.ts` | 1-60 | Service Interface 模式（参照） |
-| `packages/core/src/prompt-asset.ts` | 全文件 | Registry loadDir 模式（参照） |
-| `packages/core/src/asset-kind.ts` | 全文件 | AssetKindRegistry（参照） |
+| 文件                                        | 行     | 说明                           |
+| ------------------------------------------- | ------ | ------------------------------ |
+| `packages/core/src/prompt-asset-service.ts` | 1-60   | Service Interface 模式（参照） |
+| `packages/core/src/prompt-asset.ts`         | 全文件 | Registry loadDir 模式（参照）  |
+| `packages/core/src/asset-kind.ts`           | 全文件 | AssetKindRegistry（参照）      |
 
 ### L3 aigcfroge 层
 
-| 文件 | 说明 |
-|------|------|
-| `packages/aigcfroge/src/server/routes/instance/httpapi/groups/prompt-asset.ts` | Group 定义（参照） |
+| 文件                                                                             | 说明                 |
+| -------------------------------------------------------------------------------- | -------------------- |
+| `packages/aigcfroge/src/server/routes/instance/httpapi/groups/prompt-asset.ts`   | Group 定义（参照）   |
 | `packages/aigcfroge/src/server/routes/instance/httpapi/handlers/prompt-asset.ts` | Handler 实现（参照） |
-| `packages/aigcfroge/src/server/routes/instance/httpapi/api.ts` | Api group 注册点 |
+| `packages/aigcfroge/src/server/routes/instance/httpapi/api.ts`                   | Api group 注册点     |
 
 ### L4 sdk/js 层
 
-| 文件 | 说明 |
-|------|------|
-| `packages/sdk/js/script/build.ts` | SDK 生成脚本 |
+| 文件                                    | 说明                                        |
+| --------------------------------------- | ------------------------------------------- |
+| `packages/sdk/js/script/build.ts`       | SDK 生成脚本                                |
 | `packages/sdk/js/src/v2/gen/sdk.gen.ts` | 生成代码（ImportAsset client 会在这里出现） |
 
 ### L5 app 层
 
-| 文件 | 行 | 说明 |
-|------|-----|------|
-| `packages/app/src/components/chat/chat-import-dialog.tsx` | 129-201 | 当前 ImportDialog 组件 |
-| `packages/app/src/components/chat/chat-import-dialog.tsx` | 91-94 | `wrapImportContent()` |
-| `packages/app/src/components/chat/chat-import-dialog.tsx` | 82-88 | `serializeImport()` |
-| `packages/app/src/pages/home.tsx` | 503-519 | `onImportAsset()` — 当前走 chat Draft |
+| 文件                                                      | 行      | 说明                                  |
+| --------------------------------------------------------- | ------- | ------------------------------------- |
+| `packages/app/src/components/chat/chat-import-dialog.tsx` | 129-201 | 当前 ImportDialog 组件                |
+| `packages/app/src/components/chat/chat-import-dialog.tsx` | 91-94   | `wrapImportContent()`                 |
+| `packages/app/src/components/chat/chat-import-dialog.tsx` | 82-88   | `serializeImport()`                   |
+| `packages/app/src/pages/home.tsx`                         | 503-519 | `onImportAsset()` — 当前走 chat Draft |
 
 ---
 
@@ -150,10 +151,12 @@ Step F 再次认知：重新阅读 CLAUDE.md + PRD §7.3 + AGENTS.md
 ### Step 1: Schema — ImportParser.Candidate + ImportParser.Result
 
 **改动文件**：
+
 - `packages/schema/src/import-parser.ts`（新增）
 - `packages/schema/src/index.ts`（export）
 
 **红（测试）**：
+
 ```ts
 // packages/schema/test/import-parser.test.ts
 it("Candidate encodes/decodes valid candidate", () => {
@@ -173,25 +176,26 @@ it("Result encodes with warnings and ParseError[]", () => {
 // packages/schema/src/import-parser.ts
 // 遵循项目命名约定（PromptAsset.Summary / PromptAsset.Info 模式）：命名空间 ImportParser
 export class Candidate extends Schema.Class<Candidate>("ImportParser.Candidate")({
-  kind: Schema.String,       // AssetKindId: "prompt"|"command"|"skill"|...
-  name: Schema.String,       // 1..80 code points
-  description: Schema.String,// 0..300 code points
-  template: Schema.String,   // 1..100_000 UTF-8 bytes
+  kind: Schema.String, // AssetKindId: "prompt"|"command"|"skill"|...
+  name: Schema.String, // 1..80 code points
+  description: Schema.String, // 0..300 code points
+  template: Schema.String, // 1..100_000 UTF-8 bytes
 }) {}
 
 export class ParseError extends Schema.Class<ParseError>("ImportParser.ParseError")({
-  section: Schema.String,    // 出错区段标识（如 "Block #3"）
-  reason: Schema.String,     // 解析失败原因（如 "unknown_type"）
+  section: Schema.String, // 出错区段标识（如 "Block #3"）
+  reason: Schema.String, // 解析失败原因（如 "unknown_type"）
 }) {}
 
 export class Result extends Schema.Class<Result>("ImportParser.Result")({
   candidates: Schema.Array(Candidate),
   warnings: Schema.Array(Schema.String), // strip 掉的内容摘要（不含原文）
-  errors: Schema.Array(ParseError),      // Schema.Class 替代内联 Struct（AGENTS.md 要求）
+  errors: Schema.Array(ParseError), // Schema.Class 替代内联 Struct（AGENTS.md 要求）
 }) {}
 ```
 
 **验证**：
+
 ```bash
 bun --cwd packages/schema typecheck
 bun --cwd packages/schema test --timeout 30000
@@ -205,11 +209,13 @@ bun run lint
 ### Step 2: Core — ImportParser Service
 
 **改动文件**：
+
 - `packages/core/src/import-parser.ts`（新增）
 - `packages/core/test/import-parser.test.ts`（新增）
 
 **红（测试）**：
-```ts
+
+````ts
 // packages/core/test/import-parser.test.ts
 it("extracts single Markdown code block as prompt candidate", () => {
   const input = "```\nYou are a helpful assistant\n```"
@@ -252,11 +258,12 @@ it("detects YAML as workflow/plugin kind", () => {
 it("detects JSON config as mcp/command kind", () => {
   // "```json\n{\"mcpServers\": ...}\n```" → kind="mcp"
 })
-```
+````
 
 **绿**：
 
 `packages/core/src/import-parser.ts`：
+
 - `ImportParser` = `Context.Tag<ImportParserInterface>()`
 - `ImportParserInterface`：
   ```ts
@@ -274,6 +281,7 @@ it("detects JSON config as mcp/command kind", () => {
   7. 输出 `ImportParser.Result`
 
 **Layer**（参照 PromptAssetService 的 Layer 模式）：
+
 ```ts
 export const ImportParserLive = Layer.effect(
   ImportParser,
@@ -287,14 +295,15 @@ export const ImportParserLive = Layer.effect(
 ```
 
 **Schema 错误**（TaggedErrorClass 遵循项目惯例——参考 prompt-asset.ts 命名模式）：
+
 ```ts
-export class ParseError extends Schema.TaggedErrorClass<ParseError>()(
-  "ImportParser.ParseError",
-  { reason: Schema.String }
-) {}
+export class ParseError extends Schema.TaggedErrorClass<ParseError>()("ImportParser.ParseError", {
+  reason: Schema.String,
+}) {}
 ```
 
 **验证**：
+
 ```bash
 bun --cwd packages/core typecheck
 bun --cwd packages/core test --timeout 30000
@@ -308,13 +317,15 @@ bun run lint
 ### Step 3: HTTP API — Import Parser Endpoint + Handler
 
 **改动文件**：
+
 - `packages/aigcfroge/src/server/routes/instance/httpapi/groups/import-parser.ts`（新增）
 - `packages/aigcfroge/src/server/routes/instance/httpapi/handlers/import-parser.ts`（新增）
 - `packages/aigcfroge/src/server/routes/instance/httpapi/api.ts`（修改：注册 group）
 - `packages/aigcfroge/src/server/routes/instance/httpapi/server.ts`（修改：提供 handler）
 
 **红（测试）**：
-```ts
+
+````ts
 // packages/aigcfroge/test/import-parser-api.test.ts
 it("POST /import-asset/parse returns candidates", async () => {
   // payload: { content: "```\nprompt text\n```" }
@@ -329,20 +340,22 @@ it("POST /import-asset/parse returns error for empty content", async () => {
 it("POST /import-asset/parse returns error for oversized content", async () => {
   // >200KB → error "too_large"
 })
-```
+````
 
 **绿**：
 
 1. Group 定义（参照 `groups/prompt-asset.ts` 模式）：
+
 ```ts
-export class ImportParserGroup extends InstanceHttpApi.prefix("/import-asset")
-  .add(HttpApiEndpoint.post("parse", "/parse")
+export class ImportParserGroup extends InstanceHttpApi.prefix("/import-asset").add(
+  HttpApiEndpoint.post("parse", "/parse")
     .setRequest(Schema.Struct({ content: Schema.String }))
-    .setResponse(ImportParser.Result)
-  ) {}
+    .setResponse(ImportParser.Result),
+) {}
 ```
 
 2. Handler（参照 `handlers/prompt-asset.ts` 模式）：
+
 ```ts
 export const parseHandler = HttpApiBuilder.handle(ImportParserGroup, "parse", (payload) =>
   // 调 ImportParser.parse(payload.content)
@@ -351,11 +364,13 @@ export const parseHandler = HttpApiBuilder.handle(ImportParserGroup, "parse", (p
 ```
 
 3. `api.ts` 注册：
+
 ```ts
 .add(ImportParserGroup)
 ```
 
 4. `server.ts` 提供：
+
 ```ts
 import { importParserHandlers } from "./handlers/import-parser"
 // ...
@@ -363,6 +378,7 @@ provide(importParserHandlers)
 ```
 
 **验证**：
+
 ```bash
 bun --cwd packages/aigcfroge typecheck
 bun --cwd packages/aigcfroge test --timeout 30000
@@ -376,10 +392,12 @@ bun run lint
 ### Step 4: SDK Regenerate + App ImportDialog Integration
 
 **改动文件**：
+
 - `packages/sdk/js/src/v2/gen/*`（regenerate）
 - `packages/app/src/components/chat/chat-import-dialog.tsx`（集成 SDK.parse）
 
 **红（测试）**：
+
 ```ts
 // packages/app/src/components/chat/chat-import-dialog.test.ts（扩展）
 it("calls SDK.parse on import review click", () => {
@@ -402,11 +420,13 @@ it("falls back to AI flow when user clicks 'AI 辅助整理'", () => {
 **绿**：
 
 1. SDK regenerate：
+
 ```bash
 ./packages/sdk/js/script/build.ts
 ```
 
 2. ImportDialog 集成：
+
 ```tsx
 // chat-import-dialog.tsx
 function handleImport() {
@@ -425,6 +445,7 @@ function handleImport() {
 保留原有 `onImport` callback 作为 fallback（"AI 辅助整理"按钮）。
 
 **验证**：
+
 ```bash
 ./packages/sdk/js/script/build.ts
 bun --cwd packages/sdk/js typecheck
@@ -442,6 +463,7 @@ bun run lint
 **改动文件**：无
 
 **验收清单**：
+
 ```bash
 # 1. 全量 typecheck
 bun --cwd packages/schema typecheck
@@ -471,6 +493,7 @@ bun run lint
 ```
 
 **复查结论**：
+
 ```text
 复查结论:
 - Step: 5 全量验收
@@ -506,54 +529,54 @@ Step 5 (全量验收)
 
 ### 6.1 块分割规则
 
-| 分隔方式 | 正则/方法 | 优先级 |
-|---------|----------|--------|
-| Markdown fenced code blocks | `` ``` `...` ``` `` 或 `~~~...~~~` | 1（最高） |
-| YAML document separators | `---` 开头行 | 2 |
-| 空行分隔（plain text） | `\n\n+` | 3（fallback） |
+| 分隔方式                    | 正则/方法                          | 优先级        |
+| --------------------------- | ---------------------------------- | ------------- |
+| Markdown fenced code blocks | `` ``` `...` ``` `` 或 `~~~...~~~` | 1（最高）     |
+| YAML document separators    | `---` 开头行                       | 2             |
+| 空行分隔（plain text）      | `\n\n+`                            | 3（fallback） |
 
 ### 6.2 类型推断规则
 
-| 特征 | 推断 kind | 置信度 |
-|------|----------|--------|
-| ```` ```yaml ```` 含 `kind: workflow` / `steps:` | `"workflow"` | high |
-| ```` ```yaml ```` 含 `name:` + `tools:` + `hooks:` | `"plugin"` | high |
-| ```` ```yaml ```` 含 `triggers:` / `context:` | `"skill"` | high |
-| ```` ```json ```` 含 `"mcpServers"` | `"mcp"` | high |
-| ```` ```json ```` 含 `"commands"` | `"command"` | medium |
-| ```` ```sh / ```bash ```` | `"command"` | medium |
-| ```` ``` ```` （无语言标记）或 ```` ```md ```` | `"prompt"` | medium |
-| 纯文本（无 code block） | `"prompt"` | low |
+| 特征                                         | 推断 kind    | 置信度 |
+| -------------------------------------------- | ------------ | ------ |
+| ` ```yaml ` 含 `kind: workflow` / `steps:`   | `"workflow"` | high   |
+| ` ```yaml ` 含 `name:` + `tools:` + `hooks:` | `"plugin"`   | high   |
+| ` ```yaml ` 含 `triggers:` / `context:`      | `"skill"`    | high   |
+| ` ```json ` 含 `"mcpServers"`                | `"mcp"`      | high   |
+| ` ```json ` 含 `"commands"`                  | `"command"`  | medium |
+| ` ```sh / ```bash `                          | `"command"`  | medium |
+| ` ``` ` （无语言标记）或 ` ```md `           | `"prompt"`   | medium |
+| 纯文本（无 code block）                      | `"prompt"`   | low    |
 
 ### 6.3 噪声剥离规则
 
-| 模式 | 处理 |
-|------|------|
-| `<thinking>...</thinking>` / `<thought>...</thought>` | 剥离，warning `stripped_thinking` |
-| `User:` / `Assistant:` / `Human:` / `AI:` 对话行 | 剥离行，warning `stripped_conversation` |
-| `\n---\n` 做 YAML 分隔符时 | 保留（是文档结构） |
-| 以 `<!--` / `/*` 开头的 metadata 注释 | 剥离 |
-| 纯空白行连续超过 3 行 | 压缩为 1 空行 |
-| 输入 > 200KB | error `too_large` |
+| 模式                                                  | 处理                                    |
+| ----------------------------------------------------- | --------------------------------------- |
+| `<thinking>...</thinking>` / `<thought>...</thought>` | 剥离，warning `stripped_thinking`       |
+| `User:` / `Assistant:` / `Human:` / `AI:` 对话行      | 剥离行，warning `stripped_conversation` |
+| `\n---\n` 做 YAML 分隔符时                            | 保留（是文档结构）                      |
+| 以 `<!--` / `/*` 开头的 metadata 注释                 | 剥离                                    |
+| 纯空白行连续超过 3 行                                 | 压缩为 1 空行                           |
+| 输入 > 200KB                                          | error `too_large`                       |
 
 ### 6.4 名称推断规则
 
-| 来源 | 示例 |
-|------|------|
-| Markdown heading `# Title` | name = "Title"（截断 80） |
+| 来源                        | 示例                                       |
+| --------------------------- | ------------------------------------------ |
+| Markdown heading `# Title`  | name = "Title"（截断 80）                  |
 | Code block 语言标记后的注释 | ` ```python # Web Scraper` → "Web Scraper" |
-| 第一行非空文本 | 截断 80 |
-| 无（default） | "Imported Asset {N}" |
+| 第一行非空文本              | 截断 80                                    |
+| 无（default）               | "Imported Asset {N}"                       |
 
 ---
 
 ## 7. 风险与回滚
 
-| 风险 | 缓解 |
-|------|------|
-| 类型推断不准确 | 低置信度类型显示为建议值，用户可修改 |
-| 噪声剥离过度 | 只剥离高可信模式；原始内容保留在 ImportDialog preview |
-| M7 ImportDialog 兼容 | 保留现有 Agent 解析 fallback 路径 |
+| 风险                 | 缓解                                                  |
+| -------------------- | ----------------------------------------------------- |
+| 类型推断不准确       | 低置信度类型显示为建议值，用户可修改                  |
+| 噪声剥离过度         | 只剥离高可信模式；原始内容保留在 ImportDialog preview |
+| M7 ImportDialog 兼容 | 保留现有 Agent 解析 fallback 路径                     |
 
 **回滚**：独立分支，可完整 revert。
 

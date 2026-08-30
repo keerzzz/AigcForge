@@ -15,28 +15,28 @@
 
 ## 2. 机械验证（本审查人独立复跑）
 
-| 检查 | 命令 | 结果 |
-| --- | --- | --- |
-| 全仓类型检查 | `bun typecheck` | 15/15 packages,0 errors |
-| core 全量 | `bun --cwd packages/core test` | 2002 pass / 2 skip / 0 fail |
-| App 全量 | `bun --cwd packages/app test` | 904 pass / 0 fail(4744 expect)+ browser 3 pass |
+| 检查                                                   | 命令                                          | 结果                                                    |
+| ------------------------------------------------------ | --------------------------------------------- | ------------------------------------------------------- |
+| 全仓类型检查                                           | `bun typecheck`                               | 15/15 packages,0 errors                                 |
+| core 全量                                              | `bun --cwd packages/core test`                | 2002 pass / 2 skip / 0 fail                             |
+| App 全量                                               | `bun --cwd packages/app test`                 | 904 pass / 0 fail(4744 expect)+ browser 3 pass          |
 | custom 门禁组（upgrade/capability/stability/fork-gate) | `bun --cwd packages/aigcfroge test <4 files>` | 16 pass / 0 fail，含 flag-off 四门禁 400 与历史可读 200 |
-| 增量 lint | `bun run script/lint-changed.ts` | 0 violations(92 changed files) |
-| 工作区 | `git status` | clean，线性 16 提交，未 push 未建 PR |
+| 增量 lint                                              | `bun run script/lint-changed.ts`              | 0 violations(92 changed files)                          |
+| 工作区                                                 | `git status`                                  | clean，线性 16 提交，未 push 未建 PR                    |
 
 ## 3. 原 9 项整改清单逐项闭环
 
-| # | 原发现 | 闭环证据 |
-| --- | --- | --- |
-| 1 | HIGH-1 契约裁决 + 门禁全绿 | `9aa08348b`:children/context 对 capable 客户端定案为只读端点（孤儿 custom 200 `{data:[]}`,非 capable 404);capability 矩阵修复。复跑门禁组 16/16 绿。契约定案记录于 schema-changelog(W4 改写时丢失，`19b47b31d` 已按 `9aa08348b` 原文补回） |
-| 2 | HIGH-4 V1 三端点绕过 | `9aa08348b`：同步 prompt/command/shell 对 custom fail-closed(typed `UnsupportedProductModeError`,400),capability 套件覆盖 |
-| 3 | MEDIUM-1 `/api/session/custom` 无门禁 | `9aa08348b` 补 `assertCapability`;`3f4ab6b3c` 叠加 flag 门禁（flag 检查先于 capability，有测试） |
-| 4 | MEDIUM-2 skill lookup 非 snapshot-local | `d592ed784`:`SkillV2.lookup` 绑定 snapshot-local relativePath;technical-debt §3 条目闭环并同步 |
-| 5 | MEDIUM-3 provider-turn 重验缺失 | `d592ed784`:runner 每 provider-turn 前置重验 `ToolRegistrationFingerprint` + `ToolCatalogDigest`,fail-closed via typed `SessionRunner.SnapshotDriftError`;runner 缺 snapshot row 不再 fail-open |
-| 6 | HIGH-3 Phase E 不足半 | `0343d8825`:Builder 三列（sidebar/builder-main/preview-column)、四预览 Tabs、Draft `Persist` 持久化、start 流带 `expectedPlanDigest` stale 保护、Snapshot panel + upgrade action(409 busy 处理）、18 locale 各 +51 key、parity 绿、新增 `custom-draft.test.ts` / `custom-preview-tabs.test.ts`。复跑 App 904 全绿 |
-| 7 | MEDIUM-5 move/upgrade/缺失测试 | `b6634cff5`:`move-session.ts:86-91` custom move 前 `assertDependency` fail-closed(move-session.test.ts 覆盖）;`3f4ab6b3c`:`POST /custom-composition/upgrade` + 409 `SessionBusyError` + SDK 重新生成；`9aa08348b`:fork 路由对称（canonical HTTP fork 放行 capable custom 并深拷贝快照） |
-| 8 | HIGH-2 Phase G 零交付 | `cd3b59edd`:kill switch 四门禁测试（plan/start/upgrade/session.custom 400 fail-closed + 历史会话只读 200)、50 轮稳定性矩阵（plan digest 50/50 零漂移、start/upgrade 状态机 50/50)、schema-changelog / technical-debt / roadmap 三文档同步。残留缺口见 §5 |
-| 9 | 报告失实 + MEDIUM-4 | `b6634cff5`:`assertDependency` 获真实生产调用（move 重检，原 stub 定性消除）；委派三拒项（foreign resume id / child digest mismatch / changed Agent identity）类型化拒绝并有测试（`custom-mode-security.test.ts:480,524`、`custom-mode-lifecycle.test.ts:287`)。执行代理 W1-W4 报告仍存在一处失实（§4-N1)，已由本审查人修正 |
+| #   | 原发现                                  | 闭环证据                                                                                                                                                                                                                                                                                                                    |
+| --- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | HIGH-1 契约裁决 + 门禁全绿              | `9aa08348b`:children/context 对 capable 客户端定案为只读端点（孤儿 custom 200 `{data:[]}`,非 capable 404);capability 矩阵修复。复跑门禁组 16/16 绿。契约定案记录于 schema-changelog(W4 改写时丢失，`19b47b31d` 已按 `9aa08348b` 原文补回）                                                                                  |
+| 2   | HIGH-4 V1 三端点绕过                    | `9aa08348b`：同步 prompt/command/shell 对 custom fail-closed(typed `UnsupportedProductModeError`,400),capability 套件覆盖                                                                                                                                                                                                   |
+| 3   | MEDIUM-1 `/api/session/custom` 无门禁   | `9aa08348b` 补 `assertCapability`;`3f4ab6b3c` 叠加 flag 门禁（flag 检查先于 capability，有测试）                                                                                                                                                                                                                            |
+| 4   | MEDIUM-2 skill lookup 非 snapshot-local | `d592ed784`:`SkillV2.lookup` 绑定 snapshot-local relativePath;technical-debt §3 条目闭环并同步                                                                                                                                                                                                                              |
+| 5   | MEDIUM-3 provider-turn 重验缺失         | `d592ed784`:runner 每 provider-turn 前置重验 `ToolRegistrationFingerprint` + `ToolCatalogDigest`,fail-closed via typed `SessionRunner.SnapshotDriftError`;runner 缺 snapshot row 不再 fail-open                                                                                                                             |
+| 6   | HIGH-3 Phase E 不足半                   | `0343d8825`:Builder 三列（sidebar/builder-main/preview-column)、四预览 Tabs、Draft `Persist` 持久化、start 流带 `expectedPlanDigest` stale 保护、Snapshot panel + upgrade action(409 busy 处理）、18 locale 各 +51 key、parity 绿、新增 `custom-draft.test.ts` / `custom-preview-tabs.test.ts`。复跑 App 904 全绿           |
+| 7   | MEDIUM-5 move/upgrade/缺失测试          | `b6634cff5`:`move-session.ts:86-91` custom move 前 `assertDependency` fail-closed(move-session.test.ts 覆盖）;`3f4ab6b3c`:`POST /custom-composition/upgrade` + 409 `SessionBusyError` + SDK 重新生成；`9aa08348b`:fork 路由对称（canonical HTTP fork 放行 capable custom 并深拷贝快照）                                     |
+| 8   | HIGH-2 Phase G 零交付                   | `cd3b59edd`:kill switch 四门禁测试（plan/start/upgrade/session.custom 400 fail-closed + 历史会话只读 200)、50 轮稳定性矩阵（plan digest 50/50 零漂移、start/upgrade 状态机 50/50)、schema-changelog / technical-debt / roadmap 三文档同步。残留缺口见 §5                                                                    |
+| 9   | 报告失实 + MEDIUM-4                     | `b6634cff5`:`assertDependency` 获真实生产调用（move 重检，原 stub 定性消除）；委派三拒项（foreign resume id / child digest mismatch / changed Agent identity）类型化拒绝并有测试（`custom-mode-security.test.ts:480,524`、`custom-mode-lifecycle.test.ts:287`)。执行代理 W1-W4 报告仍存在一处失实（§4-N1)，已由本审查人修正 |
 
 ## 4. 终审新发现与处置
 

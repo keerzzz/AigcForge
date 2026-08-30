@@ -9,13 +9,13 @@
 在学术界和基准评测层面，ToolBench数据集展示了智能体工具在广度和深度上的探索。ToolBench通过对RapidAPI Hub平台进行过滤和抓取，汇集了来自49个分类下的16464个真实世界RESTful API，并针对单工具、类内多工具及跨集合多工具等复杂应用场景，构建了包含126486个多轮交互路径的指令语料库3。此外，ToolBench还整合了诸如HomeSearch、TripBooking等代码库，以及模拟复杂物理空间与网络交互的虚拟仿真环境（如VirtualHome、Tabletop、WebShop），这些仿真环境利用深度的动作轨迹和可执行状态标注，为评测智能体在长跨度任务中的多步决策能力提供了科学的度量底座3。
 在工业界和企业落地层面，工具的分类更加聚焦于解决具体业务场景的确定性与数据合规。随着模型上下文协议（Model Context Protocol, MCP）以及低代码编排平台的快速普及，市面上的工具形成了层次分明的多维谱系1。
 
-| 工具分类 | 典型服务与服务器示例 | 协议与底层接入机制 | 核心应用场景与功能边界 |
-| :---- | :---- | :---- | :---- |
-| **网络检索与数据采集** | Firecrawl MCP, Jina AI Tools, HasData Scraper, Serper7 | 基于标准HTTP的JSON-RPC封装，集成反爬虫规避与流式数据处理7 | 实现网页结构化数据抓取、实时搜索引擎交互、特定电商平台数据透传7 |
-| **企业级数据仓库与数据库** | PostgreSQL MCP, Redis Server, Supabase native integration8 | 本地标准I/O子进程连接，结合数据库行级安全（RLS）和边缘函数触发2 | 执行受限的只读SQL分析、获取数据库架构模式、缓存高频交易状态8 |
-| **企业办公与协作平台** | Microsoft 365 Mail/Word/SharePoint Lists, Slack, Salesforce2 | 集中式 OAuth 2.0 身份验证，调用 Graph 统一接口实现事件流监听2 | 管理日常邮件收发、日程规划同步、多工作区消息触达与客户关系数据沉淀8 |
-| **基础设施与云资源运维** | Azure MCP Server, Microsoft Dev Box, Servonaut AWS manager9 | 临时凭证生命周期托管，高等级 SSH 隧道与 CloudWatch 安全对接9 | 实时监控云端虚拟机与容器集群、安全执行底层运维脚本、分析系统崩溃日志7 |
-| **特定行业高精度计算** | Mathlas Lean verification, Longbridge Market Finance7 | 高速 gRPC 通道连接 Lean 定理证明器，或对接证券高频行情 API7 | 实时拉取美股及港股高频行情与衍生品行情、执行无偏差数学公式和定理验证7 |
+| 工具分类                   | 典型服务与服务器示例                                         | 协议与底层接入机制                                              | 核心应用场景与功能边界                                                |
+| :------------------------- | :----------------------------------------------------------- | :-------------------------------------------------------------- | :-------------------------------------------------------------------- |
+| **网络检索与数据采集**     | Firecrawl MCP, Jina AI Tools, HasData Scraper, Serper7       | 基于标准HTTP的JSON-RPC封装，集成反爬虫规避与流式数据处理7       | 实现网页结构化数据抓取、实时搜索引擎交互、特定电商平台数据透传7       |
+| **企业级数据仓库与数据库** | PostgreSQL MCP, Redis Server, Supabase native integration8   | 本地标准I/O子进程连接，结合数据库行级安全（RLS）和边缘函数触发2 | 执行受限的只读SQL分析、获取数据库架构模式、缓存高频交易状态8          |
+| **企业办公与协作平台**     | Microsoft 365 Mail/Word/SharePoint Lists, Slack, Salesforce2 | 集中式 OAuth 2.0 身份验证，调用 Graph 统一接口实现事件流监听2   | 管理日常邮件收发、日程规划同步、多工作区消息触达与客户关系数据沉淀8   |
+| **基础设施与云资源运维**   | Azure MCP Server, Microsoft Dev Box, Servonaut AWS manager9  | 临时凭证生命周期托管，高等级 SSH 隧道与 CloudWatch 安全对接9    | 实时监控云端虚拟机与容器集群、安全执行底层运维脚本、分析系统崩溃日志7 |
+| **特定行业高精度计算**     | Mathlas Lean verification, Longbridge Market Finance7        | 高速 gRPC 通道连接 Lean 定理证明器，或对接证券高频行情 API7     | 实时拉取美股及港股高频行情与衍生品行情、执行无偏差数学公式和定理验证7 |
 
 从数据流转的形式来看，传统的工具输出局限于单一的纯文本或静态 JSON 字符串，而现代智能体工具的输出则采用了内容数组（Content Array）模式，支持文本、超链接、多媒体以及二进制大对象（Blob）的混合呈现15。工具的输入端基于严密的 JSON Schema 进行格式校验与边界定义17，这使得工具不再仅仅是孤立的代码片段，而是演化为具备自发现、自描述特征的标准云原生服务1。
 
@@ -28,20 +28,20 @@
 在主流智能体开发中，技能的设计遵循由 Anthropic 主导、并在 GitHub Copilot CLI、Claude Code 及 Codex 中广泛采用的 agentskills.io 开放技能规范22。该规范定义了标准的技能目录结构与前言元数据字段，确保了技能在跨开发环境下的高度可移植性22。
 一个符合规范的技能在文件系统上被组织为独立的文件夹，其核心文件为大小写敏感的 SKILL.md，并包含三个可选的专用子目录24：
 
-your-skill-name/               \# 文件夹名称必须与前言中的 name 字段完全一致
-├── SKILL.md                   \# 必需：前言元数据 \+ 步骤化执行 Markdown 指南
-├── scripts/                   \# 可选：存放具体的可执行代码脚本（.py, .js, .sh, .ps1, .csx）
-├── references/                \# 可选：存放参考规范与数据字典（.md, .json, .yaml, .csv, .txt等）
-└── assets/                    \# 可选：存放静态资源、邮件模板及示例表单
+your-skill-name/ \# 文件夹名称必须与前言中的 name 字段完全一致
+├── SKILL.md \# 必需：前言元数据 \+ 步骤化执行 Markdown 指南
+├── scripts/ \# 可选：存放具体的可执行代码脚本（.py, .js, .sh, .ps1, .csx）
+├── references/ \# 可选：存放参考规范与数据字典（.md, .json, .yaml, .csv, .txt等）
+└── assets/ \# 可选：存放静态资源、邮件模板及示例表单
 
 SKILL.md 顶部的 YAML 前言（Frontmatter）对技能的元数据进行了严格的形式化定义，约束如下：
 
-* name：必填字段。长度限制在1至64个字符之间，仅允许使用 Unicode 小写字母、数字和连字符（-），严禁以连字符开头或结尾，禁止出现双连字符（--），且必须与技能父文件夹名称完全一致23。
-* description：必填字段。长度最大为1024个字符，必须清晰描述技能的业务目的以及激活时机（即 Trigger Triad，触发三联体原则），以便智能体在会话初始化时精确进行意图匹配23。
-* license：选填字段。声明授权许可名称或指向绑定的许可证文件24。
-* compatibility：选填字段。最大500个字符，用于声明运行所需的特定系统包或网络依赖（如 Requires git, docker, jq, and internet access）24。
-* metadata：选填字段。键值对映射，用于宿主环境在标准规范外追加特定的专有控制指令24。
-* allowed-tools：选填实验性字段。空格分隔的字符串，明确列出该技能在激活状态下被预先许可调用的工具白名单24。
+- name：必填字段。长度限制在1至64个字符之间，仅允许使用 Unicode 小写字母、数字和连字符（-），严禁以连字符开头或结尾，禁止出现双连字符（--），且必须与技能父文件夹名称完全一致23。
+- description：必填字段。长度最大为1024个字符，必须清晰描述技能的业务目的以及激活时机（即 Trigger Triad，触发三联体原则），以便智能体在会话初始化时精确进行意图匹配23。
+- license：选填字段。声明授权许可名称或指向绑定的许可证文件24。
+- compatibility：选填字段。最大500个字符，用于声明运行所需的特定系统包或网络依赖（如 Requires git, docker, jq, and internet access）24。
+- metadata：选填字段。键值对映射，用于宿主环境在标准规范外追加特定的专有控制指令24。
+- allowed-tools：选填实验性字段。空格分隔的字符串，明确列出该技能在激活状态下被预先许可调用的工具白名单24。
 
 在智能体运行时内部，技能的调入和管理通常有三种底层实现路径：一是**文件型技能**，通过配置扫描路径自动发现目录下的 SKILL.md 并注册26；二是**代码定义型技能**，利用 C\# 的 AgentInlineSkill 或 Python 的 InlineSkill 框架在主程序中硬编码声明26；三是**类封装型技能**，继承自 AgentClassSkill\<T\> 等基类，实现逻辑控制与静态类型约束的深度集成26。
 对于高合规与高安全的企业应用，普通的技能可以通过加密签名升级为 NVIDIA 验证技能（NVIDIA-verified agent skills）27。此类技能除了包含常规的 SKILL.md 外，还必须附带包含所有权和风险缓解边界的 SKILLCARD.yaml 机器可读卡片，并使用 OpenSSF 模型签名（OMS）规范在目录内生成离线的 .oms 分离式数字签名文件27。在智能体装载阶段，运行环境利用 model-signing 校验器进行全目录 Hash 校签，并配合 SkillSpector 静态扫描引擎排查可能存在的指令注入、过度代理或工具投毒风险，防止遭到恶意篡改27。
@@ -58,16 +58,16 @@ SKILL.md 顶部的 YAML 前言（Frontmatter）对技能的元数据进行了严
 如果说技能标准规范了智能体的“认知与知识”，那么模型上下文协议（Model Context Protocol, MCP）则标准化了智能体的“数据与调用接口”1。MCP 基于 JSON-RPC 2.0 规范，其核心架构由三个关键实体构成：宿主进程（MCP Host，如 Cursor 或 Claude Desktop 容器，扮演安全网关和上下文流转器）、协议客户端（MCP Client，在宿主内部建立，与每个外部服务器维护 1 对 1 的独立状态隔离通道）以及微服务化的协议服务器（MCP Server，暴露出特定数据源或计算环境的独立子进程）2。
 MCP 定义了三个核心数据原语，构成了智能体感知与行动的数据底座2：
 
-* **工具（Tools）**：暴露给模型的具有副作用的可执行计算方法。每个工具提供明确的 Schema 定义，大模型可以通过 tools/call 请求来驱动服务器发起物理修改，并接收回传的多模态内容数组2。
-* **资源（Resources）**：提供给大模型的只读数据源。其通过类似 URI 的统一格式（如 config://database/schema）进行定位，支持静态读取与动态流式订阅（Subscription）机制，帮助大模型以无损方式同步理解系统外部状态而不引入非预期 side-effects2。
-* **提示词（Prompts）**：由服务器端提供的、高度参数化的交互模板，可充当特定任务的启动指引，指导智能体遵循特定的工作路径2。
+- **工具（Tools）**：暴露给模型的具有副作用的可执行计算方法。每个工具提供明确的 Schema 定义，大模型可以通过 tools/call 请求来驱动服务器发起物理修改，并接收回传的多模态内容数组2。
+- **资源（Resources）**：提供给大模型的只读数据源。其通过类似 URI 的统一格式（如 config://database/schema）进行定位，支持静态读取与动态流式订阅（Subscription）机制，帮助大模型以无损方式同步理解系统外部状态而不引入非预期 side-effects2。
+- **提示词（Prompts）**：由服务器端提供的、高度参数化的交互模板，可充当特定任务的启动指引，指导智能体遵循特定的工作路径2。
 
 除了核心原语，MCP 协议的高级机制则进一步增强了其互操作性：
 
-* **采样机制（Sampling）**：允许隔离的外部 MCP 服务器反向向客户端宿主发起 sampling/createMessage 请求，借调宿主侧的大模型推理计算服务。这使得服务器端代码可以保持轻量和模型中立，无需嵌入任何特定大模型的 SDK17。
-* **征询机制（Elicitation）**：当服务器执行关键操作需要人类介入、或者缺失必要输入参数时，通过向客户端发送 elicitation 信号，优雅地挂起当前线程，弹出交互界面直接向用户收集表单确认或密码输入17。
-* **日志广播（Logging）**：服务器可以实时、分级（Debug, Info, Warn, Error）地将内部执行日志、计算状态以非阻断通知的形式向客户端侧推送，提供了生产级的系统级可观测性17。
-* **能力协商与交换（Capability Negotiation）**：连接建立时，客户端与服务器通过 initialize 消息互换声明，锁定此会话内的功能子集。客户端向服务器通报对 sampling、elicitation 及 roots 监控的支持，服务器则向客户端宣称自身的 prompts、resources、tools 及 completions 自动补全等特性的可用性，实现了渐进式的版本兼容与解耦设计18。
+- **采样机制（Sampling）**：允许隔离的外部 MCP 服务器反向向客户端宿主发起 sampling/createMessage 请求，借调宿主侧的大模型推理计算服务。这使得服务器端代码可以保持轻量和模型中立，无需嵌入任何特定大模型的 SDK17。
+- **征询机制（Elicitation）**：当服务器执行关键操作需要人类介入、或者缺失必要输入参数时，通过向客户端发送 elicitation 信号，优雅地挂起当前线程，弹出交互界面直接向用户收集表单确认或密码输入17。
+- **日志广播（Logging）**：服务器可以实时、分级（Debug, Info, Warn, Error）地将内部执行日志、计算状态以非阻断通知的形式向客户端侧推送，提供了生产级的系统级可观测性17。
+- **能力协商与交换（Capability Negotiation）**：连接建立时，客户端与服务器通过 initialize 消息互换声明，锁定此会话内的功能子集。客户端向服务器通报对 sampling、elicitation 及 roots 监控的支持，服务器则向客户端宣称自身的 prompts、resources、tools 及 completions 自动补全等特性的可用性，实现了渐进式的版本兼容与解耦设计18。
 
 ## **主流开发脚手架与集成平台框架对比**
 
@@ -93,17 +93,17 @@ Coze 平台则更加聚焦于无代码生态的快速构建39。它通过平台�
 斜杠命令（Slash Commands）其本质是一种**基于界面拦截、执行层完全本置、零大模型 Token 开销的会话与控制策略**44。当用户在对话框中键入 / 时，客户端的 TUI 或前端渲染引擎会立刻挂起向大模型的请求，转而弹出确定性的本地快捷指令面板44。
 斜杠命令的执行逻辑不经过大模型推理，因而不会产生高昂的计算成本和响应延时，它是开发运维人员对智能体底层运行状态进行“瞬时微调与自检”的核心通道44。
 
-| 斜杠命令 | 典型属主系统 | 执行位置与 Token 开销 | 核心功能与应用场景描述 |
-| :---- | :---- | :---- | :---- |
-| /permissions | Codex CLI46 | 客户端浏览器/本地44 | 实时收紧或放松智能体的自动审计级别（可在 Auto 自动修改和 Read Only 只读之间即时切换）46 |
-| /ide | Codex CLI46 | 客户端本地, 0 Token46 | 强制在下一轮 Prompt 中静默附带当前 IDE 编辑器中打开的文件列表和选中代码段46 |
-| /sandbox-add-read-dir | Codex CLI46 | 本地沙箱网关46 | 在 Windows 等环境下，临时向当前隔离执行沙箱追加绝对路径下的只读数据源访问权46 |
-| /compact | Claude Code SDK, WordPress Agentic44 | 服务器/本地44 | 调用平台内置策略对当前冗长的会话历史进行压缩和提取摘要，彻底释出大量被占用的 Token 上下文44 |
-| /clear | Claude Code SDK, WordPress Agentic44 | 客户端/本地44 | 瞬间清除界面所有的可见 Transcript 消息，并物理重置底层的对话历史链条44 |
-| /status | WordPress Agentic44 | 服务器端 API 交互44 | 调取当前的逻辑路由、单日信用点数余额以及底层实际使用的物理模型版本44 |
-| /audit | WordPress Agentic44 | 服务器端 API 交互44 | 获取最近 10 次工具调用的链路审计摘要，以确定性的只读表格形式直接向前端反馈状态44 |
-| /skills | Codex CLI46 | 客户端本地, 0 Token46 | 调出当前已激活的 SKILL.md 列表，供开发人员手动检查、调试或强制挂载指定技能23 |
-| /mcp | Codex CLI46 | 客户端本地, 0 Token46 | 列出当前所有活动的 Model Context Protocol 工具，附加 verbose 参数可显示底层 Server 详细信息46 |
+| 斜杠命令              | 典型属主系统                         | 执行位置与 Token 开销 | 核心功能与应用场景描述                                                                        |
+| :-------------------- | :----------------------------------- | :-------------------- | :-------------------------------------------------------------------------------------------- |
+| /permissions          | Codex CLI46                          | 客户端浏览器/本地44   | 实时收紧或放松智能体的自动审计级别（可在 Auto 自动修改和 Read Only 只读之间即时切换）46       |
+| /ide                  | Codex CLI46                          | 客户端本地, 0 Token46 | 强制在下一轮 Prompt 中静默附带当前 IDE 编辑器中打开的文件列表和选中代码段46                   |
+| /sandbox-add-read-dir | Codex CLI46                          | 本地沙箱网关46        | 在 Windows 等环境下，临时向当前隔离执行沙箱追加绝对路径下的只读数据源访问权46                 |
+| /compact              | Claude Code SDK, WordPress Agentic44 | 服务器/本地44         | 调用平台内置策略对当前冗长的会话历史进行压缩和提取摘要，彻底释出大量被占用的 Token 上下文44   |
+| /clear                | Claude Code SDK, WordPress Agentic44 | 客户端/本地44         | 瞬间清除界面所有的可见 Transcript 消息，并物理重置底层的对话历史链条44                        |
+| /status               | WordPress Agentic44                  | 服务器端 API 交互44   | 调取当前的逻辑路由、单日信用点数余额以及底层实际使用的物理模型版本44                          |
+| /audit                | WordPress Agentic44                  | 服务器端 API 交互44   | 获取最近 10 次工具调用的链路审计摘要，以确定性的只读表格形式直接向前端反馈状态44              |
+| /skills               | Codex CLI46                          | 客户端本地, 0 Token46 | 调出当前已激活的 SKILL.md 列表，供开发人员手动检查、调试或强制挂载指定技能23                  |
+| /mcp                  | Codex CLI46                          | 客户端本地, 0 Token46 | 列出当前所有活动的 Model Context Protocol 工具，附加 verbose 参数可显示底层 Server 详细信息46 |
 
 除了上述平台预置的系统命令外，如 Claude Code SDK 等先进环境还支持**自定义斜杠命令**45。用户只需在项目特定的 .claude/skills/\<name\>/SKILL.md（或废弃的 .claude/commands/ 目录）下创建对应的 Markdown 文档45，并在前言中绑定一段本地的 Bash 脚本（例如 /test-runner 绑定 npm run test）45。大模型和用户既可以通过 /test-runner 显式执行测试，大模型也能够在遭遇代码编写完毕后自主触发此命令，打通了本地非结构化控制的敏捷闭环23。
 
@@ -138,9 +138,9 @@ Coze 平台则更加聚焦于无代码生态的快速构建39。它通过平台�
 
 在具体的沙箱实践中，业界根据不同的执行任务类型，演进出了层次化、专用的隔离底座14：
 
-* **浏览器安全沙箱（Browser Sandbox）**：如 Firecrawl 网页沙箱，专门用于处理复杂的网络抓取、模拟表单填写等不受信的外部网页访问，可阻断跨站脚本攻击与网页内置的恶意提示词注入劫持14。
-* **云端代码容器沙箱（Cloud Container）**：如 E2B 隔离沙箱，专为数据分析、动态生成代码运行而设计，提供快速拉起、秒级销毁的单租户安全运行边界14。
-* **物理级微虚拟机（MicroVM / Full Dev Env）**：如集成 Docker AI Governance 的高防护容器或轻量微虚拟机（Firecracker），适用于对多个软件仓库、复杂软件依赖进行整体重构与编译的代码编写场景14。
+- **浏览器安全沙箱（Browser Sandbox）**：如 Firecrawl 网页沙箱，专门用于处理复杂的网络抓取、模拟表单填写等不受信的外部网页访问，可阻断跨站脚本攻击与网页内置的恶意提示词注入劫持14。
+- **云端代码容器沙箱（Cloud Container）**：如 E2B 隔离沙箱，专为数据分析、动态生成代码运行而设计，提供快速拉起、秒级销毁的单租户安全运行边界14。
+- **物理级微虚拟机（MicroVM / Full Dev Env）**：如集成 Docker AI Governance 的高防护容器或轻量微虚拟机（Firecracker），适用于对多个软件仓库、复杂软件依赖进行整体重构与编译的代码编写场景14。
 
 为了对这三种沙箱环境进行强制边界收敛，架构设计中必须强制执行“AI Hardening 5 大金科玉律”14：
 
@@ -204,21 +204,21 @@ Coze 平台则更加聚焦于无代码生态的快速构建39。它通过平台�
 
 JSON
 {
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "initialize",
-  "params": {
-    "protocolVersion": "2025-03-26",
-    "capabilities": {
-      "roots": { "listChanged": true },
-      "sampling": {},
-      "elicitation": {}
-    },
-    "clientInfo": {
-      "name": "ProductionHostClient",
-      "version": "2.1.0"
-    }
-  }
+"jsonrpc": "2.0",
+"id": 1,
+"method": "initialize",
+"params": {
+"protocolVersion": "2025-03-26",
+"capabilities": {
+"roots": { "listChanged": true },
+"sampling": {},
+"elicitation": {}
+},
+"clientInfo": {
+"name": "ProductionHostClient",
+"version": "2.1.0"
+}
+}
 }
 
 #### **步骤三：能力对照与握手确认**
@@ -227,21 +227,21 @@ JSON
 
 JSON
 {
-  "jsonrpc": "2.0",
-  "id": 1,
-  "result": {
-    "protocolVersion": "2025-03-26",
-    "serverInfo": {
-      "name": "EnterprisePostgresServer",
-      "version": "1.4.0"
-    },
-    "capabilities": {
-      "tools": {},
-      "resources": { "subscribe": true },
-      "prompts": {},
-      "logging": {}
-    }
-  }
+"jsonrpc": "2.0",
+"id": 1,
+"result": {
+"protocolVersion": "2025-03-26",
+"serverInfo": {
+"name": "EnterprisePostgresServer",
+"version": "1.4.0"
+},
+"capabilities": {
+"tools": {},
+"resources": { "subscribe": true },
+"prompts": {},
+"logging": {}
+}
+}
 }
 
 #### **步骤四：发送就绪通知（Initialized Confirmation）**
@@ -250,8 +250,8 @@ JSON
 
 JSON
 {
-  "jsonrpc": "2.0",
-  "method": "notifications/initialized"
+"jsonrpc": "2.0",
+"method": "notifications/initialized"
 }
 
 此消息送达前，服务器拒绝处理除心跳（Ping）及内部日志外的任何业务调用请求30。
@@ -270,15 +270,15 @@ JSON
 
 JSON
 {
-  "jsonrpc": "2.0",
-  "id": 2,
-  "method": "tools/call",
-  "params": {
-    "name": "query\_database",
-    "arguments": {
-      "query": "SELECT indexname, indexdef FROM pg\_indexes WHERE schemaname \= 'public';"
-    }
-  }
+"jsonrpc": "2.0",
+"id": 2,
+"method": "tools/call",
+"params": {
+"name": "query_database",
+"arguments": {
+"query": "SELECT indexname, indexdef FROM pg_indexes WHERE schemaname \= 'public';"
+}
+}
 }
 
 服务器接收到消息，通过其绑定的子进程逻辑将查询推送到后台的只读数据库沙箱进行物理运算11。
@@ -289,17 +289,17 @@ JSON
 
 JSON
 {
-  "jsonrpc": "2.0",
-  "id": 2,
-  "result": {
-    "content": \[
-      {
-        "type": "text",
-        "text": "\[{\\"indexname\\":\\"idx\_user\_email\\",\\"indexdef\\":\\"CREATE UNIQUE INDEX idx\_user\_email...\\"}\]"
-      }
-    \],
-    "isError": false
-  }
+"jsonrpc": "2.0",
+"id": 2,
+"result": {
+"content": \[
+{
+"type": "text",
+"text": "\[{\\"indexname\\":\\"idx_user_email\\",\\"indexdef\\":\\"CREATE UNIQUE INDEX idx_user_email...\\"}\]"
+}
+\],
+"isError": false
+}
 }
 
 #### **步骤九：宿主状态更新与大模型优化**
@@ -312,9 +312,9 @@ JSON
 
 JSON
 {
-  "jsonrpc": "2.0",
-  "id": 3,
-  "method": "shutdown"
+"jsonrpc": "2.0",
+"id": 3,
+"method": "shutdown"
 }
 
 服务器释放全部资源并返回成功确认，随后客户端发送 exit 单向通知以完成协议层退出30。
@@ -342,7 +342,7 @@ JSON
 18. MCP Protocol Overview \- IBM, [https://www.ibm.com/docs/en/quarkus/3.33.x?topic=architecture-mcp-protocol-messages-capabilities-lifecycle](https://www.ibm.com/docs/en/quarkus/3.33.x?topic=architecture-mcp-protocol-messages-capabilities-lifecycle)
 19. AI Agent Skills and Plugins Explained (2026) \- Tony Kipkemboi, [https://tonykipkemboi.com/blog/agent-skills-and-plugins-explained](https://tonykipkemboi.com/blog/agent-skills-and-plugins-explained)
 20. Skill.md vs. Agent Tools: Are We Reinventing the Wheel? | by Akshay Kokane \- Medium, [https://medium.com/data-science-collective/skills-md-vs-agent-tools-are-we-reinventing-the-wheel-1eb0308110a2](https://medium.com/data-science-collective/skills-md-vs-agent-tools-are-we-reinventing-the-wheel-1eb0308110a2)
-21. Stop Overcomplicating AI Agents: Understanding Hooks, Skills, and MCP Without the Confusion, [https://www.youtube.com/watch?v=Ryk\_H\_Hqn2M](https://www.youtube.com/watch?v=Ryk_H_Hqn2M)
+21. Stop Overcomplicating AI Agents: Understanding Hooks, Skills, and MCP Without the Confusion, [https://www.youtube.com/watch?v=Ryk_H_Hqn2M](https://www.youtube.com/watch?v=Ryk_H_Hqn2M)
 22. Agent Skills, Plugins and Marketplace: The Complete Guide \- Chris Ayers, [https://chris-ayers.com/posts/agent-skills-plugins-marketplace/](https://chris-ayers.com/posts/agent-skills-plugins-marketplace/)
 23. The SKILL.md Pattern: How to Write AI Agent Skills That Actually Work | by Bibek Poudel, [https://bibek-poudel.medium.com/the-skill-md-pattern-how-to-write-ai-agent-skills-that-actually-work-72a3169dd7ee](https://bibek-poudel.medium.com/the-skill-md-pattern-how-to-write-ai-agent-skills-that-actually-work-72a3169dd7ee)
 24. Specification \- Agent Skills, [https://agentskills.io/specification](https://agentskills.io/specification)
@@ -360,10 +360,10 @@ JSON
 36. A production-ready template for building Model Context Protocol (MCP) servers with FastMCP. \- GitHub, [https://github.com/pirocheto/fastmcp-template](https://github.com/pirocheto/fastmcp-template)
 37. Dify Agent Node Introduction – When Workflows Learn “Autonomous Reasoning” \- Dify Blog, [https://dify.ai/blog/dify-agent-node-introduction-when-workflows-learn-autonomous-reasoning](https://dify.ai/blog/dify-agent-node-introduction-when-workflows-learn-autonomous-reasoning)
 38. Introducing Knowledge Pipeline \- Dify Blog, [https://dify.ai/blog/introducing-knowledge-pipeline](https://dify.ai/blog/introducing-knowledge-pipeline)
-39. Create a local plugin \- Document \- Coze, [https://www.coze.com/open/docs/guides/create\_local\_plugin](https://www.coze.com/open/docs/guides/create_local_plugin)
-40. Coze Plugin \- OpenMem, [https://memos-docs.openmem.net/cn/usecase/frameworks/coze\_plugin](https://memos-docs.openmem.net/cn/usecase/frameworks/coze_plugin)
-41. Get agent config \- Document \- Coze, [https://www.coze.com/open/docs/developer\_guides/get\_agent\_config](https://www.coze.com/open/docs/developer_guides/get_agent_config)
-42. Create an OAuth plugin \- Document \- Coze, [https://www.coze.com/open/docs/guides/oauth\_plugin](https://www.coze.com/open/docs/guides/oauth_plugin)
+39. Create a local plugin \- Document \- Coze, [https://www.coze.com/open/docs/guides/create_local_plugin](https://www.coze.com/open/docs/guides/create_local_plugin)
+40. Coze Plugin \- OpenMem, [https://memos-docs.openmem.net/cn/usecase/frameworks/coze_plugin](https://memos-docs.openmem.net/cn/usecase/frameworks/coze_plugin)
+41. Get agent config \- Document \- Coze, [https://www.coze.com/open/docs/developer_guides/get_agent_config](https://www.coze.com/open/docs/developer_guides/get_agent_config)
+42. Create an OAuth plugin \- Document \- Coze, [https://www.coze.com/open/docs/guides/oauth_plugin](https://www.coze.com/open/docs/guides/oauth_plugin)
 43. Agent plugins in VS Code (Preview), [https://code.visualstudio.com/docs/agent-customization/agent-plugins](https://code.visualstudio.com/docs/agent-customization/agent-plugins)
 44. Slash Commands – Agent Builder Documentation, [https://agentic-plugin.com/slash-commands/](https://agentic-plugin.com/slash-commands/)
 45. Slash Commands in the SDK \- Claude Code Docs, [https://code.claude.com/docs/en/agent-sdk/slash-commands](https://code.claude.com/docs/en/agent-sdk/slash-commands)

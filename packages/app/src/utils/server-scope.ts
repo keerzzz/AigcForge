@@ -55,4 +55,3 @@ export const ScopedKey = {
     return `${ScopedKey.from(scope, ...parts)}${separator}`
   },
 }
-

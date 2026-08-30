@@ -28,14 +28,14 @@ Assistant 是**具有个人上下文和主动触达能力的模式**，但不是
 
 ## 3. 运行语义与架构前提
 
-| 决策 | 当前状态 | 本 PRD 处理 |
-|---|---|---|
-| Product Mode 与 canonical Session route | ADR-11/12 已接受 | 直接遵循 |
-| Assistant 与其他模式边界 | ADR-13 已接受（2026-07-15） | 按 §17 边界表执行 |
-| 全局落盘策略 | ADR-14 已接受（2026-07-15） | 使用 `Global.Service.config` 解析根目录 |
-| ModeWorkspace 主区插槽 | ADR-15 已接受 | Assistant surface 通过 typed slot 注入 |
-| 持久 Scheduler | 尚不存在（Work 已有 `scheduled-job.ts` 分钟级 cron 调度内核） | M0 新建独立领域服务、持久表和恢复循环，调度内核复用 |
-| 本地通知/收件箱投影 | 尚不存在 | M0 与 Scheduler 一并定义 |
+| 决策                                    | 当前状态                                                      | 本 PRD 处理                                         |
+| --------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------- |
+| Product Mode 与 canonical Session route | ADR-11/12 已接受                                              | 直接遵循                                            |
+| Assistant 与其他模式边界                | ADR-13 已接受（2026-07-15）                                   | 按 §17 边界表执行                                   |
+| 全局落盘策略                            | ADR-14 已接受（2026-07-15）                                   | 使用 `Global.Service.config` 解析根目录             |
+| ModeWorkspace 主区插槽                  | ADR-15 已接受                                                 | Assistant surface 通过 typed slot 注入              |
+| 持久 Scheduler                          | 尚不存在（Work 已有 `scheduled-job.ts` 分钟级 cron 调度内核） | M0 新建独立领域服务、持久表和恢复循环，调度内核复用 |
+| 本地通知/收件箱投影                     | 尚不存在                                                      | M0 与 Scheduler 一并定义                            |
 
 M1 的服务承诺固定如下：
 
@@ -67,17 +67,17 @@ M1 的服务承诺固定如下：
 
 ## 5. 用户故事
 
-| 用户故事 | 验收结果 |
-|---|---|
-| 作为个人用户，我想用自然语言设置提醒，以便不填写复杂表单 | 系统解析后展示标准时间和时区，确认后才创建 |
-| 作为跨时区用户，我想知道提醒按哪个时区触发，以便避免时间偏差 | UI 同时显示本地时间、IANA 时区和绝对时间 |
-| 作为管理提醒的用户，我想查看和取消待执行提醒 | 列表状态来自持久 Schedule 查询，取消后立即更新 |
-| 作为离线用户，我想重启后收到错过的提醒 | 启动恢复后生成一条标记为“逾期补投”的收件箱记录 |
-| 作为成本敏感用户，我不希望简单提醒再次调用模型 | 到期路径的 LLM 调用数为 0 |
-| 作为需要查资料的用户，我想让助手联网搜索并整理给我 | 对话中 `websearch`/`webfetch` 正常执行，结果可整理成笔记 |
-| 作为知识沉淀者，我想把重要结论记进个人知识库并互相链接 | `propose_note` 生成候选，确认后写入 kb_note；`[[wikilink]]` 自动解析 |
-| 作为回查用户，我想知道“我之前是怎么处理 X 的” | AI 仅基于 kb_note + 记忆检索回答，带引文角标跳转原文 |
-| 作为记忆管理用户，我想查看 AI 记住了我什么 | 右栏 Memory Inspector 透明展示，可编辑/删除 |
+| 用户故事                                                     | 验收结果                                                             |
+| ------------------------------------------------------------ | -------------------------------------------------------------------- |
+| 作为个人用户，我想用自然语言设置提醒，以便不填写复杂表单     | 系统解析后展示标准时间和时区，确认后才创建                           |
+| 作为跨时区用户，我想知道提醒按哪个时区触发，以便避免时间偏差 | UI 同时显示本地时间、IANA 时区和绝对时间                             |
+| 作为管理提醒的用户，我想查看和取消待执行提醒                 | 列表状态来自持久 Schedule 查询，取消后立即更新                       |
+| 作为离线用户，我想重启后收到错过的提醒                       | 启动恢复后生成一条标记为“逾期补投”的收件箱记录                       |
+| 作为成本敏感用户，我不希望简单提醒再次调用模型               | 到期路径的 LLM 调用数为 0                                            |
+| 作为需要查资料的用户，我想让助手联网搜索并整理给我           | 对话中 `websearch`/`webfetch` 正常执行，结果可整理成笔记             |
+| 作为知识沉淀者，我想把重要结论记进个人知识库并互相链接       | `propose_note` 生成候选，确认后写入 kb_note；`[[wikilink]]` 自动解析 |
+| 作为回查用户，我想知道“我之前是怎么处理 X 的”                | AI 仅基于 kb_note + 记忆检索回答，带引文角标跳转原文                 |
+| 作为记忆管理用户，我想查看 AI 记住了我什么                   | 右栏 Memory Inspector 透明展示，可编辑/删除                          |
 
 ## 6. M1 产品流程
 
@@ -97,19 +97,19 @@ M1 的服务承诺固定如下：
 
 M0 新增由 Core owner 管理的持久 Schedule 契约，最小字段如下：
 
-| 字段 | 约束 |
-|---|---|
-| `id` | 稳定 Schedule ID |
-| `sessionID` | 创建它的 Assistant Session |
-| `kind` | M1 固定为 `reminder` |
-| `content` | 用户确认后的提醒文本 |
-| `dueAt` | 规范化绝对时间 |
-| `timezone` | 用户确认的 IANA 时区 |
-| `status` | `pending`、`running`、`completed`、`cancelled`、`failed` |
-| `attempts` / `nextAttemptAt` | 有界重试状态 |
-| `leaseOwner` / `leaseExpiresAt` | 崩溃后可恢复的临时认领 |
-| `deliveryKey` | 唯一幂等键，跨重试不变 |
-| `createdAt` / `updatedAt` | 持久时间戳 |
+| 字段                            | 约束                                                     |
+| ------------------------------- | -------------------------------------------------------- |
+| `id`                            | 稳定 Schedule ID                                         |
+| `sessionID`                     | 创建它的 Assistant Session                               |
+| `kind`                          | M1 固定为 `reminder`                                     |
+| `content`                       | 用户确认后的提醒文本                                     |
+| `dueAt`                         | 规范化绝对时间                                           |
+| `timezone`                      | 用户确认的 IANA 时区                                     |
+| `status`                        | `pending`、`running`、`completed`、`cancelled`、`failed` |
+| `attempts` / `nextAttemptAt`    | 有界重试状态                                             |
+| `leaseOwner` / `leaseExpiresAt` | 崩溃后可恢复的临时认领                                   |
+| `deliveryKey`                   | 唯一幂等键，跨重试不变                                   |
+| `createdAt` / `updatedAt`       | 持久时间戳                                               |
 
 - Schedule 表是列表、取消和运行状态真源；用户可见 EventV2 记录只能作为审计/会话呈现。
 - 创建、查询、取消和认领必须通过 typed Core 服务/API，不允许 UI 或模型直接改表。
@@ -133,26 +133,26 @@ M0 新增由 Core owner 管理的持久 Schedule 契约，最小字段如下：
 
 **笔记表 `kb_note`**：
 
-| 字段 | 约束 |
-|---|---|
-| `id` | 稳定笔记 ID |
-| `title` | 笔记标题（同作用域内唯一，供 `[[链接]]` 匹配） |
-| `content` | Markdown 正文（含 `[[wikilink]]`） |
-| `scope` | `global`（存于 `Global.Service.config`）或 `project`（存于 `Location.directory/.aigcfroge/`） |
-| `tags` | 层级标签数组（SQLite JSON） |
-| `aliases` | 可选别名数组（`[[别名]]` 也能链接） |
-| `format` | `note`/`summary`/`study_guide`/`faq`/`timeline`/`briefing`/`mindmap` |
-| `createdAt` / `updatedAt` | 持久时间戳 |
+| 字段                      | 约束                                                                                          |
+| ------------------------- | --------------------------------------------------------------------------------------------- |
+| `id`                      | 稳定笔记 ID                                                                                   |
+| `title`                   | 笔记标题（同作用域内唯一，供 `[[链接]]` 匹配）                                                |
+| `content`                 | Markdown 正文（含 `[[wikilink]]`）                                                            |
+| `scope`                   | `global`（存于 `Global.Service.config`）或 `project`（存于 `Location.directory/.aigcfroge/`） |
+| `tags`                    | 层级标签数组（SQLite JSON）                                                                   |
+| `aliases`                 | 可选别名数组（`[[别名]]` 也能链接）                                                           |
+| `format`                  | `note`/`summary`/`study_guide`/`faq`/`timeline`/`briefing`/`mindmap`                          |
+| `createdAt` / `updatedAt` | 持久时间戳                                                                                    |
 
 **关系边表 `kb_link`**：
 
-| 字段 | 约束 |
-|---|---|
-| `source_note_id` | 链接来源笔记 |
-| `target_note_id` | 链接目标笔记（悬空时 null） |
-| `target_title` | 目标标题（悬空检测用） |
-| `link_type` | `reference`/`supports`/`contradicts`/`derived_from`（对齐 NOOA Agent-Curated Store） |
-| `dangling` | 目标不存在时为 true |
+| 字段             | 约束                                                                                 |
+| ---------------- | ------------------------------------------------------------------------------------ |
+| `source_note_id` | 链接来源笔记                                                                         |
+| `target_note_id` | 链接目标笔记（悬空时 null）                                                          |
+| `target_title`   | 目标标题（悬空检测用）                                                               |
+| `link_type`      | `reference`/`supports`/`contradicts`/`derived_from`（对齐 NOOA Agent-Curated Store） |
+| `dangling`       | 目标不存在时为 true                                                                  |
 
 - 笔记以 `.md` 文件为内容真源（ADR-14 §2，Obsidian 兼容），SQLite 为 FTS5 索引与关系边真源（ADR-14 §3）。
 - 反向引用**单边存储 + 索引推导**（Obsidian 机制），不双写。
@@ -191,15 +191,16 @@ Assistant 复用 ADR-12/ADR-15 的共享 `ModeWorkspace` 和 canonical Session r
 
 **右栏 Tab（5 Tab，全量）**：
 
-| Tab | 内容 | 数据源 |
-|---|---|---|
-| 提醒 | 待执行 Schedule 列表（内容/时间/时区/状态徽章 + 取消/修改）+ 底部历史 Delivery | `schedule.pending/list/cancel` + `delivery.recent/inbox/read` |
-| 记忆 | Memory Inspector（pending 提议 + 已确认分组 + confirm/reject/edit/remove） | `memory.list/confirm/reject/edit/remove` |
-| 知识库 | 搜索 + 标签筛 + 笔记列表 + 选中正文 + 反向引用 + 悬空链接 | `kb.list/get/search/dangling` + 新增 `backlinks` 端点（服务方法已有，HTTP 未暴露） |
-| 笔记编辑器 | 双栏 Markdown 编辑 + `[[补全]]` + 实时预览 + 悬空高亮 + 标签 | `kb.create/update/remove` |
-| 上下文 | 会话上下文来源（复用 `session-context-tab.tsx`，零改动） | 现有会话上下文 |
+| Tab        | 内容                                                                           | 数据源                                                                             |
+| ---------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| 提醒       | 待执行 Schedule 列表（内容/时间/时区/状态徽章 + 取消/修改）+ 底部历史 Delivery | `schedule.pending/list/cancel` + `delivery.recent/inbox/read`                      |
+| 记忆       | Memory Inspector（pending 提议 + 已确认分组 + confirm/reject/edit/remove）     | `memory.list/confirm/reject/edit/remove`                                           |
+| 知识库     | 搜索 + 标签筛 + 笔记列表 + 选中正文 + 反向引用 + 悬空链接                      | `kb.list/get/search/dangling` + 新增 `backlinks` 端点（服务方法已有，HTTP 未暴露） |
+| 笔记编辑器 | 双栏 Markdown 编辑 + `[[补全]]` + 实时预览 + 悬空高亮 + 标签                   | `kb.create/update/remove`                                                          |
+| 上下文     | 会话上下文来源（复用 `session-context-tab.tsx`，零改动）                       | 现有会话上下文                                                                     |
 
 **交互模型**：
+
 - 右栏 Tab 非常驻，按需打开；右上角 X 手动关闭。
 - 上下文 Tab ↔ 中栏标题右侧上下文圆环（ProgressCircle 用量%）toggle（对齐 `session-context-usage.tsx` 模式）。
 - 提醒/记忆/知识库/笔记编辑器 Tab ↔ 次级左栏实体列表点击：`openEntityPanel(kind, itemId)` 打开对应 Tab 并定位该项。
@@ -233,41 +234,41 @@ Prompt Caching 仅作为 M2 成本优化：先核验 Assistant System Context �
 
 上线前使用 100 个含重启、取消和故障注入的内部提醒建立基线；Beta Gate 如下：
 
-| 指标 | 目标 | 测量方式 |
-|---|---|---|
-| 有效提醒创建成功率 | ≥95% | 持久可查询 Schedule / 用户确认创建次数 |
-| 在线投递及时率 | ≥99% 在到期后 60 秒内 | 在线期间 Delivery 时间减 `dueAt` |
-| 离线补投成功率 | ≥99% 在启动后 30 秒内 | 逾期 pending 恢复到 Delivery |
-| 用户可见重复投递 | 0 | 同一 `deliveryKey` 的可见记录数超过 1 |
-| 取消后误投 | 0 | `cancelled` 后生成 Delivery 的次数 |
-| 到期路径 LLM 调用 | 0 | Scheduler worker 的 provider 调用数 |
-| 7 日重复创建率 | ≥25% | 首次成功创建提醒后 7 日内再次创建提醒的用户占比 |
-| 笔记创建率（M2+） | 观察 | 对话生成笔记/主动创建笔记的用户占比 |
-| 知识库回查率（M2+） | 观察 | 触发源数据锚定问答的会话占比 |
+| 指标                | 目标                  | 测量方式                                        |
+| ------------------- | --------------------- | ----------------------------------------------- |
+| 有效提醒创建成功率  | ≥95%                  | 持久可查询 Schedule / 用户确认创建次数          |
+| 在线投递及时率      | ≥99% 在到期后 60 秒内 | 在线期间 Delivery 时间减 `dueAt`                |
+| 离线补投成功率      | ≥99% 在启动后 30 秒内 | 逾期 pending 恢复到 Delivery                    |
+| 用户可见重复投递    | 0                     | 同一 `deliveryKey` 的可见记录数超过 1           |
+| 取消后误投          | 0                     | `cancelled` 后生成 Delivery 的次数              |
+| 到期路径 LLM 调用   | 0                     | Scheduler worker 的 provider 调用数             |
+| 7 日重复创建率      | ≥25%                  | 首次成功创建提醒后 7 日内再次创建提醒的用户占比 |
+| 笔记创建率（M2+）   | 观察                  | 对话生成笔记/主动创建笔记的用户占比             |
+| 知识库回查率（M2+） | 观察                  | 触发源数据锚定问答的会话占比                    |
 
 至少记录 `assistant_reminder_draft_started`、`assistant_reminder_confirmed`、`assistant_reminder_created`、`assistant_reminder_cancelled`、`assistant_reminder_delivered`、`assistant_reminder_caught_up` 和 `assistant_reminder_failed`；不记录提醒正文。M2 起增加 `assistant_note_proposed`、`assistant_note_applied`、`assistant_note_rejected`、`assistant_memory_confirmed`；不记录笔记正文。
 
 ## 12. 里程碑与优先级
 
-| 阶段 | 范围 | 准入/退出条件 |
-|---|---|---|
-| **M0 Scheduler** | Schedule/Delivery schema、迁移、租约、恢复循环、typed API（复用 `scheduled-job.ts` 内核） | Core/数据库/安全评审通过，时间与崩溃测试完成 |
-| **M1 单次提醒** | 对话确认、列表、取消、收件箱、在线投递、离线补投 | Beta Gate 全部达标 |
-| **M2 个人记忆 + 知识库** | 显式记忆（确认优先）、Memory Inspector、kb_note/kb_link、FTS5、`[[wikilink]]`、悬空检测、反向引用 | 独立记忆安全设计 + 知识库 schema 评审通过 |
-| **M2.5 个人笔记 + AI 产物** | 笔记编辑器、模板、日记页、Web 剪藏、`propose_note`（7 种 format）、源数据锚定问答 + 引文角标、版本历史 | 笔记 UX 评审通过，锚定问答防幻觉验证通过 |
-| **M3 主动任务** | 周期计划、有限 Session wake、跨模式委派、图谱视图、闪卡/间隔重复（与 Scheduler 联动）、随机反刍 | IterationBudget、幂等和 Permission 设计通过 |
-| **M4 跨信道** | 经 PoC 通过的单一信道，再逐个扩展 | Gateway 安全与 outbox 设计通过 |
+| 阶段                        | 范围                                                                                                   | 准入/退出条件                                |
+| --------------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------- |
+| **M0 Scheduler**            | Schedule/Delivery schema、迁移、租约、恢复循环、typed API（复用 `scheduled-job.ts` 内核）              | Core/数据库/安全评审通过，时间与崩溃测试完成 |
+| **M1 单次提醒**             | 对话确认、列表、取消、收件箱、在线投递、离线补投                                                       | Beta Gate 全部达标                           |
+| **M2 个人记忆 + 知识库**    | 显式记忆（确认优先）、Memory Inspector、kb_note/kb_link、FTS5、`[[wikilink]]`、悬空检测、反向引用      | 独立记忆安全设计 + 知识库 schema 评审通过    |
+| **M2.5 个人笔记 + AI 产物** | 笔记编辑器、模板、日记页、Web 剪藏、`propose_note`（7 种 format）、源数据锚定问答 + 引文角标、版本历史 | 笔记 UX 评审通过，锚定问答防幻觉验证通过     |
+| **M3 主动任务**             | 周期计划、有限 Session wake、跨模式委派、图谱视图、闪卡/间隔重复（与 Scheduler 联动）、随机反刍        | IterationBudget、幂等和 Permission 设计通过  |
+| **M4 跨信道**               | 经 PoC 通过的单一信道，再逐个扩展                                                                      | Gateway 安全与 outbox 设计通过               |
 
 按 WSJF，Scheduler 与单次提醒优先：它是所有主动能力的公共根基，同时不引入模型成本、工具风险和信道依赖。知识库与笔记紧随其后——它们是 Assistant 区别于其他模式的核心差异化能力。
 
 ### 12.1 成本收益假设
 
-| 假设 | 验证方式 |
-|---|---|
-| 可靠单次提醒能验证用户是否需要 Assistant 的主动能力 | 观察提醒创建量、投递及时率、取消率和 7 日重复创建率 |
-| 主要成本集中在 Scheduler 的事务、恢复和时间语义，M1 到期路径无模型成本 | 记录 M0/M1 工程工作量、故障率和 provider 调用数 |
-| Scheduler 可被周期计划和有限 Session wake 复用 | M3 立项前验证不需要替换 Schedule/Delivery 身份与恢复模型 |
-| 笔记知识库是 Assistant 的核心留存能力（相对纯笔记工具差异化） | 观察笔记创建率、回查率、7 日留存 |
+| 假设                                                                   | 验证方式                                                 |
+| ---------------------------------------------------------------------- | -------------------------------------------------------- |
+| 可靠单次提醒能验证用户是否需要 Assistant 的主动能力                    | 观察提醒创建量、投递及时率、取消率和 7 日重复创建率      |
+| 主要成本集中在 Scheduler 的事务、恢复和时间语义，M1 到期路径无模型成本 | 记录 M0/M1 工程工作量、故障率和 provider 调用数          |
+| Scheduler 可被周期计划和有限 Session wake 复用                         | M3 立项前验证不需要替换 Schedule/Delivery 身份与恢复模型 |
+| 笔记知识库是 Assistant 的核心留存能力（相对纯笔记工具差异化）          | 观察笔记创建率、回查率、7 日留存                         |
 
 若 Beta 用户的 7 日重复创建率低于 15%，或无法连续两周满足投递/补投 Gate，停止记忆和跨信道扩围，优先验证提醒价值与可靠性。
 
@@ -308,13 +309,13 @@ Prompt Caching 仅作为 M2 成本优化：先核验 Assistant System Context �
 
 ### 16.1 5 大开源顶尖 Agent 项目深度对齐表
 
-| 开源标杆项目 | GitHub/行业定位 | 核心机制与优势 | 对齐 AigcForge Assistant 的补充演进视角 |
-|---|---|---|---|
-| **1. Open Interpreter** | 60k+ Stars<br>系统级/代码执行 Agent | 本地代码执行（Python/Bash/REPL 沙盒）、Computer Use (GUI/截图控制)、Agent Client Protocol (ACP)。 | **端侧与代码沙盒 (Module E)**：为后续 M3/M4 演进提供本地 Python/REPL 沙盒与高危 Shell 指令的 Human-In-The-Loop (HITL) 授权机制。 |
-| **2. Letta (前 MemGPT)** | 30k+ Stars<br>UC Berkeley 记忆 OS | LLM-as-an-OS 理念、Core / Recall / Archival 三层记忆模型、Self-Editing Memory (自编辑记忆)。 | **长效 3-Tier 记忆 (Module B)**：为 §9 个人记忆提供规范化架构——Core Memory (User Block 动态 Prompt 注入) + Archival (向量检索)。 |
-| **3. Dify.ai** | 50k+ Stars<br>工作流与 Agent 平台 | 可视化 Tool 编排、ReAct 思考链显性化、Sub-agent 协同与 Agentic Workflow。 | **任务编排与 MCP (Module C/D)**：补充 ReAct 显性思考链与 MCP (Model Context Protocol) 插件标准的对接规范。 |
-| **4. Open WebUI** | 50k+ Stars<br>个人 AI 门户 | Svelte/FastAPI 架构、Artifacts (Notes Canvas) 双栏 UI、Native RAG 知识库与多模型切换。 | **双栏 UI 与 Artifacts (Module A)**：补充共享 `ModeWorkspace` 的双栏交互模式（主会话流 + 右侧 Artifacts/Memory Canvas）。 |
-| **5. OpenClaw / AutoGPT** | 200k+ Stars<br>全渠道网关 Agent | 多 IM 渠道连接器 (Telegram/Discord/WeChat)、Outbox 发件箱幂等去重、后台任务 Scheduler。 | **消息网关与 Outbox (Module D)**：为 §10 跨信道补充 Channel Outbox 幂等去重与外部 webhook 签名校验机制。 |
+| 开源标杆项目              | GitHub/行业定位                     | 核心机制与优势                                                                                    | 对齐 AigcForge Assistant 的补充演进视角                                                                                          |
+| ------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **1. Open Interpreter**   | 60k+ Stars<br>系统级/代码执行 Agent | 本地代码执行（Python/Bash/REPL 沙盒）、Computer Use (GUI/截图控制)、Agent Client Protocol (ACP)。 | **端侧与代码沙盒 (Module E)**：为后续 M3/M4 演进提供本地 Python/REPL 沙盒与高危 Shell 指令的 Human-In-The-Loop (HITL) 授权机制。 |
+| **2. Letta (前 MemGPT)**  | 30k+ Stars<br>UC Berkeley 记忆 OS   | LLM-as-an-OS 理念、Core / Recall / Archival 三层记忆模型、Self-Editing Memory (自编辑记忆)。      | **长效 3-Tier 记忆 (Module B)**：为 §9 个人记忆提供规范化架构——Core Memory (User Block 动态 Prompt 注入) + Archival (向量检索)。 |
+| **3. Dify.ai**            | 50k+ Stars<br>工作流与 Agent 平台   | 可视化 Tool 编排、ReAct 思考链显性化、Sub-agent 协同与 Agentic Workflow。                         | **任务编排与 MCP (Module C/D)**：补充 ReAct 显性思考链与 MCP (Model Context Protocol) 插件标准的对接规范。                       |
+| **4. Open WebUI**         | 50k+ Stars<br>个人 AI 门户          | Svelte/FastAPI 架构、Artifacts (Notes Canvas) 双栏 UI、Native RAG 知识库与多模型切换。            | **双栏 UI 与 Artifacts (Module A)**：补充共享 `ModeWorkspace` 的双栏交互模式（主会话流 + 右侧 Artifacts/Memory Canvas）。        |
+| **5. OpenClaw / AutoGPT** | 200k+ Stars<br>全渠道网关 Agent     | 多 IM 渠道连接器 (Telegram/Discord/WeChat)、Outbox 发件箱幂等去重、后台任务 Scheduler。           | **消息网关与 Outbox (Module D)**：为 §10 跨信道补充 Channel Outbox 幂等去重与外部 webhook 签名校验机制。                         |
 
 ---
 
@@ -336,31 +337,36 @@ Prompt Caching 仅作为 M2 成本优化：先核验 Assistant System Context �
 ```
 
 #### Module A：交互与对话外壳 (Interaction & Conversational Shell)
+
 1. **多模态对话流 (Multi-modal Stream)**：文本、语音 (TTS/STT 实时中断)、图像输入与代码/图表实时渲染。
 2. **多模型/多 Provider 动态切换**：无缝切换 OpenAI、Anthropic、DeepSeek 及 Ollama/vLLM 本地模型。
 3. **Artifacts 画布 (Notes & Product Canvas)**：在双栏右侧独立渲染长文档、代码块、Mermaid 图表与 HTML 预览。
 4. **全渠道 IM/消息接入 (Channel Gateway)**：绑定 Telegram、Discord、Slack、微信等信道进行消息交互与主动通知。
 
 #### Module B：记忆与知识体系 (Stateful Memory & RAG)
+
 1. **三层记忆模型 (3-Tier Memory System)**：
-   * **Core Memory (RAM)**：存放用户画像、交互偏好（注入 System Context Prefix）。
-   * **Recall Memory (Cache)**：会话上下文窗口与近期交互历史摘要。
-   * **Archival Memory (Disk)**：基于 SQLite-VSS / Vector DB 的向量化长期历史与文档检索。
+   - **Core Memory (RAM)**：存放用户画像、交互偏好（注入 System Context Prefix）。
+   - **Recall Memory (Cache)**：会话上下文窗口与近期交互历史摘要。
+   - **Archival Memory (Disk)**：基于 SQLite-VSS / Vector DB 的向量化长期历史与文档检索。
 2. **自编辑记忆 (Self-Editing Memory)**：Agent 自动识别用户偏好并触发 `update_memory`，且在 Memory Panel 中向用户透明展示。**（本 PRD §9 修正：仅允许"提议+确认"，禁止未经确认的自动注入）**
 3. **个人知识库 RAG Pipeline**：支持 Markdown/PDF/URL 一键导入构建索引库，采用 Hybrid Search + Cross-Encoder Rerank。**（本 PRD §7.4 修正：M2 用 FTS5 + 双向链接，向量检索延至 M3+）**
 
 #### Module C：任务规划与 Agent 执行引擎 (Task Engine & Scheduler)
+
 1. **持久化调度器 (Persistent Scheduler)**：基于 Core 引擎的定时（One-shot/Cron）与事件驱动调度器，带租约认领与崩溃恢复（严格遵循 §3/§7 规范）。
 2. **ReAct 显性思考链**：透明展示 Reasoning、Tool Call 与 Observation 步骤。**（本 PRD §17 修正：Assistant 左栏不展示 ReAct 显性思考链，简洁确认优先）**
 3. **Human-In-The-Loop (HITL) 授权控制**：对高危操作（修改本地文件、执行 Shell、发送外部消息）弹窗二次确认。
 4. **Sub-agent 任务分发**：支持 Assistant 将复杂研究或代码审查任务委派给专门子 Agent 独立异步执行。
 
 #### Module D：工具与生态网关 (Tools, Extensions & MCP)
+
 1. **MCP (Model Context Protocol) 原生支持**：无缝接入标准 MCP Server 提供的工具与数据源。（AigcForge 已有 MCP V2 stdio+remote+OAuth）
 2. **Channel Outbox 消息发件箱**：保证向外部 IM 投递消息时的幂等性与有序性。
 3. **Agentic Web Search**：集成 Brave/Tavily/Perplexity 联网搜索能力。（AigcForge 已有 `websearch` Exa/Parallel 双引擎）
 
 #### Module E：系统与端侧控制 (OS & Execution Sandbox)
+
 1. **Python/REPL 代码沙盒**：安全执行数据分析、绘图与计算脚本。**（本 PRD §17 判定：伪需求/远期探索，AigcForge 已有 bash + Coding 模式）**
 2. **CLI & Terminal Hook**：支持运行受限命令与脚本（高危指令需 HITL 授权）。
 3. **本地工作区文件整理**：自动根据约定提取、清洗、组织本地特定目录中的文件。**（远期探索）**
@@ -370,11 +376,11 @@ Prompt Caching 仅作为 M2 成本优化：先核验 Assistant System Context �
 ### 16.3 UX 交互设计补充规范
 
 1. **Memory Inspector (记忆面板)**：
-   * 复用右栏 Slot，直观分类呈现记忆条目，支持用户一键编辑（Edit）、手动删除（Delete）或停用特定记忆条目。
+   - 复用右栏 Slot，直观分类呈现记忆条目，支持用户一键编辑（Edit）、手动删除（Delete）或停用特定记忆条目。
 2. **Human-In-The-Loop (HITL) 授权组件**：
-   * 采用高对比度提示框，展示指令类型、目标路径/API 与风险等级，提供 **Approve (授权)** / **Edit (修改参数)** / **Decline (拒绝)** 三选项。**（M3+ 完整版；M1 提醒创建确认为轻量版，复用 `question` 工具）**
+   - 采用高对比度提示框，展示指令类型、目标路径/API 与风险等级，提供 **Approve (授权)** / **Edit (修改参数)** / **Decline (拒绝)** 三选项。**（M3+ 完整版；M1 提醒创建确认为轻量版，复用 `question` 工具）**
 3. **Pending Reminders Drawer (待办提醒抽屉)**：
-   * 结合 §8 页面设计，在侧边栏提供待执行 Schedule 列表，支持一键取消与查看历史 Delivery 记录。
+   - 结合 §8 页面设计，在侧边栏提供待执行 Schedule 列表，支持一键取消与查看历史 Delivery 记录。
 
 ---
 
@@ -382,13 +388,13 @@ Prompt Caching 仅作为 M2 成本优化：先核验 Assistant System Context �
 
 ### 17.1 五模式职责切割（遵循 ADR-11/13）
 
-| 模式/组件 | 核心定位与职责 | 不属于本模式的内容 |
-|---|---|---|
-| **Meta-Agent (元智能体)** | 系统总路由与编排层：意图识别、子 Agent 分发、并行调度、工作流 Pipeline | 不承担具体个人提醒存储或用户个性化记忆管理 |
-| **Chat 模式** | 资产捏造与创造层：调试、生成和管理 Prompt/Skill/Workflow/Plugin 资产 | 不承担通用业务执行或个人日程管理 |
-| **Code 模式** | 工程研发层：以代码库、Git、LSP、终端为中心的代码构造与调试 | 不承担非代码类日常办公提醒与个人偏好记忆 |
-| **Work 模式** | 非编程预设执行层：消费硬编码 Presets 完成一次性交付物 | 不承担跨会话长效记忆或周期性主动触达 |
-| **Assistant 模式** | 个人主动事项与长效上下文层：个人长效记忆、定时与事件提醒、个人笔记知识库、多端 IM 触达、HITL 安全授权 | 不重复做代码编写、不重复做预设执行、不替代元智能体总路由 |
+| 模式/组件                 | 核心定位与职责                                                                                        | 不属于本模式的内容                                       |
+| ------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| **Meta-Agent (元智能体)** | 系统总路由与编排层：意图识别、子 Agent 分发、并行调度、工作流 Pipeline                                | 不承担具体个人提醒存储或用户个性化记忆管理               |
+| **Chat 模式**             | 资产捏造与创造层：调试、生成和管理 Prompt/Skill/Workflow/Plugin 资产                                  | 不承担通用业务执行或个人日程管理                         |
+| **Code 模式**             | 工程研发层：以代码库、Git、LSP、终端为中心的代码构造与调试                                            | 不承担非代码类日常办公提醒与个人偏好记忆                 |
+| **Work 模式**             | 非编程预设执行层：消费硬编码 Presets 完成一次性交付物                                                 | 不承担跨会话长效记忆或周期性主动触达                     |
+| **Assistant 模式**        | 个人主动事项与长效上下文层：个人长效记忆、定时与事件提醒、个人笔记知识库、多端 IM 触达、HITL 安全授权 | 不重复做代码编写、不重复做预设执行、不替代元智能体总路由 |
 
 ### 17.1.1 全模式默认元智能体 + assistant 子智能体契约（2026-08-11 决策）
 
@@ -422,15 +428,15 @@ deny   bash / edit / write / task_spawn / task_schedule
 
 ### 17.2 伪需求甄别（绝不能踩的坑）
 
-| 伪需求 | 剔除原因 | 真需求解法 |
-|---|---|---|
-| 1. 假装“关闭应用后依然全天候云端在线” | 本地/桌面架构下关机宣称在线是欺骗 | 持久 Scheduler 事务引擎 + 启动时扫描逾期补投（Caught-up Delivery） |
-| 2. 把“大段历史对话”充当“个人记忆” | 长上下文滚屏致模型迷失，新开 Session 依然失忆 | 结构化记忆（Core 画像 + 显式条目），FTS5 检索，可视化面板编辑/删除 |
-| 3. 让 Assistant 承担重度写代码或长文档交付 | 混淆 Assistant 与 Code/Work 模式界限 | 跨模式委派（Mode Delegation）：写代码交 Code，做文档交 Work 预设 |
-| 4. “完全无感”替用户自动执行高危操作 | 全自动发邮件/删文件易因幻觉致数据灾难或社交事故 | HITL 渐进式授权卡片（Approve / Edit / Decline） |
-| 5. AI 自编辑记忆并自动注入 prompt | 个人助手场景下用户失控感是致命体验问题，且引入注入污染 | 记忆"提议+确认"，derived 进入待确认队列 |
-| 6. 左栏展示 ReAct 显性思考链 | Assistant 用户需要简洁确认，不是逐步推理展开；Session Runner 已有内部循环 | 左栏为消息流 + 确认卡片 |
-| 7. Python/REPL 代码沙盒、Computer Use、Phone Use、全双工语音 | 工程量等于独立产品线，且与开发者工具定位不符 | 已有 bash + Coding 模式覆盖代码执行；数字人/语音标为远期探索 |
+| 伪需求                                                       | 剔除原因                                                                  | 真需求解法                                                         |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 1. 假装“关闭应用后依然全天候云端在线”                        | 本地/桌面架构下关机宣称在线是欺骗                                         | 持久 Scheduler 事务引擎 + 启动时扫描逾期补投（Caught-up Delivery） |
+| 2. 把“大段历史对话”充当“个人记忆”                            | 长上下文滚屏致模型迷失，新开 Session 依然失忆                             | 结构化记忆（Core 画像 + 显式条目），FTS5 检索，可视化面板编辑/删除 |
+| 3. 让 Assistant 承担重度写代码或长文档交付                   | 混淆 Assistant 与 Code/Work 模式界限                                      | 跨模式委派（Mode Delegation）：写代码交 Code，做文档交 Work 预设   |
+| 4. “完全无感”替用户自动执行高危操作                          | 全自动发邮件/删文件易因幻觉致数据灾难或社交事故                           | HITL 渐进式授权卡片（Approve / Edit / Decline）                    |
+| 5. AI 自编辑记忆并自动注入 prompt                            | 个人助手场景下用户失控感是致命体验问题，且引入注入污染                    | 记忆"提议+确认"，derived 进入待确认队列                            |
+| 6. 左栏展示 ReAct 显性思考链                                 | Assistant 用户需要简洁确认，不是逐步推理展开；Session Runner 已有内部循环 | 左栏为消息流 + 确认卡片                                            |
+| 7. Python/REPL 代码沙盒、Computer Use、Phone Use、全双工语音 | 工程量等于独立产品线，且与开发者工具定位不符                              | 已有 bash + Coding 模式覆盖代码执行；数字人/语音标为远期探索       |
 
 ---
 
@@ -438,16 +444,16 @@ deny   bash / edit / write / task_spawn / task_schedule
 
 以下能力已在 `packages/core` 实现，Assistant Session 作为 `mode=assistant` 普通 Session，通过 Tool Registry + PermissionV2 直接继承：
 
-| 能力 | 代码位置 | 对 Assistant 的意义 |
-|---|---|---|
-| 联网搜索 | `tool/websearch.ts` | Exa/Parallel 双引擎，查资料、整理信息 |
-| 网页抓取 | `tool/webfetch.ts` | URL 转 markdown，读链接、Web 剪藏素材 |
-| MCP 工具接入 | MCP V2（stdio+remote+OAuth） | 继承全部已注册 MCP Server 工具 |
-| 文件读写 | `tool/read|write|edit|glob|grep` | 读写项目文件 |
-| 提问确认 | `tool/question.ts` | 提醒创建确认、记忆确认、HITL 轻量版 |
-| Bash 执行 | `tool/bash.ts` | 受 PermissionV2 控制的命令执行 |
-| Skill 加载 | `tool/skill.ts` | 按需加载技能 playbook |
-| 会话共享/回滚/摘要 | `session/share-v2|revert|summary` | 跨会话上下文协作 |
+| 能力               | 代码位置                     | 对 Assistant 的意义                   |
+| ------------------ | ---------------------------- | ------------------------------------- | -------- | ---------------- | ----- | ------------ |
+| 联网搜索           | `tool/websearch.ts`          | Exa/Parallel 双引擎，查资料、整理信息 |
+| 网页抓取           | `tool/webfetch.ts`           | URL 转 markdown，读链接、Web 剪藏素材 |
+| MCP 工具接入       | MCP V2（stdio+remote+OAuth） | 继承全部已注册 MCP Server 工具        |
+| 文件读写           | `tool/read                   | write                                 | edit     | glob             | grep` | 读写项目文件 |
+| 提问确认           | `tool/question.ts`           | 提醒创建确认、记忆确认、HITL 轻量版   |
+| Bash 执行          | `tool/bash.ts`               | 受 PermissionV2 控制的命令执行        |
+| Skill 加载         | `tool/skill.ts`              | 按需加载技能 playbook                 |
+| 会话共享/回滚/摘要 | `session/share-v2            | revert                                | summary` | 跨会话上下文协作 |
 
 联网搜索（`websearch`）+ 网页抓取（`webfetch`）是用户使用 Assistant 的高频场景（"帮我查一下最近的 X"），也是 AI 辅助写入笔记/知识库的前提。需要在 Assistant Agent 的 system prompt 中显式告知模型"你有联网搜索能力"。
 
@@ -459,13 +465,13 @@ deny   bash / edit / write / task_spawn / task_schedule
 
 ### 19.1 与个人记忆的关系
 
-| 维度 | 个人记忆（§9） | 个人知识库（本节） |
-|---|---|---|
-| 内容来源 | AI 提议或用户主动写入的事实片段 | 用户主动创建的结构化笔记/文档 |
-| 粒度 | 一条事实（几句话，≤2000 字符） | 一篇笔记（可长可短，含格式化内容） |
-| 关系 | 无显式关系边（只有 source 溯源） | 笔记间 `[[双向链接]]`，可追溯反向引用 |
-| 检索 | FTS5 关键词搜索 | FTS5 + 双向链接遍历 + 悬空检测 |
-| 用户心智 | 被动消费（AI 注入上下文时用） | 主动组织（浏览、编辑、关联） |
+| 维度     | 个人记忆（§9）                   | 个人知识库（本节）                    |
+| -------- | -------------------------------- | ------------------------------------- |
+| 内容来源 | AI 提议或用户主动写入的事实片段  | 用户主动创建的结构化笔记/文档         |
+| 粒度     | 一条事实（几句话，≤2000 字符）   | 一篇笔记（可长可短，含格式化内容）    |
+| 关系     | 无显式关系边（只有 source 溯源） | 笔记间 `[[双向链接]]`，可追溯反向引用 |
+| 检索     | FTS5 关键词搜索                  | FTS5 + 双向链接遍历 + 悬空检测        |
+| 用户心智 | 被动消费（AI 注入上下文时用）    | 主动组织（浏览、编辑、关联）          |
 
 知识库是记忆的载体和容器：记忆条目可挂载到笔记上，一条笔记可含多条记忆事实；两者通过关系边（`supports`/`contradicts`/`derived_from`）关联，为防幻觉证据链打基础。
 
@@ -519,15 +525,15 @@ deny   bash / edit / write / task_spawn / task_schedule
 
 ### 20.2 format 产物类型
 
-| format | NotebookLM 对应 | Assistant 场景 |
-|---|---|---|
-| `note` | 笔记卡片 | 从对话提取要点 |
-| `summary` | 摘要 | 压缩整段对话 |
-| `study_guide` | Study Guide | 概念 + 简答题 |
-| `faq` | FAQ | 问答对整理 |
-| `timeline` | Timeline | 事件排序 |
-| `briefing` | Briefing Doc | 结构化汇报摘要 |
-| `mindmap` | Mind Map | Mermaid mindmap 语法 |
+| format        | NotebookLM 对应 | Assistant 场景       |
+| ------------- | --------------- | -------------------- |
+| `note`        | 笔记卡片        | 从对话提取要点       |
+| `summary`     | 摘要            | 压缩整段对话         |
+| `study_guide` | Study Guide     | 概念 + 简答题        |
+| `faq`         | FAQ             | 问答对整理           |
+| `timeline`    | Timeline        | 事件排序             |
+| `briefing`    | Briefing Doc    | 结构化汇报摘要       |
+| `mindmap`     | Mind Map        | Mermaid mindmap 语法 |
 
 ### 20.3 触发方式
 

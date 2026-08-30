@@ -1,7 +1,12 @@
 export * as McpOAuthProviderV2 from "./v2-oauth-provider"
 
 import type { OAuthClientProvider } from "@modelcontextprotocol/sdk/client/auth.js"
-import type { OAuthClientMetadata, OAuthTokens, OAuthClientInformation, OAuthClientInformationFull } from "@modelcontextprotocol/sdk/shared/auth.js"
+import type {
+  OAuthClientMetadata,
+  OAuthTokens,
+  OAuthClientInformation,
+  OAuthClientInformationFull,
+} from "@modelcontextprotocol/sdk/shared/auth.js"
 import { Effect } from "effect"
 import type { Interface as McpAuthInterface } from "./v2-auth"
 
@@ -55,19 +60,26 @@ export class McpOAuthProvider implements OAuthClientProvider {
     }
     const entry = await Effect.runPromise(this.auth.getForUrl(this.mcpName, this.serverUrl))
     if (entry?.clientInfo) {
-      if (entry.clientInfo.clientSecretExpiresAt && entry.clientInfo.clientSecretExpiresAt < Date.now() / 1000) return undefined
+      if (entry.clientInfo.clientSecretExpiresAt && entry.clientInfo.clientSecretExpiresAt < Date.now() / 1000)
+        return undefined
       return { client_id: entry.clientInfo.clientId, client_secret: entry.clientInfo.clientSecret }
     }
     return undefined
   }
 
   async saveClientInformation(info: OAuthClientInformationFull): Promise<void> {
-    await Effect.runPromise(this.auth.updateClientInfo(this.mcpName, {
-      clientId: info.client_id,
-      clientSecret: info.client_secret,
-      clientIdIssuedAt: info.client_id_issued_at,
-      clientSecretExpiresAt: info.client_secret_expires_at,
-    }, this.serverUrl))
+    await Effect.runPromise(
+      this.auth.updateClientInfo(
+        this.mcpName,
+        {
+          clientId: info.client_id,
+          clientSecret: info.client_secret,
+          clientIdIssuedAt: info.client_id_issued_at,
+          clientSecretExpiresAt: info.client_secret_expires_at,
+        },
+        this.serverUrl,
+      ),
+    )
   }
 
   async tokens(): Promise<OAuthTokens | undefined> {
@@ -77,18 +89,26 @@ export class McpOAuthProvider implements OAuthClientProvider {
       access_token: entry.tokens.accessToken,
       token_type: "Bearer",
       refresh_token: entry.tokens.refreshToken,
-      expires_in: entry.tokens.expiresAt ? Math.max(0, Math.floor(entry.tokens.expiresAt - Date.now() / 1000)) : undefined,
+      expires_in: entry.tokens.expiresAt
+        ? Math.max(0, Math.floor(entry.tokens.expiresAt - Date.now() / 1000))
+        : undefined,
       scope: entry.tokens.scope,
     }
   }
 
   async saveTokens(tokens: OAuthTokens): Promise<void> {
-    await Effect.runPromise(this.auth.updateTokens(this.mcpName, {
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token,
-      expiresAt: tokens.expires_in ? Date.now() / 1000 + tokens.expires_in : undefined,
-      scope: tokens.scope,
-    }, this.serverUrl))
+    await Effect.runPromise(
+      this.auth.updateTokens(
+        this.mcpName,
+        {
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          expiresAt: tokens.expires_in ? Date.now() / 1000 + tokens.expires_in : undefined,
+          scope: tokens.scope,
+        },
+        this.serverUrl,
+      ),
+    )
   }
 
   async redirectToAuthorization(authorizationUrl: URL): Promise<void> {
@@ -113,7 +133,8 @@ export class McpOAuthProvider implements OAuthClientProvider {
     const entry = await Effect.runPromise(this.auth.get(this.mcpName))
     if (entry?.oauthState) return entry.oauthState
     const newState = Array.from(crypto.getRandomValues(new Uint8Array(32)))
-      .map((b) => b.toString(16).padStart(2, "0")).join("")
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("")
     await Effect.runPromise(this.auth.updateOAuthState(this.mcpName, newState))
     return newState
   }
@@ -122,9 +143,17 @@ export class McpOAuthProvider implements OAuthClientProvider {
     const entry = await Effect.runPromise(this.auth.get(this.mcpName))
     if (!entry) return
     switch (type) {
-      case "all": await Effect.runPromise(this.auth.remove(this.mcpName)); break
-      case "client": delete (entry as any).clientInfo; await Effect.runPromise(this.auth.set(this.mcpName, entry)); break
-      case "tokens": delete (entry as any).tokens; await Effect.runPromise(this.auth.set(this.mcpName, entry)); break
+      case "all":
+        await Effect.runPromise(this.auth.remove(this.mcpName))
+        break
+      case "client":
+        delete (entry as any).clientInfo
+        await Effect.runPromise(this.auth.set(this.mcpName, entry))
+        break
+      case "tokens":
+        delete (entry as any).tokens
+        await Effect.runPromise(this.auth.set(this.mcpName, entry))
+        break
     }
   }
 }
@@ -133,7 +162,10 @@ export function parseRedirectUri(redirectUri?: string): { port: number; path: st
   if (!redirectUri) return { port: OAUTH_CALLBACK_PORT, path: OAUTH_CALLBACK_PATH }
   try {
     const url = new URL(redirectUri)
-    return { port: url.port ? parseInt(url.port, 10) : url.protocol === "https:" ? 443 : 80, path: url.pathname || OAUTH_CALLBACK_PATH }
+    return {
+      port: url.port ? parseInt(url.port, 10) : url.protocol === "https:" ? 443 : 80,
+      path: url.pathname || OAUTH_CALLBACK_PATH,
+    }
   } catch {
     return { port: OAUTH_CALLBACK_PORT, path: OAUTH_CALLBACK_PATH }
   }

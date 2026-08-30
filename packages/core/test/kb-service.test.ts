@@ -10,7 +10,6 @@ import { KBService } from "@aigcfroge/core/session/kb-service"
 import { KBNote } from "@aigcfroge/schema/kb-note"
 import { pollWithTimeout, testEffect } from "./lib/effect"
 
-
 const it = testEffect(
   KBService.layer.pipe(
     Layer.provideMerge(FileMutation.layer),
@@ -29,9 +28,9 @@ const base = () => {
   createdDirs.push(dir)
   return dir
 }
-afterAll(() => Promise.all(createdDirs.map((dir) => fs.rm(dir, { recursive: true, force: true }).catch(() => undefined))))
-
-
+afterAll(() =>
+  Promise.all(createdDirs.map((dir) => fs.rm(dir, { recursive: true, force: true }).catch(() => undefined))),
+)
 
 describe("KBService", () => {
   it.effect("creates a note, writes its .md file, and resolves its wikilinks", () =>
@@ -238,7 +237,9 @@ describe("KBService review hardening", () => {
       const kb = yield* KBService.Service
       const fs = yield* FSUtil.Service
       const dir = base()
-      const exit = yield* kb.create({ title: "../../evil", content: "x", scope: "global", baseDir: dir }).pipe(Effect.exit)
+      const exit = yield* kb
+        .create({ title: "../../evil", content: "x", scope: "global", baseDir: dir })
+        .pipe(Effect.exit)
       expect(exit._tag).toBe("Failure")
       // No dirty row: list still decodes and is empty (a poisoned row would defect here).
       expect(yield* kb.list({ scope: "global" })).toEqual([])
@@ -288,8 +289,18 @@ describe("KBService review hardening", () => {
     Effect.gen(function* () {
       const kb = yield* KBService.Service
       const dir = base()
-      const globalShared = yield* kb.create({ title: "Shared", content: "global version", scope: "global", baseDir: dir })
-      const projectShared = yield* kb.create({ title: "Shared", content: "project version", scope: "project", baseDir: dir })
+      const globalShared = yield* kb.create({
+        title: "Shared",
+        content: "global version",
+        scope: "global",
+        baseDir: dir,
+      })
+      const projectShared = yield* kb.create({
+        title: "Shared",
+        content: "project version",
+        scope: "project",
+        baseDir: dir,
+      })
 
       // A project note linking [[Shared]] must bind the PROJECT-scope note, not
       // the global one — the (scope, title) unique key makes both real.
@@ -325,7 +336,9 @@ describe("KBService atomicity", () => {
       const dir = base()
       const first = yield* kb.create({ title: "Note", content: "first", scope: "project", baseDir: dir })
       expect(yield* fs.readFileStringSafe(`${dir}/.aigcfroge/knowledge-base/Note.md`)).toBe("first")
-      const exit = yield* kb.create({ title: "Note", content: "second", scope: "project", baseDir: dir }).pipe(Effect.exit)
+      const exit = yield* kb
+        .create({ title: "Note", content: "second", scope: "project", baseDir: dir })
+        .pipe(Effect.exit)
       expect(exit._tag).toBe("Failure")
       // The existing note's file must not have been clobbered by the failed create.
       expect(yield* fs.readFileStringSafe(`${dir}/.aigcfroge/knowledge-base/Note.md`)).toBe("first")
@@ -362,14 +375,18 @@ describe("KBService atomicity", () => {
       // Occupy the target path as a directory: the rename's exists-guard must
       // die before any write is attempted.
       yield* fs.ensureDir(`${dir}/.aigcfroge/knowledge-base/New.md`).pipe(Effect.orDie)
-      const exit = yield* kb.update({ id: note.id, title: "New", content: "new content", baseDir: dir }).pipe(Effect.exit)
+      const exit = yield* kb
+        .update({ id: note.id, title: "New", content: "new content", baseDir: dir })
+        .pipe(Effect.exit)
       expect(exit._tag).toBe("Failure")
       // Old mirror must still exist; the new target must not have become a file.
       expect(yield* fs.existsSafe(`${dir}/.aigcfroge/knowledge-base/Old.md`)).toBe(true)
       expect(yield* fs.readFileStringSafe(`${dir}/.aigcfroge/knowledge-base/Old.md`)).toBe("old content")
       // Cleanup the directory we created for the failure injection.
       yield* Effect.tryPromise(() =>
-        import("fs/promises").then((m) => m.rm(`${dir}/.aigcfroge/knowledge-base/New.md`, { recursive: true, force: true })),
+        import("fs/promises").then((m) =>
+          m.rm(`${dir}/.aigcfroge/knowledge-base/New.md`, { recursive: true, force: true }),
+        ),
       ).pipe(Effect.catch(() => Effect.void))
     }),
   )

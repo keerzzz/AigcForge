@@ -25,25 +25,31 @@ type StatusBarSource = {
     readonly serverName: string
     readonly serverKey: string
   }
-  readonly model: () => {
-    readonly providerID: string
-    readonly modelID: string
-    readonly variant?: string
-    readonly displayName: string
-  } | undefined
-  readonly tokens: () => {
-    readonly input: number
-    readonly output: number
-    readonly reasoning: number
-    readonly cacheRead: number
-    readonly cacheWrite: number
-    readonly totalCost: number
-  } | undefined
-  readonly context: () => {
-    readonly used: number
-    readonly limit: number
-    readonly usagePercent: number
-  } | undefined
+  readonly model: () =>
+    | {
+        readonly providerID: string
+        readonly modelID: string
+        readonly variant?: string
+        readonly displayName: string
+      }
+    | undefined
+  readonly tokens: () =>
+    | {
+        readonly input: number
+        readonly output: number
+        readonly reasoning: number
+        readonly cacheRead: number
+        readonly cacheWrite: number
+        readonly totalCost: number
+      }
+    | undefined
+  readonly context: () =>
+    | {
+        readonly used: number
+        readonly limit: number
+        readonly usagePercent: number
+      }
+    | undefined
   readonly terminals: () => number | undefined
   readonly onDetail: () => void
 }
@@ -78,11 +84,11 @@ useParams() → serverKey + sessionID
 
 ### 2.1 设计决策
 
-| 决策 | 选择 | 理由 |
-|---|---|---|
-| MetaAgent 怎么存？ | **独立实体**（B），不是特殊 Session | 不产生产生回复，概念独立 |
-| 子会话怎么关联？ | **新增关联表**（C），不复用 parent_id | 支持多对多、role 区分 |
-| 工作目录？ | 运行时不持久化，从 Chat Mode 的 CurrentSessionSource 获得 | 对齐 chat 模式初始项目文件夹设计 |
+| 决策               | 选择                                                      | 理由                             |
+| ------------------ | --------------------------------------------------------- | -------------------------------- |
+| MetaAgent 怎么存？ | **独立实体**（B），不是特殊 Session                       | 不产生产生回复，概念独立         |
+| 子会话怎么关联？   | **新增关联表**（C），不复用 parent_id                     | 支持多对多、role 区分            |
+| 工作目录？         | 运行时不持久化，从 Chat Mode 的 CurrentSessionSource 获得 | 对齐 chat 模式初始项目文件夹设计 |
 
 ### 2.2 ID Schema
 
@@ -204,12 +210,12 @@ MetaAgent 派发任务
 
 ## 5. 实现优先级
 
-| 阶段 | 内容 | 说明 |
-|---|---|---|
-| P0 | StatusBar 组件 + CurrentSessionSource | 纯 UI + 当前路由 session 数据，不依赖 MetaAgent |
-| P1 | 项目全量统计接口 | 纯 SQL 聚合，不依赖 MetaAgent |
-| P2 | MetaAgent 表 + 关联表 + core 接口 | P0/P1 完成、独立 |
-| P3 | MetaAgentSource + StatusBar 切换 | 依赖 P2 + MetaAgent 引擎就绪 |
+| 阶段 | 内容                                  | 说明                                            |
+| ---- | ------------------------------------- | ----------------------------------------------- |
+| P0   | StatusBar 组件 + CurrentSessionSource | 纯 UI + 当前路由 session 数据，不依赖 MetaAgent |
+| P1   | 项目全量统计接口                      | 纯 SQL 聚合，不依赖 MetaAgent                   |
+| P2   | MetaAgent 表 + 关联表 + core 接口     | P0/P1 完成、独立                                |
+| P3   | MetaAgentSource + StatusBar 切换      | 依赖 P2 + MetaAgent 引擎就绪                    |
 
 P0 和 P1 可同时开工，不影响现有代码。
 

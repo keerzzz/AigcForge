@@ -59,10 +59,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
       if (!source.sessionID) return undefined
       try {
         const s = sdk()
-        const res = await s.client.session.composition(
-          { sessionID: source.sessionID },
-          { throwOnError: false },
-        )
+        const res = await s.client.session.composition({ sessionID: source.sessionID }, { throwOnError: false })
         return extractSnapshot(res.data)
       } catch {
         return undefined
@@ -141,17 +138,9 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
       <div class="flex items-center justify-between border-b border-v2-border-border-base pb-3">
         <div class="flex items-center gap-2">
           <Icon name="mode-custom" size="small" class="text-v2-text-text-base" />
-          <span class="text-v2-text-text-base text-14-medium">
-            {language.t("custom.snapshot.panelTitle")}
-          </span>
+          <span class="text-v2-text-text-base text-14-medium">{language.t("custom.snapshot.panelTitle")}</span>
         </div>
-        <ButtonV2
-          variant="neutral"
-          size="small"
-          icon="edit"
-          loading={upgrading()}
-          onClick={handleUpgrade}
-        >
+        <ButtonV2 variant="neutral" size="small" icon="edit" loading={upgrading()} onClick={handleUpgrade}>
           {language.t("custom.snapshot.upgradeButton")}
         </ButtonV2>
       </div>
@@ -184,9 +173,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
               <span>{copied() ? language.t("common.copied") : language.t("common.copy")}</span>
             </button>
           </div>
-          <span class="font-mono text-12-regular text-v2-text-text-base break-all select-all">
-            {digest() || "-"}
-          </span>
+          <span class="font-mono text-12-regular text-v2-text-text-base break-all select-all">{digest() || "-"}</span>
         </div>
 
         {/* Agent ID */}
@@ -256,9 +243,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
           <Show
             when={(snapshot()?.data.prompts ?? []).length > 0}
             fallback={
-              <span class="text-v2-text-text-faint text-11-regular">
-                {language.t("custom.builder.noBoundPrompts")}
-              </span>
+              <span class="text-v2-text-text-faint text-11-regular">{language.t("custom.builder.noBoundPrompts")}</span>
             }
           >
             <div class="flex flex-wrap gap-1.5">
@@ -281,9 +266,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
           <Show
             when={(snapshot()?.data.skills ?? []).length > 0}
             fallback={
-              <span class="text-v2-text-text-faint text-11-regular">
-                {language.t("custom.builder.noBoundSkills")}
-              </span>
+              <span class="text-v2-text-text-faint text-11-regular">{language.t("custom.builder.noBoundSkills")}</span>
             }
           >
             <div class="flex flex-wrap gap-1.5">

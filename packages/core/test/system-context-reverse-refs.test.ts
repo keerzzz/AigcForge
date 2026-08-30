@@ -24,8 +24,7 @@ const configLayer = (meta: { enabled?: boolean } = {}) =>
   )
 
 const codegraphLayer = Layer.mock(ReverseRefs.Codegraph, {
-  callers: (module) =>
-    Effect.succeed(module === "packages/core" ? ["packages/app/src/consumer.ts"] : []),
+  callers: (module) => Effect.succeed(module === "packages/core" ? ["packages/app/src/consumer.ts"] : []),
 })
 
 const env = SystemContext.make({
@@ -44,9 +43,7 @@ const load = (files: readonly string[]) =>
   })
 
 describe("ReverseRefs", () => {
-  const it = testEffect(
-    Layer.mergeAll(configLayer({ enabled: true }), codegraphLayer),
-  )
+  const it = testEffect(Layer.mergeAll(configLayer({ enabled: true }), codegraphLayer))
 
   it.live("injects callers for changed modules", () =>
     Effect.gen(function* () {

@@ -266,7 +266,9 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                     >
                       <TuiStartupProvider
                         value={{
-                          initialRoute: process.env.AIGCFROGE_ROUTE ? JSON.parse(process.env.AIGCFROGE_ROUTE) : undefined,
+                          initialRoute: process.env.AIGCFROGE_ROUTE
+                            ? JSON.parse(process.env.AIGCFROGE_ROUTE)
+                            : undefined,
                           skipInitialLoading: Boolean(process.env.AIGCFROGE_FAST_BOOT),
                         }}
                       >

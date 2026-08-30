@@ -60,8 +60,7 @@ export const layer = Layer.effect(
     const sessionGuard = Effect.fnUntraced(function* (sessionID: SessionSchema.ID) {
       const session = yield* sessions.get(sessionID)
       if (!session) return yield* new SessionV2.NotFoundError({ sessionID })
-      if (session.parentID !== undefined)
-        return yield* new UnavailableError({ sessionID, reason: "child-session" })
+      if (session.parentID !== undefined) return yield* new UnavailableError({ sessionID, reason: "child-session" })
       if (session.attended === false) return yield* new UnavailableError({ sessionID, reason: "unattended" })
       return Effect.void
     })

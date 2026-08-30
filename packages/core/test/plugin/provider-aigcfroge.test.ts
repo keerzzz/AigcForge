@@ -255,9 +255,9 @@ describe("AigcfrogePlugin", () => {
         })
         yield* addPlugin()
         expect(required(yield* catalog.provider.get(ProviderV2.ID.aigcfroge)).request.body.apiKey).toBe("public")
-        expect(required(yield* catalog.model.get(ProviderV2.ID.aigcfroge, ModelV2.ID.make("output-only"))).enabled).toBe(
-          true,
-        )
+        expect(
+          required(yield* catalog.model.get(ProviderV2.ID.aigcfroge, ModelV2.ID.make("output-only"))).enabled,
+        ).toBe(true)
       }),
     ),
   )

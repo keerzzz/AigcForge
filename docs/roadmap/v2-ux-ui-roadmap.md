@@ -30,11 +30,11 @@
 
 ### 1.1 事实、提案与待验证项的标记
 
-| 标记 | 含义 | 使用规则 |
-| --- | --- | --- |
-| **事实** | 能由当前代码、文档、日志或探针复核 | 可以作为路线图前置条件或验收基线 |
-| **提案** | 设计方向或产品假设，尚未形成完整契约 | 必须先做数据/交互/安全验证，不能写成已上线能力 |
-| **待验证** | 仅凭静态代码或视觉判断无法确认 | 先测量、埋点或测试，再决定是否改动 |
+| 标记       | 含义                                 | 使用规则                                       |
+| ---------- | ------------------------------------ | ---------------------------------------------- |
+| **事实**   | 能由当前代码、文档、日志或探针复核   | 可以作为路线图前置条件或验收基线               |
+| **提案**   | 设计方向或产品假设，尚未形成完整契约 | 必须先做数据/交互/安全验证，不能写成已上线能力 |
+| **待验证** | 仅凭静态代码或视觉判断无法确认       | 先测量、埋点或测试，再决定是否改动             |
 
 Canvas 的 UX 代码事实快照来自 **2026-08-28、`main@f21cb4be5`**；本 Markdown 在 **2026-08-29、`main@eeaec64f2`** 上整理。若快照数字与后续代码产生差异，以当前仓库实际扫描结果为准，不以旧数字覆盖新事实。
 
@@ -85,29 +85,29 @@ V2 的首要升级不是玻璃材质、粒子连线、渐变背景或更复杂�
 
 下表是 UX Canvas 中已记录的基线。数字是快照，不是不可变 KPI；每次扩展路线前应重新扫描并更新记录。
 
-| 领域 | 当前事实 | UX 含义 | 证据位置 |
-| --- | --- | --- | --- |
-| 研究范围 | 完整 UX 会话日志约 230 条记录、16 次用户明确输入；研究覆盖五模式 × 三层级 | 角色研究已足够支撑第一版契约，但不能把后期愿景直接当产品事实 | `/home/keer/.gemini/antigravity/brain/33cc3ae3-bbc0-48e6-86fc-53cdee5c2850/.system_generated/logs/transcript_full.jsonl` |
-| V2 组件 | `packages/ui/src/v2/components` 有 51 个 TSX 文件；旧 `src/components` 有 68 个 TSX 文件 | V2 组件库已成形，但不能称为“全量 V2” | `packages/ui/src/v2/components` |
-| 旧 Token | 扫描快照：`ui` 580、`app` 55、`session-ui` 266 处旧 Token 引用，含源码与 Story | 视觉断层的根因是双系统并存，不是缺少装饰效果 | `packages/ui/src`、`packages/app/src`、`packages/session-ui/src` |
-| 旧组件入口 | 约 60 个 App 源文件仍直接导入 `@aigcfroge/ui` 的旧组件入口 | 迁移需要按 owner、风险和用户路径分批完成 | `packages/app/src` |
-| 主题 | `themes` 目录有 37 个 JSON 主题文件 | 主题数量不等于可用性；需要逐主题检查对比度、零白闪与语义完整性 | `packages/ui/src/theme/themes` |
-| 共享外壳 | `ModeWorkspace` 使用 render-all + `display:none`；HomeOverview、ModeSwitcher、SessionRightPanel 已存在 | 这是可复用底座，应继续收敛，不再创建平行 Shell | `packages/app/src/pages/mode-workspace.tsx` |
-| Custom 真实形态 | Custom 已进入模式轨；当前中间区域是组合配置表单与 Plan Tabs，不是 DAG 节点画布 | M1 应被命名为配置工作台；真正编排画布只能作为 M2 单独立项 | `packages/app/src/pages/mode-workspace-slots.tsx`、`packages/app/src/components/custom/` |
-| 能力门控 | ModeSwitcher 当前无条件遍历 `MODE_DEFINITIONS`；Custom 的后端能力/开关在 Plan/Start 调用时才反馈 | 入口、不可用原因和服务端能力需要共享同一事实源 | `packages/app/src/components/mode-switcher.tsx`、`packages/core/src/product-mode-policy.ts` |
-| 几何风险 | `ModeWorkspace` 的 `max-w-[1080px]` 与 `280px + 960px + gap + padding` 存在语义冲突 | 不能仅凭 class 名称判断溢出，必须先读取 computed geometry | `packages/app/src/pages/mode-workspace.tsx` |
+| 领域            | 当前事实                                                                                               | UX 含义                                                        | 证据位置                                                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| 研究范围        | 完整 UX 会话日志约 230 条记录、16 次用户明确输入；研究覆盖五模式 × 三层级                              | 角色研究已足够支撑第一版契约，但不能把后期愿景直接当产品事实   | `/home/keer/.gemini/antigravity/brain/33cc3ae3-bbc0-48e6-86fc-53cdee5c2850/.system_generated/logs/transcript_full.jsonl` |
+| V2 组件         | `packages/ui/src/v2/components` 有 51 个 TSX 文件；旧 `src/components` 有 68 个 TSX 文件               | V2 组件库已成形，但不能称为“全量 V2”                           | `packages/ui/src/v2/components`                                                                                          |
+| 旧 Token        | 扫描快照：`ui` 580、`app` 55、`session-ui` 266 处旧 Token 引用，含源码与 Story                         | 视觉断层的根因是双系统并存，不是缺少装饰效果                   | `packages/ui/src`、`packages/app/src`、`packages/session-ui/src`                                                         |
+| 旧组件入口      | 约 60 个 App 源文件仍直接导入 `@aigcfroge/ui` 的旧组件入口                                             | 迁移需要按 owner、风险和用户路径分批完成                       | `packages/app/src`                                                                                                       |
+| 主题            | `themes` 目录有 37 个 JSON 主题文件                                                                    | 主题数量不等于可用性；需要逐主题检查对比度、零白闪与语义完整性 | `packages/ui/src/theme/themes`                                                                                           |
+| 共享外壳        | `ModeWorkspace` 使用 render-all + `display:none`；HomeOverview、ModeSwitcher、SessionRightPanel 已存在 | 这是可复用底座，应继续收敛，不再创建平行 Shell                 | `packages/app/src/pages/mode-workspace.tsx`                                                                              |
+| Custom 真实形态 | Custom 已进入模式轨；当前中间区域是组合配置表单与 Plan Tabs，不是 DAG 节点画布                         | M1 应被命名为配置工作台；真正编排画布只能作为 M2 单独立项      | `packages/app/src/pages/mode-workspace-slots.tsx`、`packages/app/src/components/custom/`                                 |
+| 能力门控        | ModeSwitcher 当前无条件遍历 `MODE_DEFINITIONS`；Custom 的后端能力/开关在 Plan/Start 调用时才反馈       | 入口、不可用原因和服务端能力需要共享同一事实源                 | `packages/app/src/components/mode-switcher.tsx`、`packages/core/src/product-mode-policy.ts`                              |
+| 几何风险        | `ModeWorkspace` 的 `max-w-[1080px]` 与 `280px + 960px + gap + padding` 存在语义冲突                    | 不能仅凭 class 名称判断溢出，必须先读取 computed geometry      | `packages/app/src/pages/mode-workspace.tsx`                                                                              |
 
 ### 3.1 对原始提案的校准
 
-| 原始表述 | 当前判断 | V2 路线处理 |
-| --- | --- | --- |
-| “100% 纯 V2” | **不成立** | 建立 v1→v2 迁移账本，按高频路径逐批迁移；不承诺一次清零 |
-| “Auto-Review 已可落地” | **提案** | 先优化已有 Approval Center 与 Permission 的信息架构；自治放行另立安全契约与 rollout gate |
-| “Thought Canvas 已存在” | **提案** | 先做可解释的状态摘要；不展示未经验证的内部推理内容 |
-| “2% Skill Budget Gauge” | **提案** | 只有在 Context/Tool budget 成为稳定、可消费的数据契约后再做可视化 |
-| “Custom 是视觉编排画布” | **部分成立** | 当前是 Composition Config + Plan Preview；M1 先交付配置工作台，DAG 画布另立 M2 |
-| “玻璃、粒子、超椭圆是升级重点” | **不建议** | 以层级、密度、状态和反馈提升质感，遵循 `DESIGN.md` 的 quiet / dense / operational 取向 |
-| “五种模式要五套风格” | **不建议** | 统一 Shell、Token、状态与无障碍；差异化任务语义和信息密度 |
+| 原始表述                       | 当前判断     | V2 路线处理                                                                              |
+| ------------------------------ | ------------ | ---------------------------------------------------------------------------------------- |
+| “100% 纯 V2”                   | **不成立**   | 建立 v1→v2 迁移账本，按高频路径逐批迁移；不承诺一次清零                                  |
+| “Auto-Review 已可落地”         | **提案**     | 先优化已有 Approval Center 与 Permission 的信息架构；自治放行另立安全契约与 rollout gate |
+| “Thought Canvas 已存在”        | **提案**     | 先做可解释的状态摘要；不展示未经验证的内部推理内容                                       |
+| “2% Skill Budget Gauge”        | **提案**     | 只有在 Context/Tool budget 成为稳定、可消费的数据契约后再做可视化                        |
+| “Custom 是视觉编排画布”        | **部分成立** | 当前是 Composition Config + Plan Preview；M1 先交付配置工作台，DAG 画布另立 M2           |
+| “玻璃、粒子、超椭圆是升级重点” | **不建议**   | 以层级、密度、状态和反馈提升质感，遵循 `DESIGN.md` 的 quiet / dense / operational 取向   |
+| “五种模式要五套风格”           | **不建议**   | 统一 Shell、Token、状态与无障碍；差异化任务语义和信息密度                                |
 
 ---
 
@@ -115,13 +115,13 @@ V2 的首要升级不是玻璃材质、粒子连线、渐变背景或更复杂�
 
 每个模式都必须在首屏回答同一组问题：**我在哪？我在处理什么？现在能做什么？当前状态是什么？失败或完成后下一步是什么？**
 
-| 模式 | 首要对象 | 首屏主操作 | 信息密度 | 当前真实能力 | V2 补全重点 | 明确不做 | 主要 UI Owner |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| **Coding** | Session / Diff / Tool execution | 继续会话、审查改动、运行或停止执行 | 高密度、键盘优先；保留项目、分支和沙箱语义 | Session timeline、Diff、行级评论、Terminal、Composer Dock | 工具结果分层：运行中可见、成功后摘要、失败保留诊断与下一步；强化停止、恢复和影响范围 | 不把日志压成不可追溯的一行；不以动效替代执行状态 | `packages/app/src/pages/session.tsx`；`packages/session-ui/src/components/message-part.tsx` |
-| **Chat** | Prompt / Skill / MCP / Agent 等资产 | 创建、导入、预览、应用和治理资产 | 中密度、扫描优先；来源、版本和错误可见 | AssetWorkbench、分类侧栏、导入/删除、会话插入 | 统一资产状态：`draft`、`candidate`、`applied`、`invalid`、`conflict`；减少隐藏动作 | 不退化为普通聊天气泡；不把资产治理埋进悬浮特效 | `packages/app/src/components/chat/asset-workbench.tsx`；`packages/app/src/pages/mode-workspace-slots.tsx` |
-| **Work** | Preset / Task / Artifact | 选择目标、回答必要问题、审阅产物、原子应用 | 舒展但不松散；阅读优先；交付状态固定在视口可见区 | WorkPresetCatalog、WorkArtifactPanel、workflow/preset launch | 建立任务到产物的时间线；明确 `preview`、`apply`、`conflict`、`saved` 差异 | 不把预设目录做成营销落地页；不模糊只读与可编辑 | `packages/app/src/pages/work-preset-catalog.ts`；`packages/app/src/pages/work-artifact-panel.tsx` |
-| **Assistant** | Reminder / Delivery / Memory / Note / Session | 处理待办、确认记忆、编辑知识、回到相关会话 | 阅读与关系导航优先；降低底层执行术语首屏占比 | AssistantDashboard、实体列表、KB Note Editor、Session linkage | 稳定呈现“待确认”“已生效”“来源会话”“下一步”；写入动作提供可逆反馈 | 不做装饰性知识卡片墙；不允许无确认自动写入记忆 | `packages/app/src/pages/assistant-dashboard.tsx`；`packages/app/src/components/assistant-entity-lists.tsx` |
-| **Custom** | Composition Draft / Plan / Snapshot | 选择能力、绑定资产、修复诊断、启动并冻结快照 | 结构化高密度；配置与诊断并列；权限和能力可解释 | CustomDraft、CustomSidebar、CompositionConfig、Plan Preview、Snapshot Panel | 先补能力门控、错误区分、版本漂移和快照语义；M2 再决定是否进入节点画布 | 不把 `unsupported` / `disabled` 当空列表；没有 DAG 数据模型前不实现粒子连线 | `packages/app/src/components/custom/`；`packages/app/src/context/custom-draft.tsx` |
+| 模式          | 首要对象                                      | 首屏主操作                                   | 信息密度                                         | 当前真实能力                                                                | V2 补全重点                                                                          | 明确不做                                                                    | 主要 UI Owner                                                                                              |
+| ------------- | --------------------------------------------- | -------------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **Coding**    | Session / Diff / Tool execution               | 继续会话、审查改动、运行或停止执行           | 高密度、键盘优先；保留项目、分支和沙箱语义       | Session timeline、Diff、行级评论、Terminal、Composer Dock                   | 工具结果分层：运行中可见、成功后摘要、失败保留诊断与下一步；强化停止、恢复和影响范围 | 不把日志压成不可追溯的一行；不以动效替代执行状态                            | `packages/app/src/pages/session.tsx`；`packages/session-ui/src/components/message-part.tsx`                |
+| **Chat**      | Prompt / Skill / MCP / Agent 等资产           | 创建、导入、预览、应用和治理资产             | 中密度、扫描优先；来源、版本和错误可见           | AssetWorkbench、分类侧栏、导入/删除、会话插入                               | 统一资产状态：`draft`、`candidate`、`applied`、`invalid`、`conflict`；减少隐藏动作   | 不退化为普通聊天气泡；不把资产治理埋进悬浮特效                              | `packages/app/src/components/chat/asset-workbench.tsx`；`packages/app/src/pages/mode-workspace-slots.tsx`  |
+| **Work**      | Preset / Task / Artifact                      | 选择目标、回答必要问题、审阅产物、原子应用   | 舒展但不松散；阅读优先；交付状态固定在视口可见区 | WorkPresetCatalog、WorkArtifactPanel、workflow/preset launch                | 建立任务到产物的时间线；明确 `preview`、`apply`、`conflict`、`saved` 差异            | 不把预设目录做成营销落地页；不模糊只读与可编辑                              | `packages/app/src/pages/work-preset-catalog.ts`；`packages/app/src/pages/work-artifact-panel.tsx`          |
+| **Assistant** | Reminder / Delivery / Memory / Note / Session | 处理待办、确认记忆、编辑知识、回到相关会话   | 阅读与关系导航优先；降低底层执行术语首屏占比     | AssistantDashboard、实体列表、KB Note Editor、Session linkage               | 稳定呈现“待确认”“已生效”“来源会话”“下一步”；写入动作提供可逆反馈                     | 不做装饰性知识卡片墙；不允许无确认自动写入记忆                              | `packages/app/src/pages/assistant-dashboard.tsx`；`packages/app/src/components/assistant-entity-lists.tsx` |
+| **Custom**    | Composition Draft / Plan / Snapshot           | 选择能力、绑定资产、修复诊断、启动并冻结快照 | 结构化高密度；配置与诊断并列；权限和能力可解释   | CustomDraft、CustomSidebar、CompositionConfig、Plan Preview、Snapshot Panel | 先补能力门控、错误区分、版本漂移和快照语义；M2 再决定是否进入节点画布                | 不把 `unsupported` / `disabled` 当空列表；没有 DAG 数据模型前不实现粒子连线 | `packages/app/src/components/custom/`；`packages/app/src/context/custom-draft.tsx`                         |
 
 ### 4.1 模式切换不变量
 
@@ -136,15 +136,15 @@ V2 的首要升级不是玻璃材质、粒子连线、渐变背景或更复杂�
 
 ### 5.1 Shared Shell 的稳定区域
 
-| 区域 | 责任 | 统一要求 |
-| --- | --- | --- |
-| Home / 全局入口 | 呈现模式、最近会话、待处理事项和能力状态 | 入口文案与实际 capability 一致；不把不可用功能伪装成可点击成功路径 |
-| ModeSwitcher | 进入五种模式 | 显示模式名、对象、可用性和不可用原因；键盘可达；不静默回退 |
-| ModeWorkspace | 承载模式级 slot | 保留统一的页面几何、加载骨架、错误边界和响应式断点；slot 只承载模式主对象 |
-| Session 主区 | 对话、执行时间线、Diff、产物或上下文 | 同一 Session/Agent 语义在不同模式可追溯；执行状态不被视觉折叠丢失 |
-| SessionRightPanel | 详情、上下文、审批、资源和恢复信息 | 状态来源明确；可折叠但不丢失待处理动作；窄屏改为可访问抽屉/页签 |
-| Composer / 主操作区 | 输入、启动、停止、应用、确认或回退 | 主操作唯一且有明确前置条件；提交后保留输入与附件状态 |
-| 全局状态反馈 | Toast、Banner、Inline error、Empty state、Recovery panel | 按严重性和持久性选择承载方式；错误必须给原因、影响和下一步 |
+| 区域                | 责任                                                     | 统一要求                                                                  |
+| ------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Home / 全局入口     | 呈现模式、最近会话、待处理事项和能力状态                 | 入口文案与实际 capability 一致；不把不可用功能伪装成可点击成功路径        |
+| ModeSwitcher        | 进入五种模式                                             | 显示模式名、对象、可用性和不可用原因；键盘可达；不静默回退                |
+| ModeWorkspace       | 承载模式级 slot                                          | 保留统一的页面几何、加载骨架、错误边界和响应式断点；slot 只承载模式主对象 |
+| Session 主区        | 对话、执行时间线、Diff、产物或上下文                     | 同一 Session/Agent 语义在不同模式可追溯；执行状态不被视觉折叠丢失         |
+| SessionRightPanel   | 详情、上下文、审批、资源和恢复信息                       | 状态来源明确；可折叠但不丢失待处理动作；窄屏改为可访问抽屉/页签           |
+| Composer / 主操作区 | 输入、启动、停止、应用、确认或回退                       | 主操作唯一且有明确前置条件；提交后保留输入与附件状态                      |
+| 全局状态反馈        | Toast、Banner、Inline error、Empty state、Recovery panel | 按严重性和持久性选择承载方式；错误必须给原因、影响和下一步                |
 
 ### 5.2 状态词汇契约
 
@@ -284,13 +284,13 @@ recovery       执行中断，是否继续取决于副作用语义
 
 **交付顺序**：Coding → Chat → Work → Assistant；Custom 以 M1 配置工作台并行受控交付。
 
-| 模式 | 核心闭环 | 必须看见的状态 |
-| --- | --- | --- |
-| Coding | 继续 Session → 查看执行/工具结果 → 审查 Diff → 运行/停止/恢复 | running、success summary、failure diagnosis、stopped、recovery |
-| Chat | 创建/导入资产 → 预览 → 应用/插入 → 查看版本或冲突 | draft、candidate、applied、invalid、conflict |
-| Work | 选 Preset/Task → 回答必要问题 → preview → review → apply | preview、apply、conflict、saved、partial failure |
-| Assistant | 查看待办 → 确认记忆/编辑 Note → 回到来源 Session | pending confirmation、applied、source、next step、reversible feedback |
-| Custom M1 | 选能力 → 绑定资产 → 诊断 → 生成 Plan → 冻结 Snapshot → 启动 | unsupported、disabled、invalid config、plan ready、snapshot drift、recovery |
+| 模式      | 核心闭环                                                      | 必须看见的状态                                                              |
+| --------- | ------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Coding    | 继续 Session → 查看执行/工具结果 → 审查 Diff → 运行/停止/恢复 | running、success summary、failure diagnosis、stopped、recovery              |
+| Chat      | 创建/导入资产 → 预览 → 应用/插入 → 查看版本或冲突             | draft、candidate、applied、invalid、conflict                                |
+| Work      | 选 Preset/Task → 回答必要问题 → preview → review → apply      | preview、apply、conflict、saved、partial failure                            |
+| Assistant | 查看待办 → 确认记忆/编辑 Note → 回到来源 Session              | pending confirmation、applied、source、next step、reversible feedback       |
+| Custom M1 | 选能力 → 绑定资产 → 诊断 → 生成 Plan → 冻结 Snapshot → 启动   | unsupported、disabled、invalid config、plan ready、snapshot drift、recovery |
 
 **Owner**：各模式产品 Owner + App/UI；涉及状态真源时由 Core 配合。
 
@@ -362,14 +362,14 @@ recovery       执行中断，是否继续取决于副作用语义
 
 首个切片不追求“做完 V2”，只追求建立可信底座。建议按以下顺序连续完成，并在第 6 步形成第一份 V2 UX 基线报告。
 
-| 顺序 | 工作项 | 主要范围 | Owner | 完成证据 |
-| --- | --- | --- | --- | --- |
-| 1 | Capability-aware mode registry | 让 `ModeDefinition` 承载 availability/capability；ModeSwitcher、Home、ModeRoute 复用同一事实源 | App + Core policy | Custom 未启用、服务端不支持、可运行三态可解释；不误导入口 |
-| 2 | Geometry baseline | 记录 Home、ModeWorkspace、SessionRightPanel 的 computed width、scroll、overflow 与断点 | App + QA | desktop/narrow 基线可重复，先有证据再改宽度 |
-| 3 | State vocabulary | 建立共享状态语义与 i18n keys | App + Session UI | 五模式不再各自命名、各自着色同一状态 |
-| 4 | Custom error truthfulness | 修复 CustomSidebar 将请求失败吞成空列表的路径，保留错误并提供重试 | App | 网络失败不再伪装成没有资产 |
-| 5 | Token migration pilot | 一条 shared 高频路径 + 一条 Session UI 路径完成 v2 Token/组件迁移 | UI + Session UI + App | 形成可复用迁移账本/检查清单，未扩大为全仓重构 |
-| 6 | Review gate | 执行 `git diff`、legacy grep、Light/Dark、keyboard、中文/英文、受影响包 typecheck/test | QA + 变更 Owner | 形成第一份真实的 V2 UX 基线报告 |
+| 顺序 | 工作项                         | 主要范围                                                                                       | Owner                 | 完成证据                                                  |
+| ---- | ------------------------------ | ---------------------------------------------------------------------------------------------- | --------------------- | --------------------------------------------------------- |
+| 1    | Capability-aware mode registry | 让 `ModeDefinition` 承载 availability/capability；ModeSwitcher、Home、ModeRoute 复用同一事实源 | App + Core policy     | Custom 未启用、服务端不支持、可运行三态可解释；不误导入口 |
+| 2    | Geometry baseline              | 记录 Home、ModeWorkspace、SessionRightPanel 的 computed width、scroll、overflow 与断点         | App + QA              | desktop/narrow 基线可重复，先有证据再改宽度               |
+| 3    | State vocabulary               | 建立共享状态语义与 i18n keys                                                                   | App + Session UI      | 五模式不再各自命名、各自着色同一状态                      |
+| 4    | Custom error truthfulness      | 修复 CustomSidebar 将请求失败吞成空列表的路径，保留错误并提供重试                              | App                   | 网络失败不再伪装成没有资产                                |
+| 5    | Token migration pilot          | 一条 shared 高频路径 + 一条 Session UI 路径完成 v2 Token/组件迁移                              | UI + Session UI + App | 形成可复用迁移账本/检查清单，未扩大为全仓重构             |
+| 6    | Review gate                    | 执行 `git diff`、legacy grep、Light/Dark、keyboard、中文/英文、受影响包 typecheck/test         | QA + 变更 Owner       | 形成第一份真实的 V2 UX 基线报告                           |
 
 ### 7.1 首个切片的依赖图
 
@@ -395,15 +395,15 @@ Custom error truth ────┘       Review gate
 
 这些指标的目的是形成可复核的质量趋势；具体数值阈值应在 Phase 0 结合现有基线与产品 SLA 决定，不提前伪造精确百分比。
 
-| 指标 | 用户问题 | 验收标准 |
-| --- | --- | --- |
-| 模式入口可信度 | 我点进去后，是否知道模式和能力是什么？ | 五种模式均能说明首要对象、主操作和可用性；Custom 的 `unsupported` / `disabled` 明确区分；无静默回 Coding |
-| 空间稳定性 | 状态变化会不会把我带到另一个布局？ | desktop/narrow 无横向溢出；切换、加载、错误和计数变化不破坏导航与主工作区骨架；无不可解释闪烁 |
-| 恢复成功率 | 失败后我还能不能继续？ | 网络、429、权限、工具失败分别给可执行下一步；输入与附件不丢；未知副作用不被伪装成安全重试 |
-| 审批负担 | 安全确认是否重复且不可理解？ | 先统计 ask 类型与重复率；任何自动批准都有明确规则、审计记录与 kill switch |
-| 资产可追溯 | 我是否知道资产从哪里来、是否有效、应用后做了什么？ | `project/system`、`revision`、`invalid`、`conflict`、`applied` 可见且语义一致 |
-| 可访问性 | 键盘和辅助技术能否完成关键任务？ | icon-only 有 label；焦点可见；Diff 不只依赖红绿；中文/英文不截断关键动作；抽屉/页签焦点可回收 |
-| 迁移健康度 | V2 是否越做越统一？ | 新改动不引入 legacy Token/旧组件入口；按包维护存量趋势，不承诺一次性清零 |
+| 指标           | 用户问题                                           | 验收标准                                                                                                 |
+| -------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| 模式入口可信度 | 我点进去后，是否知道模式和能力是什么？             | 五种模式均能说明首要对象、主操作和可用性；Custom 的 `unsupported` / `disabled` 明确区分；无静默回 Coding |
+| 空间稳定性     | 状态变化会不会把我带到另一个布局？                 | desktop/narrow 无横向溢出；切换、加载、错误和计数变化不破坏导航与主工作区骨架；无不可解释闪烁            |
+| 恢复成功率     | 失败后我还能不能继续？                             | 网络、429、权限、工具失败分别给可执行下一步；输入与附件不丢；未知副作用不被伪装成安全重试                |
+| 审批负担       | 安全确认是否重复且不可理解？                       | 先统计 ask 类型与重复率；任何自动批准都有明确规则、审计记录与 kill switch                                |
+| 资产可追溯     | 我是否知道资产从哪里来、是否有效、应用后做了什么？ | `project/system`、`revision`、`invalid`、`conflict`、`applied` 可见且语义一致                            |
+| 可访问性       | 键盘和辅助技术能否完成关键任务？                   | icon-only 有 label；焦点可见；Diff 不只依赖红绿；中文/英文不截断关键动作；抽屉/页签焦点可回收            |
+| 迁移健康度     | V2 是否越做越统一？                                | 新改动不引入 legacy Token/旧组件入口；按包维护存量趋势，不承诺一次性清零                                 |
 
 ---
 
@@ -411,15 +411,15 @@ Custom error truth ────┘       Review gate
 
 ### 9.1 主要风险
 
-| 风险 | 表现 | 控制措施 |
-| --- | --- | --- |
-| 视觉先行 | 以玻璃、粒子、渐变和装饰卡片掩盖状态/信息架构问题 | Phase 0–3 完成前不扩大视觉材质；所有视觉变更必须关联可用性或状态目标 |
-| 五套模式分叉 | 组件、Token、交互、键盘语义各自发展 | 共享 Shell、状态词汇与 Token；模式只拥有 slot 内主对象 |
-| 迁移范围失控 | 一次性替换旧 Token/组件导致行为和主题回归 | 迁移账本、分批 owner、每片独立回归；复用优先于新增 |
-| 能力误导 | 入口显示可用，点击后才发现服务端不支持 | capability-aware registry；明确 unsupported/disabled/error |
-| 恢复承诺过度 | UI 显示“重试”但无法判断外部副作用是否已经发生 | 与架构 recovery policy 对齐；未知副作用显示 recovery_required/人工确认 |
-| DAG 假完成 | 把配置表单画成“编排画布” | Custom M1/M2 分开；没有节点/事件/回放契约不做画布 |
-| 本地化/无障碍后置 | 英文、中文、键盘和主题只在发布前才发现断裂 | 从 Geometry、State 和 Review gate 起纳入验证 |
+| 风险              | 表现                                              | 控制措施                                                               |
+| ----------------- | ------------------------------------------------- | ---------------------------------------------------------------------- |
+| 视觉先行          | 以玻璃、粒子、渐变和装饰卡片掩盖状态/信息架构问题 | Phase 0–3 完成前不扩大视觉材质；所有视觉变更必须关联可用性或状态目标   |
+| 五套模式分叉      | 组件、Token、交互、键盘语义各自发展               | 共享 Shell、状态词汇与 Token；模式只拥有 slot 内主对象                 |
+| 迁移范围失控      | 一次性替换旧 Token/组件导致行为和主题回归         | 迁移账本、分批 owner、每片独立回归；复用优先于新增                     |
+| 能力误导          | 入口显示可用，点击后才发现服务端不支持            | capability-aware registry；明确 unsupported/disabled/error             |
+| 恢复承诺过度      | UI 显示“重试”但无法判断外部副作用是否已经发生     | 与架构 recovery policy 对齐；未知副作用显示 recovery_required/人工确认 |
+| DAG 假完成        | 把配置表单画成“编排画布”                          | Custom M1/M2 分开；没有节点/事件/回放契约不做画布                      |
+| 本地化/无障碍后置 | 英文、中文、键盘和主题只在发布前才发现断裂        | 从 Geometry、State 和 Review gate 起纳入验证                           |
 
 ### 9.2 明确不做
 

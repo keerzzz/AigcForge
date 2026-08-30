@@ -27,12 +27,9 @@ export class WorkflowExecutionError extends Schema.TaggedErrorClass<WorkflowExec
   }
 }
 
-class BatchAbortError extends Schema.TaggedErrorClass<BatchAbortError>()(
-  "WorkflowRunner.BatchAbortError",
-  {
-    errorCategory: WorkflowAsset.ErrorCategory,
-  },
-) {
+class BatchAbortError extends Schema.TaggedErrorClass<BatchAbortError>()("WorkflowRunner.BatchAbortError", {
+  errorCategory: WorkflowAsset.ErrorCategory,
+}) {
   override get message() {
     return this.errorCategory
   }
@@ -54,7 +51,10 @@ function boundCodePoints(text: string, limit: number): string {
  * step lines, or append instructions the root would read as the user's.
  */
 function escapeHandoffDetail(text: string): string {
-  return text.replaceAll("<", "\\u003c").replaceAll(">", "\\u003e").replaceAll(/[\r\n]+/g, " ⏎ ")
+  return text
+    .replaceAll("<", "\\u003c")
+    .replaceAll(">", "\\u003e")
+    .replaceAll(/[\r\n]+/g, " ⏎ ")
 }
 
 function renderRootHandoff(input: {
@@ -66,13 +66,10 @@ function renderRootHandoff(input: {
   // Scan before truncating: a credential straddling the cut would otherwise lose
   // the tail the pattern needs and survive into the durable event as a prefix.
   return Effect.forEach(input.steps, (step) =>
-    Effect.map(
-      input.scan(input.summaries.get(step.stepId) ?? step.outputDigest ?? "no_output"),
-      (scanned) => {
-        const detail = step.errorCategory ?? boundCodePoints(escapeHandoffDetail(scanned), MAX_HANDOFF_STEP_TEXT)
-        return `- ${step.stepId}: ${step.status} (${detail})`
-      },
-    ),
+    Effect.map(input.scan(input.summaries.get(step.stepId) ?? step.outputDigest ?? "no_output"), (scanned) => {
+      const detail = step.errorCategory ?? boundCodePoints(escapeHandoffDetail(scanned), MAX_HANDOFF_STEP_TEXT)
+      return `- ${step.stepId}: ${step.status} (${detail})`
+    }),
   ).pipe(
     Effect.map((lines) =>
       boundCodePoints(
@@ -123,7 +120,10 @@ export interface Interface {
     sessionID: SessionSchema.ID,
     requestID?: string,
     expectedSnapshotDigest?: string,
-  ) => Effect.Effect<WorkflowAsset.WorkflowRunInfo | undefined, WorkflowExecutionError | WorkflowRun.RequestConflictError>
+  ) => Effect.Effect<
+    WorkflowAsset.WorkflowRunInfo | undefined,
+    WorkflowExecutionError | WorkflowRun.RequestConflictError
+  >
   readonly run: (
     sessionID: SessionSchema.ID,
     executor?: StepExecutor,
@@ -170,7 +170,10 @@ export function branchTarget(step: WorkflowAsset.StepDef, output: unknown): stri
  * settles `invalid_branch_output` (ADR-18 §2.5.3 fail closed).
  */
 export function decodeBranchOutput(text: string): unknown {
-  const unfenced = text.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "")
+  const unfenced = text
+    .trim()
+    .replace(/^```(?:json)?/i, "")
+    .replace(/```$/, "")
   const start = unfenced.indexOf("{")
   const end = unfenced.lastIndexOf("}")
   if (start < 0 || end <= start) return text
@@ -301,9 +304,7 @@ export const layer = Layer.effect(
                 runID: input.runID,
                 stepID: input.stepDef.id,
                 defectTag:
-                  typeof defect === "object" && defect !== null && "_tag" in defect
-                    ? String(defect._tag)
-                    : "unknown",
+                  typeof defect === "object" && defect !== null && "_tag" in defect ? String(defect._tag) : "unknown",
               }).pipe(Effect.as(undefined)),
             ),
           )
@@ -327,9 +328,7 @@ export const layer = Layer.effect(
           }
           const childSessionID = Schema.decodeUnknownSync(SessionSchema.ID)(input.preparation.childSessionId)
           const structured =
-            typeof input.stepDef.input === "string"
-              ? input.stepDef.input
-              : JSON.stringify(input.stepDef.input ?? {})
+            typeof input.stepDef.input === "string" ? input.stepDef.input : JSON.stringify(input.stepDef.input ?? {})
           const prompt = input.stepDef.branches
             ? `${structured}\n\n${renderBranchContract(input.stepDef.branches)}`
             : structured
@@ -338,9 +337,11 @@ export const layer = Layer.effect(
             parentID: input.sessionID,
             prompt,
           }).pipe(
-            Effect.map((text): StepExecutionResult => ({
-              output: input.stepDef.branches ? decodeBranchOutput(text) : text,
-            })),
+            Effect.map(
+              (text): StepExecutionResult => ({
+                output: input.stepDef.branches ? decodeBranchOutput(text) : text,
+              }),
+            ),
             Effect.catchTag(
               "TaskDriver.DelegateError",
               (error): Effect.Effect<StepExecutionResult> =>
@@ -381,32 +382,29 @@ export const layer = Layer.effect(
 
     const admit: Interface["admit"] = Effect.fn("WorkflowRunner.admit")(
       function* (sessionID, requestID, expectedSnapshotDigest) {
-      const snapshot = yield* sessionComposition.read(sessionID).pipe(
-        Effect.mapError(
-          (error) =>
-            new WorkflowExecutionError({
-              runID: sessionID,
-              reason: `Failed to read composition snapshot: ${error.details}`,
-            }),
-        ),
-      )
-      if (!snapshot || snapshot.version !== 2 || !snapshot.data.workflow) return undefined
-      if (expectedSnapshotDigest !== undefined && snapshot.digest !== expectedSnapshotDigest) {
-        return yield* new WorkflowExecutionError({ runID: sessionID, reason: "snapshot_changed" })
-      }
-      return yield* workflowRun.getOrCreate({
-        sessionID,
-        workflow: snapshot.data.workflow,
-        snapshotDigest: snapshot.digest,
-        requestID,
-      })
+        const snapshot = yield* sessionComposition.read(sessionID).pipe(
+          Effect.mapError(
+            (error) =>
+              new WorkflowExecutionError({
+                runID: sessionID,
+                reason: `Failed to read composition snapshot: ${error.details}`,
+              }),
+          ),
+        )
+        if (!snapshot || snapshot.version !== 2 || !snapshot.data.workflow) return undefined
+        if (expectedSnapshotDigest !== undefined && snapshot.digest !== expectedSnapshotDigest) {
+          return yield* new WorkflowExecutionError({ runID: sessionID, reason: "snapshot_changed" })
+        }
+        return yield* workflowRun.getOrCreate({
+          sessionID,
+          workflow: snapshot.data.workflow,
+          snapshotDigest: snapshot.digest,
+          requestID,
+        })
       },
     )
 
-    const runUnlocked = Effect.fnUntraced(function* (
-      sessionID: SessionSchema.ID,
-      customExecutor?: StepExecutor,
-    ) {
+    const runUnlocked = Effect.fnUntraced(function* (sessionID: SessionSchema.ID, customExecutor?: StepExecutor) {
       const executor = customExecutor ?? taskDriverExecutor
       const stepSummaries = new Map<string, string>()
       const snapshot = yield* sessionComposition.read(sessionID).pipe(
@@ -445,9 +443,7 @@ export const layer = Layer.effect(
               Effect.logError("Workflow root handoff failed", {
                 runID: run.id,
                 defectTag:
-                  typeof defect === "object" && defect !== null && "_tag" in defect
-                    ? String(defect._tag)
-                    : "unknown",
+                  typeof defect === "object" && defect !== null && "_tag" in defect ? String(defect._tag) : "unknown",
               }).pipe(Effect.asVoid),
             ),
           )
@@ -463,11 +459,9 @@ export const layer = Layer.effect(
         return yield* reconcileTerminal(currentRun)
       }
       while (true) {
-        const activeRun = yield* workflowRun.get(runID).pipe(
-          Effect.mapError(
-            () => new WorkflowExecutionError({ runID, reason: `get_run_failed:${runID}` }),
-          ),
-        )
+        const activeRun = yield* workflowRun
+          .get(runID)
+          .pipe(Effect.mapError(() => new WorkflowExecutionError({ runID, reason: `get_run_failed:${runID}` })))
         if (
           activeRun.status === "completed" ||
           activeRun.status === "failed" ||
@@ -484,24 +478,20 @@ export const layer = Layer.effect(
         // fail, killing the drain fiber and wedging the run in `running` with
         // every endpoint returning 400 while the flag is off (ADR-18 §2.6.3).
         if (!ProductModePolicy.isCustomModeEnabled()) {
-          const cancelling = yield* workflowRun.cancelRun({
-            runID,
-            expectedRevision: activeRun.revision,
-            errorCategory: "custom_mode_disabled",
-          }).pipe(
-            Effect.mapError(
-              () => new WorkflowExecutionError({ runID, reason: "custom_mode_disabled" }),
-            ),
-          )
-          return yield* workflowRun.finalizeCancelRun({
-            runID,
-            expectedRevision: cancelling.revision,
-            errorCategory: "custom_mode_disabled",
-          }).pipe(
-            Effect.mapError(
-              () => new WorkflowExecutionError({ runID, reason: "custom_mode_disabled" }),
-            ),
-          )
+          const cancelling = yield* workflowRun
+            .cancelRun({
+              runID,
+              expectedRevision: activeRun.revision,
+              errorCategory: "custom_mode_disabled",
+            })
+            .pipe(Effect.mapError(() => new WorkflowExecutionError({ runID, reason: "custom_mode_disabled" })))
+          return yield* workflowRun
+            .finalizeCancelRun({
+              runID,
+              expectedRevision: cancelling.revision,
+              errorCategory: "custom_mode_disabled",
+            })
+            .pipe(Effect.mapError(() => new WorkflowExecutionError({ runID, reason: "custom_mode_disabled" })))
         }
 
         const readySteps = yield* workflowRun.findReadySteps(runID, stepsDef).pipe(
@@ -542,68 +532,56 @@ export const layer = Layer.effect(
               (step) => stepsDef.find((definition) => definition.id === step.stepId)?.failurePolicy === "continue",
             )
             if (allAllowed) {
-              const partialRun = yield* workflowRun.completeRun({
-                runID,
-                expectedRevision: activeRun.revision,
-                partial: true,
-              }).pipe(
-                Effect.mapError(
-                  () => new WorkflowExecutionError({ runID, reason: "partial_success_failed" }),
-                ),
-              )
+              const partialRun = yield* workflowRun
+                .completeRun({
+                  runID,
+                  expectedRevision: activeRun.revision,
+                  partial: true,
+                })
+                .pipe(Effect.mapError(() => new WorkflowExecutionError({ runID, reason: "partial_success_failed" })))
               return yield* reconcileTerminal(partialRun)
             }
             return yield* workflowRun
-              .failRun({ runID, expectedRevision: activeRun.revision, errorCategory: failed[0]?.errorCategory ?? "step_failed" })
-              .pipe(
-                Effect.mapError(
-                  () => new WorkflowExecutionError({ runID, reason: "step_failed" }),
-                ),
-              )
+              .failRun({
+                runID,
+                expectedRevision: activeRun.revision,
+                errorCategory: failed[0]?.errorCategory ?? "step_failed",
+              })
+              .pipe(Effect.mapError(() => new WorkflowExecutionError({ runID, reason: "step_failed" })))
           }
           if (latest.some((step) => step.status === "cancelled")) {
-            const cancelling = yield* workflowRun.cancelRun({ runID, expectedRevision: activeRun.revision, errorCategory: "step_cancelled" }).pipe(
-              Effect.mapError(
-                () => new WorkflowExecutionError({ runID, reason: "step_cancelled" }),
-              ),
-            )
-            return yield* workflowRun.finalizeCancelRun({
-              runID,
-              expectedRevision: cancelling.revision,
-              errorCategory: "step_cancelled",
-            }).pipe(
-              Effect.mapError(
-                () => new WorkflowExecutionError({ runID, reason: "step_cancelled" }),
-              ),
-            )
+            const cancelling = yield* workflowRun
+              .cancelRun({ runID, expectedRevision: activeRun.revision, errorCategory: "step_cancelled" })
+              .pipe(Effect.mapError(() => new WorkflowExecutionError({ runID, reason: "step_cancelled" })))
+            return yield* workflowRun
+              .finalizeCancelRun({
+                runID,
+                expectedRevision: cancelling.revision,
+                errorCategory: "step_cancelled",
+              })
+              .pipe(Effect.mapError(() => new WorkflowExecutionError({ runID, reason: "step_cancelled" })))
           }
           if (activeRun.status === "cancelling" || latest.some((step) => step.status === "cancelling")) {
-            return yield* workflowRun.finalizeCancelRun({
-              runID,
-              expectedRevision: activeRun.revision,
-              errorCategory: "step_cancelled",
-            }).pipe(
-              Effect.mapError(
-                () => new WorkflowExecutionError({ runID, reason: "step_cancelled" }),
-              ),
-            )
+            return yield* workflowRun
+              .finalizeCancelRun({
+                runID,
+                expectedRevision: activeRun.revision,
+                errorCategory: "step_cancelled",
+              })
+              .pipe(Effect.mapError(() => new WorkflowExecutionError({ runID, reason: "step_cancelled" })))
           }
           if (latest.some((step) => step.status === "pending" || step.status === "ready")) {
-            return yield* workflowRun.failRun({
-              runID,
-              expectedRevision: activeRun.revision,
-              errorCategory: "unknown_error",
-            }).pipe(
-              Effect.mapError(
-                () => new WorkflowExecutionError({ runID, reason: "blocked_frontier" }),
-              ),
-            )
+            return yield* workflowRun
+              .failRun({
+                runID,
+                expectedRevision: activeRun.revision,
+                errorCategory: "unknown_error",
+              })
+              .pipe(Effect.mapError(() => new WorkflowExecutionError({ runID, reason: "blocked_frontier" })))
           }
-          return yield* workflowRun.completeRun({ runID, expectedRevision: activeRun.revision }).pipe(
-            Effect.mapError(
-              () => new WorkflowExecutionError({ runID, reason: "complete_run_failed" }),
-            ),
-          )
+          return yield* workflowRun
+            .completeRun({ runID, expectedRevision: activeRun.revision })
+            .pipe(Effect.mapError(() => new WorkflowExecutionError({ runID, reason: "complete_run_failed" })))
         }
 
         const aborted = yield* Effect.forEach(
@@ -622,20 +600,14 @@ export const layer = Layer.effect(
               if (!dispatching) return
 
               const preparation: StepPreparation = executor.prepare
-                ? yield* executor
-                    .prepare({ runID, stepRun, stepDef, snapshot, sessionID })
-                    .pipe(
-                      Effect.catchDefect(() =>
-                        Effect.logError("Workflow step preparation failed", {
-                          runID,
-                          stepID: stepDef.id,
-                        }).pipe(
-                          Effect.map(
-                            (): StepPreparation => ({ errorCategory: "executor_unavailable" }),
-                          ),
-                        ),
-                      ),
-                    )
+                ? yield* executor.prepare({ runID, stepRun, stepDef, snapshot, sessionID }).pipe(
+                    Effect.catchDefect(() =>
+                      Effect.logError("Workflow step preparation failed", {
+                        runID,
+                        stepID: stepDef.id,
+                      }).pipe(Effect.map((): StepPreparation => ({ errorCategory: "executor_unavailable" }))),
+                    ),
+                  )
                 : {}
               const claimed = yield* workflowRun
                 .startStep({
@@ -684,12 +656,10 @@ export const layer = Layer.effect(
                         ),
                       ),
                     )
-              const result = yield* Effect.onExit(
-                executeEffect,
-                (exit) =>
-                  Exit.isFailure(exit) && Cause.hasInterrupts(exit.cause)
-                    ? settleInterrupted({ sessionID, stepRun: claimed, preparation })
-                    : Effect.void,
+              const result = yield* Effect.onExit(executeEffect, (exit) =>
+                Exit.isFailure(exit) && Cause.hasInterrupts(exit.cause)
+                  ? settleInterrupted({ sessionID, stepRun: claimed, preparation })
+                  : Effect.void,
               )
 
               const selectedBranch = branchTarget(stepDef, result.output)
@@ -698,7 +668,7 @@ export const layer = Layer.effect(
                 stepDef.branches && !selectedBranch
                   ? ("invalid_branch_output" as const)
                   : result.error
-                    ? result.errorCategory ?? ("step_failed" as const)
+                    ? (result.errorCategory ?? ("step_failed" as const))
                     : undefined
               const settled = yield* workflowRun.settleStep({
                 stepRunID: claimed.id,
@@ -749,7 +719,9 @@ export const layer = Layer.effect(
     })
 
     const run: Interface["run"] = Effect.fn("WorkflowRunner.run")((sessionID, executor) =>
-      locks.withLock(sessionID)(runUnlocked(sessionID, executor)).pipe(Effect.mapError((error) => toExecutionError(sessionID, error))),
+      locks
+        .withLock(sessionID)(runUnlocked(sessionID, executor))
+        .pipe(Effect.mapError((error) => toExecutionError(sessionID, error))),
     )
 
     return Service.of({ admit, run } satisfies Interface)

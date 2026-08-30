@@ -44,7 +44,7 @@ NVIDIA ACE Audio2Face-3D 接收实时音频流（PCM 格式，16kHz 或 44.1kHz�
 
 #### **Unreal Engine MetaHuman 接入机制**
 
-在 Unreal Engine 端，集成通过 NVIDIA 提供的 Audio2Face-3D 与 NV\_ACE\_Reference 专用插件完成4。MetaHuman 角色的面部动画蓝图（Face\_AnimBP）中被插入 Apply ACE Face Animations 动画节点5。该节点在 ARKit 姿态映射（mh\_arkit\_mapping\_pose）之前截获来自 ACE 的实时 Blendshape 曲线数据，应用线性插值算法平滑过渡后，直接驱动 MetaHuman 的面部网格与绑定骨骼5。
+在 Unreal Engine 端，集成通过 NVIDIA 提供的 Audio2Face-3D 与 NV_ACE_Reference 专用插件完成4。MetaHuman 角色的面部动画蓝图（Face_AnimBP）中被插入 Apply ACE Face Animations 动画节点5。该节点在 ARKit 姿态映射（mh_arkit_mapping_pose）之前截获来自 ACE 的实时 Blendshape 曲线数据，应用线性插值算法平滑过渡后，直接驱动 MetaHuman 的面部网格与绑定骨骼5。
 
 #### **运行开销与渲染性能**
 
@@ -54,24 +54,24 @@ NVIDIA ACE Audio2Face-3D 接收实时音频流（PCM 格式，16kHz 或 44.1kHz�
 
 闭源商业平台在特定场景下构建了极高的技术壁垒：
 
-* **HeyGen**：其核心壁垒在于自然的人体体态与手势联动（Translational & Gestural Motion），以及多语言视频翻译（Video Translate）。HeyGen 采用了自研的多模态视频生成大模型，将语音、文本与面部/身体动作统一建模，消除了传统数字人“头动身不动”的机械感。其 API 开放度较高，提供异步视频生成与实时 Streaming Avatar SDK。  
-* **Synthesia**：专注于企业级播报视频生成，其技术优势体现在多视角（Multi-Camera angle）数字人合成与极高清晰度的面部微表情控制上。Synthesia 对合成视频的真实感把控极严，但在实时低延迟流媒体场景的 API 开放上相对保守。  
-* **商汤如影 (SenseTime Ruyi)**：依托商汤日日新大模型体系，在中文语境下的表情表达、口型对齐精度（针对汉语拼音发音特征的专项优化）以及极速肖像复刻（仅需 1-3 分钟训练视频）方面具备明显优势。开放了较为完整的 Web API 与实时 RTC 数字人接入 SDK。  
-* **百度慧播星**：专注于电商直播与自动化带货场景，其壁垒在于数字人与电商剧本、商品 ROI 数据以及脚本 Agent 的深度打通。其实时流媒体引擎针对长尾直播场景进行了极致的成本与延迟优化，支持高并发推流。
+- **HeyGen**：其核心壁垒在于自然的人体体态与手势联动（Translational & Gestural Motion），以及多语言视频翻译（Video Translate）。HeyGen 采用了自研的多模态视频生成大模型，将语音、文本与面部/身体动作统一建模，消除了传统数字人“头动身不动”的机械感。其 API 开放度较高，提供异步视频生成与实时 Streaming Avatar SDK。
+- **Synthesia**：专注于企业级播报视频生成，其技术优势体现在多视角（Multi-Camera angle）数字人合成与极高清晰度的面部微表情控制上。Synthesia 对合成视频的真实感把控极严，但在实时低延迟流媒体场景的 API 开放上相对保守。
+- **商汤如影 (SenseTime Ruyi)**：依托商汤日日新大模型体系，在中文语境下的表情表达、口型对齐精度（针对汉语拼音发音特征的专项优化）以及极速肖像复刻（仅需 1-3 分钟训练视频）方面具备明显优势。开放了较为完整的 Web API 与实时 RTC 数字人接入 SDK。
+- **百度慧播星**：专注于电商直播与自动化带货场景，其壁垒在于数字人与电商剧本、商品 ROI 数据以及脚本 Agent 的深度打通。其实时流媒体引擎针对长尾直播场景进行了极致的成本与延迟优化，支持高并发推流。
 
 ### **1.4 开源与闭源数字人技术栈综合对比表**
 
-| 模型/平台名称 | 模型驱动架构类型 | 驱动方式 | 推理速度 (FPS) | 硬件消耗 (VRAM) | 端到端渲染延迟 | API 与扩展支持 | 核心适用场景 |
-| :---- | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
-| **LivePortrait** | 隐式关键点解耦1 | 图像/视频 | 30 \- 45 FPS | 6 \- 8 GB | \~150 ms | 开源 (Python/C++)，易封装 CLI/MCP | 2D 静态肖像复活、精细表情短视频生成1 |
-| **MuseTalk** | 局部 Latent Diffusion1 | 实时音频 | 30+ FPS | 4 \- 6 GB | \~120 ms | 开源，便于集成推理服务1 | 低延迟 2D 实时对话数字人1 |
-| **SadTalker** | 3DMM \+ GAN1 | 音频 | 10 \- 15 FPS | 3 \- 4 GB | \>400 ms | 开源，工具链成熟1 | 离线低配播报视频生成1 |
-| **Hallo / EchoMimic** | DiT / Diffusion 图像驱动1 | 音频/文本 | \< 5 FPS | \> 16 GB | \> 2000 ms | 开源，代码库复杂1 | 影视级离线画质视频生成1 |
-| **GeneFace++** | 3DMM \+ Instant RAD-NeRF2 | 音频 | 45 \- 60 FPS2 | 8 \- 10 GB | \~80 ms | 开源 (PyTorch/CUDA)6 | 高质量专属 2D/3D 个性化数字人重构2 |
-| **3DGS Avatar** | 显式高斯体光栅化1 | 音频/骨骼 | 100+ FPS1 | 4 \- 8 GB | \< 30 ms | 开源，算法快速演进中1 | 极致帧率、多视角实时交互场景1 |
-| **NVIDIA ACE \+ UE** | Audio2Face \+ MetaHuman4 | 实时音频 | 60 FPS (4K) | 推荐 RTX 4090 | \< 50 ms | 官方提供 UE 插件/gRPC SDK4 | AAA 级 3D 沉浸式 AI NPC / 虚拟主播4 |
-| **HeyGen (闭源)** | 专有生成式多模态大模型 | 文本/音频 | 云端实时渲染 | 云端弹性 | \~800 ms (RTC) | 开放 Web SDK & REST API | 商业营销、多语言视频制作 |
-| **商汤如影 (闭源)** | 专有深度合成引擎 | 文本/音频 | 云端实时渲染 | 云端弹性 | \~600 ms (RTC) | 开放 Web API & 实时 SDK | 企业代言人、政企播报 |
+| 模型/平台名称         | 模型驱动架构类型          | 驱动方式  | 推理速度 (FPS) | 硬件消耗 (VRAM) | 端到端渲染延迟 | API 与扩展支持                    | 核心适用场景                         |
+| :-------------------- | :------------------------ | :-------- | :------------- | :-------------- | :------------- | :-------------------------------- | :----------------------------------- |
+| **LivePortrait**      | 隐式关键点解耦1           | 图像/视频 | 30 \- 45 FPS   | 6 \- 8 GB       | \~150 ms       | 开源 (Python/C++)，易封装 CLI/MCP | 2D 静态肖像复活、精细表情短视频生成1 |
+| **MuseTalk**          | 局部 Latent Diffusion1    | 实时音频  | 30+ FPS        | 4 \- 6 GB       | \~120 ms       | 开源，便于集成推理服务1           | 低延迟 2D 实时对话数字人1            |
+| **SadTalker**         | 3DMM \+ GAN1              | 音频      | 10 \- 15 FPS   | 3 \- 4 GB       | \>400 ms       | 开源，工具链成熟1                 | 离线低配播报视频生成1                |
+| **Hallo / EchoMimic** | DiT / Diffusion 图像驱动1 | 音频/文本 | \< 5 FPS       | \> 16 GB        | \> 2000 ms     | 开源，代码库复杂1                 | 影视级离线画质视频生成1              |
+| **GeneFace++**        | 3DMM \+ Instant RAD-NeRF2 | 音频      | 45 \- 60 FPS2  | 8 \- 10 GB      | \~80 ms        | 开源 (PyTorch/CUDA)6              | 高质量专属 2D/3D 个性化数字人重构2   |
+| **3DGS Avatar**       | 显式高斯体光栅化1         | 音频/骨骼 | 100+ FPS1      | 4 \- 8 GB       | \< 30 ms       | 开源，算法快速演进中1             | 极致帧率、多视角实时交互场景1        |
+| **NVIDIA ACE \+ UE**  | Audio2Face \+ MetaHuman4  | 实时音频  | 60 FPS (4K)    | 推荐 RTX 4090   | \< 50 ms       | 官方提供 UE 插件/gRPC SDK4        | AAA 级 3D 沉浸式 AI NPC / 虚拟主播4  |
+| **HeyGen (闭源)**     | 专有生成式多模态大模型    | 文本/音频 | 云端实时渲染   | 云端弹性        | \~800 ms (RTC) | 开放 Web SDK & REST API           | 商业营销、多语言视频制作             |
+| **商汤如影 (闭源)**   | 专有深度合成引擎          | 文本/音频 | 云端实时渲染   | 云端弹性        | \~600 ms (RTC) | 开放 Web API & 实时 SDK           | 企业代言人、政企播报                 |
 
 ## **2\. “数字人构建与迭代”全链路 Pipeline 拆解**
 
@@ -107,12 +107,12 @@ WebRTC SFU 组网与音画同步阶段，渲染出的 RGBA/NV12 视频帧通过 
 
 ### **3.1 数字人 Agent 框架选型对比表**
 
-| Agent 框架名称 | 任务规划与拆解机制 | 沙箱与工具链扩展能力 | 自纠错与 Vision QA 支持 | 多模型/MCP 协议兼容 | 框架优缺点与推荐场景 |
-| :---- | :---- | :---- | :---- | :---- | :---- |
-| **LangGraph** | 基于有向有环图（DAG/Graph）的状态机规划 | 依赖 Python 函数调用，需自定义沙箱 | 极佳，可在节点间构建自定义 QA 循环条件 | 支持 LangChain Tool 标准，可适配 MCP | **优点**：状态转折精准控制；**缺点**：复杂逻辑定义繁琐。推荐作为核心流控 |
-| **AutoGen** | 多 Agent 对话模式（GroupChat）拆解 | 支持 Native Docker 沙箱代码执行 | 良好，可通过专职 QA Agent 进行多轮判定 | 需编写自定义 Connector | **优点**：多角色协作强；**缺点**：收敛时间不可控，容易陷入循环对话 |
-| **OpenHands SDK** | Event-Stream 驱动，控制台/CLI 命令规划13 | 原生融合隔离 Docker / Shell 容器环境13 | 通过 Agent Loop 实现自动化代码与环境调试13 | 强，天然支持标准 CLI 与环境工具集成13 | **优点**：极贴近 Dev Agent 范式；**缺点**：针对多媒体渲染节点需重构 |
-| **CrewAI** | 基于 Task 与 Role 的顺序/层次化规划 | 依赖 Python 库工具，无内置硬件级沙箱 | 一般，依赖 Agent Prompt 自我检查 | 支持 LangChain Tools | **优点**：易上手；**缺点**：缺乏复杂的并行与低阶 GPU 任务调试能力 |
+| Agent 框架名称    | 任务规划与拆解机制                       | 沙箱与工具链扩展能力                   | 自纠错与 Vision QA 支持                    | 多模型/MCP 协议兼容                   | 框架优缺点与推荐场景                                                     |
+| :---------------- | :--------------------------------------- | :------------------------------------- | :----------------------------------------- | :------------------------------------ | :----------------------------------------------------------------------- |
+| **LangGraph**     | 基于有向有环图（DAG/Graph）的状态机规划  | 依赖 Python 函数调用，需自定义沙箱     | 极佳，可在节点间构建自定义 QA 循环条件     | 支持 LangChain Tool 标准，可适配 MCP  | **优点**：状态转折精准控制；**缺点**：复杂逻辑定义繁琐。推荐作为核心流控 |
+| **AutoGen**       | 多 Agent 对话模式（GroupChat）拆解       | 支持 Native Docker 沙箱代码执行        | 良好，可通过专职 QA Agent 进行多轮判定     | 需编写自定义 Connector                | **优点**：多角色协作强；**缺点**：收敛时间不可控，容易陷入循环对话       |
+| **OpenHands SDK** | Event-Stream 驱动，控制台/CLI 命令规划13 | 原生融合隔离 Docker / Shell 容器环境13 | 通过 Agent Loop 实现自动化代码与环境调试13 | 强，天然支持标准 CLI 与环境工具集成13 | **优点**：极贴近 Dev Agent 范式；**缺点**：针对多媒体渲染节点需重构      |
+| **CrewAI**        | 基于 Task 与 Role 的顺序/层次化规划      | 依赖 Python 库工具，无内置硬件级沙箱   | 一般，依赖 Agent Prompt 自我检查           | 支持 LangChain Tools                  | **优点**：易上手；**缺点**：缺乏复杂的并行与低阶 GPU 任务调试能力        |
 
 ### **3.2 自主控制 Agent 拓扑架构设计**
 
@@ -122,10 +122,10 @@ Agent 控制系统由四个核心逻辑层级搭建而成：
 
 Planner 接收高层指令（如“基于图片 A 和音频 B 创建一个适用于古风演讲的数字人”），将目标拆解为具体的无向无环图（DAG）工作流步骤：
 
-> 1. 图像预处理与抠图 (SAM Tool)  
-> 2. 声音特征提取与克隆 (CosyVoice Tool)7  
-> 3. 驱动参数预测 (Audio2Motion)2  
-> 4. 视频渲染合成 (GeneFace++ / LivePortrait Tool)2  
+> 1. 图像预处理与抠图 (SAM Tool)
+> 2. 声音特征提取与克隆 (CosyVoice Tool)7
+> 3. 驱动参数预测 (Audio2Motion)2
+> 4. 视频渲染合成 (GeneFace++ / LivePortrait Tool)2
 > 5. 音视频合成与转码 (FFmpeg Tool)13
 
 #### **隔离沙箱与环境工具链 (Sandboxed Tool Execution)**
@@ -138,7 +138,7 @@ Planner 接收高层指令（如“基于图片 A 和音频 B 创建一个适用
 
 #### **模型无关性与协议标准 (Model Agnostic & MCP Integration)**
 
-系统全面引入 Model Context Protocol (MCP)14。每一个数字人底座（无论是开源的 LivePortrait/MuseTalk，还是闭源 HeyGen/商汤 API）均被抽象为一个标准 MCP Server，暴露统一的 generate\_avatar、check\_status、adjust\_parameters 工具接口，Agent 控制器通过 JSON-RPC 2.0 与底层引擎交互，实现无缝引擎切换14。
+系统全面引入 Model Context Protocol (MCP)14。每一个数字人底座（无论是开源的 LivePortrait/MuseTalk，还是闭源 HeyGen/商汤 API）均被抽象为一个标准 MCP Server，暴露统一的 generate_avatar、check_status、adjust_parameters 工具接口，Agent 控制器通过 JSON-RPC 2.0 与底层引擎交互，实现无缝引擎切换14。
 
 ### **3.3 Agent Tool 接口调用与闭环质检范例**
 
@@ -150,91 +150,91 @@ import requests
 from typing import Dict, Any, List
 
 class DigitalHumanAgentTools:  
-    def \_\_init\_\_(self, sandbox\_mcp\_endpoint: str, vision\_llm\_api\_key: str):  
-        self.sandbox\_url \= sandbox\_mcp\_endpoint  
-        self.vision\_api\_key \= vision\_llm\_api\_key
+ def \_\_init\_\_(self, sandbox_mcp_endpoint: str, vision_llm_api_key: str):  
+ self.sandbox_url \= sandbox_mcp_endpoint  
+ self.vision_api_key \= vision_llm_api_key
 
-    def get\_tool\_schema(self) \-\> Dict\[str, Any\]:  
-        """返回符合 MCP / OpenAI Tool Call 标准的 JSON Schema"""  
-        return {  
-            "name": "generate\_and\_qa\_digital\_human",  
-            "description": "调用沙箱中的数字人引擎生成视频，并使用 Vision-LLM 进行质量自动化校验与自纠错",  
-            "parameters": {  
-                "type": "object",  
-                "properties": {  
-                    "source\_image\_path": {"type": "string", "description": "源肖像图片在沙箱中的路径"},  
-                    "driving\_audio\_path": {"type": "string", "description": "驱动音频在沙箱中的路径"},  
-                    "engine\_type": {"type": "string", "enum": \["liveportrait", "musetalk", "genefacepp"\]},  
-                    "motion\_scale": {"type": "number", "default": 1.0, "description": "头部运动幅度缩放系数"},  
-                    "denoising\_steps": {"type": "integer", "default": 20, "description": "扩散模型采样步数"}  
-                },  
-                "required": \["source\_image\_path", "driving\_audio\_path", "engine\_type"\]  
-            }  
+    def get\_tool\_schema(self) \-\> Dict\[str, Any\]:
+        """返回符合 MCP / OpenAI Tool Call 标准的 JSON Schema"""
+        return {
+            "name": "generate\_and\_qa\_digital\_human",
+            "description": "调用沙箱中的数字人引擎生成视频，并使用 Vision-LLM 进行质量自动化校验与自纠错",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "source\_image\_path": {"type": "string", "description": "源肖像图片在沙箱中的路径"},
+                    "driving\_audio\_path": {"type": "string", "description": "驱动音频在沙箱中的路径"},
+                    "engine\_type": {"type": "string", "enum": \["liveportrait", "musetalk", "genefacepp"\]},
+                    "motion\_scale": {"type": "number", "default": 1.0, "description": "头部运动幅度缩放系数"},
+                    "denoising\_steps": {"type": "integer", "default": 20, "description": "扩散模型采样步数"}
+                },
+                "required": \["source\_image\_path", "driving\_audio\_path", "engine\_type"\]
+            }
         }
 
-    def execute\_sandbox\_rendering(self, payload: Dict\[str, Any\]) \-\> Dict\[str, Any\]:  
-        """向沙箱环境发送 JSON-RPC / MCP 请求执行渲染脚本"""  
-        mcp\_request \= {  
-            "jsonrpc": "2.0",  
-            "method": "tools/call",  
-            "params": {  
-                "name": f"render\_{payload\['engine\_type'\]}",  
-                "arguments": payload  
-            },  
-            "id": 1  
-        }  
-        response \= requests.post(f"{self.sandbox\_url}/mcp", json=mcp\_request)  
+    def execute\_sandbox\_rendering(self, payload: Dict\[str, Any\]) \-\> Dict\[str, Any\]:
+        """向沙箱环境发送 JSON-RPC / MCP 请求执行渲染脚本"""
+        mcp\_request \= {
+            "jsonrpc": "2.0",
+            "method": "tools/call",
+            "params": {
+                "name": f"render\_{payload\['engine\_type'\]}",
+                "arguments": payload
+            },
+            "id": 1
+        }
+        response \= requests.post(f"{self.sandbox\_url}/mcp", json=mcp\_request)
         return response.json()\["result"\]
 
-    def vision\_qa\_judge(self, video\_frames\_paths: List\[str\], audio\_transcript: str) \-\> Dict\[str, Any\]:  
-        """使用 Vision-LLM 对生成的帧序列进行自动化视觉质检"""  
-        prompt \= f"""  
-        你是一位严格的数字人画面质量检查专家。请根据提供的视频提取帧，评估数字人效果。  
-        目标文本口型："{audio\_transcript}"  
-        请针对以下项评分（0-100）：  
-        1\. 嘴型对齐度 (lip\_sync)  
-        2\. 画面伪影与边缘虚化 (artifact\_score, 分数越高代表伪影越少)  
-        3\. 表情自然度 (naturalness)  
-        如果任意一项低于80分，请在 'reflection' 中给出具体的调优参数建议（如降低 motion\_scale 或增加 denoising\_steps）。  
-        请严格输出 JSON 格式。  
-        """  
-        messages \= \[{  
-            "role": "user",  
-            "content": \[  
-                {"type": "text", "text": prompt},  
-                \*\[{"type": "image\_url", "image\_url": {"url": f"data:image/jpeg;base64,{path}"}} for path in video\_frames\_paths\]  
-            \]  
-        }\]  
-          
-        headers \= {"Authorization": f"Bearer {self.vision\_api\_key}", "Content-Type": "application/json"}  
-        res \= requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json={  
-            "model": "gpt-4o",  
-            "messages": messages,  
-            "response\_format": {"type": "json\_object"}  
-        })  
+    def vision\_qa\_judge(self, video\_frames\_paths: List\[str\], audio\_transcript: str) \-\> Dict\[str, Any\]:
+        """使用 Vision-LLM 对生成的帧序列进行自动化视觉质检"""
+        prompt \= f"""
+        你是一位严格的数字人画面质量检查专家。请根据提供的视频提取帧，评估数字人效果。
+        目标文本口型："{audio\_transcript}"
+        请针对以下项评分（0-100）：
+        1\. 嘴型对齐度 (lip\_sync)
+        2\. 画面伪影与边缘虚化 (artifact\_score, 分数越高代表伪影越少)
+        3\. 表情自然度 (naturalness)
+        如果任意一项低于80分，请在 'reflection' 中给出具体的调优参数建议（如降低 motion\_scale 或增加 denoising\_steps）。
+        请严格输出 JSON 格式。
+        """
+        messages \= \[{
+            "role": "user",
+            "content": \[
+                {"type": "text", "text": prompt},
+                \*\[{"type": "image\_url", "image\_url": {"url": f"data:image/jpeg;base64,{path}"}} for path in video\_frames\_paths\]
+            \]
+        }\]
+
+        headers \= {"Authorization": f"Bearer {self.vision\_api\_key}", "Content-Type": "application/json"}
+        res \= requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json={
+            "model": "gpt-4o",
+            "messages": messages,
+            "response\_format": {"type": "json\_object"}
+        })
         return json.loads(res.json()\["choices"\]\[0\]\["message"\]\["content"\])
 
-    def run\_agent\_loop(self, task\_params: Dict\[str, Any\], transcript: str, max\_retries: int \= 3) \-\> str:  
-        """Agent 自主调试与反馈环主逻辑"""  
-        current\_params \= task\_params.copy()  
-          
-        for attempt in range(max\_retries):  
-            render\_result \= self.execute\_sandbox\_rendering(current\_params)  
-            output\_video \= render\_result\["output\_video\_path"\]  
-            extracted\_frames \= render\_result\["extracted\_frame\_base64s"\]  
-              
-            qa\_result \= self.vision\_qa\_judge(extracted\_frames, transcript)  
-              
-            if (qa\_result\["scores"\]\["lip\_sync"\] \>= 80 and   
-                qa\_result\["scores"\]\["artifact\_score"\] \>= 80):  
-                return output\_video  
-              
-            reflection \= qa\_result.get("reflection", {})  
-            if "suggested\_motion\_scale" in reflection:  
-                current\_params\["motion\_scale"\] \= reflection\["suggested\_motion\_scale"\]  
-            if "suggested\_denoising\_steps" in reflection:  
-                current\_params\["denoising\_steps"\] \= reflection\["suggested\_denoising\_steps"\]  
-                  
+    def run\_agent\_loop(self, task\_params: Dict\[str, Any\], transcript: str, max\_retries: int \= 3) \-\> str:
+        """Agent 自主调试与反馈环主逻辑"""
+        current\_params \= task\_params.copy()
+
+        for attempt in range(max\_retries):
+            render\_result \= self.execute\_sandbox\_rendering(current\_params)
+            output\_video \= render\_result\["output\_video\_path"\]
+            extracted\_frames \= render\_result\["extracted\_frame\_base64s"\]
+
+            qa\_result \= self.vision\_qa\_judge(extracted\_frames, transcript)
+
+            if (qa\_result\["scores"\]\["lip\_sync"\] \>= 80 and
+                qa\_result\["scores"\]\["artifact\_score"\] \>= 80):
+                return output\_video
+
+            reflection \= qa\_result.get("reflection", {})
+            if "suggested\_motion\_scale" in reflection:
+                current\_params\["motion\_scale"\] \= reflection\["suggested\_motion\_scale"\]
+            if "suggested\_denoising\_steps" in reflection:
+                current\_params\["denoising\_steps"\] \= reflection\["suggested\_denoising\_steps"\]
+
         raise RuntimeError("数字人生成自纠错失败，已达最大重试次数。")
 
 ## **4\. 工程落地、性能指标与痛点应对**
@@ -308,24 +308,22 @@ WebRTC 接收端开启基于 NTP 时间戳的音画对齐机制。当网络发�
 
 #### **引用的著作**
 
-> 1. 3D Gaussian Splatting vs NeRF: Neural Rendering Methods Compared | THE FUTURE 3D, [https://www.thefuture3d.com/equipment/compare/3d-gaussian-splatting-vs-nerf/](https://www.thefuture3d.com/equipment/compare/3d-gaussian-splatting-vs-nerf/)  
-> 2. GeneFace++: Generalized and Stable Real-Time 3D Talking Face Generation, [https://genefaceplusplus.github.io/](https://genefaceplusplus.github.io/)  
-> 3. GeneFace: Generalized and High-Fidelity 3D Talking Face Synthesis; ICLR 2023; Official code \- GitHub, [https://github.com/yerfor/GeneFace](https://github.com/yerfor/GeneFace)  
-> 4. NVIDIA ACE for Games \- NVIDIA Developer, [https://developer.nvidia.com/ace-for-games](https://developer.nvidia.com/ace-for-games)  
-> 5. Character Animation (required for Audio2Face-3D, Animation Stream) — ACE Unreal Plugin, [https://docs.nvidia.com/ace/ace-unreal-plugin/latest/ace-unreal-plugin-animation.html](https://docs.nvidia.com/ace/ace-unreal-plugin/latest/ace-unreal-plugin-animation.html)  
-> 6. GitHub \- yerfor/GeneFacePlusPlus: GeneFace++: Generalized and Stable Real-Time 3D Talking Face Generation; Official Code, [https://github.com/yerfor/GeneFacePlusPlus](https://github.com/yerfor/GeneFacePlusPlus)  
-> 7. GitHub \- ASLP-lab/FlashTTS: Fast Streaming TTS with MTP Acceleration and X-pred Mean Flow Distillation, [https://github.com/ASLP-lab/FlashTTS](https://github.com/ASLP-lab/FlashTTS)  
-> 8. Free Voice Clone TTS Survey \- JCHub, [https://blog.jianchihu.net/voice-clone-tts-simple-research.html](https://blog.jianchihu.net/voice-clone-tts-simple-research.html)  
-> 9. (PDF) F5-TTS: A Fairytaler that Fakes Fluent and Faithful Speech with Flow Matching, [https://www.researchgate.net/publication/384770900\_F5-TTS\_A\_Fairytaler\_that\_Fakes\_Fluent\_and\_Faithful\_Speech\_with\_Flow\_Matching](https://www.researchgate.net/publication/384770900_F5-TTS_A_Fairytaler_that_Fakes_Fluent_and_Faithful_Speech_with_Flow_Matching)  
-> 10. Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \- Hugging Face, [https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice)  
-> 11. CosyVoice/README.md at main · FunAudioLLM/CosyVoice \- GitHub, [https://github.com/FunAudioLLM/CosyVoice/blob/main/README.md](https://github.com/FunAudioLLM/CosyVoice/blob/main/README.md)  
-> 12. CosyVoice 2025 Complete Guide: The Ultimate Multi-lingual Text-to-Speech Solution, [https://dev.to/czmilo/cosyvoice-2025-complete-guide-the-ultimate-multi-lingual-text-to-speech-solution-4l39](https://dev.to/czmilo/cosyvoice-2025-complete-guide-the-ultimate-multi-lingual-text-to-speech-solution-4l39)  
-> 13. Agent Skills vs MCP vs CLI: How to Choose \- Aident AI, [https://aident.ai/blog/agent-skills-vs-mcp-vs-cli](https://aident.ai/blog/agent-skills-vs-mcp-vs-cli)  
-> 14. CLI vs MCP vs API for AI Agents: Which Integration Method Should You Use? | MindStudio, [https://www.mindstudio.ai/blog/cli-vs-mcp-vs-api-ai-agents](https://www.mindstudio.ai/blog/cli-vs-mcp-vs-api-ai-agents)  
+> 1. 3D Gaussian Splatting vs NeRF: Neural Rendering Methods Compared | THE FUTURE 3D, [https://www.thefuture3d.com/equipment/compare/3d-gaussian-splatting-vs-nerf/](https://www.thefuture3d.com/equipment/compare/3d-gaussian-splatting-vs-nerf/)
+> 2. GeneFace++: Generalized and Stable Real-Time 3D Talking Face Generation, [https://genefaceplusplus.github.io/](https://genefaceplusplus.github.io/)
+> 3. GeneFace: Generalized and High-Fidelity 3D Talking Face Synthesis; ICLR 2023; Official code \- GitHub, [https://github.com/yerfor/GeneFace](https://github.com/yerfor/GeneFace)
+> 4. NVIDIA ACE for Games \- NVIDIA Developer, [https://developer.nvidia.com/ace-for-games](https://developer.nvidia.com/ace-for-games)
+> 5. Character Animation (required for Audio2Face-3D, Animation Stream) — ACE Unreal Plugin, [https://docs.nvidia.com/ace/ace-unreal-plugin/latest/ace-unreal-plugin-animation.html](https://docs.nvidia.com/ace/ace-unreal-plugin/latest/ace-unreal-plugin-animation.html)
+> 6. GitHub \- yerfor/GeneFacePlusPlus: GeneFace++: Generalized and Stable Real-Time 3D Talking Face Generation; Official Code, [https://github.com/yerfor/GeneFacePlusPlus](https://github.com/yerfor/GeneFacePlusPlus)
+> 7. GitHub \- ASLP-lab/FlashTTS: Fast Streaming TTS with MTP Acceleration and X-pred Mean Flow Distillation, [https://github.com/ASLP-lab/FlashTTS](https://github.com/ASLP-lab/FlashTTS)
+> 8. Free Voice Clone TTS Survey \- JCHub, [https://blog.jianchihu.net/voice-clone-tts-simple-research.html](https://blog.jianchihu.net/voice-clone-tts-simple-research.html)
+> 9. (PDF) F5-TTS: A Fairytaler that Fakes Fluent and Faithful Speech with Flow Matching, [https://www.researchgate.net/publication/384770900_F5-TTS_A_Fairytaler_that_Fakes_Fluent_and_Faithful_Speech_with_Flow_Matching](https://www.researchgate.net/publication/384770900_F5-TTS_A_Fairytaler_that_Fakes_Fluent_and_Faithful_Speech_with_Flow_Matching)
+> 10. Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \- Hugging Face, [https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice)
+> 11. CosyVoice/README.md at main · FunAudioLLM/CosyVoice \- GitHub, [https://github.com/FunAudioLLM/CosyVoice/blob/main/README.md](https://github.com/FunAudioLLM/CosyVoice/blob/main/README.md)
+> 12. CosyVoice 2025 Complete Guide: The Ultimate Multi-lingual Text-to-Speech Solution, [https://dev.to/czmilo/cosyvoice-2025-complete-guide-the-ultimate-multi-lingual-text-to-speech-solution-4l39](https://dev.to/czmilo/cosyvoice-2025-complete-guide-the-ultimate-multi-lingual-text-to-speech-solution-4l39)
+> 13. Agent Skills vs MCP vs CLI: How to Choose \- Aident AI, [https://aident.ai/blog/agent-skills-vs-mcp-vs-cli](https://aident.ai/blog/agent-skills-vs-mcp-vs-cli)
+> 14. CLI vs MCP vs API for AI Agents: Which Integration Method Should You Use? | MindStudio, [https://www.mindstudio.ai/blog/cli-vs-mcp-vs-api-ai-agents](https://www.mindstudio.ai/blog/cli-vs-mcp-vs-api-ai-agents)
 > 15. MCP Server Development: Complete 2026 Guide \- AY Automate, [https://www.ayautomate.com/blog/mcp-server-development-guide](https://www.ayautomate.com/blog/mcp-server-development-guide)
 
-[image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFcAAAAZCAYAAABEmrJwAAAECElEQVR4Xu2YXYhVVRTHl6kl5geFJpIVZlKRYuJHmNZM9eBLiRFkRVCkUAg+GFGCZeOTipaIEEFFQ2n54EOQJJbEGIkgKdiDQgoTKkEqVoqCRuT/17pnZp999zn3zDDNg5wf/Bnu2pt7915r7bX2HrOampqaJFOlV6VRge1R6f3gc8yd0tDY2KBNOihdbPxdmh8eFJ6UFlnvGoeYr+O1nhnNTI4NDW6SPpTOSKekbdKk3IwSHpf+jcQXPRJOEjdKM6UO6Zw0OzfqzJJ+kdrNF7DD/PveCOYMBh3WvCcCfXswB0abr/Vj6Y/8UA9fSlulCdLT0l9StzQmnFTEE+YR+U36WfpIujc3w2HON9J35otNOZexhcFnos5CLkvjA/v/zVrpmLnD9kvrLH8y4UHpd+kL6aj0Z374Px6T9plnfsZy8/1vDGyFkLlEripvWtq5N5iXguPS2MDOkWL+YJaHd6WXYmMJX1vauW9JV6WVgY0TyX5Impa028A4d5h0tjF2T2CndmNbEdhS3CfdHxsDyPyHY2MB79jAOPd187V/GthuadgonS1pN68r70m7zR202fJHIaTIuTDD/CSEfGs+n/JTBs5j7l3xgLhV+kmaHg8UgHPXSJ9LXeYl7ZVwQkSRc4ebBymsr23m+/k+sBUyTzop3d34PMX8hzgSKcqcG0MHviL9aMXBCmE+iw7LCh1/lzUHrQzWTqBGND4/K/0jze+ZkafIuSmyMhf2lkLomHG2cN2gK46L7NAX535mHrjKVxfzo09jxME4lux7ITejNXdYPkAEluyluaWo6lxKF0HiZPSb9eYOfC4esF7nzokHIp6XzkvT4oEKLDB3MMF5OT/Ub3As654YD5g7l2QqY6R0xPL1txQi2iUdMO/2GW9bcROq4lzuu91WPqcMmuMe6bB5ve0LlJbT0qbIntV++kJMK+fiJ65sn1jx46kJHgak+SXzyGTQ3FgIL52YzLlz44EGHMkTln+EcF9cHHwuA8fulJZJD5kHPzziraBxsr69kZ1HBPbU5R/nXoiNAR3SV5ZPQJp+S/jROJrcGriAp7Imcy4bj6GB8H2UhJDV0lORLQVZsV3aENhouGRdVQfzkuL43hbY6PrcwSk1KXAu4ymeMd/TzYGNpORx0RI2/YH1Zi7/V/jbPHNScMXBuamrVad5UNhEl/kriacy82kGraDGspb4ZsFv/WD5DZZBSeDqlWXaKvNXYpxEGayX0xt//wPm5eKQ+RyugzRobkA02krQuLgCsQEKf+oId0q/mjsK8XIhejwHgeOWjaVEtMtYIm2xZsdmvGj+rK0Cz276Rpd51pH5OCqEU8n6SYZsjTRgnEhDBZ648T4yVV1LTU1NTU1NTU1NzXXDNSkP6yhGDyJYAAAAAElFTkSuQmCC>
-
-[image2]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADMAAAAaCAYAAAAaAmTUAAADJklEQVR4Xu2XWaiNURTHl3kmlCm6IYmkeCHehCLCA57wgAwPPBgeKIWUKUlelELIVOYiUxQyZE4ekDJkSMZQSvx/d+3vnH2270gdpVvnV//ut9dee59v7W/ttfc1q1Llv1BP6p4aI6ZIJ6TL0n6pprS7lgHSPum4uc88qUGJh1lDaYV0TrohrZealXhUQBdpvHRaOpT0ZcyVbksdQnuZ9CpqQ2fpgtQjtFmco9KmgoezR9plHlRTcx8CqxhW7q60Wfpu+cF0lL5JEyNbfemZtCiysdpxG3qZz9sytMdJP610EfoG26DIVjFfLD+Y6eY/1j+xn5FORu0d0t6oDe3Nx/IX8Hld7K6FL/RDWpLYK6JcMHw1XqhbYj8ofTZPFVhu7ncgsi2QDodnIAseRO2M99Kp1FgJ5YLBxkt2Sux8Bew9Q5uUYg5sd6TF5sUiHvfBPKAU9t/j1FgJ5YJhxfKC2R3sfSLbMOljsCMqFWmUgS0vmBfS8/CM/yrplrTSfC9dka6aF6Hewe+PlAuGMpsXDBUJO18kY615urE3soC2Rf1fLT8YAnkSnqdJs6VJ5uPZl11D31bpenj+IwQT53fGTvNJKb0xlFjs2eZeKm0v9JoNlR6Z+4wNtqfSvYJHkZfmZw6Qvq3N56MStsmcxBrz+eJqmEu5YDaaT5AeqPhip0y3lT5JA0s8fAx20gZuSg+L3QVITc65GNrp+ZNlSfPE/hsEcyQ1mn92Jkhf9KJ0KTz3M/dpUewuwJddHZ5JEypXDC/G2MwH2DcsQlyuG5mP/es04zROyVZ9amRrLL2V5od2K/ODdVTBowirOzo8jzB/8Zpid+0GTxdrcLANiWxjgm1CZMulifnLnDW/hqRw3aHMZvesmebVJjtPYI55iSVoUo9Tf6H5l4mhwm2I2vRvidrAOF6caxS0k+5L6woeOVBKKXsEwmBEvSdfsytIxkjzyfhx7lv8QAobnb3EnMekyaXdtRDoLPPDmLTjPMIWQ1XlnsdvnZeuSTNih7oCgb2zf3y9+V/wbwQZwv6q83CfI5js/KqzcHl9Yx4Me2Z4aXeVKlWqJPwCnHW/jC674GIAAAAASUVORK5CYII=>
-
-[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACkAAAAaCAYAAAAqjnX1AAACiklEQVR4Xu2WWYiOYRTHj31NtuKCFBf2G1sRCRfiypI7pZQlLkS2CzQKkZCtECEy2aIkF8oQskQTFwplRBHmwnJFif+/c57Pec/3fpOZSfOV71e/puc855v3fM9y3k+kwn/IYnggBnPoAA/Bj/AtPA37ZTKUvvAYrIEP4KLsdNPYBn814EDLq4b7YR84G36BdbCbzZPe8ClcZuP+8CWsSglN5YwUF5ZkYWQKvAVb2ZiwEObsdLFdokV6lsJ62C7EG8Ud2CvEuGUP7S9ZB3/AlYUM3WoWydVMvIZn3ZhMFc2bFOKNYncMgGtwphuvEn3QcRfrYTGeUcIvxPHhQoYy2uIbQrxZLJTiwrlVCyR7/iaLPvyGjcfYOF7CkRb3X7BZsIgPcECcyIE3nQ+fbuNUdCxymMXZDchEeA7WwsFwr+jRqoPbLadBVsBLMZjDEPgTbnSx8ZJf5FCLnxS9eDWi7ewJ/ASXWJwLw7xZ+rF8WsNXcFOcCHQWfUDcPq4KH3IwxEdYfA8cBzeLFvkV7nB5XS1vn4sVMUE0aV6ccPAbs2WxWbcJc+yR/DznPGMt7ledLY2xaS6WdoJ9uySrRZN4ZkpRBS+LrnqCK5R4AS+6MZkh+n99t1gvupJc0cRa+YvtPi+aNCpOGHNFD3gXF2sv2uQTW+BzyTb9NfC9ZJv5FXjVjcl90ddo3KEM90SL5BmKDBd9DT6G1+Ej+AZ+h6dcXkd4V/6sRifR1Z1fyNAiPsNnsLvFlsN3cFBKKsVR0TbAJh3hq49fIE9eBE9P0e08AY+Ivuc9qZ9uFV2Y2/CC5P9YaTH4av0G28aJcoKrdjMGywleHv4i8h2hrJgjent5Hnnp+AaqUKHCv+A3MoebLJKzF7oAAAAASUVORK5CYII=>
+[image1]: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFcAAAAZCAYAAABEmrJwAAAECElEQVR4Xu2YXYhVVRTHl6kl5geFJpIVZlKRYuJHmNZM9eBLiRFkRVCkUAg+GFGCZeOTipaIEEFFQ2n54EOQJJbEGIkgKdiDQgoTKkEqVoqCRuT/17pnZp999zn3zDDNg5wf/Bnu2pt7915r7bX2HrOampqaJFOlV6VRge1R6f3gc8yd0tDY2KBNOihdbPxdmh8eFJ6UFlnvGoeYr+O1nhnNTI4NDW6SPpTOSKekbdKk3IwSHpf+jcQXPRJOEjdKM6UO6Zw0OzfqzJJ+kdrNF7DD/PveCOYMBh3WvCcCfXswB0abr/Vj6Y/8UA9fSlulCdLT0l9StzQmnFTEE+YR+U36WfpIujc3w2HON9J35otNOZexhcFnos5CLkvjA/v/zVrpmLnD9kvrLH8y4UHpd+kL6aj0Z374Px6T9plnfsZy8/1vDGyFkLlEripvWtq5N5iXguPS2MDOkWL+YJaHd6WXYmMJX1vauW9JV6WVgY0TyX5Impa028A4d5h0tjF2T2CndmNbEdhS3CfdHxsDyPyHY2MB79jAOPd187V/GthuadgonS1pN68r70m7zR202fJHIaTIuTDD/CSEfGs+n/JTBs5j7l3xgLhV+kmaHg8UgHPXSJ9LXeYl7ZVwQkSRc4ebBymsr23m+/k+sBUyTzop3d34PMX8hzgSKcqcG0MHviL9aMXBCmE+iw7LCh1/lzUHrQzWTqBGND4/K/0jze+ZkafIuSmyMhf2lkLomHG2cN2gK46L7NAX535mHrjKVxfzo09jxME4lux7ITejNXdYPkAEluyluaWo6lxKF0HiZPSb9eYOfC4esF7nzokHIp6XzkvT4oEKLDB3MMF5OT/Ub3As654YD5g7l2QqY6R0xPL1txQi2iUdMO/2GW9bcROq4lzuu91WPqcMmuMe6bB5ve0LlJbT0qbIntV++kJMK+fiJ65sn1jx46kJHgak+SXzyGTQ3FgIL52YzLlz44EGHMkTln+EcF9cHHwuA8fulJZJD5kHPzziraBxsr69kZ1HBPbU5R/nXoiNAR3SV5ZPQJp+S/jROJrcGriAp7Imcy4bj6GB8H2UhJDV0lORLQVZsV3aENhouGRdVQfzkuL43hbY6PrcwSk1KXAu4ymeMd/TzYGNpORx0RI2/YH1Zi7/V/jbPHNScMXBuamrVad5UNhEl/kriacy82kGraDGspb4ZsFv/WD5DZZBSeDqlWXaKvNXYpxEGayX0xt//wPm5eKQ+RyugzRobkA02krQuLgCsQEKf+oId0q/mjsK8XIhejwHgeOWjaVEtMtYIm2xZsdmvGj+rK0Cz276Rpd51pH5OCqEU8n6SYZsjTRgnEhDBZ648T4yVV1LTU1NTU1NTU1NzXXDNSkP6yhGDyJYAAAAAElFTkSuQmCC
+[image2]: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADMAAAAaCAYAAAAaAmTUAAADJklEQVR4Xu2XWaiNURTHl3kmlCm6IYmkeCHehCLCA57wgAwPPBgeKIWUKUlelELIVOYiUxQyZE4ekDJkSMZQSvx/d+3vnH2270gdpVvnV//ut9dee59v7W/ttfc1q1Llv1BP6p4aI6ZIJ6TL0n6pprS7lgHSPum4uc88qUGJh1lDaYV0TrohrZealXhUQBdpvHRaOpT0ZcyVbksdQnuZ9CpqQ2fpgtQjtFmco9KmgoezR9plHlRTcx8CqxhW7q60Wfpu+cF0lL5JEyNbfemZtCiysdpxG3qZz9sytMdJP610EfoG26DIVjFfLD+Y6eY/1j+xn5FORu0d0t6oDe3Nx/IX8Hld7K6FL/RDWpLYK6JcMHw1XqhbYj8ofTZPFVhu7ncgsi2QDodnIAseRO2M99Kp1FgJ5YLBxkt2Sux8Bew9Q5uUYg5sd6TF5sUiHvfBPKAU9t/j1FgJ5YJhxfKC2R3sfSLbMOljsCMqFWmUgS0vmBfS8/CM/yrplrTSfC9dka6aF6Hewe+PlAuGMpsXDBUJO18kY615urE3soC2Rf1fLT8YAnkSnqdJs6VJ5uPZl11D31bpenj+IwQT53fGTvNJKb0xlFjs2eZeKm0v9JoNlR6Z+4wNtqfSvYJHkZfmZw6Qvq3N56MStsmcxBrz+eJqmEu5YDaaT5AeqPhip0y3lT5JA0s8fAx20gZuSg+L3QVITc65GNrp+ZNlSfPE/hsEcyQ1mn92Jkhf9KJ0KTz3M/dpUewuwJddHZ5JEypXDC/G2MwH2DcsQlyuG5mP/es04zROyVZ9amRrLL2V5od2K/ODdVTBowirOzo8jzB/8Zpid+0GTxdrcLANiWxjgm1CZMulifnLnDW/hqRw3aHMZvesmebVJjtPYI55iSVoUo9Tf6H5l4mhwm2I2vRvidrAOF6caxS0k+5L6woeOVBKKXsEwmBEvSdfsytIxkjzyfhx7lv8QAobnb3EnMekyaXdtRDoLPPDmLTjPMIWQ1XlnsdvnZeuSTNih7oCgb2zf3y9+V/wbwQZwv6q83CfI5js/KqzcHl9Yx4Me2Z4aXeVKlWqJPwCnHW/jC674GIAAAAASUVORK5CYII=
+[image3]: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACkAAAAaCAYAAAAqjnX1AAACiklEQVR4Xu2WWYiOYRTHj31NtuKCFBf2G1sRCRfiypI7pZQlLkS2CzQKkZCtECEy2aIkF8oQskQTFwplRBHmwnJFif+/c57Pec/3fpOZSfOV71e/puc855v3fM9y3k+kwn/IYnggBnPoAA/Bj/AtPA37ZTKUvvAYrIEP4KLsdNPYBn814EDLq4b7YR84G36BdbCbzZPe8ClcZuP+8CWsSglN5YwUF5ZkYWQKvAVb2ZiwEObsdLFdokV6lsJ62C7EG8Ud2CvEuGUP7S9ZB3/AlYUM3WoWydVMvIZn3ZhMFc2bFOKNYncMgGtwphuvEn3QcRfrYTGeUcIvxPHhQoYy2uIbQrxZLJTiwrlVCyR7/iaLPvyGjcfYOF7CkRb3X7BZsIgPcECcyIE3nQ+fbuNUdCxymMXZDchEeA7WwsFwr+jRqoPbLadBVsBLMZjDEPgTbnSx8ZJf5FCLnxS9eDWi7ewJ/ASXWJwLw7xZ+rF8WsNXcFOcCHQWfUDcPq4KH3IwxEdYfA8cBzeLFvkV7nB5XS1vn4sVMUE0aV6ccPAbs2WxWbcJc+yR/DznPGMt7ledLY2xaS6WdoJ9uySrRZN4ZkpRBS+LrnqCK5R4AS+6MZkh+n99t1gvupJc0cRa+YvtPi+aNCpOGHNFD3gXF2sv2uQTW+BzyTb9NfC9ZJv5FXjVjcl90ddo3KEM90SL5BmKDBd9DT6G1+Ej+AZ+h6dcXkd4V/6sRifR1Z1fyNAiPsNnsLvFlsN3cFBKKsVR0TbAJh3hq49fIE9eBE9P0e08AY+Ivuc9qZ9uFV2Y2/CC5P9YaTH4av0G28aJcoKrdjMGywleHv4i8h2hrJgjent5Hnnp+AaqUKHCv+A3MoebLJKzF7oAAAAASUVORK5CYII=

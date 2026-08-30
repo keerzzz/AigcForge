@@ -15,14 +15,12 @@ export const ASSET_KIND_DIRS: Record<string, { dir: string; extractNames: (entri
   mcp: {
     dir: ".aigcfroge/mcps",
     // MCP assets are `.json` files; strip the extension for the name.
-    extractNames: (entries) =>
-      entries.filter((e) => e.endsWith(".json")).map((e) => e.slice(0, -".json".length)),
+    extractNames: (entries) => entries.filter((e) => e.endsWith(".json")).map((e) => e.slice(0, -".json".length)),
   },
   command: {
     dir: ".aigcfroge/commands",
     // Command assets are `.md` files; strip the extension for the name.
-    extractNames: (entries) =>
-      entries.filter((e) => e.endsWith(".md")).map((e) => e.slice(0, -".md".length)),
+    extractNames: (entries) => entries.filter((e) => e.endsWith(".md")).map((e) => e.slice(0, -".md".length)),
   },
   agent: {
     dir: ".aigcfroge/agents",
@@ -33,8 +31,7 @@ export const ASSET_KIND_DIRS: Record<string, { dir: string; extractNames: (entri
   workflow: {
     dir: ".aigcfroge/workflows",
     // Workflow assets are `.yaml` files; strip the extension for the name.
-    extractNames: (entries) =>
-      entries.filter((e) => e.endsWith(".yaml")).map((e) => e.slice(0, -".yaml".length)),
+    extractNames: (entries) => entries.filter((e) => e.endsWith(".yaml")).map((e) => e.slice(0, -".yaml".length)),
   },
   plugin: {
     dir: ".aigcfroge/plugins",

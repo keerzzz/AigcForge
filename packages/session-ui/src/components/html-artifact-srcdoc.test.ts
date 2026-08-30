@@ -28,7 +28,7 @@ describe("buildSrcdoc", () => {
     const lib = "var chartLibMarker = 1;"
     const srcdoc = buildSrcdoc("<div>hi</div>", [lib])
     expect(srcdoc).toContain(`<script>${lib}</script>`)
-    expect(srcdoc).not.toContain('<script src=')
+    expect(srcdoc).not.toContain("<script src=")
   })
 
   test("keeps the artifact body intact", () => {
@@ -46,8 +46,8 @@ describe("buildSrcdoc", () => {
     expect(srcdoc).toMatch(/setItem: function\(k, v\) \{ store\[k\] = String\(v\); \}/)
     expect(srcdoc).toMatch(/removeItem: function\(k\) \{ delete store\[k\]; \}/)
     expect(srcdoc).toMatch(/clear: function\(\) \{ store = \{\}; \}/)
-    expect(srcdoc).toContain("try { Object.defineProperty(window, \"localStorage\"")
-    expect(srcdoc).toContain("try { Object.defineProperty(window, \"sessionStorage\"")
+    expect(srcdoc).toContain('try { Object.defineProperty(window, "localStorage"')
+    expect(srcdoc).toContain('try { Object.defineProperty(window, "sessionStorage"')
   })
 })
 

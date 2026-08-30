@@ -140,10 +140,7 @@ function probeAsync(shell: string, mode: "-il" | "-l"): Promise<Probe> {
   })
 }
 
-export async function loadShellEnvAsync(
-  shell: string,
-  logger: ShellEnvLogger,
-): Promise<Record<string, string> | null> {
+export async function loadShellEnvAsync(shell: string, logger: ShellEnvLogger): Promise<Record<string, string> | null> {
   if (isNushell(shell)) {
     logger.log(`[server] Skipping shell env probe for nushell: ${shell}`)
     return null

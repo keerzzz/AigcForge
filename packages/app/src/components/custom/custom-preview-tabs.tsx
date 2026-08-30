@@ -20,7 +20,9 @@ export function mcpPreviewSummary(plan: Partial<CompositionPlan> | undefined) {
     requested: mcp?.requested ?? [],
     effective: mcp?.effective ?? [],
     denied: mcp?.denied ?? [],
-    diagnostics: diagnostics.filter((diagnostic) => diagnostic.asset?.kind === "mcp" || diagnostic.code.startsWith("mcp_")),
+    diagnostics: diagnostics.filter(
+      (diagnostic) => diagnostic.asset?.kind === "mcp" || diagnostic.code.startsWith("mcp_"),
+    ),
     hasMcpPlan: mcp !== undefined,
   }
 }
@@ -34,7 +36,13 @@ export function mcpPreviewState(input: {
   if (input.error !== undefined) return "error" as const
   const summary = mcpPreviewSummary(input.plan)
   if (!summary.hasMcpPlan) return "unavailable" as const
-  if (summary.requested.length === 0 && summary.effective.length === 0 && summary.denied.length === 0 && summary.diagnostics.length === 0) return "empty" as const
+  if (
+    summary.requested.length === 0 &&
+    summary.effective.length === 0 &&
+    summary.denied.length === 0 &&
+    summary.diagnostics.length === 0
+  )
+    return "empty" as const
   return "content" as const
 }
 
@@ -48,7 +56,8 @@ export function planPreviewSummary(plan: Partial<CompositionPlan> | undefined) {
     estimatedTokens: plan?.costPreview?.estimatedTokens,
     effectiveToolCount: plan?.costPreview?.effectiveToolCount,
     edgeCount: steps.reduce(
-      (count, step) => count + (step.next ? 1 : 0) + (step.parallel?.length ?? 0) + Object.keys(step.branches ?? {}).length,
+      (count, step) =>
+        count + (step.next ? 1 : 0) + (step.parallel?.length ?? 0) + Object.keys(step.branches ?? {}).length,
       0,
     ),
   }
@@ -63,15 +72,22 @@ export function WorkflowTab(props: { plan: CompositionPlan | undefined }) {
   return (
     <div class="flex flex-col gap-5">
       <div class="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-v2-border-border-base bg-v2-border-border-base sm:grid-cols-4">
-        <For each={[
-          { label: language.t("custom.builder.plan.agentPool"), value: summary().agentCount },
-          { label: language.t("custom.builder.plan.steps"), value: summary().stepCount },
-          { label: language.t("custom.builder.plan.maxConcurrency"), value: summary().maxConcurrency ?? "-" },
-          { label: language.t("custom.builder.plan.estimatedTokens"), value: summary().estimatedTokens?.toLocaleString() ?? "-" },
-        ]}>
+        <For
+          each={[
+            { label: language.t("custom.builder.plan.agentPool"), value: summary().agentCount },
+            { label: language.t("custom.builder.plan.steps"), value: summary().stepCount },
+            { label: language.t("custom.builder.plan.maxConcurrency"), value: summary().maxConcurrency ?? "-" },
+            {
+              label: language.t("custom.builder.plan.estimatedTokens"),
+              value: summary().estimatedTokens?.toLocaleString() ?? "-",
+            },
+          ]}
+        >
           {(metric) => (
             <div class="flex min-w-0 flex-col gap-1 bg-v2-background-bg-layer-02 px-3 py-2.5">
-              <span class="truncate text-v2-text-text-faint text-10-medium uppercase tracking-wider">{metric.label}</span>
+              <span class="truncate text-v2-text-text-faint text-10-medium uppercase tracking-wider">
+                {metric.label}
+              </span>
               <span class="font-mono text-v2-text-text-base text-14-medium">{metric.value}</span>
             </div>
           )}
@@ -86,7 +102,11 @@ export function WorkflowTab(props: { plan: CompositionPlan | undefined }) {
           </div>
           <Show
             when={agents().length > 0}
-            fallback={<div class="rounded-md border border-dashed border-v2-border-border-base p-4 text-center text-v2-text-text-muted text-11-regular">{language.t("custom.builder.plan.noAgents")}</div>}
+            fallback={
+              <div class="rounded-md border border-dashed border-v2-border-border-base p-4 text-center text-v2-text-text-muted text-11-regular">
+                {language.t("custom.builder.plan.noAgents")}
+              </div>
+            }
           >
             <div class="flex flex-col gap-1">
               <For each={agents()}>
@@ -109,7 +129,9 @@ export function WorkflowTab(props: { plan: CompositionPlan | undefined }) {
         <section class="flex min-w-0 flex-col gap-2">
           <div class="flex items-center justify-between gap-2">
             <div class="min-w-0">
-              <h3 class="truncate text-v2-text-text-base text-12-medium">{workflow()?.name ?? language.t("custom.builder.plan.dag")}</h3>
+              <h3 class="truncate text-v2-text-text-base text-12-medium">
+                {workflow()?.name ?? language.t("custom.builder.plan.dag")}
+              </h3>
               <Show when={workflow()?.description}>
                 <p class="truncate text-v2-text-text-faint text-10-regular">{workflow()?.description}</p>
               </Show>
@@ -120,7 +142,11 @@ export function WorkflowTab(props: { plan: CompositionPlan | undefined }) {
           </div>
           <Show
             when={(workflow()?.steps.length ?? 0) > 0}
-            fallback={<div class="rounded-md border border-dashed border-v2-border-border-base p-4 text-center text-v2-text-text-muted text-11-regular">{language.t("custom.builder.plan.noWorkflow")}</div>}
+            fallback={
+              <div class="rounded-md border border-dashed border-v2-border-border-base p-4 text-center text-v2-text-text-muted text-11-regular">
+                {language.t("custom.builder.plan.noWorkflow")}
+              </div>
+            }
           >
             <ol class="flex flex-col gap-1.5">
               <For each={workflow()?.steps ?? []}>
@@ -179,8 +205,12 @@ export function InstructionsTab(props: { plan: CompositionPlan | undefined }) {
           {language.t("custom.builder.instructions.count", { count: instructions().length })}
         </span>
         <div class="flex items-center gap-2 text-v2-text-text-faint text-11-regular">
-          <span>{totalChars()} {language.t("custom.builder.instructions.chars")}</span>
-          <span>~{tokenEstimate()} {language.t("custom.builder.instructions.tokens")}</span>
+          <span>
+            {totalChars()} {language.t("custom.builder.instructions.chars")}
+          </span>
+          <span>
+            ~{tokenEstimate()} {language.t("custom.builder.instructions.tokens")}
+          </span>
         </div>
       </div>
 
@@ -197,7 +227,8 @@ export function InstructionsTab(props: { plan: CompositionPlan | undefined }) {
             {(inst) => {
               const sourceColor = () => {
                 if (inst.source.includes("agent")) return "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                if (inst.source.includes("composition") || inst.source.includes("prompt")) return "bg-purple-500/10 text-purple-400 border-purple-500/20"
+                if (inst.source.includes("composition") || inst.source.includes("prompt"))
+                  return "bg-purple-500/10 text-purple-400 border-purple-500/20"
                 if (inst.source.includes("ambient")) return "bg-amber-500/10 text-amber-400 border-amber-500/20"
                 if (inst.source.includes("rule")) return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                 return "bg-zinc-500/10 text-zinc-400 border-zinc-500/20"
@@ -206,7 +237,9 @@ export function InstructionsTab(props: { plan: CompositionPlan | undefined }) {
               return (
                 <div class="flex flex-col gap-1.5 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
                   <div class="flex items-center justify-between">
-                    <span class={`inline-flex items-center rounded px-1.5 py-0.5 text-10-medium uppercase tracking-wider border ${sourceColor()}`}>
+                    <span
+                      class={`inline-flex items-center rounded px-1.5 py-0.5 text-10-medium uppercase tracking-wider border ${sourceColor()}`}
+                    >
                       {inst.source}
                     </span>
                   </div>
@@ -239,7 +272,12 @@ export function CapabilitiesTab(props: { plan: CompositionPlan | undefined }) {
           </div>
           <ul class="list-disc list-inside text-12-regular text-red-300">
             <For each={denied()}>
-              {(cap) => <li>{cap.id} ({cap.status}{cap.reason ? `: ${cap.reason}` : ""})</li>}
+              {(cap) => (
+                <li>
+                  {cap.id} ({cap.status}
+                  {cap.reason ? `: ${cap.reason}` : ""})
+                </li>
+              )}
             </For>
           </ul>
         </div>
@@ -329,7 +367,11 @@ export function McpTab(props: { plan: CompositionPlan | undefined; loading?: boo
   return (
     <Show
       when={state() !== "loading"}
-      fallback={<div class="p-8 text-center text-v2-text-text-muted text-13-regular">{language.t("custom.builder.mcp.loading")}</div>}
+      fallback={
+        <div class="p-8 text-center text-v2-text-text-muted text-13-regular">
+          {language.t("custom.builder.mcp.loading")}
+        </div>
+      }
     >
       <Show
         when={state() !== "error"}
@@ -343,22 +385,34 @@ export function McpTab(props: { plan: CompositionPlan | undefined; loading?: boo
       >
         <Show
           when={state() !== "unavailable"}
-          fallback={<div class="p-8 text-center text-v2-text-text-muted text-13-regular">{language.t("custom.builder.mcp.noData")}</div>}
+          fallback={
+            <div class="p-8 text-center text-v2-text-text-muted text-13-regular">
+              {language.t("custom.builder.mcp.noData")}
+            </div>
+          }
         >
           <Show
             when={state() !== "empty"}
-            fallback={<div class="p-8 text-center text-v2-text-text-muted text-13-regular">{language.t("custom.builder.mcp.empty")}</div>}
+            fallback={
+              <div class="p-8 text-center text-v2-text-text-muted text-13-regular">
+                {language.t("custom.builder.mcp.empty")}
+              </div>
+            }
           >
             <div class="flex flex-col gap-5">
               <div class="grid grid-cols-3 gap-px overflow-hidden rounded-md border border-v2-border-border-base bg-v2-border-border-base">
-                <For each={[
-                  { label: language.t("custom.builder.mcp.requested"), value: summary().requested.length },
-                  { label: language.t("custom.builder.mcp.effective"), value: summary().effective.length },
-                  { label: language.t("custom.builder.mcp.denied"), value: summary().denied.length },
-                ]}>
+                <For
+                  each={[
+                    { label: language.t("custom.builder.mcp.requested"), value: summary().requested.length },
+                    { label: language.t("custom.builder.mcp.effective"), value: summary().effective.length },
+                    { label: language.t("custom.builder.mcp.denied"), value: summary().denied.length },
+                  ]}
+                >
                   {(metric) => (
                     <div class="flex min-w-0 flex-col gap-1 bg-v2-background-bg-layer-02 px-3 py-2.5">
-                      <span class="truncate text-v2-text-text-faint text-10-medium uppercase tracking-wider">{metric.label}</span>
+                      <span class="truncate text-v2-text-text-faint text-10-medium uppercase tracking-wider">
+                        {metric.label}
+                      </span>
                       <span class="font-mono text-v2-text-text-base text-14-medium">{metric.value}</span>
                     </div>
                   )}
@@ -374,19 +428,43 @@ export function McpTab(props: { plan: CompositionPlan | undefined; loading?: boo
                   <div class="flex flex-col gap-2">
                     <For each={summary().effective}>
                       {(server) => (
-                        <div data-slot="mcp-effective-server" class="flex min-w-0 flex-col gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
+                        <div
+                          data-slot="mcp-effective-server"
+                          class="flex min-w-0 flex-col gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3"
+                        >
                           <div class="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                            <span data-slot="mcp-server-name" class="min-w-0 break-all font-mono text-v2-text-text-base text-12-medium">{server.serverName}</span>
-                            <span data-slot="mcp-health" class="rounded border border-v2-border-border-base bg-v2-background-bg-layer-03 px-2 py-0.5 font-mono text-10-medium text-v2-text-text-base">{server.health}</span>
+                            <span
+                              data-slot="mcp-server-name"
+                              class="min-w-0 break-all font-mono text-v2-text-text-base text-12-medium"
+                            >
+                              {server.serverName}
+                            </span>
+                            <span
+                              data-slot="mcp-health"
+                              class="rounded border border-v2-border-border-base bg-v2-background-bg-layer-03 px-2 py-0.5 font-mono text-10-medium text-v2-text-text-base"
+                            >
+                              {server.health}
+                            </span>
                           </div>
                           <div class="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-v2-text-text-muted text-11-regular">
-                            <span>{language.t("custom.builder.mcp.credentialStatus")}: <code data-slot="mcp-credential-status" class="font-mono text-v2-text-text-base">{server.credentialStatus}</code></span>
-                            <span>{language.t("custom.builder.mcp.tools")}: {server.tools.length}</span>
+                            <span>
+                              {language.t("custom.builder.mcp.credentialStatus")}:{" "}
+                              <code data-slot="mcp-credential-status" class="font-mono text-v2-text-text-base">
+                                {server.credentialStatus}
+                              </code>
+                            </span>
+                            <span>
+                              {language.t("custom.builder.mcp.tools")}: {server.tools.length}
+                            </span>
                           </div>
                           <Show when={server.tools.length > 0}>
                             <div class="flex flex-wrap gap-1.5">
                               <For each={server.tools}>
-                                {(tool) => <code class="max-w-full break-all rounded bg-v2-background-bg-layer-03 px-1.5 py-0.5 font-mono text-10-regular text-v2-text-text-muted">{tool}</code>}
+                                {(tool) => (
+                                  <code class="max-w-full break-all rounded bg-v2-background-bg-layer-03 px-1.5 py-0.5 font-mono text-10-regular text-v2-text-text-muted">
+                                    {tool}
+                                  </code>
+                                )}
                               </For>
                             </div>
                           </Show>
@@ -406,17 +484,42 @@ export function McpTab(props: { plan: CompositionPlan | undefined; loading?: boo
                   <div class="flex flex-col gap-2">
                     <For each={summary().denied}>
                       {(server) => (
-                        <div data-slot="mcp-denied-server" class="flex min-w-0 flex-col gap-2 rounded-md border border-rose-500/30 bg-rose-500/5 p-3">
+                        <div
+                          data-slot="mcp-denied-server"
+                          class="flex min-w-0 flex-col gap-2 rounded-md border border-rose-500/30 bg-rose-500/5 p-3"
+                        >
                           <div class="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                            <span data-slot="mcp-server-name" class="min-w-0 break-all font-mono text-v2-text-text-base text-12-medium">{server.serverName}</span>
+                            <span
+                              data-slot="mcp-server-name"
+                              class="min-w-0 break-all font-mono text-v2-text-text-base text-12-medium"
+                            >
+                              {server.serverName}
+                            </span>
                             <Show when={server.health}>
-                              {(health) => <span data-slot="mcp-health" class="rounded border border-v2-border-border-base bg-v2-background-bg-layer-03 px-2 py-0.5 font-mono text-10-medium text-v2-text-text-base">{health()}</span>}
+                              {(health) => (
+                                <span
+                                  data-slot="mcp-health"
+                                  class="rounded border border-v2-border-border-base bg-v2-background-bg-layer-03 px-2 py-0.5 font-mono text-10-medium text-v2-text-text-base"
+                                >
+                                  {health()}
+                                </span>
+                              )}
                             </Show>
                           </div>
                           <div class="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-v2-text-text-muted text-11-regular">
-                            <span>{language.t("custom.builder.mcp.reason")}: <code data-slot="mcp-reason" class="break-all font-mono text-rose-300">{server.reason}</code></span>
+                            <span>
+                              {language.t("custom.builder.mcp.reason")}:{" "}
+                              <code data-slot="mcp-reason" class="break-all font-mono text-rose-300">
+                                {server.reason}
+                              </code>
+                            </span>
                             <Show when={server.credentialStatus}>
-                              {(status) => <span>{language.t("custom.builder.mcp.credentialStatus")}: <code class="font-mono text-v2-text-text-base">{status()}</code></span>}
+                              {(status) => (
+                                <span>
+                                  {language.t("custom.builder.mcp.credentialStatus")}:{" "}
+                                  <code class="font-mono text-v2-text-text-base">{status()}</code>
+                                </span>
+                              )}
                             </Show>
                           </div>
                         </div>
@@ -432,12 +535,22 @@ export function McpTab(props: { plan: CompositionPlan | undefined; loading?: boo
                   <div class="flex flex-col gap-2">
                     <For each={summary().diagnostics}>
                       {(diagnostic) => (
-                        <div data-slot="mcp-diagnostic" class="rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
+                        <div
+                          data-slot="mcp-diagnostic"
+                          class="rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3"
+                        >
                           <div class="flex min-w-0 flex-wrap items-center gap-2">
-                            <span data-slot="mcp-diagnostic-code" class="font-mono text-11-medium text-v2-text-text-base">[{diagnostic.code}]</span>
+                            <span
+                              data-slot="mcp-diagnostic-code"
+                              class="font-mono text-11-medium text-v2-text-text-base"
+                            >
+                              [{diagnostic.code}]
+                            </span>
                             <span class="text-10-medium uppercase text-v2-text-text-muted">{diagnostic.severity}</span>
                           </div>
-                          <p class="mt-1 break-words text-12-regular leading-relaxed text-v2-text-text-muted">{diagnostic.message}</p>
+                          <p class="mt-1 break-words text-12-regular leading-relaxed text-v2-text-text-muted">
+                            {diagnostic.message}
+                          </p>
                         </div>
                       )}
                     </For>
@@ -479,11 +592,16 @@ export function DiagnosticsTab(props: { plan: CompositionPlan | undefined }) {
             {(diag) => {
               const color = () => {
                 switch (diag.severity) {
-                  case "blocking": return "border-rose-500/40 bg-rose-500/10 text-rose-300"
-                  case "error": return "border-orange-500/40 bg-orange-500/10 text-orange-300"
-                  case "warning": return "border-amber-500/40 bg-amber-500/10 text-amber-300"
-                  case "info": return "border-blue-500/40 bg-blue-500/10 text-blue-300"
-                  default: return "border-zinc-500/40 bg-zinc-500/10 text-zinc-300"
+                  case "blocking":
+                    return "border-rose-500/40 bg-rose-500/10 text-rose-300"
+                  case "error":
+                    return "border-orange-500/40 bg-orange-500/10 text-orange-300"
+                  case "warning":
+                    return "border-amber-500/40 bg-amber-500/10 text-amber-300"
+                  case "info":
+                    return "border-blue-500/40 bg-blue-500/10 text-blue-300"
+                  default:
+                    return "border-zinc-500/40 bg-zinc-500/10 text-zinc-300"
                 }
               }
 

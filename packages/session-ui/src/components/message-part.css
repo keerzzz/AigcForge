@@ -257,7 +257,8 @@
 }
 
 @keyframes capture-pulse-attention {
-  0%, 100% {
+  0%,
+  100% {
     outline-color: transparent;
   }
   40% {

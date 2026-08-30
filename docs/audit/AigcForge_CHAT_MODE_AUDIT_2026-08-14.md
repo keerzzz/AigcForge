@@ -15,13 +15,13 @@
 
 **关键结论：全部缺陷均为行为缺陷，不是编译期或测试期问题。** 审计前跑通的基线门禁全绿：
 
-| 门禁 | 结果 |
-|---|---|
-| `bun --cwd packages/core typecheck` | PASS |
-| `bun --cwd packages/schema typecheck` | PASS |
-| `bun --cwd packages/aigcfroge typecheck` | PASS |
-| `bun --cwd packages/app typecheck` | PASS |
-| `bun --cwd packages/app test:unit` | 846 pass / 0 fail |
+| 门禁                                     | 结果              |
+| ---------------------------------------- | ----------------- |
+| `bun --cwd packages/core typecheck`      | PASS              |
+| `bun --cwd packages/schema typecheck`    | PASS              |
+| `bun --cwd packages/aigcfroge typecheck` | PASS              |
+| `bun --cwd packages/app typecheck`       | PASS              |
+| `bun --cwd packages/app test:unit`       | 846 pass / 0 fail |
 
 这意味着现有门禁体系对本报告涉及的缺陷类型**结构性失明**。第 8、9 节分析了原因。
 
@@ -49,19 +49,19 @@
 
 ### 2.1 代码族清单
 
-| 层 | 文件 | 规模 |
-|---|---|---|
-| 前端组件 | `packages/app/src/components/chat/*`（17 文件） | 2984 行 |
-| 前端 context | `packages/app/src/context/{chat-feature,chat-workspace,mode}.tsx` | 297 行 |
-| 前端接线 | `packages/app/src/pages/{mode-workspace,mode-workspace-slots}.tsx` chat 分支 | 局部 |
-| 后端工具 | `packages/core/src/tool/propose-*.ts`（9 文件） | 1051 行 |
-| 资产类型层 | `packages/core/src/asset-kind.ts`、`asset-migration.ts` | 303 行 |
-| 写事务服务 | `packages/core/src/{prompt,skill,mcp,command,agent}-asset-service.ts` | ~2000 行 |
-| 路径校验 | `packages/core/src/*-asset/path.ts`（7 文件，逐字节同构） | 651 行 |
-| 导入解析 | `packages/core/src/import-parser.ts` + `packages/schema/src/import-parser.ts` | 245 行 |
-| V1 工具桥接 | `packages/aigcfroge/src/tool/propose-*.ts`（7 文件） | 436 行 |
-| HTTP 端点 | `httpapi/handlers/*-asset.ts` + `groups/*-asset.ts`（14 文件） | 1092 行 |
-| 权限与提示词 | `product-mode-agent-policy.ts`、`agent/prompt/chat-orchestrator.ts`、`plugin/agent.ts`、`agent/agent.ts` | 局部 |
+| 层           | 文件                                                                                                     | 规模     |
+| ------------ | -------------------------------------------------------------------------------------------------------- | -------- |
+| 前端组件     | `packages/app/src/components/chat/*`（17 文件）                                                          | 2984 行  |
+| 前端 context | `packages/app/src/context/{chat-feature,chat-workspace,mode}.tsx`                                        | 297 行   |
+| 前端接线     | `packages/app/src/pages/{mode-workspace,mode-workspace-slots}.tsx` chat 分支                             | 局部     |
+| 后端工具     | `packages/core/src/tool/propose-*.ts`（9 文件）                                                          | 1051 行  |
+| 资产类型层   | `packages/core/src/asset-kind.ts`、`asset-migration.ts`                                                  | 303 行   |
+| 写事务服务   | `packages/core/src/{prompt,skill,mcp,command,agent}-asset-service.ts`                                    | ~2000 行 |
+| 路径校验     | `packages/core/src/*-asset/path.ts`（7 文件，逐字节同构）                                                | 651 行   |
+| 导入解析     | `packages/core/src/import-parser.ts` + `packages/schema/src/import-parser.ts`                            | 245 行   |
+| V1 工具桥接  | `packages/aigcfroge/src/tool/propose-*.ts`（7 文件）                                                     | 436 行   |
+| HTTP 端点    | `httpapi/handlers/*-asset.ts` + `groups/*-asset.ts`（14 文件）                                           | 1092 行  |
+| 权限与提示词 | `product-mode-agent-policy.ts`、`agent/prompt/chat-orchestrator.ts`、`plugin/agent.ts`、`agent/agent.ts` | 局部     |
 
 ### 2.2 方法
 
@@ -85,41 +85,41 @@
 
 ## 3. 缺陷总表
 
-| 编号 | 严重度 | 一句话 | 位置 | 状态 |
-|---|---|---|---|---|
-| P1-1 | P1 | chat 默认 agent 为 fail-open 的 meta，deny-write 边界未强制 | `plugin/agent.ts:228` | 活 |
-| P1-2 | P1 | workflow/plugin 写事务丢失 PRD §8.3 全部不变量 | `handlers/workflow-asset.ts:105` | 活 |
-| P1-3 | P1 | apply 失败只 console.error，用户零反馈 | `chat-right-panel.tsx:177` | 活 |
-| P1-4 | P1 | 所有校验错误信息实测为空字符串 | `prompt-asset/path.ts:18` | 活 |
-| P1-5 | P1 | 中文资产名超 33 字被拒（PRD 承诺 80 code points） | `prompt-asset/path.ts:15` | 活 |
-| P1-6 | P1 | 导入 few-shot 提示词模板被静默摧毁 | `import-parser.ts:47` | 活 |
-| P1-7 | P1 | 100KB–200KB 输入 defect 逃逸成 HTTP 500 | `import-parser.ts:21` | 活 |
-| P1-8 | P1 | 噪声正则二次方爆炸，同步阻塞 4.4 秒 | `import-parser.ts:56` | 活 |
-| P1-9 | P1 | `yamlEscape` 6 份同源副本，控制字符缺陷 ×6 | `prompt-asset-service.ts:15` 等 6 处 | 活 |
-| P1-10 | P1 | 符号链接防护正确实现存在但零调用者 | `fs-util.ts:257` | 活 |
-| P1-11 | P1 | V1 meta agent 额外放行 `create_agent`/`configure_mcp` | `agent/agent.ts:227` | 活 |
-| P2-1 | P2 | description 含控制字符 → 写盘后 readback 失败并回滚 | `prompt-asset-service.ts:15` | 活 |
-| P2-2 | P2 | delete 空 catch 吞异常，且从不传 baseRevision | `mode-workspace-slots.tsx:482` | 活 |
-| P2-3 | P2 | 伪造 `sessionID: "ses-home-delete"` | `mode-workspace-slots.tsx:462` | 活 |
-| P2-4 | P2 | 无效资产（parse_error）在 UI 中无删除入口 | `asset-workbench.tsx:338` | 活 |
-| P2-5 | P2 | system origin 保护后端不存在（PRD 称双重拒绝） | 7 handler + 5 service | 活 |
-| P2-6 | P2 | 候选状态用模型可见文案子串匹配兜底 | `prompt-asset-candidate.ts:181` | 活（兜底路径） |
-| P2-7 | P2 | 多块导入全部同名，同类型后者覆盖前者 | `import-parser.ts:121` | 活 |
-| P2-8 | P2 | 名字截断切裂代理对 / 中文标题导入必失败 | `import-parser.ts:123` | 活 |
-| P2-9 | P2 | shell 脚本导入必然失败（首行含 `/`） | `import-parser.ts:131` | 活 |
-| P2-10 | P2 | plugin 类型永远识别不出（检测字段不存在） | `import-parser.ts:87` | 活 |
-| P2-11 | P2 | 带属性/连字符的 fence 让解析整体降级 | `import-parser.ts:23` | 活 |
-| P2-12 | P2 | 代码块内注释被静默剥离且无 warning | `import-parser.ts:48` | 活 |
-| P2-13 | P2 | 一个文件读不出，整个文件夹内容全丢 | `chat-import-dialog.tsx:204` | 活 |
-| P2-14 | P2 | SDK 未就绪时"解析"按钮静默变成另一个功能 | `chat-import-dialog.tsx:230` | 活 |
-| P2-15 | P2 | 两个提示注入边界包装器防护等级不一致 | `chat-import-dialog.tsx:104` | 活 / 潜伏 |
-| P2-16 | P2 | 捕获内容默认含思考过程，违反 PRD §8.2 | `capture-helpers.ts:25` | **潜伏** |
-| P2-17 | P2 | 单 token 提示词（continue/继续）误判为重复 | `repeat-detection.ts:70` | 活 |
-| P2-18 | P2 | CJK 单边导致相似度从 1.0 断崖到 0.0 | `repeat-detection.ts:33` | 活 |
-| P3-1 | P3 | Windows 保留设备名未拒绝（CON.md/NUL.md） | `prompt-asset/path.ts:27` | 活 |
-| P3-2 | P3 | propose_workflow YAML 上限 5MB 且单位标错 | `propose-workflow-asset.ts:114` | 活 |
-| P3-3 | P3 | 假名/韩文走错分词分支，重复检测失效 | `repeat-detection.ts:11` | 活（冻结 locale） |
-| P3-4 | P3 | 资产树递归搜索无深度/数量上限且串行请求 | `chat-right-panel.tsx:106` | 活 |
+| 编号  | 严重度 | 一句话                                                      | 位置                                 | 状态              |
+| ----- | ------ | ----------------------------------------------------------- | ------------------------------------ | ----------------- |
+| P1-1  | P1     | chat 默认 agent 为 fail-open 的 meta，deny-write 边界未强制 | `plugin/agent.ts:228`                | 活                |
+| P1-2  | P1     | workflow/plugin 写事务丢失 PRD §8.3 全部不变量              | `handlers/workflow-asset.ts:105`     | 活                |
+| P1-3  | P1     | apply 失败只 console.error，用户零反馈                      | `chat-right-panel.tsx:177`           | 活                |
+| P1-4  | P1     | 所有校验错误信息实测为空字符串                              | `prompt-asset/path.ts:18`            | 活                |
+| P1-5  | P1     | 中文资产名超 33 字被拒（PRD 承诺 80 code points）           | `prompt-asset/path.ts:15`            | 活                |
+| P1-6  | P1     | 导入 few-shot 提示词模板被静默摧毁                          | `import-parser.ts:47`                | 活                |
+| P1-7  | P1     | 100KB–200KB 输入 defect 逃逸成 HTTP 500                     | `import-parser.ts:21`                | 活                |
+| P1-8  | P1     | 噪声正则二次方爆炸，同步阻塞 4.4 秒                         | `import-parser.ts:56`                | 活                |
+| P1-9  | P1     | `yamlEscape` 6 份同源副本，控制字符缺陷 ×6                  | `prompt-asset-service.ts:15` 等 6 处 | 活                |
+| P1-10 | P1     | 符号链接防护正确实现存在但零调用者                          | `fs-util.ts:257`                     | 活                |
+| P1-11 | P1     | V1 meta agent 额外放行 `create_agent`/`configure_mcp`       | `agent/agent.ts:227`                 | 活                |
+| P2-1  | P2     | description 含控制字符 → 写盘后 readback 失败并回滚         | `prompt-asset-service.ts:15`         | 活                |
+| P2-2  | P2     | delete 空 catch 吞异常，且从不传 baseRevision               | `mode-workspace-slots.tsx:482`       | 活                |
+| P2-3  | P2     | 伪造 `sessionID: "ses-home-delete"`                         | `mode-workspace-slots.tsx:462`       | 活                |
+| P2-4  | P2     | 无效资产（parse_error）在 UI 中无删除入口                   | `asset-workbench.tsx:338`            | 活                |
+| P2-5  | P2     | system origin 保护后端不存在（PRD 称双重拒绝）              | 7 handler + 5 service                | 活                |
+| P2-6  | P2     | 候选状态用模型可见文案子串匹配兜底                          | `prompt-asset-candidate.ts:181`      | 活（兜底路径）    |
+| P2-7  | P2     | 多块导入全部同名，同类型后者覆盖前者                        | `import-parser.ts:121`               | 活                |
+| P2-8  | P2     | 名字截断切裂代理对 / 中文标题导入必失败                     | `import-parser.ts:123`               | 活                |
+| P2-9  | P2     | shell 脚本导入必然失败（首行含 `/`）                        | `import-parser.ts:131`               | 活                |
+| P2-10 | P2     | plugin 类型永远识别不出（检测字段不存在）                   | `import-parser.ts:87`                | 活                |
+| P2-11 | P2     | 带属性/连字符的 fence 让解析整体降级                        | `import-parser.ts:23`                | 活                |
+| P2-12 | P2     | 代码块内注释被静默剥离且无 warning                          | `import-parser.ts:48`                | 活                |
+| P2-13 | P2     | 一个文件读不出，整个文件夹内容全丢                          | `chat-import-dialog.tsx:204`         | 活                |
+| P2-14 | P2     | SDK 未就绪时"解析"按钮静默变成另一个功能                    | `chat-import-dialog.tsx:230`         | 活                |
+| P2-15 | P2     | 两个提示注入边界包装器防护等级不一致                        | `chat-import-dialog.tsx:104`         | 活 / 潜伏         |
+| P2-16 | P2     | 捕获内容默认含思考过程，违反 PRD §8.2                       | `capture-helpers.ts:25`              | **潜伏**          |
+| P2-17 | P2     | 单 token 提示词（continue/继续）误判为重复                  | `repeat-detection.ts:70`             | 活                |
+| P2-18 | P2     | CJK 单边导致相似度从 1.0 断崖到 0.0                         | `repeat-detection.ts:33`             | 活                |
+| P3-1  | P3     | Windows 保留设备名未拒绝（CON.md/NUL.md）                   | `prompt-asset/path.ts:27`            | 活                |
+| P3-2  | P3     | propose_workflow YAML 上限 5MB 且单位标错                   | `propose-workflow-asset.ts:114`      | 活                |
+| P3-3  | P3     | 假名/韩文走错分词分支，重复检测失效                         | `repeat-detection.ts:11`             | 活（冻结 locale） |
+| P3-4  | P3     | 资产树递归搜索无深度/数量上限且串行请求                     | `chat-right-panel.tsx:106`           | 活                |
 
 > **"潜伏"** = 代码已存在缺陷但当前无生产消费者，会在对应功能上线时激活。
 
@@ -131,7 +131,7 @@
 
 **位置**：`packages/core/src/product-mode-agent-policy.ts:49-53`、`:81`；`packages/core/src/plugin/agent.ts:228-229`、`:470-483`
 
-ADR-13 与 Chat PRD 的核心边界是"Chat 只创建资产、不执行任务"，代码为此构建了 `chat-orchestrator` 的 fail-closed 信封（`plugin/agent.ts:330-339`）：先 `{action:"*", resource:"*", effect:"deny"}` 全禁，再逐项放开 read/glob/grep/question/propose_*。
+ADR-13 与 Chat PRD 的核心边界是"Chat 只创建资产、不执行任务"，代码为此构建了 `chat-orchestrator` 的 fail-closed 信封（`plugin/agent.ts:330-339`）：先 `{action:"*", resource:"*", effect:"deny"}` 全禁，再逐项放开 read/glob/grep/question/propose\_\*。
 
 但 2026-08-11 决策把 chat 的**默认** agent 改成了 `meta`：`resolvePrimaryAgent` 对 chat 返回 `META`，`checkPrimaryAgent` 允许 meta。而 `meta` 的信封方向相反 —— `defaults` 首条即 `{action:"*", resource:"*", effect:"allow"}`，在此基础上仅 deny 三个 action：`bash`、`edit`、`write`，同时**显式 allow `task`**。
 
@@ -172,15 +172,15 @@ meta: {
 
 PRD §8.3 把五条不变量写成验收标准，§8.3.1 强调"路径双重 containment、目标级事务锁、原子写 + 回滚、registry reload + readback、错误脱敏**全部不变**"。PRD §20.5 批准的债只是"不建 typed Effect service 层"。
 
-| 不变量 | 5 类 typed service | workflow / plugin |
-|---|---|---|
-| 临时文件 + 原子替换 | ✓ `prompt-asset-service.ts:261` → `FileMutation.writeAtomic` | ✗ 裸 `fs.writeFile` (`:105`) |
-| 目标级锁 | ✓ `:232` `locks.withLock` + `Effect.uninterruptible` | ✗ 无 |
-| 覆盖前备份 + 失败回滚 | ✓ `:272-299` | ✗ 无 |
-| realpath 双重 containment | ✓ `location-mutation.ts:83/90/126` | ✗ 仅 `path.resolve` (`:85`) |
-| readback 校验 revision | ✓ `:311` | ✗ 只查存在性 (`:113`) |
-| CAS 强制 | ✓ `:241-250` | ✗ 可跳过（见下） |
-| delete 同构事务 | ✓ `:323-433` 备份/回滚/确认消失 | ✗ 只有 `fs.rm` (`:147`) |
+| 不变量                    | 5 类 typed service                                           | workflow / plugin            |
+| ------------------------- | ------------------------------------------------------------ | ---------------------------- |
+| 临时文件 + 原子替换       | ✓ `prompt-asset-service.ts:261` → `FileMutation.writeAtomic` | ✗ 裸 `fs.writeFile` (`:105`) |
+| 目标级锁                  | ✓ `:232` `locks.withLock` + `Effect.uninterruptible`         | ✗ 无                         |
+| 覆盖前备份 + 失败回滚     | ✓ `:272-299`                                                 | ✗ 无                         |
+| realpath 双重 containment | ✓ `location-mutation.ts:83/90/126`                           | ✗ 仅 `path.resolve` (`:85`)  |
+| readback 校验 revision    | ✓ `:311`                                                     | ✗ 只查存在性 (`:113`)        |
+| CAS 强制                  | ✓ `:241-250`                                                 | ✗ 可跳过（见下）             |
+| delete 同构事务           | ✓ `:323-433` 备份/回滚/确认消失                              | ✗ 只有 `fs.rm` (`:147`)      |
 
 **三条可给出触发路径的：**
 
@@ -199,7 +199,8 @@ export function resolveSecurePath(worktree: string, target: string): string {
   const absolute = pathResolve(worktree, target)
   if (!contains(worktree, absolute)) throw new Error(`Path ${absolute} escapes the workspace boundary`)
   const real = realpathSync(absolute)
-  if (!contains(worktree, real)) throw new Error(`Symlink at ${absolute} resolves outside the workspace boundary: ${real}`)
+  if (!contains(worktree, real))
+    throw new Error(`Symlink at ${absolute} resolves outside the workspace boundary: ${real}`)
   return real
 }
 ```
@@ -284,9 +285,9 @@ Assistant: 再见
 
 两个尺寸上限互相矛盾。**实测**：
 
-| 输入 | 结果 |
-|---|---|
-| 90KB | 正常返回 1 个候选 |
+| 输入                  | 结果                                                       |
+| --------------------- | ---------------------------------------------------------- |
+| 90KB                  | 正常返回 1 个候选                                          |
 | 110KB / 150KB / 199KB | `Die(Error: Template must be at most 100,000 UTF-8 bytes)` |
 
 `Interface.parse` 签名为 `Effect.Effect<SchemaImportParser.Result>` —— **错误通道是 `never`**，故 `:195` 的 `Candidate` 构造抛出后变成 defect 逃逸。而 `handlers/import-parser.ts:10-15` 无任何错误处理 → HTTP 500。
@@ -299,10 +300,10 @@ Assistant: 再见
 
 **实测阻塞时间**（`<thinking>` 未闭合标签）：
 
-| 输入 | 耗时 |
-|---|---|
-| 5000 个（49KB） | 284 ms |
-| 10000 个（98KB） | 1092 ms |
+| 输入              | 耗时    |
+| ----------------- | ------- |
+| 5000 个（49KB）   | 284 ms  |
+| 10000 个（98KB）  | 1092 ms |
 | 20000 个（200KB） | 4360 ms |
 
 清晰的二次方增长。`parseInput` 是纯同步函数（`:208` 的 `Effect.sync`），故这 4.4 秒是**服务端事件循环硬阻塞**。98KB 那一档在 100KB 安全窗口内，不会被 P1-7 挡掉。对照 `<!--` 只需 1ms —— 问题特定于 `<thinking>`/`<thought>` 这类长字面量前缀。
@@ -368,7 +369,7 @@ V1 与 V2 文案本就不一致：V2 在 `core/tool/propose-prompt-asset.ts:69-7
 - 80 个中文字 = 240 UTF-8 字节 → 被路径层 100 字节上限拒绝（实测 `REJECTED`）。叠加 P1-4 + P1-3，中文标题导入点 Apply 永远无反应。
 
 **P2-9 shell 脚本导入必然失败**
-实测 ```` ```bash ```` + `#!/bin/bash`：kind 正确推断为 `command`，但 `:131` 取首行做名字 → `name = "#!/bin/bash"` → 含 `/` → `isValidSegment` 拒绝。配合空错误信息，用户看不到原因。
+实测 ` ```bash ` + `#!/bin/bash`：kind 正确推断为 `command`，但 `:131` 取首行做名字 → `name = "#!/bin/bash"` → 含 `/` → `isValidSegment` 拒绝。配合空错误信息，用户看不到原因。
 
 **P2-10 plugin 类型永远识别不出**
 `:87` 要求同时出现 `name:` + `tools:` + `hooks:` 才判定 plugin。但 `schema/plugin-asset.ts:49-58` 的 `PluginAsset.Frontmatter` 字段是 `kind / name / description / version / category? / author? / source? / hooks?` —— **没有 `tools` 字段**。
@@ -378,11 +379,11 @@ V1 与 V2 文案本就不一致：V2 在 `core/tool/propose-prompt-asset.ts:69-7
 **P2-11 带属性或连字符的 fence 让解析整体降级**
 `:23` 的 `(\w*)` 匹配不了 `-` 与空格分隔的属性。实测三种常见写法全部提取失败并落到"整篇当纯文本"兜底，结果**资产正文包含字面 fence 标记**：
 
-| fence | 结果 |
-|---|---|
-| ```` ```yaml title="deploy" ```` | kind=prompt，template 含 `` ```yaml title="deploy" `` |
-| ```` ```objective-c ```` | 同上 |
-| ```` ```ts twoslash ```` | 同上 |
+| fence                      | 结果                                                |
+| -------------------------- | --------------------------------------------------- |
+| ` ```yaml title="deploy" ` | kind=prompt，template 含 ` ```yaml title="deploy" ` |
+| ` ```objective-c `         | 同上                                                |
+| ` ```ts twoslash `         | 同上                                                |
 
 **P2-12 代码块内注释被静默剥离且无 warning**
 `:48` 的 `COMMENT_RE` 同样在提取前执行，且 `:69` 处理后**不 push 任何 warning**（thinking/conversation 都会 push）。实测导入带 `/* Copyright 2026 ACME ... */` 许可头的 js → `template = "export const x = 1"`，许可头无声消失。
@@ -419,13 +420,13 @@ PRD §8.2 原文：「思考过程内容默认不写入资产正文；用户明�
 
 实测数据：
 
-| 场景 | 相似度 | 判断 |
-|---|---|---|
-| `"continue"` vs `"continue"` | 1.000 | 3 条历史即触发重复提示（误判） |
-| `"继续"` vs `"继续"` | 1.000 | 同上 |
+| 场景                                                   | 相似度    | 判断                              |
+| ------------------------------------------------------ | --------- | --------------------------------- |
+| `"continue"` vs `"continue"`                           | 1.000     | 3 条历史即触发重复提示（误判）    |
+| `"继续"` vs `"继续"`                                   | 1.000     | 同上                              |
 | `"fix the login bug"` vs `"fix the login bug（紧急）"` | **0.000** | 加一个中文字符，相似度从 1 掉到 0 |
-| 日文纯假名两句 | 0.000 | 整句变成单 token |
-| 韩文两句 | 0.000 | 走词分支 |
+| 日文纯假名两句                                         | 0.000     | 整句变成单 token                  |
+| 韩文两句                                               | 0.000     | 走词分支                          |
 
 **P2-17 单 token 提示词误判为重复**
 `repeat-detection.ts:70-86` 无最短长度/token 数下限。用户连说三次 "continue"/"继续"/"ok"（正常聊天行为）后第四次即弹重复提示。阈值 0.7 与 `MIN_SIMILAR_COUNT = 3` 对单 token 输入无意义，因自相似恒为 1.0。
@@ -463,14 +464,14 @@ PRD §8.2 原文：「思考过程内容默认不写入资产正文；用户明�
 
 **共同前提**：同一领域操作存在多份平行实现，其中一份缺失另一份的保护。
 
-| 缺陷 | 表现 |
-|---|---|
-| P1-2 | 5 类走 typed service、2 类走 handler 内联 |
-| P1-9 | `yamlEscape` 6 份同源副本 |
+| 缺陷  | 表现                                                              |
+| ----- | ----------------------------------------------------------------- |
+| P1-2  | 5 类走 typed service、2 类走 handler 内联                         |
+| P1-9  | `yamlEscape` 6 份同源副本                                         |
 | P1-10 | realpath containment 三份实现（一份在用、一份零调用、两类都不用） |
-| P2-5 | 7 个 handler 无一实现 origin 校验 |
-| P2-6 | V1/V2 propose 工具文案不一致 |
-| P2-15 | 两个注入边界包装器防护等级不一致 |
+| P2-5  | 7 个 handler 无一实现 origin 校验                                 |
+| P2-6  | V1/V2 propose 工具文案不一致                                      |
+| P2-15 | 两个注入边界包装器防护等级不一致                                  |
 
 **一击必杀**：workflow/plugin 接入既有 owner（`FileMutation.writeAtomic` + `KeyedMutex` + `resolveSafeTarget`），`yamlEscape` 6 合 1。
 
@@ -478,13 +479,13 @@ PRD §8.2 原文：「思考过程内容默认不写入资产正文；用户明�
 
 **共同前提**：错误信息没有一条端到端可达的通路 —— 产生端不写、传递端吞掉、消费端不显示。
 
-| 缺陷 | 环节 |
-|---|---|
-| P1-4 | 产生端：`PathValidationError` 无 `message` |
-| P1-2 | 传递端：`Effect.catch(() => Effect.void)` 吞 reload 失败 |
-| P1-3 / P2-2 | 消费端：`console.error` / 空 catch |
-| P1-7 | 通道声明：错误通道 `never` 却 throw，defect 逃逸 |
-| P2-12 / P2-13 / P2-14 / P3-4 | 静默剥离 / 静默丢弃 / 静默换语义 / 失败显示为空结果 |
+| 缺陷                         | 环节                                                     |
+| ---------------------------- | -------------------------------------------------------- |
+| P1-4                         | 产生端：`PathValidationError` 无 `message`               |
+| P1-2                         | 传递端：`Effect.catch(() => Effect.void)` 吞 reload 失败 |
+| P1-3 / P2-2                  | 消费端：`console.error` / 空 catch                       |
+| P1-7                         | 通道声明：错误通道 `never` 却 throw，defect 逃逸         |
+| P2-12 / P2-13 / P2-14 / P3-4 | 静默剥离 / 静默丢弃 / 静默换语义 / 失败显示为空结果      |
 
 **一击必杀**：补 `message` + 前端三处 catch 改为显示错误 + reload 失败不再吞。
 
@@ -520,36 +521,36 @@ P1-2、P2-4、P2-5 三条"PRD 写了、代码没做、复查全绿"的共同上�
 
 ### 8.1 明文写了但被违反
 
-| 门禁原文（逐字） | 出处 | 命中 |
-|---|---|---|
-| 「所有 Effect 边界必须兜底……禁止未处理 Promise 和静默失败」 | `CLAUDE.md:88` | P1-2、P1-3、P2-13 |
-| 「新代码禁止……绕过 mapper/registry、假测试、吞异常」 | `CLAUDE.md:98` | P1-3、P2-2 |
-| 「新增 helper、组件、route、schema、adapter 前先查 owner module。扩展现有模块，不新建平行实现」 | `CLAUDE.md:99` | P1-2、P1-9、P1-10 |
-| 「路径/命令/URL 先校验再使用。防止路径穿越、命令注入、XSS」 | `CLAUDE.md:90` | P1-2 |
-| 「修复优先级：复用 → 删除 → 归并 → 重构 → 新增。复用归一化是基础，新增即负债」 | `CLAUDE.md:61` | P1-2、P1-9 |
-| 「确认条件分支两端都有实际执行路径」 | `CLAUDE.md:111` | P1-2（CAS false 分支）、P2-4 |
-| 「以破坏架构为耻，以遵循规范为荣」 | `CLAUDE.md:20` | P1-1 |
-| 「Keep HTTP handlers thin……Put business rules in services.」 | `effect/SKILL.md:25` | P1-2 |
-| 「Optimize for repeated use, scanning, comparison, and fast recovery from errors.」 | `DESIGN.md:15` | P1-3、P2-4 |
-| 「Empty/error states may explain what happened and what action is available.」 | `DESIGN.md:76` | P1-3、P1-4 |
-| 「New shared components should include expected states: default, hover, focus, disabled, loading, empty, and error when applicable.」 | `DESIGN.md:61` | P1-3、P2-4 |
-| 「Remove comments that contradict the current implementation.」 | `reuse-first-refactor/references/detection-rules.md:45` | P1-1（`policy.ts:6` vs `:43-48` 同文件自相矛盾） |
-| 「Chat 创建，Work/Coding 执行：Chat 不承担通用任务执行」 | `ADR-13:25` | P1-1、P1-11 |
-| 「Mode 专属领域数据由 owner module 管理，不塞入……自由文本 metadata 充当事实真源」 | `ADR-13:36` | P2-3 |
-| doom_loop 文案匹配债条目 | `CLAUDE.md:138` | P2-6（同构反模式复发） |
+| 门禁原文（逐字）                                                                                                                      | 出处                                                    | 命中                                             |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------ |
+| 「所有 Effect 边界必须兜底……禁止未处理 Promise 和静默失败」                                                                           | `CLAUDE.md:88`                                          | P1-2、P1-3、P2-13                                |
+| 「新代码禁止……绕过 mapper/registry、假测试、吞异常」                                                                                  | `CLAUDE.md:98`                                          | P1-3、P2-2                                       |
+| 「新增 helper、组件、route、schema、adapter 前先查 owner module。扩展现有模块，不新建平行实现」                                       | `CLAUDE.md:99`                                          | P1-2、P1-9、P1-10                                |
+| 「路径/命令/URL 先校验再使用。防止路径穿越、命令注入、XSS」                                                                           | `CLAUDE.md:90`                                          | P1-2                                             |
+| 「修复优先级：复用 → 删除 → 归并 → 重构 → 新增。复用归一化是基础，新增即负债」                                                        | `CLAUDE.md:61`                                          | P1-2、P1-9                                       |
+| 「确认条件分支两端都有实际执行路径」                                                                                                  | `CLAUDE.md:111`                                         | P1-2（CAS false 分支）、P2-4                     |
+| 「以破坏架构为耻，以遵循规范为荣」                                                                                                    | `CLAUDE.md:20`                                          | P1-1                                             |
+| 「Keep HTTP handlers thin……Put business rules in services.」                                                                          | `effect/SKILL.md:25`                                    | P1-2                                             |
+| 「Optimize for repeated use, scanning, comparison, and fast recovery from errors.」                                                   | `DESIGN.md:15`                                          | P1-3、P2-4                                       |
+| 「Empty/error states may explain what happened and what action is available.」                                                        | `DESIGN.md:76`                                          | P1-3、P1-4                                       |
+| 「New shared components should include expected states: default, hover, focus, disabled, loading, empty, and error when applicable.」 | `DESIGN.md:61`                                          | P1-3、P2-4                                       |
+| 「Remove comments that contradict the current implementation.」                                                                       | `reuse-first-refactor/references/detection-rules.md:45` | P1-1（`policy.ts:6` vs `:43-48` 同文件自相矛盾） |
+| 「Chat 创建，Work/Coding 执行：Chat 不承担通用任务执行」                                                                              | `ADR-13:25`                                             | P1-1、P1-11                                      |
+| 「Mode 专属领域数据由 owner module 管理，不塞入……自由文本 metadata 充当事实真源」                                                     | `ADR-13:36`                                             | P2-3                                             |
+| doom_loop 文案匹配债条目                                                                                                              | `CLAUDE.md:138`                                         | P2-6（同构反模式复发）                           |
 
 ### 8.2 协议自身盲区（需新增门禁）
 
-| 缺陷 | 缺失的门禁 | 为什么现有条目接不住 |
-|---|---|---|
-| P1-4 | **错误可诊断性**：`TaggedErrorClass` 必须实现 `override get message()`，或读方不得假定 `.message` 非空 | `AGENTS.md:188` 只到类型层（「Errors: `Schema.TaggedErrorClass`」）；`path.ts:18-21` 类体为空，typecheck 与 lint 双盲 |
-| P1-5 / P1-7 / P2-8 | **跨层字段约束一致性**：同一字段在 schema / 路径层 / UI 的单位与上限必须同口径 | 无任何条目提"约束一致性"。`CLAUDE.md:75` 的 Schema 行只规定 `Schema.Class`/`brand`/`TaggedErrorClass` 选型 |
-| P2-1 | **序列化方向的注入防护**：写盘/写 frontmatter 前必须校验控制字符与转义完整性 | `CLAUDE.md:90` Security First 只枚举 路径/命令/URL/XSS，全是"读入"方向 |
-| P2-2 | **乐观锁 token 端到端**：服务端支持 CAS 时客户端必须传 revision；服务端不得把"未传"降级为强执行 | 无条目。`CLAUDE.md:89` No Null Pointer 只要求判空，而"可选参数缺省即放弃保护"恰好通过了判空 |
-| P2-5 | **授权必须服务端可判定**：前端派生概念（origin/角色/可见性）不得充当安全边界 | 无条目。`CLAUDE.md:90` 不覆盖授权面 |
-| P2-6 | **禁止用面向模型/用户的自然语言文案做控制流判定** | 只在技术债表作为个案登记，未提升为门禁 |
-| P1-1 / P1-11 | **默认值必须 fail-closed**：新增/切换默认 Agent 或默认权限信封时，默认值必须是收窄的一侧 | ADR 只声明产品边界，不声明强制机制 |
-| P1-2 / P2-4 / P2-5 共同上游 | **PRD/ADR 不变量的逐条核对步骤** | `CLAUDE.md:105-113` 改完即审 7 步中，第 2 步只路由 3 个专题 skill、第 5 步只追调用链，**没有一步是"对照已批准 PRD/ADR 的不变量清单逐条打勾"** |
+| 缺陷                        | 缺失的门禁                                                                                             | 为什么现有条目接不住                                                                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1-4                        | **错误可诊断性**：`TaggedErrorClass` 必须实现 `override get message()`，或读方不得假定 `.message` 非空 | `AGENTS.md:188` 只到类型层（「Errors: `Schema.TaggedErrorClass`」）；`path.ts:18-21` 类体为空，typecheck 与 lint 双盲                         |
+| P1-5 / P1-7 / P2-8          | **跨层字段约束一致性**：同一字段在 schema / 路径层 / UI 的单位与上限必须同口径                         | 无任何条目提"约束一致性"。`CLAUDE.md:75` 的 Schema 行只规定 `Schema.Class`/`brand`/`TaggedErrorClass` 选型                                    |
+| P2-1                        | **序列化方向的注入防护**：写盘/写 frontmatter 前必须校验控制字符与转义完整性                           | `CLAUDE.md:90` Security First 只枚举 路径/命令/URL/XSS，全是"读入"方向                                                                        |
+| P2-2                        | **乐观锁 token 端到端**：服务端支持 CAS 时客户端必须传 revision；服务端不得把"未传"降级为强执行        | 无条目。`CLAUDE.md:89` No Null Pointer 只要求判空，而"可选参数缺省即放弃保护"恰好通过了判空                                                   |
+| P2-5                        | **授权必须服务端可判定**：前端派生概念（origin/角色/可见性）不得充当安全边界                           | 无条目。`CLAUDE.md:90` 不覆盖授权面                                                                                                           |
+| P2-6                        | **禁止用面向模型/用户的自然语言文案做控制流判定**                                                      | 只在技术债表作为个案登记，未提升为门禁                                                                                                        |
+| P1-1 / P1-11                | **默认值必须 fail-closed**：新增/切换默认 Agent 或默认权限信封时，默认值必须是收窄的一侧               | ADR 只声明产品边界，不声明强制机制                                                                                                            |
+| P1-2 / P2-4 / P2-5 共同上游 | **PRD/ADR 不变量的逐条核对步骤**                                                                       | `CLAUDE.md:105-113` 改完即审 7 步中，第 2 步只路由 3 个专题 skill、第 5 步只追调用链，**没有一步是"对照已批准 PRD/ADR 的不变量清单逐条打勾"** |
 
 ---
 
@@ -559,44 +560,44 @@ P1-2、P2-4、P2-5 三条"PRD 写了、代码没做、复查全绿"的共同上�
 
 ### 9.1 七个 skill 概览
 
-| skill | 行数 | 覆盖范围 | 本次命中缺陷数 |
-|---|---|---|---|
-| `protocols` | 186 | 元数据导航，三层拓扑 + 双向索引 + 4 层按需加载 | 间接（路由本身失效） |
-| `enterprise-code-standard` | 82 | 生产代码实现基线，以 Coding mode `build` 为兼容源 | 4 |
-| `reuse-first-refactor` | 107 | 重复/死代码/冗余/复杂度/注释 5 类发现 | 6 |
-| `quality-to-pr` | 142 | 需求→实现→测试→差异审查→提交→PR 全流水线 | 8（最多） |
-| `effect` | 38 | Effect v4 用法 + 测试模式（最短） | 1 |
-| `database` | 245 | Drizzle/SQLite schema、迁移 | 0 |
-| `frontend-theming` | 219 | v1/v2 token 双系统、Oklch 引擎 | 0 |
+| skill                      | 行数 | 覆盖范围                                          | 本次命中缺陷数       |
+| -------------------------- | ---- | ------------------------------------------------- | -------------------- |
+| `protocols`                | 186  | 元数据导航，三层拓扑 + 双向索引 + 4 层按需加载    | 间接（路由本身失效） |
+| `enterprise-code-standard` | 82   | 生产代码实现基线，以 Coding mode `build` 为兼容源 | 4                    |
+| `reuse-first-refactor`     | 107  | 重复/死代码/冗余/复杂度/注释 5 类发现             | 6                    |
+| `quality-to-pr`            | 142  | 需求→实现→测试→差异审查→提交→PR 全流水线          | 8（最多）            |
+| `effect`                   | 38   | Effect v4 用法 + 测试模式（最短）                 | 1                    |
+| `database`                 | 245  | Drizzle/SQLite schema、迁移                       | 0                    |
+| `frontend-theming`         | 219  | v1/v2 token 双系统、Oklch 引擎                    | 0                    |
 
 `database` 与 `frontend-theming` 零命中是合理的：PRD `:69` 明确「不新增数据库 migration」，资产真源为 registry + 文件系统；缺陷 P1-3/P2-4 是错误反馈与入口可达性，归 `DESIGN.md`，不涉及 token/配色。
 
 ### 9.2 命中缺陷最多的规则（逐字原文，已抽查核对）
 
-| 规则原文 | 位置 | 命中 |
-|---|---|---|
-| 「Check logs and tests for secrets, full prompts, user file content, unstable sleeps, broad mocks, unchecked casts, and **swallowed failures**.」 | `quality-to-pr/SKILL.md:101` | 7 个 skill 中唯一直接点名"吞失败" |
-| 「For security-sensitive changes, verify path/command/URL validation, **authorization**, XSS boundaries, secret redaction, interruption, and **fail-closed behavior**.」 | `quality-to-pr/SKILL.md:88` | 一句同时命中 P1-2 的 realpath 缺失、P2-5 的 authorization、P1-1 的 fail-closed |
-| 「\| Docs/skills/protocols \| Link/reference checks, frontmatter validation, no broken paths, **no stale claims** \|」 | `quality-to-pr/references/delivery-gates.md:33` | 全部文档漂移（第 10 节） |
-| 「an accepted ADR or package protocol is contradicted;」 | `quality-to-pr/references/delivery-gates.md:53` | P1-1（Stop Condition，应阻断交付） |
-| 「\| HTTP \| **thin handlers, service-owned business rules**, declared `HttpApiBuilder` groups \|」 | `enterprise-code-standard/SKILL.md:57` | P1-2 |
-| 「**Reuse before creation.** ……A new helper or abstraction requires evidence that an existing owner cannot serve the need.」 | `enterprise-code-standard/SKILL.md:28` | P1-2、P1-9、P1-10 |
-| 「**Make boundaries explicit.** Validate untrusted input at boundaries, use typed errors, preserve interruption and defects……」 | `enterprise-code-standard/SKILL.md:32` | P1-2、P1-7、P2-5 |
-| 「Detect duplicate implementation: two owners perform the same domain operation or normalize the same data.」 | `reuse-first-refactor/SKILL.md:57` | P1-2、P1-9 |
-| 「Prefer extending the existing owner over creating a parallel module.」 | `reuse-first-refactor/SKILL.md:71` | 同上 |
-| 「Do not simplify code that protects ordering, interruption, permissions, **transactionality**……or **security boundaries** without a focused regression test and owner review.」 | `reuse-first-refactor/references/detection-rules.md:38-39` | P1-2 |
+| 规则原文                                                                                                                                                                         | 位置                                                       | 命中                                                                           |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| 「Check logs and tests for secrets, full prompts, user file content, unstable sleeps, broad mocks, unchecked casts, and **swallowed failures**.」                                | `quality-to-pr/SKILL.md:101`                               | 7 个 skill 中唯一直接点名"吞失败"                                              |
+| 「For security-sensitive changes, verify path/command/URL validation, **authorization**, XSS boundaries, secret redaction, interruption, and **fail-closed behavior**.」         | `quality-to-pr/SKILL.md:88`                                | 一句同时命中 P1-2 的 realpath 缺失、P2-5 的 authorization、P1-1 的 fail-closed |
+| 「\| Docs/skills/protocols \| Link/reference checks, frontmatter validation, no broken paths, **no stale claims** \|」                                                           | `quality-to-pr/references/delivery-gates.md:33`            | 全部文档漂移（第 10 节）                                                       |
+| 「an accepted ADR or package protocol is contradicted;」                                                                                                                         | `quality-to-pr/references/delivery-gates.md:53`            | P1-1（Stop Condition，应阻断交付）                                             |
+| 「\| HTTP \| **thin handlers, service-owned business rules**, declared `HttpApiBuilder` groups \|」                                                                              | `enterprise-code-standard/SKILL.md:57`                     | P1-2                                                                           |
+| 「**Reuse before creation.** ……A new helper or abstraction requires evidence that an existing owner cannot serve the need.」                                                     | `enterprise-code-standard/SKILL.md:28`                     | P1-2、P1-9、P1-10                                                              |
+| 「**Make boundaries explicit.** Validate untrusted input at boundaries, use typed errors, preserve interruption and defects……」                                                  | `enterprise-code-standard/SKILL.md:32`                     | P1-2、P1-7、P2-5                                                               |
+| 「Detect duplicate implementation: two owners perform the same domain operation or normalize the same data.」                                                                    | `reuse-first-refactor/SKILL.md:57`                         | P1-2、P1-9                                                                     |
+| 「Prefer extending the existing owner over creating a parallel module.」                                                                                                         | `reuse-first-refactor/SKILL.md:71`                         | 同上                                                                           |
+| 「Do not simplify code that protects ordering, interruption, permissions, **transactionality**……or **security boundaries** without a focused regression test and owner review.」 | `reuse-first-refactor/references/detection-rules.md:38-39` | P1-2                                                                           |
 
 ### 9.3 skill 覆盖缺口
 
-| 缺陷 | 缺口 | 说明 |
-|---|---|---|
+| 缺陷     | 缺口             | 说明                                                                                                                                                                                                           |
+| -------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **P1-4** | **完全缺口 0/7** | `enterprise-code-standard:32`「use typed errors」+ `effect:24`「use `Schema.TaggedErrorClass`」都只到"用对类型"，无一处要求错误可被人读懂。没有任何 skill 会让人检查 `TaggedErrorClass` 子类是否实现 `message` |
-| **P1-5** | **完全缺口 0/7** | `database` 的字段规范只管列名；`enterprise-code-standard:53` 的 Schema 行只管选型。无任何 skill 提"同一字段在不同层的单位/上限必须同口径" |
-| **P2-6** | **近似完全缺口** | 仅 `reuse-first-refactor:60`「manual parsing where a Schema/helper exists」半沾。没有 skill 说"面向模型/用户的自然语言输出不得参与判定" |
-| **P2-2** | 半缺口 | `delivery-gates.md:27` 的 "stale" 只要求为 stale 场景**写测试**，不要求客户端**传递** revision |
-| **P2-1** | 半缺口 | `quality-to-pr:88` 与 `enterprise-code-standard:32` 都只覆盖读入方向，写盘前的控制字符/转义完整性无规则 |
-| **P2-5** | 半缺口 | 能从 authorization 推到，但没有一句写"前端派生字段不得充当授权依据" |
-| **P1-1** | 半缺口 | `quality-to-pr:88` 的 fail-closed 是唯一命中点，但在 Phase 4 验证清单里且限定 "security-sensitive changes"；无 skill 在**默认值选择**阶段要求 fail-closed |
+| **P1-5** | **完全缺口 0/7** | `database` 的字段规范只管列名；`enterprise-code-standard:53` 的 Schema 行只管选型。无任何 skill 提"同一字段在不同层的单位/上限必须同口径"                                                                      |
+| **P2-6** | **近似完全缺口** | 仅 `reuse-first-refactor:60`「manual parsing where a Schema/helper exists」半沾。没有 skill 说"面向模型/用户的自然语言输出不得参与判定"                                                                        |
+| **P2-2** | 半缺口           | `delivery-gates.md:27` 的 "stale" 只要求为 stale 场景**写测试**，不要求客户端**传递** revision                                                                                                                 |
+| **P2-1** | 半缺口           | `quality-to-pr:88` 与 `enterprise-code-standard:32` 都只覆盖读入方向，写盘前的控制字符/转义完整性无规则                                                                                                        |
+| **P2-5** | 半缺口           | 能从 authorization 推到，但没有一句写"前端派生字段不得充当授权依据"                                                                                                                                            |
+| **P1-1** | 半缺口           | `quality-to-pr:88` 的 fail-closed 是唯一命中点，但在 Phase 4 验证清单里且限定 "security-sensitive changes"；无 skill 在**默认值选择**阶段要求 fail-closed                                                      |
 
 **`effect` skill 的具体盲区**（全文 38 行，Guidelines `:21-30`）：**零涉及** `Effect.catch(() => Effect.void)` / `orDie` / `ignore` / catch-all。唯一负面清单是 `:29` 关于 `any`/非空断言/unchecked cast，与吞错无关。而吞错是本次 4 处静默失败的直接载体。也无任何关于 tagged error 必须提供可读 `message` 的要求。
 
@@ -606,14 +607,14 @@ P1-2、P2-4、P2-5 三条"PRD 写了、代码没做、复查全绿"的共同上�
 
 **六个失效点**（前三项本报告已独立 grep 验证）：
 
-| # | 失效点 | 证据 |
-|---|---|---|
-| 1 | **两个路由入口一致地漏掉 4 个流程 skill** | `CLAUDE.md:108`「匹配 Skills：涉及主题/配色走 `frontend-theming`；涉及 Effect 编码走 `effect`；涉及数据库走 `database`」—— 与同文件 `:130` 列出的 7 skill 自相矛盾 |
-| 2 | **拓扑与校验脚本停留在 3 skill 时代** | `protocols/SKILL.md:56-57`「技能层 (3) / skills/effect · skills/database · skills/frontend-theming」；`scripts/check-refs.sh:30-32` 也只校验这 3 个 SKILL.md。**脚本全绿不能证明另外 4 个 skill 存在或引用有效** |
-| 3 | **全仓路由无任何一行指向 `docs/prd/`** | `ARCHITECTURE.md:9-25` §1 Document Routing 表中 `docs/prd` 出现 **0** 次（表内有 `docs/plan/`、`docs/roadmap/`、`docs/research/`、`docs/architecture/adr/`）。`:94` 的回退目标本身也无 PRD 入口 |
-| 4 | **Phase 1 表无"资产/Asset/PRD/契约"行** | 本次任务核心对象（`*-asset-service.ts`、`propose_*_asset`、`*-asset/path.ts`、`asset-workbench.tsx`）在整个 protocols skill 中零出现 |
-| 5 | **L2 列永不出现 4 个流程 skill** | Phase 1 表 L2 列只出现 `skills/effect`、`skills/database`、`skills/frontend-theming`；`enterprise-code-standard`/`reuse-first-refactor`/`quality-to-pr` 只出现在 Success Criteria 勾选项（`:185-186`），不在任何路由行 |
-| 6 | **`effect` skill 触发词过窄** | `effect/SKILL.md:3` 全文只有「Work with Effect v4 / effect-smol TypeScript code in this repo」，无 handler/HTTP/error/service 等词。"审 HTTP handler 事务实现"的任务难以自动命中它 —— 而它的 `:25` 是击中 P1-2 最精准的一条 |
+| #   | 失效点                                    | 证据                                                                                                                                                                                                                        |
+| --- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **两个路由入口一致地漏掉 4 个流程 skill** | `CLAUDE.md:108`「匹配 Skills：涉及主题/配色走 `frontend-theming`；涉及 Effect 编码走 `effect`；涉及数据库走 `database`」—— 与同文件 `:130` 列出的 7 skill 自相矛盾                                                          |
+| 2   | **拓扑与校验脚本停留在 3 skill 时代**     | `protocols/SKILL.md:56-57`「技能层 (3) / skills/effect · skills/database · skills/frontend-theming」；`scripts/check-refs.sh:30-32` 也只校验这 3 个 SKILL.md。**脚本全绿不能证明另外 4 个 skill 存在或引用有效**            |
+| 3   | **全仓路由无任何一行指向 `docs/prd/`**    | `ARCHITECTURE.md:9-25` §1 Document Routing 表中 `docs/prd` 出现 **0** 次（表内有 `docs/plan/`、`docs/roadmap/`、`docs/research/`、`docs/architecture/adr/`）。`:94` 的回退目标本身也无 PRD 入口                             |
+| 4   | **Phase 1 表无"资产/Asset/PRD/契约"行**   | 本次任务核心对象（`*-asset-service.ts`、`propose_*_asset`、`*-asset/path.ts`、`asset-workbench.tsx`）在整个 protocols skill 中零出现                                                                                        |
+| 5   | **L2 列永不出现 4 个流程 skill**          | Phase 1 表 L2 列只出现 `skills/effect`、`skills/database`、`skills/frontend-theming`；`enterprise-code-standard`/`reuse-first-refactor`/`quality-to-pr` 只出现在 Success Criteria 勾选项（`:185-186`），不在任何路由行      |
+| 6   | **`effect` skill 触发词过窄**             | `effect/SKILL.md:3` 全文只有「Work with Effect v4 / effect-smol TypeScript code in this repo」，无 handler/HTTP/error/service 等词。"审 HTTP handler 事务实现"的任务难以自动命中它 —— 而它的 `:25` 是击中 P1-2 最精准的一条 |
 
 **结论**：命中缺陷最多的 `quality-to-pr` 与 `enterprise-code-standard` 从未出现在任何路由行；同时已批准 PRD 在全仓路由体系中没有入口，`quality-to-pr:42` 的必读清单列了 "ADRs, specs" 却**唯独没列 PRD**（`end-to-end-pr.md:15` 同）。7 个 skill 中 "PRD" 一词只在 `enterprise-code-standard:21` 与 `reuse-first-refactor:22` 出现，且都在 "When NOT to Use" 段落。
 
@@ -625,34 +626,34 @@ P1-2、P2-4、P2-5 三条"PRD 写了、代码没做、复查全绿"的共同上�
 
 ### 10.1 `docs/prd/chat-mode-creation-layer.md`
 
-| 行 | 文档原句 | 代码事实 |
-|---|---|---|
-| 219 | `### 8.3 写入事务（沿用 M1 不变量）` | 标题中"沿用"是整节假声明的载体：workflow/plugin 未沿用任何一条 |
-| 222 | 「写入同目录临时文件，成功后原子替换；不暴露半写文件。」 | `workflow-asset.ts:105` / `plugin-asset.ts:118` 裸 `fs.writeFile` |
-| 223 | 「覆盖前保存旧内容；reload 或回读失败时恢复旧内容；目标级锁覆盖 write/reload/readback/rollback 全过程。」 | 无备份变量、无 `KeyedMutex`；`:109` 把 reload 失败吞掉后继续走成功路径 |
-| 224 | 「registry 必须再次解析最终文件；仅"文件存在"不算成功。」 | reload 被吞后 `:113` 读的是陈旧缓存，构成"解析成功"假象 |
-| 234 | 「apply / delete 不信任前端状态或 tool result」 | `:92` 的 CAS 门由前端是否传参决定，即信任了前端的"不传" |
-| 235 | 「路径双重 containment、目标级事务锁、原子写 + 回滚、registry reload + readback、错误脱敏**全部不变**」 | 对 workflow/plugin 五项全部不成立 |
-| 236 | 「delete = 备份旧 bytes → 原子删除 → registry reload → readback 确认不存在；失败恢复旧文件」 | `:147-150` 只有 `fs.rm` + 被吞掉的 reload |
-| 621 | 「路径安全解析（nameToRelativePath → NFKC + segment 校验）、baseRevision CAS（sha256 对比）」 | 三处失真：无 realpath；未说明 CAS 可跳过；只列"有什么"未列丢失项 |
-| 622 | 「system origin 资产前后端双重拒绝」 | 后端不存在（见 P2-5） |
-| 633 | `- [x] Delete UI 全部 7 类 + system origin 拒绝 + 二次确认` | 已勾选的验收项两个子句均不成立 |
-| 139 | `name: Name,  // 1..80 Unicode code points` | 漏写字节口径，实际中文上限 33 字（见 P1-5） |
-| 644 | 「Core import-parser Effect service — M7 阶段以 Agent 解析代替，Core parser 延后独立一期」 | 已实现并接线到 UI（`chat-import-dialog.tsx:237`） |
-| §8.2 | 「思考过程内容默认不写入资产正文」 | `capture-helpers.ts:25` 无条件包含 reasoning（潜伏） |
+| 行   | 文档原句                                                                                                  | 代码事实                                                               |
+| ---- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| 219  | `### 8.3 写入事务（沿用 M1 不变量）`                                                                      | 标题中"沿用"是整节假声明的载体：workflow/plugin 未沿用任何一条         |
+| 222  | 「写入同目录临时文件，成功后原子替换；不暴露半写文件。」                                                  | `workflow-asset.ts:105` / `plugin-asset.ts:118` 裸 `fs.writeFile`      |
+| 223  | 「覆盖前保存旧内容；reload 或回读失败时恢复旧内容；目标级锁覆盖 write/reload/readback/rollback 全过程。」 | 无备份变量、无 `KeyedMutex`；`:109` 把 reload 失败吞掉后继续走成功路径 |
+| 224  | 「registry 必须再次解析最终文件；仅"文件存在"不算成功。」                                                 | reload 被吞后 `:113` 读的是陈旧缓存，构成"解析成功"假象                |
+| 234  | 「apply / delete 不信任前端状态或 tool result」                                                           | `:92` 的 CAS 门由前端是否传参决定，即信任了前端的"不传"                |
+| 235  | 「路径双重 containment、目标级事务锁、原子写 + 回滚、registry reload + readback、错误脱敏**全部不变**」   | 对 workflow/plugin 五项全部不成立                                      |
+| 236  | 「delete = 备份旧 bytes → 原子删除 → registry reload → readback 确认不存在；失败恢复旧文件」              | `:147-150` 只有 `fs.rm` + 被吞掉的 reload                              |
+| 621  | 「路径安全解析（nameToRelativePath → NFKC + segment 校验）、baseRevision CAS（sha256 对比）」             | 三处失真：无 realpath；未说明 CAS 可跳过；只列"有什么"未列丢失项       |
+| 622  | 「system origin 资产前后端双重拒绝」                                                                      | 后端不存在（见 P2-5）                                                  |
+| 633  | `- [x] Delete UI 全部 7 类 + system origin 拒绝 + 二次确认`                                               | 已勾选的验收项两个子句均不成立                                         |
+| 139  | `name: Name,  // 1..80 Unicode code points`                                                               | 漏写字节口径，实际中文上限 33 字（见 P1-5）                            |
+| 644  | 「Core import-parser Effect service — M7 阶段以 Agent 解析代替，Core parser 延后独立一期」                | 已实现并接线到 UI（`chat-import-dialog.tsx:237`）                      |
+| §8.2 | 「思考过程内容默认不写入资产正文」                                                                        | `capture-helpers.ts:25` 无条件包含 reasoning（潜伏）                   |
 
 **建议修正**：§8.3 在 `:219`/`:220` 加范围限定（"以下不变量适用于 5 类 typed service；workflow/plugin 内联实现的实际保证见 §20.5"）；`:235` 的"全部不变"去掉或加例外表；`:139` 改为双约束表述；`:622`/`:633` 修正或撤销勾选；`:644` 更新为已实现。
 
 ### 10.2 其他文档
 
-| 位置 | 文档原句 | 代码事实 | 建议 |
-|---|---|---|---|
-| `product-mode-agent-policy.ts:6` | ` * - \`mode=chat\` requires \`chat-orchestrator\` as the primary agent.` | **失效**。`:49-53` 默认返回 `META`；`:79-88` 对 chat 接受两者。同文件 `:43-48` 已有 2026-08-11 决策注释与之直接矛盾 | 改 `:6` 一行；`:7`/`:8` 两条仍成立 |
-| `ADR-13:25` | 「Chat 创建，Work/Coding 执行：Chat 不承担通用任务执行」 | 权限层未强制（P1-1、P1-11） | 新增 Amendment-2 记录 2026-08-11 元智能体调度决策 |
-| `ADR-13:3` | 状态行 `Accepted（2026-07-15……）` | 未记录 2026-08-11「chat/work 默认 agent 改 meta」决策（只写在代码注释里） | 同上 |
-| `ARCHITECTURE.md:273` | Phase 6 complete 含 `symlink-aware path containment` | `FSUtil.resolveSecurePath` 零调用者（P1-10） | 限定作用域或接上调用 |
-| `ARCHITECTURE.md:271` | 「M1-M7 全部完成 — 7 类资产新建/导入/创建/apply/delete 全闭环」 | 未区分 5 类 typed service 与 2 类内联 handler 的保证差异 | 加限定语 |
-| `ARCHITECTURE.md:261` | 「handlers consume services via `yield*` and **never call `Effect.provide(SomeLayer)` inside a handler or raw callback**」 | **全部 7 个资产 handler 都在 handler 内 provide**（`prompt-asset.ts:68/96/118/139`、`workflow-asset.ts:29/53/79/109` 等）。属 Location-scoped 服务的既有模式，**非本次引入** | 协议句需补 Location-scoped 例外，否则整个资产 HTTP 层名义违规、门禁失去判别力 |
+| 位置                             | 文档原句                                                                                                                   | 代码事实                                                                                                                                                                     | 建议                                                                          |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `product-mode-agent-policy.ts:6` | ` * - \`mode=chat\` requires \`chat-orchestrator\` as the primary agent.`                                                  | **失效**。`:49-53` 默认返回 `META`；`:79-88` 对 chat 接受两者。同文件 `:43-48` 已有 2026-08-11 决策注释与之直接矛盾                                                          | 改 `:6` 一行；`:7`/`:8` 两条仍成立                                            |
+| `ADR-13:25`                      | 「Chat 创建，Work/Coding 执行：Chat 不承担通用任务执行」                                                                   | 权限层未强制（P1-1、P1-11）                                                                                                                                                  | 新增 Amendment-2 记录 2026-08-11 元智能体调度决策                             |
+| `ADR-13:3`                       | 状态行 `Accepted（2026-07-15……）`                                                                                          | 未记录 2026-08-11「chat/work 默认 agent 改 meta」决策（只写在代码注释里）                                                                                                    | 同上                                                                          |
+| `ARCHITECTURE.md:273`            | Phase 6 complete 含 `symlink-aware path containment`                                                                       | `FSUtil.resolveSecurePath` 零调用者（P1-10）                                                                                                                                 | 限定作用域或接上调用                                                          |
+| `ARCHITECTURE.md:271`            | 「M1-M7 全部完成 — 7 类资产新建/导入/创建/apply/delete 全闭环」                                                            | 未区分 5 类 typed service 与 2 类内联 handler 的保证差异                                                                                                                     | 加限定语                                                                      |
+| `ARCHITECTURE.md:261`            | 「handlers consume services via `yield*` and **never call `Effect.provide(SomeLayer)` inside a handler or raw callback**」 | **全部 7 个资产 handler 都在 handler 内 provide**（`prompt-asset.ts:68/96/118/139`、`workflow-asset.ts:29/53/79/109` 等）。属 Location-scoped 服务的既有模式，**非本次引入** | 协议句需补 Location-scoped 例外，否则整个资产 HTTP 层名义违规、门禁失去判别力 |
 
 ---
 
@@ -666,6 +667,7 @@ P1-2、P2-4、P2-5 三条"PRD 写了、代码没做、复查全绿"的共同上�
 `import-parser.ts:166` 与 `:169` 对调：先 `extractBlocks`，再只对块外文本 `stripNoise`。一处改动消掉 P1-6（few-shot 模板被摧毁）与 P2-12（注释静默剥离），恢复"导入提示词模板"这条 PRD §7.3 首要闭环。
 
 **② `yamlEscape` 6 合 1 并补全控制字符转义 + 打通错误通路**（根因 A + B）
+
 - `yamlEscape` 归一到单一 owner，补 C0 控制字符转义 → 单点修复覆盖 5 类资产 + 迁移路径（P2-1 ×6）
 - `PathValidationError` 补 `override get message()` → P1-4
 - `chat-right-panel.tsx:177`/`:200` 与 `mode-workspace-slots.tsx:482` 三处 catch 改为显示错误 → P1-3、P2-2
@@ -675,6 +677,7 @@ P1-2、P2-4、P2-5 三条"PRD 写了、代码没做、复查全绿"的共同上�
 `FileMutation.writeAtomic` + `KeyedMutex` + `resolveSafeTarget` 都已存在，不需要新写事务层 —— PRD §20.5 批准的"不建 typed service"这条债也不需要还。顺带决定 `FSUtil.resolveSecurePath` 是接上还是删掉：**留着零调用者的安全函数比没有更糟，因为 `ARCHITECTURE.md:273` 拿它当已完成的证据。**
 
 **④ 补路由**（根因 G）
+
 - `CLAUDE.md:108`、`protocols` Phase 1 表 L2 列、`check-refs.sh` PATHS 三处补上 `enterprise-code-standard` / `reuse-first-refactor` / `quality-to-pr`
 - `ARCHITECTURE.md` §1 表加一行 `docs/prd/`
 - `quality-to-pr:42` 必读清单补 PRD，并加一步"对照已批准 PRD/ADR 的不变量清单逐条核对"
@@ -697,26 +700,31 @@ P1-1 与 P1-11 涉及 2026-08-11 已批准的架构决策。两条路径：
 列出以避免重复审计。
 
 **路径安全**
+
 - 7 个 `*-asset/path.ts` 逐字节同构（归一化 diff 验证，仅扩展名与 kind 名不同）
 - **NFKC 归一化在字符校验之前执行，顺序正确** —— 全宽斜杠 `／`、全宽句点 `．．` 都无法绕过
 - `nameToRelativePath` 的路径穿越防护有效：`/ \ .. < > : " | ? *` + `\x00-\x1F\x7F` + 首尾空格 + 尾点全部拒绝
 
 **写事务**
+
 - 5 类 typed service 的写事务完整满足 PRD §8.3 五条：临时文件 + 原子替换 + 目标级锁 + `Effect.uninterruptible` + 备份回滚 + readback revision 校验 + registry 重新解析
 - `LocationMutation.resolve` 用 `realPath` 做双重 containment，符号链接逃逸被 `location_escape` 正确拦截
 - `FileMutation.writeAtomic` 有 `Effect.addFinalizer` 清理临时文件 + per-canonical-target 锁
 
 **权限**
+
 - `write` / `edit` / `apply_patch` 共用 `action: "edit"`，meta 的 deny 覆盖到 `apply_patch`（曾怀疑此处有洞，实测不成立）
 - chat 模式的 agent 白名单是收窄的（只允许 meta 与 chat-orchestrator 两个），`resolvePrimaryAgent` 的显式 agent 也会过 `checkPrimaryAgent`
 
 **前端**
+
 - chat 组件 62 个静态 i18n key + 全部动态 key（7 kinds × `chat.feature.*`、`asset.origin.*`）在 en/zh/zht 三 locale 全部存在（脚本化验证）
 - `sortRows` 比较器满足严格弱序；`sameCandidateInfo` 的 7 个 kind 分支无遗漏
 - `chat-right-panel.tsx:57-69` 的 tab 同步两轮内收敛，mode 门控正确隔离
 - `countSimilarPrompts` 的调用方 `session.tsx:615` 用 `slice(0, -1)` 正确排除当前条目
 
 **序列化**
+
 - 模板正文含 `---`、空模板、纯 `---` 都能正确 round-trip（实测），不是缺陷
 
 ---
@@ -724,6 +732,7 @@ P1-1 与 P1-11 涉及 2026-08-11 已批准的架构决策。两条路径：
 ## 13. 未覆盖范围
 
 **未审计**（无结论，不代表无缺陷）：
+
 - `chat-import-dialog.tsx` 结果预览渲染段（约 270-540 行）
 - `chat-session-list.tsx` 与 `secondary-sidebar.tsx` 的会话列表过滤分支（`(session.mode ?? "coding") === "chat"` 模式在多处重复，未逐点核对是否有漏写 `?? "coding"`）
 - `asset-migration.ts`（253 行）的迁移幂等性与中途失败的半迁移状态

@@ -95,7 +95,9 @@ describe("Session permission tier guards (M6)", () => {
       const unattended = yield* session.create({ mode: "chat", agent: "meta", attended: false })
 
       for (const target of [child, unattended]) {
-        const exit = yield* session.setPermissionTier({ sessionID: target.id, permissionTier: "full" }).pipe(Effect.exit)
+        const exit = yield* session
+          .setPermissionTier({ sessionID: target.id, permissionTier: "full" })
+          .pipe(Effect.exit)
         expect(Exit.isFailure(exit)).toBe(true)
         if (Exit.isFailure(exit)) {
           expect(Cause.squash(exit.cause)).toBeInstanceOf(SessionNs.PermissionTierError)

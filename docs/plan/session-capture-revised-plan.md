@@ -33,7 +33,8 @@ const promptHistory = createPromptHistory()
 ```ts
 const DEFAULT_THRESHOLD = 0.7
 // ...
-if (repeat && !suggestion.show) {  // 只触发一次！
+if (repeat && !suggestion.show) {
+  // 只触发一次！
   setSuggestion("show", true)
 }
 ```
@@ -119,41 +120,42 @@ lastAssistantGroupKey().get(assistantPartRow().userMessageID) === assistantPartR
 
 ### L1 UI 组件层
 
-| 文件 | 改动 | 说明 |
-|------|------|------|
-| `packages/app/src/components/chat/capture-button.tsx` | 不变 | 已有，UI 正确 |
-| `packages/app/src/components/chat/suggestion-bar.tsx` | 不变 | 已有，展示层正确 |
+| 文件                                                           | 改动          | 说明                                                                                         |
+| -------------------------------------------------------------- | ------------- | -------------------------------------------------------------------------------------------- |
+| `packages/app/src/components/chat/capture-button.tsx`          | 不变          | 已有，UI 正确                                                                                |
+| `packages/app/src/components/chat/suggestion-bar.tsx`          | 不变          | 已有，展示层正确                                                                             |
 | `packages/app/src/pages/session/timeline/message-timeline.tsx` | 改 L1169-1210 | CaptureButton 移到 content 上方 + HandoffButton/CaptureButton/workingTurn 条件全部使用新信号 |
 
 ### L2 页面层
 
-| 文件 | 改动 | 说明 |
-|------|------|------|
+| 文件                                 | 改动                                | 说明                                     |
+| ------------------------------------ | ----------------------------------- | ---------------------------------------- |
 | `packages/app/src/pages/session.tsx` | 改 L108-109, L1370-1385, L1914-1930 | import 替换 + 状态机 + dismissCount 追踪 |
 
 ### L3 领域逻辑层
 
-| 文件 | 改动 | 说明 |
-|------|------|------|
+| 文件                                                   | 改动 | 说明                                                                                                     |
+| ------------------------------------------------------ | ---- | -------------------------------------------------------------------------------------------------------- |
 | `packages/app/src/components/chat/repeat-detection.ts` | 重写 | `createPromptHistory` 废弃，改为纯函数 `countSimilarPrompts` + `extractUserPrompts` + `freshRepeatState` |
 
 关键实现细节：
+
 - `extractUserPrompts(messages, getParts)` — 接收 `getParts` 回调，无 dedup（保留重复用于计数）
 - `tokenize` — CJK 检测 + bigram / 空白分词双路径
 - `normalize` — 导出供外部复用，使用 `\p{L}` Unicode 属性保留 CJK
 
 ### L4 Projection 层
 
-| 文件 | 改动 | 说明 |
-|------|------|------|
+| 文件                                                    | 改动       | 说明                                                                |
+| ------------------------------------------------------- | ---------- | ------------------------------------------------------------------- |
 | `packages/app/src/pages/session/timeline/projection.ts` | 改 L90-117 | 新增 `lastAssistantMessageID` + `lastAssistantMessageGroupKey` 信号 |
 
 ### L5 测试层
 
-| 文件 | 改动 | 说明 |
-|------|------|------|
+| 文件                                                        | 改动 | 说明                                                            |
+| ----------------------------------------------------------- | ---- | --------------------------------------------------------------- |
 | `packages/app/src/components/chat/repeat-detection.test.ts` | 重写 | 新算法测试：countSimilarPrompts、extractUserPrompts、CJK bigram |
-| `packages/app/src/components/chat/capture-helpers.test.ts` | 原有 | 确认通过 |
+| `packages/app/src/components/chat/capture-helpers.test.ts`  | 原有 | 确认通过                                                        |
 
 ---
 
@@ -171,7 +173,7 @@ const CJK_RE = /[一-鿿㐀-䶿豈-﫿]/
 export function normalize(text: string): string {
   return text
     .toLowerCase()
-    .replace(/[^\w\s\p{L}]/gu, "")  // \p{L} 保留 CJK 等 Unicode 字母
+    .replace(/[^\w\s\p{L}]/gu, "") // \p{L} 保留 CJK 等 Unicode 字母
     .replace(/\s+/g, " ")
     .trim()
 }
@@ -261,6 +263,7 @@ export function freshRepeatState() {
 ```
 
 **关键变化**：
+
 - 移除 `createPromptHistory()` 有状态闭包
 - `countSimilarPrompts` 是纯函数，接收 history 参数
 - 阈值从 2 次（单次 match）改为 **3 次**（`MIN_SIMILAR_COUNT = 3`）
@@ -347,16 +350,19 @@ case "AssistantPart": {
 ### Step 4: 重写 session.tsx 重复检测 + 状态机（Bug A + B + D）
 
 **4.1 替换 import**：
+
 ```ts
 import { countSimilarPrompts, extractUserPrompts, freshRepeatState } from "@/components/chat/repeat-detection"
 ```
 
 **4.2 状态初始化**：
+
 ```ts
 const [suggestion, setSuggestion] = createStore(freshRepeatState())
 ```
 
 **4.3 替换重复检测逻辑**（onSuccess 回调内）：
+
 ```ts
 if (promptText) {
   const messages = timeline.messages()
@@ -377,6 +383,7 @@ if (promptText) {
 **注意**：`slice(0, -1)` 排除当前 prompt，因为 `timeline.messages()` 在 `onSuccess` 时已包含刚发送的消息。
 
 **4.4 更新 SuggestionBar 回调**：
+
 ```tsx
 <SuggestionBar
   show={suggestion.show}
@@ -401,9 +408,9 @@ if (promptText) {
 
 ### Step 5: 测试
 
-| # | 测试文件 | 内容 |
-|---|---|---|
-| 1 | `repeat-detection.test.ts` | 纯函数测试：`countSimilarPrompts` 阈值 3、`extractUserPrompts`（无 dedup）、CJK bigram 相似度、`freshRepeatState` |
+| #   | 测试文件                   | 内容                                                                                                              |
+| --- | -------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| 1   | `repeat-detection.test.ts` | 纯函数测试：`countSimilarPrompts` 阈值 3、`extractUserPrompts`（无 dedup）、CJK bigram 相似度、`freshRepeatState` |
 
 i18n 无新增 key（已有 `chatCapture.captureAsAsset` / `repeatSuggestion` / `sourceLabel` 足够）。
 
@@ -417,16 +424,16 @@ bun run lint
 
 **手动冒烟清单**：
 
-| # | 场景 | 预期 |
-|---|---|---|
-| 1 | Coding 会话发送 3 次相似 prompt（如"写个 React 组件"变体） | 第 3 次发送后 SuggestionBar 出现 |
-| 2 | 前 2 次相似 prompt | 无 SuggestionBar |
-| 3 | Dismiss SuggestionBar 后再发 1 次相似 | 再次出现（`match.count > dismissCount`） |
-| 4 | 点击"存为资产" | capture() 执行，SuggestionBar 重置为 freshRepeatState |
-| 5 | 切换会话 A → B，B 中发相似内容 | 不与会话 A 的历史交叉比对 |
-| 6 | 最后一条 assistant 消息上方有 CaptureButton | 靠近代码块 copy 按钮交互区；其他 assistant 消息无按钮 |
-| 7 | Chat 模式会话无 CaptureButton | ✅ |
-| 8 | Streaming 中的 assistant 消息无 CaptureButton | ✅ |
+| #   | 场景                                                       | 预期                                                  |
+| --- | ---------------------------------------------------------- | ----------------------------------------------------- |
+| 1   | Coding 会话发送 3 次相似 prompt（如"写个 React 组件"变体） | 第 3 次发送后 SuggestionBar 出现                      |
+| 2   | 前 2 次相似 prompt                                         | 无 SuggestionBar                                      |
+| 3   | Dismiss SuggestionBar 后再发 1 次相似                      | 再次出现（`match.count > dismissCount`）              |
+| 4   | 点击"存为资产"                                             | capture() 执行，SuggestionBar 重置为 freshRepeatState |
+| 5   | 切换会话 A → B，B 中发相似内容                             | 不与会话 A 的历史交叉比对                             |
+| 6   | 最后一条 assistant 消息上方有 CaptureButton                | 靠近代码块 copy 按钮交互区；其他 assistant 消息无按钮 |
+| 7   | Chat 模式会话无 CaptureButton                              | ✅                                                    |
+| 8   | Streaming 中的 assistant 消息无 CaptureButton              | ✅                                                    |
 
 ---
 
@@ -459,15 +466,16 @@ Timeline 渲染 assistant 消息
 
 ## 5. 改动文件清单
 
-| 文件 | 操作 | 说明 |
-|------|------|------|
-| `packages/app/src/components/chat/repeat-detection.ts` | 重写 | 纯函数 + CJK bigram + 无 dedup |
-| `packages/app/src/components/chat/repeat-detection.test.ts` | 重写 | 新算法测试 |
-| `packages/app/src/pages/session/timeline/projection.ts` | 改 | 新增 `lastAssistantMessageID` / `lastAssistantMessageGroupKey` |
-| `packages/app/src/pages/session/timeline/message-timeline.tsx` | 改 | CaptureButton 移到 content 上方 + HandoffButton/workingTurn 条件同步修正 |
-| `packages/app/src/pages/session.tsx` | 改 | import + 状态机 + SuggestionBar 回调 |
+| 文件                                                           | 操作 | 说明                                                                     |
+| -------------------------------------------------------------- | ---- | ------------------------------------------------------------------------ |
+| `packages/app/src/components/chat/repeat-detection.ts`         | 重写 | 纯函数 + CJK bigram + 无 dedup                                           |
+| `packages/app/src/components/chat/repeat-detection.test.ts`    | 重写 | 新算法测试                                                               |
+| `packages/app/src/pages/session/timeline/projection.ts`        | 改   | 新增 `lastAssistantMessageID` / `lastAssistantMessageGroupKey`           |
+| `packages/app/src/pages/session/timeline/message-timeline.tsx` | 改   | CaptureButton 移到 content 上方 + HandoffButton/workingTurn 条件同步修正 |
+| `packages/app/src/pages/session.tsx`                           | 改   | import + 状态机 + SuggestionBar 回调                                     |
 
 **不涉及的文件**（无需改动）：
+
 - `capture-button.tsx` — UI 正确
 - `suggestion-bar.tsx` — 展示层正确
 - `capture-helpers.ts` — 内容提取逻辑正确
@@ -494,11 +502,11 @@ Step 5 (测试 + 验证)
 
 ## 7. 风险与回滚
 
-| 风险 | 缓解 |
-|------|------|
+| 风险                                                                                    | 缓解                                                                                               |
+| --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `extractUserPrompts` 与 `timeline.messages()` 的时序（onSuccess 时是否已含当前 prompt） | `slice(0, -1)` 排除最后一条；onSuccess 在 sendFollowupDraft 网络返回后触发，此时 sync 已含最新消息 |
-| CJK bigram 中文相似度阈值敏感 | 差异 2 字符 + 汉语词组时 ≈ 0.7。测试已验证通过 |
-| projection 新增信号与现有 row 遍历性能 | 两个信号各 O(n)，行数 < 10K 可忽略 |
-| 语义变更影响 HandoffButton 渲染 | Step 3 同时修正 HandoffButton + workingTurn + CaptureButton，全部使用 `isLastAssistant()` 共享逻辑 |
+| CJK bigram 中文相似度阈值敏感                                                           | 差异 2 字符 + 汉语词组时 ≈ 0.7。测试已验证通过                                                     |
+| projection 新增信号与现有 row 遍历性能                                                  | 两个信号各 O(n)，行数 < 10K 可忽略                                                                 |
+| 语义变更影响 HandoffButton 渲染                                                         | Step 3 同时修正 HandoffButton + workingTurn + CaptureButton，全部使用 `isLastAssistant()` 共享逻辑 |
 
 **回滚**：本分支只改 `packages/app/src/` 内的文件，无 schema migration，revert 安全。

@@ -5,11 +5,7 @@ import { useSettings } from "@/context/settings"
 import { shouldShowFileTree, type Sizing } from "@/pages/session/helpers"
 
 /** Shared visibility, sizing, and resize shell for mode-specific file trees. */
-export function SessionFileTree(props: {
-  size: Sizing
-  borderClass?: string
-  children: JSX.Element
-}) {
+export function SessionFileTree(props: { size: Sizing; borderClass?: string; children: JSX.Element }) {
   const layout = useLayout()
   const settings = useSettings()
   const fileOpen = createMemo(() =>

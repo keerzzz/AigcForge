@@ -19,7 +19,11 @@ describe("scanAssets → fillAssetsList chain", () => {
   })
 
   afterAll(() => {
-    try { rmSync(tmpDir, { recursive: true, force: true }) } catch { /* ok */ }
+    try {
+      rmSync(tmpDir, { recursive: true, force: true })
+    } catch {
+      /* ok */
+    }
   })
 
   it("scanAssets discovers correct structure", async () => {

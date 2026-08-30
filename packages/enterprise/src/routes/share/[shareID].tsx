@@ -368,11 +368,7 @@ export default function () {
                                     <TabsV2.Trigger value="session" class="w-1/2">
                                       Session
                                     </TabsV2.Trigger>
-                                    <TabsV2.Trigger
-                                      value="review"
-                                      class="w-1/2 !border-r-0"
-
-                                    >
+                                    <TabsV2.Trigger value="review" class="w-1/2 !border-r-0">
                                       {diffs().length} Files Changed
                                     </TabsV2.Trigger>
                                   </TabsV2.List>

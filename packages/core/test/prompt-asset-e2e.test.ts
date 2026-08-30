@@ -14,10 +14,7 @@ import { tmpdir } from "./fixture/tmpdir"
 import fs from "fs/promises"
 
 function locationLayer(dir: string) {
-  return Layer.succeed(
-    Location.Service,
-    Location.Service.of(location({ directory: AbsolutePath.make(dir) })),
-  )
+  return Layer.succeed(Location.Service, Location.Service.of(location({ directory: AbsolutePath.make(dir) })))
 }
 
 function fullLayer(dir: string) {
@@ -60,13 +57,21 @@ describe("PromptAsset E2E", () => {
 
           // Propose
           const propose = yield* svc.propose({
-            name: "my-prompt", description: "A test prompt", template: "Hello, {{name}}!", relativePath: "",
+            name: "my-prompt",
+            description: "A test prompt",
+            template: "Hello, {{name}}!",
+            relativePath: "",
           } as any)
           expect(propose.exists).toBe(false)
 
           // Apply
           const applied = yield* svc.apply({
-            candidate: { name: "my-prompt", description: "A test prompt", template: "Hello, {{name}}!", relativePath: "" } as any,
+            candidate: {
+              name: "my-prompt",
+              description: "A test prompt",
+              template: "Hello, {{name}}!",
+              relativePath: "",
+            } as any,
             baseRevision: null,
             overwrite: false,
           })
@@ -100,7 +105,10 @@ describe("PromptAsset E2E", () => {
           yield* reg.reload()
           const svc = yield* PromptAssetService.Service
           const result = yield* svc.propose({
-            name: "existing", description: "another", template: "content", relativePath: "",
+            name: "existing",
+            description: "another",
+            template: "content",
+            relativePath: "",
           } as any)
           expect(result.exists).toBe(true)
         }).pipe(Effect.provide(layer), Effect.scoped),
@@ -121,11 +129,13 @@ describe("PromptAsset E2E", () => {
             baseRevision: null,
             overwrite: false,
           })
-          return yield* svc.apply({
-            candidate: { name: "stale-test", description: "d", template: "v2", relativePath: "" } as any,
-            baseRevision: "0000000000000000000000000000000000000000000000000000000000000000",
-            overwrite: true,
-          }).pipe(Effect.flip)
+          return yield* svc
+            .apply({
+              candidate: { name: "stale-test", description: "d", template: "v2", relativePath: "" } as any,
+              baseRevision: "0000000000000000000000000000000000000000000000000000000000000000",
+              overwrite: true,
+            })
+            .pipe(Effect.flip)
         }).pipe(Effect.provide(layer), Effect.scoped),
       ).catch((e: unknown) => e)
       expect(err).toBeDefined()

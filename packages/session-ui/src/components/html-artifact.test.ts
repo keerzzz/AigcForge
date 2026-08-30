@@ -17,7 +17,9 @@ describe("HtmlArtifact security contract (M3.5)", () => {
   })
 
   test("defense 2: iframe csp attribute blocks connect-src and external scripts", () => {
-    expect(component).toMatch(/const IFRAME_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'none';"/)
+    expect(component).toMatch(
+      /const IFRAME_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'none';"/,
+    )
     expect(component).toContain("csp={IFRAME_CSP}")
     expect(component).toContain("connect-src 'none'")
     expect(component).toContain("default-src 'none'")

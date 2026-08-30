@@ -17,10 +17,7 @@ import {
 import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
 
 /** Markdown note editor with wikilink completion, preview, and dangling-link feedback. */
-export function AssistantNoteEditor(props: {
-  noteId?: string
-  onSaved: () => void
-}) {
+export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => void }) {
   const language = useLanguage()
   const serverSDK = useServerSDK()
 
@@ -92,7 +89,11 @@ export function AssistantNoteEditor(props: {
       match.query,
     )
     const current = completion()
-    if (current && current.length === candidates.length && current.every((candidate, index) => candidate === candidates[index])) {
+    if (
+      current &&
+      current.length === candidates.length &&
+      current.every((candidate, index) => candidate === candidates[index])
+    ) {
       return
     }
     setCompletionIndex(0)
@@ -232,7 +233,10 @@ export function AssistantNoteEditor(props: {
       </div>
 
       <Show when={completion()?.length}>
-        <div role="listbox" class="flex max-h-40 flex-col gap-px overflow-y-auto rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-1">
+        <div
+          role="listbox"
+          class="flex max-h-40 flex-col gap-px overflow-y-auto rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-1"
+        >
           <For each={completion()}>
             {(candidate, index) => (
               <button
@@ -281,14 +285,21 @@ export function AssistantNoteEditor(props: {
         <div class="flex min-h-0 flex-col gap-1">
           <p class="text-v2-text-text-muted text-12-regular">{language.t("assistant.editor.preview")}</p>
           <ScrollView class="min-h-0 flex-1 rounded-md border border-v2-border-border-base bg-v2-background-bg-base p-2">
-            <div ref={(el) => { previewRef = el }} class="min-w-0 text-v2-text-text-base text-13-regular">
+            <div
+              ref={(el) => {
+                previewRef = el
+              }}
+              class="min-w-0 text-v2-text-text-base text-13-regular"
+            >
               <Markdown text={content() || "*…*"} />
             </div>
           </ScrollView>
           <Show when={dangling().length > 0}>
             <p class="text-v2-state-fg-warning text-12-regular">
               {language.t("assistant.editor.dangling", { count: String(dangling().length) })}{" "}
-              {dangling().map((title) => `[[${title}]]`).join(" · ")}
+              {dangling()
+                .map((title) => `[[${title}]]`)
+                .join(" · ")}
             </p>
           </Show>
         </div>

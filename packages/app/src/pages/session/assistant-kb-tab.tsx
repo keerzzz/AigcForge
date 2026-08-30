@@ -11,10 +11,7 @@ import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
 import { assistantQueryKey } from "@/utils/assistant-query"
 
 /** Knowledge-base search, filtering, backlinks, and dangling-link inspection. */
-export function AssistantKbTab(props: {
-  target?: string
-  onEditNote: (note: KbNoteNote) => void
-}) {
+export function AssistantKbTab(props: { target?: string; onEditNote: (note: KbNoteNote) => void }) {
   const language = useLanguage()
   const serverSDK = useServerSDK()
 
@@ -199,7 +196,9 @@ export function AssistantKbTab(props: {
                   <p class="text-v2-text-text-muted text-12-regular">{language.t("assistant.kb.backlinks")}</p>
                   <Show
                     when={backlinks().length > 0}
-                    fallback={<p class="text-v2-text-text-faint text-12-regular">{language.t("assistant.kb.backlinksEmpty")}</p>}
+                    fallback={
+                      <p class="text-v2-text-text-faint text-12-regular">{language.t("assistant.kb.backlinksEmpty")}</p>
+                    }
                   >
                     <For each={backlinks()}>
                       {(note) => (
@@ -225,7 +224,9 @@ export function AssistantKbTab(props: {
             <p class="text-v2-text-text-base text-13-medium">{language.t("assistant.kb.danglingTitle")}</p>
             <Show
               when={dangling().length > 0}
-              fallback={<p class="text-v2-text-text-faint text-12-regular">{language.t("assistant.kb.danglingEmpty")}</p>}
+              fallback={
+                <p class="text-v2-text-text-faint text-12-regular">{language.t("assistant.kb.danglingEmpty")}</p>
+              }
             >
               <div class="flex min-w-0 flex-col gap-px">
                 <For each={dangling()}>

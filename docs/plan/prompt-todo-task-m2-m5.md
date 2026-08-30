@@ -59,12 +59,12 @@ packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts  GET /
 
 按计划 §8 里程碑表执行，**严格按 M2 → M3 → M4 → M5 顺序，每个里程碑独立可审批**：
 
-| 里程碑 | 范围 | 退出条件 |
-|---|---|---|
-| **M2 UI** | ① outputDigest 持久化（task 表加列 + Service patch 落库 + 迁移）；② `GET /session/{id}/task` 读取端点 + SDK gen；③ SessionTodoProgress 脉冲线内嵌节点（§5.3 Layer 4 方案 B）；④ 移除底部 SessionTodoDock（composer dock() 折叠逻辑 / layout `todoCollapsed` / stories 同步清理）；⑤ 可交互 checkbox 折叠浮层；⑥ E2E 测试 | UI 回放 + E2E 全生命周期 + 写 API 联调 + 重载恢复测试（outputDigest 刷新后跳转不丢） |
-| **M3 定时任务** | ScheduledJobRunner（**含启动 re-arm**：启动时重扫 TaskTable 按 recurrence 重建 next-run 队列；**含 unattended 权限策略**：预授权 ruleset 或 attended-only 约束，见 §8 G2 + §10）；task_schedule Tool；`agentID`/`scheduledAt`/`recurrence` 落列；定时任务 UI（§5.6：标题左侧 icon + nextRun 时间戳 + dot-grid 更多下拉入口 + 弹层） | 定时端到端（含进程重启后 re-arm）+ 标题时间戳渲染 |
-| **M4 AgentHub** | AgentTaskHub 面板（Agent 视角聚合 task/定时任务，对齐计划 §5.3 Layer 4 + §8 M4） | Agent Hub 可用 |
-| **M5 跨模式集成** | `spawnedFrom`/`dependsOn` 落列；task_spawn Tool；DAG 依赖；Work Preset → Task 展开；Assistant 定时提醒 → ScheduledJob；电商场景验证（§7）；V1 退役准备（§9.2：V1 Todo 标记 deprecated，不删文件） | 每条电商 use case 通过 |
+| 里程碑            | 范围                                                                                                                                                                                                                                                                                                                                | 退出条件                                                                             |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| **M2 UI**         | ① outputDigest 持久化（task 表加列 + Service patch 落库 + 迁移）；② `GET /session/{id}/task` 读取端点 + SDK gen；③ SessionTodoProgress 脉冲线内嵌节点（§5.3 Layer 4 方案 B）；④ 移除底部 SessionTodoDock（composer dock() 折叠逻辑 / layout `todoCollapsed` / stories 同步清理）；⑤ 可交互 checkbox 折叠浮层；⑥ E2E 测试            | UI 回放 + E2E 全生命周期 + 写 API 联调 + 重载恢复测试（outputDigest 刷新后跳转不丢） |
+| **M3 定时任务**   | ScheduledJobRunner（**含启动 re-arm**：启动时重扫 TaskTable 按 recurrence 重建 next-run 队列；**含 unattended 权限策略**：预授权 ruleset 或 attended-only 约束，见 §8 G2 + §10）；task_schedule Tool；`agentID`/`scheduledAt`/`recurrence` 落列；定时任务 UI（§5.6：标题左侧 icon + nextRun 时间戳 + dot-grid 更多下拉入口 + 弹层） | 定时端到端（含进程重启后 re-arm）+ 标题时间戳渲染                                    |
+| **M4 AgentHub**   | AgentTaskHub 面板（Agent 视角聚合 task/定时任务，对齐计划 §5.3 Layer 4 + §8 M4）                                                                                                                                                                                                                                                    | Agent Hub 可用                                                                       |
+| **M5 跨模式集成** | `spawnedFrom`/`dependsOn` 落列；task_spawn Tool；DAG 依赖；Work Preset → Task 展开；Assistant 定时提醒 → ScheduledJob；电商场景验证（§7）；V1 退役准备（§9.2：V1 Todo 标记 deprecated，不删文件）                                                                                                                                   | 每条电商 use case 通过                                                               |
 
 **字段分期纪律（延续 M0/M1 原则，现在开始落列）**：每个字段跟着它的消费者里程碑落 DB 列——M2 落 `output_digest`，M3 落 `agent_id`/`scheduled_at`/`recurrence`，M5 落 `spawned_from`/`depends_on`。契约层（`packages/schema/src/session-task.ts`）这些字段已声明为 optional，落列时同步 Service 的 `toInfo` 映射与 `WriteInfo`，不得提前、不得遗漏。
 
@@ -102,6 +102,7 @@ grep -A3 '"test:e2e"' packages/app/package.json                        # bun --c
 ```
 
 **关键认知（已核实，直接用）**：
+
 - 默认 runtime 是 V1（`AIGCFROGE_V2_RUNTIME=false`）：V1 todo 读写 legacy TodoTable；V2 经 SessionTodo 投影读写 TaskTable。**两条路径都必须保持工作**，UI 改动只消费 `serverSync.todo` 缓存与 `todo.updated` SSE，不感知后端分支。
 - App 端 `reconcile(todos, {key:"id"})` 对无 id 三字段投影失效是计划 §2.1 已记录的 pre-existing 问题——M2 消费方应优先用 `task.updated`（带稳定 id）或 `GET /session/{id}/task`，逐步替代对三字段投影的依赖。
 - outputDigest 当前只活在 `task.updated` 事件 payload 与 patch 返回值里（`SessionTask.patch`），**未落库**——M2 第一步就是落库，重载恢复（TaskPanel 刷新后子会话跳转链接不丢）依赖它。
@@ -126,6 +127,7 @@ grep -A3 '"test:e2e"' packages/app/package.json                        # bun --c
 ```
 
 **测试规范**（CLAUDE.md 强制）：
+
 - `it.effect` / `it.live` / `it.instance` 三模式按需选（落盘/DB 用 `it.instance`）
 - `testEffect(...)` 不手写 runtime；`Layer.mock` 不手写 stub
 - 禁 `Effect.sleep(N)` 等 fiber（用 `pollWithTimeout`/`Deferred`/readiness 信号）
@@ -134,6 +136,7 @@ grep -A3 '"test:e2e"' packages/app/package.json                        # bun --c
 - E2E：`bun --cwd packages/app run test:e2e`（playwright；只跑你新增/受影响的 spec，不必全量）
 
 **每个里程碑结束时额外做**：
+
 - 同步 `specs/v2/todo.md`（里程碑状态）与 `specs/v2/schema-changelog.md`（凡改契约/表/端点/SDK 必记）
 - SDK 再生成 `./packages/sdk/js/script/build.ts`，**把生成的 diff 一并提交**（不是追求"无 diff"）
 - 输出里程碑完成报告（改了什么、测试矩阵、已知延后），**停下来等待审批，不要自行进入下一个里程碑**
@@ -145,11 +148,13 @@ grep -A3 '"test:e2e"' packages/app/package.json                        # bun --c
 ### Step 1 — M2a：outputDigest 持久化 + GET /session/{id}/task
 
 **红**：
+
 - `packages/core/test/session-task-service.test.ts`：patch 带 outputDigest → 重读 `tasks.get` 后 outputDigest 仍在（落库）；不带 outputDigest 的 patch 不清空已有 digest
 - `packages/core/test/database-migration.test.ts`：新迁移后 task 表有 `output_digest` 列，存量行 digest 为 null
 - `packages/aigcfroge/test/server/httpapi-session.test.ts`：`GET /session/{id}/task` 返回带 id 的完整 TaskInfo 数组（含 outputDigest）；空 session 返回 `[]`
 
 **绿**：
+
 - `session/sql.ts` TaskTable 加 `output_digest` 可空列；drizzle-kit generate → 新迁移文件 → `migration.gen.ts` 注册（遵守 §9.3 两条约束：迁移走管线、不手写裸 SQL）
 - `SessionTask.patch` 落库 digest；`toInfo` 映射新列
 - `groups/session.ts` 加 `HttpApiEndpoint.get("task", ...)`（success = `Schema.Array(SessionTask.Info)`，error 复用既有约定）；handler 走 `SessionTask.Service.get`
@@ -164,6 +169,7 @@ grep -A3 '"test:e2e"' packages/app/package.json                        # bun --c
 **红**：App 组件测试（`bun --cwd packages/app run test:unit` 体系）——SessionTodoProgress 渲染：doneRatio clip-path 推进、in_progress 节点高亮、统计 `3/5`、空数组保持 `session-progress-whip infinite` 原样、非法 status 归 pending 不崩、total≤1 除零兜底、>20 节点降采样。
 
 **绿**（严格按计划 §5.3 Layer 4 方案 B + §5.5 边界表）：
+
 - 新增 `SessionTodoProgress` 组件：挂载在 timeline session-progress 容器内（复用现有 progress，不新增面板）；节点 icon 按 `i/total` 绝对定位 + `data-state`；hover tooltip（键盘用 `title`）；有 todo 时 clip-path 按 doneRatio、in_progress 局部 whip；右侧统计 done/total；挂载时 `directorySync.todo(sessionID)` 拉取（重载恢复）；SSE 增量更新
 - 数据源优先消费 Step 1 的 `GET /session/{id}/task` + `task.updated`（带稳定 id），保留 `todo.updated` 三字段投影作为 V1 runtime fallback
 - 移除 `session-todo-dock.tsx`（composer region 删导入 + 挂载 + `dock()` 折叠逻辑，保留 rolled/lift 给 revert）、layout `todoCollapsed` 状态、失效 stories——**先 grep 确认 §5.5 影响面结论仍成立**（Question/Permission/Revert dock 独立触发，composer `dock()` 纯服务 todo）
@@ -186,6 +192,7 @@ grep -A3 '"test:e2e"' packages/app/package.json                        # bun --c
 ### Step 4 — M3a：ScheduledJobRunner + re-arm + unattended 权限策略
 
 **红**：
+
 - 注册 `scheduledAt` + `recurrence` 的 task → 到点触发创建子会话执行
 - **进程重启后 re-arm**：重启 runner → 重扫 TaskTable → 按 recurrence 重建 next-run 队列（§8 G2，缺这个就是计划 §10 的高概率风险）
 - **unattended 权限**：定时任务运行于 unattended 会话，`permission.ts` ask→deny 会静默拒读——按 §8 G2 落地预授权 ruleset 或 attended-only 约束，并有测试证明读文件不被静默拒绝
@@ -234,6 +241,7 @@ bun run lint
 ```
 
 验收清单：
+
 - [ ] outputDigest 落库 + `GET /session/{id}/task` + 重载恢复（刷新后子会话跳转不丢）
 - [ ] SessionTodoProgress 全边界（§5.5 逐条）+ dock 移除无残留（grep `SessionTodoDock`/`todoCollapsed` 无引用）
 - [ ] 定时端到端 + 重启 re-arm + unattended 权限策略
@@ -266,6 +274,7 @@ M3 主线：TaskTable(recurrence) → ScheduledJobRunner 内存队列 →（重�
 ## 6. 强制规则 + 审批红线（三轮差异审批的教训，违反即 REJECT）
 
 ### 流程规则
+
 - 每 Step 完成后必须重新阅读协议文件（§3 第 7 条清单），必须跑 lint + typecheck + test
 - 测试必须先写（红）再实现（绿）；禁止 `--no-verify`、禁止跳过验证
 - 每里程碑结束同步 specs + SDK 再生成提交 + 输出报告，**停下等审批**，不自行进入下一里程碑
@@ -274,6 +283,7 @@ M3 主线：TaskTable(recurrence) → ScheduledJobRunner 内存队列 →（重�
 - 阻塞问题：先报告现状和已试方案，请求决策，不绕过
 
 ### 审批红线（前两轮 M0/M1 各被 REJECT 过一次的原因，不要重蹈）
+
 1. **V1 runtime 兼容**：默认 `AIGCFROGE_V2_RUNTIME=false` 路径不得有任何回归；M1-M5 不改 V1（§9.2）；`GET /todo` 的 V1/V2 双分支保持。改共享读路径时，两个 runtime 模式都要有测试。
 2. **禁 `Effect.die` 处理预期失败**：业务拒绝用 `Schema.TaggedErrorClass`（参照 `SessionTask.TaskWriteError` 的 tagged-union-through-transaction 模式），HTTP 边界 `catchTag` 映射 4xx（参照 PATCH handler），tool 边界 `mapError` 保留具体 message（注意外层 mapError 不得覆盖内层——第三轮修过的 bug）。
 3. **Schema.Class 必须实例化**：多字段记录一律 `Schema.Class`（根 AGENTS.md 强制），所有构造点用 `new X({...})`，禁 plain object 伪装 Class（encode 时炸 `SchemaError`，第三轮 MEDIUM-2）。
@@ -293,12 +303,12 @@ M3 主线：TaskTable(recurrence) → ScheduledJobRunner 内存队列 →（重�
 
 ## 使用说明
 
-| 项 | 值 |
-|---|---|
-| 复制范围 | `<!-- PROMPT START -->` 到 `<!-- PROMPT END -->` |
-| 新对话 model | 默认（工程执行主力模型） |
-| 新对话打开文件 | `docs/plan/todo-task-system-upgrade.md`（范围真源）+ 本文件 |
-| 开工顺序 | 通读 §0 清单 → 确认在 `todo-task-m2` 分支 → Step 1 红测试开始 |
-| 节奏 | 每 Step：红→绿→验证→重读协议→提交；每里程碑：specs 同步 → 报告 → **等审批** |
-| 卡住时 | 回报阶段 + 已过/未过测试 + 具体报错，不绕过（`--no-verify` 禁） |
-| 审批 | 每个里程碑由审查 agent 按差异审批流程复核（重点：§6 审批红线 10 条） |
+| 项             | 值                                                                          |
+| -------------- | --------------------------------------------------------------------------- |
+| 复制范围       | `<!-- PROMPT START -->` 到 `<!-- PROMPT END -->`                            |
+| 新对话 model   | 默认（工程执行主力模型）                                                    |
+| 新对话打开文件 | `docs/plan/todo-task-system-upgrade.md`（范围真源）+ 本文件                 |
+| 开工顺序       | 通读 §0 清单 → 确认在 `todo-task-m2` 分支 → Step 1 红测试开始               |
+| 节奏           | 每 Step：红→绿→验证→重读协议→提交；每里程碑：specs 同步 → 报告 → **等审批** |
+| 卡住时         | 回报阶段 + 已过/未过测试 + 具体报错，不绕过（`--no-verify` 禁）             |
+| 审批           | 每个里程碑由审查 agent 按差异审批流程复核（重点：§6 审批红线 10 条）        |

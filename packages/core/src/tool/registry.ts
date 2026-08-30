@@ -26,20 +26,38 @@ const INTENT_TOOL_FILTERS: Record<string, (name: string) => boolean> = {
 }
 
 const READONLY_TOOL_NAMES = new Set([
-  "read", "read_file", "grep", "glob", "search", "list_files",
-  "code_search", "tool_search", "web_fetch", "fetch",
-  "todo_write", "todo_list", "complete_step",
+  "read",
+  "read_file",
+  "grep",
+  "glob",
+  "search",
+  "list_files",
+  "code_search",
+  "tool_search",
+  "web_fetch",
+  "fetch",
+  "todo_write",
+  "todo_list",
+  "complete_step",
 ])
 
 const WRITE_TOOL_NAMES = new Set([
-  "write", "write_file", "edit", "edit_file", "patch", "apply_patch",
-  "create", "delete", "remove", "rename", "move",
-  "multi_edit", "bash",
+  "write",
+  "write_file",
+  "edit",
+  "edit_file",
+  "patch",
+  "apply_patch",
+  "create",
+  "delete",
+  "remove",
+  "rename",
+  "move",
+  "multi_edit",
+  "bash",
 ])
 
-const CONFIG_TOOL_NAMES = new Set([
-  "config", "agent", "skill", "mcp", "workflow",
-])
+const CONFIG_TOOL_NAMES = new Set(["config", "agent", "skill", "mcp", "workflow"])
 
 export type ExecuteInput = {
   readonly sessionID: SessionSchema.ID
@@ -109,10 +127,7 @@ const registryLayer = Layer.effect(
     // registration only to its own.
     const visibleTo = (registration: Registration, sessionId: SessionSchema.ID | undefined) =>
       registration.sessionId === undefined || registration.sessionId === sessionId
-    const visibleWinner = (
-      name: string,
-      sessionId: SessionSchema.ID | undefined,
-    ): Registration | undefined => {
+    const visibleWinner = (name: string, sessionId: SessionSchema.ID | undefined): Registration | undefined => {
       const entries = local.get(name)
       if (!entries) return undefined
       const visible = entries.filter((entry) => visibleTo(entry.registration, sessionId))
@@ -129,8 +144,7 @@ const registryLayer = Layer.effect(
       placement: SessionSchema.ID | undefined,
       advertised?: object,
     ) {
-      const registration =
-        visibleWinner(input.call.name, placement) ?? applications.entries().get(input.call.name)
+      const registration = visibleWinner(input.call.name, placement) ?? applications.entries().get(input.call.name)
       if (!registration)
         return {
           result: {
@@ -278,9 +292,7 @@ const registryLayer = Layer.effect(
 export const layer = Layer.effect(
   Tools.Service,
   Service.use((registry) =>
-    Effect.succeed(
-      Tools.Service.of({ register: registry.register, registerSession: registry.registerSession }),
-    ),
+    Effect.succeed(Tools.Service.of({ register: registry.register, registerSession: registry.registerSession })),
   ),
 ).pipe(Layer.provideMerge(registryLayer))
 

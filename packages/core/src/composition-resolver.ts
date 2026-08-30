@@ -27,9 +27,7 @@ export interface Interface {
     kind: string,
     relativePath: string,
   ) => Effect.Effect<ReadonlyArray<SchemaCustomProfile.Summary>>
-  readonly freeze: (
-    input: Composition.FreezeInput,
-  ) => Effect.Effect<Composition.Snapshot, Composition.ResolveError>
+  readonly freeze: (input: Composition.FreezeInput) => Effect.Effect<Composition.Snapshot, Composition.ResolveError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/CompositionResolver") {}
@@ -309,10 +307,7 @@ export const layer = Layer.effect(
       }
 
       // 3. Bindings & Consumer keys validation
-      const allowedConsumerKeys = new Set([
-        "orchestrator",
-        ...resolvedAgentInfos.map((a) => `agents/${a.name}`),
-      ])
+      const allowedConsumerKeys = new Set(["orchestrator", ...resolvedAgentInfos.map((a) => `agents/${a.name}`)])
 
       if (resolvedBindings) {
         for (const [consumerKey, binding] of Object.entries(resolvedBindings)) {
@@ -513,7 +508,14 @@ export const layer = Layer.effect(
               asset: ref,
             }),
           )
-          mcpDenied.push(new Composition.McpDeniedInfo({ serverName: binding.serverName, ref, credentialRef: binding.credentialRef, reason: "mcp_asset_not_found" }))
+          mcpDenied.push(
+            new Composition.McpDeniedInfo({
+              serverName: binding.serverName,
+              ref,
+              credentialRef: binding.credentialRef,
+              reason: "mcp_asset_not_found",
+            }),
+          )
           continue
         }
         if (asset.revision !== binding.ref.revision) {
@@ -526,7 +528,14 @@ export const layer = Layer.effect(
               asset: ref,
             }),
           )
-          mcpDenied.push(new Composition.McpDeniedInfo({ serverName: binding.serverName, ref, credentialRef: binding.credentialRef, reason: "mcp_asset_stale_revision" }))
+          mcpDenied.push(
+            new Composition.McpDeniedInfo({
+              serverName: binding.serverName,
+              ref,
+              credentialRef: binding.credentialRef,
+              reason: "mcp_asset_stale_revision",
+            }),
+          )
           continue
         }
         const fact = mcpFacts.find(
@@ -747,7 +756,10 @@ export const layer = Layer.effect(
             break
           }
         }
-        if (!matched && p.profile.mcpBindings.some((binding) => binding.ref.relativePath === relativePath && kind === "mcp")) {
+        if (
+          !matched &&
+          p.profile.mcpBindings.some((binding) => binding.ref.relativePath === relativePath && kind === "mcp")
+        ) {
           matched = true
         }
         if (!matched && p.profile.workflow) {
@@ -772,7 +784,7 @@ export const layer = Layer.effect(
               }
             }
             if (matched) break
-          for (const commandRef of binding.commands) {
+            for (const commandRef of binding.commands) {
               if (commandRef.kind === kind && commandRef.relativePath === relativePath) {
                 matched = true
                 break
@@ -870,9 +882,8 @@ export const layer = Layer.effect(
 
       const materialized = yield* tools.materialize()
       const effectiveMcpTools = new Set(plan.mcp.effective.flatMap((entry) => entry.tools))
-      const fingerprints = materialized.definitions.filter(
-        (definition) => !definition.name.startsWith("mcp_") || effectiveMcpTools.has(definition.name),
-      )
+      const fingerprints = materialized.definitions
+        .filter((definition) => !definition.name.startsWith("mcp_") || effectiveMcpTools.has(definition.name))
         .map((definition) => ({
           placement: location.workspaceID
             ? `${location.directory}#${location.workspaceID}`
@@ -890,7 +901,10 @@ export const layer = Layer.effect(
       const catalogDigest = computeDigest(fingerprints)
 
       const isV2 =
-        plan.version === 2 || (plan.agents && plan.agents.length > 1) || plan.workflow != null || plan.mcp.requested.length > 0
+        plan.version === 2 ||
+        (plan.agents && plan.agents.length > 1) ||
+        plan.workflow != null ||
+        plan.mcp.requested.length > 0
 
       if (isV2) {
         const snapshotData = new Composition.SnapshotDataV2({

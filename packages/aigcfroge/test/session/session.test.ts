@@ -191,8 +191,9 @@ describe("Session", () => {
   it.instance("inherits product mode for children and forks", () =>
     Effect.gen(function* () {
       const session = yield* SessionNs.Service
-      const parent = yield* Effect.acquireRelease(session.create({ mode: "chat", agent: "chat-orchestrator" }), (info) =>
-        session.remove(info.id).pipe(Effect.ignore),
+      const parent = yield* Effect.acquireRelease(
+        session.create({ mode: "chat", agent: "chat-orchestrator" }),
+        (info) => session.remove(info.id).pipe(Effect.ignore),
       )
       const child = yield* Effect.acquireRelease(session.create({ parentID: parent.id, mode: "work" }), (info) =>
         session.remove(info.id).pipe(Effect.ignore),

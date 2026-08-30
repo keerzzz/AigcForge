@@ -41,7 +41,9 @@ export const legacySkillFiles = Effect.fnUntraced(function* (fs: FSUtil.Interfac
       .glob("**/SKILL.md", { cwd: path.resolve(directory, dir), absolute: true, include: "file", dot: true })
       .pipe(Effect.catch(() => Effect.succeed([] as string[]))),
   )
-  return groups.flat().map((file) => ({ path: file, fallbackName: path.basename(path.dirname(file)) }) satisfies LegacyFile)
+  return groups
+    .flat()
+    .map((file) => ({ path: file, fallbackName: path.basename(path.dirname(file)) }) satisfies LegacyFile)
 })
 
 /** Project-level legacy agent files: `.claude/agents/*.agent.md`. */
@@ -95,7 +97,8 @@ export function commandEntry(raw: string, fallbackName: string): LegacyEntry | u
 
   const name = typeof parsed.data.name === "string" && parsed.data.name ? parsed.data.name : fallbackName
   const description = typeof parsed.data.description === "string" ? parsed.data.description : ""
-  const invocation = typeof parsed.data.invocation === "string" && parsed.data.invocation ? parsed.data.invocation : `/${name}`
+  const invocation =
+    typeof parsed.data.invocation === "string" && parsed.data.invocation ? parsed.data.invocation : `/${name}`
   const optional = [
     typeof parsed.data.args === "string" ? `args: ${yamlEscape(parsed.data.args)}` : undefined,
     typeof parsed.data.agent === "string" ? `agent: ${yamlEscape(parsed.data.agent)}` : undefined,
@@ -205,7 +208,9 @@ export const importEntriesOnce = Effect.fn("AssetMigration.importEntriesOnce")(f
   const entries = input.entries.filter((entry) => {
     const relativePath = entry.relativePath ?? `${entry.name}.md`
     if (!input.isValidName(entry.name) || !safeRelativePath(relativePath)) {
-      Effect.runFork(Effect.logWarning("asset migration: invalid entry skipped", { name: entry.name, path: entry.source }))
+      Effect.runFork(
+        Effect.logWarning("asset migration: invalid entry skipped", { name: entry.name, path: entry.source }),
+      )
       return false
     }
     if (seen.has(entry.name)) return false

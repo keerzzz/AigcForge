@@ -81,22 +81,22 @@ Session
 
 Session 页面注入 **15 个 Context**，分三层：
 
-| 层级 | Context | 职责 |
-|------|---------|------|
-| 全局 | useSDK | 目录级 SDK 客户端 |
-| 全局 | useServerSDK | 服务器级 SDK 客户端 |
-| 全局 | useSettings | 用户设置 (visible/disabled 控制) |
-| 全局 | usePlatform | 平台检测 (desktop/web/mobile) |
-| 全局 | useLanguage | i18n 翻译函数 |
-| 全局 | useDialog | 模态对话框管理 |
-| 服务器级 | useServerSync | 服务器数据同步状态 |
-| 服务器级 | useSync | 数据缓存 (message, session, agent) |
-| 服务器级 | useLayout | 项目列表、侧边栏状态、终端高度 |
-| 服务器级 | useLocal | 本地模型/Agent 选择状态 |
-| Session级 | useTerminal | PTY 进程生命周期 |
-| Session级 | useFile | 文件树、文件搜索、选中行 |
-| Session级 | usePrompt | 输入框状态持久化 |
-| Session级 | useComments | 行级评论管理 |
+| 层级      | Context          | 职责                               |
+| --------- | ---------------- | ---------------------------------- |
+| 全局      | useSDK           | 目录级 SDK 客户端                  |
+| 全局      | useServerSDK     | 服务器级 SDK 客户端                |
+| 全局      | useSettings      | 用户设置 (visible/disabled 控制)   |
+| 全局      | usePlatform      | 平台检测 (desktop/web/mobile)      |
+| 全局      | useLanguage      | i18n 翻译函数                      |
+| 全局      | useDialog        | 模态对话框管理                     |
+| 服务器级  | useServerSync    | 服务器数据同步状态                 |
+| 服务器级  | useSync          | 数据缓存 (message, session, agent) |
+| 服务器级  | useLayout        | 项目列表、侧边栏状态、终端高度     |
+| 服务器级  | useLocal         | 本地模型/Agent 选择状态            |
+| Session级 | useTerminal      | PTY 进程生命周期                   |
+| Session级 | useFile          | 文件树、文件搜索、选中行           |
+| Session级 | usePrompt        | 输入框状态持久化                   |
+| Session级 | useComments      | 行级评论管理                       |
 | Session级 | useSessionLayout | 路由参数、workspaceKey、tabs、view |
 
 ---
@@ -223,13 +223,13 @@ session-composer-state.ts: SessionComposerState
 
 ### 7.2 中断类型
 
-| 类型 | 触发源 | 阻塞 | 用户响应 |
-|------|--------|------|---------|
-| Question | AI 运行时提问 | 是 | 文本回复 / 选项选择 |
-| Permission | 工具权限检查 | 是 | Approve / Deny / Always |
-| Revert | 撤销确认 | 是 | Confirm / Cancel |
-| Followup | AI 完成后的建议 | 否 | 点击执行建议 |
-| Todo | AI 输出任务计划 | 否 | 查看修改 |
+| 类型       | 触发源          | 阻塞 | 用户响应                |
+| ---------- | --------------- | ---- | ----------------------- |
+| Question   | AI 运行时提问   | 是   | 文本回复 / 选项选择     |
+| Permission | 工具权限检查    | 是   | Approve / Deny / Always |
+| Revert     | 撤销确认        | 是   | Confirm / Cancel        |
+| Followup   | AI 完成后的建议 | 否   | 点击执行建议            |
+| Todo       | AI 输出任务计划 | 否   | 查看修改                |
 
 ---
 
@@ -286,8 +286,8 @@ createVirtualizer({
 ### 9.3 手势防护
 
 ```ts
-shouldMarkBoundaryGesture(e)  // 识别触控板边界手势
-normalizeWheelDelta(e)        // 归一化滚轮增量
+shouldMarkBoundaryGesture(e) // 识别触控板边界手势
+normalizeWheelDelta(e) // 归一化滚轮增量
 // 拦截会导致父容器滚动的 gesture → 阻止 Viewport 切换
 ```
 
@@ -326,14 +326,14 @@ commentMentions: @ 提及系统
 
 ## 11. 错误处理
 
-| 层级 | 机制 | 行为 |
-|------|------|------|
-| Route | ErrorBoundary + ErrorPage | 显示错误 + 重试 |
-| Server | ConnectionGate + ConnectionError | 健康检查 + 定时重试 |
-| SDK | formatServerError() | 格式化错误消息 |
-| Effect | Cause.fail + catchAll | 结构化错误传播 |
-| Session | NotFoundError, LifecycleConflict | 特定业务错误类型 |
-| UI | showToast() | 非阻塞错误通知 |
+| 层级    | 机制                             | 行为                |
+| ------- | -------------------------------- | ------------------- |
+| Route   | ErrorBoundary + ErrorPage        | 显示错误 + 重试     |
+| Server  | ConnectionGate + ConnectionError | 健康检查 + 定时重试 |
+| SDK     | formatServerError()              | 格式化错误消息      |
+| Effect  | Cause.fail + catchAll            | 结构化错误传播      |
+| Session | NotFoundError, LifecycleConflict | 特定业务错误类型    |
+| UI      | showToast()                      | 非阻塞错误通知      |
 
 ---
 
@@ -341,43 +341,43 @@ commentMentions: @ 提及系统
 
 Session 页面的键盘快捷键通过 `useSessionCommands()` 注册 (use-session-commands.tsx)：
 
-| 命令 ID | 快捷键 | 动作 |
-|----------|--------|------|
-| session.new | `mod+shift+s` | 新建会话 |
-| message.previous | `mod+alt+[` | 上一个消息 |
-| message.next | `mod+alt+]` | 下一个消息 |
-| file.open | `mod+k,mod+p` | 打开文件 |
-| fileTree.toggle | `mod+\` | 切换文件树 |
-| terminal.toggle | `ctrl+backtick` | 切换终端 |
-| terminal.new | `ctrl+alt+t` | 新建终端 |
-| review.toggle | `mod+shift+r` | 切换 Review 面板 |
-| model.choose | `mod+'` | 选择模型 |
-| model.variant.cycle | `shift+mod+d` | 循环 thinking effort |
-| agent.cycle | `mod+.` | 循环切换 Agent |
-| agent.cycle.reverse | `shift+mod+.` | 反向循环 Agent |
-| tab.close | `mod+w` | 关闭 Tab |
-| input.focus | `ctrl+l` | 聚焦输入框 |
-| permissions.autoaccept | `mod+shift+a` | 自动接受权限 |
-| context.addSelection | `mod+shift+l` | 添加选中行到上下文 |
+| 命令 ID                | 快捷键          | 动作                 |
+| ---------------------- | --------------- | -------------------- |
+| session.new            | `mod+shift+s`   | 新建会话             |
+| message.previous       | `mod+alt+[`     | 上一个消息           |
+| message.next           | `mod+alt+]`     | 下一个消息           |
+| file.open              | `mod+k,mod+p`   | 打开文件             |
+| fileTree.toggle        | `mod+\`         | 切换文件树           |
+| terminal.toggle        | `ctrl+backtick` | 切换终端             |
+| terminal.new           | `ctrl+alt+t`    | 新建终端             |
+| review.toggle          | `mod+shift+r`   | 切换 Review 面板     |
+| model.choose           | `mod+'`         | 选择模型             |
+| model.variant.cycle    | `shift+mod+d`   | 循环 thinking effort |
+| agent.cycle            | `mod+.`         | 循环切换 Agent       |
+| agent.cycle.reverse    | `shift+mod+.`   | 反向循环 Agent       |
+| tab.close              | `mod+w`         | 关闭 Tab             |
+| input.focus            | `ctrl+l`        | 聚焦输入框           |
+| permissions.autoaccept | `mod+shift+a`   | 自动接受权限         |
+| context.addSelection   | `mod+shift+l`   | 添加选中行到上下文   |
 
 ---
 
 ## 13. 上下游文件索引
 
-| 层级 | 关键文件 |
-|------|---------|
-| **路由入口** | app.tsx → TargetSessionRoute → TargetSessionPage |
-| **主组件** | pages/session.tsx (Session default export) |
-| **侧边栏** | pages/session/session-side-panel.tsx |
-| **消息列表** | pages/session/timeline/message-timeline.tsx |
-| **时间线模型** | pages/session/timeline/model.ts |
-| **输入框** | pages/session/composer/session-composer-region.tsx |
-| **中断状态** | pages/session/composer/session-composer-state.ts |
-| **终端** | pages/session/terminal-panel.tsx |
-| **审查** | pages/session/review-tab.tsx |
-| **布局** | pages/session/session-layout.ts |
-| **命令** | pages/session/use-session-commands.tsx |
-| **帮助函数** | pages/session/helpers.ts |
-| **Core API** | packages/core/src/session.ts (SessionV2) |
-| **SDK** | packages/sdk/js (client.session.*) |
-| **持久化** | utils/persist.ts (Persist.session / Persist.scoped) |
+| 层级           | 关键文件                                            |
+| -------------- | --------------------------------------------------- |
+| **路由入口**   | app.tsx → TargetSessionRoute → TargetSessionPage    |
+| **主组件**     | pages/session.tsx (Session default export)          |
+| **侧边栏**     | pages/session/session-side-panel.tsx                |
+| **消息列表**   | pages/session/timeline/message-timeline.tsx         |
+| **时间线模型** | pages/session/timeline/model.ts                     |
+| **输入框**     | pages/session/composer/session-composer-region.tsx  |
+| **中断状态**   | pages/session/composer/session-composer-state.ts    |
+| **终端**       | pages/session/terminal-panel.tsx                    |
+| **审查**       | pages/session/review-tab.tsx                        |
+| **布局**       | pages/session/session-layout.ts                     |
+| **命令**       | pages/session/use-session-commands.tsx              |
+| **帮助函数**   | pages/session/helpers.ts                            |
+| **Core API**   | packages/core/src/session.ts (SessionV2)            |
+| **SDK**        | packages/sdk/js (client.session.\*)                 |
+| **持久化**     | utils/persist.ts (Persist.session / Persist.scoped) |

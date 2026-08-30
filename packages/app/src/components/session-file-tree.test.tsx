@@ -55,7 +55,7 @@ describe("SessionFileTree (shared B 区, batch 4)", () => {
     const work = read("../pages/work-artifact-panel.tsx")
     const assistant = read("../pages/session/assistant-session-panel.tsx")
     expect(shell).toContain("props.fileTree ?? defaultFileTree")
-    expect(shell).toContain('onFileClick={(node) => void file.load(node.path)}')
+    expect(shell).toContain("onFileClick={(node) => void file.load(node.path)}")
     expect(work).not.toContain("fileTree=")
     expect(assistant).not.toContain("fileTree=")
   })

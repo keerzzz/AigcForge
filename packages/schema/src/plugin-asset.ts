@@ -38,8 +38,14 @@ export class SourceDef extends Schema.Class<SourceDef>("PluginAsset.SourceDef")(
 
 export class HookDef extends Schema.Class<HookDef>("PluginAsset.HookDef")({
   event: Schema.Literals([
-    "PreToolUse", "PostToolUse", "Stop", "UserPromptSubmit",
-    "Notification", "PermissionRequest", "SessionStart", "SessionEnd",
+    "PreToolUse",
+    "PostToolUse",
+    "Stop",
+    "UserPromptSubmit",
+    "Notification",
+    "PermissionRequest",
+    "SessionStart",
+    "SessionEnd",
   ]),
   command: Schema.String,
   timeout: Schema.optional(Schema.Number),
@@ -89,9 +95,7 @@ export class InvalidEntry extends Schema.Class<InvalidEntry>("PluginAsset.Invali
 }) {}
 
 // -- Bridge types (系统级桥接) --
-export const BridgeSource = Schema.Literals([
-  "claude-code", "codex", "cursor", "zcode", "kimi-code",
-])
+export const BridgeSource = Schema.Literals(["claude-code", "codex", "cursor", "zcode", "kimi-code"])
 export type BridgeSource = typeof BridgeSource.Type
 
 export class BundledCounts extends Schema.Class<BundledCounts>("PluginAsset.BundledCounts")({

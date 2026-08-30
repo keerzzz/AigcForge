@@ -82,10 +82,7 @@ describe("PromptAsset E2E (aigcfroge)", () => {
     }
 
     function toolLayer(dir: string, captured: string[]) {
-      return ProposePromptAssetTool.layer.pipe(
-        Layer.provide(toolsSpy(captured)),
-        Layer.provide(fullLayer(dir)),
-      )
+      return ProposePromptAssetTool.layer.pipe(Layer.provide(toolsSpy(captured)), Layer.provide(fullLayer(dir)))
     }
 
     async function registration(dir: string): Promise<string[]> {
@@ -148,7 +145,10 @@ describe("PromptAsset E2E (aigcfroge)", () => {
 
             // Propose
             const propose = yield* svc.propose({
-              name: "e2e-test", description: "E2E test", template: "Hello, {{world}}!", relativePath: "",
+              name: "e2e-test",
+              description: "E2E test",
+              template: "Hello, {{world}}!",
+              relativePath: "",
             } as any)
             expect(propose.exists).toBe(false)
             expect(propose.relativePath).toMatch(/\.md$/)
@@ -157,7 +157,12 @@ describe("PromptAsset E2E (aigcfroge)", () => {
 
             // Apply
             const applied = yield* svc.apply({
-              candidate: { name: "e2e-test", description: "E2E test", template: "Hello, {{world}}!", relativePath: "" } as any,
+              candidate: {
+                name: "e2e-test",
+                description: "E2E test",
+                template: "Hello, {{world}}!",
+                relativePath: "",
+              } as any,
               baseRevision: null,
               overwrite: false,
             })
@@ -199,7 +204,12 @@ describe("PromptAsset E2E (aigcfroge)", () => {
 
             // Apply
             const applied = yield* svc.apply({
-              candidate: { name: "del-test", description: "Delete test", template: "To be deleted", relativePath: "" } as any,
+              candidate: {
+                name: "del-test",
+                description: "Delete test",
+                template: "To be deleted",
+                relativePath: "",
+              } as any,
               baseRevision: null,
               overwrite: false,
             })
@@ -234,11 +244,13 @@ describe("PromptAsset E2E (aigcfroge)", () => {
               baseRevision: null,
               overwrite: false,
             })
-            return yield* svc.apply({
-              candidate: { name: "stale", description: "d", template: "v2", relativePath: "" } as any,
-              baseRevision: "0000000000000000000000000000000000000000000000000000000000000000",
-              overwrite: true,
-            }).pipe(Effect.flip)
+            return yield* svc
+              .apply({
+                candidate: { name: "stale", description: "d", template: "v2", relativePath: "" } as any,
+                baseRevision: "0000000000000000000000000000000000000000000000000000000000000000",
+                overwrite: true,
+              })
+              .pipe(Effect.flip)
           }).pipe(Effect.provide(layer), Effect.scoped),
         ).catch((e: unknown) => e)
         expect(err).toBeDefined()
@@ -253,9 +265,14 @@ describe("PromptAsset E2E (aigcfroge)", () => {
         const err = await runNow(
           Effect.gen(function* () {
             const svc = yield* PromptAssetService.Service
-            return yield* svc.propose({
-              name: "escape", description: "d", template: "d", relativePath: "../../../etc/passwd",
-            } as any).pipe(Effect.flip)
+            return yield* svc
+              .propose({
+                name: "escape",
+                description: "d",
+                template: "d",
+                relativePath: "../../../etc/passwd",
+              } as any)
+              .pipe(Effect.flip)
           }).pipe(Effect.provide(layer), Effect.scoped),
         ).catch((e: unknown) => e)
         expect(err).toBeDefined()

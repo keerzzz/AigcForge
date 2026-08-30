@@ -34,12 +34,12 @@ URL: /mode/:mode
 
 ## 3. Owner 边界
 
-| Owner | 文件 | 职责 |
-|---|---|---|
-| Global Home 页面 | `home-overview.tsx` | all/mode/project 筛选、lastActive 置顶、badge、全量 Session 搜索、查询生命周期 |
-| Home Session 共享构件 | `home-shared.tsx` | `HOME_SESSION_LIMIT`、`HomeSessionRecord/Group`、`buildHomeSessionRecords`、`matchesHomeSessionSearch`、`homeSessionSearchKey`、`groupSessions`、`HomeSessionLeading/Search/SearchResultRow/GroupHeader/Row/Skeleton` |
-| Coding 项目树 | `coding-project-column.tsx` | `HomeProjectColumn`/`HomeProjectRow` + server/project 行、多 server/多项目选择、项目操作、通知、Coding 新建会话 |
-| 页面 owner 内联 | `mode-workspace-slots.tsx` | Coding 预取/搜索状态、Work 预设、各模式查询生命周期 |
+| Owner                 | 文件                        | 职责                                                                                                                                                                                                                  |
+| --------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Global Home 页面      | `home-overview.tsx`         | all/mode/project 筛选、lastActive 置顶、badge、全量 Session 搜索、查询生命周期                                                                                                                                        |
+| Home Session 共享构件 | `home-shared.tsx`           | `HOME_SESSION_LIMIT`、`HomeSessionRecord/Group`、`buildHomeSessionRecords`、`matchesHomeSessionSearch`、`homeSessionSearchKey`、`groupSessions`、`HomeSessionLeading/Search/SearchResultRow/GroupHeader/Row/Skeleton` |
+| Coding 项目树         | `coding-project-column.tsx` | `HomeProjectColumn`/`HomeProjectRow` + server/project 行、多 server/多项目选择、项目操作、通知、Coding 新建会话                                                                                                       |
+| 页面 owner 内联       | `mode-workspace-slots.tsx`  | Coding 预取/搜索状态、Work 预设、各模式查询生命周期                                                                                                                                                                   |
 
 `home-shared.tsx` 不再拥有 Coding 项目树；`coding-project-column.tsx` 不是 Home 页面 owner，也不得替换为 `ModeLocationNewSession`（Work/Assistant 才消费后者；Chat 的 Location 由 `ChatFeatureSidebar` 内联持有）。
 
@@ -114,15 +114,15 @@ Coding 项目搜索、Chat 资产/文件搜索为各自领域 owner，不复用 
 
 ## 6. 错误与边界处理
 
-| 场景 | 处理 |
-|------|------|
-| 无项目 | 引导 UI — 打开项目的提示 |
-| 搜索为空 | "No results found" 反馈 |
-| Session 加载中 | createResource loading 状态（HomeSessionSkeleton） |
-| 当前 Mode 无 Session | Mode-scoped 空状态 + 显式新建入口，不自动创建 |
-| 当前 route Session 与 Mode 不一致 | 保留当前 Session，显示紧凑归属提示 |
-| 服务器断开 | ConnectionGate 401 门禁 |
-| settings 开关关闭 | showStatus / showFileTree 隐藏对应 UI |
+| 场景                              | 处理                                               |
+| --------------------------------- | -------------------------------------------------- |
+| 无项目                            | 引导 UI — 打开项目的提示                           |
+| 搜索为空                          | "No results found" 反馈                            |
+| Session 加载中                    | createResource loading 状态（HomeSessionSkeleton） |
+| 当前 Mode 无 Session              | Mode-scoped 空状态 + 显式新建入口，不自动创建      |
+| 当前 route Session 与 Mode 不一致 | 保留当前 Session，显示紧凑归属提示                 |
+| 服务器断开                        | ConnectionGate 401 门禁                            |
+| settings 开关关闭                 | showStatus / showFileTree 隐藏对应 UI              |
 
 ## 7. 性能考虑
 
@@ -134,16 +134,16 @@ Coding 项目搜索、Chat 资产/文件搜索为各自领域 owner，不复用 
 
 ## 8. 上下游文件索引
 
-| 层级 | 文件 |
-|------|------|
-| 路由定义 | app.tsx (Routes -> <Route path="/" component={HomeOverview} />) |
-| 全局首页 | pages/home-overview.tsx |
-| 共享 Session 构件 | pages/home-shared.tsx |
-| Coding 项目树 | pages/coding-project-column.tsx |
-| 项目数据 | context/layout.tsx (useLayout) |
-| 数据同步 | context/server-sync.ts (useServerSync) |
-| Session 构建 | pages/home-shared.tsx (buildHomeSessionRecords, groupSessions) |
-| 打开会话 | pages/layout/helpers.ts (openSessionRecord, openProjectNewSession) |
-| 目录选择器 | components/directory-picker.tsx (useDirectoryPicker) |
-| 对话框 | components/dialog-settings.tsx |
-| 持久化 | context/settings.tsx + utils/persist.ts |
+| 层级              | 文件                                                               |
+| ----------------- | ------------------------------------------------------------------ |
+| 路由定义          | app.tsx (Routes -> <Route path="/" component={HomeOverview} />)    |
+| 全局首页          | pages/home-overview.tsx                                            |
+| 共享 Session 构件 | pages/home-shared.tsx                                              |
+| Coding 项目树     | pages/coding-project-column.tsx                                    |
+| 项目数据          | context/layout.tsx (useLayout)                                     |
+| 数据同步          | context/server-sync.ts (useServerSync)                             |
+| Session 构建      | pages/home-shared.tsx (buildHomeSessionRecords, groupSessions)     |
+| 打开会话          | pages/layout/helpers.ts (openSessionRecord, openProjectNewSession) |
+| 目录选择器        | components/directory-picker.tsx (useDirectoryPicker)               |
+| 对话框            | components/dialog-settings.tsx                                     |
+| 持久化            | context/settings.tsx + utils/persist.ts                            |

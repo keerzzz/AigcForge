@@ -10,6 +10,7 @@
 本文档保留原始 PRD 内容作为设计参考。当前代码库已包含 Mode Switcher 和共享 Session 工作面；多模式专属 Viewport 与 Status Bar 仍未实现。
 
 实现时请参考:
+
 - architecture/system-blueprint.md 第 9 节 (后续规划)
 - architecture/pages/mode-switcher.md (IN PROGRESS)
 - architecture/pages/chat.md (PLANNED)

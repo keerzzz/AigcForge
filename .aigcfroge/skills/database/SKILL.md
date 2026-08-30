@@ -170,12 +170,12 @@ PRAGMA foreign_keys = ON
 
 ### 自定义列类型 (path.ts)
 
-| 类型 | 用途 | 行为 |
-|---|---|---|
-| `absoluteColumn` | 存储绝对路径 | 验证 isAbsolute，Windows 路径归一化 |
-| `directoryColumn` | 存储目录路径 | 允许空字符串（兼容旧数据），否则验证 absolute |
-| `pathColumn` | 存储路径（无校验） | 仅做 storage path 转换（Win → POSIX） |
-| `absoluteArrayColumn` | 绝对路径数组 | JSON 序列化/反序列化 |
+| 类型                  | 用途               | 行为                                          |
+| --------------------- | ------------------ | --------------------------------------------- |
+| `absoluteColumn`      | 存储绝对路径       | 验证 isAbsolute，Windows 路径归一化           |
+| `directoryColumn`     | 存储目录路径       | 允许空字符串（兼容旧数据），否则验证 absolute |
+| `pathColumn`          | 存储路径（无校验） | 仅做 storage path 转换（Win → POSIX）         |
+| `absoluteArrayColumn` | 绝对路径数组       | JSON 序列化/反序列化                          |
 
 ### 迁移文件模板
 
@@ -213,27 +213,27 @@ applyOnly(db, migrations)
 
 ### 关键类型
 
-| 类型 | 来源 | 用途 |
-|---|---|---|
-| `DatabaseMigration.Migration` | `migration.ts` | `{ id: string, up: (tx) => Effect }` |
-| `EffectDrizzleSqlite.EffectSQLiteDatabase` | `effect-drizzle-sqlite` | 类型安全 DB 实例 |
-| `Transaction` | `migration.ts` line 10 | migration 内 `tx.run(...)` 类型 |
-| `Service` (Database) | `database.ts` | `{ db: DatabaseShape }` |
-| `AbsolutePath` | `schema.ts` Brand | 标记的绝对路径类型 |
+| 类型                                       | 来源                    | 用途                                 |
+| ------------------------------------------ | ----------------------- | ------------------------------------ |
+| `DatabaseMigration.Migration`              | `migration.ts`          | `{ id: string, up: (tx) => Effect }` |
+| `EffectDrizzleSqlite.EffectSQLiteDatabase` | `effect-drizzle-sqlite` | 类型安全 DB 实例                     |
+| `Transaction`                              | `migration.ts` line 10  | migration 内 `tx.run(...)` 类型      |
+| `Service` (Database)                       | `database.ts`           | `{ db: DatabaseShape }`              |
+| `AbsolutePath`                             | `schema.ts` Brand       | 标记的绝对路径类型                   |
 
 ### 文件位置
 
-| 路径 | 内容 |
-|---|---|
-| `packages/core/src/database/database.ts` | Database Layer、PRAGMA、路径推导 |
-| `packages/core/src/database/migration.ts` | 迁移引擎（apply/applyOnly） |
-| `packages/core/src/database/migration.gen.ts` | 迁移文件自动注册 |
-| `packages/core/src/database/schema.gen.ts` | 基础 DDL (首次建表) |
-| `packages/core/src/database/schema.sql.ts` | `Timestamps` 辅助字段 |
-| `packages/core/src/database/path.ts` | 自定义列类型 |
-| `packages/core/src/database/migration/*.ts` | 单个迁移文件 |
-| `packages/effect-drizzle-sqlite/src/` | Drizzle-Effect 桥接层 |
-| `packages/core/schema.json` | Drizzle Kit schema 快照 |
+| 路径                                          | 内容                             |
+| --------------------------------------------- | -------------------------------- |
+| `packages/core/src/database/database.ts`      | Database Layer、PRAGMA、路径推导 |
+| `packages/core/src/database/migration.ts`     | 迁移引擎（apply/applyOnly）      |
+| `packages/core/src/database/migration.gen.ts` | 迁移文件自动注册                 |
+| `packages/core/src/database/schema.gen.ts`    | 基础 DDL (首次建表)              |
+| `packages/core/src/database/schema.sql.ts`    | `Timestamps` 辅助字段            |
+| `packages/core/src/database/path.ts`          | 自定义列类型                     |
+| `packages/core/src/database/migration/*.ts`   | 单个迁移文件                     |
+| `packages/effect-drizzle-sqlite/src/`         | Drizzle-Effect 桥接层            |
+| `packages/core/schema.json`                   | Drizzle Kit schema 快照          |
 
 ## Success Criteria
 

@@ -266,54 +266,62 @@ const skillV2 = Layer.succeed(
 // module bridge (installed in setup), not a Layer, so it carries no seam deps.
 const toolsRegister = Layer.effect(
   Tools.Service,
-  ToolRegistry.Service.use((reg) => Effect.succeed(Tools.Service.of({ register: reg.register, registerSession: reg.registerSession }))),
+  ToolRegistry.Service.use((reg) =>
+    Effect.succeed(Tools.Service.of({ register: reg.register, registerSession: reg.registerSession })),
+  ),
 ).pipe(Layer.provide(registry))
 // Provide only taskTool-specific deps here; agents/permission stay as
 // requirements satisfied once at the outer pipe so setup's AgentV2.transform and
 // the tool's AgentV2.resolve share the same State instance.
-const taskTool = TaskTool.layer.pipe(Layer.provide(toolsRegister), Layer.provide(config), Layer.provide(EventV2.defaultLayer))
+const taskTool = TaskTool.layer.pipe(
+  Layer.provide(toolsRegister),
+  Layer.provide(config),
+  Layer.provide(EventV2.defaultLayer),
+)
 
 const sessionComposition = SessionComposition.layer.pipe(Layer.provide(Database.defaultLayer))
-const runner = SessionRunnerLLM.layer.pipe(
-  Layer.provide(sessionComposition),
-  Layer.provide(appProcess),
-  Layer.provide(skillV2),
-  Layer.provide(Database.defaultLayer),
-  Layer.provide(SessionStore.defaultLayer),
-  Layer.provide(EventV2.defaultLayer),
-  Layer.provide(client),
-  Layer.provide(registry),
-  Layer.provide(models),
-  Layer.provide(systemContext),
-).pipe(
-  Layer.provide(location),
-  Layer.provide(agents),
-  Layer.provide(skillGuidance),
-  Layer.provide(referenceGuidance),
-  Layer.provide(DoomLoop.layer),
-  Layer.provide(CorrectionExtractor.layer),
-  Layer.provide(CorrectionStore.layer),
-  Layer.provide(
-    Verifier.layer.pipe(
-      Layer.provide(VerificationRouter.layer.pipe(Layer.provide(config))),
-      Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
-      Layer.provide(EventV2.defaultLayer.pipe(Layer.provide(Database.defaultLayer))),
-      Layer.provide(location),
-      Layer.provide(appProcess),
-      Layer.provide(config),
+const runner = SessionRunnerLLM.layer
+  .pipe(
+    Layer.provide(sessionComposition),
+    Layer.provide(appProcess),
+    Layer.provide(skillV2),
+    Layer.provide(Database.defaultLayer),
+    Layer.provide(SessionStore.defaultLayer),
+    Layer.provide(EventV2.defaultLayer),
+    Layer.provide(client),
+    Layer.provide(registry),
+    Layer.provide(models),
+    Layer.provide(systemContext),
+  )
+  .pipe(
+    Layer.provide(location),
+    Layer.provide(agents),
+    Layer.provide(skillGuidance),
+    Layer.provide(referenceGuidance),
+    Layer.provide(DoomLoop.layer),
+    Layer.provide(CorrectionExtractor.layer),
+    Layer.provide(CorrectionStore.layer),
+    Layer.provide(
+      Verifier.layer.pipe(
+        Layer.provide(VerificationRouter.layer.pipe(Layer.provide(config))),
+        Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
+        Layer.provide(EventV2.defaultLayer.pipe(Layer.provide(Database.defaultLayer))),
+        Layer.provide(location),
+        Layer.provide(appProcess),
+        Layer.provide(config),
+      ),
     ),
-  ),
-  Layer.provide(
-    ReferenceChecker.layer.pipe(
-      Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
-      Layer.provide(location),
-      Layer.provide(config),
-      Layer.provide(Ripgrep.layer.pipe(Layer.provide(RipgrepBinary.defaultLayer), Layer.provide(appProcess))),
-      Layer.provide(FSUtil.defaultLayer),
+    Layer.provide(
+      ReferenceChecker.layer.pipe(
+        Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
+        Layer.provide(location),
+        Layer.provide(config),
+        Layer.provide(Ripgrep.layer.pipe(Layer.provide(RipgrepBinary.defaultLayer), Layer.provide(appProcess))),
+        Layer.provide(FSUtil.defaultLayer),
+      ),
     ),
-  ),
-  Layer.provide(config),
-)
+    Layer.provide(config),
+  )
 const execution = Layer.effect(
   SessionExecution.Service,
   Effect.gen(function* () {
@@ -341,34 +349,38 @@ const taskDriverInitializer = Layer.effectDiscard(
   Effect.gen(function* () {
     const sessions = yield* SessionV2.Service
     const background = yield* BackgroundJob.Service
-    yield* TaskDriver.initialize(yield* TaskDriver.installForTesting(
-      sessions,
-      {
-        start: (sessionID, work) => background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
-        wait: (sessionID) =>
-          background.wait({ id: sessionID }).pipe(
-            Effect.map(({ info }) =>
-              info && info.status !== "running"
-                ? { status: info.status, ...(info.error ? { error: info.error } : {}) }
-                : undefined,
-            ),
-          ),
-        cancel: (sessionID) => background.cancel(sessionID).pipe(Effect.asVoid),
-        extend: (sessionID, work) => background.extend({ id: sessionID, run: work.pipe(Effect.as("")) }),
-      },
-      {
-        execute: (input) => {
-          cliReceived.push(input)
-          if (cliError) return Effect.fail(cliError)
-          const done = Effect.succeed({ text: cliResultText, sessionID: cliResultSessionID, status: cliResultStatus })
-          if (!cliGate) return done
-          return (cliStarted ? Deferred.succeed(cliStarted, undefined) : Effect.void).pipe(
-            Effect.andThen(Deferred.await(cliGate)),
-            Effect.andThen(done),
-          )
+    yield* TaskDriver.initialize(
+      yield* TaskDriver.installForTesting(
+        sessions,
+        {
+          start: (sessionID, work) => background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
+          wait: (sessionID) =>
+            background
+              .wait({ id: sessionID })
+              .pipe(
+                Effect.map(({ info }) =>
+                  info && info.status !== "running"
+                    ? { status: info.status, ...(info.error ? { error: info.error } : {}) }
+                    : undefined,
+                ),
+              ),
+          cancel: (sessionID) => background.cancel(sessionID).pipe(Effect.asVoid),
+          extend: (sessionID, work) => background.extend({ id: sessionID, run: work.pipe(Effect.as("")) }),
         },
-      },
-    ))
+        {
+          execute: (input) => {
+            cliReceived.push(input)
+            if (cliError) return Effect.fail(cliError)
+            const done = Effect.succeed({ text: cliResultText, sessionID: cliResultSessionID, status: cliResultStatus })
+            if (!cliGate) return done
+            return (cliStarted ? Deferred.succeed(cliStarted, undefined) : Effect.void).pipe(
+              Effect.andThen(Deferred.await(cliGate)),
+              Effect.andThen(done),
+            )
+          },
+        },
+      ),
+    )
   }),
 )
 const rootServices = Layer.mergeAll(
@@ -608,7 +620,10 @@ describe("task tool — child Session delegation", () => {
       const childAssistant = childMessages.find((message) => message.type === "assistant")
       const childText =
         childAssistant?.type === "assistant"
-          ? childAssistant.content.filter((part) => part.type === "text").map((part) => part.text).join("")
+          ? childAssistant.content
+              .filter((part) => part.type === "text")
+              .map((part) => part.text)
+              .join("")
           : ""
       expect(childText).toBe("")
     }),
@@ -726,7 +741,11 @@ describe("task tool — child Session delegation", () => {
       yield* setup
       const session = yield* SessionV2.Service
 
-      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate unattended" }), resume: false })
+      yield* session.prompt({
+        sessionID: parentID,
+        prompt: Prompt.make({ text: "delegate unattended" }),
+        resume: false,
+      })
       yield* session.resume(parentID)
 
       const children = yield* session.children(parentID)
@@ -791,7 +810,11 @@ describe("task tool — child Session delegation", () => {
       cliResultText = "cli failed output"
       const session = yield* SessionV2.Service
 
-      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate failing cli" }), resume: false })
+      yield* session.prompt({
+        sessionID: parentID,
+        prompt: Prompt.make({ text: "delegate failing cli" }),
+        resume: false,
+      })
       yield* session.resume(parentID)
 
       const state = yield* session.context(parentID).pipe(Effect.map(readTaskToolState))
@@ -810,7 +833,11 @@ describe("task tool — child Session delegation", () => {
       cliMissingTarget = true
       const session = yield* SessionV2.Service
 
-      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate missing target" }), resume: false })
+      yield* session.prompt({
+        sessionID: parentID,
+        prompt: Prompt.make({ text: "delegate missing target" }),
+        resume: false,
+      })
       yield* session.resume(parentID)
 
       const state = yield* session.context(parentID).pipe(Effect.map(readTaskToolState))
@@ -827,7 +854,11 @@ describe("task tool — child Session delegation", () => {
       cliTarget = "gemini"
       const session = yield* SessionV2.Service
 
-      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate with permission" }), resume: false })
+      yield* session.prompt({
+        sessionID: parentID,
+        prompt: Prompt.make({ text: "delegate with permission" }),
+        resume: false,
+      })
       yield* session.resume(parentID)
 
       const call = permissionCalls.at(-1)
@@ -846,15 +877,14 @@ describe("task tool — child Session delegation", () => {
       const session = yield* SessionV2.Service
       const { db } = yield* Database.Service
 
-      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate with task link" }), resume: false })
+      yield* session.prompt({
+        sessionID: parentID,
+        prompt: Prompt.make({ text: "delegate with task link" }),
+        resume: false,
+      })
       yield* session.resume(parentID)
 
-      const rows = yield* db
-        .select()
-        .from(TaskTable)
-        .where(eq(TaskTable.session_id, parentID))
-        .all()
-        .pipe(Effect.orDie)
+      const rows = yield* db.select().from(TaskTable).where(eq(TaskTable.session_id, parentID)).all().pipe(Effect.orDie)
       const linked = rows.find((row) => row.content === "do work")
       expect(linked).toBeDefined()
       expect(linked?.status).toBe("completed")
@@ -869,19 +899,18 @@ describe("task tool — child Session delegation", () => {
       const session = yield* SessionV2.Service
       const { db } = yield* Database.Service
 
-      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate failing cli" }), resume: false })
+      yield* session.prompt({
+        sessionID: parentID,
+        prompt: Prompt.make({ text: "delegate failing cli" }),
+        resume: false,
+      })
       yield* session.resume(parentID)
 
       // The tool call errored, but the auto-created track-B task settled
       // failed instead of leaking an in_progress row.
       const state = yield* session.context(parentID).pipe(Effect.map(readTaskToolState))
       expect(state?.status).toBe("error")
-      const rows = yield* db
-        .select()
-        .from(TaskTable)
-        .where(eq(TaskTable.session_id, parentID))
-        .all()
-        .pipe(Effect.orDie)
+      const rows = yield* db.select().from(TaskTable).where(eq(TaskTable.session_id, parentID)).all().pipe(Effect.orDie)
       const linked = rows.find((row) => row.content === "do work")
       expect(linked?.status).toBe("failed")
     }),

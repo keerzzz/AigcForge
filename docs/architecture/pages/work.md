@@ -12,17 +12,17 @@ Work 模式是产品的**非编程执行层**——通过硬编码系统预设�
 
 ## 核心能力与落地状态（PRD v4.1 定义）
 
-| 能力 | 状态 |
-|---|---|
-| **Presets Catalog**（4 分类预设卡片库，覆盖 12 大 IT 工种 + 5 类泛人群，M1 落地 4 个高置信预设） | ✅ M1 已实现 |
-| **work-orchestrator 澄清**（question tool 问卷 ≤5 题，`guided` 预设强制问卷） | ✅ M1 已实现 |
-| **只读安全预览**（候选稿 = assistant 消息正文，右栏 Artifact Tab 渲染，无编辑入口） | ✅ M1 已实现 |
-| **同名冲突询问**（orchestrator 询问重命名/覆盖 + 新旧 Diff 确认） | ✅ M1 已实现 |
-| **原子落盘 + Artifact 投影**（内存态记录 + `work.artifact_applied` 事件，ADR-15 §5 不落库） | ✅ M1 已实现 |
-| **首页会话历史**（mode=work 历史列表 + 点开继续） | 🚧 M1 收尾（[M1 计划 §3.5](../../plan/work-mode-execution-layer-m1.md)） |
-| **用户工作流资产**（Chat workflow 资产进首页卡片，引导降级执行） | 🚧 M1 收尾（[M1 计划 §3.5](../../plan/work-mode-execution-layer-m1.md)） |
-| Progress Ledger 步骤账本 + 断点恢复 (Resume) | ⏳ M1.5（依赖 Todo 分支 Task 模型） |
-| 存为资产 → Chat 资产工作室 | ⏳ M2 |
+| 能力                                                                                             | 状态                                                                     |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| **Presets Catalog**（4 分类预设卡片库，覆盖 12 大 IT 工种 + 5 类泛人群，M1 落地 4 个高置信预设） | ✅ M1 已实现                                                             |
+| **work-orchestrator 澄清**（question tool 问卷 ≤5 题，`guided` 预设强制问卷）                    | ✅ M1 已实现                                                             |
+| **只读安全预览**（候选稿 = assistant 消息正文，右栏 Artifact Tab 渲染，无编辑入口）              | ✅ M1 已实现                                                             |
+| **同名冲突询问**（orchestrator 询问重命名/覆盖 + 新旧 Diff 确认）                                | ✅ M1 已实现                                                             |
+| **原子落盘 + Artifact 投影**（内存态记录 + `work.artifact_applied` 事件，ADR-15 §5 不落库）      | ✅ M1 已实现                                                             |
+| **首页会话历史**（mode=work 历史列表 + 点开继续）                                                | 🚧 M1 收尾（[M1 计划 §3.5](../../plan/work-mode-execution-layer-m1.md)） |
+| **用户工作流资产**（Chat workflow 资产进首页卡片，引导降级执行）                                 | 🚧 M1 收尾（[M1 计划 §3.5](../../plan/work-mode-execution-layer-m1.md)） |
+| Progress Ledger 步骤账本 + 断点恢复 (Resume)                                                     | ⏳ M1.5（依赖 Todo 分支 Task 模型）                                      |
+| 存为资产 → Chat 资产工作室                                                                       | ⏳ M2                                                                    |
 
 ## 布局
 

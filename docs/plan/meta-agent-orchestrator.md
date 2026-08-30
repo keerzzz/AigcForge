@@ -12,12 +12,12 @@
 
 **meta agent 不是"复制 build agent 的代码"。**
 
-| 策略 | 操作 | 涉及的当前项目代码 |
-|------|------|------------------|
-| **现有架构内新建 Agent** | 在 `agent.ts` 注册表新增 `meta` 条目，与 `build`/`plan`/`general` 平级 | `agent/agent.ts` — 注册表扩展 |
-| **权限继承** | 复用 build 的权限基座（全工具 allow 的 `defaults`），叠加编排工具特权 | `agent/agent.ts` — `Permission.merge(defaults, metaExtras)` |
-| **全新编排能力** | intent.ts、engine-selector.ts、mention.ts 等均为全新代码，build 不具备 | 所有 `agent/meta/*.ts` — 全新文件 |
-| **模式移植（非代码拷贝）** | 从 `/web/aigcfroge` 移植架构模式（意图分类、CLI 适配器），从 `/cc` 移植协调器模式，全部适配为当前项目的 Effect/Schema 版本和模块约定 | 无外部代码直接引用 |
+| 策略                       | 操作                                                                                                                                 | 涉及的当前项目代码                                          |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| **现有架构内新建 Agent**   | 在 `agent.ts` 注册表新增 `meta` 条目，与 `build`/`plan`/`general` 平级                                                               | `agent/agent.ts` — 注册表扩展                               |
+| **权限继承**               | 复用 build 的权限基座（全工具 allow 的 `defaults`），叠加编排工具特权                                                                | `agent/agent.ts` — `Permission.merge(defaults, metaExtras)` |
+| **全新编排能力**           | intent.ts、engine-selector.ts、mention.ts 等均为全新代码，build 不具备                                                               | 所有 `agent/meta/*.ts` — 全新文件                           |
+| **模式移植（非代码拷贝）** | 从 `/web/aigcfroge` 移植架构模式（意图分类、CLI 适配器），从 `/cc` 移植协调器模式，全部适配为当前项目的 Effect/Schema 版本和模块约定 | 无外部代码直接引用                                          |
 
 ```
 meta agent = build 的权限基座 + 编排能力(新建) + 模式移植(翻译适配)
@@ -47,39 +47,40 @@ meta agent = build 的权限基座 + 编排能力(新建) + 模式移植(翻译�
 
 ## 总文件变更清单
 
-| 操作 | 文件路径 | 阶段 | 用途 |
-|------|---------|------|------|
-| 新建 | `packages/aigcfroge/src/agent/meta-agent.ts` | P1 | 元智能体定义 |
-| 新建 | `packages/aigcfroge/src/agent/prompt/meta.txt` | P1 | 系统提示（L1/L2/L3 缓存结构） |
-| 新建 | `packages/aigcfroge/src/agent/meta/intent.ts` | P1 | 意图分类器 |
-| 新建 | `packages/aigcfroge/src/agent/meta/engine-selector.ts` | P1 | 引擎路由 |
-| 新建 | `packages/aigcfroge/src/agent/meta/mention.ts` | P1 | @mention 解析器 |
-| 新建 | `packages/aigcfroge/src/agent/meta/context-builder.ts` | P1 | 委派上下文构建器（C3 修复） |
-| 新建 | `packages/aigcfroge/src/agent/meta/cache-warmth.ts` | P1 | 缓存预热跟踪 |
-| 修改 | `packages/aigcfroge/src/agent/agent.ts` | P1 | 注册 meta + 默认 agent 变更 + 回退开关 |
-| 修改 | `packages/aigcfroge/src/agent/subagent-permissions.ts` | P1 | meta 的子智能体权限派生（C5 修复） |
-| 修改 | `packages/core/src/plugin/agent.ts` | P1 | V2 系统 meta 注册 |
-| 新建 | `packages/aigcfroge/src/agent/meta/adapters/interface.ts` | P2 | CLI 适配器接口 |
-| 新建 | `packages/aigcfroge/src/agent/meta/adapters/delegation-parser.ts` | P2 | CLI 输出解析工具（C2 修复） |
-| 新建 | `packages/aigcfroge/src/agent/meta/adapters/registry.ts` | P2 | 适配器注册表 |
-| 新建 | `packages/aigcfroge/src/agent/meta/adapters/scanner.ts` | P2 | CLI 扫描器 |
-| 新建 | `packages/aigcfroge/src/agent/meta/adapters/claude-code.ts` | P2 | Claude Code 适配器 |
-| 新建 | `packages/aigcfroge/src/agent/meta/adapters/timeout.ts` | P2 | 超时与错误处理框架（I1 整合） |
-| 修改 | `packages/aigcfroge/src/tool/task.ts` | P2 | CLI 模式执行分支（C1 详细设计） |
-| 新建 | `packages/aigcfroge/src/agent/meta/workflow/state.ts` | P3 | 工作流状态管理 |
-| 新建 | `packages/aigcfroge/src/agent/meta/workflow/pipeline.ts` | P3 | 串行 pipeline 执行器 |
-| 新建 | `packages/aigcfroge/src/agent/meta/workflow/fanout.ts` | P3 | 并行 fan-out 执行器 |
-| 修改 | `packages/plugin/src/v2/effect/context.ts` | P4 | PluginContext 新增 meta 域 |
-| 新建 | `packages/plugin/src/v2/effect/meta.ts` | P4 | MetaHooks 接口定义 |
-| 修改 | `packages/plugin/src/v2/effect/index.ts` | P4 | 导出 MetaHooks |
-| 新建 | `packages/aigcfroge/src/agent/meta/plugin-gen.ts` | P4 | Chat 模式生成插件 |
-| 新建 | `packages/aigcfroge/src/agent/meta/adapters/gemini.ts` | P5 | Gemini CLI 适配器 |
-| 新建 | `packages/aigcfroge/src/agent/meta/adapters/codex.ts` | P5 | Codex CLI 适配器 |
-| 修改 | `packages/aigcfroge/src/agent/meta/cache-warmth.ts` | P5 | 缓存增强 |
-| 新 migration | `packages/core/src/database/migration/<timestamp>_meta_agent_session_v2.ts` | P5 | meta_agent_session 扩展（C6 修复） |
-| 修改 | `packages/core/src/meta-agent/sql.ts` | P5 | 扩展字段 |
+| 操作         | 文件路径                                                                    | 阶段 | 用途                                   |
+| ------------ | --------------------------------------------------------------------------- | ---- | -------------------------------------- |
+| 新建         | `packages/aigcfroge/src/agent/meta-agent.ts`                                | P1   | 元智能体定义                           |
+| 新建         | `packages/aigcfroge/src/agent/prompt/meta.txt`                              | P1   | 系统提示（L1/L2/L3 缓存结构）          |
+| 新建         | `packages/aigcfroge/src/agent/meta/intent.ts`                               | P1   | 意图分类器                             |
+| 新建         | `packages/aigcfroge/src/agent/meta/engine-selector.ts`                      | P1   | 引擎路由                               |
+| 新建         | `packages/aigcfroge/src/agent/meta/mention.ts`                              | P1   | @mention 解析器                        |
+| 新建         | `packages/aigcfroge/src/agent/meta/context-builder.ts`                      | P1   | 委派上下文构建器（C3 修复）            |
+| 新建         | `packages/aigcfroge/src/agent/meta/cache-warmth.ts`                         | P1   | 缓存预热跟踪                           |
+| 修改         | `packages/aigcfroge/src/agent/agent.ts`                                     | P1   | 注册 meta + 默认 agent 变更 + 回退开关 |
+| 修改         | `packages/aigcfroge/src/agent/subagent-permissions.ts`                      | P1   | meta 的子智能体权限派生（C5 修复）     |
+| 修改         | `packages/core/src/plugin/agent.ts`                                         | P1   | V2 系统 meta 注册                      |
+| 新建         | `packages/aigcfroge/src/agent/meta/adapters/interface.ts`                   | P2   | CLI 适配器接口                         |
+| 新建         | `packages/aigcfroge/src/agent/meta/adapters/delegation-parser.ts`           | P2   | CLI 输出解析工具（C2 修复）            |
+| 新建         | `packages/aigcfroge/src/agent/meta/adapters/registry.ts`                    | P2   | 适配器注册表                           |
+| 新建         | `packages/aigcfroge/src/agent/meta/adapters/scanner.ts`                     | P2   | CLI 扫描器                             |
+| 新建         | `packages/aigcfroge/src/agent/meta/adapters/claude-code.ts`                 | P2   | Claude Code 适配器                     |
+| 新建         | `packages/aigcfroge/src/agent/meta/adapters/timeout.ts`                     | P2   | 超时与错误处理框架（I1 整合）          |
+| 修改         | `packages/aigcfroge/src/tool/task.ts`                                       | P2   | CLI 模式执行分支（C1 详细设计）        |
+| 新建         | `packages/aigcfroge/src/agent/meta/workflow/state.ts`                       | P3   | 工作流状态管理                         |
+| 新建         | `packages/aigcfroge/src/agent/meta/workflow/pipeline.ts`                    | P3   | 串行 pipeline 执行器                   |
+| 新建         | `packages/aigcfroge/src/agent/meta/workflow/fanout.ts`                      | P3   | 并行 fan-out 执行器                    |
+| 修改         | `packages/plugin/src/v2/effect/context.ts`                                  | P4   | PluginContext 新增 meta 域             |
+| 新建         | `packages/plugin/src/v2/effect/meta.ts`                                     | P4   | MetaHooks 接口定义                     |
+| 修改         | `packages/plugin/src/v2/effect/index.ts`                                    | P4   | 导出 MetaHooks                         |
+| 新建         | `packages/aigcfroge/src/agent/meta/plugin-gen.ts`                           | P4   | Chat 模式生成插件                      |
+| 新建         | `packages/aigcfroge/src/agent/meta/adapters/gemini.ts`                      | P5   | Gemini CLI 适配器                      |
+| 新建         | `packages/aigcfroge/src/agent/meta/adapters/codex.ts`                       | P5   | Codex CLI 适配器                       |
+| 修改         | `packages/aigcfroge/src/agent/meta/cache-warmth.ts`                         | P5   | 缓存增强                               |
+| 新 migration | `packages/core/src/database/migration/<timestamp>_meta_agent_session_v2.ts` | P5   | meta_agent_session 扩展（C6 修复）     |
+| 修改         | `packages/core/src/meta-agent/sql.ts`                                       | P5   | 扩展字段                               |
 
 **已移除的计划项（经审计否决）**：
+
 - ~~修改 `packages/aigcfroge/src/session/tools.ts`~~ — AdapterRegistry 可通过 task.ts 内部的 Effect.gen 直接获取，无需通过 tool context 传递（I6 修复）
 - ~~修改 `packages/aigcfroge/src/tool/registry.ts`~~ — describeCLI 逻辑内聚在 task.ts 自身
 
@@ -118,7 +119,7 @@ export interface IntentResult {
   category: IntentCategory
   complexity: Complexity
   needsExploration: boolean
-  isMention: boolean  // 是否包含 @mention
+  isMention: boolean // 是否包含 @mention
 }
 
 export function classify(input: string): IntentResult
@@ -142,14 +143,14 @@ export interface EngineDispatchEntry {
 
 export const ENGINE_DISPATCH: Record<string, EngineDispatchEntry> = {
   // NOTE: content_creation 路由到 "general"（当前项目无 lightweight agent）
-  content_creation:   { type: "subagent",   target: "general" },
-  code_understanding: { type: "subagent",   target: "explore" },
-  code_modification:  { type: "subagent",   target: "build" },
-  configuration:      { type: "subagent",   target: "general" },
-  workflow:           { type: "workflow",   target: "builtin" },
-  "claude-code":      { type: "external-cli", target: "claude-code" },
-  gemini:             { type: "external-cli", target: "gemini" },
-  codex:              { type: "external-cli", target: "codex" },
+  content_creation: { type: "subagent", target: "general" },
+  code_understanding: { type: "subagent", target: "explore" },
+  code_modification: { type: "subagent", target: "build" },
+  configuration: { type: "subagent", target: "general" },
+  workflow: { type: "workflow", target: "builtin" },
+  "claude-code": { type: "external-cli", target: "claude-code" },
+  gemini: { type: "external-cli", target: "gemini" },
+  codex: { type: "external-cli", target: "codex" },
 }
 
 export const COMPLEXITY_DEFAULT_ENGINE: Record<Complexity, string> = {
@@ -190,6 +191,7 @@ export function parse(input: string, knownAgents: string[], knownCLIs: string[])
 ```
 
 **解析规则**：
+
 - `@name` 后跟完整 prompt，到下一个 `@` 或字符串结尾
 - 无连接词的多 `@` → parallel
 - `先 @A 再 @B` → pipeline
@@ -214,7 +216,7 @@ export interface BuildInput {
   files: string
   constraints: string
   history: DelegationHistoryEntry[]
-  warmed?: boolean  // cache-warmth 信号
+  warmed?: boolean // cache-warmth 信号
 }
 
 export interface DelegationHistoryEntry {
@@ -263,10 +265,13 @@ export interface CacheWarmthEntry {
 export class CacheWarmth extends Context.Service<CacheWarmth, Interface>()("@aigcfroge/CacheWarmth") {}
 
 // Layer 定义（I5 修复）
-export const layer = Layer.effect(CacheWarmth, Effect.gen(function* () {
-  // 使用 InstanceState 按目录存储 Map<string, CacheWarmthEntry>
-  // 内部使用 Effect.cached 保证预热并发安全
-}))
+export const layer = Layer.effect(
+  CacheWarmth,
+  Effect.gen(function* () {
+    // 使用 InstanceState 按目录存储 Map<string, CacheWarmthEntry>
+    // 内部使用 Effect.cached 保证预热并发安全
+  }),
+)
 ```
 
 **自导出**：`export * as MetaCacheWarmth from "./cache-warmth"`
@@ -304,6 +309,7 @@ export const layer = Layer.effect(CacheWarmth, Effect.gen(function* () {
 ```
 
 **缓存分区**：
+
 - L1: `你是 AigcForge 元智能体...` 到 `【@mention 路由】用户可通过 @name 显式指定执行引擎` — **字节级锁定，永不变**
 - L2: `可用子智能体:` 到 `{{CLI_LIST}}` — 会话启动时渲染一次，会话内不变
 - L3: 未写入 meta.txt，由 context-builder.ts 在每次 dispatch 时动态构建
@@ -316,7 +322,7 @@ export const layer = Layer.effect(CacheWarmth, Effect.gen(function* () {
 // 元智能体权限：继承 build 的默认全权限 + 编排工具特权
 // 不复制代码——直接引用 agent.ts 中 build 的 defaults 权限模板
 export const permission = Permission.merge(
-  buildDefaults,  // 从 agent.ts 导出（refactor：提取 addDefaults() 为可复用函数）
+  buildDefaults, // 从 agent.ts 导出（refactor：提取 addDefaults() 为可复用函数）
   Permission.fromConfig({
     task: "allow",
     create_agent: "allow",
@@ -329,6 +335,7 @@ export const prompt = PROMPT_META // 从 prompt/meta.txt 加载
 ```
 
 **关键设计点**：
+
 - 元智能体的 `mode: "primary"`, `hidden: false`
 - `PROMPT_META` 作为纯文本常量导入（Bun.txt loader）
 - 遵循 `export * as MetaAgent from "./meta-agent"` 自导出模式
@@ -369,13 +376,13 @@ const defaultAgent = Effect.fnUntraced(function* () {
 export function deriveSubagentSessionPermission(input: {
   parentSessionPermission: PermissionV1.Ruleset
   subagent: Agent.Info
-  parentAgentName?: string  // NEW: 知道父智能体是谁
+  parentAgentName?: string // NEW: 知道父智能体是谁
 }): PermissionV1.Ruleset {
   // meta 的子智能体跳过 todowrite 和 task 的强制 deny
   const isMetaChild = input.parentAgentName === "meta"
 
-  const canTask = isMetaChild || input.subagent.permission.some(r => r.permission === "task")
-  const canTodo = isMetaChild || input.subagent.permission.some(r => r.permission === "todowrite")
+  const canTask = isMetaChild || input.subagent.permission.some((r) => r.permission === "task")
+  const canTodo = isMetaChild || input.subagent.permission.some((r) => r.permission === "todowrite")
   // ... 其余逻辑不变
 }
 ```
@@ -389,11 +396,13 @@ draft.update(AgentV2.ID.make("meta"), (item) => {
   item.description = "The meta agent — unified orchestration entry point."
   item.system = PROMPT_META
   item.mode = "primary"
-  item.permissions.push(...PermissionV2.merge(defaults, [
-    { action: "question", resource: "*", effect: "allow" },
-    { action: "task", resource: "*", effect: "allow" },
-    { action: "plan_enter", resource: "*", effect: "allow" },
-  ]))
+  item.permissions.push(
+    ...PermissionV2.merge(defaults, [
+      { action: "question", resource: "*", effect: "allow" },
+      { action: "task", resource: "*", effect: "allow" },
+      { action: "plan_enter", resource: "*", effect: "allow" },
+    ]),
+  )
 })
 ```
 
@@ -433,6 +442,7 @@ bun --cwd packages/core test --timeout 30000
 ```
 
 **Phase 1 出口标准**：
+
 - ✅ `bun run lint` 零错误
 - ✅ `bun --cwd packages/aigcfroge typecheck` 零错误
 - ✅ 所有测试通过
@@ -504,16 +514,19 @@ export interface Interface {
   readonly register: (name: string, adapter: CliAdapter) => Effect<void>
   readonly get: (name: string) => Effect<CliAdapter | undefined>
   readonly list: () => Effect<CliAdapter[]>
-  readonly available: () => Effect<CliAdapter[]>  // detect() 通过的
-  readonly scan: () => Effect<void>               // 触发扫描
+  readonly available: () => Effect<CliAdapter[]> // detect() 通过的
+  readonly scan: () => Effect<void> // 触发扫描
 }
 
 // I5 修复：完整 Layer 定义
-export const layer = Layer.effect(AdapterRegistry, Effect.gen(function* () {
-  const config = yield* Config.Service
-  // 内存存储 Map<string, CliAdapter>
-  // scan() 调用每个已注册的 detect()
-}))
+export const layer = Layer.effect(
+  AdapterRegistry,
+  Effect.gen(function* () {
+    const config = yield* Config.Service
+    // 内存存储 Map<string, CliAdapter>
+    // scan() 调用每个已注册的 detect()
+  }),
+)
 ```
 
 **自导出**：`export * as CliAdapterRegistry from "./registry"`
@@ -568,12 +581,12 @@ export const adapter: CliAdapter = {
 
 ```typescript
 export interface TimeoutConfig {
-  defaultTimeout: number                   // 默认 300_000 (5min)
-  perAdapter: Record<string, number>       // 按 CLI 覆盖
+  defaultTimeout: number // 默认 300_000 (5min)
+  perAdapter: Record<string, number> // 按 CLI 覆盖
   retryPolicy: {
-    maxRetries: number                     // 默认 1
-    backoff: "exponential" | "fixed"       // 默认 exponential
-    baseDelayMs: number                    // 默认 2000
+    maxRetries: number // 默认 1
+    backoff: "exponential" | "fixed" // 默认 exponential
+    baseDelayMs: number // 默认 2000
   }
 }
 
@@ -583,13 +596,13 @@ export type CliErrorType = "timeout" | "parse_error" | "exit_error" | "not_found
 export interface CliError {
   type: CliErrorType
   message: string
-  permanent: boolean  // true = 重试无意义
+  permanent: boolean // true = 重试无意义
 }
 
 export function executeWithTimeout<T>(
   adapter: CliAdapter,
   input: { prompt: string; cwd: string },
-  config: TimeoutConfig
+  config: TimeoutConfig,
 ): Effect<DelegationResult, CliError>
 
 // 内部实现:
@@ -626,10 +639,14 @@ const executeCLI = Effect.fn("TaskTool.executeCLI")(function* (
   const available = yield* adapter.detect()
   if (!available) return yield* Effect.fail(new Error(`CLI ${params.cli_target} is not available`))
 
-  const result = yield* executeWithTimeout(adapter, {
-    prompt: params.prompt,
-    cwd: params.cwd,
-  }, timeoutConfig)
+  const result = yield* executeWithTimeout(
+    adapter,
+    {
+      prompt: params.prompt,
+      cwd: params.cwd,
+    },
+    timeoutConfig,
+  )
 
   // I4 修复：截断大输出
   const truncated = yield* truncate.output(result.summary, {}, ctx.agent as Agent.Info)
@@ -653,11 +670,14 @@ const executeCLI = Effect.fn("TaskTool.executeCLI")(function* (
 const run = Effect.fn("TaskTool.execute")(function* (params, ctx) {
   // NEW: CLI 模式分支
   if (params.execution_type === "external-cli") {
-    return yield* executeCLI({
-      cli_target: params.cli_target!,
-      prompt: params.prompt,
-      cwd: ctx.directory ?? process.cwd(),
-    }, ctx)
+    return yield* executeCLI(
+      {
+        cli_target: params.cli_target!,
+        prompt: params.prompt,
+        cwd: ctx.directory ?? process.cwd(),
+      },
+      ctx,
+    )
   }
   // 原有 subagent 逻辑不变...
 })
@@ -670,8 +690,7 @@ const Parameters = Schema.Struct({
   ...BaseParameterFields,
   background: Schema.optional(Schema.Boolean),
   execution_type: Schema.optional(Schema.Literals(["subagent", "external-cli"])).annotate({
-    description:
-      "Execution mode. subagent (default) for internal agents, external-cli for CLI tools like claude-code.",
+    description: "Execution mode. subagent (default) for internal agents, external-cli for CLI tools like claude-code.",
   }),
   cli_target: Schema.optional(Schema.String).annotate({
     description: "CLI name when execution_type is 'external-cli'. Use @name in conversation.",
@@ -740,33 +759,33 @@ export default {
 
 ### 新增 Context.Service 类
 
-| Service | Layer | 依赖 | 用途 |
-|---------|-------|------|------|
-| `CacheWarmth.Service` | `Layer.effect(...)` | `InstanceState` | 缓存预热跟踪 |
-| `AdapterRegistry.Service` | `Layer.effect(...)` | `Config.Service` | CLI 适配器注册表 |
-| `WorkflowEngine.Service` | `Layer.effect(...)` | `AdapterRegistry.Service` | 工作流执行 |
+| Service                   | Layer               | 依赖                      | 用途             |
+| ------------------------- | ------------------- | ------------------------- | ---------------- |
+| `CacheWarmth.Service`     | `Layer.effect(...)` | `InstanceState`           | 缓存预热跟踪     |
+| `AdapterRegistry.Service` | `Layer.effect(...)` | `Config.Service`          | CLI 适配器注册表 |
+| `WorkflowEngine.Service`  | `Layer.effect(...)` | `AdapterRegistry.Service` | 工作流执行       |
 
 ### 新增 Plugin Hooks
 
-| Hook | 用途 |
-|------|------|
-| `ctx.meta.intent.register(name, rule)` | 注册自定义意图分类 |
-| `ctx.meta.adapter.register(name, factory)` | 注册 CLI 适配器 |
-| `ctx.meta.workflow.register(name, template)` | 注册工作流模板 |
-| `ctx.meta.middleware.register(hook)` | 注册编排中间件 |
-| `ctx.meta.policy.register(policy)` | 注册编排策略 |
+| Hook                                         | 用途               |
+| -------------------------------------------- | ------------------ |
+| `ctx.meta.intent.register(name, rule)`       | 注册自定义意图分类 |
+| `ctx.meta.adapter.register(name, factory)`   | 注册 CLI 适配器    |
+| `ctx.meta.workflow.register(name, template)` | 注册工作流模板     |
+| `ctx.meta.middleware.register(hook)`         | 注册编排中间件     |
+| `ctx.meta.policy.register(policy)`           | 注册编排策略       |
 
 ### 现有接口干扰（修复版）
 
-| 修改 | 兼容性 |
-|------|--------|
-| `agent.ts`: 提取 `buildDefaults` 为外部引用 | ✅ 无破坏 |
-| `agent.ts`: 默认 agent 回退链 + `AIGCFROGE_DISABLE_META_AGENT` | ✅ 无破坏 |
-| `subagent-permissions.ts`: 多一个可选 `parentAgentName` 参数 | ✅ 可选参数 |
-| `task.ts`: 参数新增 `execution_type` / `cli_target` | ✅ `Schema.optional` |
-| `plugin/context.ts`: 新增 `meta` 字段 | ⚠️ 轻度 — 已有插件不访问即不受影响 |
-| ~~`session/tools.ts`~~ | ✅ **已移除**，AdapterRegistry 在 task.ts 内直接获取 |
-| ~~`registry.ts`~~ | ✅ **已移除**，describeCLI 内聚在 task.ts |
+| 修改                                                           | 兼容性                                               |
+| -------------------------------------------------------------- | ---------------------------------------------------- |
+| `agent.ts`: 提取 `buildDefaults` 为外部引用                    | ✅ 无破坏                                            |
+| `agent.ts`: 默认 agent 回退链 + `AIGCFROGE_DISABLE_META_AGENT` | ✅ 无破坏                                            |
+| `subagent-permissions.ts`: 多一个可选 `parentAgentName` 参数   | ✅ 可选参数                                          |
+| `task.ts`: 参数新增 `execution_type` / `cli_target`            | ✅ `Schema.optional`                                 |
+| `plugin/context.ts`: 新增 `meta` 字段                          | ⚠️ 轻度 — 已有插件不访问即不受影响                   |
+| ~~`session/tools.ts`~~                                         | ✅ **已移除**，AdapterRegistry 在 task.ts 内直接获取 |
+| ~~`registry.ts`~~                                              | ✅ **已移除**，describeCLI 内聚在 task.ts            |
 
 ---
 
@@ -820,41 +839,41 @@ Phase N 复查结论:
 
 **审计修复清单**：
 
-| 编号 | 级别 | 修复 |
-|------|------|------|
-| C1 | 阻塞 | Task 2.6 拆分为 2.6a/b/c，CLI 执行路径独立函数，不耦合现有 subagent 逻辑 |
-| C2 | 阻塞 | Phase 2 新增 `delegation-parser.ts` |
-| C3 | 阻塞 | Phase 1 新增 `context-builder.ts` |
-| C4 | 阻塞 | intent.ts 移除 MentionTarget 引用，mention.ts 自包含 |
-| C5 | 阻塞 | Phase 1 新增 Task 1.4.2 subagent-permissions 扩展 |
-| C6 | 阻塞 | Phase 5 Task 5.6 显式添加 migration 创建步骤 |
-| I1 | 重要 | timeout.ts 整合错误分类/重试策略/孤儿进程清理 |
-| I2 | 重要 | Task 1.5 测试清单新增 L1 SHA256 固定性测试 |
-| I3 | 重要 | 适配器使用 Effect Schema 代替 raw JSON.parse |
-| I4 | 重要 | executeCLI 中显式添加 Truncate 集成 |
-| I5 | 重要 | 所有新 Service 附带完整 Layer 定义和 I1  |
-| I6 | 重要 | 移除 session/tools.ts 和 registry.ts 的不必要修改 |
-| I7 | 重要 | 新增 `AIGCFROGE_DISABLE_META_AGENT` 回退开关 |
+| 编号 | 级别 | 修复                                                                     |
+| ---- | ---- | ------------------------------------------------------------------------ |
+| C1   | 阻塞 | Task 2.6 拆分为 2.6a/b/c，CLI 执行路径独立函数，不耦合现有 subagent 逻辑 |
+| C2   | 阻塞 | Phase 2 新增 `delegation-parser.ts`                                      |
+| C3   | 阻塞 | Phase 1 新增 `context-builder.ts`                                        |
+| C4   | 阻塞 | intent.ts 移除 MentionTarget 引用，mention.ts 自包含                     |
+| C5   | 阻塞 | Phase 1 新增 Task 1.4.2 subagent-permissions 扩展                        |
+| C6   | 阻塞 | Phase 5 Task 5.6 显式添加 migration 创建步骤                             |
+| I1   | 重要 | timeout.ts 整合错误分类/重试策略/孤儿进程清理                            |
+| I2   | 重要 | Task 1.5 测试清单新增 L1 SHA256 固定性测试                               |
+| I3   | 重要 | 适配器使用 Effect Schema 代替 raw JSON.parse                             |
+| I4   | 重要 | executeCLI 中显式添加 Truncate 集成                                      |
+| I5   | 重要 | 所有新 Service 附带完整 Layer 定义和 I1                                  |
+| I6   | 重要 | 移除 session/tools.ts 和 registry.ts 的不必要修改                        |
+| I7   | 重要 | 新增 `AIGCFROGE_DISABLE_META_AGENT` 回退开关                             |
 
 ---
 
 ## 参考链接
 
-| 项目 | 参考内容 | 用途 |
-|------|---------|------|
-| `docs/prd/meta-agent-orchestrator.md` | 完整 PRD | 需求总纲 |
-| `packages/aigcfroge/src/agent/agent.ts` | Agent 服务 | 注册、权限模板提取、默认逻辑 |
-| `packages/aigcfroge/src/agent/subagent-permissions.ts` | 子智能体权限 | meta 子智能体特殊处理 |
-| `packages/aigcfroge/src/tool/task.ts` | Task 工具 | CLI 模式分支注入点 |
-| `packages/core/src/plugin/agent.ts` | V2 agent 插件 | meta V2 注册 |
-| `packages/core/src/agent.ts` | V2 Agent 服务 | 默认 agent 变更 |
-| `packages/core/src/meta-agent/sql.ts` | 元智能体数据表 | migration 目标 |
-| `packages/schema/src/meta-agent.ts` | MetaAgent schema | schema 参考 |
-| `packages/plugin/src/v2/effect/agent.ts` | AgentHooks 模式 | MetaHooks 模式参考 |
-| `packages/plugin/src/v2/effect/context.ts` | PluginContext | meta 域注入 |
-| `/web/aigcfroge` intent.ts | 意图分类参考 | 移植来源 |
-| `/web/aigcfroge` engine-selector.ts | 引擎路由参考 | 移植来源 |
-| `/web/aigcfroge` CliAdapter | 适配器接口参考 | 移植来源 |
-| `/web/aigcfroge` cache-warmth.ts | 缓存预热参考 | 移植来源 |
-| `/web/aigcfroge` claude-code.ts | Claude Code 适配器 | 移植来源 |
-| `/cc` coordinatorMode.ts | 协调器模式 | 行为模式参考 |
+| 项目                                                   | 参考内容           | 用途                         |
+| ------------------------------------------------------ | ------------------ | ---------------------------- |
+| `docs/prd/meta-agent-orchestrator.md`                  | 完整 PRD           | 需求总纲                     |
+| `packages/aigcfroge/src/agent/agent.ts`                | Agent 服务         | 注册、权限模板提取、默认逻辑 |
+| `packages/aigcfroge/src/agent/subagent-permissions.ts` | 子智能体权限       | meta 子智能体特殊处理        |
+| `packages/aigcfroge/src/tool/task.ts`                  | Task 工具          | CLI 模式分支注入点           |
+| `packages/core/src/plugin/agent.ts`                    | V2 agent 插件      | meta V2 注册                 |
+| `packages/core/src/agent.ts`                           | V2 Agent 服务      | 默认 agent 变更              |
+| `packages/core/src/meta-agent/sql.ts`                  | 元智能体数据表     | migration 目标               |
+| `packages/schema/src/meta-agent.ts`                    | MetaAgent schema   | schema 参考                  |
+| `packages/plugin/src/v2/effect/agent.ts`               | AgentHooks 模式    | MetaHooks 模式参考           |
+| `packages/plugin/src/v2/effect/context.ts`             | PluginContext      | meta 域注入                  |
+| `/web/aigcfroge` intent.ts                             | 意图分类参考       | 移植来源                     |
+| `/web/aigcfroge` engine-selector.ts                    | 引擎路由参考       | 移植来源                     |
+| `/web/aigcfroge` CliAdapter                            | 适配器接口参考     | 移植来源                     |
+| `/web/aigcfroge` cache-warmth.ts                       | 缓存预热参考       | 移植来源                     |
+| `/web/aigcfroge` claude-code.ts                        | Claude Code 适配器 | 移植来源                     |
+| `/cc` coordinatorMode.ts                               | 协调器模式         | 行为模式参考                 |

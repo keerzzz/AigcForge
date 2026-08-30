@@ -162,7 +162,8 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
     state.entries.find((entry) => entry.relativePath === state.selectedPath) ?? state.entries[0]
   const totalSize = () => state.entries.reduce((sum, entry) => sum + entry.size, 0)
   const canImport = () => (state.mode === "paste" ? state.text.trim().length > 0 : state.entries.length > 0)
-  const hasFatalErrors = () => state.parseResult && state.parseResult.candidates.length === 0 && state.parseResult.errors.length > 0
+  const hasFatalErrors = () =>
+    state.parseResult && state.parseResult.candidates.length === 0 && state.parseResult.errors.length > 0
 
   function openFilePicker() {
     if (!fileInput) return

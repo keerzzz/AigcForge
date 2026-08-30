@@ -69,9 +69,7 @@ describe("HttpApi CORS", () => {
         Effect.sync(() =>
           HttpRouter.toWebHandler(
             HttpApiApp.createRoutes().pipe(
-              Layer.provide(
-                ConfigProvider.layer(ConfigProvider.fromUnknown({ AIGCFROGE_SERVER_PASSWORD: "secret" })),
-              ),
+              Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ AIGCFROGE_SERVER_PASSWORD: "secret" }))),
             ),
             { disableLogger: true },
           ),

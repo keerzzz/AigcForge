@@ -3,16 +3,26 @@ export * as CommandAsset from "./command-asset"
 import { Effect, Schema } from "effect"
 
 export const Name = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length >= 1, { message: "Name must be at least 1 code point" })),
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length <= 80, { message: "Name must be at most 80 code points" })),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length >= 1, {
+      message: "Name must be at least 1 code point",
+    }),
+  ),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length <= 80, {
+      message: "Name must be at most 80 code points",
+    }),
+  ),
   Schema.brand("CommandAsset.Name"),
 )
 export type Name = typeof Name.Type
 
 export const Description = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length <= 300, {
-    message: "Description must be at most 300 code points",
-  })),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length <= 300, {
+      message: "Description must be at most 300 code points",
+    }),
+  ),
   Schema.brand("CommandAsset.Description"),
 )
 export type Description = typeof Description.Type
@@ -26,16 +36,26 @@ export const Revision = Schema.String.pipe(
 export type Revision = typeof Revision.Type
 
 export const Invocation = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length >= 1, { message: "Invocation must be at least 1 code point" })),
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length <= 200, { message: "Invocation must be at most 200 code points" })),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length >= 1, {
+      message: "Invocation must be at least 1 code point",
+    }),
+  ),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length <= 200, {
+      message: "Invocation must be at most 200 code points",
+    }),
+  ),
   Schema.brand("CommandAsset.Invocation"),
 )
 export type Invocation = typeof Invocation.Type
 
 export const Source = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => new TextEncoder().encode(input).length <= 100_000, {
-    message: "Source must be at most 100,000 UTF-8 bytes",
-  })),
+  Schema.check(
+    Schema.makeFilter<string>((input) => new TextEncoder().encode(input).length <= 100_000, {
+      message: "Source must be at most 100,000 UTF-8 bytes",
+    }),
+  ),
   Schema.brand("CommandAsset.Source"),
 )
 export type Source = typeof Source.Type

@@ -19,13 +19,13 @@
 
 ## 1. 五层影响地图
 
-| 层 | 包 | 本方案触点 |
-|---|---|---|
-| Entry | tui、desktop | TUI `Task()` 卡片 + permission 渲染（desktop 复用 app，无独立改动） |
-| Application | app、aigcfroge | permission dock metadata 渲染、agent 列表刷新、registry 解冻、V1 兼容 |
-| Domain | core、schema | task.ts / task-driver.ts / task-driver-fill.ts / cli-timeout.ts / 适配器 / config.ts / permission.ts / meta-agent service |
-| UI | session-ui、ui | task 卡片（徽标/摘要/状态）、i18n key |
-| Infra | （无新增表，不触发 database skill 迁移流程） | — |
+| 层          | 包                                           | 本方案触点                                                                                                                |
+| ----------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Entry       | tui、desktop                                 | TUI `Task()` 卡片 + permission 渲染（desktop 复用 app，无独立改动）                                                       |
+| Application | app、aigcfroge                               | permission dock metadata 渲染、agent 列表刷新、registry 解冻、V1 兼容                                                     |
+| Domain      | core、schema                                 | task.ts / task-driver.ts / task-driver-fill.ts / cli-timeout.ts / 适配器 / config.ts / permission.ts / meta-agent service |
+| UI          | session-ui、ui                               | task 卡片（徽标/摘要/状态）、i18n key                                                                                     |
+| Infra       | （无新增表，不触发 database skill 迁移流程） | —                                                                                                                         |
 
 依赖方向约束：core 不依赖上层；session-ui 只消费 SDK 类型；新增 i18n key 须三语（en/zh/zht）同步，由 `packages/app/src/i18n/parity.test.ts` 自动强制。
 
@@ -225,14 +225,14 @@ claude/codex 走 ACP；权限问询双端弹窗一致；外部 CLI 工具调用�
 
 ## 9. 风险登记
 
-| 风险 | 缓解 |
-|---|---|
+| 风险                                                | 缓解                                                              |
+| --------------------------------------------------- | ----------------------------------------------------------------- |
 | M1 改 `SessionFacade.create` 签名波及 subagent 路径 | R 系列测试覆盖 subagent 回归（session-task.test.ts 现有用例兜底） |
-| resume 键修复影响已落库的旧行 | 旧行本来就查不到（bug），无兼容负担；迁移不需要 |
-| M3 周期 re-detect 的 `which` 开销 | TTL + 间隔配置化；`Effect.cached` 去重 |
-| M4 SDK 版本与 CLI 版本耦合 | adapter 内做能力探测；保留 jsonl 回退配置 |
-| M5 各家 ACP 成熟度参差 | 按家灰度；fallback 永久保留 |
-| 桌面端 PATH 探测平台差异 | 常见 bin 目录兜底清单 + `it.live` 平台冒烟 |
+| resume 键修复影响已落库的旧行                       | 旧行本来就查不到（bug），无兼容负担；迁移不需要                   |
+| M3 周期 re-detect 的 `which` 开销                   | TTL + 间隔配置化；`Effect.cached` 去重                            |
+| M4 SDK 版本与 CLI 版本耦合                          | adapter 内做能力探测；保留 jsonl 回退配置                         |
+| M5 各家 ACP 成熟度参差                              | 按家灰度；fallback 永久保留                                       |
+| 桌面端 PATH 探测平台差异                            | 常见 bin 目录兜底清单 + `it.live` 平台冒烟                        |
 
 ## 10. 执行顺序与总验收
 

@@ -33,10 +33,7 @@ const mockRevision = Schema.decodeUnknownSync(Composition.Revision)(
   "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
 )
 
-function seedSessionWithSnapshot(
-  sid: string,
-  workflowSteps: WorkflowAsset.StepDef[],
-) {
+function seedSessionWithSnapshot(sid: string, workflowSteps: WorkflowAsset.StepDef[]) {
   return Effect.gen(function* () {
     const { db } = yield* Database.Service
     const columns = new Set(
@@ -166,7 +163,8 @@ describe.serial("WorkflowRunner Service", () => {
       expect(stepRuns).toHaveLength(2)
       expect(stepRuns[0].status).toBe("completed")
       expect(stepRuns[1].status).toBe("completed")
-    }))
+    }),
+  )
 
   it.effect("executes a parallel workflow with branches and merge", () =>
     Effect.gen(function* () {
@@ -218,7 +216,8 @@ describe.serial("WorkflowRunner Service", () => {
       expect(executedSteps).toContain("merge")
       expect(executedSteps[0]).toBe("start")
       expect(executedSteps[executedSteps.length - 1]).toBe("merge")
-    }))
+    }),
+  )
 
   it.effect("retries a flaky step and succeeds on second attempt", () =>
     Effect.gen(function* () {
@@ -260,7 +259,8 @@ describe.serial("WorkflowRunner Service", () => {
       expect(stepRuns[0].status).toBe("failed")
       expect(stepRuns[1].attempt).toBe(2)
       expect(stepRuns[1].status).toBe("completed")
-    }))
+    }),
+  )
 
   it.effect("completes as partial_success when continue step fails", () =>
     Effect.gen(function* () {
@@ -302,7 +302,8 @@ describe.serial("WorkflowRunner Service", () => {
 
       const result = yield* runner.run(SessionV2.ID.make(sid), customExecutor)
       expect(result?.status).toBe("partial_success")
-    }))
+    }),
+  )
 
   it.effect("fails workflow run when abort step fails", () =>
     Effect.gen(function* () {
@@ -333,7 +334,8 @@ describe.serial("WorkflowRunner Service", () => {
       const result = yield* runner.run(SessionV2.ID.make(sid), customExecutor)
       expect(result?.status).toBe("failed")
       expect(result?.errorCategory).toBe("step_failed")
-    }))
+    }),
+  )
 
   it.effect("settles executor defects as a fixed step failure", () =>
     Effect.gen(function* () {
@@ -359,7 +361,8 @@ describe.serial("WorkflowRunner Service", () => {
       expect(steps).toHaveLength(1)
       expect(steps[0].status).toBe("failed")
       expect(steps[0].errorCategory).toBe("step_failed")
-    }))
+    }),
+  )
 
   it.effect("cancels workflow run when custom mode kill-switch is triggered", () =>
     Effect.gen(function* () {
@@ -385,7 +388,8 @@ describe.serial("WorkflowRunner Service", () => {
 
       // Restore flag for subsequent tests
       process.env["AIGCFROGE_CUSTOM_MODE"] = "true"
-    }))
+    }),
+  )
 
   it.effect("cancels mid-drain when the kill-switch flips after the first round", () =>
     Effect.gen(function* () {
@@ -418,7 +422,8 @@ describe.serial("WorkflowRunner Service", () => {
       } finally {
         process.env["AIGCFROGE_CUSTOM_MODE"] = "true"
       }
-    }))
+    }),
+  )
 
   it.effect("executes dynamic branching and skips non-selected branch", () =>
     Effect.gen(function* () {
@@ -481,7 +486,8 @@ describe.serial("WorkflowRunner Service", () => {
       expect(fixRun?.status).toBe("completed")
       expect(featRun?.status).toBe("skipped")
       expect(joinRun?.status).toBe("completed")
-    }))
+    }),
+  )
 
   it.effect("fails a branch step closed when the child answers with unroutable text", () =>
     Effect.gen(function* () {
@@ -511,7 +517,8 @@ describe.serial("WorkflowRunner Service", () => {
       const stepRuns = yield* workflowService.getSteps(result!.id)
       expect(stepRuns.find((step) => step.stepId === "classifier")?.errorCategory).toBe("invalid_branch_output")
       expect(stepRuns.find((step) => step.stepId === "step_fix")?.status).toBe("skipped")
-    }))
+    }),
+  )
 })
 
 describe("WorkflowRunner branch output contract", () => {

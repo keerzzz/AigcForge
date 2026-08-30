@@ -13,10 +13,7 @@ import { location } from "./fixture/location"
 import { tmpdir } from "./fixture/tmpdir"
 
 function locationLayer(dir: string) {
-  return Layer.succeed(
-    Location.Service,
-    Location.Service.of(location({ directory: AbsolutePath.make(dir) })),
-  )
+  return Layer.succeed(Location.Service, Location.Service.of(location({ directory: AbsolutePath.make(dir) })))
 }
 
 interface Injection {

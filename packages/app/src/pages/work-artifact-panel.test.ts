@@ -119,12 +119,12 @@ describe("WorkArtifactContent format routing (M3.5)", () => {
     expect(panel).toContain('detectArtifactFormat(candidate()!) === "html"')
     expect(panel).toContain("HtmlArtifact")
     expect(panel).toContain("extractHtmlBlock(candidate()!)")
-    expect(panel).toContain('<Markdown text={candidate()!} />')
+    expect(panel).toContain("<Markdown text={candidate()!} />")
   })
 
   test("keeps the Markdown fallback for non-html candidates (M1/M3 no regression)", () => {
     expect(panel).toContain('detectArtifactFormat(candidate()!) === "html"')
-    expect(panel).toContain('<Markdown text={candidate()!} />')
+    expect(panel).toContain("<Markdown text={candidate()!} />")
   })
 
   test("passes app-provided i18n labels to HtmlArtifact", () => {

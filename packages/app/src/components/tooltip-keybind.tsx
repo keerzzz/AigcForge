@@ -19,7 +19,10 @@ export function TooltipKeybind(props: TooltipKeybindProps) {
       value={
         <span class="flex items-center gap-1.5">
           <span>{local.title}</span>
-          <span class="text-11-medium rounded p-0.5 px-1" style="background: var(--v2-background-bg-base); border: 0.5px solid var(--v2-border-border-muted)">
+          <span
+            class="text-11-medium rounded p-0.5 px-1"
+            style="background: var(--v2-background-bg-base); border: 0.5px solid var(--v2-border-border-muted)"
+          >
             {local.keybind}
           </span>
         </span>

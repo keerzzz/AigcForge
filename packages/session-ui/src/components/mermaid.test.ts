@@ -46,7 +46,7 @@ describe("renderMermaidBlocks", () => {
       "graph TD; A-->B",
       "sequenceDiagram\n  Alice->>Bob: hello\n  Bob-->>Alice: hi",
       "gantt\n  title Schedule\n  section S1\n  task1 :a1, 2026-01-01, 5d",
-      "pie title Distribution\n  \"A\" : 40\n  \"B\" : 60",
+      'pie title Distribution\n  "A" : 40\n  "B" : 60',
     ]
     for (const src of diagrams) {
       const result = await Mermaid.renderMermaidBlocks(placeholder(src))
@@ -134,6 +134,6 @@ describe("sanitizeMermaidSvg", () => {
 
 describe("escapeHtml", () => {
   test("escapes & < > quotes", () => {
-    expect(escapeHtml('&<>"\'')).toBe("&amp;&lt;&gt;&quot;&#39;")
+    expect(escapeHtml("&<>\"'")).toBe("&amp;&lt;&gt;&quot;&#39;")
   })
 })

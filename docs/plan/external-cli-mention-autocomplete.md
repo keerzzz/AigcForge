@@ -21,20 +21,20 @@
 
 ### 1.3 相关代码位置
 
-| 层级 | 文件 | 职责 |
-|------|------|------|
-| 后端 Agent 服务 | `packages/aigcfroge/src/agent/agent.ts` | 定义 `Agent.Info` schema 和 `Agent.Service.list()` |
-| CLI 适配器注册表 | `packages/aigcfroge/src/agent/meta/adapters/registry.ts` | 注册 `claude-code`、`gemini`、`codex`，提供 `available()` |
-| HTTP API | `packages/aigcfroge/src/server/routes/instance/httpapi/groups/instance.ts` | `/agent` endpoint，返回 `Schema.Array(Agent.Info)` |
-| HTTP handler | `packages/aigcfroge/src/server/routes/instance/httpapi/handlers/instance.ts` | `getAgent = agent.list()` |
-| 前端同步 | `packages/app/src/context/global-sync/bootstrap.ts` | 调用 `sdk.app.agents()` |
-| 前端归一化 | `packages/app/src/context/global-sync/utils.ts` | `normalizeAgentList` / `isAgent` |
-| App 自动补全 | `packages/app/src/components/prompt-input.tsx` | 构建 `@` option 列表 |
-| App 弹出层 | `packages/app/src/components/prompt-input/slash-popover.tsx` | 渲染 `@` 下拉行 |
-| TUI 自动补全 | `packages/tui/src/component/prompt/autocomplete.tsx` | TUI 的 `@` option 列表 |
-| Mention 解析 | `packages/core/src/agent/meta/mention.ts` | 解析 `@name` 为 `subagent` 或 `external-cli` |
-| PreRouter | `packages/core/src/agent/meta/prerouter.ts` | 硬编码 `EXTERNAL_CLI_NAMES` 做路由 |
-| Meta prompt | `packages/core/src/plugin/agent.ts` | 硬编码 `{{CLI_LIST}}` |
+| 层级             | 文件                                                                         | 职责                                                      |
+| ---------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------- |
+| 后端 Agent 服务  | `packages/aigcfroge/src/agent/agent.ts`                                      | 定义 `Agent.Info` schema 和 `Agent.Service.list()`        |
+| CLI 适配器注册表 | `packages/aigcfroge/src/agent/meta/adapters/registry.ts`                     | 注册 `claude-code`、`gemini`、`codex`，提供 `available()` |
+| HTTP API         | `packages/aigcfroge/src/server/routes/instance/httpapi/groups/instance.ts`   | `/agent` endpoint，返回 `Schema.Array(Agent.Info)`        |
+| HTTP handler     | `packages/aigcfroge/src/server/routes/instance/httpapi/handlers/instance.ts` | `getAgent = agent.list()`                                 |
+| 前端同步         | `packages/app/src/context/global-sync/bootstrap.ts`                          | 调用 `sdk.app.agents()`                                   |
+| 前端归一化       | `packages/app/src/context/global-sync/utils.ts`                              | `normalizeAgentList` / `isAgent`                          |
+| App 自动补全     | `packages/app/src/components/prompt-input.tsx`                               | 构建 `@` option 列表                                      |
+| App 弹出层       | `packages/app/src/components/prompt-input/slash-popover.tsx`                 | 渲染 `@` 下拉行                                           |
+| TUI 自动补全     | `packages/tui/src/component/prompt/autocomplete.tsx`                         | TUI 的 `@` option 列表                                    |
+| Mention 解析     | `packages/core/src/agent/meta/mention.ts`                                    | 解析 `@name` 为 `subagent` 或 `external-cli`              |
+| PreRouter        | `packages/core/src/agent/meta/prerouter.ts`                                  | 硬编码 `EXTERNAL_CLI_NAMES` 做路由                        |
+| Meta prompt      | `packages/core/src/plugin/agent.ts`                                          | 硬编码 `{{CLI_LIST}}`                                     |
 
 ---
 
@@ -117,10 +117,7 @@ it.instance("Agent.list includes available external CLI adapters", () =>
 it.live("GET /agent returns external CLI adapters with source", () =>
   Effect.gen(function* () {
     const dir = yield* tmpdirScoped({ git: true })
-    const response = yield* HttpClientRequest.get(InstancePaths.agent).pipe(
-      directoryHeader(dir),
-      HttpClient.execute,
-    )
+    const response = yield* HttpClientRequest.get(InstancePaths.agent).pipe(directoryHeader(dir), HttpClient.execute)
     expect(response.status).toBe(200)
     const agents = yield* response.json
     expect(Array.isArray(agents)).toBe(true)
@@ -223,7 +220,15 @@ const list = Effect.fnUntraced(function* () {
   return pipe(
     [...agents.values(), ...cliAgents],
     sortBy(
-      [(x) => (cfg.default_agent ? x.name === cfg.default_agent : process.env.AIGCFROGE_DISABLE_META_AGENT === "true" ? x.name === "build" : x.name === "meta"), "desc"],
+      [
+        (x) =>
+          cfg.default_agent
+            ? x.name === cfg.default_agent
+            : process.env.AIGCFROGE_DISABLE_META_AGENT === "true"
+              ? x.name === "build"
+              : x.name === "meta",
+        "desc",
+      ],
       [(x) => x.name, "asc"],
     ),
   )
@@ -294,13 +299,15 @@ function isAgent(input: unknown): input is Agent {
 const agentList = createMemo(() =>
   props.controls.agents.available
     .filter((agent) => !agent.hidden && (agent.mode !== "primary" || agent.source === "external-cli"))
-    .map((agent): AtOption => ({
-      type: "agent",
-      name: agent.name,
-      display: agent.name,
-      source: agent.source,
-      description: agent.description,
-    })),
+    .map(
+      (agent): AtOption => ({
+        type: "agent",
+        name: agent.name,
+        display: agent.name,
+        source: agent.source,
+        description: agent.description,
+      }),
+    ),
 )
 ```
 
@@ -328,18 +335,20 @@ export type AtOption =
 const agents = createMemo(() => {
   return sync.data.agent
     .filter((agent) => !agent.hidden && agent.mode !== "primary")
-    .map((agent): AutocompleteOption => ({
-      display: "@" + agent.name,
-      description: agent.source === "external-cli" ? `[CLI] ${agent.description ?? ""}` : agent.description,
-      onSelect: () => {
-        insertPart(agent.name, {
-          type: "agent",
-          name: agent.name,
-          source: agent.source,
-          // ...
-        })
-      },
-    }))
+    .map(
+      (agent): AutocompleteOption => ({
+        display: "@" + agent.name,
+        description: agent.source === "external-cli" ? `[CLI] ${agent.description ?? ""}` : agent.description,
+        onSelect: () => {
+          insertPart(agent.name, {
+            type: "agent",
+            name: agent.name,
+            source: agent.source,
+            // ...
+          })
+        },
+      }),
+    )
 })
 ```
 
@@ -383,12 +392,13 @@ export function preRoute(input: string, knownAgents: string[], knownCLIs: string
 改为通过 `AdapterRegistry.available()` 获取名称并渲染：
 
 ```ts
-const cliList = (yield* cliAdapterRegistry.available())
+const cliList = (yield * cliAdapterRegistry.available())
   .map((adapter) => `- ${adapter.name}: ${adapter.description ?? ""}`)
   .join("\n")
-item.system = PROMPT_META
-  .replace("{{SUBAGENTS_LIST}}", subagentList || "(no subagents registered)")
-  .replace("{{CLI_LIST}}", cliList || "(no external CLI tools configured)")
+item.system = PROMPT_META.replace("{{SUBAGENTS_LIST}}", subagentList || "(no subagents registered)").replace(
+  "{{CLI_LIST}}",
+  cliList || "(no external CLI tools configured)",
+)
 ```
 
 这要求 `AgentV2` 的初始化层能访问 `CliAdapterRegistry`。由于 `plugin/agent.ts` 在 `AgentV2.layer` 的 transform 中执行，需要确保 `CliAdapterRegistry` 在该 scope 中可用。
@@ -534,10 +544,15 @@ const executeCLI = Effect.fn("TaskTool.executeCLI")(function* (
     }),
   })
 
-  const result = yield* CliTimeout.executeWithTimeout(spawner, adapter, {
-    prompt: params.prompt,
-    cwd: params.cwd,
-  }, 300_000)
+  const result = yield* CliTimeout.executeWithTimeout(
+    spawner,
+    adapter,
+    {
+      prompt: params.prompt,
+      cwd: params.cwd,
+    },
+    300_000,
+  )
 
   // 将 CLI 输出写入 child session 作为 assistant message
   yield* sessions.updateMessage({
@@ -550,11 +565,13 @@ const executeCLI = Effect.fn("TaskTool.executeCLI")(function* (
       providerID: parent.providerID,
       variant: undefined,
     },
-    parts: [{
-      id: PartID.make(),
-      type: "text",
-      text: result.summary,
-    }],
+    parts: [
+      {
+        id: PartID.make(),
+        type: "text",
+        text: result.summary,
+      },
+    ],
   } as SessionV1.Info)
 
   return {
@@ -576,6 +593,7 @@ const executeCLI = Effect.fn("TaskTool.executeCLI")(function* (
 ```
 
 > 说明：
+>
 > - `sessions.create` 的 `agent` 字段是字符串，可以直接传 `params.cli_target`。
 > - `permission` 复用 `deriveSubagentSessionPermission`，把 CLI adapter 当作一个 permission 为空的 subagent。
 > - `sessions.updateMessage` 的调用需要确认当前 `Session` service 是否支持直接写入消息；如果不支持，可用 `MessageV2` 或 `ops.prompt` 的等价路径。具体 API 以实际代码为准。
@@ -626,16 +644,16 @@ it.instance("external cli creates a real child session", () =>
 
 ## 5. 风险与技术债
 
-| 风险 | 影响 | 缓解措施 |
-|------|------|----------|
-| `AdapterRegistry.available()` 调用 `which` 可能耗时 | `/agent` 请求变慢 | 只在 `Agent.list()` 调用时检测；结果可被 InstanceState 缓存 |
-| 新增 `source` 字段需要重新生成 SDK | 增加提交大小 | 将 SDK 生成作为独立 commit；确保生成的类型与 schema 一致 |
-| CLI agent 被错误当作 primary agent | 可能出现在 agent switcher | 强制 `mode: "subagent"`；过滤逻辑显式放行而非改变 mode |
-| 自定义 CLI adapter 名称与内置 agent 冲突 | `Agent.list()` 去重问题 | 在合成前检查冲突，冲突时 CLI adapter 优先或报错 |
-| TUI/App 对 `source` 字段的消费不一致 | UI 行为分叉 | 两端同时修改，并在计划中列明统一模式 |
-| PreRouter 动态化涉及调用方修改 | 影响 V1/V2 runner | 在计划中单独标注，分阶段实现；可先保留硬编码，后续迭代 |
-| external-cli 写入 child session 的 API 路径不成熟 | 可能需要绕过现有 message API | 提前确认 `Session.updateMessage` / `MessageV2` / `ops.prompt` 的可用性；必要时用 `sessions.injectSynthetic` 等效路径 |
-| 大量 CLI 子 session 污染会话列表 | 每个 CLI 调用都生成 session | child session 默认归档或按 parent 过滤；与现有 subagent 保持一致 |
+| 风险                                                | 影响                         | 缓解措施                                                                                                             |
+| --------------------------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `AdapterRegistry.available()` 调用 `which` 可能耗时 | `/agent` 请求变慢            | 只在 `Agent.list()` 调用时检测；结果可被 InstanceState 缓存                                                          |
+| 新增 `source` 字段需要重新生成 SDK                  | 增加提交大小                 | 将 SDK 生成作为独立 commit；确保生成的类型与 schema 一致                                                             |
+| CLI agent 被错误当作 primary agent                  | 可能出现在 agent switcher    | 强制 `mode: "subagent"`；过滤逻辑显式放行而非改变 mode                                                               |
+| 自定义 CLI adapter 名称与内置 agent 冲突            | `Agent.list()` 去重问题      | 在合成前检查冲突，冲突时 CLI adapter 优先或报错                                                                      |
+| TUI/App 对 `source` 字段的消费不一致                | UI 行为分叉                  | 两端同时修改，并在计划中列明统一模式                                                                                 |
+| PreRouter 动态化涉及调用方修改                      | 影响 V1/V2 runner            | 在计划中单独标注，分阶段实现；可先保留硬编码，后续迭代                                                               |
+| external-cli 写入 child session 的 API 路径不成熟   | 可能需要绕过现有 message API | 提前确认 `Session.updateMessage` / `MessageV2` / `ops.prompt` 的可用性；必要时用 `sessions.injectSynthetic` 等效路径 |
+| 大量 CLI 子 session 污染会话列表                    | 每个 CLI 调用都生成 session  | child session 默认归档或按 parent 过滤；与现有 subagent 保持一致                                                     |
 
 ---
 

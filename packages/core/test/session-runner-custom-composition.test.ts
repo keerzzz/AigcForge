@@ -203,9 +203,7 @@ describe("Phase C: Runner, Skill Catalog, and Tool Materialization", () => {
           info: AgentV2.Info.empty(AgentV2.ID.make("meta")),
         }
 
-        const initialized = yield* guidance
-          .load(selection, { snapshot })
-          .pipe(Effect.flatMap(SystemContext.initialize))
+        const initialized = yield* guidance.load(selection, { snapshot }).pipe(Effect.flatMap(SystemContext.initialize))
         expect(initialized.baseline).toContain("git-diff-analyzer")
         expect(initialized.baseline).toContain("Analyzes git diffs")
       }),

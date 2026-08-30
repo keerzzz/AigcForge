@@ -85,8 +85,7 @@ export const layer = Layer.effect(
             Effect.orDie,
             Effect.map((rows) => rows.map((row) => ({ ...row, scheduledAt: row.scheduled_at }))),
           ),
-      recover: (row) =>
-        tasks.patch({ sessionID: row.session_id, id: row.id, status: "pending" }).pipe(Effect.orDie),
+      recover: (row) => tasks.patch({ sessionID: row.session_id, id: row.id, status: "pending" }).pipe(Effect.orDie),
       trigger: Effect.fn("ScheduledJob.trigger")(function* (taskID: string, now: number, rearm) {
         const row = yield* db.select().from(TaskTable).where(eq(TaskTable.id, taskID)).get().pipe(Effect.orDie)
         if (!row) return

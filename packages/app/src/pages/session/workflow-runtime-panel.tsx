@@ -90,7 +90,10 @@ export function WorkflowRuntimePanel(props: { sessionID?: string; adapter?: Work
     )
 
   return (
-    <section class="flex flex-col gap-3 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3" data-component="workflow-runtime-panel">
+    <section
+      class="flex flex-col gap-3 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3"
+      data-component="workflow-runtime-panel"
+    >
       <div class="flex items-center justify-between gap-2">
         <div class="flex min-w-0 items-center gap-2">
           <Icon name="mode-custom" size="small" class="shrink-0 text-v2-text-text-base" />
@@ -108,14 +111,20 @@ export function WorkflowRuntimePanel(props: { sessionID?: string; adapter?: Work
       </div>
 
       <Show when={status.loading}>
-        <div class="flex items-center gap-2 text-12-regular text-v2-text-text-muted" data-component="workflow-runtime-loading">
+        <div
+          class="flex items-center gap-2 text-12-regular text-v2-text-text-muted"
+          data-component="workflow-runtime-loading"
+        >
           <span class="size-2 animate-pulse rounded-full bg-v2-state-fg-info" />
           {language.t("workflowRuntime.loading")}
         </div>
       </Show>
 
       <Show when={status.error}>
-        <div class="flex items-center justify-between gap-2 rounded-md border border-v2-state-border-danger bg-v2-state-bg-danger p-2 text-12-regular text-v2-state-fg-danger" data-component="workflow-runtime-error">
+        <div
+          class="flex items-center justify-between gap-2 rounded-md border border-v2-state-border-danger bg-v2-state-bg-danger p-2 text-12-regular text-v2-state-fg-danger"
+          data-component="workflow-runtime-error"
+        >
           <span>{language.t("workflowRuntime.loadError")}</span>
           <ButtonV2 variant="ghost" size="small" onClick={() => void refetch()}>
             {language.t("workflowRuntime.tryAgain")}
@@ -160,7 +169,9 @@ export function WorkflowRuntimePanel(props: { sessionID?: string; adapter?: Work
 
               <div class="flex flex-col gap-1.5" data-component="workflow-runtime-steps">
                 <For each={status()?.steps ?? []}>
-                  {(step) => <StepRow run={run} step={step} cancelStep={cancelStep} retryStep={retryStep} language={language} />}
+                  {(step) => (
+                    <StepRow run={run} step={step} cancelStep={cancelStep} retryStep={retryStep} language={language} />
+                  )}
                 </For>
               </div>
             </div>
@@ -186,7 +197,11 @@ function StepRow(props: {
   language: ReturnType<typeof useLanguage>
 }) {
   return (
-    <div class="flex flex-wrap items-center justify-between gap-2 rounded-md border border-v2-border-border-faint bg-v2-background-bg-layer-01 px-2 py-2" data-component="workflow-runtime-step" data-status={props.step.status}>
+    <div
+      class="flex flex-wrap items-center justify-between gap-2 rounded-md border border-v2-border-border-faint bg-v2-background-bg-layer-01 px-2 py-2"
+      data-component="workflow-runtime-step"
+      data-status={props.step.status}
+    >
       <div class="min-w-0 flex-1">
         <div class="truncate text-11-medium text-v2-text-text-base">{props.step.stepId}</div>
         <div class="flex flex-wrap items-center gap-2 text-10-regular text-v2-text-text-faint">
@@ -217,10 +232,14 @@ function StatusBadge(props: { status: Parameters<typeof workflowStatusTone>[0]; 
       class="rounded border px-1.5 py-0.5 font-mono text-10-regular"
       classList={{
         "border-v2-border-border-faint text-v2-text-text-muted": workflowStatusTone(props.status) === "neutral",
-        "border-v2-state-border-info bg-v2-state-bg-info text-v2-state-fg-info": workflowStatusTone(props.status) === "info",
-        "border-v2-state-border-warning bg-v2-state-bg-warning text-v2-state-fg-warning": workflowStatusTone(props.status) === "warning",
-        "border-v2-state-border-success bg-v2-state-bg-success text-v2-state-fg-success": workflowStatusTone(props.status) === "success",
-        "border-v2-state-border-danger bg-v2-state-bg-danger text-v2-state-fg-danger": workflowStatusTone(props.status) === "danger",
+        "border-v2-state-border-info bg-v2-state-bg-info text-v2-state-fg-info":
+          workflowStatusTone(props.status) === "info",
+        "border-v2-state-border-warning bg-v2-state-bg-warning text-v2-state-fg-warning":
+          workflowStatusTone(props.status) === "warning",
+        "border-v2-state-border-success bg-v2-state-bg-success text-v2-state-fg-success":
+          workflowStatusTone(props.status) === "success",
+        "border-v2-state-border-danger bg-v2-state-bg-danger text-v2-state-fg-danger":
+          workflowStatusTone(props.status) === "danger",
       }}
       data-status={props.status}
     >

@@ -33,7 +33,9 @@ function toMillis(value: DateTime.DateTime | number): number {
   return DateTime.toEpochMillis(value)
 }
 
-function getDuration(tool: { time: { created: DateTime.DateTime | number; completed?: DateTime.DateTime | number } }): number | undefined {
+function getDuration(tool: {
+  time: { created: DateTime.DateTime | number; completed?: DateTime.DateTime | number }
+}): number | undefined {
   if (tool.time.completed === undefined) return undefined
   return toMillis(tool.time.completed) - toMillis(tool.time.created)
 }

@@ -8,52 +8,52 @@
 
 **新增（core 内新模块 + 测试）：**
 
-| 文件 | 摘要 |
-|---|---|
-| `packages/core/src/acp-client/connection.ts` | ACP client 连接生命周期（`makeClientConnection` 包装 SDK `ClientSideConnection`）：initialize → session/new\|load → session/prompt → session/cancel → close；`UpdateHandler`/`PermissionHandler` 注入 |
-| `packages/core/src/acp-client/update.ts` | `session/update` 纯函数解析：`toolCallProgress`（含 `_meta.parentToolUseId` 关联）、`textChunk`（摘要文本累积） |
-| `packages/core/src/acp-client/process.ts` | 生产桥进程工厂 `makeBridgeConnectionFactory`：spawn `claude-code-acp`/`codex-acp`，effect Stream/Sink ↔ Web Streams 桥接 → `ndJsonStream` |
-| `packages/core/src/tool/acp.ts` | 通用 `transport:"acp"` 适配器 `makeAcpAdapter`（claude/codex 共用同一 ACP 协议，DRY）：会话编排 + 摘要累积 + `request_permission`→`canUseTool` 桥 + `onProgress` 数据层；失败 `catch` 为 failed DelegationResult |
-| `packages/core/src/tool/claude-code-acp.ts` | claude-code ACP 薄包装（factory + 生产 `adapter`，detect 门控 `claude-code-acp`） |
-| `packages/core/src/tool/codex-acp.ts` | codex ACP 薄包装（同上，detect 门控 `codex-acp`） |
-| `packages/core/test/acp-client.test.ts` | 生命周期契约测试（真实 `ClientSideConnection` ↔ 真实 `AgentSideConnection`，内存 duplex） |
-| `packages/core/test/cli-acp-adapter.test.ts` | `transport:"acp"` 适配器契约测试（mock 连接工厂） |
-| `packages/core/test/cli-sdk-live-smoke.test.ts` | 真实 SDK it.live 冒烟（CLI 存在 + `AIGCFROGE_LIVE_CLI_SMOKE=1` 双门控） |
+| 文件                                            | 摘要                                                                                                                                                                                                             |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core/src/acp-client/connection.ts`    | ACP client 连接生命周期（`makeClientConnection` 包装 SDK `ClientSideConnection`）：initialize → session/new\|load → session/prompt → session/cancel → close；`UpdateHandler`/`PermissionHandler` 注入            |
+| `packages/core/src/acp-client/update.ts`        | `session/update` 纯函数解析：`toolCallProgress`（含 `_meta.parentToolUseId` 关联）、`textChunk`（摘要文本累积）                                                                                                  |
+| `packages/core/src/acp-client/process.ts`       | 生产桥进程工厂 `makeBridgeConnectionFactory`：spawn `claude-code-acp`/`codex-acp`，effect Stream/Sink ↔ Web Streams 桥接 → `ndJsonStream`                                                                       |
+| `packages/core/src/tool/acp.ts`                 | 通用 `transport:"acp"` 适配器 `makeAcpAdapter`（claude/codex 共用同一 ACP 协议，DRY）：会话编排 + 摘要累积 + `request_permission`→`canUseTool` 桥 + `onProgress` 数据层；失败 `catch` 为 failed DelegationResult |
+| `packages/core/src/tool/claude-code-acp.ts`     | claude-code ACP 薄包装（factory + 生产 `adapter`，detect 门控 `claude-code-acp`）                                                                                                                                |
+| `packages/core/src/tool/codex-acp.ts`           | codex ACP 薄包装（同上，detect 门控 `codex-acp`）                                                                                                                                                                |
+| `packages/core/test/acp-client.test.ts`         | 生命周期契约测试（真实 `ClientSideConnection` ↔ 真实 `AgentSideConnection`，内存 duplex）                                                                                                                       |
+| `packages/core/test/cli-acp-adapter.test.ts`    | `transport:"acp"` 适配器契约测试（mock 连接工厂）                                                                                                                                                                |
+| `packages/core/test/cli-sdk-live-smoke.test.ts` | 真实 SDK it.live 冒烟（CLI 存在 + `AIGCFROGE_LIVE_CLI_SMOKE=1` 双门控）                                                                                                                                          |
 
 **修改：**
 
-| 文件 | 摘要 |
-|---|---|
-| `packages/core/package.json` + `bun.lock` | 新增 `@agentclientprotocol/sdk@0.21.0` |
-| `packages/core/src/tool/cli-adapter.ts` | `execute` input 增可选 `onProgress`（外部 CLI tool_call 实时进度，`_meta.parentToolUseId` 关联） |
-| `packages/core/src/session/task-driver-fill.ts` | 注册 ACP 适配器（`which()` 门控，有桥则 ACP 默认）；**权限桥**：`Effect.serviceOption(PermissionV2.Service)` → 构建 `canUseTool`（`Effect.runPromise` 运行 assert，因 assert 闭包依赖可独立运行），SDK/ACP 路径共用；超时分支条件扩到 `acp` |
-| `packages/aigcfroge/src/agent/meta/adapters/registry.ts` | BUILT_INS 追加 ACP 适配器（同 `which()` 门控，同一 core cell 无第二 registry） |
-| `packages/aigcfroge/test/agent/meta/adapters/registry.test.ts` | 移除无用 `registry` 变量（lint warning） |
-| `packages/core/test/task-driver-fill.test.ts` | +R8/R9 权限桥测试（mock PermissionV2 捕获 assert） |
-| `ARCHITECTURE.md` | §4.11 外部 CLI 委派子系统 + §5 目录表 `acp-client/` |
-| `docs/roadmap/external-cli-dispatch-roadmap.md` | §6 里程碑状态 + M4/M5 进度注 |
+| 文件                                                           | 摘要                                                                                                                                                                                                                                        |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core/package.json` + `bun.lock`                      | 新增 `@agentclientprotocol/sdk@0.21.0`                                                                                                                                                                                                      |
+| `packages/core/src/tool/cli-adapter.ts`                        | `execute` input 增可选 `onProgress`（外部 CLI tool_call 实时进度，`_meta.parentToolUseId` 关联）                                                                                                                                            |
+| `packages/core/src/session/task-driver-fill.ts`                | 注册 ACP 适配器（`which()` 门控，有桥则 ACP 默认）；**权限桥**：`Effect.serviceOption(PermissionV2.Service)` → 构建 `canUseTool`（`Effect.runPromise` 运行 assert，因 assert 闭包依赖可独立运行），SDK/ACP 路径共用；超时分支条件扩到 `acp` |
+| `packages/aigcfroge/src/agent/meta/adapters/registry.ts`       | BUILT_INS 追加 ACP 适配器（同 `which()` 门控，同一 core cell 无第二 registry）                                                                                                                                                              |
+| `packages/aigcfroge/test/agent/meta/adapters/registry.test.ts` | 移除无用 `registry` 变量（lint warning）                                                                                                                                                                                                    |
+| `packages/core/test/task-driver-fill.test.ts`                  | +R8/R9 权限桥测试（mock PermissionV2 捕获 assert）                                                                                                                                                                                          |
+| `ARCHITECTURE.md`                                              | §4.11 外部 CLI 委派子系统 + §5 目录表 `acp-client/`                                                                                                                                                                                         |
+| `docs/roadmap/external-cli-dispatch-roadmap.md`                | §6 里程碑状态 + M4/M5 进度注                                                                                                                                                                                                                |
 
 ## 2. 红→绿证据
 
-| 阶段 | 红 | 绿 |
-|---|---|---|
-| 契约测试（Phase A） | 新模块不存在 → `Cannot find module`；`Effect.gen` 被 bun 当非 Promise 空过（297ms 假绿）；`permissionResponses` 未被 push → 断言空数组失败 | `acp-client` 2 pass、`cli-acp-adapter` 7 pass、`task-driver-fill` R8/R9 pass |
-| 权限桥（Phase A #3） | mock PermissionV2 放错层（fill layer）→ `serviceOption` 在会话 drain 上下文找不到 → canUseTool 缺省 deny | 移入 `makeTestLayer` merge（会话上下文）→ R8 断言 assert 收到正确 action/resources/metadata/sessionID，R9 allow 贯通 |
+| 阶段                 | 红                                                                                                                                         | 绿                                                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| 契约测试（Phase A）  | 新模块不存在 → `Cannot find module`；`Effect.gen` 被 bun 当非 Promise 空过（297ms 假绿）；`permissionResponses` 未被 push → 断言空数组失败 | `acp-client` 2 pass、`cli-acp-adapter` 7 pass、`task-driver-fill` R8/R9 pass                                         |
+| 权限桥（Phase A #3） | mock PermissionV2 放错层（fill layer）→ `serviceOption` 在会话 drain 上下文找不到 → canUseTool 缺省 deny                                   | 移入 `makeTestLayer` merge（会话上下文）→ R8 断言 assert 收到正确 action/resources/metadata/sessionID，R9 allow 贯通 |
 
 ## 3. 已运行命令及结果
 
-| 命令 | 结果 |
-|---|---|
-| `bun --cwd packages/core test acp-client cli-acp-adapter task-driver-fill cli-sdk-adapters config/cli-agent` | 33 pass / 0 fail |
-| `bun --cwd packages/core test`（全量 200 文件） | 1577 pass / 2 skip / 0 fail |
-| `bun --cwd packages/core typecheck` | 通过 |
-| `bun --cwd packages/aigcfroge typecheck` | 通过 |
-| `bun --cwd packages/app typecheck` | 通过（`tsgo -b`） |
-| `bun --cwd packages/tui typecheck` | 通过 |
-| `bun --cwd packages/aigcfroge test agent/meta/adapters meta-prompt-filler` | 16 pass / 0 fail |
-| `bun --cwd packages/aigcfroge test agent/agent agent/meta/adapters agent/plugin-agent-regression` | 61 pass / 0 fail |
-| `bun --cwd packages/tui test` | 208 pass / 1 skip / 0 fail |
-| `bun run lint`（仓根） | 0 error；warning 仅剩 M1 已登记既有项 `core/src/session/task.ts:71` |
+| 命令                                                                                                         | 结果                                                                |
+| ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| `bun --cwd packages/core test acp-client cli-acp-adapter task-driver-fill cli-sdk-adapters config/cli-agent` | 33 pass / 0 fail                                                    |
+| `bun --cwd packages/core test`（全量 200 文件）                                                              | 1577 pass / 2 skip / 0 fail                                         |
+| `bun --cwd packages/core typecheck`                                                                          | 通过                                                                |
+| `bun --cwd packages/aigcfroge typecheck`                                                                     | 通过                                                                |
+| `bun --cwd packages/app typecheck`                                                                           | 通过（`tsgo -b`）                                                   |
+| `bun --cwd packages/tui typecheck`                                                                           | 通过                                                                |
+| `bun --cwd packages/aigcfroge test agent/meta/adapters meta-prompt-filler`                                   | 16 pass / 0 fail                                                    |
+| `bun --cwd packages/aigcfroge test agent/agent agent/meta/adapters agent/plugin-agent-regression`            | 61 pass / 0 fail                                                    |
+| `bun --cwd packages/tui test`                                                                                | 208 pass / 1 skip / 0 fail                                          |
+| `bun run lint`（仓根）                                                                                       | 0 error；warning 仅剩 M1 已登记既有项 `core/src/session/task.ts:71` |
 
 注：`packages/aigcfroge` 全量测试套件 420s 超时（套件体量大，非失败）；本会话改动仅触及 aigcfroge registry.ts + 其测试，相关 61+16 项全绿。`packages/app` 全量测试未跑（无 app 源改动、typecheck 通过、core 类型改动向后兼容）。
 
@@ -126,7 +126,7 @@
 
 - `acp.ts` 的 `loadSession` 未先查 `agentCapabilities.loadSession`——不支持 load 的桥会走 catch 降级为 failed，行为可接受；M5 后续可对不支持 load 的桥回退 newSession。
 - config `transport:"acp"` 用于 claude-code/codex 但桥不在 PATH 时，`registerConfigCliAdapters` 静默 `continue` 保留 SDK——语义可接受（显式配置者得到了可用的次优传输），记录在案。
-- roadmap §6 里程碑表与本计划 M1–M5 编号存在轻微混用（该表自有 M1–M4  scheme），进度注已说明，不影响追溯。
+- roadmap §6 里程碑表与本计划 M1–M5 编号存在轻微混用（该表自有 M1–M4 scheme），进度注已说明，不影响追溯。
 
 ### 7.6 结论
 

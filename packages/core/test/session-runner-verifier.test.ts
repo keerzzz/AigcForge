@@ -99,7 +99,11 @@ const fakeEdit = Layer.effectDiscard(
 ).pipe(Layer.provide(registry))
 const models = SessionRunnerModel.layerWith(() => Effect.succeed(model))
 const systemContext = Layer.effectDiscard(
-  SystemContextRegistry.Service.pipe(Effect.flatMap((registry) => registry.register({ key: SystemContext.Key.make("test/context"), load: Effect.succeed(SystemContext.empty) }))),
+  SystemContextRegistry.Service.pipe(
+    Effect.flatMap((registry) =>
+      registry.register({ key: SystemContext.Key.make("test/context"), load: Effect.succeed(SystemContext.empty) }),
+    ),
+  ),
 ).pipe(Layer.provideMerge(SystemContextRegistry.layer))
 const location = Location.layer({ directory: AbsolutePath.make("/project") }).pipe(Layer.provide(Project.defaultLayer))
 const skillGuidance = Layer.mock(SkillGuidance.Service, { load: () => Effect.succeed(SystemContext.empty) })
@@ -137,47 +141,49 @@ const appProcess = Layer.mock(AppProcess.Service, {
     }),
 })
 const sessionComposition = SessionComposition.layer.pipe(Layer.provide(Database.defaultLayer))
-const runner = SessionRunnerLLM.defaultLayer.pipe(
-  Layer.provide(sessionComposition),
-  Layer.provide(appProcess),
-  Layer.provide(skillV2),
-  Layer.provide(Database.defaultLayer),
-  Layer.provide(SessionStore.defaultLayer),
-  Layer.provide(EventV2.defaultLayer),
-  Layer.provide(client),
-  Layer.provide(registry),
-  Layer.provide(models),
-  Layer.provide(systemContext),
-).pipe(
-  Layer.provide(location),
-  Layer.provide(agents),
-  Layer.provide(skillGuidance),
-  Layer.provide(referenceGuidance),
-  Layer.provide(DoomLoop.layer),
-  Layer.provide(CorrectionExtractor.layer),
-  Layer.provide(CorrectionStore.layer),
-  Layer.provide(
-    Verifier.layer.pipe(
-      Layer.provide(VerificationRouter.layer.pipe(Layer.provide(config))),
-      Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
-      Layer.provide(EventV2.defaultLayer.pipe(Layer.provide(Database.defaultLayer))),
-      Layer.provide(location),
-      Layer.provide(appProcess),
-      Layer.provide(config),
+const runner = SessionRunnerLLM.defaultLayer
+  .pipe(
+    Layer.provide(sessionComposition),
+    Layer.provide(appProcess),
+    Layer.provide(skillV2),
+    Layer.provide(Database.defaultLayer),
+    Layer.provide(SessionStore.defaultLayer),
+    Layer.provide(EventV2.defaultLayer),
+    Layer.provide(client),
+    Layer.provide(registry),
+    Layer.provide(models),
+    Layer.provide(systemContext),
+  )
+  .pipe(
+    Layer.provide(location),
+    Layer.provide(agents),
+    Layer.provide(skillGuidance),
+    Layer.provide(referenceGuidance),
+    Layer.provide(DoomLoop.layer),
+    Layer.provide(CorrectionExtractor.layer),
+    Layer.provide(CorrectionStore.layer),
+    Layer.provide(
+      Verifier.layer.pipe(
+        Layer.provide(VerificationRouter.layer.pipe(Layer.provide(config))),
+        Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
+        Layer.provide(EventV2.defaultLayer.pipe(Layer.provide(Database.defaultLayer))),
+        Layer.provide(location),
+        Layer.provide(appProcess),
+        Layer.provide(config),
+      ),
     ),
-  ),
-  Layer.provide(
-    ReferenceChecker.layer.pipe(
-      Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
-      Layer.provide(location),
-      Layer.provide(config),
-      Layer.provide(Ripgrep.layer.pipe(Layer.provide(RipgrepBinary.defaultLayer), Layer.provide(appProcess))),
-      Layer.provide(FSUtil.defaultLayer),
+    Layer.provide(
+      ReferenceChecker.layer.pipe(
+        Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
+        Layer.provide(location),
+        Layer.provide(config),
+        Layer.provide(Ripgrep.layer.pipe(Layer.provide(RipgrepBinary.defaultLayer), Layer.provide(appProcess))),
+        Layer.provide(FSUtil.defaultLayer),
+      ),
     ),
-  ),
-  Layer.provide(permission),
-  Layer.provide(config),
-)
+    Layer.provide(permission),
+    Layer.provide(config),
+  )
 const execution = Layer.effect(
   SessionExecution.Service,
   Effect.gen(function* () {

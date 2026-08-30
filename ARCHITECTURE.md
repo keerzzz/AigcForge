@@ -6,28 +6,28 @@
 
 ## 1. Document Routing
 
-| To understand | Read |
-|---|---|
-| First principles, gates, review flow | `CLAUDE.md` |
-| Code style, branching, Effect/Schema/testing | `AGENTS.md` |
-| UI design, tokens, components, i18n, a11y | `DESIGN.md` |
-| Session V2 terminology & invariants | `CONTEXT.md` |
-| Desktop UI architecture (pages, providers, layout) | `docs/architecture/system-blueprint.md` |
-| Per-page UI architecture | `docs/architecture/pages/*.md` |
-| V2 subsystem API design | `specs/v2/*.md` |
-| Product Mode state and Session classification | `docs/architecture/adr/ADR-11-product-mode-session-classification.md` |
-| Proposed Custom Mode composition contract | `docs/architecture/adr/ADR-17-custom-mode-composition-platform.md` · `docs/prd/custom-mode-composition-platform.md` · `docs/roadmap/custom-mode-roadmap.md` |
-| Product PRDs & requirements | `docs/prd/` |
-| Skills navigation & protocol topology | `.aigcfroge/skills/protocols/SKILL.md` |
-| Enterprise code standard & refactoring | `.aigcfroge/skills/enterprise-code-standard/SKILL.md` · `.aigcfroge/skills/reuse-first-refactor/SKILL.md` |
-| Quality to PR delivery gates | `.aigcfroge/skills/quality-to-pr/SKILL.md` |
-| Effect coding detail | `.aigcfroge/skills/effect/SKILL.md` |
-| Database schema & migrations | `.aigcfroge/skills/database/SKILL.md` |
-| Theme engine internals | `.aigcfroge/skills/frontend-theming/SKILL.md` |
-| Implementation plans & status | `docs/plan/`, `specs/v2/todo.md` |
-| Roadmaps (milestone plans) | `docs/roadmap/` |
-| Research & industry surveys | `docs/research/industry/` · `docs/research/competitors/` · `docs/research/agent/` |
-| Architecture decisions | `docs/architecture/adr/` |
+| To understand                                      | Read                                                                                                                                                        |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| First principles, gates, review flow               | `CLAUDE.md`                                                                                                                                                 |
+| Code style, branching, Effect/Schema/testing       | `AGENTS.md`                                                                                                                                                 |
+| UI design, tokens, components, i18n, a11y          | `DESIGN.md`                                                                                                                                                 |
+| Session V2 terminology & invariants                | `CONTEXT.md`                                                                                                                                                |
+| Desktop UI architecture (pages, providers, layout) | `docs/architecture/system-blueprint.md`                                                                                                                     |
+| Per-page UI architecture                           | `docs/architecture/pages/*.md`                                                                                                                              |
+| V2 subsystem API design                            | `specs/v2/*.md`                                                                                                                                             |
+| Product Mode state and Session classification      | `docs/architecture/adr/ADR-11-product-mode-session-classification.md`                                                                                       |
+| Proposed Custom Mode composition contract          | `docs/architecture/adr/ADR-17-custom-mode-composition-platform.md` · `docs/prd/custom-mode-composition-platform.md` · `docs/roadmap/custom-mode-roadmap.md` |
+| Product PRDs & requirements                        | `docs/prd/`                                                                                                                                                 |
+| Skills navigation & protocol topology              | `.aigcfroge/skills/protocols/SKILL.md`                                                                                                                      |
+| Enterprise code standard & refactoring             | `.aigcfroge/skills/enterprise-code-standard/SKILL.md` · `.aigcfroge/skills/reuse-first-refactor/SKILL.md`                                                   |
+| Quality to PR delivery gates                       | `.aigcfroge/skills/quality-to-pr/SKILL.md`                                                                                                                  |
+| Effect coding detail                               | `.aigcfroge/skills/effect/SKILL.md`                                                                                                                         |
+| Database schema & migrations                       | `.aigcfroge/skills/database/SKILL.md`                                                                                                                       |
+| Theme engine internals                             | `.aigcfroge/skills/frontend-theming/SKILL.md`                                                                                                               |
+| Implementation plans & status                      | `docs/plan/`, `specs/v2/todo.md`                                                                                                                            |
+| Roadmaps (milestone plans)                         | `docs/roadmap/`                                                                                                                                             |
+| Research & industry surveys                        | `docs/research/industry/` · `docs/research/competitors/` · `docs/research/agent/`                                                                           |
+| Architecture decisions                             | `docs/architecture/adr/`                                                                                                                                    |
 
 > **`CONTEXT.md` caveat**: despite its name, it is the Session Runtime terminology and relationship-invariant dictionary, **not** a project-wide context file. Read it when working on Session V2 internals.
 >
@@ -226,34 +226,34 @@ A directory-to-responsibility map for the two largest packages.
 
 ### `packages/aigcfroge/src/` — application / CLI / server layer
 
-| Group | Directories |
-|---|---|
-| CLI & commands | `cli/`, `command/`, `index.ts`, `node.ts` |
-| Server & API | `server/`, `control-plane/`, `share/`, `sync/` |
-| Session runtime | `session/`, `event-v2-bridge.ts`, `background/`, `bus/` |
-| Provider & LLM | `provider/`, `session/llm/` |
-| Tools & MCP | `tool/`, `mcp/`, `lsp/`, `acp/` |
-| Project & FS | `project/`, `patch/`, `worktree/`, `git/`, `ide/`, `image/` |
-| Permission & auth | `permission/`, `auth/`, `account/` |
-| Plugin & skill | `plugin/`, `skill/`, `agent/`, `question/` |
-| Infra | `config/`, `env/`, `effect/`, `storage/`, `util/`, `format/`, `id/`, `snapshot/`, `installation/`, `temporary.ts` |
+| Group             | Directories                                                                                                       |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------- |
+| CLI & commands    | `cli/`, `command/`, `index.ts`, `node.ts`                                                                         |
+| Server & API      | `server/`, `control-plane/`, `share/`, `sync/`                                                                    |
+| Session runtime   | `session/`, `event-v2-bridge.ts`, `background/`, `bus/`                                                           |
+| Provider & LLM    | `provider/`, `session/llm/`                                                                                       |
+| Tools & MCP       | `tool/`, `mcp/`, `lsp/`, `acp/`                                                                                   |
+| Project & FS      | `project/`, `patch/`, `worktree/`, `git/`, `ide/`, `image/`                                                       |
+| Permission & auth | `permission/`, `auth/`, `account/`                                                                                |
+| Plugin & skill    | `plugin/`, `skill/`, `agent/`, `question/`                                                                        |
+| Infra             | `config/`, `env/`, `effect/`, `storage/`, `util/`, `format/`, `id/`, `snapshot/`, `installation/`, `temporary.ts` |
 
 ### `packages/core/src/` — domain layer
 
-| Group | Files / directories |
-|---|---|
-| Session V2 | `session.ts`, `session/`, `system-context/` |
-| Event | `event.ts`, `event/` |
-| Tool | `tool/`, `tool-output-store.ts` |
-| External CLI (ACP client) | `acp-client/` |
-| Provider & model | `provider.ts`, `model.ts`, `catalog.ts`, `model-request.ts`, `models-dev.ts`, `aisdk.ts` |
-| Permission & policy | `permission.ts`, `permission/`, `policy.ts` |
-| Plugin | `plugin.ts`, `plugin/` |
-| Domain primitives | `account.ts`, `agent.ts`, `command.ts`, `config.ts`, `credential.ts`, `project.ts`, `question.ts`, `skill.ts`, `snapshot.ts`, `workspace.ts` |
-| Location & filesystem | `location.ts`, `location-layer.ts`, `location-mutation.ts`, `filesystem.ts`, `filesystem/`, `fs-util.ts`, `file-mutation.ts`, `patch.ts`, `ripgrep.ts`, `repository.ts`, `repository-cache.ts` |
-| Process & shell | `process.ts`, `shell.ts`, `pty.ts`, `pty/`, `cross-spawn-spawner.ts` |
-| Integration | `integration.ts`, `integration/`, `github-copilot/`, `npm.ts`, `npm-config.ts` |
-| Infra | `cache/`, `config/`, `control-plane/`, `database/`, `effect/`, `flag/`, `id/`, `image/`, `installation/`, `meta-agent/`, `observability.ts`, `observability/`, `public/`, `reference.ts`, `reference/`, `state.ts`, `util/`, `v1/`, `v2-schema.ts`, `data-migration.sql.ts`, `instruction-context.ts`, `global.ts` |
+| Group                     | Files / directories                                                                                                                                                                                                                                                                                                |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Session V2                | `session.ts`, `session/`, `system-context/`                                                                                                                                                                                                                                                                        |
+| Event                     | `event.ts`, `event/`                                                                                                                                                                                                                                                                                               |
+| Tool                      | `tool/`, `tool-output-store.ts`                                                                                                                                                                                                                                                                                    |
+| External CLI (ACP client) | `acp-client/`                                                                                                                                                                                                                                                                                                      |
+| Provider & model          | `provider.ts`, `model.ts`, `catalog.ts`, `model-request.ts`, `models-dev.ts`, `aisdk.ts`                                                                                                                                                                                                                           |
+| Permission & policy       | `permission.ts`, `permission/`, `policy.ts`                                                                                                                                                                                                                                                                        |
+| Plugin                    | `plugin.ts`, `plugin/`                                                                                                                                                                                                                                                                                             |
+| Domain primitives         | `account.ts`, `agent.ts`, `command.ts`, `config.ts`, `credential.ts`, `project.ts`, `question.ts`, `skill.ts`, `snapshot.ts`, `workspace.ts`                                                                                                                                                                       |
+| Location & filesystem     | `location.ts`, `location-layer.ts`, `location-mutation.ts`, `filesystem.ts`, `filesystem/`, `fs-util.ts`, `file-mutation.ts`, `patch.ts`, `ripgrep.ts`, `repository.ts`, `repository-cache.ts`                                                                                                                     |
+| Process & shell           | `process.ts`, `shell.ts`, `pty.ts`, `pty/`, `cross-spawn-spawner.ts`                                                                                                                                                                                                                                               |
+| Integration               | `integration.ts`, `integration/`, `github-copilot/`, `npm.ts`, `npm-config.ts`                                                                                                                                                                                                                                     |
+| Infra                     | `cache/`, `config/`, `control-plane/`, `database/`, `effect/`, `flag/`, `id/`, `image/`, `installation/`, `meta-agent/`, `observability.ts`, `observability/`, `public/`, `reference.ts`, `reference/`, `state.ts`, `util/`, `v1/`, `v2-schema.ts`, `data-migration.sql.ts`, `instruction-context.ts`, `global.ts` |
 
 ## 6. Cross-Layer Effect Boundaries
 
@@ -264,14 +264,14 @@ A directory-to-responsibility map for the two largest packages.
 
 ## 7. Design State
 
-| Status | Items |
-|---|---|
-| Implemented | Session V2, EventV2, Tool Registry, Provider/Model Catalog, System Context, Database layer, v2 UI design system, MetaAgent service, MetaHooks/ToolHooks SDK, MCP V2 (stdio+remote+OAuth), SessionShare V2 (internal), SessionRevert V2, SessionSummary V2, INTENT_TOOL_FILTERS, PreToolUse/PostToolUse hooks, Product Mode skeleton (mode classification + `/mode/:mode` entry routing), Prompt Asset M1 (prompt-asset schema/registry/transaction service + V1/V2 propose tool + chat-orchestrator + HTTP API + Chat surface) |
+| Status             | Items                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Implemented        | Session V2, EventV2, Tool Registry, Provider/Model Catalog, System Context, Database layer, v2 UI design system, MetaAgent service, MetaHooks/ToolHooks SDK, MCP V2 (stdio+remote+OAuth), SessionShare V2 (internal), SessionRevert V2, SessionSummary V2, INTENT_TOOL_FILTERS, PreToolUse/PostToolUse hooks, Product Mode skeleton (mode classification + `/mode/:mode` entry routing), Prompt Asset M1 (prompt-asset schema/registry/transaction service + V1/V2 propose tool + chat-orchestrator + HTTP API + Chat surface)                                                                                                                                                                    |
 | Design in progress | Chat PRD v4.6（资产工作室，已批准 2026-07-18；M1-M7 全部完成 — 7 类资产新建/导入/创建/apply/delete 全闭环）与 Work PRD v4.1（非编程执行层，已批准 2026-07-31，实施计划见 [`docs/roadmap/work-mode-roadmap.md`](docs/roadmap/work-mode-roadmap.md) + [`docs/plan/work-mode-execution-layer-m1.md`](docs/plan/work-mode-execution-layer-m1.md)）；Assistant/My Agents PRDs remain drafts；Custom 第五 Product Mode 已获准进入 M0/M1 实施（[`ADR-17`](docs/architecture/adr/ADR-17-custom-mode-composition-platform.md) Accepted for implementation + [`Custom PRD`](docs/prd/custom-mode-composition-platform.md) Approved for implementation），生产运行时在 M0 Phase B 合入前仍严格保持四模式契约 |
-| In progress | V2 config (`specs/v2/config.md`), TUI package extraction (`specs/tui-package.md`), legacy storage removal (`specs/storage/remove-opencode-db.md`) |
-| Implemented | Session permission tier（`propose`/`full` 档位 + `PermissionEffective` 唯一有效权限 owner + Session 级 break-glass override，实施计划 [`docs/plan/mode-scoped-permission-overlay.md`](docs/plan/mode-scoped-permission-overlay.md)，2026-08-16 全量落地） |
-| Phase 6 complete | Structured Handoffs (summary compression), Judge multi-model arbitration, external CLI session recovery, symlink-aware path containment, Fork CLI endpoint |
-| Accepted decisions | `docs/architecture/adr/ADR-09-mode-route-decoupling.md`, `docs/architecture/adr/ADR-10-schema-versioning.md`, `docs/architecture/adr/ADR-11-product-mode-session-classification.md`, `docs/architecture/adr/ADR-12-product-mode-entry-routing.md`, `docs/architecture/adr/ADR-13-chat-work-mode-boundary.md`, `docs/architecture/adr/ADR-13-amendment-1-workflow-asset.md`（工作流定义→Chat，执行→Work）, `docs/architecture/adr/ADR-13-amendment-2-meta-agent-dispatch.md`（元智能体统一调度与 Chat 权限信封收敛）, `docs/architecture/adr/ADR-14-persistence-and-scope-strategy.md`, `docs/architecture/adr/ADR-15-mode-workspace-main-area-slot.md` |
+| In progress        | V2 config (`specs/v2/config.md`), TUI package extraction (`specs/tui-package.md`), legacy storage removal (`specs/storage/remove-opencode-db.md`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Implemented        | Session permission tier（`propose`/`full` 档位 + `PermissionEffective` 唯一有效权限 owner + Session 级 break-glass override，实施计划 [`docs/plan/mode-scoped-permission-overlay.md`](docs/plan/mode-scoped-permission-overlay.md)，2026-08-16 全量落地）                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Phase 6 complete   | Structured Handoffs (summary compression), Judge multi-model arbitration, external CLI session recovery, symlink-aware path containment, Fork CLI endpoint                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Accepted decisions | `docs/architecture/adr/ADR-09-mode-route-decoupling.md`, `docs/architecture/adr/ADR-10-schema-versioning.md`, `docs/architecture/adr/ADR-11-product-mode-session-classification.md`, `docs/architecture/adr/ADR-12-product-mode-entry-routing.md`, `docs/architecture/adr/ADR-13-chat-work-mode-boundary.md`, `docs/architecture/adr/ADR-13-amendment-1-workflow-asset.md`（工作流定义→Chat，执行→Work）, `docs/architecture/adr/ADR-13-amendment-2-meta-agent-dispatch.md`（元智能体统一调度与 Chat 权限信封收敛）, `docs/architecture/adr/ADR-14-persistence-and-scope-strategy.md`, `docs/architecture/adr/ADR-15-mode-workspace-main-area-slot.md`                                            |
 | Accepted decisions | [`ADR-17`](docs/architecture/adr/ADR-17-custom-mode-composition-platform.md)（Accepted for M0/M1 implementation v1.2; Custom 第五 Product Mode、Composition Profile/Plan/Snapshot 与分阶段扩展平台；生产激活仍受 M0/M1 Gate 约束）                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 V2 migration status is tracked in `specs/v2/todo.md` and `packages/aigcfroge/specs/effect/todo.md`. The schema changelog lives in `specs/v2/schema-changelog.md`.

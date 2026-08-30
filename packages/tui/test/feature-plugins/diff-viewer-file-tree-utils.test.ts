@@ -69,7 +69,10 @@ describe("diff viewer file tree utilities", () => {
 
   test("collapses unary directory chains while flattening", () => {
     const rows = flattenFileTree(
-      buildFileTree([{ file: "packages/aigcfroge/src/cli/app.ts" }, { file: "packages/aigcfroge/src/server/server.ts" }]),
+      buildFileTree([
+        { file: "packages/aigcfroge/src/cli/app.ts" },
+        { file: "packages/aigcfroge/src/server/server.ts" },
+      ]),
     )
 
     expect(rows.map((row) => `${"  ".repeat(row.depth)}${row.kind}:${row.name}`)).toEqual([
@@ -197,7 +200,10 @@ describe("diff viewer file tree utilities", () => {
 
   test("moves collapsed chain selection to first visible child", () => {
     const rows = flattenFileTree(
-      buildFileTree([{ file: "packages/aigcfroge/src/cli/app.ts" }, { file: "packages/aigcfroge/src/server/server.ts" }]),
+      buildFileTree([
+        { file: "packages/aigcfroge/src/cli/app.ts" },
+        { file: "packages/aigcfroge/src/server/server.ts" },
+      ]),
     )
     const packages = rows.find((row) => row.kind === "directory" && row.name === "packages/aigcfroge/src")!
     const cli = rows.find((row) => row.kind === "directory" && row.name === "cli")!
@@ -207,7 +213,10 @@ describe("diff viewer file tree utilities", () => {
 
   test("moves file and collapsed directory selection to visible parent", () => {
     const rows = flattenFileTree(
-      buildFileTree([{ file: "packages/aigcfroge/src/cli/app.ts" }, { file: "packages/aigcfroge/src/server/server.ts" }]),
+      buildFileTree([
+        { file: "packages/aigcfroge/src/cli/app.ts" },
+        { file: "packages/aigcfroge/src/server/server.ts" },
+      ]),
     )
     const root = rows.find((row) => row.kind === "directory" && row.name === "packages/aigcfroge/src")!
     const cli = rows.find((row) => row.kind === "directory" && row.name === "cli")!

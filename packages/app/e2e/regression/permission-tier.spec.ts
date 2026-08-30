@@ -61,7 +61,9 @@ async function mockPermissionRoutes(page: Page, wire: PermissionWire) {
         status: wire.tierPutStatus,
         contentType: "application/json",
         headers: { "access-control-allow-origin": "*" },
-        body: JSON.stringify(wire.tierPutStatus === 200 ? {} : { error: "Permission tier is only available for root sessions" }),
+        body: JSON.stringify(
+          wire.tierPutStatus === 200 ? {} : { error: "Permission tier is only available for root sessions" },
+        ),
       })
     }
     return route.fallback()
@@ -119,7 +121,13 @@ async function openSession(page: Page, wire: PermissionWire, sessionData: Return
 }
 
 test("chat meta session shows the tier selector with propose active by default", async ({ page }) => {
-  const wire: PermissionWire = { tierPuts: [], overridePuts: [], overrideDeletes: 0, enabled: false, tierPutStatus: 200 }
+  const wire: PermissionWire = {
+    tierPuts: [],
+    overridePuts: [],
+    overrideDeletes: 0,
+    enabled: false,
+    tierPutStatus: 200,
+  }
   await openSession(page, wire, session({ id: "ses_tier_chat_default", mode: "chat", agent: "meta" }))
 
   const selector = page.locator('[data-slot="permission-tier-selector"]')
@@ -136,21 +144,39 @@ test("chat meta session shows the tier selector with propose active by default",
 })
 
 test("coding session hides the tier selector", async ({ page }) => {
-  const wire: PermissionWire = { tierPuts: [], overridePuts: [], overrideDeletes: 0, enabled: false, tierPutStatus: 200 }
+  const wire: PermissionWire = {
+    tierPuts: [],
+    overridePuts: [],
+    overrideDeletes: 0,
+    enabled: false,
+    tierPutStatus: 200,
+  }
   await openSession(page, wire, session({ id: "ses_tier_coding_hidden", mode: "coding", agent: "meta" }))
 
   await expect(page.locator('[data-slot="permission-tier-selector"]')).toHaveCount(0)
 })
 
 test("work session shows the tier selector", async ({ page }) => {
-  const wire: PermissionWire = { tierPuts: [], overridePuts: [], overrideDeletes: 0, enabled: false, tierPutStatus: 200 }
+  const wire: PermissionWire = {
+    tierPuts: [],
+    overridePuts: [],
+    overrideDeletes: 0,
+    enabled: false,
+    tierPutStatus: 200,
+  }
   await openSession(page, wire, session({ id: "ses_tier_work_visible", mode: "work", agent: "meta" }))
 
   await expectAppVisible(page.locator('[data-slot="permission-tier-selector"]'))
 })
 
 test("switching to full sends permissionTier through the session update", async ({ page }) => {
-  const wire: PermissionWire = { tierPuts: [], overridePuts: [], overrideDeletes: 0, enabled: false, tierPutStatus: 200 }
+  const wire: PermissionWire = {
+    tierPuts: [],
+    overridePuts: [],
+    overrideDeletes: 0,
+    enabled: false,
+    tierPutStatus: 200,
+  }
   await openSession(page, wire, session({ id: "ses_tier_switch_full", mode: "chat", agent: "meta" }))
 
   await page.locator('[data-slot="permission-tier-option"][data-value="full"]').click()
@@ -160,7 +186,13 @@ test("switching to full sends permissionTier through the session update", async 
 })
 
 test("override control requires acknowledgement before enabling and round-trips enable/disable", async ({ page }) => {
-  const wire: PermissionWire = { tierPuts: [], overridePuts: [], overrideDeletes: 0, enabled: false, tierPutStatus: 200 }
+  const wire: PermissionWire = {
+    tierPuts: [],
+    overridePuts: [],
+    overrideDeletes: 0,
+    enabled: false,
+    tierPutStatus: 200,
+  }
   await openSession(page, wire, session({ id: "ses_tier_override_flow", mode: "chat", agent: "meta" }))
 
   // 初始：GET 返回 enabled:false → 显示启用按钮
@@ -170,9 +202,7 @@ test("override control requires acknowledgement before enabling and round-trips 
   // 二次确认：勾选前「启用」禁用（ui Dialog 无 role=dialog，用 data-slot 定位）
   const ack = page.locator('[data-slot="permission-override-acknowledge"]')
   await expectAppVisible(ack)
-  const confirm = page
-    .locator('[data-slot="permission-override-confirm-actions"] button')
-    .filter({ hasText: "Enable" })
+  const confirm = page.locator('[data-slot="permission-override-confirm-actions"] button').filter({ hasText: "Enable" })
   await expect(confirm).toBeDisabled()
   await ack.check()
   await expect(confirm).toBeEnabled()
@@ -186,14 +216,18 @@ test("override control requires acknowledgement before enabling and round-trips 
 
   // 关闭：DELETE 一次，回到启用按钮
   await page.locator('[data-slot="permission-override-disable"]').click()
-  await expect
-    .poll(() => wire.overrideDeletes, { timeout: 10_000 })
-    .toBeGreaterThan(0)
+  await expect.poll(() => wire.overrideDeletes, { timeout: 10_000 }).toBeGreaterThan(0)
   await expectAppVisible(page.locator('[data-slot="permission-override-enable"]'))
 })
 
 test("unattended session hides the override control", async ({ page }) => {
-  const wire: PermissionWire = { tierPuts: [], overridePuts: [], overrideDeletes: 0, enabled: false, tierPutStatus: 200 }
+  const wire: PermissionWire = {
+    tierPuts: [],
+    overridePuts: [],
+    overrideDeletes: 0,
+    enabled: false,
+    tierPutStatus: 200,
+  }
   await openSession(page, wire, session({ id: "ses_tier_unattended", mode: "chat", agent: "meta", attended: false }))
 
   await expect(page.locator('[data-slot="permission-override-control"]')).toHaveCount(0)

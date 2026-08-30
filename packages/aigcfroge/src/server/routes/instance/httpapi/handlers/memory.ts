@@ -41,7 +41,11 @@ export const memoryHandlers = HttpApiBuilder.group(InstanceHttpApi, "memory", (h
 
     const edit = Effect.fn("MemoryHttpApi.edit")(function* (ctx: {
       params: { id: PersonalMemorySchema.ID }
-      payload: { content?: string; trustLevel?: PersonalMemorySchema.TrustLevel; sensitivityLevel?: PersonalMemorySchema.SensitivityLevel }
+      payload: {
+        content?: string
+        trustLevel?: PersonalMemorySchema.TrustLevel
+        sensitivityLevel?: PersonalMemorySchema.SensitivityLevel
+      }
     }) {
       const edited = yield* memories.edit({
         id: ctx.params.id,
@@ -58,7 +62,9 @@ export const memoryHandlers = HttpApiBuilder.group(InstanceHttpApi, "memory", (h
     const remove = Effect.fn("MemoryHttpApi.remove")(function* (ctx: { params: { id: PersonalMemorySchema.ID } }) {
       const removed = yield* memories.remove(ctx.params.id)
       if (!removed) {
-        return yield* Effect.fail(new InvalidRequestError({ message: `Memory ${ctx.params.id} not found or not confirmed` }))
+        return yield* Effect.fail(
+          new InvalidRequestError({ message: `Memory ${ctx.params.id} not found or not confirmed` }),
+        )
       }
       return removed
     })

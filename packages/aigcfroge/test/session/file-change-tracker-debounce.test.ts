@@ -7,8 +7,6 @@ import fs from "fs/promises"
 import os from "os"
 import path from "path"
 
-
-
 const withTmpFile = (fn: (path: string) => Effect.Effect<void>) =>
   Effect.gen(function* () {
     const dirpath = path.join(os.tmpdir(), "aigcfroge-fct-test-" + Math.random().toString(36).slice(2))

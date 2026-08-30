@@ -26,13 +26,13 @@
 
 ## 3. 架构前提
 
-| 决策 | 当前状态 | 本 PRD 处理 |
-|---|---|---|
-| 当前 Product Mode 只有四类 | ADR-11 已接受 | 当前实现保持四值；目标五值由 ADR-17 的 supersede/migration Gate 决定 |
-| Session route 不编码 Mode/入口来源 | ADR-09/12 已接受 | 禁止 Custom Session route |
-| Agent provenance | 公开 schema 不存在 | M0 扩展 registry producer 和公开 `Agent.Info` |
-| Draft Agent 身份 | `DraftTab` 当前仅冻结 `mode` | M0 新增独立 `agent` 字段并做前端持久状态迁移 |
-| 全局 Agent 路径与作用域 | ADR-14 提出且 loader 路径未统一 | M1 只支持当前 Location 中来源明确的项目文件 Agent |
+| 决策                               | 当前状态                        | 本 PRD 处理                                                          |
+| ---------------------------------- | ------------------------------- | -------------------------------------------------------------------- |
+| 当前 Product Mode 只有四类         | ADR-11 已接受                   | 当前实现保持四值；目标五值由 ADR-17 的 supersede/migration Gate 决定 |
+| Session route 不编码 Mode/入口来源 | ADR-09/12 已接受                | 禁止 Custom Session route                                            |
+| Agent provenance                   | 公开 schema 不存在              | M0 扩展 registry producer 和公开 `Agent.Info`                        |
+| Draft Agent 身份                   | `DraftTab` 当前仅冻结 `mode`    | M0 新增独立 `agent` 字段并做前端持久状态迁移                         |
+| 全局 Agent 路径与作用域            | ADR-14 提出且 loader 路径未统一 | M1 只支持当前 Location 中来源明确的项目文件 Agent                    |
 
 当前 V2 文件 Agent loader 扫描 `.claude/agents/*.agent.md`；配置插件还会从配置文档合并 Agent。PRD 不将 `.aigcfroge/agents/` 或某个全局目录写成已支持能力。
 
@@ -58,13 +58,13 @@
 
 ## 5. 用户故事
 
-| 用户故事 | 验收结果 |
-|---|---|
+| 用户故事                                                            | 验收结果                                         |
+| ------------------------------------------------------------------- | ------------------------------------------------ |
 | 作为项目用户，我想只看到自己项目中的 Agent，以便不被内置 Agent 干扰 | 列表完全由 provenance 过滤，不使用 ID/名称启发式 |
-| 作为安全敏感用户，我想在启动前查看 Agent 权限，以便选择正确模式 | 详情显示权限摘要和来源，但不暴露秘密 |
-| 作为多模式用户，我想明确选择 Work 或 Coding，以便 Session 分类正确 | 未选择模式时不能启动，系统不设置默认推断 |
-| 作为刷新后的用户，我想保留选定 Agent，以便首次提交不会跑错 Agent | Draft 恢复后 Agent 与 Mode 均来自持久 `DraftTab` |
-| 作为历史用户，我想从最近会话继续工作 | 点击最近项进入 `/server/:serverKey/session/:id` |
+| 作为安全敏感用户，我想在启动前查看 Agent 权限，以便选择正确模式     | 详情显示权限摘要和来源，但不暴露秘密             |
+| 作为多模式用户，我想明确选择 Work 或 Coding，以便 Session 分类正确  | 未选择模式时不能启动，系统不设置默认推断         |
+| 作为刷新后的用户，我想保留选定 Agent，以便首次提交不会跑错 Agent    | Draft 恢复后 Agent 与 Mode 均来自持久 `DraftTab` |
+| 作为历史用户，我想从最近会话继续工作                                | 点击最近项进入 `/server/:serverKey/session/:id`  |
 
 ## 6. M1 产品流程
 
@@ -85,11 +85,11 @@
 
 公开 `Agent.Info` 增加非空 provenance，覆盖所有 producer。最小来源联合类型如下：
 
-| `kind` | 必要字段 | 用途 |
-|---|---|---|
-| `builtin` | 内置定义 ID | 系统内置 Agent |
-| `plugin` | plugin ID | 插件贡献的 Agent |
-| `file` | `scope`、安全相对路径、`format` | Markdown 或配置文档贡献的 Agent |
+| `kind`    | 必要字段                        | 用途                            |
+| --------- | ------------------------------- | ------------------------------- |
+| `builtin` | 内置定义 ID                     | 系统内置 Agent                  |
+| `plugin`  | plugin ID                       | 插件贡献的 Agent                |
+| `file`    | `scope`、安全相对路径、`format` | Markdown 或配置文档贡献的 Agent |
 
 - `file.scope` 为 `project` 或 `global`；路径相对已知配置根或 Location，不向客户端泄漏任意绝对路径。
 - `file.format` 至少区分 `claude-agent-md` 与 `config-agent`，不得只用相同的 `file` kind 混淆不同 loader 契约。
@@ -146,37 +146,37 @@
 
 上线前用包含 builtin/plugin/file/config 覆盖的 50 个 registry fixture 建立正确性基线，并进行 30 次内部启动流程：
 
-| 指标 | 目标 | 测量方式 |
-|---|---|---|
-| 用户 Agent 分类正确率 | 100% | fixture 期望集合与 provenance 查询集合一致 |
-| 启动台加载成功率 | ≥99% | 成功返回可判定列表 / 有效加载次数 |
-| Draft 到 Session 启动成功率 | ≥95% | durable mode+agent 一致的 Session / 启动确认次数 |
-| 选择到启动转化率 | ≥40% | 选择有效 Agent 后成功创建 Session 的用户占比 |
-| 7 日再次启动率 | ≥25% | 首次启动后 7 日内再次从启动台创建 Session 的用户占比 |
-| Agent/Mode 一致率 | 100% | Draft、create input、Session 响应三者一致 |
-| canonical route 使用率 | 100% | 启动/最近会话均进入 `sessionHref()` |
-| 静默默认 Agent 回退 | 0 | 指定 Agent 不可用时创建默认 Agent Session 的次数 |
+| 指标                        | 目标 | 测量方式                                             |
+| --------------------------- | ---- | ---------------------------------------------------- |
+| 用户 Agent 分类正确率       | 100% | fixture 期望集合与 provenance 查询集合一致           |
+| 启动台加载成功率            | ≥99% | 成功返回可判定列表 / 有效加载次数                    |
+| Draft 到 Session 启动成功率 | ≥95% | durable mode+agent 一致的 Session / 启动确认次数     |
+| 选择到启动转化率            | ≥40% | 选择有效 Agent 后成功创建 Session 的用户占比         |
+| 7 日再次启动率              | ≥25% | 首次启动后 7 日内再次从启动台创建 Session 的用户占比 |
+| Agent/Mode 一致率           | 100% | Draft、create input、Session 响应三者一致            |
+| canonical route 使用率      | 100% | 启动/最近会话均进入 `sessionHref()`                  |
+| 静默默认 Agent 回退         | 0    | 指定 Agent 不可用时创建默认 Agent Session 的次数     |
 
 至少记录 `my_agents_opened`、`my_agents_location_selected`、`my_agents_agent_selected`、`my_agents_launch_requested`、`my_agents_launch_succeeded` 和 `my_agents_launch_failed`；不记录 Agent prompt 或来源绝对路径。
 
 ## 11. 里程碑与优先级
 
-| 阶段 | 范围 | 准入/退出条件 |
-|---|---|---|
+| 阶段                     | 范围                                                               | 准入/退出条件                               |
+| ------------------------ | ------------------------------------------------------------------ | ------------------------------------------- |
 | **M0 来源与 Draft 契约** | provenance producer、公开 schema、Draft agent 持久化、首次提交透传 | Core/App 架构评审和 registry/Draft 测试通过 |
-| **M1 项目 Agent 启动台** | Location 选择、列表、搜索、详情、Work/Coding 启动、最近会话 | Beta Gate 全部达标 |
-| **M2 生命周期入口** | 跳转 Chat 创建/对话修改；评估全局 Agent | ADR-14 与 Chat Agent Asset 契约通过 |
-| **M3 迁移与组合** | 导入导出、依赖检查、多 Agent 组合 | 独立包格式与编排设计通过 |
+| **M1 项目 Agent 启动台** | Location 选择、列表、搜索、详情、Work/Coding 启动、最近会话        | Beta Gate 全部达标                          |
+| **M2 生命周期入口**      | 跳转 Chat 创建/对话修改；评估全局 Agent                            | ADR-14 与 Chat Agent Asset 契约通过         |
+| **M3 迁移与组合**        | 导入导出、依赖检查、多 Agent 组合                                  | 独立包格式与编排设计通过                    |
 
 按 WSJF，provenance 和 Draft Agent 先做：两者既是启动台正确性的根，也能消除 registry 和首次提交中的隐藏身份问题。
 
 ### 11.1 成本收益假设
 
-| 假设 | 验证方式 |
-|---|---|
-| 用户需要独立入口发现并启动项目 Agent，而不是只在 Composer 中选择 | 观察启动台访问到启动的转化率、最近会话回访和 7 日再次启动率 |
-| 主要成本是 provenance 完整性和 Draft Agent 身份，不是新 Session 页面 | 记录 M0 Core/App 工作量，并验证 Session UI 零复制 |
-| provenance 能同时改善调试、来源展示和未来 Agent 生命周期能力 | M2 立项前统计其在诊断与过滤中的实际复用点 |
+| 假设                                                                 | 验证方式                                                    |
+| -------------------------------------------------------------------- | ----------------------------------------------------------- |
+| 用户需要独立入口发现并启动项目 Agent，而不是只在 Composer 中选择     | 观察启动台访问到启动的转化率、最近会话回访和 7 日再次启动率 |
+| 主要成本是 provenance 完整性和 Draft Agent 身份，不是新 Session 页面 | 记录 M0 Core/App 工作量，并验证 Session UI 零复制           |
+| provenance 能同时改善调试、来源展示和未来 Agent 生命周期能力         | M2 立项前统计其在诊断与过滤中的实际复用点                   |
 
 若 Beta 从有效 Agent 选择到 Session 启动的转化率低于 20%，或 7 日再次启动率低于 15%，停止导入导出与组合扩围，先复核独立启动台是否必要。
 

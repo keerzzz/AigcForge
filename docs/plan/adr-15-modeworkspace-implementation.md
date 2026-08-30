@@ -25,6 +25,7 @@ home.tsx (1430行单体)
 ```
 
 存在问题：
+
 - **无 ModeWorkspace 组件**：Home 耦合了所有模式的渲染逻辑
 - **slot 切换闪烁**：display:none 避免了 remount，但 chat AssetWorkbench 的 `createResource` 在 `/mode/:mode` 首次进入时仍会重建
 - **sessionLoad queryKey 含 mode**（[home.tsx:193](packages/app/src/pages/home.tsx#L193)）：切模式时 queryKey 变化触发重取，session 列表闪烁
@@ -34,16 +35,16 @@ home.tsx (1430行单体)
 
 8 步 TDD（原 7 步 + 验收步）：
 
-| Step | 内容 | 治什么 |
-|------|------|--------|
-| 1 | ModeRoute 渲染 ModeWorkspace + `setCurrentMode` 迁 createEffect | 消除 redirect 导致的 remount |
-| 2 | `/` 重定向到 `/mode/<persistedMode>` | 落地 ADR-12 §4 重定向语义 |
-| 3 | ModeSwitcher 确认 | 回归确认 no-op |
-| 4 | slot 不 remount（上提 resource） | 治闪烁根因 |
-| 5 | Home 并入 ModeWorkspace + Chat 主区=资产工作台 | 架构对齐 ADR-15 |
-| 6 | secondary-sidebar-route 确认 | 回归确认 no-op |
-| 7 | sessionLoad queryKey + queryFn 去 mode | 治第二闪烁源 |
-| 8 | 验收（typecheck + test + lint + a11y + i18n） | 全量门禁 |
+| Step | 内容                                                            | 治什么                       |
+| ---- | --------------------------------------------------------------- | ---------------------------- |
+| 1    | ModeRoute 渲染 ModeWorkspace + `setCurrentMode` 迁 createEffect | 消除 redirect 导致的 remount |
+| 2    | `/` 重定向到 `/mode/<persistedMode>`                            | 落地 ADR-12 §4 重定向语义    |
+| 3    | ModeSwitcher 确认                                               | 回归确认 no-op               |
+| 4    | slot 不 remount（上提 resource）                                | 治闪烁根因                   |
+| 5    | Home 并入 ModeWorkspace + Chat 主区=资产工作台                  | 架构对齐 ADR-15              |
+| 6    | secondary-sidebar-route 确认                                    | 回归确认 no-op               |
+| 7    | sessionLoad queryKey + queryFn 去 mode                          | 治第二闪烁源                 |
+| 8    | 验收（typecheck + test + lint + a11y + i18n）                   | 全量门禁                     |
 
 ### 0.3 非目标
 
@@ -58,53 +59,54 @@ home.tsx (1430行单体)
 
 ### L1 UI 组件层
 
-| 文件 | 行 | 关键内容 |
-|------|-----|---------|
-| `packages/app/src/pages/home.tsx` | 1430 | 单体 Home，ChatSidebar/HomeProjectColumn/AssetWorkbench/sessionList 全部内写 |
-| `packages/app/src/pages/home.tsx` | 638-665 | ADR-15 §4 方案1: display:none 切换 sidebar |
-| `packages/app/src/pages/home.tsx` | 672-682 | ADR-15 §4 方案1: display:none 切换主区 |
-| `packages/app/src/pages/home.tsx` | 192-199 | sessionLoad queryKey 含 `mode.currentMode` |
-| `packages/app/src/components/mode-surfaces.tsx` | 20-23 | `ModeSurface = { Sidebar, RightPanel }`，无 `Main` 字段 |
-| `packages/app/src/components/mode-surfaces.tsx` | 321-341 | `MODE_SURFACES` 表，surface="chat/coding/work/assistant" |
-| `packages/app/src/components/secondary-sidebar.tsx` | 664 | `<Dynamic>` 渲染 SecondarySidebar slot（违禁 ADR-15 §4） |
-| `packages/app/src/pages/session/session-side-panel.tsx` | 480 | `<Dynamic>` 渲染右栏 slot（违禁 ADR-15 §4） |
-| `packages/app/src/pages/session.tsx` | 1793-1794 | MessageTimeline 渲染，actions={revert, handoff} |
+| 文件                                                    | 行        | 关键内容                                                                     |
+| ------------------------------------------------------- | --------- | ---------------------------------------------------------------------------- |
+| `packages/app/src/pages/home.tsx`                       | 1430      | 单体 Home，ChatSidebar/HomeProjectColumn/AssetWorkbench/sessionList 全部内写 |
+| `packages/app/src/pages/home.tsx`                       | 638-665   | ADR-15 §4 方案1: display:none 切换 sidebar                                   |
+| `packages/app/src/pages/home.tsx`                       | 672-682   | ADR-15 §4 方案1: display:none 切换主区                                       |
+| `packages/app/src/pages/home.tsx`                       | 192-199   | sessionLoad queryKey 含 `mode.currentMode`                                   |
+| `packages/app/src/components/mode-surfaces.tsx`         | 20-23     | `ModeSurface = { Sidebar, RightPanel }`，无 `Main` 字段                      |
+| `packages/app/src/components/mode-surfaces.tsx`         | 321-341   | `MODE_SURFACES` 表，surface="chat/coding/work/assistant"                     |
+| `packages/app/src/components/secondary-sidebar.tsx`     | 664       | `<Dynamic>` 渲染 SecondarySidebar slot（违禁 ADR-15 §4）                     |
+| `packages/app/src/pages/session/session-side-panel.tsx` | 480       | `<Dynamic>` 渲染右栏 slot（违禁 ADR-15 §4）                                  |
+| `packages/app/src/pages/session.tsx`                    | 1793-1794 | MessageTimeline 渲染，actions={revert, handoff}                              |
 
 ### L2 页面与上下文层
 
-| 文件 | 行 | 关键内容 |
-|------|-----|---------|
-| `packages/app/src/app.tsx` | 543-557 | ModeRoute 渲染 `<Home />`，setCurrentMode 在 createEffect |
-| `packages/app/src/app.tsx` | 560-563 | HomeRedirect: `/` → `/mode/<persistedMode>` |
-| `packages/app/src/context/mode.tsx` | 41-43 | `ModeSurfaceSlot = "chat"|"coding"|"work"|"assistant"` |
-| `packages/app/src/context/mode.tsx` | 61-66 | `modeDraft(mode)` = `{ mode, agent: resolvePrimaryAgent(mode) }` |
-| `packages/app/src/context/chat-feature.tsx` | 全文件 | ChatFeatureID 7 种类别 + persist |
-| `packages/app/src/context/chat-workspace.tsx` | 全文件 | AssetWorkbenchTable 筛选项持久化 + DirtyDraftGuard |
+| 文件                                          | 行      | 关键内容                                                         |
+| --------------------------------------------- | ------- | ---------------------------------------------------------------- | -------- | ------ | ------------ |
+| `packages/app/src/app.tsx`                    | 543-557 | ModeRoute 渲染 `<Home />`，setCurrentMode 在 createEffect        |
+| `packages/app/src/app.tsx`                    | 560-563 | HomeRedirect: `/` → `/mode/<persistedMode>`                      |
+| `packages/app/src/context/mode.tsx`           | 41-43   | `ModeSurfaceSlot = "chat"                                        | "coding" | "work" | "assistant"` |
+| `packages/app/src/context/mode.tsx`           | 61-66   | `modeDraft(mode)` = `{ mode, agent: resolvePrimaryAgent(mode) }` |
+| `packages/app/src/context/chat-feature.tsx`   | 全文件  | ChatFeatureID 7 种类别 + persist                                 |
+| `packages/app/src/context/chat-workspace.tsx` | 全文件  | AssetWorkbenchTable 筛选项持久化 + DirtyDraftGuard               |
 
 ### L3 路由层
 
-| 文件 | 行 | 关键内容 |
-|------|-----|---------|
-| `packages/app/src/app.tsx` | 565-575 | Routes 定义: `/` → HomeRedirect, `/mode/:mode` → ModeRoute |
-| `packages/app/src/pages/layout.tsx` | 77 | ChatFeatureProvider 挂载位置 |
-| `packages/app/src/pages/layout.tsx` | 567 | layout 级 loadSessions 不传 mode |
+| 文件                                | 行      | 关键内容                                                   |
+| ----------------------------------- | ------- | ---------------------------------------------------------- |
+| `packages/app/src/app.tsx`          | 565-575 | Routes 定义: `/` → HomeRedirect, `/mode/:mode` → ModeRoute |
+| `packages/app/src/pages/layout.tsx` | 77      | ChatFeatureProvider 挂载位置                               |
+| `packages/app/src/pages/layout.tsx` | 567     | layout 级 loadSessions 不传 mode                           |
 
 ### L4 数据查询层
 
-| 文件 | 行 | 关键内容 |
-|------|-----|---------|
-| `packages/app/src/pages/home.tsx` | 192-199 | sessionLoad useQuery，queryKey 含 mode.currentMode |
-| `packages/app/src/pages/home.tsx` | 210-221 | records memo 按 mode 过滤 |
+| 文件                                       | 行      | 关键内容                                           |
+| ------------------------------------------ | ------- | -------------------------------------------------- |
+| `packages/app/src/pages/home.tsx`          | 192-199 | sessionLoad useQuery，queryKey 含 mode.currentMode |
+| `packages/app/src/pages/home.tsx`          | 210-221 | records memo 按 mode 过滤                          |
 | `packages/app/src/context/server-sync.tsx` | 255-311 | loadSessions 写入 directory 级 store，跨 mode 累积 |
 
 ### L5 SDK/API层
 
-| 文件 | 行 | 关键内容 |
-|------|-----|---------|
+| 文件                                    | 行        | 关键内容                                       |
+| --------------------------------------- | --------- | ---------------------------------------------- |
 | `packages/sdk/js/src/v2/gen/sdk.gen.ts` | 3407-4291 | 7 类 Asset client（list/content/apply/delete） |
-| 各 HTTP handler | — | Chat 相关 7 组 list/content/apply/delete 端点 |
+| 各 HTTP handler                         | —         | Chat 相关 7 组 list/content/apply/delete 端点  |
 
 **关键发现**：
+
 - `sessionLoad` 的 `loadSessions` 写入的是 directory 级 store（非 mode-scoped），所以 queryKey 去掉 mode 后不会空数据
 - `<Dynamic>` 在 home.tsx 已被替换为 display:none，但 secondary-sidebar.tsx:664 和 session-side-panel.tsx:480 仍用 `<Dynamic>`
 
@@ -134,14 +136,14 @@ Step F 再次认知：重新阅读 CLAUDE.md + 本计划 + 本步关联的协议
 
 ### 门禁
 
-| 门禁 | 要求 |
-|------|------|
-| Catch Everything | 新增 Effect 边界必须兜底 |
-| No Null Pointer | 外部输入、DOM ref 先判空 |
-| Security First | 路径/URL 先校验再使用 |
-| No Cheating | 无 `as any`/`@ts-ignore`，类型逃逸必须注释 |
-| Reusability | 新增前先查 owner module |
-| Clean Logs | 不输出敏感值 |
+| 门禁             | 要求                                       |
+| ---------------- | ------------------------------------------ |
+| Catch Everything | 新增 Effect 边界必须兜底                   |
+| No Null Pointer  | 外部输入、DOM ref 先判空                   |
+| Security First   | 路径/URL 先校验再使用                      |
+| No Cheating      | 无 `as any`/`@ts-ignore`，类型逃逸必须注释 |
+| Reusability      | 新增前先查 owner module                    |
+| Clean Logs       | 不输出敏感值                               |
 
 ---
 
@@ -150,6 +152,7 @@ Step F 再次认知：重新阅读 CLAUDE.md + 本计划 + 本步关联的协议
 ### Step 1: ModeRoute 渲染 ModeWorkspace + setCurrentMode 迁 createEffect
 
 **改动文件**：
+
 - `packages/app/src/pages/mode-workspace.tsx`（新增）
 - `packages/app/src/app.tsx`（修改 ModeRoute）
 
@@ -178,14 +181,23 @@ describe("ModeRoute", () => {
 2. 修改 `app.tsx` ModeRoute（line 556）：
    ```tsx
    // Before:
-   return <Show when={selected()} fallback={<Navigate href="/" />}><Home /></Show>
+   return (
+     <Show when={selected()} fallback={<Navigate href="/" />}>
+       <Home />
+     </Show>
+   )
    // After:
-   return <Show when={selected()} fallback={<Navigate href="/" />}><ModeWorkspace /></Show>
+   return (
+     <Show when={selected()} fallback={<Navigate href="/" />}>
+       <ModeWorkspace />
+     </Show>
+   )
    ```
 
 **重构**：确认 `setCurrentMode` 在 createEffect 中（line 551-554 已正确实现）。
 
 **验证**：
+
 ```bash
 bun --cwd packages/app test --timeout 30000
 bun --cwd packages/app typecheck
@@ -193,6 +205,7 @@ bun run lint
 ```
 
 **复查结论模板**：
+
 ```text
 复查结论:
 - Step: 1
@@ -211,9 +224,11 @@ bun run lint
 ### Step 2: `/` 重定向到 `/mode/<persistedMode>`
 
 **改动文件**：
+
 - `packages/app/src/app.tsx`（确认 HomeRedirect 已有）
 
 **红（测试）**：
+
 ```ts
 it("redirects / to /mode/<persistedMode>", () => {
   // 访问 / → 重定向到 /mode/coding（默认 persisted mode）
@@ -233,6 +248,7 @@ it("redirects / to /mode/<persistedMode>", () => {
 **改动文件**：无
 
 **红（测试）**：
+
 ```ts
 it("ModeSwitcher navigates to /mode/:mode on click", () => {
   // 确认现有 ModeSwitcher 行为
@@ -256,12 +272,14 @@ it("ModeSwitcher navigates to /mode/:mode on click", () => {
 **上提不等于 eager 拉取**：ModeWorkspace provider 持有 `createResource` 调用，但通过 `createMemo` 按当前 mode 惰性触发——只在 `mode.currentMode === "chat"` 时才实际 fetch asset 数据。非 chat slot 的 createResource 不会被触发，避免 4× eager 拉取。slot 组件内通过 context accessor 消费，不自己调 `createResource`。
 
 **改动文件**：
+
 - `packages/app/src/pages/mode-workspace.tsx`（扩展）
 - `packages/app/src/pages/home.tsx`（提取 resource 创建逻辑）
 - `packages/app/src/components/secondary-sidebar.tsx`（替换 Dynamic）
 - `packages/app/src/pages/session/session-side-panel.tsx`（替换 Dynamic）
 
 **红（测试）**：
+
 ```ts
 it("mode slot switch does not re-fetch asset list", () => {
   // 切 /mode/chat → /mode/coding → /mode/chat
@@ -295,6 +313,7 @@ function ModeWorkspaceShell(props: ParentProps) {
 ```
 
 **验证**：
+
 ```bash
 bun --cwd packages/app test --timeout 30000
 bun --cwd packages/app typecheck
@@ -310,12 +329,14 @@ bun run lint
 **这是最核心的一步。** 把 home.tsx 的渲染逻辑拆入 ModeWorkspace，Home 组件删除或大幅瘦身。
 
 **改动文件**：
+
 - `packages/app/src/pages/mode-workspace.tsx`（扩展为主外壳）
 - `packages/app/src/pages/home.tsx`（拆解，保留为 Coding slot 组件）
 - `packages/app/src/components/mode-surfaces.tsx`（ModeSurface 加 `Main` 字段）
 - `packages/app/src/components/mode-surfaces.tsx`（MODE_SURFACES 注册 Chat AssetWorkbenchTable 为 Main slot）
 
 **红（测试）**：
+
 ```ts
 it("/mode/chat main area renders AssetWorkbenchTable", () => {
   // 主区渲染资产工作台（含 AssetWorkbenchTable DOM 标识）
@@ -334,32 +355,35 @@ it("ModeSwitcher is the only mode entry point", () => {
 **绿**：
 
 1. `ModeSurface` 扩展：
+
    ```ts
    export type ModeSurface = {
      Sidebar: Component
      RightPanel: Component
-     Main: Component  // NEW
+     Main: Component // NEW
    }
    ```
 
 2. `MODE_SURFACES` 注册：
+
    ```ts
    const MODE_SURFACES: Record<ModeSurfaceSlot, ModeSurface> = {
      chat: {
-       Sidebar: ChatFeatureSidebar,  // Step 5 后 feature 树在 SecondarySidebar
+       Sidebar: ChatFeatureSidebar, // Step 5 后 feature 树在 SecondarySidebar
        RightPanel: ChatRightPanel,
        Main: ChatAssetWorkbenchMain, // NEW: AssetWorkbenchTable wrapper
      },
      coding: {
        Sidebar: HomeProjectColumn,
        RightPanel: SessionSidePanel,
-       Main: CodingSessionListMain,  // NEW: session list + search wrapper
+       Main: CodingSessionListMain, // NEW: session list + search wrapper
      },
      // work/assistant: placeholder
    }
    ```
 
 3. `ModeWorkspace` 渲染：
+
    ```tsx
    function ModeWorkspace() {
      const mode = useMode()
@@ -384,11 +408,13 @@ it("ModeSwitcher is the only mode entry point", () => {
    - **Provider 迁移**：`ChatWorkspaceProvider`（[chat-workspace.tsx](packages/app/src/context/chat-workspace.tsx)）当前在 `layout.tsx:77` 挂载，需确认其包装 `ChatAssetWorkbenchMain` 组件（非整个 ModeWorkspace）。若 Provider 已在 layout 层级，子组件皆可消费，无需迁移。
 
 **重构**：
+
 - 删除 `Home` 组件（若已无逻辑）
 - `mode-surfaces.tsx` 的 MODE_SURFACES 加 Main
 - 确认 `HomeRedirect` 仍在 app.tsx 路由中
 
 **验证**：
+
 ```bash
 bun --cwd packages/app test --timeout 30000
 bun --cwd packages/app typecheck
@@ -396,6 +422,7 @@ bun run lint
 ```
 
 **回归测试**：在浏览器打开 `/mode/chat` 和 `/mode/coding`，确认：
+
 - Chat 主区 = AssetWorkbenchTable
 - Coding 主区 = session list
 - ModeSwitcher 功能正常
@@ -410,6 +437,7 @@ bun run lint
 **改动文件**：无（`secondarySidebarAvailable` 在 `/mode/*` 已返 true）
 
 **红（测试）**：
+
 ```ts
 it("secondary sidebar is available on /mode/chat", () => {
   // /mode/chat 时 SecondarySidebar 显示
@@ -429,9 +457,11 @@ it("secondary sidebar is available on /mode/chat", () => {
 **核心问题**：`home.tsx:192-199` 的 sessionLoad queryKey 含 `mode.currentMode`，切模式时 queryKey 变化触发重取。Step 5 后 sessionLoad 逻辑在 `CodingSessionListMain` 组件内，需修改 queryKey。
 
 **改动文件**：
+
 - `packages/app/src/pages/home.tsx`（或 `CodingSessionListMain` 组件所在文件）
 
 **红（测试）**：
+
 ```ts
 it("sessionLoad queryKey does not contain mode.currentMode after step 7", () => {
   // queryKey 不含 mode.currentMode
@@ -446,6 +476,7 @@ it("records memo filters by mode correctly after queryKey change", () => {
 **绿**：
 
 1. 修改 queryKey：
+
    ```ts
    // Before:
    queryKey: ["home", "sessions", mode.currentMode, state.selection.server, ...projectDirectories()]
@@ -454,6 +485,7 @@ it("records memo filters by mode correctly after queryKey change", () => {
    ```
 
 2. 修改 `loadSessions` 调用：
+
    ```ts
    // Before:
    loadSessions(directory, { limit: HOME_SESSION_LIMIT, mode: mode.currentMode })
@@ -465,10 +497,12 @@ it("records memo filters by mode correctly after queryKey change", () => {
 3. 确认 `records` memo（home.tsx:210-221）已按 mode 过滤（保留现有逻辑）
 
 **重构**：
+
 - 确认 directory 级 store 累积逻辑（`server-sync.tsx:255-311`）不受影响
 - 可选 `keepPreviousData` 兜底切换时的短暂空白
 
 **验证**：
+
 ```bash
 bun --cwd packages/app test --timeout 30000
 bun --cwd packages/app typecheck
@@ -484,6 +518,7 @@ bun run lint
 **改动文件**：无（确认状态）
 
 **验收清单**：
+
 ```bash
 # 1. 类型检查
 bun --cwd packages/app typecheck
@@ -505,6 +540,7 @@ bun run lint
 ```
 
 **DESIGN.md 合规**：
+
 - 稳定尺寸无位移（Layout 不变）
 - v2 token（无硬编码颜色）
 - 明暗主题（CSS 变量自适应）
@@ -512,6 +548,7 @@ bun run lint
 - 中英文溢出（truncate + title）
 
 **复查结论**：
+
 ```text
 复查结论:
 - Step: 8 全量验收
@@ -551,12 +588,12 @@ Step 8 (全量验收)
 
 ## 5. 风险与回滚
 
-| 风险 | 缓解 |
-|------|------|
-| Step 5 Home 拆解打破 Coding session list | 全模式回归测试 |
-| Step 4 resource 上提影响其他模式 | 只上提 chat asset 相关 resource |
-| Step 7 queryKey 去 mode 后 session 列表混乱 | `records` memo 已按 mode 过滤 |
-| Step 5 后右栏 ChatRightPanel 不工作 | session 页右栏不走 ModeWorkspace（session.tsx 独立渲染 session-side-panel），不受影响 |
+| 风险                                        | 缓解                                                                                  |
+| ------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Step 5 Home 拆解打破 Coding session list    | 全模式回归测试                                                                        |
+| Step 4 resource 上提影响其他模式            | 只上提 chat asset 相关 resource                                                       |
+| Step 7 queryKey 去 mode 后 session 列表混乱 | `records` memo 已按 mode 过滤                                                         |
+| Step 5 后右栏 ChatRightPanel 不工作         | session 页右栏不走 ModeWorkspace（session.tsx 独立渲染 session-side-panel），不受影响 |
 
 **回滚**：每 Step 独立 commit，可 `git revert <step-commit>`。全量回滚：`git revert Step1..Step7`。
 

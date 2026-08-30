@@ -44,8 +44,7 @@ describe("ImportParser", () => {
   })
 
   test("strips chat conversation noise", async () => {
-    const input =
-      "User: can you help me?\nAssistant: sure\n\nHere is the template:\n```\nYou are a code reviewer\n```"
+    const input = "User: can you help me?\nAssistant: sure\n\nHere is the template:\n```\nYou are a code reviewer\n```"
     const result = await parse(input)
     expect(result.candidates).toHaveLength(1)
     expect(result.warnings).toContain("stripped_conversation")

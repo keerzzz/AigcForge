@@ -1163,7 +1163,7 @@ function Playground() {
     if (!root) return
     const next: Record<string, string> = {}
     for (const ctrl of CSS_CONTROLS) {
-      const el = (root.querySelector(sample(ctrl)) ?? root.querySelector(ctrl.selector))
+      const el = root.querySelector(sample(ctrl)) ?? root.querySelector(ctrl.selector)
       if (!el) continue
       const styles = getComputedStyle(el)
       const raw = ctrl.property.startsWith("--")

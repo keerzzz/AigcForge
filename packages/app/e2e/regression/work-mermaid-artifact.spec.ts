@@ -119,7 +119,7 @@ test("work prd draft renders its mermaid block as an svg in the artifact tab", a
   await expectSessionTitle(page, title)
   await expect(page.getByRole("heading", { name: "用户中心 PRD" }).first()).toBeVisible({ timeout: 15_000 })
 
-  const diagram = page.locator('svg[aria-roledescription]')
+  const diagram = page.locator("svg[aria-roledescription]")
   await expect(diagram).toBeVisible({ timeout: 15_000 })
   await expect(diagram).toContainText("注册")
 })
@@ -133,5 +133,5 @@ test("storyboard draft without mermaid shows no diagram svg", async ({ page }) =
   await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
   await expectSessionTitle(page, title)
   await expect(page.getByRole("heading", { name: "分镜脚本" }).first()).toBeVisible({ timeout: 15_000 })
-  await expect(page.locator('svg[aria-roledescription]')).toHaveCount(0)
+  await expect(page.locator("svg[aria-roledescription]")).toHaveCount(0)
 })

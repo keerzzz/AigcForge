@@ -17,7 +17,6 @@ import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task"
 import type { Composition } from "@aigcfroge/schema/composition"
 
-
 type SessionMessageData = Omit<(typeof SessionMessage.Message)["Encoded"], "type" | "id">
 type V1MessageData = Omit<SessionV1.Info, "id" | "sessionID">
 type V1PartData = Omit<SessionV1.Part, "id" | "sessionID" | "messageID">

@@ -15,7 +15,6 @@ describe("session routes", () => {
     expect(() => requireServerKey("not-base64")).toThrow("Invalid server route")
   })
 
-
   test("resolves the root session", async () => {
     const sessions: Record<string, { id: string; parentID?: string }> = {
       child: { id: "child", parentID: "parent" },

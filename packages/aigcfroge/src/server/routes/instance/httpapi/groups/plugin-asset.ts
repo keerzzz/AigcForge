@@ -61,7 +61,8 @@ export const PluginAssetApi = HttpApi.make("plugin-asset").add(
         OpenApi.annotations({
           identifier: "plugin-asset.list",
           summary: "List plugin assets",
-          description: "List all plugin assets for the current Location, including invalid entries and system-bridged plugins.",
+          description:
+            "List all plugin assets for the current Location, including invalid entries and system-bridged plugins.",
         }),
       ),
       HttpApiEndpoint.get("content", PluginAssetPaths.content, {

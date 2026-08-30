@@ -55,18 +55,18 @@ Titlebar (36px)
 
 ## 4. Context 依赖图
 
-| 层级 | Context | 用途 |
-|------|---------|------|
-| 全局 | useLayout | 侧边栏状态、项目列表 |
-| 全局 | usePlatform | OS/桌面/Web 检测、缩放、Tauri API |
-| 全局 | useCommand | 键盘快捷键 (sidebar.toggle, nav) |
-| 全局 | useSettings | mobileTitlebarPosition, showNavigation |
-| 全局 | useTabs | Session Tab 生命周期、tabHref |
-| 全局 | useLocation | 当前路由路径 |
-| 全局 | useNavigate | 路由导航 |
-| 局部 | createMediaQuery | mobile 检测 (max-width: 767px) |
-| 局部 | createResizeObserver | 标题栏宽度测量 |
-| 局部 | makeEventListener | Tauri drag region 事件 |
+| 层级 | Context              | 用途                                   |
+| ---- | -------------------- | -------------------------------------- |
+| 全局 | useLayout            | 侧边栏状态、项目列表                   |
+| 全局 | usePlatform          | OS/桌面/Web 检测、缩放、Tauri API      |
+| 全局 | useCommand           | 键盘快捷键 (sidebar.toggle, nav)       |
+| 全局 | useSettings          | mobileTitlebarPosition, showNavigation |
+| 全局 | useTabs              | Session Tab 生命周期、tabHref          |
+| 全局 | useLocation          | 当前路由路径                           |
+| 全局 | useNavigate          | 路由导航                               |
+| 局部 | createMediaQuery     | mobile 检测 (max-width: 767px)         |
+| 局部 | createResizeObserver | 标题栏宽度测量                         |
+| 局部 | makeEventListener    | Tauri drag region 事件                 |
 
 ---
 
@@ -117,24 +117,24 @@ counterZoom = windows && titlebarZoom < 1 ? 1/titlebarZoom : 1
 
 ## 8. 错误边界
 
-| 场景 | 处理 |
-|------|------|
+| 场景             | 处理                                           |
+| ---------------- | ---------------------------------------------- |
 | Tauri API 不可用 | tauriApi() 返回 undefined，fallback 到通用实现 |
-| 导航历史为空 | backPath/forwardPath 按钮禁用 |
-| Tabs 为空 | NoTabsPlaceholder 组件渲染 |
-| 缩放异常 | minTitlebarZoom = 0.25 下限保护 |
+| 导航历史为空     | backPath/forwardPath 按钮禁用                  |
+| Tabs 为空        | NoTabsPlaceholder 组件渲染                     |
+| 缩放异常         | minTitlebarZoom = 0.25 下限保护                |
 
 ---
 
 ## 9. 上下游文件索引
 
-| 层级 | 文件 |
-|------|------|
-| 宿主布局 | pages/layout.tsx |
-| Titlebar 组件 | components/titlebar.tsx |
-| Tab 管理 | context/tabs.tsx |
-| 导航历史 | components/titlebar-history.ts |
-| Session Tab 头像 | pages/layout/session-tab-avatar.tsx |
-| Tab 事件 | components/titlebar-session-events.ts |
-| Windows 菜单 | components/windows-app-menu.tsx |
-| 桌面平台 | context/platform.tsx |
+| 层级             | 文件                                  |
+| ---------------- | ------------------------------------- |
+| 宿主布局         | pages/layout.tsx                      |
+| Titlebar 组件    | components/titlebar.tsx               |
+| Tab 管理         | context/tabs.tsx                      |
+| 导航历史         | components/titlebar-history.ts        |
+| Session Tab 头像 | pages/layout/session-tab-avatar.tsx   |
+| Tab 事件         | components/titlebar-session-events.ts |
+| Windows 菜单     | components/windows-app-menu.tsx       |
+| 桌面平台         | context/platform.tsx                  |

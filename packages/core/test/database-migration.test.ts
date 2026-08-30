@@ -907,9 +907,7 @@ describe("DatabaseMigration", () => {
           up(tx: Parameters<DatabaseMigration.Migration["up"]>[0]) {
             return Effect.gen(function* () {
               yield* tx.run(sql`ALTER TABLE session ADD COLUMN summary text`)
-              yield* tx.run(
-                sql`CREATE INDEX session_summary_idx ON session (summary) WHERE summary IS NOT NULL`,
-              )
+              yield* tx.run(sql`CREATE INDEX session_summary_idx ON session (summary) WHERE summary IS NOT NULL`)
             })
           },
         } satisfies DatabaseMigration.Migration
@@ -977,7 +975,9 @@ describe("DatabaseMigration", () => {
           position: number
           time_created: number
           time_updated: number
-        }>(sql`SELECT id, session_id, content, status, priority, position, time_created, time_updated FROM task ORDER BY position`)
+        }>(
+          sql`SELECT id, session_id, content, status, priority, position, time_created, time_updated FROM task ORDER BY position`,
+        )
         expect(migrated).toHaveLength(2)
         expect(migrated[0]).toMatchObject({
           session_id: "ses_1",
@@ -1214,9 +1214,7 @@ describe("DatabaseMigration", () => {
           spawned_from: null,
           depends_on: null,
         })
-        yield* db.run(
-          sql`UPDATE task SET spawned_from = 'msg_1', depends_on = '["tsk_a","tsk_b"]' WHERE id = 'tsk_1'`,
-        )
+        yield* db.run(sql`UPDATE task SET spawned_from = 'msg_1', depends_on = '["tsk_a","tsk_b"]' WHERE id = 'tsk_1'`)
         expect(yield* db.get(sql`SELECT spawned_from, depends_on FROM task WHERE id = 'tsk_1'`)).toEqual({
           spawned_from: "msg_1",
           depends_on: '["tsk_a","tsk_b"]',
@@ -1249,7 +1247,9 @@ describe("DatabaseMigration", () => {
         `)
 
         expect(
-          yield* db.get(sql`SELECT session_id, version, digest FROM session_composition_snapshot WHERE session_id = 'ses_test_1'`),
+          yield* db.get(
+            sql`SELECT session_id, version, digest FROM session_composition_snapshot WHERE session_id = 'ses_test_1'`,
+          ),
         ).toEqual({
           session_id: "ses_test_1",
           version: 1,
@@ -1280,7 +1280,11 @@ describe("DatabaseMigration", () => {
         yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY)`)
         yield* db.run(sql`INSERT INTO session (id) VALUES ('ses_pre_existing')`)
 
-        yield* DatabaseMigration.applyOnly(db, [scopedGrantMigration, scopedGrantRetentionIndexMigration, scopedGrantLevelIndexMigration])
+        yield* DatabaseMigration.applyOnly(db, [
+          scopedGrantMigration,
+          scopedGrantRetentionIndexMigration,
+          scopedGrantLevelIndexMigration,
+        ])
 
         expect(
           yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'scoped_grant'`),
@@ -1300,17 +1304,33 @@ describe("DatabaseMigration", () => {
         })
 
         // Rerun is a no-op and does not drop the row.
-        yield* DatabaseMigration.applyOnly(db, [scopedGrantMigration, scopedGrantRetentionIndexMigration, scopedGrantLevelIndexMigration])
+        yield* DatabaseMigration.applyOnly(db, [
+          scopedGrantMigration,
+          scopedGrantRetentionIndexMigration,
+          scopedGrantLevelIndexMigration,
+        ])
         expect(yield* db.all(sql`SELECT id FROM scoped_grant`)).toEqual([{ id: "grt_test" }])
-        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'scoped_grant_session_issued_idx'`)).toEqual({
+        expect(
+          yield* db.get(
+            sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'scoped_grant_session_issued_idx'`,
+          ),
+        ).toEqual({
           name: "scoped_grant_session_issued_idx",
         })
-        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'scoped_grant_level_issued_idx'`)).toEqual({
+        expect(
+          yield* db.get(
+            sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'scoped_grant_level_issued_idx'`,
+          ),
+        ).toEqual({
           name: "scoped_grant_level_issued_idx",
         })
 
         // Rerunning both migrations keeps the row and index intact.
-        yield* DatabaseMigration.applyOnly(db, [scopedGrantMigration, scopedGrantRetentionIndexMigration, scopedGrantLevelIndexMigration])
+        yield* DatabaseMigration.applyOnly(db, [
+          scopedGrantMigration,
+          scopedGrantRetentionIndexMigration,
+          scopedGrantLevelIndexMigration,
+        ])
         expect(yield* db.all(sql`SELECT id FROM scoped_grant`)).toEqual([{ id: "grt_test" }])
       }),
     )
@@ -1374,7 +1394,9 @@ describe("DatabaseMigration", () => {
 
         yield* DatabaseMigration.applyOnly(db, [mcpCredentialBindingMigration])
 
-        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'mcp_credential_binding'`)).toEqual({
+        expect(
+          yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'mcp_credential_binding'`),
+        ).toEqual({
           name: "mcp_credential_binding",
         })
         expect(yield* db.all(sql`SELECT id FROM session`)).toEqual([{ id: "ses_pre_existing" }])
@@ -1384,7 +1406,11 @@ describe("DatabaseMigration", () => {
           INSERT INTO mcp_credential_binding (id, directory, workspace_id, server_name, credential_ref, time_created, time_updated)
           VALUES ('mcb_test', '/tmp/x', '', 'git', 'cred_abc', 1000, 1000)
         `)
-        expect(yield* db.get(sql`SELECT id, workspace_id, binding_revision FROM mcp_credential_binding WHERE id = 'mcb_test'`)).toEqual({
+        expect(
+          yield* db.get(
+            sql`SELECT id, workspace_id, binding_revision FROM mcp_credential_binding WHERE id = 'mcb_test'`,
+          ),
+        ).toEqual({
           id: "mcb_test",
           workspace_id: "",
           binding_revision: 1,
@@ -1392,20 +1418,30 @@ describe("DatabaseMigration", () => {
 
         // Unique index: same directory/workspace/server duplicate fails
         const dupInsert = yield* db
-          .run(sql`
+          .run(
+            sql`
             INSERT INTO mcp_credential_binding (id, directory, workspace_id, server_name, credential_ref, time_created, time_updated)
             VALUES ('mcb_dup', '/tmp/x', '', 'git', 'cred_other', 1001, 1001)
-          `)
+          `,
+          )
           .pipe(Effect.exit)
         expect(dupInsert._tag).toBe("Failure")
 
         // Rerun is a no-op and does not drop the row.
         yield* DatabaseMigration.applyOnly(db, [mcpCredentialBindingMigration])
         expect(yield* db.all(sql`SELECT id FROM mcp_credential_binding`)).toEqual([{ id: "mcb_test" }])
-        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'mcp_binding_directory_workspace_server_idx'`)).toEqual({
+        expect(
+          yield* db.get(
+            sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'mcp_binding_directory_workspace_server_idx'`,
+          ),
+        ).toEqual({
           name: "mcp_binding_directory_workspace_server_idx",
         })
-        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'mcp_binding_credential_ref_idx'`)).toEqual({
+        expect(
+          yield* db.get(
+            sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'mcp_binding_credential_ref_idx'`,
+          ),
+        ).toEqual({
           name: "mcp_binding_credential_ref_idx",
         })
       }),

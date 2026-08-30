@@ -120,10 +120,7 @@ describe("FileMutation.writeAtomic", () => {
         Effect.gen(function* () {
           const files = yield* FileMutation.Service
           yield* files.writeAtomic({ target, content: "will fail" })
-        }).pipe(
-          Effect.provide(provide(tmp.path, failingFs)),
-          Effect.flip,
-        ),
+        }).pipe(Effect.provide(provide(tmp.path, failingFs)), Effect.flip),
       )
 
       const exists = await fs.stat(target.canonical).then(
@@ -198,10 +195,7 @@ describe("FileMutation.writeAtomic", () => {
         Effect.gen(function* () {
           const files = yield* FileMutation.Service
           yield* files.writeAtomic({ target, content: "will fail rename" })
-        }).pipe(
-          Effect.provide(provide(tmp.path, failingFs)),
-          Effect.flip,
-        ),
+        }).pipe(Effect.provide(provide(tmp.path, failingFs)), Effect.flip),
       )
 
       const dir = path.dirname(target.canonical)

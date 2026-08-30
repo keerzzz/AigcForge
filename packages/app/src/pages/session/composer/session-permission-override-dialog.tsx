@@ -70,12 +70,7 @@ export function SessionPermissionOverrideControl(props: {
           <Button variant="ghost" size="normal" onClick={() => dialog.close()}>
             {language.t("permission.override.cancel")}
           </Button>
-          <Button
-            variant="secondary"
-            size="normal"
-            disabled={!acknowledged()}
-            onClick={confirm}
-          >
+          <Button variant="secondary" size="normal" disabled={!acknowledged()} onClick={confirm}>
             {language.t("permission.override.confirm.enable")}
           </Button>
         </div>
@@ -91,11 +86,7 @@ export function SessionPermissionOverrideControl(props: {
         <Show
           when={props.enabled()}
           fallback={
-            <button
-              type="button"
-              data-slot="permission-override-enable"
-              onClick={openConfirm}
-            >
+            <button type="button" data-slot="permission-override-enable" onClick={openConfirm}>
               {language.t("permission.override.enable")}
             </button>
           }

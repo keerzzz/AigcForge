@@ -21,7 +21,11 @@ export function extractTitle(content: string): string | null {
  */
 export function extractSummary(content: string, maxLen = MAX_DESCRIPTION_CHARS): string {
   const body = content.replace(/^#\s+.*/m, "").trim()
-  const firstPara = body.split(/\n\s*\n/)[0]?.replace(/\n/g, " ").trim() ?? ""
+  const firstPara =
+    body
+      .split(/\n\s*\n/)[0]
+      ?.replace(/\n/g, " ")
+      .trim() ?? ""
   const codePoints = Array.from(firstPara)
   if (codePoints.length <= maxLen) return firstPara
   return codePoints.slice(0, maxLen - 1).join("") + "…"

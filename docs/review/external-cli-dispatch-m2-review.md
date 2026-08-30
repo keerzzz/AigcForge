@@ -5,20 +5,20 @@
 
 ## 1. 改动清单
 
-| 文件 | 摘要 |
-|---|---|
-| `packages/session-ui/src/components/task-tool-card-model.ts`（新建） | 纯函数 `taskCardModel(input, metadata, output)`：external-cli 识别、标题解析、四态映射、`<task_result>/<task_error>` summary 提取、href——渲染器无关，可单测 |
-| `packages/session-ui/src/components/task-tool-card-model.test.ts`（新建） | 11 用例覆盖模型契约（含 running 态仅靠 input.execution_type 识别、timeout 从 task_error 文本区分） |
-| `packages/session-ui/src/components/message-part.tsx` | `getToolInfo` task 分支与 task 卡片消费模型：terminal 图标 + CLI 徽标（i18n `ui.tool.cli`）、`hideDetails={!isExternalCli}`（subagent 保留 hideDetails 不回归）、状态 chip（failed/timeout 配色走 `data-state`）、summary 折叠区 |
-| `packages/session-ui/src/components/message-part.css` | 新增 4 个 `data-component` 选择器样式，全部引用 v2 token（`--v2-border-border-muted`/`--v2-state-bg-danger` 等），无硬编码颜色 |
-| `packages/app/src/pages/session/composer/session-permission-dock.tsx` | 渲染 `request.metadata` 的 execution_type/cli_target/description，独立 `permission-metadata` 区块，不动 patterns 列表 |
-| `packages/app/src/pages/session/composer/session-permission-dock.test.tsx`（新建） | 源码 wiring 契约测试（遵循 `agent-task-hub.test.tsx` 惯例） |
-| `packages/app/src/components/prompt-input/slash-popover.tsx` | 硬编码 `"CLI"` 徽标改走 `ui.tool.cli` |
-| `packages/tui/src/routes/session/index.tsx` | `taskAgentLabel` 纯格式化函数：external-cli 标题取 `metadata.cli ?? input.cli_target ?? "CLI"` |
-| `packages/tui/src/routes/session/permission.tsx` | `permissionTaskTitle`：external-cli 显示 `{Cli} CLI`，图标区分（λ/#） |
-| `packages/tui/test/component/external-cli-task.test.ts`（新建） | 7 用例测两个纯格式化函数（帧断言的等价替代，见 §3 偏差声明） |
-| `packages/tui/src/component/prompt/autocomplete.tsx` | `[CLI]` 统一为 `CLI`（TUI 无 i18n 体系，已声明） |
-| `packages/ui/src/i18n/{en,zh,zht}.ts` | 新增 `ui.tool.cli`（语言政策：仅 en/zh/zht 为维护语言，其余 15 个冻结快照走英文回退，parity 测试证实） |
+| 文件                                                                               | 摘要                                                                                                                                                                                                                             |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/session-ui/src/components/task-tool-card-model.ts`（新建）               | 纯函数 `taskCardModel(input, metadata, output)`：external-cli 识别、标题解析、四态映射、`<task_result>/<task_error>` summary 提取、href——渲染器无关，可单测                                                                      |
+| `packages/session-ui/src/components/task-tool-card-model.test.ts`（新建）          | 11 用例覆盖模型契约（含 running 态仅靠 input.execution_type 识别、timeout 从 task_error 文本区分）                                                                                                                               |
+| `packages/session-ui/src/components/message-part.tsx`                              | `getToolInfo` task 分支与 task 卡片消费模型：terminal 图标 + CLI 徽标（i18n `ui.tool.cli`）、`hideDetails={!isExternalCli}`（subagent 保留 hideDetails 不回归）、状态 chip（failed/timeout 配色走 `data-state`）、summary 折叠区 |
+| `packages/session-ui/src/components/message-part.css`                              | 新增 4 个 `data-component` 选择器样式，全部引用 v2 token（`--v2-border-border-muted`/`--v2-state-bg-danger` 等），无硬编码颜色                                                                                                   |
+| `packages/app/src/pages/session/composer/session-permission-dock.tsx`              | 渲染 `request.metadata` 的 execution_type/cli_target/description，独立 `permission-metadata` 区块，不动 patterns 列表                                                                                                            |
+| `packages/app/src/pages/session/composer/session-permission-dock.test.tsx`（新建） | 源码 wiring 契约测试（遵循 `agent-task-hub.test.tsx` 惯例）                                                                                                                                                                      |
+| `packages/app/src/components/prompt-input/slash-popover.tsx`                       | 硬编码 `"CLI"` 徽标改走 `ui.tool.cli`                                                                                                                                                                                            |
+| `packages/tui/src/routes/session/index.tsx`                                        | `taskAgentLabel` 纯格式化函数：external-cli 标题取 `metadata.cli ?? input.cli_target ?? "CLI"`                                                                                                                                   |
+| `packages/tui/src/routes/session/permission.tsx`                                   | `permissionTaskTitle`：external-cli 显示 `{Cli} CLI`，图标区分（λ/#）                                                                                                                                                            |
+| `packages/tui/test/component/external-cli-task.test.ts`（新建）                    | 7 用例测两个纯格式化函数（帧断言的等价替代，见 §3 偏差声明）                                                                                                                                                                     |
+| `packages/tui/src/component/prompt/autocomplete.tsx`                               | `[CLI]` 统一为 `CLI`（TUI 无 i18n 体系，已声明）                                                                                                                                                                                 |
+| `packages/ui/src/i18n/{en,zh,zht}.ts`                                              | 新增 `ui.tool.cli`（语言政策：仅 en/zh/zht 为维护语言，其余 15 个冻结快照走英文回退，parity 测试证实）                                                                                                                           |
 
 ## 2. 验证证据
 

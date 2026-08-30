@@ -1041,7 +1041,8 @@ export const dict = {
   "custom.builder.startSession": "Start Session",
   "custom.builder.planDigest": "Plan Digest",
   "custom.builder.recalculatePlan": "Recalculate",
-  "custom.builder.flagDisabledWarning": "Custom mode is disabled on this server. Set AIGCFROGE_CUSTOM_MODE=true to enable it.",
+  "custom.builder.flagDisabledWarning":
+    "Custom mode is disabled on this server. Set AIGCFROGE_CUSTOM_MODE=true to enable it.",
   "custom.builder.unsupportedServerWarning": "This server does not support custom compositions",
   "custom.builder.tab.instructions": "Instructions",
   "custom.builder.tab.capabilities": "Capabilities",

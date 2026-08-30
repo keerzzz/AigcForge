@@ -112,7 +112,8 @@ export class Info extends Schema.Class<Info>("Config.Info")({
   experimental: ConfigExperimental.Experimental.pipe(Schema.optional),
   providers: Schema.Record(Schema.String, ConfigProvider.Info).pipe(Schema.optional),
   subagent_attended_default: Schema.Boolean.pipe(Schema.optional).annotate({
-    description: "Default attended mode for subagent task delegation. true=user responds to permission prompts, false=asks auto-denied.",
+    description:
+      "Default attended mode for subagent task delegation. true=user responds to permission prompts, false=asks auto-denied.",
   }),
 }) {}
 

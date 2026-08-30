@@ -3,10 +3,11 @@
 > 日期：2026-06-29
 > 版本：v1.0
 > 来源调研：
->   - `docs/research/industry/AI智能体协议研究.md` — 2026 上半年行业协议架构白皮书
->   - `harness-engineering` 项目（4266 stars）— 30 篇交叉分析文章
->   - `CL4R1T4S` 项目 — Claude Code / Cursor / Cline / Codex / Devin 系统提示词
->   - 本项目现有代码：agent.ts、core/plugin/agent.ts、meta.txt、delegation-protocol.ts、context-builder.ts
+>
+> - `docs/research/industry/AI智能体协议研究.md` — 2026 上半年行业协议架构白皮书
+> - `harness-engineering` 项目（4266 stars）— 30 篇交叉分析文章
+> - `CL4R1T4S` 项目 — Claude Code / Cursor / Cline / Codex / Devin 系统提示词
+> - 本项目现有代码：agent.ts、core/plugin/agent.ts、meta.txt、delegation-protocol.ts、context-builder.ts
 
 ---
 
@@ -14,16 +15,16 @@
 
 ### 1.1 V1 注册（agent.ts）
 
-| 智能体 | mode | hidden | 系统提示词 | 描述 | 核心权限特征 |
-|--------|------|--------|-----------|------|-------------|
-| **meta** | primary | false | meta.txt（升级中） | "The meta agent — unified orchestration entry point" | buildDefaults + task/create_agent/configure_mcp allow |
-| **build** | primary | false | 无独立文件（仅 V2 中 BUILD_SYSTEM） | "The default agent. Executes tools based on configured permissions." | buildDefaults（全工具 allow + question/plan_enter allow） |
-| **plan** | primary | false | 无独立文件 | "Plan mode. Disallows all edit tools." | defaults + question/plan_exit allow，edit deny（.aigcfroge/plans/ 除外） |
-| **general** | subagent | false | 无独立文件 | "General-purpose agent for researching complex questions and executing multi-step tasks." | defaults + todowrite deny |
-| **explore** | subagent | false | explore.txt（19行） | "Fast agent specialized for exploring codebases." | mark-all-deny + grep/glob/list/bash/webfetch/websearch/read allow |
-| **compaction** | primary | true | compaction.txt | 上下文摘要（内部） | mark-all-deny |
-| **title** | primary | true | title.txt | 标题生成（内部） | mark-all-deny |
-| **summary** | primary | true | summary.txt | 摘要生成（内部） | mark-all-deny |
+| 智能体         | mode     | hidden | 系统提示词                          | 描述                                                                                      | 核心权限特征                                                             |
+| -------------- | -------- | ------ | ----------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| **meta**       | primary  | false  | meta.txt（升级中）                  | "The meta agent — unified orchestration entry point"                                      | buildDefaults + task/create_agent/configure_mcp allow                    |
+| **build**      | primary  | false  | 无独立文件（仅 V2 中 BUILD_SYSTEM） | "The default agent. Executes tools based on configured permissions."                      | buildDefaults（全工具 allow + question/plan_enter allow）                |
+| **plan**       | primary  | false  | 无独立文件                          | "Plan mode. Disallows all edit tools."                                                    | defaults + question/plan_exit allow，edit deny（.aigcfroge/plans/ 除外） |
+| **general**    | subagent | false  | 无独立文件                          | "General-purpose agent for researching complex questions and executing multi-step tasks." | defaults + todowrite deny                                                |
+| **explore**    | subagent | false  | explore.txt（19行）                 | "Fast agent specialized for exploring codebases."                                         | mark-all-deny + grep/glob/list/bash/webfetch/websearch/read allow        |
+| **compaction** | primary  | true   | compaction.txt                      | 上下文摘要（内部）                                                                        | mark-all-deny                                                            |
+| **title**      | primary  | true   | title.txt                           | 标题生成（内部）                                                                          | mark-all-deny                                                            |
+| **summary**    | primary  | true   | summary.txt                         | 摘要生成（内部）                                                                          | mark-all-deny                                                            |
 
 ### 1.2 V2 注册（core/plugin/agent.ts）
 
@@ -31,14 +32,14 @@ V2 与 V1 权限结构一致，使用 PermissionV2 Ruleset 格式。build/system
 
 ### 1.3 已有协议文档
 
-| 文档 | 适用对象 | 长度 | 类型 |
-|------|---------|------|------|
-| AGENTS.md（根目录） | 全仓库智能体 | 159 行 | 代码风格/分支/提交/测试/Effect 规范 |
-| packages/aigcfroge/AGENTS.md | aigcfroge 包智能体 | 132 行 | DB/模块形状/Effect 规则 |
-| packages/llm/AGENTS.md | LLM 包智能体 | — | LLM 架构/路由/协议 |
-| meta.txt | meta agent 自身 | ~70 行 | 编排规则/路由映射/协议/错误处理 |
-| explore.txt | explore agent | 19 行 | 搜索角色定义/工具使用指南 |
-| core/plugin/agent.ts PROMPT_* | compaction/title/summary | ～50 行 | 内联文本 |
+| 文档                            | 适用对象                 | 长度    | 类型                                |
+| ------------------------------- | ------------------------ | ------- | ----------------------------------- |
+| AGENTS.md（根目录）             | 全仓库智能体             | 159 行  | 代码风格/分支/提交/测试/Effect 规范 |
+| packages/aigcfroge/AGENTS.md    | aigcfroge 包智能体       | 132 行  | DB/模块形状/Effect 规则             |
+| packages/llm/AGENTS.md          | LLM 包智能体             | —       | LLM 架构/路由/协议                  |
+| meta.txt                        | meta agent 自身          | ~70 行  | 编排规则/路由映射/协议/错误处理     |
+| explore.txt                     | explore agent            | 19 行   | 搜索角色定义/工具使用指南           |
+| core/plugin/agent.ts PROMPT\_\* | compaction/title/summary | ～50 行 | 内联文本                            |
 
 ### 1.4 缺失项
 
@@ -159,6 +160,7 @@ packages/aigcfroge/src/agent/
 ```
 
 **具体操作**：
+
 1. 创建 `packages/aigcfroge/src/agent/agents.json` — 包含所有子智能体元数据索引
 2. 为 build/explore/plan/general 各创建 `agent.json`
 3. 类型定义：`packages/aigcfroge/src/agent/protocol.ts`
@@ -190,6 +192,7 @@ packages/aigcfroge/src/agent/
 #### Day 4：工具参数扩展
 
 在 `generate_delegation_protocol` 工具中新增：
+
 - `include_protocol`（可选 boolean，默认 false）— 是否注入协议卡片
 - `agent_card`（自动读取）— 注入目标引擎的 Agent Card 元数据
 
@@ -228,22 +231,22 @@ packages/aigcfroge/src/agent/
 
 ## 五、文件变更清单
 
-| 操作 | 文件 | 阶段 | 用途 |
-|------|------|------|------|
-| 新建 | `src/agent/agents.json` | P1 | 子智能体统一元数据索引 |
-| 新建 | `src/agent/build/agent.json` | P1 | build 智能体卡片 |
-| 新建 | `src/agent/build/protocol.md` | P1 | build 协议 |
-| 新建 | `src/agent/explore/agent.json` | P1 | explore 智能体卡片 |
-| 新建 | `src/agent/explore/protocol.md` | P1 | explore 协议 |
-| 新建 | `src/agent/plan/agent.json` | P1 | plan 智能体卡片 |
-| 新建 | `src/agent/plan/protocol.md` | P1 | plan 协议 |
-| 新建 | `src/agent/general/agent.json` | P1 | general 智能体卡片 |
-| 新建 | `src/agent/general/protocol.md` | P1 | general 协议 |
-| 新建 | `src/agent/protocol.ts` | P1 | 卡片类型定义 + 加载器 |
-| 修改 | `src/tool/delegation-protocol.ts` | P2 | 增加 include_protocol/agent_card 参数 |
-| 修改 | `src/agent/prompt/meta.txt` | P4 | 同步更新协议引用 |
-| 新建 | `scripts/check-agent-protocols.sh` | P3 | 机械验证脚本 |
-| 新建 | `test/agent/protocol.test.ts` | P3 | 协议卡片格式测试 |
+| 操作 | 文件                               | 阶段 | 用途                                  |
+| ---- | ---------------------------------- | ---- | ------------------------------------- |
+| 新建 | `src/agent/agents.json`            | P1   | 子智能体统一元数据索引                |
+| 新建 | `src/agent/build/agent.json`       | P1   | build 智能体卡片                      |
+| 新建 | `src/agent/build/protocol.md`      | P1   | build 协议                            |
+| 新建 | `src/agent/explore/agent.json`     | P1   | explore 智能体卡片                    |
+| 新建 | `src/agent/explore/protocol.md`    | P1   | explore 协议                          |
+| 新建 | `src/agent/plan/agent.json`        | P1   | plan 智能体卡片                       |
+| 新建 | `src/agent/plan/protocol.md`       | P1   | plan 协议                             |
+| 新建 | `src/agent/general/agent.json`     | P1   | general 智能体卡片                    |
+| 新建 | `src/agent/general/protocol.md`    | P1   | general 协议                          |
+| 新建 | `src/agent/protocol.ts`            | P1   | 卡片类型定义 + 加载器                 |
+| 修改 | `src/tool/delegation-protocol.ts`  | P2   | 增加 include_protocol/agent_card 参数 |
+| 修改 | `src/agent/prompt/meta.txt`        | P4   | 同步更新协议引用                      |
+| 新建 | `scripts/check-agent-protocols.sh` | P3   | 机械验证脚本                          |
+| 新建 | `test/agent/protocol.test.ts`      | P3   | 协议卡片格式测试                      |
 
 ---
 
@@ -276,11 +279,11 @@ Meta Agent:
 
 ### 6.2 复杂度决定策略
 
-| 复杂度 | include_protocol | 说明 |
-|--------|-----------------|------|
-| simple | false | 直接传 prompt，不注入协议 |
-| moderate | false | delegate protocol 含约束但不含 protocol card |
-| complex | true | 完整协议：delegate protocol + protocol card |
+| 复杂度   | include_protocol | 说明                                         |
+| -------- | ---------------- | -------------------------------------------- |
+| simple   | false            | 直接传 prompt，不注入协议                    |
+| moderate | false            | delegate protocol 含约束但不含 protocol card |
+| complex  | true             | 完整协议：delegate protocol + protocol card  |
 
 ---
 
@@ -289,22 +292,26 @@ Meta Agent:
 ### 7.1 每阶段出口标准
 
 **Phase 1 出口**：
+
 - ✅ 所有 4 个子智能体（build/explore/plan/general）有 `agent.json`
 - ✅ 所有 4 个子智能体有 `protocol.md`
 - ✅ `protocol.ts` 类型定义通过 typecheck
 - ✅ 单元测试验证 JSON 与 Markdown 格式
 
 **Phase 2 出口**：
+
 - ✅ `generate_delegation_protocol` 参数扩展通过 typecheck
 - ✅ 复杂任务能正确注入 protocol.md
 - ✅ 简单任务跳过 protocol 注入
 - ✅ 集成测试验证完整调用链
 
 **Phase 3 出口**：
+
 - ✅ `scripts/check-agent-protocols.sh` 零失败
 - ✅ CI 中集成
 
 **Phase 4 出口**：
+
 - ✅ meta.txt L1 SHA256 锁定测试通过
 - ✅ meta-agent.test.ts 全部通过
 - ✅ agent.test.ts 全部通过（43 tests）

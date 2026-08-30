@@ -44,7 +44,8 @@ export function isValidSegment(segment: string): boolean {
 export function validateRelativePath(relativePath: string): string {
   const trimmed = relativePath.trim()
   if (trimmed === "") throw new PathValidationError({ reason: "Path must not be empty", path: relativePath })
-  if (path.isAbsolute(trimmed)) throw new PathValidationError({ reason: "Path must not be absolute", path: relativePath })
+  if (path.isAbsolute(trimmed))
+    throw new PathValidationError({ reason: "Path must not be absolute", path: relativePath })
 
   const normalized = trimmed.replace(/\\/g, "/")
   const segments = normalized.split("/")
@@ -72,7 +73,8 @@ export function normalizeRelativePath(relativePath: string): string {
 
 export function nameToRelativePath(name: string): string {
   const normalized = name.normalize("NFKC").trim()
-  if (normalized === "") throw new PathValidationError({ reason: "Name must not be empty after normalization", path: name })
+  if (normalized === "")
+    throw new PathValidationError({ reason: "Name must not be empty after normalization", path: name })
   if (!isValidSegment(normalized)) {
     throw new PathValidationError({ reason: `Name is not a valid file segment: ${normalized}`, path: name })
   }
@@ -99,7 +101,10 @@ export function resolveSafeTarget(
     const target = yield* mutation.resolve({ path: resource })
     const canonicalResource = target.resource.replaceAll("\\", "/")
     if (target.externalDirectory || canonicalResource !== resource) {
-      return yield* new PathValidationError({ reason: "Canonical path escapes custom-profiles root", path: relativePath })
+      return yield* new PathValidationError({
+        reason: "Canonical path escapes custom-profiles root",
+        path: relativePath,
+      })
     }
     return target
   })

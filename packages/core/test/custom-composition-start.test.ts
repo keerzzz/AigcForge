@@ -165,7 +165,6 @@ const it = testEffect(
 const location = Location.Ref.make({ directory: AbsolutePath.make("/project") })
 
 describe("Phase B: Atomic Custom Session Start and V2 Runtime Policy", () => {
-
   it.effect("creates an atomic custom session and persists snapshot in transaction", () =>
     Effect.gen(function* () {
       nextFreezeDigest = mockDigest
@@ -473,32 +472,34 @@ describe("Custom child delegation gate and snapshot reconciliation (MEDIUM-4)", 
     }),
   )
 
-  it.effect("concurrent child create and custom start with identical digest reconcile to one session and snapshot", () =>
-    Effect.gen(function* () {
-      nextFreezeDigest = mockDigest
-      const sessionSvc = yield* SessionV2.Service
-      const sessionComposition = yield* SessionComposition.Service
+  it.effect(
+    "concurrent child create and custom start with identical digest reconcile to one session and snapshot",
+    () =>
+      Effect.gen(function* () {
+        nextFreezeDigest = mockDigest
+        const sessionSvc = yield* SessionV2.Service
+        const sessionComposition = yield* SessionComposition.Service
 
-      const parent = yield* sessionSvc.createCustom({ location, composition: mockCompositionInput })
-      const childID = SessionV2.ID.create()
+        const parent = yield* sessionSvc.createCustom({ location, composition: mockCompositionInput })
+        const childID = SessionV2.ID.create()
 
-      const [createExit, customExit] = yield* Effect.all(
-        [
-          sessionSvc.create({ id: childID, parentID: parent.session.id, location }).pipe(Effect.exit),
-          sessionSvc.createCustom({ id: childID, location, composition: mockCompositionInput }).pipe(Effect.exit),
-        ],
-        { concurrency: "unbounded" },
-      )
+        const [createExit, customExit] = yield* Effect.all(
+          [
+            sessionSvc.create({ id: childID, parentID: parent.session.id, location }).pipe(Effect.exit),
+            sessionSvc.createCustom({ id: childID, location, composition: mockCompositionInput }).pipe(Effect.exit),
+          ],
+          { concurrency: "unbounded" },
+        )
 
-      // Exact retry under the projection race: both calls reconcile.
-      expect(Exit.isSuccess(createExit)).toBe(true)
-      expect(Exit.isSuccess(customExit)).toBe(true)
+        // Exact retry under the projection race: both calls reconcile.
+        expect(Exit.isSuccess(createExit)).toBe(true)
+        expect(Exit.isSuccess(customExit)).toBe(true)
 
-      const customSessions = yield* sessionSvc.list({ mode: "custom" })
-      expect(customSessions.filter((info) => info.id === childID)).toHaveLength(1)
-      const snapshot = yield* sessionComposition.get(childID)
-      expect(snapshot.digest).toBe(mockDigest)
-    }),
+        const customSessions = yield* sessionSvc.list({ mode: "custom" })
+        expect(customSessions.filter((info) => info.id === childID)).toHaveLength(1)
+        const snapshot = yield* sessionComposition.get(childID)
+        expect(snapshot.digest).toBe(mockDigest)
+      }),
   )
 
   it.effect("concurrent child create and custom start with conflicting digests fail typed, never defective", () =>

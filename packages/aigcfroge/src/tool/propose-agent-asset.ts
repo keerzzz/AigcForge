@@ -43,7 +43,8 @@ export const ProposeAgentAssetV1 = define<typeof Parameters, Metadata, LocationS
           if (result.nameConflict) lines.push("Name conflict: choose a different name.")
           if (result.pathConflict) lines.push("Path conflict: choose a different path.")
           if (result.exists) lines.push(`Target "${result.relativePath}" exists.`)
-          if (!result.exists && !result.nameConflict && !result.pathConflict) lines.push(`Candidate "${params.name}" is valid.`)
+          if (!result.exists && !result.nameConflict && !result.pathConflict)
+            lines.push(`Candidate "${params.name}" is valid.`)
           return {
             title: "Propose agent asset",
             metadata: {

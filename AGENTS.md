@@ -34,14 +34,14 @@ Pick the tool by query shape. The `codegraph` MCP indexes symbols (definitions, 
 
 When the agent (aigcfroge product agent or Claude Code subagent) has `codegraph` MCP connected, prefer it over the matching builtin tool for symbol-shaped queries. Builtin tools come from `packages/aigcfroge/src/tool/registry.ts`; MCP tools inject via `MCP.Service` in `packages/aigcfroge/src/session/tools.ts`.
 
-| Builtin tool | Use `codegraph` instead when | Keep builtin for |
-|---|---|---|
-| `lsp` | call chain (`callers`/`callees`), refactor impact + test-coverage gap (`impact`) | diagnostics, hover |
-| `read` | multi-file verbatim source (`explore`, mind 2/project budget) | single precise line range |
-| `grep` | symbol definition lookup (`search`/`node`) | string literals, regex, magic strings |
-| `glob` | indexed file tree by language/symbol count (`files`) | path glob patterns |
-| `edit`/`write`/`patch` | n/a (codegraph read-only) — run `impact` first to size blast radius | the edit itself |
-| `plan` | `impact` before refactor planning | — |
+| Builtin tool           | Use `codegraph` instead when                                                     | Keep builtin for                      |
+| ---------------------- | -------------------------------------------------------------------------------- | ------------------------------------- |
+| `lsp`                  | call chain (`callers`/`callees`), refactor impact + test-coverage gap (`impact`) | diagnostics, hover                    |
+| `read`                 | multi-file verbatim source (`explore`, mind 2/project budget)                    | single precise line range             |
+| `grep`                 | symbol definition lookup (`search`/`node`)                                       | string literals, regex, magic strings |
+| `glob`                 | indexed file tree by language/symbol count (`files`)                             | path glob patterns                    |
+| `edit`/`write`/`patch` | n/a (codegraph read-only) — run `impact` first to size blast radius              | the edit itself                       |
+| `plan`                 | `impact` before refactor planning                                                | —                                     |
 
 `codegraph` indexes symbols, not every text occurrence — same split as Code Retrieval above.
 

@@ -32,10 +32,7 @@ export interface Interface {
     summary: SessionSchema.Summary
   }) => Effect.Effect<void>
   readonly clearRevert: (sessionID: SessionSchema.ID) => Effect.Effect<void>
-  readonly setSummary: (input: {
-    sessionID: SessionSchema.ID
-    summary: SessionSchema.Summary
-  }) => Effect.Effect<void>
+  readonly setSummary: (input: { sessionID: SessionSchema.ID; summary: SessionSchema.Summary }) => Effect.Effect<void>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionStore") {}
@@ -84,7 +81,11 @@ export const layer = Layer.effect(
         yield* db
           .update(SessionTable)
           .set({
-            revert: { messageID: input.revert.messageID, snapshot: input.revert.snapshot ?? null, diff: input.revert.diff ?? null } as any,
+            revert: {
+              messageID: input.revert.messageID,
+              snapshot: input.revert.snapshot ?? null,
+              diff: input.revert.diff ?? null,
+            } as any,
             summary_additions: input.summary.additions,
             summary_deletions: input.summary.deletions,
             summary_files: input.summary.files,

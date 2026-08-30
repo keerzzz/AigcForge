@@ -23,12 +23,9 @@ export class WorkflowNotFoundError extends Schema.TaggedErrorClass<WorkflowNotFo
   }
 }
 
-export class StepNotFoundError extends Schema.TaggedErrorClass<StepNotFoundError>()(
-  "WorkflowRun.StepNotFoundError",
-  {
-    stepRunID: Schema.String,
-  },
-) {
+export class StepNotFoundError extends Schema.TaggedErrorClass<StepNotFoundError>()("WorkflowRun.StepNotFoundError", {
+  stepRunID: Schema.String,
+}) {
   override get message() {
     return `Workflow step run not found: ${this.stepRunID}`
   }
@@ -88,13 +85,9 @@ export interface Interface {
     runID: WorkflowAsset.WorkflowRunID,
   ) => Effect.Effect<WorkflowAsset.WorkflowRunInfo, WorkflowNotFoundError>
 
-  readonly getBySession: (
-    sessionID: SessionSchema.ID,
-  ) => Effect.Effect<WorkflowAsset.WorkflowRunInfo | undefined>
+  readonly getBySession: (sessionID: SessionSchema.ID) => Effect.Effect<WorkflowAsset.WorkflowRunInfo | undefined>
 
-  readonly getSteps: (
-    runID: WorkflowAsset.WorkflowRunID,
-  ) => Effect.Effect<readonly WorkflowAsset.StepRunInfo[]>
+  readonly getSteps: (runID: WorkflowAsset.WorkflowRunID) => Effect.Effect<readonly WorkflowAsset.StepRunInfo[]>
 
   readonly findReadySteps: (
     runID: WorkflowAsset.WorkflowRunID,
@@ -111,22 +104,14 @@ export interface Interface {
         }
       | WorkflowAsset.StepRunID,
     expectedRevision?: number,
-  ) => Effect.Effect<
-    WorkflowAsset.StepRunInfo,
-    StepNotFoundError | InvalidStateTransitionError
-  >
+  ) => Effect.Effect<WorkflowAsset.StepRunInfo, StepNotFoundError | InvalidStateTransitionError>
 
-  readonly dispatchStep: (
-    input: {
-      stepRunID: WorkflowAsset.StepRunID
-      expectedRevision?: number
-      taskID?: string
-      childSessionID?: string
-    },
-  ) => Effect.Effect<
-    WorkflowAsset.StepRunInfo,
-    StepNotFoundError | InvalidStateTransitionError
-  >
+  readonly dispatchStep: (input: {
+    stepRunID: WorkflowAsset.StepRunID
+    expectedRevision?: number
+    taskID?: string
+    childSessionID?: string
+  }) => Effect.Effect<WorkflowAsset.StepRunInfo, StepNotFoundError | InvalidStateTransitionError>
 
   readonly settleStep: (
     input:
@@ -146,10 +131,7 @@ export interface Interface {
       branchTarget?: string
       errorCategory?: WorkflowAsset.ErrorCategory
     },
-  ) => Effect.Effect<
-    WorkflowAsset.StepRunInfo,
-    StepNotFoundError | InvalidStateTransitionError
-  >
+  ) => Effect.Effect<WorkflowAsset.StepRunInfo, StepNotFoundError | InvalidStateTransitionError>
 
   readonly retryStep: (
     input:
@@ -159,42 +141,26 @@ export interface Interface {
         }
       | WorkflowAsset.StepRunID,
     expectedRevision?: number,
-  ) => Effect.Effect<
-    WorkflowAsset.StepRunInfo,
-    StepNotFoundError | InvalidStateTransitionError
-  >
+  ) => Effect.Effect<WorkflowAsset.StepRunInfo, StepNotFoundError | InvalidStateTransitionError>
 
   /** Reconcile process-crash/request-interruption orphans without replaying provider work. */
   readonly recoverRunning: (
     runID: WorkflowAsset.WorkflowRunID,
     errorCategory?: WorkflowAsset.ErrorCategory,
     expectedRevision?: number,
-  ) => Effect.Effect<
-    readonly WorkflowAsset.StepRunInfo[],
-    WorkflowNotFoundError | InvalidStateTransitionError
-  >
+  ) => Effect.Effect<readonly WorkflowAsset.StepRunInfo[], WorkflowNotFoundError | InvalidStateTransitionError>
 
-  readonly cancelStep: (
-    input: {
-      stepRunID: WorkflowAsset.StepRunID
-      expectedRevision?: number
-      errorCategory?: string
-    },
-  ) => Effect.Effect<
-    WorkflowAsset.StepRunInfo,
-    StepNotFoundError | InvalidStateTransitionError
-  >
+  readonly cancelStep: (input: {
+    stepRunID: WorkflowAsset.StepRunID
+    expectedRevision?: number
+    errorCategory?: string
+  }) => Effect.Effect<WorkflowAsset.StepRunInfo, StepNotFoundError | InvalidStateTransitionError>
 
-  readonly finalizeCancelRun: (
-    input: {
-      runID: WorkflowAsset.WorkflowRunID
-      expectedRevision?: number
-      errorCategory?: string
-    },
-  ) => Effect.Effect<
-    WorkflowAsset.WorkflowRunInfo,
-    WorkflowNotFoundError | InvalidStateTransitionError
-  >
+  readonly finalizeCancelRun: (input: {
+    runID: WorkflowAsset.WorkflowRunID
+    expectedRevision?: number
+    errorCategory?: string
+  }) => Effect.Effect<WorkflowAsset.WorkflowRunInfo, WorkflowNotFoundError | InvalidStateTransitionError>
 
   readonly retryRun: (input: {
     runID: WorkflowAsset.WorkflowRunID
@@ -207,10 +173,7 @@ export interface Interface {
     sessionID?: SessionSchema.ID
   }) => Effect.Effect<
     WorkflowAsset.WorkflowRunInfo,
-    | WorkflowNotFoundError
-    | StepNotFoundError
-    | RequestConflictError
-    | InvalidStateTransitionError
+    WorkflowNotFoundError | StepNotFoundError | RequestConflictError | InvalidStateTransitionError
   >
 
   readonly cancelRun: (
@@ -223,20 +186,14 @@ export interface Interface {
         },
     errorCategory?: string,
     expectedRevision?: number,
-  ) => Effect.Effect<
-    WorkflowAsset.WorkflowRunInfo,
-    WorkflowNotFoundError | InvalidStateTransitionError
-  >
+  ) => Effect.Effect<WorkflowAsset.WorkflowRunInfo, WorkflowNotFoundError | InvalidStateTransitionError>
 
   readonly completeRun: (
     runID:
       | WorkflowAsset.WorkflowRunID
       | { runID: WorkflowAsset.WorkflowRunID; expectedRevision?: number; partial?: boolean },
     partial?: boolean,
-  ) => Effect.Effect<
-    WorkflowAsset.WorkflowRunInfo,
-    WorkflowNotFoundError | InvalidStateTransitionError
-  >
+  ) => Effect.Effect<WorkflowAsset.WorkflowRunInfo, WorkflowNotFoundError | InvalidStateTransitionError>
 
   readonly failRun: (
     runID:
@@ -248,10 +205,7 @@ export interface Interface {
         },
     errorCategory?: string,
     expectedRevision?: number,
-  ) => Effect.Effect<
-    WorkflowAsset.WorkflowRunInfo,
-    WorkflowNotFoundError | InvalidStateTransitionError
-  >
+  ) => Effect.Effect<WorkflowAsset.WorkflowRunInfo, WorkflowNotFoundError | InvalidStateTransitionError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/WorkflowRun") {}
@@ -301,10 +255,7 @@ function rowToStepInfo(row: typeof WorkflowStepRunTable.$inferSelect): WorkflowA
   })
 }
 
-function transitiveDescendants(
-  startID: string,
-  stepsDef: readonly WorkflowAsset.StepDef[],
-): Set<string> {
+function transitiveDescendants(startID: string, stepsDef: readonly WorkflowAsset.StepDef[]): Set<string> {
   if (startID === "END") return new Set()
   const result = new Set<string>()
   const queue = [startID]
@@ -376,7 +327,9 @@ export const layer = Layer.effect(
         const existingRequest = yield* db
           .select()
           .from(WorkflowRunTable)
-          .where(and(eq(WorkflowRunTable.session_id, input.sessionID), eq(WorkflowRunTable.request_id, input.requestID)))
+          .where(
+            and(eq(WorkflowRunTable.session_id, input.sessionID), eq(WorkflowRunTable.request_id, input.requestID)),
+          )
           .get()
           .pipe(Effect.orDie)
         if (existingRequest) {
@@ -395,12 +348,7 @@ export const layer = Layer.effect(
       // terminal runs must stay reachable as history without swallowing a fresh
       // submit, and terminal-retry lineage deliberately reuses the same identity.
       const activeIdentity = and(identity, notInArray(WorkflowRunTable.status, [...terminalRunStatuses]))
-      const existing = yield* db
-        .select()
-        .from(WorkflowRunTable)
-        .where(activeIdentity)
-        .get()
-        .pipe(Effect.orDie)
+      const existing = yield* db.select().from(WorkflowRunTable).where(activeIdentity).get().pipe(Effect.orDie)
       if (existing) return rowToRunInfo(existing)
 
       const runID = makeRunID(Identifier.ascending("workflowRun"))
@@ -420,12 +368,7 @@ export const layer = Layer.effect(
             // so `onConflictDoNothing` below has no identity target and the
             // pre-transaction read alone would let two concurrent submits with
             // different `requestID`s both create a run.
-            const raced = yield* db
-              .select()
-              .from(WorkflowRunTable)
-              .where(activeIdentity)
-              .get()
-              .pipe(Effect.orDie)
+            const raced = yield* db.select().from(WorkflowRunTable).where(activeIdentity).get().pipe(Effect.orDie)
             if (raced) return false
             const inserted = yield* db
               .insert(WorkflowRunTable)
@@ -474,12 +417,7 @@ export const layer = Layer.effect(
       )
 
       if (!committed) {
-        const concurrent = yield* db
-          .select()
-          .from(WorkflowRunTable)
-          .where(activeIdentity)
-          .get()
-          .pipe(Effect.orDie)
+        const concurrent = yield* db.select().from(WorkflowRunTable).where(activeIdentity).get().pipe(Effect.orDie)
         if (concurrent) return rowToRunInfo(concurrent)
         // The other possible rejection is the `(session_id, request_id)` unique
         // index: a concurrent submit with the *same* requestID won the race.
@@ -537,127 +475,126 @@ export const layer = Layer.effect(
       return rows.map(rowToStepInfo)
     })
 
-    const findReadySteps: Interface["findReadySteps"] = Effect.fn("WorkflowRun.findReadySteps")(function* (
-      runID,
-      stepsDef,
-    ) {
-      const latestStepRuns = new Map<string, WorkflowAsset.StepRunInfo>()
-      for (const stepRun of yield* getSteps(runID)) {
-        const existing = latestStepRuns.get(stepRun.stepId)
-        if (!existing || existing.attempt < stepRun.attempt) latestStepRuns.set(stepRun.stepId, stepRun)
-      }
-
-      const predecessors = new Map<string, string[]>()
-      for (const step of stepsDef) {
-        if (!predecessors.has(step.id)) predecessors.set(step.id, [])
-        const targets = [
-          ...(step.next && step.next !== "END" ? [step.next] : []),
-          ...(step.branches ? Object.values(step.branches).filter((target) => target !== "END") : []),
-          ...(step.parallel ?? []),
-        ]
-        for (const target of targets) {
-          predecessors.set(target, [...(predecessors.get(target) ?? []), step.id])
-        }
-      }
-
-      for (const step of stepsDef) {
-        if (!step.branches) continue
-        const stepRun = latestStepRuns.get(step.id)
-        if (stepRun?.status !== "completed") continue
-        if (!stepRun.branchTarget || !Object.values(step.branches).includes(stepRun.branchTarget)) {
-          return yield* new InvalidBranchOutputError({ stepID: step.id })
+    const findReadySteps: Interface["findReadySteps"] = Effect.fn("WorkflowRun.findReadySteps")(
+      function* (runID, stepsDef) {
+        const latestStepRuns = new Map<string, WorkflowAsset.StepRunInfo>()
+        for (const stepRun of yield* getSteps(runID)) {
+          const existing = latestStepRuns.get(stepRun.stepId)
+          if (!existing || existing.attempt < stepRun.attempt) latestStepRuns.set(stepRun.stepId, stepRun)
         }
 
-        const selected = transitiveDescendants(stepRun.branchTarget, stepsDef)
-        const abandoned = new Set<string>()
-        for (const target of Object.values(step.branches)) {
-          if (target === stepRun.branchTarget) continue
-          for (const descendant of transitiveDescendants(target, stepsDef)) {
-            if (selected.has(descendant)) continue
-            abandoned.add(descendant)
+        const predecessors = new Map<string, string[]>()
+        for (const step of stepsDef) {
+          if (!predecessors.has(step.id)) predecessors.set(step.id, [])
+          const targets = [
+            ...(step.next && step.next !== "END" ? [step.next] : []),
+            ...(step.branches ? Object.values(step.branches).filter((target) => target !== "END") : []),
+            ...(step.parallel ?? []),
+          ]
+          for (const target of targets) {
+            predecessors.set(target, [...(predecessors.get(target) ?? []), step.id])
           }
         }
-        // A node the non-taken arm merely *also* feeds must survive: a diamond
-        // where the taken arm (or any step outside this branch) is still a live
-        // predecessor can satisfy it later, and `skipped` counts as satisfied in
-        // the frontier rule below. Spare those nodes, then re-run to a fixed
-        // point because sparing one node makes the nodes it feeds live too.
-        for (let changed = true; changed; ) {
-          changed = false
-          for (const descendant of [...abandoned]) {
-            const live = (predecessors.get(descendant) ?? []).some(
-              (predecessor) => predecessor !== step.id && !abandoned.has(predecessor),
-            )
-            if (!live) continue
-            abandoned.delete(descendant)
-            changed = true
+
+        for (const step of stepsDef) {
+          if (!step.branches) continue
+          const stepRun = latestStepRuns.get(step.id)
+          if (stepRun?.status !== "completed") continue
+          if (!stepRun.branchTarget || !Object.values(step.branches).includes(stepRun.branchTarget)) {
+            return yield* new InvalidBranchOutputError({ stepID: step.id })
+          }
+
+          const selected = transitiveDescendants(stepRun.branchTarget, stepsDef)
+          const abandoned = new Set<string>()
+          for (const target of Object.values(step.branches)) {
+            if (target === stepRun.branchTarget) continue
+            for (const descendant of transitiveDescendants(target, stepsDef)) {
+              if (selected.has(descendant)) continue
+              abandoned.add(descendant)
+            }
+          }
+          // A node the non-taken arm merely *also* feeds must survive: a diamond
+          // where the taken arm (or any step outside this branch) is still a live
+          // predecessor can satisfy it later, and `skipped` counts as satisfied in
+          // the frontier rule below. Spare those nodes, then re-run to a fixed
+          // point because sparing one node makes the nodes it feeds live too.
+          for (let changed = true; changed; ) {
+            changed = false
+            for (const descendant of [...abandoned]) {
+              const live = (predecessors.get(descendant) ?? []).some(
+                (predecessor) => predecessor !== step.id && !abandoned.has(predecessor),
+              )
+              if (!live) continue
+              abandoned.delete(descendant)
+              changed = true
+            }
+          }
+          for (const descendant of abandoned) {
+            const candidate = latestStepRuns.get(descendant)
+            if (!candidate || (candidate.status !== "pending" && candidate.status !== "ready")) continue
+            const updated = yield* db
+              .update(WorkflowStepRunTable)
+              .set({
+                status: "skipped",
+                revision: sql`${WorkflowStepRunTable.revision} + 1`,
+                time_completed: Date.now(),
+              })
+              .where(
+                and(
+                  eq(WorkflowStepRunTable.id, candidate.id),
+                  eq(WorkflowStepRunTable.revision, candidate.revision),
+                  inArray(WorkflowStepRunTable.status, ["pending", "ready"]),
+                ),
+              )
+              .returning()
+              .get()
+              .pipe(Effect.orDie)
+            if (updated) latestStepRuns.set(descendant, rowToStepInfo(updated))
           }
         }
-        for (const descendant of abandoned) {
-          const candidate = latestStepRuns.get(descendant)
-          if (!candidate || (candidate.status !== "pending" && candidate.status !== "ready")) continue
-          const updated = yield* db
-            .update(WorkflowStepRunTable)
-            .set({
-              status: "skipped",
-              revision: sql`${WorkflowStepRunTable.revision} + 1`,
-              time_completed: Date.now(),
-            })
-            .where(
-              and(
-                eq(WorkflowStepRunTable.id, candidate.id),
-                eq(WorkflowStepRunTable.revision, candidate.revision),
-                inArray(WorkflowStepRunTable.status, ["pending", "ready"]),
-              ),
-            )
-            .returning()
-            .get()
-            .pipe(Effect.orDie)
-          if (updated) latestStepRuns.set(descendant, rowToStepInfo(updated))
-        }
-      }
 
-      const ready: WorkflowAsset.StepRunInfo[] = []
-      for (const step of stepsDef) {
-        const stepRun = latestStepRuns.get(step.id)
-        if (!stepRun) continue
-        if (stepRun.status === "ready") {
-          ready.push(stepRun)
-          continue
-        }
-        if (stepRun.status !== "pending") continue
+        const ready: WorkflowAsset.StepRunInfo[] = []
+        for (const step of stepsDef) {
+          const stepRun = latestStepRuns.get(step.id)
+          if (!stepRun) continue
+          if (stepRun.status === "ready") {
+            ready.push(stepRun)
+            continue
+          }
+          if (stepRun.status !== "pending") continue
 
-        const dependencies = predecessors.get(step.id) ?? []
-        const satisfied = dependencies.every((predecessorID) => {
+          const dependencies = predecessors.get(step.id) ?? []
+          const satisfied = dependencies.every((predecessorID) => {
             const predecessor = latestStepRuns.get(predecessorID)
             if (!predecessor) return false
             if (predecessor.status === "completed" || predecessor.status === "skipped") return true
             const definition = stepsDef.find((candidate) => candidate.id === predecessorID)
             return predecessor.status === "failed" && definition?.failurePolicy === "continue"
           })
-        if (!satisfied) continue
+          if (!satisfied) continue
 
-        const updated = yield* db
-          .update(WorkflowStepRunTable)
-          .set({
-            status: "ready",
-            revision: sql`${WorkflowStepRunTable.revision} + 1`,
-          })
-          .where(
-            and(
-              eq(WorkflowStepRunTable.id, stepRun.id),
-              eq(WorkflowStepRunTable.status, "pending"),
-              eq(WorkflowStepRunTable.revision, stepRun.revision),
-            ),
-          )
-          .returning()
-          .get()
-          .pipe(Effect.orDie)
-        if (updated) ready.push(rowToStepInfo(updated))
-      }
+          const updated = yield* db
+            .update(WorkflowStepRunTable)
+            .set({
+              status: "ready",
+              revision: sql`${WorkflowStepRunTable.revision} + 1`,
+            })
+            .where(
+              and(
+                eq(WorkflowStepRunTable.id, stepRun.id),
+                eq(WorkflowStepRunTable.status, "pending"),
+                eq(WorkflowStepRunTable.revision, stepRun.revision),
+              ),
+            )
+            .returning()
+            .get()
+            .pipe(Effect.orDie)
+          if (updated) ready.push(rowToStepInfo(updated))
+        }
 
-      return ready
-    })
+        return ready
+      },
+    )
 
     const dispatchStep: Interface["dispatchStep"] = Effect.fn("WorkflowRun.dispatchStep")(function* (input) {
       const now = Date.now()
@@ -773,10 +710,7 @@ export const layer = Layer.effect(
       })
     })
 
-    const startStep: Interface["startStep"] = Effect.fn("WorkflowRun.startStep")(function* (
-      rawInput,
-      legacyRevision,
-    ) {
+    const startStep: Interface["startStep"] = Effect.fn("WorkflowRun.startStep")(function* (rawInput, legacyRevision) {
       const input =
         typeof rawInput === "string"
           ? yield* dispatchStep({ stepRunID: rawInput, expectedRevision: legacyRevision }).pipe(
@@ -879,10 +813,7 @@ export const layer = Layer.effect(
       })
     })
 
-    const settleStep: Interface["settleStep"] = Effect.fn("WorkflowRun.settleStep")(function* (
-      rawInput,
-      legacyResult,
-    ) {
+    const settleStep: Interface["settleStep"] = Effect.fn("WorkflowRun.settleStep")(function* (rawInput, legacyResult) {
       const input =
         typeof rawInput === "string"
           ? { stepRunID: rawInput, ...(legacyResult ?? { status: "failed" as const }) }
@@ -931,14 +862,8 @@ export const layer = Layer.effect(
       })
     })
 
-    const retryStep: Interface["retryStep"] = Effect.fn("WorkflowRun.retryStep")(function* (
-      rawInput,
-      legacyRevision,
-    ) {
-      const input =
-        typeof rawInput === "string"
-          ? { stepRunID: rawInput, expectedRevision: legacyRevision }
-          : rawInput
+    const retryStep: Interface["retryStep"] = Effect.fn("WorkflowRun.retryStep")(function* (rawInput, legacyRevision) {
+      const input = typeof rawInput === "string" ? { stepRunID: rawInput, expectedRevision: legacyRevision } : rawInput
       const now = Date.now()
       const result = yield* db
         .transaction((tx) =>
@@ -957,7 +882,12 @@ export const layer = Layer.effect(
               .get()
               .pipe(Effect.orDie)
             const expectedRevision = input.expectedRevision ?? current.revision
-            if (!parent || terminalRunStatuses.includes(parent.status) || current.status !== "failed" || current.revision !== expectedRevision) {
+            if (
+              !parent ||
+              terminalRunStatuses.includes(parent.status) ||
+              current.status !== "failed" ||
+              current.revision !== expectedRevision
+            ) {
               return { type: "invalid" as const, current }
             }
 
@@ -1032,7 +962,9 @@ export const layer = Layer.effect(
       const existingRequest = yield* db
         .select()
         .from(WorkflowRunTable)
-        .where(and(eq(WorkflowRunTable.session_id, source.session_id), eq(WorkflowRunTable.request_id, input.requestID)))
+        .where(
+          and(eq(WorkflowRunTable.session_id, source.session_id), eq(WorkflowRunTable.request_id, input.requestID)),
+        )
         .get()
         .pipe(Effect.orDie)
       if (existingRequest) {
@@ -1131,18 +1063,26 @@ export const layer = Layer.effect(
                   run_id: runID,
                   step_id: stepDef.id,
                   agent_id: stepDef.agent,
-                  status: shouldRetry ? (stepDef.id === target.step_id ? "ready" : "pending") : previous?.status ?? "pending",
-                  attempt: shouldRetry ? (stepDef.id === target.step_id ? target.attempt + 1 : 1) : previous?.attempt ?? 1,
+                  status: shouldRetry
+                    ? stepDef.id === target.step_id
+                      ? "ready"
+                      : "pending"
+                    : (previous?.status ?? "pending"),
+                  attempt: shouldRetry
+                    ? stepDef.id === target.step_id
+                      ? target.attempt + 1
+                      : 1
+                    : (previous?.attempt ?? 1),
                   revision: 1,
-                  task_id: shouldRetry ? null : previous?.task_id ?? null,
-                  child_session_id: shouldRetry ? null : previous?.child_session_id ?? null,
+                  task_id: shouldRetry ? null : (previous?.task_id ?? null),
+                  child_session_id: shouldRetry ? null : (previous?.child_session_id ?? null),
                   input_digest: previous?.input_digest ?? computeDigest(stepDef.input ?? {}),
-                  output_digest: shouldRetry ? null : previous?.output_digest ?? null,
-                  branch_target: shouldRetry ? null : previous?.branch_target ?? null,
-                  error_category: shouldRetry ? null : previous?.error_category ?? null,
+                  output_digest: shouldRetry ? null : (previous?.output_digest ?? null),
+                  branch_target: shouldRetry ? null : (previous?.branch_target ?? null),
+                  error_category: shouldRetry ? null : (previous?.error_category ?? null),
                   time_created: now,
-                  time_started: shouldRetry ? null : previous?.time_started ?? null,
-                  time_completed: shouldRetry ? null : previous?.time_completed ?? null,
+                  time_started: shouldRetry ? null : (previous?.time_started ?? null),
+                  time_completed: shouldRetry ? null : (previous?.time_completed ?? null),
                 })
                 .run()
                 .pipe(Effect.orDie)
@@ -1157,7 +1097,9 @@ export const layer = Layer.effect(
       const concurrent = yield* db
         .select()
         .from(WorkflowRunTable)
-        .where(and(eq(WorkflowRunTable.session_id, source.session_id), eq(WorkflowRunTable.request_id, input.requestID)))
+        .where(
+          and(eq(WorkflowRunTable.session_id, source.session_id), eq(WorkflowRunTable.request_id, input.requestID)),
+        )
         .get()
         .pipe(Effect.orDie)
       if (concurrent?.request_digest === requestDigest) return rowToRunInfo(concurrent)
@@ -1203,12 +1145,7 @@ export const layer = Layer.effect(
                   time_started: null,
                   time_completed: null,
                 })
-                .where(
-                  and(
-                    eq(WorkflowStepRunTable.run_id, runID),
-                    eq(WorkflowStepRunTable.status, "dispatching"),
-                  ),
-                )
+                .where(and(eq(WorkflowStepRunTable.run_id, runID), eq(WorkflowStepRunTable.status, "dispatching")))
                 .returning()
                 .all()
                 .pipe(Effect.orDie)
@@ -1248,12 +1185,7 @@ export const layer = Layer.effect(
                 error_category: category,
                 time_completed: now,
               })
-              .where(
-                and(
-                  eq(WorkflowStepRunTable.run_id, runID),
-                  eq(WorkflowStepRunTable.status, "running"),
-                ),
-              )
+              .where(and(eq(WorkflowStepRunTable.run_id, runID), eq(WorkflowStepRunTable.status, "running")))
               .run()
               .pipe(Effect.orDie)
             yield* tx
@@ -1294,167 +1226,167 @@ export const layer = Layer.effect(
       return result.rows.map(rowToStepInfo)
     })
 
-    const cancelRun: Interface["cancelRun"] = Effect.fn("WorkflowRun.cancelRun")(function* (
-      rawRunID,
-      legacyCategory,
-      legacyRevision,
-    ) {
-      const input =
-        typeof rawRunID === "string"
-          ? {
-              runID: rawRunID,
-              errorCategory: legacyCategory ?? "step_cancelled",
-              expectedRevision: legacyRevision,
-            }
-          : {
-              runID: rawRunID.runID,
-              errorCategory: rawRunID.errorCategory ?? "step_cancelled",
-              expectedRevision: rawRunID.expectedRevision,
-            }
-      const now = Date.now()
-      const category: WorkflowAsset.ErrorCategory = isErrorCategory(input.errorCategory)
-        ? input.errorCategory
-        : "step_cancelled"
-      const result = yield* db
-        .transaction((tx) =>
-          Effect.gen(function* () {
-            const current = yield* tx
-              .select()
-              .from(WorkflowRunTable)
-              .where(eq(WorkflowRunTable.id, input.runID))
-              .get()
-              .pipe(Effect.orDie)
-            if (!current) return { type: "missing" as const }
-            const expectedRevision = input.expectedRevision ?? current.revision
-            if (current.revision !== expectedRevision) return { type: "invalid" as const, current, expectedRevision }
-            if (terminalRunStatuses.includes(current.status) || current.status === "cancelling") {
-              return { type: "ok" as const, row: current }
-            }
+    const cancelRun: Interface["cancelRun"] = Effect.fn("WorkflowRun.cancelRun")(
+      function* (rawRunID, legacyCategory, legacyRevision) {
+        const input =
+          typeof rawRunID === "string"
+            ? {
+                runID: rawRunID,
+                errorCategory: legacyCategory ?? "step_cancelled",
+                expectedRevision: legacyRevision,
+              }
+            : {
+                runID: rawRunID.runID,
+                errorCategory: rawRunID.errorCategory ?? "step_cancelled",
+                expectedRevision: rawRunID.expectedRevision,
+              }
+        const now = Date.now()
+        const category: WorkflowAsset.ErrorCategory = isErrorCategory(input.errorCategory)
+          ? input.errorCategory
+          : "step_cancelled"
+        const result = yield* db
+          .transaction((tx) =>
+            Effect.gen(function* () {
+              const current = yield* tx
+                .select()
+                .from(WorkflowRunTable)
+                .where(eq(WorkflowRunTable.id, input.runID))
+                .get()
+                .pipe(Effect.orDie)
+              if (!current) return { type: "missing" as const }
+              const expectedRevision = input.expectedRevision ?? current.revision
+              if (current.revision !== expectedRevision) return { type: "invalid" as const, current, expectedRevision }
+              if (terminalRunStatuses.includes(current.status) || current.status === "cancelling") {
+                return { type: "ok" as const, row: current }
+              }
 
-            const row = yield* tx
-              .update(WorkflowRunTable)
-              .set({
-                status: "cancelling",
-                revision: sql`${WorkflowRunTable.revision} + 1`,
-                error_category: category,
-                time_updated: now,
-              })
-              .where(
-                and(
-                  eq(WorkflowRunTable.id, input.runID),
-                  eq(WorkflowRunTable.status, current.status),
-                  eq(WorkflowRunTable.revision, expectedRevision),
-                ),
-              )
-              .returning()
-              .get()
-              .pipe(Effect.orDie)
-            if (!row) return { type: "invalid" as const, current, expectedRevision }
+              const row = yield* tx
+                .update(WorkflowRunTable)
+                .set({
+                  status: "cancelling",
+                  revision: sql`${WorkflowRunTable.revision} + 1`,
+                  error_category: category,
+                  time_updated: now,
+                })
+                .where(
+                  and(
+                    eq(WorkflowRunTable.id, input.runID),
+                    eq(WorkflowRunTable.status, current.status),
+                    eq(WorkflowRunTable.revision, expectedRevision),
+                  ),
+                )
+                .returning()
+                .get()
+                .pipe(Effect.orDie)
+              if (!row) return { type: "invalid" as const, current, expectedRevision }
 
-            yield* tx
-              .update(WorkflowStepRunTable)
-              .set({
-                status: "cancelling",
-                revision: sql`${WorkflowStepRunTable.revision} + 1`,
-                error_category: category,
-              })
-              .where(
-                and(
-                  eq(WorkflowStepRunTable.run_id, input.runID),
-                  inArray(WorkflowStepRunTable.status, ["running", "dispatching"]),
-                ),
-              )
-              .run()
-              .pipe(Effect.orDie)
-            yield* tx
-              .update(WorkflowStepRunTable)
-              .set({
-                status: "skipped",
-                revision: sql`${WorkflowStepRunTable.revision} + 1`,
-                error_category: category,
-                time_completed: now,
-              })
-              .where(
-                and(
-                  eq(WorkflowStepRunTable.run_id, input.runID),
-                  inArray(WorkflowStepRunTable.status, ["pending", "ready"]),
-                ),
-              )
-              .run()
-              .pipe(Effect.orDie)
-            return { type: "ok" as const, row }
-          }),
-        )
-        .pipe(Effect.orDie)
-      if (result.type === "missing") return yield* new WorkflowNotFoundError({ runID: input.runID })
-      if (result.type === "invalid") {
-        return yield* new InvalidStateTransitionError({
-          from: `${result.current.status}@${result.current.revision}`,
-          to: "cancelling",
-          reason: `Workflow run ${input.runID} changed since revision ${result.expectedRevision}`,
-        })
-      }
-      return rowToRunInfo(result.row)
-    })
+              yield* tx
+                .update(WorkflowStepRunTable)
+                .set({
+                  status: "cancelling",
+                  revision: sql`${WorkflowStepRunTable.revision} + 1`,
+                  error_category: category,
+                })
+                .where(
+                  and(
+                    eq(WorkflowStepRunTable.run_id, input.runID),
+                    inArray(WorkflowStepRunTable.status, ["running", "dispatching"]),
+                  ),
+                )
+                .run()
+                .pipe(Effect.orDie)
+              yield* tx
+                .update(WorkflowStepRunTable)
+                .set({
+                  status: "skipped",
+                  revision: sql`${WorkflowStepRunTable.revision} + 1`,
+                  error_category: category,
+                  time_completed: now,
+                })
+                .where(
+                  and(
+                    eq(WorkflowStepRunTable.run_id, input.runID),
+                    inArray(WorkflowStepRunTable.status, ["pending", "ready"]),
+                  ),
+                )
+                .run()
+                .pipe(Effect.orDie)
+              return { type: "ok" as const, row }
+            }),
+          )
+          .pipe(Effect.orDie)
+        if (result.type === "missing") return yield* new WorkflowNotFoundError({ runID: input.runID })
+        if (result.type === "invalid") {
+          return yield* new InvalidStateTransitionError({
+            from: `${result.current.status}@${result.current.revision}`,
+            to: "cancelling",
+            reason: `Workflow run ${input.runID} changed since revision ${result.expectedRevision}`,
+          })
+        }
+        return rowToRunInfo(result.row)
+      },
+    )
 
-    const finalizeCancelRun: Interface["finalizeCancelRun"] = Effect.fn("WorkflowRun.finalizeCancelRun")(function* (input) {
-      const now = Date.now()
-      const category: WorkflowAsset.ErrorCategory = isErrorCategory(input.errorCategory)
-        ? input.errorCategory
-        : "step_cancelled"
-      const result = yield* db
-        .transaction((tx) =>
-          Effect.gen(function* () {
-            const current = yield* tx
-              .select()
-              .from(WorkflowRunTable)
-              .where(eq(WorkflowRunTable.id, input.runID))
-              .get()
-              .pipe(Effect.orDie)
-            if (!current) return { type: "missing" as const }
-            const expectedRevision = input.expectedRevision ?? current.revision
-            if (current.revision !== expectedRevision) return { type: "invalid" as const, current, expectedRevision }
-            if (terminalRunStatuses.includes(current.status)) return { type: "ok" as const, row: current }
-            if (current.status !== "cancelling") return { type: "invalid" as const, current, expectedRevision }
-            const row = yield* tx
-              .update(WorkflowRunTable)
-              .set({
-                status: "cancelled",
-                revision: sql`${WorkflowRunTable.revision} + 1`,
-                error_category: category,
-                time_completed: now,
-                time_updated: now,
-              })
-              .where(and(eq(WorkflowRunTable.id, input.runID), eq(WorkflowRunTable.revision, expectedRevision)))
-              .returning()
-              .get()
-              .pipe(Effect.orDie)
-            if (!row) return { type: "invalid" as const, current, expectedRevision }
-            yield* tx
-              .update(WorkflowStepRunTable)
-              .set({
-                status: "cancelled",
-                revision: sql`${WorkflowStepRunTable.revision} + 1`,
-                error_category: category,
-                time_completed: now,
-              })
-              .where(and(eq(WorkflowStepRunTable.run_id, input.runID), eq(WorkflowStepRunTable.status, "cancelling")))
-              .run()
-              .pipe(Effect.orDie)
-            return { type: "ok" as const, row }
-          }),
-        )
-        .pipe(Effect.orDie)
-      if (result.type === "missing") return yield* new WorkflowNotFoundError({ runID: input.runID })
-      if (result.type === "invalid") {
-        return yield* new InvalidStateTransitionError({
-          from: `${result.current.status}@${result.current.revision}`,
-          to: "cancelled",
-          reason: `Workflow run ${input.runID} is not finalizable at revision ${result.expectedRevision}`,
-        })
-      }
-      return rowToRunInfo(result.row)
-    })
+    const finalizeCancelRun: Interface["finalizeCancelRun"] = Effect.fn("WorkflowRun.finalizeCancelRun")(
+      function* (input) {
+        const now = Date.now()
+        const category: WorkflowAsset.ErrorCategory = isErrorCategory(input.errorCategory)
+          ? input.errorCategory
+          : "step_cancelled"
+        const result = yield* db
+          .transaction((tx) =>
+            Effect.gen(function* () {
+              const current = yield* tx
+                .select()
+                .from(WorkflowRunTable)
+                .where(eq(WorkflowRunTable.id, input.runID))
+                .get()
+                .pipe(Effect.orDie)
+              if (!current) return { type: "missing" as const }
+              const expectedRevision = input.expectedRevision ?? current.revision
+              if (current.revision !== expectedRevision) return { type: "invalid" as const, current, expectedRevision }
+              if (terminalRunStatuses.includes(current.status)) return { type: "ok" as const, row: current }
+              if (current.status !== "cancelling") return { type: "invalid" as const, current, expectedRevision }
+              const row = yield* tx
+                .update(WorkflowRunTable)
+                .set({
+                  status: "cancelled",
+                  revision: sql`${WorkflowRunTable.revision} + 1`,
+                  error_category: category,
+                  time_completed: now,
+                  time_updated: now,
+                })
+                .where(and(eq(WorkflowRunTable.id, input.runID), eq(WorkflowRunTable.revision, expectedRevision)))
+                .returning()
+                .get()
+                .pipe(Effect.orDie)
+              if (!row) return { type: "invalid" as const, current, expectedRevision }
+              yield* tx
+                .update(WorkflowStepRunTable)
+                .set({
+                  status: "cancelled",
+                  revision: sql`${WorkflowStepRunTable.revision} + 1`,
+                  error_category: category,
+                  time_completed: now,
+                })
+                .where(and(eq(WorkflowStepRunTable.run_id, input.runID), eq(WorkflowStepRunTable.status, "cancelling")))
+                .run()
+                .pipe(Effect.orDie)
+              return { type: "ok" as const, row }
+            }),
+          )
+          .pipe(Effect.orDie)
+        if (result.type === "missing") return yield* new WorkflowNotFoundError({ runID: input.runID })
+        if (result.type === "invalid") {
+          return yield* new InvalidStateTransitionError({
+            from: `${result.current.status}@${result.current.revision}`,
+            to: "cancelled",
+            reason: `Workflow run ${input.runID} is not finalizable at revision ${result.expectedRevision}`,
+          })
+        }
+        return rowToRunInfo(result.row)
+      },
+    )
 
     const cancelStep: Interface["cancelStep"] = Effect.fn("WorkflowRun.cancelStep")(function* (input) {
       const current = yield* db
@@ -1517,7 +1449,8 @@ export const layer = Layer.effect(
               .pipe(Effect.orDie)
             if (!current) return { type: "missing" as const }
             const expectedRevision = input.expectedRevision ?? current.revision
-            if (current.revision !== expectedRevision) return { type: "invalid_revision" as const, current, expectedRevision }
+            if (current.revision !== expectedRevision)
+              return { type: "invalid_revision" as const, current, expectedRevision }
             if (terminalRunStatuses.includes(current.status)) return { type: "ok" as const, row: current }
 
             const unfinished = yield* tx
@@ -1576,104 +1509,106 @@ export const layer = Layer.effect(
       return rowToRunInfo(result.row)
     })
 
-    const failRun: Interface["failRun"] = Effect.fn("WorkflowRun.failRun")(function* (
-      rawRunID,
-      legacyCategory,
-      legacyRevision,
-    ) {
-      const input =
-        typeof rawRunID === "string"
-          ? { runID: rawRunID, errorCategory: legacyCategory ?? "step_failed", expectedRevision: legacyRevision }
-          : rawRunID
-      const runID = input.runID
-      const now = Date.now()
-      const category: WorkflowAsset.ErrorCategory = isErrorCategory(input.errorCategory) ? input.errorCategory : "step_failed"
-      const result = yield* db
-        .transaction((tx) =>
-          Effect.gen(function* () {
-            const current = yield* tx
-              .select()
-              .from(WorkflowRunTable)
-              .where(eq(WorkflowRunTable.id, runID))
-              .get()
-              .pipe(Effect.orDie)
-            if (!current) return { type: "missing" as const }
-            const expectedRevision = input.expectedRevision ?? current.revision
-            if (current.revision !== expectedRevision) return { type: "invalid" as const, current, expectedRevision }
-            if (terminalRunStatuses.includes(current.status)) return { type: "ok" as const, row: current }
+    const failRun: Interface["failRun"] = Effect.fn("WorkflowRun.failRun")(
+      function* (rawRunID, legacyCategory, legacyRevision) {
+        const input =
+          typeof rawRunID === "string"
+            ? { runID: rawRunID, errorCategory: legacyCategory ?? "step_failed", expectedRevision: legacyRevision }
+            : rawRunID
+        const runID = input.runID
+        const now = Date.now()
+        const category: WorkflowAsset.ErrorCategory = isErrorCategory(input.errorCategory)
+          ? input.errorCategory
+          : "step_failed"
+        const result = yield* db
+          .transaction((tx) =>
+            Effect.gen(function* () {
+              const current = yield* tx
+                .select()
+                .from(WorkflowRunTable)
+                .where(eq(WorkflowRunTable.id, runID))
+                .get()
+                .pipe(Effect.orDie)
+              if (!current) return { type: "missing" as const }
+              const expectedRevision = input.expectedRevision ?? current.revision
+              if (current.revision !== expectedRevision) return { type: "invalid" as const, current, expectedRevision }
+              if (terminalRunStatuses.includes(current.status)) return { type: "ok" as const, row: current }
 
-            const row = yield* tx
-              .update(WorkflowRunTable)
-              .set({
-                status: "failed",
-                revision: sql`${WorkflowRunTable.revision} + 1`,
-                error_category: category,
-                time_completed: now,
-                time_updated: now,
-              })
-              .where(and(
-                eq(WorkflowRunTable.id, runID),
-                eq(WorkflowRunTable.status, current.status),
-                eq(WorkflowRunTable.revision, expectedRevision),
-              ))
-              .returning()
-              .get()
-              .pipe(Effect.orDie)
-            if (!row) return { type: "invalid" as const, current, expectedRevision }
+              const row = yield* tx
+                .update(WorkflowRunTable)
+                .set({
+                  status: "failed",
+                  revision: sql`${WorkflowRunTable.revision} + 1`,
+                  error_category: category,
+                  time_completed: now,
+                  time_updated: now,
+                })
+                .where(
+                  and(
+                    eq(WorkflowRunTable.id, runID),
+                    eq(WorkflowRunTable.status, current.status),
+                    eq(WorkflowRunTable.revision, expectedRevision),
+                  ),
+                )
+                .returning()
+                .get()
+                .pipe(Effect.orDie)
+              if (!row) return { type: "invalid" as const, current, expectedRevision }
 
-            yield* tx
-              .update(WorkflowStepRunTable)
-              .set({
-                status: "cancelled",
-                revision: sql`${WorkflowStepRunTable.revision} + 1`,
-                error_category: category,
-                time_completed: now,
-              })
-              .where(
-                and(
-                  eq(WorkflowStepRunTable.run_id, runID),
-                  // Every dispatched step must settle (ADR-18 §2.2). `dispatching`
-                  // and `cancelling` are dispatched-but-unsettled: a sibling that
-                  // was interrupted between `dispatchStep` and `startStep` sits in
-                  // `dispatching`, and `completeRun` refuses to settle a run that
-                  // still holds either — so omitting them here leaves an orphan
-                  // step under a terminal run that `recoverRunning` can never
-                  // reach (it early-returns for terminal runs).
-                  inArray(WorkflowStepRunTable.status, ["running", "dispatching", "cancelling"]),
-                ),
-              )
-              .run()
-              .pipe(Effect.orDie)
-            yield* tx
-              .update(WorkflowStepRunTable)
-              .set({
-                status: "skipped",
-                revision: sql`${WorkflowStepRunTable.revision} + 1`,
-                error_category: category,
-                time_completed: now,
-              })
-              .where(
-                and(
-                  eq(WorkflowStepRunTable.run_id, runID),
-                  inArray(WorkflowStepRunTable.status, ["pending", "ready"]),
-                ),
-              )
-              .run()
-              .pipe(Effect.orDie)
-            return { type: "ok" as const, row }
-          }),
-        )
-        .pipe(Effect.orDie)
-      if (result.type === "missing") return yield* new WorkflowNotFoundError({ runID })
-      if (result.type === "invalid") {
-        return yield* new InvalidStateTransitionError({
-          from: `${result.current.status}@${result.current.revision}`,
-          to: "failed",
-          reason: `Workflow run ${runID} changed since revision ${result.expectedRevision}`,
-        })
-      }
-      return rowToRunInfo(result.row)
-    })
+              yield* tx
+                .update(WorkflowStepRunTable)
+                .set({
+                  status: "cancelled",
+                  revision: sql`${WorkflowStepRunTable.revision} + 1`,
+                  error_category: category,
+                  time_completed: now,
+                })
+                .where(
+                  and(
+                    eq(WorkflowStepRunTable.run_id, runID),
+                    // Every dispatched step must settle (ADR-18 §2.2). `dispatching`
+                    // and `cancelling` are dispatched-but-unsettled: a sibling that
+                    // was interrupted between `dispatchStep` and `startStep` sits in
+                    // `dispatching`, and `completeRun` refuses to settle a run that
+                    // still holds either — so omitting them here leaves an orphan
+                    // step under a terminal run that `recoverRunning` can never
+                    // reach (it early-returns for terminal runs).
+                    inArray(WorkflowStepRunTable.status, ["running", "dispatching", "cancelling"]),
+                  ),
+                )
+                .run()
+                .pipe(Effect.orDie)
+              yield* tx
+                .update(WorkflowStepRunTable)
+                .set({
+                  status: "skipped",
+                  revision: sql`${WorkflowStepRunTable.revision} + 1`,
+                  error_category: category,
+                  time_completed: now,
+                })
+                .where(
+                  and(
+                    eq(WorkflowStepRunTable.run_id, runID),
+                    inArray(WorkflowStepRunTable.status, ["pending", "ready"]),
+                  ),
+                )
+                .run()
+                .pipe(Effect.orDie)
+              return { type: "ok" as const, row }
+            }),
+          )
+          .pipe(Effect.orDie)
+        if (result.type === "missing") return yield* new WorkflowNotFoundError({ runID })
+        if (result.type === "invalid") {
+          return yield* new InvalidStateTransitionError({
+            from: `${result.current.status}@${result.current.revision}`,
+            to: "failed",
+            reason: `Workflow run ${runID} changed since revision ${result.expectedRevision}`,
+          })
+        }
+        return rowToRunInfo(result.row)
+      },
+    )
 
     return Service.of({
       create,
@@ -1698,7 +1633,4 @@ export const layer = Layer.effect(
 )
 
 export const locationLayer = layer
-export const defaultLayer = layer.pipe(
-  Layer.provide(EventV2.defaultLayer),
-  Layer.provide(Database.defaultLayer),
-)
+export const defaultLayer = layer.pipe(Layer.provide(EventV2.defaultLayer), Layer.provide(Database.defaultLayer))

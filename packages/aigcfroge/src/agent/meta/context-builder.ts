@@ -34,10 +34,7 @@ const HISTORY_LINE = (h: DelegationHistoryEntry): string =>
   `#${h.seq} [${h.engine}] ${h.status}: ${h.summary}${h.files?.length ? ` (${h.files.join(", ")})` : ""}`
 
 export function build(input: BuildInput): string {
-  const historyText = input.history
-    .slice(-5)
-    .map(HISTORY_LINE)
-    .join("\n") || "None"
+  const historyText = input.history.slice(-5).map(HISTORY_LINE).join("\n") || "None"
 
   const warmth = input.warmed === true ? "<cache-warm/>" : ""
 

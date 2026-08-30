@@ -9,13 +9,13 @@
 
 ## 1. 产品身份
 
-| 项 | 值 |
-|---|---|
-| 产品 | Google Antigravity（AI IDE，基于 Gemini） |
-| 形态 | Electron 桌面应用（x64） |
-| 本地路径 | `/home/keer/opt/Antigravity-x64/` |
+| 项         | 值                                                          |
+| ---------- | ----------------------------------------------------------- |
+| 产品       | Google Antigravity（AI IDE，基于 Gemini）                   |
+| 形态       | Electron 桌面应用（x64）                                    |
+| 本地路径   | `/home/keer/opt/Antigravity-x64/`                           |
 | 核心二进制 | `resources/bin/language_server`（Go 编译，157MB，stripped） |
-| 启动器壳 | `resources/app.asar`（2.1M，仅 Electron 主进程） |
+| 启动器壳   | `resources/app.asar`（2.1M，仅 Electron 主进程）            |
 
 ---
 
@@ -43,11 +43,11 @@ strings resources/bin/language_server | grep -iE "sse|event-stream|gemini|tool_g
 
 Antigravity **不用 SSE**。流式输出靠 gRPC 双向流 + protobuf。
 
-| 层 | 协议 | 通信方 | 证据（符号） |
-|---|---|---|---|
-| 本地 | **MCP JSON-RPC 2.0** | language_server ↔ Electron | `modelcontextprotocol/go_sdk/v0/internal/jsonrpc2` |
-| 远程 | **gRPC streaming** | language_server ↔ Google Cloud AI Platform | `grpc.(*Server).processStreamingRPC`, `MethodDescriptorProto.GetServerStreaming` |
-| 数据 | **protobuf** | Gemini API proto | `google3/google/cloud/aiplatform/master/tool_go_proto` |
+| 层   | 协议                 | 通信方                                      | 证据（符号）                                                                     |
+| ---- | -------------------- | ------------------------------------------- | -------------------------------------------------------------------------------- |
+| 本地 | **MCP JSON-RPC 2.0** | language_server ↔ Electron                 | `modelcontextprotocol/go_sdk/v0/internal/jsonrpc2`                               |
+| 远程 | **gRPC streaming**   | language_server ↔ Google Cloud AI Platform | `grpc.(*Server).processStreamingRPC`, `MethodDescriptorProto.GetServerStreaming` |
+| 数据 | **protobuf**         | Gemini API proto                            | `google3/google/cloud/aiplatform/master/tool_go_proto`                           |
 
 **grep `text/event-stream` / `data: ` / `event: ` 全无命中** -- 确认非 SSE。
 
@@ -104,19 +104,20 @@ google3/google/cloud/aiplatform/master/tool_go_proto.Tool_ComputerUse
 
 ## 5. 借鉴点（对 AigcForge，按优先级）
 
-| # | 能力 | 优先级 | AigcForge 现状 | 借鉴价值 |
-|---|---|---|---|---|
-| **B1** | PartialArg 流式工具调用 | **P1** | 工具参数一次性（`Tool.execute(input)` 全量） | 长参数工具（write 大文件）流式，减少等待感 |
-| **B2** | ThoughtSummaryContent 含图片 | P2 | reasoning part 纯文本 | 思考过程含截图/图表（M3 图表可嵌入思考） |
-| **B3** | CortexStep EventType 维度 | P2 | ProgressLedger task 只有 status | 步骤加类型（grep/edit/plan），进度条更丰富 |
-| **B4** | ComputerUse 工具 | P3 | 无 | Coding 模式远期增强（屏幕操作） |
-| **B5** | MCP 作为本地协议 | P3 | 自有 EventV2 + HTTP API | 标准化（但已 EventV2，不改） |
+| #      | 能力                         | 优先级 | AigcForge 现状                               | 借鉴价值                                   |
+| ------ | ---------------------------- | ------ | -------------------------------------------- | ------------------------------------------ |
+| **B1** | PartialArg 流式工具调用      | **P1** | 工具参数一次性（`Tool.execute(input)` 全量） | 长参数工具（write 大文件）流式，减少等待感 |
+| **B2** | ThoughtSummaryContent 含图片 | P2     | reasoning part 纯文本                        | 思考过程含截图/图表（M3 图表可嵌入思考）   |
+| **B3** | CortexStep EventType 维度    | P2     | ProgressLedger task 只有 status              | 步骤加类型（grep/edit/plan），进度条更丰富 |
+| **B4** | ComputerUse 工具             | P3     | 无                                           | Coding 模式远期增强（屏幕操作）            |
+| **B5** | MCP 作为本地协议             | P3     | 自有 EventV2 + HTTP API                      | 标准化（但已 EventV2，不改）               |
 
 ### 5.1 B1 详解：PartialArg 流式工具调用
 
 Gemini 的 FunctionCall 支持 PartialArgs，每个 PartialArg 携带 JsonPath + Delta，实现工具调用参数的增量流式。
 
 **AigcForge 映射**：当前 `Tool.execute(input: Input)` 是一次性全量参数。若引入 PartialArg：
+
 - `packages/core/src/tool/tool.ts` 的 Tool 类型可选支持 streaming input
 - 适合 `write` / `edit` 等长参数工具（大段代码分块到达）
 - 属于 LLM 层（`packages/llm`），非 Work 模式
@@ -135,15 +136,16 @@ AigcForge M1.5 ProgressLedger 的 task steps 有 status（pending/in_progress/co
 
 ## 6. 与 Accio 竞品对比
 
-| 维度 | Accio（玄机） | Antigravity（Google） | AigcForge |
-|---|---|---|---|
-| 通信协议 | Electron IPC + asar JS | MCP JSON-RPC + gRPC | EventV2 + HTTP API |
-| 流式格式 | SSE（推测） | gRPC protobuf（PartialArg） | EventV2 stream |
-| Task 进度 | 两段式比率宽度条（无脉冲） | CortexStep EventType | 节点轨道 + 位移脉冲（领先） |
+| 维度       | Accio（玄机）                       | Antigravity（Google）                     | AigcForge                          |
+| ---------- | ----------------------------------- | ----------------------------------------- | ---------------------------------- |
+| 通信协议   | Electron IPC + asar JS              | MCP JSON-RPC + gRPC                       | EventV2 + HTTP API                 |
+| 流式格式   | SSE（推测）                         | gRPC protobuf（PartialArg）               | EventV2 stream                     |
+| Task 进度  | 两段式比率宽度条（无脉冲）          | CortexStep EventType                      | 节点轨道 + 位移脉冲（领先）        |
 | 智能体能力 | Task Spawn / 定时 / Skill per-Agent | ComputerUse / ThoughtSummary / PartialArg | TaskDriver 4 模式 / ProgressLedger |
-| 借鉴重点 | Task 体系（P0 Spawn/定时） | 流式协议 + 思考含图（P1 PartialArg） | 各有互补 |
+| 借鉴重点   | Task 体系（P0 Spawn/定时）          | 流式协议 + 思考含图（P1 PartialArg）      | 各有互补                           |
 
 **关键差异**：
+
 - Accio 偏**产品形态**（Task 体系 / Agent Hub / 多平台消息）
 - Antigravity 偏**协议底层**（gRPC protobuf / MCP / 流式增量）
 - AigcForge 的 EventV2 + 节点轨道脉冲在两者之间：UI 表达领先 Accio，协议层可借鉴 Antigravity
@@ -154,11 +156,11 @@ AigcForge M1.5 ProgressLedger 的 task steps 有 status（pending/in_progress/co
 
 Antigravity 的发现对 M3（图表 HTML 产出）关联**间接偏弱**：
 
-| Antigravity 能力 | 对 M3 的启发 | 强度 |
-|---|---|---|
-| ThoughtSummaryContent 含图片 | M3 图表可作为思考过程一部分（LLM 思考时生成图表） | 弱（远期，M3 先做交付物图表） |
-| PartialArg 流式 | M3 图表 HTML 大时流式传输 | 弱（M3 候选稿已流式，影响小） |
-| CortexStep EventType | M3 步骤化图表生成加类型 | 弱（M1.5 ProgressLedger 已够） |
+| Antigravity 能力             | 对 M3 的启发                                      | 强度                           |
+| ---------------------------- | ------------------------------------------------- | ------------------------------ |
+| ThoughtSummaryContent 含图片 | M3 图表可作为思考过程一部分（LLM 思考时生成图表） | 弱（远期，M3 先做交付物图表）  |
+| PartialArg 流式              | M3 图表 HTML 大时流式传输                         | 弱（M3 候选稿已流式，影响小）  |
+| CortexStep EventType         | M3 步骤化图表生成加类型                           | 弱（M1.5 ProgressLedger 已够） |
 
 **结论**：Antigravity 借鉴点主要在**协议层**（PartialArg / ThoughtSummary），与 M3（图表 HTML 产出）关联弱。M3 真实需求仍聚焦 L1（Mermaid 内嵌）+ L2（独立 HTML），见 [M3 调研报告](plan/work-mode-m3-research.md)。
 
@@ -167,6 +169,7 @@ Antigravity 的发现对 M3（图表 HTML 产出）关联**间接偏弱**：
 ## 8. 文件清单（反编译产物索引）
 
 ### 启动器壳（app.asar，2.1M）
+
 ```
 /tmp/antigravity-asar/dist/
   main.js                 Electron 主进程入口
@@ -179,6 +182,7 @@ Antigravity 的发现对 M3（图表 HTML 产出）关联**间接偏弱**：
 ```
 
 ### 核心二进制（language_server，157MB Go）
+
 ```
 resources/bin/language_server  Go 编译，stripped
   ├─ MCP JSON-RPC 2.0 SDK   (modelcontextprotocol/go_sdk)
@@ -192,6 +196,7 @@ resources/bin/language_server  Go 编译，stripped
 ```
 
 ### 其他资源
+
 ```
 resources/bin/webm_encoder   WebM 视频编码器
 resources/app.asar.unpacked/node_modules/chrome-devtools-mcp  Chrome DevTools MCP

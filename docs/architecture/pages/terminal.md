@@ -48,15 +48,15 @@ TerminalPanel
 
 ## 4. Context 依赖图
 
-| 层级 | Context | 用途 |
-|------|---------|------|
-| Session级 | useTerminal | PTY 生命周期 (open/close/kill/tabs) |
-| Session级 | useSDK | sdk.client.pty.create API |
-| Session级 | useSessionLayout | workspaceKey, view |
-| 服务器级 | useLayout | layout.terminal.height() 持久化高度 |
-| 服务器级 | useSettings | terminal 字体设置 |
-| 全局 | useCommand | 键盘快捷键 (terminal.toggle ctrl+backtick) |
-| 全局 | useLanguage | i18n 翻译 |
+| 层级      | Context          | 用途                                       |
+| --------- | ---------------- | ------------------------------------------ |
+| Session级 | useTerminal      | PTY 生命周期 (open/close/kill/tabs)        |
+| Session级 | useSDK           | sdk.client.pty.create API                  |
+| Session级 | useSessionLayout | workspaceKey, view                         |
+| 服务器级  | useLayout        | layout.terminal.height() 持久化高度        |
+| 服务器级  | useSettings      | terminal 字体设置                          |
+| 全局      | useCommand       | 键盘快捷键 (terminal.toggle ctrl+backtick) |
+| 全局      | useLanguage      | i18n 翻译                                  |
 
 ---
 
@@ -109,24 +109,24 @@ Legacy: {dir}/terminal.v1, {dir}/terminal/{sessionID}.v1
 
 ## 8. 错误边界
 
-| 场景 | 处理 |
-|------|------|
-| PTY 创建失败 | showToast 错误通知 |
-| WebSocket 断开 | 自动重连 |
-| 所有 Tab 关闭 | 自动 close() 收起面板 |
+| 场景           | 处理                         |
+| -------------- | ---------------------------- |
+| PTY 创建失败   | showToast 错误通知           |
+| WebSocket 断开 | 自动重连                     |
+| 所有 Tab 关闭  | 自动 close() 收起面板        |
 | 首次加载无 Tab | 自动创建 (store.autoCreated) |
-| PTY 进程僵死 | kill + 重新创建 |
+| PTY 进程僵死   | kill + 重新创建              |
 
 ---
 
 ## 9. 上下游文件索引
 
-| 层级 | 文件 |
-|------|------|
-| Session 宿主 | pages/session.tsx |
-| Panel 实现 | pages/session/terminal-panel.tsx |
-| PTY 生命周期 | context/terminal.tsx |
-| 排序 Tab | components/session/session-sortable-terminal-tab.tsx |
-| 终端渲染器 | components/terminal/terminal.tsx |
+| 层级         | 文件                                                       |
+| ------------ | ---------------------------------------------------------- |
+| Session 宿主 | pages/session.tsx                                          |
+| Panel 实现   | pages/session/terminal-panel.tsx                           |
+| PTY 生命周期 | context/terminal.tsx                                       |
+| 排序 Tab     | components/session/session-sortable-terminal-tab.tsx       |
+| 终端渲染器   | components/terminal/terminal.tsx                           |
 | 布局 helpers | pages/session/helpers.ts (createSizing, focusTerminalById) |
-| 持久化 | utils/persist.ts |
+| 持久化       | utils/persist.ts                                           |

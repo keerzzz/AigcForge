@@ -258,7 +258,8 @@ export namespace FSUtil {
     const absolute = pathResolve(worktree, target)
     if (!contains(worktree, absolute)) throw new Error(`Path ${absolute} escapes the workspace boundary`)
     const real = realpathSync(absolute)
-    if (!contains(worktree, real)) throw new Error(`Symlink at ${absolute} resolves outside the workspace boundary: ${real}`)
+    if (!contains(worktree, real))
+      throw new Error(`Symlink at ${absolute} resolves outside the workspace boundary: ${real}`)
     return real
   }
 

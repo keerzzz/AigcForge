@@ -83,31 +83,44 @@ export function ChatFeatureSidebar() {
     setDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
   })
   // Keep names with counts so system assets can be deduplicated consistently.
-  const [kindCounts] = createResource(() => ({ sdk: dirSdk(), version: assetVersion() }), async (source) => {
-    if (!source.sdk) return { counts: {} as Record<string, number>, names: {} as Record<string, Set<string>> }
-    const [p, s, m, c, a, w, pl] = await Promise.all([
-      source.sdk.client.promptAsset.list(),
-      source.sdk.client.skillAsset.list(),
-      source.sdk.client.mcpAsset.list(),
-      source.sdk.client.commandAsset.list(),
-      source.sdk.client.agentAsset.list(),
-      source.sdk.client.workflowAsset.list(),
-      source.sdk.client.pluginAsset.list(),
-    ])
-    const byKind = {
-      prompt: p.data?.assets ?? [],
-      skill: s.data?.assets ?? [],
-      mcp: m.data?.assets ?? [],
-      command: c.data?.assets ?? [],
-      agent: a.data?.assets ?? [],
-      workflow: w.data?.assets ?? [],
-      plugin: [...(pl.data?.assets ?? []), ...(pl.data?.bridged?.map((b) => ({ name: b.name, description: b.description, relativePath: b.originPath, revision: "" })) ?? [])],
-    }
-    return {
-      counts: Object.fromEntries(Object.entries(byKind).map(([kind, assets]) => [kind, assets.length])),
-      names: Object.fromEntries(Object.entries(byKind).map(([kind, assets]) => [kind, new Set(assets.map((x) => x.name))])),
-    }
-  })
+  const [kindCounts] = createResource(
+    () => ({ sdk: dirSdk(), version: assetVersion() }),
+    async (source) => {
+      if (!source.sdk) return { counts: {} as Record<string, number>, names: {} as Record<string, Set<string>> }
+      const [p, s, m, c, a, w, pl] = await Promise.all([
+        source.sdk.client.promptAsset.list(),
+        source.sdk.client.skillAsset.list(),
+        source.sdk.client.mcpAsset.list(),
+        source.sdk.client.commandAsset.list(),
+        source.sdk.client.agentAsset.list(),
+        source.sdk.client.workflowAsset.list(),
+        source.sdk.client.pluginAsset.list(),
+      ])
+      const byKind = {
+        prompt: p.data?.assets ?? [],
+        skill: s.data?.assets ?? [],
+        mcp: m.data?.assets ?? [],
+        command: c.data?.assets ?? [],
+        agent: a.data?.assets ?? [],
+        workflow: w.data?.assets ?? [],
+        plugin: [
+          ...(pl.data?.assets ?? []),
+          ...(pl.data?.bridged?.map((b) => ({
+            name: b.name,
+            description: b.description,
+            relativePath: b.originPath,
+            revision: "",
+          })) ?? []),
+        ],
+      }
+      return {
+        counts: Object.fromEntries(Object.entries(byKind).map(([kind, assets]) => [kind, assets.length])),
+        names: Object.fromEntries(
+          Object.entries(byKind).map(([kind, assets]) => [kind, new Set(assets.map((x) => x.name))]),
+        ),
+      }
+    },
+  )
   // Use the same kind-and-name deduplication rule as the workbench table.
   const countFor = (feature: ChatFeatureID) => {
     const data = kindCounts()
@@ -117,7 +130,8 @@ export function ChatFeatureSidebar() {
       agents: syncData?.agent ?? [],
       mcp: syncData?.mcp ?? {},
     })
-    const total = (data?.counts[feature] ?? 0) + AssetWorkbench.systemCountFor(system, feature, data?.names[feature] ?? new Set())
+    const total =
+      (data?.counts[feature] ?? 0) + AssetWorkbench.systemCountFor(system, feature, data?.names[feature] ?? new Set())
     return total > 0 ? total : undefined
   }
 

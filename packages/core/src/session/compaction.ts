@@ -13,9 +13,9 @@ const DEFAULT_BUFFER = 20_000
 const DEFAULT_KEEP_TOKENS = 8_000
 
 // Phase 3: multi-level watermark ratios
-const SOFT_RATIO = 0.50
-const SNIP_RATIO = 0.60
-const COMPACT_RATIO = 0.80
+const SOFT_RATIO = 0.5
+const SNIP_RATIO = 0.6
+const COMPACT_RATIO = 0.8
 const TOOL_OUTPUT_MAX_CHARS = 2_000
 const SUMMARY_OUTPUT_TOKENS = 4_096
 const SUMMARY_TEMPLATE = `Output exactly the Markdown structure shown inside <template> and keep the section order unchanged. Do not include the <template> tags in your response.
@@ -241,7 +241,11 @@ export const make = (dependencies: Dependencies) => {
     if (!config.auto) return false
     const context = input.model.route.defaults.limits?.context
     if (context === undefined || context <= 0) return false
-    const total = estimate({ system: input.request.system, messages: input.request.messages, tools: input.request.tools })
+    const total = estimate({
+      system: input.request.system,
+      messages: input.request.messages,
+      tools: input.request.tools,
+    })
     const output = input.request.generation?.maxTokens ?? input.model.route.defaults.limits?.output ?? 0
     const watermark = context > 0 ? total / context : 0
 

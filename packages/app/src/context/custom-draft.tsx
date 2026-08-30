@@ -137,15 +137,17 @@ export function createCustomDraftState(
   initial: CustomDraftState = DEFAULT_DRAFT,
   customStore?: [get: CustomDraftState, set: SetStoreFunction<CustomDraftState>],
 ) {
-  const [state, setState] = customStore ?? createStore<CustomDraftState>({
-    ...initial,
-    bindings: Object.fromEntries(
-      Object.entries(initial.bindings).map(([consumer, binding]) => [
-        consumer,
-        { ...binding, commands: binding.commands ?? [] },
-      ]),
-    ),
-  })
+  const [state, setState] =
+    customStore ??
+    createStore<CustomDraftState>({
+      ...initial,
+      bindings: Object.fromEntries(
+        Object.entries(initial.bindings).map(([consumer, binding]) => [
+          consumer,
+          { ...binding, commands: binding.commands ?? [] },
+        ]),
+      ),
+    })
 
   return {
     state,
@@ -310,46 +312,46 @@ export function createCustomDraftState(
             revision: "",
             name: s.name,
           }))
-          const commands: CustomDraftCommand[] = snapshot.version === 2
-            ? (snapshot.data.commands ?? []).map((command) => ({
-                kind: "command",
-                relativePath: command.relativePath,
-                revision: command.revision,
-                name: command.name,
-                description: command.description,
-              }))
-            : []
-          const bindings = snapshot.version === 2
-            ? Object.fromEntries(
-                Object.entries(snapshot.data.bindings).map(([consumer, binding]) => [
-                  consumer,
-                  {
-                    prompts: binding.prompts.map((prompt) => ({
-                      kind: "prompt" as const,
-                      relativePath: prompt.relativePath,
-                      revision: prompt.revision,
-                      name: prompt.relativePath,
-                    })),
-                    skills: binding.skills.map((skill) => ({
-                      kind: "skill" as const,
-                      relativePath: skill.relativePath,
-                      revision: skill.revision,
-                      name: skill.name,
-                    })),
-                    commands: binding.commands.map((command) => ({
-                      kind: "command" as const,
-                      relativePath: command.relativePath,
-                      revision: command.revision,
-                      name: command.name,
-                      description: command.description,
-                    })),
-                  },
-                ]),
-              )
-            : {}
-          draft.bindings = Object.keys(bindings).length > 0
-            ? bindings
-            : { orchestrator: { prompts, skills, commands } }
+          const commands: CustomDraftCommand[] =
+            snapshot.version === 2
+              ? (snapshot.data.commands ?? []).map((command) => ({
+                  kind: "command",
+                  relativePath: command.relativePath,
+                  revision: command.revision,
+                  name: command.name,
+                  description: command.description,
+                }))
+              : []
+          const bindings =
+            snapshot.version === 2
+              ? Object.fromEntries(
+                  Object.entries(snapshot.data.bindings).map(([consumer, binding]) => [
+                    consumer,
+                    {
+                      prompts: binding.prompts.map((prompt) => ({
+                        kind: "prompt" as const,
+                        relativePath: prompt.relativePath,
+                        revision: prompt.revision,
+                        name: prompt.relativePath,
+                      })),
+                      skills: binding.skills.map((skill) => ({
+                        kind: "skill" as const,
+                        relativePath: skill.relativePath,
+                        revision: skill.revision,
+                        name: skill.name,
+                      })),
+                      commands: binding.commands.map((command) => ({
+                        kind: "command" as const,
+                        relativePath: command.relativePath,
+                        revision: command.revision,
+                        name: command.name,
+                        description: command.description,
+                      })),
+                    },
+                  ]),
+                )
+              : {}
+          draft.bindings = Object.keys(bindings).length > 0 ? bindings : { orchestrator: { prompts, skills, commands } }
           draft.requestedCapabilities = []
         }),
       )

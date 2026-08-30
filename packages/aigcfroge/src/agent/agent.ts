@@ -207,10 +207,7 @@ export const layer = Layer.effect(
           // Silently fall back to empty list
         }
         const metaPrompt = MetaAgent.prompt.includes("{{ASSETS_LIST}}")
-          ? MetaPrompt.fillAssetsList(
-              MetaPrompt.fillCliList(MetaAgent.prompt, cliNames),
-              assets,
-            )
+          ? MetaPrompt.fillAssetsList(MetaPrompt.fillCliList(MetaAgent.prompt, cliNames), assets)
           : MetaPrompt.fillCliList(MetaAgent.prompt, cliNames)
 
         const agents: Record<string, Info> = {
@@ -269,10 +266,7 @@ export const layer = Layer.effect(
           meta: {
             name: "meta",
             description: MetaAgent.description,
-            permission: Permission.merge(
-              metaDefaults,
-              user,
-            ),
+            permission: Permission.merge(metaDefaults, user),
             mode: MetaAgent.mode,
             native: true,
             options: MetaAgent.options ?? {},
@@ -457,7 +451,15 @@ export const layer = Layer.effect(
           return pipe(
             [...Object.values(agents), ...cliAgents],
             sortBy(
-              [(x) => (cfg.default_agent ? x.name === cfg.default_agent : process.env.AIGCFROGE_DISABLE_META_AGENT === "true" ? x.name === "build" : x.name === "meta"), "desc"],
+              [
+                (x) =>
+                  cfg.default_agent
+                    ? x.name === cfg.default_agent
+                    : process.env.AIGCFROGE_DISABLE_META_AGENT === "true"
+                      ? x.name === "build"
+                      : x.name === "meta",
+                "desc",
+              ],
               [(x) => x.name, "asc"],
             ),
           )
@@ -465,7 +467,9 @@ export const layer = Layer.effect(
 
         const defaultInfo = Effect.fnUntraced(function* () {
           if (process.env.AIGCFROGE_DISABLE_META_AGENT === "true") {
-            const fallback = agents["build"]?.hidden ? Object.values(agents).find((a) => a.mode !== "subagent" && a.hidden !== true) : agents["build"]
+            const fallback = agents["build"]?.hidden
+              ? Object.values(agents).find((a) => a.mode !== "subagent" && a.hidden !== true)
+              : agents["build"]
             if (!fallback) throw new Error("no primary visible agent found")
             return fallback
           }
@@ -478,7 +482,7 @@ export const layer = Layer.effect(
             return agent
           }
           const metaAgent = agents["meta"]
-          const visible = !metaAgent?.hidden ? metaAgent : (agents["build"]?.hidden ? undefined : agents["build"])
+          const visible = !metaAgent?.hidden ? metaAgent : agents["build"]?.hidden ? undefined : agents["build"]
           if (!visible) {
             const fallback = Object.values(agents).find((a) => a.mode !== "subagent" && a.hidden !== true)
             if (!fallback) throw new Error("no primary visible agent found")

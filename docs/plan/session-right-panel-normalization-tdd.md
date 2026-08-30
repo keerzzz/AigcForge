@@ -8,12 +8,12 @@
 
 会话详情页右栏目前有 4 份实现，其中 coding/chat/work 三份各自复制同一套壳，assistant 是自包含单面板、完全没接通用交互：
 
-| 模式 | 文件 | 壳 `id` | 开合状态 | context tab | 文件 tab/拖拽 | B 区 fileTree |
-|---|---|---|---|---|---|---|
-| coding | `session-side-panel.tsx` | `review-panel` | `isDesktop && reviewPanel.opened()` | 动态 | ✅ | `SessionFileTree` |
-| chat | `chat-right-panel.tsx` | `review-panel` | `reviewPanel.opened()` | 动态 | ✅ | `SessionFileTree` |
-| work | `work-artifact-panel.tsx` | `review-panel` | `reviewPanel.opened()` | 固定 | ❌ | `SessionFileTree` |
-| assistant | `assistant-session-panel.tsx` | ❌ 无 | `assistant().opened`（另一套） | 固定 | ❌ | ❌ 无 |
+| 模式      | 文件                          | 壳 `id`        | 开合状态                            | context tab | 文件 tab/拖拽 | B 区 fileTree     |
+| --------- | ----------------------------- | -------------- | ----------------------------------- | ----------- | ------------- | ----------------- |
+| coding    | `session-side-panel.tsx`      | `review-panel` | `isDesktop && reviewPanel.opened()` | 动态        | ✅            | `SessionFileTree` |
+| chat      | `chat-right-panel.tsx`        | `review-panel` | `reviewPanel.opened()`              | 动态        | ✅            | `SessionFileTree` |
+| work      | `work-artifact-panel.tsx`     | `review-panel` | `reviewPanel.opened()`              | 固定        | ❌            | `SessionFileTree` |
+| assistant | `assistant-session-panel.tsx` | ❌ 无          | `assistant().opened`（另一套）      | 固定        | ❌            | ❌ 无             |
 
 由此产生三个错位：header `sidebar-right` 图标（`aria-controls="review-panel"`）在 assistant 模式无效；上下文圆环 `toggleEntityPanel` 把「单个 tab 开合」错做成「关整个面板」；assistant 无「关闭单个 tab」。
 
@@ -28,13 +28,13 @@
 
 ## 3. 上下游 5 层映射
 
-| 层 | 文件 | 本次动作 |
-|---|---|---|
-| L1 状态/上下文 | `context/layout.tsx`（`view().reviewPanel`、`tabs()`、`assistant()`、`fileTree`） | `assistant()` 收窄为 `{target,setTarget}`；删 `opened/tab/close`，tab 管理迁入 `tabs()` |
-| L2 顶部模块/通用接线 | `session-header.tsx`、`use-session-commands.tsx`、`session-context-usage.tsx`、`open-session-context.ts` | header/命令无需改（统一后自动生效）；圆环 assistant 分支改 toggle 动态 context tab |
-| L3 槽位路由 | `session-side-panel.tsx` | 4 槽位统一委托新底座 |
-| L4 面板组件 | coding(内联)/chat/work/assistant 四面板 | 瘦身为 A 区内容注入 |
-| L5 共享壳/helpers | `session-file-tree.tsx`、`session/helpers.ts`、`file-tabs.tsx`、`components/session` | 复用；新增 A 区壳组装（归并，非新 UI） |
+| 层                   | 文件                                                                                                     | 本次动作                                                                                |
+| -------------------- | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| L1 状态/上下文       | `context/layout.tsx`（`view().reviewPanel`、`tabs()`、`assistant()`、`fileTree`）                        | `assistant()` 收窄为 `{target,setTarget}`；删 `opened/tab/close`，tab 管理迁入 `tabs()` |
+| L2 顶部模块/通用接线 | `session-header.tsx`、`use-session-commands.tsx`、`session-context-usage.tsx`、`open-session-context.ts` | header/命令无需改（统一后自动生效）；圆环 assistant 分支改 toggle 动态 context tab      |
+| L3 槽位路由          | `session-side-panel.tsx`                                                                                 | 4 槽位统一委托新底座                                                                    |
+| L4 面板组件          | coding(内联)/chat/work/assistant 四面板                                                                  | 瘦身为 A 区内容注入                                                                     |
+| L5 共享壳/helpers    | `session-file-tree.tsx`、`session/helpers.ts`、`file-tabs.tsx`、`components/session`                     | 复用；新增 A 区壳组装（归并，非新 UI）                                                  |
 
 ## 4. 复用清单（reuse → delete → merge → refactor → add）
 
@@ -75,13 +75,13 @@ SessionRightPanel(props: {
 
 > 约束：app 无 solid-testing-library，UI 契约用「源码契约测试」（`fs.readFileSync` + `toContain`），纯逻辑抽 helper 补真实单测。
 
-| 测试文件 | 断言 |
-|---|---|
-| `session-right-panel.test.tsx`（新） | 四面板委托壳；壳含 `id="review-panel"`/`reviewPanel.opened`/`SessionFileTree`；work/assistant 视觉统一 `raised`；assistant B 区同 work FileTree |
-| `assistant-session-panel.test.tsx`（改） | 委托壳、无自包含 aside、context 动态、B 区接 `SessionFileTree` |
-| `assistant-session-panel-open.test.ts`（改） | `openEntityPanel` 只切 tab 不关整面板；context 走 `tabs()` |
-| `session-file-tree.test.tsx`（扩） | assistant 也委托 `SessionFileTree` |
-| helpers/model 单测 | `createSessionTabs`/`shouldShowFileTree` 边界 |
+| 测试文件                                     | 断言                                                                                                                                            |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `session-right-panel.test.tsx`（新）         | 四面板委托壳；壳含 `id="review-panel"`/`reviewPanel.opened`/`SessionFileTree`；work/assistant 视觉统一 `raised`；assistant B 区同 work FileTree |
+| `assistant-session-panel.test.tsx`（改）     | 委托壳、无自包含 aside、context 动态、B 区接 `SessionFileTree`                                                                                  |
+| `assistant-session-panel-open.test.ts`（改） | `openEntityPanel` 只切 tab 不关整面板；context 走 `tabs()`                                                                                      |
+| `session-file-tree.test.tsx`（扩）           | assistant 也委托 `SessionFileTree`                                                                                                              |
+| helpers/model 单测                           | `createSessionTabs`/`shouldShowFileTree` 边界                                                                                                   |
 
 ## 8. 门禁与命令
 
@@ -96,9 +96,9 @@ bun --cwd packages/app test --timeout 30000
 
 ## 9. 风险
 
-| 风险 | 等级 | 缓解 |
-|---|---|---|
-| assistant context 改动态 tab 牵动 `assistant().tab/target` | 中 | Slice 3 单独切片 + 状态迁移测试 |
-| 三份壳归并引入行为漂移 | 中 | 逐模式回归 + `session-file-tree.test.tsx` 兜底 |
-| 契约测试只测源码字符串、不测运行时 | 既有 | 补 Playwright e2e 覆盖四模式开合 |
-| work 回 `raised` 视觉变化 | 低 | 已确认，统一为 coding/chat 样式 |
+| 风险                                                       | 等级 | 缓解                                           |
+| ---------------------------------------------------------- | ---- | ---------------------------------------------- |
+| assistant context 改动态 tab 牵动 `assistant().tab/target` | 中   | Slice 3 单独切片 + 状态迁移测试                |
+| 三份壳归并引入行为漂移                                     | 中   | 逐模式回归 + `session-file-tree.test.tsx` 兜底 |
+| 契约测试只测源码字符串、不测运行时                         | 既有 | 补 Playwright e2e 覆盖四模式开合               |
+| work 回 `raised` 视觉变化                                  | 低   | 已确认，统一为 coding/chat 样式                |

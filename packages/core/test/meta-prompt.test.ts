@@ -2,8 +2,7 @@ import { describe, expect, it } from "bun:test"
 import { MetaPrompt } from "@aigcfroge/core/agent/meta/meta-prompt"
 
 describe("fillAssetsList", () => {
-  const template =
-    "## Available Assets\n{{ASSETS_LIST}}\n\n## Notes"
+  const template = "## Available Assets\n{{ASSETS_LIST}}\n\n## Notes"
 
   it("replaces {{ASSETS_LIST}} with grouped assets by kind", () => {
     const assets = [

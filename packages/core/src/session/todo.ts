@@ -76,7 +76,10 @@ const writeBaseline = new Map<string, string>()
 // fingerprint of every id + revision: any append/patch/delete/reorder by
 // another write path changes it.
 const fingerprint = (tasks: ReadonlyArray<{ readonly id: string; readonly revision: number }>) =>
-  tasks.map((task) => `${task.id}:${task.revision}`).sort().join(",")
+  tasks
+    .map((task) => `${task.id}:${task.revision}`)
+    .sort()
+    .join(",")
 
 const maxRevision = (tasks: ReadonlyArray<{ readonly revision: number }>) =>
   tasks.reduce((max, task) => Math.max(max, task.revision), 0)

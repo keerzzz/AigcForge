@@ -23,7 +23,7 @@ describe("ImportParser.Candidate", () => {
         name: "",
         description: "desc",
         template: "body",
-      })
+      }),
     ).toThrow()
   })
 
@@ -34,7 +34,7 @@ describe("ImportParser.Candidate", () => {
         name: "x".repeat(81),
         description: "desc",
         template: "body",
-      })
+      }),
     ).toThrow()
   })
 
@@ -45,7 +45,7 @@ describe("ImportParser.Candidate", () => {
         name: "test",
         description: "x".repeat(301),
         template: "body",
-      })
+      }),
     ).toThrow()
   })
 
@@ -66,7 +66,7 @@ describe("ImportParser.Candidate", () => {
         name: "test",
         description: "desc",
         template: "",
-      })
+      }),
     ).toThrow()
   })
 })
@@ -85,9 +85,7 @@ describe("ImportParser.ParseError", () => {
 describe("ImportParser.Result", () => {
   test("encodes with candidates, warnings, and errors", () => {
     const result = Schema.decodeUnknownSync(ImportParser.Result)({
-      candidates: [
-        { kind: "prompt", name: "test", description: "desc", template: "body" },
-      ],
+      candidates: [{ kind: "prompt", name: "test", description: "desc", template: "body" }],
       warnings: ["bad_format"],
       errors: [{ section: "Block #1", reason: "unknown_type" }],
     })

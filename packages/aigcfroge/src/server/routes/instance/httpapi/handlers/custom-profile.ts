@@ -104,9 +104,9 @@ export const customProfileHandlers = HttpApiBuilder.group(InstanceHttpApi, "cust
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const registry = yield* CustomProfile.Service.pipe(Effect.provide(layer), Effect.orDie)
-      const info = yield* registry.getByPath(ctx.query.path).pipe(
-        Effect.catch(() => Effect.fail(new InvalidRequestError({ message: `Not found: ${ctx.query.path}` }))),
-      )
+      const info = yield* registry
+        .getByPath(ctx.query.path)
+        .pipe(Effect.catch(() => Effect.fail(new InvalidRequestError({ message: `Not found: ${ctx.query.path}` }))))
       return Schema.decodeUnknownSync(SchemaCustomProfile.Info)({
         kind: info.kind,
         name: info.name,

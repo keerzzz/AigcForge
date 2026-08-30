@@ -57,7 +57,7 @@ describe("SessionTask", () => {
       yield* Effect.addFinalizer(() => unsubscribe)
 
       // Insert 3 tasks without ids — the service assigns stable tsk_ ids.
-      const resolved: readonly typeof SessionTask.Info.Type[] = yield* tasks.update({
+      const resolved: readonly (typeof SessionTask.Info.Type)[] = yield* tasks.update({
         sessionID,
         tasks: [
           { content: "third", status: "pending", priority: "low" },
@@ -87,12 +87,7 @@ describe("SessionTask", () => {
       expect(after.map((task) => task.content)).toEqual(["third", "first", "second"])
       expect(after[0].status).toBe("completed")
 
-      const rows = yield* db
-        .select()
-        .from(TaskTable)
-        .orderBy(asc(TaskTable.position))
-        .all()
-        .pipe(Effect.orDie)
+      const rows = yield* db.select().from(TaskTable).orderBy(asc(TaskTable.position)).all().pipe(Effect.orDie)
       expect(rows.map((row) => ({ id: row.id, content: row.content, position: row.position }))).toEqual([
         { id: third.id, content: "third", position: 0 },
         { id: first.id, content: "first", position: 1 },
@@ -490,7 +485,12 @@ describe("SessionTask", () => {
       const ok = yield* tasks.update({
         sessionID,
         tasks: [
-          { content: "nightly", status: "scheduled", priority: "medium", recurrence: { cron: "0 9 * * *", enabled: true } },
+          {
+            content: "nightly",
+            status: "scheduled",
+            priority: "medium",
+            recurrence: { cron: "0 9 * * *", enabled: true },
+          },
         ],
       })
       expect(ok[0]?.recurrence?.cron).toBe("0 9 * * *")
@@ -500,7 +500,12 @@ describe("SessionTask", () => {
         .update({
           sessionID,
           tasks: [
-            { content: "bad", status: "scheduled", priority: "medium", recurrence: { cron: "not a cron", enabled: true } },
+            {
+              content: "bad",
+              status: "scheduled",
+              priority: "medium",
+              recurrence: { cron: "not a cron", enabled: true },
+            },
           ],
         })
         .pipe(Effect.flip)
@@ -513,7 +518,12 @@ describe("SessionTask", () => {
         .update({
           sessionID,
           tasks: [
-            { content: "dead", status: "scheduled", priority: "medium", recurrence: { cron: "0 0 30 2 *", enabled: true } },
+            {
+              content: "dead",
+              status: "scheduled",
+              priority: "medium",
+              recurrence: { cron: "0 0 30 2 *", enabled: true },
+            },
           ],
         })
         .pipe(Effect.flip)
@@ -525,7 +535,12 @@ describe("SessionTask", () => {
         .append({
           sessionID,
           tasks: [
-            { content: "bad", status: "scheduled", priority: "medium", recurrence: { cron: "not a cron", enabled: true } },
+            {
+              content: "bad",
+              status: "scheduled",
+              priority: "medium",
+              recurrence: { cron: "not a cron", enabled: true },
+            },
           ],
         })
         .pipe(Effect.flip)
@@ -552,7 +567,12 @@ describe("SessionTask", () => {
         .update({
           sessionID,
           tasks: [
-            { content: "off", status: "scheduled", priority: "medium", recurrence: { cron: "0 9 * * *", enabled: false } },
+            {
+              content: "off",
+              status: "scheduled",
+              priority: "medium",
+              recurrence: { cron: "0 9 * * *", enabled: false },
+            },
           ],
         })
         .pipe(Effect.flip)
@@ -590,7 +610,10 @@ describe("SessionTask", () => {
 
       // patch (the resume path): flipping a schedule-less task to `scheduled`
       // is rejected, while a task that already carries a schedule resumes fine.
-      const plain = yield* tasks.append({ sessionID, tasks: [{ content: "plain", status: "pending", priority: "medium" }] })
+      const plain = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "plain", status: "pending", priority: "medium" }],
+      })
       const plainID = plain.find((task) => task.content === "plain")?.id
       if (!plainID) throw new Error("append returned no plain task")
       const resumeDenied = yield* tasks.patch({ sessionID, id: plainID, status: "scheduled" }).pipe(Effect.flip)
@@ -724,8 +747,16 @@ describe("SessionTask", () => {
       // Inject a cycle directly (bypassing the service guard) to prove append's
       // defensive findCycle still catches it. `depends_on` is a json column, so
       // pass the array (drizzle encodes it).
-      yield* db.update(TaskTable).set({ depends_on: [b.id] }).where(eq(TaskTable.id, a.id)).run()
-      yield* db.update(TaskTable).set({ depends_on: [a.id] }).where(eq(TaskTable.id, b.id)).run()
+      yield* db
+        .update(TaskTable)
+        .set({ depends_on: [b.id] })
+        .where(eq(TaskTable.id, a.id))
+        .run()
+      yield* db
+        .update(TaskTable)
+        .set({ depends_on: [a.id] })
+        .where(eq(TaskTable.id, b.id))
+        .run()
 
       const error = yield* tasks
         .append({ sessionID, tasks: [{ content: "c", status: "pending", priority: "medium" }] })
@@ -946,16 +977,10 @@ describe("SessionTask", () => {
       const dbLayer = Layer.succeed(Database.Service, { db: wrappedDb })
 
       const tasksA = yield* Layer.build(
-        Layer.provide(
-          Layer.fresh(SessionTask.layer),
-          Layer.mergeAll(EventV2.defaultLayer, dbLayer),
-        ),
+        Layer.provide(Layer.fresh(SessionTask.layer), Layer.mergeAll(EventV2.defaultLayer, dbLayer)),
       ).pipe(Effect.map((ctx) => Context.get(ctx, SessionTask.Service)))
       const tasksB = yield* Layer.build(
-        Layer.provide(
-          Layer.fresh(SessionTask.layer),
-          Layer.mergeAll(EventV2.defaultLayer, dbLayer),
-        ),
+        Layer.provide(Layer.fresh(SessionTask.layer), Layer.mergeAll(EventV2.defaultLayer, dbLayer)),
       ).pipe(Effect.map((ctx) => Context.get(ctx, SessionTask.Service)))
 
       const otherSession = SessionV2.ID.make("ses_task_blocker1_b")
@@ -1463,9 +1488,7 @@ describe("SessionTask", () => {
         })
         // A concurrent patch bumped b's revision to 2; max is now 2.
         yield* tasks.patch({ sessionID, id: b.id, status: "in_progress" })
-        const error = yield* tasks
-          .reorder({ sessionID, ids: [b.id, a.id], expectedRevision: 1 })
-          .pipe(Effect.flip)
+        const error = yield* tasks.reorder({ sessionID, ids: [b.id, a.id], expectedRevision: 1 }).pipe(Effect.flip)
         expect(error).toBeInstanceOf(SessionTask.TaskWriteError)
         expect(error.reason).toBe("stale_revision")
         // Positions unchanged.
@@ -1507,7 +1530,10 @@ describe("SessionTask", () => {
           .update({
             sessionID,
             // oxlint-disable-next-line no-misused-spread -- Schema.Class data carries no prototype members
-            tasks: [{ ...a, status: "completed" }, { ...b, status: "completed" }],
+            tasks: [
+              { ...a, status: "completed" },
+              { ...b, status: "completed" },
+            ],
             expectedRevision: 1,
           })
           .pipe(Effect.flip)

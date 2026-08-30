@@ -33,15 +33,9 @@ export function deriveSubagentSessionPermission(input: {
     ...(canTaskwrite ? [] : [{ permission: "taskwrite" as const, pattern: "*" as const, action: "deny" as const }]),
     // task_* incremental tools default deny (2026-08-06 裁决: 子代理只交付结果、
     // 不维护任务进度; 显式授权可 opt-in 启用 P2-b 进度上报).
-    ...(canTaskCreate
-      ? []
-      : [{ permission: "task_create" as const, pattern: "*" as const, action: "deny" as const }]),
-    ...(canTaskUpdate
-      ? []
-      : [{ permission: "task_update" as const, pattern: "*" as const, action: "deny" as const }]),
-    ...(canTaskDelete
-      ? []
-      : [{ permission: "task_delete" as const, pattern: "*" as const, action: "deny" as const }]),
+    ...(canTaskCreate ? [] : [{ permission: "task_create" as const, pattern: "*" as const, action: "deny" as const }]),
+    ...(canTaskUpdate ? [] : [{ permission: "task_update" as const, pattern: "*" as const, action: "deny" as const }]),
+    ...(canTaskDelete ? [] : [{ permission: "task_delete" as const, pattern: "*" as const, action: "deny" as const }]),
     ...(canTaskReorder
       ? []
       : [{ permission: "task_reorder" as const, pattern: "*" as const, action: "deny" as const }]),
@@ -49,8 +43,6 @@ export function deriveSubagentSessionPermission(input: {
     ...(canTaskSchedule
       ? []
       : [{ permission: "task_schedule" as const, pattern: "*" as const, action: "deny" as const }]),
-    ...(canTaskSpawn
-      ? []
-      : [{ permission: "task_spawn" as const, pattern: "*" as const, action: "deny" as const }]),
+    ...(canTaskSpawn ? [] : [{ permission: "task_spawn" as const, pattern: "*" as const, action: "deny" as const }]),
   ]
 }

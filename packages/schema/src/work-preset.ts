@@ -2,12 +2,9 @@ export * as WorkPreset from "./work-preset"
 
 import { Schema } from "effect"
 
-export const Category = Schema.Literals([
-  "it-development",
-  "video-creation",
-  "academic",
-  "general-office",
-]).annotate({ identifier: "WorkPreset.Category" })
+export const Category = Schema.Literals(["it-development", "video-creation", "academic", "general-office"]).annotate({
+  identifier: "WorkPreset.Category",
+})
 export type Category = typeof Category.Type
 
 export const OutputType = Schema.Literals(["markdown", "table", "mixed"]).annotate({

@@ -21,16 +21,7 @@ describe("AssetKindRegistry", () => {
       const kinds = registry.list()
       expect(kinds).toHaveLength(8)
       expect(kinds).toEqual(
-        expect.arrayContaining([
-          "prompt",
-          "skill",
-          "mcp",
-          "command",
-          "agent",
-          "workflow",
-          "plugin",
-          "custom-profile",
-        ]),
+        expect.arrayContaining(["prompt", "skill", "mcp", "command", "agent", "workflow", "plugin", "custom-profile"]),
       )
 
       const expectedDirs: ReadonlyArray<readonly [Asset.AssetKindId, string]> = [

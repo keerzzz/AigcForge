@@ -84,9 +84,27 @@ const endpoints = [
     body: () => ({ model: { id: "test-model", providerID: "test" } }),
     kind: "control",
   },
-  { name: "session.compact", method: "POST", path: (id: string) => `/api/session/${id}/compact`, body: () => ({}), kind: "control" },
-  { name: "session.wait", method: "POST", path: (id: string) => `/api/session/${id}/wait`, body: () => ({}), kind: "control" },
-  { name: "session.interrupt", method: "POST", path: (id: string) => `/api/session/${id}/interrupt`, body: () => ({}), kind: "control" },
+  {
+    name: "session.compact",
+    method: "POST",
+    path: (id: string) => `/api/session/${id}/compact`,
+    body: () => ({}),
+    kind: "control",
+  },
+  {
+    name: "session.wait",
+    method: "POST",
+    path: (id: string) => `/api/session/${id}/wait`,
+    body: () => ({}),
+    kind: "control",
+  },
+  {
+    name: "session.interrupt",
+    method: "POST",
+    path: (id: string) => `/api/session/${id}/interrupt`,
+    body: () => ({}),
+    kind: "control",
+  },
   {
     name: "session.share",
     method: "POST",
@@ -94,7 +112,13 @@ const endpoints = [
     body: (targetID: string) => ({ targetSessionID: targetID, scope: "reference" }),
     kind: "control",
   },
-  { name: "session.fork", method: "POST", path: (id: string) => `/api/session/${id}/fork`, body: () => ({}), kind: "fork" },
+  {
+    name: "session.fork",
+    method: "POST",
+    path: (id: string) => `/api/session/${id}/fork`,
+    body: () => ({}),
+    kind: "fork",
+  },
 ] as const
 
 function callEndpoint(
@@ -159,19 +183,21 @@ describe.serial("V2 Session Capability Matrix", () => {
         const custom = yield* Session.use.create({ title: "legacy custom" })
         yield* markCustom(custom.id)
 
-        yield* Effect.forEach(endpoints, (endpoint) => Effect.gen(function* () {
-          const response = yield* callEndpoint(endpoint, {
-            sessionID: custom.id,
-            targetSessionID: target.id,
-            directory: test.directory,
-            capable: false,
-          })
-          expect({ endpoint: endpoint.name, status: response.status, body: yield* response.json }).toMatchObject({
-            endpoint: endpoint.name,
-            status: 404,
-            body: { _tag: "SessionNotFoundError", sessionID: custom.id },
-          })
-        }))
+        yield* Effect.forEach(endpoints, (endpoint) =>
+          Effect.gen(function* () {
+            const response = yield* callEndpoint(endpoint, {
+              sessionID: custom.id,
+              targetSessionID: target.id,
+              directory: test.directory,
+              capable: false,
+            })
+            expect({ endpoint: endpoint.name, status: response.status, body: yield* response.json }).toMatchObject({
+              endpoint: endpoint.name,
+              status: 404,
+              body: { _tag: "SessionNotFoundError", sessionID: custom.id },
+            })
+          }),
+        )
       }),
     { git: true, config: { formatter: false, lsp: false } },
   )
@@ -192,57 +218,63 @@ describe.serial("V2 Session Capability Matrix", () => {
         const custom = yield* Session.use.create({ title: "legacy custom" })
         yield* markCustom(custom.id)
 
-        yield* Effect.forEach(endpoints, (endpoint) => Effect.gen(function* () {
-          const response = yield* callEndpoint(endpoint, {
-            sessionID: custom.id,
-            targetSessionID: target.id,
-            directory: test.directory,
-            capable: true,
-          })
-          const body = yield* response.json
+        yield* Effect.forEach(endpoints, (endpoint) =>
+          Effect.gen(function* () {
+            const response = yield* callEndpoint(endpoint, {
+              sessionID: custom.id,
+              targetSessionID: target.id,
+              directory: test.directory,
+              capable: true,
+            })
+            const body = yield* response.json
 
-          if (endpoint.kind === "read") {
-            expect({ endpoint: endpoint.name, status: response.status }).toEqual({ endpoint: endpoint.name, status: 200 })
-            if (endpoint.name === "session.get") expect(body).toMatchObject({ data: { id: custom.id, mode: "custom" } })
-            if (endpoint.name !== "session.get") expect(body).toEqual({ data: [] })
-            return
-          }
-          if (endpoint.kind === "admission") {
+            if (endpoint.kind === "read") {
+              expect({ endpoint: endpoint.name, status: response.status }).toEqual({
+                endpoint: endpoint.name,
+                status: 200,
+              })
+              if (endpoint.name === "session.get")
+                expect(body).toMatchObject({ data: { id: custom.id, mode: "custom" } })
+              if (endpoint.name !== "session.get") expect(body).toEqual({ data: [] })
+              return
+            }
+            if (endpoint.kind === "admission") {
+              expect({ endpoint: endpoint.name, status: response.status, body }).toMatchObject({
+                endpoint: endpoint.name,
+                status: 400,
+                // The message is asserted, not just the tag: `UnsupportedProductModeError`
+                // is also what an unknown mode produces, so tag-only cannot tell
+                // "kill switch is off" from "mode does not exist".
+                body: {
+                  _tag: "UnsupportedProductModeError",
+                  mode: "custom",
+                  message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
+                },
+              })
+              return
+            }
+            if (endpoint.kind === "control") {
+              expect({ endpoint: endpoint.name, status: response.status, body }).toMatchObject({
+                endpoint: endpoint.name,
+                status: 400,
+                body: {
+                  _tag: "UnsupportedProductModeError",
+                  mode: "custom",
+                  message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
+                },
+              })
+              return
+            }
             expect({ endpoint: endpoint.name, status: response.status, body }).toMatchObject({
               endpoint: endpoint.name,
               status: 400,
-              // The message is asserted, not just the tag: `UnsupportedProductModeError`
-              // is also what an unknown mode produces, so tag-only cannot tell
-              // "kill switch is off" from "mode does not exist".
-              body: {
-                _tag: "UnsupportedProductModeError",
-                mode: "custom",
-                message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
-              },
+              body:
+                endpoint.name === "session.fork"
+                  ? { _tag: "UnsupportedProductModeError", mode: "custom" }
+                  : { _tag: "InvalidRequestError" },
             })
-            return
-          }
-          if (endpoint.kind === "control") {
-            expect({ endpoint: endpoint.name, status: response.status, body }).toMatchObject({
-              endpoint: endpoint.name,
-              status: 400,
-              body: {
-                _tag: "UnsupportedProductModeError",
-                mode: "custom",
-                message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
-              },
-            })
-            return
-          }
-          expect({ endpoint: endpoint.name, status: response.status, body }).toMatchObject({
-            endpoint: endpoint.name,
-            status: 400,
-            body:
-              endpoint.name === "session.fork"
-                ? { _tag: "UnsupportedProductModeError", mode: "custom" }
-                : { _tag: "InvalidRequestError" },
-          })
-        }))
+          }),
+        )
       }),
     { git: true, config: { formatter: false, lsp: false } },
   )
@@ -271,38 +303,57 @@ describe.serial("V2 Session Capability Matrix", () => {
 
         const rejected = yield* post("/api/session/custom", test.directory, payload, false)
         expect(rejected.status).toBe(400)
-        expect(yield* rejected.json).toMatchObject({ _tag: "InvalidRequestError", message: expect.stringContaining(ProductModePolicy.CAPABILITY_CUSTOM_V1) })
+        expect(yield* rejected.json).toMatchObject({
+          _tag: "InvalidRequestError",
+          message: expect.stringContaining(ProductModePolicy.CAPABILITY_CUSTOM_V1),
+        })
 
         const created = yield* createRealCustom(test.directory)
         expect(created.data).toMatchObject({ mode: "custom", agent: "meta" })
 
-        const children = yield* requestInDirectory(`/api/session/${created.data.id}/children`, test.directory, { headers: capableHeaders })
+        const children = yield* requestInDirectory(`/api/session/${created.data.id}/children`, test.directory, {
+          headers: capableHeaders,
+        })
         expect(children.status).toBe(200)
         expect(yield* children.json).toEqual({ data: [] })
 
-        const context = yield* requestInDirectory(`/api/session/${created.data.id}/context`, test.directory, { headers: capableHeaders })
+        const context = yield* requestInDirectory(`/api/session/${created.data.id}/context`, test.directory, {
+          headers: capableHeaders,
+        })
         expect(context.status).toBe(200)
         expect(yield* context.json).toEqual({ data: [] })
 
-        const prompt = yield* post(`/api/session/${created.data.id}/prompt`, test.directory, { prompt: { text: "hello" }, resume: false })
+        const prompt = yield* post(`/api/session/${created.data.id}/prompt`, test.directory, {
+          prompt: { text: "hello" },
+          resume: false,
+        })
         expect(prompt.status).toBe(200)
         expect(yield* prompt.json).toMatchObject({ data: { kind: "prompt", sessionID: created.data.id } })
 
         const fork = yield* post(`/api/session/${created.data.id}/fork`, test.directory, {})
         expect(fork.status).toBe(200)
         const forkBody = yield* Schema.decodeUnknownEffect(ForkResponse)(yield* fork.json)
-        const child = yield* requestInDirectory(`/api/session/${forkBody.sessionID}`, test.directory, { headers: capableHeaders })
+        const child = yield* requestInDirectory(`/api/session/${forkBody.sessionID}`, test.directory, {
+          headers: capableHeaders,
+        })
         expect(child.status).toBe(200)
-        expect(yield* child.json).toMatchObject({ data: { id: forkBody.sessionID, parentID: created.data.id, mode: "custom" } })
+        expect(yield* child.json).toMatchObject({
+          data: { id: forkBody.sessionID, parentID: created.data.id, mode: "custom" },
+        })
 
         const { db } = yield* Database.Service
         const snapshots = yield* db
-          .select({ sessionID: SessionCompositionSnapshotTable.session_id, digest: SessionCompositionSnapshotTable.digest })
+          .select({
+            sessionID: SessionCompositionSnapshotTable.session_id,
+            digest: SessionCompositionSnapshotTable.digest,
+          })
           .from(SessionCompositionSnapshotTable)
           .where(eq(SessionCompositionSnapshotTable.digest, created.snapshot.digest))
           .all()
           .pipe(Effect.orDie)
-        expect(snapshots.map((snapshot) => snapshot.sessionID).sort()).toEqual([created.data.id, forkBody.sessionID].sort())
+        expect(snapshots.map((snapshot) => snapshot.sessionID).sort()).toEqual(
+          [created.data.id, forkBody.sessionID].sort(),
+        )
       }),
     { git: true, config: { formatter: false, lsp: false } },
   )
@@ -320,15 +371,17 @@ describe.serial("V2 Session Capability Matrix", () => {
           post(`/session/${custom.id}/shell`, test.directory, { agent: "build", command: "echo hi" }),
         ]
 
-        yield* Effect.forEach(requests, (request) => Effect.gen(function* () {
-          const response = yield* request
-          expect(response.status).toBe(400)
-          expect(yield* response.json).toMatchObject({
-            _tag: "UnsupportedProductModeError",
-            mode: "custom",
-            message: expect.stringContaining("V2-native"),
-          })
-        }))
+        yield* Effect.forEach(requests, (request) =>
+          Effect.gen(function* () {
+            const response = yield* request
+            expect(response.status).toBe(400)
+            expect(yield* response.json).toMatchObject({
+              _tag: "UnsupportedProductModeError",
+              mode: "custom",
+              message: expect.stringContaining("V2-native"),
+            })
+          }),
+        )
       }),
     { git: true, config: { formatter: false, lsp: false } },
   )
@@ -342,7 +395,12 @@ describe.serial("V2 Session Capability Matrix", () => {
         const get = yield* requestInDirectory(`/api/session/${chat.id}`, test.directory)
         expect(get.status).toBe(200)
         expect(yield* get.json).toMatchObject({ data: { id: chat.id, mode: "chat" } })
-        const prompt = yield* post(`/api/session/${chat.id}/prompt`, test.directory, { prompt: { text: "hello" }, resume: false }, false)
+        const prompt = yield* post(
+          `/api/session/${chat.id}/prompt`,
+          test.directory,
+          { prompt: { text: "hello" }, resume: false },
+          false,
+        )
         expect(prompt.status).toBe(200)
       }),
     { git: true, config: { formatter: false, lsp: false } },
@@ -438,19 +496,15 @@ describe.serial("V2 Session Capability Matrix", () => {
         expect(get.status).toBe(200)
         expect(yield* get.json).toMatchObject({ data: { id: created.data.id, mode: "custom" } })
 
-        const children = yield* requestInDirectory(
-          `/api/session/${created.data.id}/children`,
-          test.directory,
-          { headers: capableHeaders },
-        )
+        const children = yield* requestInDirectory(`/api/session/${created.data.id}/children`, test.directory, {
+          headers: capableHeaders,
+        })
         expect(children.status).toBe(200)
         expect(yield* children.json).toEqual({ data: [] })
 
-        const context = yield* requestInDirectory(
-          `/api/session/${created.data.id}/context`,
-          test.directory,
-          { headers: capableHeaders },
-        )
+        const context = yield* requestInDirectory(`/api/session/${created.data.id}/context`, test.directory, {
+          headers: capableHeaders,
+        })
         expect(context.status).toBe(200)
         expect(yield* context.json).toEqual({ data: [] })
 

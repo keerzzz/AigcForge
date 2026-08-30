@@ -26,12 +26,12 @@ Agent Harness 的核心存在价值在于将非确定性的模型推理与确定
 大语言模型在处理长程复杂任务时，极易出现“早停”（任务未真正完成即误以为已结束）、死循环（反复执行相同的失败工具调用）、偏离初始目标以及无法妥善处理并发子任务等问题5。仅仅依靠提示词无法强行保障 long-horizon 任务的完成度5。  
 生命周期与编排层的核心是驱动一个确定性的外层迭代循环（Outer "While" Loop）2。Harness 驱动循环接收输入、调用 LLM 推理、解析工具指令、执行工具并捕获观察结果，随后组装新上下文并重新送入 LLM，整个过程由确定性代码控制节奏并设置硬性迭代上限2。为了管理复杂任务，微软 Agent Framework 等 Harness 引入了“计划/执行”（Plan & Execute）双阶段控制：在计划模式下，智能体与用户交互并将宏观目标分解为具体的 Todo 清单；进入执行模式后，智能体自主遍历 Todo 项，由 Harness 在每轮循环后更新状态机12。针对早停现象，Harness 部署了终止拦截机制（如 Ralph Loops），当模型尝试输出任务完成信号时，拦截器会运行自动化测试断言；若验证未通过，Harness 会拦截退出信号，在一个干净的上下文窗口中重新注入初始 Prompt 与当前进度，强行推动智能体继续工作5。对于复杂子任务，Harness 支持派生（Spawn）独立的后台子智能体，子智能体拥有隔离的会话上下文与受限工具集，其结果通过异步回调归集给父智能体3。
 
-| 编排机制模式 | 适用场景 | 状态控制手段 | 失败恢复策略 |
-| :---- | :---- | :---- | :---- |
-| **单线程 ReAct 循环** | 线性短程任务、工具链调用2 | 计数器与最大迭代限制3 | 异常捕获并作为观察结果喂回2 |
-| **Plan-Execute 状态机** | 多步骤长程复杂工程任务12 | 结构化 Todo 列表与模式切换12 | 保持 Plan 不变，针对失败步骤重新 Plan7 |
-| **Ralph 强制续航闭环** | 必须通过硬性验证（如 CIPass）的任务5 | 测试结果断言与退出信号拦截5 | 冲洗衰减上下文，重新注入原始 Prompt5 |
-| **多子智能体树状分发** | 模块化重构、大规模代码/数据扫描3 | 父子会话 ID 隔离与进程树3 | 单个子智能体崩溃不影响父级上下文3 |
+| 编排机制模式            | 适用场景                             | 状态控制手段                 | 失败恢复策略                           |
+| :---------------------- | :----------------------------------- | :--------------------------- | :------------------------------------- |
+| **单线程 ReAct 循环**   | 线性短程任务、工具链调用2            | 计数器与最大迭代限制3        | 异常捕获并作为观察结果喂回2            |
+| **Plan-Execute 状态机** | 多步骤长程复杂工程任务12             | 结构化 Todo 列表与模式切换12 | 保持 Plan 不变，针对失败步骤重新 Plan7 |
+| **Ralph 强制续航闭环**  | 必须通过硬性验证（如 CIPass）的任务5 | 测试结果断言与退出信号拦截5  | 冲洗衰减上下文，重新注入原始 Prompt5   |
+| **多子智能体树状分发**  | 模块化重构、大规模代码/数据扫描3     | 父子会话 ID 隔离与进程树3    | 单个子智能体崩溃不影响父级上下文3      |
 
 编排层通过将非确定性的模型推理包裹在确定性的状态机循环内，构筑了“规划-执行-观测-调整”的自动化纠偏机制2。智能体无需一次性生成完美路径，而是通过“试错-观测结果”在确定性代码的推动下逐步逼近终点2。同时，子智能体派生机制防止了多任务混合导致的上下文互相污染，将复杂的并行逻辑转移至基础设施的进程调度层3。
 
@@ -57,15 +57,15 @@ Agent Harness 的核心存在价值在于将非确定性的模型推理与确定
 
 下表综合展示了 Agent Harness 七层核心功能在系统中的位置、主要解决的问题、代表性实现方式及其底层机制：
 
-| 架构层级 | 主要解决的生产痛点 | 具象化技术实现方式 | 解决问题的核心机制 |
-| :---- | :---- | :---- | :---- |
-| **执行环境沙箱** | 破坏性代码执行、系统提权、状态跨会话污染13 | Docker/gVisor/Firecracker 微沙箱、LocalShellExecutor 受限 Shell、NOOA Python 对象沙箱10 | 强安全隔离边界、瞬态快照重置、确定性系统调用拦截2 |
-| **工具接口与协议** | 异构 API 接入成本高、上下文因工具 Schema 膨胀3 | MCP 标准化客户端、AGENTS.md 技能渐进式加载、NOOA 传引用（Pass-by-Reference）指针3 | 渐进式信息暴露、JSON-RPC 动态解耦、内存指针预填缓存优化3 |
-| **上下文与记忆管理** | 上下文腐败（Context Rot）、Token 爆炸、跨会话遗忘5 | 预算感知 Compaction 压缩算法、SQLite 知识图谱、CLAUDE.md 项目记忆账本3 | 隐式回忆向结构化检索转化、动态 Token 截断与日志离线存储5 |
-| **生命周期与编排** | 早停、陷入死循环、long-horizon 偏离、子任务污染5 | 确定性 while 循环、Plan/Execute 模式与 Todo 状态机、Ralph 续航拦截器、Sub-agent 派生3 | “规划-执行-观测-自愈”闭环控制、确定性状态机强行驱动2 |
-| **可观测性** | 智能体非线性决策黑盒、中途崩溃丢失进度、成本不可控7 | OpenTelemetry 语义规范集成、逐次服务调用持久化、网关级全链路 Trace Canvas7 | 原子化状态快照与秒级崩溃复元、全链路因果链树状归因7 |
-| **验证与评估** | 模型幻觉产物上线、软性输出难以满足硬性工程要求5 | 闭环测试运行器/Linter、架构拟合函数（Fitness Functions）、SWE-bench 基准评估套件5 | 基于确定性断言的闭环反馈自愈（Act-Observe-Verify-Adjust）3 |
-| **治理与安全** | “越权实习生”现象、敏感凭据泄露、审批疲劳、合规审计缺失7 | 动态三级权限解析、AI/MCP 网关凭据动态注入、HITL 人机回环审批门禁、Agent 独立身份3 | 架构级治理（非提示词治理）、最小权限网关拦截与 RBAC 绑定3 |
+| 架构层级             | 主要解决的生产痛点                                      | 具象化技术实现方式                                                                      | 解决问题的核心机制                                         |
+| :------------------- | :------------------------------------------------------ | :-------------------------------------------------------------------------------------- | :--------------------------------------------------------- |
+| **执行环境沙箱**     | 破坏性代码执行、系统提权、状态跨会话污染13              | Docker/gVisor/Firecracker 微沙箱、LocalShellExecutor 受限 Shell、NOOA Python 对象沙箱10 | 强安全隔离边界、瞬态快照重置、确定性系统调用拦截2          |
+| **工具接口与协议**   | 异构 API 接入成本高、上下文因工具 Schema 膨胀3          | MCP 标准化客户端、AGENTS.md 技能渐进式加载、NOOA 传引用（Pass-by-Reference）指针3       | 渐进式信息暴露、JSON-RPC 动态解耦、内存指针预填缓存优化3   |
+| **上下文与记忆管理** | 上下文腐败（Context Rot）、Token 爆炸、跨会话遗忘5      | 预算感知 Compaction 压缩算法、SQLite 知识图谱、CLAUDE.md 项目记忆账本3                  | 隐式回忆向结构化检索转化、动态 Token 截断与日志离线存储5   |
+| **生命周期与编排**   | 早停、陷入死循环、long-horizon 偏离、子任务污染5        | 确定性 while 循环、Plan/Execute 模式与 Todo 状态机、Ralph 续航拦截器、Sub-agent 派生3   | “规划-执行-观测-自愈”闭环控制、确定性状态机强行驱动2       |
+| **可观测性**         | 智能体非线性决策黑盒、中途崩溃丢失进度、成本不可控7     | OpenTelemetry 语义规范集成、逐次服务调用持久化、网关级全链路 Trace Canvas7              | 原子化状态快照与秒级崩溃复元、全链路因果链树状归因7        |
+| **验证与评估**       | 模型幻觉产物上线、软性输出难以满足硬性工程要求5         | 闭环测试运行器/Linter、架构拟合函数（Fitness Functions）、SWE-bench 基准评估套件5       | 基于确定性断言的闭环反馈自愈（Act-Observe-Verify-Adjust）3 |
+| **治理与安全**       | “越权实习生”现象、敏感凭据泄露、审批疲劳、合规审计缺失7 | 动态三级权限解析、AI/MCP 网关凭据动态注入、HITL 人机回环审批门禁、Agent 独立身份3       | 架构级治理（非提示词治理）、最小权限网关拦截与 RBAC 绑定3  |
 
 ## **结论与演进趋势**
 
@@ -78,21 +78,21 @@ Agent Harness 的核心存在价值在于将非确定性的模型推理与确定
 
 #### **引用的著作**
 
-> 1. What Is an Agent Harness? The Key to Reliable AI \- Salesforce, [https://www.salesforce.com/agentforce/ai-agents/agent-harness/](https://www.salesforce.com/agentforce/ai-agents/agent-harness/)  
-> 2. What is an AI Agent Harness? | Databricks Blog, [https://www.databricks.com/blog/ai-harness](https://www.databricks.com/blog/ai-harness)  
-> 3. What is an agent harness? \- Arize AI, [https://arize.com/blog/what-is-an-agent-harness/](https://arize.com/blog/what-is-an-agent-harness/)  
-> 4. Agent Harness vs Framework: What's the Difference and Which Do You Need? | MindStudio, [https://www.mindstudio.ai/blog/agent-harness-vs-framework-difference](https://www.mindstudio.ai/blog/agent-harness-vs-framework-difference)  
-> 5. The Anatomy of an Agent Harness \- LangChain, [https://www.langchain.com/blog/the-anatomy-of-an-agent-harness](https://www.langchain.com/blog/the-anatomy-of-an-agent-harness)  
-> 6. Your AI Agents Need an Operating System: Harnesses, Orchestration, and the Permission Model | by Muhammad Azam Mehr Ghulam | Version 1 | Medium, [https://medium.com/version-1/your-ai-agents-need-an-operating-system-harnesses-orchestration-and-the-permission-model-7c1c140590b1](https://medium.com/version-1/your-ai-agents-need-an-operating-system-harnesses-orchestration-and-the-permission-model-7c1c140590b1)  
-> 7. What Is an Agent Harness? Definition and Key Components \- Domo, [https://www.domo.com/glossary/agent-harness](https://www.domo.com/glossary/agent-harness)  
-> 8. Harness Engineering: How to Build Reliable AI Agents by Engineering the System, Not the Model | deepset Blog, [https://www.deepset.ai/blog/harness-engineering](https://www.deepset.ai/blog/harness-engineering)  
-> 9. The Rise of AI Harness Engineering | by Cobus Greyling \- Medium, [https://cobusgreyling.medium.com/the-rise-of-ai-harness-engineering-5f5220de393e](https://cobusgreyling.medium.com/the-rise-of-ai-harness-engineering-5f5220de393e)  
-> 10. What Is an Agent Harness? Governed Managed AI Agents \- Truefoundry, [https://www.truefoundry.com/blog/agent-harness-managed-ai-agents](https://www.truefoundry.com/blog/agent-harness-managed-ai-agents)  
-> 11. Six Agent Harness Capabilities for Higher Model Performance | NVIDIA Technical Blog, [https://developer.nvidia.com/blog/six-agent-harness-capabilities-for-higher-model-performance/](https://developer.nvidia.com/blog/six-agent-harness-capabilities-for-higher-model-performance/)  
-> 12. Agent Harnesses | Microsoft Learn, [https://learn.microsoft.com/en-us/agent-framework/agents/harness](https://learn.microsoft.com/en-us/agent-framework/agents/harness)  
-> 13. Agent Harness 是什么, uploaded:Agent Harness 是什么  
-> 14. Everything You Need to Know About Harness Engineering \- Tutorials Dojo, [https://tutorialsdojo.com/everything-you-need-to-know-about-harness-engineering/](https://tutorialsdojo.com/everything-you-need-to-know-about-harness-engineering/)  
-> 15. Agent Harness Engineering: A Survey, [https://picrew.github.io/LLM-Harness/main.pdf](https://picrew.github.io/LLM-Harness/main.pdf)  
-> 16. Harness engineering for coding agent users \- Martin Fowler, [https://martinfowler.com/articles/harness-engineering.html](https://martinfowler.com/articles/harness-engineering.html)  
-> 17. An engineering leader's guide to background agents \- Ona, [https://ona.com/guides/background-agents](https://ona.com/guides/background-agents)  
+> 1. What Is an Agent Harness? The Key to Reliable AI \- Salesforce, [https://www.salesforce.com/agentforce/ai-agents/agent-harness/](https://www.salesforce.com/agentforce/ai-agents/agent-harness/)
+> 2. What is an AI Agent Harness? | Databricks Blog, [https://www.databricks.com/blog/ai-harness](https://www.databricks.com/blog/ai-harness)
+> 3. What is an agent harness? \- Arize AI, [https://arize.com/blog/what-is-an-agent-harness/](https://arize.com/blog/what-is-an-agent-harness/)
+> 4. Agent Harness vs Framework: What's the Difference and Which Do You Need? | MindStudio, [https://www.mindstudio.ai/blog/agent-harness-vs-framework-difference](https://www.mindstudio.ai/blog/agent-harness-vs-framework-difference)
+> 5. The Anatomy of an Agent Harness \- LangChain, [https://www.langchain.com/blog/the-anatomy-of-an-agent-harness](https://www.langchain.com/blog/the-anatomy-of-an-agent-harness)
+> 6. Your AI Agents Need an Operating System: Harnesses, Orchestration, and the Permission Model | by Muhammad Azam Mehr Ghulam | Version 1 | Medium, [https://medium.com/version-1/your-ai-agents-need-an-operating-system-harnesses-orchestration-and-the-permission-model-7c1c140590b1](https://medium.com/version-1/your-ai-agents-need-an-operating-system-harnesses-orchestration-and-the-permission-model-7c1c140590b1)
+> 7. What Is an Agent Harness? Definition and Key Components \- Domo, [https://www.domo.com/glossary/agent-harness](https://www.domo.com/glossary/agent-harness)
+> 8. Harness Engineering: How to Build Reliable AI Agents by Engineering the System, Not the Model | deepset Blog, [https://www.deepset.ai/blog/harness-engineering](https://www.deepset.ai/blog/harness-engineering)
+> 9. The Rise of AI Harness Engineering | by Cobus Greyling \- Medium, [https://cobusgreyling.medium.com/the-rise-of-ai-harness-engineering-5f5220de393e](https://cobusgreyling.medium.com/the-rise-of-ai-harness-engineering-5f5220de393e)
+> 10. What Is an Agent Harness? Governed Managed AI Agents \- Truefoundry, [https://www.truefoundry.com/blog/agent-harness-managed-ai-agents](https://www.truefoundry.com/blog/agent-harness-managed-ai-agents)
+> 11. Six Agent Harness Capabilities for Higher Model Performance | NVIDIA Technical Blog, [https://developer.nvidia.com/blog/six-agent-harness-capabilities-for-higher-model-performance/](https://developer.nvidia.com/blog/six-agent-harness-capabilities-for-higher-model-performance/)
+> 12. Agent Harnesses | Microsoft Learn, [https://learn.microsoft.com/en-us/agent-framework/agents/harness](https://learn.microsoft.com/en-us/agent-framework/agents/harness)
+> 13. Agent Harness 是什么, uploaded:Agent Harness 是什么
+> 14. Everything You Need to Know About Harness Engineering \- Tutorials Dojo, [https://tutorialsdojo.com/everything-you-need-to-know-about-harness-engineering/](https://tutorialsdojo.com/everything-you-need-to-know-about-harness-engineering/)
+> 15. Agent Harness Engineering: A Survey, [https://picrew.github.io/LLM-Harness/main.pdf](https://picrew.github.io/LLM-Harness/main.pdf)
+> 16. Harness engineering for coding agent users \- Martin Fowler, [https://martinfowler.com/articles/harness-engineering.html](https://martinfowler.com/articles/harness-engineering.html)
+> 17. An engineering leader's guide to background agents \- Ona, [https://ona.com/guides/background-agents](https://ona.com/guides/background-agents)
 > 18. Agent Governance for Analytics: Build vs Buy Guide \[2026\] \- Atlan, [https://atlan.com/know/ai-agent/ai-agent-governance/self-service-analytics-governance-build-vs-buy/](https://atlan.com/know/ai-agent/ai-agent-governance/self-service-analytics-governance-build-vs-buy/)

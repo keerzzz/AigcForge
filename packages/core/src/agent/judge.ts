@@ -50,10 +50,7 @@ export const judgeMerge = (prompt: string, results: readonly string[]) =>
     }
 
     const parts = results.map((r, i) => `<attempt index="${i + 1}">\n${r}\n</attempt>`)
-    const formatted = [
-      `[Original task]\n${prompt}\n`,
-      `[Worker outputs]\n${parts.join("\n\n")}`,
-    ].join("\n")
+    const formatted = [`[Original task]\n${prompt}\n`, `[Worker outputs]\n${parts.join("\n\n")}`].join("\n")
 
     const request = LLM.request({
       model,
@@ -64,9 +61,9 @@ export const judgeMerge = (prompt: string, results: readonly string[]) =>
 
     // LLMClient.generate returns Effect<LLMResponse, LLMError>. On any
     // LLM failure (network, rate limit, etc.), fall back to first result.
-    const response: LLMResponse | undefined = yield* llm.generate(request).pipe(
-      Effect.catch(() => Effect.succeed(undefined)),
-    )
+    const response: LLMResponse | undefined = yield* llm
+      .generate(request)
+      .pipe(Effect.catch(() => Effect.succeed(undefined)))
     if (!response) {
       yield* Effect.logWarning("Judge.merge: LLM generate failed, falling back to first result")
       return results[0]

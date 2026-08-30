@@ -76,9 +76,20 @@ function makeRegistry(dir: string): PluginAsset.Interface {
 
 function makeFs(): FSUtil.Interface {
   return {
-    exists: Effect.fn("test.exists")((p: string) => Effect.promise(async () => fs.stat(p).then(() => true).catch(() => false))),
-    readFile: Effect.fn("test.readFile")((p: string) => Effect.promise(async () => new Uint8Array(await fs.readFile(p)))),
-    readFileString: Effect.fn("test.readFileString")((p: string) => Effect.promise(async () => await fs.readFile(p, "utf-8"))),
+    exists: Effect.fn("test.exists")((p: string) =>
+      Effect.promise(async () =>
+        fs
+          .stat(p)
+          .then(() => true)
+          .catch(() => false),
+      ),
+    ),
+    readFile: Effect.fn("test.readFile")((p: string) =>
+      Effect.promise(async () => new Uint8Array(await fs.readFile(p))),
+    ),
+    readFileString: Effect.fn("test.readFileString")((p: string) =>
+      Effect.promise(async () => await fs.readFile(p, "utf-8")),
+    ),
   } as unknown as FSUtil.Interface
 }
 
@@ -88,7 +99,11 @@ describe("ProposePluginAssetTool", () => {
       const deps = { pluginAsset: makeRegistry(dir), fs: makeFs(), directory: dir }
       const result = await runNow(
         ProposePluginAssetTool.propose(
-          { name: "new-plugin", description: "a test", content: "kind: plugin\nname: new-plugin\ndescription: a test\nversion: \"1.0.0\"\nhooks: []" },
+          {
+            name: "new-plugin",
+            description: "a test",
+            content: 'kind: plugin\nname: new-plugin\ndescription: a test\nversion: "1.0.0"\nhooks: []',
+          },
           deps,
         ),
       )
@@ -102,10 +117,7 @@ describe("ProposePluginAssetTool", () => {
   test("rejects invalid YAML", async () => {
     await withTmp(async (dir) => {
       const deps = { pluginAsset: makeRegistry(dir), fs: makeFs(), directory: dir }
-      const result = ProposePluginAssetTool.propose(
-        { name: "bad", description: "x", content: "{invalid yaml: " },
-        deps,
-      )
+      const result = ProposePluginAssetTool.propose({ name: "bad", description: "x", content: "{invalid yaml: " }, deps)
       await expect(runNow(result)).rejects.toThrow()
     })
   })
@@ -114,7 +126,7 @@ describe("ProposePluginAssetTool", () => {
     await withTmp(async (dir) => {
       const deps = { pluginAsset: makeRegistry(dir), fs: makeFs(), directory: dir }
       const result = ProposePluginAssetTool.propose(
-        { name: "bad-schema", description: "x", content: "name: bad-schema\ndescription: x\nversion: \"1.0.0\"" },
+        { name: "bad-schema", description: "x", content: 'name: bad-schema\ndescription: x\nversion: "1.0.0"' },
         deps,
       )
       await expect(runNow(result)).rejects.toThrow(/required schema/)
@@ -128,7 +140,11 @@ describe("ProposePluginAssetTool", () => {
       await runNow(deps.pluginAsset.reload())
       const result = await runNow(
         ProposePluginAssetTool.propose(
-          { name: "existing-plugin", description: "x", content: "kind: plugin\nname: existing-plugin\ndescription: x\nversion: \"1.0.0\"\nhooks: []" },
+          {
+            name: "existing-plugin",
+            description: "x",
+            content: 'kind: plugin\nname: existing-plugin\ndescription: x\nversion: "1.0.0"\nhooks: []',
+          },
           deps,
         ),
       )

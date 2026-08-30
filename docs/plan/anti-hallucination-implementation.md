@@ -12,34 +12,34 @@
 
 ## 0. v3 修订记录（相对 v2）
 
-| 编号 | 变更 | 依据 |
-|---|---|---|
-| R-6 | 新增阶段 0：CorrectionStore Service（临时记忆钩子），阶段 A/B 的公共子模块 | 调研 §9 三模式钩子 + 存纠正不存错误原则 |
-| R-7 | settleTool 扩展流程增加纠正拦截（advisory）+ 纠正记录（settle 后） | 调研 §9.3 模式 1/2 |
-| R-8 | 新增用户纠正提取入口：`SessionInput.admit` 路径 | 调研 §9.6 入口边界定案 |
-| R-9 | 新增敏感内容安全处理：白名单提取 + 敏感模式拒绝 + L3 脱敏 | 调研 §9.7 |
-| R-10 | 纠正过期策略定案：TTL 衰减 + 用户纠正豁免 | 调研 §9.6 |
-| R-11 | 拦截模式定案：advisory 不 blocking | 调研 §9.6 |
-| R-12 | ConfigMeta 扩展加 `correction_store` + `session_memory` 字段 | 本计划 §3.6 |
+| 编号 | 变更                                                                       | 依据                                    |
+| ---- | -------------------------------------------------------------------------- | --------------------------------------- |
+| R-6  | 新增阶段 0：CorrectionStore Service（临时记忆钩子），阶段 A/B 的公共子模块 | 调研 §9 三模式钩子 + 存纠正不存错误原则 |
+| R-7  | settleTool 扩展流程增加纠正拦截（advisory）+ 纠正记录（settle 后）         | 调研 §9.3 模式 1/2                      |
+| R-8  | 新增用户纠正提取入口：`SessionInput.admit` 路径                            | 调研 §9.6 入口边界定案                  |
+| R-9  | 新增敏感内容安全处理：白名单提取 + 敏感模式拒绝 + L3 脱敏                  | 调研 §9.7                               |
+| R-10 | 纠正过期策略定案：TTL 衰减 + 用户纠正豁免                                  | 调研 §9.6                               |
+| R-11 | 拦截模式定案：advisory 不 blocking                                         | 调研 §9.6                               |
+| R-12 | ConfigMeta 扩展加 `correction_store` + `session_memory` 字段               | 本计划 §3.6                             |
 
 ### 0.1 v2 修订记录（保留）
 
-| 编号 | 问题 | 修正 |
-|---|---|---|
-| R-1 | v1 写"验证机制挂 lifecycle-hooks"，但 `PostToolUseHook` 返回 `Effect<void>`，是纯观察者 | 改为 **Context.Service + Layer，集成到 runner `settleTool`**（同 doom_loop 模式） |
-| R-2 | v1 写"经 ToolFailure.message 通道注入模型"，但 postToolUse 被 `Effect.ignore` 调用 | 改为在 `settleTool` 内直接 **augment `Settlement.result.value`** |
-| R-3 | v1 写"runner layer 中注册 postToolUse 钩子"，但 hooks 是模块级数组，非 Service | 改为 `Layer.effect` + `Context.Service`（Location-scoped） |
-| R-4 | v1 写"新建 `config/verifier.ts` 独立模块" | 改为 **verifier 配置挂在 `ConfigMeta.Info` 下** |
-| R-5 | v1 的 lifecycle-hooks 行声称"已注册"但实际只有 plugin host 注册了钩子 | 修正描述 |
+| 编号 | 问题                                                                                    | 修正                                                                              |
+| ---- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| R-1  | v1 写"验证机制挂 lifecycle-hooks"，但 `PostToolUseHook` 返回 `Effect<void>`，是纯观察者 | 改为 **Context.Service + Layer，集成到 runner `settleTool`**（同 doom_loop 模式） |
+| R-2  | v1 写"经 ToolFailure.message 通道注入模型"，但 postToolUse 被 `Effect.ignore` 调用      | 改为在 `settleTool` 内直接 **augment `Settlement.result.value`**                  |
+| R-3  | v1 写"runner layer 中注册 postToolUse 钩子"，但 hooks 是模块级数组，非 Service          | 改为 `Layer.effect` + `Context.Service`（Location-scoped）                        |
+| R-4  | v1 写"新建 `config/verifier.ts` 独立模块"                                               | 改为 **verifier 配置挂在 `ConfigMeta.Info` 下**                                   |
+| R-5  | v1 的 lifecycle-hooks 行声称"已注册"但实际只有 plugin host 注册了钩子                   | 修正描述                                                                          |
 
 ### 0.2 与 harness-7-layer-hardening.md 的关系
 
-| 波次 | 内容 | 状态 |
-|---|---|---|
-| 1a · V2 doom_loop 检测器 | `session/doom-loop.ts` + PermissionV2 接入 | ✅ 已合入 main |
-| 1b · Memory 服务 | `agent/meta/memory.ts` + `meta_agent_memory` 表 + SystemContext 注入 | ✅ 已合入 main |
-| 2 · 验证执行器 + 散文报错 | `session/verifier.ts`（未落地） | ❌ **本计划阶段 B 实施** |
-| 3 · 执行计划写盘 | `exec-plan-driver.ts`（未落地） | ⏳ 本计划不覆盖 |
+| 波次                      | 内容                                                                 | 状态                     |
+| ------------------------- | -------------------------------------------------------------------- | ------------------------ |
+| 1a · V2 doom_loop 检测器  | `session/doom-loop.ts` + PermissionV2 接入                           | ✅ 已合入 main           |
+| 1b · Memory 服务          | `agent/meta/memory.ts` + `meta_agent_memory` 表 + SystemContext 注入 | ✅ 已合入 main           |
+| 2 · 验证执行器 + 散文报错 | `session/verifier.ts`（未落地）                                      | ❌ **本计划阶段 B 实施** |
+| 3 · 执行计划写盘          | `exec-plan-driver.ts`（未落地）                                      | ⏳ 本计划不覆盖          |
 
 ---
 
@@ -68,34 +68,34 @@
 
 ### 1.3 智能体边界
 
-| 阶段 | 适用范围 | 依据 |
-|---|---|---|
+| 阶段              | 适用范围       | 依据                                                    |
+| ----------------- | -------------- | ------------------------------------------------------- |
 | 0 CorrectionStore | **所有智能体** | 集成到 runner settleTool + SessionInput.admit，全局生效 |
-| A 引用校验器 | **所有智能体** | settleTool 后置校验，任何 agent 编辑文件后触发 |
-| B 验证执行器 | **所有智能体** | code_modification 意图触发，不区分 agent |
-| C 反向引用注入 | **所有智能体** | SystemContext 源对所有会话生效 |
-| D PGE 动态路由 | **仅元智能体** | L1/L2 复用 task 委派 + judgeMerge，只有元智能体有委派权 |
+| A 引用校验器      | **所有智能体** | settleTool 后置校验，任何 agent 编辑文件后触发          |
+| B 验证执行器      | **所有智能体** | code_modification 意图触发，不区分 agent                |
+| C 反向引用注入    | **所有智能体** | SystemContext 源对所有会话生效                          |
+| D PGE 动态路由    | **仅元智能体** | L1/L2 复用 task 委派 + judgeMerge，只有元智能体有委派权 |
 
 ---
 
 ## 2. 已就绪基座（全部复用，不新建）
 
-| 能力 | 位置 | 状态 |
-|---|---|---|
-| **DoomLoop Service 集成模式** | `session/doom-loop.ts` + `runner/llm.ts:125,164-210` + `location-layer.ts:169` | ✅ **阶段 0/A/B 的挂载范式** |
-| **SystemContext update 通道** | `context-epoch.ts:72`（Updated 分支返回 stored.baseline 不变，走 ContextUpdated 事件） | ✅ **阶段 0 注入通道（零缓存影响）** |
-| lifecycle-hooks | `tool/lifecycle-hooks.ts` | ✅ 插件扩展点，内置验证不挂此处 |
-| Ripgrep 服务 | `ripgrep.ts`（`find`/`grep`/`glob`） | ✅ Location-scoped |
-| SystemContext 管道 | `system-context/{index,registry,builtins}.ts` | ✅ 注册新源用 `SystemContextRegistry.register` |
-| SystemContext 降级模式 | `builtins.ts` Memory 源（`Effect.serviceOption`） | ✅ 阶段 C 复用 |
-| SessionInput.admit | `session/input.ts:51`（用户消息唯一入口） | ✅ **阶段 0 用户纠正提取入口** |
-| ConfigMeta | `config/meta.ts`（`Memory` + `DoomLoop`） | ✅ `Config.Info` 在 `config.ts:94` 挂载；**阶段 0/A/B/C 扩展** |
-| judge 仲裁 | `agent/judge.ts`（`judgeMerge`） | ✅ 阶段 D 复用 |
-| task 委派 | `tool/task.ts` + `task-driver-fill.ts` | ✅ 阶段 D 复用 |
-| 意图分类 | `agent/meta/intent.ts`（`classify`） | ✅ 7 类已定义 |
-| EventV2 事件流 | `session/event.ts` | ✅ 新事件用 `EventV2.define` |
-| AppProcess 服务 | `process.ts`（`AppProcess.run`） | ✅ 子进程执行 |
-| core 测试基础设施 | `test/lib/effect.ts`（`it.effect` + `it.live` + `testEffect`） | ✅ 无 `it.instance` |
+| 能力                          | 位置                                                                                   | 状态                                                           |
+| ----------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| **DoomLoop Service 集成模式** | `session/doom-loop.ts` + `runner/llm.ts:125,164-210` + `location-layer.ts:169`         | ✅ **阶段 0/A/B 的挂载范式**                                   |
+| **SystemContext update 通道** | `context-epoch.ts:72`（Updated 分支返回 stored.baseline 不变，走 ContextUpdated 事件） | ✅ **阶段 0 注入通道（零缓存影响）**                           |
+| lifecycle-hooks               | `tool/lifecycle-hooks.ts`                                                              | ✅ 插件扩展点，内置验证不挂此处                                |
+| Ripgrep 服务                  | `ripgrep.ts`（`find`/`grep`/`glob`）                                                   | ✅ Location-scoped                                             |
+| SystemContext 管道            | `system-context/{index,registry,builtins}.ts`                                          | ✅ 注册新源用 `SystemContextRegistry.register`                 |
+| SystemContext 降级模式        | `builtins.ts` Memory 源（`Effect.serviceOption`）                                      | ✅ 阶段 C 复用                                                 |
+| SessionInput.admit            | `session/input.ts:51`（用户消息唯一入口）                                              | ✅ **阶段 0 用户纠正提取入口**                                 |
+| ConfigMeta                    | `config/meta.ts`（`Memory` + `DoomLoop`）                                              | ✅ `Config.Info` 在 `config.ts:94` 挂载；**阶段 0/A/B/C 扩展** |
+| judge 仲裁                    | `agent/judge.ts`（`judgeMerge`）                                                       | ✅ 阶段 D 复用                                                 |
+| task 委派                     | `tool/task.ts` + `task-driver-fill.ts`                                                 | ✅ 阶段 D 复用                                                 |
+| 意图分类                      | `agent/meta/intent.ts`（`classify`）                                                   | ✅ 7 类已定义                                                  |
+| EventV2 事件流                | `session/event.ts`                                                                     | ✅ 新事件用 `EventV2.define`                                   |
+| AppProcess 服务               | `process.ts`（`AppProcess.run`）                                                       | ✅ 子进程执行                                                  |
+| core 测试基础设施             | `test/lib/effect.ts`（`it.effect` + `it.live` + `testEffect`）                         | ✅ 无 `it.instance`                                            |
 
 ---
 
@@ -152,10 +152,10 @@
 export class Info extends Schema.Class<Info>("ConfigV2.Meta")({
   memory: Memory.pipe(Schema.optional),
   doom_loop: DoomLoop.pipe(Schema.optional),
-  reference_check: ReferenceCheck.pipe(Schema.optional),   // 阶段 A
-  verifier: Verifier.pipe(Schema.optional),                 // 阶段 B/D
-  reverse_refs: ReverseRefs.pipe(Schema.optional),          // 阶段 C
-  correction_store: CorrectionStore.pipe(Schema.optional),  // 阶段 0
+  reference_check: ReferenceCheck.pipe(Schema.optional), // 阶段 A
+  verifier: Verifier.pipe(Schema.optional), // 阶段 B/D
+  reverse_refs: ReverseRefs.pipe(Schema.optional), // 阶段 C
+  correction_store: CorrectionStore.pipe(Schema.optional), // 阶段 0
 }) {}
 ```
 
@@ -172,11 +172,11 @@ export class Info extends Schema.Class<Info>("ConfigV2.Meta")({
 
 ### 3.9 DA8 · 纠正过期：TTL 衰减 + 用户纠正豁免
 
-| 来源 | TTL | 拦截参与 | 注入参与 |
-|---|---|---|---|
-| L1 检测器 | 10 轮后退出拦截 | ✅ 10 轮内 | ✅ 直到 FIFO 驱逐 |
-| L2 用户纠正 | 不过期 | ✅ 永久（session 内） | ✅ 直到 FIFO 驱逐 |
-| L3 原文回退 | 5 轮后移除 | ❌ | ✅ 5 轮内 |
+| 来源        | TTL             | 拦截参与              | 注入参与          |
+| ----------- | --------------- | --------------------- | ----------------- |
+| L1 检测器   | 10 轮后退出拦截 | ✅ 10 轮内            | ✅ 直到 FIFO 驱逐 |
+| L2 用户纠正 | 不过期          | ✅ 永久（session 内） | ✅ 直到 FIFO 驱逐 |
+| L3 原文回退 | 5 轮后移除      | ❌                    | ✅ 5 轮内         |
 
 不做验证成功自动清除（验证成功 ≠ 纠正已内化，映射不精确）。
 
@@ -197,11 +197,12 @@ export class Info extends Schema.Class<Info>("ConfigV2.Meta")({
 
 ## 4. 分阶段实施
 
-### 阶段 0 · CorrectionStore Service（3-4 天*）
+### 阶段 0 · CorrectionStore Service（3-4 天\*）
 
 **范围**：`session/correction-store.ts` + `system-context/correction-facts.ts` + `session/correction-extractor.ts` + config + settleTool 集成 + admit 集成
 
 **设计**：
+
 - 服务结构：`Context.Service` + `Layer.effect`（Location-scoped），内部 `Ref<Map<SessionSchema.ID, CorrectionEntry[]>>`
 - 三模式：
   - 记录（`record(sessionID, entry)`）：被阶段 A/B 调用
@@ -217,6 +218,7 @@ export class Info extends Schema.Class<Info>("ConfigV2.Meta")({
 - FIFO 容量：20 条/session，超出驱逐最老条目
 
 **文件清单**：
+
 ```
 packages/core/src/session/correction-store.ts           新建：CorrectionStore Service（Context.Service + Layer.effect）
 packages/core/src/session/correction-extractor.ts        新建：用户纠正提取（模式匹配 + 白名单 + 敏感拒绝）
@@ -231,20 +233,23 @@ packages/core/test/system-context-correction-facts.test.ts 新建（TDD：enable
 ```
 
 **TDD 工作流**：
+
 1. **红**：`correction-store.test.ts`（record 写入 + 按 sessionID 隔离 + FIFO 20 条驱逐 + TTL 10 轮后退出拦截 + advisory 不 blocking）；`correction-extractor.test.ts`（"不对，路径是 ./bar 不是 ./foo" -> 提取 `wrong=./foo, correct=./bar`；"sk-xxx" -> 拒绝存储；无白名单匹配 -> L3 原文回退 + 敏感扫描）；`system-context-correction-facts.test.ts`（空库 -> baseline "No verified facts"；有纠正 -> "Verified facts:\n- ..."）
 2. **绿**：CorrectionStore + Extractor + SystemContext 源 + config + runner/admit 集成
 3. **重构**：白名单和黑名单模式提取为常量表；TTL 检查提取为 helper
 4. **退出**：三测试文件全绿 + typecheck
 
-### 阶段 A · 引用完整性校验器（2-3 天*）
+### 阶段 A · 引用完整性校验器（2-3 天\*）
 
 **范围**：`session/reference-checker.ts` + config + runner 集成 + CorrectionStore 写入
 
 **设计**：
+
 - 同 v2，新增：检测到悬空引用时调用 `correctionStore.record(sessionID, { key, correct, wrong, source: "reference-checker", extractLayer: 1 })`
 - augment `result.value`（一次性错误反馈）+ 写入 CorrectionStore（持久化正确方向）
 
 **文件清单**：
+
 ```
 packages/core/src/session/reference-checker.ts        新建：ReferenceChecker Service
 packages/core/src/config/meta.ts                       扩展：加 ReferenceCheck Schema class
@@ -253,15 +258,17 @@ packages/core/src/location-layer.ts                   扩展：ReferenceChecker.
 packages/core/test/reference-checker.test.ts           新建（TDD）
 ```
 
-### 阶段 B · 验证执行器 + 散文报错（5-8 天*）
+### 阶段 B · 验证执行器 + 散文报错（5-8 天\*）
 
 **范围**：`session/verifier.ts` + `session/verifier-prose.ts` + config + runner + EventV2 + CorrectionStore 写入
 
 **设计**：
+
 - 同 v2，新增：验证失败时调用 `correctionStore.record(sessionID, { key, correct, wrong, source: "verifier", extractLayer: 1 })`；验证成功时标记相关纠正为 "confirmed"
 - 事件：`session.next.verify.started` / `verify.passed` / `verify.failed`
 
 **文件清单**：
+
 ```
 packages/core/src/session/verifier.ts                 新建：Verifier Service
 packages/core/src/session/verifier-prose.ts            新建：散文映射表
@@ -274,13 +281,13 @@ packages/core/test/verifier-prose.test.ts              新建（TDD）
 packages/core/test/session-runner-verifier.test.ts     新建（集成）
 ```
 
-### 阶段 C · 反向引用注入（3-4 天*）
+### 阶段 C · 反向引用注入（3-4 天\*）
 
 **范围**：`system-context/reverse-refs.ts` + config + builtins 注册
 
 **设计**：同 v2，无变化。
 
-### 阶段 D · PGE 动态路由（4-6 天*，依赖阶段 B 完成）
+### 阶段 D · PGE 动态路由（4-6 天\*，依赖阶段 B 完成）
 
 **范围**：`session/verification-router.ts` + 升级路由 + config
 
@@ -291,6 +298,7 @@ packages/core/test/session-runner-verifier.test.ts     新建（集成）
 ## 5. 测试规范
 
 同 v2，新增：
+
 - CorrectionStore 测试用 `it.effect`（纯逻辑）+ `it.live`（SystemContext 注入验证）
 - correction-extractor 测试用 `it.effect`（模式匹配，表驱动：输入文本 × 期望提取结果）
 - 敏感模式拒绝测试：`sk-xxx` / `Bearer xxx` / `password=xxx` -> 拒绝存储
@@ -363,11 +371,11 @@ SessionInput.admit(sessionID, prompt)
 
 ### 8.3 缓存影响总结
 
-| 场景 | baseline | 前缀缓存 | 机制 |
-|---|---|---|---|
-| 正常轮次，纠正库无变化 | 不变 | 保留 | reconcile Unchanged |
-| 正常轮次，纠正库有新条目 | 不变 | 保留 | reconcile Updated -> ContextUpdated 事件（进 messages 不进 system） |
-| compaction 后 | 变 | break | replace 重新加载，纠正合并进新 baseline（compaction 本身 break） |
+| 场景                     | baseline | 前缀缓存 | 机制                                                                |
+| ------------------------ | -------- | -------- | ------------------------------------------------------------------- |
+| 正常轮次，纠正库无变化   | 不变     | 保留     | reconcile Unchanged                                                 |
+| 正常轮次，纠正库有新条目 | 不变     | 保留     | reconcile Updated -> ContextUpdated 事件（进 messages 不进 system） |
+| compaction 后            | 变       | break    | replace 重新加载，纠正合并进新 baseline（compaction 本身 break）    |
 
 ---
 
@@ -390,15 +398,15 @@ SessionInput.admit(sessionID, prompt)
 
 ## 10. 风险与缓解
 
-| 风险 | 概率 | 影响 | 缓解 |
-|---|---|---|---|
-| advisory 拦截误报 | 中 | 模型看到不必要的 warning | warning 格式含"如确需使用旧值请忽略此提醒"；advisory 不 blocking |
-| 纠正库累积导致 SystemContext 注入过长 | 低 | 上下文 token 消耗 | FIFO 20 条上限 + 注入格式简短（正向事实比错误历史短） |
-| 用户纠正提取模式覆盖不全 | 中 | 部分纠正未被提取 | L3 原文回退兜底（不丢失信息，只是无拦截能力） |
-| 敏感内容遗漏（黑名单不全） | 低 | 敏感信息进入 LLM 请求 | 白名单提取优先（只存技术模式）；黑名单是第二道防线；L3 原文做敏感扫描 |
-| settleTool 延迟叠加（advisory + reference + verify） | 中 | 整 turn 延迟增加 | advisory 微秒级；reference 5s 超时；verify 60s 超时；各自独立 `Effect.catchAll` 兜底 |
-| compaction 后纠正合并进 baseline 导致 system prompt 变长 | 低 | 前缀变长 | FIFO 20 条上限；compaction 后 baseline 重算是预期行为 |
-| correction-extractor 在 admit 中阻塞 | 低 | 用户消息延迟 | 提取是内存操作（模式匹配 + Ref 写入），微秒级；worst case 可改为 `Effect.fork` |
+| 风险                                                     | 概率 | 影响                     | 缓解                                                                                 |
+| -------------------------------------------------------- | ---- | ------------------------ | ------------------------------------------------------------------------------------ |
+| advisory 拦截误报                                        | 中   | 模型看到不必要的 warning | warning 格式含"如确需使用旧值请忽略此提醒"；advisory 不 blocking                     |
+| 纠正库累积导致 SystemContext 注入过长                    | 低   | 上下文 token 消耗        | FIFO 20 条上限 + 注入格式简短（正向事实比错误历史短）                                |
+| 用户纠正提取模式覆盖不全                                 | 中   | 部分纠正未被提取         | L3 原文回退兜底（不丢失信息，只是无拦截能力）                                        |
+| 敏感内容遗漏（黑名单不全）                               | 低   | 敏感信息进入 LLM 请求    | 白名单提取优先（只存技术模式）；黑名单是第二道防线；L3 原文做敏感扫描                |
+| settleTool 延迟叠加（advisory + reference + verify）     | 中   | 整 turn 延迟增加         | advisory 微秒级；reference 5s 超时；verify 60s 超时；各自独立 `Effect.catchAll` 兜底 |
+| compaction 后纠正合并进 baseline 导致 system prompt 变长 | 低   | 前缀变长                 | FIFO 20 条上限；compaction 后 baseline 重算是预期行为                                |
+| correction-extractor 在 admit 中阻塞                     | 低   | 用户消息延迟             | 提取是内存操作（模式匹配 + Ref 写入），微秒级；worst case 可改为 `Effect.fork`       |
 
 ---
 

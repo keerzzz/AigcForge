@@ -191,16 +191,19 @@ const resolve = (state: Ref.Ref<Interface | undefined>) =>
 const proxy = (state: Ref.Ref<Interface | undefined>): Interface => ({
   createChild: (input) => resolve(state).pipe(Effect.flatMap((implementation) => implementation.createChild(input))),
   delegate: (input) => resolve(state).pipe(Effect.flatMap((implementation) => implementation.delegate(input))),
-  delegateJudge: (input) => resolve(state).pipe(Effect.flatMap((implementation) => implementation.delegateJudge(input))),
+  delegateJudge: (input) =>
+    resolve(state).pipe(Effect.flatMap((implementation) => implementation.delegateJudge(input))),
   cancel: (sessionID) => resolve(state).pipe(Effect.flatMap((implementation) => implementation.cancel(sessionID))),
   delegateBackground: (input) =>
     resolve(state).pipe(Effect.flatMap((implementation) => implementation.delegateBackground(input))),
   extendBackground: (input) =>
     resolve(state).pipe(Effect.flatMap((implementation) => implementation.extendBackground(input))),
-  interrupt: (sessionID) => resolve(state).pipe(Effect.flatMap((implementation) => implementation.interrupt(sessionID))),
+  interrupt: (sessionID) =>
+    resolve(state).pipe(Effect.flatMap((implementation) => implementation.interrupt(sessionID))),
   isChildSession: (sessionID) =>
     resolve(state).pipe(Effect.flatMap((implementation) => implementation.isChildSession(sessionID))),
-  sessionMode: (sessionID) => resolve(state).pipe(Effect.flatMap((implementation) => implementation.sessionMode(sessionID))),
+  sessionMode: (sessionID) =>
+    resolve(state).pipe(Effect.flatMap((implementation) => implementation.sessionMode(sessionID))),
   injectSynthetic: (input) =>
     resolve(state).pipe(Effect.flatMap((implementation) => implementation.injectSynthetic(input))),
   executeCLI: (input) => resolve(state).pipe(Effect.flatMap((implementation) => implementation.executeCLI(input))),
@@ -226,10 +229,7 @@ export const initialize = (implementation: Interface) =>
   })
 
 /** Check whether the current composition root provides a TaskDriver runtime. */
-export const isInstalled = () =>
-  Runtime.pipe(
-    Effect.map((implementation) => implementation !== undefined),
-  )
+export const isInstalled = () => Runtime.pipe(Effect.map((implementation) => implementation !== undefined))
 
 const active = () =>
   Runtime.pipe(
@@ -299,11 +299,8 @@ export const sessionMode = (sessionID: SessionSchema.ID) =>
   active().pipe(Effect.flatMap((impl) => impl.sessionMode(sessionID)))
 
 /** Append a synthetic handoff through the current composition root. */
-export const injectSynthetic = (input: {
-  id?: SessionMessage.ID
-  sessionID: SessionSchema.ID
-  text: string
-}) => active().pipe(Effect.flatMap((impl) => impl.injectSynthetic(input)))
+export const injectSynthetic = (input: { id?: SessionMessage.ID; sessionID: SessionSchema.ID; text: string }) =>
+  active().pipe(Effect.flatMap((impl) => impl.injectSynthetic(input)))
 
 /** Execute a prompt against an external CLI tool through the installed adapter. */
 export const executeCLI = (input: {
@@ -692,9 +689,9 @@ export const make = (
       sessions.get(sessionID).pipe(
         Effect.map((info) => info.mode),
         Effect.catch(() =>
-          Effect.logWarning(`task-driver: session lookup failed for mode gate (${sessionID}), defaulting permissively`).pipe(
-            Effect.andThen(Effect.succeed(undefined)),
-          ),
+          Effect.logWarning(
+            `task-driver: session lookup failed for mode gate (${sessionID}), defaulting permissively`,
+          ).pipe(Effect.andThen(Effect.succeed(undefined))),
         ),
       ),
     injectSynthetic: (input) => sessions.injectSynthetic(input).pipe(Effect.orDie),

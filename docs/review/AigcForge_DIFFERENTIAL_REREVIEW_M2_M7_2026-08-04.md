@@ -7,12 +7,12 @@
 
 ## 1. Executive Summary
 
-| Result | Count |
-|---|---:|
-| Previous findings correctly closed | 7 |
-| HIGH residual/new findings | 2 |
-| MEDIUM residual/new findings | 5 |
-| Documentation/process finding | 1 |
+| Result                             | Count |
+| ---------------------------------- | ----: |
+| Previous findings correctly closed |     7 |
+| HIGH residual/new findings         |     2 |
+| MEDIUM residual/new findings       |     5 |
+| Documentation/process finding      |     1 |
 
 **Recommendation:** **REJECT / CHANGES REQUIRED**（复审结论）
 **二轮修复状态：** 上表全部 HIGH/MEDIUM/API 边界发现已逐项修复并补回归测试（见 §9「二轮修复闭环」），门禁复核见 §6 增补。复审后确认的 2 HIGH + 5 MEDIUM + API 边界均为真实问题。
@@ -21,18 +21,18 @@
 
 ## 2. Previous Findings Status
 
-| Previous finding | Status | Notes |
-|---|---|---|
-| HIGH-1 六态被四态回写 | CLOSED | 写路径改为 single-task PATCH；非目标任务不再经过四态 normalize；scheduled/cancelled 禁用 |
-| HIGH-2 UI 全列表 PATCH 丢写 | PARTIAL | Progress/Popover/Hub 已原子化；`task_schedule remove` 仍 read-modify-reconcile |
-| HIGH-3 interrupt orphan | PARTIAL | startup recover 可重新排队；仍为未声明的 at-least-once、存在重复副作用窗口 |
-| HIGH-4 scheduled 无 trigger | CLOSED | update/append/patch 领域守卫已覆盖；HTTP 映射 400 |
-| HIGH-5 task_spawn 契约 | CLOSED | tool/input 明确“仅记录、不执行” |
-| MEDIUM-1 跨 session cycle | PARTIAL | update 路径正确；append 检查仍在 transaction 外 |
-| MEDIUM-2 cron 性能 | PERFORMANCE CLOSED | 字段跳转有效；搜索窗口语义与文档不一致 |
-| MEDIUM-3 Hub stale bucket | PARTIAL | 能清 absent bucket；但跨目录和 event/response 竞争未处理 |
-| GATE-1 lint | CLOSED | independent `bun run lint` exit 0 |
-| Previous date gate | CLOSED | 当前日期已是 2026-08-04，无未来日期问题 |
+| Previous finding            | Status             | Notes                                                                                    |
+| --------------------------- | ------------------ | ---------------------------------------------------------------------------------------- |
+| HIGH-1 六态被四态回写       | CLOSED             | 写路径改为 single-task PATCH；非目标任务不再经过四态 normalize；scheduled/cancelled 禁用 |
+| HIGH-2 UI 全列表 PATCH 丢写 | PARTIAL            | Progress/Popover/Hub 已原子化；`task_schedule remove` 仍 read-modify-reconcile           |
+| HIGH-3 interrupt orphan     | PARTIAL            | startup recover 可重新排队；仍为未声明的 at-least-once、存在重复副作用窗口               |
+| HIGH-4 scheduled 无 trigger | CLOSED             | update/append/patch 领域守卫已覆盖；HTTP 映射 400                                        |
+| HIGH-5 task_spawn 契约      | CLOSED             | tool/input 明确“仅记录、不执行”                                                          |
+| MEDIUM-1 跨 session cycle   | PARTIAL            | update 路径正确；append 检查仍在 transaction 外                                          |
+| MEDIUM-2 cron 性能          | PERFORMANCE CLOSED | 字段跳转有效；搜索窗口语义与文档不一致                                                   |
+| MEDIUM-3 Hub stale bucket   | PARTIAL            | 能清 absent bucket；但跨目录和 event/response 竞争未处理                                 |
+| GATE-1 lint                 | CLOSED             | independent `bun run lint` exit 0                                                        |
+| Previous date gate          | CLOSED             | 当前日期已是 2026-08-04，无未来日期问题                                                  |
 
 ## 3. Blocking Findings
 
@@ -55,6 +55,7 @@ remove 仍执行：
 ### HIGH-2: append 的跨 session cycle check 不在事务内，并发 POST 可绕过拒环
 
 **Files:**
+
 - `packages/core/src/session/task.ts:505-540`
 - `packages/aigcfroge/src/server/routes/instance/httpapi/groups/session.ts:228-236`
 
@@ -74,6 +75,7 @@ remove 仍执行：
 ### MEDIUM-1: POST create 在非空 Session 中返回错误的 task
 
 **Files:**
+
 - `packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts:180-197`
 - `packages/core/src/session/task.ts:574-581`
 
@@ -86,6 +88,7 @@ remove 仍执行：
 ### MEDIUM-2: 单项 DELETE 留下 position 空洞，后续 append 可产生重复 position
 
 **Files:**
+
 - `packages/core/src/session/task.ts:543-573`
 - `packages/core/src/session/task.ts:706-717`
 
@@ -106,6 +109,7 @@ append 用 `existing.length` 作为起始 position。删除中间项后，例如
 ### MEDIUM-4: cron 的“365-day search window”已被改变但文档仍称保持不变
 
 **Files:**
+
 - `packages/core/src/session/schedule.ts:80-126`
 - `packages/core/test/schedule.test.ts:55-58`
 - `specs/v2/todo.md` M3 fix record

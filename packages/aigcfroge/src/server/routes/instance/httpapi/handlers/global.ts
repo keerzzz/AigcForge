@@ -65,17 +65,13 @@ function eventResponse(events: EventV2.Interface) {
         Effect.sync(() => GlobalBus.on("event", handler)),
         () => Effect.sync(() => GlobalBus.off("event", handler)),
       )
-    }).pipe(
-      Stream.filter((e) => isEventSupported(e.payload.properties)),
-    )
+    }).pipe(Stream.filter((e) => isEventSupported(e.payload.properties)))
     const v2Queue = yield* Queue.unbounded<GlobalBusEvent>()
     const unsubscribe = yield* events.listen((event) =>
       Effect.sync(() => Queue.offerUnsafe(v2Queue, globalEventFromV2(event))),
     )
     yield* Effect.addFinalizer(() => unsubscribe)
-    const v2Events = Stream.fromQueue(v2Queue).pipe(
-      Stream.filter((e) => isEventSupported(e.payload.properties)),
-    )
+    const v2Events = Stream.fromQueue(v2Queue).pipe(Stream.filter((e) => isEventSupported(e.payload.properties)))
     const heartbeat = Stream.tick("10 seconds").pipe(
       Stream.drop(1),
       Stream.map(() => ({

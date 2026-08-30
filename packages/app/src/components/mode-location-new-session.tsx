@@ -59,7 +59,9 @@ export function ModeLocationNewSession(props: { directory: Accessor<string | und
         <Icon name={`mode-${props.mode}`} size="small" class="shrink-0 text-v2-icon-icon-muted" />
         <span class="shrink-0 text-v2-text-text-muted text-11-regular">{language.t("chat.feature.project")}</span>
         <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-11-regular">
-          {props.directory() ? getFilename(props.directory()) || props.directory() : language.t("work.preset.noLocation")}
+          {props.directory()
+            ? getFilename(props.directory()) || props.directory()
+            : language.t("work.preset.noLocation")}
         </span>
         <IconButtonV2
           variant="ghost-muted"

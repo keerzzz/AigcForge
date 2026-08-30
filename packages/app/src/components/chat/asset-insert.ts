@@ -26,14 +26,19 @@ export function assetKindDir(kind: AssetKindId) {
 
 /** 按 kind 调对应 content API，返回注入 Composer 的文本。 */
 export async function fetchAssetInsertText(client: DirectorySDK["client"], kind: AssetKindId, path: string) {
-  if (kind === "prompt") return (await client.promptAsset.content({ path }, { throwOnError: true })).data?.template ?? ""
+  if (kind === "prompt")
+    return (await client.promptAsset.content({ path }, { throwOnError: true })).data?.template ?? ""
   if (kind === "skill") return (await client.skillAsset.content({ path }, { throwOnError: true })).data?.content ?? ""
   if (kind === "mcp") return (await client.mcpAsset.content({ path }, { throwOnError: true })).data?.configJson ?? ""
-  if (kind === "command") return (await client.commandAsset.content({ path }, { throwOnError: true })).data?.source ?? ""
+  if (kind === "command")
+    return (await client.commandAsset.content({ path }, { throwOnError: true })).data?.source ?? ""
   if (kind === "agent") return (await client.agentAsset.content({ path }, { throwOnError: true })).data?.source ?? ""
-  if (kind === "workflow") return JSON.stringify((await client.workflowAsset.content({ path }, { throwOnError: true })).data, null, 2) ?? ""
-  if (kind === "plugin") return JSON.stringify((await client.pluginAsset.content({ path }, { throwOnError: true })).data, null, 2) ?? ""
-  if (kind === "custom-profile") return (await client.customProfile.content({ path }, { throwOnError: true })).data?.rawYaml ?? ""
+  if (kind === "workflow")
+    return JSON.stringify((await client.workflowAsset.content({ path }, { throwOnError: true })).data, null, 2) ?? ""
+  if (kind === "plugin")
+    return JSON.stringify((await client.pluginAsset.content({ path }, { throwOnError: true })).data, null, 2) ?? ""
+  if (kind === "custom-profile")
+    return (await client.customProfile.content({ path }, { throwOnError: true })).data?.rawYaml ?? ""
   return ""
 }
 
@@ -87,22 +92,13 @@ export async function applyAssetCandidate(
     )
   }
   if (candidate.kind === "workflow") {
-    return client.workflowAsset.apply(
-      { ...shared, candidate: candidate.candidate },
-      { throwOnError: true },
-    )
+    return client.workflowAsset.apply({ ...shared, candidate: candidate.candidate }, { throwOnError: true })
   }
   if (candidate.kind === "plugin") {
-    return client.pluginAsset.apply(
-      { ...shared, candidate: candidate.candidate },
-      { throwOnError: true },
-    )
+    return client.pluginAsset.apply({ ...shared, candidate: candidate.candidate }, { throwOnError: true })
   }
   if (candidate.kind === "custom-profile") {
-    return client.customProfile.apply(
-      { ...shared, candidate: candidate.candidate },
-      { throwOnError: true },
-    )
+    return client.customProfile.apply({ ...shared, candidate: candidate.candidate }, { throwOnError: true })
   }
   return client.promptAsset.apply(
     { ...shared, candidate: { ...candidate.candidate, relativePath: candidate.relativePath } },

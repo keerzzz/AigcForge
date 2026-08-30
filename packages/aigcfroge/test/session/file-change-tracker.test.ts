@@ -13,8 +13,7 @@ describe("FileChangeTracker", () => {
       const tracker = yield* FileChangeTracker.make
       const changed = yield* tracker.hasChanges()
       expect(changed).toBe(false)
-    }).pipe(Effect.runPromise),
-  )
+    }).pipe(Effect.runPromise))
 
   test("should handle missing file gracefully", () =>
     Effect.gen(function* () {
@@ -22,8 +21,7 @@ describe("FileChangeTracker", () => {
       tracker.registerPath("/tmp/nonexistent_xyz_test")
       const changed = yield* tracker.hasChanges()
       expect(changed).toBe(false)
-    }).pipe(Effect.runPromise),
-  )
+    }).pipe(Effect.runPromise))
 
   test("should detect file modification", () =>
     Effect.gen(function* () {
@@ -36,8 +34,7 @@ describe("FileChangeTracker", () => {
       yield* write(testFile, "longer content here")
       const changed = yield* tracker.hasChanges()
       expect(changed).toBe(true)
-    }).pipe(Effect.runPromise),
-  )
+    }).pipe(Effect.runPromise))
 
   test("should report no change for unmodified file", () =>
     Effect.gen(function* () {
@@ -51,6 +48,5 @@ describe("FileChangeTracker", () => {
       yield* tracker.refresh()
       const changed = yield* tracker.hasChanges()
       expect(changed).toBe(false)
-    }).pipe(Effect.runPromise),
-  )
+    }).pipe(Effect.runPromise))
 })

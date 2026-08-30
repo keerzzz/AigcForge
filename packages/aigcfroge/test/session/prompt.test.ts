@@ -2372,8 +2372,7 @@ it.instance(
         llm.hits.pipe(
           Effect.map(
             (hits) =>
-              hits.filter((hit) => JSON.stringify(hit.body).includes("Generate a title for this conversation"))
-                .length,
+              hits.filter((hit) => JSON.stringify(hit.body).includes("Generate a title for this conversation")).length,
           ),
         )
 
@@ -2467,9 +2466,7 @@ it.instance(
       yield* pollWithTimeout(
         Effect.gen(function* () {
           const inputs = yield* llm.inputs
-          const hasTier = inputs.some((body) =>
-            JSON.stringify(body?.messages ?? []).includes("Permission tier: full"),
-          )
+          const hasTier = inputs.some((body) => JSON.stringify(body?.messages ?? []).includes("Permission tier: full"))
           return hasTier ? (true as const) : undefined
         }),
         "meta turn with permission tier never reached the LLM",

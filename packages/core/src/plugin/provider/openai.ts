@@ -253,18 +253,20 @@ function base64UrlEncode(buffer: ArrayBuffer) {
 }
 
 function authorizeURL(redirect: string, pkce: Pkce, state: string) {
-  return `${issuer}/oauth/authorize?${String(new URLSearchParams({
-    response_type: "code",
-    client_id: clientID,
-    redirect_uri: redirect,
-    scope: "openid profile email offline_access",
-    code_challenge: pkce.challenge,
-    code_challenge_method: "S256",
-    id_token_add_organizations: "true",
-    codex_cli_simplified_flow: "true",
-    state,
-    originator: "aigcfroge",
-  }))}`
+  return `${issuer}/oauth/authorize?${String(
+    new URLSearchParams({
+      response_type: "code",
+      client_id: clientID,
+      redirect_uri: redirect,
+      scope: "openid profile email offline_access",
+      code_challenge: pkce.challenge,
+      code_challenge_method: "S256",
+      id_token_add_organizations: "true",
+      codex_cli_simplified_flow: "true",
+      state,
+      originator: "aigcfroge",
+    }),
+  )}`
 }
 
 function extractAccountID(tokens: TokenResponse) {

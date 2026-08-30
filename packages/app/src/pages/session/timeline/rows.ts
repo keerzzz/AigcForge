@@ -232,9 +232,7 @@ export namespace Timeline {
       rows.push(
         new TimelineRow.Error({
           userMessageID: userMessage.id,
-          text: unwrapErrorMessage(
-            typeof data === "string" ? data : data == null ? "" : JSON.stringify(data, null, 2),
-          ),
+          text: unwrapErrorMessage(typeof data === "string" ? data : data == null ? "" : JSON.stringify(data, null, 2)),
         }),
       )
     }

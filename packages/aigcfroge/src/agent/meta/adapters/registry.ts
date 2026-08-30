@@ -1,10 +1,6 @@
 import { Context, Effect, Layer } from "effect"
 import { LayerNode } from "@aigcfroge/core/effect/layer-node"
-import {
-  getCliAdapter,
-  listCliAdapters,
-  registerCliAdapter,
-} from "@aigcfroge/core/tool/cli-adapter"
+import { getCliAdapter, listCliAdapters, registerCliAdapter } from "@aigcfroge/core/tool/cli-adapter"
 import { adapter as claudeCodeAdapter } from "@aigcfroge/core/tool/claude-code"
 import { adapter as geminiAdapter } from "@aigcfroge/core/tool/gemini"
 import { adapter as codexAdapter } from "@aigcfroge/core/tool/codex"
@@ -64,12 +60,10 @@ export const layer = Layer.effect(
         const results = yield* Effect.forEach(
           listCliAdapters(),
           (adapter) =>
-            adapter
-              .detect()
-              .pipe(
-                Effect.map((available) => ({ adapter, available })),
-                Effect.catch(() => Effect.succeed({ adapter, available: false as const })),
-              ),
+            adapter.detect().pipe(
+              Effect.map((available) => ({ adapter, available })),
+              Effect.catch(() => Effect.succeed({ adapter, available: false as const })),
+            ),
           { concurrency: "unbounded" },
         )
         return results.filter((r) => r.available).map((r) => r.adapter)

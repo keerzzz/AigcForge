@@ -448,6 +448,7 @@ LINT_BASE_REF=origin/main bun run script/lint-changed.ts
 ```
 
 审批重点三项（这轮审计恰好暴露了这三处最容易造假）：
+
 1. **红证是真的吗** —— 要求贴出「未改代码时该测试失败」的原始输出。S2 那批缺 `await` 的教训就是：
    断言写了但从不执行，`bun test` 报绿、`no-floating-promises` 开着也看不见。
 2. **修的是根因还是现象** —— S1 交上来「在覆写里补 escapeHtml」而不是「删覆写」、或「在 core 补两个
@@ -470,6 +471,7 @@ LINT_BASE_REF=origin/main bun run script/lint-changed.ts
 `katex.min.css`。**已申报但从未实测的风险，落在一个在用功能上，不构成可以静默交付的取舍。**
 
 三条修法（按 极致减法 排序，取 2、退 1）：
+
 1. **删除**对内联 style 的依赖：KaTeX 改 `output: "mathml"`，Chromium 109+ 原生渲染 MathML，
    本仓是 Electron/Chromium，`FORBID_ATTR: ["style"]` 可原样保留。代价：数学外观变化，需真机看。
 2. **归并**到容器层而非属性层：遮罩之所以成立是 `position:fixed` 能逃出消息容器逃到视口。
@@ -477,7 +479,7 @@ LINT_BASE_REF=origin/main bun run script/lint-changed.ts
    不动 sanitizer、不伤 KaTeX，一行 CSS。**前置验证**：permission / question 面必须渲染在该容器之外。
 3. **重构**成 style 值过滤：在既有 hook 里删掉可逃逸的属性。代码最多，且是黑名单——
    与 `technical-debt.md` 里自己批评过的形状同款。
-**禁止**用 `class="katex"` 做 style 白名单豁免：class 可由 markdown 直接伪造，等于没防。
+   **禁止**用 `class="katex"` 做 style 白名单豁免：class 可由 markdown 直接伪造，等于没防。
 
 【B2 阻塞 · `"img"` 进 `FORBID_TAGS` 是未批准的范围扩张，删掉了在用功能】
 实测 `![alt](https://…)`、`![alt](data:image/png;base64,…)`、`![alt](/local/file.png)`
@@ -510,6 +512,7 @@ happy-dom          js: href after removal  <a href="javascript:alert(1)">X</a> �
 让这套测试具备真正失败的能力。
 
 【必改，非阻塞】
+
 1. **新引入 Prettier 漂移**：`packages/schema/src/credential-scan.ts` 基线上是干净的、改后变脏
    （`SECRET_PATTERN_LIST` 的类型标注超 printWidth 120）。已用 stash 比对确认。
    `message-part.tsx`/`.css` 基线上就脏，属存量，**不要动**。
@@ -520,6 +523,7 @@ happy-dom          js: href after removal  <a href="javascript:alert(1)">X</a> �
    如实写「未做」，不要归因于环境。
 
 【S1 经验补丁（S2 起追加遵守）】
+
 1. **happy-dom 的 sanitize 测试只在 payload 位于文档首位、且其前无任何元素被删除时可信。**
    任何「危险东西被剥掉了」的断言，若跑在 happy-dom 上，必须同时给出真实浏览器证据，
    或至少补一条「同 payload 挪到删除节点之后」的变体证明测试会失败。
@@ -534,6 +538,7 @@ happy-dom          js: href after removal  <a href="javascript:alert(1)">X</a> �
 5. **新增/改动文件必须过 Prettier**，即使该文件所在目录有存量漂移。用 stash 比对区分存量与新增。
 
 【S1 已确立、后续批次直接可用的契约事实】
+
 - `CredentialScan.ScanResult` **没有 HTTP 暴露面**（唯一消费方是 `core/src/credential-scanner.ts`），
   所以扩 type literals 不触发 SDK 重生成。
 - `SECRET_TYPES` → `SECRET_PATTERN_LIST` → `SECRET_PATTERNS` 已构成派生链，core 的 `Hit["type"]`
@@ -554,11 +559,11 @@ happy-dom          js: href after removal  <a href="javascript:alert(1)">X</a> �
 
 三个阻塞项按 B1/B2/B3 逐条闭环，改动叠在原交付之上（未推翻其四条根因修法）。
 
-| 项 | 修法 | 证据 |
-|---|---|---|
-| B1 | 删掉 `FORBID_ATTR: ["style"]`，改为**只摘出流能力**：hook 里用 CSSOM 判 `position ∈ {absolute,fixed,sticky}` 就 `removeProperty`（大小写自己 `toLowerCase()` 兜，不依赖实现归一化），并顺手摘 `transform`；结构层在 `markdown.css` 给 `[data-component="markdown"]` 加 `contain: layout` | 真机反向验证：加回 `FORBID_ATTR: ["style"]` → KaTeX 用例红（`styledCount` 0 vs >0）；还原到 S1 前 → 遮罩用例红（`inlinePosition` 得到 `"fixed"`） |
-| B2 | `"img"` 从 `FORBID_TAGS` 去掉；信标测试改成「图片必须保留」并注明是刻意决定，外泄面记入 `technical-debt.md` §4 | 还原到 S1 前 → form 用例红（`form` count 1 vs 0），图片用例仍绿（图片本就该保留） |
-| B3 | 新增 `packages/app/e2e/regression/markdown-sanitize.spec.ts`：真实 Chromium，一条消息同时带遮罩/公式/图片/表单，用**真实几何**断言（`getBoundingClientRect` + `getComputedStyle`），并在单测文件头写清 happy-dom 缺口 | 3 passed；且上表两次反向验证证明它会红 |
+| 项  | 修法                                                                                                                                                                                                                                                                                     | 证据                                                                                                                                              |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B1  | 删掉 `FORBID_ATTR: ["style"]`，改为**只摘出流能力**：hook 里用 CSSOM 判 `position ∈ {absolute,fixed,sticky}` 就 `removeProperty`（大小写自己 `toLowerCase()` 兜，不依赖实现归一化），并顺手摘 `transform`；结构层在 `markdown.css` 给 `[data-component="markdown"]` 加 `contain: layout` | 真机反向验证：加回 `FORBID_ATTR: ["style"]` → KaTeX 用例红（`styledCount` 0 vs >0）；还原到 S1 前 → 遮罩用例红（`inlinePosition` 得到 `"fixed"`） |
+| B2  | `"img"` 从 `FORBID_TAGS` 去掉；信标测试改成「图片必须保留」并注明是刻意决定，外泄面记入 `technical-debt.md` §4                                                                                                                                                                           | 还原到 S1 前 → form 用例红（`form` count 1 vs 0），图片用例仍绿（图片本就该保留）                                                                 |
+| B3  | 新增 `packages/app/e2e/regression/markdown-sanitize.spec.ts`：真实 Chromium，一条消息同时带遮罩/公式/图片/表单，用**真实几何**断言（`getBoundingClientRect` + `getComputedStyle`），并在单测文件头写清 happy-dom 缺口                                                                    | 3 passed；且上表两次反向验证证明它会红                                                                                                            |
 
 选 `position` 而不是整条禁 `style`，依据是实测的 KaTeX 内联属性表：13 种构造只用到
 `height / top / margin-left|right / vertical-align / border-bottom-width / min-width / width /
@@ -652,6 +657,7 @@ effect-drizzle-sqlite（7）共 775 个用例在 CI 从不执行**。所以 S2 �
 **静态面已覆盖全部包** —— 新门禁在 `bun run lint` 链路里（`ci.yml:27`）。
 
 【S2 经验补丁（S3 起追加遵守）】
+
 1. **新建门禁必须先证明它能看见"没写在同一行"的形态。** 交付前用一次与门禁无关的手段
    （raw grep 计数）交叉核对总量：本例 76 vs 63 的差额就是全部漏检。
    报告里必须给出「门禁看到的总量 = 独立手段数到的总量」这一条等式。
@@ -665,6 +671,7 @@ effect-drizzle-sqlite（7）共 775 个用例在 CI 从不执行**。所以 S2 �
    `bunx turbo test --dry=json` 里有那个包。
 
 【S2 已确立、后续批次直接可用的契约事实】
+
 - `script/check-unawaited-assertions.ts` 已在 `package.json` 的 `lint` 链路末位，CI 经 `ci.yml:27`
   的 `bun run lint` 执行；它扫 `packages/*/{src,test}` 下全部 `*.test.ts(x)`，多行链与注释都已处理。
 - `packages/desktop` **没有 `test` script**，标准命令 `bun --cwd packages/desktop test` 会报
@@ -685,6 +692,7 @@ effect-drizzle-sqlite（7）共 775 个用例在 CI 从不执行**。所以 S2 �
 并改名形参，遮蔽因此在结构上不可能再犯。
 
 红证复验（我自己 stash 还原 `event-reducer.ts` 跑的）：
+
 ```text
 Error name: "TypeError"
 (fail) does not throw when archiving a session not in local list and does not decrement total
@@ -692,6 +700,7 @@ Expected: 2  Received: 1
 (fail) does not decrement sessionTotal when deleting a session not in local list
  17 pass / 2 fail
 ```
+
 两条都因正确的原因失败。`bun --cwd packages/app test` 962 + 3 pass，typecheck 干净。
 
 顺手核了一件提示词没提的事：`target()` 的跨目录分支从死代码变成活代码后，
@@ -725,13 +734,12 @@ artifact 换成 `FileMutation.create` 让存在判定进锁；grep/glob 用 `Too
 复验：守卫在 → 5 pass；把 grep 与 glob 的守卫都删掉 → **3 fail**。
 
 【整改 2 · 笔记标题进了 defect 消息（Clean Logs）】
-新增的四处 `Effect.die(new Error(\`Note with title "${input.title}" already exists…\`))` 把标题
+新增的四处 `Effect.die(new Error(\`Note with title "${input.title}" already exists…\`))`把标题
 写进了错误消息，而**同一个文件 :253 的既有注释明确写着 "Clean Logs: no title in the message"**。
-defect 会带完整消息进日志。已改为 `A note with this title already exists in scope "…"`，
+defect 会带完整消息进日志。已改为`A note with this title already exists in scope "…"`，
 四处都不再回显标题。
-**未改、需要单独一批**：重名是用户可触发的预期条件，用 `Effect.die` 表达它意味着 HTTP 边界
-仍然吐 500（改动前撞唯一索引 `orDie` 也是 500，所以不是回归）。改成
-`Schema.TaggedErrorClass` 要动 interface 错误通道 + HTTP handler + SDK 错误面，属独立改动。
+**未改、需要单独一批**：重名是用户可触发的预期条件，用 `Effect.die`表达它意味着 HTTP 边界
+仍然吐 500（改动前撞唯一索引`orDie`也是 500，所以不是回归）。改成`Schema.TaggedErrorClass` 要动 interface 错误通道 + HTTP handler + SDK 错误面，属独立改动。
 
 【整改 3 · 两把互斥锁，"单一 owner"没真正达成】
 提示词的裁定里我写了「FileMutation 已具备全部所需原语 —— `locks.withLock(target.canonical)`」，
@@ -742,7 +750,7 @@ writeTextPreservingBom, writeIfUnchanged, remove, writeAtomic })` 没有暴露�
 实际后果（要说清，别高估也别忽略）：`kbLocks` 序列化了 KB 自己的写，
 **不覆盖** `write`/`edit`/`apply-patch` 对同一个 `.md` 的写（那些走 FileMutation 内部的锁）。
 失败形态是 KB 查到"文件不存在"→ write 工具建了它 → KB 的 writeAtomic 覆盖掉。
-窗口很窄（kb_* 现在对默认 agent 已 deny，write 要审批），所以没有强行返工。
+窗口很窄（kb\_\* 现在对默认 agent 已 deny，write 要审批），所以没有强行返工。
 已在 `kbLocks` 声明处写清这把锁保护什么、不保护什么，并指出真正的修法：
 FileMutation 需要一个「在锁内跑调用方前置检查」的组合子 ——
 **直接把 `writeAtomic` 包进外层同键锁会重入死锁**（KeyedMutex 非重入），所以这是一个
@@ -754,13 +762,15 @@ FileMutation 需要一个「在锁内跑调用方前置检查」的组合子 —
 `effectDiscard` 的 effect 跑在 layer **构建期**，等于让服务端启动阻塞在一次文件系统扫描上；
 另有 `Effect.catch(...)` 后再 `Effect.ignore` 的双重吞掉与 `String(e)` 丢结构。
 已改为 `Effect.forkIn(scope)`（照 `reference.ts:112` 的既有形状，AGENTS.md 禁 `Effect.fork`）
-+ `catchCause` 传 cause。
-**未改的局限已写进代码注释**：只扫 global 目录。project 作用域的镜像在
-`<directory>/.aigcfroge/knowledge-base` 下，而启动时不存在"当前项目"这个概念（目录由每个
-Location 决定），所以 project 侧的收敛得挂在 Location 建立时。而本批三条 KB 新测试用的全是
-`scope: "project"` —— 也就是说测试覆盖的那个作用域恰好没有兜底。这一条本该在交付时报告。
+
+- `catchCause` 传 cause。
+  **未改的局限已写进代码注释**：只扫 global 目录。project 作用域的镜像在
+  `<directory>/.aigcfroge/knowledge-base` 下，而启动时不存在"当前项目"这个概念（目录由每个
+  Location 决定），所以 project 侧的收敛得挂在 Location 建立时。而本批三条 KB 新测试用的全是
+  `scope: "project"` —— 也就是说测试覆盖的那个作用域恰好没有兜底。这一条本该在交付时报告。
 
 【留作记录，未改】
+
 1. `create` 的 `db.insert(...).values({...})` 在 `if (input.baseDir)` 与 `else` 两支各抄一份，
    `update` 的 `db.update(...).set({...})` 抄了**三份**。Reusability：两份/三份一定会漂移。
 2. 三条新 deny 规则没有理由注释，而同一段里每一组 deny 都带（"2026-08-06 裁决"、
@@ -774,6 +784,7 @@ Location 决定），所以 project 侧的收敛得挂在 Location 建立时。�
    已 `prettier --write` 这两个文件修掉；`kb-service.ts` 与 `artifact.ts` 基线就脏，未动。
 
 【S3/S4 经验补丁（后续批次遵守）】
+
 1. **一个测试如果删掉被测守卫还能全绿，它就不是测试。** 交付前对每个新测试做一次反向验证：
    把它声称守着的那几行删掉，跑一遍，必须变红 —— 并把这次红贴进报告。
    S1 补丁 1 要求的是"门禁能看见多行形态"，这一条更基本：**测试必须调用被测代码**。
@@ -933,6 +944,3 @@ bun --cwd packages/app test:e2e（只跑受影响的 spec）
 - 54 处历史文档里的 `bun --cwd <pkg> run <script>`（改动量大收益低，已登记）。
 - 全仓 legacy import 债（249 star + 123 alias，AGENTS.md 明确存量不迁移）。
 ```
-
-
-

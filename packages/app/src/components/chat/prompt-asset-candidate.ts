@@ -6,7 +6,15 @@ import type {
   PromptAssetCandidate,
   SkillAssetCandidate,
 } from "@aigcfroge/sdk/v2/client"
-export type SupportedAssetKind = "prompt" | "skill" | "mcp" | "command" | "agent" | "workflow" | "plugin" | "custom-profile"
+export type SupportedAssetKind =
+  | "prompt"
+  | "skill"
+  | "mcp"
+  | "command"
+  | "agent"
+  | "workflow"
+  | "plugin"
+  | "custom-profile"
 
 type CandidateBase = {
   name: string
@@ -72,7 +80,9 @@ function stringArrayField(record: UnknownRecord, key: string) {
 function stringMapField(record: UnknownRecord, key: string) {
   const value = record[key]
   if (!isRecord(value)) return {}
-  return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"))
+  return Object.fromEntries(
+    Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+  )
 }
 
 function statusFrom(exists: boolean, nameConflict: boolean, pathConflict: boolean): CandidateInfo["status"] {
@@ -271,15 +281,23 @@ export function normalizeProposeCandidate(input: { tool: string; state: unknown 
 export function sameCandidateInfo(left: CandidateInfo, right: CandidateInfo) {
   if (left.kind !== right.kind) return false
   if (left.name !== right.name || left.description !== right.description || left.content !== right.content) return false
-  if (left.relativePath !== right.relativePath || left.revision !== right.revision || left.status !== right.status) return false
-  if (left.exists !== right.exists || left.nameConflict !== right.nameConflict || left.pathConflict !== right.pathConflict) return false
+  if (left.relativePath !== right.relativePath || left.revision !== right.revision || left.status !== right.status)
+    return false
+  if (
+    left.exists !== right.exists ||
+    left.nameConflict !== right.nameConflict ||
+    left.pathConflict !== right.pathConflict
+  )
+    return false
   if (JSON.stringify(left.warnings ?? []) !== JSON.stringify(right.warnings ?? [])) return false
 
   if (left.kind === "prompt" && right.kind === "prompt") return left.candidate.template === right.candidate.template
   if (left.kind === "skill" && right.kind === "skill") {
-    return left.candidate.slash === right.candidate.slash
-      && JSON.stringify(left.candidate.triggers) === JSON.stringify(right.candidate.triggers)
-      && JSON.stringify(left.candidate.tags) === JSON.stringify(right.candidate.tags)
+    return (
+      left.candidate.slash === right.candidate.slash &&
+      JSON.stringify(left.candidate.triggers) === JSON.stringify(right.candidate.triggers) &&
+      JSON.stringify(left.candidate.tags) === JSON.stringify(right.candidate.tags)
+    )
   }
   if (left.kind === "command" && right.kind === "command") {
     return left.candidate.invocation === right.candidate.invocation && left.candidate.args === right.candidate.args
@@ -308,8 +326,7 @@ export function findProposeResult(
     for (const part of parts.toReversed()) {
       if (!isRecord(part)) continue
       if (part.type !== "tool") continue
-      const toolName =
-        typeof part.tool === "string" ? part.tool : typeof part.name === "string" ? part.name : undefined
+      const toolName = typeof part.tool === "string" ? part.tool : typeof part.name === "string" ? part.name : undefined
       if (!toolName || !(toolName in PROPOSE_TOOL_KINDS)) continue
       if (!isRecord(part.state) || part.state.status !== "completed") continue
       const candidate = normalizeProposeCandidate({ tool: toolName, state: part.state })

@@ -11,12 +11,7 @@ export function AssistantSidebar() {
   const { selection, select } = useAssistantSelection()
 
   const onSelect = (next: AssistantNavSelection) => {
-    if (
-      next &&
-      next.kind !== "dangling" &&
-      next.kind === selection?.kind &&
-      next.itemId === selection?.itemId
-    ) {
+    if (next && next.kind !== "dangling" && next.kind === selection?.kind && next.itemId === selection?.itemId) {
       select(undefined)
       return
     }

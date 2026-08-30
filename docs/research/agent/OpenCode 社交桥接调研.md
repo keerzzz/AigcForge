@@ -17,16 +17,16 @@ OpenCode 的社交软件桥连体系主要依赖于三大技术范式，不同�
 
 社区中针对不同社交软件和使用场景衍生出了多款桥连开源项目，下表归纳了目前最具代表性的解决方案及其技术特征：
 
-| 项目名称 | 支持的社交 / IM 平台 | 架构与连接模式 | 核心功能亮点 | 交互审批机制 | 部署前提条件 |
-| :---- | :---- | :---- | :---- | :---- | :---- |
-| **Kimaki** (remorses/kimaki)9 | Discord9 | 独立 Gateway / 自托管 Bot \+ OpenCode 进程管理9 | 频道映射项目，线程映射会话；支持 Voice-to-Code、Worktree 隔离、.queue 队列、.btw 提问分流9 | Discord 交互式按钮与消息响应9 | Node.js / Bun，Discord Bot Token12 |
-| **opencode-telegram-bot** (grinev/...)4 | Telegram4 | Node.js 客户端 \+ opencode serve API4 | 实时状态固定置顶、Whisper 语音转文本、/ls 文件浏览器、自定义命令与技能树、定时任务4 | Inline Button 内联按钮一键授权与方案选择4 | Node.js \>= 22.14，Telegram Bot Token4 |
-| **opencode-lark** (guazi04/opencode-lark)3 | 飞书 / Lark3 | WebSocket 长连接 \+ SSE 防抖流处理3 | 实时交互卡片、自动绑定 TUI 会话、SQLite 跨轮次上下文、50MB 附件与截图解析3 | 飞书 CardKit 交互式卡片按钮3 | Bun / Node.js，飞书自建应用凭据3 |
-| **message-bridge-opencode-plugin** (YuanG1944/...)6 | 飞书, Telegram (在研: iMessage, Slack, Discord, WhatsApp)6 | OpenCode 原生插件 (Webhooks / WebSocket)6 | 统一消息抽象层、斜杠命令映射、无 LLM 本地文件直接传送 (/sendfile, /savefile)6 | 平台原生交互事件与斜杠命令6 | OpenCode 插件配置，平台 Bot Token6 |
-| **OpenCodeWeChat** (fendouai/OpenCodeWeChat)5 | 微信 (WeChat iOS)5 | ilink API 长轮询 \+ @opencode-ai/sdk 5 | 微信客户端扫码登录、ClawBot 插件通道、原生微信对话框直接控制本地代码库5 | 文本回复与指令确认5 | Bun \>= 1.0，Claude Code / OpenCode SDK5 |
-| **owpenbot** (different-ai/owpenbot)8 | WhatsApp, Telegram (实验性)8 | 独立服务进程 \+ 配对码策略8 | 支持个人号或专用号扫码绑定，基于 SQLite 的配对与白名单过滤8 | 消息指令交互8 | Node.js / pnpm，WhatsApp 账号8 |
-| **im-hub** (ceociocto/opencode-remote-control)14 | Telegram, 飞书, 微信, WhatsApp, Slack, iMessage 等 10+ 平台14 | 模块化插件式网关14 | 跨 Agent（支持 OpenCode、Claude Code 等）多平台统一控制网关14 | 平台通用回调与指令14 | Node.js / npm14 |
-| **GitHub Workflow Integrations** (opencode/github)15 | GitHub Issue / PR15 | GitHub Actions Runner / GitHub App15 | 在 Issue/PR 中评论 /opencode 或 /oc 自动分析 Bug、生成代码分支并提交 PR15 | 评论交互与 PR Review 批注15 | GitHub App 安装与 Workflow 配置15 |
+| 项目名称                                             | 支持的社交 / IM 平台                                          | 架构与连接模式                                  | 核心功能亮点                                                                               | 交互审批机制                              | 部署前提条件                             |
+| :--------------------------------------------------- | :------------------------------------------------------------ | :---------------------------------------------- | :----------------------------------------------------------------------------------------- | :---------------------------------------- | :--------------------------------------- |
+| **Kimaki** (remorses/kimaki)9                        | Discord9                                                      | 独立 Gateway / 自托管 Bot \+ OpenCode 进程管理9 | 频道映射项目，线程映射会话；支持 Voice-to-Code、Worktree 隔离、.queue 队列、.btw 提问分流9 | Discord 交互式按钮与消息响应9             | Node.js / Bun，Discord Bot Token12       |
+| **opencode-telegram-bot** (grinev/...)4              | Telegram4                                                     | Node.js 客户端 \+ opencode serve API4           | 实时状态固定置顶、Whisper 语音转文本、/ls 文件浏览器、自定义命令与技能树、定时任务4        | Inline Button 内联按钮一键授权与方案选择4 | Node.js \>= 22.14，Telegram Bot Token4   |
+| **opencode-lark** (guazi04/opencode-lark)3           | 飞书 / Lark3                                                  | WebSocket 长连接 \+ SSE 防抖流处理3             | 实时交互卡片、自动绑定 TUI 会话、SQLite 跨轮次上下文、50MB 附件与截图解析3                 | 飞书 CardKit 交互式卡片按钮3              | Bun / Node.js，飞书自建应用凭据3         |
+| **message-bridge-opencode-plugin** (YuanG1944/...)6  | 飞书, Telegram (在研: iMessage, Slack, Discord, WhatsApp)6    | OpenCode 原生插件 (Webhooks / WebSocket)6       | 统一消息抽象层、斜杠命令映射、无 LLM 本地文件直接传送 (/sendfile, /savefile)6              | 平台原生交互事件与斜杠命令6               | OpenCode 插件配置，平台 Bot Token6       |
+| **OpenCodeWeChat** (fendouai/OpenCodeWeChat)5        | 微信 (WeChat iOS)5                                            | ilink API 长轮询 \+ @opencode-ai/sdk 5          | 微信客户端扫码登录、ClawBot 插件通道、原生微信对话框直接控制本地代码库5                    | 文本回复与指令确认5                       | Bun \>= 1.0，Claude Code / OpenCode SDK5 |
+| **owpenbot** (different-ai/owpenbot)8                | WhatsApp, Telegram (实验性)8                                  | 独立服务进程 \+ 配对码策略8                     | 支持个人号或专用号扫码绑定，基于 SQLite 的配对与白名单过滤8                                | 消息指令交互8                             | Node.js / pnpm，WhatsApp 账号8           |
+| **im-hub** (ceociocto/opencode-remote-control)14     | Telegram, 飞书, 微信, WhatsApp, Slack, iMessage 等 10+ 平台14 | 模块化插件式网关14                              | 跨 Agent（支持 OpenCode、Claude Code 等）多平台统一控制网关14                              | 平台通用回调与指令14                      | Node.js / npm14                          |
+| **GitHub Workflow Integrations** (opencode/github)15 | GitHub Issue / PR15                                           | GitHub Actions Runner / GitHub App15            | 在 Issue/PR 中评论 /opencode 或 /oc 自动分析 Bug、生成代码分支并提交 PR15                  | 评论交互与 PR Review 批注15               | GitHub App 安装与 Workflow 配置15        |
 
 ## **重点社交平台桥连功能与交互机制解析**
 
@@ -67,7 +67,7 @@ OpenCode 的设计架构强调安全性，默认情况下在执行高危 Shell �
 
 ### **用户身份鉴权与访问控制策略**
 
-所有成熟的桥连项目均内置了严格的鉴权白名单4。以 opencode-telegram-bot 为例，系统在配置中强制校验 TELEGRAM\_ALLOWED\_USER\_ID，非白名单用户发送的所有指令都会被直接丢弃，即便其获取了 Bot 的公开用户名也无法进行任何操作4。Discord 桥连工具 Kimaki 则通过检查用户是否具备服务器管理员权限或特定的 Kimaki 角色组来进行访问控制9。飞书桥连方案则依赖企业内部应用的可见性限制，从源头阻断未经授权的访问3。
+所有成熟的桥连项目均内置了严格的鉴权白名单4。以 opencode-telegram-bot 为例，系统在配置中强制校验 TELEGRAM_ALLOWED_USER_ID，非白名单用户发送的所有指令都会被直接丢弃，即便其获取了 Bot 的公开用户名也无法进行任何操作4。Discord 桥连工具 Kimaki 则通过检查用户是否具备服务器管理员权限或特定的 Kimaki 角色组来进行访问控制9。飞书桥连方案则依赖企业内部应用的可见性限制，从源头阻断未经授权的访问3。
 
 ### **零公网暴露拓扑与网络安全**
 
@@ -79,18 +79,18 @@ OpenCode 的设计架构强调安全性，默认情况下在执行高危 Shell �
 
 #### **引用的著作**
 
-> 1. opencode-ai/opencode: A powerful AI coding agent. Built for the terminal. · GitHub \- GitHub, [https://github.com/opencode-ai/opencode](https://github.com/opencode-ai/opencode)  
-> 2. anomalyco/opencode: The open source coding agent. \- GitHub, [https://github.com/anomalyco/opencode](https://github.com/anomalyco/opencode)  
-> 3. Feishu/Lark ↔ opencode bidirectional messaging bridge with real-time streaming cards \- GitHub, [https://github.com/guazi04/opencode-lark](https://github.com/guazi04/opencode-lark)  
-> 4. grinev/opencode-telegram-bot \- GitHub, [https://github.com/grinev/opencode-telegram-bot](https://github.com/grinev/opencode-telegram-bot)  
-> 5. fendouai/OpenCodeWeChat: Use OpenCode in WeChat \- GitHub, [https://github.com/fendouai/OpenCodeWeChat](https://github.com/fendouai/OpenCodeWeChat)  
-> 6. GitHub \- YuanG1944/message-bridge-opencode-plugin, [https://github.com/YuanG1944/message-bridge-opencode-plugin](https://github.com/YuanG1944/message-bridge-opencode-plugin)  
-> 7. ominiverdi/opencode-chat-bridge: Bridge OpenCode, Ferrum, and other ACP-compatible agents to Matrix, Slack, Mattermost, WhatsApp, Discord, Telegram, and Web—with permission-based security. \- GitHub, [https://github.com/ominiverdi/opencode-chat-bridge](https://github.com/ominiverdi/opencode-chat-bridge)  
-> 8. different-ai/owpenbot: A dead simple WhatsApp \+ Telegram bridge to opencode serve \- GitHub, [https://github.com/different-ai/owpenbot](https://github.com/different-ai/owpenbot)  
-> 9. GitHub \- remorses/kimaki: all opencode features deeply integrated inside Discord. each project is a channel. each session a thread, [https://github.com/remorses/kimaki](https://github.com/remorses/kimaki)  
-> 10. kimaki \- Browse /kimaki@0.22.0 at SourceForge.net, [https://sourceforge.net/projects/kimaki.mirror/files/kimaki%400.22.0/](https://sourceforge.net/projects/kimaki.mirror/files/kimaki%400.22.0/)  
-> 11. Thrimbda/opencode-feishu-notifier \- GitHub, [https://github.com/Thrimbda/opencode-feishu-notifier](https://github.com/Thrimbda/opencode-feishu-notifier)  
-> 12. remorses-kimaki \- offworld, [https://offworld.sh/remorses/kimaki/remorses-kimaki](https://offworld.sh/remorses/kimaki/remorses-kimaki)  
-> 13. Installation \- Kimaki, [https://remorses-kimaki.mintlify.app/installation](https://remorses-kimaki.mintlify.app/installation)  
-> 14. GitHub \- ceociocto/opencode-remote-control, [https://github.com/ceociocto/opencode-remote-control](https://github.com/ceociocto/opencode-remote-control)  
+> 1. opencode-ai/opencode: A powerful AI coding agent. Built for the terminal. · GitHub \- GitHub, [https://github.com/opencode-ai/opencode](https://github.com/opencode-ai/opencode)
+> 2. anomalyco/opencode: The open source coding agent. \- GitHub, [https://github.com/anomalyco/opencode](https://github.com/anomalyco/opencode)
+> 3. Feishu/Lark ↔ opencode bidirectional messaging bridge with real-time streaming cards \- GitHub, [https://github.com/guazi04/opencode-lark](https://github.com/guazi04/opencode-lark)
+> 4. grinev/opencode-telegram-bot \- GitHub, [https://github.com/grinev/opencode-telegram-bot](https://github.com/grinev/opencode-telegram-bot)
+> 5. fendouai/OpenCodeWeChat: Use OpenCode in WeChat \- GitHub, [https://github.com/fendouai/OpenCodeWeChat](https://github.com/fendouai/OpenCodeWeChat)
+> 6. GitHub \- YuanG1944/message-bridge-opencode-plugin, [https://github.com/YuanG1944/message-bridge-opencode-plugin](https://github.com/YuanG1944/message-bridge-opencode-plugin)
+> 7. ominiverdi/opencode-chat-bridge: Bridge OpenCode, Ferrum, and other ACP-compatible agents to Matrix, Slack, Mattermost, WhatsApp, Discord, Telegram, and Web—with permission-based security. \- GitHub, [https://github.com/ominiverdi/opencode-chat-bridge](https://github.com/ominiverdi/opencode-chat-bridge)
+> 8. different-ai/owpenbot: A dead simple WhatsApp \+ Telegram bridge to opencode serve \- GitHub, [https://github.com/different-ai/owpenbot](https://github.com/different-ai/owpenbot)
+> 9. GitHub \- remorses/kimaki: all opencode features deeply integrated inside Discord. each project is a channel. each session a thread, [https://github.com/remorses/kimaki](https://github.com/remorses/kimaki)
+> 10. kimaki \- Browse /kimaki@0.22.0 at SourceForge.net, [https://sourceforge.net/projects/kimaki.mirror/files/kimaki%400.22.0/](https://sourceforge.net/projects/kimaki.mirror/files/kimaki%400.22.0/)
+> 11. Thrimbda/opencode-feishu-notifier \- GitHub, [https://github.com/Thrimbda/opencode-feishu-notifier](https://github.com/Thrimbda/opencode-feishu-notifier)
+> 12. remorses-kimaki \- offworld, [https://offworld.sh/remorses/kimaki/remorses-kimaki](https://offworld.sh/remorses/kimaki/remorses-kimaki)
+> 13. Installation \- Kimaki, [https://remorses-kimaki.mintlify.app/installation](https://remorses-kimaki.mintlify.app/installation)
+> 14. GitHub \- ceociocto/opencode-remote-control, [https://github.com/ceociocto/opencode-remote-control](https://github.com/ceociocto/opencode-remote-control)
 > 15. GitHub \- OpenCode, [https://opencode.ai/docs/github/](https://opencode.ai/docs/github/)

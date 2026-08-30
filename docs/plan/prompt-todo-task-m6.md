@@ -10,6 +10,7 @@
 TUI 侧栏 Todo 目前靠 V1 投影桥活着：core 每次任务写入投影一份 `todo.updated`（`packages/core/src/session/task.ts:88`），TUI 读老 `session.todo` GET + `todo.updated` SSE。这座桥在 Phase 5（V1 退役）会拆——**TUI 迁移在 V1 退役关键路径上**。本里程碑把 TUI 从投影迁到任务真身，并补全新系统语义。
 
 **关键事实（已核实，不要重新调研）**：
+
 - L1-L4 全部就绪、零改动：schema `SessionTask.Info`、core `SessionTask` 服务 + `task.updated` 事件、server `GET /session/{sessionID}/task`、SDK v2 `session.task` GET（`sdk.gen.ts:4758`）+ `EventTaskUpdated` 类型（`types.gen.ts:8083`）——**本里程碑只动 `packages/tui`**
 - TUI sync 现状：`packages/tui/src/context/sync.tsx` 的 `todo` store（:88/:128）、`todo.updated` 监听（:248）、`session.todo` 拉取（:588）
 - plugin 公开面：`packages/tui/src/plugin/adapters.tsx:131` 的 `state.session.todo(sessionID)` 是第三方 TUI 插件可见的公开契约——**不能直接删**
@@ -17,13 +18,13 @@ TUI 侧栏 Todo 目前靠 V1 投影桥活着：core 每次任务写入投影一�
 
 ## 2. 目标范围
 
-| 件 | 范围 |
-|---|---|
-| ① 数据源迁移 | sync `task` store（`SessionTaskInfo[]` keyed sessionID）+ hydrate 改 `sdk.client.session.task` GET + SSE 改听 `task.updated`；老 todo store/监听/拉取**删除**（删除即资产） |
-| ② plugin 兼容 | `adapters.tsx` 的 `state.session.todo()` 保留但标 `@deprecated`（Phase 5 物理删除），实现改为从 task store 投影老 `Todo` 形状（{content,status} 子集映射）；新增 `state.session.task()` 访问器 |
+| 件              | 范围                                                                                                                                                                                                                    |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ① 数据源迁移    | sync `task` store（`SessionTaskInfo[]` keyed sessionID）+ hydrate 改 `sdk.client.session.task` GET + SSE 改听 `task.updated`；老 todo store/监听/拉取**删除**（删除即资产）                                             |
+| ② plugin 兼容   | `adapters.tsx` 的 `state.session.todo()` 保留但标 `@deprecated`（Phase 5 物理删除），实现改为从 task store 投影老 `Todo` 形状（{content,status} 子集映射）；新增 `state.session.task()` 访问器                          |
 | ③ TaskItem 组件 | `todo-item.tsx` → `task-item.tsx`（文件+组件+Props 改名）；状态完整映射（pending/in_progress/completed/cancelled/failed/scheduled）；scheduled 任务显示 ⚡ + nextRun（`SessionTaskInfo.nextRun`，派生字段服务端已算好） |
-| ④ 侧栏插件迁移 | `sidebar/todo.tsx` → `sidebar/task.tsx` 读 task store；折叠逻辑（>2）保留；标题文案 Todo → Task |
-| ⑤ 测试 + specs | 状态映射/scheduled 标记纯函数测试；sync `task.updated` 处理测试；specs/v2/todo.md 加 M6 行 + 计划延后表核销 |
+| ④ 侧栏插件迁移  | `sidebar/todo.tsx` → `sidebar/task.tsx` 读 task store；折叠逻辑（>2）保留；标题文案 Todo → Task                                                                                                                         |
+| ⑤ 测试 + specs  | 状态映射/scheduled 标记纯函数测试；sync `task.updated` 处理测试；specs/v2/todo.md 加 M6 行 + 计划延后表核销                                                                                                             |
 
 **退出条件**：TUI 不再依赖 `session.todo`/`todo.updated`（grep 零残留，除 adapter deprecated 注释与 Phase 5 说明）；侧栏展示任务真身含定时标记；测试全绿。
 

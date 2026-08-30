@@ -23,4 +23,6 @@ export const makeCodexAcpAdapter = (connectionFactory: AcpConnectionFactory, nam
 // Production adapter backed by the real `codex-acp` stdio bridge. Only listed
 // when the bridge binary is on PATH (see detect); the SDK/jsonl transports
 // remain the default otherwise.
-export const adapter: CliAdapter = makeCodexAcpAdapter(makeBridgeConnectionFactory({ command: "codex-acp", args: ["--stdio"] }))
+export const adapter: CliAdapter = makeCodexAcpAdapter(
+  makeBridgeConnectionFactory({ command: "codex-acp", args: ["--stdio"] }),
+)

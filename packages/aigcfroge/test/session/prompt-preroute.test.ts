@@ -39,7 +39,9 @@ const cfg = {
 }
 
 const it = testEffect(
-  Layer.mergeAll(SessionPrompt.defaultLayer, Session.defaultLayer).pipe(Layer.provide(CliAdapterRegistry.defaultLayer)).pipe(Layer.provide(Ripgrep.defaultLayer)),
+  Layer.mergeAll(SessionPrompt.defaultLayer, Session.defaultLayer)
+    .pipe(Layer.provide(CliAdapterRegistry.defaultLayer))
+    .pipe(Layer.provide(Ripgrep.defaultLayer)),
 )
 
 it.instance(

@@ -26,6 +26,7 @@
 ## 1. 范围与禁区
 
 ### 1.1 范围（批次 1 只做这些）
+
 - schema `session.ts` Info 加 `presetCategoryId: WorkPreset.Category.pipe(Schema.optional)`
 - core `session.ts:72` `CreateInput` 加 `presetCategoryId?` + `create()` 写入
 - aigcfroge HTTP Schema `Session.CreateInput` 加字段 + handler 透传
@@ -39,6 +40,7 @@
 - 无障碍（@kobalte/core Tabs 或 TabsV2 + role=tablist + tabindex 管理）
 
 ### 1.2 禁区（违反即返工，绝对不做）
+
 - ❌ 不改 `presetLaunch` 返回值（它是 prompt 生成器，preset.category 直接取）
 - ❌ 不在 schema 包 import app 包（WorkPreset.Category 已在 schema 包，同包 import）
 - ❌ 不新建数据库 migration（presetCategoryId 存 session.Info JSON 列，optional 自动兼容）
@@ -53,58 +55,65 @@
 ## 2. 设计决策（已定案，必须遵守）
 
 ### 2.1 方向 A：维度 Tab + 会话列表常驻下方
+
 - Tab 在上（工种/任务集/智能体），会话列表在 Tab 下方（非 Tab 之一）
 - 会话列表按选中 Tab 维度分组，复用 SessionItem 显示逻辑（同 code/chat）
 
 ### 2.2 D1 左栏无功能列表
+
 - 左栏 = 切换对话（会话列表）+ 切换工作（维度 Tab）+ 创建新会话（New Session）
 - 启动器（预设/工作流）留首页，不在左栏
 
 ### 2.3 Q2 任务集命名 + Q3 工种 4 大类
+
 - "任务"Tab 改名"任务集"（避免与主区 Progress Ledger 任务步骤混淆）
 - 工种 Tab 按 4 大类分组（it-development/video-creation/academic/general-office），非 17 细工种
 - 老会话无 presetCategoryId 归"未分类"组
 
 ### 2.4 D5 A 区 auto + D6 B 区对齐 code（批次 4）
+
 - work A 区 `workPanel.width px` → `auto`，删内部 ResizeHandle + `layout.workPanel` store + `DEFAULT_WORK_PANEL_WIDTH`
 - 三模式共用主区 `session.width` ResizeHandle 联动 A 区
 - 抽共享 `SessionFileTree` 组件，code/chat 去重 + work 接入，默认关
 
 ## 3. 代码锚点（5 层依赖链 + 组件，已核实，直接用）
 
-| 能力 | 位置 | 动作 |
-|---|---|---|
-| WorkPreset.Category（schema 已有）| `packages/schema/src/work-preset.ts:5-11` | 不改，import 用 |
-| session.Info | `packages/schema/src/session.ts:31-64` | 改：加 `presetCategoryId: WorkPreset.Category.pipe(Schema.optional)` |
-| core CreateInput | `packages/core/src/session.ts:72-81` | 改：加 `presetCategoryId?` + `create()` 写入 |
-| aigcfroge HTTP Schema | `@/session/session` Session.CreateInput（`groups/session.ts:315` 引用）| 改：加 Schema 字段 |
-| session create handler | `packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts` | 改：透传 payload.presetCategoryId |
-| SDK regen | `./packages/sdk/js/script/build.ts` | 跑 regen |
-| DraftTab | `packages/app/src/context/tabs.tsx:21-29` | 改：加 `presetCategoryId?` |
-| presetLaunch 调用处 | `packages/app/src/pages/mode-workspace-slots.tsx:715` | 改：`newDraft({..., presetCategoryId: preset.category}, presetLaunch(preset))` |
-| PlaceholderSidebar 替换点 | `packages/app/src/components/secondary-sidebar.tsx:666-668` | 改：替换为 WorkSecondarySidebar |
-| WorkProjectColumnSidebar（复用顶部）| `packages/app/src/pages/mode-workspace-slots.tsx:521-590` | 不改，抽 Location+New Session 复用 |
-| SessionItem（复用行）| `packages/app/src/pages/layout/sidebar-items.tsx:147` | 不改，复用 |
-| groupSessions（复用分组）| `packages/app/src/pages/home-shared.tsx` | 不改，复用 |
-| sessionMode（复用跨模式指示）| `packages/app/src/pages/session.tsx:1626` | 不改，复用读取路径 |
-| computeWorkSidebarGroups | 新建 `packages/app/src/pages/work-sidebar-groups.ts` | 新建：纯函数，参考 computeProgressLedger 模式 |
-| WorkSecondarySidebar | 新建 `packages/app/src/components/work-secondary-sidebar.tsx` | 新建组件 |
-| workPanel store（批次4删）| `packages/app/src/context/layout.tsx:28,282,698-705` | 删：DEFAULT_WORK_PANEL_WIDTH + workPanel store |
-| work A 区 ResizeHandle（批次4删）| `packages/app/src/pages/work-artifact-panel.tsx:280,285,306-321` | 删：改 auto + 删 ResizeHandle |
-| fileTree 重复逻辑（批次4抽）| `session-side-panel.tsx:70-85` + `chat-right-panel.tsx:72-82` | 抽：SessionFileTree 共享组件 |
+| 能力                                 | 位置                                                                        | 动作                                                                           |
+| ------------------------------------ | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| WorkPreset.Category（schema 已有）   | `packages/schema/src/work-preset.ts:5-11`                                   | 不改，import 用                                                                |
+| session.Info                         | `packages/schema/src/session.ts:31-64`                                      | 改：加 `presetCategoryId: WorkPreset.Category.pipe(Schema.optional)`           |
+| core CreateInput                     | `packages/core/src/session.ts:72-81`                                        | 改：加 `presetCategoryId?` + `create()` 写入                                   |
+| aigcfroge HTTP Schema                | `@/session/session` Session.CreateInput（`groups/session.ts:315` 引用）     | 改：加 Schema 字段                                                             |
+| session create handler               | `packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts` | 改：透传 payload.presetCategoryId                                              |
+| SDK regen                            | `./packages/sdk/js/script/build.ts`                                         | 跑 regen                                                                       |
+| DraftTab                             | `packages/app/src/context/tabs.tsx:21-29`                                   | 改：加 `presetCategoryId?`                                                     |
+| presetLaunch 调用处                  | `packages/app/src/pages/mode-workspace-slots.tsx:715`                       | 改：`newDraft({..., presetCategoryId: preset.category}, presetLaunch(preset))` |
+| PlaceholderSidebar 替换点            | `packages/app/src/components/secondary-sidebar.tsx:666-668`                 | 改：替换为 WorkSecondarySidebar                                                |
+| WorkProjectColumnSidebar（复用顶部） | `packages/app/src/pages/mode-workspace-slots.tsx:521-590`                   | 不改，抽 Location+New Session 复用                                             |
+| SessionItem（复用行）                | `packages/app/src/pages/layout/sidebar-items.tsx:147`                       | 不改，复用                                                                     |
+| groupSessions（复用分组）            | `packages/app/src/pages/home-shared.tsx`                                    | 不改，复用                                                                     |
+| sessionMode（复用跨模式指示）        | `packages/app/src/pages/session.tsx:1626`                                   | 不改，复用读取路径                                                             |
+| computeWorkSidebarGroups             | 新建 `packages/app/src/pages/work-sidebar-groups.ts`                        | 新建：纯函数，参考 computeProgressLedger 模式                                  |
+| WorkSecondarySidebar                 | 新建 `packages/app/src/components/work-secondary-sidebar.tsx`               | 新建组件                                                                       |
+| workPanel store（批次4删）           | `packages/app/src/context/layout.tsx:28,282,698-705`                        | 删：DEFAULT_WORK_PANEL_WIDTH + workPanel store                                 |
+| work A 区 ResizeHandle（批次4删）    | `packages/app/src/pages/work-artifact-panel.tsx:280,285,306-321`            | 删：改 auto + 删 ResizeHandle                                                  |
+| fileTree 重复逻辑（批次4抽）         | `session-side-panel.tsx:70-85` + `chat-right-panel.tsx:72-82`               | 抽：SessionFileTree 共享组件                                                   |
 
 ## 4. TDD 工作流（红-绿-重构，每小节后重读协议）
 
 ### Step 1（红）：`computeWorkSidebarGroups.test.ts`
+
 ```
 - 测 4 大类归类（it-development/video-creation/academic/general-office）
 - 测 presetCategoryId 缺失归"未分类"
 - 测空数组、计数
 - bun --cwd packages/app test --timeout 30000 确认红
 ```
+
 **完成后重读**：AGENTS.md §Testing
 
 ### Step 2（绿）：实现 `computeWorkSidebarGroups` 纯函数
+
 ```
 - 放 packages/app/src/pages/work-sidebar-groups.ts
 - 参考 computeProgressLedger 纯函数模式
@@ -112,6 +121,7 @@
 ```
 
 ### Step 3（红）：`WorkSecondarySidebar.test.tsx` 组件契约
+
 ```
 - Tab 切换 -> 持久化 mode.secondaryWorkTab
 - 工种 Tab 渲染分组 + 会话列表
@@ -120,9 +130,11 @@
 - 键盘方向键 + tabindex
 - 确认红
 ```
+
 **完成后重读**：DESIGN.md §Components/Accessibility + frontend-theming SKILL
 
 ### Step 4（绿）：实现 `WorkSecondarySidebar`
+
 ```
 - 复用 WorkProjectColumnSidebar 顶部 + SessionItem + groupSessions
 - 接入 computeWorkSidebarGroups
@@ -130,15 +142,18 @@
 ```
 
 ### Step 5（红）：core `Session.create` 透传测试
+
 ```
 - packages/core/test/session-create-preset-category.test.ts
 - testEffect + Layer.mock（参考 AGENTS.md §Testing）
 - 测 create({presetCategoryId: "it-development"}) -> info.presetCategoryId === "it-development"
 - 确认红
 ```
+
 **完成后重读**：AGENTS.md §V2 Session Core 8 invariants + ARCHITECTURE.md §4.1
 
 ### Step 6（绿）：5 层依赖链实现
+
 ```
 - schema session.ts Info 加字段
 - core CreateInput 加字段 + create() 写入
@@ -147,9 +162,11 @@
 - DraftTab 加字段 + mode-workspace-slots.tsx:715 透传 preset.category
 - 确认绿
 ```
+
 **完成后重读**：AGENTS.md §Schema + database SKILL（确认无需 migration）
 
 ### Step 7（重构）：审查
+
 ```
 - 无 as any / @ts-ignore（AGENTS.md §No Cheating）
 - 无重复逻辑可归并到 computeWorkSidebarGroups
@@ -158,6 +175,7 @@
 ```
 
 ### 批次 4 TDD（左栏合入后单独 PR）
+
 ```
 - 红：SessionFileTree 抽取后 code/chat 回归测试（fileTree 开关/宽度/ResizeHandle 不变）
 - 绿：抽 SessionFileTree + work 接入 + A 区改 auto
@@ -167,6 +185,7 @@
 ## 5. 验收清单（计划 §9，全过才算完成）
 
 ### 批次 1
+
 - [ ] work 会话详情页左栏显示 Location + New Session + 维度 Tab + 会话列表
 - [ ] 工种 Tab 按 4 大类分组，老会话归"未分类"
 - [ ] 任务集/智能体 Tab 显示空态文案
@@ -181,6 +200,7 @@
 - [ ] `bun run lint` 通过（oxlint）
 
 ### 批次 4
+
 - [ ] work A 区 auto 撑满，拖主区右边缘 ResizeHandle 联动 A 区
 - [ ] `layout.workPanel` store + `DEFAULT_WORK_PANEL_WIDTH` 已删除
 - [ ] `SessionFileTree` 共享组件被 code/chat/work 三模式复用
@@ -191,6 +211,7 @@
 ## 6. 改完即审（CLAUDE.md 强制）
 
 每次提交前走完：
+
 1. `git diff -- <files>` 锁定改动
 2. 安全门禁：Catch Everything / No Null Pointer / Security First
 3. 工程门禁：No Cheating / Reusability / Clean Logs

@@ -114,49 +114,49 @@ DialogSelectServer.onSelect(conn)
 
 ## 6. Context 依赖图
 
-| 层级 | Context | 用途 |
-|------|---------|------|
-| 全局 | ServerProvider | 服务器连接生命周期 |
-| 全局 | GlobalProvider | sessionPlacement 缓存 |
-| 全局 | SettingsProvider | 持久化设置 |
-| 全局 | ServerSDKProvider | 服务器级 SDK 客户端 |
-| 组件内 | ServerKey | 服务器门禁 |
-| 组件内 | ConnectionGate | 健康检查门禁 |
-| 工具 | ServerScope/StateKey | 数据隔离命名空间 |
+| 层级   | Context              | 用途                  |
+| ------ | -------------------- | --------------------- |
+| 全局   | ServerProvider       | 服务器连接生命周期    |
+| 全局   | GlobalProvider       | sessionPlacement 缓存 |
+| 全局   | SettingsProvider     | 持久化设置            |
+| 全局   | ServerSDKProvider    | 服务器级 SDK 客户端   |
+| 组件内 | ServerKey            | 服务器门禁            |
+| 组件内 | ConnectionGate       | 健康检查门禁          |
+| 工具   | ServerScope/StateKey | 数据隔离命名空间      |
 
 ---
 
 ## 7. 持久化
 
-| Key | 用途 |
-|-----|------|
-| Persist.global("servers") | 已注册服务器列表 |
-| Persist.global("server") | 当前活跃服务器 Key |
-| Persist.serverScoped(scope, dir, session, key) | 服务器级隔离数据 |
+| Key                                            | 用途               |
+| ---------------------------------------------- | ------------------ |
+| Persist.global("servers")                      | 已注册服务器列表   |
+| Persist.global("server")                       | 当前活跃服务器 Key |
+| Persist.serverScoped(scope, dir, session, key) | 服务器级隔离数据   |
 
 ---
 
 ## 8. 错误边界
 
-| 场景 | 处理 |
-|------|------|
-| 服务器不可达 | ConnectionError UI + 自动重试 |
-| HTTP timeout | 10s 超时 -> background 模式 |
-| Session 解析失败 | ErrorPage (Sentry capture) |
-| 无可用服务器 | ConnectionError + 引导添加 |
-| 重复连接 | controller.select 去重 |
+| 场景             | 处理                          |
+| ---------------- | ----------------------------- |
+| 服务器不可达     | ConnectionError UI + 自动重试 |
+| HTTP timeout     | 10s 超时 -> background 模式   |
+| Session 解析失败 | ErrorPage (Sentry capture)    |
+| 无可用服务器     | ConnectionError + 引导添加    |
+| 重复连接         | controller.select 去重        |
 
 ---
 
 ## 9. 上下游文件索引
 
-| 层级 | 文件 |
-|------|------|
-| Provider 实现 | context/server.tsx |
-| 全局状态 | context/global.tsx |
-| Key 体系 | utils/server-scope.ts |
-| 健康检查 | utils/server-health.ts |
-| 服务器选择 UI | components/dialog-select-server.tsx |
-| 路由容器 | app.tsx (ConnectionGate, ServerKey, SelectedServerProviders) |
-| SDK Provider | context/server-sdk.tsx |
-| 同步 Provider | context/server-sync.tsx |
+| 层级          | 文件                                                         |
+| ------------- | ------------------------------------------------------------ |
+| Provider 实现 | context/server.tsx                                           |
+| 全局状态      | context/global.tsx                                           |
+| Key 体系      | utils/server-scope.ts                                        |
+| 健康检查      | utils/server-health.ts                                       |
+| 服务器选择 UI | components/dialog-select-server.tsx                          |
+| 路由容器      | app.tsx (ConnectionGate, ServerKey, SelectedServerProviders) |
+| SDK Provider  | context/server-sdk.tsx                                       |
+| 同步 Provider | context/server-sync.tsx                                      |

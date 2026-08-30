@@ -3,9 +3,7 @@ import { describeApplyError, isConflictError } from "./work-artifact-error"
 
 describe("isConflictError", () => {
   test("recognizes a ConflictError body thrown by the SDK", () => {
-    expect(isConflictError({ _tag: "ConflictError", message: "Overwrite required: x.md", resource: "x.md" })).toBe(
-      true,
-    )
+    expect(isConflictError({ _tag: "ConflictError", message: "Overwrite required: x.md", resource: "x.md" })).toBe(true)
   })
 
   test("rejects other tagged errors", () => {

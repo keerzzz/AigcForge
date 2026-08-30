@@ -18,10 +18,7 @@ const snapshotMock = Layer.succeed(
     track: () => Effect.succeed("snap_mid"),
     restore: () => Effect.void,
     revert: () => Effect.void,
-    diffFull: () =>
-      Effect.succeed([
-        { file: "test.ts", additions: 5, deletions: 2 },
-      ]),
+    diffFull: () => Effect.succeed([{ file: "test.ts", additions: 5, deletions: 2 }]),
   }),
 )
 
@@ -35,10 +32,7 @@ const sessionProjection = Layer.mergeAll(
 )
 
 // ── Layer under test ───────────────────────────────────────────────
-const testLayer = SessionSummary.layer.pipe(
-  Layer.provide(snapshotMock),
-  Layer.provide(sessionProjection),
-)
+const testLayer = SessionSummary.layer.pipe(Layer.provide(snapshotMock), Layer.provide(sessionProjection))
 
 const it = testEffect(testLayer)
 

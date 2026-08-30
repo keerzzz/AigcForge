@@ -20,9 +20,7 @@ export const customCompositionHandlers = HttpApiBuilder.group(InstanceHttpApi, "
   Effect.gen(function* () {
     const locations = yield* LocationServiceMap
 
-    const plan = Effect.fn("CustomCompositionHttpApi.plan")(function* (ctx: {
-      payload: Composition.CompositionInput
-    }) {
+    const plan = Effect.fn("CustomCompositionHttpApi.plan")(function* (ctx: { payload: Composition.CompositionInput }) {
       if (!ProductModePolicy.isCustomModeEnabled()) {
         return yield* new InvalidRequestError({ message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE })
       }
@@ -33,9 +31,7 @@ export const customCompositionHandlers = HttpApiBuilder.group(InstanceHttpApi, "
       return res
     })
 
-    const start = Effect.fn("CustomCompositionHttpApi.start")(function* (ctx: {
-      payload: Composition.StartInput
-    }) {
+    const start = Effect.fn("CustomCompositionHttpApi.start")(function* (ctx: { payload: Composition.StartInput }) {
       if (!ProductModePolicy.isCustomModeEnabled()) {
         return yield* new InvalidRequestError({ message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE })
       }
@@ -149,17 +145,17 @@ export const customCompositionHandlers = HttpApiBuilder.group(InstanceHttpApi, "
       })
     })
 
-    const health = Effect.fn("CustomCompositionHttpApi.health")(function* (ctx: {
-      query: { path: string }
-    }) {
+    const health = Effect.fn("CustomCompositionHttpApi.health")(function* (ctx: { query: { path: string } }) {
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const customProfiles = yield* CustomProfile.Service.pipe(Effect.provide(layer), Effect.orDie)
       const resolver = yield* CompositionResolver.Service.pipe(Effect.provide(layer), Effect.orDie)
 
-      const profileInfo = yield* customProfiles.getByPath(ctx.query.path).pipe(
-        Effect.catch(() => Effect.fail(new InvalidRequestError({ message: `Profile not found: ${ctx.query.path}` }))),
-      )
+      const profileInfo = yield* customProfiles
+        .getByPath(ctx.query.path)
+        .pipe(
+          Effect.catch(() => Effect.fail(new InvalidRequestError({ message: `Profile not found: ${ctx.query.path}` }))),
+        )
 
       const res = yield* resolver.checkHealth(profileInfo.profile)
       return res

@@ -1176,56 +1176,56 @@ it.instance(
 )
 
 it.instance("always auto-approval keeps chat full finalRules ask-gated (H1)", () =>
-    Effect.gen(function* () {
-      const permission = yield* Permission.Service
-      // Chat full 危险 action 的 finalRules（与 prompt.ts 的 v1FinalRules 同形）。
-      const finalRules: PermissionV1.Ruleset = [
-        { permission: "bash", pattern: "*", action: "ask" },
-        { permission: "edit", pattern: "*", action: "ask" },
-        { permission: "write", pattern: "*", action: "ask" },
-        { permission: "apply_patch", pattern: "*", action: "ask" },
-      ]
-      const ruleset: PermissionV1.Ruleset = [
-        { permission: "*", pattern: "*", action: "deny" },
-        { permission: "read", pattern: "*", action: "allow" },
-      ]
-      const sessionID = SessionID.descending("ses_h1_v1")
+  Effect.gen(function* () {
+    const permission = yield* Permission.Service
+    // Chat full 危险 action 的 finalRules（与 prompt.ts 的 v1FinalRules 同形）。
+    const finalRules: PermissionV1.Ruleset = [
+      { permission: "bash", pattern: "*", action: "ask" },
+      { permission: "edit", pattern: "*", action: "ask" },
+      { permission: "write", pattern: "*", action: "ask" },
+      { permission: "apply_patch", pattern: "*", action: "ask" },
+    ]
+    const ruleset: PermissionV1.Ruleset = [
+      { permission: "*", pattern: "*", action: "deny" },
+      { permission: "read", pattern: "*", action: "allow" },
+    ]
+    const sessionID = SessionID.descending("ses_h1_v1")
 
-      const first = yield* permission
-        .ask({
-          sessionID,
-          permission: "edit",
-          patterns: ["src/a.ts"],
-          metadata: {},
-          always: ["*"],
-          ruleset,
-          finalRules,
-        })
-        .pipe(Effect.forkScoped)
-      yield* waitForPending(1)
+    const first = yield* permission
+      .ask({
+        sessionID,
+        permission: "edit",
+        patterns: ["src/a.ts"],
+        metadata: {},
+        always: ["*"],
+        ruleset,
+        finalRules,
+      })
+      .pipe(Effect.forkScoped)
+    yield* waitForPending(1)
 
-      const second = yield* permission
-        .ask({
-          sessionID,
-          permission: "edit",
-          patterns: ["src/b.ts"],
-          metadata: {},
-          always: [],
-          ruleset,
-          finalRules,
-        })
-        .pipe(Effect.forkScoped)
-      yield* waitForPending(2)
+    const second = yield* permission
+      .ask({
+        sessionID,
+        permission: "edit",
+        patterns: ["src/b.ts"],
+        metadata: {},
+        always: [],
+        ruleset,
+        finalRules,
+      })
+      .pipe(Effect.forkScoped)
+    yield* waitForPending(2)
 
-      const pending = yield* permission.list()
-      const firstId = pending.find((item) => item.patterns[0] === "src/a.ts")!.id
+    const pending = yield* permission.list()
+    const firstId = pending.find((item) => item.patterns[0] === "src/a.ts")!.id
 
-      // 对第一个 reply always → approved 产出 {edit, "*", allow}。
-      yield* permission.reply({ requestID: firstId, reply: "always" })
+    // 对第一个 reply always → approved 产出 {edit, "*", allow}。
+    yield* permission.reply({ requestID: firstId, reply: "always" })
 
-      // 第二个 edit 不得被自动放行（finalRules 与 approved 同序求值）。
-      const remaining = yield* permission.list()
-      expect(remaining.some((item) => item.patterns[0] === "src/b.ts")).toBe(true)
-      yield* rejectAll()
-    }),
+    // 第二个 edit 不得被自动放行（finalRules 与 approved 同序求值）。
+    const remaining = yield* permission.list()
+    expect(remaining.some((item) => item.patterns[0] === "src/b.ts")).toBe(true)
+    yield* rejectAll()
+  }),
 )
